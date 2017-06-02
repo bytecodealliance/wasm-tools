@@ -20,7 +20,7 @@ use std::mem::transmute;
 pub enum CustomSectionKind {
     Unknown,
     Name,
-    SourceMappingURL
+    SourceMappingURL,
 }
 
 #[derive(Debug)]
@@ -53,7 +53,7 @@ impl<'a> SectionCode<'a> {
             9 => Some(SectionCode::Element),
             10 => Some(SectionCode::Code),
             11 => Some(SectionCode::Data),
-            _ => None
+            _ => None,
         }
     }
     pub fn is_custom_section_code(code: u32) -> bool {
@@ -72,7 +72,7 @@ pub enum Type {
     F64,
     AnyFunc,
     Func,
-    EmptyBlockType
+    EmptyBlockType,
 }
 
 impl Type {
@@ -85,7 +85,7 @@ impl Type {
             -0x10 => Type::AnyFunc,
             -0x20 => Type::Func,
             -0x40 => Type::EmptyBlockType,
-            _ => panic!("Invalid type")
+            _ => panic!("Invalid type"),
         }
     }
 }
@@ -94,7 +94,7 @@ impl Type {
 pub enum NameType {
     Module,
     Function,
-    Local
+    Local,
 }
 
 impl NameType {
@@ -103,7 +103,7 @@ impl NameType {
             0 => NameType::Module,
             1 => NameType::Function,
             2 => NameType::Local,
-            _ => panic!("Invalid name type")
+            _ => panic!("Invalid name type"),
         }
     }
 }
@@ -142,7 +142,7 @@ impl ExternalKind {
             1 => ExternalKind::Table,
             2 => ExternalKind::Memory,
             3 => ExternalKind::Global,
-            _ => panic!("Invalid external kind")
+            _ => panic!("Invalid external kind"),
         }
     }
 }
@@ -158,7 +158,7 @@ pub struct FuncType {
 pub struct ResizableLimits {
     flags: u32,
     initial: u32,
-    maximum: Option<u32>
+    maximum: Option<u32>,
 }
 
 #[derive(Debug)]
@@ -200,178 +200,178 @@ pub enum ImportSectionEntryType {
 
 #[derive(Debug)]
 pub enum Operator {
-  Unreachable,
-  Nop,
-  Block(Type),
-  Loop(Type),
-  If(Type),
-  Else,
-  End,
-  Br(u32),
-  BrIf(u32),
-  BrTable(BrTable),
-  Return,
-  Call(u32),
-  CallIndirect(u32, u32),
-  Drop,
-  Select,
-  GetLocal(u32),
-  SetLocal(u32),
-  TeeLocal(u32),
-  GetGlobal(u32),
-  SetGlobal(u32),
-  I32Load(MemoryImmediate),
-  I64Load(MemoryImmediate),
-  F32Load(MemoryImmediate),
-  F64Load(MemoryImmediate),
-  I32Load8S(MemoryImmediate),
-  I32Load8U(MemoryImmediate),
-  I32Load16S(MemoryImmediate),
-  I32Load16U(MemoryImmediate),
-  I64Load8S(MemoryImmediate),
-  I64Load8U(MemoryImmediate),
-  I64Load16S(MemoryImmediate),
-  I64Load16U(MemoryImmediate),
-  I64Load32S(MemoryImmediate),
-  I64Load32U(MemoryImmediate),
-  I32Store(MemoryImmediate),
-  I64Store(MemoryImmediate),
-  F32Store(MemoryImmediate),
-  F64Store(MemoryImmediate),
-  I32Store8(MemoryImmediate),
-  I32Store16(MemoryImmediate),
-  I64Store8(MemoryImmediate),
-  I64Store16(MemoryImmediate),
-  I64Store32(MemoryImmediate),
-  CurrentMemory(u32),
-  GrowMemory(u32),
-  I32Const(i32),
-  I64Const(i64),
-  F32Const(f32),
-  F64Const(f64),
-  I32Eqz,
-  I32Eq,
-  I32Ne,
-  I32LtS,
-  I32LtU,
-  I32GtS,
-  I32GtU,
-  I32LeS,
-  I32LeU,
-  I32GeS,
-  I32GeU,
-  I64Eqz,
-  I64Eq,
-  I64Ne,
-  I64LtS,
-  I64LtU,
-  I64GtS,
-  I64GtU,
-  I64LeS,
-  I64LeU,
-  I64GeS,
-  I64GeU,
-  F32Eq,
-  F32Ne,
-  F32Lt,
-  F32Gt,
-  F32Le,
-  F32Ge,
-  F64Eq,
-  F64Ne,
-  F64Lt,
-  F64Gt,
-  F64Le,
-  F64Ge,
-  I32Clz,
-  I32Ctz,
-  I32Popcnt,
-  I32Add,
-  I32Sub,
-  I32Mul,
-  I32DivS,
-  I32DivU,
-  I32RemS,
-  I32RemU,
-  I32And,
-  I32Or,
-  I32Xor,
-  I32Shl,
-  I32ShrS,
-  I32ShrU,
-  I32Rotl,
-  I32Rotr,
-  I64Clz,
-  I64Ctz,
-  I64Popcnt,
-  I64Add,
-  I64Sub,
-  I64Mul,
-  I64DivS,
-  I64DivU,
-  I64RemS,
-  I64RemU,
-  I64And,
-  I64Or,
-  I64Xor,
-  I64Shl,
-  I64ShrS,
-  I64ShrU,
-  I64Rotl,
-  I64Rotr,
-  F32Abs,
-  F32Neg,
-  F32Ceil,
-  F32Floor,
-  F32Trunc,
-  F32Nearest,
-  F32Sqrt,
-  F32Add,
-  F32Sub,
-  F32Mul,
-  F32Div,
-  F32Min,
-  F32Max,
-  F32Copysign,
-  F64Abs,
-  F64Neg,
-  F64Ceil,
-  F64Floor,
-  F64Trunc,
-  F64Nearest,
-  F64Sqrt,
-  F64Add,
-  F64Sub,
-  F64Mul,
-  F64Div,
-  F64Min,
-  F64Max,
-  F64Copysign,
-  I32WrapI64,
-  I32TruncSF32,
-  I32TruncUF32,
-  I32TruncSF64,
-  I32TruncUF64,
-  I64ExtendSI32,
-  I64ExtendUI32,
-  I64TruncSF32,
-  I64TruncUF32,
-  I64TruncSF64,
-  I64TruncUF64,
-  F32ConvertSI32,
-  F32ConvertUI32,
-  F32ConvertSI64,
-  F32ConvertUI64,
-  F32DemoteF64,
-  F64ConvertSI32,
-  F64ConvertUI32,
-  F64ConvertSI64,
-  F64ConvertUI64,
-  F64PromoteF32,
-  I32ReinterpretF32,
-  I64ReinterpretF64,
-  F32ReinterpretI32,
-  F64ReinterpretI64,
+    Unreachable,
+    Nop,
+    Block(Type),
+    Loop(Type),
+    If(Type),
+    Else,
+    End,
+    Br(u32),
+    BrIf(u32),
+    BrTable(BrTable),
+    Return,
+    Call(u32),
+    CallIndirect(u32, u32),
+    Drop,
+    Select,
+    GetLocal(u32),
+    SetLocal(u32),
+    TeeLocal(u32),
+    GetGlobal(u32),
+    SetGlobal(u32),
+    I32Load(MemoryImmediate),
+    I64Load(MemoryImmediate),
+    F32Load(MemoryImmediate),
+    F64Load(MemoryImmediate),
+    I32Load8S(MemoryImmediate),
+    I32Load8U(MemoryImmediate),
+    I32Load16S(MemoryImmediate),
+    I32Load16U(MemoryImmediate),
+    I64Load8S(MemoryImmediate),
+    I64Load8U(MemoryImmediate),
+    I64Load16S(MemoryImmediate),
+    I64Load16U(MemoryImmediate),
+    I64Load32S(MemoryImmediate),
+    I64Load32U(MemoryImmediate),
+    I32Store(MemoryImmediate),
+    I64Store(MemoryImmediate),
+    F32Store(MemoryImmediate),
+    F64Store(MemoryImmediate),
+    I32Store8(MemoryImmediate),
+    I32Store16(MemoryImmediate),
+    I64Store8(MemoryImmediate),
+    I64Store16(MemoryImmediate),
+    I64Store32(MemoryImmediate),
+    CurrentMemory(u32),
+    GrowMemory(u32),
+    I32Const(i32),
+    I64Const(i64),
+    F32Const(f32),
+    F64Const(f64),
+    I32Eqz,
+    I32Eq,
+    I32Ne,
+    I32LtS,
+    I32LtU,
+    I32GtS,
+    I32GtU,
+    I32LeS,
+    I32LeU,
+    I32GeS,
+    I32GeU,
+    I64Eqz,
+    I64Eq,
+    I64Ne,
+    I64LtS,
+    I64LtU,
+    I64GtS,
+    I64GtU,
+    I64LeS,
+    I64LeU,
+    I64GeS,
+    I64GeU,
+    F32Eq,
+    F32Ne,
+    F32Lt,
+    F32Gt,
+    F32Le,
+    F32Ge,
+    F64Eq,
+    F64Ne,
+    F64Lt,
+    F64Gt,
+    F64Le,
+    F64Ge,
+    I32Clz,
+    I32Ctz,
+    I32Popcnt,
+    I32Add,
+    I32Sub,
+    I32Mul,
+    I32DivS,
+    I32DivU,
+    I32RemS,
+    I32RemU,
+    I32And,
+    I32Or,
+    I32Xor,
+    I32Shl,
+    I32ShrS,
+    I32ShrU,
+    I32Rotl,
+    I32Rotr,
+    I64Clz,
+    I64Ctz,
+    I64Popcnt,
+    I64Add,
+    I64Sub,
+    I64Mul,
+    I64DivS,
+    I64DivU,
+    I64RemS,
+    I64RemU,
+    I64And,
+    I64Or,
+    I64Xor,
+    I64Shl,
+    I64ShrS,
+    I64ShrU,
+    I64Rotl,
+    I64Rotr,
+    F32Abs,
+    F32Neg,
+    F32Ceil,
+    F32Floor,
+    F32Trunc,
+    F32Nearest,
+    F32Sqrt,
+    F32Add,
+    F32Sub,
+    F32Mul,
+    F32Div,
+    F32Min,
+    F32Max,
+    F32Copysign,
+    F64Abs,
+    F64Neg,
+    F64Ceil,
+    F64Floor,
+    F64Trunc,
+    F64Nearest,
+    F64Sqrt,
+    F64Add,
+    F64Sub,
+    F64Mul,
+    F64Div,
+    F64Min,
+    F64Max,
+    F64Copysign,
+    I32WrapI64,
+    I32TruncSF32,
+    I32TruncUF32,
+    I32TruncSF64,
+    I32TruncUF64,
+    I64ExtendSI32,
+    I64ExtendUI32,
+    I64TruncSF32,
+    I64TruncUF32,
+    I64TruncSF64,
+    I64TruncUF64,
+    F32ConvertSI32,
+    F32ConvertUI32,
+    F32ConvertSI64,
+    F32ConvertUI64,
+    F32DemoteF64,
+    F64ConvertSI32,
+    F64ConvertUI32,
+    F64ConvertSI64,
+    F64ConvertUI64,
+    F64PromoteF32,
+    I32ReinterpretF32,
+    I64ReinterpretF64,
+    F32ReinterpretI32,
+    F64ReinterpretI64,
 }
 
 fn is_name(name: &[u8], expected: &'static str) -> bool {
@@ -389,52 +389,52 @@ fn is_name(name: &[u8], expected: &'static str) -> bool {
 
 #[derive(Debug)]
 pub enum ParserState<'a> {
-  Error(&'a str),
-  Initial,
-  BeginWasm(u32, u32),
-  EndWasm,
-  BeginSection(SectionCode<'a>),
-  EndSection,
-  SkippingSection,
-  ReadingSectionRawData,
-  SectionRawData,
+    Error(&'a str),
+    Initial,
+    BeginWasm(u32, u32),
+    EndWasm,
+    BeginSection(SectionCode<'a>),
+    EndSection,
+    SkippingSection,
+    ReadingSectionRawData,
+    SectionRawData,
 
-  TypeSectionEnty(FuncType),
-  ImportSectionEntry(&'a [u8], &'a [u8], ImportSectionEntryType),
-  FunctionSectionEnty(u32),
-  TableSectionEntry(TableType),
-  MemorySectionEntry(MemoryType),
-  GlobalSectionEntry,
-  ExportSectionEntry(&'a [u8], ExternalKind, u32),
-  DataSectionEntry,
-  NameSectionEntry(NameEntry<'a>),
-  StartSectionEntry(u32),
-  LinkingSectionEntry,
+    TypeSectionEnty(FuncType),
+    ImportSectionEntry(&'a [u8], &'a [u8], ImportSectionEntryType),
+    FunctionSectionEnty(u32),
+    TableSectionEntry(TableType),
+    MemorySectionEntry(MemoryType),
+    GlobalSectionEntry,
+    ExportSectionEntry(&'a [u8], ExternalKind, u32),
+    DataSectionEntry,
+    NameSectionEntry(NameEntry<'a>),
+    StartSectionEntry(u32),
+    LinkingSectionEntry,
 
-  BeginInitExpressionBody,
-  InitExpressionOperator(Operator),
-  EndInitExpressionBody,
+    BeginInitExpressionBody,
+    InitExpressionOperator(Operator),
+    EndInitExpressionBody,
 
-  BeginFunctionBody(Vec<(u32, Type)>),
-  CodeOperator(Operator),
-  EndFunctionBody,
-  SkippingFunctionBody,
+    BeginFunctionBody(Vec<(u32, Type)>),
+    CodeOperator(Operator),
+    EndFunctionBody,
+    SkippingFunctionBody,
 
-  BeginElementSectionEntry(u32),
-  ElementSectionEntryBody(Vec<u32>),
-  EndElementSectionEntry,
+    BeginElementSectionEntry(u32),
+    ElementSectionEntryBody(Vec<u32>),
+    EndElementSectionEntry,
 
-  BeginDataSectionEntry(u32),
-  DataSectionEntryBody(&'a [u8]),
-  EndDataSectionEntry,
+    BeginDataSectionEntry(u32),
+    DataSectionEntryBody(&'a [u8]),
+    EndDataSectionEntry,
 
-  BeginGlobalSectionEntry(GlobalType),
-  EndGlobalSectionEntry,
-/*
-  RelocSectionHeader,
-  RelocSectionEntry,
+    BeginGlobalSectionEntry(GlobalType),
+    EndGlobalSectionEntry,
+    /*
+    RelocSectionHeader,
+    RelocSectionEntry,
 */
-  SourceMappingURL(&'a [u8]),
+    SourceMappingURL(&'a [u8]),
 }
 
 enum InitExpressionContinuation {
@@ -460,16 +460,16 @@ const WASM_SUPPORTED_VERSION: u32 = 0x1;
 
 impl<'a> Parser<'a> {
     pub fn new(data: &[u8]) -> Parser {
-      Parser {
-        buffer: data,
-        position: 0,
-        end: data.len(),
-        state: ParserState::Initial,
-        section_range: None,
-        function_range: None,
-        init_expr_continuation: None,
-        section_entries_left: 0
-      }
+        Parser {
+            buffer: data,
+            position: 0,
+            end: data.len(),
+            state: ParserState::Initial,
+            section_range: None,
+            function_range: None,
+            init_expr_continuation: None,
+            section_entries_left: 0,
+        }
     }
 
     fn ensure_has_bytes(&mut self, len: usize) {
@@ -542,7 +542,7 @@ impl<'a> Parser<'a> {
             result |= ((byte & 0x7F) as u32) << shift;
             shift += 7;
             if (byte & 0x80) == 0 {
-              break;
+                break;
             }
             if shift >= 32 {
                 panic!("Invalid var_u32");
@@ -559,7 +559,7 @@ impl<'a> Parser<'a> {
             result |= ((byte & 0x7F) as i32) << shift;
             shift += 7;
             if (byte & 0x80) == 0 {
-              break;
+                break;
             }
             if shift >= 32 {
                 panic!("Invalid var_i32");
@@ -580,7 +580,7 @@ impl<'a> Parser<'a> {
             result |= ((byte & 0x7F) as i64) << shift;
             shift += 7;
             if (byte & 0x80) == 0 {
-              break;
+                break;
             }
             if shift >= 64 {
                 panic!("Invalid var_i64");
@@ -595,16 +595,12 @@ impl<'a> Parser<'a> {
 
     fn read_f32(&mut self) -> f32 {
         let value = self.read_u32();
-        unsafe {
-            transmute::<u32, f32>(value)
-        }
+        unsafe { transmute::<u32, f32>(value) }
     }
 
     fn read_f64(&mut self) -> f64 {
         let value = self.read_u64();
-        unsafe {
-            transmute::<u64, f64>(value)
-        }
+        unsafe { transmute::<u64, f64>(value) }
     }
 
     fn read_string(&mut self) -> &'a [u8] {
@@ -612,7 +608,7 @@ impl<'a> Parser<'a> {
         let start = self.position;
         self.ensure_has_bytes(len);
         self.position += len;
-        &self.buffer[start .. self.position]
+        &self.buffer[start..self.position]
     }
 
     fn read_type(&mut self) -> Type {
@@ -626,12 +622,12 @@ impl<'a> Parser<'a> {
     fn read_func_type(&mut self) -> FuncType {
         let form = self.read_type();
         let params_len = self.read_var_u32() as usize;
-        let mut params : Vec<Type> = Vec::with_capacity(params_len);
+        let mut params: Vec<Type> = Vec::with_capacity(params_len);
         for _ in 0..params_len {
             params.push(self.read_type());
         }
         let returns_len = self.read_var_u32() as usize;
-        let mut returns : Vec<Type> = Vec::with_capacity(returns_len);
+        let mut returns: Vec<Type> = Vec::with_capacity(returns_len);
         for _ in 0..returns_len {
             returns.push(self.read_type());
         }
@@ -666,15 +662,13 @@ impl<'a> Parser<'a> {
     }
 
     fn read_memory_type(&mut self) -> MemoryType {
-        MemoryType {
-            limits: self.read_resizable_limits(),
-        }
+        MemoryType { limits: self.read_resizable_limits() }
     }
 
     fn read_global_type(&mut self) -> GlobalType {
         GlobalType {
             content_type: self.read_type(),
-            mutability: self.read_var_u1()
+            mutability: self.read_var_u1(),
         }
     }
 
@@ -692,8 +686,7 @@ impl<'a> Parser<'a> {
             return;
         }
         let version = self.read_u32();
-        if version != WASM_SUPPORTED_VERSION &&
-           version != WASM_EXPERIMENTAL_VERSION {
+        if version != WASM_SUPPORTED_VERSION && version != WASM_EXPERIMENTAL_VERSION {
             self.state = ParserState::Error("Bad version number");
             return;
         }
@@ -711,14 +704,13 @@ impl<'a> Parser<'a> {
         let code;
         if SectionCode::is_custom_section_code(id) {
             let name = self.read_string();
-            let kind =
-              if is_name(name, "name") {
-                  CustomSectionKind::Name
-              } else if is_name(name, "sourceMappingURL") {
-                  CustomSectionKind::SourceMappingURL
-              } else {
-                  CustomSectionKind::Unknown
-              };
+            let kind = if is_name(name, "name") {
+                CustomSectionKind::Name
+            } else if is_name(name, "sourceMappingURL") {
+                CustomSectionKind::SourceMappingURL
+            } else {
+                CustomSectionKind::Unknown
+            };
             code = SectionCode::Custom(name, kind);
         } else {
             code = SectionCode::from_u32(id).unwrap();
@@ -746,14 +738,10 @@ impl<'a> Parser<'a> {
         let kind = self.read_external_kind();
         let ty: ImportSectionEntryType;
         match kind {
-            ExternalKind::Function =>
-              ty = ImportSectionEntryType::Function(self.read_var_u32()),
-            ExternalKind::Table =>
-              ty = ImportSectionEntryType::Table(self.read_table_type()),
-            ExternalKind::Memory =>
-              ty = ImportSectionEntryType::Memory(self.read_memory_type()),
-            ExternalKind::Global =>
-              ty = ImportSectionEntryType::Global(self.read_global_type()),
+            ExternalKind::Function => ty = ImportSectionEntryType::Function(self.read_var_u32()),
+            ExternalKind::Table => ty = ImportSectionEntryType::Table(self.read_table_type()),
+            ExternalKind::Memory => ty = ImportSectionEntryType::Memory(self.read_memory_type()),
+            ExternalKind::Global => ty = ImportSectionEntryType::Global(self.read_global_type()),
         }
 
         self.state = ParserState::ImportSectionEntry(module, field, ty);
@@ -980,7 +968,7 @@ impl<'a> Parser<'a> {
             0xbd => Operator::I64ReinterpretF64,
             0xbe => Operator::F32ReinterpretI32,
             0xbf => Operator::F64ReinterpretI64,
-            _ => panic!("Unknown opcode")
+            _ => panic!("Unknown opcode"),
         }
     }
 
@@ -1081,7 +1069,10 @@ impl<'a> Parser<'a> {
         for _ in 0..count {
             let index = self.read_var_u32();
             let name = self.read_string();
-            result.push(Naming { index: index, name: name });
+            result.push(Naming {
+                            index: index,
+                            name: name,
+                        });
         }
         result
     }
@@ -1092,23 +1083,23 @@ impl<'a> Parser<'a> {
             return;
         }
         let ty = NameType::from_u7(self.read_var_u7());
-        /* let payload_len = */ self.read_var_u32();
-        let entry =
-            match ty {
-                NameType::Module => NameEntry::Module(self.read_string()),
-                NameType::Function => NameEntry::Function(self.read_name_map()),
-                NameType::Local => {
-                    let funcs_len = self.read_var_u32() as usize;
-                    let mut funcs: Vec<LocalName<'a>> = Vec::with_capacity(funcs_len);
-                    for _ in 0..funcs_len {
-                        funcs.push(LocalName {
-                            index: self.read_var_u32(),
-                            locals: self.read_name_map(),
-                        });
-                    }
-                    NameEntry::Local(funcs)
+        /* let payload_len = */
+        self.read_var_u32();
+        let entry = match ty {
+            NameType::Module => NameEntry::Module(self.read_string()),
+            NameType::Function => NameEntry::Function(self.read_name_map()),
+            NameType::Local => {
+                let funcs_len = self.read_var_u32() as usize;
+                let mut funcs: Vec<LocalName<'a>> = Vec::with_capacity(funcs_len);
+                for _ in 0..funcs_len {
+                    funcs.push(LocalName {
+                                   index: self.read_var_u32(),
+                                   locals: self.read_name_map(),
+                               });
                 }
-            };
+                NameEntry::Local(funcs)
+            }
+        };
         self.state = ParserState::NameSectionEntry(entry);
     }
 
@@ -1121,53 +1112,54 @@ impl<'a> Parser<'a> {
             ParserState::BeginSection(SectionCode::Type) => {
                 self.section_entries_left = self.read_var_u32();
                 self.read_type_entry();
-            },
+            }
             ParserState::BeginSection(SectionCode::Import) => {
                 self.section_entries_left = self.read_var_u32();
                 self.read_import_entry();
-            },
+            }
             ParserState::BeginSection(SectionCode::Function) => {
                 self.section_entries_left = self.read_var_u32();
                 self.read_function_entry();
-            },
+            }
             ParserState::BeginSection(SectionCode::Memory) => {
                 self.section_entries_left = self.read_var_u32();
                 self.read_memory_entry();
-            },
+            }
             ParserState::BeginSection(SectionCode::Global) => {
                 self.section_entries_left = self.read_var_u32();
                 self.read_global_entry();
-            },
+            }
             ParserState::BeginSection(SectionCode::Export) => {
                 self.section_entries_left = self.read_var_u32();
                 self.read_export_entry();
-            },
+            }
             ParserState::BeginSection(SectionCode::Element) => {
                 self.section_entries_left = self.read_var_u32();
                 self.read_element_entry();
-            },
+            }
             ParserState::BeginSection(SectionCode::Code) => {
                 self.section_entries_left = self.read_var_u32();
                 self.read_function_body();
-            },
+            }
             ParserState::BeginSection(SectionCode::Table) => {
                 self.section_entries_left = self.read_var_u32();
                 self.read_table_entry();
-            },
+            }
             ParserState::BeginSection(SectionCode::Data) => {
                 self.section_entries_left = self.read_var_u32();
                 self.read_data_entry();
-            },
+            }
             ParserState::BeginSection(SectionCode::Start) => {
                 self.state = ParserState::StartSectionEntry(self.read_var_u32());
-            },
+            }
             ParserState::BeginSection(SectionCode::Custom(_, CustomSectionKind::Name)) => {
                 self.read_name_entry();
-            },
-            ParserState::BeginSection(SectionCode::Custom(_, CustomSectionKind::SourceMappingURL)) => {
+            }
+            ParserState::BeginSection(SectionCode::Custom(_,
+                                                          CustomSectionKind::SourceMappingURL)) => {
                 self.read_source_mapping();
-            },
-            _ => unreachable!()
+            }
+            _ => unreachable!(),
         }
     }
 
@@ -1188,7 +1180,8 @@ impl<'a> Parser<'a> {
                 }
                 self.read_header();
             }
-            ParserState::BeginWasm(_, _) | ParserState::EndSection => {
+            ParserState::BeginWasm(_, _) |
+            ParserState::EndSection => {
                 if self.position >= self.end {
                     self.state = ParserState::EndWasm;
                 } else if let Some(WASM_MAGIC_NUMBER) = self.peek_u32() {
@@ -1205,27 +1198,31 @@ impl<'a> Parser<'a> {
             ParserState::MemorySectionEntry(_) => self.read_memory_entry(),
             ParserState::TableSectionEntry(_) => self.read_table_entry(),
             ParserState::ExportSectionEntry(_, _, _) => self.read_export_entry(),
-            ParserState::BeginGlobalSectionEntry(_) =>
-                self.read_init_expression_body(InitExpressionContinuation::GlobalSection),
+            ParserState::BeginGlobalSectionEntry(_) => {
+                self.read_init_expression_body(InitExpressionContinuation::GlobalSection)
+            }
             ParserState::EndGlobalSectionEntry => self.read_global_entry(),
-            ParserState::BeginElementSectionEntry(_) =>
-                self.read_init_expression_body(InitExpressionContinuation::ElementSection),
+            ParserState::BeginElementSectionEntry(_) => {
+                self.read_init_expression_body(InitExpressionContinuation::ElementSection)
+            }
             ParserState::BeginInitExpressionBody |
             ParserState::InitExpressionOperator(_) => self.read_init_expression_operator(),
-            ParserState::BeginDataSectionEntry(_) =>
-                self.read_init_expression_body(InitExpressionContinuation::DataSection),
+            ParserState::BeginDataSectionEntry(_) => {
+                self.read_init_expression_body(InitExpressionContinuation::DataSection)
+            }
             ParserState::EndInitExpressionBody => {
                 match self.init_expr_continuation {
-                    Some(InitExpressionContinuation::GlobalSection) =>
-                        self.state = ParserState::EndGlobalSectionEntry,
-                    Some(InitExpressionContinuation::ElementSection) =>
-                        self.read_element_entry_body(),
-                    Some(InitExpressionContinuation::DataSection) =>
-                        self.read_data_entry_body(),
-                    _ => unreachable!()
+                    Some(InitExpressionContinuation::GlobalSection) => {
+                        self.state = ParserState::EndGlobalSectionEntry
+                    }
+                    Some(InitExpressionContinuation::ElementSection) => {
+                        self.read_element_entry_body()
+                    }
+                    Some(InitExpressionContinuation::DataSection) => self.read_data_entry_body(),
+                    _ => unreachable!(),
                 }
                 self.init_expr_continuation = None;
-            },
+            }
             ParserState::BeginFunctionBody(_) |
             ParserState::CodeOperator(_) => self.read_code_operator(),
             ParserState::EndFunctionBody => self.read_function_body(),
@@ -1234,14 +1231,14 @@ impl<'a> Parser<'a> {
                 self.position = self.function_range.unwrap().1;
                 self.state = ParserState::EndFunctionBody;
                 self.function_range = None;
-            },
+            }
             ParserState::DataSectionEntryBody(_) => {
                 self.state = ParserState::EndDataSectionEntry;
-            },
+            }
             ParserState::EndDataSectionEntry => self.read_data_entry(),
             ParserState::ElementSectionEntryBody(_) => {
                 self.state = ParserState::EndElementSectionEntry;
-            },
+            }
             ParserState::EndElementSectionEntry => self.read_element_entry(),
             ParserState::StartSectionEntry(_) => self.position_to_section_end(),
             ParserState::NameSectionEntry(_) => self.read_name_entry(),
@@ -1258,7 +1255,7 @@ impl<'a> Parser<'a> {
             ParserState::Error(_) |
             ParserState::BeginWasm(_, _) |
             ParserState::EndSection => return,
-            _ => self.state = ParserState::SkippingSection
+            _ => self.state = ParserState::SkippingSection,
         }
     }
 
