@@ -15,6 +15,9 @@
 // See https://github.com/WebAssembly/design/blob/master/BinaryEncoding.md
 
 use std::mem::transmute;
+use std::result;
+
+type Result<T> = result::Result<T, &'static str>;
 
 #[derive(Debug)]
 pub enum CustomSectionKind {
@@ -40,20 +43,21 @@ pub enum SectionCode<'a> {
 }
 
 impl<'a> SectionCode<'a> {
-    pub fn from_u32(code: u32) -> Option<SectionCode<'a>> {
+    pub fn from_u32(code: u32) -> Result<SectionCode<'a>> {
         match code {
-            1 => Some(SectionCode::Type),
-            2 => Some(SectionCode::Import),
-            3 => Some(SectionCode::Function),
-            4 => Some(SectionCode::Table),
-            5 => Some(SectionCode::Memory),
-            6 => Some(SectionCode::Global),
-            7 => Some(SectionCode::Export),
-            8 => Some(SectionCode::Start),
-            9 => Some(SectionCode::Element),
-            10 => Some(SectionCode::Code),
-            11 => Some(SectionCode::Data),
-            _ => None,
+            0 => Err("Custom section: use SectionCode::Custom"),
+            1 => Ok(SectionCode::Type),
+            2 => Ok(SectionCode::Import),
+            3 => Ok(SectionCode::Function),
+            4 => Ok(SectionCode::Table),
+            5 => Ok(SectionCode::Memory),
+            6 => Ok(SectionCode::Global),
+            7 => Ok(SectionCode::Export),
+            8 => Ok(SectionCode::Start),
+            9 => Ok(SectionCode::Element),
+            10 => Ok(SectionCode::Code),
+            11 => Ok(SectionCode::Data),
+            _ => Err("Invalid section code"),
         }
     }
     pub fn is_custom_section_code(code: u32) -> bool {
@@ -76,16 +80,16 @@ pub enum Type {
 }
 
 impl Type {
-    pub fn from_i7(code: i32) -> Type {
+    pub fn from_i7(code: i32) -> Result<Type> {
         match code {
-            -0x01 => Type::I32,
-            -0x02 => Type::I64,
-            -0x03 => Type::F32,
-            -0x04 => Type::F64,
-            -0x10 => Type::AnyFunc,
-            -0x20 => Type::Func,
-            -0x40 => Type::EmptyBlockType,
-            _ => panic!("Invalid type"),
+            -0x01 => Ok(Type::I32),
+            -0x02 => Ok(Type::I64),
+            -0x03 => Ok(Type::F32),
+            -0x04 => Ok(Type::F64),
+            -0x10 => Ok(Type::AnyFunc),
+            -0x20 => Ok(Type::Func),
+            -0x40 => Ok(Type::EmptyBlockType),
+            _ => Err("Invalid type"),
         }
     }
 }
@@ -98,12 +102,12 @@ pub enum NameType {
 }
 
 impl NameType {
-    pub fn from_u7(code: u32) -> NameType {
+    pub fn from_u7(code: u32) -> Result<NameType> {
         match code {
-            0 => NameType::Module,
-            1 => NameType::Function,
-            2 => NameType::Local,
-            _ => panic!("Invalid name type"),
+            0 => Ok(NameType::Module),
+            1 => Ok(NameType::Function),
+            2 => Ok(NameType::Local),
+            _ => Err("Invalid name type"),
         }
     }
 }
@@ -136,13 +140,13 @@ pub enum ExternalKind {
 }
 
 impl ExternalKind {
-    pub fn from_u8(code: u32) -> ExternalKind {
+    pub fn from_u8(code: u32) -> Result<ExternalKind> {
         match code {
-            0 => ExternalKind::Function,
-            1 => ExternalKind::Table,
-            2 => ExternalKind::Memory,
-            3 => ExternalKind::Global,
-            _ => panic!("Invalid external kind"),
+            0 => Ok(ExternalKind::Function),
+            1 => Ok(ExternalKind::Table),
+            2 => Ok(ExternalKind::Memory),
+            3 => Ok(ExternalKind::Global),
+            _ => Err("Invalid external kind"),
         }
     }
 }
@@ -472,18 +476,22 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn ensure_has_bytes(&mut self, len: usize) {
-        assert!(self.position + len <= self.end);
+    fn ensure_has_bytes(&mut self, len: usize) -> Result<()> {
+        if self.position + len <= self.end {
+            Ok(())
+        } else {
+            Err("Unexpected EOF")
+        }
     }
 
-    fn read_u32(&mut self) -> u32 {
-        self.ensure_has_bytes(4);
+    fn read_u32(&mut self) -> Result<u32> {
+        self.ensure_has_bytes(4)?;
         let b1 = self.buffer[self.position] as u32;
         let b2 = self.buffer[self.position + 1] as u32;
         let b3 = self.buffer[self.position + 2] as u32;
         let b4 = self.buffer[self.position + 3] as u32;
         self.position += 4;
-        b1 | (b2 << 8) | (b3 << 16) | (b4 << 24)
+        Ok(b1 | (b2 << 8) | (b3 << 16) | (b4 << 24))
     }
 
     fn peek_u32(&self) -> Option<u32> {
@@ -497,213 +505,211 @@ impl<'a> Parser<'a> {
         Some(b1 | (b2 << 8) | (b3 << 16) | (b4 << 24))
     }
 
-    fn read_u64(&mut self) -> u64 {
-        let w1 = self.read_u32() as u64;
-        let w2 = self.read_u32() as u64;
-        w1 | (w2 << 32)
+    fn read_u64(&mut self) -> Result<u64> {
+        let w1 = self.read_u32()? as u64;
+        let w2 = self.read_u32()? as u64;
+        Ok(w1 | (w2 << 32))
     }
 
-    fn read_u8(&mut self) -> u32 {
-        self.ensure_has_bytes(1);
+    fn read_u8(&mut self) -> Result<u32> {
+        self.ensure_has_bytes(1)?;
         let b = self.buffer[self.position] as u32;
         self.position += 1;
-        b
+        Ok(b)
     }
 
-    fn read_var_u1(&mut self) -> u32 {
-        let b = self.read_u8();
+    fn read_var_u1(&mut self) -> Result<u32> {
+        let b = self.read_u8()?;
         if (b & 0xFE) != 0 {
-            panic!("Invalid var_u1");
+            return Err("Invalid var_u1");
         }
-        b
+        Ok(b)
     }
 
-    fn read_var_i7(&mut self) -> i32 {
-        let b = self.read_u8();
+    fn read_var_i7(&mut self) -> Result<i32> {
+        let b = self.read_u8()?;
         if (b & 0x80) != 0 {
-            panic!("Invalid var_i7");
+            return Err("Invalid var_i7");
         }
-        (b << 25) as i32 >> 25
+        Ok((b << 25) as i32 >> 25)
     }
 
-    fn read_var_u7(&mut self) -> u32 {
-        let b = self.read_u8();
+    fn read_var_u7(&mut self) -> Result<u32> {
+        let b = self.read_u8()?;
         if (b & 0x80) != 0 {
-            panic!("Invalid var_u7");
+            return Err("Invalid var_u7");
         }
-        b
+        Ok(b)
     }
 
-    fn read_var_u32(&mut self) -> u32 {
+    fn read_var_u32(&mut self) -> Result<u32> {
         let mut result = 0;
         let mut shift = 0;
         loop {
-            let byte = self.read_u8();
+            let byte = self.read_u8()?;
             result |= ((byte & 0x7F) as u32) << shift;
             shift += 7;
             if (byte & 0x80) == 0 {
                 break;
             }
             if shift >= 32 {
-                panic!("Invalid var_u32");
+                return Err("Invalid var_u32");
             }
         }
-        result
+        Ok(result)
     }
 
-    fn read_var_i32(&mut self) -> i32 {
+    fn read_var_i32(&mut self) -> Result<i32> {
         let mut result: i32 = 0;
         let mut shift = 0;
         loop {
-            let byte = self.read_u8();
+            let byte = self.read_u8()?;
             result |= ((byte & 0x7F) as i32) << shift;
             shift += 7;
             if (byte & 0x80) == 0 {
                 break;
             }
             if shift >= 32 {
-                panic!("Invalid var_i32");
+                return Err("Invalid var_i32");
             }
         }
         if shift >= 32 {
-            return result;
+            return Ok(result);
         }
         let ashift = 32 - shift;
-        (result << ashift) >> ashift
+        Ok((result << ashift) >> ashift)
     }
 
-    fn read_var_i64(&mut self) -> i64 {
+    fn read_var_i64(&mut self) -> Result<i64> {
         let mut result: i64 = 0;
         let mut shift = 0;
         loop {
-            let byte = self.read_u8();
+            let byte = self.read_u8()?;
             result |= ((byte & 0x7F) as i64) << shift;
             shift += 7;
             if (byte & 0x80) == 0 {
                 break;
             }
             if shift >= 64 {
-                panic!("Invalid var_i64");
+                return Err("Invalid var_i64");
             }
         }
         if shift >= 64 {
-            return result;
+            return Ok(result);
         }
         let ashift = 64 - shift;
-        (result << ashift) >> ashift
+        Ok((result << ashift) >> ashift)
     }
 
-    fn read_f32(&mut self) -> f32 {
-        let value = self.read_u32();
-        unsafe { transmute::<u32, f32>(value) }
+    fn read_f32(&mut self) -> Result<f32> {
+        let value = self.read_u32()?;
+        Ok(unsafe { transmute::<u32, f32>(value) })
     }
 
-    fn read_f64(&mut self) -> f64 {
-        let value = self.read_u64();
-        unsafe { transmute::<u64, f64>(value) }
+    fn read_f64(&mut self) -> Result<f64> {
+        let value = self.read_u64()?;
+        Ok(unsafe { transmute::<u64, f64>(value) })
     }
 
-    fn read_string(&mut self) -> &'a [u8] {
-        let len = self.read_var_u32() as usize;
+    fn read_string(&mut self) -> Result<&'a [u8]> {
+        let len = self.read_var_u32()? as usize;
         let start = self.position;
-        self.ensure_has_bytes(len);
+        self.ensure_has_bytes(len)?;
         self.position += len;
-        &self.buffer[start..self.position]
+        Ok(&self.buffer[start..self.position])
     }
 
-    fn read_type(&mut self) -> Type {
-        Type::from_i7(self.read_var_i7())
+    fn read_type(&mut self) -> Result<Type> {
+        Type::from_i7(self.read_var_i7()?)
     }
 
-    fn read_external_kind(&mut self) -> ExternalKind {
-        ExternalKind::from_u8(self.read_u8())
+    fn read_external_kind(&mut self) -> Result<ExternalKind> {
+        ExternalKind::from_u8(self.read_u8()?)
     }
 
-    fn read_func_type(&mut self) -> FuncType {
-        let form = self.read_type();
-        let params_len = self.read_var_u32() as usize;
+    fn read_func_type(&mut self) -> Result<FuncType> {
+        let form = self.read_type()?;
+        let params_len = self.read_var_u32()? as usize;
         let mut params: Vec<Type> = Vec::with_capacity(params_len);
         for _ in 0..params_len {
-            params.push(self.read_type());
+            params.push(self.read_type()?);
         }
-        let returns_len = self.read_var_u32() as usize;
+        let returns_len = self.read_var_u32()? as usize;
         let mut returns: Vec<Type> = Vec::with_capacity(returns_len);
         for _ in 0..returns_len {
-            returns.push(self.read_type());
+            returns.push(self.read_type()?);
         }
-        FuncType {
+        Ok(FuncType {
             form: form,
             params: params,
             returns: returns,
-        }
+        })
     }
 
-    fn read_resizable_limits(&mut self) -> ResizableLimits {
-        let flags = self.read_var_u32();
-        let initial = self.read_var_u32();
+    fn read_resizable_limits(&mut self) -> Result<ResizableLimits> {
+        let flags = self.read_var_u32()?;
+        let initial = self.read_var_u32()?;
         let maximum: Option<u32>;
         if (flags & 0x1) != 0 {
-            maximum = Some(self.read_var_u32());
+            maximum = Some(self.read_var_u32()?);
         } else {
             maximum = None;
         }
-        ResizableLimits {
+        Ok(ResizableLimits {
             flags: flags,
             initial: initial,
             maximum: maximum,
-        }
+        })
     }
 
-    fn read_table_type(&mut self) -> TableType {
-        TableType {
-            element_type: self.read_type(),
-            limits: self.read_resizable_limits(),
-        }
+    fn read_table_type(&mut self) -> Result<TableType> {
+        Ok(TableType {
+            element_type: self.read_type()?,
+            limits: self.read_resizable_limits()?,
+        })
     }
 
-    fn read_memory_type(&mut self) -> MemoryType {
-        MemoryType { limits: self.read_resizable_limits() }
+    fn read_memory_type(&mut self) -> Result<MemoryType> {
+        Ok(MemoryType { limits: self.read_resizable_limits()? })
     }
 
-    fn read_global_type(&mut self) -> GlobalType {
-        GlobalType {
-            content_type: self.read_type(),
-            mutability: self.read_var_u1(),
-        }
+    fn read_global_type(&mut self) -> Result<GlobalType> {
+        Ok(GlobalType {
+            content_type: self.read_type()?,
+            mutability: self.read_var_u1()?,
+        })
     }
 
-    fn read_memory_immediate(&mut self) -> MemoryImmediate {
-        MemoryImmediate {
-            flags: self.read_var_u32(),
-            offset: self.read_var_u32(),
-        }
+    fn read_memory_immediate(&mut self) -> Result<MemoryImmediate> {
+        Ok(MemoryImmediate {
+            flags: self.read_var_u32()?,
+            offset: self.read_var_u32()?,
+        })
     }
 
-    fn read_header(&mut self) {
-        let magic_number = self.read_u32();
+    fn read_header(&mut self) -> Result<()> {
+        let magic_number = self.read_u32()?;
         if magic_number != WASM_MAGIC_NUMBER {
-            self.state = ParserState::Error("Bad magic number");
-            return;
+            return Err("Bad magic number");
         }
-        let version = self.read_u32();
+        let version = self.read_u32()?;
         if version != WASM_SUPPORTED_VERSION && version != WASM_EXPERIMENTAL_VERSION {
-            self.state = ParserState::Error("Bad version number");
-            return;
+            return Err("Bad version number");
         }
         self.state = ParserState::BeginWasm(magic_number, version);
+        Ok(())
     }
 
-    fn read_section_header(&mut self) {
-        let id = self.read_var_u7();
+    fn read_section_header(&mut self) -> Result<()> {
+        let id = self.read_var_u7()?;
         if !SectionCode::is_known_section_code(id) {
-            self.state = ParserState::Error("Unknown section code");
-            return;
+            return Err("Unknown section code");
         }
-        let payload_len = self.read_var_u32() as usize;
+        let payload_len = self.read_var_u32()? as usize;
         let payload_end = self.position + payload_len;
         let code;
         if SectionCode::is_custom_section_code(id) {
-            let name = self.read_string();
+            let name = self.read_string()?;
             let kind = if is_name(name, "name") {
                 CustomSectionKind::Name
             } else if is_name(name, "sourceMappingURL") {
@@ -713,66 +719,67 @@ impl<'a> Parser<'a> {
             };
             code = SectionCode::Custom(name, kind);
         } else {
-            code = SectionCode::from_u32(id).unwrap();
+            code = SectionCode::from_u32(id)?;
         }
         self.state = ParserState::BeginSection(code);
         self.section_range = Some((self.position, payload_end));
+        Ok(())
     }
 
-    fn read_type_entry(&mut self) {
+    fn read_type_entry(&mut self) -> Result<()> {
         if self.section_entries_left == 0 {
-            self.position_to_section_end();
-            return;
+            return self.position_to_section_end();
         }
-        self.state = ParserState::TypeSectionEnty(self.read_func_type());
+        self.state = ParserState::TypeSectionEnty(self.read_func_type()?);
         self.section_entries_left -= 1;
+        Ok(())
     }
 
-    fn read_import_entry(&mut self) {
+    fn read_import_entry(&mut self) -> Result<()> {
         if self.section_entries_left == 0 {
-            self.position_to_section_end();
-            return;
+            return self.position_to_section_end();
         }
-        let module = self.read_string();
-        let field = self.read_string();
-        let kind = self.read_external_kind();
+        let module = self.read_string()?;
+        let field = self.read_string()?;
+        let kind = self.read_external_kind()?;
         let ty: ImportSectionEntryType;
         match kind {
-            ExternalKind::Function => ty = ImportSectionEntryType::Function(self.read_var_u32()),
-            ExternalKind::Table => ty = ImportSectionEntryType::Table(self.read_table_type()),
-            ExternalKind::Memory => ty = ImportSectionEntryType::Memory(self.read_memory_type()),
-            ExternalKind::Global => ty = ImportSectionEntryType::Global(self.read_global_type()),
+            ExternalKind::Function => ty = ImportSectionEntryType::Function(self.read_var_u32()?),
+            ExternalKind::Table => ty = ImportSectionEntryType::Table(self.read_table_type()?),
+            ExternalKind::Memory => ty = ImportSectionEntryType::Memory(self.read_memory_type()?),
+            ExternalKind::Global => ty = ImportSectionEntryType::Global(self.read_global_type()?),
         }
 
         self.state = ParserState::ImportSectionEntry(module, field, ty);
         self.section_entries_left -= 1;
+        Ok(())
     }
 
-    fn read_function_entry(&mut self) {
+    fn read_function_entry(&mut self) -> Result<()> {
         if self.section_entries_left == 0 {
-            self.position_to_section_end();
-            return;
+            return self.position_to_section_end();
         }
-        self.state = ParserState::FunctionSectionEnty(self.read_var_u32());
+        self.state = ParserState::FunctionSectionEnty(self.read_var_u32()?);
         self.section_entries_left -= 1;
+        Ok(())
     }
 
-    fn read_memory_entry(&mut self) {
+    fn read_memory_entry(&mut self) -> Result<()> {
         if self.section_entries_left == 0 {
-            self.position_to_section_end();
-            return;
+            return self.position_to_section_end();
         }
-        self.state = ParserState::MemorySectionEntry(self.read_memory_type());
+        self.state = ParserState::MemorySectionEntry(self.read_memory_type()?);
         self.section_entries_left -= 1;
+        Ok(())
     }
 
-    fn read_global_entry(&mut self) {
+    fn read_global_entry(&mut self) -> Result<()> {
         if self.section_entries_left == 0 {
-            self.position_to_section_end();
-            return;
+            return self.position_to_section_end();
         }
-        self.state = ParserState::BeginGlobalSectionEntry(self.read_global_type());
+        self.state = ParserState::BeginGlobalSectionEntry(self.read_global_type()?);
         self.section_entries_left -= 1;
+        Ok(())
     }
 
     fn read_init_expression_body(&mut self, cont: InitExpressionContinuation) {
@@ -780,71 +787,71 @@ impl<'a> Parser<'a> {
         self.init_expr_continuation = Some(cont);
     }
 
-    fn read_br_table(&mut self) -> BrTable {
-        let targets_len = self.read_var_u32() as usize;
+    fn read_br_table(&mut self) -> Result<BrTable> {
+        let targets_len = self.read_var_u32()? as usize;
         let mut targets_table = Vec::with_capacity(targets_len);
         for _ in 0..targets_len {
-            targets_table.push(self.read_var_u32());
+            targets_table.push(self.read_var_u32()?);
         }
-        let default_target = self.read_var_u32();
-        BrTable {
+        let default_target = self.read_var_u32()?;
+        Ok(BrTable {
             targets_table: targets_table,
             default_target: default_target,
-        }
+        })
     }
 
-    fn read_operator(&mut self) -> Operator {
-        let code = self.read_u8();
-        match code {
+    fn read_operator(&mut self) -> Result<Operator> {
+        let code = self.read_u8()?;
+        Ok(match code {
             0x00 => Operator::Unreachable,
             0x01 => Operator::Nop,
-            0x02 => Operator::Block(self.read_type()),
-            0x03 => Operator::Loop(self.read_type()),
-            0x04 => Operator::If(self.read_type()),
+            0x02 => Operator::Block(self.read_type()?),
+            0x03 => Operator::Loop(self.read_type()?),
+            0x04 => Operator::If(self.read_type()?),
             0x05 => Operator::Else,
             0x0b => Operator::End,
-            0x0c => Operator::Br(self.read_var_u32()),
-            0x0d => Operator::BrIf(self.read_var_u32()),
-            0x0e => Operator::BrTable(self.read_br_table()),
+            0x0c => Operator::Br(self.read_var_u32()?),
+            0x0d => Operator::BrIf(self.read_var_u32()?),
+            0x0e => Operator::BrTable(self.read_br_table()?),
             0x0f => Operator::Return,
-            0x10 => Operator::Call(self.read_var_u32()),
-            0x11 => Operator::CallIndirect(self.read_var_u32(), self.read_var_u1()),
+            0x10 => Operator::Call(self.read_var_u32()?),
+            0x11 => Operator::CallIndirect(self.read_var_u32()?, self.read_var_u1()?),
             0x1a => Operator::Drop,
             0x1b => Operator::Select,
-            0x20 => Operator::GetLocal(self.read_var_u32()),
-            0x21 => Operator::SetLocal(self.read_var_u32()),
-            0x22 => Operator::TeeLocal(self.read_var_u32()),
-            0x23 => Operator::GetGlobal(self.read_var_u32()),
-            0x24 => Operator::SetGlobal(self.read_var_u32()),
-            0x28 => Operator::I32Load(self.read_memory_immediate()),
-            0x29 => Operator::I64Load(self.read_memory_immediate()),
-            0x2a => Operator::F32Load(self.read_memory_immediate()),
-            0x2b => Operator::F64Load(self.read_memory_immediate()),
-            0x2c => Operator::I32Load8S(self.read_memory_immediate()),
-            0x2d => Operator::I32Load8U(self.read_memory_immediate()),
-            0x2e => Operator::I32Load16S(self.read_memory_immediate()),
-            0x2f => Operator::I32Load16U(self.read_memory_immediate()),
-            0x30 => Operator::I64Load8S(self.read_memory_immediate()),
-            0x31 => Operator::I64Load8U(self.read_memory_immediate()),
-            0x32 => Operator::I64Load16S(self.read_memory_immediate()),
-            0x33 => Operator::I64Load16U(self.read_memory_immediate()),
-            0x34 => Operator::I64Load32S(self.read_memory_immediate()),
-            0x35 => Operator::I64Load32U(self.read_memory_immediate()),
-            0x36 => Operator::I32Store(self.read_memory_immediate()),
-            0x37 => Operator::I64Store(self.read_memory_immediate()),
-            0x38 => Operator::F32Store(self.read_memory_immediate()),
-            0x39 => Operator::F64Store(self.read_memory_immediate()),
-            0x3a => Operator::I32Store8(self.read_memory_immediate()),
-            0x3b => Operator::I32Store16(self.read_memory_immediate()),
-            0x3c => Operator::I64Store8(self.read_memory_immediate()),
-            0x3d => Operator::I64Store16(self.read_memory_immediate()),
-            0x3e => Operator::I64Store32(self.read_memory_immediate()),
-            0x3f => Operator::CurrentMemory(self.read_var_u1()),
-            0x40 => Operator::GrowMemory(self.read_var_u1()),
-            0x41 => Operator::I32Const(self.read_var_i32()),
-            0x42 => Operator::I64Const(self.read_var_i64()),
-            0x43 => Operator::F32Const(self.read_f32()),
-            0x44 => Operator::F64Const(self.read_f64()),
+            0x20 => Operator::GetLocal(self.read_var_u32()?),
+            0x21 => Operator::SetLocal(self.read_var_u32()?),
+            0x22 => Operator::TeeLocal(self.read_var_u32()?),
+            0x23 => Operator::GetGlobal(self.read_var_u32()?),
+            0x24 => Operator::SetGlobal(self.read_var_u32()?),
+            0x28 => Operator::I32Load(self.read_memory_immediate()?),
+            0x29 => Operator::I64Load(self.read_memory_immediate()?),
+            0x2a => Operator::F32Load(self.read_memory_immediate()?),
+            0x2b => Operator::F64Load(self.read_memory_immediate()?),
+            0x2c => Operator::I32Load8S(self.read_memory_immediate()?),
+            0x2d => Operator::I32Load8U(self.read_memory_immediate()?),
+            0x2e => Operator::I32Load16S(self.read_memory_immediate()?),
+            0x2f => Operator::I32Load16U(self.read_memory_immediate()?),
+            0x30 => Operator::I64Load8S(self.read_memory_immediate()?),
+            0x31 => Operator::I64Load8U(self.read_memory_immediate()?),
+            0x32 => Operator::I64Load16S(self.read_memory_immediate()?),
+            0x33 => Operator::I64Load16U(self.read_memory_immediate()?),
+            0x34 => Operator::I64Load32S(self.read_memory_immediate()?),
+            0x35 => Operator::I64Load32U(self.read_memory_immediate()?),
+            0x36 => Operator::I32Store(self.read_memory_immediate()?),
+            0x37 => Operator::I64Store(self.read_memory_immediate()?),
+            0x38 => Operator::F32Store(self.read_memory_immediate()?),
+            0x39 => Operator::F64Store(self.read_memory_immediate()?),
+            0x3a => Operator::I32Store8(self.read_memory_immediate()?),
+            0x3b => Operator::I32Store16(self.read_memory_immediate()?),
+            0x3c => Operator::I64Store8(self.read_memory_immediate()?),
+            0x3d => Operator::I64Store16(self.read_memory_immediate()?),
+            0x3e => Operator::I64Store32(self.read_memory_immediate()?),
+            0x3f => Operator::CurrentMemory(self.read_var_u1()?),
+            0x40 => Operator::GrowMemory(self.read_var_u1()?),
+            0x41 => Operator::I32Const(self.read_var_i32()?),
+            0x42 => Operator::I64Const(self.read_var_i64()?),
+            0x43 => Operator::F32Const(self.read_f32()?),
+            0x44 => Operator::F64Const(self.read_f64()?),
             0x45 => Operator::I32Eqz,
             0x46 => Operator::I32Eq,
             0x47 => Operator::I32Ne,
@@ -968,217 +975,222 @@ impl<'a> Parser<'a> {
             0xbd => Operator::I64ReinterpretF64,
             0xbe => Operator::F32ReinterpretI32,
             0xbf => Operator::F64ReinterpretI64,
-            _ => panic!("Unknown opcode"),
-        }
+            _ => return Err("Unknown opcode"),
+        })
     }
 
-    fn read_init_expression_operator(&mut self) {
-        let op = self.read_operator();
+    fn read_init_expression_operator(&mut self) -> Result<()> {
+        let op = self.read_operator()?;
         if let Operator::End = op {
             self.state = ParserState::EndInitExpressionBody;
-            return;
+            return Ok(());
         }
         self.state = ParserState::InitExpressionOperator(op);
+        Ok(())
     }
 
-    fn read_export_entry(&mut self) {
+    fn read_export_entry(&mut self) -> Result<()> {
         if self.section_entries_left == 0 {
-            self.position_to_section_end();
-            return;
+            return self.position_to_section_end();
         }
-        let field = self.read_string();
-        let kind = self.read_external_kind();
-        let index = self.read_var_u32();
+        let field = self.read_string()?;
+        let kind = self.read_external_kind()?;
+        let index = self.read_var_u32()?;
         self.state = ParserState::ExportSectionEntry(field, kind, index);
         self.section_entries_left -= 1;
+        Ok(())
     }
 
-    fn read_element_entry(&mut self) {
+    fn read_element_entry(&mut self) -> Result<()> {
         if self.section_entries_left == 0 {
-            self.position_to_section_end();
-            return;
+            return self.position_to_section_end();
         }
-        self.state = ParserState::BeginElementSectionEntry(self.read_var_u32());
+        self.state = ParserState::BeginElementSectionEntry(self.read_var_u32()?);
         self.section_entries_left -= 1;
+        Ok(())
     }
 
-    fn read_element_entry_body(&mut self) {
-        let num_elements = self.read_var_u32() as usize;
+    fn read_element_entry_body(&mut self) -> Result<()> {
+        let num_elements = self.read_var_u32()? as usize;
         let mut elements: Vec<u32> = Vec::with_capacity(num_elements);
         for _ in 0..num_elements {
-            elements.push(self.read_var_u32());
+            elements.push(self.read_var_u32()?);
         }
         self.state = ParserState::ElementSectionEntryBody(elements);
+        Ok(())
     }
 
-    fn read_function_body(&mut self) {
+    fn read_function_body(&mut self) -> Result<()> {
         if self.section_entries_left == 0 {
-            self.position_to_section_end();
-            return;
+            return self.position_to_section_end();
         }
-        let size = self.read_var_u32() as usize;
+        let size = self.read_var_u32()? as usize;
         let body_end = self.position + size;
-        let local_count = self.read_var_u32() as usize;
+        let local_count = self.read_var_u32()? as usize;
         let mut locals: Vec<(u32, Type)> = Vec::with_capacity(local_count);
         for _ in 0..local_count {
-            let count = self.read_var_u32();
-            let ty = self.read_type();
+            let count = self.read_var_u32()?;
+            let ty = self.read_type()?;
             locals.push((count, ty));
         }
         self.state = ParserState::BeginFunctionBody(locals);
         self.function_range = Some((self.position, body_end));
         self.section_entries_left -= 1;
+        Ok(())
     }
 
-    fn read_code_operator(&mut self) {
-        let op = self.read_operator();
+    fn read_code_operator(&mut self) -> Result<()> {
+        let op = self.read_operator()?;
         if self.position >= self.function_range.unwrap().1 {
             self.state = ParserState::EndFunctionBody;
             self.function_range = None;
-            return;
+            return Ok(());
         }
         self.state = ParserState::CodeOperator(op);
+        Ok(())
     }
 
-    fn read_table_entry(&mut self) {
+    fn read_table_entry(&mut self) -> Result<()> {
         if self.section_entries_left == 0 {
-            self.position_to_section_end();
-            return;
+            return self.position_to_section_end();
         }
-        self.state = ParserState::TableSectionEntry(self.read_table_type());
+        self.state = ParserState::TableSectionEntry(self.read_table_type()?);
         self.section_entries_left -= 1;
+        Ok(())
     }
 
-    fn read_data_entry(&mut self) {
+    fn read_data_entry(&mut self) -> Result<()>  {
         if self.section_entries_left == 0 {
-            self.position_to_section_end();
-            return;
+            return self.position_to_section_end();
         }
-        let index = self.read_var_u32();
+        let index = self.read_var_u32()?;
         self.state = ParserState::BeginDataSectionEntry(index);
         self.section_entries_left -= 1;
+        Ok(())
     }
 
-    fn read_data_entry_body(&mut self) {
-        self.state = ParserState::DataSectionEntryBody(self.read_string());
+    fn read_data_entry_body(&mut self) -> Result<()> {
+        self.state = ParserState::DataSectionEntryBody(self.read_string()?);
+        Ok(())
     }
 
-    fn read_name_map(&mut self) -> Vec<Naming<'a>> {
-        let count = self.read_var_u32() as usize;
+    fn read_name_map(&mut self) -> Result<Vec<Naming<'a>>> {
+        let count = self.read_var_u32()? as usize;
         let mut result = Vec::with_capacity(count);
         for _ in 0..count {
-            let index = self.read_var_u32();
-            let name = self.read_string();
+            let index = self.read_var_u32()?;
+            let name = self.read_string()?;
             result.push(Naming {
                             index: index,
                             name: name,
                         });
         }
-        result
+        Ok(result)
     }
 
-    fn read_name_entry(&mut self) {
+    fn read_name_entry(&mut self) -> Result<()> {
         if self.position >= self.section_range.unwrap().1 {
-            self.position_to_section_end();
-            return;
+            return self.position_to_section_end();
         }
-        let ty = NameType::from_u7(self.read_var_u7());
-        /* let payload_len = */
-        self.read_var_u32();
+        let ty = NameType::from_u7(self.read_var_u7()?)?;
+        self.read_var_u32()?; // payload_len
         let entry = match ty {
-            NameType::Module => NameEntry::Module(self.read_string()),
-            NameType::Function => NameEntry::Function(self.read_name_map()),
+            NameType::Module => NameEntry::Module(self.read_string()?),
+            NameType::Function => NameEntry::Function(self.read_name_map()?),
             NameType::Local => {
-                let funcs_len = self.read_var_u32() as usize;
+                let funcs_len = self.read_var_u32()? as usize;
                 let mut funcs: Vec<LocalName<'a>> = Vec::with_capacity(funcs_len);
                 for _ in 0..funcs_len {
                     funcs.push(LocalName {
-                                   index: self.read_var_u32(),
-                                   locals: self.read_name_map(),
+                                   index: self.read_var_u32()?,
+                                   locals: self.read_name_map()?,
                                });
                 }
                 NameEntry::Local(funcs)
             }
         };
         self.state = ParserState::NameSectionEntry(entry);
+        Ok(())
     }
 
-    fn read_source_mapping(&mut self) {
-        self.state = ParserState::SourceMappingURL(self.read_string());
+    fn read_source_mapping(&mut self) -> Result<()> {
+        self.state = ParserState::SourceMappingURL(self.read_string()?);
+        Ok(())
     }
 
-    fn read_section_body(&mut self) {
+    fn read_section_body(&mut self) -> Result<()> {
         match self.state {
             ParserState::BeginSection(SectionCode::Type) => {
-                self.section_entries_left = self.read_var_u32();
-                self.read_type_entry();
+                self.section_entries_left = self.read_var_u32()?;
+                self.read_type_entry()?;
             }
             ParserState::BeginSection(SectionCode::Import) => {
-                self.section_entries_left = self.read_var_u32();
-                self.read_import_entry();
+                self.section_entries_left = self.read_var_u32()?;
+                self.read_import_entry()?;
             }
             ParserState::BeginSection(SectionCode::Function) => {
-                self.section_entries_left = self.read_var_u32();
-                self.read_function_entry();
+                self.section_entries_left = self.read_var_u32()?;
+                self.read_function_entry()?;
             }
             ParserState::BeginSection(SectionCode::Memory) => {
-                self.section_entries_left = self.read_var_u32();
-                self.read_memory_entry();
+                self.section_entries_left = self.read_var_u32()?;
+                self.read_memory_entry()?;
             }
             ParserState::BeginSection(SectionCode::Global) => {
-                self.section_entries_left = self.read_var_u32();
-                self.read_global_entry();
+                self.section_entries_left = self.read_var_u32()?;
+                self.read_global_entry()?;
             }
             ParserState::BeginSection(SectionCode::Export) => {
-                self.section_entries_left = self.read_var_u32();
-                self.read_export_entry();
+                self.section_entries_left = self.read_var_u32()?;
+                self.read_export_entry()?;
             }
             ParserState::BeginSection(SectionCode::Element) => {
-                self.section_entries_left = self.read_var_u32();
-                self.read_element_entry();
+                self.section_entries_left = self.read_var_u32()?;
+                self.read_element_entry()?;
             }
             ParserState::BeginSection(SectionCode::Code) => {
-                self.section_entries_left = self.read_var_u32();
-                self.read_function_body();
+                self.section_entries_left = self.read_var_u32()?;
+                self.read_function_body()?;
             }
             ParserState::BeginSection(SectionCode::Table) => {
-                self.section_entries_left = self.read_var_u32();
-                self.read_table_entry();
+                self.section_entries_left = self.read_var_u32()?;
+                self.read_table_entry()?;
             }
             ParserState::BeginSection(SectionCode::Data) => {
-                self.section_entries_left = self.read_var_u32();
-                self.read_data_entry();
+                self.section_entries_left = self.read_var_u32()?;
+                self.read_data_entry()?;
             }
             ParserState::BeginSection(SectionCode::Start) => {
-                self.state = ParserState::StartSectionEntry(self.read_var_u32());
+                self.state = ParserState::StartSectionEntry(self.read_var_u32()?);
             }
             ParserState::BeginSection(SectionCode::Custom(_, CustomSectionKind::Name)) => {
-                self.read_name_entry();
+                self.read_name_entry()?;
             }
             ParserState::BeginSection(SectionCode::Custom(_,
                                                           CustomSectionKind::SourceMappingURL)) => {
-                self.read_source_mapping();
+                self.read_source_mapping()?;
             }
             _ => unreachable!(),
         }
+        Ok(())
     }
 
-    fn position_to_section_end(&mut self) {
-        assert!(self.section_range.unwrap().1 <= self.end);
+    fn position_to_section_end(&mut self) -> Result<()> {
+        if self.section_range.unwrap().1 > self.end {
+            return Err("Position past the section end");
+        }
         self.position = self.section_range.unwrap().1;
         self.section_range = None;
         self.state = ParserState::EndSection;
+        Ok(())
     }
 
-    pub fn read(&mut self) -> Option<&ParserState> {
+    fn read_wrapped(&mut self) -> Result<()> {
         match self.state {
-            ParserState::Initial => self.read_header(),
-            ParserState::Error(_) => panic!("Not allowed"),
+            ParserState::Initial => self.read_header()?,
             ParserState::EndWasm => {
-                if self.position >= self.end {
-                    return None;
-                }
-                self.read_header();
+                assert!(self.position < self.end);
+                self.read_header()?;
             }
             ParserState::BeginWasm(_, _) |
             ParserState::EndSection => {
@@ -1187,26 +1199,26 @@ impl<'a> Parser<'a> {
                 } else if let Some(WASM_MAGIC_NUMBER) = self.peek_u32() {
                     self.state = ParserState::EndWasm;
                 } else {
-                    self.read_section_header();
+                    self.read_section_header()?;
                 }
             }
-            ParserState::BeginSection(_) => self.read_section_body(),
-            ParserState::SkippingSection => self.position_to_section_end(),
-            ParserState::TypeSectionEnty(_) => self.read_type_entry(),
-            ParserState::ImportSectionEntry(_, _, _) => self.read_import_entry(),
-            ParserState::FunctionSectionEnty(_) => self.read_function_entry(),
-            ParserState::MemorySectionEntry(_) => self.read_memory_entry(),
-            ParserState::TableSectionEntry(_) => self.read_table_entry(),
-            ParserState::ExportSectionEntry(_, _, _) => self.read_export_entry(),
+            ParserState::BeginSection(_) => self.read_section_body()?,
+            ParserState::SkippingSection => self.position_to_section_end()?,
+            ParserState::TypeSectionEnty(_) => self.read_type_entry()?,
+            ParserState::ImportSectionEntry(_, _, _) => self.read_import_entry()?,
+            ParserState::FunctionSectionEnty(_) => self.read_function_entry()?,
+            ParserState::MemorySectionEntry(_) => self.read_memory_entry()?,
+            ParserState::TableSectionEntry(_) => self.read_table_entry()?,
+            ParserState::ExportSectionEntry(_, _, _) => self.read_export_entry()?,
             ParserState::BeginGlobalSectionEntry(_) => {
                 self.read_init_expression_body(InitExpressionContinuation::GlobalSection)
             }
-            ParserState::EndGlobalSectionEntry => self.read_global_entry(),
+            ParserState::EndGlobalSectionEntry => self.read_global_entry()?,
             ParserState::BeginElementSectionEntry(_) => {
                 self.read_init_expression_body(InitExpressionContinuation::ElementSection)
             }
             ParserState::BeginInitExpressionBody |
-            ParserState::InitExpressionOperator(_) => self.read_init_expression_operator(),
+            ParserState::InitExpressionOperator(_) => self.read_init_expression_operator()?,
             ParserState::BeginDataSectionEntry(_) => {
                 self.read_init_expression_body(InitExpressionContinuation::DataSection)
             }
@@ -1216,16 +1228,16 @@ impl<'a> Parser<'a> {
                         self.state = ParserState::EndGlobalSectionEntry
                     }
                     Some(InitExpressionContinuation::ElementSection) => {
-                        self.read_element_entry_body()
+                        self.read_element_entry_body()?
                     }
-                    Some(InitExpressionContinuation::DataSection) => self.read_data_entry_body(),
+                    Some(InitExpressionContinuation::DataSection) => self.read_data_entry_body()?,
                     _ => unreachable!(),
                 }
                 self.init_expr_continuation = None;
             }
             ParserState::BeginFunctionBody(_) |
-            ParserState::CodeOperator(_) => self.read_code_operator(),
-            ParserState::EndFunctionBody => self.read_function_body(),
+            ParserState::CodeOperator(_) => self.read_code_operator()?,
+            ParserState::EndFunctionBody => self.read_function_body()?,
             ParserState::SkippingFunctionBody => {
                 assert!(self.position <= self.function_range.unwrap().1);
                 self.position = self.function_range.unwrap().1;
@@ -1235,17 +1247,31 @@ impl<'a> Parser<'a> {
             ParserState::DataSectionEntryBody(_) => {
                 self.state = ParserState::EndDataSectionEntry;
             }
-            ParserState::EndDataSectionEntry => self.read_data_entry(),
+            ParserState::EndDataSectionEntry => self.read_data_entry()?,
             ParserState::ElementSectionEntryBody(_) => {
                 self.state = ParserState::EndElementSectionEntry;
             }
-            ParserState::EndElementSectionEntry => self.read_element_entry(),
-            ParserState::StartSectionEntry(_) => self.position_to_section_end(),
-            ParserState::NameSectionEntry(_) => self.read_name_entry(),
-            ParserState::SourceMappingURL(_) => self.position_to_section_end(),
+            ParserState::EndElementSectionEntry => self.read_element_entry()?,
+            ParserState::StartSectionEntry(_) => self.position_to_section_end()?,
+            ParserState::NameSectionEntry(_) => self.read_name_entry()?,
+            ParserState::SourceMappingURL(_) => self.position_to_section_end()?,
             _ => panic!("Invalid reader state"),
         }
-        Some(&self.state)
+        Ok(())
+    }
+
+    pub fn read(&mut self) -> Option<&ParserState> {
+        match self.state {
+            ParserState::EndWasm if self.position >= self.end => return None,
+            ParserState::Error(_) => panic!("Parser in error state"),
+            _ => {
+                let result = self.read_wrapped();
+                if let Err(msg) = result {
+                    self.state = ParserState::Error(msg);
+                }
+                return Some(&self.state);
+            }
+        }
     }
 
     pub fn skip_section(&mut self) {
