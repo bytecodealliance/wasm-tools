@@ -15,6 +15,23 @@
 
 pub use parser::Parser;
 pub use parser::ParserState;
+pub use parser::SectionCode;
+pub use parser::Operator;
+pub use parser::Type;
+pub use parser::CustomSectionKind;
+pub use parser::NameType;
+pub use parser::Naming;
+pub use parser::LocalName;
+pub use parser::NameEntry;
+pub use parser::ExternalKind;
+pub use parser::FuncType;
+pub use parser::ResizableLimits;
+pub use parser::TableType;
+pub use parser::MemoryType;
+pub use parser::GlobalType;
+pub use parser::MemoryImmediate;
+pub use parser::BrTable;
+pub use parser::ImportSectionEntryType;
 
 mod parser;
 mod tests;
