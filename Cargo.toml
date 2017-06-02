@@ -2,5 +2,10 @@
 name = "wasmparser"
 version = "0.1.0"
 authors = ["Yury Delendik <ydelendik@mozilla.com>"]
+license = "Apache-2.0"
+repository = "https://github.com/yurydelendik/wasmparser.rs"
+description = """
+wasmparser in Rust.
+"""
 
 [dependencies]
