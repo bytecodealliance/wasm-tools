@@ -14,6 +14,7 @@
  */
 
 pub use parser::Parser;
+pub use parser::ParserState;
 
 mod parser;
 mod tests;
