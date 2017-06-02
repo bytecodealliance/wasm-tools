@@ -1,0 +1,6 @@
+[package]
+name = "wasmparser"
+version = "0.1.0"
+authors = ["Yury Delendik <ydelendik@mozilla.com>"]
+
+[dependencies]
