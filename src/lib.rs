@@ -13,6 +13,16 @@
  * limitations under the License.
  */
 
+//! A simple event-driven library for parsing WebAssembly binary files
+//! (or streams).
+//!
+//! The parser library reports events as they happend and only stores
+//! parsing information for a brief period of time, making it very fast
+//! and memory-efficient. The event-driven model, however, has some drawbacks.
+//! If you need random access to the entire WebAssembly data-structure,
+//! this is not the right library for you. You could however, build such
+//! a data-structure using this library.
+
 pub use parser::Parser;
 pub use parser::ParserState;
 pub use parser::SectionCode;
