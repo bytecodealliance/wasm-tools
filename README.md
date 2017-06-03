@@ -1,5 +1,7 @@
 # Simple wasm parser in Rust
 
+[![Build Status](https://travis-ci.org/yurydelendik/wasmparser.rs.svg?branch=master)](https://travis-ci.org/yurydelendik/wasmparser.rs)
+
 See also its sibling at https://github.com/wasdk/wasmparser
 
 ## Example
