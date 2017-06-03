@@ -30,7 +30,10 @@ pub enum CustomSectionKind {
 
 #[derive(Debug)]
 pub enum SectionCode<'a> {
-    Custom { name: &'a [u8], kind: CustomSectionKind },
+    Custom {
+        name: &'a [u8],
+        kind: CustomSectionKind,
+    },
     Type, // Function signature declarations
     Import, // Import declarations
     Function, // Function declarations
@@ -451,7 +454,7 @@ fn is_name_prefix(name: &[u8], prefix: &'static str) -> bool {
 pub enum ParserState<'a> {
     Error(&'a str),
     Initial,
-    BeginWasm { magic_number: u32, version: u32, },
+    BeginWasm { magic_number: u32, version: u32 },
     EndWasm,
     BeginSection(SectionCode<'a>),
     EndSection,
@@ -460,12 +463,20 @@ pub enum ParserState<'a> {
     SectionRawData,
 
     TypeSectionEnty(FuncType),
-    ImportSectionEntry { module: &'a [u8], field: &'a [u8], ty: ImportSectionEntryType, },
+    ImportSectionEntry {
+        module: &'a [u8],
+        field: &'a [u8],
+        ty: ImportSectionEntryType,
+    },
     FunctionSectionEnty(u32),
     TableSectionEntry(TableType),
     MemorySectionEntry(MemoryType),
     GlobalSectionEntry,
-    ExportSectionEntry { field: &'a [u8], kind: ExternalKind, index: u32, },
+    ExportSectionEntry {
+        field: &'a [u8],
+        kind: ExternalKind,
+        index: u32,
+    },
     DataSectionEntry,
     NameSectionEntry(NameEntry<'a>),
     StartSectionEntry(u32),
@@ -696,10 +707,10 @@ impl<'a> Parser<'a> {
             returns.push(self.read_type()?);
         }
         Ok(FuncType {
-            form: form,
-            params: params,
-            returns: returns,
-        })
+               form: form,
+               params: params,
+               returns: returns,
+           })
     }
 
     fn read_resizable_limits(&mut self) -> Result<ResizableLimits> {
@@ -712,17 +723,17 @@ impl<'a> Parser<'a> {
             maximum = None;
         }
         Ok(ResizableLimits {
-            flags: flags,
-            initial: initial,
-            maximum: maximum,
-        })
+               flags: flags,
+               initial: initial,
+               maximum: maximum,
+           })
     }
 
     fn read_table_type(&mut self) -> Result<TableType> {
         Ok(TableType {
-            element_type: self.read_type()?,
-            limits: self.read_resizable_limits()?,
-        })
+               element_type: self.read_type()?,
+               limits: self.read_resizable_limits()?,
+           })
     }
 
     fn read_memory_type(&mut self) -> Result<MemoryType> {
@@ -731,16 +742,16 @@ impl<'a> Parser<'a> {
 
     fn read_global_type(&mut self) -> Result<GlobalType> {
         Ok(GlobalType {
-            content_type: self.read_type()?,
-            mutability: self.read_var_u1()?,
-        })
+               content_type: self.read_type()?,
+               mutability: self.read_var_u1()?,
+           })
     }
 
     fn read_memory_immediate(&mut self) -> Result<MemoryImmediate> {
         Ok(MemoryImmediate {
-            flags: self.read_var_u32()?,
-            offset: self.read_var_u32()?,
-        })
+               flags: self.read_var_u32()?,
+               offset: self.read_var_u32()?,
+           })
     }
 
     fn read_header(&mut self) -> Result<()> {
@@ -870,188 +881,193 @@ impl<'a> Parser<'a> {
         }
         let default_target = self.read_var_u32()?;
         Ok(BrTable {
-            targets_table: targets_table,
-            default_target: default_target,
-        })
+               targets_table: targets_table,
+               default_target: default_target,
+           })
     }
 
     fn read_operator(&mut self) -> Result<Operator> {
         let code = self.read_u8()?;
         Ok(match code {
-            0x00 => Operator::Unreachable,
-            0x01 => Operator::Nop,
-            0x02 => Operator::Block(self.read_type()?),
-            0x03 => Operator::Loop(self.read_type()?),
-            0x04 => Operator::If(self.read_type()?),
-            0x05 => Operator::Else,
-            0x0b => Operator::End,
-            0x0c => Operator::Br(self.read_var_u32()?),
-            0x0d => Operator::BrIf(self.read_var_u32()?),
-            0x0e => Operator::BrTable(self.read_br_table()?),
-            0x0f => Operator::Return,
-            0x10 => Operator::Call(self.read_var_u32()?),
-            0x11 => Operator::CallIndirect { index: self.read_var_u32()?, table_index: self.read_var_u1()?, },
-            0x1a => Operator::Drop,
-            0x1b => Operator::Select,
-            0x20 => Operator::GetLocal(self.read_var_u32()?),
-            0x21 => Operator::SetLocal(self.read_var_u32()?),
-            0x22 => Operator::TeeLocal(self.read_var_u32()?),
-            0x23 => Operator::GetGlobal(self.read_var_u32()?),
-            0x24 => Operator::SetGlobal(self.read_var_u32()?),
-            0x28 => Operator::I32Load(self.read_memory_immediate()?),
-            0x29 => Operator::I64Load(self.read_memory_immediate()?),
-            0x2a => Operator::F32Load(self.read_memory_immediate()?),
-            0x2b => Operator::F64Load(self.read_memory_immediate()?),
-            0x2c => Operator::I32Load8S(self.read_memory_immediate()?),
-            0x2d => Operator::I32Load8U(self.read_memory_immediate()?),
-            0x2e => Operator::I32Load16S(self.read_memory_immediate()?),
-            0x2f => Operator::I32Load16U(self.read_memory_immediate()?),
-            0x30 => Operator::I64Load8S(self.read_memory_immediate()?),
-            0x31 => Operator::I64Load8U(self.read_memory_immediate()?),
-            0x32 => Operator::I64Load16S(self.read_memory_immediate()?),
-            0x33 => Operator::I64Load16U(self.read_memory_immediate()?),
-            0x34 => Operator::I64Load32S(self.read_memory_immediate()?),
-            0x35 => Operator::I64Load32U(self.read_memory_immediate()?),
-            0x36 => Operator::I32Store(self.read_memory_immediate()?),
-            0x37 => Operator::I64Store(self.read_memory_immediate()?),
-            0x38 => Operator::F32Store(self.read_memory_immediate()?),
-            0x39 => Operator::F64Store(self.read_memory_immediate()?),
-            0x3a => Operator::I32Store8(self.read_memory_immediate()?),
-            0x3b => Operator::I32Store16(self.read_memory_immediate()?),
-            0x3c => Operator::I64Store8(self.read_memory_immediate()?),
-            0x3d => Operator::I64Store16(self.read_memory_immediate()?),
-            0x3e => Operator::I64Store32(self.read_memory_immediate()?),
-            0x3f => Operator::CurrentMemory(self.read_var_u1()?),
-            0x40 => Operator::GrowMemory(self.read_var_u1()?),
-            0x41 => Operator::I32Const(self.read_var_i32()?),
-            0x42 => Operator::I64Const(self.read_var_i64()?),
-            0x43 => Operator::F32Const(self.read_f32()?),
-            0x44 => Operator::F64Const(self.read_f64()?),
-            0x45 => Operator::I32Eqz,
-            0x46 => Operator::I32Eq,
-            0x47 => Operator::I32Ne,
-            0x48 => Operator::I32LtS,
-            0x49 => Operator::I32LtU,
-            0x4a => Operator::I32GtS,
-            0x4b => Operator::I32GtU,
-            0x4c => Operator::I32LeS,
-            0x4d => Operator::I32LeU,
-            0x4e => Operator::I32GeS,
-            0x4f => Operator::I32GeU,
-            0x50 => Operator::I64Eqz,
-            0x51 => Operator::I64Eq,
-            0x52 => Operator::I64Ne,
-            0x53 => Operator::I64LtS,
-            0x54 => Operator::I64LtU,
-            0x55 => Operator::I64GtS,
-            0x56 => Operator::I64GtU,
-            0x57 => Operator::I64LeS,
-            0x58 => Operator::I64LeU,
-            0x59 => Operator::I64GeS,
-            0x5a => Operator::I64GeU,
-            0x5b => Operator::F32Eq,
-            0x5c => Operator::F32Ne,
-            0x5d => Operator::F32Lt,
-            0x5e => Operator::F32Gt,
-            0x5f => Operator::F32Le,
-            0x60 => Operator::F32Ge,
-            0x61 => Operator::F64Eq,
-            0x62 => Operator::F64Ne,
-            0x63 => Operator::F64Lt,
-            0x64 => Operator::F64Gt,
-            0x65 => Operator::F64Le,
-            0x66 => Operator::F64Ge,
-            0x67 => Operator::I32Clz,
-            0x68 => Operator::I32Ctz,
-            0x69 => Operator::I32Popcnt,
-            0x6a => Operator::I32Add,
-            0x6b => Operator::I32Sub,
-            0x6c => Operator::I32Mul,
-            0x6d => Operator::I32DivS,
-            0x6e => Operator::I32DivU,
-            0x6f => Operator::I32RemS,
-            0x70 => Operator::I32RemU,
-            0x71 => Operator::I32And,
-            0x72 => Operator::I32Or,
-            0x73 => Operator::I32Xor,
-            0x74 => Operator::I32Shl,
-            0x75 => Operator::I32ShrS,
-            0x76 => Operator::I32ShrU,
-            0x77 => Operator::I32Rotl,
-            0x78 => Operator::I32Rotr,
-            0x79 => Operator::I64Clz,
-            0x7a => Operator::I64Ctz,
-            0x7b => Operator::I64Popcnt,
-            0x7c => Operator::I64Add,
-            0x7d => Operator::I64Sub,
-            0x7e => Operator::I64Mul,
-            0x7f => Operator::I64DivS,
-            0x80 => Operator::I64DivU,
-            0x81 => Operator::I64RemS,
-            0x82 => Operator::I64RemU,
-            0x83 => Operator::I64And,
-            0x84 => Operator::I64Or,
-            0x85 => Operator::I64Xor,
-            0x86 => Operator::I64Shl,
-            0x87 => Operator::I64ShrS,
-            0x88 => Operator::I64ShrU,
-            0x89 => Operator::I64Rotl,
-            0x8a => Operator::I64Rotr,
-            0x8b => Operator::F32Abs,
-            0x8c => Operator::F32Neg,
-            0x8d => Operator::F32Ceil,
-            0x8e => Operator::F32Floor,
-            0x8f => Operator::F32Trunc,
-            0x90 => Operator::F32Nearest,
-            0x91 => Operator::F32Sqrt,
-            0x92 => Operator::F32Add,
-            0x93 => Operator::F32Sub,
-            0x94 => Operator::F32Mul,
-            0x95 => Operator::F32Div,
-            0x96 => Operator::F32Min,
-            0x97 => Operator::F32Max,
-            0x98 => Operator::F32Copysign,
-            0x99 => Operator::F64Abs,
-            0x9a => Operator::F64Neg,
-            0x9b => Operator::F64Ceil,
-            0x9c => Operator::F64Floor,
-            0x9d => Operator::F64Trunc,
-            0x9e => Operator::F64Nearest,
-            0x9f => Operator::F64Sqrt,
-            0xa0 => Operator::F64Add,
-            0xa1 => Operator::F64Sub,
-            0xa2 => Operator::F64Mul,
-            0xa3 => Operator::F64Div,
-            0xa4 => Operator::F64Min,
-            0xa5 => Operator::F64Max,
-            0xa6 => Operator::F64Copysign,
-            0xa7 => Operator::I32WrapI64,
-            0xa8 => Operator::I32TruncSF32,
-            0xa9 => Operator::I32TruncUF32,
-            0xaa => Operator::I32TruncSF64,
-            0xab => Operator::I32TruncUF64,
-            0xac => Operator::I64ExtendSI32,
-            0xad => Operator::I64ExtendUI32,
-            0xae => Operator::I64TruncSF32,
-            0xaf => Operator::I64TruncUF32,
-            0xb0 => Operator::I64TruncSF64,
-            0xb1 => Operator::I64TruncUF64,
-            0xb2 => Operator::F32ConvertSI32,
-            0xb3 => Operator::F32ConvertUI32,
-            0xb4 => Operator::F32ConvertSI64,
-            0xb5 => Operator::F32ConvertUI64,
-            0xb6 => Operator::F32DemoteF64,
-            0xb7 => Operator::F64ConvertSI32,
-            0xb8 => Operator::F64ConvertUI32,
-            0xb9 => Operator::F64ConvertSI64,
-            0xba => Operator::F64ConvertUI64,
-            0xbb => Operator::F64PromoteF32,
-            0xbc => Operator::I32ReinterpretF32,
-            0xbd => Operator::I64ReinterpretF64,
-            0xbe => Operator::F32ReinterpretI32,
-            0xbf => Operator::F64ReinterpretI64,
-            _ => return Err("Unknown opcode"),
-        })
+               0x00 => Operator::Unreachable,
+               0x01 => Operator::Nop,
+               0x02 => Operator::Block(self.read_type()?),
+               0x03 => Operator::Loop(self.read_type()?),
+               0x04 => Operator::If(self.read_type()?),
+               0x05 => Operator::Else,
+               0x0b => Operator::End,
+               0x0c => Operator::Br(self.read_var_u32()?),
+               0x0d => Operator::BrIf(self.read_var_u32()?),
+               0x0e => Operator::BrTable(self.read_br_table()?),
+               0x0f => Operator::Return,
+               0x10 => Operator::Call(self.read_var_u32()?),
+               0x11 => {
+                   Operator::CallIndirect {
+                       index: self.read_var_u32()?,
+                       table_index: self.read_var_u1()?,
+                   }
+               }
+               0x1a => Operator::Drop,
+               0x1b => Operator::Select,
+               0x20 => Operator::GetLocal(self.read_var_u32()?),
+               0x21 => Operator::SetLocal(self.read_var_u32()?),
+               0x22 => Operator::TeeLocal(self.read_var_u32()?),
+               0x23 => Operator::GetGlobal(self.read_var_u32()?),
+               0x24 => Operator::SetGlobal(self.read_var_u32()?),
+               0x28 => Operator::I32Load(self.read_memory_immediate()?),
+               0x29 => Operator::I64Load(self.read_memory_immediate()?),
+               0x2a => Operator::F32Load(self.read_memory_immediate()?),
+               0x2b => Operator::F64Load(self.read_memory_immediate()?),
+               0x2c => Operator::I32Load8S(self.read_memory_immediate()?),
+               0x2d => Operator::I32Load8U(self.read_memory_immediate()?),
+               0x2e => Operator::I32Load16S(self.read_memory_immediate()?),
+               0x2f => Operator::I32Load16U(self.read_memory_immediate()?),
+               0x30 => Operator::I64Load8S(self.read_memory_immediate()?),
+               0x31 => Operator::I64Load8U(self.read_memory_immediate()?),
+               0x32 => Operator::I64Load16S(self.read_memory_immediate()?),
+               0x33 => Operator::I64Load16U(self.read_memory_immediate()?),
+               0x34 => Operator::I64Load32S(self.read_memory_immediate()?),
+               0x35 => Operator::I64Load32U(self.read_memory_immediate()?),
+               0x36 => Operator::I32Store(self.read_memory_immediate()?),
+               0x37 => Operator::I64Store(self.read_memory_immediate()?),
+               0x38 => Operator::F32Store(self.read_memory_immediate()?),
+               0x39 => Operator::F64Store(self.read_memory_immediate()?),
+               0x3a => Operator::I32Store8(self.read_memory_immediate()?),
+               0x3b => Operator::I32Store16(self.read_memory_immediate()?),
+               0x3c => Operator::I64Store8(self.read_memory_immediate()?),
+               0x3d => Operator::I64Store16(self.read_memory_immediate()?),
+               0x3e => Operator::I64Store32(self.read_memory_immediate()?),
+               0x3f => Operator::CurrentMemory(self.read_var_u1()?),
+               0x40 => Operator::GrowMemory(self.read_var_u1()?),
+               0x41 => Operator::I32Const(self.read_var_i32()?),
+               0x42 => Operator::I64Const(self.read_var_i64()?),
+               0x43 => Operator::F32Const(self.read_f32()?),
+               0x44 => Operator::F64Const(self.read_f64()?),
+               0x45 => Operator::I32Eqz,
+               0x46 => Operator::I32Eq,
+               0x47 => Operator::I32Ne,
+               0x48 => Operator::I32LtS,
+               0x49 => Operator::I32LtU,
+               0x4a => Operator::I32GtS,
+               0x4b => Operator::I32GtU,
+               0x4c => Operator::I32LeS,
+               0x4d => Operator::I32LeU,
+               0x4e => Operator::I32GeS,
+               0x4f => Operator::I32GeU,
+               0x50 => Operator::I64Eqz,
+               0x51 => Operator::I64Eq,
+               0x52 => Operator::I64Ne,
+               0x53 => Operator::I64LtS,
+               0x54 => Operator::I64LtU,
+               0x55 => Operator::I64GtS,
+               0x56 => Operator::I64GtU,
+               0x57 => Operator::I64LeS,
+               0x58 => Operator::I64LeU,
+               0x59 => Operator::I64GeS,
+               0x5a => Operator::I64GeU,
+               0x5b => Operator::F32Eq,
+               0x5c => Operator::F32Ne,
+               0x5d => Operator::F32Lt,
+               0x5e => Operator::F32Gt,
+               0x5f => Operator::F32Le,
+               0x60 => Operator::F32Ge,
+               0x61 => Operator::F64Eq,
+               0x62 => Operator::F64Ne,
+               0x63 => Operator::F64Lt,
+               0x64 => Operator::F64Gt,
+               0x65 => Operator::F64Le,
+               0x66 => Operator::F64Ge,
+               0x67 => Operator::I32Clz,
+               0x68 => Operator::I32Ctz,
+               0x69 => Operator::I32Popcnt,
+               0x6a => Operator::I32Add,
+               0x6b => Operator::I32Sub,
+               0x6c => Operator::I32Mul,
+               0x6d => Operator::I32DivS,
+               0x6e => Operator::I32DivU,
+               0x6f => Operator::I32RemS,
+               0x70 => Operator::I32RemU,
+               0x71 => Operator::I32And,
+               0x72 => Operator::I32Or,
+               0x73 => Operator::I32Xor,
+               0x74 => Operator::I32Shl,
+               0x75 => Operator::I32ShrS,
+               0x76 => Operator::I32ShrU,
+               0x77 => Operator::I32Rotl,
+               0x78 => Operator::I32Rotr,
+               0x79 => Operator::I64Clz,
+               0x7a => Operator::I64Ctz,
+               0x7b => Operator::I64Popcnt,
+               0x7c => Operator::I64Add,
+               0x7d => Operator::I64Sub,
+               0x7e => Operator::I64Mul,
+               0x7f => Operator::I64DivS,
+               0x80 => Operator::I64DivU,
+               0x81 => Operator::I64RemS,
+               0x82 => Operator::I64RemU,
+               0x83 => Operator::I64And,
+               0x84 => Operator::I64Or,
+               0x85 => Operator::I64Xor,
+               0x86 => Operator::I64Shl,
+               0x87 => Operator::I64ShrS,
+               0x88 => Operator::I64ShrU,
+               0x89 => Operator::I64Rotl,
+               0x8a => Operator::I64Rotr,
+               0x8b => Operator::F32Abs,
+               0x8c => Operator::F32Neg,
+               0x8d => Operator::F32Ceil,
+               0x8e => Operator::F32Floor,
+               0x8f => Operator::F32Trunc,
+               0x90 => Operator::F32Nearest,
+               0x91 => Operator::F32Sqrt,
+               0x92 => Operator::F32Add,
+               0x93 => Operator::F32Sub,
+               0x94 => Operator::F32Mul,
+               0x95 => Operator::F32Div,
+               0x96 => Operator::F32Min,
+               0x97 => Operator::F32Max,
+               0x98 => Operator::F32Copysign,
+               0x99 => Operator::F64Abs,
+               0x9a => Operator::F64Neg,
+               0x9b => Operator::F64Ceil,
+               0x9c => Operator::F64Floor,
+               0x9d => Operator::F64Trunc,
+               0x9e => Operator::F64Nearest,
+               0x9f => Operator::F64Sqrt,
+               0xa0 => Operator::F64Add,
+               0xa1 => Operator::F64Sub,
+               0xa2 => Operator::F64Mul,
+               0xa3 => Operator::F64Div,
+               0xa4 => Operator::F64Min,
+               0xa5 => Operator::F64Max,
+               0xa6 => Operator::F64Copysign,
+               0xa7 => Operator::I32WrapI64,
+               0xa8 => Operator::I32TruncSF32,
+               0xa9 => Operator::I32TruncUF32,
+               0xaa => Operator::I32TruncSF64,
+               0xab => Operator::I32TruncUF64,
+               0xac => Operator::I64ExtendSI32,
+               0xad => Operator::I64ExtendUI32,
+               0xae => Operator::I64TruncSF32,
+               0xaf => Operator::I64TruncUF32,
+               0xb0 => Operator::I64TruncSF64,
+               0xb1 => Operator::I64TruncUF64,
+               0xb2 => Operator::F32ConvertSI32,
+               0xb3 => Operator::F32ConvertUI32,
+               0xb4 => Operator::F32ConvertSI64,
+               0xb5 => Operator::F32ConvertUI64,
+               0xb6 => Operator::F32DemoteF64,
+               0xb7 => Operator::F64ConvertSI32,
+               0xb8 => Operator::F64ConvertUI32,
+               0xb9 => Operator::F64ConvertSI64,
+               0xba => Operator::F64ConvertUI64,
+               0xbb => Operator::F64PromoteF32,
+               0xbc => Operator::I32ReinterpretF32,
+               0xbd => Operator::I64ReinterpretF64,
+               0xbe => Operator::F32ReinterpretI32,
+               0xbf => Operator::F64ReinterpretI64,
+               _ => return Err("Unknown opcode"),
+           })
     }
 
     fn read_init_expression_operator(&mut self) -> Result<()> {
@@ -1074,7 +1090,7 @@ impl<'a> Parser<'a> {
         self.state = ParserState::ExportSectionEntry {
             field: field,
             kind: kind,
-            index: index
+            index: index,
         };
         self.section_entries_left -= 1;
         Ok(())
@@ -1138,7 +1154,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn read_data_entry(&mut self) -> Result<()>  {
+    fn read_data_entry(&mut self) -> Result<()> {
         if self.section_entries_left == 0 {
             return self.position_to_section_end();
         }
@@ -1223,16 +1239,14 @@ impl<'a> Parser<'a> {
             RelocType::GlobalIndexLEB => None,
             RelocType::GlobalAddrLEB |
             RelocType::GlobalAddrSLEB |
-            RelocType::GlobalAddrI32 => {
-                Some(self.read_var_u32()?)
-            }
+            RelocType::GlobalAddrI32 => Some(self.read_var_u32()?),
         };
         self.state = ParserState::RelocSectionEntry(RelocEntry {
-            ty: ty,
-            offset: offset,
-            index: index,
-            addend: addend,
-        });
+                                                        ty: ty,
+                                                        offset: offset,
+                                                        index: index,
+                                                        addend: addend,
+                                                    });
         self.section_entries_left -= 1;
         Ok(())
     }
@@ -1244,7 +1258,9 @@ impl<'a> Parser<'a> {
         let ty = self.read_var_u32()?;
         let entry = match ty {
             1 => LinkingType::StackPointer(self.read_var_u32()?),
-            _ => { return Err("Invalid linking type"); }
+            _ => {
+                return Err("Invalid linking type");
+            }
         };
         self.state = ParserState::LinkingSectionEntry(entry);
         self.section_entries_left -= 1;
@@ -1296,16 +1312,24 @@ impl<'a> Parser<'a> {
             ParserState::BeginSection(SectionCode::Start) => {
                 self.state = ParserState::StartSectionEntry(self.read_var_u32()?);
             }
-            ParserState::BeginSection(SectionCode::Custom { kind: CustomSectionKind::Name, .. }) => {
+            ParserState::BeginSection(SectionCode::Custom {
+                                          kind: CustomSectionKind::Name, ..
+                                      }) => {
                 self.read_name_entry()?;
             }
-            ParserState::BeginSection(SectionCode::Custom { kind: CustomSectionKind::SourceMappingURL, .. }) => {
+            ParserState::BeginSection(SectionCode::Custom {
+                                          kind: CustomSectionKind::SourceMappingURL, ..
+                                      }) => {
                 self.read_source_mapping()?;
             }
-            ParserState::BeginSection(SectionCode::Custom { kind: CustomSectionKind::Reloc, .. }) => {
+            ParserState::BeginSection(SectionCode::Custom {
+                                          kind: CustomSectionKind::Reloc, ..
+                                      }) => {
                 self.read_reloc_header()?;
             }
-            ParserState::BeginSection(SectionCode::Custom { kind: CustomSectionKind::Linking, .. }) => {
+            ParserState::BeginSection(SectionCode::Custom {
+                                          kind: CustomSectionKind::Linking, ..
+                                      }) => {
                 self.section_entries_left = self.read_var_u32()?;
                 self.read_linking_entry()?;
             }
@@ -1397,7 +1421,7 @@ impl<'a> Parser<'a> {
             ParserState::RelocSectionHeader(_) => {
                 self.section_entries_left = self.read_var_u32()?;
                 self.read_reloc_entry()?;
-            },
+            }
             ParserState::RelocSectionEntry(_) => self.read_reloc_entry()?,
             ParserState::LinkingSectionEntry(_) => self.read_linking_entry()?,
             _ => panic!("Invalid reader state"),
