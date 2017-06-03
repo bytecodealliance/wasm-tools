@@ -21,13 +21,13 @@ fn main() {
         break;
     }
     match *state.unwrap() {
-        ParserState::BeginWasm(_, _) => {
+        ParserState::BeginWasm { .. } => {
             println!("====== Module");
-        },
-        ParserState::ExportSectionEntry(field, ref ty, _) => {
-            println!("  Export {} {:?}", get_name(field), ty);
-        },
-        ParserState::ImportSectionEntry(module, field, _) => {
+        }
+        ParserState::ExportSectionEntry { field, ref kind, .. } => {
+            println!("  Export {} {:?}", get_name(field), kind);
+        }
+        ParserState::ImportSectionEntry { module, field, .. } => {
             println!("  Import {}::{}", get_name(module), get_name(field))
         }
         _ => ( /* println!(" Other {:?}", state); */ )

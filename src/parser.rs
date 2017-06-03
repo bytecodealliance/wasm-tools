@@ -30,7 +30,7 @@ pub enum CustomSectionKind {
 
 #[derive(Debug)]
 pub enum SectionCode<'a> {
-    Custom(&'a [u8], CustomSectionKind),
+    Custom { name: &'a [u8], kind: CustomSectionKind },
     Type, // Function signature declarations
     Import, // Import declarations
     Function, // Function declarations
@@ -259,7 +259,7 @@ pub enum Operator {
     BrTable(BrTable),
     Return,
     Call(u32),
-    CallIndirect(u32, u32),
+    CallIndirect { index: u32, table_index: u32 },
     Drop,
     Select,
     GetLocal(u32),
@@ -451,7 +451,7 @@ fn is_name_prefix(name: &[u8], prefix: &'static str) -> bool {
 pub enum ParserState<'a> {
     Error(&'a str),
     Initial,
-    BeginWasm(u32, u32),
+    BeginWasm { magic_number: u32, version: u32, },
     EndWasm,
     BeginSection(SectionCode<'a>),
     EndSection,
@@ -460,12 +460,12 @@ pub enum ParserState<'a> {
     SectionRawData,
 
     TypeSectionEnty(FuncType),
-    ImportSectionEntry(&'a [u8], &'a [u8], ImportSectionEntryType),
+    ImportSectionEntry { module: &'a [u8], field: &'a [u8], ty: ImportSectionEntryType, },
     FunctionSectionEnty(u32),
     TableSectionEntry(TableType),
     MemorySectionEntry(MemoryType),
     GlobalSectionEntry,
-    ExportSectionEntry(&'a [u8], ExternalKind, u32),
+    ExportSectionEntry { field: &'a [u8], kind: ExternalKind, index: u32, },
     DataSectionEntry,
     NameSectionEntry(NameEntry<'a>),
     StartSectionEntry(u32),
@@ -752,7 +752,10 @@ impl<'a> Parser<'a> {
         if version != WASM_SUPPORTED_VERSION && version != WASM_EXPERIMENTAL_VERSION {
             return Err("Bad version number");
         }
-        self.state = ParserState::BeginWasm(magic_number, version);
+        self.state = ParserState::BeginWasm {
+            magic_number: magic_number,
+            version: version,
+        };
         Ok(())
     }
 
@@ -772,7 +775,10 @@ impl<'a> Parser<'a> {
             } else {
                 CustomSectionKind::Unknown
             };
-            code = SectionCode::Custom(name, kind);
+            code = SectionCode::Custom {
+                name: name,
+                kind: kind,
+            };
         } else {
             code = SectionCode::from_u32(id)?;
         }
@@ -815,7 +821,11 @@ impl<'a> Parser<'a> {
             ExternalKind::Global => ty = ImportSectionEntryType::Global(self.read_global_type()?),
         }
 
-        self.state = ParserState::ImportSectionEntry(module, field, ty);
+        self.state = ParserState::ImportSectionEntry {
+            module: module,
+            field: field,
+            ty: ty,
+        };
         self.section_entries_left -= 1;
         Ok(())
     }
@@ -880,7 +890,7 @@ impl<'a> Parser<'a> {
             0x0e => Operator::BrTable(self.read_br_table()?),
             0x0f => Operator::Return,
             0x10 => Operator::Call(self.read_var_u32()?),
-            0x11 => Operator::CallIndirect(self.read_var_u32()?, self.read_var_u1()?),
+            0x11 => Operator::CallIndirect { index: self.read_var_u32()?, table_index: self.read_var_u1()?, },
             0x1a => Operator::Drop,
             0x1b => Operator::Select,
             0x20 => Operator::GetLocal(self.read_var_u32()?),
@@ -1061,7 +1071,11 @@ impl<'a> Parser<'a> {
         let field = self.read_string()?;
         let kind = self.read_external_kind()?;
         let index = self.read_var_u32()?;
-        self.state = ParserState::ExportSectionEntry(field, kind, index);
+        self.state = ParserState::ExportSectionEntry {
+            field: field,
+            kind: kind,
+            index: index
+        };
         self.section_entries_left -= 1;
         Ok(())
     }
@@ -1282,17 +1296,16 @@ impl<'a> Parser<'a> {
             ParserState::BeginSection(SectionCode::Start) => {
                 self.state = ParserState::StartSectionEntry(self.read_var_u32()?);
             }
-            ParserState::BeginSection(SectionCode::Custom(_, CustomSectionKind::Name)) => {
+            ParserState::BeginSection(SectionCode::Custom { kind: CustomSectionKind::Name, .. }) => {
                 self.read_name_entry()?;
             }
-            ParserState::BeginSection(SectionCode::Custom(_,
-                                                          CustomSectionKind::SourceMappingURL)) => {
+            ParserState::BeginSection(SectionCode::Custom { kind: CustomSectionKind::SourceMappingURL, .. }) => {
                 self.read_source_mapping()?;
             }
-            ParserState::BeginSection(SectionCode::Custom(_, CustomSectionKind::Reloc)) => {
+            ParserState::BeginSection(SectionCode::Custom { kind: CustomSectionKind::Reloc, .. }) => {
                 self.read_reloc_header()?;
             }
-            ParserState::BeginSection(SectionCode::Custom(_, CustomSectionKind::Linking)) => {
+            ParserState::BeginSection(SectionCode::Custom { kind: CustomSectionKind::Linking, .. }) => {
                 self.section_entries_left = self.read_var_u32()?;
                 self.read_linking_entry()?;
             }
@@ -1318,7 +1331,7 @@ impl<'a> Parser<'a> {
                 assert!(self.position < self.end);
                 self.read_header()?;
             }
-            ParserState::BeginWasm(_, _) |
+            ParserState::BeginWasm { .. } |
             ParserState::EndSection => {
                 if self.position >= self.end {
                     self.state = ParserState::EndWasm;
@@ -1331,11 +1344,11 @@ impl<'a> Parser<'a> {
             ParserState::BeginSection(_) => self.read_section_body()?,
             ParserState::SkippingSection => self.position_to_section_end()?,
             ParserState::TypeSectionEnty(_) => self.read_type_entry()?,
-            ParserState::ImportSectionEntry(_, _, _) => self.read_import_entry()?,
+            ParserState::ImportSectionEntry { .. } => self.read_import_entry()?,
             ParserState::FunctionSectionEnty(_) => self.read_function_entry()?,
             ParserState::MemorySectionEntry(_) => self.read_memory_entry()?,
             ParserState::TableSectionEntry(_) => self.read_table_entry()?,
-            ParserState::ExportSectionEntry(_, _, _) => self.read_export_entry()?,
+            ParserState::ExportSectionEntry { .. } => self.read_export_entry()?,
             ParserState::BeginGlobalSectionEntry(_) => {
                 self.read_init_expression_body(InitExpressionContinuation::GlobalSection)
             }
@@ -1411,7 +1424,7 @@ impl<'a> Parser<'a> {
             ParserState::Initial |
             ParserState::EndWasm |
             ParserState::Error(_) |
-            ParserState::BeginWasm(_, _) |
+            ParserState::BeginWasm { .. } |
             ParserState::EndSection => return,
             _ => self.state = ParserState::SkippingSection,
         }
