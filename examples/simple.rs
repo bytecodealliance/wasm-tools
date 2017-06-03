@@ -23,10 +23,7 @@ fn main() {
     let mut parser = Parser::new(buf);
     loop {
         let state = parser.read();
-        if state.is_none() {
-            break;
-        }
-        match *state.unwrap() {
+        match *state {
             ParserState::BeginWasm { .. } => {
                 println!("====== Module");
             }
@@ -36,6 +33,8 @@ fn main() {
             ParserState::ImportSectionEntry { module, field, .. } => {
                 println!("  Import {}::{}", get_name(module), get_name(field))
             }
+            ParserState::EndWasm => break,
+            ParserState::Error(msg) => panic!("Error: {}", msg),
             _ => ( /* println!(" Other {:?}", state); */ ),
         }
     }

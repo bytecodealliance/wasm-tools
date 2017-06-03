@@ -19,6 +19,7 @@ mod simple_tests {
     use std::fs::{File, read_dir};
     use std::path::PathBuf;
     use parser::Parser;
+    use parser::ParserState;
 
     fn read_file_data(path: &PathBuf) -> Vec<u8> {
         println!("Parsing {:?}", path);
@@ -36,8 +37,10 @@ mod simple_tests {
             let mut max_iteration = 100000000;
             loop {
                 let state = parser.read();
-                if state.is_none() {
-                    break;
+                match *state {
+                    ParserState::EndWasm => break,
+                    ParserState::Error(msg) => panic!("Error: {}", msg),
+                    _ => (),
                 }
                 max_iteration -= 1;
                 if max_iteration == 0 {

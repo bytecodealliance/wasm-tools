@@ -561,17 +561,6 @@ impl<'a> Parser<'a> {
         Ok(b1 | (b2 << 8) | (b3 << 16) | (b4 << 24))
     }
 
-    fn peek_u32(&self) -> Option<u32> {
-        if self.position + 4 > self.end {
-            return None;
-        }
-        let b1 = self.buffer[self.position] as u32;
-        let b2 = self.buffer[self.position + 1] as u32;
-        let b3 = self.buffer[self.position + 2] as u32;
-        let b4 = self.buffer[self.position + 3] as u32;
-        Some(b1 | (b2 << 8) | (b3 << 16) | (b4 << 24))
-    }
-
     fn read_u64(&mut self) -> Result<u64> {
         let w1 = self.read_u32()? as u64;
         let w2 = self.read_u32()? as u64;
@@ -1350,16 +1339,12 @@ impl<'a> Parser<'a> {
 
     fn read_wrapped(&mut self) -> Result<()> {
         match self.state {
+            ParserState::EndWasm => panic!("Parser in end state"),
+            ParserState::Error(_) => panic!("Parser in error state"),
             ParserState::Initial => self.read_header()?,
-            ParserState::EndWasm => {
-                assert!(self.position < self.end);
-                self.read_header()?;
-            }
             ParserState::BeginWasm { .. } |
             ParserState::EndSection => {
                 if self.position >= self.end {
-                    self.state = ParserState::EndWasm;
-                } else if let Some(WASM_MAGIC_NUMBER) = self.peek_u32() {
                     self.state = ParserState::EndWasm;
                 } else {
                     self.read_section_header()?;
@@ -1429,18 +1414,12 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    pub fn read(&mut self) -> Option<&ParserState> {
-        match self.state {
-            ParserState::EndWasm if self.position >= self.end => return None,
-            ParserState::Error(_) => panic!("Parser in error state"),
-            _ => {
-                let result = self.read_wrapped();
-                if let Err(msg) = result {
-                    self.state = ParserState::Error(msg);
-                }
-                return Some(&self.state);
-            }
+    pub fn read(&mut self) -> &ParserState {
+        let result = self.read_wrapped();
+        if let Err(msg) = result {
+            self.state = ParserState::Error(msg);
         }
+        return &self.state;
     }
 
     pub fn skip_section(&mut self) {
