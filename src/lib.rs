@@ -32,6 +32,9 @@ pub use parser::GlobalType;
 pub use parser::MemoryImmediate;
 pub use parser::BrTable;
 pub use parser::ImportSectionEntryType;
+pub use parser::RelocType;
+pub use parser::RelocEntry;
+pub use parser::LinkingType;
 
 mod parser;
 mod tests;

@@ -19,16 +19,16 @@ mod simple_tests {
     use std::fs::File;
     use parser::Parser;
 
-    fn read_file_data<'a, 'b>(path: &'a str) -> Vec<u8> {
+    fn read_file_data(path: &str) -> Vec<u8> {
         let mut data = Vec::new();
         let mut f = File::open(path).ok().unwrap();
-        f.read_to_end(&mut data).ok().unwrap();
+        f.read_to_end(&mut data).unwrap();
         data
     }
 
-    #[test]
-    fn it_works() {
-        let data = read_file_data("tests/spec.wasm");
+    fn parse_file(path: &str) {
+        println!("Parsing {}", path);
+        let data = read_file_data(path);
         let mut parser = Parser::new(data.as_slice());
         let mut max_iteration = 100000000;
         loop {
@@ -41,5 +41,20 @@ mod simple_tests {
                 panic!("Max iterations exceeded");
             }
         }
+    }
+
+    #[test]
+    fn test_w_naming() {
+        parse_file("tests/naming.wasm");
+    }
+
+    #[test]
+    fn test_w_reloc() {
+        parse_file("tests/reloc.wasm");
+    }
+
+    #[test]
+    fn test_specs() {
+        parse_file("tests/spec.wasm");
     }
 }

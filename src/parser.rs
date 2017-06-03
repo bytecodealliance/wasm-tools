@@ -24,6 +24,8 @@ pub enum CustomSectionKind {
     Unknown,
     Name,
     SourceMappingURL,
+    Reloc,
+    Linking,
 }
 
 #[derive(Debug)]
@@ -200,6 +202,47 @@ pub enum ImportSectionEntryType {
     Table(TableType),
     Memory(MemoryType),
     Global(GlobalType),
+}
+
+#[derive(Debug)]
+pub enum RelocType {
+    FunctionIndexLEB,
+    TableIndexSLEB,
+    TableIndexI32,
+    GlobalAddrLEB,
+    GlobalAddrSLEB,
+    GlobalAddrI32,
+    TypeIndexLEB,
+    GlobalIndexLEB,
+}
+
+impl RelocType {
+    pub fn from_u7(code: u32) -> Result<RelocType> {
+        match code {
+            0 => Ok(RelocType::FunctionIndexLEB),
+            1 => Ok(RelocType::TableIndexSLEB),
+            2 => Ok(RelocType::TableIndexI32),
+            3 => Ok(RelocType::GlobalAddrLEB),
+            4 => Ok(RelocType::GlobalAddrSLEB),
+            5 => Ok(RelocType::GlobalAddrI32),
+            6 => Ok(RelocType::TypeIndexLEB),
+            7 => Ok(RelocType::GlobalIndexLEB),
+            _ => Err("Invalid reloc type"),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum LinkingType {
+    StackPointer(u32),
+}
+
+#[derive(Debug)]
+pub struct RelocEntry {
+    ty: RelocType,
+    offset: u32,
+    index: u32,
+    addend: Option<u32>,
 }
 
 #[derive(Debug)]
@@ -391,6 +434,19 @@ fn is_name(name: &[u8], expected: &'static str) -> bool {
     true
 }
 
+fn is_name_prefix(name: &[u8], prefix: &'static str) -> bool {
+    if name.len() < prefix.len() {
+        return false;
+    }
+    let expected_bytes = prefix.as_bytes();
+    for i in 0..expected_bytes.len() {
+        if name[i] != expected_bytes[i] {
+            return false;
+        }
+    }
+    true
+}
+
 #[derive(Debug)]
 pub enum ParserState<'a> {
     Error(&'a str),
@@ -413,7 +469,6 @@ pub enum ParserState<'a> {
     DataSectionEntry,
     NameSectionEntry(NameEntry<'a>),
     StartSectionEntry(u32),
-    LinkingSectionEntry,
 
     BeginInitExpressionBody,
     InitExpressionOperator(Operator),
@@ -434,10 +489,11 @@ pub enum ParserState<'a> {
 
     BeginGlobalSectionEntry(GlobalType),
     EndGlobalSectionEntry,
-    /*
-    RelocSectionHeader,
-    RelocSectionEntry,
-*/
+
+    RelocSectionHeader(SectionCode<'a>),
+    RelocSectionEntry(RelocEntry),
+    LinkingSectionEntry(LinkingType),
+
     SourceMappingURL(&'a [u8]),
 }
 
@@ -700,13 +756,8 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn read_section_header(&mut self) -> Result<()> {
-        let id = self.read_var_u7()?;
-        if !SectionCode::is_known_section_code(id) {
-            return Err("Unknown section code");
-        }
-        let payload_len = self.read_var_u32()? as usize;
-        let payload_end = self.position + payload_len;
+    fn read_section_code(&mut self, id: u32) -> Result<SectionCode<'a>> {
+        assert!(SectionCode::is_known_section_code(id));
         let code;
         if SectionCode::is_custom_section_code(id) {
             let name = self.read_string()?;
@@ -714,6 +765,10 @@ impl<'a> Parser<'a> {
                 CustomSectionKind::Name
             } else if is_name(name, "sourceMappingURL") {
                 CustomSectionKind::SourceMappingURL
+            } else if is_name_prefix(name, "reloc.") {
+                CustomSectionKind::Reloc
+            } else if is_name(name, "linking") {
+                CustomSectionKind::Linking
             } else {
                 CustomSectionKind::Unknown
             };
@@ -721,7 +776,17 @@ impl<'a> Parser<'a> {
         } else {
             code = SectionCode::from_u32(id)?;
         }
-        self.state = ParserState::BeginSection(code);
+        Ok(code)
+    }
+
+    fn read_section_header(&mut self) -> Result<()> {
+        let id = self.read_var_u7()?;
+        if !SectionCode::is_known_section_code(id) {
+            return Err("Unknown section code");
+        }
+        let payload_len = self.read_var_u32()? as usize;
+        let payload_end = self.position + payload_len;
+        self.state = ParserState::BeginSection(self.read_section_code(id)?);
         self.section_range = Some((self.position, payload_end));
         Ok(())
     }
@@ -1118,6 +1183,60 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
+    // See https://github.com/WebAssembly/tool-conventions/blob/master/Linking.md
+    fn read_reloc_header(&mut self) -> Result<()> {
+        let section_id = self.read_var_u7()?;
+        if !SectionCode::is_known_section_code(section_id) {
+            return Err("Unknown section code");
+        }
+        let section_code = self.read_section_code(section_id)?;
+        self.state = ParserState::RelocSectionHeader(section_code);
+        Ok(())
+    }
+
+    fn read_reloc_entry(&mut self) -> Result<()> {
+        if self.section_entries_left == 0 {
+            return self.position_to_section_end();
+        }
+        let ty = RelocType::from_u7(self.read_var_u7()?)?;
+        let offset = self.read_var_u32()?;
+        let index = self.read_var_u32()?;
+        let addend = match ty {
+            RelocType::FunctionIndexLEB |
+            RelocType::TableIndexSLEB |
+            RelocType::TableIndexI32 |
+            RelocType::TypeIndexLEB |
+            RelocType::GlobalIndexLEB => None,
+            RelocType::GlobalAddrLEB |
+            RelocType::GlobalAddrSLEB |
+            RelocType::GlobalAddrI32 => {
+                Some(self.read_var_u32()?)
+            }
+        };
+        self.state = ParserState::RelocSectionEntry(RelocEntry {
+            ty: ty,
+            offset: offset,
+            index: index,
+            addend: addend,
+        });
+        self.section_entries_left -= 1;
+        Ok(())
+    }
+
+    fn read_linking_entry(&mut self) -> Result<()> {
+        if self.section_entries_left == 0 {
+            return self.position_to_section_end();
+        }
+        let ty = self.read_var_u32()?;
+        let entry = match ty {
+            1 => LinkingType::StackPointer(self.read_var_u32()?),
+            _ => { return Err("Invalid linking type"); }
+        };
+        self.state = ParserState::LinkingSectionEntry(entry);
+        self.section_entries_left -= 1;
+        Ok(())
+    }
+
     fn read_section_body(&mut self) -> Result<()> {
         match self.state {
             ParserState::BeginSection(SectionCode::Type) => {
@@ -1169,6 +1288,13 @@ impl<'a> Parser<'a> {
             ParserState::BeginSection(SectionCode::Custom(_,
                                                           CustomSectionKind::SourceMappingURL)) => {
                 self.read_source_mapping()?;
+            }
+            ParserState::BeginSection(SectionCode::Custom(_, CustomSectionKind::Reloc)) => {
+                self.read_reloc_header()?;
+            }
+            ParserState::BeginSection(SectionCode::Custom(_, CustomSectionKind::Linking)) => {
+                self.section_entries_left = self.read_var_u32()?;
+                self.read_linking_entry()?;
             }
             _ => unreachable!(),
         }
@@ -1255,6 +1381,12 @@ impl<'a> Parser<'a> {
             ParserState::StartSectionEntry(_) => self.position_to_section_end()?,
             ParserState::NameSectionEntry(_) => self.read_name_entry()?,
             ParserState::SourceMappingURL(_) => self.position_to_section_end()?,
+            ParserState::RelocSectionHeader(_) => {
+                self.section_entries_left = self.read_var_u32()?;
+                self.read_reloc_entry()?;
+            },
+            ParserState::RelocSectionEntry(_) => self.read_reloc_entry()?,
+            ParserState::LinkingSectionEntry(_) => self.read_linking_entry()?,
             _ => panic!("Invalid reader state"),
         }
         Ok(())
