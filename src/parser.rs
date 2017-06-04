@@ -462,13 +462,13 @@ pub enum ParserState<'a> {
     ReadingSectionRawData,
     SectionRawData,
 
-    TypeSectionEnty(FuncType),
+    TypeSectionEntry(FuncType),
     ImportSectionEntry {
         module: &'a [u8],
         field: &'a [u8],
         ty: ImportSectionEntryType,
     },
-    FunctionSectionEnty(u32),
+    FunctionSectionEntry(u32),
     TableSectionEntry(TableType),
     MemorySectionEntry(MemoryType),
     GlobalSectionEntry,
@@ -801,7 +801,7 @@ impl<'a> Parser<'a> {
         if self.section_entries_left == 0 {
             return self.position_to_section_end();
         }
-        self.state = ParserState::TypeSectionEnty(self.read_func_type()?);
+        self.state = ParserState::TypeSectionEntry(self.read_func_type()?);
         self.section_entries_left -= 1;
         Ok(())
     }
@@ -834,7 +834,7 @@ impl<'a> Parser<'a> {
         if self.section_entries_left == 0 {
             return self.position_to_section_end();
         }
-        self.state = ParserState::FunctionSectionEnty(self.read_var_u32()?);
+        self.state = ParserState::FunctionSectionEntry(self.read_var_u32()?);
         self.section_entries_left -= 1;
         Ok(())
     }
@@ -1352,9 +1352,9 @@ impl<'a> Parser<'a> {
             }
             ParserState::BeginSection(_) => self.read_section_body()?,
             ParserState::SkippingSection => self.position_to_section_end()?,
-            ParserState::TypeSectionEnty(_) => self.read_type_entry()?,
+            ParserState::TypeSectionEntry(_) => self.read_type_entry()?,
             ParserState::ImportSectionEntry { .. } => self.read_import_entry()?,
-            ParserState::FunctionSectionEnty(_) => self.read_function_entry()?,
+            ParserState::FunctionSectionEntry(_) => self.read_function_entry()?,
             ParserState::MemorySectionEntry(_) => self.read_memory_entry()?,
             ParserState::TableSectionEntry(_) => self.read_table_entry()?,
             ParserState::ExportSectionEntry { .. } => self.read_export_entry()?,
