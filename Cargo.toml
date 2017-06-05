@@ -1,11 +1,15 @@
 [package]
 name = "wasmparser"
-version = "0.4.3"
+version = "0.4.4"
 authors = ["Yury Delendik <ydelendik@mozilla.com>"]
 license = "Apache-2.0"
 repository = "https://github.com/yurydelendik/wasmparser.rs"
+keyword = ["parser", "WebAssembly", "wasm"]
 description = """
-wasmparser in Rust.
+A simple event-driven library for parsing WebAssembly binary files.
 """
 
 [dependencies]
+
+[bages]
+travis-ci = { repository = "yurydelendik/wasmparser.rs" }
