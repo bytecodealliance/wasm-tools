@@ -28,6 +28,7 @@ pub enum CustomSectionKind {
     Linking,
 }
 
+/// Section code as defined at https://webassembly.github.io/spec/binary/modules.html#sections
 #[derive(Debug)]
 pub enum SectionCode<'a> {
     Custom {
@@ -73,6 +74,7 @@ impl<'a> SectionCode<'a> {
     }
 }
 
+/// Types as defined at https://webassembly.github.io/spec/syntax/types.html#types
 #[derive(Debug)]
 pub enum Type {
     I32,
@@ -136,6 +138,7 @@ pub enum NameEntry<'a> {
     Local(Vec<LocalName<'a>>),
 }
 
+/// External types as defined at https://webassembly.github.io/spec/syntax/types.html#external-types
 #[derive(Debug)]
 pub enum ExternalKind {
     Function,
@@ -248,6 +251,7 @@ pub struct RelocEntry {
     addend: Option<u32>,
 }
 
+/// Instructions as defined at https://webassembly.github.io/spec/binary/instructions.html
 #[derive(Debug)]
 pub enum Operator {
     Unreachable,
@@ -1500,10 +1504,10 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Reads next record from the WebAssembly binary data. It also to control
-    /// how parser will treat the next record(s). The method accepts the
-    /// `ParserInput` paraments that allows e.g. to skip section or function
-    /// operations. The methods returns reference to current state of the parser.
+    /// Reads next record from the WebAssembly binary data. It also allows to
+    /// control how parser will treat the next record(s). The method accepts the
+    /// `ParserInput` parameter that allows e.g. to skip section or function
+    /// operators. The methods returns reference to current state of the parser.
     ///
     /// # Examples
     /// ```
