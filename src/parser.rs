@@ -725,12 +725,11 @@ impl<'a> Parser<'a> {
     fn read_resizable_limits(&mut self) -> Result<ResizableLimits> {
         let flags = self.read_var_u32()?;
         let initial = self.read_var_u32()?;
-        let maximum: Option<u32>;
-        if (flags & 0x1) != 0 {
-            maximum = Some(self.read_var_u32()?);
+        let maximum = if (flags & 0x1) != 0 {
+            Some(self.read_var_u32()?)
         } else {
-            maximum = None;
-        }
+            None
+        };
         Ok(ResizableLimits {
                flags: flags,
                initial: initial,
