@@ -1131,9 +1131,12 @@ impl<'a> Parser<'a> {
     fn read_code_operator(&mut self) -> Result<()> {
         let op = self.read_operator()?;
         if self.position >= self.function_range.unwrap().1 {
-            self.state = ParserState::EndFunctionBody;
-            self.function_range = None;
-            return Ok(());
+            if let Operator::End = op {
+                self.state = ParserState::EndFunctionBody;
+                self.function_range = None;
+                return Ok(());
+            }
+            return Err("Expected end of function marker");
         }
         self.state = ParserState::CodeOperator(op);
         Ok(())
