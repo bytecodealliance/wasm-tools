@@ -1475,7 +1475,7 @@ impl<'a> Parser<'a> {
         if let Err(msg) = result {
             self.state = ParserState::Error(msg);
         }
-        return &self.state;
+        &self.state
     }
 
     fn skip_section(&mut self) {
