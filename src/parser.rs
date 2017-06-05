@@ -519,6 +519,8 @@ pub enum ParserInput {
     ReadSectionRawData,
 }
 
+/// The `Parser` type. A simple event-driven parser of WebAssembly binary
+// format. The `read(&mut self)` is used to iterate through WebAssembly records.
 pub struct Parser<'a> {
     buffer: &'a [u8],
     position: usize,
@@ -535,6 +537,15 @@ const WASM_EXPERIMENTAL_VERSION: u32 = 0xd;
 const WASM_SUPPORTED_VERSION: u32 = 0x1;
 
 impl<'a> Parser<'a> {
+    /// Constructs `Parser` type.
+    ///
+    /// # Examples
+    /// ```
+    /// let data: &[u8] = &[0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+    ///     0x01, 0x4, 0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00,
+    ///     0x0a, 0x05, 0x01, 0x03, 0x00, 0x01, 0x0b];
+    /// let mut parser = wasmparser::Parser::new(data);
+    /// ```
     pub fn new(data: &[u8]) -> Parser {
         Parser {
             buffer: data,
@@ -1437,6 +1448,24 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
+    /// Reads next record from the WebAssembly binary data. The methods returns
+    /// reference to current state of the parser. See `ParserState` num.
+    ///
+    /// # Examples
+    /// ```
+    /// # let data: &[u8] = &[0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+    /// #     0x01, 0x4, 0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00,
+    /// #     0x0a, 0x05, 0x01, 0x03, 0x00, 0x01, 0x0b];
+    /// let mut parser = wasmparser::Parser::new(data);
+    /// {
+    ///     let state = parser.read();
+    ///     println!("First state {:?}", state);
+    /// }
+    /// {
+    ///     let state = parser.read();
+    ///     println!("Second state {:?}", state);
+    /// }
+    /// ```
     pub fn read(&mut self) -> &ParserState {
         let result = self.read_wrapped();
         if let Err(msg) = result {
@@ -1471,6 +1500,33 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Reads next record from the WebAssembly binary data. It also to control
+    /// how parser will treat the next record(s). The method accepts the
+    /// `ParserInput` paraments that allows e.g. to skip section or function
+    /// operations. The methods returns reference to current state of the parser.
+    ///
+    /// # Examples
+    /// ```
+    /// # let data: &[u8] = &[0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+    /// #     0x01, 0x4, 0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00,
+    /// #     0x0a, 0x05, 0x01, 0x03, 0x00, 0x01, 0x0b];
+    /// let mut parser = wasmparser::Parser::new(data);
+    /// let mut next_input = wasmparser::ParserInput::Default;
+    /// loop {
+    ///     let state = parser.read_with_input(next_input);
+    ///     match *state {
+    ///         wasmparser::ParserState::EndWasm => break,
+    ///         wasmparser::ParserState::BeginWasm { .. } |
+    ///         wasmparser::ParserState::EndSection =>
+    ///             next_input = wasmparser::ParserInput::Default,
+    ///         wasmparser::ParserState::BeginSection(ref code) => {
+    ///             println!("Found section: {:?}", code);
+    ///             next_input = wasmparser::ParserInput::SkipSection;
+    ///         },
+    ///         _ => unreachable!()
+    ///     }
+    /// }
+    /// ```
     pub fn read_with_input(&mut self, input: ParserInput) -> &ParserState {
         match input {
             ParserInput::Default => (),
