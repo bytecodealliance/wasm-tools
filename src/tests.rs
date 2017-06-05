@@ -16,45 +16,37 @@
 #[cfg(test)]
 mod simple_tests {
     use std::io::prelude::*;
-    use std::fs::File;
+    use std::fs::{File, read_dir};
+    use std::path::PathBuf;
     use parser::Parser;
+    use parser::ParserState;
 
-    fn read_file_data(path: &str) -> Vec<u8> {
+    fn read_file_data(path: &PathBuf) -> Vec<u8> {
+        println!("Parsing {:?}", path);
         let mut data = Vec::new();
         let mut f = File::open(path).ok().unwrap();
         f.read_to_end(&mut data).unwrap();
         data
     }
 
-    fn parse_file(path: &str) {
-        println!("Parsing {}", path);
-        let data = read_file_data(path);
-        let mut parser = Parser::new(data.as_slice());
-        let mut max_iteration = 100000000;
-        loop {
-            let state = parser.read();
-            if state.is_none() {
-                break;
-            }
-            max_iteration -= 1;
-            if max_iteration == 0 {
-                panic!("Max iterations exceeded");
+    #[test]
+    fn it_works() {
+        for entry in read_dir("tests").unwrap() {
+            let data = read_file_data(&entry.unwrap().path());
+            let mut parser = Parser::new(data.as_slice());
+            let mut max_iteration = 100000000;
+            loop {
+                let state = parser.read();
+                match *state {
+                    ParserState::EndWasm => break,
+                    ParserState::Error(msg) => panic!("Error: {}", msg),
+                    _ => (),
+                }
+                max_iteration -= 1;
+                if max_iteration == 0 {
+                    panic!("Max iterations exceeded");
+                }
             }
         }
-    }
-
-    #[test]
-    fn test_w_naming() {
-        parse_file("tests/naming.wasm");
-    }
-
-    #[test]
-    fn test_w_reloc() {
-        parse_file("tests/reloc.wasm");
-    }
-
-    #[test]
-    fn test_specs() {
-        parse_file("tests/spec.wasm");
     }
 }
