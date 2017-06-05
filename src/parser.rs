@@ -1416,7 +1416,7 @@ impl<'a> Parser<'a> {
                         self.read_element_entry_body()?
                     }
                     Some(InitExpressionContinuation::DataSection) => self.read_data_entry_body()?,
-                    _ => unreachable!(),
+                    None => unreachable!(),
                 }
                 self.init_expr_continuation = None;
             }
