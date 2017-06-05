@@ -15,14 +15,11 @@ fn get_name(bytes: &[u8]) -> &str {
 }
 
 fn main() {
-  let ref buf: Vec<u8> = read_wasm().unwrap();
+  let ref buf: Vec<u8> = read_wasm_bytes();
   let mut parser = Parser::new(buf);
   loop {
     let state = parser.read();
-    if state.is_none() {
-        break;
-    }
-    match *state.unwrap() {
+    match *state {
         ParserState::BeginWasm { .. } => {
             println!("====== Module");
         }
@@ -32,7 +29,8 @@ fn main() {
         ParserState::ImportSectionEntry { module, field, .. } => {
             println!("  Import {}::{}", get_name(module), get_name(field))
         }
-        _ => ( /* println!(" Other {:?}", state); */ )
+        ParserState::EndWasm => break,
+        _ => ( /* println!(" Other {:?}", state) */ )
     }
   }
 }
