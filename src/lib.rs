@@ -25,6 +25,7 @@
 
 pub use parser::Parser;
 pub use parser::ParserState;
+pub use parser::ParserInput;
 pub use parser::SectionCode;
 pub use parser::Operator;
 pub use parser::Type;

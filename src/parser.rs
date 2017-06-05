@@ -460,7 +460,7 @@ pub enum ParserState<'a> {
     EndSection,
     SkippingSection,
     ReadingSectionRawData,
-    SectionRawData,
+    SectionRawData(&'a [u8]),
 
     TypeSectionEnty(FuncType),
     ImportSectionEntry {
@@ -471,13 +471,11 @@ pub enum ParserState<'a> {
     FunctionSectionEnty(u32),
     TableSectionEntry(TableType),
     MemorySectionEntry(MemoryType),
-    GlobalSectionEntry,
     ExportSectionEntry {
         field: &'a [u8],
         kind: ExternalKind,
         index: u32,
     },
-    DataSectionEntry,
     NameSectionEntry(NameEntry<'a>),
     StartSectionEntry(u32),
 
@@ -512,6 +510,12 @@ enum InitExpressionContinuation {
     GlobalSection,
     ElementSection,
     DataSection,
+}
+
+pub enum ParserInput {
+    SkipSection,
+    SkipFunctionBody,
+    ReadSectionRawData,
 }
 
 pub struct Parser<'a> {
@@ -1322,6 +1326,11 @@ impl<'a> Parser<'a> {
                 self.section_entries_left = self.read_var_u32()?;
                 self.read_linking_entry()?;
             }
+            ParserState::BeginSection(SectionCode::Custom {
+                                          kind: CustomSectionKind::Unknown, ..
+                                      }) => {
+                self.read_section_body_bytes()?;
+            }
             _ => unreachable!(),
         }
         Ok(())
@@ -1334,6 +1343,15 @@ impl<'a> Parser<'a> {
         self.position = self.section_range.unwrap().1;
         self.section_range = None;
         self.state = ParserState::EndSection;
+        Ok(())
+    }
+
+    fn read_section_body_bytes(&mut self) -> Result<()> {
+        let start = self.position;
+        let len = self.section_range.unwrap().1 - start;
+        self.ensure_has_bytes(len)?;
+        self.position += len;
+        self.state = ParserState::SectionRawData(&self.buffer[start..self.position]);
         Ok(())
     }
 
@@ -1409,7 +1427,8 @@ impl<'a> Parser<'a> {
             }
             ParserState::RelocSectionEntry(_) => self.read_reloc_entry()?,
             ParserState::LinkingSectionEntry(_) => self.read_linking_entry()?,
-            _ => panic!("Invalid reader state"),
+            ParserState::ReadingSectionRawData => self.read_section_body_bytes()?,
+            ParserState::SectionRawData(_) => self.position_to_section_end()?,
         }
         Ok(())
     }
@@ -1422,18 +1441,38 @@ impl<'a> Parser<'a> {
         return &self.state;
     }
 
-    pub fn skip_section(&mut self) {
+    fn skip_section(&mut self) {
         match self.state {
             ParserState::Initial |
             ParserState::EndWasm |
             ParserState::Error(_) |
             ParserState::BeginWasm { .. } |
-            ParserState::EndSection => return,
+            ParserState::EndSection => panic!("Invalid reader state during skip section"),
             _ => self.state = ParserState::SkippingSection,
         }
     }
 
-    pub fn skip_function_body(&mut self) {
-        self.state = ParserState::SkippingFunctionBody;
+    fn skip_function_body(&mut self) {
+        match self.state {
+            ParserState::BeginFunctionBody(_) |
+            ParserState::CodeOperator(_) => self.state = ParserState::SkippingFunctionBody,
+            _ => panic!("Invalid reader state during skip function body"),
+        }
+    }
+
+    fn read_raw_section_data(&mut self) {
+        match self.state {
+            ParserState::BeginSection(_) => self.state = ParserState::ReadingSectionRawData,
+            _ => panic!("Invalid reader state during reading raw section data"),
+        }
+    }
+
+    pub fn read_with_input(&mut self, input: ParserInput) -> &ParserState {
+        match input {
+            ParserInput::SkipSection => self.skip_section(),
+            ParserInput::SkipFunctionBody => self.skip_function_body(),
+            ParserInput::ReadSectionRawData => self.read_raw_section_data(),
+        }
+        self.read()
     }
 }
