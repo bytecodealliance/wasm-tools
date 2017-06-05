@@ -513,6 +513,7 @@ enum InitExpressionContinuation {
 }
 
 pub enum ParserInput {
+    Default,
     SkipSection,
     SkipFunctionBody,
     ReadSectionRawData,
@@ -1469,6 +1470,7 @@ impl<'a> Parser<'a> {
 
     pub fn read_with_input(&mut self, input: ParserInput) -> &ParserState {
         match input {
+            ParserInput::Default => (),
             ParserInput::SkipSection => self.skip_section(),
             ParserInput::SkipFunctionBody => self.skip_function_body(),
             ParserInput::ReadSectionRawData => self.read_raw_section_data(),
