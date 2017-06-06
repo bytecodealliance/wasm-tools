@@ -41,7 +41,7 @@ pub enum SectionCode<'a> {
     Table, // Indirect function table and other tables
     Memory, // Memory attributes
     Global, // Global declarations
-    Export, //Exports
+    Export, // Exports
     Start, // Start function declaration
     Element, // Elements section
     Code, // Function bodies (code)
@@ -458,7 +458,7 @@ fn is_name_prefix(name: &[u8], prefix: &'static str) -> bool {
 pub enum ParserState<'a> {
     Error(&'a str),
     Initial,
-    BeginWasm { magic_number: u32, version: u32 },
+    BeginWasm { version: u32 },
     EndWasm,
     BeginSection(SectionCode<'a>),
     EndSection,
@@ -771,10 +771,7 @@ impl<'a> Parser<'a> {
         if version != WASM_SUPPORTED_VERSION && version != WASM_EXPERIMENTAL_VERSION {
             return Err("Bad version number");
         }
-        self.state = ParserState::BeginWasm {
-            magic_number: magic_number,
-            version: version,
-        };
+        self.state = ParserState::BeginWasm { version: version };
         Ok(())
     }
 
