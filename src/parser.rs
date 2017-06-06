@@ -725,12 +725,11 @@ impl<'a> Parser<'a> {
     fn read_resizable_limits(&mut self) -> Result<ResizableLimits> {
         let flags = self.read_var_u32()?;
         let initial = self.read_var_u32()?;
-        let maximum: Option<u32>;
-        if (flags & 0x1) != 0 {
-            maximum = Some(self.read_var_u32()?);
+        let maximum = if (flags & 0x1) != 0 {
+            Some(self.read_var_u32()?)
         } else {
-            maximum = None;
-        }
+            None
+        };
         Ok(ResizableLimits {
                flags: flags,
                initial: initial,
@@ -781,7 +780,6 @@ impl<'a> Parser<'a> {
 
     fn read_section_code(&mut self, id: u32) -> Result<SectionCode<'a>> {
         assert!(SectionCode::is_known_section_code(id));
-        let code;
         if SectionCode::is_custom_section_code(id) {
             let name = self.read_string()?;
             let kind = if is_name(name, "name") {
@@ -795,14 +793,13 @@ impl<'a> Parser<'a> {
             } else {
                 CustomSectionKind::Unknown
             };
-            code = SectionCode::Custom {
-                name: name,
-                kind: kind,
-            };
+            Ok(SectionCode::Custom {
+                   name: name,
+                   kind: kind,
+               })
         } else {
-            code = SectionCode::from_u32(id)?;
+            SectionCode::from_u32(id)
         }
-        Ok(code)
     }
 
     fn read_section_header(&mut self) -> Result<()> {
@@ -1416,7 +1413,7 @@ impl<'a> Parser<'a> {
                         self.read_element_entry_body()?
                     }
                     Some(InitExpressionContinuation::DataSection) => self.read_data_entry_body()?,
-                    _ => unreachable!(),
+                    None => unreachable!(),
                 }
                 self.init_expr_continuation = None;
             }
@@ -1475,7 +1472,7 @@ impl<'a> Parser<'a> {
         if let Err(msg) = result {
             self.state = ParserState::Error(msg);
         }
-        return &self.state;
+        &self.state
     }
 
     fn skip_section(&mut self) {
