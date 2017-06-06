@@ -41,7 +41,7 @@ pub enum SectionCode<'a> {
     Table, // Indirect function table and other tables
     Memory, // Memory attributes
     Global, // Global declarations
-    Export, //Exports
+    Export, // Exports
     Start, // Start function declaration
     Element, // Elements section
     Code, // Function bodies (code)
