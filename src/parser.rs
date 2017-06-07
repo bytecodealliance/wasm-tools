@@ -524,7 +524,7 @@ pub enum ParserInput {
 }
 
 /// The `Parser` type. A simple event-driven parser of WebAssembly binary
-// format. The `read(&mut self)` is used to iterate through WebAssembly records.
+/// format. The `read(&mut self)` is used to iterate through WebAssembly records.
 pub struct Parser<'a> {
     buffer: &'a [u8],
     position: usize,
