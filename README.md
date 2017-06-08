@@ -7,7 +7,7 @@ See also its sibling at https://github.com/wasdk/wasmparser
 
 ## Example
 
-```
+```rust
 use wasmparser::Parser;
 use wasmparser::ParserState;
 
