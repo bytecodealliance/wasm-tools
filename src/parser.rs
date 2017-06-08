@@ -14,7 +14,6 @@
  */
 // See https://github.com/WebAssembly/design/blob/master/BinaryEncoding.md
 
-use std::mem::transmute;
 use std::result;
 
 type Result<T> = result::Result<T, &'static str>;
@@ -251,6 +250,20 @@ pub struct RelocEntry {
     addend: Option<u32>,
 }
 
+/// An IEEE binary32 immediate floating point value, represented as a u32
+/// containing the bitpattern.
+///
+/// All bit patterns are allowed.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub struct Ieee32(u32);
+
+/// An IEEE binary64 immediate floating point value, represented as a u64
+/// containing the bitpattern.
+///
+/// All bit patterns are allowed.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub struct Ieee64(u64);
+
 /// Instructions as defined at https://webassembly.github.io/spec/binary/instructions.html
 #[derive(Debug)]
 pub enum Operator {
@@ -301,8 +314,8 @@ pub enum Operator {
     GrowMemory { reserved: u32 },
     I32Const { value: i32 },
     I64Const { value: i64 },
-    F32Const { value: f32 },
-    F64Const { value: f64 },
+    F32Const { value: Ieee32 },
+    F64Const { value: Ieee64 },
     I32Eqz,
     I32Eq,
     I32Ne,
@@ -616,14 +629,14 @@ impl<'a> BinaryReader<'a> {
         Ok((result << ashift) >> ashift)
     }
 
-    pub fn read_f32(&mut self) -> Result<f32> {
+    pub fn read_f32(&mut self) -> Result<Ieee32> {
         let value = self.read_u32()?;
-        Ok(unsafe { transmute::<u32, f32>(value) })
+        Ok(Ieee32(value))
     }
 
-    pub fn read_f64(&mut self) -> Result<f64> {
+    pub fn read_f64(&mut self) -> Result<Ieee64> {
         let value = self.read_u64()?;
-        Ok(unsafe { transmute::<u64, f64>(value) })
+        Ok(Ieee64(value))
     }
 
     pub fn read_string(&mut self) -> Result<&'a [u8]> {
