@@ -48,6 +48,8 @@ pub use parser::ImportSectionEntryType;
 pub use parser::RelocType;
 pub use parser::RelocEntry;
 pub use parser::LinkingType;
+pub use parser::Ieee32;
+pub use parser::Ieee64;
 
 mod parser;
 mod tests;

@@ -120,14 +120,14 @@ impl NameType {
 
 #[derive(Debug)]
 pub struct Naming<'a> {
-    index: u32,
-    name: &'a [u8],
+    pub index: u32,
+    pub name: &'a [u8],
 }
 
 #[derive(Debug)]
 pub struct LocalName<'a> {
-    index: u32,
-    locals: Vec<Naming<'a>>,
+    pub index: u32,
+    pub locals: Vec<Naming<'a>>,
 }
 
 #[derive(Debug)]
@@ -160,45 +160,74 @@ impl ExternalKind {
 
 #[derive(Debug)]
 pub struct FuncType {
-    form: Type,
-    params: Vec<Type>,
-    returns: Vec<Type>,
+    pub form: Type,
+    pub params: Vec<Type>,
+    pub returns: Vec<Type>,
 }
 
 #[derive(Debug)]
 pub struct ResizableLimits {
-    flags: u32,
-    initial: u32,
-    maximum: Option<u32>,
+    pub flags: u32,
+    pub initial: u32,
+    pub maximum: Option<u32>,
 }
 
 #[derive(Debug)]
 pub struct TableType {
     element_type: Type,
-    limits: ResizableLimits,
+    pub limits: ResizableLimits,
 }
 
 #[derive(Debug)]
 pub struct MemoryType {
-    limits: ResizableLimits,
+    pub limits: ResizableLimits,
 }
 
 #[derive(Debug)]
 pub struct GlobalType {
-    content_type: Type,
+    pub content_type: Type,
     mutability: u32,
 }
 
 #[derive(Debug)]
 pub struct MemoryImmediate {
-    flags: u32,
-    offset: u32,
+    pub flags: u32,
+    pub offset: u32,
 }
 
+/// A br_table entries representation.
 #[derive(Debug)]
-pub struct BrTable {
-    targets_table: Vec<u32>,
-    default_target: u32,
+pub struct BrTable<'a> {
+    pub size: usize,
+    buffer: &'a [u8],
+}
+
+impl<'a> BrTable<'a> {
+    /// Reads br_table entries.
+    ///
+    /// # Examples
+    /// ```rust
+    /// let buf = vec![0x0e, 0x02, 0x01, 0x02, 0x00];
+    /// let mut reader = wasmparser::BinaryReader::new(&buf);
+    /// let op = reader.read_operator().unwrap();
+    /// if let wasmparser::Operator::BrTable { ref table } = op {
+    ///     let br_table_depths = table.read_table();
+    ///     assert!(br_table_depths.0 == vec![1,2] &&
+    ///             br_table_depths.1 == 0);
+    /// } else {
+    ///     unreachable!();
+    /// }
+    /// ```
+    pub fn read_table(&self) -> (Vec<u32>, u32) {
+        let mut reader = BinaryReader::new(self.buffer);
+        let mut table = Vec::with_capacity(self.size);
+        for _ in 0..self.size {
+            table.push(reader.read_var_u32().unwrap());
+        }
+        let default_target = reader.read_var_u32().unwrap();
+        assert!(reader.eof());
+        (table, default_target)
+    }
 }
 
 #[derive(Debug)]
@@ -244,10 +273,10 @@ pub enum LinkingType {
 
 #[derive(Debug)]
 pub struct RelocEntry {
-    ty: RelocType,
-    offset: u32,
-    index: u32,
-    addend: Option<u32>,
+    pub ty: RelocType,
+    pub offset: u32,
+    pub index: u32,
+    pub addend: Option<u32>,
 }
 
 /// An IEEE binary32 immediate floating point value, represented as a u32
@@ -266,7 +295,7 @@ pub struct Ieee64(u64);
 
 /// Instructions as defined at https://webassembly.github.io/spec/binary/instructions.html
 #[derive(Debug)]
-pub enum Operator {
+pub enum Operator<'a> {
     Unreachable,
     Nop,
     Block { ty: Type },
@@ -276,7 +305,7 @@ pub enum Operator {
     End,
     Br { relative_depth: u32 },
     BrIf { relative_depth: u32 },
-    BrTable(BrTable),
+    BrTable { table: BrTable<'a> },
     Return,
     Call { function_index: u32 },
     CallIndirect { index: u32, table_index: u32 },
@@ -587,6 +616,16 @@ impl<'a> BinaryReader<'a> {
         Ok(result)
     }
 
+    pub fn skip_var_32(&mut self) -> Result<()> {
+        for _ in 0..5 {
+            let byte = self.read_u8()?;
+            if (byte & 0x80) == 0 {
+                return Ok(());
+            }
+        }
+        Err("Invalid var_32")
+    }
+
     pub fn read_var_i32(&mut self) -> Result<i32> {
         let mut result: i32 = 0;
         let mut shift = 0;
@@ -735,20 +774,20 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
-    fn read_br_table(&mut self) -> Result<BrTable> {
+    fn read_br_table(&mut self) -> Result<BrTable<'a>> {
         let targets_len = self.read_var_u32()? as usize;
-        let mut targets_table = Vec::with_capacity(targets_len);
+        let start = self.position;
         for _ in 0..targets_len {
-            targets_table.push(self.read_var_u32()?);
+            self.skip_var_32()?;
         }
-        let default_target = self.read_var_u32()?;
+        self.skip_var_32()?;
         Ok(BrTable {
-               targets_table: targets_table,
-               default_target: default_target,
+               size: targets_len,
+               buffer: &self.buffer[start..self.position],
            })
     }
 
-    pub fn read_operator(&mut self) -> Result<Operator> {
+    pub fn read_operator(&mut self) -> Result<Operator<'a>> {
         let code = self.read_u8()?;
         Ok(match code {
                0x00 => Operator::Unreachable,
@@ -760,7 +799,7 @@ impl<'a> BinaryReader<'a> {
                0x0b => Operator::End,
                0x0c => Operator::Br { relative_depth: self.read_var_u32()? },
                0x0d => Operator::BrIf { relative_depth: self.read_var_u32()? },
-               0x0e => Operator::BrTable(self.read_br_table()?),
+               0x0e => Operator::BrTable { table: self.read_br_table()? },
                0x0f => Operator::Return,
                0x10 => Operator::Call { function_index: self.read_var_u32()? },
                0x11 => {
@@ -995,14 +1034,14 @@ pub enum ParserState<'a> {
     StartSectionEntry(u32),
 
     BeginInitExpressionBody,
-    InitExpressionOperator(Operator),
+    InitExpressionOperator(Operator<'a>),
     EndInitExpressionBody,
 
     BeginFunctionBody {
         locals: Vec<(u32, Type)>,
         range: Range,
     },
-    CodeOperator(Operator),
+    CodeOperator(Operator<'a>),
     EndFunctionBody,
     SkippingFunctionBody,
 
