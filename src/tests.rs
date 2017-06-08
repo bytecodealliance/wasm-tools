@@ -68,14 +68,14 @@ mod simple_tests {
         let mut parser = Parser::new(data.as_slice());
 
         expect_state!(parser.read(), ParserState::BeginWasm { .. });
-        expect_state!(parser.read(), ParserState::BeginSection(SectionCode::Type));
+        expect_state!(parser.read(), ParserState::BeginSection { code: SectionCode::Type, .. });
         expect_state!(parser.read(), ParserState::TypeSectionEntry(_));
         expect_state!(parser.read(), ParserState::EndSection);
-        expect_state!(parser.read(), ParserState::BeginSection(SectionCode::Function));
+        expect_state!(parser.read(), ParserState::BeginSection { code: SectionCode::Function, .. });
         expect_state!(parser.read(), ParserState::FunctionSectionEntry(_));
         expect_state!(parser.read(), ParserState::EndSection);
-        expect_state!(parser.read(), ParserState::BeginSection(SectionCode::Code));
-        expect_state!(parser.read(), ParserState::BeginFunctionBody(_));
+        expect_state!(parser.read(), ParserState::BeginSection { code: SectionCode::Code, .. });
+        expect_state!(parser.read(), ParserState::BeginFunctionBody { .. });
         expect_state!(parser.read(), ParserState::CodeOperator(_));
         expect_state!(parser.read(), ParserState::EndFunctionBody);
         expect_state!(parser.read(), ParserState::EndSection);
@@ -89,15 +89,15 @@ mod simple_tests {
 
         expect_state!(parser.read(), ParserState::BeginWasm { .. });
         expect_state!(parser.read_with_input(ParserInput::Default),
-            ParserState::BeginSection(SectionCode::Type));
+            ParserState::BeginSection { code: SectionCode::Type, .. });
         expect_state!(parser.read(), ParserState::TypeSectionEntry(_));
         expect_state!(parser.read(), ParserState::EndSection);
-        expect_state!(parser.read(), ParserState::BeginSection(SectionCode::Function));
+        expect_state!(parser.read(), ParserState::BeginSection { code: SectionCode::Function, ..});
         expect_state!(parser.read_with_input(ParserInput::ReadSectionRawData),
             ParserState::SectionRawData(_));
         expect_state!(parser.read(), ParserState::EndSection);
-        expect_state!(parser.read(), ParserState::BeginSection(SectionCode::Code));
-        expect_state!(parser.read(), ParserState::BeginFunctionBody(_));
+        expect_state!(parser.read(), ParserState::BeginSection { code: SectionCode::Code, .. });
+        expect_state!(parser.read(), ParserState::BeginFunctionBody { .. });
         expect_state!(parser.read_with_input(ParserInput::SkipFunctionBody),
             ParserState::EndFunctionBody);
         expect_state!(parser.read_with_input(ParserInput::SkipSection),
