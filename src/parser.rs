@@ -118,6 +118,7 @@ impl NameType {
     }
 }
 
+
 #[derive(Debug)]
 pub struct Naming<'a> {
     pub index: u32,
@@ -227,6 +228,48 @@ impl<'a> BrTable<'a> {
         let default_target = reader.read_var_u32().unwrap();
         assert!(reader.eof());
         (table, default_target)
+    }
+}
+
+/// Iterator for `BrTable`.
+///
+/// #Examples
+/// ```rust
+/// let buf = vec![0x0e, 0x02, 0x01, 0x02, 0x00];
+/// let mut reader = wasmparser::BinaryReader::new(&buf);
+/// let op = reader.read_operator().unwrap();
+/// if let wasmparser::Operator::BrTable { ref table } = op {
+///     for depth in table {
+///         println!("BrTable depth: {}", depth);
+///     }
+/// }
+/// ```
+pub struct BrTableIterator<'a> {
+    reader: BinaryReader<'a>,
+    left: usize,
+}
+
+impl<'a> IntoIterator for &'a BrTable<'a> {
+    type Item = u32;
+    type IntoIter = BrTableIterator<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        BrTableIterator {
+            reader: BinaryReader::new(self.buffer),
+            left: self.size + 1,
+        }
+    }
+}
+
+impl<'a> Iterator for BrTableIterator<'a> {
+    type Item = u32;
+
+    fn next(&mut self) -> Option<u32> {
+        if self.left == 0 {
+            return None;
+        }
+        self.left -= 1;
+        Some(self.reader.read_var_u32().unwrap())
     }
 }
 
@@ -1063,6 +1106,7 @@ pub enum ParserState<'a> {
     SourceMappingURL(&'a [u8]),
 }
 
+#[derive(Debug, Copy, Clone)]
 pub enum ParserInput {
     Default,
     SkipSection,
@@ -1622,6 +1666,15 @@ impl<'a> Parser<'a> {
         }
     }
 
+    pub fn push_input(&mut self, input: ParserInput) {
+        match input {
+            ParserInput::Default => (),
+            ParserInput::SkipSection => self.skip_section(),
+            ParserInput::SkipFunctionBody => self.skip_function_body(),
+            ParserInput::ReadSectionRawData => self.read_raw_section_data(),
+        }
+    }
+
     /// Reads next record from the WebAssembly binary data. It also allows to
     /// control how parser will treat the next record(s). The method accepts the
     /// `ParserInput` parameter that allows e.g. to skip section or function
@@ -1650,12 +1703,7 @@ impl<'a> Parser<'a> {
     /// }
     /// ```
     pub fn read_with_input(&mut self, input: ParserInput) -> &ParserState {
-        match input {
-            ParserInput::Default => (),
-            ParserInput::SkipSection => self.skip_section(),
-            ParserInput::SkipFunctionBody => self.skip_function_body(),
-            ParserInput::ReadSectionRawData => self.read_raw_section_data(),
-        }
+        self.push_input(input);
         self.read()
     }
 }
