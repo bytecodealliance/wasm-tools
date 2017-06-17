@@ -74,7 +74,7 @@ impl<'a> SectionCode<'a> {
 }
 
 /// Types as defined at https://webassembly.github.io/spec/syntax/types.html#types
-#[derive(Debug)]
+#[derive(Debug,Copy,Clone)]
 pub enum Type {
     I32,
     I64,
@@ -159,7 +159,7 @@ impl ExternalKind {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct FuncType {
     pub form: Type,
     pub params: Vec<Type>,
@@ -175,7 +175,7 @@ pub struct ResizableLimits {
 
 #[derive(Debug)]
 pub struct TableType {
-    element_type: Type,
+    pub element_type: Type,
     pub limits: ResizableLimits,
 }
 
@@ -187,7 +187,7 @@ pub struct MemoryType {
 #[derive(Debug)]
 pub struct GlobalType {
     pub content_type: Type,
-    mutability: u32,
+    pub mutability: u32,
 }
 
 #[derive(Debug)]
@@ -329,12 +329,24 @@ pub struct RelocEntry {
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Ieee32(u32);
 
+impl Ieee32 {
+    pub fn bits(&self) -> u32 {
+        self.0
+    }
+}
+
 /// An IEEE binary64 immediate floating point value, represented as a u64
 /// containing the bitpattern.
 ///
 /// All bit patterns are allowed.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Ieee64(u64);
+
+impl Ieee64 {
+    pub fn bits(&self) -> u64 {
+        self.0
+    }
+}
 
 /// Instructions as defined at https://webassembly.github.io/spec/binary/instructions.html
 #[derive(Debug)]
