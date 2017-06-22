@@ -603,6 +603,9 @@ impl<'a> BinaryReader<'a> {
     }
 
     fn read_bytes_till(&mut self, pos: usize) -> Result<&'a [u8]> {
+        if self.position > pos {
+            return Err("Read position advanced more than needed");
+        }
         let size = pos - self.position;
         self.read_bytes(size)
     }
@@ -1183,6 +1186,12 @@ impl<'a> Parser<'a> {
         let payload_len = self.reader.read_var_u32()? as usize;
         let payload_end = self.reader.position + payload_len;
         let code = self.reader.read_section_code(id)?;
+        if self.reader.end < payload_end {
+            return Err("Section body extends past end of file");
+        }
+        if self.reader.position > payload_end {
+            return Err("Section header is too big to fit into section body");
+        }
         let range = Range {
             start: self.reader.position,
             end: payload_end,
@@ -1532,7 +1541,7 @@ impl<'a> Parser<'a> {
     }
 
     fn position_to_section_end(&mut self) -> Result<()> {
-        if self.section_range.unwrap().end > self.reader.end {
+        if self.section_range.unwrap().end < self.reader.position {
             return Err("Position past the section end");
         }
         self.reader.position = self.section_range.unwrap().end;

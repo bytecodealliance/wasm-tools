@@ -104,4 +104,21 @@ mod simple_tests {
             ParserState::EndSection);
         expect_state!(parser.read(), ParserState::EndWasm);
     }
+
+    #[test]
+    fn fuzz_tests() {
+        let mut tests = Vec::new();
+        tests.push(b"\x00asm\x01\x00\x00\x00\
+\x05\x05\x01\x00ms\x00\x00\x05\x05\x01\x01\x01\x80\x02\x01\x01\x01\x80\x02");
+        for t in tests {
+            let mut parser = Parser::new(t);
+            loop {
+                match *parser.read() {
+                    ParserState::EndWasm |
+                    ParserState::Error(_) => break,
+                    _ => {}
+                }
+            }
+        }
+    }
 }
