@@ -41,7 +41,7 @@ mod simple_tests {
                 let state = parser.read();
                 match *state {
                     ParserState::EndWasm => break,
-                    ParserState::Error(msg) => panic!("Error: {}", msg),
+                    ParserState::Error(err) => panic!("Error: {:?}", err),
                     _ => (),
                 }
                 max_iteration -= 1;

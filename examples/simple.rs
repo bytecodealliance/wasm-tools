@@ -34,7 +34,7 @@ fn main() {
                 println!("  Import {}::{}", get_name(module), get_name(field))
             }
             ParserState::EndWasm => break,
-            ParserState::Error(msg) => panic!("Error: {}", msg),
+            ParserState::Error(err) => panic!("Error: {:?}", err),
             _ => ( /* println!(" Other {:?}", state); */ ),
         }
     }

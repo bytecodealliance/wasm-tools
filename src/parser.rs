@@ -16,7 +16,13 @@
 
 use std::result;
 
-type Result<T> = result::Result<T, &'static str>;
+#[derive(Debug,Copy,Clone)]
+pub struct BinaryReaderError {
+    pub message: &'static str,
+    pub offset: usize,
+}
+
+type Result<T> = result::Result<T, BinaryReaderError>;
 
 #[derive(Debug)]
 pub enum CustomSectionKind {
@@ -47,32 +53,6 @@ pub enum SectionCode<'a> {
     Data, // Data segments
 }
 
-impl<'a> SectionCode<'a> {
-    pub fn from_u32(code: u32) -> Result<SectionCode<'a>> {
-        match code {
-            0 => Err("Custom section: use SectionCode::Custom"),
-            1 => Ok(SectionCode::Type),
-            2 => Ok(SectionCode::Import),
-            3 => Ok(SectionCode::Function),
-            4 => Ok(SectionCode::Table),
-            5 => Ok(SectionCode::Memory),
-            6 => Ok(SectionCode::Global),
-            7 => Ok(SectionCode::Export),
-            8 => Ok(SectionCode::Start),
-            9 => Ok(SectionCode::Element),
-            10 => Ok(SectionCode::Code),
-            11 => Ok(SectionCode::Data),
-            _ => Err("Invalid section code"),
-        }
-    }
-    pub fn is_custom_section_code(code: u32) -> bool {
-        code == 0
-    }
-    pub fn is_known_section_code(code: u32) -> bool {
-        code <= 11
-    }
-}
-
 /// Types as defined at https://webassembly.github.io/spec/syntax/types.html#types
 #[derive(Debug,Copy,Clone)]
 pub enum Type {
@@ -85,39 +65,12 @@ pub enum Type {
     EmptyBlockType,
 }
 
-impl Type {
-    pub fn from_i7(code: i32) -> Result<Type> {
-        match code {
-            -0x01 => Ok(Type::I32),
-            -0x02 => Ok(Type::I64),
-            -0x03 => Ok(Type::F32),
-            -0x04 => Ok(Type::F64),
-            -0x10 => Ok(Type::AnyFunc),
-            -0x20 => Ok(Type::Func),
-            -0x40 => Ok(Type::EmptyBlockType),
-            _ => Err("Invalid type"),
-        }
-    }
-}
-
 #[derive(Debug)]
 pub enum NameType {
     Module,
     Function,
     Local,
 }
-
-impl NameType {
-    pub fn from_u7(code: u32) -> Result<NameType> {
-        match code {
-            0 => Ok(NameType::Module),
-            1 => Ok(NameType::Function),
-            2 => Ok(NameType::Local),
-            _ => Err("Invalid name type"),
-        }
-    }
-}
-
 
 #[derive(Debug)]
 pub struct Naming<'a> {
@@ -145,18 +98,6 @@ pub enum ExternalKind {
     Table,
     Memory,
     Global,
-}
-
-impl ExternalKind {
-    pub fn from_u8(code: u32) -> Result<ExternalKind> {
-        match code {
-            0 => Ok(ExternalKind::Function),
-            1 => Ok(ExternalKind::Table),
-            2 => Ok(ExternalKind::Memory),
-            3 => Ok(ExternalKind::Global),
-            _ => Err("Invalid external kind"),
-        }
-    }
 }
 
 #[derive(Debug,Clone)]
@@ -291,22 +232,6 @@ pub enum RelocType {
     GlobalAddrI32,
     TypeIndexLEB,
     GlobalIndexLEB,
-}
-
-impl RelocType {
-    pub fn from_u7(code: u32) -> Result<RelocType> {
-        match code {
-            0 => Ok(RelocType::FunctionIndexLEB),
-            1 => Ok(RelocType::TableIndexSLEB),
-            2 => Ok(RelocType::TableIndexI32),
-            3 => Ok(RelocType::GlobalAddrLEB),
-            4 => Ok(RelocType::GlobalAddrSLEB),
-            5 => Ok(RelocType::GlobalAddrI32),
-            6 => Ok(RelocType::TypeIndexLEB),
-            7 => Ok(RelocType::GlobalIndexLEB),
-            _ => Err("Invalid reloc type"),
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -591,7 +516,10 @@ impl<'a> BinaryReader<'a> {
         if self.position + len <= self.end {
             Ok(())
         } else {
-            Err("Unexpected EOF")
+            Err(BinaryReaderError {
+                    message: "Unexpected EOF",
+                    offset: self.position,
+                })
         }
     }
 
@@ -604,7 +532,10 @@ impl<'a> BinaryReader<'a> {
 
     fn read_bytes_till(&mut self, pos: usize) -> Result<&'a [u8]> {
         if self.position > pos {
-            return Err("Read position advanced more than needed");
+            return Err(BinaryReaderError {
+                           message: "Read position advanced more than needed",
+                           offset: pos,
+                       });
         }
         let size = pos - self.position;
         self.read_bytes(size)
@@ -636,7 +567,10 @@ impl<'a> BinaryReader<'a> {
     fn read_var_u1(&mut self) -> Result<u32> {
         let b = self.read_u8()?;
         if (b & 0xFE) != 0 {
-            return Err("Invalid var_u1");
+            return Err(BinaryReaderError {
+                           message: "Invalid var_u1",
+                           offset: self.position - 1,
+                       });
         }
         Ok(b)
     }
@@ -644,7 +578,10 @@ impl<'a> BinaryReader<'a> {
     fn read_var_i7(&mut self) -> Result<i32> {
         let b = self.read_u8()?;
         if (b & 0x80) != 0 {
-            return Err("Invalid var_i7");
+            return Err(BinaryReaderError {
+                           message: "Invalid var_i7",
+                           offset: self.position - 1,
+                       });
         }
         Ok((b << 25) as i32 >> 25)
     }
@@ -652,7 +589,10 @@ impl<'a> BinaryReader<'a> {
     fn read_var_u7(&mut self) -> Result<u32> {
         let b = self.read_u8()?;
         if (b & 0x80) != 0 {
-            return Err("Invalid var_u7");
+            return Err(BinaryReaderError {
+                           message: "Invalid var_u7",
+                           offset: self.position - 1,
+                       });
         }
         Ok(b)
     }
@@ -668,7 +608,10 @@ impl<'a> BinaryReader<'a> {
                 break;
             }
             if shift >= 32 {
-                return Err("Invalid var_u32");
+                return Err(BinaryReaderError {
+                               message: "Invalid var_u32",
+                               offset: self.position - 1,
+                           });
             }
         }
         Ok(result)
@@ -681,7 +624,10 @@ impl<'a> BinaryReader<'a> {
                 return Ok(());
             }
         }
-        Err("Invalid var_32")
+        Err(BinaryReaderError {
+                message: "Invalid var_32",
+                offset: self.position - 1,
+            })
     }
 
     pub fn read_var_i32(&mut self) -> Result<i32> {
@@ -695,7 +641,10 @@ impl<'a> BinaryReader<'a> {
                 break;
             }
             if shift >= 32 {
-                return Err("Invalid var_i32");
+                return Err(BinaryReaderError {
+                               message: "Invalid var_i32",
+                               offset: self.position,
+                           });
             }
         }
         if shift >= 32 {
@@ -716,7 +665,10 @@ impl<'a> BinaryReader<'a> {
                 break;
             }
             if shift >= 64 {
-                return Err("Invalid var_i64");
+                return Err(BinaryReaderError {
+                               message: "Invalid var_i64",
+                               offset: self.position - 1,
+                           });
             }
         }
         if shift >= 64 {
@@ -742,11 +694,38 @@ impl<'a> BinaryReader<'a> {
     }
 
     fn read_type(&mut self) -> Result<Type> {
-        Type::from_i7(self.read_var_i7()?)
+        let code = self.read_var_i7()?;
+        match code {
+            -0x01 => Ok(Type::I32),
+            -0x02 => Ok(Type::I64),
+            -0x03 => Ok(Type::F32),
+            -0x04 => Ok(Type::F64),
+            -0x10 => Ok(Type::AnyFunc),
+            -0x20 => Ok(Type::Func),
+            -0x40 => Ok(Type::EmptyBlockType),
+            _ => {
+                Err(BinaryReaderError {
+                        message: "Invalid type",
+                        offset: self.position - 1,
+                    })
+            }
+        }
     }
 
     fn read_external_kind(&mut self) -> Result<ExternalKind> {
-        ExternalKind::from_u8(self.read_u8()?)
+        let code = self.read_u8()?;
+        match code {
+            0 => Ok(ExternalKind::Function),
+            1 => Ok(ExternalKind::Table),
+            2 => Ok(ExternalKind::Memory),
+            3 => Ok(ExternalKind::Global),
+            _ => {
+                Err(BinaryReaderError {
+                        message: "Invalid external kind",
+                        offset: self.position - 1,
+                    })
+            }
+        }
     }
 
     fn read_func_type(&mut self) -> Result<FuncType> {
@@ -808,27 +787,43 @@ impl<'a> BinaryReader<'a> {
            })
     }
 
-    fn read_section_code(&mut self, id: u32) -> Result<SectionCode<'a>> {
-        assert!(SectionCode::is_known_section_code(id));
-        if SectionCode::is_custom_section_code(id) {
-            let name = self.read_string()?;
-            let kind = if is_name(name, "name") {
-                CustomSectionKind::Name
-            } else if is_name(name, "sourceMappingURL") {
-                CustomSectionKind::SourceMappingURL
-            } else if is_name_prefix(name, "reloc.") {
-                CustomSectionKind::Reloc
-            } else if is_name(name, "linking") {
-                CustomSectionKind::Linking
-            } else {
-                CustomSectionKind::Unknown
-            };
-            Ok(SectionCode::Custom {
-                   name: name,
-                   kind: kind,
-               })
-        } else {
-            SectionCode::from_u32(id)
+    fn read_section_code(&mut self, id: u32, offset: usize) -> Result<SectionCode<'a>> {
+        match id {
+            0 => {
+                let name = self.read_string()?;
+                let kind = if is_name(name, "name") {
+                    CustomSectionKind::Name
+                } else if is_name(name, "sourceMappingURL") {
+                    CustomSectionKind::SourceMappingURL
+                } else if is_name_prefix(name, "reloc.") {
+                    CustomSectionKind::Reloc
+                } else if is_name(name, "linking") {
+                    CustomSectionKind::Linking
+                } else {
+                    CustomSectionKind::Unknown
+                };
+                Ok(SectionCode::Custom {
+                       name: name,
+                       kind: kind,
+                   })
+            }
+            1 => Ok(SectionCode::Type),
+            2 => Ok(SectionCode::Import),
+            3 => Ok(SectionCode::Function),
+            4 => Ok(SectionCode::Table),
+            5 => Ok(SectionCode::Memory),
+            6 => Ok(SectionCode::Global),
+            7 => Ok(SectionCode::Export),
+            8 => Ok(SectionCode::Start),
+            9 => Ok(SectionCode::Element),
+            10 => Ok(SectionCode::Code),
+            11 => Ok(SectionCode::Data),
+            _ => {
+                Err(BinaryReaderError {
+                        message: "Invalid section code",
+                        offset,
+                    })
+            }
         }
     }
 
@@ -1025,7 +1020,12 @@ impl<'a> BinaryReader<'a> {
                0xbd => Operator::I64ReinterpretF64,
                0xbe => Operator::F32ReinterpretI32,
                0xbf => Operator::F64ReinterpretI64,
-               _ => return Err("Unknown opcode"),
+               _ => {
+                   return Err(BinaryReaderError {
+                                  message: "Unknown opcode",
+                                  offset: self.position - 1,
+                              })
+               }
            })
     }
 
@@ -1064,7 +1064,7 @@ impl Range {
 
 #[derive(Debug)]
 pub enum ParserState<'a> {
-    Error(&'a str),
+    Error(BinaryReaderError),
     Initial,
     BeginWasm { version: u32 },
     EndWasm,
@@ -1168,29 +1168,39 @@ impl<'a> Parser<'a> {
     fn read_header(&mut self) -> Result<()> {
         let magic_number = self.reader.read_u32()?;
         if magic_number != WASM_MAGIC_NUMBER {
-            return Err("Bad magic number");
+            return Err(BinaryReaderError {
+                           message: "Bad magic number",
+                           offset: self.reader.position - 4,
+                       });
         }
         let version = self.reader.read_u32()?;
         if version != WASM_SUPPORTED_VERSION && version != WASM_EXPERIMENTAL_VERSION {
-            return Err("Bad version number");
+            return Err(BinaryReaderError {
+                           message: "Bad version number",
+                           offset: self.reader.position - 4,
+                       });
         }
         self.state = ParserState::BeginWasm { version: version };
         Ok(())
     }
 
     fn read_section_header(&mut self) -> Result<()> {
+        let id_position = self.reader.position;
         let id = self.reader.read_var_u7()?;
-        if !SectionCode::is_known_section_code(id) {
-            return Err("Unknown section code");
-        }
         let payload_len = self.reader.read_var_u32()? as usize;
         let payload_end = self.reader.position + payload_len;
-        let code = self.reader.read_section_code(id)?;
+        let code = self.reader.read_section_code(id, id_position)?;
         if self.reader.end < payload_end {
-            return Err("Section body extends past end of file");
+            return Err(BinaryReaderError {
+                           message: "Section body extends past end of file",
+                           offset: self.reader.end,
+                       });
         }
         if self.reader.position > payload_end {
-            return Err("Section header is too big to fit into section body");
+            return Err(BinaryReaderError {
+                           message: "Section header is too big to fit into section body",
+                           offset: payload_end,
+                       });
         }
         let range = Range {
             start: self.reader.position,
@@ -1350,7 +1360,10 @@ impl<'a> Parser<'a> {
                 self.function_range = None;
                 return Ok(());
             }
-            return Err("Expected end of function marker");
+            return Err(BinaryReaderError {
+                           message: "Expected end of function marker",
+                           offset: self.function_range.unwrap().end,
+                       });
         }
         self.state = ParserState::CodeOperator(op);
         Ok(())
@@ -1380,11 +1393,26 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
+    fn read_name_type(&mut self) -> Result<NameType> {
+        let code = self.reader.read_var_u7()?;
+        match code {
+            0 => Ok(NameType::Module),
+            1 => Ok(NameType::Function),
+            2 => Ok(NameType::Local),
+            _ => {
+                Err(BinaryReaderError {
+                        message: "Invalid name type",
+                        offset: self.reader.position - 1,
+                    })
+            }
+        }
+    }
+
     fn read_name_entry(&mut self) -> Result<()> {
         if self.reader.position >= self.section_range.unwrap().end {
             return self.position_to_section_end();
         }
-        let ty = NameType::from_u7(self.reader.read_var_u7()?)?;
+        let ty = self.read_name_type()?;
         self.reader.read_var_u32()?; // payload_len
         let entry = match ty {
             NameType::Module => NameEntry::Module(self.reader.read_string()?),
@@ -1412,20 +1440,39 @@ impl<'a> Parser<'a> {
 
     // See https://github.com/WebAssembly/tool-conventions/blob/master/Linking.md
     fn read_reloc_header(&mut self) -> Result<()> {
+        let section_id_position = self.reader.position;
         let section_id = self.reader.read_var_u7()?;
-        if !SectionCode::is_known_section_code(section_id) {
-            return Err("Unknown section code");
-        }
-        let section_code = self.reader.read_section_code(section_id)?;
+        let section_code = self.reader
+            .read_section_code(section_id, section_id_position)?;
         self.state = ParserState::RelocSectionHeader(section_code);
         Ok(())
+    }
+
+    fn read_reloc_type(&mut self) -> Result<RelocType> {
+        let code = self.reader.read_var_u7()?;
+        match code {
+            0 => Ok(RelocType::FunctionIndexLEB),
+            1 => Ok(RelocType::TableIndexSLEB),
+            2 => Ok(RelocType::TableIndexI32),
+            3 => Ok(RelocType::GlobalAddrLEB),
+            4 => Ok(RelocType::GlobalAddrSLEB),
+            5 => Ok(RelocType::GlobalAddrI32),
+            6 => Ok(RelocType::TypeIndexLEB),
+            7 => Ok(RelocType::GlobalIndexLEB),
+            _ => {
+                Err(BinaryReaderError {
+                        message: "Invalid reloc type",
+                        offset: self.reader.position - 1,
+                    })
+            }
+        }
     }
 
     fn read_reloc_entry(&mut self) -> Result<()> {
         if self.section_entries_left == 0 {
             return self.position_to_section_end();
         }
-        let ty = RelocType::from_u7(self.reader.read_var_u7()?)?;
+        let ty = self.read_reloc_type()?;
         let offset = self.reader.read_var_u32()?;
         let index = self.reader.read_var_u32()?;
         let addend = match ty {
@@ -1456,7 +1503,10 @@ impl<'a> Parser<'a> {
         let entry = match ty {
             1 => LinkingType::StackPointer(self.reader.read_var_u32()?),
             _ => {
-                return Err("Invalid linking type");
+                return Err(BinaryReaderError {
+                               message: "Invalid linking type",
+                               offset: self.reader.position - 1,
+                           });
             }
         };
         self.state = ParserState::LinkingSectionEntry(entry);
@@ -1542,7 +1592,10 @@ impl<'a> Parser<'a> {
 
     fn position_to_section_end(&mut self) -> Result<()> {
         if self.section_range.unwrap().end < self.reader.position {
-            return Err("Position past the section end");
+            return Err(BinaryReaderError {
+                           message: "Position past the section end",
+                           offset: self.section_range.unwrap().end,
+                       });
         }
         self.reader.position = self.section_range.unwrap().end;
         self.section_range = None;
@@ -1655,8 +1708,8 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn read(&mut self) -> &ParserState {
         let result = self.read_wrapped();
-        if let Err(msg) = result {
-            self.state = ParserState::Error(msg);
+        if result.is_err() {
+            self.state = ParserState::Error(result.err().unwrap());
         }
         &self.state
     }
