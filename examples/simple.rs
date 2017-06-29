@@ -5,6 +5,7 @@ use std::io::prelude::*;
 use std::fs::File;
 use std::str;
 use std::env;
+use wasmparser::WasmDecoder;
 use wasmparser::Parser;
 use wasmparser::ParserState;
 

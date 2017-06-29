@@ -18,6 +18,7 @@ mod simple_tests {
     use std::io::prelude::*;
     use std::fs::{File, read_dir};
     use std::path::PathBuf;
+    use parser::WasmDecoder;
     use parser::Parser;
     use parser::ParserState;
     use parser::ParserInput;

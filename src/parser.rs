@@ -508,10 +508,6 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
-    pub fn eof(&self) -> bool {
-        self.position >= self.end
-    }
-
     fn ensure_has_bytes(&self, len: usize) -> Result<()> {
         if self.position + len <= self.end {
             Ok(())
@@ -523,13 +519,6 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
-    pub fn read_bytes(&mut self, size: usize) -> Result<&'a [u8]> {
-        self.ensure_has_bytes(size)?;
-        let start = self.position;
-        self.position += size;
-        Ok(&self.buffer[start..self.position])
-    }
-
     fn read_bytes_till(&mut self, pos: usize) -> Result<&'a [u8]> {
         if self.position > pos {
             return Err(BinaryReaderError {
@@ -539,29 +528,6 @@ impl<'a> BinaryReader<'a> {
         }
         let size = pos - self.position;
         self.read_bytes(size)
-    }
-
-    pub fn read_u32(&mut self) -> Result<u32> {
-        self.ensure_has_bytes(4)?;
-        let b1 = self.buffer[self.position] as u32;
-        let b2 = self.buffer[self.position + 1] as u32;
-        let b3 = self.buffer[self.position + 2] as u32;
-        let b4 = self.buffer[self.position + 3] as u32;
-        self.position += 4;
-        Ok(b1 | (b2 << 8) | (b3 << 16) | (b4 << 24))
-    }
-
-    pub fn read_u64(&mut self) -> Result<u64> {
-        let w1 = self.read_u32()? as u64;
-        let w2 = self.read_u32()? as u64;
-        Ok(w1 | (w2 << 32))
-    }
-
-    pub fn read_u8(&mut self) -> Result<u32> {
-        self.ensure_has_bytes(1)?;
-        let b = self.buffer[self.position] as u32;
-        self.position += 1;
-        Ok(b)
     }
 
     fn read_var_u1(&mut self) -> Result<u32> {
@@ -595,102 +561,6 @@ impl<'a> BinaryReader<'a> {
                        });
         }
         Ok(b)
-    }
-
-    pub fn read_var_u32(&mut self) -> Result<u32> {
-        let mut result = 0;
-        let mut shift = 0;
-        loop {
-            let byte = self.read_u8()?;
-            result |= ((byte & 0x7F) as u32) << shift;
-            shift += 7;
-            if (byte & 0x80) == 0 {
-                break;
-            }
-            if shift >= 32 {
-                return Err(BinaryReaderError {
-                               message: "Invalid var_u32",
-                               offset: self.position - 1,
-                           });
-            }
-        }
-        Ok(result)
-    }
-
-    pub fn skip_var_32(&mut self) -> Result<()> {
-        for _ in 0..5 {
-            let byte = self.read_u8()?;
-            if (byte & 0x80) == 0 {
-                return Ok(());
-            }
-        }
-        Err(BinaryReaderError {
-                message: "Invalid var_32",
-                offset: self.position - 1,
-            })
-    }
-
-    pub fn read_var_i32(&mut self) -> Result<i32> {
-        let mut result: i32 = 0;
-        let mut shift = 0;
-        loop {
-            let byte = self.read_u8()?;
-            result |= ((byte & 0x7F) as i32) << shift;
-            shift += 7;
-            if (byte & 0x80) == 0 {
-                break;
-            }
-            if shift >= 32 {
-                return Err(BinaryReaderError {
-                               message: "Invalid var_i32",
-                               offset: self.position,
-                           });
-            }
-        }
-        if shift >= 32 {
-            return Ok(result);
-        }
-        let ashift = 32 - shift;
-        Ok((result << ashift) >> ashift)
-    }
-
-    pub fn read_var_i64(&mut self) -> Result<i64> {
-        let mut result: i64 = 0;
-        let mut shift = 0;
-        loop {
-            let byte = self.read_u8()?;
-            result |= ((byte & 0x7F) as i64) << shift;
-            shift += 7;
-            if (byte & 0x80) == 0 {
-                break;
-            }
-            if shift >= 64 {
-                return Err(BinaryReaderError {
-                               message: "Invalid var_i64",
-                               offset: self.position - 1,
-                           });
-            }
-        }
-        if shift >= 64 {
-            return Ok(result);
-        }
-        let ashift = 64 - shift;
-        Ok((result << ashift) >> ashift)
-    }
-
-    pub fn read_f32(&mut self) -> Result<Ieee32> {
-        let value = self.read_u32()?;
-        Ok(Ieee32(value))
-    }
-
-    pub fn read_f64(&mut self) -> Result<Ieee64> {
-        let value = self.read_u64()?;
-        Ok(Ieee64(value))
-    }
-
-    pub fn read_string(&mut self) -> Result<&'a [u8]> {
-        let len = self.read_var_u32()? as usize;
-        self.read_bytes(len)
     }
 
     fn read_type(&mut self) -> Result<Type> {
@@ -838,6 +708,154 @@ impl<'a> BinaryReader<'a> {
                size: targets_len,
                buffer: &self.buffer[start..self.position],
            })
+    }
+
+    fn read_name_map(&mut self) -> Result<Vec<Naming<'a>>> {
+        let count = self.read_var_u32()? as usize;
+        let mut result = Vec::with_capacity(count);
+        for _ in 0..count {
+            let index = self.read_var_u32()?;
+            let name = self.read_string()?;
+            result.push(Naming {
+                            index: index,
+                            name: name,
+                        });
+        }
+        Ok(result)
+    }
+
+    pub fn eof(&self) -> bool {
+        self.position >= self.end
+    }
+
+    pub fn current_position(&self) -> usize {
+        self.position
+    }
+
+    pub fn read_bytes(&mut self, size: usize) -> Result<&'a [u8]> {
+        self.ensure_has_bytes(size)?;
+        let start = self.position;
+        self.position += size;
+        Ok(&self.buffer[start..self.position])
+    }
+
+    pub fn read_u32(&mut self) -> Result<u32> {
+        self.ensure_has_bytes(4)?;
+        let b1 = self.buffer[self.position] as u32;
+        let b2 = self.buffer[self.position + 1] as u32;
+        let b3 = self.buffer[self.position + 2] as u32;
+        let b4 = self.buffer[self.position + 3] as u32;
+        self.position += 4;
+        Ok(b1 | (b2 << 8) | (b3 << 16) | (b4 << 24))
+    }
+
+    pub fn read_u64(&mut self) -> Result<u64> {
+        let w1 = self.read_u32()? as u64;
+        let w2 = self.read_u32()? as u64;
+        Ok(w1 | (w2 << 32))
+    }
+
+    pub fn read_u8(&mut self) -> Result<u32> {
+        self.ensure_has_bytes(1)?;
+        let b = self.buffer[self.position] as u32;
+        self.position += 1;
+        Ok(b)
+    }
+
+    pub fn read_var_u32(&mut self) -> Result<u32> {
+        let mut result = 0;
+        let mut shift = 0;
+        loop {
+            let byte = self.read_u8()?;
+            result |= ((byte & 0x7F) as u32) << shift;
+            shift += 7;
+            if (byte & 0x80) == 0 {
+                break;
+            }
+            if shift >= 32 {
+                return Err(BinaryReaderError {
+                               message: "Invalid var_u32",
+                               offset: self.position - 1,
+                           });
+            }
+        }
+        Ok(result)
+    }
+
+    pub fn skip_var_32(&mut self) -> Result<()> {
+        for _ in 0..5 {
+            let byte = self.read_u8()?;
+            if (byte & 0x80) == 0 {
+                return Ok(());
+            }
+        }
+        Err(BinaryReaderError {
+                message: "Invalid var_32",
+                offset: self.position - 1,
+            })
+    }
+
+    pub fn read_var_i32(&mut self) -> Result<i32> {
+        let mut result: i32 = 0;
+        let mut shift = 0;
+        loop {
+            let byte = self.read_u8()?;
+            result |= ((byte & 0x7F) as i32) << shift;
+            shift += 7;
+            if (byte & 0x80) == 0 {
+                break;
+            }
+            if shift >= 32 {
+                return Err(BinaryReaderError {
+                               message: "Invalid var_i32",
+                               offset: self.position,
+                           });
+            }
+        }
+        if shift >= 32 {
+            return Ok(result);
+        }
+        let ashift = 32 - shift;
+        Ok((result << ashift) >> ashift)
+    }
+
+    pub fn read_var_i64(&mut self) -> Result<i64> {
+        let mut result: i64 = 0;
+        let mut shift = 0;
+        loop {
+            let byte = self.read_u8()?;
+            result |= ((byte & 0x7F) as i64) << shift;
+            shift += 7;
+            if (byte & 0x80) == 0 {
+                break;
+            }
+            if shift >= 64 {
+                return Err(BinaryReaderError {
+                               message: "Invalid var_i64",
+                               offset: self.position - 1,
+                           });
+            }
+        }
+        if shift >= 64 {
+            return Ok(result);
+        }
+        let ashift = 64 - shift;
+        Ok((result << ashift) >> ashift)
+    }
+
+    pub fn read_f32(&mut self) -> Result<Ieee32> {
+        let value = self.read_u32()?;
+        Ok(Ieee32(value))
+    }
+
+    pub fn read_f64(&mut self) -> Result<Ieee64> {
+        let value = self.read_u64()?;
+        Ok(Ieee64(value))
+    }
+
+    pub fn read_string(&mut self) -> Result<&'a [u8]> {
+        let len = self.read_var_u32()? as usize;
+        self.read_bytes(len)
     }
 
     pub fn read_operator(&mut self) -> Result<Operator<'a>> {
@@ -1028,20 +1046,6 @@ impl<'a> BinaryReader<'a> {
                }
            })
     }
-
-    fn read_name_map(&mut self) -> Result<Vec<Naming<'a>>> {
-        let count = self.read_var_u32()? as usize;
-        let mut result = Vec::with_capacity(count);
-        for _ in 0..count {
-            let index = self.read_var_u32()?;
-            let name = self.read_string()?;
-            result.push(Naming {
-                            index: index,
-                            name: name,
-                        });
-        }
-        Ok(result)
-    }
 }
 
 /// Bytecode range in the WebAssembly module.
@@ -1129,6 +1133,12 @@ pub enum ParserInput {
     ReadSectionRawData,
 }
 
+pub trait WasmDecoder<'a> {
+    fn read(&mut self) -> &ParserState;
+    fn push_input(&mut self, input: ParserInput);
+    fn read_with_input(&mut self, input: ParserInput) -> &ParserState;
+}
+
 /// The `Parser` type. A simple event-driven parser of WebAssembly binary
 /// format. The `read(&mut self)` is used to iterate through WebAssembly records.
 pub struct Parser<'a> {
@@ -1163,6 +1173,14 @@ impl<'a> Parser<'a> {
             init_expr_continuation: None,
             section_entries_left: 0,
         }
+    }
+
+    pub fn eof(&self) -> bool {
+        self.reader.eof()
+    }
+
+    pub fn current_position(&self) -> usize {
+        self.reader.current_position()
     }
 
     fn read_header(&mut self) -> Result<()> {
@@ -1688,32 +1706,6 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    /// Reads next record from the WebAssembly binary data. The methods returns
-    /// reference to current state of the parser. See `ParserState` num.
-    ///
-    /// # Examples
-    /// ```
-    /// # let data: &[u8] = &[0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
-    /// #     0x01, 0x4, 0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00,
-    /// #     0x0a, 0x05, 0x01, 0x03, 0x00, 0x01, 0x0b];
-    /// let mut parser = wasmparser::Parser::new(data);
-    /// {
-    ///     let state = parser.read();
-    ///     println!("First state {:?}", state);
-    /// }
-    /// {
-    ///     let state = parser.read();
-    ///     println!("Second state {:?}", state);
-    /// }
-    /// ```
-    pub fn read(&mut self) -> &ParserState {
-        let result = self.read_wrapped();
-        if result.is_err() {
-            self.state = ParserState::Error(result.err().unwrap());
-        }
-        &self.state
-    }
-
     fn skip_section(&mut self) {
         match self.state {
             ParserState::Initial |
@@ -1739,8 +1731,37 @@ impl<'a> Parser<'a> {
             _ => panic!("Invalid reader state during reading raw section data"),
         }
     }
+}
 
-    pub fn push_input(&mut self, input: ParserInput) {
+impl<'a> WasmDecoder<'a> for Parser<'a> {
+    /// Reads next record from the WebAssembly binary data. The methods returns
+    /// reference to current state of the parser. See `ParserState` num.
+    ///
+    /// # Examples
+    /// ```
+    /// # let data: &[u8] = &[0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+    /// #     0x01, 0x4, 0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00,
+    /// #     0x0a, 0x05, 0x01, 0x03, 0x00, 0x01, 0x0b];
+    /// use wasmparser::WasmDecoder;
+    /// let mut parser = wasmparser::Parser::new(data);
+    /// {
+    ///     let state = parser.read();
+    ///     println!("First state {:?}", state);
+    /// }
+    /// {
+    ///     let state = parser.read();
+    ///     println!("Second state {:?}", state);
+    /// }
+    /// ```
+    fn read(&mut self) -> &ParserState {
+        let result = self.read_wrapped();
+        if result.is_err() {
+            self.state = ParserState::Error(result.err().unwrap());
+        }
+        &self.state
+    }
+
+    fn push_input(&mut self, input: ParserInput) {
         match input {
             ParserInput::Default => (),
             ParserInput::SkipSection => self.skip_section(),
@@ -1759,6 +1780,7 @@ impl<'a> Parser<'a> {
     /// # let data: &[u8] = &[0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
     /// #     0x01, 0x4, 0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00,
     /// #     0x0a, 0x05, 0x01, 0x03, 0x00, 0x01, 0x0b];
+    /// use wasmparser::WasmDecoder;
     /// let mut parser = wasmparser::Parser::new(data);
     /// let mut next_input = wasmparser::ParserInput::Default;
     /// loop {
@@ -1776,7 +1798,7 @@ impl<'a> Parser<'a> {
     ///     }
     /// }
     /// ```
-    pub fn read_with_input(&mut self, input: ParserInput) -> &ParserState {
+    fn read_with_input(&mut self, input: ParserInput) -> &ParserState {
         self.push_input(input);
         self.read()
     }

@@ -23,9 +23,11 @@
 //! this is not the right library for you. You could however, build such
 //! a data-structure using this library.
 
+pub use parser::WasmDecoder;
 pub use parser::Parser;
 pub use parser::ParserState;
 pub use parser::ParserInput;
+pub use parser::BinaryReaderError;
 pub use parser::BinaryReader;
 pub use parser::Range;
 pub use parser::SectionCode;
