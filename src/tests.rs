@@ -18,11 +18,8 @@ mod simple_tests {
     use std::io::prelude::*;
     use std::fs::{File, read_dir};
     use std::path::PathBuf;
-    use parser::WasmDecoder;
-    use parser::Parser;
-    use parser::ParserState;
-    use parser::ParserInput;
-    use parser::SectionCode;
+    use parser::{WasmDecoder, Parser, ParserState, ParserInput, SectionCode};
+    use validator::ValidatingParser;
 
     fn read_file_data(path: &PathBuf) -> Vec<u8> {
         println!("Parsing {:?}", path);
@@ -35,7 +32,11 @@ mod simple_tests {
     #[test]
     fn it_works() {
         for entry in read_dir("tests").unwrap() {
-            let data = read_file_data(&entry.unwrap().path());
+            let dir = entry.unwrap();
+            if !dir.file_type().unwrap().is_file() {
+                continue;
+            }
+            let data = read_file_data(&dir.path());
             let mut parser = Parser::new(data.as_slice());
             let mut max_iteration = 100000000;
             loop {
@@ -49,6 +50,62 @@ mod simple_tests {
                 if max_iteration == 0 {
                     panic!("Max iterations exceeded");
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn validator_not_fails() {
+        for entry in read_dir("tests").unwrap() {
+            let dir = entry.unwrap();
+            if !dir.file_type().unwrap().is_file() {
+                continue;
+            }
+            let data = read_file_data(&dir.path());
+            let mut parser = ValidatingParser::new(data.as_slice());
+            let mut max_iteration = 100000000;
+            loop {
+                let state = parser.read();
+                match *state {
+                    ParserState::EndWasm => break,
+                    ParserState::Error(err) => panic!("Error: {:?}", err),
+                    _ => (),
+                }
+                max_iteration -= 1;
+                if max_iteration == 0 {
+                    panic!("Max iterations exceeded");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn validator_fails() {
+        for entry in read_dir("tests/invalid").unwrap() {
+            let dir = entry.unwrap();
+            if !dir.file_type().unwrap().is_file() {
+                continue;
+            }
+            let data = read_file_data(&dir.path());
+            let mut parser = ValidatingParser::new(data.as_slice());
+            let mut max_iteration = 100000000;
+            let mut error = false;
+            loop {
+                let state = parser.read();
+                if let ParserState::Error(_) = *state {
+                    error = true;
+                    break;
+                }
+                if let ParserState::EndWasm = *state {
+                    break;
+                }
+                max_iteration -= 1;
+                if max_iteration == 0 {
+                    panic!("Max iterations exceeded");
+                }
+            }
+            if !error {
+                panic!("fail is expected");
             }
         }
     }

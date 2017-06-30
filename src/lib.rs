@@ -29,6 +29,7 @@ pub use parser::ParserState;
 pub use parser::ParserInput;
 pub use parser::BinaryReaderError;
 pub use parser::BinaryReader;
+pub use parser::Result;
 pub use parser::Range;
 pub use parser::SectionCode;
 pub use parser::Operator;
@@ -53,5 +54,8 @@ pub use parser::LinkingType;
 pub use parser::Ieee32;
 pub use parser::Ieee64;
 
+pub use validator::ValidatingParser;
+
 mod parser;
+mod validator;
 mod tests;

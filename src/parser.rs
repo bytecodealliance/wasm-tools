@@ -22,9 +22,9 @@ pub struct BinaryReaderError {
     pub offset: usize,
 }
 
-type Result<T> = result::Result<T, BinaryReaderError>;
+pub type Result<T> = result::Result<T, BinaryReaderError>;
 
-#[derive(Debug)]
+#[derive(Debug,Copy,Clone,PartialEq,Eq,PartialOrd,Ord)]
 pub enum CustomSectionKind {
     Unknown,
     Name,
@@ -34,7 +34,7 @@ pub enum CustomSectionKind {
 }
 
 /// Section code as defined at https://webassembly.github.io/spec/binary/modules.html#sections
-#[derive(Debug)]
+#[derive(Debug,Copy,Clone,PartialEq,Eq,PartialOrd,Ord)]
 pub enum SectionCode<'a> {
     Custom {
         name: &'a [u8],
@@ -54,7 +54,7 @@ pub enum SectionCode<'a> {
 }
 
 /// Types as defined at https://webassembly.github.io/spec/syntax/types.html#types
-#[derive(Debug,Copy,Clone)]
+#[derive(Debug,Copy,Clone,PartialEq,Eq)]
 pub enum Type {
     I32,
     I64,
@@ -92,7 +92,7 @@ pub enum NameEntry<'a> {
 }
 
 /// External types as defined at https://webassembly.github.io/spec/syntax/types.html#external-types
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum ExternalKind {
     Function,
     Table,
@@ -107,25 +107,25 @@ pub struct FuncType {
     pub returns: Vec<Type>,
 }
 
-#[derive(Debug)]
+#[derive(Debug,Copy,Clone)]
 pub struct ResizableLimits {
     pub flags: u32,
     pub initial: u32,
     pub maximum: Option<u32>,
 }
 
-#[derive(Debug)]
+#[derive(Debug,Copy,Clone)]
 pub struct TableType {
     pub element_type: Type,
     pub limits: ResizableLimits,
 }
 
-#[derive(Debug)]
+#[derive(Debug,Copy,Clone)]
 pub struct MemoryType {
     pub limits: ResizableLimits,
 }
 
-#[derive(Debug)]
+#[derive(Debug,Copy,Clone)]
 pub struct GlobalType {
     pub content_type: Type,
     pub mutability: u32,
@@ -1137,6 +1137,7 @@ pub trait WasmDecoder<'a> {
     fn read(&mut self) -> &ParserState;
     fn push_input(&mut self, input: ParserInput);
     fn read_with_input(&mut self, input: ParserInput) -> &ParserState;
+    fn last_state(&self) -> &ParserState;
 }
 
 /// The `Parser` type. A simple event-driven parser of WebAssembly binary
@@ -1801,5 +1802,9 @@ impl<'a> WasmDecoder<'a> for Parser<'a> {
     fn read_with_input(&mut self, input: ParserInput) -> &ParserState {
         self.push_input(input);
         self.read()
+    }
+
+    fn last_state(&self) -> &ParserState {
+        &self.state
     }
 }
