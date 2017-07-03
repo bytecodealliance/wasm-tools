@@ -37,3 +37,21 @@ fn main() {
   }
 }
 ```
+
+## Fuzzing
+
+To fuzz test wasmparser.rs, switch to a nightly Rust compiler and install [cargo-fuzz]:
+
+```
+cargo install cargo-fuzz
+```
+
+Then, from the root of the repository, run:
+
+```
+cargo fuzz run parse
+```
+
+If you want to use files as seeds for the fuzzer, add them to `fuzz/corpus/parse/` and restart cargo-fuzz.
+
+[cargo-fuzz]: https://github.com/rust-fuzz/cargo-fuzz
