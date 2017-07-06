@@ -1272,7 +1272,7 @@ impl<'a> ValidatingParser<'a> {
                 }
             }
             ParserState::FunctionSectionEntry(type_index) => {
-                if type_index as usize > self.types.len() {
+                if type_index as usize >= self.types.len() {
                     self.validation_error =
                         self.create_validation_error("func type index out of bounds");
                 } else {
