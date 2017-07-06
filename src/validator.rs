@@ -1349,7 +1349,8 @@ impl<'a> ValidatingParser<'a> {
                 }
             }
             ParserState::BeginFunctionBody { ref locals, .. } => {
-                if self.current_func_index as usize >= self.func_type_indices.len() {
+                let index = self.current_func_index + self.func_imports_count;
+                if index as usize >= self.func_type_indices.len() {
                     self.validation_error =
                         self.create_validation_error("func type is not defined");
                 } else {
