@@ -7,7 +7,7 @@ extern crate wasmparser;
 use wasmparser::WasmDecoder;
 
 fuzz_target!(|data: &[u8]| {
-    let mut parser = wasmparser::Parser::new(data);
+    let mut parser = wasmparser::ValidatingParser::new(data);
     loop {
         match *parser.read() {
             wasmparser::ParserState::Error(..) |
