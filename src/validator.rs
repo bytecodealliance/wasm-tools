@@ -458,7 +458,7 @@ impl<'a> ValidatingParser<'a> {
                 if self.func_type_indices.len() >= MAX_WASM_FUNCTIONS {
                     return self.create_error("functions count out of bounds");
                 }
-                if type_index as usize > self.types.len() {
+                if type_index as usize >= self.types.len() {
                     return self.create_error("type index out of bounds");
                 }
                 Ok(())
