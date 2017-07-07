@@ -20,6 +20,8 @@ use std::collections::HashSet;
 use parser::{WasmDecoder, Parser, ParserState, ParserInput, BinaryReaderError, FuncType, Type,
              Operator, ResizableLimits, TableType, ImportSectionEntryType, GlobalType, MemoryType,
              ExternalKind, SectionCode, MemoryImmediate};
+use limits::{MAX_WASM_MEMORY_PAGES, MAX_WASM_TABLES, MAX_WASM_MEMORIES, MAX_WASM_TYPES,
+             MAX_WASM_GLOBALS, MAX_WASM_FUNCTIONS};
 
 type ValidatorResult<'a, T> = result::Result<T, ParserState<'a>>;
 
@@ -426,11 +428,11 @@ impl<'a> ValidatingParser<'a> {
     fn check_memory_type(&self, memory_type: &MemoryType) -> ValidatorResult<'a, ()> {
         self.check_limits(&memory_type.limits)?;
         let initial = memory_type.limits.initial;
-        if initial > 65536 {
+        if initial as usize > MAX_WASM_MEMORY_PAGES {
             return self.create_error("memory initial value exceeds limit");
         }
         let maximum = memory_type.limits.maximum;
-        if maximum.is_some() && maximum.unwrap() > 65536 {
+        if maximum.is_some() && maximum.unwrap() as usize > MAX_WASM_MEMORY_PAGES {
             return self.create_error("memory maximum value exceeds limit");
         }
         Ok(())
@@ -453,24 +455,30 @@ impl<'a> ValidatingParser<'a> {
         self.check_utf8(field)?;
         match *import_type {
             ImportSectionEntryType::Function(type_index) => {
+                if self.func_type_indices.len() >= MAX_WASM_FUNCTIONS {
+                    return self.create_error("functions count out of bounds");
+                }
                 if type_index as usize > self.types.len() {
                     return self.create_error("type index out of bounds");
                 }
                 Ok(())
             }
             ImportSectionEntryType::Table(ref table_type) => {
-                if self.tables.len() >= 1 {
+                if self.tables.len() >= MAX_WASM_TABLES {
                     return self.create_error("tables count must be at most 1");
                 }
                 self.check_table_type(table_type)
             }
             ImportSectionEntryType::Memory(ref memory_type) => {
-                if self.memories.len() >= 1 {
+                if self.memories.len() >= MAX_WASM_MEMORIES {
                     return self.create_error("memory count must be at most 1");
                 }
                 self.check_memory_type(memory_type)
             }
             ImportSectionEntryType::Global(ref global_type) => {
+                if self.globals.len() >= MAX_WASM_GLOBALS {
+                    return self.create_error("functions count out of bounds");
+                }
                 if global_type.mutability != 0 {
                     return self.create_error("global imports are required to be immutable");
                 }
@@ -1241,6 +1249,9 @@ impl<'a> ValidatingParser<'a> {
                 let check = self.check_func_type(func_type);
                 if check.is_err() {
                     self.validation_error = check.err();
+                } else if self.types.len() > MAX_WASM_TYPES {
+                    self.validation_error =
+                        self.create_validation_error("types count is out of bounds");
                 } else {
                     self.types.push(func_type.clone());
                 }
@@ -1275,12 +1286,15 @@ impl<'a> ValidatingParser<'a> {
                 if type_index as usize >= self.types.len() {
                     self.validation_error =
                         self.create_validation_error("func type index out of bounds");
+                } else if self.func_type_indices.len() >= MAX_WASM_FUNCTIONS {
+                    self.validation_error =
+                        self.create_validation_error("functions count out of bounds");
                 } else {
                     self.func_type_indices.push(type_index);
                 }
             }
             ParserState::TableSectionEntry(ref table_type) => {
-                if self.tables.len() >= 1 {
+                if self.tables.len() >= MAX_WASM_TABLES {
                     self.validation_error =
                         self.create_validation_error("tables count must be at most 1");
                 } else {
@@ -1289,7 +1303,7 @@ impl<'a> ValidatingParser<'a> {
                 }
             }
             ParserState::MemorySectionEntry(ref memory_type) => {
-                if self.memories.len() >= 1 {
+                if self.memories.len() >= MAX_WASM_MEMORIES {
                     self.validation_error =
                         self.create_validation_error("memories count must be at most 1");
                 } else {
@@ -1298,13 +1312,18 @@ impl<'a> ValidatingParser<'a> {
                 }
             }
             ParserState::BeginGlobalSectionEntry(ref global_type) => {
-                self.validation_error = self.check_global_type(global_type).err();
-                self.init_expression_state = Some(InitExpressionState {
-                                                      ty: global_type.content_type,
-                                                      global_count: self.globals.len(),
-                                                      validated: false,
-                                                  });
-                self.globals.push(global_type.clone());
+                if self.globals.len() >= MAX_WASM_GLOBALS {
+                    self.validation_error =
+                        self.create_validation_error("globals count out of bounds");
+                } else {
+                    self.validation_error = self.check_global_type(global_type).err();
+                    self.init_expression_state = Some(InitExpressionState {
+                                                          ty: global_type.content_type,
+                                                          global_count: self.globals.len(),
+                                                          validated: false,
+                                                      });
+                    self.globals.push(global_type.clone());
+                }
             }
             ParserState::BeginInitExpressionBody => {
                 assert!(self.init_expression_state.is_some());

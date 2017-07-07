@@ -16,6 +16,11 @@
 
 use std::result;
 
+use limits::{MAX_WASM_FUNCTION_LOCALS, MAX_WASM_FUNCTION_PARAMS, MAX_WASM_FUNCTION_RETURNS,
+             MAX_WASM_FUNCTION_SIZE, MAX_WASM_STRING_SIZE, MAX_WASM_FUNCTIONS};
+
+const MAX_WASM_BR_TABLE_SIZE: usize = MAX_WASM_FUNCTION_SIZE;
+
 #[derive(Debug,Copy,Clone)]
 pub struct BinaryReaderError {
     pub message: &'static str,
@@ -601,11 +606,23 @@ impl<'a> BinaryReader<'a> {
     fn read_func_type(&mut self) -> Result<FuncType> {
         let form = self.read_type()?;
         let params_len = self.read_var_u32()? as usize;
+        if params_len > MAX_WASM_FUNCTION_PARAMS {
+            return Err(BinaryReaderError {
+                           message: "function params size is out of bound",
+                           offset: self.position - 1,
+                       });
+        }
         let mut params: Vec<Type> = Vec::with_capacity(params_len);
         for _ in 0..params_len {
             params.push(self.read_type()?);
         }
         let returns_len = self.read_var_u32()? as usize;
+        if returns_len > MAX_WASM_FUNCTION_RETURNS {
+            return Err(BinaryReaderError {
+                           message: "function params size is out of bound",
+                           offset: self.position - 1,
+                       });
+        }
         let mut returns: Vec<Type> = Vec::with_capacity(returns_len);
         for _ in 0..returns_len {
             returns.push(self.read_type()?);
@@ -699,6 +716,12 @@ impl<'a> BinaryReader<'a> {
 
     fn read_br_table(&mut self) -> Result<BrTable<'a>> {
         let targets_len = self.read_var_u32()? as usize;
+        if targets_len > MAX_WASM_BR_TABLE_SIZE {
+            return Err(BinaryReaderError {
+                           message: "br_table size is out of bound",
+                           offset: self.position - 1,
+                       });
+        }
         let start = self.position;
         for _ in 0..targets_len {
             self.skip_var_32()?;
@@ -710,8 +733,14 @@ impl<'a> BinaryReader<'a> {
            })
     }
 
-    fn read_name_map(&mut self) -> Result<Vec<Naming<'a>>> {
+    fn read_name_map(&mut self, limit: usize) -> Result<Vec<Naming<'a>>> {
         let count = self.read_var_u32()? as usize;
+        if count > limit {
+            return Err(BinaryReaderError {
+                           message: "name map size is out of bound",
+                           offset: self.position - 1,
+                       });
+        }
         let mut result = Vec::with_capacity(count);
         for _ in 0..count {
             let index = self.read_var_u32()?;
@@ -855,6 +884,12 @@ impl<'a> BinaryReader<'a> {
 
     pub fn read_string(&mut self) -> Result<&'a [u8]> {
         let len = self.read_var_u32()? as usize;
+        if len > MAX_WASM_STRING_SIZE {
+            return Err(BinaryReaderError {
+                           message: "string size in out of bounds",
+                           offset: self.position - 1,
+                       });
+        }
         self.read_bytes(len)
     }
 
@@ -1355,9 +1390,24 @@ impl<'a> Parser<'a> {
         let size = self.reader.read_var_u32()? as usize;
         let body_end = self.reader.position + size;
         let local_count = self.reader.read_var_u32()? as usize;
+        if local_count > MAX_WASM_FUNCTION_LOCALS {
+            return Err(BinaryReaderError {
+                           message: "local_count is out of bounds",
+                           offset: self.reader.position - 1,
+                       });
+
+        }
         let mut locals: Vec<(u32, Type)> = Vec::with_capacity(local_count);
+        let mut locals_total = 0;
         for _ in 0..local_count {
             let count = self.reader.read_var_u32()?;
+            locals_total += count as usize;
+            if locals_total > MAX_WASM_FUNCTION_LOCALS {
+                return Err(BinaryReaderError {
+                               message: "local_count is out of bounds",
+                               offset: self.reader.position - 1,
+                           });
+            }
             let ty = self.reader.read_type()?;
             locals.push((count, ty));
         }
@@ -1435,14 +1485,22 @@ impl<'a> Parser<'a> {
         self.reader.read_var_u32()?; // payload_len
         let entry = match ty {
             NameType::Module => NameEntry::Module(self.reader.read_string()?),
-            NameType::Function => NameEntry::Function(self.reader.read_name_map()?),
+            NameType::Function => {
+                NameEntry::Function(self.reader.read_name_map(MAX_WASM_FUNCTIONS)?)
+            }
             NameType::Local => {
                 let funcs_len = self.reader.read_var_u32()? as usize;
+                if funcs_len > MAX_WASM_FUNCTIONS {
+                    return Err(BinaryReaderError {
+                                   message: "function count is out of bounds",
+                                   offset: self.reader.position - 1,
+                               });
+                }
                 let mut funcs: Vec<LocalName<'a>> = Vec::with_capacity(funcs_len);
                 for _ in 0..funcs_len {
                     funcs.push(LocalName {
                                    index: self.reader.read_var_u32()?,
-                                   locals: self.reader.read_name_map()?,
+                                   locals: self.reader.read_name_map(MAX_WASM_FUNCTION_LOCALS)?,
                                });
                 }
                 NameEntry::Local(funcs)
