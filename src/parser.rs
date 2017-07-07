@@ -17,7 +17,8 @@
 use std::result;
 
 use limits::{MAX_WASM_FUNCTION_LOCALS, MAX_WASM_FUNCTION_PARAMS, MAX_WASM_FUNCTION_RETURNS,
-             MAX_WASM_FUNCTION_SIZE, MAX_WASM_STRING_SIZE, MAX_WASM_FUNCTIONS};
+             MAX_WASM_FUNCTION_SIZE, MAX_WASM_STRING_SIZE, MAX_WASM_FUNCTIONS,
+             MAX_WASM_TABLE_ENTRIES};
 
 const MAX_WASM_BR_TABLE_SIZE: usize = MAX_WASM_FUNCTION_SIZE;
 
@@ -1375,6 +1376,12 @@ impl<'a> Parser<'a> {
 
     fn read_element_entry_body(&mut self) -> Result<()> {
         let num_elements = self.reader.read_var_u32()? as usize;
+        if num_elements > MAX_WASM_TABLE_ENTRIES {
+            return Err(BinaryReaderError {
+                           message: "num_elements is out of bounds",
+                           offset: self.reader.position - 1,
+                       });
+        }
         let mut elements: Vec<u32> = Vec::with_capacity(num_elements);
         for _ in 0..num_elements {
             elements.push(self.reader.read_var_u32()?);
