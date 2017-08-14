@@ -19,7 +19,7 @@ use std::collections::HashSet;
 
 use parser::{WasmDecoder, Parser, ParserState, ParserInput, BinaryReaderError, FuncType, Type,
              Operator, ResizableLimits, TableType, ImportSectionEntryType, GlobalType, MemoryType,
-             ExternalKind, SectionCode, MemoryImmediate};
+             ExternalKind, SectionCode, MemoryImmediate, BinaryReader};
 use limits::{MAX_WASM_MEMORY_PAGES, MAX_WASM_TABLES, MAX_WASM_MEMORIES, MAX_WASM_TYPES,
              MAX_WASM_GLOBALS, MAX_WASM_FUNCTIONS};
 
@@ -1429,6 +1429,15 @@ impl<'a> WasmDecoder<'a> for ValidatingParser<'a> {
     fn read_with_input(&mut self, input: ParserInput) -> &ParserState {
         self.push_input(input);
         self.read()
+    }
+
+    fn create_binary_reader<'b>(&mut self) -> BinaryReader<'b>
+        where 'a: 'b
+    {
+        if let ParserState::BeginSection { .. } = *self.parser.last_state() {
+            panic!("Not supported");
+        }
+        self.parser.create_binary_reader()
     }
 
     fn last_state(&self) -> &ParserState {
