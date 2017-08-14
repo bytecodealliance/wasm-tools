@@ -30,6 +30,7 @@ struct BlockState {
     stack_starts_at: usize,
     jump_to_top: bool,
     is_else_allowed: bool,
+    is_dead_code: bool,
     polymorphic_values: Option<usize>,
 }
 
@@ -138,6 +139,7 @@ enum OperatorAction {
     ChangeFrame(usize),
     ChangeFrameWithType(usize, Type),
     ChangeFrameWithTypes(usize, Vec<Type>),
+    ChangeFrameToExactTypes(Vec<Type>),
     ChangeFrameAfterSelect(Option<Type>),
     PushBlock(Type, BlockType),
     PopBlock,
@@ -187,6 +189,7 @@ impl OperatorAction {
                               stack_starts_at,
                               jump_to_top: block_type == BlockType::Loop,
                               is_else_allowed: block_type == BlockType::If,
+                              is_dead_code: false,
                               polymorphic_values: None,
                           });
             }
@@ -228,6 +231,13 @@ impl OperatorAction {
                 }
                 func_state.stack_types.extend_from_slice(new_items);
             }
+            OperatorAction::ChangeFrameToExactTypes(ref items) => {
+                let last_block = func_state.blocks.last_mut().unwrap();
+                let keep = last_block.stack_starts_at;
+                func_state.stack_types.truncate(keep);
+                func_state.stack_types.extend_from_slice(items);
+                last_block.polymorphic_values = None;
+            }
             OperatorAction::ChangeFrameAfterSelect(ty) => {
                 OperatorAction::remove_frame_stack_types(func_state, 3);
                 if ty.is_none() {
@@ -243,6 +253,7 @@ impl OperatorAction {
                 let last_block = func_state.blocks.last_mut().unwrap();
                 let keep = last_block.stack_starts_at;
                 func_state.stack_types.truncate(keep);
+                last_block.is_dead_code = true;
                 last_block.polymorphic_values = Some(0);
             }
         }
@@ -306,6 +317,7 @@ impl<'a> ValidatingParser<'a> {
                         stack_starts_at: 0,
                         jump_to_top: false,
                         is_else_allowed: false,
+                        is_dead_code: false,
                         polymorphic_values: None,
                     });
 
@@ -781,7 +793,12 @@ impl<'a> ValidatingParser<'a> {
                Operator::BrIf { relative_depth } => {
                    self.check_operands_1(func_state, Type::I32)?;
                    self.check_jump_from_block(func_state, relative_depth, 1)?;
-                   OperatorAction::ChangeFrame(1)
+                   if func_state.last_block().is_stack_polymorphic() {
+                       let block = func_state.block_at(relative_depth as usize);
+                       OperatorAction::ChangeFrameToExactTypes(block.return_types.clone())
+                   } else {
+                       OperatorAction::ChangeFrame(1)
+                   }
                }
                Operator::BrTable { ref table } => {
                    self.check_operands_1(func_state, Type::I32)?;
