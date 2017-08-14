@@ -1173,6 +1173,7 @@ pub trait WasmDecoder<'a> {
     fn read(&mut self) -> &ParserState;
     fn push_input(&mut self, input: ParserInput);
     fn read_with_input(&mut self, input: ParserInput) -> &ParserState;
+    fn create_binary_reader<'b>(&mut self) -> BinaryReader<'b> where 'a: 'b;
     fn last_state(&self) -> &ParserState;
 }
 
@@ -1834,6 +1835,57 @@ impl<'a> WasmDecoder<'a> for Parser<'a> {
             ParserInput::SkipFunctionBody => self.skip_function_body(),
             ParserInput::ReadSectionRawData => self.read_raw_section_data(),
         }
+    }
+
+    /// Creates a BinaryReader when current state is ParserState::BeginSection
+    /// or ParserState::BeginFunctionBody.
+    ///
+    /// # Examples
+    /// ```
+    /// # let data = &[0x0, 0x61, 0x73, 0x6d, 0x1, 0x0, 0x0, 0x0, 0x1, 0x84,
+    /// #              0x80, 0x80, 0x80, 0x0, 0x1, 0x60, 0x0, 0x0, 0x3, 0x83,
+    /// #              0x80, 0x80, 0x80, 0x0, 0x2, 0x0, 0x0, 0x6, 0x81, 0x80,
+    /// #              0x80, 0x80, 0x0, 0x0, 0xa, 0x91, 0x80, 0x80, 0x80, 0x0,
+    /// #              0x2, 0x83, 0x80, 0x80, 0x80, 0x0, 0x0, 0x1, 0xb, 0x83,
+    /// #              0x80, 0x80, 0x80, 0x0, 0x0, 0x0, 0xb];
+    /// use wasmparser::{WasmDecoder, Parser, ParserState};
+    /// let mut parser = Parser::new(data);
+    /// let mut function_readers = Vec::new();
+    /// loop {
+    ///     {
+    ///         match *parser.read() {
+    ///             ParserState::Error(_) |
+    ///             ParserState::EndWasm => break,
+    ///             ParserState::BeginFunctionBody {..} => (),
+    ///             _ => continue
+    ///         }
+    ///     }
+    ///     let reader = parser.create_binary_reader();
+    ///     function_readers.push(reader);
+    /// }
+    /// for (i, reader) in function_readers.iter_mut().enumerate() {
+    ///     println!("Function {}", i);
+    ///     while let Ok(ref op) = reader.read_operator() {
+    ///       println!("  {:?}", op);
+    ///     }
+    /// }
+    /// ```
+    fn create_binary_reader<'b>(&mut self) -> BinaryReader<'b>
+        where 'a: 'b
+    {
+        let range;
+        match self.state {
+            ParserState::BeginSection { .. } => {
+                range = self.section_range.unwrap();
+                self.skip_section();
+            }
+            ParserState::BeginFunctionBody { .. } => {
+                range = self.function_range.unwrap();
+                self.skip_function_body();
+            }
+            _ => panic!("Invalid reader state during get binary reader operation"),
+        };
+        BinaryReader::new(range.slice(self.reader.buffer))
     }
 
     /// Reads next record from the WebAssembly binary data. It also allows to
