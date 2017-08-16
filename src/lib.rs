@@ -55,6 +55,8 @@ pub use parser::Ieee32;
 pub use parser::Ieee64;
 
 pub use validator::ValidatingParser;
+pub use validator::ValidatingOperatorParser;
+pub use validator::WasmModuleResources;
 
 mod parser;
 mod validator;

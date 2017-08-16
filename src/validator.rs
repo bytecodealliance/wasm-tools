@@ -19,7 +19,7 @@ use std::collections::HashSet;
 
 use parser::{WasmDecoder, Parser, ParserState, ParserInput, BinaryReaderError, FuncType, Type,
              Operator, ResizableLimits, TableType, ImportSectionEntryType, GlobalType, MemoryType,
-             ExternalKind, SectionCode, MemoryImmediate, BinaryReader};
+             ExternalKind, SectionCode, MemoryImmediate, BinaryReader, Result};
 use limits::{MAX_WASM_MEMORY_PAGES, MAX_WASM_TABLES, MAX_WASM_MEMORIES, MAX_WASM_TYPES,
              MAX_WASM_GLOBALS, MAX_WASM_FUNCTIONS};
 
@@ -260,47 +260,22 @@ impl OperatorAction {
     }
 }
 
-pub struct ValidatingParser<'a> {
-    parser: Parser<'a>,
-    validation_error: Option<ParserState<'a>>,
-    read_position: Option<usize>,
-    section_order_state: SectionOrderState,
-    types: Vec<FuncType>,
-    tables: Vec<TableType>,
-    memories: Vec<MemoryType>,
-    globals: Vec<GlobalType>,
-    func_type_indices: Vec<u32>,
-    current_func_index: u32,
-    func_imports_count: u32,
-    current_func_state: Option<FuncState>,
-    init_expression_state: Option<InitExpressionState>,
-    exported_names: HashSet<Vec<u8>>,
+pub trait WasmModuleResources {
+    fn types(&self) -> &[FuncType];
+    fn tables(&self) -> &[TableType];
+    fn memories(&self) -> &[MemoryType];
+    fn globals(&self) -> &[GlobalType];
+    fn func_type_indices(&self) -> &[u32];
 }
 
-impl<'a> ValidatingParser<'a> {
-    pub fn new(bytes: &[u8]) -> ValidatingParser {
-        ValidatingParser {
-            parser: Parser::new(bytes),
-            validation_error: None,
-            read_position: None,
-            section_order_state: SectionOrderState::Initial,
-            types: Vec::new(),
-            tables: Vec::new(),
-            memories: Vec::new(),
-            globals: Vec::new(),
-            func_type_indices: Vec::new(),
-            current_func_index: 0,
-            func_imports_count: 0,
-            current_func_state: None,
-            init_expression_state: None,
-            exported_names: HashSet::new(),
-        }
-    }
+type OperatorValidatorResult<T> = result::Result<T, &'static str>;
 
-    fn init_locals(&self, locals: &Vec<(u32, Type)>) -> FuncState {
-        let func_index = (self.current_func_index + self.func_imports_count) as usize;
-        let ref func_type = self.types[self.func_type_indices[func_index] as usize];
+struct OperatorValidator {
+    func_state: FuncState,
+}
 
+impl OperatorValidator {
+    pub fn new(func_type: &FuncType, locals: &Vec<(u32, Type)>) -> OperatorValidator {
         let mut local_types = Vec::new();
         local_types.extend_from_slice(func_type.params.as_slice());
         for local in locals {
@@ -321,10 +296,733 @@ impl<'a> ValidatingParser<'a> {
                         polymorphic_values: None,
                     });
 
-        FuncState {
-            local_types,
-            blocks,
-            stack_types: Vec::new(),
+        OperatorValidator {
+            func_state: FuncState {
+                local_types,
+                blocks,
+                stack_types: Vec::new(),
+            },
+        }
+    }
+
+    pub fn is_dead_code(&self) -> bool {
+        self.func_state.last_block().is_dead_code
+    }
+
+    fn check_frame_size(&self,
+                        func_state: &FuncState,
+                        require_count: usize)
+                        -> OperatorValidatorResult<()> {
+        if !func_state.assert_block_stack_len(0, require_count) {
+            Err("not enough operands")
+        } else {
+            Ok(())
+        }
+    }
+
+    fn check_operands_1(&self,
+                        func_state: &FuncState,
+                        operand: Type)
+                        -> OperatorValidatorResult<()> {
+        self.check_frame_size(func_state, 1)?;
+        if !func_state.assert_stack_type_at(0, operand) {
+            return Err("stack operand type mismatch");
+        }
+        Ok(())
+    }
+
+    fn check_operands_2(&self,
+                        func_state: &FuncState,
+                        operand1: Type,
+                        operand2: Type)
+                        -> OperatorValidatorResult<()> {
+        self.check_frame_size(func_state, 2)?;
+        if !func_state.assert_stack_type_at(1, operand1) {
+            return Err("stack operand type mismatch");
+        }
+        if !func_state.assert_stack_type_at(0, operand2) {
+            return Err("stack operand type mismatch");
+        }
+        Ok(())
+    }
+
+    fn check_operands(&self,
+                      func_state: &FuncState,
+                      expected_types: &[Type])
+                      -> OperatorValidatorResult<()> {
+        let len = expected_types.len();
+        self.check_frame_size(func_state, len)?;
+        for i in 0..len {
+            if !func_state.assert_stack_type_at(len - 1 - i, expected_types[i]) {
+                return Err("stack operand type mismatch");
+            }
+        }
+        Ok(())
+    }
+
+    fn check_block_return_types(&self,
+                                func_state: &FuncState,
+                                block: &BlockState,
+                                reserve_items: usize)
+                                -> OperatorValidatorResult<()> {
+        let len = block.return_types.len();
+        for i in 0..len {
+            if !func_state
+                    .assert_stack_type_at(len - 1 - i + reserve_items, block.return_types[i]) {
+                return Err("stack item type does not match block item type");
+            }
+        }
+        Ok(())
+    }
+
+    fn check_block_return(&self, func_state: &FuncState) -> OperatorValidatorResult<()> {
+        let len = func_state.last_block().return_types.len();
+        if !func_state.assert_last_block_stack_len_exact(len) {
+            return Err("stack size does not match block type");
+        }
+        self.check_block_return_types(func_state, func_state.last_block(), 0)
+    }
+
+    fn check_jump_from_block(&self,
+                             func_state: &FuncState,
+                             relative_depth: u32,
+                             reserve_items: usize)
+                             -> OperatorValidatorResult<()> {
+        if relative_depth as usize >= func_state.blocks.len() {
+            return Err("invalid block depth");
+        }
+        let block = func_state.block_at(relative_depth as usize);
+        if block.jump_to_top {
+            if !func_state.assert_last_block_stack_len_exact(reserve_items) {
+                return Err("stack size does not match target loop type");
+            }
+            return Ok(());
+        }
+
+        let len = block.return_types.len();
+        if !func_state.assert_block_stack_len(0, len + reserve_items) {
+            return Err("stack size does not match target block type");
+        }
+        self.check_block_return_types(func_state, block, reserve_items)
+    }
+
+    fn match_block_return(&self,
+                          func_state: &FuncState,
+                          depth1: u32,
+                          depth2: u32)
+                          -> OperatorValidatorResult<()> {
+        if depth1 as usize >= func_state.blocks.len() {
+            return Err("invalid block depth");
+        }
+        if depth2 as usize >= func_state.blocks.len() {
+            return Err("invalid block depth");
+        }
+        let block1 = func_state.block_at(depth1 as usize);
+        let block2 = func_state.block_at(depth2 as usize);
+        let ref return_types1 = block1.return_types;
+        let ref return_types2 = block2.return_types;
+        if block1.jump_to_top || block2.jump_to_top {
+            if block1.jump_to_top {
+                if !block2.jump_to_top && return_types2.len() != 0 {
+                    return Err("block types do not match");
+                }
+            } else if return_types1.len() != 0 {
+                return Err("block types do not match");
+            }
+        } else if *return_types1 != *return_types2 {
+            return Err("block types do not match");
+        }
+        Ok(())
+    }
+
+    fn check_memory_index(&self,
+                          memory_index: u32,
+                          resources: &WasmModuleResources)
+                          -> OperatorValidatorResult<()> {
+        if memory_index as usize >= resources.memories().len() {
+            return Err("no liner memories are present");
+        }
+        Ok(())
+    }
+
+    fn check_memory_immediate(&self,
+                              memory_immediate: &MemoryImmediate,
+                              max_align: u32,
+                              resources: &WasmModuleResources)
+                              -> OperatorValidatorResult<()> {
+        self.check_memory_index(0, resources)?;
+        let align = memory_immediate.flags;
+        if align > max_align {
+            return Err("align is required to be at most the number of accessed bytes");
+        }
+        Ok(())
+    }
+
+    fn check_block_type(&self, ty: Type) -> OperatorValidatorResult<()> {
+        match ty {
+            Type::EmptyBlockType | Type::I32 | Type::I64 | Type::F32 | Type::F64 => Ok(()),
+            _ => Err("invalid block return type"),
+        }
+    }
+
+    fn check_select(&self, func_state: &FuncState) -> OperatorValidatorResult<Option<Type>> {
+        self.check_frame_size(func_state, 3)?;
+        let last_block = func_state.last_block();
+        Ok(if last_block.is_stack_polymorphic() {
+               match func_state.stack_types.len() - last_block.stack_starts_at {
+                   0 => None,
+                   1 => {
+                       self.check_operands_1(func_state, Type::I32)?;
+                       None
+                   }
+                   2 => {
+                       self.check_operands_1(func_state, Type::I32)?;
+                       Some(func_state.stack_types[func_state.stack_types.len() - 2])
+                   }
+                   _ => {
+                       let ty = func_state.stack_types[func_state.stack_types.len() - 3];
+                       self.check_operands_2(func_state, ty, Type::I32)?;
+                       Some(ty)
+                   }
+               }
+           } else {
+               let ty = func_state.stack_types[func_state.stack_types.len() - 3];
+               self.check_operands_2(func_state, ty, Type::I32)?;
+               Some(ty)
+           })
+    }
+
+    fn process_operator(&self,
+                        operator: &Operator,
+                        resources: &WasmModuleResources)
+                        -> OperatorValidatorResult<OperatorAction> {
+        let ref func_state = self.func_state;
+        Ok(match *operator {
+               Operator::Unreachable => OperatorAction::DeadCode,
+               Operator::Nop => OperatorAction::None,
+               Operator::Block { ty } => {
+                   self.check_block_type(ty)?;
+                   OperatorAction::PushBlock(ty, BlockType::Block)
+               }
+               Operator::Loop { ty } => {
+                   self.check_block_type(ty)?;
+                   OperatorAction::PushBlock(ty, BlockType::Loop)
+               }
+               Operator::If { ty } => {
+                   self.check_block_type(ty)?;
+                   self.check_operands_1(func_state, Type::I32)?;
+                   OperatorAction::PushBlock(ty, BlockType::If)
+               }
+               Operator::Else => {
+                   if !func_state.last_block().is_else_allowed {
+                       return Err("unexpected else: if block is not started");
+                   }
+                   self.check_block_return(func_state)?;
+                   OperatorAction::ResetBlock
+               }
+               Operator::End => {
+                   if func_state.blocks.len() <= 1 {
+                       return Err("unexpected end of function");
+                   }
+                   self.check_block_return(func_state)?;
+                   let ref last_block = func_state.last_block();
+                   if last_block.is_else_allowed && last_block.return_types.len() > 0 {
+                       return Err("else is expected: if block has type");
+                   }
+                   OperatorAction::PopBlock
+               }
+               Operator::Br { relative_depth } => {
+                   self.check_jump_from_block(func_state, relative_depth, 0)?;
+                   OperatorAction::DeadCode
+               }
+               Operator::BrIf { relative_depth } => {
+                   self.check_operands_1(func_state, Type::I32)?;
+                   self.check_jump_from_block(func_state, relative_depth, 1)?;
+                   if func_state.last_block().is_stack_polymorphic() {
+                       let block = func_state.block_at(relative_depth as usize);
+                       OperatorAction::ChangeFrameToExactTypes(block.return_types.clone())
+                   } else {
+                       OperatorAction::ChangeFrame(1)
+                   }
+               }
+               Operator::BrTable { ref table } => {
+                   self.check_operands_1(func_state, Type::I32)?;
+                   let mut depth0: Option<u32> = None;
+                   for relative_depth in table {
+                       if depth0.is_none() {
+                           self.check_jump_from_block(func_state, relative_depth, 1)?;
+                           depth0 = Some(relative_depth);
+                           continue;
+                       }
+                       self.match_block_return(func_state, relative_depth, depth0.unwrap())?;
+                   }
+                   OperatorAction::DeadCode
+               }
+               Operator::Return => {
+                   let depth = (func_state.blocks.len() - 1) as u32;
+                   self.check_jump_from_block(func_state, depth, 0)?;
+                   OperatorAction::DeadCode
+               }
+               Operator::Call { function_index } => {
+                   if function_index as usize >= resources.func_type_indices().len() {
+                       return Err("function index out of bounds");
+                   }
+                   let type_index = resources.func_type_indices()[function_index as usize];
+                   let ref ty = resources.types()[type_index as usize];
+                   self.check_operands(func_state, &ty.params)?;
+                   OperatorAction::ChangeFrameWithTypes(ty.params.len(), ty.returns.clone())
+               }
+               Operator::CallIndirect { index, table_index } => {
+                   if table_index as usize >= resources.tables().len() {
+                       return Err("table index out of bounds");
+                   }
+                   if index as usize >= resources.types().len() {
+                       return Err("type index out of bounds");
+                   }
+                   let ref ty = resources.types()[index as usize];
+                   let mut types = Vec::with_capacity(ty.params.len() + 1);
+                   types.extend_from_slice(&ty.params);
+                   types.push(Type::I32);
+                   self.check_operands(func_state, &types)?;
+                   OperatorAction::ChangeFrameWithTypes(ty.params.len() + 1, ty.returns.clone())
+               }
+               Operator::Drop => {
+                   self.check_frame_size(func_state, 1)?;
+                   OperatorAction::ChangeFrame(1)
+               }
+               Operator::Select => {
+                   let ty = self.check_select(func_state)?;
+                   OperatorAction::ChangeFrameAfterSelect(ty)
+               }
+               Operator::GetLocal { local_index } => {
+                   if local_index as usize >= func_state.local_types.len() {
+                       return Err("local index out of bounds");
+                   }
+                   let local_type = func_state.local_types[local_index as usize];
+                   OperatorAction::ChangeFrameWithType(0, local_type)
+               }
+               Operator::SetLocal { local_index } => {
+                   if local_index as usize >= func_state.local_types.len() {
+                       return Err("local index out of bounds");
+                   }
+                   let local_type = func_state.local_types[local_index as usize];
+                   self.check_operands_1(func_state, local_type)?;
+                   OperatorAction::ChangeFrame(1)
+               }
+               Operator::TeeLocal { local_index } => {
+                   if local_index as usize >= func_state.local_types.len() {
+                       return Err("local index out of bounds");
+                   }
+                   let local_type = func_state.local_types[local_index as usize];
+                   self.check_operands_1(func_state, local_type)?;
+                   OperatorAction::ChangeFrameWithType(1, local_type)
+               }
+               Operator::GetGlobal { global_index } => {
+                   if global_index as usize >= resources.globals().len() {
+                       return Err("global index out of bounds");
+                   }
+                   let ref ty = resources.globals()[global_index as usize];
+                   OperatorAction::ChangeFrameWithType(0, ty.content_type)
+               }
+               Operator::SetGlobal { global_index } => {
+                   if global_index as usize >= resources.globals().len() {
+                       return Err("global index out of bounds");
+                   }
+                   let ref ty = resources.globals()[global_index as usize];
+                   // FIXME
+                   //    if ty.mutability == 0 {
+                   //        return self.create_error("global expected to be mutable");
+                   //    }
+                   self.check_operands_1(func_state, ty.content_type)?;
+                   OperatorAction::ChangeFrame(1)
+               }
+               Operator::I32Load { ref memory_immediate } => {
+                   self.check_memory_immediate(memory_immediate, 2, resources)?;
+                   self.check_operands_1(func_state, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I32)
+               }
+               Operator::I64Load { ref memory_immediate } => {
+                   self.check_memory_immediate(memory_immediate, 3, resources)?;
+                   self.check_operands_1(func_state, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I64)
+               }
+               Operator::F32Load { ref memory_immediate } => {
+                   self.check_memory_immediate(memory_immediate, 2, resources)?;
+                   self.check_operands_1(func_state, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::F32)
+               }
+               Operator::F64Load { ref memory_immediate } => {
+                   self.check_memory_immediate(memory_immediate, 3, resources)?;
+                   self.check_operands_1(func_state, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::F64)
+               }
+               Operator::I32Load8S { ref memory_immediate } => {
+                   self.check_memory_immediate(memory_immediate, 0, resources)?;
+                   self.check_operands_1(func_state, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I32)
+               }
+               Operator::I32Load8U { ref memory_immediate } => {
+                   self.check_memory_immediate(memory_immediate, 0, resources)?;
+                   self.check_operands_1(func_state, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I32)
+               }
+               Operator::I32Load16S { ref memory_immediate } => {
+                   self.check_memory_immediate(memory_immediate, 1, resources)?;
+                   self.check_operands_1(func_state, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I32)
+               }
+               Operator::I32Load16U { ref memory_immediate } => {
+                   self.check_memory_immediate(memory_immediate, 1, resources)?;
+                   self.check_operands_1(func_state, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I32)
+               }
+               Operator::I64Load8S { ref memory_immediate } => {
+                   self.check_memory_immediate(memory_immediate, 0, resources)?;
+                   self.check_operands_1(func_state, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I64)
+               }
+               Operator::I64Load8U { ref memory_immediate } => {
+                   self.check_memory_immediate(memory_immediate, 0, resources)?;
+                   self.check_operands_1(func_state, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I64)
+               }
+               Operator::I64Load16S { ref memory_immediate } => {
+                   self.check_memory_immediate(memory_immediate, 1, resources)?;
+                   self.check_operands_1(func_state, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I64)
+               }
+               Operator::I64Load16U { ref memory_immediate } => {
+                   self.check_memory_immediate(memory_immediate, 1, resources)?;
+                   self.check_operands_1(func_state, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I64)
+               }
+               Operator::I64Load32S { ref memory_immediate } => {
+                   self.check_memory_immediate(memory_immediate, 2, resources)?;
+                   self.check_operands_1(func_state, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I64)
+               }
+               Operator::I64Load32U { ref memory_immediate } => {
+                   self.check_memory_immediate(memory_immediate, 2, resources)?;
+                   self.check_operands_1(func_state, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I64)
+               }
+               Operator::I32Store { ref memory_immediate } => {
+                   self.check_memory_immediate(memory_immediate, 2, resources)?;
+                   self.check_operands_2(func_state, Type::I32, Type::I32)?;
+                   OperatorAction::ChangeFrame(2)
+               }
+               Operator::I64Store { ref memory_immediate } => {
+                   self.check_memory_immediate(memory_immediate, 3, resources)?;
+                   self.check_operands_2(func_state, Type::I32, Type::I64)?;
+                   OperatorAction::ChangeFrame(2)
+               }
+               Operator::F32Store { ref memory_immediate } => {
+                   self.check_memory_immediate(memory_immediate, 2, resources)?;
+                   self.check_operands_2(func_state, Type::I32, Type::F32)?;
+                   OperatorAction::ChangeFrame(2)
+               }
+               Operator::F64Store { ref memory_immediate } => {
+                   self.check_memory_immediate(memory_immediate, 3, resources)?;
+                   self.check_operands_2(func_state, Type::I32, Type::F64)?;
+                   OperatorAction::ChangeFrame(2)
+               }
+               Operator::I32Store8 { ref memory_immediate } => {
+                   self.check_memory_immediate(memory_immediate, 0, resources)?;
+                   self.check_operands_2(func_state, Type::I32, Type::I32)?;
+                   OperatorAction::ChangeFrame(2)
+               }
+               Operator::I32Store16 { ref memory_immediate } => {
+                   self.check_memory_immediate(memory_immediate, 1, resources)?;
+                   self.check_operands_2(func_state, Type::I32, Type::I32)?;
+                   OperatorAction::ChangeFrame(2)
+               }
+               Operator::I64Store8 { ref memory_immediate } => {
+                   self.check_memory_immediate(memory_immediate, 0, resources)?;
+                   self.check_operands_2(func_state, Type::I32, Type::I64)?;
+                   OperatorAction::ChangeFrame(2)
+               }
+               Operator::I64Store16 { ref memory_immediate } => {
+                   self.check_memory_immediate(memory_immediate, 1, resources)?;
+                   self.check_operands_2(func_state, Type::I32, Type::I64)?;
+                   OperatorAction::ChangeFrame(2)
+               }
+               Operator::I64Store32 { ref memory_immediate } => {
+                   self.check_memory_immediate(memory_immediate, 2, resources)?;
+                   self.check_operands_2(func_state, Type::I32, Type::I64)?;
+                   OperatorAction::ChangeFrame(2)
+               }
+               Operator::CurrentMemory { reserved: memory_index } => {
+                   self.check_memory_index(memory_index, resources)?;
+                   OperatorAction::ChangeFrameWithType(0, Type::I32)
+               }
+               Operator::GrowMemory { reserved: memory_index } => {
+                   self.check_memory_index(memory_index, resources)?;
+                   self.check_operands_1(func_state, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I32)
+               }
+               Operator::I32Const { .. } => OperatorAction::ChangeFrameWithType(0, Type::I32),
+               Operator::I64Const { .. } => OperatorAction::ChangeFrameWithType(0, Type::I64),
+               Operator::F32Const { .. } => OperatorAction::ChangeFrameWithType(0, Type::F32),
+               Operator::F64Const { .. } => OperatorAction::ChangeFrameWithType(0, Type::F64),
+               Operator::I32Eqz => {
+                   self.check_operands_1(func_state, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I32)
+               }
+               Operator::I32Eq | Operator::I32Ne | Operator::I32LtS | Operator::I32LtU |
+               Operator::I32GtS | Operator::I32GtU | Operator::I32LeS | Operator::I32LeU |
+               Operator::I32GeS | Operator::I32GeU => {
+                   self.check_operands_2(func_state, Type::I32, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(2, Type::I32)
+               }
+               Operator::I64Eqz => {
+                   self.check_operands_1(func_state, Type::I64)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I32)
+               }
+               Operator::I64Eq | Operator::I64Ne | Operator::I64LtS | Operator::I64LtU |
+               Operator::I64GtS | Operator::I64GtU | Operator::I64LeS | Operator::I64LeU |
+               Operator::I64GeS | Operator::I64GeU => {
+                   self.check_operands_2(func_state, Type::I64, Type::I64)?;
+                   OperatorAction::ChangeFrameWithType(2, Type::I32)
+               }
+               Operator::F32Eq | Operator::F32Ne | Operator::F32Lt | Operator::F32Gt |
+               Operator::F32Le | Operator::F32Ge => {
+                   self.check_operands_2(func_state, Type::F32, Type::F32)?;
+                   OperatorAction::ChangeFrameWithType(2, Type::I32)
+               }
+               Operator::F64Eq | Operator::F64Ne | Operator::F64Lt | Operator::F64Gt |
+               Operator::F64Le | Operator::F64Ge => {
+                   self.check_operands_2(func_state, Type::F64, Type::F64)?;
+                   OperatorAction::ChangeFrameWithType(2, Type::I32)
+               }
+               Operator::I32Clz |
+               Operator::I32Ctz |
+               Operator::I32Popcnt => {
+                   self.check_operands_1(func_state, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I32)
+               }
+               Operator::I32Add |
+               Operator::I32Sub |
+               Operator::I32Mul |
+               Operator::I32DivS |
+               Operator::I32DivU |
+               Operator::I32RemS |
+               Operator::I32RemU |
+               Operator::I32And |
+               Operator::I32Or |
+               Operator::I32Xor |
+               Operator::I32Shl |
+               Operator::I32ShrS |
+               Operator::I32ShrU |
+               Operator::I32Rotl |
+               Operator::I32Rotr => {
+                   self.check_operands_2(func_state, Type::I32, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(2, Type::I32)
+               }
+               Operator::I64Clz |
+               Operator::I64Ctz |
+               Operator::I64Popcnt => {
+                   self.check_operands_1(func_state, Type::I64)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I64)
+               }
+               Operator::I64Add |
+               Operator::I64Sub |
+               Operator::I64Mul |
+               Operator::I64DivS |
+               Operator::I64DivU |
+               Operator::I64RemS |
+               Operator::I64RemU |
+               Operator::I64And |
+               Operator::I64Or |
+               Operator::I64Xor |
+               Operator::I64Shl |
+               Operator::I64ShrS |
+               Operator::I64ShrU |
+               Operator::I64Rotl |
+               Operator::I64Rotr => {
+                   self.check_operands_2(func_state, Type::I64, Type::I64)?;
+                   OperatorAction::ChangeFrameWithType(2, Type::I64)
+               }
+               Operator::F32Abs |
+               Operator::F32Neg |
+               Operator::F32Ceil |
+               Operator::F32Floor |
+               Operator::F32Trunc |
+               Operator::F32Nearest |
+               Operator::F32Sqrt => {
+                   self.check_operands_1(func_state, Type::F32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::F32)
+               }
+               Operator::F32Add |
+               Operator::F32Sub |
+               Operator::F32Mul |
+               Operator::F32Div |
+               Operator::F32Min |
+               Operator::F32Max |
+               Operator::F32Copysign => {
+                   self.check_operands_2(func_state, Type::F32, Type::F32)?;
+                   OperatorAction::ChangeFrameWithType(2, Type::F32)
+               }
+               Operator::F64Abs |
+               Operator::F64Neg |
+               Operator::F64Ceil |
+               Operator::F64Floor |
+               Operator::F64Trunc |
+               Operator::F64Nearest |
+               Operator::F64Sqrt => {
+                   self.check_operands_1(func_state, Type::F64)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::F64)
+               }
+               Operator::F64Add |
+               Operator::F64Sub |
+               Operator::F64Mul |
+               Operator::F64Div |
+               Operator::F64Min |
+               Operator::F64Max |
+               Operator::F64Copysign => {
+                   self.check_operands_2(func_state, Type::F64, Type::F64)?;
+                   OperatorAction::ChangeFrameWithType(2, Type::F64)
+               }
+               Operator::I32WrapI64 => {
+                   self.check_operands_1(func_state, Type::I64)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I32)
+               }
+               Operator::I32TruncSF32 |
+               Operator::I32TruncUF32 => {
+                   self.check_operands_1(func_state, Type::F32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I32)
+               }
+               Operator::I32TruncSF64 |
+               Operator::I32TruncUF64 => {
+                   self.check_operands_1(func_state, Type::F64)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I32)
+               }
+               Operator::I64ExtendSI32 |
+               Operator::I64ExtendUI32 => {
+                   self.check_operands_1(func_state, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I64)
+               }
+               Operator::I64TruncSF32 |
+               Operator::I64TruncUF32 => {
+                   self.check_operands_1(func_state, Type::F32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I64)
+               }
+               Operator::I64TruncSF64 |
+               Operator::I64TruncUF64 => {
+                   self.check_operands_1(func_state, Type::F64)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I64)
+               }
+               Operator::F32ConvertSI32 |
+               Operator::F32ConvertUI32 => {
+                   self.check_operands_1(func_state, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::F32)
+               }
+               Operator::F32ConvertSI64 |
+               Operator::F32ConvertUI64 => {
+                   self.check_operands_1(func_state, Type::I64)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::F32)
+               }
+               Operator::F32DemoteF64 => {
+                   self.check_operands_1(func_state, Type::F64)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::F32)
+               }
+               Operator::F64ConvertSI32 |
+               Operator::F64ConvertUI32 => {
+                   self.check_operands_1(func_state, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::F64)
+               }
+               Operator::F64ConvertSI64 |
+               Operator::F64ConvertUI64 => {
+                   self.check_operands_1(func_state, Type::I64)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::F64)
+               }
+               Operator::F64PromoteF32 => {
+                   self.check_operands_1(func_state, Type::F32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::F64)
+               }
+               Operator::I32ReinterpretF32 => {
+                   self.check_operands_1(func_state, Type::F32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I32)
+               }
+               Operator::I64ReinterpretF64 => {
+                   self.check_operands_1(func_state, Type::F64)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I64)
+               }
+               Operator::F32ReinterpretI32 => {
+                   self.check_operands_1(func_state, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::F32)
+               }
+               Operator::F64ReinterpretI64 => {
+                   self.check_operands_1(func_state, Type::I64)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::F64)
+               }
+           })
+    }
+
+    fn process_end_function(&self) -> OperatorValidatorResult<()> {
+        let ref func_state = self.func_state;
+        if func_state.blocks.len() > 1 {
+            return Err("unexpected 1 end of function");
+        }
+        self.check_block_return(func_state)
+    }
+}
+
+pub struct ValidatingParser<'a> {
+    parser: Parser<'a>,
+    validation_error: Option<ParserState<'a>>,
+    read_position: Option<usize>,
+    section_order_state: SectionOrderState,
+    types: Vec<FuncType>,
+    tables: Vec<TableType>,
+    memories: Vec<MemoryType>,
+    globals: Vec<GlobalType>,
+    func_type_indices: Vec<u32>,
+    current_func_index: u32,
+    func_imports_count: u32,
+    init_expression_state: Option<InitExpressionState>,
+    exported_names: HashSet<Vec<u8>>,
+    current_operator_validator: Option<OperatorValidator>,
+}
+
+impl<'a> WasmModuleResources for ValidatingParser<'a> {
+    fn types(&self) -> &[FuncType] {
+        return &self.types;
+    }
+
+    fn tables(&self) -> &[TableType] {
+        return &self.tables;
+    }
+
+    fn memories(&self) -> &[MemoryType] {
+        return &self.memories;
+    }
+
+    fn globals(&self) -> &[GlobalType] {
+        return &self.globals;
+    }
+
+    fn func_type_indices(&self) -> &[u32] {
+        return &self.func_type_indices;
+    }
+}
+
+impl<'a> ValidatingParser<'a> {
+    pub fn new(bytes: &[u8]) -> ValidatingParser {
+        ValidatingParser {
+            parser: Parser::new(bytes),
+            validation_error: None,
+            read_position: None,
+            section_order_state: SectionOrderState::Initial,
+            types: Vec::new(),
+            tables: Vec::new(),
+            memories: Vec::new(),
+            globals: Vec::new(),
+            func_type_indices: Vec::new(),
+            current_func_index: 0,
+            func_imports_count: 0,
+            current_operator_validator: None,
+            init_expression_state: None,
+            exported_names: HashSet::new(),
         }
     }
 
@@ -573,654 +1271,6 @@ impl<'a> ValidatingParser<'a> {
         Ok(())
     }
 
-    fn check_frame_size(&self,
-                        func_state: &FuncState,
-                        require_count: usize)
-                        -> ValidatorResult<'a, ()> {
-        if !func_state.assert_block_stack_len(0, require_count) {
-            self.create_error("not enough operands")
-        } else {
-            Ok(())
-        }
-    }
-
-    fn check_operands_1(&self, func_state: &FuncState, operand: Type) -> ValidatorResult<'a, ()> {
-        self.check_frame_size(func_state, 1)?;
-        if !func_state.assert_stack_type_at(0, operand) {
-            return self.create_error("stack operand type mismatch");
-        }
-        Ok(())
-    }
-
-    fn check_operands_2(&self,
-                        func_state: &FuncState,
-                        operand1: Type,
-                        operand2: Type)
-                        -> ValidatorResult<'a, ()> {
-        self.check_frame_size(func_state, 2)?;
-        if !func_state.assert_stack_type_at(1, operand1) {
-            return self.create_error("stack operand type mismatch");
-        }
-        if !func_state.assert_stack_type_at(0, operand2) {
-            return self.create_error("stack operand type mismatch");
-        }
-        Ok(())
-    }
-
-    fn check_operands(&self,
-                      func_state: &FuncState,
-                      expected_types: &[Type])
-                      -> ValidatorResult<'a, ()> {
-        let len = expected_types.len();
-        self.check_frame_size(func_state, len)?;
-        for i in 0..len {
-            if !func_state.assert_stack_type_at(len - 1 - i, expected_types[i]) {
-                return self.create_error("stack operand type mismatch");
-            }
-        }
-        Ok(())
-    }
-
-    fn check_block_return_types(&self,
-                                func_state: &FuncState,
-                                block: &BlockState,
-                                reserve_items: usize)
-                                -> ValidatorResult<'a, ()> {
-        let len = block.return_types.len();
-        for i in 0..len {
-            if !func_state
-                    .assert_stack_type_at(len - 1 - i + reserve_items, block.return_types[i]) {
-                return self.create_error("stack item type does not match block item type");
-            }
-        }
-        Ok(())
-    }
-
-    fn check_block_return(&self, func_state: &FuncState) -> ValidatorResult<'a, ()> {
-        let len = func_state.last_block().return_types.len();
-        if !func_state.assert_last_block_stack_len_exact(len) {
-            return self.create_error("stack size does not match block type");
-        }
-        self.check_block_return_types(func_state, func_state.last_block(), 0)
-    }
-
-    fn check_jump_from_block(&self,
-                             func_state: &FuncState,
-                             relative_depth: u32,
-                             reserve_items: usize)
-                             -> ValidatorResult<'a, ()> {
-        if relative_depth as usize >= func_state.blocks.len() {
-            return self.create_error("invalid block depth");
-        }
-        let block = func_state.block_at(relative_depth as usize);
-        if block.jump_to_top {
-            if !func_state.assert_last_block_stack_len_exact(reserve_items) {
-                return self.create_error("stack size does not match target loop type");
-            }
-            return Ok(());
-        }
-
-        let len = block.return_types.len();
-        if !func_state.assert_block_stack_len(0, len + reserve_items) {
-            return self.create_error("stack size does not match target block type");
-        }
-        self.check_block_return_types(func_state, block, reserve_items)
-    }
-
-    fn match_block_return(&self,
-                          func_state: &FuncState,
-                          depth1: u32,
-                          depth2: u32)
-                          -> ValidatorResult<'a, ()> {
-        if depth1 as usize >= func_state.blocks.len() {
-            return self.create_error("invalid block depth");
-        }
-        if depth2 as usize >= func_state.blocks.len() {
-            return self.create_error("invalid block depth");
-        }
-        let block1 = func_state.block_at(depth1 as usize);
-        let block2 = func_state.block_at(depth2 as usize);
-        let ref return_types1 = block1.return_types;
-        let ref return_types2 = block2.return_types;
-        if block1.jump_to_top || block2.jump_to_top {
-            if block1.jump_to_top {
-                if !block2.jump_to_top && return_types2.len() != 0 {
-                    return self.create_error("block types do not match");
-                }
-            } else if return_types1.len() != 0 {
-                return self.create_error("block types do not match");
-            }
-        } else if *return_types1 != *return_types2 {
-            return self.create_error("block types do not match");
-        }
-        Ok(())
-    }
-
-    fn check_memory_index(&self, memory_index: u32) -> ValidatorResult<'a, ()> {
-        if memory_index as usize >= self.memories.len() {
-            return self.create_error("no liner memories are present");
-        }
-        Ok(())
-    }
-
-    fn check_memory_immediate(&self,
-                              memory_immediate: &MemoryImmediate,
-                              max_align: u32)
-                              -> ValidatorResult<'a, ()> {
-        self.check_memory_index(0)?;
-        let align = memory_immediate.flags;
-        if align > max_align {
-            return self.create_error(
-                "align is required to be at most the number of accessed bytes");
-        }
-        Ok(())
-    }
-
-    fn check_block_type(&self, ty: Type) -> ValidatorResult<'a, ()> {
-        match ty {
-            Type::EmptyBlockType | Type::I32 | Type::I64 | Type::F32 | Type::F64 => Ok(()),
-            _ => self.create_error("invalid block return type"),
-        }
-    }
-
-    fn check_select(&self, func_state: &FuncState) -> ValidatorResult<'a, Option<Type>> {
-        self.check_frame_size(func_state, 3)?;
-        let last_block = func_state.last_block();
-        Ok(if last_block.is_stack_polymorphic() {
-               match func_state.stack_types.len() - last_block.stack_starts_at {
-                   0 => None,
-                   1 => {
-                       self.check_operands_1(func_state, Type::I32)?;
-                       None
-                   }
-                   2 => {
-                       self.check_operands_1(func_state, Type::I32)?;
-                       Some(func_state.stack_types[func_state.stack_types.len() - 2])
-                   }
-                   _ => {
-                       let ty = func_state.stack_types[func_state.stack_types.len() - 3];
-                       self.check_operands_2(func_state, ty, Type::I32)?;
-                       Some(ty)
-                   }
-               }
-           } else {
-               let ty = func_state.stack_types[func_state.stack_types.len() - 3];
-               self.check_operands_2(func_state, ty, Type::I32)?;
-               Some(ty)
-           })
-    }
-
-    fn process_operator(&self, operator: &Operator) -> ValidatorResult<'a, OperatorAction> {
-        let func_state = self.current_func_state.as_ref().unwrap();
-        Ok(match *operator {
-               Operator::Unreachable => OperatorAction::DeadCode,
-               Operator::Nop => OperatorAction::None,
-               Operator::Block { ty } => {
-                   self.check_block_type(ty)?;
-                   OperatorAction::PushBlock(ty, BlockType::Block)
-               }
-               Operator::Loop { ty } => {
-                   self.check_block_type(ty)?;
-                   OperatorAction::PushBlock(ty, BlockType::Loop)
-               }
-               Operator::If { ty } => {
-                   self.check_block_type(ty)?;
-                   self.check_operands_1(func_state, Type::I32)?;
-                   OperatorAction::PushBlock(ty, BlockType::If)
-               }
-               Operator::Else => {
-                   if !func_state.last_block().is_else_allowed {
-                       return self.create_error("unexpected else: if block is not started");
-                   }
-                   self.check_block_return(func_state)?;
-                   OperatorAction::ResetBlock
-               }
-               Operator::End => {
-                   if func_state.blocks.len() <= 1 {
-                       return self.create_error("unexpected end of function");
-                   }
-                   self.check_block_return(func_state)?;
-                   let ref last_block = func_state.last_block();
-                   if last_block.is_else_allowed && last_block.return_types.len() > 0 {
-                       return self.create_error("else is expected: if block has type");
-                   }
-                   OperatorAction::PopBlock
-               }
-               Operator::Br { relative_depth } => {
-                   self.check_jump_from_block(func_state, relative_depth, 0)?;
-                   OperatorAction::DeadCode
-               }
-               Operator::BrIf { relative_depth } => {
-                   self.check_operands_1(func_state, Type::I32)?;
-                   self.check_jump_from_block(func_state, relative_depth, 1)?;
-                   if func_state.last_block().is_stack_polymorphic() {
-                       let block = func_state.block_at(relative_depth as usize);
-                       OperatorAction::ChangeFrameToExactTypes(block.return_types.clone())
-                   } else {
-                       OperatorAction::ChangeFrame(1)
-                   }
-               }
-               Operator::BrTable { ref table } => {
-                   self.check_operands_1(func_state, Type::I32)?;
-                   let mut depth0: Option<u32> = None;
-                   for relative_depth in table {
-                       if depth0.is_none() {
-                           self.check_jump_from_block(func_state, relative_depth, 1)?;
-                           depth0 = Some(relative_depth);
-                           continue;
-                       }
-                       self.match_block_return(func_state, relative_depth, depth0.unwrap())?;
-                   }
-                   OperatorAction::DeadCode
-               }
-               Operator::Return => {
-                   let depth = (func_state.blocks.len() - 1) as u32;
-                   self.check_jump_from_block(func_state, depth, 0)?;
-                   OperatorAction::DeadCode
-               }
-               Operator::Call { function_index } => {
-                   if function_index as usize >= self.func_type_indices.len() {
-                       return self.create_error("function index out of bounds");
-                   }
-                   let type_index = self.func_type_indices[function_index as usize];
-                   let ref ty = self.types[type_index as usize];
-                   self.check_operands(func_state, &ty.params)?;
-                   OperatorAction::ChangeFrameWithTypes(ty.params.len(), ty.returns.clone())
-               }
-               Operator::CallIndirect { index, table_index } => {
-                   if table_index as usize >= self.tables.len() {
-                       return self.create_error("table index out of bounds");
-                   }
-                   if index as usize >= self.types.len() {
-                       return self.create_error("type index out of bounds");
-                   }
-                   let ref ty = self.types[index as usize];
-                   let mut types = Vec::with_capacity(ty.params.len() + 1);
-                   types.extend_from_slice(&ty.params);
-                   types.push(Type::I32);
-                   self.check_operands(func_state, &types)?;
-                   OperatorAction::ChangeFrameWithTypes(ty.params.len() + 1, ty.returns.clone())
-               }
-               Operator::Drop => {
-                   self.check_frame_size(func_state, 1)?;
-                   OperatorAction::ChangeFrame(1)
-               }
-               Operator::Select => {
-                   let ty = self.check_select(func_state)?;
-                   OperatorAction::ChangeFrameAfterSelect(ty)
-               }
-               Operator::GetLocal { local_index } => {
-                   if local_index as usize >= func_state.local_types.len() {
-                       return self.create_error("local index out of bounds");
-                   }
-                   let local_type = func_state.local_types[local_index as usize];
-                   OperatorAction::ChangeFrameWithType(0, local_type)
-               }
-               Operator::SetLocal { local_index } => {
-                   if local_index as usize >= func_state.local_types.len() {
-                       return self.create_error("local index out of bounds");
-                   }
-                   let local_type = func_state.local_types[local_index as usize];
-                   self.check_operands_1(func_state, local_type)?;
-                   OperatorAction::ChangeFrame(1)
-               }
-               Operator::TeeLocal { local_index } => {
-                   if local_index as usize >= func_state.local_types.len() {
-                       return self.create_error("local index out of bounds");
-                   }
-                   let local_type = func_state.local_types[local_index as usize];
-                   self.check_operands_1(func_state, local_type)?;
-                   OperatorAction::ChangeFrameWithType(1, local_type)
-               }
-               Operator::GetGlobal { global_index } => {
-                   if global_index as usize >= self.globals.len() {
-                       return self.create_error("global index out of bounds");
-                   }
-                   let ref ty = self.globals[global_index as usize];
-                   OperatorAction::ChangeFrameWithType(0, ty.content_type)
-               }
-               Operator::SetGlobal { global_index } => {
-                   if global_index as usize >= self.globals.len() {
-                       return self.create_error("global index out of bounds");
-                   }
-                   let ref ty = self.globals[global_index as usize];
-                   // FIXME
-                   //    if ty.mutability == 0 {
-                   //        return self.create_error("global expected to be mutable");
-                   //    }
-                   self.check_operands_1(func_state, ty.content_type)?;
-                   OperatorAction::ChangeFrame(1)
-               }
-               Operator::I32Load { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 2)?;
-                   self.check_operands_1(func_state, Type::I32)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::I32)
-               }
-               Operator::I64Load { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 3)?;
-                   self.check_operands_1(func_state, Type::I32)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::I64)
-               }
-               Operator::F32Load { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 2)?;
-                   self.check_operands_1(func_state, Type::I32)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::F32)
-               }
-               Operator::F64Load { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 3)?;
-                   self.check_operands_1(func_state, Type::I32)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::F64)
-               }
-               Operator::I32Load8S { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 0)?;
-                   self.check_operands_1(func_state, Type::I32)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::I32)
-               }
-               Operator::I32Load8U { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 0)?;
-                   self.check_operands_1(func_state, Type::I32)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::I32)
-               }
-               Operator::I32Load16S { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 1)?;
-                   self.check_operands_1(func_state, Type::I32)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::I32)
-               }
-               Operator::I32Load16U { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 1)?;
-                   self.check_operands_1(func_state, Type::I32)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::I32)
-               }
-               Operator::I64Load8S { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 0)?;
-                   self.check_operands_1(func_state, Type::I32)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::I64)
-               }
-               Operator::I64Load8U { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 0)?;
-                   self.check_operands_1(func_state, Type::I32)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::I64)
-               }
-               Operator::I64Load16S { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 1)?;
-                   self.check_operands_1(func_state, Type::I32)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::I64)
-               }
-               Operator::I64Load16U { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 1)?;
-                   self.check_operands_1(func_state, Type::I32)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::I64)
-               }
-               Operator::I64Load32S { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 2)?;
-                   self.check_operands_1(func_state, Type::I32)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::I64)
-               }
-               Operator::I64Load32U { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 2)?;
-                   self.check_operands_1(func_state, Type::I32)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::I64)
-               }
-               Operator::I32Store { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 2)?;
-                   self.check_operands_2(func_state, Type::I32, Type::I32)?;
-                   OperatorAction::ChangeFrame(2)
-               }
-               Operator::I64Store { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 3)?;
-                   self.check_operands_2(func_state, Type::I32, Type::I64)?;
-                   OperatorAction::ChangeFrame(2)
-               }
-               Operator::F32Store { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 2)?;
-                   self.check_operands_2(func_state, Type::I32, Type::F32)?;
-                   OperatorAction::ChangeFrame(2)
-               }
-               Operator::F64Store { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 3)?;
-                   self.check_operands_2(func_state, Type::I32, Type::F64)?;
-                   OperatorAction::ChangeFrame(2)
-               }
-               Operator::I32Store8 { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 0)?;
-                   self.check_operands_2(func_state, Type::I32, Type::I32)?;
-                   OperatorAction::ChangeFrame(2)
-               }
-               Operator::I32Store16 { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 1)?;
-                   self.check_operands_2(func_state, Type::I32, Type::I32)?;
-                   OperatorAction::ChangeFrame(2)
-               }
-               Operator::I64Store8 { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 0)?;
-                   self.check_operands_2(func_state, Type::I32, Type::I64)?;
-                   OperatorAction::ChangeFrame(2)
-               }
-               Operator::I64Store16 { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 1)?;
-                   self.check_operands_2(func_state, Type::I32, Type::I64)?;
-                   OperatorAction::ChangeFrame(2)
-               }
-               Operator::I64Store32 { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 2)?;
-                   self.check_operands_2(func_state, Type::I32, Type::I64)?;
-                   OperatorAction::ChangeFrame(2)
-               }
-               Operator::CurrentMemory { reserved: memory_index } => {
-                   self.check_memory_index(memory_index)?;
-                   OperatorAction::ChangeFrameWithType(0, Type::I32)
-               }
-               Operator::GrowMemory { reserved: memory_index } => {
-                   self.check_memory_index(memory_index)?;
-                   self.check_operands_1(func_state, Type::I32)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::I32)
-               }
-               Operator::I32Const { .. } => OperatorAction::ChangeFrameWithType(0, Type::I32),
-               Operator::I64Const { .. } => OperatorAction::ChangeFrameWithType(0, Type::I64),
-               Operator::F32Const { .. } => OperatorAction::ChangeFrameWithType(0, Type::F32),
-               Operator::F64Const { .. } => OperatorAction::ChangeFrameWithType(0, Type::F64),
-               Operator::I32Eqz => {
-                   self.check_operands_1(func_state, Type::I32)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::I32)
-               }
-               Operator::I32Eq | Operator::I32Ne | Operator::I32LtS | Operator::I32LtU |
-               Operator::I32GtS | Operator::I32GtU | Operator::I32LeS | Operator::I32LeU |
-               Operator::I32GeS | Operator::I32GeU => {
-                   self.check_operands_2(func_state, Type::I32, Type::I32)?;
-                   OperatorAction::ChangeFrameWithType(2, Type::I32)
-               }
-               Operator::I64Eqz => {
-                   self.check_operands_1(func_state, Type::I64)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::I32)
-               }
-               Operator::I64Eq | Operator::I64Ne | Operator::I64LtS | Operator::I64LtU |
-               Operator::I64GtS | Operator::I64GtU | Operator::I64LeS | Operator::I64LeU |
-               Operator::I64GeS | Operator::I64GeU => {
-                   self.check_operands_2(func_state, Type::I64, Type::I64)?;
-                   OperatorAction::ChangeFrameWithType(2, Type::I32)
-               }
-               Operator::F32Eq | Operator::F32Ne | Operator::F32Lt | Operator::F32Gt |
-               Operator::F32Le | Operator::F32Ge => {
-                   self.check_operands_2(func_state, Type::F32, Type::F32)?;
-                   OperatorAction::ChangeFrameWithType(2, Type::I32)
-               }
-               Operator::F64Eq | Operator::F64Ne | Operator::F64Lt | Operator::F64Gt |
-               Operator::F64Le | Operator::F64Ge => {
-                   self.check_operands_2(func_state, Type::F64, Type::F64)?;
-                   OperatorAction::ChangeFrameWithType(2, Type::I32)
-               }
-               Operator::I32Clz |
-               Operator::I32Ctz |
-               Operator::I32Popcnt => {
-                   self.check_operands_1(func_state, Type::I32)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::I32)
-               }
-               Operator::I32Add |
-               Operator::I32Sub |
-               Operator::I32Mul |
-               Operator::I32DivS |
-               Operator::I32DivU |
-               Operator::I32RemS |
-               Operator::I32RemU |
-               Operator::I32And |
-               Operator::I32Or |
-               Operator::I32Xor |
-               Operator::I32Shl |
-               Operator::I32ShrS |
-               Operator::I32ShrU |
-               Operator::I32Rotl |
-               Operator::I32Rotr => {
-                   self.check_operands_2(func_state, Type::I32, Type::I32)?;
-                   OperatorAction::ChangeFrameWithType(2, Type::I32)
-               }
-               Operator::I64Clz |
-               Operator::I64Ctz |
-               Operator::I64Popcnt => {
-                   self.check_operands_1(func_state, Type::I64)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::I64)
-               }
-               Operator::I64Add |
-               Operator::I64Sub |
-               Operator::I64Mul |
-               Operator::I64DivS |
-               Operator::I64DivU |
-               Operator::I64RemS |
-               Operator::I64RemU |
-               Operator::I64And |
-               Operator::I64Or |
-               Operator::I64Xor |
-               Operator::I64Shl |
-               Operator::I64ShrS |
-               Operator::I64ShrU |
-               Operator::I64Rotl |
-               Operator::I64Rotr => {
-                   self.check_operands_2(func_state, Type::I64, Type::I64)?;
-                   OperatorAction::ChangeFrameWithType(2, Type::I64)
-               }
-               Operator::F32Abs |
-               Operator::F32Neg |
-               Operator::F32Ceil |
-               Operator::F32Floor |
-               Operator::F32Trunc |
-               Operator::F32Nearest |
-               Operator::F32Sqrt => {
-                   self.check_operands_1(func_state, Type::F32)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::F32)
-               }
-               Operator::F32Add |
-               Operator::F32Sub |
-               Operator::F32Mul |
-               Operator::F32Div |
-               Operator::F32Min |
-               Operator::F32Max |
-               Operator::F32Copysign => {
-                   self.check_operands_2(func_state, Type::F32, Type::F32)?;
-                   OperatorAction::ChangeFrameWithType(2, Type::F32)
-               }
-               Operator::F64Abs |
-               Operator::F64Neg |
-               Operator::F64Ceil |
-               Operator::F64Floor |
-               Operator::F64Trunc |
-               Operator::F64Nearest |
-               Operator::F64Sqrt => {
-                   self.check_operands_1(func_state, Type::F64)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::F64)
-               }
-               Operator::F64Add |
-               Operator::F64Sub |
-               Operator::F64Mul |
-               Operator::F64Div |
-               Operator::F64Min |
-               Operator::F64Max |
-               Operator::F64Copysign => {
-                   self.check_operands_2(func_state, Type::F64, Type::F64)?;
-                   OperatorAction::ChangeFrameWithType(2, Type::F64)
-               }
-               Operator::I32WrapI64 => {
-                   self.check_operands_1(func_state, Type::I64)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::I32)
-               }
-               Operator::I32TruncSF32 |
-               Operator::I32TruncUF32 => {
-                   self.check_operands_1(func_state, Type::F32)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::I32)
-               }
-               Operator::I32TruncSF64 |
-               Operator::I32TruncUF64 => {
-                   self.check_operands_1(func_state, Type::F64)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::I32)
-               }
-               Operator::I64ExtendSI32 |
-               Operator::I64ExtendUI32 => {
-                   self.check_operands_1(func_state, Type::I32)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::I64)
-               }
-               Operator::I64TruncSF32 |
-               Operator::I64TruncUF32 => {
-                   self.check_operands_1(func_state, Type::F32)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::I64)
-               }
-               Operator::I64TruncSF64 |
-               Operator::I64TruncUF64 => {
-                   self.check_operands_1(func_state, Type::F64)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::I64)
-               }
-               Operator::F32ConvertSI32 |
-               Operator::F32ConvertUI32 => {
-                   self.check_operands_1(func_state, Type::I32)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::F32)
-               }
-               Operator::F32ConvertSI64 |
-               Operator::F32ConvertUI64 => {
-                   self.check_operands_1(func_state, Type::I64)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::F32)
-               }
-               Operator::F32DemoteF64 => {
-                   self.check_operands_1(func_state, Type::F64)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::F32)
-               }
-               Operator::F64ConvertSI32 |
-               Operator::F64ConvertUI32 => {
-                   self.check_operands_1(func_state, Type::I32)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::F64)
-               }
-               Operator::F64ConvertSI64 |
-               Operator::F64ConvertUI64 => {
-                   self.check_operands_1(func_state, Type::I64)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::F64)
-               }
-               Operator::F64PromoteF32 => {
-                   self.check_operands_1(func_state, Type::F32)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::F64)
-               }
-               Operator::I32ReinterpretF32 => {
-                   self.check_operands_1(func_state, Type::F32)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::I32)
-               }
-               Operator::I64ReinterpretF64 => {
-                   self.check_operands_1(func_state, Type::F64)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::I64)
-               }
-               Operator::F32ReinterpretI32 => {
-                   self.check_operands_1(func_state, Type::I32)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::F32)
-               }
-               Operator::F64ReinterpretI64 => {
-                   self.check_operands_1(func_state, Type::I64)?;
-                   OperatorAction::ChangeFrameWithType(1, Type::F64)
-               }
-           })
-    }
-
-    fn process_end_function(&self) -> ValidatorResult<'a, ()> {
-        let func_state = self.current_func_state.as_ref().unwrap();
-        if func_state.blocks.len() > 1 {
-            return self.create_error("unexpected end of function");
-        }
-        self.check_block_return(func_state)
-    }
-
     fn process_begin_section(&self, code: &SectionCode) -> ValidatorResult<'a, SectionOrderState> {
         let order_state = SectionOrderState::from_section_code(code);
         if let SectionCode::Custom { name, .. } = *code {
@@ -1385,27 +1435,38 @@ impl<'a> ValidatingParser<'a> {
                 }
             }
             ParserState::BeginFunctionBody { ref locals, .. } => {
-                let index = self.current_func_index + self.func_imports_count;
+                let index = (self.current_func_index + self.func_imports_count) as usize;
                 if index as usize >= self.func_type_indices.len() {
                     self.validation_error =
                         self.create_validation_error("func type is not defined");
                 } else {
-                    self.current_func_state = Some(self.init_locals(locals));
+                    let ref func_type = self.types[self.func_type_indices[index] as usize];
+                    self.current_operator_validator = Some(OperatorValidator::new(func_type,
+                                                                                  locals));
                 }
             }
             ParserState::CodeOperator(ref operator) => {
-                let check = self.process_operator(operator);
+                let check = self.current_operator_validator
+                    .as_ref()
+                    .unwrap()
+                    .process_operator(operator, self);
                 if check.is_err() {
-                    self.validation_error = check.err();
+                    self.validation_error = self.create_validation_error(check.err().unwrap());
                 } else {
                     let action = check.ok().unwrap();
-                    action.update(self.current_func_state.as_mut().unwrap())
+                    action.update(&mut self.current_operator_validator.as_mut().unwrap().func_state)
                 }
             }
             ParserState::EndFunctionBody => {
-                self.validation_error = self.process_end_function().err();
+                let check = self.current_operator_validator
+                    .as_ref()
+                    .unwrap()
+                    .process_end_function();
+                if check.is_err() {
+                    self.validation_error = self.create_validation_error(check.err().unwrap());
+                }
                 self.current_func_index += 1;
-                self.current_func_state = None;
+                self.current_operator_validator = None;
             }
             ParserState::BeginDataSectionEntry(memory_index) => {
                 if memory_index as usize >= self.memories.len() {
@@ -1421,6 +1482,28 @@ impl<'a> ValidatingParser<'a> {
             }
             _ => (),
         };
+    }
+
+    pub fn create_validating_operator_parser<'b>(&mut self) -> ValidatingOperatorParser<'b>
+        where 'a: 'b
+    {
+        let (operator_validator, func_body_offset) = match *self.last_state() {
+            ParserState::BeginFunctionBody {
+                ref locals,
+                ref range,
+            } => {
+                let index = (self.current_func_index + self.func_imports_count) as usize;
+                let ref func_type = self.types[self.func_type_indices[index] as usize];
+                (OperatorValidator::new(func_type, locals), range.start)
+            }
+            _ => panic!("Invalid reader state"),
+        };
+        let reader = self.create_binary_reader();
+        ValidatingOperatorParser {
+            operator_validator,
+            reader,
+            func_body_offset,
+        }
     }
 }
 
@@ -1463,5 +1546,89 @@ impl<'a> WasmDecoder<'a> for ValidatingParser<'a> {
         } else {
             self.parser.last_state()
         }
+    }
+}
+
+pub struct ValidatingOperatorParser<'b> {
+    operator_validator: OperatorValidator,
+    reader: BinaryReader<'b>,
+    func_body_offset: usize,
+}
+
+impl<'b> ValidatingOperatorParser<'b> {
+    pub fn eof(&self) -> bool {
+        self.reader.eof()
+    }
+
+    pub fn current_position(&self) -> usize {
+        self.reader.current_position()
+    }
+
+    pub fn is_dead_code(&self) -> bool {
+        self.operator_validator.is_dead_code()
+    }
+
+    /// Creates a BinaryReader when current state is ParserState::BeginSection
+    /// or ParserState::BeginFunctionBody.
+    ///
+    /// # Examples
+    /// ```
+    /// # let data = &[0x0, 0x61, 0x73, 0x6d, 0x1, 0x0, 0x0, 0x0, 0x1, 0x84,
+    /// #              0x80, 0x80, 0x80, 0x0, 0x1, 0x60, 0x0, 0x0, 0x3, 0x83,
+    /// #              0x80, 0x80, 0x80, 0x0, 0x2, 0x0, 0x0, 0x6, 0x81, 0x80,
+    /// #              0x80, 0x80, 0x0, 0x0, 0xa, 0x91, 0x80, 0x80, 0x80, 0x0,
+    /// #              0x2, 0x83, 0x80, 0x80, 0x80, 0x0, 0x0, 0x1, 0xb, 0x83,
+    /// #              0x80, 0x80, 0x80, 0x0, 0x0, 0x0, 0xb];
+    /// use wasmparser::{WasmDecoder, ParserState, ValidatingParser,
+    ///                  WasmModuleResources};
+    /// let mut parser = ValidatingParser::new(data);
+    /// let mut validating_parsers = Vec::new();
+    /// loop {
+    ///     {
+    ///         match *parser.read() {
+    ///             ParserState::Error(_) |
+    ///             ParserState::EndWasm => break,
+    ///             ParserState::BeginFunctionBody {..} => (),
+    ///             _ => continue
+    ///         }
+    ///     }
+    ///     let reader = parser.create_validating_operator_parser();
+    ///     validating_parsers.push(reader);
+    /// }
+    /// for (i, reader) in validating_parsers.iter_mut().enumerate() {
+    ///     println!("Function {}", i);
+    ///     while !reader.eof() {
+    ///       let read = reader.next(&parser);
+    ///       if let Ok(ref op) = read {
+    ///           println!("  {:?}", op);
+    ///       } else {
+    ///           panic!("  Bad wasm code {:?}", read.err());
+    ///       }
+    ///     }
+    /// }
+    /// ```
+    pub fn next(&mut self, resources: &WasmModuleResources) -> Result<Operator<'b>> {
+        let op = self.reader.read_operator()?;
+        if let Operator::End = op {
+            if self.eof() {
+                let check = self.operator_validator.process_end_function();
+                if check.is_err() {
+                    return Err(BinaryReaderError {
+                                   message: check.err().unwrap(),
+                                   offset: self.func_body_offset + self.reader.current_position(),
+                               });
+                }
+                return Ok(op);
+            }
+        }
+
+        let check = self.operator_validator.process_operator(&op, resources);
+        if check.is_err() {
+            return Err(BinaryReaderError {
+                           message: check.err().unwrap(),
+                           offset: self.func_body_offset + self.reader.current_position(),
+                       });
+        }
+        Ok(op)
     }
 }
