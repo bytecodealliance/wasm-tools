@@ -1632,3 +1632,23 @@ impl<'b> ValidatingOperatorParser<'b> {
         Ok(op)
     }
 }
+
+/// Test whether the given buffer contains a valid WebAssembly module,
+/// analogous to WebAssembly.validate in the JS API.
+pub fn validate(bytes: &[u8]) -> bool {
+    let mut parser = ValidatingParser::new(bytes);
+    loop {
+        let state = parser.read();
+        match *state {
+            ParserState::EndWasm => return true,
+            ParserState::Error(_) => return false,
+            _ => (),
+        }
+    }
+}
+
+#[test]
+fn test_validate() {
+    assert!(validate(&[0x0, 0x61, 0x73, 0x6d, 0x1, 0x0, 0x0, 0x0]));
+    assert!(!validate(&[0x0, 0x61, 0x73, 0x6d, 0x2, 0x0, 0x0, 0x0]));
+}
