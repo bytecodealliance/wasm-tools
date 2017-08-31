@@ -506,6 +506,7 @@ impl<'a> BinaryReader<'a> {
     ///     let op = reader.read_operator();
     ///     println!("{:?}", op)
     /// }
+    /// ```
     pub fn new(data: &[u8]) -> BinaryReader {
         BinaryReader {
             buffer: data,
@@ -586,6 +587,13 @@ impl<'a> BinaryReader<'a> {
                     })
             }
         }
+    }
+
+    /// Read a `(count, value_type)` declaration of local variables of the same type.
+    pub fn read_local_decl(&mut self) -> Result<(u32, Type)> {
+        let count = self.read_var_u32()?;
+        let value_type = self.read_type()?;
+        Ok((count, value_type))
     }
 
     fn read_external_kind(&mut self) -> Result<ExternalKind> {
@@ -1408,7 +1416,7 @@ impl<'a> Parser<'a> {
         let mut locals: Vec<(u32, Type)> = Vec::with_capacity(local_count);
         let mut locals_total = 0;
         for _ in 0..local_count {
-            let count = self.reader.read_var_u32()?;
+            let (count, ty) = self.reader.read_local_decl()?;
             locals_total += count as usize;
             if locals_total > MAX_WASM_FUNCTION_LOCALS {
                 return Err(BinaryReaderError {
@@ -1416,7 +1424,6 @@ impl<'a> Parser<'a> {
                                offset: self.reader.position - 1,
                            });
             }
-            let ty = self.reader.read_type()?;
             locals.push((count, ty));
         }
         let range = Range {
