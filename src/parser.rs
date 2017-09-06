@@ -22,6 +22,8 @@ use limits::{MAX_WASM_FUNCTION_LOCALS, MAX_WASM_FUNCTION_PARAMS, MAX_WASM_FUNCTI
 
 const MAX_WASM_BR_TABLE_SIZE: usize = MAX_WASM_FUNCTION_SIZE;
 
+const DATA_CHUNK_SIZE: u32 = MAX_WASM_STRING_SIZE as u32;
+
 #[derive(Debug,Copy,Clone)]
 pub struct BinaryReaderError {
     pub message: &'static str,
@@ -1156,8 +1158,10 @@ pub enum ParserState<'a> {
     EndElementSectionEntry,
 
     BeginDataSectionEntry(u32),
-    DataSectionEntryBody(&'a [u8]),
     EndDataSectionEntry,
+    BeginDataSectionEntryBody(u32),
+    DataSectionEntryBodyChunk(&'a [u8]),
+    EndDataSectionEntryBody,
 
     BeginGlobalSectionEntry(GlobalType),
     EndGlobalSectionEntry,
@@ -1193,6 +1197,7 @@ pub struct Parser<'a> {
     section_range: Option<Range>,
     function_range: Option<Range>,
     init_expr_continuation: Option<InitExpressionContinuation>,
+    read_data_bytes: Option<u32>,
     section_entries_left: u32,
 }
 
@@ -1217,6 +1222,7 @@ impl<'a> Parser<'a> {
             section_range: None,
             function_range: None,
             init_expr_continuation: None,
+            read_data_bytes: None,
             section_entries_left: 0,
         }
     }
@@ -1473,7 +1479,9 @@ impl<'a> Parser<'a> {
     }
 
     fn read_data_entry_body(&mut self) -> Result<()> {
-        self.state = ParserState::DataSectionEntryBody(self.reader.read_string()?);
+        let size = self.reader.read_var_u32()?;
+        self.state = ParserState::BeginDataSectionEntryBody(size);
+        self.read_data_bytes = Some(size);
         Ok(())
     }
 
@@ -1702,6 +1710,23 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
+    fn read_data_chunk(&mut self) -> Result<()> {
+        if self.read_data_bytes.unwrap() == 0 {
+            self.state = ParserState::EndDataSectionEntryBody;
+            self.read_data_bytes = None;
+            return Ok(());
+        }
+        let to_read = if self.read_data_bytes.unwrap() > DATA_CHUNK_SIZE {
+            DATA_CHUNK_SIZE
+        } else {
+            self.read_data_bytes.unwrap()
+        };
+        let chunk = self.reader.read_bytes(to_read as usize)?;
+        *self.read_data_bytes.as_mut().unwrap() -= to_read;
+        self.state = ParserState::DataSectionEntryBodyChunk(chunk);
+        Ok(())
+    }
+
     fn read_wrapped(&mut self) -> Result<()> {
         match self.state {
             ParserState::EndWasm => panic!("Parser in end state"),
@@ -1757,10 +1782,12 @@ impl<'a> Parser<'a> {
                 self.state = ParserState::EndFunctionBody;
                 self.function_range = None;
             }
-            ParserState::DataSectionEntryBody(_) => {
+            ParserState::EndDataSectionEntry => self.read_data_entry()?,
+            ParserState::BeginDataSectionEntryBody(_) |
+            ParserState::DataSectionEntryBodyChunk(_) => self.read_data_chunk()?,
+            ParserState::EndDataSectionEntryBody => {
                 self.state = ParserState::EndDataSectionEntry;
             }
-            ParserState::EndDataSectionEntry => self.read_data_entry()?,
             ParserState::ElementSectionEntryBody(_) => {
                 self.state = ParserState::EndElementSectionEntry;
             }
