@@ -22,6 +22,8 @@ use limits::{MAX_WASM_FUNCTION_LOCALS, MAX_WASM_FUNCTION_PARAMS, MAX_WASM_FUNCTI
 
 const MAX_WASM_BR_TABLE_SIZE: usize = MAX_WASM_FUNCTION_SIZE;
 
+const MAX_DATA_CHUNK_SIZE: usize = MAX_WASM_STRING_SIZE;
+
 #[derive(Debug,Copy,Clone)]
 pub struct BinaryReaderError {
     pub message: &'static str,
@@ -524,17 +526,6 @@ impl<'a> BinaryReader<'a> {
                     offset: self.position,
                 })
         }
-    }
-
-    fn read_bytes_till(&mut self, pos: usize) -> Result<&'a [u8]> {
-        if self.position > pos {
-            return Err(BinaryReaderError {
-                           message: "Read position advanced more than needed",
-                           offset: pos,
-                       });
-        }
-        let size = pos - self.position;
-        self.read_bytes(size)
     }
 
     fn read_var_u1(&mut self) -> Result<u32> {
@@ -1119,6 +1110,7 @@ pub enum ParserState<'a> {
     BeginSection { code: SectionCode<'a>, range: Range },
     EndSection,
     SkippingSection,
+    ReadingCustomSection(CustomSectionKind),
     ReadingSectionRawData,
     SectionRawData(&'a [u8]),
 
@@ -1156,8 +1148,10 @@ pub enum ParserState<'a> {
     EndElementSectionEntry,
 
     BeginDataSectionEntry(u32),
-    DataSectionEntryBody(&'a [u8]),
     EndDataSectionEntry,
+    BeginDataSectionEntryBody(u32),
+    DataSectionEntryBodyChunk(&'a [u8]),
+    EndDataSectionEntryBody,
 
     BeginGlobalSectionEntry(GlobalType),
     EndGlobalSectionEntry,
@@ -1174,6 +1168,7 @@ pub enum ParserInput {
     Default,
     SkipSection,
     SkipFunctionBody,
+    ReadCustomSection,
     ReadSectionRawData,
 }
 
@@ -1193,6 +1188,7 @@ pub struct Parser<'a> {
     section_range: Option<Range>,
     function_range: Option<Range>,
     init_expr_continuation: Option<InitExpressionContinuation>,
+    read_data_bytes: Option<u32>,
     section_entries_left: u32,
 }
 
@@ -1217,6 +1213,7 @@ impl<'a> Parser<'a> {
             section_range: None,
             function_range: None,
             init_expr_continuation: None,
+            read_data_bytes: None,
             section_entries_left: 0,
         }
     }
@@ -1473,7 +1470,9 @@ impl<'a> Parser<'a> {
     }
 
     fn read_data_entry_body(&mut self) -> Result<()> {
-        self.state = ParserState::DataSectionEntryBody(self.reader.read_string()?);
+        let size = self.reader.read_var_u32()?;
+        self.state = ParserState::BeginDataSectionEntryBody(size);
+        self.read_data_bytes = Some(size);
         Ok(())
     }
 
@@ -1651,30 +1650,7 @@ impl<'a> Parser<'a> {
             ParserState::BeginSection { code: SectionCode::Start, .. } => {
                 self.state = ParserState::StartSectionEntry(self.reader.read_var_u32()?);
             }
-            ParserState::BeginSection {
-                code: SectionCode::Custom { kind: CustomSectionKind::Name, .. }, ..
-            } => {
-                self.read_name_entry()?;
-            }
-            ParserState::BeginSection {
-                code: SectionCode::Custom { kind: CustomSectionKind::SourceMappingURL, .. }, ..
-            } => {
-                self.read_source_mapping()?;
-            }
-            ParserState::BeginSection {
-                code: SectionCode::Custom { kind: CustomSectionKind::Reloc, .. }, ..
-            } => {
-                self.read_reloc_header()?;
-            }
-            ParserState::BeginSection {
-                code: SectionCode::Custom { kind: CustomSectionKind::Linking, .. }, ..
-            } => {
-                self.section_entries_left = self.reader.read_var_u32()?;
-                self.read_linking_entry()?;
-            }
-            ParserState::BeginSection {
-                code: SectionCode::Custom { kind: CustomSectionKind::Unknown, .. }, ..
-            } => {
+            ParserState::BeginSection { code: SectionCode::Custom { .. }, .. } => {
                 self.read_section_body_bytes()?;
             }
             _ => unreachable!(),
@@ -1682,13 +1658,41 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn position_to_section_end(&mut self) -> Result<()> {
+    fn read_custom_section_body(&mut self) -> Result<()> {
+        match self.state {
+            ParserState::ReadingCustomSection(CustomSectionKind::Name) => {
+                self.read_name_entry()?;
+            }
+            ParserState::ReadingCustomSection(CustomSectionKind::SourceMappingURL) => {
+                self.read_source_mapping()?;
+            }
+            ParserState::ReadingCustomSection(CustomSectionKind::Reloc) => {
+                self.read_reloc_header()?;
+            }
+            ParserState::ReadingCustomSection(CustomSectionKind::Linking) => {
+                self.section_entries_left = self.reader.read_var_u32()?;
+                self.read_linking_entry()?;
+            }
+            ParserState::ReadingCustomSection(CustomSectionKind::Unknown) => {
+                self.read_section_body_bytes()?;
+            }
+            _ => unreachable!(),
+        }
+        Ok(())
+    }
+
+    fn ensure_reader_position_in_section_range(&self) -> Result<()> {
         if self.section_range.unwrap().end < self.reader.position {
             return Err(BinaryReaderError {
                            message: "Position past the section end",
                            offset: self.section_range.unwrap().end,
                        });
         }
+        Ok(())
+    }
+
+    fn position_to_section_end(&mut self) -> Result<()> {
+        self.ensure_reader_position_in_section_range()?;
         self.reader.position = self.section_range.unwrap().end;
         self.section_range = None;
         self.state = ParserState::EndSection;
@@ -1696,9 +1700,46 @@ impl<'a> Parser<'a> {
     }
 
     fn read_section_body_bytes(&mut self) -> Result<()> {
-        let bytes = self.reader
-            .read_bytes_till(self.section_range.unwrap().end)?;
+        self.ensure_reader_position_in_section_range()?;
+        if self.section_range.unwrap().end == self.reader.position {
+            self.state = ParserState::EndSection;
+            self.section_range = None;
+            return Ok(());
+        }
+        let to_read = if self.section_range.unwrap().end - self.reader.position <
+                         MAX_DATA_CHUNK_SIZE {
+            self.section_range.unwrap().end - self.reader.position
+        } else {
+            MAX_DATA_CHUNK_SIZE
+        };
+        let bytes = self.reader.read_bytes(to_read)?;
         self.state = ParserState::SectionRawData(bytes);
+        Ok(())
+    }
+
+    fn read_data_chunk(&mut self) -> Result<()> {
+        if self.read_data_bytes.unwrap() == 0 {
+            self.state = ParserState::EndDataSectionEntryBody;
+            self.read_data_bytes = None;
+            return Ok(());
+        }
+        let to_read = if self.read_data_bytes.unwrap() as usize > MAX_DATA_CHUNK_SIZE {
+            MAX_DATA_CHUNK_SIZE
+        } else {
+            self.read_data_bytes.unwrap() as usize
+        };
+        let chunk = self.reader.read_bytes(to_read)?;
+        *self.read_data_bytes.as_mut().unwrap() -= to_read as u32;
+        self.state = ParserState::DataSectionEntryBodyChunk(chunk);
+        Ok(())
+    }
+
+    fn read_next_section(&mut self) -> Result<()> {
+        if self.reader.eof() {
+            self.state = ParserState::EndWasm;
+        } else {
+            self.read_section_header()?;
+        }
         Ok(())
     }
 
@@ -1708,15 +1749,12 @@ impl<'a> Parser<'a> {
             ParserState::Error(_) => panic!("Parser in error state"),
             ParserState::Initial => self.read_header()?,
             ParserState::BeginWasm { .. } |
-            ParserState::EndSection => {
-                if self.reader.eof() {
-                    self.state = ParserState::EndWasm;
-                } else {
-                    self.read_section_header()?;
-                }
-            }
+            ParserState::EndSection => self.read_next_section()?,
             ParserState::BeginSection { .. } => self.read_section_body()?,
-            ParserState::SkippingSection => self.position_to_section_end()?,
+            ParserState::SkippingSection => {
+                self.position_to_section_end()?;
+                self.read_next_section()?;
+            }
             ParserState::TypeSectionEntry(_) => self.read_type_entry()?,
             ParserState::ImportSectionEntry { .. } => self.read_import_entry()?,
             ParserState::FunctionSectionEntry(_) => self.read_function_entry()?,
@@ -1754,13 +1792,15 @@ impl<'a> Parser<'a> {
             ParserState::SkippingFunctionBody => {
                 assert!(self.reader.position <= self.function_range.unwrap().end);
                 self.reader.position = self.function_range.unwrap().end;
-                self.state = ParserState::EndFunctionBody;
                 self.function_range = None;
-            }
-            ParserState::DataSectionEntryBody(_) => {
-                self.state = ParserState::EndDataSectionEntry;
+                self.read_function_entry()?;
             }
             ParserState::EndDataSectionEntry => self.read_data_entry()?,
+            ParserState::BeginDataSectionEntryBody(_) |
+            ParserState::DataSectionEntryBodyChunk(_) => self.read_data_chunk()?,
+            ParserState::EndDataSectionEntryBody => {
+                self.state = ParserState::EndDataSectionEntry;
+            }
             ParserState::ElementSectionEntryBody(_) => {
                 self.state = ParserState::EndElementSectionEntry;
             }
@@ -1774,8 +1814,9 @@ impl<'a> Parser<'a> {
             }
             ParserState::RelocSectionEntry(_) => self.read_reloc_entry()?,
             ParserState::LinkingSectionEntry(_) => self.read_linking_entry()?,
-            ParserState::ReadingSectionRawData => self.read_section_body_bytes()?,
-            ParserState::SectionRawData(_) => self.position_to_section_end()?,
+            ParserState::ReadingCustomSection(_) => self.read_custom_section_body()?,
+            ParserState::ReadingSectionRawData |
+            ParserState::SectionRawData(_) => self.read_section_body_bytes()?,
         }
         Ok(())
     }
@@ -1796,6 +1837,15 @@ impl<'a> Parser<'a> {
             ParserState::BeginFunctionBody { .. } |
             ParserState::CodeOperator(_) => self.state = ParserState::SkippingFunctionBody,
             _ => panic!("Invalid reader state during skip function body"),
+        }
+    }
+
+    fn read_custom_section(&mut self) {
+        match self.state {
+            ParserState::BeginSection { code: SectionCode::Custom { kind, .. }, .. } => {
+                self.state = ParserState::ReadingCustomSection(kind);
+            }
+            _ => panic!("Invalid reader state during reading custom section"),
         }
     }
 
@@ -1840,6 +1890,7 @@ impl<'a> WasmDecoder<'a> for Parser<'a> {
             ParserInput::Default => (),
             ParserInput::SkipSection => self.skip_section(),
             ParserInput::SkipFunctionBody => self.skip_function_body(),
+            ParserInput::ReadCustomSection => self.read_custom_section(),
             ParserInput::ReadSectionRawData => self.read_raw_section_data(),
         }
     }
