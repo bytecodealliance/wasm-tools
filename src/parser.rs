@@ -1121,6 +1121,7 @@ pub enum ParserState<'a> {
     BeginSection { code: SectionCode<'a>, range: Range },
     EndSection,
     SkippingSection,
+    ReadingCustomSection(CustomSectionKind),
     ReadingSectionRawData,
     SectionRawData(&'a [u8]),
 
@@ -1178,6 +1179,7 @@ pub enum ParserInput {
     Default,
     SkipSection,
     SkipFunctionBody,
+    ReadCustomSection,
     ReadSectionRawData,
 }
 
@@ -1659,30 +1661,30 @@ impl<'a> Parser<'a> {
             ParserState::BeginSection { code: SectionCode::Start, .. } => {
                 self.state = ParserState::StartSectionEntry(self.reader.read_var_u32()?);
             }
-            ParserState::BeginSection {
-                code: SectionCode::Custom { kind: CustomSectionKind::Name, .. }, ..
-            } => {
+            ParserState::BeginSection { code: SectionCode::Custom { .. }, .. } => {
+                self.read_section_body_bytes()?;
+            }
+            _ => unreachable!(),
+        }
+        Ok(())
+    }
+
+    fn read_custom_section_body(&mut self) -> Result<()> {
+        match self.state {
+            ParserState::ReadingCustomSection(CustomSectionKind::Name) => {
                 self.read_name_entry()?;
             }
-            ParserState::BeginSection {
-                code: SectionCode::Custom { kind: CustomSectionKind::SourceMappingURL, .. }, ..
-            } => {
+            ParserState::ReadingCustomSection(CustomSectionKind::SourceMappingURL) => {
                 self.read_source_mapping()?;
             }
-            ParserState::BeginSection {
-                code: SectionCode::Custom { kind: CustomSectionKind::Reloc, .. }, ..
-            } => {
+            ParserState::ReadingCustomSection(CustomSectionKind::Reloc) => {
                 self.read_reloc_header()?;
             }
-            ParserState::BeginSection {
-                code: SectionCode::Custom { kind: CustomSectionKind::Linking, .. }, ..
-            } => {
+            ParserState::ReadingCustomSection(CustomSectionKind::Linking) => {
                 self.section_entries_left = self.reader.read_var_u32()?;
                 self.read_linking_entry()?;
             }
-            ParserState::BeginSection {
-                code: SectionCode::Custom { kind: CustomSectionKind::Unknown, .. }, ..
-            } => {
+            ParserState::ReadingCustomSection(CustomSectionKind::Unknown) => {
                 self.read_section_body_bytes()?;
             }
             _ => unreachable!(),
@@ -1801,6 +1803,7 @@ impl<'a> Parser<'a> {
             }
             ParserState::RelocSectionEntry(_) => self.read_reloc_entry()?,
             ParserState::LinkingSectionEntry(_) => self.read_linking_entry()?,
+            ParserState::ReadingCustomSection(_) => self.read_custom_section_body()?,
             ParserState::ReadingSectionRawData => self.read_section_body_bytes()?,
             ParserState::SectionRawData(_) => self.position_to_section_end()?,
         }
@@ -1823,6 +1826,15 @@ impl<'a> Parser<'a> {
             ParserState::BeginFunctionBody { .. } |
             ParserState::CodeOperator(_) => self.state = ParserState::SkippingFunctionBody,
             _ => panic!("Invalid reader state during skip function body"),
+        }
+    }
+
+    fn read_custom_section(&mut self) {
+        match self.state {
+            ParserState::BeginSection { code: SectionCode::Custom { kind, .. }, .. } => {
+                self.state = ParserState::ReadingCustomSection(kind);
+            }
+            _ => panic!("Invalid reader state during reading custom section"),
         }
     }
 
@@ -1867,6 +1879,7 @@ impl<'a> WasmDecoder<'a> for Parser<'a> {
             ParserInput::Default => (),
             ParserInput::SkipSection => self.skip_section(),
             ParserInput::SkipFunctionBody => self.skip_function_body(),
+            ParserInput::ReadCustomSection => self.read_custom_section(),
             ParserInput::ReadSectionRawData => self.read_raw_section_data(),
         }
     }
