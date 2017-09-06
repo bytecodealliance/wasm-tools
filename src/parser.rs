@@ -22,7 +22,7 @@ use limits::{MAX_WASM_FUNCTION_LOCALS, MAX_WASM_FUNCTION_PARAMS, MAX_WASM_FUNCTI
 
 const MAX_WASM_BR_TABLE_SIZE: usize = MAX_WASM_FUNCTION_SIZE;
 
-const DATA_CHUNK_SIZE: u32 = MAX_WASM_STRING_SIZE as u32;
+const MAX_DATA_CHUNK_SIZE: usize = MAX_WASM_STRING_SIZE;
 
 #[derive(Debug,Copy,Clone)]
 pub struct BinaryReaderError {
@@ -526,17 +526,6 @@ impl<'a> BinaryReader<'a> {
                     offset: self.position,
                 })
         }
-    }
-
-    fn read_bytes_till(&mut self, pos: usize) -> Result<&'a [u8]> {
-        if self.position > pos {
-            return Err(BinaryReaderError {
-                           message: "Read position advanced more than needed",
-                           offset: pos,
-                       });
-        }
-        let size = pos - self.position;
-        self.read_bytes(size)
     }
 
     fn read_var_u1(&mut self) -> Result<u32> {
@@ -1692,13 +1681,18 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn position_to_section_end(&mut self) -> Result<()> {
+    fn ensure_reader_position_in_section_range(&self) -> Result<()> {
         if self.section_range.unwrap().end < self.reader.position {
             return Err(BinaryReaderError {
                            message: "Position past the section end",
                            offset: self.section_range.unwrap().end,
                        });
         }
+        Ok(())
+    }
+
+    fn position_to_section_end(&mut self) -> Result<()> {
+        self.ensure_reader_position_in_section_range()?;
         self.reader.position = self.section_range.unwrap().end;
         self.section_range = None;
         self.state = ParserState::EndSection;
@@ -1706,8 +1700,19 @@ impl<'a> Parser<'a> {
     }
 
     fn read_section_body_bytes(&mut self) -> Result<()> {
-        let bytes = self.reader
-            .read_bytes_till(self.section_range.unwrap().end)?;
+        self.ensure_reader_position_in_section_range()?;
+        if self.section_range.unwrap().end == self.reader.position {
+            self.state = ParserState::EndSection;
+            self.section_range = None;
+            return Ok(());
+        }
+        let to_read = if self.section_range.unwrap().end - self.reader.position <
+                         MAX_DATA_CHUNK_SIZE {
+            self.section_range.unwrap().end - self.reader.position
+        } else {
+            MAX_DATA_CHUNK_SIZE
+        };
+        let bytes = self.reader.read_bytes(to_read)?;
         self.state = ParserState::SectionRawData(bytes);
         Ok(())
     }
@@ -1718,13 +1723,13 @@ impl<'a> Parser<'a> {
             self.read_data_bytes = None;
             return Ok(());
         }
-        let to_read = if self.read_data_bytes.unwrap() > DATA_CHUNK_SIZE {
-            DATA_CHUNK_SIZE
+        let to_read = if self.read_data_bytes.unwrap() as usize > MAX_DATA_CHUNK_SIZE {
+            MAX_DATA_CHUNK_SIZE
         } else {
-            self.read_data_bytes.unwrap()
+            self.read_data_bytes.unwrap() as usize
         };
-        let chunk = self.reader.read_bytes(to_read as usize)?;
-        *self.read_data_bytes.as_mut().unwrap() -= to_read;
+        let chunk = self.reader.read_bytes(to_read)?;
+        *self.read_data_bytes.as_mut().unwrap() -= to_read as u32;
         self.state = ParserState::DataSectionEntryBodyChunk(chunk);
         Ok(())
     }
@@ -1810,8 +1815,8 @@ impl<'a> Parser<'a> {
             ParserState::RelocSectionEntry(_) => self.read_reloc_entry()?,
             ParserState::LinkingSectionEntry(_) => self.read_linking_entry()?,
             ParserState::ReadingCustomSection(_) => self.read_custom_section_body()?,
-            ParserState::ReadingSectionRawData => self.read_section_body_bytes()?,
-            ParserState::SectionRawData(_) => self.position_to_section_end()?,
+            ParserState::ReadingSectionRawData |
+            ParserState::SectionRawData(_) => self.read_section_body_bytes()?,
         }
         Ok(())
     }
