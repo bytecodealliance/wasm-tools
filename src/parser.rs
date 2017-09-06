@@ -1729,21 +1729,27 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
+    fn read_next_section(&mut self) -> Result<()> {
+        if self.reader.eof() {
+            self.state = ParserState::EndWasm;
+        } else {
+            self.read_section_header()?;
+        }
+        Ok(())
+    }
+
     fn read_wrapped(&mut self) -> Result<()> {
         match self.state {
             ParserState::EndWasm => panic!("Parser in end state"),
             ParserState::Error(_) => panic!("Parser in error state"),
             ParserState::Initial => self.read_header()?,
             ParserState::BeginWasm { .. } |
-            ParserState::EndSection => {
-                if self.reader.eof() {
-                    self.state = ParserState::EndWasm;
-                } else {
-                    self.read_section_header()?;
-                }
-            }
+            ParserState::EndSection => self.read_next_section()?,
             ParserState::BeginSection { .. } => self.read_section_body()?,
-            ParserState::SkippingSection => self.position_to_section_end()?,
+            ParserState::SkippingSection => {
+                self.position_to_section_end()?;
+                self.read_next_section()?;
+            }
             ParserState::TypeSectionEntry(_) => self.read_type_entry()?,
             ParserState::ImportSectionEntry { .. } => self.read_import_entry()?,
             ParserState::FunctionSectionEntry(_) => self.read_function_entry()?,
@@ -1781,8 +1787,8 @@ impl<'a> Parser<'a> {
             ParserState::SkippingFunctionBody => {
                 assert!(self.reader.position <= self.function_range.unwrap().end);
                 self.reader.position = self.function_range.unwrap().end;
-                self.state = ParserState::EndFunctionBody;
                 self.function_range = None;
+                self.read_function_entry()?;
             }
             ParserState::EndDataSectionEntry => self.read_data_entry()?,
             ParserState::BeginDataSectionEntryBody(_) |
