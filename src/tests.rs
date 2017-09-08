@@ -160,4 +160,49 @@ mod simple_tests {
             ParserState::EndSection);
         expect_state!(parser.read(), ParserState::EndWasm);
     }
+
+    #[test]
+    fn skipping() {
+        let data = read_file_data(&PathBuf::from("tests/naming.wasm"));
+        let mut parser = Parser::new(data.as_slice());
+
+        expect_state!(parser.read(),
+            ParserState::BeginWasm { .. });
+        expect_state!(parser.read_with_input(ParserInput::Default),
+            ParserState::BeginSection { code: SectionCode::Type, .. });
+        expect_state!(parser.read_with_input(ParserInput::SkipSection),
+            ParserState::BeginSection { code: SectionCode::Import, ..});
+        expect_state!(parser.read_with_input(ParserInput::SkipSection),
+            ParserState::BeginSection { code: SectionCode::Function, ..});
+        expect_state!(parser.read_with_input(ParserInput::SkipSection),
+            ParserState::BeginSection { code: SectionCode::Global, ..});
+        expect_state!(parser.read_with_input(ParserInput::SkipSection),
+            ParserState::BeginSection { code: SectionCode::Export, ..});
+        expect_state!(parser.read_with_input(ParserInput::SkipSection),
+            ParserState::BeginSection { code: SectionCode::Element, ..});
+        expect_state!(parser.read_with_input(ParserInput::SkipSection),
+            ParserState::BeginSection { code: SectionCode::Code, .. });
+        expect_state!(parser.read(),
+            ParserState::BeginFunctionBody { .. });
+        expect_state!(parser.read_with_input(ParserInput::SkipFunctionBody),
+            ParserState::BeginFunctionBody { .. });
+        expect_state!(parser.read_with_input(ParserInput::SkipFunctionBody),
+            ParserState::BeginFunctionBody { .. });
+        expect_state!(parser.read_with_input(ParserInput::SkipFunctionBody),
+            ParserState::BeginFunctionBody { .. });
+        expect_state!(parser.read_with_input(ParserInput::SkipFunctionBody),
+            ParserState::BeginFunctionBody { .. });
+        expect_state!(parser.read_with_input(ParserInput::SkipFunctionBody),
+            ParserState::BeginFunctionBody { .. });
+        expect_state!(parser.read_with_input(ParserInput::SkipFunctionBody),
+            ParserState::BeginFunctionBody { .. });
+        expect_state!(parser.read_with_input(ParserInput::SkipFunctionBody),
+            ParserState::EndSection);
+        expect_state!(parser.read(),
+            ParserState::BeginSection { code: SectionCode::Custom { .. }, ..});
+        expect_state!(parser.read_with_input(ParserInput::SkipSection),
+            ParserState::BeginSection { code: SectionCode::Custom { .. }, .. });
+        expect_state!(parser.read_with_input(ParserInput::SkipSection),
+            ParserState::EndWasm);
+    }
 }
