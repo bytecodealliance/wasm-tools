@@ -787,6 +787,10 @@ impl<'a> BinaryReader<'a> {
         self.position
     }
 
+    pub fn bytes_remaining(&self) -> usize {
+        self.end - self.position
+    }
+
     pub fn read_bytes(&mut self, size: usize) -> Result<&'a [u8]> {
         self.ensure_has_bytes(size)?;
         let start = self.position;
