@@ -134,6 +134,7 @@ mod simple_tests {
         expect_state!(parser.read(), ParserState::EndSection);
         expect_state!(parser.read(), ParserState::BeginSection { code: SectionCode::Code, .. });
         expect_state!(parser.read(), ParserState::BeginFunctionBody { .. });
+        expect_state!(parser.read(), ParserState::FunctionBodyLocals { .. });
         expect_state!(parser.read(), ParserState::CodeOperator(_));
         expect_state!(parser.read(), ParserState::EndFunctionBody);
         expect_state!(parser.read(), ParserState::EndSection);

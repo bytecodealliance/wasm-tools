@@ -1434,16 +1434,17 @@ impl<'a> ValidatingParser<'a> {
                     }
                 }
             }
-            ParserState::BeginFunctionBody { ref locals, .. } => {
+            ParserState::BeginFunctionBody { .. } => {
                 let index = (self.current_func_index + self.func_imports_count) as usize;
                 if index as usize >= self.func_type_indices.len() {
                     self.validation_error =
                         self.create_validation_error("func type is not defined");
-                } else {
-                    let ref func_type = self.types[self.func_type_indices[index] as usize];
-                    self.current_operator_validator = Some(OperatorValidator::new(func_type,
-                                                                                  locals));
                 }
+            }
+            ParserState::FunctionBodyLocals { ref locals } => {
+                let index = (self.current_func_index + self.func_imports_count) as usize;
+                let ref func_type = self.types[self.func_type_indices[index] as usize];
+                self.current_operator_validator = Some(OperatorValidator::new(func_type, locals));
             }
             ParserState::CodeOperator(ref operator) => {
                 let check = self.current_operator_validator
@@ -1487,14 +1488,16 @@ impl<'a> ValidatingParser<'a> {
     pub fn create_validating_operator_parser<'b>(&mut self) -> ValidatingOperatorParser<'b>
         where 'a: 'b
     {
-        let (operator_validator, func_body_offset) = match *self.last_state() {
-            ParserState::BeginFunctionBody {
-                ref locals,
-                ref range,
-            } => {
+        let func_body_offset = match *self.last_state() {
+            ParserState::BeginFunctionBody { .. } => self.parser.current_position(),
+            _ => panic!("Invalid reader state"),
+        };
+        self.read();
+        let operator_validator = match *self.last_state() {
+            ParserState::FunctionBodyLocals { ref locals } => {
                 let index = (self.current_func_index + self.func_imports_count) as usize;
                 let ref func_type = self.types[self.func_type_indices[index] as usize];
-                (OperatorValidator::new(func_type, locals), range.start)
+                OperatorValidator::new(func_type, locals)
             }
             _ => panic!("Invalid reader state"),
         };
