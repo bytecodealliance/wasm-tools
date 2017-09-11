@@ -1793,7 +1793,7 @@ impl<'a> Parser<'a> {
                 assert!(self.reader.position <= self.function_range.unwrap().end);
                 self.reader.position = self.function_range.unwrap().end;
                 self.function_range = None;
-                self.read_function_entry()?;
+                self.read_function_body()?;
             }
             ParserState::EndDataSectionEntry => self.read_data_entry()?,
             ParserState::BeginDataSectionEntryBody(_) |
