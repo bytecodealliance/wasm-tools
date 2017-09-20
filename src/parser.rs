@@ -517,6 +517,17 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
+    fn ensure_has_byte(&self) -> Result<()> {
+        if self.position < self.end {
+            Ok(())
+        } else {
+            Err(BinaryReaderError {
+                    message: "Unexpected EOF",
+                    offset: self.position,
+                })
+        }
+    }
+
     fn ensure_has_bytes(&self, len: usize) -> Result<()> {
         if self.position + len <= self.end {
             Ok(())
@@ -815,15 +826,21 @@ impl<'a> BinaryReader<'a> {
     }
 
     pub fn read_u8(&mut self) -> Result<u32> {
-        self.ensure_has_bytes(1)?;
+        self.ensure_has_byte()?;
         let b = self.buffer[self.position] as u32;
         self.position += 1;
         Ok(b)
     }
 
     pub fn read_var_u32(&mut self) -> Result<u32> {
-        let mut result = 0;
-        let mut shift = 0;
+        // Optimization for single byte i32.
+        let byte = self.read_u8()?;
+        if (byte & 0x80) == 0 {
+            return Ok(byte);
+        }
+
+        let mut result = byte & 0x7F;
+        let mut shift = 7;
         loop {
             let byte = self.read_u8()?;
             result |= ((byte & 0x7F) as u32) << shift;
@@ -855,8 +872,14 @@ impl<'a> BinaryReader<'a> {
     }
 
     pub fn read_var_i32(&mut self) -> Result<i32> {
-        let mut result: i32 = 0;
-        let mut shift = 0;
+        // Optimization for single byte i32.
+        let byte = self.read_u8()?;
+        if (byte & 0x80) == 0 {
+            return Ok(((byte as i32) << 25) >> 25);
+        }
+
+        let mut result = (byte & 0x7F) as i32;
+        let mut shift = 7;
         loop {
             let byte = self.read_u8()?;
             result |= ((byte & 0x7F) as i32) << shift;
@@ -924,7 +947,7 @@ impl<'a> BinaryReader<'a> {
     }
 
     pub fn read_operator(&mut self) -> Result<Operator<'a>> {
-        let code = self.read_u8()?;
+        let code = self.read_u8()? as u8;
         Ok(match code {
                0x00 => Operator::Unreachable,
                0x01 => Operator::Nop,
