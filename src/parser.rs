@@ -136,7 +136,7 @@ pub struct MemoryType {
 #[derive(Debug,Copy,Clone)]
 pub struct GlobalType {
     pub content_type: Type,
-    pub mutability: u32,
+    pub mutable: bool,
 }
 
 #[derive(Debug)]
@@ -700,7 +700,7 @@ impl<'a> BinaryReader<'a> {
     fn read_global_type(&mut self) -> Result<GlobalType> {
         Ok(GlobalType {
                content_type: self.read_type()?,
-               mutability: self.read_var_u1()?,
+               mutable: self.read_var_u1()? != 0,
            })
     }
 

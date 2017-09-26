@@ -640,7 +640,7 @@ impl OperatorValidator {
                    }
                    let ref ty = resources.globals()[global_index as usize];
                    // FIXME
-                   //    if ty.mutability == 0 {
+                   //    if !ty.mutable {
                    //        return self.create_error("global expected to be mutable");
                    //    }
                    self.check_operands_1(func_state, ty.content_type)?;
@@ -1159,10 +1159,6 @@ impl<'a> ValidatingParser<'a> {
     }
 
     fn check_global_type(&self, global_type: &GlobalType) -> ValidatorResult<'a, ()> {
-        if global_type.mutability > 1 {
-            // TODO convert mutability to boolean
-            return self.create_error("mutability expected to be 0 or 1");
-        }
         self.check_value_type(global_type.content_type)
     }
 
@@ -1199,7 +1195,7 @@ impl<'a> ValidatingParser<'a> {
                 if self.globals.len() >= MAX_WASM_GLOBALS {
                     return self.create_error("functions count out of bounds");
                 }
-                if global_type.mutability != 0 {
+                if global_type.mutable {
                     return self.create_error("global imports are required to be immutable");
                 }
                 self.check_global_type(global_type)
@@ -1261,7 +1257,7 @@ impl<'a> ValidatingParser<'a> {
                     return self.create_error("exported global index out of bounds");
                 }
                 let ref global = self.globals[index as usize];
-                if global.mutability != 0 {
+                if global.mutable {
                     return self.create_error("exported global must be const");
                 }
             }
