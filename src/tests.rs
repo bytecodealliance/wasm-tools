@@ -18,7 +18,7 @@ mod simple_tests {
     use std::io::prelude::*;
     use std::fs::{File, read_dir};
     use std::path::PathBuf;
-    use parser::{WasmDecoder, Parser, ParserState, ParserInput, SectionCode};
+    use parser::{WasmDecoder, Parser, ParserState, ParserInput, SectionCode, Operator};
     use validator::ValidatingParser;
 
     fn read_file_data(path: &PathBuf) -> Vec<u8> {
@@ -136,6 +136,7 @@ mod simple_tests {
         expect_state!(parser.read(), ParserState::BeginFunctionBody { .. });
         expect_state!(parser.read(), ParserState::FunctionBodyLocals { .. });
         expect_state!(parser.read(), ParserState::CodeOperator(_));
+        expect_state!(parser.read(), ParserState::CodeOperator(Operator::End));
         expect_state!(parser.read(), ParserState::EndFunctionBody);
         expect_state!(parser.read(), ParserState::EndSection);
         expect_state!(parser.read(), ParserState::EndWasm);
