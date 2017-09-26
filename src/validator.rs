@@ -44,6 +44,7 @@ struct FuncState {
     local_types: Vec<Type>,
     blocks: Vec<BlockState>,
     stack_types: Vec<Type>,
+    end_function: bool,
 }
 
 impl FuncState {
@@ -145,6 +146,7 @@ enum OperatorAction {
     PopBlock,
     ResetBlock,
     DeadCode,
+    EndFunction,
 }
 
 impl OperatorAction {
@@ -256,6 +258,9 @@ impl OperatorAction {
                 last_block.is_dead_code = true;
                 last_block.polymorphic_values = Some(0);
             }
+            OperatorAction::EndFunction => {
+                func_state.end_function = true;
+            }
         }
     }
 }
@@ -301,6 +306,7 @@ impl OperatorValidator {
                 local_types,
                 blocks,
                 stack_types: Vec::new(),
+                end_function: false,
             },
         }
     }
@@ -497,6 +503,9 @@ impl OperatorValidator {
                         resources: &WasmModuleResources)
                         -> OperatorValidatorResult<OperatorAction> {
         let ref func_state = self.func_state;
+        if func_state.end_function {
+            return Err("unexpected operator");
+        }
         Ok(match *operator {
                Operator::Unreachable => OperatorAction::DeadCode,
                Operator::Nop => OperatorAction::None,
@@ -521,15 +530,16 @@ impl OperatorValidator {
                    OperatorAction::ResetBlock
                }
                Operator::End => {
-                   if func_state.blocks.len() <= 1 {
-                       return Err("unexpected end of function");
-                   }
                    self.check_block_return(func_state)?;
                    let ref last_block = func_state.last_block();
-                   if last_block.is_else_allowed && last_block.return_types.len() > 0 {
-                       return Err("else is expected: if block has type");
+                   if func_state.blocks.len() == 1 {
+                       OperatorAction::EndFunction
+                   } else {
+                       if last_block.is_else_allowed && last_block.return_types.len() > 0 {
+                           return Err("else is expected: if block has type");
+                       }
+                       OperatorAction::PopBlock
                    }
-                   OperatorAction::PopBlock
                }
                Operator::Br { relative_depth } => {
                    self.check_jump_from_block(func_state, relative_depth, 0)?;
@@ -960,10 +970,10 @@ impl OperatorValidator {
 
     fn process_end_function(&self) -> OperatorValidatorResult<()> {
         let ref func_state = self.func_state;
-        if func_state.blocks.len() > 1 {
-            return Err("unexpected 1 end of function");
+        if !func_state.end_function {
+            return Err("expected end of function");
         }
-        self.check_block_return(func_state)
+        Ok(())
     }
 }
 
@@ -1506,6 +1516,7 @@ impl<'a> ValidatingParser<'a> {
             operator_validator,
             reader,
             func_body_offset,
+            end_function: false,
         }
     }
 }
@@ -1556,11 +1567,12 @@ pub struct ValidatingOperatorParser<'b> {
     operator_validator: OperatorValidator,
     reader: BinaryReader<'b>,
     func_body_offset: usize,
+    end_function: bool,
 }
 
 impl<'b> ValidatingOperatorParser<'b> {
     pub fn eof(&self) -> bool {
-        self.reader.eof()
+        return self.end_function;
     }
 
     pub fn current_position(&self) -> usize {
@@ -1582,8 +1594,7 @@ impl<'b> ValidatingOperatorParser<'b> {
     /// #              0x80, 0x80, 0x0, 0x0, 0xa, 0x91, 0x80, 0x80, 0x80, 0x0,
     /// #              0x2, 0x83, 0x80, 0x80, 0x80, 0x0, 0x0, 0x1, 0xb, 0x83,
     /// #              0x80, 0x80, 0x80, 0x0, 0x0, 0x0, 0xb];
-    /// use wasmparser::{WasmDecoder, ParserState, ValidatingParser,
-    ///                  WasmModuleResources};
+    /// use wasmparser::{WasmDecoder, ParserState, ValidatingParser};
     /// let mut parser = ValidatingParser::new(data);
     /// let mut validating_parsers = Vec::new();
     /// loop {
@@ -1612,25 +1623,21 @@ impl<'b> ValidatingOperatorParser<'b> {
     /// ```
     pub fn next(&mut self, resources: &WasmModuleResources) -> Result<Operator<'b>> {
         let op = self.reader.read_operator()?;
-        if let Operator::End = op {
-            if self.eof() {
-                let check = self.operator_validator.process_end_function();
-                if check.is_err() {
-                    return Err(BinaryReaderError {
-                                   message: check.err().unwrap(),
-                                   offset: self.func_body_offset + self.reader.current_position(),
-                               });
-                }
-                return Ok(op);
-            }
-        }
-
         let check = self.operator_validator.process_operator(&op, resources);
         if check.is_err() {
             return Err(BinaryReaderError {
                            message: check.err().unwrap(),
                            offset: self.func_body_offset + self.reader.current_position(),
                        });
+        }
+        if let OperatorAction::EndFunction = check.ok().unwrap() {
+            self.end_function = true;
+            if !self.reader.eof() {
+                return Err(BinaryReaderError {
+                               message: "unexpected end of function",
+                               offset: self.func_body_offset + self.reader.current_position(),
+                           });
+            }
         }
         Ok(op)
     }

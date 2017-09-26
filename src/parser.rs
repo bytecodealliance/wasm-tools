@@ -1476,9 +1476,8 @@ impl<'a> Parser<'a> {
     }
 
     fn read_code_operator(&mut self) -> Result<()> {
-        let op = self.reader.read_operator()?;
         if self.reader.position >= self.function_range.unwrap().end {
-            if let Operator::End = op {
+            if let ParserState::CodeOperator(Operator::End) = self.state {
                 self.state = ParserState::EndFunctionBody;
                 self.function_range = None;
                 return Ok(());
@@ -1488,6 +1487,7 @@ impl<'a> Parser<'a> {
                            offset: self.function_range.unwrap().end,
                        });
         }
+        let op = self.reader.read_operator()?;
         self.state = ParserState::CodeOperator(op);
         Ok(())
     }
