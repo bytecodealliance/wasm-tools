@@ -117,7 +117,6 @@ pub struct FuncType {
 
 #[derive(Debug,Copy,Clone)]
 pub struct ResizableLimits {
-    pub flags: u32,
     pub initial: u32,
     pub maximum: Option<u32>,
 }
@@ -673,6 +672,12 @@ impl<'a> BinaryReader<'a> {
 
     fn read_resizable_limits(&mut self) -> Result<ResizableLimits> {
         let flags = self.read_var_u32()?;
+        if (flags & !0x1) != 0 {
+            return Err(BinaryReaderError {
+                           message: "invalid resizable limits flags",
+                           offset: self.position - 1,
+                       });
+        }
         let initial = self.read_var_u32()?;
         let maximum = if (flags & 0x1) != 0 {
             Some(self.read_var_u32()?)
@@ -680,7 +685,6 @@ impl<'a> BinaryReader<'a> {
             None
         };
         Ok(ResizableLimits {
-               flags: flags,
                initial: initial,
                maximum: maximum,
            })
