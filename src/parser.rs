@@ -456,6 +456,17 @@ pub enum Operator<'a> {
     I64ReinterpretF64,
     F32ReinterpretI32,
     F64ReinterpretI64,
+
+    // 0xFC operators
+    // Non-trapping Float-to-int Conversions
+    I32TruncSSatF32,
+    I32TruncUSatF32,
+    I32TruncSSatF64,
+    I32TruncUSatF64,
+    I64TruncSSatF32,
+    I64TruncUSatF32,
+    I64TruncSSatF64,
+    I64TruncUSatF64,
 }
 
 fn is_name(name: &[u8], expected: &'static str) -> bool {
@@ -1126,6 +1137,9 @@ impl<'a> BinaryReader<'a> {
                0xbd => Operator::I64ReinterpretF64,
                0xbe => Operator::F32ReinterpretI32,
                0xbf => Operator::F64ReinterpretI64,
+
+               0xfc => self.read_0xfc_operator()?,
+
                _ => {
                    return Err(BinaryReaderError {
                                   message: "Unknown opcode",
@@ -1134,7 +1148,29 @@ impl<'a> BinaryReader<'a> {
                }
            })
     }
+
+    fn read_0xfc_operator(&mut self) -> Result<Operator<'a>> {
+        let code = self.read_u8()? as u8;
+        Ok(match code {
+               0x00 => Operator::I32TruncSSatF32,
+               0x01 => Operator::I32TruncUSatF32,
+               0x02 => Operator::I32TruncSSatF64,
+               0x03 => Operator::I32TruncUSatF64,
+               0x04 => Operator::I64TruncSSatF32,
+               0x05 => Operator::I64TruncUSatF32,
+               0x06 => Operator::I64TruncSSatF64,
+               0x07 => Operator::I64TruncUSatF64,
+
+               _ => {
+                   return Err(BinaryReaderError {
+                                  message: "Unknown 0xfc opcode",
+                                  offset: self.position - 1,
+                              })
+               }
+           })
+    }
 }
+
 
 /// Bytecode range in the WebAssembly module.
 #[derive(Debug, Copy, Clone)]
