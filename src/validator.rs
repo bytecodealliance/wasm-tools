@@ -965,6 +965,26 @@ impl OperatorValidator {
                    self.check_operands_1(func_state, Type::I64)?;
                    OperatorAction::ChangeFrameWithType(1, Type::F64)
                }
+               Operator::I32TruncSSatF32 |
+               Operator::I32TruncUSatF32 => {
+                   self.check_operands_1(func_state, Type::F32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I32)
+               }
+               Operator::I32TruncSSatF64 |
+               Operator::I32TruncUSatF64 => {
+                   self.check_operands_1(func_state, Type::F64)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I32)
+               }
+               Operator::I64TruncSSatF32 |
+               Operator::I64TruncUSatF32 => {
+                   self.check_operands_1(func_state, Type::F32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I64)
+               }
+               Operator::I64TruncSSatF64 |
+               Operator::I64TruncUSatF64 => {
+                   self.check_operands_1(func_state, Type::F64)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I64)
+               }
            })
     }
 
