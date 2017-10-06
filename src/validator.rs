@@ -451,13 +451,13 @@ impl OperatorValidator {
         Ok(())
     }
 
-    fn check_memory_immediate(&self,
-                              memory_immediate: &MemoryImmediate,
-                              max_align: u32,
-                              resources: &WasmModuleResources)
-                              -> OperatorValidatorResult<()> {
+    fn check_memarg(&self,
+                    memarg: &MemoryImmediate,
+                    max_align: u32,
+                    resources: &WasmModuleResources)
+                    -> OperatorValidatorResult<()> {
         self.check_memory_index(0, resources)?;
-        let align = memory_immediate.flags;
+        let align = memarg.flags;
         if align > max_align {
             return Err("align is required to be at most the number of accessed bytes");
         }
@@ -646,118 +646,118 @@ impl OperatorValidator {
                    self.check_operands_1(func_state, ty.content_type)?;
                    OperatorAction::ChangeFrame(1)
                }
-               Operator::I32Load { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 2, resources)?;
+               Operator::I32Load { ref memarg } => {
+                   self.check_memarg(memarg, 2, resources)?;
                    self.check_operands_1(func_state, Type::I32)?;
                    OperatorAction::ChangeFrameWithType(1, Type::I32)
                }
-               Operator::I64Load { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 3, resources)?;
+               Operator::I64Load { ref memarg } => {
+                   self.check_memarg(memarg, 3, resources)?;
                    self.check_operands_1(func_state, Type::I32)?;
                    OperatorAction::ChangeFrameWithType(1, Type::I64)
                }
-               Operator::F32Load { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 2, resources)?;
+               Operator::F32Load { ref memarg } => {
+                   self.check_memarg(memarg, 2, resources)?;
                    self.check_operands_1(func_state, Type::I32)?;
                    OperatorAction::ChangeFrameWithType(1, Type::F32)
                }
-               Operator::F64Load { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 3, resources)?;
+               Operator::F64Load { ref memarg } => {
+                   self.check_memarg(memarg, 3, resources)?;
                    self.check_operands_1(func_state, Type::I32)?;
                    OperatorAction::ChangeFrameWithType(1, Type::F64)
                }
-               Operator::I32Load8S { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 0, resources)?;
+               Operator::I32Load8S { ref memarg } => {
+                   self.check_memarg(memarg, 0, resources)?;
                    self.check_operands_1(func_state, Type::I32)?;
                    OperatorAction::ChangeFrameWithType(1, Type::I32)
                }
-               Operator::I32Load8U { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 0, resources)?;
+               Operator::I32Load8U { ref memarg } => {
+                   self.check_memarg(memarg, 0, resources)?;
                    self.check_operands_1(func_state, Type::I32)?;
                    OperatorAction::ChangeFrameWithType(1, Type::I32)
                }
-               Operator::I32Load16S { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 1, resources)?;
+               Operator::I32Load16S { ref memarg } => {
+                   self.check_memarg(memarg, 1, resources)?;
                    self.check_operands_1(func_state, Type::I32)?;
                    OperatorAction::ChangeFrameWithType(1, Type::I32)
                }
-               Operator::I32Load16U { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 1, resources)?;
+               Operator::I32Load16U { ref memarg } => {
+                   self.check_memarg(memarg, 1, resources)?;
                    self.check_operands_1(func_state, Type::I32)?;
                    OperatorAction::ChangeFrameWithType(1, Type::I32)
                }
-               Operator::I64Load8S { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 0, resources)?;
+               Operator::I64Load8S { ref memarg } => {
+                   self.check_memarg(memarg, 0, resources)?;
                    self.check_operands_1(func_state, Type::I32)?;
                    OperatorAction::ChangeFrameWithType(1, Type::I64)
                }
-               Operator::I64Load8U { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 0, resources)?;
+               Operator::I64Load8U { ref memarg } => {
+                   self.check_memarg(memarg, 0, resources)?;
                    self.check_operands_1(func_state, Type::I32)?;
                    OperatorAction::ChangeFrameWithType(1, Type::I64)
                }
-               Operator::I64Load16S { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 1, resources)?;
+               Operator::I64Load16S { ref memarg } => {
+                   self.check_memarg(memarg, 1, resources)?;
                    self.check_operands_1(func_state, Type::I32)?;
                    OperatorAction::ChangeFrameWithType(1, Type::I64)
                }
-               Operator::I64Load16U { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 1, resources)?;
+               Operator::I64Load16U { ref memarg } => {
+                   self.check_memarg(memarg, 1, resources)?;
                    self.check_operands_1(func_state, Type::I32)?;
                    OperatorAction::ChangeFrameWithType(1, Type::I64)
                }
-               Operator::I64Load32S { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 2, resources)?;
+               Operator::I64Load32S { ref memarg } => {
+                   self.check_memarg(memarg, 2, resources)?;
                    self.check_operands_1(func_state, Type::I32)?;
                    OperatorAction::ChangeFrameWithType(1, Type::I64)
                }
-               Operator::I64Load32U { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 2, resources)?;
+               Operator::I64Load32U { ref memarg } => {
+                   self.check_memarg(memarg, 2, resources)?;
                    self.check_operands_1(func_state, Type::I32)?;
                    OperatorAction::ChangeFrameWithType(1, Type::I64)
                }
-               Operator::I32Store { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 2, resources)?;
+               Operator::I32Store { ref memarg } => {
+                   self.check_memarg(memarg, 2, resources)?;
                    self.check_operands_2(func_state, Type::I32, Type::I32)?;
                    OperatorAction::ChangeFrame(2)
                }
-               Operator::I64Store { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 3, resources)?;
+               Operator::I64Store { ref memarg } => {
+                   self.check_memarg(memarg, 3, resources)?;
                    self.check_operands_2(func_state, Type::I32, Type::I64)?;
                    OperatorAction::ChangeFrame(2)
                }
-               Operator::F32Store { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 2, resources)?;
+               Operator::F32Store { ref memarg } => {
+                   self.check_memarg(memarg, 2, resources)?;
                    self.check_operands_2(func_state, Type::I32, Type::F32)?;
                    OperatorAction::ChangeFrame(2)
                }
-               Operator::F64Store { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 3, resources)?;
+               Operator::F64Store { ref memarg } => {
+                   self.check_memarg(memarg, 3, resources)?;
                    self.check_operands_2(func_state, Type::I32, Type::F64)?;
                    OperatorAction::ChangeFrame(2)
                }
-               Operator::I32Store8 { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 0, resources)?;
+               Operator::I32Store8 { ref memarg } => {
+                   self.check_memarg(memarg, 0, resources)?;
                    self.check_operands_2(func_state, Type::I32, Type::I32)?;
                    OperatorAction::ChangeFrame(2)
                }
-               Operator::I32Store16 { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 1, resources)?;
+               Operator::I32Store16 { ref memarg } => {
+                   self.check_memarg(memarg, 1, resources)?;
                    self.check_operands_2(func_state, Type::I32, Type::I32)?;
                    OperatorAction::ChangeFrame(2)
                }
-               Operator::I64Store8 { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 0, resources)?;
+               Operator::I64Store8 { ref memarg } => {
+                   self.check_memarg(memarg, 0, resources)?;
                    self.check_operands_2(func_state, Type::I32, Type::I64)?;
                    OperatorAction::ChangeFrame(2)
                }
-               Operator::I64Store16 { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 1, resources)?;
+               Operator::I64Store16 { ref memarg } => {
+                   self.check_memarg(memarg, 1, resources)?;
                    self.check_operands_2(func_state, Type::I32, Type::I64)?;
                    OperatorAction::ChangeFrame(2)
                }
-               Operator::I64Store32 { ref memory_immediate } => {
-                   self.check_memory_immediate(memory_immediate, 2, resources)?;
+               Operator::I64Store32 { ref memarg } => {
+                   self.check_memarg(memarg, 2, resources)?;
                    self.check_operands_2(func_state, Type::I32, Type::I64)?;
                    OperatorAction::ChangeFrame(2)
                }
