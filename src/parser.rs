@@ -1264,11 +1264,11 @@ pub enum ParserInput {
 }
 
 pub trait WasmDecoder<'a> {
-    fn read(&mut self) -> &ParserState;
+    fn read(&mut self) -> &ParserState<'a>;
     fn push_input(&mut self, input: ParserInput);
-    fn read_with_input(&mut self, input: ParserInput) -> &ParserState;
+    fn read_with_input(&mut self, input: ParserInput) -> &ParserState<'a>;
     fn create_binary_reader<'b>(&mut self) -> BinaryReader<'b> where 'a: 'b;
-    fn last_state(&self) -> &ParserState;
+    fn last_state(&self) -> &ParserState<'a>;
 }
 
 /// The `Parser` type. A simple event-driven parser of WebAssembly binary
@@ -1961,7 +1961,7 @@ impl<'a> WasmDecoder<'a> for Parser<'a> {
     ///     println!("Second state {:?}", state);
     /// }
     /// ```
-    fn read(&mut self) -> &ParserState {
+    fn read(&mut self) -> &ParserState<'a> {
         let result = self.read_wrapped();
         if result.is_err() {
             self.state = ParserState::Error(result.err().unwrap());
@@ -2059,12 +2059,12 @@ impl<'a> WasmDecoder<'a> for Parser<'a> {
     ///     }
     /// }
     /// ```
-    fn read_with_input(&mut self, input: ParserInput) -> &ParserState {
+    fn read_with_input(&mut self, input: ParserInput) -> &ParserState<'a> {
         self.push_input(input);
         self.read()
     }
 
-    fn last_state(&self) -> &ParserState {
+    fn last_state(&self) -> &ParserState<'a> {
         &self.state
     }
 }

@@ -1538,7 +1538,7 @@ impl<'a> ValidatingParser<'a> {
 }
 
 impl<'a> WasmDecoder<'a> for ValidatingParser<'a> {
-    fn read(&mut self) -> &ParserState {
+    fn read(&mut self) -> &ParserState<'a> {
         if self.validation_error.is_some() {
             panic!("Parser in error state: validation");
         }
@@ -1556,7 +1556,7 @@ impl<'a> WasmDecoder<'a> for ValidatingParser<'a> {
         }
     }
 
-    fn read_with_input(&mut self, input: ParserInput) -> &ParserState {
+    fn read_with_input(&mut self, input: ParserInput) -> &ParserState<'a> {
         self.push_input(input);
         self.read()
     }
@@ -1570,7 +1570,7 @@ impl<'a> WasmDecoder<'a> for ValidatingParser<'a> {
         self.parser.create_binary_reader()
     }
 
-    fn last_state(&self) -> &ParserState {
+    fn last_state(&self) -> &ParserState<'a> {
         if self.validation_error.is_some() {
             self.validation_error.as_ref().unwrap()
         } else {
