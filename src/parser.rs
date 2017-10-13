@@ -1994,16 +1994,15 @@ impl<'a> WasmDecoder<'a> for Parser<'a> {
     /// let mut parser = Parser::new(data);
     /// let mut function_readers = Vec::new();
     /// loop {
-    ///     {
-    ///         match *parser.read() {
-    ///             ParserState::Error(_) |
-    ///             ParserState::EndWasm => break,
-    ///             ParserState::BeginFunctionBody {..} => (),
-    ///             _ => continue
+    ///     match *parser.read() {
+    ///         ParserState::Error(_) |
+    ///         ParserState::EndWasm => break,
+    ///         ParserState::BeginFunctionBody {..} => {
+    ///             let reader = parser.create_binary_reader();
+    ///             function_readers.push(reader);
     ///         }
+    ///         _ => continue
     ///     }
-    ///     let reader = parser.create_binary_reader();
-    ///     function_readers.push(reader);
     /// }
     /// for (i, reader) in function_readers.iter_mut().enumerate() {
     ///     println!("Function {}", i);
