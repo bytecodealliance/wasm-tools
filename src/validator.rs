@@ -275,12 +275,24 @@ pub trait WasmModuleResources {
 
 type OperatorValidatorResult<T> = result::Result<T, &'static str>;
 
+#[derive(Copy,Clone)]
+pub struct OperatorValidatorConfig {
+    pub enable_threads: bool,
+}
+
+const DEFAULT_OPERATOR_VALIDATOR_CONFIG: OperatorValidatorConfig =
+    OperatorValidatorConfig { enable_threads: false };
+
 struct OperatorValidator {
     func_state: FuncState,
+    config: OperatorValidatorConfig,
 }
 
 impl OperatorValidator {
-    pub fn new(func_type: &FuncType, locals: &Vec<(u32, Type)>) -> OperatorValidator {
+    pub fn new(func_type: &FuncType,
+               locals: &Vec<(u32, Type)>,
+               config: OperatorValidatorConfig)
+               -> OperatorValidator {
         let mut local_types = Vec::new();
         local_types.extend_from_slice(func_type.params.as_slice());
         for local in locals {
@@ -308,6 +320,7 @@ impl OperatorValidator {
                 stack_types: Vec::new(),
                 end_function: false,
             },
+            config,
         }
     }
 
@@ -451,6 +464,19 @@ impl OperatorValidator {
         Ok(())
     }
 
+    fn check_shared_memory_index(&self,
+                                 memory_index: u32,
+                                 resources: &WasmModuleResources)
+                                 -> OperatorValidatorResult<()> {
+        if memory_index as usize >= resources.memories().len() {
+            return Err("no liner memories are present");
+        }
+        if !resources.memories()[memory_index as usize].shared {
+            return Err("atomic accesses require shared memory");
+        }
+        Ok(())
+    }
+
     fn check_memarg(&self,
                     memarg: &MemoryImmediate,
                     max_align: u32,
@@ -461,6 +487,21 @@ impl OperatorValidator {
         if align > max_align {
             return Err("align is required to be at most the number of accessed bytes");
         }
+        Ok(())
+    }
+
+    fn check_threads_enabled(&self) -> OperatorValidatorResult<()> {
+        if !self.config.enable_threads {
+            return Err("threads support is not enabled");
+        }
+        Ok(())
+    }
+
+    fn check_shared_memarg_wo_align(&self,
+                                    _: &MemoryImmediate,
+                                    resources: &WasmModuleResources)
+                                    -> OperatorValidatorResult<()> {
+        self.check_shared_memory_index(0, resources)?;
         Ok(())
     }
 
@@ -985,6 +1026,150 @@ impl OperatorValidator {
                    self.check_operands_1(func_state, Type::F64)?;
                    OperatorAction::ChangeFrameWithType(1, Type::I64)
                }
+               Operator::I32Extend16S |
+               Operator::I32Extend8S => {
+                   self.check_operands_1(func_state, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I32)
+               }
+
+               Operator::I64Extend32S |
+               Operator::I64Extend16S |
+               Operator::I64Extend8S => {
+                   self.check_operands_1(func_state, Type::I64)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I64)
+               }
+
+               Operator::I32AtomicLoad { ref memarg } |
+               Operator::I32AtomicLoad16U { ref memarg } |
+               Operator::I32AtomicLoad8U { ref memarg } => {
+                   self.check_threads_enabled()?;
+                   self.check_shared_memarg_wo_align(memarg, resources)?;
+                   self.check_operands_1(func_state, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I32)
+               }
+               Operator::I64AtomicLoad { ref memarg } |
+               Operator::I64AtomicLoad32U { ref memarg } |
+               Operator::I64AtomicLoad16U { ref memarg } |
+               Operator::I64AtomicLoad8U { ref memarg } => {
+                   self.check_threads_enabled()?;
+                   self.check_shared_memarg_wo_align(memarg, resources)?;
+                   self.check_operands_1(func_state, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(1, Type::I64)
+               }
+               Operator::I32AtomicStore { ref memarg } |
+               Operator::I32AtomicStore16 { ref memarg } |
+               Operator::I32AtomicStore8 { ref memarg } => {
+                   self.check_threads_enabled()?;
+                   self.check_shared_memarg_wo_align(memarg, resources)?;
+                   self.check_operands_2(func_state, Type::I32, Type::I32)?;
+                   OperatorAction::ChangeFrame(2)
+               }
+               Operator::I64AtomicStore { ref memarg } |
+               Operator::I64AtomicStore32 { ref memarg } |
+               Operator::I64AtomicStore16 { ref memarg } |
+               Operator::I64AtomicStore8 { ref memarg } => {
+                   self.check_threads_enabled()?;
+                   self.check_shared_memarg_wo_align(memarg, resources)?;
+                   self.check_operands_2(func_state, Type::I32, Type::I64)?;
+                   OperatorAction::ChangeFrame(2)
+               }
+               Operator::I32AtomicRmwAdd { ref memarg } |
+               Operator::I32AtomicRmwSub { ref memarg } |
+               Operator::I32AtomicRmwAnd { ref memarg } |
+               Operator::I32AtomicRmwOr { ref memarg } |
+               Operator::I32AtomicRmwXor { ref memarg } |
+               Operator::I32AtomicRmw16UAdd { ref memarg } |
+               Operator::I32AtomicRmw16USub { ref memarg } |
+               Operator::I32AtomicRmw16UAnd { ref memarg } |
+               Operator::I32AtomicRmw16UOr { ref memarg } |
+               Operator::I32AtomicRmw16UXor { ref memarg } |
+               Operator::I32AtomicRmw8UAdd { ref memarg } |
+               Operator::I32AtomicRmw8USub { ref memarg } |
+               Operator::I32AtomicRmw8UAnd { ref memarg } |
+               Operator::I32AtomicRmw8UOr { ref memarg } |
+               Operator::I32AtomicRmw8UXor { ref memarg } => {
+                   self.check_threads_enabled()?;
+                   self.check_shared_memarg_wo_align(memarg, resources)?;
+                   self.check_operands_2(func_state, Type::I32, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(2, Type::I32)
+               }
+               Operator::I64AtomicRmwAdd { ref memarg } |
+               Operator::I64AtomicRmwSub { ref memarg } |
+               Operator::I64AtomicRmwAnd { ref memarg } |
+               Operator::I64AtomicRmwOr { ref memarg } |
+               Operator::I64AtomicRmwXor { ref memarg } |
+               Operator::I64AtomicRmw32UAdd { ref memarg } |
+               Operator::I64AtomicRmw32USub { ref memarg } |
+               Operator::I64AtomicRmw32UAnd { ref memarg } |
+               Operator::I64AtomicRmw32UOr { ref memarg } |
+               Operator::I64AtomicRmw32UXor { ref memarg } |
+               Operator::I64AtomicRmw16UAdd { ref memarg } |
+               Operator::I64AtomicRmw16USub { ref memarg } |
+               Operator::I64AtomicRmw16UAnd { ref memarg } |
+               Operator::I64AtomicRmw16UOr { ref memarg } |
+               Operator::I64AtomicRmw16UXor { ref memarg } |
+               Operator::I64AtomicRmw8UAdd { ref memarg } |
+               Operator::I64AtomicRmw8USub { ref memarg } |
+               Operator::I64AtomicRmw8UAnd { ref memarg } |
+               Operator::I64AtomicRmw8UOr { ref memarg } |
+               Operator::I64AtomicRmw8UXor { ref memarg } => {
+                   self.check_threads_enabled()?;
+                   self.check_shared_memarg_wo_align(memarg, resources)?;
+                   self.check_operands_2(func_state, Type::I32, Type::I64)?;
+                   OperatorAction::ChangeFrameWithType(2, Type::I64)
+               }
+               Operator::I32AtomicRmwXchg { ref memarg } |
+               Operator::I32AtomicRmw16UXchg { ref memarg } |
+               Operator::I32AtomicRmw8UXchg { ref memarg } => {
+                   self.check_threads_enabled()?;
+                   self.check_shared_memarg_wo_align(memarg, resources)?;
+                   self.check_operands_2(func_state, Type::I32, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(2, Type::I32)
+               }
+               Operator::I32AtomicRmwCmpxchg { ref memarg } |
+               Operator::I32AtomicRmw16UCmpxchg { ref memarg } |
+               Operator::I32AtomicRmw8UCmpxchg { ref memarg } => {
+                   self.check_threads_enabled()?;
+                   self.check_shared_memarg_wo_align(memarg, resources)?;
+                   self.check_operands(func_state, &[Type::I32, Type::I32, Type::I32])?;
+                   OperatorAction::ChangeFrameWithType(3, Type::I32)
+               }
+               Operator::I64AtomicRmwXchg { ref memarg } |
+               Operator::I64AtomicRmw32UXchg { ref memarg } |
+               Operator::I64AtomicRmw16UXchg { ref memarg } |
+               Operator::I64AtomicRmw8UXchg { ref memarg } => {
+                   self.check_threads_enabled()?;
+                   self.check_shared_memarg_wo_align(memarg, resources)?;
+                   self.check_operands_2(func_state, Type::I32, Type::I64)?;
+                   OperatorAction::ChangeFrameWithType(2, Type::I64)
+               }
+               Operator::I64AtomicRmwCmpxchg { ref memarg } |
+               Operator::I64AtomicRmw32UCmpxchg { ref memarg } |
+               Operator::I64AtomicRmw16UCmpxchg { ref memarg } |
+               Operator::I64AtomicRmw8UCmpxchg { ref memarg } => {
+                   self.check_threads_enabled()?;
+                   self.check_shared_memarg_wo_align(memarg, resources)?;
+                   self.check_operands(func_state, &[Type::I32, Type::I64, Type::I64])?;
+                   OperatorAction::ChangeFrameWithType(3, Type::I64)
+               }
+               Operator::Wake { ref memarg } => {
+                   self.check_threads_enabled()?;
+                   self.check_shared_memarg_wo_align(memarg, resources)?;
+                   self.check_operands_2(func_state, Type::I32, Type::I32)?;
+                   OperatorAction::ChangeFrameWithType(2, Type::I32)
+               }
+               Operator::I32Wait { ref memarg } => {
+                   self.check_threads_enabled()?;
+                   self.check_shared_memarg_wo_align(memarg, resources)?;
+                   self.check_operands(func_state, &[Type::I32, Type::I32, Type::I64])?;
+                   OperatorAction::ChangeFrameWithType(3, Type::I32)
+               }
+               Operator::I64Wait { ref memarg } => {
+                   self.check_threads_enabled()?;
+                   self.check_shared_memarg_wo_align(memarg, resources)?;
+                   self.check_operands(func_state, &[Type::I32, Type::I64, Type::I64])?;
+                   OperatorAction::ChangeFrameWithType(3, Type::I32)
+               }
            })
     }
 
@@ -996,6 +1181,14 @@ impl OperatorValidator {
         Ok(())
     }
 }
+
+#[derive(Copy,Clone)]
+pub struct ValidatingParserConfig {
+    pub operator_config: OperatorValidatorConfig,
+}
+
+const DEFAULT_VALIDATING_PARSER_CONFIG: ValidatingParserConfig =
+    ValidatingParserConfig { operator_config: DEFAULT_OPERATOR_VALIDATOR_CONFIG };
 
 pub struct ValidatingParser<'a> {
     parser: Parser<'a>,
@@ -1012,6 +1205,7 @@ pub struct ValidatingParser<'a> {
     init_expression_state: Option<InitExpressionState>,
     exported_names: HashSet<Vec<u8>>,
     current_operator_validator: Option<OperatorValidator>,
+    config: ValidatingParserConfig,
 }
 
 impl<'a> WasmModuleResources for ValidatingParser<'a> {
@@ -1037,7 +1231,7 @@ impl<'a> WasmModuleResources for ValidatingParser<'a> {
 }
 
 impl<'a> ValidatingParser<'a> {
-    pub fn new(bytes: &[u8]) -> ValidatingParser {
+    pub fn new(bytes: &[u8], config: Option<ValidatingParserConfig>) -> ValidatingParser {
         ValidatingParser {
             parser: Parser::new(bytes),
             validation_error: None,
@@ -1053,6 +1247,7 @@ impl<'a> ValidatingParser<'a> {
             current_operator_validator: None,
             init_expression_state: None,
             exported_names: HashSet::new(),
+            config: config.unwrap_or(DEFAULT_VALIDATING_PARSER_CONFIG),
         }
     }
 
@@ -1470,7 +1665,9 @@ impl<'a> ValidatingParser<'a> {
             ParserState::FunctionBodyLocals { ref locals } => {
                 let index = (self.current_func_index + self.func_imports_count) as usize;
                 let ref func_type = self.types[self.func_type_indices[index] as usize];
-                self.current_operator_validator = Some(OperatorValidator::new(func_type, locals));
+                let operator_config = self.config.operator_config;
+                self.current_operator_validator =
+                    Some(OperatorValidator::new(func_type, locals, operator_config));
             }
             ParserState::CodeOperator(ref operator) => {
                 let check = self.current_operator_validator
@@ -1523,7 +1720,8 @@ impl<'a> ValidatingParser<'a> {
             ParserState::FunctionBodyLocals { ref locals } => {
                 let index = (self.current_func_index + self.func_imports_count) as usize;
                 let ref func_type = self.types[self.func_type_indices[index] as usize];
-                OperatorValidator::new(func_type, locals)
+                let operator_config = self.config.operator_config;
+                OperatorValidator::new(func_type, locals, operator_config)
             }
             _ => panic!("Invalid reader state"),
         };
@@ -1611,7 +1809,7 @@ impl<'b> ValidatingOperatorParser<'b> {
     /// #              0x2, 0x83, 0x80, 0x80, 0x80, 0x0, 0x0, 0x1, 0xb, 0x83,
     /// #              0x80, 0x80, 0x80, 0x0, 0x0, 0x0, 0xb];
     /// use wasmparser::{WasmDecoder, ParserState, ValidatingParser};
-    /// let mut parser = ValidatingParser::new(data);
+    /// let mut parser = ValidatingParser::new(data, None);
     /// let mut validating_parsers = Vec::new();
     /// loop {
     ///     {
@@ -1661,8 +1859,8 @@ impl<'b> ValidatingOperatorParser<'b> {
 
 /// Test whether the given buffer contains a valid WebAssembly module,
 /// analogous to WebAssembly.validate in the JS API.
-pub fn validate(bytes: &[u8]) -> bool {
-    let mut parser = ValidatingParser::new(bytes);
+pub fn validate(bytes: &[u8], config: Option<ValidatingParserConfig>) -> bool {
+    let mut parser = ValidatingParser::new(bytes, config);
     loop {
         let state = parser.read();
         match *state {
@@ -1675,6 +1873,6 @@ pub fn validate(bytes: &[u8]) -> bool {
 
 #[test]
 fn test_validate() {
-    assert!(validate(&[0x0, 0x61, 0x73, 0x6d, 0x1, 0x0, 0x0, 0x0]));
-    assert!(!validate(&[0x0, 0x61, 0x73, 0x6d, 0x2, 0x0, 0x0, 0x0]));
+    assert!(validate(&[0x0, 0x61, 0x73, 0x6d, 0x1, 0x0, 0x0, 0x0], None));
+    assert!(!validate(&[0x0, 0x61, 0x73, 0x6d, 0x2, 0x0, 0x0, 0x0], None));
 }

@@ -19,7 +19,12 @@ mod simple_tests {
     use std::fs::{File, read_dir};
     use std::path::PathBuf;
     use parser::{WasmDecoder, Parser, ParserState, ParserInput, SectionCode, Operator};
-    use validator::ValidatingParser;
+    use validator::{ValidatingParser, ValidatingParserConfig, OperatorValidatorConfig};
+
+    const VALIDATOR_CONFIG: Option<ValidatingParserConfig> =
+        Some(ValidatingParserConfig {
+                 operator_config: OperatorValidatorConfig { enable_threads: true },
+             });
 
     fn read_file_data(path: &PathBuf) -> Vec<u8> {
         println!("Parsing {:?}", path);
@@ -62,7 +67,7 @@ mod simple_tests {
                 continue;
             }
             let data = read_file_data(&dir.path());
-            let mut parser = ValidatingParser::new(data.as_slice());
+            let mut parser = ValidatingParser::new(data.as_slice(), VALIDATOR_CONFIG);
             let mut max_iteration = 100000000;
             loop {
                 let state = parser.read();
@@ -87,7 +92,7 @@ mod simple_tests {
                 continue;
             }
             let data = read_file_data(&dir.path());
-            let mut parser = ValidatingParser::new(data.as_slice());
+            let mut parser = ValidatingParser::new(data.as_slice(), VALIDATOR_CONFIG);
             let mut max_iteration = 100000000;
             let mut error = false;
             loop {

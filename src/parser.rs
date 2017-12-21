@@ -130,6 +130,7 @@ pub struct TableType {
 #[derive(Debug,Copy,Clone)]
 pub struct MemoryType {
     pub limits: ResizableLimits,
+    pub shared: bool,
 }
 
 #[derive(Debug,Copy,Clone)]
@@ -455,6 +456,11 @@ pub enum Operator<'a> {
     I64ReinterpretF64,
     F32ReinterpretI32,
     F64ReinterpretI64,
+    I32Extend8S,
+    I32Extend16S,
+    I64Extend8S,
+    I64Extend16S,
+    I64Extend32S,
 
     // 0xFC operators
     // Non-trapping Float-to-int Conversions
@@ -466,6 +472,75 @@ pub enum Operator<'a> {
     I64TruncUSatF32,
     I64TruncSSatF64,
     I64TruncUSatF64,
+
+    // 0xFE operators
+    // https://github.com/WebAssembly/threads/blob/master/proposals/threads/Overview.md
+    Wake { memarg: MemoryImmediate },
+    I32Wait { memarg: MemoryImmediate },
+    I64Wait { memarg: MemoryImmediate },
+    I32AtomicLoad { memarg: MemoryImmediate },
+    I64AtomicLoad { memarg: MemoryImmediate },
+    I32AtomicLoad8U { memarg: MemoryImmediate },
+    I32AtomicLoad16U { memarg: MemoryImmediate },
+    I64AtomicLoad8U { memarg: MemoryImmediate },
+    I64AtomicLoad16U { memarg: MemoryImmediate },
+    I64AtomicLoad32U { memarg: MemoryImmediate },
+    I32AtomicStore { memarg: MemoryImmediate },
+    I64AtomicStore { memarg: MemoryImmediate },
+    I32AtomicStore8 { memarg: MemoryImmediate },
+    I32AtomicStore16 { memarg: MemoryImmediate },
+    I64AtomicStore8 { memarg: MemoryImmediate },
+    I64AtomicStore16 { memarg: MemoryImmediate },
+    I64AtomicStore32 { memarg: MemoryImmediate },
+    I32AtomicRmwAdd { memarg: MemoryImmediate },
+    I64AtomicRmwAdd { memarg: MemoryImmediate },
+    I32AtomicRmw8UAdd { memarg: MemoryImmediate },
+    I32AtomicRmw16UAdd { memarg: MemoryImmediate },
+    I64AtomicRmw8UAdd { memarg: MemoryImmediate },
+    I64AtomicRmw16UAdd { memarg: MemoryImmediate },
+    I64AtomicRmw32UAdd { memarg: MemoryImmediate },
+    I32AtomicRmwSub { memarg: MemoryImmediate },
+    I64AtomicRmwSub { memarg: MemoryImmediate },
+    I32AtomicRmw8USub { memarg: MemoryImmediate },
+    I32AtomicRmw16USub { memarg: MemoryImmediate },
+    I64AtomicRmw8USub { memarg: MemoryImmediate },
+    I64AtomicRmw16USub { memarg: MemoryImmediate },
+    I64AtomicRmw32USub { memarg: MemoryImmediate },
+    I32AtomicRmwAnd { memarg: MemoryImmediate },
+    I64AtomicRmwAnd { memarg: MemoryImmediate },
+    I32AtomicRmw8UAnd { memarg: MemoryImmediate },
+    I32AtomicRmw16UAnd { memarg: MemoryImmediate },
+    I64AtomicRmw8UAnd { memarg: MemoryImmediate },
+    I64AtomicRmw16UAnd { memarg: MemoryImmediate },
+    I64AtomicRmw32UAnd { memarg: MemoryImmediate },
+    I32AtomicRmwOr { memarg: MemoryImmediate },
+    I64AtomicRmwOr { memarg: MemoryImmediate },
+    I32AtomicRmw8UOr { memarg: MemoryImmediate },
+    I32AtomicRmw16UOr { memarg: MemoryImmediate },
+    I64AtomicRmw8UOr { memarg: MemoryImmediate },
+    I64AtomicRmw16UOr { memarg: MemoryImmediate },
+    I64AtomicRmw32UOr { memarg: MemoryImmediate },
+    I32AtomicRmwXor { memarg: MemoryImmediate },
+    I64AtomicRmwXor { memarg: MemoryImmediate },
+    I32AtomicRmw8UXor { memarg: MemoryImmediate },
+    I32AtomicRmw16UXor { memarg: MemoryImmediate },
+    I64AtomicRmw8UXor { memarg: MemoryImmediate },
+    I64AtomicRmw16UXor { memarg: MemoryImmediate },
+    I64AtomicRmw32UXor { memarg: MemoryImmediate },
+    I32AtomicRmwXchg { memarg: MemoryImmediate },
+    I64AtomicRmwXchg { memarg: MemoryImmediate },
+    I32AtomicRmw8UXchg { memarg: MemoryImmediate },
+    I32AtomicRmw16UXchg { memarg: MemoryImmediate },
+    I64AtomicRmw8UXchg { memarg: MemoryImmediate },
+    I64AtomicRmw16UXchg { memarg: MemoryImmediate },
+    I64AtomicRmw32UXchg { memarg: MemoryImmediate },
+    I32AtomicRmwCmpxchg { memarg: MemoryImmediate },
+    I64AtomicRmwCmpxchg { memarg: MemoryImmediate },
+    I32AtomicRmw8UCmpxchg { memarg: MemoryImmediate },
+    I32AtomicRmw16UCmpxchg { memarg: MemoryImmediate },
+    I64AtomicRmw8UCmpxchg { memarg: MemoryImmediate },
+    I64AtomicRmw16UCmpxchg { memarg: MemoryImmediate },
+    I64AtomicRmw32UCmpxchg { memarg: MemoryImmediate },
 }
 
 fn is_name(name: &[u8], expected: &'static str) -> bool {
@@ -681,35 +756,43 @@ impl<'a> BinaryReader<'a> {
            })
     }
 
-    fn read_resizable_limits(&mut self) -> Result<ResizableLimits> {
-        let flags = self.read_var_u32()?;
-        if (flags & !0x1) != 0 {
-            return Err(BinaryReaderError {
-                           message: "invalid resizable limits flags",
-                           offset: self.position - 1,
-                       });
-        }
+    fn read_resizable_limits(&mut self, max_present: bool) -> Result<ResizableLimits> {
         let initial = self.read_var_u32()?;
-        let maximum = if (flags & 0x1) != 0 {
+        let maximum = if max_present {
             Some(self.read_var_u32()?)
         } else {
             None
         };
-        Ok(ResizableLimits {
-               initial: initial,
-               maximum: maximum,
-           })
+        Ok(ResizableLimits { initial, maximum })
     }
 
     fn read_table_type(&mut self) -> Result<TableType> {
+        let element_type = self.read_type()?;
+        let flags = self.read_var_u32()?;
+        if (flags & !0x1) != 0 {
+            return Err(BinaryReaderError {
+                           message: "invalid table resizable limits flags",
+                           offset: self.position - 1,
+                       });
+        }
+        let limits = self.read_resizable_limits((flags & 0x1) != 0)?;
         Ok(TableType {
-               element_type: self.read_type()?,
-               limits: self.read_resizable_limits()?,
+               element_type,
+               limits,
            })
     }
 
     fn read_memory_type(&mut self) -> Result<MemoryType> {
-        Ok(MemoryType { limits: self.read_resizable_limits()? })
+        let flags = self.read_var_u32()?;
+        if (flags & !0x3) != 0 {
+            return Err(BinaryReaderError {
+                           message: "invalid table resizable limits flags",
+                           offset: self.position - 1,
+                       });
+        }
+        let limits = self.read_resizable_limits((flags & 0x1) != 0)?;
+        let shared = (flags & 0x2) != 0;
+        Ok(MemoryType { limits, shared })
     }
 
     fn read_global_type(&mut self) -> Result<GlobalType> {
@@ -961,6 +1044,96 @@ impl<'a> BinaryReader<'a> {
         self.read_bytes(len)
     }
 
+    fn read_memarg_of_align(&mut self, align: u32) -> Result<MemoryImmediate> {
+        let imm = self.read_memarg()?;
+        if align != imm.flags {
+            return Err(BinaryReaderError {
+                           message: "Unexpected memarg alignment",
+                           offset: self.position - 1,
+                       });
+        }
+        Ok(imm)
+    }
+
+    fn read_0xfe_operator(&mut self) -> Result<Operator<'a>> {
+        let code = self.read_u8()? as u8;
+        Ok(match code {
+               0x00 => Operator::Wake { memarg: self.read_memarg_of_align(2)? },
+               0x01 => Operator::I32Wait { memarg: self.read_memarg_of_align(2)? },
+               0x02 => Operator::I64Wait { memarg: self.read_memarg_of_align(3)? },
+               0x10 => Operator::I32AtomicLoad { memarg: self.read_memarg_of_align(2)? },
+               0x11 => Operator::I64AtomicLoad { memarg: self.read_memarg_of_align(3)? },
+               0x12 => Operator::I32AtomicLoad8U { memarg: self.read_memarg_of_align(0)? },
+               0x13 => Operator::I32AtomicLoad16U { memarg: self.read_memarg_of_align(1)? },
+               0x14 => Operator::I64AtomicLoad8U { memarg: self.read_memarg_of_align(0)? },
+               0x15 => Operator::I64AtomicLoad16U { memarg: self.read_memarg_of_align(1)? },
+               0x16 => Operator::I64AtomicLoad32U { memarg: self.read_memarg_of_align(2)? },
+               0x17 => Operator::I32AtomicStore { memarg: self.read_memarg_of_align(2)? },
+               0x18 => Operator::I64AtomicStore { memarg: self.read_memarg_of_align(3)? },
+               0x19 => Operator::I32AtomicStore8 { memarg: self.read_memarg_of_align(0)? },
+               0x1a => Operator::I32AtomicStore16 { memarg: self.read_memarg_of_align(1)? },
+               0x1b => Operator::I64AtomicStore8 { memarg: self.read_memarg_of_align(0)? },
+               0x1c => Operator::I64AtomicStore16 { memarg: self.read_memarg_of_align(1)? },
+               0x1d => Operator::I64AtomicStore32 { memarg: self.read_memarg_of_align(2)? },
+               0x1e => Operator::I32AtomicRmwAdd { memarg: self.read_memarg_of_align(2)? },
+               0x1f => Operator::I64AtomicRmwAdd { memarg: self.read_memarg_of_align(3)? },
+               0x20 => Operator::I32AtomicRmw8UAdd { memarg: self.read_memarg_of_align(0)? },
+               0x21 => Operator::I32AtomicRmw16UAdd { memarg: self.read_memarg_of_align(1)? },
+               0x22 => Operator::I64AtomicRmw8UAdd { memarg: self.read_memarg_of_align(0)? },
+               0x23 => Operator::I64AtomicRmw16UAdd { memarg: self.read_memarg_of_align(1)? },
+               0x24 => Operator::I64AtomicRmw32UAdd { memarg: self.read_memarg_of_align(2)? },
+               0x25 => Operator::I32AtomicRmwSub { memarg: self.read_memarg_of_align(2)? },
+               0x26 => Operator::I64AtomicRmwSub { memarg: self.read_memarg_of_align(3)? },
+               0x27 => Operator::I32AtomicRmw8USub { memarg: self.read_memarg_of_align(0)? },
+               0x28 => Operator::I32AtomicRmw16USub { memarg: self.read_memarg_of_align(1)? },
+               0x29 => Operator::I64AtomicRmw8USub { memarg: self.read_memarg_of_align(0)? },
+               0x2a => Operator::I64AtomicRmw16USub { memarg: self.read_memarg_of_align(1)? },
+               0x2b => Operator::I64AtomicRmw32USub { memarg: self.read_memarg_of_align(2)? },
+               0x2c => Operator::I32AtomicRmwAnd { memarg: self.read_memarg_of_align(2)? },
+               0x2d => Operator::I64AtomicRmwAnd { memarg: self.read_memarg_of_align(3)? },
+               0x2e => Operator::I32AtomicRmw8UAnd { memarg: self.read_memarg_of_align(0)? },
+               0x2f => Operator::I32AtomicRmw16UAnd { memarg: self.read_memarg_of_align(1)? },
+               0x30 => Operator::I64AtomicRmw8UAnd { memarg: self.read_memarg_of_align(0)? },
+               0x31 => Operator::I64AtomicRmw16UAnd { memarg: self.read_memarg_of_align(1)? },
+               0x32 => Operator::I64AtomicRmw32UAnd { memarg: self.read_memarg_of_align(2)? },
+               0x33 => Operator::I32AtomicRmwOr { memarg: self.read_memarg_of_align(2)? },
+               0x34 => Operator::I64AtomicRmwOr { memarg: self.read_memarg_of_align(3)? },
+               0x35 => Operator::I32AtomicRmw8UOr { memarg: self.read_memarg_of_align(0)? },
+               0x36 => Operator::I32AtomicRmw16UOr { memarg: self.read_memarg_of_align(1)? },
+               0x37 => Operator::I64AtomicRmw8UOr { memarg: self.read_memarg_of_align(0)? },
+               0x38 => Operator::I64AtomicRmw16UOr { memarg: self.read_memarg_of_align(1)? },
+               0x39 => Operator::I64AtomicRmw32UOr { memarg: self.read_memarg_of_align(2)? },
+               0x3a => Operator::I32AtomicRmwXor { memarg: self.read_memarg_of_align(2)? },
+               0x3b => Operator::I64AtomicRmwXor { memarg: self.read_memarg_of_align(3)? },
+               0x3c => Operator::I32AtomicRmw8UXor { memarg: self.read_memarg_of_align(0)? },
+               0x3d => Operator::I32AtomicRmw16UXor { memarg: self.read_memarg_of_align(1)? },
+               0x3e => Operator::I64AtomicRmw8UXor { memarg: self.read_memarg_of_align(0)? },
+               0x3f => Operator::I64AtomicRmw16UXor { memarg: self.read_memarg_of_align(1)? },
+               0x40 => Operator::I64AtomicRmw32UXor { memarg: self.read_memarg_of_align(2)? },
+               0x41 => Operator::I32AtomicRmwXchg { memarg: self.read_memarg_of_align(2)? },
+               0x42 => Operator::I64AtomicRmwXchg { memarg: self.read_memarg_of_align(3)? },
+               0x43 => Operator::I32AtomicRmw8UXchg { memarg: self.read_memarg_of_align(0)? },
+               0x44 => Operator::I32AtomicRmw16UXchg { memarg: self.read_memarg_of_align(1)? },
+               0x45 => Operator::I64AtomicRmw8UXchg { memarg: self.read_memarg_of_align(0)? },
+               0x46 => Operator::I64AtomicRmw16UXchg { memarg: self.read_memarg_of_align(1)? },
+               0x47 => Operator::I64AtomicRmw32UXchg { memarg: self.read_memarg_of_align(2)? },
+               0x48 => Operator::I32AtomicRmwCmpxchg { memarg: self.read_memarg_of_align(2)? },
+               0x49 => Operator::I64AtomicRmwCmpxchg { memarg: self.read_memarg_of_align(3)? },
+               0x4a => Operator::I32AtomicRmw8UCmpxchg { memarg: self.read_memarg_of_align(0)? },
+               0x4b => Operator::I32AtomicRmw16UCmpxchg { memarg: self.read_memarg_of_align(1)? },
+               0x4c => Operator::I64AtomicRmw8UCmpxchg { memarg: self.read_memarg_of_align(0)? },
+               0x4d => Operator::I64AtomicRmw16UCmpxchg { memarg: self.read_memarg_of_align(1)? },
+               0x4e => Operator::I64AtomicRmw32UCmpxchg { memarg: self.read_memarg_of_align(2)? },
+
+               _ => {
+                   return Err(BinaryReaderError {
+                                  message: "Unknown 0xFE opcode",
+                                  offset: self.position - 1,
+                              })
+               }
+           })
+    }
+
     pub fn read_operator(&mut self) -> Result<Operator<'a>> {
         let code = self.read_u8()? as u8;
         Ok(match code {
@@ -1142,7 +1315,15 @@ impl<'a> BinaryReader<'a> {
                0xbe => Operator::F32ReinterpretI32,
                0xbf => Operator::F64ReinterpretI64,
 
+               0xc0 => Operator::I32Extend8S,
+               0xc1 => Operator::I32Extend16S,
+               0xc2 => Operator::I64Extend8S,
+               0xc3 => Operator::I64Extend16S,
+               0xc4 => Operator::I64Extend32S,
+
                0xfc => self.read_0xfc_operator()?,
+
+               0xfe => self.read_0xfe_operator()?,
 
                _ => {
                    return Err(BinaryReaderError {
