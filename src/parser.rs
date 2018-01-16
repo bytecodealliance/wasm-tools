@@ -41,7 +41,9 @@ pub enum CustomSectionKind {
     Linking,
 }
 
-/// Section code as defined at https://webassembly.github.io/spec/binary/modules.html#sections
+/// Section code as defined [here].
+///
+/// [here]: https://webassembly.github.io/spec/binary/modules.html#sections
 #[derive(Debug,Copy,Clone,PartialEq,Eq,PartialOrd,Ord)]
 pub enum SectionCode<'a> {
     Custom {
@@ -61,7 +63,9 @@ pub enum SectionCode<'a> {
     Data, // Data segments
 }
 
-/// Types as defined at https://webassembly.github.io/spec/syntax/types.html#types
+/// Types as defined [here].
+///
+/// [here]: https://webassembly.github.io/spec/syntax/types.html#types
 #[derive(Debug,Copy,Clone,PartialEq,Eq)]
 pub enum Type {
     I32,
@@ -99,7 +103,9 @@ pub enum NameEntry<'a> {
     Local(Vec<LocalName<'a>>),
 }
 
-/// External types as defined at https://webassembly.github.io/spec/syntax/types.html#external-types
+/// External types as defined [here].
+///
+/// [here]: https://webassembly.github.io/spec/syntax/types.html#external-types
 #[derive(Debug, Copy, Clone)]
 pub enum ExternalKind {
     Function,
@@ -281,7 +287,9 @@ impl Ieee64 {
     }
 }
 
-/// Instructions as defined at https://webassembly.github.io/spec/binary/instructions.html
+/// Instructions as defined [here].
+///
+/// [here]: https://webassembly.github.io/spec/binary/instructions.html
 #[derive(Debug)]
 pub enum Operator<'a> {
     Unreachable,
