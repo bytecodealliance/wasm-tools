@@ -157,7 +157,7 @@ enum OperatorAction {
     None,
     ChangeFrame(usize),
     ChangeFrameWithType(usize, Type),
-    ChangeFrameWithTypes(usize, Vec<Type>),
+    ChangeFrameWithTypes(usize, Box<[Type]>),
     ChangeFrameToExactTypes(Vec<Type>),
     ChangeFrameAfterSelect(Option<Type>),
     PushBlock(Type, BlockType),
@@ -317,7 +317,7 @@ impl OperatorValidator {
         config: OperatorValidatorConfig,
     ) -> OperatorValidator {
         let mut local_types = Vec::new();
-        local_types.extend_from_slice(func_type.params.as_slice());
+        local_types.extend_from_slice(&*func_type.params);
         for local in locals {
             for _ in 0..local.0 {
                 local_types.push(local.1);
@@ -326,7 +326,7 @@ impl OperatorValidator {
 
         let mut blocks = Vec::new();
         let mut last_returns = Vec::new();
-        last_returns.extend_from_slice(func_type.returns.as_slice());
+        last_returns.extend_from_slice(&*func_type.returns);
         blocks.push(BlockState {
             return_types: last_returns,
             stack_starts_at: 0,
@@ -1356,8 +1356,8 @@ impl<'a> ValidatingParser<'a> {
 
     fn check_func_type(&self, func_type: &FuncType) -> ValidatorResult<'a, ()> {
         if let Type::Func = func_type.form {
-            self.check_value_types(func_type.params.as_slice())?;
-            self.check_value_types(func_type.returns.as_slice())?;
+            self.check_value_types(&*func_type.params)?;
+            self.check_value_types(&*func_type.returns)?;
             if func_type.returns.len() > 1 {
                 return self.create_error("too many returns, expected 0 or 1");
             }
@@ -1664,7 +1664,7 @@ impl<'a> ValidatingParser<'a> {
                 }
             }
             ParserState::ElementSectionEntryBody(ref indices) => {
-                for func_index in indices {
+                for func_index in &**indices {
                     if *func_index as usize >= self.func_type_indices.len() {
                         self.validation_error =
                             self.create_validation_error("element func index out of bounds");

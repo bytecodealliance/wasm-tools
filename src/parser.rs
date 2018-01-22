@@ -97,14 +97,14 @@ pub struct Naming<'a> {
 #[derive(Debug)]
 pub struct LocalName<'a> {
     pub index: u32,
-    pub locals: Vec<Naming<'a>>,
+    pub locals: Box<[Naming<'a>]>,
 }
 
 #[derive(Debug)]
 pub enum NameEntry<'a> {
     Module(&'a [u8]),
-    Function(Vec<Naming<'a>>),
-    Local(Vec<LocalName<'a>>),
+    Function(Box<[Naming<'a>]>),
+    Local(Box<[LocalName<'a>]>),
 }
 
 /// External types as defined [here].
@@ -121,8 +121,8 @@ pub enum ExternalKind {
 #[derive(Debug, Clone)]
 pub struct FuncType {
     pub form: Type,
-    pub params: Vec<Type>,
-    pub returns: Vec<Type>,
+    pub params: Box<[Type]>,
+    pub returns: Box<[Type]>,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -171,20 +171,20 @@ impl<'a> BrTable<'a> {
     /// let op = reader.read_operator().unwrap();
     /// if let wasmparser::Operator::BrTable { ref table } = op {
     ///     let br_table_depths = table.read_table();
-    ///     assert!(br_table_depths.0 == vec![1,2] &&
+    ///     assert!(br_table_depths.0 == vec![1,2].into_boxed_slice() &&
     ///             br_table_depths.1 == 0);
     /// } else {
     ///     unreachable!();
     /// }
     /// ```
-    pub fn read_table(&self) -> (Vec<u32>, u32) {
+    pub fn read_table(&self) -> (Box<[u32]>, u32) {
         let mut reader = BinaryReader::new(self.buffer);
         let mut table = Vec::new();
         while !reader.eof() {
             table.push(reader.read_var_u32().unwrap());
         }
         let default_target = table.pop().unwrap();
-        (table, default_target)
+        (table.into_boxed_slice(), default_target)
     }
 }
 
@@ -755,8 +755,8 @@ impl<'a> BinaryReader<'a> {
         }
         Ok(FuncType {
             form,
-            params,
-            returns,
+            params: params.into_boxed_slice(),
+            returns: returns.into_boxed_slice(),
         })
     }
 
@@ -866,7 +866,7 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    fn read_name_map(&mut self, limit: usize) -> Result<Vec<Naming<'a>>> {
+    fn read_name_map(&mut self, limit: usize) -> Result<Box<[Naming<'a>]>> {
         let count = self.read_var_u32()? as usize;
         if count > limit {
             return Err(BinaryReaderError {
@@ -880,7 +880,7 @@ impl<'a> BinaryReader<'a> {
             let name = self.read_string()?;
             result.push(Naming { index, name });
         }
-        Ok(result)
+        Ok(result.into_boxed_slice())
     }
 
     pub fn eof(&self) -> bool {
@@ -1632,14 +1632,14 @@ pub enum ParserState<'a> {
         range: Range,
     },
     FunctionBodyLocals {
-        locals: Vec<(u32, Type)>,
+        locals: Box<[(u32, Type)]>,
     },
     CodeOperator(Operator<'a>),
     EndFunctionBody,
     SkippingFunctionBody,
 
     BeginElementSectionEntry(u32),
-    ElementSectionEntryBody(Vec<u32>),
+    ElementSectionEntryBody(Box<[u32]>),
     EndElementSectionEntry,
 
     BeginDataSectionEntry(u32),
@@ -1881,7 +1881,7 @@ impl<'a> Parser<'a> {
         for _ in 0..num_elements {
             elements.push(self.reader.read_var_u32()?);
         }
-        self.state = ParserState::ElementSectionEntryBody(elements);
+        self.state = ParserState::ElementSectionEntryBody(elements.into_boxed_slice());
         Ok(())
     }
 
@@ -1909,7 +1909,9 @@ impl<'a> Parser<'a> {
             let (count, ty) = self.reader.read_local_decl(&mut locals_total)?;
             locals.push((count, ty));
         }
-        self.state = ParserState::FunctionBodyLocals { locals };
+        self.state = ParserState::FunctionBodyLocals {
+            locals: locals.into_boxed_slice(),
+        };
         Ok(())
     }
 
@@ -1995,7 +1997,7 @@ impl<'a> Parser<'a> {
                         locals: self.reader.read_name_map(MAX_WASM_FUNCTION_LOCALS)?,
                     });
                 }
-                NameEntry::Local(funcs)
+                NameEntry::Local(funcs.into_boxed_slice())
             }
         };
         self.state = ParserState::NameSectionEntry(entry);
