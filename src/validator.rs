@@ -16,6 +16,7 @@
 use std::cmp::min;
 use std::collections::HashSet;
 use std::result;
+use std::str;
 use std::vec::Vec;
 
 use limits::{
@@ -1323,55 +1324,12 @@ impl<'a> ValidatingParser<'a> {
     }
 
     fn check_utf8(&self, bytes: &[u8]) -> ValidatorResult<'a, ()> {
-        // https://encoding.spec.whatwg.org/#utf-8
-        let mut bytes_needed = 0;
-        let mut lower_boundary = 0x80;
-        let mut upper_boundary = 0xBF;
-        for byte_ref in bytes {
-            let byte = *byte_ref;
-            if bytes_needed == 0 {
-                if byte <= 0x7F {
-                    continue;
-                }
-                if 0xC2 <= byte && byte <= 0xDF {
-                    bytes_needed = 1;
-                    continue;
-                }
-                if 0xE0 <= byte && byte <= 0xEF {
-                    bytes_needed = 2;
-                    if byte == 0xE0 {
-                        lower_boundary = 0xA0;
-                    }
-                    if byte == 0xED {
-                        upper_boundary = 0x9F;
-                    }
-                    continue;
-                }
-                if 0xF0 <= byte && byte <= 0xF4 {
-                    bytes_needed = 3;
-                    if byte == 0xF0 {
-                        lower_boundary = 0x90;
-                    }
-                    if byte == 0xF4 {
-                        upper_boundary = 0x8F;
-                    }
-                    continue;
-                }
-                return self.create_error("Invalid utf-8: unexpected code");
-            }
-
-            if byte < lower_boundary || byte > upper_boundary {
-                return self.create_error("Invalid utf-8: code point out of range");
-            }
-
-            lower_boundary = 0x80;
-            upper_boundary = 0xBF;
-            bytes_needed -= 1;
-        }
-        if bytes_needed > 0 {
-            self.create_error("Invalid utf-8: unexpected end of string")
-        } else {
-            Ok(())
+        match str::from_utf8(bytes) {
+            Ok(_) => Ok(()),
+            Err(utf8_error) => match utf8_error.error_len() {
+                None => self.create_error("Invalid utf-8: unexpected end of string"),
+                Some(_) => self.create_error("Invalid utf-8: unexpected byte"),
+            },
         }
     }
 
