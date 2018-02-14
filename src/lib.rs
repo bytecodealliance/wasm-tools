@@ -23,6 +23,16 @@
 //! this is not the right library for you. You could however, build such
 //! a data-structure using this library.
 
+#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(not(feature = "std"), feature(alloc))]
+
+#[cfg(not(feature = "std"))]
+extern crate hashmap_core;
+
+#[cfg(not(feature = "std"))]
+#[macro_use]
+extern crate alloc;
+
 pub use parser::WasmDecoder;
 pub use parser::Parser;
 pub use parser::ParserState;
@@ -63,3 +73,12 @@ mod parser;
 mod validator;
 mod limits;
 mod tests;
+
+#[cfg(not(feature = "std"))]
+mod std {
+    pub use core::*;
+    pub use alloc::vec;
+    pub mod collections {
+        pub use hashmap_core::HashSet;
+    }
+}
