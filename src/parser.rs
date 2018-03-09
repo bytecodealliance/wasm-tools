@@ -154,7 +154,6 @@ pub struct MemoryImmediate {
 /// A br_table entries representation.
 #[derive(Debug)]
 pub struct BrTable<'a> {
-    pub size: usize,
     buffer: &'a [u8],
 }
 
@@ -176,12 +175,11 @@ impl<'a> BrTable<'a> {
     /// ```
     pub fn read_table(&self) -> (Vec<u32>, u32) {
         let mut reader = BinaryReader::new(self.buffer);
-        let mut table = Vec::with_capacity(self.size);
-        for _ in 0..self.size {
+        let mut table = Vec::new();
+        while !reader.eof() {
             table.push(reader.read_var_u32().unwrap());
         }
-        let default_target = reader.read_var_u32().unwrap();
-        assert!(reader.eof());
+        let default_target = table.pop().unwrap();
         (table, default_target)
     }
 }
@@ -201,7 +199,6 @@ impl<'a> BrTable<'a> {
 /// ```
 pub struct BrTableIterator<'a> {
     reader: BinaryReader<'a>,
-    left: usize,
 }
 
 impl<'a> IntoIterator for &'a BrTable<'a> {
@@ -209,10 +206,7 @@ impl<'a> IntoIterator for &'a BrTable<'a> {
     type IntoIter = BrTableIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        BrTableIterator {
-            reader: BinaryReader::new(self.buffer),
-            left: self.size + 1,
-        }
+        BrTableIterator { reader: BinaryReader::new(self.buffer) }
     }
 }
 
@@ -220,10 +214,9 @@ impl<'a> Iterator for BrTableIterator<'a> {
     type Item = u32;
 
     fn next(&mut self) -> Option<u32> {
-        if self.left == 0 {
+        if self.reader.eof() {
             return None;
         }
-        self.left -= 1;
         Some(self.reader.read_var_u32().unwrap())
     }
 }
@@ -870,10 +863,7 @@ impl<'a> BinaryReader<'a> {
             self.skip_var_32()?;
         }
         self.skip_var_32()?;
-        Ok(BrTable {
-               size: targets_len,
-               buffer: &self.buffer[start..self.position],
-           })
+        Ok(BrTable { buffer: &self.buffer[start..self.position] })
     }
 
     fn read_name_map(&mut self, limit: usize) -> Result<Vec<Naming<'a>>> {
