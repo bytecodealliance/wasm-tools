@@ -577,6 +577,7 @@ enum InitExpressionContinuation {
 }
 
 /// A binary reader of the WebAssembly structures and types.
+#[derive(Clone)]
 pub struct BinaryReader<'a> {
     buffer: &'a [u8],
     position: usize,
