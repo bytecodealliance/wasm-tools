@@ -580,7 +580,6 @@ enum InitExpressionContinuation {
 pub struct BinaryReader<'a> {
     buffer: &'a [u8],
     position: usize,
-    end: usize,
 }
 
 impl<'a> BinaryReader<'a> {
@@ -599,12 +598,11 @@ impl<'a> BinaryReader<'a> {
         BinaryReader {
             buffer: data,
             position: 0,
-            end: data.len(),
         }
     }
 
     fn ensure_has_byte(&self) -> Result<()> {
-        if self.position < self.end {
+        if self.position < self.buffer.len() {
             Ok(())
         } else {
             Err(BinaryReaderError {
@@ -615,7 +613,7 @@ impl<'a> BinaryReader<'a> {
     }
 
     fn ensure_has_bytes(&self, len: usize) -> Result<()> {
-        if self.position + len <= self.end {
+        if self.position + len <= self.buffer.len() {
             Ok(())
         } else {
             Err(BinaryReaderError {
@@ -887,7 +885,7 @@ impl<'a> BinaryReader<'a> {
     }
 
     pub fn eof(&self) -> bool {
-        self.position >= self.end
+        self.position >= self.buffer.len()
     }
 
     pub fn current_position(&self) -> usize {
@@ -895,7 +893,7 @@ impl<'a> BinaryReader<'a> {
     }
 
     pub fn bytes_remaining(&self) -> usize {
-        self.end - self.position
+        self.buffer.len() - self.position
     }
 
     pub fn read_bytes(&mut self, size: usize) -> Result<&'a [u8]> {
@@ -1521,10 +1519,10 @@ impl<'a> Parser<'a> {
         let payload_len = self.reader.read_var_u32()? as usize;
         let payload_end = self.reader.position + payload_len;
         let code = self.reader.read_section_code(id, id_position)?;
-        if self.reader.end < payload_end {
+        if self.reader.buffer.len() < payload_end {
             return Err(BinaryReaderError {
                            message: "Section body extends past end of file",
-                           offset: self.reader.end,
+                           offset: self.reader.buffer.len(),
                        });
         }
         if self.reader.position > payload_end {
