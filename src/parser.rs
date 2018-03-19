@@ -939,15 +939,16 @@ impl<'a> BinaryReader<'a> {
         loop {
             let byte = self.read_u8()?;
             result |= ((byte & 0x7F) as u32) << shift;
-            shift += 7;
-            if (byte & 0x80) == 0 {
-                break;
-            }
-            if shift >= 32 {
+            if shift >= 25 && (byte >> (32 - shift)) != 0 {
+                // The continuation bit or unused bits are set.
                 return Err(BinaryReaderError {
                                message: "Invalid var_u32",
                                offset: self.position - 1,
                            });
+            }
+            shift += 7;
+            if (byte & 0x80) == 0 {
+                break;
             }
         }
         Ok(result)
@@ -978,19 +979,21 @@ impl<'a> BinaryReader<'a> {
         loop {
             let byte = self.read_u8()?;
             result |= ((byte & 0x7F) as i32) << shift;
+            if shift >= 25 {
+                let continuation_bit = (byte & 0x80) != 0;
+                let sign_and_unused_bit = (byte << 1) as i8 >> (32 - shift);
+                if continuation_bit || (sign_and_unused_bit != 0 && sign_and_unused_bit != -1) {
+                    return Err(BinaryReaderError {
+                                   message: "Invalid var_i32",
+                                   offset: self.position - 1,
+                               });
+                }
+                break;
+            }
             shift += 7;
             if (byte & 0x80) == 0 {
                 break;
             }
-            if shift >= 32 {
-                return Err(BinaryReaderError {
-                               message: "Invalid var_i32",
-                               offset: self.position,
-                           });
-            }
-        }
-        if shift >= 32 {
-            return Ok(result);
         }
         let ashift = 32 - shift;
         Ok((result << ashift) >> ashift)
@@ -1002,19 +1005,21 @@ impl<'a> BinaryReader<'a> {
         loop {
             let byte = self.read_u8()?;
             result |= ((byte & 0x7F) as i64) << shift;
+            if shift >= 57 {
+                let continuation_bit = (byte & 0x80) != 0;
+                let sign_and_unused_bit = ((byte << 1) as i8) >> (64 - shift);
+                if continuation_bit || (sign_and_unused_bit != 0 && sign_and_unused_bit != -1) {
+                    return Err(BinaryReaderError {
+                                   message: "Invalid var_i64",
+                                   offset: self.position - 1,
+                               });
+                }
+                break;
+            }
             shift += 7;
             if (byte & 0x80) == 0 {
                 break;
             }
-            if shift >= 64 {
-                return Err(BinaryReaderError {
-                               message: "Invalid var_i64",
-                               offset: self.position - 1,
-                           });
-            }
-        }
-        if shift >= 64 {
-            return Ok(result);
         }
         let ashift = 64 - shift;
         Ok((result << ashift) >> ashift)
