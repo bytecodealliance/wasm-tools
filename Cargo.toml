@@ -20,9 +20,9 @@ optional = true
 travis-ci = { repository = "yurydelendik/wasmparser.rs" }
 
 [features]
-# The "std" feature enables use of libstd. The "no_std" feature enables use
+# The "std" feature enables use of libstd. The "core" feature enables use
 # of some minimal std-like replacement libraries. At least one of these two
 # features needs to be enabled.
 default = ["std"]
 std = []
-no_std = ["hashmap_core"]
+core = ["hashmap_core"]
