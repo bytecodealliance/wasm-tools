@@ -16,6 +16,7 @@
 use std::cmp::min;
 use std::result;
 use std::collections::HashSet;
+use std::vec::Vec;
 
 use parser::{WasmDecoder, Parser, ParserState, ParserInput, BinaryReaderError, FuncType, Type,
              Operator, ResizableLimits, TableType, ImportSectionEntryType, GlobalType, MemoryType,

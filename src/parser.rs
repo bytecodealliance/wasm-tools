@@ -15,6 +15,7 @@
 // See https://github.com/WebAssembly/design/blob/master/BinaryEncoding.md
 
 use std::result;
+use std::vec::Vec;
 
 use limits::{MAX_WASM_FUNCTION_LOCALS, MAX_WASM_FUNCTION_PARAMS, MAX_WASM_FUNCTION_RETURNS,
              MAX_WASM_FUNCTION_SIZE, MAX_WASM_STRING_SIZE, MAX_WASM_FUNCTIONS,
