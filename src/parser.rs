@@ -989,7 +989,7 @@ impl<'a> BinaryReader<'a> {
                                    offset: self.position - 1,
                                });
                 }
-                break;
+                return Ok(result);
             }
             shift += 7;
             if (byte & 0x80) == 0 {
@@ -1015,7 +1015,7 @@ impl<'a> BinaryReader<'a> {
                                    offset: self.position - 1,
                                });
                 }
-                break;
+                return Ok(result);
             }
             shift += 7;
             if (byte & 0x80) == 0 {
