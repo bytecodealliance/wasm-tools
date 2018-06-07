@@ -803,11 +803,11 @@ impl OperatorValidator {
                    self.check_operands_2(func_state, Type::I32, Type::I64)?;
                    OperatorAction::ChangeFrame(2)
                }
-               Operator::CurrentMemory { reserved: memory_index } => {
+               Operator::MemorySize { reserved: memory_index } => {
                    self.check_memory_index(memory_index, resources)?;
                    OperatorAction::ChangeFrameWithType(0, Type::I32)
                }
-               Operator::GrowMemory { reserved: memory_index } => {
+               Operator::MemoryGrow { reserved: memory_index } => {
                    self.check_memory_index(memory_index, resources)?;
                    self.check_operands_1(func_state, Type::I32)?;
                    OperatorAction::ChangeFrameWithType(1, Type::I32)
