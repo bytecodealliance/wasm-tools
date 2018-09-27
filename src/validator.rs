@@ -313,7 +313,7 @@ struct OperatorValidator {
 impl OperatorValidator {
     pub fn new(
         func_type: &FuncType,
-        locals: &Vec<(u32, Type)>,
+        locals: &[(u32, Type)],
         config: OperatorValidatorConfig,
     ) -> OperatorValidator {
         let mut local_types = Vec::new();
