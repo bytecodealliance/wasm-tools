@@ -24,6 +24,7 @@ mod simple_tests {
     const VALIDATOR_CONFIG: Option<ValidatingParserConfig> = Some(ValidatingParserConfig {
         operator_config: OperatorValidatorConfig {
             enable_threads: true,
+            enable_reference_types: true,
         },
     });
 

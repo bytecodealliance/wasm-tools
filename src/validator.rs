@@ -30,6 +30,14 @@ use parser::{
 
 type ValidatorResult<'a, T> = result::Result<T, ParserState<'a>>;
 
+/// Test if `subtype` is a subtype of `supertype`.
+fn is_subtype_supertype(subtype: Type, supertype: Type) -> bool {
+    match supertype {
+        Type::AnyRef => subtype == Type::AnyRef || subtype == Type::AnyFunc,
+        _ => subtype == supertype,
+    }
+}
+
 struct BlockState {
     return_types: Vec<Type>,
     stack_starts_at: usize,
@@ -68,7 +76,10 @@ impl FuncState {
             return true;
         }
         assert!(stack_starts_at + index < self.stack_types.len());
-        self.stack_types[self.stack_types.len() - 1 - index] == expected
+        is_subtype_supertype(
+            self.stack_types[self.stack_types.len() - 1 - index],
+            expected,
+        )
     }
     fn assert_block_stack_len(&self, depth: usize, minimal_len: usize) -> bool {
         assert!(depth < self.blocks.len());
@@ -285,10 +296,12 @@ type OperatorValidatorResult<T> = result::Result<T, &'static str>;
 #[derive(Copy, Clone)]
 pub struct OperatorValidatorConfig {
     pub enable_threads: bool,
+    pub enable_reference_types: bool,
 }
 
 const DEFAULT_OPERATOR_VALIDATOR_CONFIG: OperatorValidatorConfig = OperatorValidatorConfig {
     enable_threads: false,
+    enable_reference_types: false,
 };
 
 struct OperatorValidator {
@@ -512,6 +525,13 @@ impl OperatorValidator {
     fn check_threads_enabled(&self) -> OperatorValidatorResult<()> {
         if !self.config.enable_threads {
             return Err("threads support is not enabled");
+        }
+        Ok(())
+    }
+
+    fn check_reference_types_enabled(&self) -> OperatorValidatorResult<()> {
+        if !self.config.enable_reference_types {
+            return Err("reference types support is not enabled");
         }
         Ok(())
     }
@@ -1196,6 +1216,15 @@ impl OperatorValidator {
                 self.check_shared_memarg_wo_align(memarg, resources)?;
                 self.check_operands(func_state, &[Type::I32, Type::I64, Type::I64])?;
                 OperatorAction::ChangeFrameWithType(3, Type::I32)
+            }
+            Operator::RefNull => {
+                self.check_reference_types_enabled()?;
+                OperatorAction::ChangeFrameWithType(0, Type::AnyRef)
+            }
+            Operator::RefIsNull => {
+                self.check_reference_types_enabled()?;
+                self.check_operands(func_state, &[Type::AnyRef])?;
+                OperatorAction::ChangeFrameWithType(0, Type::I32)
             }
         })
     }

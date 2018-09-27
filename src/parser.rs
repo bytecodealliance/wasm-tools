@@ -76,6 +76,7 @@ pub enum Type {
     F32,
     F64,
     AnyFunc,
+    AnyRef,
     Func,
     EmptyBlockType,
 }
@@ -339,6 +340,8 @@ pub enum Operator<'a> {
     I64Const { value: i64 },
     F32Const { value: Ieee32 },
     F64Const { value: Ieee64 },
+    RefNull,
+    RefIsNull,
     I32Eqz,
     I32Eq,
     I32Ne,
@@ -670,6 +673,7 @@ impl<'a> BinaryReader<'a> {
             -0x03 => Ok(Type::F32),
             -0x04 => Ok(Type::F64),
             -0x10 => Ok(Type::AnyFunc),
+            -0x11 => Ok(Type::AnyRef),
             -0x20 => Ok(Type::Func),
             -0x40 => Ok(Type::EmptyBlockType),
             _ => Err(BinaryReaderError {
@@ -1534,6 +1538,9 @@ impl<'a> BinaryReader<'a> {
             0xc2 => Operator::I64Extend8S,
             0xc3 => Operator::I64Extend16S,
             0xc4 => Operator::I64Extend32S,
+
+            0xd0 => Operator::RefNull,
+            0xd1 => Operator::RefIsNull,
 
             0xfc => self.read_0xfc_operator()?,
 

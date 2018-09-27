@@ -1,6 +1,6 @@
 [package]
 name = "wasmparser"
-version = "0.17.3"
+version = "0.18.0"
 authors = ["Yury Delendik <ydelendik@mozilla.com>"]
 license = "Apache-2.0"
 repository = "https://github.com/yurydelendik/wasmparser.rs"
