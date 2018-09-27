@@ -33,51 +33,51 @@ extern crate hashmap_core;
 #[macro_use]
 extern crate alloc;
 
-pub use parser::WasmDecoder;
-pub use parser::Parser;
-pub use parser::ParserState;
-pub use parser::ParserInput;
-pub use parser::BinaryReaderError;
 pub use parser::BinaryReader;
-pub use parser::Result;
-pub use parser::Range;
-pub use parser::SectionCode;
-pub use parser::Operator;
-pub use parser::Type;
+pub use parser::BinaryReaderError;
+pub use parser::BrTable;
 pub use parser::CustomSectionKind;
-pub use parser::NameType;
-pub use parser::Naming;
-pub use parser::LocalName;
-pub use parser::NameEntry;
 pub use parser::ExternalKind;
 pub use parser::FuncType;
-pub use parser::ResizableLimits;
-pub use parser::TableType;
-pub use parser::MemoryType;
 pub use parser::GlobalType;
-pub use parser::MemoryImmediate;
-pub use parser::BrTable;
-pub use parser::ImportSectionEntryType;
-pub use parser::RelocType;
-pub use parser::RelocEntry;
-pub use parser::LinkingType;
 pub use parser::Ieee32;
 pub use parser::Ieee64;
+pub use parser::ImportSectionEntryType;
+pub use parser::LinkingType;
+pub use parser::LocalName;
+pub use parser::MemoryImmediate;
+pub use parser::MemoryType;
+pub use parser::NameEntry;
+pub use parser::NameType;
+pub use parser::Naming;
+pub use parser::Operator;
+pub use parser::Parser;
+pub use parser::ParserInput;
+pub use parser::ParserState;
+pub use parser::Range;
+pub use parser::RelocEntry;
+pub use parser::RelocType;
+pub use parser::ResizableLimits;
+pub use parser::Result;
+pub use parser::SectionCode;
+pub use parser::TableType;
+pub use parser::Type;
+pub use parser::WasmDecoder;
 
-pub use validator::ValidatingParser;
-pub use validator::ValidatingOperatorParser;
-pub use validator::WasmModuleResources;
 pub use validator::validate;
+pub use validator::ValidatingOperatorParser;
+pub use validator::ValidatingParser;
+pub use validator::WasmModuleResources;
 
-mod parser;
-mod validator;
 mod limits;
+mod parser;
 mod tests;
+mod validator;
 
 #[cfg(not(feature = "std"))]
 mod std {
-    pub use core::*;
     pub use alloc::vec;
+    pub use core::*;
     pub mod collections {
         pub use hashmap_core::HashSet;
     }

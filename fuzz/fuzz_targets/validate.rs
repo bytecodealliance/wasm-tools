@@ -10,8 +10,7 @@ fuzz_target!(|data: &[u8]| {
     let mut parser = wasmparser::ValidatingParser::new(data);
     loop {
         match *parser.read() {
-            wasmparser::ParserState::Error(..) |
-            wasmparser::ParserState::EndWasm => break,
+            wasmparser::ParserState::Error(..) | wasmparser::ParserState::EndWasm => break,
             _ => (),
         }
     }

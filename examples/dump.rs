@@ -1,13 +1,13 @@
 extern crate wasmparser;
 
+use std::env;
+use std::fs::File;
 use std::io;
 use std::io::prelude::*;
-use std::fs::File;
 use std::str;
-use std::env;
-use wasmparser::WasmDecoder;
 use wasmparser::Parser;
 use wasmparser::ParserState;
+use wasmparser::WasmDecoder;
 
 fn get_name(bytes: &[u8]) -> &str {
     str::from_utf8(bytes).ok().unwrap()
@@ -30,20 +30,24 @@ fn main() {
                 ref kind,
                 index,
             } => {
-                println!("ExportSectionEntry {{ field: \"{}\", kind: {:?}, index: {} }}",
-                         get_name(field),
-                         kind,
-                         index);
+                println!(
+                    "ExportSectionEntry {{ field: \"{}\", kind: {:?}, index: {} }}",
+                    get_name(field),
+                    kind,
+                    index
+                );
             }
             ParserState::ImportSectionEntry {
                 module,
                 field,
                 ref ty,
             } => {
-                println!("ImportSectionEntry {{ module: \"{}\", field: \"{}\", ty: {:?} }}",
-                         get_name(module),
-                         get_name(field),
-                         ty);
+                println!(
+                    "ImportSectionEntry {{ module: \"{}\", field: \"{}\", ty: {:?} }}",
+                    get_name(module),
+                    get_name(field),
+                    ty
+                );
             }
             ParserState::EndWasm => break,
             ParserState::Error(err) => panic!("Error: {:?}", err),
