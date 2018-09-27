@@ -1522,7 +1522,7 @@ impl<'a> ValidatingParser<'a> {
                     order_state.unwrap()
                 }
             }
-            previous @ _ => {
+            previous => {
                 if let Some(order_state_unwraped) = order_state {
                     if previous >= order_state_unwraped {
                         return self.create_error("section out of order");
