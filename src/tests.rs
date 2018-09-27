@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod simple_tests {
     use parser::{Operator, Parser, ParserInput, ParserState, SectionCode, WasmDecoder};
