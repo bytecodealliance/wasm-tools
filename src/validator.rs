@@ -1268,23 +1268,23 @@ pub struct ValidatingParser<'a> {
 
 impl<'a> WasmModuleResources for ValidatingParser<'a> {
     fn types(&self) -> &[FuncType] {
-        return &self.types;
+        &self.types
     }
 
     fn tables(&self) -> &[TableType] {
-        return &self.tables;
+        &self.tables
     }
 
     fn memories(&self) -> &[MemoryType] {
-        return &self.memories;
+        &self.memories
     }
 
     fn globals(&self) -> &[GlobalType] {
-        return &self.globals;
+        &self.globals
     }
 
     fn func_type_indices(&self) -> &[u32] {
-        return &self.func_type_indices;
+        &self.func_type_indices
     }
 }
 
@@ -1336,7 +1336,7 @@ impl<'a> ValidatingParser<'a> {
     fn check_value_type(&self, ty: Type) -> ValidatorResult<'a, ()> {
         match ty {
             Type::I32 | Type::I64 | Type::F32 | Type::F64 => Ok(()),
-            _ => return self.create_error("invalid value type"),
+            _ => self.create_error("invalid value type"),
         }
     }
 
@@ -1807,7 +1807,7 @@ pub struct ValidatingOperatorParser<'b> {
 
 impl<'b> ValidatingOperatorParser<'b> {
     pub fn eof(&self) -> bool {
-        return self.end_function;
+        self.end_function
     }
 
     pub fn current_position(&self) -> usize {
