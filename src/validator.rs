@@ -1627,7 +1627,7 @@ impl<'a> ValidatingParser<'a> {
                         global_count: self.globals.len(),
                         validated: false,
                     });
-                    self.globals.push(global_type.clone());
+                    self.globals.push(global_type);
                 }
             }
             ParserState::BeginInitExpressionBody => {
