@@ -13,7 +13,7 @@ exclude = ["fuzz/**/*", "tests/**/*"]
 [dependencies]
 
 [dependencies.hashmap_core]
-version = "0.1.1"
+version = "0.1.9"
 optional = true
 
 [badges]
