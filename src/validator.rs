@@ -247,7 +247,7 @@ impl OperatorAction {
             }
             OperatorAction::ChangeFrameWithTypes(remove_count, ref new_items) => {
                 OperatorAction::remove_frame_stack_types(func_state, remove_count);
-                if new_items.len() == 0 {
+                if new_items.is_empty() {
                     return;
                 }
                 func_state.stack_types.extend_from_slice(new_items);
@@ -472,10 +472,10 @@ impl OperatorValidator {
         let return_types2 = &block2.return_types;
         if block1.jump_to_top || block2.jump_to_top {
             if block1.jump_to_top {
-                if !block2.jump_to_top && return_types2.len() != 0 {
+                if !block2.jump_to_top && !return_types2.is_empty() {
                     return Err("block types do not match");
                 }
-            } else if return_types1.len() != 0 {
+            } else if !return_types1.is_empty() {
                 return Err("block types do not match");
             }
         } else if *return_types1 != *return_types2 {
@@ -618,7 +618,7 @@ impl OperatorValidator {
                 if func_state.blocks.len() == 1 {
                     OperatorAction::EndFunction
                 } else {
-                    if last_block.is_else_allowed && last_block.return_types.len() > 0 {
+                    if last_block.is_else_allowed && !last_block.return_types.is_empty() {
                         return Err("else is expected: if block has type");
                     }
                     OperatorAction::PopBlock
@@ -1503,7 +1503,7 @@ impl<'a> ValidatingParser<'a> {
         }
         let type_index = self.func_type_indices[func_index as usize];
         let ty = &self.types[type_index as usize];
-        if ty.params.len() > 0 || ty.returns.len() > 0 {
+        if !ty.params.is_empty() || !ty.returns.is_empty() {
             return self.create_error("invlid start function type");
         }
         Ok(())
