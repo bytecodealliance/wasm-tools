@@ -904,23 +904,23 @@ impl<'a> BinaryReader<'a> {
 
     pub fn read_u32(&mut self) -> Result<u32> {
         self.ensure_has_bytes(4)?;
-        let b1 = self.buffer[self.position] as u32;
-        let b2 = self.buffer[self.position + 1] as u32;
-        let b3 = self.buffer[self.position + 2] as u32;
-        let b4 = self.buffer[self.position + 3] as u32;
+        let b1 = u32::from(self.buffer[self.position]);
+        let b2 = u32::from(self.buffer[self.position + 1]);
+        let b3 = u32::from(self.buffer[self.position + 2]);
+        let b4 = u32::from(self.buffer[self.position + 3]);
         self.position += 4;
         Ok(b1 | (b2 << 8) | (b3 << 16) | (b4 << 24))
     }
 
     pub fn read_u64(&mut self) -> Result<u64> {
-        let w1 = self.read_u32()? as u64;
-        let w2 = self.read_u32()? as u64;
+        let w1 = u64::from(self.read_u32()?);
+        let w2 = u64::from(self.read_u32()?);
         Ok(w1 | (w2 << 32))
     }
 
     pub fn read_u8(&mut self) -> Result<u32> {
         self.ensure_has_byte()?;
-        let b = self.buffer[self.position] as u32;
+        let b = u32::from(self.buffer[self.position]);
         self.position += 1;
         Ok(b)
     }
@@ -1002,7 +1002,7 @@ impl<'a> BinaryReader<'a> {
         let mut shift = 0;
         loop {
             let byte = self.read_u8()?;
-            result |= ((byte & 0x7F) as i64) << shift;
+            result |= i64::from(byte & 0x7F) << shift;
             if shift >= 57 {
                 let continuation_bit = (byte & 0x80) != 0;
                 let sign_and_unused_bit = ((byte << 1) as i8) >> (64 - shift);
