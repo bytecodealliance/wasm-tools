@@ -754,9 +754,9 @@ impl<'a> BinaryReader<'a> {
             returns.push(self.read_type()?);
         }
         Ok(FuncType {
-            form: form,
-            params: params,
-            returns: returns,
+            form,
+            params,
+            returns,
         })
     }
 
@@ -828,10 +828,7 @@ impl<'a> BinaryReader<'a> {
                 } else {
                     CustomSectionKind::Unknown
                 };
-                Ok(SectionCode::Custom {
-                    name: name,
-                    kind: kind,
-                })
+                Ok(SectionCode::Custom { name, kind })
             }
             1 => Ok(SectionCode::Type),
             2 => Ok(SectionCode::Import),
@@ -881,10 +878,7 @@ impl<'a> BinaryReader<'a> {
         for _ in 0..count {
             let index = self.read_var_u32()?;
             let name = self.read_string()?;
-            result.push(Naming {
-                index: index,
-                name: name,
-            });
+            result.push(Naming { index, name });
         }
         Ok(result)
     }
@@ -1744,7 +1738,7 @@ impl<'a> Parser<'a> {
                 offset: self.reader.position - 4,
             });
         }
-        self.state = ParserState::BeginWasm { version: version };
+        self.state = ParserState::BeginWasm { version };
         Ok(())
     }
 
@@ -1807,11 +1801,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        self.state = ParserState::ImportSectionEntry {
-            module: module,
-            field: field,
-            ty: ty,
-        };
+        self.state = ParserState::ImportSectionEntry { module, field, ty };
         self.section_entries_left -= 1;
         Ok(())
     }
@@ -1865,11 +1855,7 @@ impl<'a> Parser<'a> {
         let field = self.reader.read_string()?;
         let kind = self.reader.read_external_kind()?;
         let index = self.reader.read_var_u32()?;
-        self.state = ParserState::ExportSectionEntry {
-            field: field,
-            kind: kind,
-            index: index,
-        };
+        self.state = ParserState::ExportSectionEntry { field, kind, index };
         self.section_entries_left -= 1;
         Ok(())
     }
@@ -2068,10 +2054,10 @@ impl<'a> Parser<'a> {
             }
         };
         self.state = ParserState::RelocSectionEntry(RelocEntry {
-            ty: ty,
-            offset: offset,
-            index: index,
-            addend: addend,
+            ty,
+            offset,
+            index,
+            addend,
         });
         self.section_entries_left -= 1;
         Ok(())
