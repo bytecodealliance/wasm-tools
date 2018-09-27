@@ -468,8 +468,8 @@ impl OperatorValidator {
         }
         let block1 = func_state.block_at(depth1 as usize);
         let block2 = func_state.block_at(depth2 as usize);
-        let ref return_types1 = block1.return_types;
-        let ref return_types2 = block2.return_types;
+        let return_types1 = &block1.return_types;
+        let return_types2 = &block2.return_types;
         if block1.jump_to_top || block2.jump_to_top {
             if block1.jump_to_top {
                 if !block2.jump_to_top && return_types2.len() != 0 {
@@ -585,7 +585,7 @@ impl OperatorValidator {
         operator: &Operator,
         resources: &WasmModuleResources,
     ) -> OperatorValidatorResult<OperatorAction> {
-        let ref func_state = self.func_state;
+        let func_state = &self.func_state;
         if func_state.end_function {
             return Err("unexpected operator");
         }
@@ -614,7 +614,7 @@ impl OperatorValidator {
             }
             Operator::End => {
                 self.check_block_return(func_state)?;
-                let ref last_block = func_state.last_block();
+                let last_block = &func_state.last_block();
                 if func_state.blocks.len() == 1 {
                     OperatorAction::EndFunction
                 } else {
@@ -661,7 +661,7 @@ impl OperatorValidator {
                     return Err("function index out of bounds");
                 }
                 let type_index = resources.func_type_indices()[function_index as usize];
-                let ref ty = resources.types()[type_index as usize];
+                let ty = &resources.types()[type_index as usize];
                 self.check_operands(func_state, &ty.params)?;
                 OperatorAction::ChangeFrameWithTypes(ty.params.len(), ty.returns.clone())
             }
@@ -672,7 +672,7 @@ impl OperatorValidator {
                 if index as usize >= resources.types().len() {
                     return Err("type index out of bounds");
                 }
-                let ref ty = resources.types()[index as usize];
+                let ty = &resources.types()[index as usize];
                 let mut types = Vec::with_capacity(ty.params.len() + 1);
                 types.extend_from_slice(&ty.params);
                 types.push(Type::I32);
@@ -714,14 +714,14 @@ impl OperatorValidator {
                 if global_index as usize >= resources.globals().len() {
                     return Err("global index out of bounds");
                 }
-                let ref ty = resources.globals()[global_index as usize];
+                let ty = &resources.globals()[global_index as usize];
                 OperatorAction::ChangeFrameWithType(0, ty.content_type)
             }
             Operator::SetGlobal { global_index } => {
                 if global_index as usize >= resources.globals().len() {
                     return Err("global index out of bounds");
                 }
-                let ref ty = resources.globals()[global_index as usize];
+                let ty = &resources.globals()[global_index as usize];
                 // FIXME
                 //    if !ty.mutable {
                 //        return self.create_error("global expected to be mutable");
@@ -1231,7 +1231,7 @@ impl OperatorValidator {
     }
 
     fn process_end_function(&self) -> OperatorValidatorResult<()> {
-        let ref func_state = self.func_state;
+        let func_state = &self.func_state;
         if !func_state.end_function {
             return Err("expected end of function");
         }
@@ -1388,7 +1388,7 @@ impl<'a> ValidatingParser<'a> {
         Ok(())
     }
 
-    fn check_global_type(&self, global_type: &GlobalType) -> ValidatorResult<'a, ()> {
+    fn check_global_type(&self, global_type: GlobalType) -> ValidatorResult<'a, ()> {
         self.check_value_type(global_type.content_type)
     }
 
@@ -1422,7 +1422,7 @@ impl<'a> ValidatingParser<'a> {
                 }
                 self.check_memory_type(memory_type)
             }
-            ImportSectionEntryType::Global(ref global_type) => {
+            ImportSectionEntryType::Global(global_type) => {
                 if self.globals.len() >= MAX_WASM_GLOBALS {
                     return self.create_error("functions count out of bounds");
                 }
@@ -1488,7 +1488,7 @@ impl<'a> ValidatingParser<'a> {
                 if index as usize >= self.globals.len() {
                     return self.create_error("exported global index out of bounds");
                 }
-                let ref global = self.globals[index as usize];
+                let global = &self.globals[index as usize];
                 if global.mutable {
                     return self.create_error("exported global must be const");
                 }
@@ -1502,7 +1502,7 @@ impl<'a> ValidatingParser<'a> {
             return self.create_error("start function index out of bounds");
         }
         let type_index = self.func_type_indices[func_index as usize];
-        let ref ty = self.types[type_index as usize];
+        let ty = &self.types[type_index as usize];
         if ty.params.len() > 0 || ty.returns.len() > 0 {
             return self.create_error("invlid start function type");
         }
@@ -1616,7 +1616,7 @@ impl<'a> ValidatingParser<'a> {
                     self.memories.push(memory_type.clone());
                 }
             }
-            ParserState::BeginGlobalSectionEntry(ref global_type) => {
+            ParserState::BeginGlobalSectionEntry(global_type) => {
                 if self.globals.len() >= MAX_WASM_GLOBALS {
                     self.validation_error =
                         self.create_validation_error("globals count out of bounds");
@@ -1681,7 +1681,7 @@ impl<'a> ValidatingParser<'a> {
             }
             ParserState::FunctionBodyLocals { ref locals } => {
                 let index = (self.current_func_index + self.func_imports_count) as usize;
-                let ref func_type = self.types[self.func_type_indices[index] as usize];
+                let func_type = &self.types[self.func_type_indices[index] as usize];
                 let operator_config = self.config.operator_config;
                 self.current_operator_validator =
                     Some(OperatorValidator::new(func_type, locals, operator_config));
@@ -1739,7 +1739,7 @@ impl<'a> ValidatingParser<'a> {
         let operator_validator = match *self.last_state() {
             ParserState::FunctionBodyLocals { ref locals } => {
                 let index = (self.current_func_index + self.func_imports_count) as usize;
-                let ref func_type = self.types[self.func_type_indices[index] as usize];
+                let func_type = &self.types[self.func_type_indices[index] as usize];
                 let operator_config = self.config.operator_config;
                 OperatorValidator::new(func_type, locals, operator_config)
             }

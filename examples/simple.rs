@@ -20,8 +20,8 @@ fn main() {
         return;
     }
 
-    let ref buf: Vec<u8> = read_wasm(&args[1]).unwrap();
-    let mut parser = Parser::new(buf);
+    let buf: Vec<u8> = read_wasm(&args[1]).unwrap();
+    let mut parser = Parser::new(&buf);
     loop {
         let state = parser.read();
         match *state {
