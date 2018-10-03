@@ -2,7 +2,7 @@
 name = "wasmparser"
 version = "0.19.1"
 authors = ["Yury Delendik <ydelendik@mozilla.com>"]
-license = "Apache-2.0"
+license = "Apache-2.0 WITH LLVM-exception"
 repository = "https://github.com/yurydelendik/wasmparser.rs"
 keywords = ["parser", "WebAssembly", "wasm"]
 description = """
