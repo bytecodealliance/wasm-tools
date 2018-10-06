@@ -14,6 +14,7 @@
  */
 // See https://github.com/WebAssembly/design/blob/master/BinaryEncoding.md
 
+use std::boxed::Box;
 use std::result;
 use std::vec::Vec;
 

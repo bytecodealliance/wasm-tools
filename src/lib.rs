@@ -76,7 +76,7 @@ mod validator;
 
 #[cfg(not(feature = "std"))]
 mod std {
-    pub use alloc::vec;
+    pub use alloc::{boxed, vec};
     pub use core::*;
     pub mod collections {
         pub use hashmap_core::HashSet;

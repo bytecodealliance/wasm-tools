@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 
+use std::boxed::Box;
 use std::cmp::min;
 use std::collections::HashSet;
 use std::result;
