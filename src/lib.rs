@@ -69,8 +69,10 @@ pub use validator::ValidatingOperatorParser;
 pub use validator::ValidatingParser;
 pub use validator::WasmModuleResources;
 
+mod binary_reader;
 mod limits;
 mod parser;
+mod primitives;
 mod tests;
 mod validator;
 
