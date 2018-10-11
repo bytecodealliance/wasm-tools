@@ -21,13 +21,12 @@ use limits::{
     MAX_WASM_FUNCTIONS, MAX_WASM_FUNCTION_LOCALS, MAX_WASM_STRING_SIZE, MAX_WASM_TABLE_ENTRIES,
 };
 
-pub use primitives::{
-    BinaryReaderError, BrTable, CustomSectionKind, ExternalKind, FuncType, GlobalType, Ieee32,
-    Ieee64, MemoryImmediate, MemoryType, Naming, Operator, ResizableLimits, Result, SectionCode,
-    TableType, Type,
+use primitives::{
+    BinaryReaderError, CustomSectionKind, ExternalKind, FuncType, GlobalType, MemoryType, Naming,
+    Operator, Result, SectionCode, TableType, Type,
 };
 
-pub use binary_reader::{BinaryReader, BrTableIterator};
+use binary_reader::BinaryReader;
 
 const MAX_DATA_CHUNK_SIZE: usize = MAX_WASM_STRING_SIZE;
 

@@ -24,11 +24,15 @@ use limits::{
     MAX_WASM_FUNCTIONS, MAX_WASM_GLOBALS, MAX_WASM_MEMORIES, MAX_WASM_MEMORY_PAGES,
     MAX_WASM_TABLES, MAX_WASM_TYPES,
 };
-use parser::{
-    BinaryReader, BinaryReaderError, ExternalKind, FuncType, GlobalType, ImportSectionEntryType,
-    MemoryImmediate, MemoryType, Operator, Parser, ParserInput, ParserState, ResizableLimits,
-    Result, SectionCode, TableType, Type, WasmDecoder,
+
+use binary_reader::BinaryReader;
+
+use primitives::{
+    BinaryReaderError, ExternalKind, FuncType, GlobalType, MemoryImmediate, MemoryType, Operator,
+    ResizableLimits, Result, SectionCode, TableType, Type,
 };
+
+use parser::{ImportSectionEntryType, Parser, ParserInput, ParserState, WasmDecoder};
 
 type ValidatorResult<'a, T> = result::Result<T, ParserState<'a>>;
 

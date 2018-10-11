@@ -16,7 +16,8 @@
 #[cfg(feature = "std")]
 #[cfg(test)]
 mod simple_tests {
-    use parser::{Operator, Parser, ParserInput, ParserState, SectionCode, WasmDecoder};
+    use parser::{Parser, ParserInput, ParserState, WasmDecoder};
+    use primitives::{Operator, SectionCode};
     use std::fs::{read_dir, File};
     use std::io::prelude::*;
     use std::path::PathBuf;

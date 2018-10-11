@@ -33,36 +33,38 @@ extern crate hashmap_core;
 #[macro_use]
 extern crate alloc;
 
-pub use parser::BinaryReader;
-pub use parser::BinaryReaderError;
-pub use parser::BrTable;
-pub use parser::CustomSectionKind;
-pub use parser::ExternalKind;
-pub use parser::FuncType;
-pub use parser::GlobalType;
-pub use parser::Ieee32;
-pub use parser::Ieee64;
+pub use binary_reader::BinaryReader;
+
 pub use parser::ImportSectionEntryType;
 pub use parser::LinkingType;
 pub use parser::LocalName;
-pub use parser::MemoryImmediate;
-pub use parser::MemoryType;
 pub use parser::NameEntry;
 pub use parser::NameType;
-pub use parser::Naming;
-pub use parser::Operator;
 pub use parser::Parser;
 pub use parser::ParserInput;
 pub use parser::ParserState;
 pub use parser::Range;
 pub use parser::RelocEntry;
 pub use parser::RelocType;
-pub use parser::ResizableLimits;
-pub use parser::Result;
-pub use parser::SectionCode;
-pub use parser::TableType;
-pub use parser::Type;
 pub use parser::WasmDecoder;
+
+pub use primitives::BinaryReaderError;
+pub use primitives::BrTable;
+pub use primitives::CustomSectionKind;
+pub use primitives::ExternalKind;
+pub use primitives::FuncType;
+pub use primitives::GlobalType;
+pub use primitives::Ieee32;
+pub use primitives::Ieee64;
+pub use primitives::MemoryImmediate;
+pub use primitives::MemoryType;
+pub use primitives::Naming;
+pub use primitives::Operator;
+pub use primitives::ResizableLimits;
+pub use primitives::Result;
+pub use primitives::SectionCode;
+pub use primitives::TableType;
+pub use primitives::Type;
 
 pub use validator::validate;
 pub use validator::ValidatingOperatorParser;
