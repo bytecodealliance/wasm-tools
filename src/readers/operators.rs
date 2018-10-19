@@ -33,6 +33,10 @@ impl<'a> OperatorsReader<'a> {
         self.reader.eof()
     }
 
+    pub fn original_position(&self) -> usize {
+        self.reader.original_position()
+    }
+
     pub fn ensure_end(&self) -> Result<()> {
         if self.eof() {
             return Ok(());
