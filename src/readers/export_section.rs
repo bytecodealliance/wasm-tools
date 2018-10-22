@@ -13,7 +13,10 @@
  * limitations under the License.
  */
 
-use super::{BinaryReader, ExternalKind, Result};
+use super::{
+    BinaryReader, ExternalKind, Result, SectionIteratorLimited, SectionReader,
+    SectionWithLimitedItems,
+};
 
 #[derive(Debug, Copy, Clone)]
 pub struct Export<'a> {
@@ -69,5 +72,33 @@ impl<'a> ExportSectionReader<'a> {
         let kind = self.reader.read_external_kind()?;
         let index = self.reader.read_var_u32()?;
         Ok(Export { field, kind, index })
+    }
+}
+
+impl<'a> SectionReader for ExportSectionReader<'a> {
+    type Item = Export<'a>;
+    fn read(&mut self) -> Result<Self::Item> {
+        ExportSectionReader::read(self)
+    }
+    fn eof(&self) -> bool {
+        self.reader.eof()
+    }
+    fn original_position(&self) -> usize {
+        ExportSectionReader::original_position(self)
+    }
+}
+
+impl<'a> SectionWithLimitedItems for ExportSectionReader<'a> {
+    fn get_count(&self) -> u32 {
+        ExportSectionReader::get_count(self)
+    }
+}
+
+impl<'a> IntoIterator for ExportSectionReader<'a> {
+    type Item = Result<Export<'a>>;
+    type IntoIter = SectionIteratorLimited<ExportSectionReader<'a>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        SectionIteratorLimited::new(self)
     }
 }

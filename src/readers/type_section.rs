@@ -13,7 +13,9 @@
  * limitations under the License.
  */
 
-use super::{BinaryReader, FuncType, Result};
+use super::{
+    BinaryReader, FuncType, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
+};
 
 pub struct TypeSectionReader<'a> {
     reader: BinaryReader<'a>,
@@ -53,5 +55,49 @@ impl<'a> TypeSectionReader<'a> {
     /// ```
     pub fn read(&mut self) -> Result<FuncType> {
         self.reader.read_func_type()
+    }
+}
+
+impl<'a> SectionReader for TypeSectionReader<'a> {
+    type Item = FuncType;
+    fn read(&mut self) -> Result<Self::Item> {
+        TypeSectionReader::read(self)
+    }
+    fn eof(&self) -> bool {
+        self.reader.eof()
+    }
+    fn original_position(&self) -> usize {
+        TypeSectionReader::original_position(self)
+    }
+}
+
+impl<'a> SectionWithLimitedItems for TypeSectionReader<'a> {
+    fn get_count(&self) -> u32 {
+        TypeSectionReader::get_count(self)
+    }
+}
+
+impl<'a> IntoIterator for TypeSectionReader<'a> {
+    type Item = Result<FuncType>;
+    type IntoIter = SectionIteratorLimited<TypeSectionReader<'a>>;
+
+    /// Implements iterator over the type section.
+    ///
+    /// # Examples
+    /// ```
+    /// # let data: &[u8] = &[0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+    /// #     0x01, 0x4, 0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00,
+    /// #     0x0a, 0x05, 0x01, 0x03, 0x00, 0x01, 0x0b];
+    /// use wasmparser::ModuleReader;
+    /// use wasmparser::{Result, FuncType};
+    /// let mut reader = ModuleReader::new(data).expect("module reader");
+    /// let section = reader.read().expect("section");
+    /// let mut type_reader = section.get_type_section_reader().expect("type section reader");
+    /// for ty in type_reader {
+    ///     println!("Type {:?}", ty);
+    /// }
+    /// ```
+    fn into_iter(self) -> Self::IntoIter {
+        SectionIteratorLimited::new(self)
     }
 }

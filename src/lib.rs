@@ -91,6 +91,10 @@ pub use readers::InitExpr;
 pub use readers::MemorySectionReader;
 pub use readers::ModuleReader;
 pub use readers::Section;
+pub use readers::SectionIterator;
+pub use readers::SectionIteratorLimited;
+pub use readers::SectionReader;
+pub use readers::SectionWithLimitedItems;
 pub use readers::TableSectionReader;
 pub use readers::TypeSectionReader;
 

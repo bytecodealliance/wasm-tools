@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-use super::{BinaryReader, Result};
+use super::{BinaryReader, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems};
 
 pub struct FunctionSectionReader<'a> {
     reader: BinaryReader<'a>,
@@ -54,5 +54,33 @@ impl<'a> FunctionSectionReader<'a> {
     /// ```
     pub fn read(&mut self) -> Result<u32> {
         self.reader.read_var_u32()
+    }
+}
+
+impl<'a> SectionReader for FunctionSectionReader<'a> {
+    type Item = u32;
+    fn read(&mut self) -> Result<Self::Item> {
+        FunctionSectionReader::read(self)
+    }
+    fn eof(&self) -> bool {
+        self.reader.eof()
+    }
+    fn original_position(&self) -> usize {
+        FunctionSectionReader::original_position(self)
+    }
+}
+
+impl<'a> SectionWithLimitedItems for FunctionSectionReader<'a> {
+    fn get_count(&self) -> u32 {
+        FunctionSectionReader::get_count(self)
+    }
+}
+
+impl<'a> IntoIterator for FunctionSectionReader<'a> {
+    type Item = Result<u32>;
+    type IntoIter = SectionIteratorLimited<FunctionSectionReader<'a>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        SectionIteratorLimited::new(self)
     }
 }

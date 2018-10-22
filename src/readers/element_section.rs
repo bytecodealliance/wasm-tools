@@ -13,7 +13,9 @@
  * limitations under the License.
  */
 
-use super::{BinaryReader, InitExpr, Result};
+use super::{
+    BinaryReader, InitExpr, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
+};
 
 #[derive(Debug, Copy, Clone)]
 pub struct Element<'a> {
@@ -137,5 +139,33 @@ impl<'a> ElementSectionReader<'a> {
             init_expr,
             items,
         })
+    }
+}
+
+impl<'a> SectionReader for ElementSectionReader<'a> {
+    type Item = Element<'a>;
+    fn read(&mut self) -> Result<Self::Item> {
+        ElementSectionReader::read(self)
+    }
+    fn eof(&self) -> bool {
+        self.reader.eof()
+    }
+    fn original_position(&self) -> usize {
+        ElementSectionReader::original_position(self)
+    }
+}
+
+impl<'a> SectionWithLimitedItems for ElementSectionReader<'a> {
+    fn get_count(&self) -> u32 {
+        ElementSectionReader::get_count(self)
+    }
+}
+
+impl<'a> IntoIterator for ElementSectionReader<'a> {
+    type Item = Result<Element<'a>>;
+    type IntoIter = SectionIteratorLimited<ElementSectionReader<'a>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        SectionIteratorLimited::new(self)
     }
 }

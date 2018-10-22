@@ -13,7 +13,10 @@
  * limitations under the License.
  */
 
-use super::{BinaryReader, ExternalKind, ImportSectionEntryType, Result};
+use super::{
+    BinaryReader, ExternalKind, ImportSectionEntryType, Result, SectionIteratorLimited,
+    SectionReader, SectionWithLimitedItems,
+};
 
 #[derive(Debug, Copy, Clone)]
 pub struct Import<'a> {
@@ -74,5 +77,33 @@ impl<'a> ImportSectionReader<'a> {
             ExternalKind::Global => ImportSectionEntryType::Global(self.reader.read_global_type()?),
         };
         Ok(Import { module, field, ty })
+    }
+}
+
+impl<'a> SectionReader for ImportSectionReader<'a> {
+    type Item = Import<'a>;
+    fn read(&mut self) -> Result<Self::Item> {
+        ImportSectionReader::read(self)
+    }
+    fn eof(&self) -> bool {
+        self.reader.eof()
+    }
+    fn original_position(&self) -> usize {
+        ImportSectionReader::original_position(self)
+    }
+}
+
+impl<'a> SectionWithLimitedItems for ImportSectionReader<'a> {
+    fn get_count(&self) -> u32 {
+        ImportSectionReader::get_count(self)
+    }
+}
+
+impl<'a> IntoIterator for ImportSectionReader<'a> {
+    type Item = Result<Import<'a>>;
+    type IntoIter = SectionIteratorLimited<ImportSectionReader<'a>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        SectionIteratorLimited::new(self)
     }
 }

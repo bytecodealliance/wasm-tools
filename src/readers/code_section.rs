@@ -13,7 +13,10 @@
  * limitations under the License.
  */
 
-use super::{BinaryReader, BinaryReaderError, Result};
+use super::{
+    BinaryReader, BinaryReaderError, Result, SectionIteratorLimited, SectionReader,
+    SectionWithLimitedItems,
+};
 
 #[derive(Debug)]
 pub struct FunctionBody<'a> {
@@ -94,5 +97,53 @@ impl<'a> CodeSectionReader<'a> {
             offset: self.reader.original_offset + body_start,
             data: &self.reader.buffer[body_start..body_end],
         })
+    }
+}
+
+impl<'a> SectionReader for CodeSectionReader<'a> {
+    type Item = FunctionBody<'a>;
+    fn read(&mut self) -> Result<Self::Item> {
+        CodeSectionReader::read(self)
+    }
+    fn eof(&self) -> bool {
+        self.reader.eof()
+    }
+    fn original_position(&self) -> usize {
+        CodeSectionReader::original_position(self)
+    }
+}
+
+impl<'a> SectionWithLimitedItems for CodeSectionReader<'a> {
+    fn get_count(&self) -> u32 {
+        CodeSectionReader::get_count(self)
+    }
+}
+
+impl<'a> IntoIterator for CodeSectionReader<'a> {
+    type Item = Result<FunctionBody<'a>>;
+    type IntoIter = SectionIteratorLimited<CodeSectionReader<'a>>;
+
+    /// Implements iterator over the code section.
+    ///
+    /// # Examples
+    /// ```
+    /// # let data: &[u8] = &[0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+    /// #     0x01, 0x4, 0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00,
+    /// #     0x0a, 0x05, 0x01, 0x03, 0x00, 0x01, 0x0b];
+    /// use wasmparser::ModuleReader;
+    /// let mut reader = ModuleReader::new(data).expect("module reader");
+    /// let section = reader.read().expect("type section");
+    /// let section = reader.read().expect("function section");
+    /// let section = reader.read().expect("code section");
+    /// let mut code_reader = section.get_code_section_reader().expect("code section reader");
+    /// for body in code_reader {
+    ///     let mut binary_reader = body.expect("b").get_binary_reader();
+    ///     assert!(binary_reader.read_local_count().expect("local count") == 0);
+    ///     let op = binary_reader.read_operator().expect("first operator");
+    ///     println!("First operator: {:?}", op);
+    /// }
+    /// ```
+    fn into_iter(self) -> Self::IntoIter {
+        SectionIteratorLimited::new(self)
     }
 }

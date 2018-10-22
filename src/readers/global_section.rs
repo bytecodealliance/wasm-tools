@@ -13,7 +13,10 @@
  * limitations under the License.
  */
 
-use super::{BinaryReader, GlobalType, InitExpr, Result};
+use super::{
+    BinaryReader, GlobalType, InitExpr, Result, SectionIteratorLimited, SectionReader,
+    SectionWithLimitedItems,
+};
 
 #[derive(Debug, Copy, Clone)]
 pub struct Global<'a> {
@@ -73,5 +76,33 @@ impl<'a> GlobalSectionReader<'a> {
         let data = &self.reader.buffer[expr_offset..self.reader.position];
         let init_expr = InitExpr::new(data, self.reader.original_offset + expr_offset);
         Ok(Global { ty, init_expr })
+    }
+}
+
+impl<'a> SectionReader for GlobalSectionReader<'a> {
+    type Item = Global<'a>;
+    fn read(&mut self) -> Result<Self::Item> {
+        GlobalSectionReader::read(self)
+    }
+    fn eof(&self) -> bool {
+        self.reader.eof()
+    }
+    fn original_position(&self) -> usize {
+        GlobalSectionReader::original_position(self)
+    }
+}
+
+impl<'a> SectionWithLimitedItems for GlobalSectionReader<'a> {
+    fn get_count(&self) -> u32 {
+        GlobalSectionReader::get_count(self)
+    }
+}
+
+impl<'a> IntoIterator for GlobalSectionReader<'a> {
+    type Item = Result<Global<'a>>;
+    type IntoIter = SectionIteratorLimited<GlobalSectionReader<'a>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        SectionIteratorLimited::new(self)
     }
 }

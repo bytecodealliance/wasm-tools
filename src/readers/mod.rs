@@ -43,6 +43,11 @@ use self::start_section::read_start_section_content;
 pub use self::table_section::TableSectionReader;
 pub use self::type_section::TypeSectionReader;
 
+pub use self::section_reader::SectionIterator;
+pub use self::section_reader::SectionIteratorLimited;
+pub use self::section_reader::SectionReader;
+pub use self::section_reader::SectionWithLimitedItems;
+
 mod code_section;
 mod data_section;
 mod element_section;
@@ -53,6 +58,7 @@ mod import_section;
 mod init_expr;
 mod memory_section;
 mod module;
+mod section_reader;
 mod start_section;
 mod table_section;
 mod type_section;

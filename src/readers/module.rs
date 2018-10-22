@@ -13,6 +13,8 @@
  * limitations under the License.
  */
 
+use std::iter::{IntoIterator, Iterator};
+
 use super::{BinaryReader, BinaryReaderError, Result, SectionCode, SectionHeader};
 
 use super::{
@@ -298,5 +300,46 @@ impl<'a> ModuleReader<'a> {
             };
         }
         Ok(())
+    }
+}
+
+impl<'a> IntoIterator for ModuleReader<'a> {
+    type Item = Result<Section<'a>>;
+    type IntoIter = ModuleIterator<'a>;
+    fn into_iter(self) -> Self::IntoIter {
+        ModuleIterator {
+            reader: self,
+            err: false,
+        }
+    }
+}
+
+pub struct ModuleIterator<'a> {
+    reader: ModuleReader<'a>,
+    err: bool,
+}
+
+impl<'a> Iterator for ModuleIterator<'a> {
+    type Item = Result<Section<'a>>;
+
+    /// Iterates sections from the WebAssembly binary data. Stops at first error.
+    ///
+    /// # Examples
+    /// ```
+    /// # let data: &[u8] = &[0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+    /// #     0x01, 0x4, 0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00,
+    /// #     0x0a, 0x05, 0x01, 0x03, 0x00, 0x01, 0x0b];
+    /// use wasmparser::ModuleReader;
+    /// for section in ModuleReader::new(data).expect("reader") {
+    ///     println!("Section {:?}", section);
+    /// }
+    /// ```
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.err || self.reader.eof() {
+            return None;
+        }
+        let result = self.reader.read();
+        self.err = result.is_err();
+        Some(result)
     }
 }

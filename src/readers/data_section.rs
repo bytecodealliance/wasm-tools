@@ -13,7 +13,10 @@
  * limitations under the License.
  */
 
-use super::{BinaryReader, BinaryReaderError, InitExpr, Result};
+use super::{
+    BinaryReader, BinaryReaderError, InitExpr, Result, SectionIteratorLimited, SectionReader,
+    SectionWithLimitedItems,
+};
 
 #[derive(Debug, Copy, Clone)]
 pub struct Data<'a> {
@@ -98,5 +101,33 @@ impl<'a> DataSectionReader<'a> {
             init_expr,
             data,
         })
+    }
+}
+
+impl<'a> SectionReader for DataSectionReader<'a> {
+    type Item = Data<'a>;
+    fn read(&mut self) -> Result<Self::Item> {
+        DataSectionReader::read(self)
+    }
+    fn eof(&self) -> bool {
+        self.reader.eof()
+    }
+    fn original_position(&self) -> usize {
+        DataSectionReader::original_position(self)
+    }
+}
+
+impl<'a> SectionWithLimitedItems for DataSectionReader<'a> {
+    fn get_count(&self) -> u32 {
+        DataSectionReader::get_count(self)
+    }
+}
+
+impl<'a> IntoIterator for DataSectionReader<'a> {
+    type Item = Result<Data<'a>>;
+    type IntoIter = SectionIteratorLimited<DataSectionReader<'a>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        SectionIteratorLimited::new(self)
     }
 }
