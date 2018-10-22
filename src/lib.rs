@@ -34,8 +34,8 @@ extern crate hashmap_core;
 extern crate alloc;
 
 pub use binary_reader::BinaryReader;
+use binary_reader::SectionHeader;
 
-pub use parser::ImportSectionEntryType;
 pub use parser::LinkingType;
 pub use parser::LocalName;
 pub use parser::NameEntry;
@@ -56,6 +56,7 @@ pub use primitives::FuncType;
 pub use primitives::GlobalType;
 pub use primitives::Ieee32;
 pub use primitives::Ieee64;
+pub use primitives::ImportSectionEntryType;
 pub use primitives::MemoryImmediate;
 pub use primitives::MemoryType;
 pub use primitives::Naming;
@@ -71,10 +72,33 @@ pub use validator::ValidatingOperatorParser;
 pub use validator::ValidatingParser;
 pub use validator::WasmModuleResources;
 
+pub use readers::CodeSectionReader;
+pub use readers::Data;
+pub use readers::DataSectionReader;
+pub use readers::Element;
+pub use readers::ElementItems;
+pub use readers::ElementItemsReader;
+pub use readers::ElementSectionReader;
+pub use readers::Export;
+pub use readers::ExportSectionReader;
+pub use readers::FunctionBody;
+pub use readers::FunctionSectionReader;
+pub use readers::Global;
+pub use readers::GlobalSectionReader;
+pub use readers::Import;
+pub use readers::ImportSectionReader;
+pub use readers::InitExpr;
+pub use readers::MemorySectionReader;
+pub use readers::ModuleReader;
+pub use readers::Section;
+pub use readers::TableSectionReader;
+pub use readers::TypeSectionReader;
+
 mod binary_reader;
 mod limits;
 mod parser;
 mod primitives;
+mod readers;
 mod tests;
 mod validator;
 

@@ -22,11 +22,11 @@ use limits::{
 };
 
 use primitives::{
-    BinaryReaderError, CustomSectionKind, ExternalKind, FuncType, GlobalType, MemoryType, Naming,
-    Operator, Result, SectionCode, TableType, Type,
+    BinaryReaderError, CustomSectionKind, ExternalKind, FuncType, GlobalType,
+    ImportSectionEntryType, MemoryType, Naming, Operator, Result, SectionCode, TableType, Type,
 };
 
-use binary_reader::BinaryReader;
+use binary_reader::{BinaryReader, SectionHeader};
 
 const MAX_DATA_CHUNK_SIZE: usize = MAX_WASM_STRING_SIZE;
 
@@ -48,14 +48,6 @@ pub enum NameEntry<'a> {
     Module(&'a [u8]),
     Function(Box<[Naming<'a>]>),
     Local(Box<[LocalName<'a>]>),
-}
-
-#[derive(Debug)]
-pub enum ImportSectionEntryType {
-    Function(u32),
-    Table(TableType),
-    Memory(MemoryType),
-    Global(GlobalType),
 }
 
 #[derive(Debug)]
@@ -207,10 +199,6 @@ pub struct Parser<'a> {
     section_entries_left: u32,
 }
 
-const WASM_MAGIC_NUMBER: u32 = 0x6d736100;
-const WASM_EXPERIMENTAL_VERSION: u32 = 0xd;
-const WASM_SUPPORTED_VERSION: u32 = 0x1;
-
 impl<'a> Parser<'a> {
     /// Constructs `Parser` type.
     ///
@@ -242,30 +230,18 @@ impl<'a> Parser<'a> {
     }
 
     fn read_header(&mut self) -> Result<()> {
-        let magic_number = self.reader.read_u32()?;
-        if magic_number != WASM_MAGIC_NUMBER {
-            return Err(BinaryReaderError {
-                message: "Bad magic number",
-                offset: self.reader.position - 4,
-            });
-        }
-        let version = self.reader.read_u32()?;
-        if version != WASM_SUPPORTED_VERSION && version != WASM_EXPERIMENTAL_VERSION {
-            return Err(BinaryReaderError {
-                message: "Bad version number",
-                offset: self.reader.position - 4,
-            });
-        }
+        let version = self.reader.read_file_header()?;
         self.state = ParserState::BeginWasm { version };
         Ok(())
     }
 
     fn read_section_header(&mut self) -> Result<()> {
-        let id_position = self.reader.position;
-        let id = self.reader.read_var_u7()?;
-        let payload_len = self.reader.read_var_u32()? as usize;
-        let payload_end = self.reader.position + payload_len;
-        let code = self.reader.read_section_code(id, id_position)?;
+        let SectionHeader {
+            code,
+            payload_start,
+            payload_len,
+        } = self.reader.read_section_header()?;
+        let payload_end = payload_start + payload_len;
         if self.reader.buffer.len() < payload_end {
             return Err(BinaryReaderError {
                 message: "Section body extends past end of file",
@@ -726,7 +702,7 @@ impl<'a> Parser<'a> {
 
     fn position_to_section_end(&mut self) -> Result<()> {
         self.ensure_reader_position_in_section_range()?;
-        self.reader.position = self.section_range.unwrap().end;
+        self.reader.skip_to(self.section_range.unwrap().end);
         self.section_range = None;
         self.state = ParserState::EndSection;
         Ok(())
@@ -826,7 +802,7 @@ impl<'a> Parser<'a> {
             ParserState::EndFunctionBody => self.read_function_body()?,
             ParserState::SkippingFunctionBody => {
                 assert!(self.reader.position <= self.function_range.unwrap().end);
-                self.reader.position = self.function_range.unwrap().end;
+                self.reader.skip_to(self.function_range.unwrap().end);
                 self.function_range = None;
                 self.read_function_body()?;
             }

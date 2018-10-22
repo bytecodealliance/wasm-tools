@@ -28,11 +28,11 @@ use limits::{
 use binary_reader::BinaryReader;
 
 use primitives::{
-    BinaryReaderError, ExternalKind, FuncType, GlobalType, MemoryImmediate, MemoryType, Operator,
-    ResizableLimits, Result, SectionCode, TableType, Type,
+    BinaryReaderError, ExternalKind, FuncType, GlobalType, ImportSectionEntryType, MemoryImmediate,
+    MemoryType, Operator, ResizableLimits, Result, SectionCode, TableType, Type,
 };
 
-use parser::{ImportSectionEntryType, Parser, ParserInput, ParserState, WasmDecoder};
+use parser::{Parser, ParserInput, ParserState, WasmDecoder};
 
 type ValidatorResult<'a, T> = result::Result<T, ParserState<'a>>;
 

@@ -52,11 +52,22 @@ fn is_name_prefix(name: &[u8], prefix: &'static str) -> bool {
     true
 }
 
+const WASM_MAGIC_NUMBER: u32 = 0x6d736100;
+const WASM_EXPERIMENTAL_VERSION: u32 = 0xd;
+const WASM_SUPPORTED_VERSION: u32 = 0x1;
+
+pub struct SectionHeader<'a> {
+    pub code: SectionCode<'a>,
+    pub payload_start: usize,
+    pub payload_len: usize,
+}
+
 /// A binary reader of the WebAssembly structures and types.
 #[derive(Clone)]
 pub struct BinaryReader<'a> {
     pub(crate) buffer: &'a [u8],
     pub(crate) position: usize,
+    pub(crate) original_offset: usize,
 }
 
 impl<'a> BinaryReader<'a> {
@@ -75,7 +86,20 @@ impl<'a> BinaryReader<'a> {
         BinaryReader {
             buffer: data,
             position: 0,
+            original_offset: 0,
         }
+    }
+
+    pub fn new_with_offset(data: &[u8], original_offset: usize) -> BinaryReader {
+        BinaryReader {
+            buffer: data,
+            position: 0,
+            original_offset,
+        }
+    }
+
+    pub fn original_position(&self) -> usize {
+        self.original_offset + self.position
     }
 
     fn ensure_has_byte(&self) -> Result<()> {
@@ -84,7 +108,7 @@ impl<'a> BinaryReader<'a> {
         } else {
             Err(BinaryReaderError {
                 message: "Unexpected EOF",
-                offset: self.position,
+                offset: self.original_position(),
             })
         }
     }
@@ -95,7 +119,7 @@ impl<'a> BinaryReader<'a> {
         } else {
             Err(BinaryReaderError {
                 message: "Unexpected EOF",
-                offset: self.position,
+                offset: self.original_position(),
             })
         }
     }
@@ -105,7 +129,7 @@ impl<'a> BinaryReader<'a> {
         if (b & 0xFE) != 0 {
             return Err(BinaryReaderError {
                 message: "Invalid var_u1",
-                offset: self.position - 1,
+                offset: self.original_position() - 1,
             });
         }
         Ok(b)
@@ -116,7 +140,7 @@ impl<'a> BinaryReader<'a> {
         if (b & 0x80) != 0 {
             return Err(BinaryReaderError {
                 message: "Invalid var_i7",
-                offset: self.position - 1,
+                offset: self.original_position() - 1,
             });
         }
         Ok((b << 25) as i32 >> 25)
@@ -127,7 +151,7 @@ impl<'a> BinaryReader<'a> {
         if (b & 0x80) != 0 {
             return Err(BinaryReaderError {
                 message: "Invalid var_u7",
-                offset: self.position - 1,
+                offset: self.original_position() - 1,
             });
         }
         Ok(b)
@@ -146,7 +170,7 @@ impl<'a> BinaryReader<'a> {
             -0x40 => Ok(Type::EmptyBlockType),
             _ => Err(BinaryReaderError {
                 message: "Invalid type",
-                offset: self.position - 1,
+                offset: self.original_position() - 1,
             }),
         }
     }
@@ -157,7 +181,7 @@ impl<'a> BinaryReader<'a> {
         if local_count > MAX_WASM_FUNCTION_LOCALS {
             return Err(BinaryReaderError {
                 message: "local_count is out of bounds",
-                offset: self.position - 1,
+                offset: self.original_position() - 1,
             });
         }
         Ok(local_count)
@@ -172,12 +196,12 @@ impl<'a> BinaryReader<'a> {
                 .checked_add(count as usize)
                 .ok_or_else(|| BinaryReaderError {
                     message: "locals_total is out of bounds",
-                    offset: self.position - 1,
+                    offset: self.original_position() - 1,
                 })?;
         if *locals_total > MAX_WASM_FUNCTION_LOCALS {
             return Err(BinaryReaderError {
                 message: "locals_total is out of bounds",
-                offset: self.position - 1,
+                offset: self.original_position() - 1,
             });
         }
         Ok((count, value_type))
@@ -192,7 +216,7 @@ impl<'a> BinaryReader<'a> {
             3 => Ok(ExternalKind::Global),
             _ => Err(BinaryReaderError {
                 message: "Invalid external kind",
-                offset: self.position - 1,
+                offset: self.original_position() - 1,
             }),
         }
     }
@@ -203,7 +227,7 @@ impl<'a> BinaryReader<'a> {
         if params_len > MAX_WASM_FUNCTION_PARAMS {
             return Err(BinaryReaderError {
                 message: "function params size is out of bound",
-                offset: self.position - 1,
+                offset: self.original_position() - 1,
             });
         }
         let mut params: Vec<Type> = Vec::with_capacity(params_len);
@@ -214,7 +238,7 @@ impl<'a> BinaryReader<'a> {
         if returns_len > MAX_WASM_FUNCTION_RETURNS {
             return Err(BinaryReaderError {
                 message: "function params size is out of bound",
-                offset: self.position - 1,
+                offset: self.original_position() - 1,
             });
         }
         let mut returns: Vec<Type> = Vec::with_capacity(returns_len);
@@ -244,7 +268,7 @@ impl<'a> BinaryReader<'a> {
         if (flags & !0x1) != 0 {
             return Err(BinaryReaderError {
                 message: "invalid table resizable limits flags",
-                offset: self.position - 1,
+                offset: self.original_position() - 1,
             });
         }
         let limits = self.read_resizable_limits((flags & 0x1) != 0)?;
@@ -259,7 +283,7 @@ impl<'a> BinaryReader<'a> {
         if (flags & !0x3) != 0 {
             return Err(BinaryReaderError {
                 message: "invalid table resizable limits flags",
-                offset: self.position - 1,
+                offset: self.original_position() - 1,
             });
         }
         let limits = self.read_resizable_limits((flags & 0x1) != 0)?;
@@ -321,7 +345,7 @@ impl<'a> BinaryReader<'a> {
         if targets_len > MAX_WASM_BR_TABLE_SIZE {
             return Err(BinaryReaderError {
                 message: "br_table size is out of bound",
-                offset: self.position - 1,
+                offset: self.original_position() - 1,
             });
         }
         let start = self.position;
@@ -339,7 +363,7 @@ impl<'a> BinaryReader<'a> {
         if count > limit {
             return Err(BinaryReaderError {
                 message: "name map size is out of bound",
-                offset: self.position - 1,
+                offset: self.original_position() - 1,
             });
         }
         let mut result = Vec::with_capacity(count);
@@ -409,7 +433,7 @@ impl<'a> BinaryReader<'a> {
                 // The continuation bit or unused bits are set.
                 return Err(BinaryReaderError {
                     message: "Invalid var_u32",
-                    offset: self.position - 1,
+                    offset: self.original_position() - 1,
                 });
             }
             shift += 7;
@@ -429,8 +453,16 @@ impl<'a> BinaryReader<'a> {
         }
         Err(BinaryReaderError {
             message: "Invalid var_32",
-            offset: self.position - 1,
+            offset: self.original_position() - 1,
         })
+    }
+
+    pub(crate) fn skip_to(&mut self, position: usize) {
+        assert!(
+            self.position <= position && position <= self.buffer.len(),
+            "skip_to allowed only into region past current position"
+        );
+        self.position = position;
     }
 
     pub fn read_var_i32(&mut self) -> Result<i32> {
@@ -451,7 +483,7 @@ impl<'a> BinaryReader<'a> {
                 if continuation_bit || (sign_and_unused_bit != 0 && sign_and_unused_bit != -1) {
                     return Err(BinaryReaderError {
                         message: "Invalid var_i32",
-                        offset: self.position - 1,
+                        offset: self.original_position() - 1,
                     });
                 }
                 return Ok(result);
@@ -477,7 +509,7 @@ impl<'a> BinaryReader<'a> {
                 if continuation_bit || (sign_and_unused_bit != 0 && sign_and_unused_bit != -1) {
                     return Err(BinaryReaderError {
                         message: "Invalid var_i64",
-                        offset: self.position - 1,
+                        offset: self.original_position() - 1,
                     });
                 }
                 return Ok(result);
@@ -506,7 +538,7 @@ impl<'a> BinaryReader<'a> {
         if len > MAX_WASM_STRING_SIZE {
             return Err(BinaryReaderError {
                 message: "string size in out of bounds",
-                offset: self.position - 1,
+                offset: self.original_position() - 1,
             });
         }
         self.read_bytes(len)
@@ -517,7 +549,7 @@ impl<'a> BinaryReader<'a> {
         if align != imm.flags {
             return Err(BinaryReaderError {
                 message: "Unexpected memarg alignment",
-                offset: self.position - 1,
+                offset: self.original_position() - 1,
             });
         }
         Ok(imm)
@@ -728,7 +760,7 @@ impl<'a> BinaryReader<'a> {
             _ => {
                 return Err(BinaryReaderError {
                     message: "Unknown 0xFE opcode",
-                    offset: self.position - 1,
+                    offset: self.original_position() - 1,
                 })
             }
         })
@@ -1011,7 +1043,7 @@ impl<'a> BinaryReader<'a> {
             _ => {
                 return Err(BinaryReaderError {
                     message: "Unknown opcode",
-                    offset: self.position - 1,
+                    offset: self.original_position() - 1,
                 })
             }
         })
@@ -1032,10 +1064,50 @@ impl<'a> BinaryReader<'a> {
             _ => {
                 return Err(BinaryReaderError {
                     message: "Unknown 0xfc opcode",
-                    offset: self.position - 1,
+                    offset: self.original_position() - 1,
                 })
             }
         })
+    }
+
+    pub(crate) fn read_file_header(&mut self) -> Result<u32> {
+        let magic_number = self.read_u32()?;
+        if magic_number != WASM_MAGIC_NUMBER {
+            return Err(BinaryReaderError {
+                message: "Bad magic number",
+                offset: self.original_position() - 4,
+            });
+        }
+        let version = self.read_u32()?;
+        if version != WASM_SUPPORTED_VERSION && version != WASM_EXPERIMENTAL_VERSION {
+            return Err(BinaryReaderError {
+                message: "Bad version number",
+                offset: self.original_position() - 4,
+            });
+        }
+        Ok(version)
+    }
+
+    pub(crate) fn read_section_header(&mut self) -> Result<SectionHeader<'a>> {
+        let id_position = self.position;
+        let id = self.read_var_u7()?;
+        let payload_len = self.read_var_u32()? as usize;
+        let payload_start = self.position;
+        let code = self.read_section_code(id, id_position)?;
+        Ok(SectionHeader {
+            code,
+            payload_start,
+            payload_len,
+        })
+    }
+
+    pub(crate) fn skip_init_expr(&mut self) -> Result<()> {
+        // TODO add skip_operator() method and/or validate init_expr operators.
+        loop {
+            if let Operator::End = self.read_operator()? {
+                return Ok(());
+            }
+        }
     }
 }
 

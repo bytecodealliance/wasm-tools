@@ -111,6 +111,14 @@ pub struct GlobalType {
     pub mutable: bool,
 }
 
+#[derive(Debug, Copy, Clone)]
+pub enum ImportSectionEntryType {
+    Function(u32),
+    Table(TableType),
+    Memory(MemoryType),
+    Global(GlobalType),
+}
+
 #[derive(Debug)]
 pub struct MemoryImmediate {
     pub flags: u32,
