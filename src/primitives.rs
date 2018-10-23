@@ -125,10 +125,34 @@ pub struct MemoryImmediate {
     pub offset: u32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Naming<'a> {
     pub index: u32,
     pub name: &'a [u8],
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum NameType {
+    Module,
+    Function,
+    Local,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum LinkingType {
+    StackPointer(u32),
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum RelocType {
+    FunctionIndexLEB,
+    TableIndexSLEB,
+    TableIndexI32,
+    GlobalAddrLEB,
+    GlobalAddrSLEB,
+    GlobalAddrI32,
+    TypeIndexLEB,
+    GlobalIndexLEB,
 }
 
 /// A br_table entries representation.

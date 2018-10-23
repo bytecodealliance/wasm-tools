@@ -23,19 +23,13 @@ use limits::{
 
 use primitives::{
     BinaryReaderError, CustomSectionKind, ExternalKind, FuncType, GlobalType,
-    ImportSectionEntryType, MemoryType, Naming, Operator, Result, SectionCode, TableType, Type,
+    ImportSectionEntryType, LinkingType, MemoryType, NameType, Naming, Operator, RelocType, Result,
+    SectionCode, TableType, Type,
 };
 
 use binary_reader::{BinaryReader, SectionHeader};
 
 const MAX_DATA_CHUNK_SIZE: usize = MAX_WASM_STRING_SIZE;
-
-#[derive(Debug)]
-pub enum NameType {
-    Module,
-    Function,
-    Local,
-}
 
 #[derive(Debug)]
 pub struct LocalName<'a> {
@@ -48,23 +42,6 @@ pub enum NameEntry<'a> {
     Module(&'a [u8]),
     Function(Box<[Naming<'a>]>),
     Local(Box<[LocalName<'a>]>),
-}
-
-#[derive(Debug)]
-pub enum RelocType {
-    FunctionIndexLEB,
-    TableIndexSLEB,
-    TableIndexI32,
-    GlobalAddrLEB,
-    GlobalAddrSLEB,
-    GlobalAddrI32,
-    TypeIndexLEB,
-    GlobalIndexLEB,
-}
-
-#[derive(Debug)]
-pub enum LinkingType {
-    StackPointer(u32),
 }
 
 #[derive(Debug)]
@@ -452,24 +429,11 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn read_name_type(&mut self) -> Result<NameType> {
-        let code = self.reader.read_var_u7()?;
-        match code {
-            0 => Ok(NameType::Module),
-            1 => Ok(NameType::Function),
-            2 => Ok(NameType::Local),
-            _ => Err(BinaryReaderError {
-                message: "Invalid name type",
-                offset: self.reader.position - 1,
-            }),
-        }
-    }
-
     fn read_name_entry(&mut self) -> Result<()> {
         if self.reader.position >= self.section_range.unwrap().end {
             return self.position_to_section_end();
         }
-        let ty = self.read_name_type()?;
+        let ty = self.reader.read_name_type()?;
         self.reader.read_var_u32()?; // payload_len
         let entry = match ty {
             NameType::Module => NameEntry::Module(self.reader.read_string()?),
@@ -514,29 +478,11 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn read_reloc_type(&mut self) -> Result<RelocType> {
-        let code = self.reader.read_var_u7()?;
-        match code {
-            0 => Ok(RelocType::FunctionIndexLEB),
-            1 => Ok(RelocType::TableIndexSLEB),
-            2 => Ok(RelocType::TableIndexI32),
-            3 => Ok(RelocType::GlobalAddrLEB),
-            4 => Ok(RelocType::GlobalAddrSLEB),
-            5 => Ok(RelocType::GlobalAddrI32),
-            6 => Ok(RelocType::TypeIndexLEB),
-            7 => Ok(RelocType::GlobalIndexLEB),
-            _ => Err(BinaryReaderError {
-                message: "Invalid reloc type",
-                offset: self.reader.position - 1,
-            }),
-        }
-    }
-
     fn read_reloc_entry(&mut self) -> Result<()> {
         if self.section_entries_left == 0 {
             return self.position_to_section_end();
         }
-        let ty = self.read_reloc_type()?;
+        let ty = self.reader.read_reloc_type()?;
         let offset = self.reader.read_var_u32()?;
         let index = self.reader.read_var_u32()?;
         let addend = match ty {
@@ -563,16 +509,7 @@ impl<'a> Parser<'a> {
         if self.section_entries_left == 0 {
             return self.position_to_section_end();
         }
-        let ty = self.reader.read_var_u32()?;
-        let entry = match ty {
-            1 => LinkingType::StackPointer(self.reader.read_var_u32()?),
-            _ => {
-                return Err(BinaryReaderError {
-                    message: "Invalid linking type",
-                    offset: self.reader.position - 1,
-                });
-            }
-        };
+        let entry = self.reader.read_linking_type()?;
         self.state = ParserState::LinkingSectionEntry(entry);
         self.section_entries_left -= 1;
         Ok(())
