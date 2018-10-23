@@ -24,7 +24,10 @@ pub struct ModuleName<'a> {
 }
 
 impl<'a> ModuleName<'a> {
-    pub fn get_name(&self) -> Result<&[u8]> {
+    pub fn get_name<'b>(&self) -> Result<&'b [u8]>
+    where
+        'a: 'b,
+    {
         let mut reader = BinaryReader::new_with_offset(self.data, self.offset);
         reader.read_string()
     }
@@ -49,6 +52,10 @@ impl<'a> NamingReader<'a> {
             reader.skip_string()?;
         }
         Ok(())
+    }
+
+    pub fn original_position(&self) -> usize {
+        self.reader.original_position()
     }
 
     pub fn get_count(&self) -> u32 {
@@ -82,6 +89,7 @@ impl<'a> FunctionName<'a> {
 
 #[derive(Debug, Copy, Clone)]
 pub struct FunctionLocalName<'a> {
+    pub func_index: u32,
     data: &'a [u8],
     offset: usize,
 }
@@ -111,14 +119,20 @@ impl<'a> FunctionLocalReader<'a> {
         self.count
     }
 
+    pub fn original_position(&self) -> usize {
+        self.reader.original_position()
+    }
+
     pub fn read<'b>(&mut self) -> Result<FunctionLocalName<'b>>
     where
         'a: 'b,
     {
+        let func_index = self.reader.read_var_u32()?;
         let start = self.reader.position;
         NamingReader::skip(&mut self.reader)?;
         let end = self.reader.position;
         Ok(FunctionLocalName {
+            func_index,
             data: &self.reader.buffer[start..end],
             offset: self.reader.original_offset + start,
         })

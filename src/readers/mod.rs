@@ -54,6 +54,7 @@ pub use self::name_section::LocalName;
 pub use self::name_section::ModuleName;
 pub use self::name_section::Name;
 pub use self::name_section::NameSectionReader;
+pub use self::name_section::NamingReader;
 
 pub use self::linking_section::LinkingSectionReader;
 

@@ -93,6 +93,7 @@ pub use readers::MemorySectionReader;
 pub use readers::ModuleReader;
 pub use readers::Name;
 pub use readers::NameSectionReader;
+pub use readers::NamingReader;
 pub use readers::Reloc;
 pub use readers::RelocSectionReader;
 pub use readers::Section;

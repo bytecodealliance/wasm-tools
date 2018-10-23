@@ -52,8 +52,11 @@ impl<'a> RelocSectionReader<'a> {
         self.count
     }
 
-    pub fn get_section_code(&self) -> &SectionCode {
-        &self.section_code
+    pub fn get_section_code<'b>(&self) -> SectionCode<'b>
+    where
+        'a: 'b,
+    {
+        self.section_code
     }
 
     pub fn original_position(&self) -> usize {
