@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 
+use std::boxed::Box;
 use std::result;
 
 #[derive(Debug, Copy, Clone)]

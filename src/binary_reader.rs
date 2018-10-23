@@ -13,6 +13,9 @@
  * limitations under the License.
  */
 
+use std::boxed::Box;
+use std::vec::Vec;
+
 use limits::{
     MAX_WASM_FUNCTION_LOCALS, MAX_WASM_FUNCTION_PARAMS, MAX_WASM_FUNCTION_RETURNS,
     MAX_WASM_FUNCTION_SIZE, MAX_WASM_STRING_SIZE,
