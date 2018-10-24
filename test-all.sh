@@ -47,7 +47,7 @@ banner "Rust unit tests"
 cargo test --all
 
 # Make sure the documentation builds.
-banner "Rust documentation: $topdir/target/doc/cranelift/index.html"
+banner "Rust documentation: $topdir/target/doc/wasmparser/index.html"
 cargo doc
 
 banner "OK"
