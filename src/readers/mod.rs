@@ -15,14 +15,15 @@
 
 use super::{
     BinaryReader, BinaryReaderError, CustomSectionKind, ExternalKind, FuncType, GlobalType,
-    ImportSectionEntryType, LinkingType, MemoryType, NameType, Naming, RelocType, Result,
-    SectionCode, TableType,
+    ImportSectionEntryType, LinkingType, MemoryType, NameType, Naming, Operator, RelocType, Result,
+    SectionCode, TableType, Type,
 };
 
 use super::SectionHeader;
 
 pub use self::code_section::CodeSectionReader;
 pub use self::code_section::FunctionBody;
+pub use self::code_section::LocalsReader;
 pub use self::data_section::Data;
 pub use self::data_section::DataSectionReader;
 pub use self::element_section::Element;
@@ -63,6 +64,8 @@ pub use self::reloc_section::RelocSectionReader;
 
 use self::sourcemappingurl_section::read_sourcemappingurl_section_content;
 
+pub use self::operators::OperatorsReader;
+
 mod code_section;
 mod data_section;
 mod element_section;
@@ -75,6 +78,7 @@ mod linking_section;
 mod memory_section;
 mod module;
 mod name_section;
+mod operators;
 mod reloc_section;
 mod section_reader;
 mod sourcemappingurl_section;

@@ -14,8 +14,8 @@
  */
 
 use super::{
-    BinaryReader, BinaryReaderError, Result, SectionIteratorLimited, SectionReader,
-    SectionWithLimitedItems,
+    BinaryReader, BinaryReaderError, OperatorsReader, Result, SectionIteratorLimited,
+    SectionReader, SectionWithLimitedItems, Type,
 };
 
 #[derive(Debug)]
@@ -30,6 +30,51 @@ impl<'a> FunctionBody<'a> {
         'a: 'b,
     {
         BinaryReader::new_with_offset(self.data, self.offset)
+    }
+
+    fn skip_locals(reader: &mut BinaryReader) -> Result<()> {
+        let count = reader.read_var_u32()?;
+        for _ in 0..count {
+            reader.skip_var_32()?;
+            reader.skip_type()?;
+        }
+        Ok(())
+    }
+
+    pub fn get_locals_reader<'b>(&self) -> Result<LocalsReader<'b>>
+    where
+        'a: 'b,
+    {
+        let mut reader = BinaryReader::new_with_offset(self.data, self.offset);
+        let count = reader.read_var_u32()?;
+        Ok(LocalsReader { reader, count })
+    }
+
+    pub fn get_operators_reader<'b>(&self) -> Result<OperatorsReader<'b>>
+    where
+        'a: 'b,
+    {
+        let mut reader = BinaryReader::new_with_offset(self.data, self.offset);
+        Self::skip_locals(&mut reader)?;
+        let pos = reader.position;
+        Ok(OperatorsReader::new(&self.data[pos..], self.offset + pos))
+    }
+}
+
+pub struct LocalsReader<'a> {
+    reader: BinaryReader<'a>,
+    count: u32,
+}
+
+impl<'a> LocalsReader<'a> {
+    pub fn get_count(&self) -> u32 {
+        self.count
+    }
+
+    pub fn read(&mut self) -> Result<(u32, Type)> {
+        let count = self.reader.read_var_u32()?;
+        let value_type = self.reader.read_type()?;
+        Ok((count, value_type))
     }
 }
 

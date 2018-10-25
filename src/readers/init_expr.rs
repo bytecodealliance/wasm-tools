@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-use super::BinaryReader;
+use super::{BinaryReader, OperatorsReader};
 
 #[derive(Debug, Copy, Clone)]
 pub struct InitExpr<'a> {
@@ -31,5 +31,12 @@ impl<'a> InitExpr<'a> {
         'a: 'b,
     {
         BinaryReader::new_with_offset(self.data, self.offset)
+    }
+
+    pub fn get_operators_reader<'b>(&self) -> OperatorsReader<'b>
+    where
+        'a: 'b,
+    {
+        OperatorsReader::new(self.data, self.offset)
     }
 }
