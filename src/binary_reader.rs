@@ -160,7 +160,7 @@ impl<'a> BinaryReader<'a> {
         Ok(b)
     }
 
-    fn read_type(&mut self) -> Result<Type> {
+    pub fn read_type(&mut self) -> Result<Type> {
         let code = self.read_var_i7()?;
         match code {
             -0x01 => Ok(Type::I32),
@@ -458,6 +458,10 @@ impl<'a> BinaryReader<'a> {
             message: "Invalid var_32",
             offset: self.original_position() - 1,
         })
+    }
+
+    pub fn skip_type(&mut self) -> Result<()> {
+        self.skip_var_32()
     }
 
     pub fn skip_bytes(&mut self, len: usize) -> Result<()> {
