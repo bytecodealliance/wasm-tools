@@ -83,6 +83,42 @@ pub struct CodeSectionReader<'a> {
     count: u32,
 }
 
+impl<'a> IntoIterator for LocalsReader<'a> {
+    type Item = Result<(u32, Type)>;
+    type IntoIter = LocalsIterator<'a>;
+    fn into_iter(self) -> Self::IntoIter {
+        let count = self.count;
+        LocalsIterator {
+            reader: self,
+            left: count,
+            err: false,
+        }
+    }
+}
+
+pub struct LocalsIterator<'a> {
+    reader: LocalsReader<'a>,
+    left: u32,
+    err: bool,
+}
+
+impl<'a> Iterator for LocalsIterator<'a> {
+    type Item = Result<(u32, Type)>;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.err || self.left == 0 {
+            return None;
+        }
+        let result = self.reader.read();
+        self.err = result.is_err();
+        self.left -= 1;
+        Some(result)
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let count = self.reader.get_count() as usize;
+        (count, Some(count))
+    }
+}
+
 impl<'a> CodeSectionReader<'a> {
     pub fn new(data: &'a [u8], offset: usize) -> Result<CodeSectionReader<'a>> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
