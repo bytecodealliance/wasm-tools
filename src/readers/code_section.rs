@@ -25,6 +25,10 @@ pub struct FunctionBody<'a> {
 }
 
 impl<'a> FunctionBody<'a> {
+    pub fn new(offset: usize, data: &'a [u8]) -> Self {
+        Self { offset, data }
+    }
+
     pub fn get_binary_reader<'b>(&self) -> BinaryReader<'b>
     where
         'a: 'b,
