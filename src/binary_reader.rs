@@ -23,7 +23,7 @@ use limits::{
 
 use primitives::{
     BinaryReaderError, BrTable, CustomSectionKind, ExternalKind, FuncType, GlobalType, Ieee32,
-    Ieee64, LinkingType, MemoryImmediate, MemoryType, NameType, Naming, Operator, RelocType,
+    Ieee64, LinkingType, MemoryImmediate, MemoryType, NameType, Operator, RelocType,
     ResizableLimits, Result, SectionCode, TableType, Type,
 };
 
@@ -63,6 +63,24 @@ pub struct SectionHeader<'a> {
     pub code: SectionCode<'a>,
     pub payload_start: usize,
     pub payload_len: usize,
+}
+
+/// Bytecode range in the WebAssembly module.
+#[derive(Debug, Copy, Clone)]
+pub struct Range {
+    pub start: usize,
+    pub end: usize,
+}
+
+impl Range {
+    pub fn new(start: usize, end: usize) -> Range {
+        assert!(start <= end);
+        Range { start, end }
+    }
+
+    pub fn slice<'a>(&self, data: &'a [u8]) -> &'a [u8] {
+        &data[self.start..self.end]
+    }
 }
 
 /// A binary reader of the WebAssembly structures and types.
@@ -359,23 +377,6 @@ impl<'a> BinaryReader<'a> {
         Ok(BrTable {
             buffer: &self.buffer[start..self.position],
         })
-    }
-
-    pub(crate) fn read_name_map(&mut self, limit: usize) -> Result<Box<[Naming<'a>]>> {
-        let count = self.read_var_u32()? as usize;
-        if count > limit {
-            return Err(BinaryReaderError {
-                message: "name map size is out of bound",
-                offset: self.original_position() - 1,
-            });
-        }
-        let mut result = Vec::with_capacity(count);
-        for _ in 0..count {
-            let index = self.read_var_u32()?;
-            let name = self.read_string()?;
-            result.push(Naming { index, name });
-        }
-        Ok(result.into_boxed_slice())
     }
 
     pub fn eof(&self) -> bool {
