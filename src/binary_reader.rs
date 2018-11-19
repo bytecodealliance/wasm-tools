@@ -1189,21 +1189,24 @@ impl<'a> BrTable<'a> {
     /// let mut reader = wasmparser::BinaryReader::new(&buf);
     /// let op = reader.read_operator().unwrap();
     /// if let wasmparser::Operator::BrTable { ref table } = op {
-    ///     let br_table_depths = table.read_table();
+    ///     let br_table_depths = table.read_table().unwrap();
     ///     assert!(br_table_depths.0 == vec![1,2].into_boxed_slice() &&
     ///             br_table_depths.1 == 0);
     /// } else {
     ///     unreachable!();
     /// }
     /// ```
-    pub fn read_table(&self) -> (Box<[u32]>, u32) {
+    pub fn read_table(&self) -> Result<(Box<[u32]>, u32)> {
         let mut reader = BinaryReader::new(self.buffer);
         let mut table = Vec::new();
         while !reader.eof() {
-            table.push(reader.read_var_u32().unwrap());
+            table.push(reader.read_var_u32()?);
         }
-        let default_target = table.pop().unwrap();
-        (table.into_boxed_slice(), default_target)
+        let default_target = table.pop().ok_or_else(|| BinaryReaderError {
+            message: "br_table missing default target",
+            offset: reader.original_position(),
+        })?;
+        Ok((table.into_boxed_slice(), default_target))
     }
 }
 
@@ -1242,6 +1245,6 @@ impl<'a> Iterator for BrTableIterator<'a> {
         if self.reader.eof() {
             return None;
         }
-        Some(self.reader.read_var_u32().unwrap())
+        self.reader.read_var_u32().ok()
     }
 }
