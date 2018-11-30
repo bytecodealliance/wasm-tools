@@ -66,6 +66,7 @@ pub use primitives::Result;
 pub use primitives::SectionCode;
 pub use primitives::TableType;
 pub use primitives::Type;
+pub use primitives::V128;
 
 pub use validator::validate;
 pub use validator::OperatorValidatorConfig;
