@@ -68,6 +68,7 @@ pub use primitives::TableType;
 pub use primitives::Type;
 
 pub use validator::validate;
+pub use validator::OperatorValidatorConfig;
 pub use validator::ValidatingOperatorParser;
 pub use validator::ValidatingParser;
 pub use validator::WasmModuleResources;
