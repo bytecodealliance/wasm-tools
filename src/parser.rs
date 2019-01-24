@@ -47,7 +47,7 @@ pub struct LocalName<'a> {
 
 #[derive(Debug)]
 pub enum NameEntry<'a> {
-    Module(&'a [u8]),
+    Module(&'a str),
     Function(Box<[Naming<'a>]>),
     Local(Box<[LocalName<'a>]>),
 }
@@ -86,15 +86,15 @@ pub enum ParserState<'a> {
 
     TypeSectionEntry(FuncType),
     ImportSectionEntry {
-        module: &'a [u8],
-        field: &'a [u8],
+        module: &'a str,
+        field: &'a str,
         ty: ImportSectionEntryType,
     },
     FunctionSectionEntry(u32),
     TableSectionEntry(TableType),
     MemorySectionEntry(MemoryType),
     ExportSectionEntry {
-        field: &'a [u8],
+        field: &'a str,
         kind: ExternalKind,
         index: u32,
     },
@@ -132,7 +132,7 @@ pub enum ParserState<'a> {
     RelocSectionEntry(RelocEntry),
     LinkingSectionEntry(LinkingType),
 
-    SourceMappingURL(&'a [u8]),
+    SourceMappingURL(&'a str),
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -269,33 +269,33 @@ impl<'a> Parser<'a> {
             ParserSectionReader::CodeSectionReader(ref reader) => return reader.original_position(),
             ParserSectionReader::DataSectionReader(ref reader) => return reader.original_position(),
             ParserSectionReader::ElementSectionReader(ref reader) => {
-                return reader.original_position()
+                return reader.original_position();
             }
             ParserSectionReader::ExportSectionReader(ref reader) => {
-                return reader.original_position()
+                return reader.original_position();
             }
             ParserSectionReader::FunctionSectionReader(ref reader) => {
-                return reader.original_position()
+                return reader.original_position();
             }
             ParserSectionReader::GlobalSectionReader(ref reader) => {
-                return reader.original_position()
+                return reader.original_position();
             }
             ParserSectionReader::ImportSectionReader(ref reader) => {
-                return reader.original_position()
+                return reader.original_position();
             }
             ParserSectionReader::MemorySectionReader(ref reader) => {
-                return reader.original_position()
+                return reader.original_position();
             }
             ParserSectionReader::TableSectionReader(ref reader) => {
-                return reader.original_position()
+                return reader.original_position();
             }
             ParserSectionReader::TypeSectionReader(ref reader) => return reader.original_position(),
             ParserSectionReader::NameSectionReader(ref reader) => return reader.original_position(),
             ParserSectionReader::LinkingSectionReader(ref reader) => {
-                return reader.original_position()
+                return reader.original_position();
             }
             ParserSectionReader::RelocSectionReader(ref reader) => {
-                return reader.original_position()
+                return reader.original_position();
             }
             _ => (),
         };

@@ -14,6 +14,8 @@
  */
 
 use std::boxed::Box;
+use std::error::Error;
+use std::fmt;
 use std::result;
 
 #[derive(Debug, Copy, Clone)]
@@ -23,6 +25,14 @@ pub struct BinaryReaderError {
 }
 
 pub type Result<T> = result::Result<T, BinaryReaderError>;
+
+impl Error for BinaryReaderError {}
+
+impl fmt::Display for BinaryReaderError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} (at offset {})", self.message, self.offset)
+    }
+}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CustomSectionKind {
@@ -39,7 +49,7 @@ pub enum CustomSectionKind {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SectionCode<'a> {
     Custom {
-        name: &'a [u8],
+        name: &'a str,
         kind: CustomSectionKind,
     },
     Type,     // Function signature declarations
@@ -129,7 +139,7 @@ pub struct MemoryImmediate {
 #[derive(Debug, Copy, Clone)]
 pub struct Naming<'a> {
     pub index: u32,
-    pub name: &'a [u8],
+    pub name: &'a str,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -160,6 +170,7 @@ pub enum RelocType {
 #[derive(Debug)]
 pub struct BrTable<'a> {
     pub(crate) buffer: &'a [u8],
+    pub(crate) cnt: usize,
 }
 
 /// An IEEE binary32 immediate floating point value, represented as a u32

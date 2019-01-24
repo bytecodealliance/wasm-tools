@@ -200,7 +200,7 @@ impl<'a> Section<'a> {
         }
     }
 
-    pub fn get_sourcemappingurl_section_content<'b>(&self) -> Result<&'b [u8]>
+    pub fn get_sourcemappingurl_section_content<'b>(&self) -> Result<&'b str>
     where
         'a: 'b,
     {
