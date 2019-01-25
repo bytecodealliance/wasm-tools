@@ -29,7 +29,7 @@ use binary_reader::BinaryReader;
 
 use primitives::{
     BinaryReaderError, ExternalKind, FuncType, GlobalType, ImportSectionEntryType, MemoryImmediate,
-    MemoryType, Operator, ResizableLimits, Result, SectionCode, TableType, Type,
+    MemoryType, Operator, ResizableLimits, Result, SIMDLineIndex, SectionCode, TableType, Type,
 };
 
 use parser::{Parser, ParserInput, ParserState, WasmDecoder};
@@ -310,11 +310,13 @@ type OperatorValidatorResult<T> = result::Result<T, &'static str>;
 pub struct OperatorValidatorConfig {
     pub enable_threads: bool,
     pub enable_reference_types: bool,
+    pub enable_simd: bool,
 }
 
 const DEFAULT_OPERATOR_VALIDATOR_CONFIG: OperatorValidatorConfig = OperatorValidatorConfig {
     enable_threads: false,
     enable_reference_types: false,
+    enable_simd: false,
 };
 
 struct OperatorValidator {
@@ -549,12 +551,26 @@ impl OperatorValidator {
         Ok(())
     }
 
+    fn check_simd_enabled(&self) -> OperatorValidatorResult<()> {
+        if !self.config.enable_simd {
+            return Err("SIMD support is not enabled");
+        }
+        Ok(())
+    }
+
     fn check_shared_memarg_wo_align(
         &self,
         _: &MemoryImmediate,
         resources: &WasmModuleResources,
     ) -> OperatorValidatorResult<()> {
         self.check_shared_memory_index(0, resources)?;
+        Ok(())
+    }
+
+    fn check_simd_line_index(&self, index: SIMDLineIndex, max: u8) -> OperatorValidatorResult<()> {
+        if index >= max {
+            return Err("SIMD index out of bounds");
+        }
         Ok(())
     }
 
@@ -1244,6 +1260,258 @@ impl OperatorValidator {
                 self.check_operands(func_state, &[Type::AnyRef])?;
                 OperatorAction::ChangeFrameWithType(0, Type::I32)
             }
+            Operator::V128Load { ref memarg } => {
+                self.check_simd_enabled()?;
+                self.check_memarg(memarg, 4, resources)?;
+                self.check_operands_1(func_state, Type::I32)?;
+                OperatorAction::ChangeFrameWithType(1, Type::V128)
+            }
+            Operator::V128Store { ref memarg } => {
+                self.check_simd_enabled()?;
+                self.check_memarg(memarg, 4, resources)?;
+                self.check_operands_2(func_state, Type::I32, Type::V128)?;
+                OperatorAction::ChangeFrame(2)
+            }
+            Operator::V128Const { .. } => {
+                self.check_simd_enabled()?;
+                OperatorAction::ChangeFrameWithType(0, Type::V128)
+            }
+            Operator::V8x16Shuffle { ref lines } => {
+                self.check_simd_enabled()?;
+                self.check_operands_2(func_state, Type::V128, Type::V128)?;
+                for i in lines {
+                    self.check_simd_line_index(*i, 32)?;
+                }
+                OperatorAction::ChangeFrameWithType(2, Type::V128)
+            }
+            Operator::I8x16Splat | Operator::I16x8Splat | Operator::I32x4Splat => {
+                self.check_simd_enabled()?;
+                self.check_operands_1(func_state, Type::I32)?;
+                OperatorAction::ChangeFrameWithType(1, Type::V128)
+            }
+            Operator::I64x2Splat => {
+                self.check_simd_enabled()?;
+                self.check_operands_1(func_state, Type::I64)?;
+                OperatorAction::ChangeFrameWithType(1, Type::V128)
+            }
+            Operator::F32x4Splat => {
+                self.check_simd_enabled()?;
+                self.check_operands_1(func_state, Type::F32)?;
+                OperatorAction::ChangeFrameWithType(1, Type::V128)
+            }
+            Operator::F64x2Splat => {
+                self.check_simd_enabled()?;
+                self.check_operands_1(func_state, Type::F64)?;
+                OperatorAction::ChangeFrameWithType(1, Type::V128)
+            }
+            Operator::I8x16ExtractLaneS { line } | Operator::I8x16ExtractLaneU { line } => {
+                self.check_simd_enabled()?;
+                self.check_simd_line_index(line, 16)?;
+                self.check_operands_1(func_state, Type::V128)?;
+                OperatorAction::ChangeFrameWithType(1, Type::I32)
+            }
+            Operator::I16x8ExtractLaneS { line } | Operator::I16x8ExtractLaneU { line } => {
+                self.check_simd_enabled()?;
+                self.check_simd_line_index(line, 8)?;
+                self.check_operands_1(func_state, Type::V128)?;
+                OperatorAction::ChangeFrameWithType(1, Type::I32)
+            }
+            Operator::I32x4ExtractLane { line } => {
+                self.check_simd_enabled()?;
+                self.check_simd_line_index(line, 4)?;
+                self.check_operands_1(func_state, Type::V128)?;
+                OperatorAction::ChangeFrameWithType(1, Type::I32)
+            }
+            Operator::I8x16ReplaceLane { line } => {
+                self.check_simd_enabled()?;
+                self.check_simd_line_index(line, 16)?;
+                self.check_operands_2(func_state, Type::V128, Type::I32)?;
+                OperatorAction::ChangeFrameWithType(2, Type::V128)
+            }
+            Operator::I16x8ReplaceLane { line } => {
+                self.check_simd_enabled()?;
+                self.check_simd_line_index(line, 8)?;
+                self.check_operands_2(func_state, Type::V128, Type::I32)?;
+                OperatorAction::ChangeFrameWithType(2, Type::V128)
+            }
+            Operator::I32x4ReplaceLane { line } => {
+                self.check_simd_enabled()?;
+                self.check_simd_line_index(line, 4)?;
+                self.check_operands_2(func_state, Type::V128, Type::I32)?;
+                OperatorAction::ChangeFrameWithType(2, Type::V128)
+            }
+            Operator::I64x2ExtractLane { line } => {
+                self.check_simd_enabled()?;
+                self.check_simd_line_index(line, 2)?;
+                self.check_operands_1(func_state, Type::V128)?;
+                OperatorAction::ChangeFrameWithType(1, Type::I64)
+            }
+            Operator::I64x2ReplaceLane { line } => {
+                self.check_simd_enabled()?;
+                self.check_simd_line_index(line, 2)?;
+                self.check_operands_2(func_state, Type::V128, Type::I64)?;
+                OperatorAction::ChangeFrameWithType(2, Type::V128)
+            }
+            Operator::F32x4ExtractLane { line } => {
+                self.check_simd_enabled()?;
+                self.check_simd_line_index(line, 4)?;
+                self.check_operands_1(func_state, Type::V128)?;
+                OperatorAction::ChangeFrameWithType(1, Type::F32)
+            }
+            Operator::F32x4ReplaceLane { line } => {
+                self.check_simd_enabled()?;
+                self.check_simd_line_index(line, 4)?;
+                self.check_operands_2(func_state, Type::V128, Type::F32)?;
+                OperatorAction::ChangeFrameWithType(2, Type::V128)
+            }
+            Operator::F64x2ExtractLane { line } => {
+                self.check_simd_enabled()?;
+                self.check_simd_line_index(line, 2)?;
+                self.check_operands_1(func_state, Type::V128)?;
+                OperatorAction::ChangeFrameWithType(1, Type::F64)
+            }
+            Operator::F64x2ReplaceLane { line } => {
+                self.check_simd_enabled()?;
+                self.check_simd_line_index(line, 2)?;
+                self.check_operands_2(func_state, Type::V128, Type::F64)?;
+                OperatorAction::ChangeFrameWithType(2, Type::V128)
+            }
+            Operator::I8x16Eq
+            | Operator::I8x16Ne
+            | Operator::I8x16LtS
+            | Operator::I8x16LtU
+            | Operator::I8x16GtS
+            | Operator::I8x16GtU
+            | Operator::I8x16LeS
+            | Operator::I8x16LeU
+            | Operator::I8x16GeS
+            | Operator::I8x16GeU
+            | Operator::I16x8Eq
+            | Operator::I16x8Ne
+            | Operator::I16x8LtS
+            | Operator::I16x8LtU
+            | Operator::I16x8GtS
+            | Operator::I16x8GtU
+            | Operator::I16x8LeS
+            | Operator::I16x8LeU
+            | Operator::I16x8GeS
+            | Operator::I16x8GeU
+            | Operator::I32x4Eq
+            | Operator::I32x4Ne
+            | Operator::I32x4LtS
+            | Operator::I32x4LtU
+            | Operator::I32x4GtS
+            | Operator::I32x4GtU
+            | Operator::I32x4LeS
+            | Operator::I32x4LeU
+            | Operator::I32x4GeS
+            | Operator::I32x4GeU
+            | Operator::F32x4Eq
+            | Operator::F32x4Ne
+            | Operator::F32x4Lt
+            | Operator::F32x4Gt
+            | Operator::F32x4Le
+            | Operator::F32x4Ge
+            | Operator::F64x2Eq
+            | Operator::F64x2Ne
+            | Operator::F64x2Lt
+            | Operator::F64x2Gt
+            | Operator::F64x2Le
+            | Operator::F64x2Ge
+            | Operator::V128And
+            | Operator::V128Or
+            | Operator::V128Xor
+            | Operator::I8x16Add
+            | Operator::I8x16AddSaturateS
+            | Operator::I8x16AddSaturateU
+            | Operator::I8x16Sub
+            | Operator::I8x16SubSaturateS
+            | Operator::I8x16SubSaturateU
+            | Operator::I8x16Mul
+            | Operator::I16x8Add
+            | Operator::I16x8AddSaturateS
+            | Operator::I16x8AddSaturateU
+            | Operator::I16x8Sub
+            | Operator::I16x8SubSaturateS
+            | Operator::I16x8SubSaturateU
+            | Operator::I16x8Mul
+            | Operator::I32x4Add
+            | Operator::I32x4Sub
+            | Operator::I32x4Mul
+            | Operator::I64x2Add
+            | Operator::I64x2Sub
+            | Operator::F32x4Add
+            | Operator::F32x4Sub
+            | Operator::F32x4Mul
+            | Operator::F32x4Div
+            | Operator::F32x4Min
+            | Operator::F32x4Max
+            | Operator::F64x2Add
+            | Operator::F64x2Sub
+            | Operator::F64x2Mul
+            | Operator::F64x2Div
+            | Operator::F64x2Min
+            | Operator::F64x2Max => {
+                self.check_simd_enabled()?;
+                self.check_operands_2(func_state, Type::V128, Type::V128)?;
+                OperatorAction::ChangeFrameWithType(2, Type::V128)
+            }
+            Operator::V128Not
+            | Operator::I8x16Neg
+            | Operator::I16x8Neg
+            | Operator::I32x4Neg
+            | Operator::I64x2Neg
+            | Operator::F32x4Abs
+            | Operator::F32x4Neg
+            | Operator::F32x4Sqrt
+            | Operator::F64x2Abs
+            | Operator::F64x2Neg
+            | Operator::F64x2Sqrt
+            | Operator::I32x4TruncSF32x4Sat
+            | Operator::I32x4TruncUF32x4Sat
+            | Operator::I64x2TruncSF64x2Sat
+            | Operator::I64x2TruncUF64x2Sat
+            | Operator::F32x4ConvertSI32x4
+            | Operator::F32x4ConvertUI32x4
+            | Operator::F64x2ConvertSI64x2
+            | Operator::F64x2ConvertUI64x2 => {
+                self.check_simd_enabled()?;
+                self.check_operands_1(func_state, Type::V128)?;
+                OperatorAction::ChangeFrameWithType(1, Type::V128)
+            }
+            Operator::V128Bitselect => {
+                self.check_simd_enabled()?;
+                self.check_operands(func_state, &[Type::V128, Type::V128, Type::V128])?;
+                OperatorAction::ChangeFrameWithType(2, Type::V128)
+            }
+            Operator::I8x16AnyTrue
+            | Operator::I8x16AllTrue
+            | Operator::I16x8AnyTrue
+            | Operator::I16x8AllTrue
+            | Operator::I32x4AnyTrue
+            | Operator::I32x4AllTrue
+            | Operator::I64x2AnyTrue
+            | Operator::I64x2AllTrue => {
+                self.check_simd_enabled()?;
+                self.check_operands_1(func_state, Type::V128)?;
+                OperatorAction::ChangeFrameWithType(1, Type::I32)
+            }
+            Operator::I8x16Shl
+            | Operator::I8x16ShrS
+            | Operator::I8x16ShrU
+            | Operator::I16x8Shl
+            | Operator::I16x8ShrS
+            | Operator::I16x8ShrU
+            | Operator::I32x4Shl
+            | Operator::I32x4ShrS
+            | Operator::I32x4ShrU
+            | Operator::I64x2Shl
+            | Operator::I64x2ShrS
+            | Operator::I64x2ShrU => {
+                self.check_simd_enabled()?;
+                self.check_operands_2(func_state, Type::V128, Type::I32)?;
+                OperatorAction::ChangeFrameWithType(1, Type::V128)
+            }
         })
     }
 
@@ -1346,7 +1614,7 @@ impl<'a> ValidatingParser<'a> {
 
     fn check_value_type(&self, ty: Type) -> ValidatorResult<'a, ()> {
         match ty {
-            Type::I32 | Type::I64 | Type::F32 | Type::F64 => Ok(()),
+            Type::I32 | Type::I64 | Type::F32 | Type::F64 | Type::V128 => Ok(()),
             _ => self.create_error("invalid value type"),
         }
     }
