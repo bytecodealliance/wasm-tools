@@ -23,7 +23,8 @@ use super::{
     read_sourcemappingurl_section_content, read_start_section_content, CodeSectionReader,
     DataSectionReader, ElementSectionReader, ExportSectionReader, FunctionSectionReader,
     GlobalSectionReader, ImportSectionReader, LinkingSectionReader, MemorySectionReader,
-    NameSectionReader, RelocSectionReader, TableSectionReader, TypeSectionReader,
+    NameSectionReader, ProducersSectionReader, RelocSectionReader, TableSectionReader,
+    TypeSectionReader,
 };
 
 #[derive(Debug)]
@@ -164,6 +165,19 @@ impl<'a> Section<'a> {
                 ..
             } => NameSectionReader::new(self.data, self.offset),
             _ => panic!("Invalid state for get_name_section_reader"),
+        }
+    }
+
+    pub fn get_producers_section_reader<'b>(&self) -> Result<ProducersSectionReader<'b>>
+    where
+        'a: 'b,
+    {
+        match self.code {
+            SectionCode::Custom {
+                kind: CustomSectionKind::Producers,
+                ..
+            } => ProducersSectionReader::new(self.data, self.offset),
+            _ => panic!("Invalid state for get_producers_section_reader"),
         }
     }
 

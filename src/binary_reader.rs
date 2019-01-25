@@ -316,6 +316,8 @@ impl<'a> BinaryReader<'a> {
                 let name = self.read_string()?;
                 let kind = if is_name(name, "name") {
                     CustomSectionKind::Name
+                } else if is_name(name, "producers") {
+                    CustomSectionKind::Producers
                 } else if is_name(name, "sourceMappingURL") {
                     CustomSectionKind::SourceMappingURL
                 } else if is_name_prefix(name, "reloc.") {

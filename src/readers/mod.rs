@@ -57,6 +57,10 @@ pub use self::name_section::Name;
 pub use self::name_section::NameSectionReader;
 pub use self::name_section::NamingReader;
 
+pub use self::producers_section::ProducersField;
+pub use self::producers_section::ProducersFieldValue;
+pub use self::producers_section::ProducersSectionReader;
+
 pub use self::linking_section::LinkingSectionReader;
 
 pub use self::reloc_section::Reloc;
@@ -79,6 +83,7 @@ mod memory_section;
 mod module;
 mod name_section;
 mod operators;
+mod producers_section;
 mod reloc_section;
 mod section_reader;
 mod sourcemappingurl_section;
