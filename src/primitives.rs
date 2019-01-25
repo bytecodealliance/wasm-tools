@@ -38,6 +38,7 @@ impl fmt::Display for BinaryReaderError {
 pub enum CustomSectionKind {
     Unknown,
     Name,
+    Producers,
     SourceMappingURL,
     Reloc,
     Linking,

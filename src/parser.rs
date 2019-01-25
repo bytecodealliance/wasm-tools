@@ -774,7 +774,8 @@ impl<'a> Parser<'a> {
                 start_section_reader!(self, LinkingSectionReader, get_linking_section_reader);
                 self.read_linking_entry()?;
             }
-            ParserState::ReadingCustomSection(CustomSectionKind::Unknown) => {
+            ParserState::ReadingCustomSection(CustomSectionKind::Producers)
+            | ParserState::ReadingCustomSection(CustomSectionKind::Unknown) => {
                 self.create_custom_section_binary_reader();
                 self.read_section_body_bytes()?;
             }
