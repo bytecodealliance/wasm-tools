@@ -340,6 +340,7 @@ impl<'a> BinaryReader<'a> {
             9 => Ok(SectionCode::Element),
             10 => Ok(SectionCode::Code),
             11 => Ok(SectionCode::Data),
+            12 => Ok(SectionCode::DataCount),
             _ => Err(BinaryReaderError {
                 message: "Invalid section code",
                 offset,
@@ -1076,6 +1077,81 @@ impl<'a> BinaryReader<'a> {
             0x05 => Operator::I64TruncUSatF32,
             0x06 => Operator::I64TruncSSatF64,
             0x07 => Operator::I64TruncUSatF64,
+
+            0x08 => {
+                let segment = self.read_var_u32()?;
+                let mem = self.read_u8()?;
+                if mem != 0 {
+                    return Err(BinaryReaderError {
+                        message: "reserved byte must be zero",
+                        offset: self.original_position() - 1,
+                    });
+                }
+                Operator::MemoryInit { segment }
+            }
+            0x09 => {
+                let segment = self.read_var_u32()?;
+                Operator::DataDrop { segment }
+            }
+            0x0a => {
+                let src = self.read_u8()?;
+                if src != 0 {
+                    return Err(BinaryReaderError {
+                        message: "reserved byte must be zero",
+                        offset: self.original_position() - 1,
+                    });
+                }
+                let dst = self.read_u8()?;
+                if dst != 0 {
+                    return Err(BinaryReaderError {
+                        message: "reserved byte must be zero",
+                        offset: self.original_position() - 1,
+                    });
+                }
+                Operator::MemoryCopy
+            }
+            0x0b => {
+                let mem = self.read_u8()?;
+                if mem != 0 {
+                    return Err(BinaryReaderError {
+                        message: "reserved byte must be zero",
+                        offset: self.original_position() - 1,
+                    });
+                }
+                Operator::MemoryFill
+            }
+            0x0c => {
+                let segment = self.read_var_u32()?;
+                let table = self.read_u8()?;
+                if table != 0 {
+                    return Err(BinaryReaderError {
+                        message: "reserved byte must be zero",
+                        offset: self.original_position() - 1,
+                    });
+                }
+                Operator::TableInit { segment }
+            }
+            0x0d => {
+                let segment = self.read_var_u32()?;
+                Operator::ElemDrop { segment }
+            }
+            0x0e => {
+                let src = self.read_u8()?;
+                if src != 0 {
+                    return Err(BinaryReaderError {
+                        message: "reserved byte must be zero",
+                        offset: self.original_position() - 1,
+                    });
+                }
+                let dst = self.read_u8()?;
+                if dst != 0 {
+                    return Err(BinaryReaderError {
+                        message: "reserved byte must be zero",
+                        offset: self.original_position() - 1,
+                    });
+                }
+                Operator::TableCopy
+            }
 
             _ => {
                 return Err(BinaryReaderError {

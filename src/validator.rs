@@ -128,6 +128,7 @@ enum SectionOrderState {
     Export,
     Start,
     Element,
+    DataCount,
     Code,
     Data,
 }
@@ -146,6 +147,7 @@ impl SectionOrderState {
             SectionCode::Element => Some(SectionOrderState::Element),
             SectionCode::Code => Some(SectionOrderState::Code),
             SectionCode::Data => Some(SectionOrderState::Data),
+            SectionCode::DataCount => Some(SectionOrderState::DataCount),
             _ => None,
         }
     }
@@ -302,6 +304,8 @@ pub trait WasmModuleResources {
     fn memories(&self) -> &[MemoryType];
     fn globals(&self) -> &[GlobalType];
     fn func_type_indices(&self) -> &[u32];
+    fn element_count(&self) -> u32;
+    fn data_count(&self) -> u32;
 }
 
 type OperatorValidatorResult<T> = result::Result<T, &'static str>;
@@ -311,12 +315,14 @@ pub struct OperatorValidatorConfig {
     pub enable_threads: bool,
     pub enable_reference_types: bool,
     pub enable_simd: bool,
+    pub enable_bulk_memory: bool,
 }
 
 const DEFAULT_OPERATOR_VALIDATOR_CONFIG: OperatorValidatorConfig = OperatorValidatorConfig {
     enable_threads: false,
     enable_reference_types: false,
     enable_simd: false,
+    enable_bulk_memory: false,
 };
 
 struct OperatorValidator {
@@ -554,6 +560,13 @@ impl OperatorValidator {
     fn check_simd_enabled(&self) -> OperatorValidatorResult<()> {
         if !self.config.enable_simd {
             return Err("SIMD support is not enabled");
+        }
+        Ok(())
+    }
+
+    fn check_bulk_memory_enabled(&self) -> OperatorValidatorResult<()> {
+        if !self.config.enable_bulk_memory {
+            return Err("bulk memory support is not enabled");
         }
         Ok(())
     }
@@ -1512,6 +1525,55 @@ impl OperatorValidator {
                 self.check_operands_2(func_state, Type::V128, Type::I32)?;
                 OperatorAction::ChangeFrameWithType(1, Type::V128)
             }
+
+            Operator::MemoryInit { segment } => {
+                self.check_bulk_memory_enabled()?;
+                if segment >= resources.data_count() {
+                    return Err("segment index out of bounds");
+                }
+                self.check_memory_index(0, resources)?;
+                self.check_operands(func_state, &[Type::I32, Type::I32, Type::I32])?;
+                OperatorAction::ChangeFrame(3)
+            }
+            Operator::DataDrop { segment } => {
+                self.check_bulk_memory_enabled()?;
+                if segment >= resources.data_count() {
+                    return Err("segment index out of bounds");
+                }
+                OperatorAction::None
+            }
+            Operator::MemoryCopy | Operator::MemoryFill => {
+                self.check_bulk_memory_enabled()?;
+                self.check_memory_index(0, resources)?;
+                self.check_operands(func_state, &[Type::I32, Type::I32, Type::I32])?;
+                OperatorAction::ChangeFrame(3)
+            }
+            Operator::TableInit { segment } => {
+                self.check_bulk_memory_enabled()?;
+                if segment >= resources.element_count() {
+                    return Err("segment index out of bounds");
+                }
+                if 0 >= resources.tables().len() {
+                    return Err("table index out of bounds");
+                }
+                self.check_operands(func_state, &[Type::I32, Type::I32, Type::I32])?;
+                OperatorAction::ChangeFrame(3)
+            }
+            Operator::ElemDrop { segment } => {
+                self.check_bulk_memory_enabled()?;
+                if segment >= resources.element_count() {
+                    return Err("segment index out of bounds");
+                }
+                OperatorAction::None
+            }
+            Operator::TableCopy => {
+                self.check_bulk_memory_enabled()?;
+                if 0 >= resources.tables().len() {
+                    return Err("table index out of bounds");
+                }
+                self.check_operands(func_state, &[Type::I32, Type::I32, Type::I32])?;
+                OperatorAction::ChangeFrame(3)
+            }
         })
     }
 
@@ -1546,6 +1608,9 @@ pub struct ValidatingParser<'a> {
     tables: Vec<TableType>,
     memories: Vec<MemoryType>,
     globals: Vec<GlobalType>,
+    element_count: u32,
+    data_count: Option<u32>,
+    data_found: u32,
     func_type_indices: Vec<u32>,
     current_func_index: u32,
     func_imports_count: u32,
@@ -1575,6 +1640,14 @@ impl<'a> WasmModuleResources for ValidatingParser<'a> {
     fn func_type_indices(&self) -> &[u32] {
         &self.func_type_indices
     }
+
+    fn element_count(&self) -> u32 {
+        self.element_count
+    }
+
+    fn data_count(&self) -> u32 {
+        self.data_count.unwrap_or(0)
+    }
 }
 
 impl<'a> ValidatingParser<'a> {
@@ -1595,6 +1668,9 @@ impl<'a> ValidatingParser<'a> {
             init_expression_state: None,
             exported_names: HashSet::new(),
             config: config.unwrap_or(DEFAULT_VALIDATING_PARSER_CONFIG),
+            element_count: 0,
+            data_count: None,
+            data_found: 0,
         }
     }
 
@@ -1914,7 +1990,14 @@ impl<'a> ValidatingParser<'a> {
             ParserState::StartSectionEntry(func_index) => {
                 self.validation_error = self.check_start(func_index).err();
             }
-            ParserState::BeginElementSectionEntry(table_index) => {
+            ParserState::DataCountSectionEntry(count) => {
+                self.data_count = Some(count);
+            }
+            ParserState::BeginPassiveElementSectionEntry(_ty) => {
+                self.element_count += 1;
+            }
+            ParserState::BeginActiveElementSectionEntry(table_index) => {
+                self.element_count += 1;
                 if table_index as usize >= self.tables.len() {
                     self.validation_error =
                         self.create_validation_error("element section table index out of bounds");
@@ -1981,7 +2064,10 @@ impl<'a> ValidatingParser<'a> {
                 self.current_func_index += 1;
                 self.current_operator_validator = None;
             }
-            ParserState::BeginDataSectionEntry(memory_index) => {
+            ParserState::BeginDataSectionEntryBody(_) => {
+                self.data_found += 1;
+            }
+            ParserState::BeginActiveDataSectionEntry(memory_index) => {
                 if memory_index as usize >= self.memories.len() {
                     self.validation_error =
                         self.create_validation_error("data section memory index out of bounds");
@@ -1991,6 +2077,15 @@ impl<'a> ValidatingParser<'a> {
                         global_count: self.globals.len(),
                         validated: false,
                     });
+                }
+            }
+            ParserState::EndWasm => {
+                if let Some(data_count) = self.data_count {
+                    if data_count != self.data_found {
+                        self.validation_error = self.create_validation_error(
+                            "data count section and passive data mismatch",
+                        );
+                    }
                 }
             }
             _ => (),

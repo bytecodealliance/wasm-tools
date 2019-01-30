@@ -28,11 +28,11 @@ use primitives::{
 };
 
 use readers::{
-    CodeSectionReader, Data, DataSectionReader, Element, ElementItems, ElementSectionReader,
-    Export, ExportSectionReader, FunctionBody, FunctionSectionReader, Global, GlobalSectionReader,
-    Import, ImportSectionReader, LinkingSectionReader, MemorySectionReader, ModuleReader, Name,
-    NameSectionReader, NamingReader, OperatorsReader, Reloc, RelocSectionReader, Section,
-    SectionReader, TableSectionReader, TypeSectionReader,
+    CodeSectionReader, Data, DataKind, DataSectionReader, Element, ElementItems, ElementKind,
+    ElementSectionReader, Export, ExportSectionReader, FunctionBody, FunctionSectionReader, Global,
+    GlobalSectionReader, Import, ImportSectionReader, LinkingSectionReader, MemorySectionReader,
+    ModuleReader, Name, NameSectionReader, NamingReader, OperatorsReader, Reloc,
+    RelocSectionReader, Section, SectionReader, TableSectionReader, TypeSectionReader,
 };
 
 use binary_reader::{BinaryReader, Range};
@@ -100,6 +100,7 @@ pub enum ParserState<'a> {
     },
     NameSectionEntry(NameEntry<'a>),
     StartSectionEntry(u32),
+    DataCountSectionEntry(u32),
 
     BeginInitExpressionBody,
     InitExpressionOperator(Operator<'a>),
@@ -115,11 +116,13 @@ pub enum ParserState<'a> {
     EndFunctionBody,
     SkippingFunctionBody,
 
-    BeginElementSectionEntry(u32),
+    BeginPassiveElementSectionEntry(Type),
+    BeginActiveElementSectionEntry(u32),
     ElementSectionEntryBody(Box<[u32]>),
     EndElementSectionEntry,
 
-    BeginDataSectionEntry(u32),
+    BeginPassiveDataSectionEntry,
+    BeginActiveDataSectionEntry(u32),
     EndDataSectionEntry,
     BeginDataSectionEntryBody(u32),
     DataSectionEntryBodyChunk(&'a [u8]),
@@ -408,13 +411,19 @@ impl<'a> Parser<'a> {
         if self.section_entries_left == 0 {
             return self.check_section_end();
         }
-        let Element {
-            table_index,
-            init_expr,
-            items,
-        } = section_reader!(self, ElementSectionReader).read()?;
-        self.state = ParserState::BeginElementSectionEntry(table_index);
-        self.operators_reader = Some(init_expr.get_operators_reader());
+        let Element { kind, items } = section_reader!(self, ElementSectionReader).read()?;
+        match kind {
+            ElementKind::Passive(ty) => {
+                self.state = ParserState::BeginPassiveElementSectionEntry(ty);
+            }
+            ElementKind::Active {
+                table_index,
+                init_expr,
+            } => {
+                self.state = ParserState::BeginActiveElementSectionEntry(table_index);
+                self.operators_reader = Some(init_expr.get_operators_reader());
+            }
+        }
         self.element_items = Some(items);
         self.section_entries_left -= 1;
         Ok(())
@@ -529,13 +538,19 @@ impl<'a> Parser<'a> {
         if self.section_entries_left == 0 {
             return self.check_section_end();
         }
-        let Data {
-            memory_index,
-            init_expr,
-            data,
-        } = section_reader!(self, DataSectionReader).read()?;
-        self.state = ParserState::BeginDataSectionEntry(memory_index);
-        self.operators_reader = Some(init_expr.get_operators_reader());
+        let Data { kind, data } = section_reader!(self, DataSectionReader).read()?;
+        match kind {
+            DataKind::Passive => {
+                self.state = ParserState::BeginPassiveDataSectionEntry;
+            }
+            DataKind::Active {
+                memory_index,
+                init_expr,
+            } => {
+                self.state = ParserState::BeginActiveDataSectionEntry(memory_index);
+                self.operators_reader = Some(init_expr.get_operators_reader());
+            }
+        }
         self.current_data_segment = Some(data);
         self.section_entries_left -= 1;
         Ok(())
@@ -732,6 +747,17 @@ impl<'a> Parser<'a> {
                 self.state = ParserState::StartSectionEntry(func_index);
             }
             ParserState::BeginSection {
+                code: SectionCode::DataCount,
+                ..
+            } => {
+                let func_index = self
+                    .current_section
+                    .as_ref()
+                    .expect("section")
+                    .get_data_count_section_content()?;
+                self.state = ParserState::DataCountSectionEntry(func_index);
+            }
+            ParserState::BeginSection {
                 code: SectionCode::Custom { .. },
                 ..
             } => {
@@ -876,13 +902,17 @@ impl<'a> Parser<'a> {
                 self.read_init_expression_body(InitExpressionContinuation::GlobalSection)
             }
             ParserState::EndGlobalSectionEntry => self.read_global_entry()?,
-            ParserState::BeginElementSectionEntry(_) => {
+            ParserState::BeginPassiveElementSectionEntry(_) => self.read_element_entry_body()?,
+            ParserState::BeginActiveElementSectionEntry(_) => {
                 self.read_init_expression_body(InitExpressionContinuation::ElementSection)
             }
             ParserState::BeginInitExpressionBody | ParserState::InitExpressionOperator(_) => {
                 self.read_init_expression_operator()?
             }
-            ParserState::BeginDataSectionEntry(_) => {
+            ParserState::BeginPassiveDataSectionEntry => {
+                self.read_data_entry_body()?;
+            }
+            ParserState::BeginActiveDataSectionEntry(_) => {
                 self.read_init_expression_body(InitExpressionContinuation::DataSection)
             }
             ParserState::EndInitExpressionBody => {
@@ -918,6 +948,7 @@ impl<'a> Parser<'a> {
             }
             ParserState::EndElementSectionEntry => self.read_element_entry()?,
             ParserState::StartSectionEntry(_) => self.position_to_section_end()?,
+            ParserState::DataCountSectionEntry(_) => self.position_to_section_end()?,
             ParserState::NameSectionEntry(_) => self.read_name_entry()?,
             ParserState::SourceMappingURL(_) => self.position_to_section_end()?,
             ParserState::RelocSectionHeader(_) => {

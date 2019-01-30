@@ -77,10 +77,12 @@ pub use validator::WasmModuleResources;
 
 pub use readers::CodeSectionReader;
 pub use readers::Data;
+pub use readers::DataKind;
 pub use readers::DataSectionReader;
 pub use readers::Element;
 pub use readers::ElementItems;
 pub use readers::ElementItemsReader;
+pub use readers::ElementKind;
 pub use readers::ElementSectionReader;
 pub use readers::Export;
 pub use readers::ExportSectionReader;

@@ -53,17 +53,18 @@ pub enum SectionCode<'a> {
         name: &'a str,
         kind: CustomSectionKind,
     },
-    Type,     // Function signature declarations
-    Import,   // Import declarations
-    Function, // Function declarations
-    Table,    // Indirect function table and other tables
-    Memory,   // Memory attributes
-    Global,   // Global declarations
-    Export,   // Exports
-    Start,    // Start function declaration
-    Element,  // Elements section
-    Code,     // Function bodies (code)
-    Data,     // Data segments
+    Type,      // Function signature declarations
+    Import,    // Import declarations
+    Function,  // Function declarations
+    Table,     // Indirect function table and other tables
+    Memory,    // Memory attributes
+    Global,    // Global declarations
+    Export,    // Exports
+    Start,     // Start function declaration
+    Element,   // Elements section
+    Code,      // Function bodies (code)
+    Data,      // Data segments
+    DataCount, // Count of passive data segments
 }
 
 /// Types as defined [here].
@@ -407,6 +408,16 @@ pub enum Operator<'a> {
     I64TruncUSatF32,
     I64TruncSSatF64,
     I64TruncUSatF64,
+
+    // 0xFC operators
+    // bulk memory https://github.com/WebAssembly/bulk-memory-operations/blob/master/proposals/bulk-memory-operations/Overview.md
+    MemoryInit { segment: u32 },
+    DataDrop { segment: u32 },
+    MemoryCopy,
+    MemoryFill,
+    TableInit { segment: u32 },
+    ElemDrop { segment: u32 },
+    TableCopy,
 
     // 0xFE operators
     // https://github.com/WebAssembly/threads/blob/master/proposals/threads/Overview.md
