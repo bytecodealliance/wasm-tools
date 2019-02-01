@@ -106,6 +106,13 @@ impl<'a> BinaryReader<'a> {
         self.original_offset + self.position
     }
 
+    pub fn range(&self) -> Range {
+        Range {
+            start: self.original_offset,
+            end: self.original_offset + self.buffer.len(),
+        }
+    }
+
     fn ensure_has_byte(&self) -> Result<()> {
         if self.position < self.buffer.len() {
             Ok(())

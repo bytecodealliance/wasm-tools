@@ -241,7 +241,7 @@ impl<'a> Section<'a> {
         BinaryReader::new_with_offset(self.data, self.offset)
     }
 
-    pub(crate) fn get_range(&self) -> Range {
+    pub fn range(&self) -> Range {
         Range {
             start: self.offset,
             end: self.offset + self.data.len(),

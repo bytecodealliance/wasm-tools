@@ -320,7 +320,7 @@ impl<'a> Parser<'a> {
     fn read_section_header(&mut self) -> Result<()> {
         let section = self.module_reader.as_mut().expect("module reader").read()?;
         let code = section.code;
-        let range = section.get_range();
+        let range = section.range();
         self.current_section = Some(section);
         self.state = ParserState::BeginSection { code, range };
         Ok(())
@@ -456,7 +456,7 @@ impl<'a> Parser<'a> {
             return self.check_section_end();
         }
         let function_body = section_reader!(self, CodeSectionReader).read()?;
-        let range = function_body.get_range();
+        let range = function_body.range();
         self.state = ParserState::BeginFunctionBody { range };
         self.current_function_body = Some(function_body);
         self.section_entries_left -= 1;
