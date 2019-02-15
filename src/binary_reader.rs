@@ -821,7 +821,7 @@ impl<'a> BinaryReader<'a> {
             },
             0x11 => Operator::CallIndirect {
                 index: self.read_var_u32()?,
-                table_index: self.read_var_u1()?,
+                table_index: self.read_var_u32()?,
             },
             0x1a => Operator::Drop,
             0x1b => Operator::Select,
@@ -839,6 +839,12 @@ impl<'a> BinaryReader<'a> {
             },
             0x24 => Operator::SetGlobal {
                 global_index: self.read_var_u32()?,
+            },
+            0x25 => Operator::TableGet {
+                table: self.read_var_u32()?,
+            },
+            0x26 => Operator::TableSet {
+                table: self.read_var_u32()?,
             },
             0x28 => Operator::I32Load {
                 memarg: self.read_memarg()?,
@@ -1158,6 +1164,15 @@ impl<'a> BinaryReader<'a> {
                     });
                 }
                 Operator::TableCopy
+            }
+
+            0x0f => {
+                let table = self.read_var_u32()?;
+                Operator::TableGrow { table }
+            }
+            0x10 => {
+                let table = self.read_var_u32()?;
+                Operator::TableSize { table }
             }
 
             _ => {

@@ -1574,6 +1574,37 @@ impl OperatorValidator {
                 self.check_operands(func_state, &[Type::I32, Type::I32, Type::I32])?;
                 OperatorAction::ChangeFrame(3)
             }
+            Operator::TableGet { table } => {
+                self.check_reference_types_enabled()?;
+                if table as usize >= resources.tables().len() {
+                    return Err("table index out of bounds");
+                }
+                self.check_operands(func_state, &[Type::I32])?;
+                OperatorAction::ChangeFrameWithType(1, Type::AnyRef)
+            }
+            Operator::TableSet { table } => {
+                self.check_reference_types_enabled()?;
+                if table as usize >= resources.tables().len() {
+                    return Err("table index out of bounds");
+                }
+                self.check_operands(func_state, &[Type::I32, Type::AnyRef])?;
+                OperatorAction::ChangeFrame(2)
+            }
+            Operator::TableGrow { table } => {
+                self.check_reference_types_enabled()?;
+                if table as usize >= resources.tables().len() {
+                    return Err("table index out of bounds");
+                }
+                self.check_operands(func_state, &[Type::I32])?;
+                OperatorAction::ChangeFrameWithType(1, Type::I32)
+            }
+            Operator::TableSize { table } => {
+                self.check_reference_types_enabled()?;
+                if table as usize >= resources.tables().len() {
+                    return Err("table index out of bounds");
+                }
+                OperatorAction::ChangeFrameWithType(1, Type::I32)
+            }
         })
     }
 
