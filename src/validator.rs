@@ -461,7 +461,7 @@ impl OperatorValidator {
         }
         let block = func_state.block_at(relative_depth as usize);
         if block.jump_to_top {
-            if !func_state.assert_last_block_stack_len_exact(reserve_items) {
+            if !func_state.assert_block_stack_len(0, reserve_items) {
                 return Err("stack size does not match target loop type");
             }
             return Ok(());
