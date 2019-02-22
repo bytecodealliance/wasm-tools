@@ -2111,6 +2111,13 @@ impl<'a> ValidatingParser<'a> {
                 }
             }
             ParserState::EndWasm => {
+                if self.func_type_indices.len()
+                    != self.current_func_index as usize + self.func_imports_count as usize
+                {
+                    self.validation_error = self.create_validation_error(
+                        "function and code section have inconsistent lengths",
+                    );
+                }
                 if let Some(data_count) = self.data_count {
                     if data_count != self.data_found {
                         self.validation_error = self.create_validation_error(
