@@ -12,6 +12,9 @@ exclude = ["fuzz/**/*", "tests/**/*"]
 
 [dependencies]
 
+[dev-dependencies]
+criterion = "0.2"
+
 [dependencies.hashmap_core]
 version = "0.1.9"
 optional = true
@@ -26,3 +29,7 @@ travis-ci = { repository = "yurydelendik/wasmparser.rs" }
 default = ["std"]
 std = []
 core = ["hashmap_core"]
+
+[[bench]]
+name = "benchmark"
+harness = false
