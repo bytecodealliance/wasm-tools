@@ -14,9 +14,11 @@
  */
 
 use std::boxed::Box;
-use std::error::Error;
 use std::fmt;
 use std::result;
+
+#[cfg(feature = "std")]
+use std::error::Error;
 
 #[derive(Debug, Copy, Clone)]
 pub struct BinaryReaderError {
@@ -26,6 +28,7 @@ pub struct BinaryReaderError {
 
 pub type Result<T> = result::Result<T, BinaryReaderError>;
 
+#[cfg(feature = "std")]
 impl Error for BinaryReaderError {}
 
 impl fmt::Display for BinaryReaderError {

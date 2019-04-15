@@ -24,7 +24,6 @@
 //! a data-structure using this library.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![cfg_attr(not(feature = "std"), feature(alloc))]
 
 #[cfg(not(feature = "std"))]
 extern crate hashmap_core;
@@ -124,7 +123,7 @@ mod validator;
 
 #[cfg(not(feature = "std"))]
 mod std {
-    pub use alloc::{boxed, vec};
+    pub use alloc::{boxed, string, vec};
     pub use core::*;
     pub mod collections {
         pub use hashmap_core::HashSet;

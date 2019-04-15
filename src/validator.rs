@@ -18,6 +18,7 @@ use std::cmp::min;
 use std::collections::HashSet;
 use std::result;
 use std::str;
+use std::string::String;
 use std::vec::Vec;
 
 use limits::{
@@ -2016,7 +2017,7 @@ impl<'a> ValidatingParser<'a> {
             }
             ParserState::ExportSectionEntry { field, kind, index } => {
                 self.validation_error = self.check_export_entry(field, kind, index).err();
-                self.exported_names.insert(field.to_string());
+                self.exported_names.insert(String::from(field));
             }
             ParserState::StartSectionEntry(func_index) => {
                 self.validation_error = self.check_start(func_index).err();
