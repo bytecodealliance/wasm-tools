@@ -68,6 +68,7 @@ pub use primitives::Type;
 pub use primitives::V128;
 
 pub use validator::validate;
+pub use validator::validate_function_body;
 pub use validator::ValidatingOperatorParser;
 pub use validator::ValidatingParser;
 pub use validator::ValidatingParserConfig;

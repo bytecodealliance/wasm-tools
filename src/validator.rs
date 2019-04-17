@@ -20,8 +20,8 @@ use std::string::String;
 use std::vec::Vec;
 
 use limits::{
-    MAX_WASM_FUNCTIONS, MAX_WASM_GLOBALS, MAX_WASM_MEMORIES, MAX_WASM_MEMORY_PAGES,
-    MAX_WASM_TABLES, MAX_WASM_TYPES,
+    MAX_WASM_FUNCTIONS, MAX_WASM_FUNCTION_LOCALS, MAX_WASM_GLOBALS, MAX_WASM_MEMORIES,
+    MAX_WASM_MEMORY_PAGES, MAX_WASM_TABLES, MAX_WASM_TYPES,
 };
 
 use binary_reader::BinaryReader;
@@ -37,6 +37,8 @@ use operators_validator::{
     FunctionEnd, OperatorValidator, OperatorValidatorConfig, WasmModuleResources,
     DEFAULT_OPERATOR_VALIDATOR_CONFIG,
 };
+
+use readers::FunctionBody;
 
 type ValidatorResult<'a, T> = result::Result<T, ParserState<'a>>;
 
@@ -642,6 +644,10 @@ impl<'a> WasmDecoder<'a> for ValidatingParser<'a> {
         match input {
             ParserInput::SkipSection => panic!("Not supported"),
             ParserInput::ReadSectionRawData => panic!("Not supported"),
+            ParserInput::SkipFunctionBody => {
+                self.current_func_index += 1;
+                self.parser.push_input(input);
+            }
             _ => self.parser.push_input(input),
         }
     }
@@ -769,18 +775,101 @@ impl<'b> ValidatingOperatorParser<'b> {
     }
 }
 
+/// Test whether the given buffer contains a valid WebAssembly function.
+/// The resources parameter contains all needed data to validate the operators.
+pub fn validate_function_body(
+    bytes: &[u8],
+    func_index: u32,
+    resources: &WasmModuleResources,
+    operator_config: Option<OperatorValidatorConfig>,
+) -> bool {
+    let operator_config = operator_config.unwrap_or(DEFAULT_OPERATOR_VALIDATOR_CONFIG);
+    let function_body = FunctionBody::new(0, bytes);
+    let mut locals_reader = if let Ok(r) = function_body.get_locals_reader() {
+        r
+    } else {
+        return false;
+    };
+    let local_count = locals_reader.get_count() as usize;
+    if local_count > MAX_WASM_FUNCTION_LOCALS {
+        return false;
+    }
+    let mut locals: Vec<(u32, Type)> = Vec::with_capacity(local_count);
+    let mut locals_total: usize = 0;
+    for _ in 0..local_count {
+        let (count, ty) = if let Ok(r) = locals_reader.read() {
+            r
+        } else {
+            return false;
+        };
+        locals_total = if let Some(r) = locals_total.checked_add(count as usize) {
+            r
+        } else {
+            return false;
+        };
+        if locals_total > MAX_WASM_FUNCTION_LOCALS {
+            return false;
+        }
+        locals.push((count, ty));
+    }
+    let operators_reader = if let Ok(r) = function_body.get_operators_reader() {
+        r
+    } else {
+        return false;
+    };
+    let func_type_index = resources.func_type_indices()[func_index as usize];
+    let func_type = &resources.types()[func_type_index as usize];
+    let mut operator_validator = OperatorValidator::new(func_type, &locals, operator_config);
+    let mut eof_found = false;
+    for op in operators_reader.into_iter() {
+        let op = match op {
+            Err(_) => return false,
+            Ok(ref op) => op,
+        };
+        match operator_validator.process_operator(op, resources) {
+            Err(_) => return false,
+            Ok(FunctionEnd::Yes) => {
+                eof_found = true;
+            }
+            Ok(FunctionEnd::No) => (),
+        }
+    }
+    eof_found
+}
+
 /// Test whether the given buffer contains a valid WebAssembly module,
 /// analogous to WebAssembly.validate in the JS API.
 pub fn validate(bytes: &[u8], config: Option<ValidatingParserConfig>) -> bool {
     let mut parser = ValidatingParser::new(bytes, config);
+    let mut parser_input = None;
+    let mut func_ranges = Vec::new();
     loop {
-        let state = parser.read();
+        let next_input = parser_input.take().unwrap_or(ParserInput::Default);
+        let state = parser.read_with_input(next_input);
         match *state {
-            ParserState::EndWasm => return true,
+            ParserState::EndWasm => break,
             ParserState::Error(_) => return false,
+            ParserState::BeginFunctionBody { range } => {
+                parser_input = Some(ParserInput::SkipFunctionBody);
+                func_ranges.push(range);
+            }
             _ => (),
         }
     }
+    let operator_config = config.map(|c| c.operator_config);
+    for (i, range) in func_ranges.into_iter().enumerate() {
+        let function_body = range.slice(bytes);
+        let function_index = i as u32 + parser.func_imports_count;
+        if !validate_function_body(
+            function_body,
+            function_index,
+            &parser.resources,
+            operator_config,
+        ) {
+            return false;
+        }
+    }
+    true
 }
 
 #[test]
