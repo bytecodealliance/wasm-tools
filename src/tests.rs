@@ -16,12 +16,13 @@
 #[cfg(feature = "std")]
 #[cfg(test)]
 mod simple_tests {
+    use operators_validator::OperatorValidatorConfig;
     use parser::{Parser, ParserInput, ParserState, WasmDecoder};
     use primitives::{Operator, SectionCode};
     use std::fs::{read_dir, File};
     use std::io::prelude::*;
     use std::path::PathBuf;
-    use validator::{OperatorValidatorConfig, ValidatingParser, ValidatingParserConfig};
+    use validator::{ValidatingParser, ValidatingParserConfig};
 
     const VALIDATOR_CONFIG: Option<ValidatingParserConfig> = Some(ValidatingParserConfig {
         operator_config: OperatorValidatorConfig {
