@@ -14,3 +14,6 @@ before_script:
     # rustup update makes it ready.
     - rustup update
 script: ./test-all.sh
+after_success:
+    # run benchmarks if there is a success in testing
+    - ./compare-master.sh
