@@ -4,7 +4,7 @@
 cargo bench --bench benchmark -- --noplot --save-baseline after
 
 # switch to master and record its bench results
-git checkout master && \\
+git checkout master && \
 cargo bench --bench benchmark -- --noplot --save-baseline before
 
 # compare
