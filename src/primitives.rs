@@ -49,7 +49,7 @@ pub enum CustomSectionKind {
 
 /// Section code as defined [here].
 ///
-/// [here]: https://webassembly.github.io/spec/binary/modules.html#sections
+/// [here]: https://webassembly.github.io/spec/core/binary/modules.html#sections
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SectionCode<'a> {
     Custom {
@@ -72,7 +72,7 @@ pub enum SectionCode<'a> {
 
 /// Types as defined [here].
 ///
-/// [here]: https://webassembly.github.io/spec/syntax/types.html#types
+/// [here]: https://webassembly.github.io/spec/core/syntax/types.html#types
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Type {
     I32,
@@ -88,7 +88,7 @@ pub enum Type {
 
 /// External types as defined [here].
 ///
-/// [here]: https://webassembly.github.io/spec/syntax/types.html#external-types
+/// [here]: https://webassembly.github.io/spec/core/syntax/types.html#external-types
 #[derive(Debug, Copy, Clone)]
 pub enum ExternalKind {
     Function,
@@ -218,7 +218,7 @@ pub type SIMDLineIndex = u8;
 
 /// Instructions as defined [here].
 ///
-/// [here]: https://webassembly.github.io/spec/binary/instructions.html
+/// [here]: https://webassembly.github.io/spec/core/binary/instructions.html
 #[derive(Debug)]
 pub enum Operator<'a> {
     Unreachable,
