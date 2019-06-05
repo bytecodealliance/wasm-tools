@@ -179,7 +179,7 @@ impl<'a> ValidatingParser<'a> {
         }
     }
 
-    pub fn get_resources(&self) -> &WasmModuleResources {
+    pub fn get_resources(&self) -> &dyn WasmModuleResources {
         &self.resources
     }
 
@@ -748,7 +748,7 @@ impl<'b> ValidatingOperatorParser<'b> {
     ///     }
     /// }
     /// ```
-    pub fn next<'c>(&mut self, resources: &WasmModuleResources) -> Result<Operator<'c>>
+    pub fn next<'c>(&mut self, resources: &dyn WasmModuleResources) -> Result<Operator<'c>>
     where
         'b: 'c,
     {
@@ -780,7 +780,7 @@ impl<'b> ValidatingOperatorParser<'b> {
 pub fn validate_function_body(
     bytes: &[u8],
     func_index: u32,
-    resources: &WasmModuleResources,
+    resources: &dyn WasmModuleResources,
     operator_config: Option<OperatorValidatorConfig>,
 ) -> bool {
     let operator_config = operator_config.unwrap_or(DEFAULT_OPERATOR_VALIDATOR_CONFIG);
