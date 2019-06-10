@@ -422,7 +422,7 @@ impl OperatorValidator {
     fn check_memory_index(
         &self,
         memory_index: u32,
-        resources: &WasmModuleResources,
+        resources: &dyn WasmModuleResources,
     ) -> OperatorValidatorResult<()> {
         if memory_index as usize >= resources.memories().len() {
             return Err("no liner memories are present");
@@ -433,7 +433,7 @@ impl OperatorValidator {
     fn check_shared_memory_index(
         &self,
         memory_index: u32,
-        resources: &WasmModuleResources,
+        resources: &dyn WasmModuleResources,
     ) -> OperatorValidatorResult<()> {
         if memory_index as usize >= resources.memories().len() {
             return Err("no liner memories are present");
@@ -448,7 +448,7 @@ impl OperatorValidator {
         &self,
         memarg: &MemoryImmediate,
         max_align: u32,
-        resources: &WasmModuleResources,
+        resources: &dyn WasmModuleResources,
     ) -> OperatorValidatorResult<()> {
         self.check_memory_index(0, resources)?;
         let align = memarg.flags;
@@ -489,7 +489,7 @@ impl OperatorValidator {
     fn check_shared_memarg_wo_align(
         &self,
         _: &MemoryImmediate,
-        resources: &WasmModuleResources,
+        resources: &dyn WasmModuleResources,
     ) -> OperatorValidatorResult<()> {
         self.check_shared_memory_index(0, resources)?;
         Ok(())
@@ -540,7 +540,7 @@ impl OperatorValidator {
     pub(crate) fn process_operator(
         &mut self,
         operator: &Operator,
-        resources: &WasmModuleResources,
+        resources: &dyn WasmModuleResources,
     ) -> OperatorValidatorResult<FunctionEnd> {
         if self.func_state.end_function {
             return Err("unexpected operator");
