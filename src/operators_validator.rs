@@ -20,6 +20,7 @@ use std::vec::Vec;
 
 use primitives::{
     FuncType, GlobalType, MemoryImmediate, MemoryType, Operator, SIMDLineIndex, TableType, Type,
+    TypeOrFuncType,
 };
 
 /// Test if `subtype` is a subtype of `supertype`.
@@ -30,7 +31,9 @@ fn is_subtype_supertype(subtype: Type, supertype: Type) -> bool {
     }
 }
 
+#[derive(Debug)]
 struct BlockState {
+    start_types: Vec<Type>,
     return_types: Vec<Type>,
     stack_starts_at: usize,
     jump_to_top: bool,
@@ -45,6 +48,7 @@ impl BlockState {
     }
 }
 
+#[derive(Debug)]
 struct FuncState {
     local_types: Vec<Type>,
     blocks: Vec<BlockState>,
@@ -116,16 +120,31 @@ impl FuncState {
         }
         Ok(())
     }
-    fn push_block(&mut self, ty: Type, block_type: BlockType) {
-        let return_types = match ty {
-            Type::EmptyBlockType => Vec::with_capacity(0),
-            _ => vec![ty],
+    fn push_block(
+        &mut self,
+        ty: TypeOrFuncType,
+        block_type: BlockType,
+        resources: &dyn WasmModuleResources,
+    ) -> OperatorValidatorResult<()> {
+        let (start_types, return_types) = match ty {
+            TypeOrFuncType::Type(Type::EmptyBlockType) => (vec![], vec![]),
+            TypeOrFuncType::Type(ty) => (vec![], vec![ty]),
+            TypeOrFuncType::FuncType(idx) => {
+                let ty = &resources.types()[idx as usize];
+                (ty.params.clone().into_vec(), ty.returns.clone().into_vec())
+            }
         };
         if block_type == BlockType::If {
             self.stack_types.pop();
         }
-        let stack_starts_at = self.stack_types.len();
+        for (i, ty) in start_types.iter().rev().enumerate() {
+            if !self.assert_stack_type_at(i, *ty) {
+                return Err("stack operand type mismatch");
+            }
+        }
+        let stack_starts_at = self.stack_types.len() - start_types.len();
         self.blocks.push(BlockState {
+            start_types,
             return_types,
             stack_starts_at,
             jump_to_top: block_type == BlockType::Loop,
@@ -133,6 +152,7 @@ impl FuncState {
             is_dead_code: false,
             polymorphic_values: None,
         });
+        Ok(())
     }
     fn pop_block(&mut self) {
         assert!(self.blocks.len() > 1);
@@ -157,6 +177,8 @@ impl FuncState {
         let last_block = self.blocks.last_mut().unwrap();
         let keep = last_block.stack_starts_at;
         self.stack_types.truncate(keep);
+        self.stack_types
+            .extend(last_block.start_types.iter().cloned());
         last_block.is_else_allowed = false;
         last_block.polymorphic_values = None;
     }
@@ -240,12 +262,13 @@ pub enum FunctionEnd {
 
 type OperatorValidatorResult<T> = result::Result<T, &'static str>;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct OperatorValidatorConfig {
     pub enable_threads: bool,
     pub enable_reference_types: bool,
     pub enable_simd: bool,
     pub enable_bulk_memory: bool,
+    pub enable_multi_value: bool,
 }
 
 pub(crate) const DEFAULT_OPERATOR_VALIDATOR_CONFIG: OperatorValidatorConfig =
@@ -254,8 +277,10 @@ pub(crate) const DEFAULT_OPERATOR_VALIDATOR_CONFIG: OperatorValidatorConfig =
         enable_reference_types: false,
         enable_simd: false,
         enable_bulk_memory: false,
+        enable_multi_value: false,
     };
 
+#[derive(Debug)]
 pub(crate) struct OperatorValidator {
     func_state: FuncState,
     config: OperatorValidatorConfig,
@@ -279,6 +304,7 @@ impl OperatorValidator {
         let mut last_returns = Vec::new();
         last_returns.extend_from_slice(&*func_type.returns);
         blocks.push(BlockState {
+            start_types: vec![],
             return_types: last_returns,
             stack_starts_at: 0,
             jump_to_top: false,
@@ -348,6 +374,10 @@ impl OperatorValidator {
         block: &BlockState,
         reserve_items: usize,
     ) -> OperatorValidatorResult<()> {
+        if !self.config.enable_multi_value && block.return_types.len() > 1 {
+            return Err("blocks, loops, and ifs may only return at most one \
+                        value when multi-value is not enabled");
+        }
         let len = block.return_types.len();
         for i in 0..len {
             if !self
@@ -502,9 +532,25 @@ impl OperatorValidator {
         Ok(())
     }
 
-    fn check_block_type(&self, ty: Type) -> OperatorValidatorResult<()> {
+    fn check_block_type(
+        &self,
+        ty: TypeOrFuncType,
+        resources: &dyn WasmModuleResources,
+    ) -> OperatorValidatorResult<()> {
         match ty {
-            Type::EmptyBlockType | Type::I32 | Type::I64 | Type::F32 | Type::F64 => Ok(()),
+            TypeOrFuncType::Type(Type::EmptyBlockType)
+            | TypeOrFuncType::Type(Type::I32)
+            | TypeOrFuncType::Type(Type::I64)
+            | TypeOrFuncType::Type(Type::F32)
+            | TypeOrFuncType::Type(Type::F64) => Ok(()),
+            TypeOrFuncType::FuncType(idx) => {
+                let idx = idx as usize;
+                let types = resources.types();
+                if idx >= types.len() {
+                    return Err("type index out of bounds");
+                }
+                Ok(())
+            }
             _ => Err("invalid block return type"),
         }
     }
@@ -549,17 +595,18 @@ impl OperatorValidator {
             Operator::Unreachable => self.func_state.start_dead_code(),
             Operator::Nop => (),
             Operator::Block { ty } => {
-                self.check_block_type(ty)?;
-                self.func_state.push_block(ty, BlockType::Block)
+                self.check_block_type(ty, resources)?;
+                self.func_state
+                    .push_block(ty, BlockType::Block, resources)?;
             }
             Operator::Loop { ty } => {
-                self.check_block_type(ty)?;
-                self.func_state.push_block(ty, BlockType::Loop)
+                self.check_block_type(ty, resources)?;
+                self.func_state.push_block(ty, BlockType::Loop, resources)?;
             }
             Operator::If { ty } => {
-                self.check_block_type(ty)?;
+                self.check_block_type(ty, resources)?;
                 self.check_operands_1(Type::I32)?;
-                self.func_state.push_block(ty, BlockType::If)
+                self.func_state.push_block(ty, BlockType::If, resources)?;
             }
             Operator::Else => {
                 if !self.func_state.last_block().is_else_allowed {

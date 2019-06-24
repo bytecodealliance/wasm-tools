@@ -86,6 +86,19 @@ pub enum Type {
     EmptyBlockType,
 }
 
+/// Either a value type or a function type.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum TypeOrFuncType {
+    /// A value type.
+    ///
+    /// When used as the type for a block, this type is the optional result
+    /// type: `[] -> [t?]`.
+    Type(Type),
+
+    /// A function type (referenced as an index into the types section).
+    FuncType(u32),
+}
+
 /// External types as defined [here].
 ///
 /// [here]: https://webassembly.github.io/spec/core/syntax/types.html#external-types
@@ -223,9 +236,9 @@ pub type SIMDLineIndex = u8;
 pub enum Operator<'a> {
     Unreachable,
     Nop,
-    Block { ty: Type },
-    Loop { ty: Type },
-    If { ty: Type },
+    Block { ty: TypeOrFuncType },
+    Loop { ty: TypeOrFuncType },
+    If { ty: TypeOrFuncType },
     Else,
     End,
     Br { relative_depth: u32 },

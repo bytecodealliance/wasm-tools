@@ -222,9 +222,6 @@ impl<'a> ValidatingParser<'a> {
         if let Type::Func = func_type.form {
             self.check_value_types(&*func_type.params)?;
             self.check_value_types(&*func_type.returns)?;
-            if func_type.returns.len() > 1 {
-                return self.create_error("too many returns, expected 0 or 1");
-            }
             Ok(())
         } else {
             self.create_error("type signature is not a func")
