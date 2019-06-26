@@ -17,12 +17,12 @@ use std::boxed::Box;
 use std::str;
 use std::vec::Vec;
 
-use limits::{
+use crate::limits::{
     MAX_WASM_FUNCTION_LOCALS, MAX_WASM_FUNCTION_PARAMS, MAX_WASM_FUNCTION_RETURNS,
     MAX_WASM_FUNCTION_SIZE, MAX_WASM_STRING_SIZE,
 };
 
-use primitives::{
+use crate::primitives::{
     BinaryReaderError, BrTable, CustomSectionKind, ExternalKind, FuncType, GlobalType, Ieee32,
     Ieee64, LinkingType, MemoryImmediate, MemoryType, NameType, Operator, RelocType,
     ResizableLimits, Result, SIMDLineIndex, SectionCode, TableType, Type, TypeOrFuncType, V128,

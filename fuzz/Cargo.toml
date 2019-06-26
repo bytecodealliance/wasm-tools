@@ -3,6 +3,7 @@ name = "wasmparser-fuzz"
 version = "0.0.1"
 authors = ["Yury Delendik <ydelendik@mozilla.com>"]
 publish = false
+edition = "2018"
 
 [package.metadata]
 cargo-fuzz = true

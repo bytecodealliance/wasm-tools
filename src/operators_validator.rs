@@ -18,7 +18,7 @@ use std::result;
 use std::str;
 use std::vec::Vec;
 
-use primitives::{
+use crate::primitives::{
     FuncType, GlobalType, MemoryImmediate, MemoryType, Operator, SIMDLineIndex, TableType, Type,
     TypeOrFuncType,
 };
