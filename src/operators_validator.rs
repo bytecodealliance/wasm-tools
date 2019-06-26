@@ -13,8 +13,8 @@
  * limitations under the License.
  */
 
-use std::cmp::min;
-use std::result;
+use core::cmp::min;
+use core::result;
 use std::str;
 use std::vec::Vec;
 

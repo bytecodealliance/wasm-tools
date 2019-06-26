@@ -26,11 +26,16 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(not(feature = "std"))]
-extern crate hashmap_core;
+#[macro_use]
+extern crate alloc as std;
+#[cfg(feature = "std")]
+#[macro_use]
+extern crate std;
 
 #[cfg(not(feature = "std"))]
-#[macro_use]
-extern crate alloc;
+use hashbrown::HashSet;
+#[cfg(feature = "std")]
+use std::collections::HashSet;
 
 pub use crate::binary_reader::BinaryReader;
 pub use crate::binary_reader::Range;
@@ -124,12 +129,3 @@ mod primitives;
 mod readers;
 mod tests;
 mod validator;
-
-#[cfg(not(feature = "std"))]
-mod std {
-    pub use alloc::{boxed, string, vec};
-    pub use core::*;
-    pub mod collections {
-        pub use hashmap_core::HashSet;
-    }
-}

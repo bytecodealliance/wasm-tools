@@ -13,8 +13,8 @@
  * limitations under the License.
  */
 
-use std::collections::HashSet;
-use std::result;
+use super::HashSet;
+use core::result;
 use std::str;
 use std::string::String;
 use std::vec::Vec;

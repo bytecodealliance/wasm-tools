@@ -13,9 +13,9 @@
  * limitations under the License.
  */
 
+use core::result;
 use std::boxed::Box;
 use std::fmt;
-use std::result;
 
 #[cfg(feature = "std")]
 use std::error::Error;
