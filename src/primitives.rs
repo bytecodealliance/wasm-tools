@@ -650,4 +650,6 @@ pub enum Operator<'a> {
     F32x4ConvertUI32x4,
     F64x2ConvertSI64x2,
     F64x2ConvertUI64x2,
+    V8x16Shuffle1,
+    V8x16Shuffle2Imm { lanes: [SIMDLaneIndex; 16] },
 }
