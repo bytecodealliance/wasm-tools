@@ -1456,7 +1456,7 @@ impl OperatorValidator {
             Operator::V128Bitselect => {
                 self.check_simd_enabled()?;
                 self.check_operands(&[Type::V128, Type::V128, Type::V128])?;
-                self.func_state.change_frame_with_type(2, Type::V128)?;
+                self.func_state.change_frame_with_type(3, Type::V128)?;
             }
             Operator::I8x16AnyTrue
             | Operator::I8x16AllTrue
