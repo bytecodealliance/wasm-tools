@@ -25,7 +25,7 @@ use crate::limits::{
 use crate::primitives::{
     BinaryReaderError, BrTable, CustomSectionKind, ExternalKind, FuncType, GlobalType, Ieee32,
     Ieee64, LinkingType, MemoryImmediate, MemoryType, NameType, Operator, RelocType,
-    ResizableLimits, Result, SIMDLineIndex, SectionCode, TableType, Type, TypeOrFuncType, V128,
+    ResizableLimits, Result, SIMDLaneIndex, SectionCode, TableType, Type, TypeOrFuncType, V128,
 };
 
 const MAX_WASM_BR_TABLE_SIZE: usize = MAX_WASM_FUNCTION_SIZE;
@@ -1218,15 +1218,15 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    fn read_line_index(&mut self, max: u32) -> Result<SIMDLineIndex> {
+    fn read_lane_index(&mut self, max: u32) -> Result<SIMDLaneIndex> {
         let index = self.read_u8()?;
         if index >= max {
             return Err(BinaryReaderError {
-                message: "line index out of range",
+                message: "lane index out of range",
                 offset: self.original_position() - 1,
             });
         }
-        Ok(index as SIMDLineIndex)
+        Ok(index as SIMDLaneIndex)
     }
 
     fn read_v128(&mut self) -> Result<V128> {
@@ -1248,59 +1248,59 @@ impl<'a> BinaryReader<'a> {
                 value: self.read_v128()?,
             },
             0x03 => {
-                let mut lines = [0 as SIMDLineIndex; 16];
+                let mut lanes = [0 as SIMDLaneIndex; 16];
                 for i in 0..16 {
-                    lines[i] = self.read_line_index(32)?
+                    lanes[i] = self.read_lane_index(32)?
                 }
-                Operator::V8x16Shuffle { lines }
+                Operator::V8x16Shuffle { lanes }
             }
             0x04 => Operator::I8x16Splat,
             0x05 => Operator::I8x16ExtractLaneS {
-                line: self.read_line_index(16)?,
+                lane: self.read_lane_index(16)?,
             },
             0x06 => Operator::I8x16ExtractLaneU {
-                line: self.read_line_index(16)?,
+                lane: self.read_lane_index(16)?,
             },
             0x07 => Operator::I8x16ReplaceLane {
-                line: self.read_line_index(16)?,
+                lane: self.read_lane_index(16)?,
             },
             0x08 => Operator::I16x8Splat,
             0x09 => Operator::I16x8ExtractLaneS {
-                line: self.read_line_index(8)?,
+                lane: self.read_lane_index(8)?,
             },
             0x0a => Operator::I16x8ExtractLaneU {
-                line: self.read_line_index(8)?,
+                lane: self.read_lane_index(8)?,
             },
             0x0b => Operator::I16x8ReplaceLane {
-                line: self.read_line_index(8)?,
+                lane: self.read_lane_index(8)?,
             },
             0x0c => Operator::I32x4Splat,
             0x0d => Operator::I32x4ExtractLane {
-                line: self.read_line_index(4)?,
+                lane: self.read_lane_index(4)?,
             },
             0x0e => Operator::I32x4ReplaceLane {
-                line: self.read_line_index(4)?,
+                lane: self.read_lane_index(4)?,
             },
             0x0f => Operator::I64x2Splat,
             0x10 => Operator::I64x2ExtractLane {
-                line: self.read_line_index(2)?,
+                lane: self.read_lane_index(2)?,
             },
             0x11 => Operator::I64x2ReplaceLane {
-                line: self.read_line_index(2)?,
+                lane: self.read_lane_index(2)?,
             },
             0x12 => Operator::F32x4Splat,
             0x13 => Operator::F32x4ExtractLane {
-                line: self.read_line_index(4)?,
+                lane: self.read_lane_index(4)?,
             },
             0x14 => Operator::F32x4ReplaceLane {
-                line: self.read_line_index(4)?,
+                lane: self.read_lane_index(4)?,
             },
             0x15 => Operator::F64x2Splat,
             0x16 => Operator::F64x2ExtractLane {
-                line: self.read_line_index(2)?,
+                lane: self.read_lane_index(2)?,
             },
             0x17 => Operator::F64x2ReplaceLane {
-                line: self.read_line_index(2)?,
+                lane: self.read_lane_index(2)?,
             },
             0x18 => Operator::I8x16Eq,
             0x19 => Operator::I8x16Ne,
