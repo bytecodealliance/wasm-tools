@@ -17,12 +17,12 @@ use std::boxed::Box;
 use std::str;
 use std::vec::Vec;
 
-use limits::{
+use crate::limits::{
     MAX_WASM_FUNCTION_LOCALS, MAX_WASM_FUNCTION_PARAMS, MAX_WASM_FUNCTION_RETURNS,
     MAX_WASM_FUNCTION_SIZE, MAX_WASM_STRING_SIZE,
 };
 
-use primitives::{
+use crate::primitives::{
     BinaryReaderError, BrTable, CustomSectionKind, ExternalKind, FuncType, GlobalType, Ieee32,
     Ieee64, LinkingType, MemoryImmediate, MemoryType, NameType, Operator, RelocType,
     ResizableLimits, Result, SIMDLineIndex, SectionCode, TableType, Type, TypeOrFuncType, V128,
@@ -814,7 +814,7 @@ impl<'a> BinaryReader<'a> {
         } else {
             self.position = position;
             let idx = self.read_var_s33()?;
-            if idx < 0 || idx > (::std::u32::MAX as i64) {
+            if idx < 0 || idx > (core::u32::MAX as i64) {
                 return Err(BinaryReaderError {
                     message: "invalid function type",
                     offset: position,

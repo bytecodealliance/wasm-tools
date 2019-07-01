@@ -9,14 +9,15 @@ description = """
 A simple event-driven library for parsing WebAssembly binary files.
 """
 exclude = ["fuzz/**/*", "tests/**/*"]
+edition = "2018"
 
 [dependencies]
 
 [dev-dependencies]
 criterion = "0.2"
 
-[dependencies.hashmap_core]
-version = "0.1.10"
+[dependencies.hashbrown]
+version = "0.5.0"
 optional = true
 
 [badges]
@@ -28,7 +29,7 @@ travis-ci = { repository = "yurydelendik/wasmparser.rs" }
 # features needs to be enabled.
 default = ["std"]
 std = []
-core = ["hashmap_core"]
+core = ["hashbrown"]
 
 [[bench]]
 name = "benchmark"
