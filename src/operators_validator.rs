@@ -1484,7 +1484,7 @@ impl OperatorValidator {
             | Operator::I64x2ShrU => {
                 self.check_simd_enabled()?;
                 self.check_operands_2(Type::V128, Type::I32)?;
-                self.func_state.change_frame_with_type(1, Type::V128)?;
+                self.func_state.change_frame_with_type(2, Type::V128)?;
             }
 
             Operator::MemoryInit { segment } => {
