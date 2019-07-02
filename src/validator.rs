@@ -222,7 +222,11 @@ impl<'a> ValidatingParser<'a> {
         if let Type::Func = func_type.form {
             self.check_value_types(&*func_type.params)?;
             self.check_value_types(&*func_type.returns)?;
-            Ok(())
+            if !self.config.operator_config.enable_multi_value && func_type.returns.len() > 1 {
+                self.create_error("func type returns multiple values")
+            } else {
+                Ok(())
+            }
         } else {
             self.create_error("type signature is not a func")
         }
