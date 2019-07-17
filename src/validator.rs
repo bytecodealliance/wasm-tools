@@ -199,7 +199,13 @@ impl<'a> ValidatingParser<'a> {
 
     fn check_value_type(&self, ty: Type) -> ValidatorResult<'a, ()> {
         match ty {
-            Type::I32 | Type::I64 | Type::F32 | Type::F64 | Type::V128 => Ok(()),
+            Type::I32 | Type::I64 | Type::F32 | Type::F64 => Ok(()),
+            Type::V128 => {
+                if !self.config.operator_config.enable_simd {
+                    return self.create_error("SIMD support is not enabled");
+                }
+                Ok(())
+            }
             _ => self.create_error("invalid value type"),
         }
     }
@@ -302,6 +308,12 @@ impl<'a> ValidatingParser<'a> {
             Operator::I64Const { .. } => Type::I64,
             Operator::F32Const { .. } => Type::F32,
             Operator::F64Const { .. } => Type::F64,
+            Operator::V128Const { .. } => {
+                if !self.config.operator_config.enable_simd {
+                    return self.create_error("SIMD support is not enabled");
+                }
+                Type::V128
+            }
             Operator::GetGlobal { global_index } => {
                 if global_index as usize >= state.global_count {
                     return self.create_error("init_expr global index out of bounds");
