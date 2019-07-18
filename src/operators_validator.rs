@@ -1486,12 +1486,12 @@ impl OperatorValidator {
                 self.check_operands_2(Type::V128, Type::I32)?;
                 self.func_state.change_frame_with_type(2, Type::V128)?;
             }
-            Operator::V8x16Shuffle1 => {
+            Operator::V8x16Swizzle => {
                 self.check_simd_enabled()?;
                 self.check_operands_2(Type::V128, Type::V128)?;
                 self.func_state.change_frame_with_type(2, Type::V128)?;
             }
-            Operator::V8x16Shuffle2Imm { ref lanes } => {
+            Operator::V8x16ShuffleImm { ref lanes } => {
                 self.check_simd_enabled()?;
                 self.check_operands_2(Type::V128, Type::V128)?;
                 for i in lanes {
