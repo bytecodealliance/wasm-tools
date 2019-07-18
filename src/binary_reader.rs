@@ -1418,13 +1418,13 @@ impl<'a> BinaryReader<'a> {
             0xb0 => Operator::F32x4ConvertUI32x4,
             0xb1 => Operator::F64x2ConvertSI64x2,
             0xb2 => Operator::F64x2ConvertUI64x2,
-            0xc0 => Operator::V8x16Shuffle1,
+            0xc0 => Operator::V8x16Swizzle,
             0xc1 => {
                 let mut lanes = [0 as SIMDLaneIndex; 16];
                 for i in 0..16 {
                     lanes[i] = self.read_lane_index(32)?
                 }
-                Operator::V8x16Shuffle2Imm { lanes }
+                Operator::V8x16ShuffleImm { lanes }
             }
             _ => {
                 return Err(BinaryReaderError {
