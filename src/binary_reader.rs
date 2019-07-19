@@ -1247,13 +1247,6 @@ impl<'a> BinaryReader<'a> {
             0x02 => Operator::V128Const {
                 value: self.read_v128()?,
             },
-            0x03 => {
-                let mut lanes = [0 as SIMDLaneIndex; 16];
-                for i in 0..16 {
-                    lanes[i] = self.read_lane_index(32)?
-                }
-                Operator::V8x16Shuffle { lanes }
-            }
             0x04 => Operator::I8x16Splat,
             0x05 => Operator::I8x16ExtractLaneS {
                 lane: self.read_lane_index(16)?,
@@ -1419,13 +1412,25 @@ impl<'a> BinaryReader<'a> {
             0xb1 => Operator::F64x2ConvertSI64x2,
             0xb2 => Operator::F64x2ConvertUI64x2,
             0xc0 => Operator::V8x16Swizzle,
-            0xc1 => {
+            0x03 | 0xc1 => {
                 let mut lanes = [0 as SIMDLaneIndex; 16];
                 for i in 0..16 {
                     lanes[i] = self.read_lane_index(32)?
                 }
-                Operator::V8x16ShuffleImm { lanes }
+                Operator::V8x16Shuffle { lanes }
             }
+            0xc2 => Operator::I8x16LoadSplat {
+                memarg: self.read_memarg_of_align(0)?,
+            },
+            0xc3 => Operator::I16x8LoadSplat {
+                memarg: self.read_memarg_of_align(1)?,
+            },
+            0xc4 => Operator::I32x4LoadSplat {
+                memarg: self.read_memarg_of_align(2)?,
+            },
+            0xc5 => Operator::I64x2LoadSplat {
+                memarg: self.read_memarg_of_align(3)?,
+            },
             _ => {
                 return Err(BinaryReaderError {
                     message: "Unknown 0xfd opcode",

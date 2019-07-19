@@ -513,7 +513,6 @@ pub enum Operator<'a> {
     V128Load { memarg: MemoryImmediate },
     V128Store { memarg: MemoryImmediate },
     V128Const { value: V128 },
-    V8x16Shuffle { lanes: [SIMDLaneIndex; 16] },
     I8x16Splat,
     I8x16ExtractLaneS { lane: SIMDLaneIndex },
     I8x16ExtractLaneU { lane: SIMDLaneIndex },
@@ -651,5 +650,9 @@ pub enum Operator<'a> {
     F64x2ConvertSI64x2,
     F64x2ConvertUI64x2,
     V8x16Swizzle,
-    V8x16ShuffleImm { lanes: [SIMDLaneIndex; 16] },
+    V8x16Shuffle { lanes: [SIMDLaneIndex; 16] },
+    I8x16LoadSplat { memarg: MemoryImmediate },
+    I16x8LoadSplat { memarg: MemoryImmediate },
+    I32x4LoadSplat { memarg: MemoryImmediate },
+    I64x2LoadSplat { memarg: MemoryImmediate },
 }

@@ -1250,14 +1250,6 @@ impl OperatorValidator {
                 self.check_simd_enabled()?;
                 self.func_state.change_frame_with_type(0, Type::V128)?;
             }
-            Operator::V8x16Shuffle { ref lanes } => {
-                self.check_simd_enabled()?;
-                self.check_operands_2(Type::V128, Type::V128)?;
-                for i in lanes {
-                    self.check_simd_lane_index(*i, 32)?;
-                }
-                self.func_state.change_frame_with_type(2, Type::V128)?;
-            }
             Operator::I8x16Splat | Operator::I16x8Splat | Operator::I32x4Splat => {
                 self.check_simd_enabled()?;
                 self.check_operands_1(Type::I32)?;
@@ -1491,13 +1483,21 @@ impl OperatorValidator {
                 self.check_operands_2(Type::V128, Type::V128)?;
                 self.func_state.change_frame_with_type(2, Type::V128)?;
             }
-            Operator::V8x16ShuffleImm { ref lanes } => {
+            Operator::V8x16Shuffle { ref lanes } => {
                 self.check_simd_enabled()?;
                 self.check_operands_2(Type::V128, Type::V128)?;
                 for i in lanes {
                     self.check_simd_lane_index(*i, 32)?;
                 }
                 self.func_state.change_frame_with_type(2, Type::V128)?;
+            }
+            Operator::I8x16LoadSplat { ref memarg }
+            | Operator::I16x8LoadSplat { ref memarg }
+            | Operator::I32x4LoadSplat { ref memarg }
+            | Operator::I64x2LoadSplat { ref memarg } => {
+                self.check_simd_enabled()?;
+                self.check_memarg(memarg, 4, resources)?;
+                self.func_state.change_frame_with_type(1, Type::V128)?;
             }
 
             Operator::MemoryInit { segment } => {
