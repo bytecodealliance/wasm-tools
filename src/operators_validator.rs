@@ -1225,6 +1225,12 @@ impl OperatorValidator {
                 self.check_operands(&[Type::I32, Type::I64, Type::I64])?;
                 self.func_state.change_frame_with_type(3, Type::I32)?;
             }
+            Operator::Fence { ref flags } => {
+                self.check_threads_enabled()?;
+                if *flags != 0 {
+                    return Err("non-zero flags for fence not supported yet");
+                }
+            }
             Operator::RefNull => {
                 self.check_reference_types_enabled()?;
                 self.func_state.change_frame_with_type(0, Type::AnyRef)?;
