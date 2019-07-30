@@ -608,6 +608,9 @@ impl<'a> BinaryReader<'a> {
             0x02 => Operator::I64Wait {
                 memarg: self.read_memarg_of_align(3)?,
             },
+            0x03 => Operator::Fence {
+                flags: self.read_u8()? as u8,
+            },
             0x10 => Operator::I32AtomicLoad {
                 memarg: self.read_memarg_of_align(2)?,
             },

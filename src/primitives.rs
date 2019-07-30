@@ -444,6 +444,7 @@ pub enum Operator<'a> {
     Wake { memarg: MemoryImmediate },
     I32Wait { memarg: MemoryImmediate },
     I64Wait { memarg: MemoryImmediate },
+    Fence { flags: u8 },
     I32AtomicLoad { memarg: MemoryImmediate },
     I64AtomicLoad { memarg: MemoryImmediate },
     I32AtomicLoad8U { memarg: MemoryImmediate },
