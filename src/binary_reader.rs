@@ -416,6 +416,23 @@ impl<'a> BinaryReader<'a> {
         Ok(b)
     }
 
+    pub fn read_var_u8(&mut self) -> Result<u32> {
+        // Optimization for single byte i32.
+        let byte = self.read_u8()?;
+        if (byte & 0x80) == 0 {
+            return Ok(byte);
+        }
+
+        let result = (self.read_u8()? << 7) | (byte & 0x7F);
+        if result >= 0x100 {
+            return Err(BinaryReaderError {
+                message: "Invalid var_u8",
+                offset: self.original_position() - 1,
+            });
+        }
+        Ok(result)
+    }
+
     pub fn read_var_u32(&mut self) -> Result<u32> {
         // Optimization for single byte i32.
         let byte = self.read_u8()?;
@@ -1239,7 +1256,7 @@ impl<'a> BinaryReader<'a> {
     }
 
     fn read_0xfd_operator(&mut self) -> Result<Operator<'a>> {
-        let code = self.read_u8()? as u8;
+        let code = self.read_var_u8()? as u8;
         Ok(match code {
             0x00 => Operator::V128Load {
                 memarg: self.read_memarg()?,
