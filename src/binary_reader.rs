@@ -535,20 +535,35 @@ impl<'a> BinaryReader<'a> {
     }
 
     pub fn read_var_s33(&mut self) -> Result<i64> {
-        // Note: this is not quite spec compliant, in that it doesn't enforce
-        // that the number is encoded in ceil(N / 7) bytes. We should make a
-        // generic-over-N decoding function and replace all the various
-        // `read_var_{i,s}NN` methods with calls to instantiations of that.
-
-        let n = self.read_var_i64()?;
-        if n > (1 << 33 - 1) {
-            Err(BinaryReaderError {
-                message: "Invalid var_s33",
-                offset: self.original_position() - 1,
-            })
-        } else {
-            Ok(n)
+        // Optimization for single byte.
+        let byte = self.read_u8()?;
+        if (byte & 0x80) == 0 {
+            return Ok(((byte as i8) << 1) as i64 >> 1);
         }
+
+        let mut result = (byte & 0x7F) as i64;
+        let mut shift = 7;
+        loop {
+            let byte = self.read_u8()?;
+            result |= ((byte & 0x7F) as i64) << shift;
+            if shift >= 25 {
+                let continuation_bit = (byte & 0x80) != 0;
+                let sign_and_unused_bit = (byte << 1) as i8 >> (33 - shift);
+                if continuation_bit || (sign_and_unused_bit != 0 && sign_and_unused_bit != -1) {
+                    return Err(BinaryReaderError {
+                        message: "Invalid var_i33",
+                        offset: self.original_position() - 1,
+                    });
+                }
+                return Ok(result);
+            }
+            shift += 7;
+            if (byte & 0x80) == 0 {
+                break;
+            }
+        }
+        let ashift = 64 - shift;
+        Ok((result << ashift) >> ashift)
     }
 
     pub fn read_var_i64(&mut self) -> Result<i64> {

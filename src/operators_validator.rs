@@ -550,10 +550,7 @@ impl OperatorValidator {
                     return Err("type index out of bounds");
                 }
                 let ty = &types[idx];
-                if self.config.enable_multi_value {
-                    // TODO implement proper validation that includes params
-                    // similar to `self.check_operands(&ty.params)?;`
-                } else {
+                if !self.config.enable_multi_value {
                     if ty.returns.len() > 1 {
                         return Err("blocks, loops, and ifs may only return at most one \
                                     value when multi-value is not enabled");
@@ -567,6 +564,28 @@ impl OperatorValidator {
             }
             _ => Err("invalid block return type"),
         }
+    }
+
+    fn check_block_params(
+        &self,
+        ty: TypeOrFuncType,
+        resources: &dyn WasmModuleResources,
+        skip: usize,
+    ) -> OperatorValidatorResult<()> {
+        if let TypeOrFuncType::FuncType(idx) = ty {
+            let func_ty = &resources.types()[idx as usize];
+            let len = func_ty.params.len();
+            self.check_frame_size(len + skip)?;
+            for i in 0..len {
+                if !self
+                    .func_state
+                    .assert_stack_type_at(len - 1 - i + skip, func_ty.params[i])
+                {
+                    return Err("stack operand type mismatch for block");
+                }
+            }
+        }
+        Ok(())
     }
 
     fn check_select(&self) -> OperatorValidatorResult<Option<Type>> {
@@ -610,16 +629,19 @@ impl OperatorValidator {
             Operator::Nop => (),
             Operator::Block { ty } => {
                 self.check_block_type(ty, resources)?;
+                self.check_block_params(ty, resources, 0)?;
                 self.func_state
                     .push_block(ty, BlockType::Block, resources)?;
             }
             Operator::Loop { ty } => {
                 self.check_block_type(ty, resources)?;
+                self.check_block_params(ty, resources, 0)?;
                 self.func_state.push_block(ty, BlockType::Loop, resources)?;
             }
             Operator::If { ty } => {
                 self.check_block_type(ty, resources)?;
                 self.check_operands_1(Type::I32)?;
+                self.check_block_params(ty, resources, 1)?;
                 self.func_state.push_block(ty, BlockType::If, resources)?;
             }
             Operator::Else => {
