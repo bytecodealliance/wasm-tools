@@ -549,6 +549,20 @@ impl OperatorValidator {
                 if idx >= types.len() {
                     return Err("type index out of bounds");
                 }
+                let ty = &types[idx];
+                if self.config.enable_multi_value {
+                    // TODO implement proper validation that includes params
+                    // similar to `self.check_operands(&ty.params)?;`
+                } else {
+                    if ty.returns.len() > 1 {
+                        return Err("blocks, loops, and ifs may only return at most one \
+                                    value when multi-value is not enabled");
+                    }
+                    if ty.params.len() > 0 {
+                        return Err("blocks, loops, and ifs accept no parameters \
+                                    when multi-value is not enabled");
+                    }
+                }
                 Ok(())
             }
             _ => Err("invalid block return type"),
