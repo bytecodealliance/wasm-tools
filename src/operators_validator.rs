@@ -765,10 +765,9 @@ impl OperatorValidator {
                     return Err("global index out of bounds");
                 }
                 let ty = &resources.globals()[global_index as usize];
-                // FIXME
-                //    if !ty.mutable {
-                //        return self.create_error("global expected to be mutable");
-                //    }
+                if !ty.mutable {
+                    return Err("global expected to be mutable");
+                }
                 self.check_operands_1(ty.content_type)?;
                 self.func_state.change_frame(1)?;
             }

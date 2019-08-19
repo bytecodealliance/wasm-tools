@@ -32,7 +32,6 @@ mod simple_tests {
             enable_bulk_memory: true,
             enable_multi_value: true,
         },
-        mutable_global_imports: true,
     });
 
     fn read_file_data(path: &PathBuf) -> Vec<u8> {
@@ -254,7 +253,6 @@ mod wast_tests {
                 enable_bulk_memory: false,
                 enable_multi_value: false,
             },
-            mutable_global_imports: false,
         };
 
         let data = &module.into_vec();
@@ -277,12 +275,6 @@ mod wast_tests {
 
     fn skip_test(filename: &str, line: u64) -> bool {
         match (filename, line) {
-            ("linking.wast", 39)
-            | ("linking.wast", 50)
-            | ("linking.wast", 91)
-            | ("globals.wast", 243)
-            | ("globals.wast", 248)
-            | ("globals.wast", 249) => true,
             _ => false,
         }
     }
