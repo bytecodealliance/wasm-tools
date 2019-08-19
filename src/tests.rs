@@ -232,3 +232,115 @@ mod simple_tests {
         );
     }
 }
+
+#[cfg(feature = "std")]
+#[cfg(test)]
+mod wast_tests {
+    use crate::operators_validator::OperatorValidatorConfig;
+    use crate::parser::{ParserState, WasmDecoder};
+    use crate::validator::{ValidatingParser, ValidatingParserConfig};
+    use crate::BinaryReaderError;
+    use std::fs::{read, read_dir};
+    use wabt::script::{Command, CommandKind, ModuleBinary, ScriptParser};
+
+    const SPEC_TESTS_PATH: &str = "testsuite";
+
+    fn validate_module(module: ModuleBinary) -> Result<(), BinaryReaderError> {
+        let config = ValidatingParserConfig {
+            operator_config: OperatorValidatorConfig {
+                enable_threads: false,
+                enable_reference_types: false,
+                enable_simd: false,
+                enable_bulk_memory: false,
+                enable_multi_value: false,
+            },
+            mutable_global_imports: false,
+        };
+
+        let data = &module.into_vec();
+        let mut parser = ValidatingParser::new(data.as_slice(), Some(config));
+        let mut max_iteration = 100000000;
+        loop {
+            let state = parser.read();
+            match *state {
+                ParserState::EndWasm => break,
+                ParserState::Error(err) => return Err(err),
+                _ => (),
+            }
+            max_iteration -= 1;
+            if max_iteration == 0 {
+                panic!("Max iterations exceeded");
+            }
+        }
+        Ok(())
+    }
+
+    fn skip_test(filename: &str, line: u64) -> bool {
+        match (filename, line) {
+            ("linking.wast", 39)
+            | ("linking.wast", 50)
+            | ("linking.wast", 91)
+            | ("globals.wast", 243)
+            | ("globals.wast", 248)
+            | ("globals.wast", 249) => true,
+            _ => false,
+        }
+    }
+
+    fn run_wabt_scripts(filename: &str, wast: &[u8]) {
+        println!("Parsing {:?}", filename);
+        let mut parser: ScriptParser<f32, f64> =
+            ScriptParser::from_str(std::str::from_utf8(wast).expect("valid utf8 wast"))
+                .expect("script parser");
+
+        while let Some(Command { kind, line }) = parser.next().expect("parser") {
+            if skip_test(filename, line) {
+                println!("{}:{}: skipping", filename, line);
+                continue;
+            }
+
+            match kind {
+                CommandKind::Module { module, .. }
+                | CommandKind::AssertUninstantiable { module, .. }
+                | CommandKind::AssertUnlinkable { module, .. } => {
+                    if let Err(err) = validate_module(module) {
+                        panic!("{}:{}: invalid module: {}", filename, line, err.message);
+                    }
+                }
+                CommandKind::AssertInvalid { module, .. }
+                | CommandKind::AssertMalformed { module, .. } => {
+                    // TODO diffentiate between assert_invalid and assert_malformed
+                    if let Ok(_) = validate_module(module) {
+                        panic!(
+                            "{}:{}: invalid module was successfully parsed",
+                            filename, line
+                        );
+                    }
+                    // TODO: Check the assert_invalid or assert_malformed message
+                }
+                CommandKind::Register { .. }
+                | CommandKind::PerformAction(_)
+                | CommandKind::AssertReturn { .. }
+                | CommandKind::AssertTrap { .. }
+                | CommandKind::AssertExhaustion { .. }
+                | CommandKind::AssertReturnCanonicalNan { .. }
+                | CommandKind::AssertReturnArithmeticNan { .. } => (),
+            }
+        }
+    }
+
+    #[test]
+    fn run_spec_tests() {
+        for entry in read_dir(SPEC_TESTS_PATH).unwrap() {
+            let dir = entry.unwrap();
+            if !dir.file_type().unwrap().is_file()
+                || dir.path().extension().map(|s| s.to_str().unwrap()) != Some("wast")
+            {
+                continue;
+            }
+
+            let data = read(&dir.path()).expect("wast data");
+            run_wabt_scripts(dir.file_name().to_str().expect("name"), &data);
+        }
+    }
+}

@@ -8,13 +8,14 @@ keywords = ["parser", "WebAssembly", "wasm"]
 description = """
 A simple event-driven library for parsing WebAssembly binary files.
 """
-exclude = ["fuzz/**/*", "tests/**/*"]
+exclude = ["fuzz/**/*", "tests/**/*", "testsuite/**/*"]
 edition = "2018"
 
 [dependencies]
 
 [dev-dependencies]
 criterion = "0.2"
+wabt = "0.9.1"
 
 [dependencies.hashbrown]
 version = "0.5.0"
