@@ -32,6 +32,11 @@ default = ["std"]
 std = []
 core = ["hashbrown"]
 
+# The "deterministic" feature supports only wasm code with "deterministic" execution
+# across any hardware. This feature is very critical for many Blockchain infrastructures
+# that rely on deterministic executions of smart contracts across different hardwares.
+deterministic = []
+
 [[bench]]
 name = "benchmark"
 harness = false

@@ -31,6 +31,9 @@ mod simple_tests {
             enable_simd: true,
             enable_bulk_memory: true,
             enable_multi_value: true,
+
+            #[cfg(feature = "deterministic")]
+            deterministic_only: true,
         },
     });
 
@@ -40,6 +43,26 @@ mod simple_tests {
         let mut f = File::open(path).ok().unwrap();
         f.read_to_end(&mut data).unwrap();
         data
+    }
+
+    fn scan_tests_files(prefix: &str) -> Vec<PathBuf> {
+        let mut files = Vec::new();
+
+        for entry in read_dir("tests/").unwrap() {
+            let dir = entry.unwrap();
+            if !dir.file_type().unwrap().is_file() {
+                continue;
+            }
+
+            let path = dir.path();
+            let file = path.to_str().unwrap();
+
+            if file.starts_with(prefix) {
+                files.push(path);
+            }
+        }
+
+        return files;
     }
 
     #[test]
@@ -230,6 +253,67 @@ mod simple_tests {
             ParserState::EndWasm
         );
     }
+
+    #[cfg(feature = "deterministic")]
+    fn run_deterministic_enabled_test(path: &PathBuf) {
+        let data = read_file_data(path);
+
+        let config = Some(ValidatingParserConfig {
+            operator_config: OperatorValidatorConfig {
+                deterministic_only: false,
+                enable_threads: true,
+                enable_reference_types: true,
+                enable_simd: true,
+                enable_bulk_memory: true,
+                enable_multi_value: true,
+            },
+        });
+
+        let mut parser = ValidatingParser::new(data.as_slice(), config);
+        let mut error = false;
+
+        loop {
+            let state = parser.read();
+            if let ParserState::Error(_) = *state {
+                error = true;
+                break;
+            }
+            if let ParserState::EndWasm = *state {
+                break;
+            }
+        }
+
+        assert!(error);
+    }
+
+    #[cfg(feature = "deterministic")]
+    #[test]
+    fn deterministic_enabled() {
+        // `float_exprs.*.wasm`
+        let mut tests_count = 0;
+        for path in scan_tests_files("tests/float_exprs.") {
+            run_deterministic_enabled_test(&path);
+            tests_count += 1;
+        }
+        assert_eq!(96, tests_count);
+
+        // `float_memory.*.wasm`
+        let mut tests_count = 0;
+        for path in scan_tests_files("tests/float_memory.") {
+            run_deterministic_enabled_test(&path);
+            tests_count += 1;
+        }
+        assert_eq!(6, tests_count);
+
+        // `float_misc.*.wasm`
+        let mut tests_count = 0;
+        for path in scan_tests_files("tests/float_misc.") {
+            run_deterministic_enabled_test(&path);
+            tests_count += 1;
+        }
+        assert_eq!(1, tests_count);
+    }
+
 }
 
 #[cfg(feature = "std")]
@@ -252,6 +336,9 @@ mod wast_tests {
                 enable_simd: false,
                 enable_bulk_memory: false,
                 enable_multi_value: false,
+
+                #[cfg(feature = "deterministic")]
+                deterministic_only: true,
             },
         };
 
