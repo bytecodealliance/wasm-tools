@@ -135,7 +135,13 @@ impl FuncState {
             }
         };
         if block_type == BlockType::If {
-            self.stack_types.pop();
+            let last_block = self.blocks.last().unwrap();
+            if !last_block.is_stack_polymorphic()
+                || self.stack_types.len() > last_block.stack_starts_at
+            {
+                self.stack_types.pop();
+            }
+            assert!(self.stack_types.len() >= last_block.stack_starts_at);
         }
         for (i, ty) in start_types.iter().rev().enumerate() {
             if !self.assert_stack_type_at(i, *ty) {

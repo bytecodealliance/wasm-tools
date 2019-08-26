@@ -45,6 +45,7 @@ mod simple_tests {
         data
     }
 
+    #[allow(dead_code)]
     fn scan_tests_files(prefix: &str) -> Vec<PathBuf> {
         let mut files = Vec::new();
 
