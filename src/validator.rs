@@ -34,8 +34,8 @@ use crate::primitives::{
 use crate::parser::{Parser, ParserInput, ParserState, WasmDecoder};
 
 use crate::operators_validator::{
-    FunctionEnd, OperatorValidator, OperatorValidatorConfig, WasmModuleResources,
-    DEFAULT_OPERATOR_VALIDATOR_CONFIG,
+    is_subtype_supertype, FunctionEnd, OperatorValidator, OperatorValidatorConfig,
+    WasmModuleResources, DEFAULT_OPERATOR_VALIDATOR_CONFIG,
 };
 
 use crate::readers::FunctionBody;
@@ -196,6 +196,12 @@ impl<'a> ValidatingParser<'a> {
     fn check_value_type(&self, ty: Type) -> ValidatorResult<'a, ()> {
         match ty {
             Type::I32 | Type::I64 | Type::F32 | Type::F64 => Ok(()),
+            Type::Null | Type::AnyFunc | Type::AnyRef => {
+                if !self.config.operator_config.enable_reference_types {
+                    return self.create_error("reference types support is not enabled");
+                }
+                Ok(())
+            }
             Type::V128 => {
                 if !self.config.operator_config.enable_simd {
                     return self.create_error("SIMD support is not enabled");
@@ -301,6 +307,12 @@ impl<'a> ValidatingParser<'a> {
             Operator::I64Const { .. } => Type::I64,
             Operator::F32Const { .. } => Type::F32,
             Operator::F64Const { .. } => Type::F64,
+            Operator::RefNull => {
+                if !self.config.operator_config.enable_reference_types {
+                    return self.create_error("reference types support is not enabled");
+                }
+                Type::Null
+            }
             Operator::V128Const { .. } => {
                 if !self.config.operator_config.enable_simd {
                     return self.create_error("SIMD support is not enabled");
@@ -315,7 +327,7 @@ impl<'a> ValidatingParser<'a> {
             }
             _ => return self.create_error("invalid init_expr operator"),
         };
-        if ty != state.ty {
+        if !is_subtype_supertype(ty, state.ty) {
             return self.create_error("invalid init_expr type");
         }
         Ok(())

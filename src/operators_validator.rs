@@ -24,9 +24,12 @@ use crate::primitives::{
 };
 
 /// Test if `subtype` is a subtype of `supertype`.
-fn is_subtype_supertype(subtype: Type, supertype: Type) -> bool {
+pub(crate) fn is_subtype_supertype(subtype: Type, supertype: Type) -> bool {
     match supertype {
-        Type::AnyRef => subtype == Type::AnyRef || subtype == Type::AnyFunc,
+        Type::AnyRef => {
+            subtype == Type::AnyRef || subtype == Type::AnyFunc || subtype == Type::Null
+        }
+        Type::AnyFunc => subtype == Type::AnyFunc || subtype == Type::Null,
         _ => subtype == supertype,
     }
 }
@@ -1319,12 +1322,12 @@ impl OperatorValidator {
             }
             Operator::RefNull => {
                 self.check_reference_types_enabled()?;
-                self.func_state.change_frame_with_type(0, Type::AnyRef)?;
+                self.func_state.change_frame_with_type(0, Type::Null)?;
             }
             Operator::RefIsNull => {
                 self.check_reference_types_enabled()?;
                 self.check_operands(&[Type::AnyRef])?;
-                self.func_state.change_frame_with_type(0, Type::I32)?;
+                self.func_state.change_frame_with_type(1, Type::I32)?;
             }
             Operator::V128Load { ref memarg } => {
                 self.check_simd_enabled()?;
