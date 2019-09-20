@@ -44,6 +44,7 @@ pub use self::init_expr::InitExpr;
 pub use self::memory_section::MemorySectionReader;
 pub use self::module::ModuleReader;
 pub use self::module::Section;
+pub use self::module::SectionContent;
 use self::start_section::read_start_section_content;
 pub use self::table_section::TableSectionReader;
 pub use self::type_section::TypeSectionReader;
