@@ -263,31 +263,39 @@ impl<'a> Section<'a> {
             SectionCode::Data => SectionContent::Data(self.get_data_section_reader()?),
             SectionCode::Table => SectionContent::Table(self.get_table_section_reader()?),
             SectionCode::Element => SectionContent::Element(self.get_element_section_reader()?),
-            SectionCode::Custom {
-                kind: CustomSectionKind::Name,
-                ..
-            } => SectionContent::Name(self.get_name_section_reader()?),
-            SectionCode::Custom {
-                kind: CustomSectionKind::Producers,
-                ..
-            } => SectionContent::Producers(self.get_producers_section_reader()?),
-            SectionCode::Custom {
-                kind: CustomSectionKind::Linking,
-                ..
-            } => SectionContent::Linking(self.get_linking_section_reader()?),
-            SectionCode::Custom {
-                kind: CustomSectionKind::Reloc,
-                ..
-            } => SectionContent::Reloc(self.get_reloc_section_reader()?),
             SectionCode::Start => SectionContent::Start(self.get_start_section_content()?),
             SectionCode::DataCount => {
                 SectionContent::DataCount(self.get_data_count_section_content()?)
             }
-            SectionCode::Custom {
-                kind: CustomSectionKind::SourceMappingURL,
-                ..
-            } => SectionContent::SourceMappingURL(self.get_sourcemappingurl_section_content()?),
-            SectionCode::Custom { .. } => SectionContent::Custom(self.get_binary_reader()),
+            SectionCode::Custom { kind, name } => {
+                let binary = self.get_binary_reader();
+                let content = match kind {
+                    CustomSectionKind::Name => {
+                        Some(CustomSectionContent::Name(self.get_name_section_reader()?))
+                    }
+                    CustomSectionKind::Producers => Some(CustomSectionContent::Producers(
+                        self.get_producers_section_reader()?,
+                    )),
+                    CustomSectionKind::Linking => Some(CustomSectionContent::Linking(
+                        self.get_linking_section_reader()?,
+                    )),
+                    CustomSectionKind::Reloc => Some(CustomSectionContent::Reloc(
+                        self.get_reloc_section_reader()?,
+                    )),
+                    CustomSectionKind::SourceMappingURL => {
+                        Some(CustomSectionContent::SourceMappingURL(
+                            self.get_sourcemappingurl_section_content()?,
+                        ))
+                    }
+
+                    _ => None,
+                };
+                SectionContent::Custom {
+                    name,
+                    binary,
+                    content,
+                }
+            }
         };
         Ok(c)
     }
@@ -304,15 +312,23 @@ pub enum SectionContent<'a> {
     Data(DataSectionReader<'a>),
     Table(TableSectionReader<'a>),
     Element(ElementSectionReader<'a>),
+    Start(u32),
+    DataCount(u32),
+    Custom {
+        name: &'a str,
+        binary: BinaryReader<'a>,
+        content: Option<CustomSectionContent<'a>>,
+    },
+}
+
+pub enum CustomSectionContent<'a> {
     Name(NameSectionReader<'a>),
     Producers(ProducersSectionReader<'a>),
     Linking(LinkingSectionReader<'a>),
     Reloc(RelocSectionReader<'a>),
-    Start(u32),
-    DataCount(u32),
     SourceMappingURL(&'a str),
-    Custom(BinaryReader<'a>),
 }
+
 /// Reads top-level WebAssembly file structure: header and sections.
 pub struct ModuleReader<'a> {
     reader: BinaryReader<'a>,

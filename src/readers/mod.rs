@@ -42,6 +42,7 @@ pub use self::import_section::Import;
 pub use self::import_section::ImportSectionReader;
 pub use self::init_expr::InitExpr;
 pub use self::memory_section::MemorySectionReader;
+pub use self::module::CustomSectionContent;
 pub use self::module::ModuleReader;
 pub use self::module::Section;
 pub use self::module::SectionContent;

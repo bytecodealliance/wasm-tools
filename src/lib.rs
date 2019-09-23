@@ -83,6 +83,7 @@ pub use crate::operators_validator::OperatorValidatorConfig;
 pub use crate::operators_validator::WasmModuleResources;
 
 pub use crate::readers::CodeSectionReader;
+pub use crate::readers::CustomSectionContent;
 pub use crate::readers::Data;
 pub use crate::readers::DataKind;
 pub use crate::readers::DataSectionReader;
