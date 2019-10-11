@@ -669,6 +669,57 @@ impl<'a> Iterator for Lexer<'a> {
     }
 }
 
+impl<'a> Source<'a> {
+    /// Returns the original source text for this token.
+    pub fn src(&self) -> &'a str {
+        match self {
+            Source::Comment(c) => c.src(),
+            Source::Whitespace(s) => s,
+            Source::Token(t) => t.src(),
+        }
+    }
+}
+
+impl<'a> Comment<'a> {
+    /// Returns the original source text for this comment.
+    pub fn src(&self) -> &'a str {
+        match self {
+            Comment::Line(s) => s,
+            Comment::Block(s) => s,
+        }
+    }
+}
+
+impl<'a> Token<'a> {
+    /// Returns the original source text for this token.
+    pub fn src(&self) -> &'a str {
+        match self {
+            Token::LParen(s) => s,
+            Token::RParen(s) => s,
+            Token::String { src, .. } => src,
+            Token::Id(s) => s,
+            Token::Keyword(s) => s,
+            Token::Reserved(s) => s,
+            Token::Integer(i) => i.src(),
+            Token::Float(f) => f.src(),
+        }
+    }
+}
+
+impl<'a> Integer<'a> {
+    /// Returns the original source text for this integer.
+    pub fn src(&self) -> &'a str {
+        self.src
+    }
+}
+
+impl<'a> Float<'a> {
+    /// Returns the original source text for this integer.
+    pub fn src(&self) -> &'a str {
+        self.src
+    }
+}
+
 impl LexError {
     /// Returns the associated `LexErrorKind` for this error.
     pub fn kind(&self) -> &LexErrorKind {

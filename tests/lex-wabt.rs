@@ -21,13 +21,20 @@ fn lex_wabt() {
         if contents.contains(";;; ERROR:") {
             return;
         }
-        let mut lexer = Lexer::new(&contents);
-        loop {
-            match lexer.parse() {
-                Ok(Some(_)) => {}
-                Ok(None) => break,
+        let mut cur = contents.as_ptr();
+        for token in Lexer::new(&contents) {
+            let token = match token {
+                Ok(t) => t,
                 Err(e) => panic!("{:?} -- {:?}", test, e),
-            }
+            };
+            let source = token.src();
+            assert_eq!(
+                cur,
+                source.as_ptr(),
+                "tokenization missed a character before {:?}",
+                token
+            );
+            cur = unsafe { cur.add(source.len()) };
         }
     })
 }
