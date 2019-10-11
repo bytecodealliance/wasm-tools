@@ -1,0 +1,16 @@
+[package]
+name = "wart-fuzz"
+version = "0.0.1"
+publish = false
+edition = "2018"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+wart = { path = ".." }
+libfuzzer-sys = { git = "https://github.com/rust-fuzz/libfuzzer-sys" }
+
+[[bin]]
+name = "lexer"
+path = "fuzz_targets/lexer.rs"
