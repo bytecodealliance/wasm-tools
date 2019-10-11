@@ -90,13 +90,3 @@ impl Peek for u32 {
         cursor.integer().is_some()
     }
 }
-
-pub struct LParen {
-    _priv: (),
-}
-
-impl Peek for LParen {
-    fn peek(cursor: Cursor<'_>) -> bool {
-        cursor.lparen().is_some()
-    }
-}

@@ -44,7 +44,7 @@ pub struct GlobalType {
 
 impl<'a> Parse<'a> for GlobalType {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        if parser.peek::<ast::LParen>() {
+        if parser.peek2::<kw::r#mut>() {
             parser.parens(|p| {
                 p.parse::<kw::r#mut>()?;
                 Ok(GlobalType {
