@@ -54,18 +54,35 @@ impl Peek for Index<'_> {
     }
 }
 
-impl<'a> Parse<'a> for u32 {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.step(|c| {
-            if let Some((i, rest)) = c.integer() {
-                return match i.get_u32() {
-                    Some(u) => Ok((u, rest)),
-                    None => Err(c.error("invalid u32 number")),
-                };
+macro_rules! integers {
+    ($($i:ident => $get:ident)*) => ($(
+
+        impl<'a> Parse<'a> for $i {
+            fn parse(parser: Parser<'a>) -> Result<Self> {
+                parser.step(|c| {
+                    if let Some((i, rest)) = c.integer() {
+                        return match i.$get() {
+                            Some(u) => Ok((u, rest)),
+                            None => Err(c.error(concat!("invalid ", stringify!($i), " number"))),
+                        };
+                    }
+                    Err(c.error("expected an integer"))
+                })
             }
-            Err(c.error("expected an integer"))
-        })
-    }
+        }
+
+        impl Peek for $i {
+            fn peek(cursor: Cursor<'_>) -> bool {
+                cursor.integer().is_some()
+            }
+        }
+    )*)
+}
+
+integers! {
+    u32 => get_u32
+    i32 => get_i32
+    i64 => get_i64
 }
 
 impl<'a> Parse<'a> for &'a [u8] {
@@ -85,8 +102,34 @@ impl<'a> Parse<'a> for &'a str {
     }
 }
 
-impl Peek for u32 {
-    fn peek(cursor: Cursor<'_>) -> bool {
-        cursor.integer().is_some()
+#[derive(Debug, PartialEq)]
+pub struct Float32<'a> {
+    src: &'a str,
+}
+
+impl<'a> Parse<'a> for Float32<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.step(|c| {
+            if let Some((f, rest)) = c.float() {
+                return Ok((Float32 { src: f.src() }, rest))
+            }
+            Err(c.error("expected an integer"))
+        })
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Float64<'a> {
+    src: &'a str,
+}
+
+impl<'a> Parse<'a> for Float64<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.step(|c| {
+            if let Some((f, rest)) = c.float() {
+                return Ok((Float64 { src: f.src() }, rest))
+            }
+            Err(c.error("expected an integer"))
+        })
     }
 }

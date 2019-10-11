@@ -775,12 +775,6 @@ fn is_idchar(c: char) -> bool {
 }
 
 impl Integer<'_> {
-    #[allow(dead_code)]
-    fn get_i64(&self) -> Option<i64> {
-        let multiplier = if self.negative { -1 } else { 1i64 };
-        Some(multiplier.checked_mul(i64::try_from(self.val).ok()?)?)
-    }
-
     /// Attempts to parse this `Integer` as a `u32`, returning `None` if it
     /// doesn't fit.
     pub fn get_u32(&self) -> Option<u32> {
@@ -788,6 +782,20 @@ impl Integer<'_> {
             return None;
         }
         Some(u32::try_from(self.val).ok()?)
+    }
+
+    /// Attempts to parse this `Integer` as a `i64`, returning `None` if it
+    /// doesn't fit.
+    pub fn get_i64(&self) -> Option<i64> {
+        let multiplier = if self.negative { -1 } else { 1i64 };
+        Some(multiplier.checked_mul(i64::try_from(self.val).ok()?)?)
+    }
+
+    /// Attempts to parse this `Integer` as a `i32`, returning `None` if it
+    /// doesn't fit.
+    pub fn get_i32(&self) -> Option<i32> {
+        let multiplier = if self.negative { -1 } else { 1i32 };
+        Some(multiplier.checked_mul(i32::try_from(self.val).ok()?)?)
     }
 }
 
