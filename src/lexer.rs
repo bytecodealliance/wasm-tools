@@ -109,20 +109,39 @@ impl<'a> Lexer<'a> {
     }
 
     fn token(&mut self) -> Result<Option<Token<'a>>, LexError> {
+        // First two are easy, they're just parens
         if let Some(pos) = self.eat_char('(') {
             return Ok(Some(Token::LParen(&self.input[pos..pos + 1])));
         }
-
         if let Some(pos) = self.eat_char(')') {
             return Ok(Some(Token::RParen(&self.input[pos..pos + 1])));
         }
 
+        // Strings are also pretty easy, leading `"` is a dead giveaway
         if let Some(pos) = self.eat_char('"') {
             let val = self.string()?;
             let src = &self.input[pos..self.cur()];
             return Ok(Some(Token::String { val, src }));
         }
 
+        // ... And after that, things get interesting. According to the official
+        // spec there are "reserved" tokens and an "idchar" set of characters.
+        // These all intersect interestingly with numbers as well, since every
+        // number is apparently a valid reserved token. This whole thing is
+        // somewhat janky and we should probably stop trying to handle the
+        // spec-level `reserved` token here at some point, but in any case this
+        // is what we have for now:
+        //
+        // * First, try to peel off a sign character like `+` and `-`.
+        // * Using this, parse a number, and if we get a number it consumes the
+        //   `+` and `-`
+        // * Otherwise we peel off all `idchar` tokens we can find.
+        // * Looking at the result of that, we try to pattern match on a few
+        //   known types like +/- nan/inf, actual ids (starting with `$`) and
+        //   general keywords (starting with letters)
+        //
+        // Failing all that we return a `Reserved` token, but honestly by the
+        // time this lexer is finished I suspect that'll get removed.
         let (sign_start, negative) = if let Some(i) = self.eat_char('-') {
             (Some(i), true)
         } else if let Some(i) = self.eat_char('+') {
