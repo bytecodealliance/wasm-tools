@@ -1,4 +1,5 @@
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
+use std::str;
 
 #[derive(PartialEq, Debug)]
 pub struct Id<'a> {
@@ -26,6 +27,12 @@ impl<'a> Parse<'a> for Id<'a> {
     }
 }
 
+impl Peek for Id<'_> {
+    fn peek(cursor: Cursor<'_>) -> bool {
+        cursor.id().is_some()
+    }
+}
+
 #[derive(PartialEq, Debug)]
 pub enum Index<'a> {
     Num(u32),
@@ -41,6 +48,12 @@ impl<'a> Parse<'a> for Index<'a> {
     }
 }
 
+impl Peek for Index<'_> {
+    fn peek(cursor: Cursor<'_>) -> bool {
+        u32::peek(cursor) || Id::peek(cursor)
+    }
+}
+
 impl<'a> Parse<'a> for u32 {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.step(|c| {
@@ -52,6 +65,23 @@ impl<'a> Parse<'a> for u32 {
             }
             Err(c.error("expected an integer"))
         })
+    }
+}
+
+impl<'a> Parse<'a> for &'a [u8] {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.step(|c| {
+            if let Some((i, rest)) = c.string() {
+                return Ok((i, rest));
+            }
+            Err(c.error("expected a string"))
+        })
+    }
+}
+
+impl<'a> Parse<'a> for &'a str {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        str::from_utf8(parser.parse()?).map_err(|_| parser.error("invalid utf-8"))
     }
 }
 

@@ -73,6 +73,15 @@ impl<'a> Parser<'a> {
         T::peek(self.cursor())
     }
 
+    pub fn peek2<T: Peek>(self) -> bool {
+        let mut cursor = self.cursor();
+        if cursor.advance().is_some() {
+            T::peek(cursor)
+        } else {
+            false
+        }
+    }
+
     pub fn cursor(self) -> Cursor<'a> {
         Cursor {
             parser: self,
@@ -193,6 +202,13 @@ impl<'a> Cursor<'a> {
         }
     }
 
+    pub fn string(mut self) -> Option<(&'a [u8], Self)> {
+        match self.advance()? {
+            Token::String { val, .. } => Some((&**val, self)),
+            _ => None,
+        }
+    }
+
     fn advance(&mut self) -> Option<&'a Token<'a>> {
         self.cur += 1;
         self.parser.buf.tokens.get(self.cur - 1)
@@ -219,3 +235,13 @@ impl fmt::Display for Error {
 }
 
 impl std::error::Error for Error {}
+
+impl<'a, T: Peek + Parse<'a>> Parse<'a> for Option<T> {
+    fn parse(parser: Parser<'a>) -> Result<Option<T>> {
+        if parser.peek::<T>() {
+            Ok(Some(parser.parse()?))
+        } else {
+            Ok(None)
+        }
+    }
+}

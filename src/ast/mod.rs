@@ -35,20 +35,48 @@ macro_rules! custom_keyword {
 }
 
 mod data;
-pub use data::*;
-mod types;
-pub use types::*;
+mod export;
+mod expr;
+mod func;
+mod global;
+mod import;
+mod memory;
+mod module;
+mod table;
 mod token;
+mod types;
+pub use data::*;
+pub use export::*;
+pub use expr::*;
+pub use func::*;
+pub use global::*;
+pub use import::*;
+pub use memory::*;
+pub use module::*;
+pub use table::*;
 pub use token::*;
+pub use types::*;
 
 pub mod kw {
-    custom_keyword!(i32);
-    custom_keyword!(i64);
+    custom_keyword!(data);
+    custom_keyword!(elem);
+    custom_keyword!(export);
     custom_keyword!(f32);
     custom_keyword!(f64);
     custom_keyword!(func);
-    custom_keyword!(param);
-    custom_keyword!(result);
     custom_keyword!(funcref);
+    custom_keyword!(global);
+    custom_keyword!(i32);
+    custom_keyword!(i64);
+    custom_keyword!(import);
+    custom_keyword!(local);
+    custom_keyword!(memory);
+    custom_keyword!(module);
+    custom_keyword!(offset);
+    custom_keyword!(param);
     custom_keyword!(r#mut = "mut");
+    custom_keyword!(r#type = "type");
+    custom_keyword!(result);
+    custom_keyword!(start);
+    custom_keyword!(table);
 }

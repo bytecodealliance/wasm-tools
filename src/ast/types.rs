@@ -1,5 +1,5 @@
 use crate::ast::{self, kw};
-use crate::parser::{Parse, Parser, Result};
+use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 
 /// The value types for a wasm module.
 #[allow(missing_docs)]
@@ -77,6 +77,12 @@ impl<'a> Parse<'a> for TableElemType {
     }
 }
 
+impl Peek for TableElemType {
+    fn peek(cursor: Cursor<'_>) -> bool {
+        kw::funcref::peek(cursor)
+    }
+}
+
 /// Min/max limits used for tables/memories.
 #[derive(Debug, PartialEq)]
 pub struct Limits {
@@ -133,39 +139,90 @@ impl<'a> Parse<'a> for MemoryType {
 
 /// A function type with parameters and results.
 #[derive(Debug, PartialEq)]
-pub struct FunctionType {
-    pub params: Vec<ValType>,
+pub struct FunctionType<'a> {
+    pub params: Vec<(Option<ast::Id<'a>>, ValType)>,
     pub results: Vec<ValType>,
 }
 
-impl<'a> Parse<'a> for FunctionType {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::func>()?;
-        let mut params = Vec::new();
-        let mut results = Vec::new();
-
+impl<'a> FunctionType<'a> {
+    fn finish_parse(&mut self, parser: Parser<'a>) -> Result<()> {
         while !parser.is_empty() {
             parser.parens(|p| {
-                let dst = if p.peek::<kw::param>() {
+                if p.peek::<kw::param>() {
                     p.parse::<kw::param>()?;
-                    if results.len() > 0 {
+                    if self.results.len() > 0 {
                         return Err(p.error("cannot list params after results"));
                     }
-                    &mut params
+                    let id = p.parse::<Option<_>>()?;
+                    let parse_more = id.is_none();
+                    let ty = p.parse()?;
+                    self.params.push((id, ty));
+                    while parse_more && !p.is_empty() {
+                        self.params.push((None, p.parse()?));
+                    }
                 } else {
                     p.parse::<kw::result>()?;
-                    &mut results
-                };
-
-                dst.push(p.parse()?);
-
-                while !p.is_empty() {
-                    dst.push(p.parse()?);
+                    self.results.push(p.parse()?);
+                    while !p.is_empty() {
+                        self.results.push(p.parse()?);
+                    }
                 }
                 Ok(())
             })?;
         }
+        Ok(())
+    }
+}
 
-        Ok(FunctionType { params, results })
+impl<'a> Parse<'a> for FunctionType<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.parse::<kw::func>()?;
+        let mut ret = FunctionType {
+            params: Vec::new(),
+            results: Vec::new(),
+        };
+        ret.finish_parse(parser)?;
+        Ok(ret)
+    }
+}
+
+/// A type declaration in a module
+#[derive(Debug, PartialEq)]
+pub struct Type<'a> {
+    pub name: Option<ast::Id<'a>>,
+    pub func: FunctionType<'a>,
+}
+
+impl<'a> Parse<'a> for Type<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.parse::<kw::r#type>()?;
+        let name = parser.parse()?;
+        let func = parser.parens(FunctionType::parse)?;
+        Ok(Type { name, func })
+    }
+}
+
+/// A type declaration in a module
+#[derive(Debug, PartialEq)]
+pub enum TypeUse<'a> {
+    Index(ast::Index<'a>),
+    Inline(FunctionType<'a>),
+}
+
+impl<'a> Parse<'a> for TypeUse<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        if parser.peek2::<kw::r#type>() {
+            parser.parens(|parser| {
+                parser.parse::<kw::r#type>()?;
+                Ok(TypeUse::Index(parser.parse()?))
+            })
+        } else {
+            let mut ft = FunctionType {
+                params: Vec::new(),
+                results: Vec::new(),
+            };
+            ft.finish_parse(parser)?;
+            Ok(TypeUse::Inline(ft))
+        }
     }
 }

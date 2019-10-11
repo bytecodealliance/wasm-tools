@@ -36,16 +36,20 @@ fn functions() {
         }
     );
     assert_parses!(
-        "func (param i32)",
+        "func (param $x i32)",
         FunctionType {
-            params: vec![ValType::I32],
+            params: vec![(Some(Id::new("x")), ValType::I32)],
             results: Vec::new(),
         }
     );
     assert_parses!(
-        "func (param i32 i64) (param f32) (result f32 f64) (result i32)",
+        "func (param i32 i64) (param $y f32) (result f32 f64) (result i32)",
         FunctionType {
-            params: vec![ValType::I32, ValType::I64, ValType::F32],
+            params: vec![
+                (None, ValType::I32),
+                (None, ValType::I64),
+                (Some(Id::new("y")), ValType::F32)
+            ],
             results: vec![ValType::F32, ValType::F64, ValType::I32],
         }
     );
@@ -57,5 +61,30 @@ fn functions() {
     );
 
     assert_not_parses!("func x", FunctionType, "expected `(`");
-    assert_not_parses!("func (", FunctionType, "expected keyword `result`2");
+    assert_not_parses!("func (", FunctionType, "expected keyword `result`");
+    assert_not_parses!("func (param $x f32 f32)", FunctionType, "expected `)`");
+}
+
+#[test]
+fn module_types() {
+    assert_parses!(
+        "type $foo (func)",
+        Type {
+            name: Some(Id::new("foo")),
+            func: FunctionType {
+                params: Vec::new(),
+                results: Vec::new(),
+            },
+        }
+    );
+    assert_parses!(
+        "type (func (param i32))",
+        Type {
+            name: None,
+            func: FunctionType {
+                params: vec![(None, ValType::I32)],
+                results: Vec::new(),
+            },
+        }
+    );
 }
