@@ -3,9 +3,9 @@
 #![deny(missing_docs)]
 
 use std::borrow::Cow;
-use std::fmt;
 use std::char;
 use std::convert::TryFrom;
+use std::fmt;
 use std::iter;
 use std::str;
 
@@ -14,6 +14,7 @@ use std::str;
 /// This structure is used to generate `Source` items, which should account for
 /// every single byte of the input as we iterate over it. Errors are returned
 /// for any non-lexable text.
+#[derive(Clone)]
 pub struct Lexer<'a> {
     it: iter::Peekable<str::CharIndices<'a>>,
     input: &'a str,
@@ -92,12 +93,12 @@ pub enum Comment<'a> {
 ///
 /// All lexing errors have line/colum/position information as well as a
 /// `LexErrorKind` indicating what kind of error happened while lexing.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LexError {
     inner: Box<LexErrorInner>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct LexErrorInner {
     line: usize,
     col: usize,
@@ -108,7 +109,7 @@ struct LexErrorInner {
 /// The different classes of errors that can happen while lexing.
 ///
 /// Do not exhaustively match on this enumeration.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum LexErrorKind {
     /// A dangling block comment was found with an unbalanced `(;` which was
     /// never terminated in the file.
@@ -288,11 +289,7 @@ impl<'a> Lexer<'a> {
 
         // Handle `inf` and `nan` which are special numbers here
         let src = &self.input[start..self.cur()];
-        let num = if sign_start.is_some() {
-            &src[1..]
-        } else {
-            src
-        };
+        let num = if sign_start.is_some() { &src[1..] } else { src };
 
         if num == "inf" {
             return Ok(Some(Token::Float(Float {
@@ -328,13 +325,17 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn number(&mut self, sign_start: Option<usize>, negative: bool) -> Result<Option<Token<'a>>, LexError> {
+    fn number(
+        &mut self,
+        sign_start: Option<usize>,
+        negative: bool,
+    ) -> Result<Option<Token<'a>>, LexError> {
         let start = sign_start.unwrap_or(self.cur());
 
         // Make sure the next digit is an ascii digit, otherwise this isn't a
         // number but it's probably an identifier
         match self.it.peek() {
-            Some((_, c)) if c.is_ascii_digit() => {},
+            Some((_, c)) if c.is_ascii_digit() => {}
             Some(_) | None => return Ok(None),
         }
 
@@ -662,19 +663,8 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// Converts an offset within `self.input` to a line/column number
     fn to_linecol(&self, offset: usize) -> (usize, usize) {
-        let mut cur = 0;
-        // Use split_terminator instead of lines so that if there is a `\r`,
-        // it is included in the offset calculation. The `+1` values below
-        // account for the `\n`.
-        for (i, line) in self.input.split_terminator('\n').enumerate() {
-            if cur + line.len() + 1 > offset {
-                return (i, offset - cur);
-            }
-            cur += line.len() + 1;
-        }
-        (self.input.lines().count(), 0)
+        crate::to_linecol(self.input, offset)
     }
 }
 
@@ -789,6 +779,15 @@ impl Integer<'_> {
     fn get_i64(&self) -> Option<i64> {
         let multiplier = if self.negative { -1 } else { 1i64 };
         Some(multiplier.checked_mul(i64::try_from(self.val).ok()?)?)
+    }
+
+    /// Attempts to parse this `Integer` as a `u32`, returning `None` if it
+    /// doesn't fit.
+    pub fn get_u32(&self) -> Option<u32> {
+        if self.negative {
+            return None;
+        }
+        Some(u32::try_from(self.val).ok()?)
     }
 }
 
