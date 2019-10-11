@@ -1,3 +1,5 @@
+//! TODO: docs
+
 #![deny(missing_docs)]
 
 use std::borrow::Cow;
@@ -40,10 +42,14 @@ pub enum Token<'a> {
     LParen(&'a str),
     /// A right-parenthesis, including the source text for where it comes from.
     RParen(&'a str),
+
     /// A string literal, which is actually a list of bytes.
-    ///
-    /// This also includes the original source text of the literal.
-    String { val: Cow<'a, [u8]>, src: &'a str },
+    String {
+        /// The list of bytes that this string literal represents.
+        val: Cow<'a, [u8]>,
+        /// The original source text of this string literal.
+        src: &'a str,
+    },
 
     /// An identifier (like `$foo`).
     ///
@@ -127,7 +133,12 @@ pub enum LexErrorKind {
 
     /// Parsing expected `wanted` but ended up finding `found` instead where the
     /// two characters aren't the same.
-    Expected { wanted: char, found: char },
+    Expected {
+        /// The character that was expected to be found
+        wanted: char,
+        /// The character that was actually found
+        found: char,
+    },
 
     /// We needed to parse more but EOF (or end of the string) was encountered.
     UnexpectedEof,
@@ -148,6 +159,9 @@ pub enum LexErrorKind {
     __Nonexhaustive,
 }
 
+/// A parsed integer, signed or unsigned.
+///
+/// Methods can be use to access the value of the integer.
 #[derive(Debug, PartialEq)]
 pub struct Integer<'a> {
     negative: bool,
@@ -155,6 +169,9 @@ pub struct Integer<'a> {
     val: u64,
 }
 
+/// A parsed float.
+///
+/// Methods can be use to access the value of the float.
 #[derive(Debug, PartialEq)]
 pub struct Float<'a> {
     negative: bool,
@@ -768,7 +785,8 @@ fn is_idchar(c: char) -> bool {
 }
 
 impl Integer<'_> {
-    pub fn get_i64(&self) -> Option<i64> {
+    #[allow(dead_code)]
+    fn get_i64(&self) -> Option<i64> {
         let multiplier = if self.negative { -1 } else { 1i64 };
         Some(multiplier.checked_mul(i64::try_from(self.val).ok()?)?)
     }

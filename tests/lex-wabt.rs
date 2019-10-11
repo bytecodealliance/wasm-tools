@@ -1,6 +1,6 @@
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
-use wart::Lexer;
+use wart::lexer::Lexer;
 
 #[test]
 fn lex_wabt() {
