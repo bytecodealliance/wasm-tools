@@ -23,7 +23,7 @@ fn lex_wabt() {
         }
         let mut lexer = Lexer::new(&contents);
         loop {
-            match lexer.next() {
+            match lexer.parse() {
                 Ok(Some(_)) => {}
                 Ok(None) => break,
                 Err(e) => panic!("{:?} -- {:?}", test, e),

@@ -1,39 +1,91 @@
+#![deny(missing_docs)]
+
 use std::borrow::Cow;
+use std::fmt;
 use std::char;
 use std::convert::TryFrom;
 use std::iter;
 use std::str;
 
+/// A structure used to lex the s-expression syntax of WAT files.
+///
+/// This structure is used to generate `Source` items, which should account for
+/// every single byte of the input as we iterate over it. Errors are returned
+/// for any non-lexable text.
 pub struct Lexer<'a> {
     it: iter::Peekable<str::CharIndices<'a>>,
     input: &'a str,
 }
 
+/// A fragment of source lex'd from an input string.
+///
+/// This enumeration contains all kinds of fragments, including comments and
+/// whitespace. For most cases you'll probably ignore these and simply look at
+/// tokens.
 #[derive(Debug, PartialEq)]
 pub enum Source<'a> {
+    /// A fragment of source that is a comment, either a line or a block
+    /// comment.
     Comment(Comment<'a>),
+    /// A fragment of source that represents whitespace.
     Whitespace(&'a str),
+    /// A fragment of source that represents an actual s-expression token.
     Token(Token<'a>),
 }
 
+/// The kinds of tokens that can be lexed for WAT s-expressions.
 #[derive(Debug, PartialEq)]
 pub enum Token<'a> {
+    /// A left-parenthesis, including the source text for where it comes from.
     LParen(&'a str),
+    /// A right-parenthesis, including the source text for where it comes from.
     RParen(&'a str),
+    /// A string literal, which is actually a list of bytes.
+    ///
+    /// This also includes the original source text of the literal.
     String { val: Cow<'a, [u8]>, src: &'a str },
+
+    /// An identifier (like `$foo`).
+    ///
+    /// All identifiers start with `$` and the payload here is the original
+    /// source text.
     Id(&'a str),
+
+    /// A keyword, or something that starts with an alphabetic character.
+    ///
+    /// The payload here is the original source text.
     Keyword(&'a str),
+
+    /// A reserved series of `idchar` symbols. Unknown what this is meant to be
+    /// used for, you'll probably generate an error about an unexpected token.
     Reserved(&'a str),
+
+    /// An integer.
     Integer(Integer<'a>),
+
+    /// A float.
     Float(Float<'a>),
 }
 
+/// The types of comments that can be lexed from WAT source text, including the
+/// original text of the comment itself.
+///
+/// Note that the original text here includes the symbols for the comment
+/// itself.
 #[derive(Debug, PartialEq)]
 pub enum Comment<'a> {
+    /// A line comment, preceded with `;;`
     Line(&'a str),
+
+    /// A block comment, surrounded by `(;` and `;)`. Note that these can be
+    /// nested.
     Block(&'a str),
 }
 
+/// Errors that can be generated while lexing.
+///
+/// All lexing errors have line/colum/position information as well as a
+/// `LexErrorKind` indicating what kind of error happened while lexing.
 #[derive(Debug)]
 pub struct LexError {
     inner: Box<LexErrorInner>,
@@ -47,20 +99,53 @@ struct LexErrorInner {
     kind: LexErrorKind,
 }
 
+/// The different classes of errors that can happen while lexing.
+///
+/// Do not exhaustively match on this enumeration.
 #[derive(Debug, PartialEq)]
 pub enum LexErrorKind {
+    /// A dangling block comment was found with an unbalanced `(;` which was
+    /// never terminated in the file.
     DanglingBlockComment,
+
+    /// An unexpected character was encountered when generally parsing and
+    /// looking for something else.
     Unexpected(char),
+
+    /// An invalid `char` in a string literal was found.
     InvalidStringElement(char),
+
+    /// An invalid string escape letter was found (the thing after the `\` in
+    /// string literals)
     InvalidStringEscape(char),
+
+    /// An invalid hexadecimal digit was found.
     InvalidHexDigit(char),
+
+    /// An invalid base-10 digit was found.
     InvalidDigit(char),
+
+    /// Parsing expected `wanted` but ended up finding `found` instead where the
+    /// two characters aren't the same.
     Expected { wanted: char, found: char },
+
+    /// We needed to parse more but EOF (or end of the string) was encountered.
     UnexpectedEof,
+
+    /// A number failed to parse because it was too big to fit within the target
+    /// type.
     NumberTooBig,
+
+    /// An invalid unicode value was found in a `\u{...}` escape in a string,
+    /// only valid unicode scalars can be escaped that way.
     InvalidUnicodeValue(u32),
-    InvalidIdchar(char),
+
+    /// A lone underscore was found when parsing a number, since underscores
+    /// should always be preceded and succeeded with a digit of some form.
     LoneUnderscore,
+
+    #[doc(hidden)]
+    __Nonexhaustive,
 }
 
 #[derive(Debug, PartialEq)]
@@ -85,6 +170,7 @@ enum FloatVal {
 }
 
 impl<'a> Lexer<'a> {
+    /// Creates a new lexer which will lex the `input` source string.
     pub fn new(input: &str) -> Lexer<'_> {
         Lexer {
             it: input.char_indices().peekable(),
@@ -92,7 +178,19 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    pub fn next(&mut self) -> Result<Option<Source<'a>>, LexError> {
+    /// Returns the original source input that we're lexing.
+    pub fn input(&self) -> &'a str {
+        self.input
+    }
+
+    /// Lexes the next token in the input.
+    ///
+    /// Returns `Some` if a token is found or `None` if we're at EOF.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input is malformed.
+    pub fn parse(&mut self) -> Result<Option<Source<'a>>, LexError> {
         if let Some(ws) = self.ws() {
             return Ok(Some(Source::Whitespace(ws)));
         }
@@ -563,7 +661,16 @@ impl<'a> Lexer<'a> {
     }
 }
 
+impl<'a> Iterator for Lexer<'a> {
+    type Item = Result<Source<'a>, LexError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.parse().transpose()
+    }
+}
+
 impl LexError {
+    /// Returns the associated `LexErrorKind` for this error.
     pub fn kind(&self) -> &LexErrorKind {
         &self.inner.kind
     }
@@ -616,6 +723,31 @@ impl Integer<'_> {
     }
 }
 
+impl fmt::Display for LexError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use LexErrorKind::*;
+        match self.inner.kind {
+            DanglingBlockComment => f.write_str("unterminated block comment")?,
+            Unexpected(c) => write!(f, "unexpected character {:?}", c)?,
+            InvalidStringElement(c) => write!(f, "invalid character in string {:?}", c)?,
+            InvalidStringEscape(c) => write!(f, "invalid string escape {:?}", c)?,
+            InvalidHexDigit(c) => write!(f, "invalid hex digit {:?}", c)?,
+            InvalidDigit(c) => write!(f, "invalid decimal digit {:?}", c)?,
+            Expected { wanted, found } => write!(f, "expected {:?} but found {:?}", wanted, found)?,
+            UnexpectedEof => write!(f, "unexpected end-of-file")?,
+            NumberTooBig => f.write_str("number is too big to parse")?,
+            InvalidUnicodeValue(c) => write!(f, "invalid unicode scalar value {:x}", c)?,
+            LoneUnderscore => write!(f, "bare underscore in numeric literal")?,
+            __Nonexhaustive => unreachable!(),
+        }
+
+        write!(f, "at line {} column {}", self.inner.line, self.inner.col)?;
+        Ok(())
+    }
+}
+
+impl std::error::Error for LexError {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -623,7 +755,7 @@ mod tests {
     #[test]
     fn ws_smoke() {
         fn get_whitespace(input: &str) -> &str {
-            match Lexer::new(input).next().expect("no first token") {
+            match Lexer::new(input).parse().expect("no first token") {
                 Some(Source::Whitespace(s)) => s,
                 other => panic!("unexpected {:?}", other),
             }
@@ -638,7 +770,7 @@ mod tests {
     #[test]
     fn line_comment_smoke() {
         fn get_line_comment(input: &str) -> &str {
-            match Lexer::new(input).next().expect("no first token") {
+            match Lexer::new(input).parse().expect("no first token") {
                 Some(Source::Comment(Comment::Line(s))) => s,
                 other => panic!("unexpected {:?}", other),
             }
@@ -653,7 +785,7 @@ mod tests {
     #[test]
     fn block_comment_smoke() {
         fn get_block_comment(input: &str) -> &str {
-            match Lexer::new(input).next().expect("no first token") {
+            match Lexer::new(input).parse().expect("no first token") {
                 Some(Source::Comment(Comment::Block(s))) => s,
                 other => panic!("unexpected {:?}", other),
             }
@@ -662,21 +794,21 @@ mod tests {
         assert_eq!(get_block_comment("(; ;)"), "(; ;)");
         assert_eq!(get_block_comment("(; (;;) ;)"), "(; (;;) ;)");
         assert_eq!(
-            *Lexer::new("(; ").next().unwrap_err().kind(),
+            *Lexer::new("(; ").parse().unwrap_err().kind(),
             LexErrorKind::DanglingBlockComment,
         );
         assert_eq!(
-            *Lexer::new("(; (;;)").next().unwrap_err().kind(),
+            *Lexer::new("(; (;;)").parse().unwrap_err().kind(),
             LexErrorKind::DanglingBlockComment,
         );
         assert_eq!(
-            *Lexer::new("(; ;").next().unwrap_err().kind(),
+            *Lexer::new("(; ;").parse().unwrap_err().kind(),
             LexErrorKind::DanglingBlockComment,
         );
     }
 
     fn get_token(input: &str) -> Token<'_> {
-        match Lexer::new(input).next().expect("no first token") {
+        match Lexer::new(input).parse().expect("no first token") {
             Some(Source::Token(t)) => t,
             other => panic!("unexpected {:?}", other),
         }
@@ -729,76 +861,76 @@ mod tests {
         }
 
         assert_eq!(
-            *Lexer::new("\"").next().unwrap_err().kind(),
+            *Lexer::new("\"").parse().unwrap_err().kind(),
             LexErrorKind::UnexpectedEof,
         );
         assert_eq!(
-            *Lexer::new("\"\\x\"").next().unwrap_err().kind(),
+            *Lexer::new("\"\\x\"").parse().unwrap_err().kind(),
             LexErrorKind::InvalidStringEscape('x'),
         );
         assert_eq!(
-            *Lexer::new("\"\\0\"").next().unwrap_err().kind(),
+            *Lexer::new("\"\\0\"").parse().unwrap_err().kind(),
             LexErrorKind::InvalidHexDigit('"'),
         );
         assert_eq!(
-            *Lexer::new("\"\\0").next().unwrap_err().kind(),
+            *Lexer::new("\"\\0").parse().unwrap_err().kind(),
             LexErrorKind::UnexpectedEof,
         );
         assert_eq!(
-            *Lexer::new("\"\\").next().unwrap_err().kind(),
+            *Lexer::new("\"\\").parse().unwrap_err().kind(),
             LexErrorKind::UnexpectedEof,
         );
         assert_eq!(
-            *Lexer::new("\"\u{7f}\"").next().unwrap_err().kind(),
+            *Lexer::new("\"\u{7f}\"").parse().unwrap_err().kind(),
             LexErrorKind::InvalidStringElement('\u{7f}'),
         );
         assert_eq!(
-            *Lexer::new("\"\u{0}\"").next().unwrap_err().kind(),
+            *Lexer::new("\"\u{0}\"").parse().unwrap_err().kind(),
             LexErrorKind::InvalidStringElement('\u{0}'),
         );
         assert_eq!(
-            *Lexer::new("\"\u{1f}\"").next().unwrap_err().kind(),
+            *Lexer::new("\"\u{1f}\"").parse().unwrap_err().kind(),
             LexErrorKind::InvalidStringElement('\u{1f}'),
         );
         assert_eq!(
-            *Lexer::new("\"\\u{x}\"").next().unwrap_err().kind(),
+            *Lexer::new("\"\\u{x}\"").parse().unwrap_err().kind(),
             LexErrorKind::InvalidHexDigit('x'),
         );
         assert_eq!(
-            *Lexer::new("\"\\u{1_}\"").next().unwrap_err().kind(),
+            *Lexer::new("\"\\u{1_}\"").parse().unwrap_err().kind(),
             LexErrorKind::LoneUnderscore,
         );
         assert_eq!(
             *Lexer::new("\"\\u{fffffffffffffffff}\"")
-                .next()
+                .parse()
                 .unwrap_err()
                 .kind(),
             LexErrorKind::NumberTooBig,
         );
         assert_eq!(
-            *Lexer::new("\"\\u{ffffffff}\"").next().unwrap_err().kind(),
+            *Lexer::new("\"\\u{ffffffff}\"").parse().unwrap_err().kind(),
             LexErrorKind::InvalidUnicodeValue(0xffffffff),
         );
         assert_eq!(
-            *Lexer::new("\"\\u\"").next().unwrap_err().kind(),
+            *Lexer::new("\"\\u\"").parse().unwrap_err().kind(),
             LexErrorKind::Expected {
                 wanted: '{',
                 found: '"'
             },
         );
         assert_eq!(
-            *Lexer::new("\"\\u{\"").next().unwrap_err().kind(),
+            *Lexer::new("\"\\u{\"").parse().unwrap_err().kind(),
             LexErrorKind::InvalidHexDigit('"'),
         );
         assert_eq!(
-            *Lexer::new("\"\\u{1\"").next().unwrap_err().kind(),
+            *Lexer::new("\"\\u{1\"").parse().unwrap_err().kind(),
             LexErrorKind::Expected {
                 wanted: '}',
                 found: '"'
             },
         );
         assert_eq!(
-            *Lexer::new("\"\\u{1").next().unwrap_err().kind(),
+            *Lexer::new("\"\\u{1").parse().unwrap_err().kind(),
             LexErrorKind::UnexpectedEof,
         );
     }
@@ -866,24 +998,24 @@ mod tests {
         assert_eq!(get_integer("0x10 "), 0x10);
 
         assert_eq!(
-            *Lexer::new("1_").next().unwrap_err().kind(),
+            *Lexer::new("1_").parse().unwrap_err().kind(),
             LexErrorKind::LoneUnderscore,
         );
         assert_eq!(
-            *Lexer::new("0x ").next().unwrap_err().kind(),
+            *Lexer::new("0x ").parse().unwrap_err().kind(),
             LexErrorKind::InvalidHexDigit(' '),
         );
         assert_eq!(
-            *Lexer::new("0x").next().unwrap_err().kind(),
+            *Lexer::new("0x").parse().unwrap_err().kind(),
             LexErrorKind::UnexpectedEof,
         );
         assert_eq!(
-            *Lexer::new("0xx").next().unwrap_err().kind(),
+            *Lexer::new("0xx").parse().unwrap_err().kind(),
             LexErrorKind::InvalidHexDigit('x'),
         );
         assert_eq!(
             *Lexer::new("9999999999999999999999999")
-                .next()
+                .parse()
                 .unwrap_err()
                 .kind(),
             LexErrorKind::NumberTooBig,
