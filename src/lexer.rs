@@ -25,6 +25,7 @@ pub enum Token<'a> {
     Keyword(&'a str),
     Reserved(&'a str),
     Integer(Integer<'a>),
+    Float(Float<'a>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -69,6 +70,20 @@ pub struct Integer<'a> {
     val: u64,
 }
 
+#[derive(Debug, PartialEq)]
+pub struct Float<'a> {
+    negative: bool,
+    src: &'a str,
+    val: FloatVal,
+}
+
+#[derive(Debug, PartialEq)]
+enum FloatVal {
+    Nan(Option<u64>),
+    Inf,
+    Val,
+}
+
 impl<'a> Lexer<'a> {
     pub fn new(input: &str) -> Lexer<'_> {
         Lexer {
@@ -108,60 +123,138 @@ impl<'a> Lexer<'a> {
             return Ok(Some(Token::String { val, src }));
         }
 
-        if let Some(integer) = self.integer()? {
-            return Ok(Some(Token::Integer(integer)));
+        let (sign_start, negative) = if let Some(i) = self.eat_char('-') {
+            (Some(i), true)
+        } else if let Some(i) = self.eat_char('+') {
+            (Some(i), false)
+        } else {
+            (None, false)
+        };
+
+        if let Some(n) = self.number(sign_start, negative)? {
+            return Ok(Some(n));
         }
 
-        if let Some((start, ch)) = self.it.peek().cloned() {
-            if is_idchar(ch) {
-                while let Some((_, ch)) = self.it.peek().cloned() {
-                    if is_idchar(ch) {
-                        self.it.next();
-                    } else {
-                        break;
-                    }
-                }
+        let start = match sign_start {
+            Some(i) => i,
+            None => match self.it.peek().cloned() {
+                Some((i, ch)) if is_idchar(ch) => i,
+                Some((i, ch)) => return Err(self.error(i, LexErrorKind::Unexpected(ch))),
+                None => return Ok(None),
+            },
+        };
 
-                if ch == '$' && start + 1 != self.cur() {
-                    return Ok(Some(Token::Id(&self.input[start..self.cur()])));
-                } else if 'a' <= ch && ch <= 'z' {
-                    return Ok(Some(Token::Keyword(&self.input[start..self.cur()])));
-                } else {
-                    return Ok(Some(Token::Reserved(&self.input[start..self.cur()])));
-                }
+        while let Some((_, ch)) = self.it.peek().cloned() {
+            if is_idchar(ch) {
+                self.it.next();
+            } else {
+                break;
             }
         }
 
-        match self.it.next() {
-            Some((i, ch)) => Err(self.error(i, LexErrorKind::Unexpected(ch))),
-            None => Ok(None),
+        // Handle `inf` and `nan` which are special numbers here
+        let src = &self.input[start..self.cur()];
+        let num = if sign_start.is_some() {
+            &src[1..]
+        } else {
+            src
+        };
+
+        if num == "inf" {
+            return Ok(Some(Token::Float(Float {
+                negative,
+                src,
+                val: FloatVal::Inf,
+            })));
+        }
+        if num == "nan" {
+            return Ok(Some(Token::Float(Float {
+                negative,
+                src,
+                val: FloatVal::Nan(None),
+            })));
+        }
+        if num.starts_with("nan:0x") {
+            if let Ok(n) = u64::from_str_radix(&num[6..], 16) {
+                return Ok(Some(Token::Float(Float {
+                    negative,
+                    src,
+                    val: FloatVal::Nan(Some(n)),
+                })));
+            }
+        }
+
+        let ch = src.chars().next().unwrap();
+        if ch == '$' && src.len() > 1 {
+            Ok(Some(Token::Id(src)))
+        } else if 'a' <= ch && ch <= 'z' {
+            Ok(Some(Token::Keyword(src)))
+        } else {
+            Ok(Some(Token::Reserved(src)))
         }
     }
 
-    fn integer(&mut self) -> Result<Option<Integer<'a>>, LexError> {
-        let start = self.cur();
-        let negative = match self.it.peek() {
-            Some((_, '-')) => {
-                self.it.next();
-                true
-            }
-            Some((_, '+')) => {
-                self.it.next();
-                false
-            }
-            Some((_, c)) if c.is_ascii_digit() => false,
+    fn number(&mut self, sign_start: Option<usize>, negative: bool) -> Result<Option<Token<'a>>, LexError> {
+        let start = sign_start.unwrap_or(self.cur());
+
+        // Make sure the next digit is an ascii digit, otherwise this isn't a
+        // number but it's probably an identifier
+        match self.it.peek() {
+            Some((_, c)) if c.is_ascii_digit() => {},
             Some(_) | None => return Ok(None),
-        };
-        let val = if self.eat_str("0x").is_some() {
-            self.hexnum()?.1
+        }
+
+        let (val, hex) = if self.eat_str("0x").is_some() {
+            (self.hexnum()?.1, true)
         } else {
-            self.num()?.1
+            (self.num()?.1, false)
         };
-        Ok(Some(Integer {
-            negative,
-            src: &self.input[start..self.cur()],
-            val,
-        }))
+
+        // If there's a fractional part, parse that but don't record the value
+        // since we defer float parsing until much later.
+        let frac = self.eat_char('.').is_some();
+        if frac {
+            if let Some((_, ch)) = self.it.peek() {
+                if hex {
+                    if ch.is_ascii_hexdigit() {
+                        self.hexnum()?;
+                    }
+                } else {
+                    if ch.is_ascii_digit() {
+                        self.num()?;
+                    }
+                }
+            }
+        }
+
+        // Figure out if there's an exponential part here to make a float, and
+        // if so parse it but defer its actual calculation until later.
+        let exp = if hex {
+            self.eat_char('p').is_some() || self.eat_char('P').is_some()
+        } else {
+            self.eat_char('e').is_some() || self.eat_char('E').is_some()
+        };
+        if exp {
+            // chew a sign if it's there, again we'll parse it later if need be.
+            if self.eat_char('-').is_none() {
+                drop(self.eat_char('+'));
+            }
+            self.num()?;
+        }
+
+        if frac || exp {
+            return Ok(Some(Token::Float(Float {
+                negative,
+                src: &self.input[start..self.cur()],
+                val: FloatVal::Val,
+            })));
+        } else {
+            return Ok(Some(Token::Integer(Integer {
+                negative,
+                src: &self.input[start..self.cur()],
+                val,
+            })));
+        }
     }
 
     /// Attempts to consume whitespace from the input stream, returning `None`
@@ -245,13 +338,7 @@ impl<'a> Lexer<'a> {
                         Some((_, 'r')) => buf.push(b'\r'),
                         Some((_, '\\')) => buf.push(b'\\'),
                         Some((i, 'u')) => {
-                            match self.must_char()? {
-                                (_, '{') => {}
-                                (i, found) => {
-                                    return Err(self
-                                        .error(i, LexErrorKind::Expected { wanted: '{', found }))
-                                }
-                            }
+                            self.must_eat_char('{')?;
                             let (_, n) = self.hexnum()?;
                             let n = u32::try_from(n)
                                 .map_err(|_| self.error(i, LexErrorKind::NumberTooBig))?;
@@ -259,13 +346,7 @@ impl<'a> Lexer<'a> {
                                 self.error(i, LexErrorKind::InvalidUnicodeValue(n))
                             })?;
                             buf.extend(c.encode_utf8(&mut [0; 4]).as_bytes());
-                            match self.must_char()? {
-                                (_, '}') => {}
-                                (i, found) => {
-                                    return Err(self
-                                        .error(i, LexErrorKind::Expected { wanted: '}', found }))
-                                }
-                            }
+                            self.must_eat_char('}')?;
                         }
                         Some((_, c1)) if c1.is_ascii_hexdigit() => {
                             let (_, c2) = self.hexdigit()?;
@@ -412,6 +493,16 @@ impl<'a> Lexer<'a> {
         self.it
             .next()
             .ok_or_else(|| self.error(self.input.len(), LexErrorKind::UnexpectedEof))
+    }
+
+    /// Expects that a specific character must be read next
+    fn must_eat_char(&mut self, wanted: char) -> Result<usize, LexError> {
+        let (pos, found) = self.must_char()?;
+        if wanted == found {
+            Ok(pos)
+        } else {
+            Err(self.error(pos, LexErrorKind::Expected { wanted, found }))
+        }
     }
 
     /// Returns the current position of our iterator through the input string
@@ -778,5 +869,38 @@ mod tests {
                 .kind(),
             LexErrorKind::NumberTooBig,
         );
+    }
+
+    #[test]
+    fn float() {
+        fn get_float(input: &str) -> Float<'_> {
+            match get_token(input) {
+                Token::Float(i) => i,
+                other => panic!("not reserved {:?}", other),
+            }
+        }
+        assert_eq!(get_float("nan").val, FloatVal::Nan(None));
+        assert_eq!(get_float("-nan").val, FloatVal::Nan(None));
+        assert!(get_float("-nan").negative);
+        assert_eq!(get_float("+nan").val, FloatVal::Nan(None));
+        assert!(!get_float("+nan").negative);
+        assert!(!get_float("nan").negative);
+        assert_eq!(get_float("+nan:0x2").val, FloatVal::Nan(Some(2)));
+        assert_eq!(get_float("inf").val, FloatVal::Inf);
+        assert_eq!(get_float("-inf").val, FloatVal::Inf);
+        assert!(get_float("-inf").negative);
+        assert_eq!(get_float("+inf").val, FloatVal::Inf);
+        assert!(!get_float("inf").negative);
+        assert!(!get_float("+inf").negative);
+
+        assert_eq!(get_float("1.1").src, "1.1");
+        assert_eq!(get_float("1.1e0").src, "1.1e0");
+        assert_eq!(get_float("1.1e0^").src, "1.1e0");
+        assert_eq!(get_float("1_2.1_1e0_1^").src, "1_2.1_1e0_1");
+        assert_eq!(get_float("1_2.1_1E0_1^").src, "1_2.1_1E0_1");
+        assert_eq!(get_float("0xf_f.f_fp1_0^").src, "0xf_f.f_fp1_0");
+        assert_eq!(get_float("0xf_f.f_fP1_0^").src, "0xf_f.f_fP1_0");
+        assert_eq!(get_float("1.").src, "1.");
+        assert_eq!(get_float("1. ").src, "1.");
     }
 }

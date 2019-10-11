@@ -6,3 +6,6 @@ edition = "2018"
 
 [workspace]
 members = ['fuzz']
+
+[dev-dependencies]
+rayon = "1.0"
