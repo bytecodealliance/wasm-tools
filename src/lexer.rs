@@ -772,7 +772,10 @@ mod tests {
             LexErrorKind::InvalidHexDigit('x'),
         );
         assert_eq!(
-            *Lexer::new("9999999999999999999999999").next().unwrap_err().kind(),
+            *Lexer::new("9999999999999999999999999")
+                .next()
+                .unwrap_err()
+                .kind(),
             LexErrorKind::NumberTooBig,
         );
     }
