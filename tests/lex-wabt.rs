@@ -1,6 +1,7 @@
 use rayon::prelude::*;
 use std::fmt;
 use std::path::{Path, PathBuf};
+use wast::ast::*;
 use wast::lexer::Lexer;
 
 #[test]
@@ -138,15 +139,33 @@ fn parse_wabt() {
             let wast = contents.contains("TOOL: wast2json")
                 || test.display().to_string().ends_with(".wast");
             let result = if wast {
-                buf.parser().parse::<wast::ast::Wast>().err()
+                buf.parser().parse::<Wast>()
             } else {
-                buf.parser().parse::<wast::ast::Wat>().err()
+                buf.parser().parse::<Wat>().map(|wat| Wast {
+                    directives: vec![WastDirective::Module(wat.module)],
+                })
             };
-            if let Some(e) = result {
-                return Some(render_error(&test, &contents, e.line(), e.col(), &e));
+            let directives = match result {
+                Ok(wast) => wast.directives,
+                Err(e) => {
+                    return Some(render_error(&test, &contents, e.line(), e.col(), &e));
+                }
             };
             if !buf.parser().is_empty() {
                 return Some(format!("failed to parse all of {:?}", test));
+            }
+
+            for directive in directives {
+                let mut module = match directive {
+                    WastDirective::Module(m) => m,
+                    _ => continue,
+                };
+                match wast::resolve::resolve(&mut module) {
+                    Ok(()) => {}
+                    Err(e) => {
+                        return Some(render_error(&test, &contents, e.line(), e.col(), &e));
+                    }
+                }
             }
 
             None

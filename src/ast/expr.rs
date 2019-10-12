@@ -172,8 +172,8 @@ instructions! {
         RefHost(u32) = "ref.host", // only used in test harness
         RefFunc(ast::Index<'a>) = "ref.func", // only used in test harness
 
-        I32Const(ast::Int32<'a>) = "i32.const",
-        I64Const(ast::Int64<'a>) = "i64.const",
+        I32Const(i32) = "i32.const",
+        I64Const(i64) = "i64.const",
         F32Const(ast::Float32<'a>) = "f32.const",
         F64Const(ast::Float64<'a>) = "f64.const",
 

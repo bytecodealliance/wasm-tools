@@ -5,11 +5,11 @@ use crate::parser::{Parse, Parser, Result};
 pub struct Memory<'a> {
     pub name: Option<ast::Id<'a>>,
     pub exports: ast::InlineExport<'a>,
-    pub style: MemoryStyle<'a>,
+    pub kind: MemoryKind<'a>,
 }
 
 #[derive(Debug, PartialEq)]
-pub enum MemoryStyle<'a> {
+pub enum MemoryKind<'a> {
     Import {
         module: &'a str,
         name: &'a str,
@@ -31,7 +31,7 @@ impl<'a> Parse<'a> for Memory<'a> {
         //  *   `(import "a" "b") limits`
         //  *   `limits`
         let mut l = parser.lookahead1();
-        let style = if l.peek::<ast::LParen>() {
+        let kind = if l.peek::<ast::LParen>() {
             enum Which<'a, T> {
                 Inline(Vec<T>),
                 Import(&'a str, &'a str),
@@ -53,22 +53,22 @@ impl<'a> Parse<'a> for Memory<'a> {
                 }
             })?;
             match result {
-                Which::Inline(data) => MemoryStyle::Inline(data),
-                Which::Import(module, name) => MemoryStyle::Import {
+                Which::Inline(data) => MemoryKind::Inline(data),
+                Which::Import(module, name) => MemoryKind::Import {
                     module,
                     name,
                     ty: parser.parse()?,
                 },
             }
         } else if l.peek::<u32>() {
-            MemoryStyle::Normal(parser.parse()?)
+            MemoryKind::Normal(parser.parse()?)
         } else {
             return Err(l.error());
         };
         Ok(Memory {
             name,
             exports,
-            style,
+            kind,
         })
     }
 }

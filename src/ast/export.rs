@@ -9,7 +9,7 @@ pub struct Export<'a> {
 
 #[derive(Debug, PartialEq)]
 pub enum ExportKind<'a> {
-    Function(ast::Index<'a>),
+    Func(ast::Index<'a>),
     Table(ast::Index<'a>),
     Memory(ast::Index<'a>),
     Global(ast::Index<'a>),
@@ -23,7 +23,7 @@ impl<'a> Parse<'a> for Export<'a> {
             let mut l = parser.lookahead1();
             if l.peek::<kw::func>() {
                 parser.parse::<kw::func>()?;
-                Ok(ExportKind::Function(parser.parse()?))
+                Ok(ExportKind::Func(parser.parse()?))
             } else if l.peek::<kw::table>() {
                 parser.parse::<kw::table>()?;
                 Ok(ExportKind::Table(parser.parse()?))

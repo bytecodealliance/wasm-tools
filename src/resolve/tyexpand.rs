@@ -1,0 +1,91 @@
+use crate::ast::*;
+use std::collections::HashMap;
+
+#[derive(Default)]
+pub struct Expander<'a> {
+    pub to_prepend: Vec<ModuleField<'a>>,
+    types: HashMap<(Vec<ValType>, Vec<ValType>), u32>,
+    ntypes: u32,
+}
+
+impl<'a> Expander<'a> {
+    pub fn expand(&mut self, item: &mut ModuleField<'a>) {
+        match item {
+            ModuleField::Type(t) => self.register_type(t),
+            ModuleField::Import(i) => self.expand_import(i),
+            ModuleField::Func(f) => self.expand_func(f),
+            _ => {}
+        }
+    }
+
+    fn register_type(&mut self, ty: &Type<'a>) {
+        let key = self.key(&ty.func);
+        self.types.insert(key, self.ntypes);
+        self.ntypes += 1;
+    }
+
+    fn expand_import(&mut self, import: &mut Import<'a>) {
+        match &mut import.kind {
+            ImportKind::Func(f) => self.expand_type_use(f),
+            _ => {}
+        }
+    }
+
+    fn expand_func(&mut self, func: &mut Func<'a>) {
+        self.expand_type_use(&mut func.ty);
+        if let FuncKind::Inline { expression, .. } = &mut func.kind {
+            self.expand_expression(expression);
+        }
+    }
+
+    fn expand_expression(&mut self, expr: &mut Expression<'a>) {
+        for instr in expr.instrs.iter_mut() {
+            self.expand_instr(instr);
+        }
+    }
+
+    fn expand_instr(&mut self, instr: &mut Instruction<'a>) {
+        match instr {
+            Instruction::Block(bt) | Instruction::If(bt) | Instruction::Loop(bt) => {
+                self.expand_type_use(&mut bt.ty)
+            }
+            Instruction::CallIndirect(c) => self.expand_type_use(&mut c.ty),
+            _ => {}
+        }
+    }
+
+    fn expand_type_use(&mut self, item: &mut TypeUse<'a>) {
+        if item.index.is_some() {
+            return;
+        }
+        let default = FunctionType {
+            params: Vec::new(),
+            results: Vec::new(),
+        };
+        let func = item.ty.as_ref().unwrap_or(&default);
+        let key = self.key(func);
+        item.index = Some(Index::Num(match self.types.get(&key) {
+            Some(i) => *i,
+            None => self.prepend(key),
+        }));
+    }
+
+    fn key(&self, ty: &FunctionType) -> (Vec<ValType>, Vec<ValType>) {
+        let params = ty.params.iter().map(|p| p.1).collect::<Vec<_>>();
+        let results = ty.results.clone();
+        (params, results)
+    }
+
+    fn prepend(&mut self, key: (Vec<ValType>, Vec<ValType>)) -> u32 {
+        self.to_prepend.push(ModuleField::Type(Type {
+            name: None,
+            func: FunctionType {
+                params: key.0.iter().map(|t| (None, *t)).collect(),
+                results: key.1.clone(),
+            },
+        }));
+        self.types.insert(key, self.ntypes);
+        self.ntypes += 1;
+        return self.ntypes - 1;
+    }
+}

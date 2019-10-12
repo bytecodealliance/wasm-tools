@@ -187,9 +187,13 @@ impl<'a> Cursor<'a> {
         }
     }
 
-    pub fn id(mut self) -> Option<(&'a str, Self)> {
+    pub fn id(mut self) -> Option<((&'a str, usize, usize), Self)> {
         match self.advance()? {
-            Token::Id(id) => Some((&id[1..], self)),
+            Token::Id(id) => {
+                let pos = self.parser.input_pos(id);
+                let (line, col) = crate::to_linecol(self.parser.buf.input, pos);
+                Some(((&id[1..], line, col), self))
+            }
             _ => None,
         }
     }

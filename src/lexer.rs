@@ -752,6 +752,12 @@ impl<'a> Integer<'a> {
     pub fn src(&self) -> &'a str {
         self.src
     }
+
+    /// Returns the value string that can be parsed for this integer, as well as
+    /// the base that it should be parsed in
+    pub fn val(&self) -> (&str, u32) {
+        (&self.val, if self.hex { 16 } else { 10 })
+    }
 }
 
 impl<'a> Float<'a> {

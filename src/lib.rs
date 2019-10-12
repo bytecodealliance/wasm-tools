@@ -1,6 +1,7 @@
 pub mod ast;
 pub mod lexer;
 pub mod parser;
+pub mod resolve;
 
 /// Converts an offset within `self.input` to a line/column number.
 ///

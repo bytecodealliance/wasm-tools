@@ -5,11 +5,11 @@ use crate::parser::{Parse, Parser, Result};
 pub struct Table<'a> {
     pub name: Option<ast::Id<'a>>,
     pub exports: ast::InlineExport<'a>,
-    pub style: TableStyle<'a>,
+    pub kind: TableKind<'a>,
 }
 
 #[derive(Debug, PartialEq)]
-pub enum TableStyle<'a> {
+pub enum TableKind<'a> {
     Import {
         module: &'a str,
         name: &'a str,
@@ -34,7 +34,7 @@ impl<'a> Parse<'a> for Table<'a> {
         //  *   `(import "a" "b") limits`
         //  *   `limits`
         let mut l = parser.lookahead1();
-        let style = if l.peek::<ast::TableElemType>() {
+        let kind = if l.peek::<ast::TableElemType>() {
             let elem = parser.parse()?;
             let mut elems = Vec::new();
             parser.parens(|p| {
@@ -44,15 +44,15 @@ impl<'a> Parse<'a> for Table<'a> {
                 }
                 Ok(())
             })?;
-            TableStyle::Inline { elem, elems }
+            TableKind::Inline { elem, elems }
         } else if l.peek::<u32>() {
-            TableStyle::Normal(parser.parse()?)
+            TableKind::Normal(parser.parse()?)
         } else if l.peek::<ast::LParen>() {
             let (module, name) = parser.parens(|p| {
                 p.parse::<kw::import>()?;
                 Ok((p.parse()?, p.parse()?))
             })?;
-            TableStyle::Import {
+            TableKind::Import {
                 module,
                 name,
                 ty: parser.parse()?,
@@ -63,7 +63,7 @@ impl<'a> Parse<'a> for Table<'a> {
         Ok(Table {
             name,
             exports,
-            style,
+            kind,
         })
     }
 }

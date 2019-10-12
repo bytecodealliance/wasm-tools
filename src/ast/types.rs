@@ -3,7 +3,7 @@ use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 
 /// The value types for a wasm module.
 #[allow(missing_docs)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum ValType {
     I32,
     I64,
@@ -41,7 +41,7 @@ impl<'a> Parse<'a> for ValType {
 }
 
 /// Type for a `global` in a wasm module
-#[derive(Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct GlobalType {
     /// The element type of this `global`
     pub ty: ValType,
@@ -71,7 +71,7 @@ impl<'a> Parse<'a> for GlobalType {
 /// List of different kinds of table types we can have.
 ///
 /// Currently there's only one, a `funcref`.
-#[derive(Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum TableElemType {
     /// An element for a table that is a list of functions.
     Funcref,
@@ -111,7 +111,7 @@ impl Peek for TableElemType {
 }
 
 /// Min/max limits used for tables/memories.
-#[derive(Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Limits {
     /// The minimum number of units for this type.
     pub min: u32,
@@ -132,7 +132,7 @@ impl<'a> Parse<'a> for Limits {
 }
 
 /// Configuration for a table of a wasm mdoule
-#[derive(Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct TableType {
     /// Limits on the element sizes of this table
     pub limits: Limits,
@@ -150,7 +150,7 @@ impl<'a> Parse<'a> for TableType {
 }
 
 /// Configuration for a memory of a wasm module
-#[derive(Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct MemoryType {
     /// Limits on the page sizes of this memory
     pub limits: Limits,
@@ -168,7 +168,7 @@ impl<'a> Parse<'a> for MemoryType {
 }
 
 /// A function type with parameters and results.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct FunctionType<'a> {
     pub params: Vec<(Option<ast::Id<'a>>, ValType)>,
     pub results: Vec<ValType>,
@@ -238,7 +238,7 @@ impl<'a> Parse<'a> for Type<'a> {
 }
 
 /// A type declaration in a module
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Default, Debug, PartialEq)]
 pub struct TypeUse<'a> {
     pub index: Option<ast::Index<'a>>,
     pub ty: Option<ast::FunctionType<'a>>,
