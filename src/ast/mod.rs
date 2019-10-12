@@ -61,6 +61,7 @@ pub use types::*;
 
 pub mod kw {
     custom_keyword!(anyfunc);
+    custom_keyword!(anyref);
     custom_keyword!(block);
     custom_keyword!(data);
     custom_keyword!(elem);

@@ -62,39 +62,28 @@ impl Peek for Index<'_> {
     }
 }
 
-macro_rules! integers {
-    ($($i:ident => $get:ident)*) => ($(
-
-        impl<'a> Parse<'a> for $i {
-            fn parse(parser: Parser<'a>) -> Result<Self> {
-                parser.step(|c| {
-                    if let Some((i, rest)) = c.integer() {
-                        return match i.$get() {
-                            Some(u) => Ok((u, rest)),
-                            None => Err(c.error(concat!("invalid ", stringify!($i), " number"))),
-                        };
-                    }
-                    Err(c.error("expected an integer"))
-                })
+impl<'a> Parse<'a> for u32 {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.step(|c| {
+            if let Some((i, rest)) = c.integer() {
+                return match i.get_u32() {
+                    Some(u) => Ok((u, rest)),
+                    None => Err(c.error(concat!("invalid u32 number"))),
+                };
             }
-        }
-
-        impl Peek for $i {
-            fn peek(cursor: Cursor<'_>) -> bool {
-                cursor.integer().is_some()
-            }
-
-            fn display() -> &'static str {
-                stringify!($i)
-            }
-        }
-    )*)
+            Err(c.error("expected a u32"))
+        })
+    }
 }
 
-integers! {
-    u32 => get_u32
-    i32 => get_i32
-    i64 => get_i64
+impl Peek for u32 {
+    fn peek(cursor: Cursor<'_>) -> bool {
+        cursor.integer().is_some()
+    }
+
+    fn display() -> &'static str {
+        "u32"
+    }
 }
 
 impl<'a> Parse<'a> for &'a [u8] {
@@ -111,6 +100,38 @@ impl<'a> Parse<'a> for &'a [u8] {
 impl<'a> Parse<'a> for &'a str {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         str::from_utf8(parser.parse()?).map_err(|_| parser.error("invalid utf-8"))
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Int32<'a> {
+    src: &'a str,
+}
+
+impl<'a> Parse<'a> for Int32<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.step(|c| {
+            if let Some((i, rest)) = c.integer() {
+                return Ok((Int32 { src: i.src() }, rest));
+            }
+            Err(c.error("expected an integer"))
+        })
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Int64<'a> {
+    src: &'a str,
+}
+
+impl<'a> Parse<'a> for Int64<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.step(|c| {
+            if let Some((i, rest)) = c.integer() {
+                return Ok((Int64 { src: i.src() }, rest));
+            }
+            Err(c.error("expected an integer"))
+        })
     }
 }
 

@@ -16,7 +16,10 @@ fn lex_wabt() {
         for token in Lexer::new(&contents) {
             let token = match token {
                 Ok(t) => t,
-                Err(e) => render_error(test, &contents, e.line(), e.col(), &e),
+                Err(e) => {
+                    render_error(test, &contents, e.line(), e.col(), &e);
+                    panic!()
+                }
             };
             let source = token.src();
             assert_eq!(
@@ -65,34 +68,77 @@ fn find_tests() -> Vec<PathBuf> {
 fn parse_wabt() {
     let tests = find_tests();
 
-    tests.iter().for_each(|test| {
-        let contents = std::fs::read_to_string(test).unwrap();
+    let mut failed = 0;
+    for test in tests {
+        let contents = std::fs::read_to_string(&test).unwrap();
+        // Skip tests that are supposed to fail
         if contents.contains(";; ERROR") {
-            return;
+            continue;
         }
+        // Tests that have a different input
+        if contents.contains("STDIN_FILE") {
+            continue;
+        }
+        // Some exception-handling tests don't use `--enable-exceptions` since
+        // `run-objdump` enables everything
+        if contents.contains("run-objdump") && contents.contains("(event") {
+            continue;
+        }
+        // contains weird stuff at the end of the file we don't parse
+        if contents.contains("TOOL: run-objdump-spec") {
+            continue;
+        }
+        // Skip wast2json tests since we don't parse those right now
+        if contents.contains("TOOL: wast2json") {
+            continue;
+        }
+
+        // Skip tests that exercise unimplemented proposals
         if contents.contains("--enable-exceptions") {
-            return;
+            continue;
         }
+        if contents.contains("--enable-all") {
+            continue;
+        }
+        if contents.contains("--enable-annotations") {
+            continue;
+        }
+        if contents.contains("--enable-simd") {
+            continue;
+        }
+        if contents.contains("--enable-tail-call") {
+            continue;
+        }
+
         let buf = match wast::parser::ParseBuffer::new(&contents) {
             Ok(b) => b,
-            Err(e) => render_error(test, &contents, e.line(), e.col(), &e),
+            Err(e) => {
+                render_error(&test, &contents, e.line(), e.col(), &e);
+                failed += 1;
+                continue;
+            }
         };
         if let Err(e) = buf.parser().parse::<wast::ast::File>() {
-            render_error(test, &contents, e.line(), e.col(), &e);
+            render_error(&test, &contents, e.line(), e.col(), &e);
+            failed += 1;
+            continue;
         };
         if !buf.parser().is_empty() {
-            panic!("failed to parse all of {:?}", test);
+            failed += 1;
+            eprintln!("failed to parse all of {:?}", test);
         }
-    })
+    }
+    if failed > 0 {
+        panic!("{} tests failed", failed)
+    }
 }
 
-fn render_error(file: &Path, contents: &str, line: usize, col: usize, err: &dyn fmt::Display) -> ! {
+fn render_error(file: &Path, contents: &str, line: usize, col: usize, err: &dyn fmt::Display) {
     eprintln!("");
     eprintln!("error: {}", err);
     eprintln!("     --> {}:{}:{}", file.display(), line + 1, col + 1);
     eprintln!("      |");
-    eprintln!(" {:4} | {}", line + 1, contents.lines().nth(line).unwrap());
+    eprintln!(" {:4} | {}", line + 1, contents.lines().nth(line).unwrap_or(""));
     eprintln!("      | {1:>0$}", col + 1, "^");
     eprintln!("");
-    panic!("{}", err);
 }

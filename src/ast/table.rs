@@ -70,8 +70,16 @@ impl<'a> Parse<'a> for Table<'a> {
 
 #[derive(Debug, PartialEq)]
 pub struct Elem<'a> {
+    /// The table that this `Elem` will be associated with.
+    ///
+    /// Not present for passive segments and otherwise defaults to table 0
     pub table: Option<ast::Index<'a>>,
-    pub offset: ast::Expression<'a>,
+
+    /// Initial offset to load this elem segment at, or `None` if this is a
+    /// passive elem segment.
+    pub offset: Option<ast::Expression<'a>>,
+
+    /// Function elements in this `elem` segment
     pub elems: Vec<ast::Index<'a>>,
 }
 
@@ -79,12 +87,16 @@ impl<'a> Parse<'a> for Elem<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::elem>()?;
         let table = parser.parse()?;
-        let offset = parser.parens(|parser| {
-            if parser.peek::<kw::offset>() {
-                parser.parse::<kw::offset>()?;
-            }
-            parser.parse()
-        })?;
+        let offset = if parser.peek::<ast::LParen>() {
+            Some(parser.parens(|parser| {
+                if parser.peek::<kw::offset>() {
+                    parser.parse::<kw::offset>()?;
+                }
+                parser.parse()
+            })?)
+        } else {
+            None
+        };
         let mut elems = Vec::new();
         while !parser.is_empty() {
             elems.push(parser.parse()?);

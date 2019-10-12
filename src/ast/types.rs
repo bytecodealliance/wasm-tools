@@ -9,27 +9,30 @@ pub enum ValType {
     I64,
     F32,
     F64,
+    Anyref,
 }
 
 impl<'a> Parse<'a> for ValType {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        if parser.peek::<kw::i32>() {
+        let mut l = parser.lookahead1();
+        if l.peek::<kw::i32>() {
             parser.parse::<kw::i32>()?;
-            return Ok(ValType::I32);
-        }
-        if parser.peek::<kw::i64>() {
+            Ok(ValType::I32)
+        } else if l.peek::<kw::i64>() {
             parser.parse::<kw::i64>()?;
-            return Ok(ValType::I64);
-        }
-        if parser.peek::<kw::f32>() {
+            Ok(ValType::I64)
+        } else if l.peek::<kw::f32>() {
             parser.parse::<kw::f32>()?;
-            return Ok(ValType::F32);
-        }
-        if parser.peek::<kw::f64>() {
+            Ok(ValType::F32)
+        } else if l.peek::<kw::f64>() {
             parser.parse::<kw::f64>()?;
-            return Ok(ValType::F64);
+            Ok(ValType::F64)
+        } else if l.peek::<kw::anyref>() {
+            parser.parse::<kw::anyref>()?;
+            Ok(ValType::Anyref)
+        } else {
+            Err(l.error())
         }
-        Err(parser.error("expected a value type"))
     }
 }
 
@@ -68,6 +71,8 @@ impl<'a> Parse<'a> for GlobalType {
 pub enum TableElemType {
     /// An element for a table that is a list of functions.
     Funcref,
+    /// An element for a table that is a list of `anyref` values.
+    Anyref,
 }
 
 impl<'a> Parse<'a> for TableElemType {
@@ -77,17 +82,27 @@ impl<'a> Parse<'a> for TableElemType {
             parser.parse::<kw::anyfunc>()?;
             return Ok(TableElemType::Funcref);
         }
-        parser.parse::<kw::funcref>()?;
-        Ok(TableElemType::Funcref)
+        let mut l = parser.lookahead1();
+        if l.peek::<kw::funcref>() {
+            parser.parse::<kw::funcref>()?;
+            Ok(TableElemType::Funcref)
+        } else if l.peek::<kw::anyref>() {
+            parser.parse::<kw::anyref>()?;
+            Ok(TableElemType::Anyref)
+        } else {
+            Err(l.error())
+        }
     }
 }
 
 impl Peek for TableElemType {
     fn peek(cursor: Cursor<'_>) -> bool {
-        kw::funcref::peek(cursor) || /* legacy */ kw::anyfunc::peek(cursor)
+        kw::funcref::peek(cursor)
+            || kw::anyref::peek(cursor)
+            || /* legacy */ kw::anyfunc::peek(cursor)
     }
     fn display() -> &'static str {
-        kw::funcref::display()
+        "table element type"
     }
 }
 
@@ -165,6 +180,9 @@ impl<'a> FunctionType<'a> {
                     if self.results.len() > 0 {
                         return Err(p.error("cannot list params after results"));
                     }
+                    if p.is_empty() {
+                        return Ok(());
+                    }
                     let id = p.parse::<Option<_>>()?;
                     let parse_more = id.is_none();
                     let ty = p.parse()?;
@@ -174,7 +192,6 @@ impl<'a> FunctionType<'a> {
                     }
                 } else if l.peek::<kw::result>() {
                     p.parse::<kw::result>()?;
-                    self.results.push(p.parse()?);
                     while !p.is_empty() {
                         self.results.push(p.parse()?);
                     }
@@ -218,25 +235,32 @@ impl<'a> Parse<'a> for Type<'a> {
 
 /// A type declaration in a module
 #[derive(Debug, PartialEq)]
-pub enum TypeUse<'a> {
-    Index(ast::Index<'a>),
-    Inline(FunctionType<'a>),
+pub struct TypeUse<'a> {
+    pub index: Option<ast::Index<'a>>,
+    pub ty: Option<ast::FunctionType<'a>>,
 }
 
 impl<'a> Parse<'a> for TypeUse<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        if parser.peek2::<kw::r#type>() {
-            parser.parens(|parser| {
+        let index = if parser.peek2::<kw::r#type>() {
+            Some(parser.parens(|parser| {
                 parser.parse::<kw::r#type>()?;
-                Ok(TypeUse::Index(parser.parse()?))
-            })
+                Ok(parser.parse()?)
+            })?)
         } else {
+            None
+        };
+        let ty = if parser.peek2::<kw::param>() || parser.peek2::<kw::result>() {
             let mut ft = FunctionType {
                 params: Vec::new(),
                 results: Vec::new(),
             };
             ft.finish_parse(parser)?;
-            Ok(TypeUse::Inline(ft))
-        }
+            Some(ft)
+        } else {
+            None
+        };
+
+        Ok(TypeUse { index, ty })
     }
 }

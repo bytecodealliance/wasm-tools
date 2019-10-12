@@ -39,6 +39,9 @@ impl<'a> Parse<'a> for Func<'a> {
             while parser.peek2::<kw::local>() {
                 parser.parens(|p| {
                     p.parse::<kw::local>()?;
+                    if p.is_empty() {
+                        return Ok(());
+                    }
                     let id: Option<_> = p.parse()?;
                     let ty = p.parse()?;
                     let parse_more = id.is_none();

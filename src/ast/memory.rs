@@ -32,7 +32,11 @@ impl<'a> Parse<'a> for Memory<'a> {
         //  *   `limits`
         let mut l = parser.lookahead1();
         let style = if l.peek::<ast::LParen>() {
-            parser.parens(|parser| {
+            enum Which<'a, T> {
+                Inline(Vec<T>),
+                Import(&'a str, &'a str),
+            }
+            let result = parser.parens(|parser| {
                 let mut l = parser.lookahead1();
                 if l.peek::<kw::data>() {
                     parser.parse::<kw::data>()?;
@@ -40,22 +44,26 @@ impl<'a> Parse<'a> for Memory<'a> {
                     while !parser.is_empty() {
                         data.push(parser.parse()?);
                     }
-                    Ok(MemoryStyle::Inline(data))
+                    Ok(Which::Inline(data))
                 } else if l.peek::<kw::import>() {
                     parser.parse::<kw::import>()?;
-                    Ok(MemoryStyle::Import {
-                        module: parser.parse()?,
-                        name: parser.parse()?,
-                        ty: parser.parse()?,
-                    })
+                    Ok(Which::Import(parser.parse()?, parser.parse()?))
                 } else {
                     Err(l.error())
                 }
-            })?
+            })?;
+            match result {
+                Which::Inline(data) => MemoryStyle::Inline(data),
+                Which::Import(module, name) => MemoryStyle::Import {
+                    module,
+                    name,
+                    ty: parser.parse()?,
+                },
+            }
         } else if l.peek::<u32>() {
             MemoryStyle::Normal(parser.parse()?)
         } else {
-            return Err(l.error())
+            return Err(l.error());
         };
         Ok(Memory {
             name,
@@ -67,8 +75,17 @@ impl<'a> Parse<'a> for Memory<'a> {
 
 #[derive(Debug, PartialEq)]
 pub struct Data<'a> {
+    /// The memory that this `Data` will be associated with.
+    ///
+    /// Not present for passive segments and otherwise defaults to memory 0
     pub memory: Option<ast::Index<'a>>,
-    pub offset: ast::Expression<'a>,
+
+    /// Initial offset to load this data segment at, or `None` if this is a
+    /// passive memory segment.
+    pub offset: Option<ast::Expression<'a>>,
+
+    /// Bytes for this `Data` segment, viewed as the concatenation of all the
+    /// contained slices.
     pub data: Vec<&'a [u8]>,
 }
 
@@ -76,12 +93,16 @@ impl<'a> Parse<'a> for Data<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::data>()?;
         let memory = parser.parse()?;
-        let offset = parser.parens(|parser| {
-            if parser.peek::<kw::offset>() {
-                parser.parse::<kw::offset>()?;
-            }
-            parser.parse()
-        })?;
+        let offset = if parser.peek::<ast::LParen>() {
+            Some(parser.parens(|parser| {
+                if parser.peek::<kw::offset>() {
+                    parser.parse::<kw::offset>()?;
+                }
+                parser.parse()
+            })?)
+        } else {
+            None
+        };
         let mut data = Vec::new();
         while !parser.is_empty() {
             data.push(parser.parse()?);

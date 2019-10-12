@@ -8,7 +8,17 @@ pub struct File<'a> {
 
 impl<'a> Parse<'a> for File<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parens(Module::parse).map(|module| File { module })
+        if parser.peek2::<kw::module>() {
+            parser.parens(Module::parse).map(|module| File { module })
+        } else {
+            let mut fields = Vec::new();
+            while !parser.is_empty() {
+                fields.push(parser.parens(ModuleField::parse)?);
+            }
+            Ok(File {
+                module: Module { name: None, fields },
+            })
+        }
     }
 }
 

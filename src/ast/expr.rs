@@ -117,14 +117,17 @@ instructions! {
         BrTable(BrTableIndices<'a>) = "br_table",
         Return = "return",
         Call(ast::Index<'a>) = "call",
-        CallIndirect(ast::TypeUse<'a>) = "call_indirect",
+        CallIndirect(CallIndirect<'a>) = "call_indirect",
         Drop = "drop",
         Select = "select",
-        LocalSet(ast::Index<'a>) = "local.set",
+        LocalSet(ast::Index<'a>) = "local.set" | "set_local",
         LocalGet(ast::Index<'a>) = "local.get" | "get_local",
-        LocalTee(ast::Index<'a>) = "local.tee",
-        GlobalSet(ast::Index<'a>) = "global.set",
-        GlobalGet(ast::Index<'a>) = "global.get",
+        LocalTee(ast::Index<'a>) = "local.tee" | "tee_local",
+        GlobalSet(ast::Index<'a>) = "global.set" | "set_global",
+        GlobalGet(ast::Index<'a>) = "global.get" | "get_global",
+
+        TableGet(ast::Index<'a>) = "table.get",
+        TableSet(ast::Index<'a>) = "table.set",
 
         I32Load(MemArg) = "i32.load",
         I64Load(MemArg) = "i64.load",
@@ -149,10 +152,24 @@ instructions! {
         I64Store8(MemArg) = "i64.store8",
         I64Store16(MemArg) = "i64.store16",
         I64Store32(MemArg) = "i64.store32",
-        MemorySize = "memory.size",
-        MemoryGrow = "memory.grow",
-        I32Const(i32) = "i32.const",
-        I64Const(i64) = "i64.const",
+
+        // Lots of bulk memory proposal here as well
+        MemorySize = "memory.size" | "current_memory",
+        MemoryGrow = "memory.grow" | "grow_memory",
+        MemoryInit(ast::Index<'a>) = "memory.init",
+        MemoryCopy = "memory.copy",
+        MemoryFill = "memory.fill",
+        DataDrop(ast::Index<'a>) = "data.drop",
+        ElemDrop(ast::Index<'a>) = "elem.drop",
+        TableInit(ast::Index<'a>) = "table.init",
+        TableCopy = "table.copy",
+        TableSize(ast::Index<'a>) = "table.size",
+        TableGrow(ast::Index<'a>) = "table.grow",
+        RefNull = "ref.null",
+        RefIsNull = "ref.is_null",
+
+        I32Const(ast::Int32<'a>) = "i32.const",
+        I64Const(ast::Int64<'a>) = "i64.const",
         F32Const(ast::Float32<'a>) = "f32.const",
         F64Const(ast::Float64<'a>) = "f64.const",
 
@@ -262,32 +279,50 @@ instructions! {
         F64Le = "f64.le",
         F64Ge = "f64.ge",
 
-        I32WrapI64 = "i32.wrap_i64",
-        I32TruncF32S = "i32.trunc_f32_s",
-        I32TruncF32U = "i32.trunc_f32_u",
-        I32TruncF64S = "i32.trunc_f64_s",
-        I32TruncF64U = "i32.trunc_f64_u",
-        I64ExtendI32S = "i32.extend_i32_s",
-        I64ExtendI32U = "i32.extend_i32_u",
-        I64TruncF32S = "i64.trunc_f32_s",
-        I64TruncF32U = "i64.trunc_f32_u",
-        I64TruncF64S = "i64.trunc_f64_s",
-        I64TruncF64U = "i64.trunc_f64_u",
-        F32ConvertI32S = "f32.convert_i32_s",
-        F32ConvertI32U = "f32.convert_i32_u",
-        F32ConvertI64S = "f32.convert_i64_s",
-        F32ConvertI64U = "f32.convert_i64_u",
-        F32DemoteF64 = "f32.demote_f64",
-        F64ConvertI32S = "f64.convert_i32_s",
-        F64ConvertI32U = "f64.convert_i32_u",
-        F64ConvertI64S = "f64.convert_i64_s",
-        F64ConvertI64U = "f64.convert_i64_u",
-        F64PromoteF32 = "f64.promote_f32",
-        I32ReinterpretF32 = "i32.reinterpret_f32",
-        I64ReinterpretF64 = "i64.reinterpret_f64",
-        F32ReinterpretI32 = "f32.reinterpret_i32",
-        F64ReinterpretI64 = "f64.reinterpret_i64",
+        I32WrapI64 = "i32.wrap_i64" | "i32.wrap/i64",
+        I32TruncF32S = "i32.trunc_f32_s" | "i32.trunc_s/f32",
+        I32TruncF32U = "i32.trunc_f32_u" | "i32.trunc_u/f32",
+        I32TruncF64S = "i32.trunc_f64_s" | "i32.trunc_s/f64",
+        I32TruncF64U = "i32.trunc_f64_u" | "i32.trunc_u/f64",
+        I64ExtendI32S = "i64.extend_i32_s" | "i64.extend_s/i32",
+        I64ExtendI32U = "i64.extend_i32_u" | "i64.extend_u/i32",
+        I64TruncF32S = "i64.trunc_f32_s" | "i64.trunc_s/f32",
+        I64TruncF32U = "i64.trunc_f32_u" | "i64.trunc_u/f32",
+        I64TruncF64S = "i64.trunc_f64_s" | "i64.trunc_s/f64",
+        I64TruncF64U = "i64.trunc_f64_u" | "i64.trunc_u/f64",
+        F32ConvertI32S = "f32.convert_i32_s" | "f32.convert_s/i32",
+        F32ConvertI32U = "f32.convert_i32_u" | "f32.convert_u/i32",
+        F32ConvertI64S = "f32.convert_i64_s" | "f32.convert_s/i64",
+        F32ConvertI64U = "f32.convert_i64_u" | "f32.convert_u/i64",
+        F32DemoteF64 = "f32.demote_f64" | "f32.demote/f64",
+        F64ConvertI32S = "f64.convert_i32_s" | "f64.convert_s/i32",
+        F64ConvertI32U = "f64.convert_i32_u" | "f64.convert_u/i32",
+        F64ConvertI64S = "f64.convert_i64_s" | "f64.convert_s/i64",
+        F64ConvertI64U = "f64.convert_i64_u" | "f64.convert_u/i64",
+        F64PromoteF32 = "f64.promote_f32" | "f64.promote/f32",
+        I32ReinterpretF32 = "i32.reinterpret_f32" | "i32.reinterpret/f32",
+        I64ReinterpretF64 = "i64.reinterpret_f64" | "i64.reinterpret/f64",
+        F32ReinterpretI32 = "f32.reinterpret_i32" | "f32.reinterpret/i32",
+        F64ReinterpretI64 = "f64.reinterpret_i64" | "f64.reinterpret/i64",
 
+        // non-trapping float to int
+        I32TruncSatF32S = "i32.trunc_sat_f32_s" | "i32.trunc_s:sat/f32",
+        I32TruncSatF32U = "i32.trunc_sat_f32_u" | "i32.trunc_u:sat/f32",
+        I32TruncSatF64S = "i32.trunc_sat_f64_s" | "i32.trunc_s:sat/f64",
+        I32TruncSatF64U = "i32.trunc_sat_f64_u" | "i32.trunc_u:sat/f64",
+        I64TruncSatF32S = "i64.trunc_sat_f32_s" | "i64.trunc_s:sat/f32",
+        I64TruncSatF32U = "i64.trunc_sat_f32_u" | "i64.trunc_u:sat/f32",
+        I64TruncSatF64S = "i64.trunc_sat_f64_s" | "i64.trunc_s:sat/f64",
+        I64TruncSatF64U = "i64.trunc_sat_f64_u" | "i64.trunc_u:sat/f64",
+
+        // sign extension proposal
+        I32Extend8S = "i32.extend8_s",
+        I32Extend16S = "i32.extend16_s",
+        I64Extend8S = "i64.extend8_s",
+        I64Extend16S = "i64.extend16_s",
+        I64Extend32S = "i64.extend32_s",
+
+        // atomics proposal
         AtomicNotify(MemArg) = "atomic.notify",
         I32AtomicWait(MemArg) = "i32.atomic.wait",
         I64AtomicWait(MemArg) = "i64.atomic.wait",
@@ -396,7 +431,11 @@ impl<'a> Parse<'a> for BlockType<'a> {
                 Ok(())
             })?
         }
-        Ok(BlockType { label, params, results })
+        Ok(BlockType {
+            label,
+            params,
+            results,
+        })
     }
 }
 
@@ -459,6 +498,21 @@ impl<'a> Parse<'a> for MemArg {
         Ok(MemArg {
             offset: parse_field("offset", parser)?.unwrap_or(0),
             align: parse_field("align", parser)?,
+        })
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct CallIndirect<'a> {
+    pub ty: ast::TypeUse<'a>,
+    pub table: Option<ast::Index<'a>>,
+}
+
+impl<'a> Parse<'a> for CallIndirect<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        Ok(CallIndirect {
+            ty: parser.parse()?,
+            table: parser.parse()?,
         })
     }
 }
