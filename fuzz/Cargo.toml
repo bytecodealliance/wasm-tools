@@ -14,3 +14,7 @@ libfuzzer-sys = { git = "https://github.com/rust-fuzz/libfuzzer-sys" }
 [[bin]]
 name = "lexer"
 path = "fuzz_targets/lexer.rs"
+
+[[bin]]
+name = "parser"
+path = "fuzz_targets/parser.rs"
