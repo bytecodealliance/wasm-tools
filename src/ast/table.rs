@@ -33,7 +33,8 @@ impl<'a> Parse<'a> for Table<'a> {
         //  *   `elemtype (elem ...)`
         //  *   `(import "a" "b") limits`
         //  *   `limits`
-        let style = if parser.peek::<ast::TableElemType>() {
+        let mut l = parser.lookahead1();
+        let style = if l.peek::<ast::TableElemType>() {
             let elem = parser.parse()?;
             let mut elems = Vec::new();
             parser.parens(|p| {
@@ -44,7 +45,9 @@ impl<'a> Parse<'a> for Table<'a> {
                 Ok(())
             })?;
             TableStyle::Inline { elem, elems }
-        } else if parser.peek2::<kw::import>() {
+        } else if l.peek::<u32>() {
+            TableStyle::Normal(parser.parse()?)
+        } else if l.peek::<ast::LParen>() {
             let (module, name) = parser.parens(|p| {
                 p.parse::<kw::import>()?;
                 Ok((p.parse()?, p.parse()?))
@@ -55,7 +58,7 @@ impl<'a> Parse<'a> for Table<'a> {
                 ty: parser.parse()?,
             }
         } else {
-            TableStyle::Normal(parser.parse()?)
+            return Err(l.error())
         };
         Ok(Table {
             name,

@@ -31,6 +31,10 @@ impl Peek for Id<'_> {
     fn peek(cursor: Cursor<'_>) -> bool {
         cursor.id().is_some()
     }
+
+    fn display() -> &'static str {
+        "an identifier"
+    }
 }
 
 #[derive(PartialEq, Debug)]
@@ -51,6 +55,10 @@ impl<'a> Parse<'a> for Index<'a> {
 impl Peek for Index<'_> {
     fn peek(cursor: Cursor<'_>) -> bool {
         u32::peek(cursor) || Id::peek(cursor)
+    }
+
+    fn display() -> &'static str {
+        "an index"
     }
 }
 
@@ -74,6 +82,10 @@ macro_rules! integers {
         impl Peek for $i {
             fn peek(cursor: Cursor<'_>) -> bool {
                 cursor.integer().is_some()
+            }
+
+            fn display() -> &'static str {
+                stringify!($i)
             }
         }
     )*)
@@ -131,5 +143,19 @@ impl<'a> Parse<'a> for Float64<'a> {
             }
             Err(c.error("expected an integer"))
         })
+    }
+}
+
+pub struct LParen {
+    _priv: (),
+}
+
+impl Peek for LParen {
+    fn peek(cursor: Cursor<'_>) -> bool {
+        cursor.lparen().is_some()
+    }
+
+    fn display() -> &'static str {
+        "left paren"
     }
 }

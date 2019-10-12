@@ -8,6 +8,7 @@ pub trait Parse<'a>: Sized {
 
 pub trait Peek {
     fn peek(cursor: Cursor<'_>) -> bool;
+    fn display() -> &'static str;
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -21,6 +22,11 @@ pub struct ParseBuffer<'a> {
 #[derive(Copy, Clone)]
 pub struct Parser<'a> {
     buf: &'a ParseBuffer<'a>,
+}
+
+pub struct Lookahead1<'a> {
+    parser: Parser<'a>,
+    attempts: Vec<&'static str>,
 }
 
 #[derive(Copy, Clone)]
@@ -127,6 +133,13 @@ impl<'a> Parser<'a> {
         }
     }
 
+    pub fn lookahead1(self) -> Lookahead1<'a> {
+        Lookahead1 {
+            attempts: Vec::new(),
+            parser: self,
+        }
+    }
+
     pub fn error(self, msg: impl fmt::Display) -> Error {
         self.error_at_token(self.buf.cur.get(), &msg)
     }
@@ -215,6 +228,58 @@ impl<'a> Cursor<'a> {
     }
 }
 
+impl Lookahead1<'_> {
+    pub fn peek<T: Peek>(&mut self) -> bool {
+        if self.parser.peek::<T>() {
+            true
+        } else {
+            self.attempts.push(T::display());
+            false
+        }
+    }
+
+    pub fn error(self) -> Error {
+        match self.attempts.len() {
+            0 => {
+                if self.parser.is_empty() {
+                    self.parser.error("unexpected end of input")
+                } else {
+                    self.parser.error("unexpected token")
+                }
+            }
+            1 => {
+                let message = format!("expected {}", self.attempts[0]);
+                self.parser.error(&message)
+            }
+            2 => {
+                let message = format!("expected {} or {}", self.attempts[0], self.attempts[1]);
+                self.parser.error(&message)
+            }
+            _ => {
+                let join = self.attempts.join(", ");
+                let message = format!("expected one of: {}", join);
+                self.parser.error(&message)
+            }
+        }
+    }
+}
+
+impl Error {
+    pub fn line(&self) -> usize {
+        match &*self.inner {
+            ErrorInner::LexError(e) => e.line(),
+            ErrorInner::Custom { line, .. } => *line,
+        }
+    }
+
+    pub fn col(&self) -> usize {
+        match &*self.inner {
+            ErrorInner::LexError(e) => e.col(),
+            ErrorInner::Custom { col, .. } => *col,
+        }
+    }
+}
+
 impl From<LexError> for Error {
     fn from(err: LexError) -> Error {
         Error {
@@ -227,9 +292,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &*self.inner {
             ErrorInner::LexError(e) => e.fmt(f),
-            ErrorInner::Custom { line, col, message } => {
-                write!(f, "{} at line {} column {}", message, line + 1, col + 1)
-            }
+            ErrorInner::Custom { message, .. } => message.fmt(f),
         }
     }
 }

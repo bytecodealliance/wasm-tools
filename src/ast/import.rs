@@ -26,20 +26,21 @@ pub struct ImportDesc<'a> {
 
 impl<'a> Parse<'a> for ImportDesc<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let (name, kind) = if parser.peek::<kw::func>() {
+        let mut l = parser.lookahead1();
+        let (name, kind) = if l.peek::<kw::func>() {
             parser.parse::<kw::func>()?;
             (parser.parse()?, ImportKind::Function(parser.parse()?))
-        } else if parser.peek::<kw::table>() {
+        } else if l.peek::<kw::table>() {
             parser.parse::<kw::table>()?;
             (parser.parse()?, ImportKind::Table(parser.parse()?))
-        } else if parser.peek::<kw::memory>() {
+        } else if l.peek::<kw::memory>() {
             parser.parse::<kw::memory>()?;
             (parser.parse()?, ImportKind::Memory(parser.parse()?))
-        } else if parser.peek::<kw::global>() {
+        } else if l.peek::<kw::global>() {
             parser.parse::<kw::global>()?;
             (parser.parse()?, ImportKind::Global(parser.parse()?))
         } else {
-            return Err(parser.error("invalid import specifier"));
+            return Err(l.error());
         };
         Ok(ImportDesc { name, kind })
     }
@@ -47,7 +48,7 @@ impl<'a> Parse<'a> for ImportDesc<'a> {
 
 #[derive(Debug, PartialEq)]
 pub enum ImportKind<'a> {
-    Function(&'a str),
+    Function(ast::TypeUse<'a>),
     Table(ast::TableType),
     Memory(ast::MemoryType),
     Global(ast::GlobalType),

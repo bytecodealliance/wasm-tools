@@ -20,20 +20,21 @@ impl<'a> Parse<'a> for Export<'a> {
         parser.parse::<kw::export>()?;
         let name = parser.parse()?;
         let kind = parser.parens(|parser| {
-            if parser.peek::<kw::func>() {
+            let mut l = parser.lookahead1();
+            if l.peek::<kw::func>() {
                 parser.parse::<kw::func>()?;
                 Ok(ExportKind::Function(parser.parse()?))
-            } else if parser.peek::<kw::table>() {
+            } else if l.peek::<kw::table>() {
                 parser.parse::<kw::table>()?;
                 Ok(ExportKind::Table(parser.parse()?))
-            } else if parser.peek::<kw::memory>() {
+            } else if l.peek::<kw::memory>() {
                 parser.parse::<kw::memory>()?;
                 Ok(ExportKind::Memory(parser.parse()?))
-            } else if parser.peek::<kw::global>() {
+            } else if l.peek::<kw::global>() {
                 parser.parse::<kw::global>()?;
                 Ok(ExportKind::Global(parser.parse()?))
             } else {
-                Err(parser.error("invalid export item specifier"))
+                Err(l.error())
             }
         })?;
         Ok(Export { name, kind })

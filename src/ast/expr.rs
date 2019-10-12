@@ -1,5 +1,5 @@
 use crate::ast::{self, kw};
-use crate::parser::{Cursor, Parse, Parser, Peek, Result};
+use crate::parser::{Parse, Parser, Result};
 
 #[derive(Debug, PartialEq)]
 pub struct Expression<'a> {
@@ -24,7 +24,7 @@ fn parse_folded_instrs<'a>(
             break;
         }
 
-        if parser.peek::<LParen>() {
+        if parser.peek::<ast::LParen>() {
             parser.parens(|parser| {
                 match parser.parse()? {
                     i @ Instruction::Block(_) | i @ Instruction::Loop(_) => {
@@ -62,14 +62,6 @@ fn parse_folded_instrs<'a>(
         instrs.push(instr);
     }
     Ok(())
-}
-
-struct LParen;
-
-impl Peek for LParen {
-    fn peek(cursor: Cursor<'_>) -> bool {
-        cursor.lparen().is_some()
-    }
 }
 
 macro_rules! instructions {

@@ -81,6 +81,9 @@ impl Peek for TableElemType {
     fn peek(cursor: Cursor<'_>) -> bool {
         kw::funcref::peek(cursor)
     }
+    fn display() -> &'static str {
+        kw::funcref::display()
+    }
 }
 
 /// Min/max limits used for tables/memories.
@@ -148,7 +151,8 @@ impl<'a> FunctionType<'a> {
     fn finish_parse(&mut self, parser: Parser<'a>) -> Result<()> {
         while !parser.is_empty() {
             parser.parens(|p| {
-                if p.peek::<kw::param>() {
+                let mut l = p.lookahead1();
+                if l.peek::<kw::param>() {
                     p.parse::<kw::param>()?;
                     if self.results.len() > 0 {
                         return Err(p.error("cannot list params after results"));
@@ -160,12 +164,14 @@ impl<'a> FunctionType<'a> {
                     while parse_more && !p.is_empty() {
                         self.params.push((None, p.parse()?));
                     }
-                } else {
+                } else if l.peek::<kw::result>() {
                     p.parse::<kw::result>()?;
                     self.results.push(p.parse()?);
                     while !p.is_empty() {
                         self.results.push(p.parse()?);
                     }
+                } else {
+                    return Err(l.error())
                 }
                 Ok(())
             })?;

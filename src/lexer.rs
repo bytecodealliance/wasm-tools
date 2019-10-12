@@ -799,6 +799,18 @@ impl Integer<'_> {
     }
 }
 
+impl LexError {
+    /// Returns the 0-indexed line number that this lex error happened at
+    pub fn line(&self) -> usize {
+        self.inner.line
+    }
+
+    /// Returns the 0-indexed column number that this lex error happened at
+    pub fn col(&self) -> usize {
+        self.inner.col
+    }
+}
+
 impl fmt::Display for LexError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use LexErrorKind::*;
@@ -816,8 +828,6 @@ impl fmt::Display for LexError {
             LoneUnderscore => write!(f, "bare underscore in numeric literal")?,
             __Nonexhaustive => unreachable!(),
         }
-
-        write!(f, "at line {} column {}", self.inner.line, self.inner.col)?;
         Ok(())
     }
 }

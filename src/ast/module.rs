@@ -2,6 +2,17 @@ use crate::ast::{self, kw};
 use crate::parser::{Parse, Parser, Result};
 
 #[derive(PartialEq, Debug)]
+pub struct File<'a> {
+    pub module: Module<'a>,
+}
+
+impl<'a> Parse<'a> for File<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.parens(Module::parse).map(|module| File { module })
+    }
+}
+
+#[derive(PartialEq, Debug)]
 pub struct Module<'a> {
     pub name: Option<ast::Id<'a>>,
     pub fields: Vec<ModuleField<'a>>,

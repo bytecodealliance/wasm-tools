@@ -30,28 +30,32 @@ impl<'a> Parse<'a> for Memory<'a> {
         //  *   `(data ...)`
         //  *   `(import "a" "b") limits`
         //  *   `limits`
-        let style = if parser.peek2::<kw::data>() {
-            let mut data = Vec::new();
-            parser.parens(|p| {
-                p.parse::<kw::data>()?;
-                while !p.is_empty() {
-                    data.push(p.parse()?);
+        let mut l = parser.lookahead1();
+        let style = if l.peek::<ast::LParen>() {
+            parser.parens(|parser| {
+                let mut l = parser.lookahead1();
+                if l.peek::<kw::data>() {
+                    parser.parse::<kw::data>()?;
+                    let mut data = Vec::new();
+                    while !parser.is_empty() {
+                        data.push(parser.parse()?);
+                    }
+                    Ok(MemoryStyle::Inline(data))
+                } else if l.peek::<kw::import>() {
+                    parser.parse::<kw::import>()?;
+                    Ok(MemoryStyle::Import {
+                        module: parser.parse()?,
+                        name: parser.parse()?,
+                        ty: parser.parse()?,
+                    })
+                } else {
+                    Err(l.error())
                 }
-                Ok(())
-            })?;
-            MemoryStyle::Inline(data)
-        } else if parser.peek2::<kw::import>() {
-            let (module, name) = parser.parens(|p| {
-                p.parse::<kw::import>()?;
-                Ok((p.parse()?, p.parse()?))
-            })?;
-            MemoryStyle::Import {
-                module,
-                name,
-                ty: parser.parse()?,
-            }
-        } else {
+            })?
+        } else if l.peek::<u32>() {
             MemoryStyle::Normal(parser.parse()?)
+        } else {
+            return Err(l.error())
         };
         Ok(Memory {
             name,

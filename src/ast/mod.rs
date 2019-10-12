@@ -30,11 +30,14 @@ macro_rules! custom_keyword {
                     false
                 }
             }
+
+            fn display() -> &'static str {
+                concat!("`", $kw, "`")
+            }
         }
     };
 }
 
-mod data;
 mod export;
 mod expr;
 mod func;
@@ -45,7 +48,6 @@ mod module;
 mod table;
 mod token;
 mod types;
-pub use data::*;
 pub use export::*;
 pub use expr::*;
 pub use func::*;
@@ -58,6 +60,7 @@ pub use token::*;
 pub use types::*;
 
 pub mod kw {
+    custom_keyword!(anyfunc);
     custom_keyword!(block);
     custom_keyword!(data);
     custom_keyword!(elem);
