@@ -58,8 +58,10 @@ pub use token::*;
 pub use types::*;
 
 pub mod kw {
+    custom_keyword!(block);
     custom_keyword!(data);
     custom_keyword!(elem);
+    custom_keyword!(end);
     custom_keyword!(export);
     custom_keyword!(f32);
     custom_keyword!(f64);
@@ -74,9 +76,13 @@ pub mod kw {
     custom_keyword!(module);
     custom_keyword!(offset);
     custom_keyword!(param);
+    custom_keyword!(r#else = "else");
+    custom_keyword!(r#if = "if");
+    custom_keyword!(r#loop = "loop");
     custom_keyword!(r#mut = "mut");
     custom_keyword!(r#type = "type");
     custom_keyword!(result);
     custom_keyword!(start);
     custom_keyword!(table);
+    custom_keyword!(then);
 }

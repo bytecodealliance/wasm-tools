@@ -1,33 +1,74 @@
-use crate::ast;
-use crate::parser::{Parse, Parser, Result};
+use crate::ast::{self, kw};
+use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 
 #[derive(Debug, PartialEq)]
 pub struct Expression<'a> {
-    _a: &'a (),
+    pub instrs: Vec<Instruction<'a>>,
 }
 
 impl<'a> Parse<'a> for Expression<'a> {
-    fn parse(_parser: Parser<'a>) -> Result<Self> {
-        panic!()
-        // parser.parse::<kw::global>()?;
-        // let name = parser.parse()?;
-        // let exports = parser.parse()?;
-        //
-        // let (ty, kind) = if parser.peek2::<kw::import>() {
-        //     let (module, name) = parser.parens(|p| {
-        //         p.parse::<kw::import>()?;
-        //         Ok((p.parse()?, p.parse()?))
-        //     })?;
-        //     (parser.parse()?, GlobalKind::Import { module, name })
-        // } else {
-        //     (parser.parse()?, GlobalKind::Inline(parser.parse()?))
-        // };
-        // Ok(Global {
-        //     name,
-        //     exports,
-        //     ty,
-        //     kind,
-        // })
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let mut instrs = Vec::new();
+        parse_folded_instrs(parser, &mut instrs, false)?;
+        Ok(Expression { instrs })
+    }
+}
+
+fn parse_folded_instrs<'a>(
+    parser: Parser<'a>,
+    instrs: &mut Vec<Instruction<'a>>,
+    stop_on_then: bool,
+) -> Result<()> {
+    while !parser.is_empty() {
+        if stop_on_then && parser.peek2::<kw::then>() {
+            break;
+        }
+
+        if parser.peek::<LParen>() {
+            parser.parens(|parser| {
+                match parser.parse()? {
+                    i @ Instruction::Block(_) | i @ Instruction::Loop(_) => {
+                        instrs.push(i);
+                        parse_folded_instrs(parser, instrs, false)?;
+                        instrs.push(Instruction::End(None));
+                    }
+                    i @ Instruction::If(_) => {
+                        parse_folded_instrs(parser, instrs, true)?;
+                        instrs.push(i);
+                        parser.parens(|parser| {
+                            parser.parse::<kw::then>()?;
+                            parse_folded_instrs(parser, instrs, false)
+                        })?;
+                        if parser.peek2::<kw::r#else>() {
+                            instrs.push(Instruction::Else(None));
+                            parser.parens(|parser| {
+                                parser.parse::<kw::r#else>()?;
+                                parse_folded_instrs(parser, instrs, false)
+                            })?;
+                        }
+                        instrs.push(Instruction::End(None));
+                    }
+                    other => {
+                        parse_folded_instrs(parser, instrs, false)?;
+                        instrs.push(other);
+                    }
+                }
+                Ok(())
+            })?;
+            continue;
+        }
+
+        let instr = parser.parse::<Instruction>()?;
+        instrs.push(instr);
+    }
+    Ok(())
+}
+
+struct LParen;
+
+impl Peek for LParen {
+    fn peek(cursor: Cursor<'_>) -> bool {
+        cursor.lparen().is_some()
     }
 }
 
@@ -71,6 +112,12 @@ macro_rules! instructions {
 
 instructions! {
     pub enum Instruction<'a> {
+        Block(BlockType<'a>) = "block",
+        If(BlockType<'a>) = "if",
+        Else(Option<ast::Id<'a>>) = "else",
+        Loop(BlockType<'a>) = "loop",
+        End(Option<ast::Id<'a>>) = "end",
+
         Unreachable = "unreachable",
         Nop = "nop",
         Br(ast::Index<'a>) = "br",
@@ -252,6 +299,27 @@ instructions! {
 }
 
 #[derive(Debug, PartialEq)]
+pub struct BlockType<'a> {
+    pub label: Option<ast::Id<'a>>,
+    pub result: Option<ast::ValType>,
+}
+
+impl<'a> Parse<'a> for BlockType<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let label = parser.parse()?;
+        let result = if parser.peek2::<kw::result>() {
+            Some(parser.parens(|p| {
+                p.parse::<kw::result>()?;
+                p.parse()
+            })?)
+        } else {
+            None
+        };
+        Ok(BlockType { label, result })
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub struct BrTableIndices<'a> {
     pub labels: Vec<ast::Index<'a>>,
     pub default: ast::Index<'a>,
@@ -284,11 +352,11 @@ impl<'a> Parse<'a> for MemArg {
                     None => return Ok((None, c)),
                 };
                 if !kw.starts_with(name) {
-                    return Ok((None, c))
+                    return Ok((None, c));
                 }
                 let kw = &kw[name.len()..];
                 if !kw.starts_with("=") {
-                    return Ok((None, c))
+                    return Ok((None, c));
                 }
                 let num = &kw[1..];
                 let num = if num.starts_with("0x") {

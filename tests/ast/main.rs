@@ -14,6 +14,7 @@ macro_rules! assert_not_parses {
     }};
 }
 
+mod expr;
 mod memarg;
 mod token;
 mod types;

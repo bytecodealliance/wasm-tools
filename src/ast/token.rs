@@ -111,7 +111,7 @@ impl<'a> Parse<'a> for Float32<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.step(|c| {
             if let Some((f, rest)) = c.float() {
-                return Ok((Float32 { src: f.src() }, rest))
+                return Ok((Float32 { src: f.src() }, rest));
             }
             Err(c.error("expected an integer"))
         })
@@ -127,7 +127,7 @@ impl<'a> Parse<'a> for Float64<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.step(|c| {
             if let Some((f, rest)) = c.float() {
-                return Ok((Float64 { src: f.src() }, rest))
+                return Ok((Float64 { src: f.src() }, rest));
             }
             Err(c.error("expected an integer"))
         })
