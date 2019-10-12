@@ -9,7 +9,7 @@ fn lex_wabt() {
 
     tests.par_iter().for_each(|test| {
         let contents = std::fs::read_to_string(test).unwrap();
-        if contents.contains(";;; ERROR:") {
+        if contents.contains(";; ERROR") {
             return;
         }
         let mut cur = contents.as_ptr();
@@ -67,7 +67,10 @@ fn parse_wabt() {
 
     tests.iter().for_each(|test| {
         let contents = std::fs::read_to_string(test).unwrap();
-        if contents.contains(";;; ERROR:") {
+        if contents.contains(";; ERROR") {
+            return;
+        }
+        if contents.contains("--enable-exceptions") {
             return;
         }
         let buf = match wart::parser::ParseBuffer::new(&contents) {

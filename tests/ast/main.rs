@@ -10,7 +10,7 @@ macro_rules! assert_parses {
 macro_rules! assert_not_parses {
     ($text:expr, $ty:ty, $msg:expr) => {{
         let pb = wart::parser::ParseBuffer::new($text).unwrap();
-        crate::assert_not_parses::<$ty>($text, &pb, $msg);
+        crate::assert_not_parses::<$ty>(&pb, $msg);
     }};
 }
 
@@ -48,7 +48,7 @@ fn render_err(input: &str, err: wart::parser::Error) -> ! {
     panic!("{}", err);
 }
 
-fn assert_not_parses<'a, T>(orig: &str, buf: &'a ParseBuffer<'a>, msg: &str)
+fn assert_not_parses<'a, T>(buf: &'a ParseBuffer<'a>, msg: &str)
 where
     T: Parse<'a> + PartialEq + std::fmt::Debug,
 {

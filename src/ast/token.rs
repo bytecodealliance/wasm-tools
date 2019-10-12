@@ -125,7 +125,10 @@ impl<'a> Parse<'a> for Float32<'a> {
             if let Some((f, rest)) = c.float() {
                 return Ok((Float32 { src: f.src() }, rest));
             }
-            Err(c.error("expected an integer"))
+            if let Some((i, rest)) = c.integer() {
+                return Ok((Float32 { src: i.src() }, rest));
+            }
+            Err(c.error("expected a float"))
         })
     }
 }
@@ -141,7 +144,10 @@ impl<'a> Parse<'a> for Float64<'a> {
             if let Some((f, rest)) = c.float() {
                 return Ok((Float64 { src: f.src() }, rest));
             }
-            Err(c.error("expected an integer"))
+            if let Some((i, rest)) = c.integer() {
+                return Ok((Float64 { src: i.src() }, rest));
+            }
+            Err(c.error("expected a float"))
         })
     }
 }

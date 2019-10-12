@@ -67,7 +67,7 @@ fn parse_folded_instrs<'a>(
 macro_rules! instructions {
     (pub enum Instruction<'a> {
         $(
-            $name:ident $(($arg:ty))? = $instr:tt,
+            $name:ident $(($arg:ty))? = $instr:tt $( | $deprecated:tt )?,
         )*
     }) => (
         #[derive(Debug, PartialEq)]
@@ -92,7 +92,7 @@ macro_rules! instructions {
                         None => return Err(c.error("expected an instruction")),
                     };
                     match kw {
-                        $($instr => Ok(($name as fn(_) -> _, rest)),)*
+                        $($instr $( | $deprecated )?=> Ok(($name as fn(_) -> _, rest)),)*
                         _ => return Err(c.error("unknown instruction")),
                     }
                 })?;
@@ -121,7 +121,7 @@ instructions! {
         Drop = "drop",
         Select = "select",
         LocalSet(ast::Index<'a>) = "local.set",
-        LocalGet(ast::Index<'a>) = "local.get",
+        LocalGet(ast::Index<'a>) = "local.get" | "get_local",
         LocalTee(ast::Index<'a>) = "local.tee",
         GlobalSet(ast::Index<'a>) = "global.set",
         GlobalGet(ast::Index<'a>) = "global.get",
@@ -287,27 +287,116 @@ instructions! {
         I64ReinterpretF64 = "i64.reinterpret_f64",
         F32ReinterpretI32 = "f32.reinterpret_i32",
         F64ReinterpretI64 = "f64.reinterpret_i64",
+
+        AtomicNotify(MemArg) = "atomic.notify",
+        I32AtomicWait(MemArg) = "i32.atomic.wait",
+        I64AtomicWait(MemArg) = "i64.atomic.wait",
+        AtomicFence = "atomic.fence",
+
+        I32AtomicLoad(MemArg) = "i32.atomic.load",
+        I64AtomicLoad(MemArg) = "i64.atomic.load",
+        I32AtomicLoad8u(MemArg) = "i32.atomic.load8_u",
+        I32AtomicLoad16u(MemArg) = "i32.atomic.load16_u",
+        I64AtomicLoad8u(MemArg) = "i64.atomic.load8_u",
+        I64AtomicLoad16u(MemArg) = "i64.atomic.load16_u",
+        I64AtomicLoad32u(MemArg) = "i64.atomic.load32_u",
+        I32AtomicStore(MemArg) = "i32.atomic.store",
+        I64AtomicStore(MemArg) = "i64.atomic.store",
+        I32AtomicStore8(MemArg) = "i32.atomic.store8",
+        I32AtomicStore16(MemArg) = "i32.atomic.store16",
+        I64AtomicStore8(MemArg) = "i64.atomic.store8",
+        I64AtomicStore16(MemArg) = "i64.atomic.store16",
+        I64AtomicStore32(MemArg) = "i64.atomic.store32",
+
+        I32AtomicRmwAdd(MemArg) = "i32.atomic.rmw.add",
+        I64AtomicRmwAdd(MemArg) = "i64.atomic.rmw.add",
+        I32AtomicRmw8AddU(MemArg) = "i32.atomic.rmw8.add_u",
+        I32AtomicRmw16AddU(MemArg) = "i32.atomic.rmw16.add_u",
+        I64AtomicRmw8AddU(MemArg) = "i64.atomic.rmw8.add_u",
+        I64AtomicRmw16AddU(MemArg) = "i64.atomic.rmw16.add_u",
+        I64AtomicRmw32AddU(MemArg) = "i64.atomic.rmw32.add_u",
+
+        I32AtomicRmwSub(MemArg) = "i32.atomic.rmw.sub",
+        I64AtomicRmwSub(MemArg) = "i64.atomic.rmw.sub",
+        I32AtomicRmw8SubU(MemArg) = "i32.atomic.rmw8.sub_u",
+        I32AtomicRmw16SubU(MemArg) = "i32.atomic.rmw16.sub_u",
+        I64AtomicRmw8SubU(MemArg) = "i64.atomic.rmw8.sub_u",
+        I64AtomicRmw16SubU(MemArg) = "i64.atomic.rmw16.sub_u",
+        I64AtomicRmw32SubU(MemArg) = "i64.atomic.rmw32.sub_u",
+
+        I32AtomicRmwAnd(MemArg) = "i32.atomic.rmw.and",
+        I64AtomicRmwAnd(MemArg) = "i64.atomic.rmw.and",
+        I32AtomicRmw8AndU(MemArg) = "i32.atomic.rmw8.and_u",
+        I32AtomicRmw16AndU(MemArg) = "i32.atomic.rmw16.and_u",
+        I64AtomicRmw8AndU(MemArg) = "i64.atomic.rmw8.and_u",
+        I64AtomicRmw16AndU(MemArg) = "i64.atomic.rmw16.and_u",
+        I64AtomicRmw32AndU(MemArg) = "i64.atomic.rmw32.and_u",
+
+        I32AtomicRmwOr(MemArg) = "i32.atomic.rmw.or",
+        I64AtomicRmwOr(MemArg) = "i64.atomic.rmw.or",
+        I32AtomicRmw8OrU(MemArg) = "i32.atomic.rmw8.or_u",
+        I32AtomicRmw16OrU(MemArg) = "i32.atomic.rmw16.or_u",
+        I64AtomicRmw8OrU(MemArg) = "i64.atomic.rmw8.or_u",
+        I64AtomicRmw16OrU(MemArg) = "i64.atomic.rmw16.or_u",
+        I64AtomicRmw32OrU(MemArg) = "i64.atomic.rmw32.or_u",
+
+        I32AtomicRmwXor(MemArg) = "i32.atomic.rmw.xor",
+        I64AtomicRmwXor(MemArg) = "i64.atomic.rmw.xor",
+        I32AtomicRmw8XorU(MemArg) = "i32.atomic.rmw8.xor_u",
+        I32AtomicRmw16XorU(MemArg) = "i32.atomic.rmw16.xor_u",
+        I64AtomicRmw8XorU(MemArg) = "i64.atomic.rmw8.xor_u",
+        I64AtomicRmw16XorU(MemArg) = "i64.atomic.rmw16.xor_u",
+        I64AtomicRmw32XorU(MemArg) = "i64.atomic.rmw32.xor_u",
+
+        I32AtomicRmwXchg(MemArg) = "i32.atomic.rmw.xchg",
+        I64AtomicRmwXchg(MemArg) = "i64.atomic.rmw.xchg",
+        I32AtomicRmw8XchgU(MemArg) = "i32.atomic.rmw8.xchg_u",
+        I32AtomicRmw16XchgU(MemArg) = "i32.atomic.rmw16.xchg_u",
+        I64AtomicRmw8XchgU(MemArg) = "i64.atomic.rmw8.xchg_u",
+        I64AtomicRmw16XchgU(MemArg) = "i64.atomic.rmw16.xchg_u",
+        I64AtomicRmw32XchgU(MemArg) = "i64.atomic.rmw32.xchg_u",
+
+        I32AtomicRmwCmpxchg(MemArg) = "i32.atomic.rmw.cmpxchg",
+        I64AtomicRmwCmpxchg(MemArg) = "i64.atomic.rmw.cmpxchg",
+        I32AtomicRmw8CmpxchgU(MemArg) = "i32.atomic.rmw8.cmpxchg_u",
+        I32AtomicRmw16CmpxchgU(MemArg) = "i32.atomic.rmw16.cmpxchg_u",
+        I64AtomicRmw8CmpxchgU(MemArg) = "i64.atomic.rmw8.cmpxchg_u",
+        I64AtomicRmw16CmpxchgU(MemArg) = "i64.atomic.rmw16.cmpxchg_u",
+        I64AtomicRmw32CmpxchgU(MemArg) = "i64.atomic.rmw32.cmpxchg_u",
     }
 }
 
 #[derive(Debug, PartialEq)]
 pub struct BlockType<'a> {
     pub label: Option<ast::Id<'a>>,
-    pub result: Option<ast::ValType>,
+    pub params: Vec<ast::ValType>,
+    pub results: Vec<ast::ValType>,
 }
 
 impl<'a> Parse<'a> for BlockType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let label = parser.parse()?;
-        let result = if parser.peek2::<kw::result>() {
-            Some(parser.parens(|p| {
+        let mut params = Vec::new();
+        if parser.peek2::<kw::param>() {
+            parser.parens(|p| {
+                p.parse::<kw::param>()?;
+                while !p.is_empty() {
+                    params.push(p.parse()?);
+                }
+                Ok(())
+            })?
+        }
+        let mut results = Vec::new();
+        if parser.peek2::<kw::result>() {
+            parser.parens(|p| {
                 p.parse::<kw::result>()?;
-                p.parse()
-            })?)
-        } else {
-            None
-        };
-        Ok(BlockType { label, result })
+                while !p.is_empty() {
+                    results.push(p.parse()?);
+                }
+                Ok(())
+            })?
+        }
+        Ok(BlockType { label, params, results })
     }
 }
 

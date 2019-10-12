@@ -85,6 +85,7 @@ pub mod kw {
     custom_keyword!(r#mut = "mut");
     custom_keyword!(r#type = "type");
     custom_keyword!(result);
+    custom_keyword!(shared);
     custom_keyword!(start);
     custom_keyword!(table);
     custom_keyword!(then);

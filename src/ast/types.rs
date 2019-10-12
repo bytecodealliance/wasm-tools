@@ -72,6 +72,11 @@ pub enum TableElemType {
 
 impl<'a> Parse<'a> for TableElemType {
     fn parse(parser: Parser<'a>) -> Result<Self> {
+        // legacy support for `anyfunc`
+        if parser.peek::<kw::anyfunc>() {
+            parser.parse::<kw::anyfunc>()?;
+            return Ok(TableElemType::Funcref);
+        }
         parser.parse::<kw::funcref>()?;
         Ok(TableElemType::Funcref)
     }
@@ -79,7 +84,7 @@ impl<'a> Parse<'a> for TableElemType {
 
 impl Peek for TableElemType {
     fn peek(cursor: Cursor<'_>) -> bool {
-        kw::funcref::peek(cursor)
+        kw::funcref::peek(cursor) || /* legacy */ kw::anyfunc::peek(cursor)
     }
     fn display() -> &'static str {
         kw::funcref::display()
@@ -130,12 +135,15 @@ impl<'a> Parse<'a> for TableType {
 pub struct MemoryType {
     /// Limits on the page sizes of this memory
     pub limits: Limits,
+    /// Whether or not this is a shared (atomic) memory type
+    pub shared: bool,
 }
 
 impl<'a> Parse<'a> for MemoryType {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         Ok(MemoryType {
             limits: parser.parse()?,
+            shared: parser.parse::<Option<kw::shared>>()?.is_some(),
         })
     }
 }
@@ -149,7 +157,7 @@ pub struct FunctionType<'a> {
 
 impl<'a> FunctionType<'a> {
     fn finish_parse(&mut self, parser: Parser<'a>) -> Result<()> {
-        while !parser.is_empty() {
+        while parser.peek2::<kw::param>() || parser.peek2::<kw::result>() {
             parser.parens(|p| {
                 let mut l = p.lookahead1();
                 if l.peek::<kw::param>() {
@@ -171,7 +179,7 @@ impl<'a> FunctionType<'a> {
                         self.results.push(p.parse()?);
                     }
                 } else {
-                    return Err(l.error())
+                    return Err(l.error());
                 }
                 Ok(())
             })?;
