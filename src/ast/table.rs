@@ -70,14 +70,9 @@ impl<'a> Parse<'a> for Table<'a> {
 
 #[derive(Debug, PartialEq)]
 pub struct Elem<'a> {
-    /// The optional name of this elem segment
     pub name: Option<ast::Id<'a>>,
-
-    /// Whether this elem segment is passive or active
     pub kind: ElemKind<'a>,
-
-    /// Functions referenced in this `elem` segment
-    pub elems: Vec<ast::Index<'a>>,
+    pub elems: Elems<'a>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -89,6 +84,12 @@ pub enum ElemKind<'a> {
         table: ast::Index<'a>,
         offset: ast::Expression<'a>,
     },
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Elems<'a> {
+    Indices(Vec<ast::Index<'a>>),
+    Funcrefs(Vec<ast::Expression<'a>>),
 }
 
 impl<'a> Parse<'a> for Elem<'a> {
@@ -113,10 +114,19 @@ impl<'a> Parse<'a> for Elem<'a> {
             }
         };
 
-        let mut elems = Vec::new();
-        while !parser.is_empty() {
-            elems.push(parser.parse()?);
-        }
+        let elems = if parser.is_empty() || parser.peek::<ast::Index>() {
+            let mut elems = Vec::new();
+            while !parser.is_empty() {
+                elems.push(parser.parse()?);
+            }
+            Elems::Indices(elems)
+        } else {
+            let mut elems = Vec::new();
+            while !parser.is_empty() {
+                elems.push(parser.parens(|p| p.parse())?);
+            }
+            Elems::Funcrefs(elems)
+        };
         Ok(Elem { name, kind, elems })
     }
 }

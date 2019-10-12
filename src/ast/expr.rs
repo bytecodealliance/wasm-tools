@@ -163,10 +163,14 @@ instructions! {
         ElemDrop(ast::Index<'a>) = "elem.drop",
         TableInit(ast::Index<'a>) = "table.init",
         TableCopy = "table.copy",
+        TableFill(ast::Index<'a>) = "table.fill",
         TableSize(ast::Index<'a>) = "table.size",
         TableGrow(ast::Index<'a>) = "table.grow",
+
         RefNull = "ref.null",
         RefIsNull = "ref.is_null",
+        RefHost(u32) = "ref.host", // only used in test harness
+        RefFunc(ast::Index<'a>) = "ref.func", // only used in test harness
 
         I32Const(ast::Int32<'a>) = "i32.const",
         I64Const(ast::Int64<'a>) = "i64.const",
@@ -404,37 +408,14 @@ instructions! {
 #[derive(Debug, PartialEq)]
 pub struct BlockType<'a> {
     pub label: Option<ast::Id<'a>>,
-    pub params: Vec<ast::ValType>,
-    pub results: Vec<ast::ValType>,
+    pub ty: ast::TypeUse<'a>,
 }
 
 impl<'a> Parse<'a> for BlockType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let label = parser.parse()?;
-        let mut params = Vec::new();
-        if parser.peek2::<kw::param>() {
-            parser.parens(|p| {
-                p.parse::<kw::param>()?;
-                while !p.is_empty() {
-                    params.push(p.parse()?);
-                }
-                Ok(())
-            })?
-        }
-        let mut results = Vec::new();
-        if parser.peek2::<kw::result>() {
-            parser.parens(|p| {
-                p.parse::<kw::result>()?;
-                while !p.is_empty() {
-                    results.push(p.parse()?);
-                }
-                Ok(())
-            })?
-        }
         Ok(BlockType {
-            label,
-            params,
-            results,
+            label: parser.parse()?,
+            ty: parser.parse()?,
         })
     }
 }
@@ -504,15 +485,20 @@ impl<'a> Parse<'a> for MemArg {
 
 #[derive(Debug, PartialEq)]
 pub struct CallIndirect<'a> {
-    pub ty: ast::TypeUse<'a>,
     pub table: Option<ast::Index<'a>>,
+    pub ty: ast::TypeUse<'a>,
 }
 
 impl<'a> Parse<'a> for CallIndirect<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        Ok(CallIndirect {
-            ty: parser.parse()?,
-            table: parser.parse()?,
-        })
+        let mut table: Option<_> = parser.parse()?;
+        let ty = parser.parse()?;
+        // Turns out the official test suite at this time thinks table
+        // identifiers comes first but wabt's test suites asserts differently
+        // putting them second. Let's just handle both.
+        if table.is_none() {
+            table = parser.parse()?;
+        }
+        Ok(CallIndirect { table, ty })
     }
 }

@@ -17,8 +17,7 @@ fn lex_wabt() {
             let token = match token {
                 Ok(t) => t,
                 Err(e) => {
-                    render_error(test, &contents, e.line(), e.col(), &e);
-                    panic!()
+                    panic!("{}", render_error(test, &contents, e.line(), e.col(), &e));
                 }
             };
             let source = token.src();
@@ -45,6 +44,7 @@ fn find_tests() -> Vec<PathBuf> {
     find_tests("tests/wabt/test/roundtrip".as_ref(), &mut tests);
     find_tests("tests/wabt/test/spec".as_ref(), &mut tests);
     find_tests("tests/wabt/test/typecheck".as_ref(), &mut tests);
+    find_tests("tests/wabt/third_party/testsuite".as_ref(), &mut tests);
     tests.sort();
     return tests;
 
@@ -56,8 +56,9 @@ fn find_tests() -> Vec<PathBuf> {
                 continue;
             }
 
-            if f.path().extension().and_then(|s| s.to_str()) != Some("txt") {
-                continue;
+            match f.path().extension().and_then(|s| s.to_str()) {
+                Some("txt") | Some("wast") => {}
+                _ => continue,
             }
             tests.push(f.path());
         }
@@ -68,81 +69,113 @@ fn find_tests() -> Vec<PathBuf> {
 fn parse_wabt() {
     let tests = find_tests();
 
-    let mut failed = 0;
-    for test in tests {
-        let contents = std::fs::read_to_string(&test).unwrap();
-        // Skip tests that are supposed to fail
-        if contents.contains(";; ERROR") {
-            continue;
-        }
-        // Tests that have a different input
-        if contents.contains("STDIN_FILE") {
-            continue;
-        }
-        // Some exception-handling tests don't use `--enable-exceptions` since
-        // `run-objdump` enables everything
-        if contents.contains("run-objdump") && contents.contains("(event") {
-            continue;
-        }
-        // contains weird stuff at the end of the file we don't parse
-        if contents.contains("TOOL: run-objdump-spec") {
-            continue;
-        }
-        // Skip wast2json tests since we don't parse those right now
-        if contents.contains("TOOL: wast2json") {
-            continue;
-        }
-
-        // Skip tests that exercise unimplemented proposals
-        if contents.contains("--enable-exceptions") {
-            continue;
-        }
-        if contents.contains("--enable-all") {
-            continue;
-        }
-        if contents.contains("--enable-annotations") {
-            continue;
-        }
-        if contents.contains("--enable-simd") {
-            continue;
-        }
-        if contents.contains("--enable-tail-call") {
-            continue;
-        }
-
-        let buf = match wast::parser::ParseBuffer::new(&contents) {
-            Ok(b) => b,
-            Err(e) => {
-                render_error(&test, &contents, e.line(), e.col(), &e);
-                failed += 1;
-                continue;
+    let failed = tests
+        .par_iter()
+        .filter_map(|test| {
+            // This is something that doesn't seem worth supporting at this
+            // time, `*.wast` files with inline modules (although we do support
+            // it for `*.wat` files.
+            if test.ends_with("inline-module.wast") {
+                return None;
             }
-        };
-        if let Err(e) = buf.parser().parse::<wast::ast::File>() {
-            render_error(&test, &contents, e.line(), e.col(), &e);
-            failed += 1;
-            continue;
-        };
-        if !buf.parser().is_empty() {
-            failed += 1;
-            eprintln!("failed to parse all of {:?}", test);
+
+            // This test still uses a bunch of old names and I don't feel like
+            // typing them all out at this time, so just skip it. We get some
+            // testing from wabt's test suite anyway.
+            if test.ends_with("threads/atomic.wast") {
+                return None;
+            }
+
+            let contents = std::fs::read_to_string(&test).unwrap();
+            // Skip tests that are supposed to fail
+            if contents.contains(";; ERROR") {
+                return None;
+            }
+            // Tests that have a different input
+            if contents.contains("STDIN_FILE") {
+                return None;
+            }
+            // Some exception-handling tests don't use `--enable-exceptions` since
+            // `run-objdump` enables everything
+            if contents.contains("run-objdump") && contents.contains("(event") {
+                return None;
+            }
+            // contains weird stuff at the end of the file we don't parse
+            if contents.contains("TOOL: run-objdump-spec") {
+                return None;
+            }
+
+            // Skip tests that exercise unimplemented proposals
+            if contents.contains("--enable-exceptions") {
+                return None;
+            }
+            if contents.contains("--enable-all") {
+                return None;
+            }
+            if contents.contains("--enable-annotations") {
+                return None;
+            }
+            if contents.contains("--enable-simd") {
+                return None;
+            }
+            if contents.contains("--enable-tail-call") {
+                return None;
+            }
+
+            let buf = match wast::parser::ParseBuffer::new(&contents) {
+                Ok(b) => b,
+                Err(e) => {
+                    return Some(render_error(&test, &contents, e.line(), e.col(), &e));
+                }
+            };
+            let wast = contents.contains("TOOL: wast2json")
+                || test.display().to_string().ends_with(".wast");
+            let result = if wast {
+                buf.parser().parse::<wast::ast::Wast>().err()
+            } else {
+                buf.parser().parse::<wast::ast::Wat>().err()
+            };
+            if let Some(e) = result {
+                return Some(render_error(&test, &contents, e.line(), e.col(), &e));
+            };
+            if !buf.parser().is_empty() {
+                return Some(format!("failed to parse all of {:?}", test));
+            }
+
+            None
+        })
+        .collect::<Vec<_>>();
+
+    if !failed.is_empty() {
+        for msg in failed.iter() {
+            println!("{}", msg);
         }
-    }
-    if failed > 0 {
-        panic!("{} tests failed", failed)
+
+        panic!("{} tests failed", failed.len())
     }
 }
 
-fn render_error(file: &Path, contents: &str, line: usize, col: usize, err: &dyn fmt::Display) {
-    eprintln!("");
-    eprintln!("error: {}", err);
-    eprintln!("     --> {}:{}:{}", file.display(), line + 1, col + 1);
-    eprintln!("      |");
-    eprintln!(
-        " {:4} | {}",
-        line + 1,
-        contents.lines().nth(line).unwrap_or("")
-    );
-    eprintln!("      | {1:>0$}", col + 1, "^");
-    eprintln!("");
+fn render_error(
+    file: &Path,
+    contents: &str,
+    line: usize,
+    col: usize,
+    err: &dyn fmt::Display,
+) -> String {
+    format!(
+        "
+error: {err}
+     --> {file}:{line}:{col}
+      |
+ {line:4} | {text}
+      | {marker:>0$}
+",
+        col + 1,
+        file = file.display(),
+        line = line + 1,
+        col = col + 1,
+        err = err,
+        text = contents.lines().nth(line).unwrap_or(""),
+        marker = "^",
+    )
 }

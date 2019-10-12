@@ -8,8 +8,10 @@ macro_rules! expr {
 fn bt() -> BlockType<'static> {
     BlockType {
         label: None,
-        params: Vec::new(),
-        results: Vec::new(),
+        ty: TypeUse {
+            index: None,
+            ty: None,
+        },
     }
 }
 

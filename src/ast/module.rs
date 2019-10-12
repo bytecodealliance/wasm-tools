@@ -1,42 +1,70 @@
 use crate::ast::{self, kw};
 use crate::parser::{Parse, Parser, Result};
 
-#[derive(PartialEq, Debug)]
-pub struct File<'a> {
+pub struct Wat<'a> {
     pub module: Module<'a>,
 }
 
-impl<'a> Parse<'a> for File<'a> {
+impl<'a> Parse<'a> for Wat<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        if parser.peek2::<kw::module>() {
-            parser.parens(Module::parse).map(|module| File { module })
-        } else {
+        let module = if !parser.peek2::<kw::module>() {
             let mut fields = Vec::new();
             while !parser.is_empty() {
                 fields.push(parser.parens(ModuleField::parse)?);
             }
-            Ok(File {
-                module: Module { name: None, fields },
-            })
-        }
+            Module {
+                name: None,
+                kind: ModuleKind::Text(fields),
+            }
+        } else {
+            parser.parens(|parser| parser.parse())?
+        };
+        Ok(Wat { module })
     }
 }
 
-#[derive(PartialEq, Debug)]
 pub struct Module<'a> {
     pub name: Option<ast::Id<'a>>,
-    pub fields: Vec<ModuleField<'a>>,
+    pub kind: ModuleKind<'a>,
+}
+
+pub enum ModuleKind<'a> {
+    /// A module defined in the textual s-expression format.
+    Text(Vec<ModuleField<'a>>),
+    /// TODO: what is this?
+    Quote(Vec<&'a [u8]>),
+    /// A module that had its raw binary bytes defined via the `binary`
+    /// directive.
+    Binary(Vec<&'a [u8]>),
 }
 
 impl<'a> Parse<'a> for Module<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::module>()?;
         let name = parser.parse()?;
-        let mut fields = Vec::new();
-        while !parser.is_empty() {
-            fields.push(parser.parens(ModuleField::parse)?);
-        }
-        Ok(Module { name, fields })
+
+        let kind = if parser.peek::<kw::binary>() {
+            parser.parse::<kw::binary>()?;
+            let mut data = Vec::new();
+            while !parser.is_empty() {
+                data.push(parser.parse()?);
+            }
+            ModuleKind::Binary(data)
+        } else if parser.peek::<kw::quote>() {
+            parser.parse::<kw::quote>()?;
+            let mut data = Vec::new();
+            while !parser.is_empty() {
+                data.push(parser.parse()?);
+            }
+            ModuleKind::Quote(data)
+        } else {
+            let mut fields = Vec::new();
+            while !parser.is_empty() {
+                fields.push(parser.parens(ModuleField::parse)?);
+            }
+            ModuleKind::Text(fields)
+        };
+        Ok(Module { name, kind })
     }
 }
 

@@ -66,8 +66,14 @@ impl<'a> Parse<'a> for u32 {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.step(|c| {
             if let Some((i, rest)) = c.integer() {
-                return match i.get_u32() {
-                    Some(u) => Ok((u, rest)),
+                let src = i.src();
+                let n = if src.starts_with("0x") {
+                    u32::from_str_radix(&src[2..], 16).ok()
+                } else {
+                    src.parse().ok()
+                };
+                return match n {
+                    Some(n) => Ok((n, rest)),
                     None => Err(c.error(concat!("invalid u32 number"))),
                 };
             }
