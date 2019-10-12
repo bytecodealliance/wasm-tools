@@ -61,7 +61,7 @@ fn functions() {
     );
 
     assert_not_parses!("func x", FunctionType, "expected `(`");
-    assert_not_parses!("func (", FunctionType, "expected keyword `result`");
+    assert_not_parses!("func (", FunctionType, "expected `param` or `result`");
     assert_not_parses!("func (param $x f32 f32)", FunctionType, "expected `)`");
 }
 
