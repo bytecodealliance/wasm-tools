@@ -1,4 +1,4 @@
-use wart::ast::*;
+use wast::ast::*;
 
 #[test]
 fn id() {

@@ -1,15 +1,15 @@
-use wart::parser::{Parse, ParseBuffer};
+use wast::parser::{Parse, ParseBuffer};
 
 macro_rules! assert_parses {
     ($text:expr, $item:expr) => {{
-        let pb = wart::parser::ParseBuffer::new($text).unwrap();
+        let pb = wast::parser::ParseBuffer::new($text).unwrap();
         crate::assert_parses($text, &pb, $item);
     }};
 }
 
 macro_rules! assert_not_parses {
     ($text:expr, $ty:ty, $msg:expr) => {{
-        let pb = wart::parser::ParseBuffer::new($text).unwrap();
+        let pb = wast::parser::ParseBuffer::new($text).unwrap();
         crate::assert_not_parses::<$ty>(&pb, $msg);
     }};
 }
@@ -33,7 +33,7 @@ where
     assert_eq!(result, reference);
 }
 
-fn render_err(input: &str, err: wart::parser::Error) -> ! {
+fn render_err(input: &str, err: wast::parser::Error) -> ! {
     eprintln!("");
     eprintln!("error: {}", err);
     eprintln!("     --> <anon>:{}:{}", err.line() + 1, err.col() + 1);

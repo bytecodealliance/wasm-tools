@@ -8,7 +8,7 @@ fuzz_target!(|data: &[u8]| {
         Ok(s) => s,
         Err(_) => return,
     };
-    let mut l = wart::lexer::Lexer::new(s);
+    let mut l = wast::lexer::Lexer::new(s);
     while let Ok(Some(_)) = l.parse() {
         // ...
     }

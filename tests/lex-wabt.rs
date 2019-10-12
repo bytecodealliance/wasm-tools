@@ -1,7 +1,7 @@
 use rayon::prelude::*;
 use std::fmt;
 use std::path::{Path, PathBuf};
-use wart::lexer::Lexer;
+use wast::lexer::Lexer;
 
 #[test]
 fn lex_wabt() {
@@ -73,11 +73,11 @@ fn parse_wabt() {
         if contents.contains("--enable-exceptions") {
             return;
         }
-        let buf = match wart::parser::ParseBuffer::new(&contents) {
+        let buf = match wast::parser::ParseBuffer::new(&contents) {
             Ok(b) => b,
             Err(e) => render_error(test, &contents, e.line(), e.col(), &e),
         };
-        if let Err(e) = buf.parser().parse::<wart::ast::File>() {
+        if let Err(e) = buf.parser().parse::<wast::ast::File>() {
             render_error(test, &contents, e.line(), e.col(), &e);
         };
         if !buf.parser().is_empty() {

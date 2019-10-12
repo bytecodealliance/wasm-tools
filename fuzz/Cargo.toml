@@ -1,5 +1,5 @@
 [package]
-name = "wart-fuzz"
+name = "wast-fuzz"
 version = "0.0.1"
 publish = false
 edition = "2018"
@@ -8,7 +8,7 @@ edition = "2018"
 cargo-fuzz = true
 
 [dependencies]
-wart = { path = ".." }
+wast = { path = ".." }
 libfuzzer-sys = { git = "https://github.com/rust-fuzz/libfuzzer-sys" }
 
 [[bin]]
