@@ -14,4 +14,3 @@ fuzz_target!(|data: &[u8]| {
     };
     drop(buf.parser().parse::<wast::ast::File>());
 });
-

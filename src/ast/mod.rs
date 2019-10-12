@@ -80,6 +80,7 @@ pub mod kw {
     custom_keyword!(module);
     custom_keyword!(offset);
     custom_keyword!(param);
+    custom_keyword!(passive);
     custom_keyword!(r#else = "else");
     custom_keyword!(r#if = "if");
     custom_keyword!(r#loop = "loop");

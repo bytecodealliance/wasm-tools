@@ -75,42 +75,64 @@ impl<'a> Parse<'a> for Memory<'a> {
 
 #[derive(Debug, PartialEq)]
 pub struct Data<'a> {
-    /// The memory that this `Data` will be associated with.
-    ///
-    /// Not present for passive segments and otherwise defaults to memory 0
-    pub memory: Option<ast::Index<'a>>,
+    /// The optional name of this data segment
+    pub name: Option<ast::Id<'a>>,
 
-    /// Initial offset to load this data segment at, or `None` if this is a
-    /// passive memory segment.
-    pub offset: Option<ast::Expression<'a>>,
+    /// Whether this data segment is passive or active
+    pub kind: DataKind<'a>,
 
     /// Bytes for this `Data` segment, viewed as the concatenation of all the
     /// contained slices.
     pub data: Vec<&'a [u8]>,
 }
 
+#[derive(Debug, PartialEq)]
+pub enum DataKind<'a> {
+    Passive,
+    Active {
+        /// The memory that this `Data` will be associated with.
+        memory: ast::Index<'a>,
+
+        /// Initial offset to load this data segment at
+        offset: ast::Expression<'a>,
+    },
+}
+
 impl<'a> Parse<'a> for Data<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::data>()?;
-        let memory = parser.parse()?;
-        let offset = if parser.peek::<ast::LParen>() {
-            Some(parser.parens(|parser| {
+        let name = parser.parse()?;
+
+        // The `passive` keyword is mentioned in the current spec but isn't
+        // mentioned in `wabt` tests, so consider it optional for now
+        let kind = if parser.peek::<kw::passive>() {
+            parser.parse::<kw::passive>()?;
+            DataKind::Passive
+
+        // If data directly follows then assume this is a passive segment
+        } else if parser.peek::<&[u8]>() {
+            DataKind::Passive
+
+        // ... and otherwise we must be attached to a particular memory as well
+        // as having an initialization offset.
+        } else {
+            let memory = parser.parse::<Option<ast::Index>>()?;
+            let offset = parser.parens(|parser| {
                 if parser.peek::<kw::offset>() {
                     parser.parse::<kw::offset>()?;
                 }
                 parser.parse()
-            })?)
-        } else {
-            None
+            })?;
+            DataKind::Active {
+                memory: memory.unwrap_or(ast::Index::Num(0)),
+                offset,
+            }
         };
+
         let mut data = Vec::new();
         while !parser.is_empty() {
             data.push(parser.parse()?);
         }
-        Ok(Data {
-            memory,
-            offset,
-            data,
-        })
+        Ok(Data { name, kind, data })
     }
 }

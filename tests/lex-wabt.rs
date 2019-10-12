@@ -138,7 +138,11 @@ fn render_error(file: &Path, contents: &str, line: usize, col: usize, err: &dyn 
     eprintln!("error: {}", err);
     eprintln!("     --> {}:{}:{}", file.display(), line + 1, col + 1);
     eprintln!("      |");
-    eprintln!(" {:4} | {}", line + 1, contents.lines().nth(line).unwrap_or(""));
+    eprintln!(
+        " {:4} | {}",
+        line + 1,
+        contents.lines().nth(line).unwrap_or("")
+    );
     eprintln!("      | {1:>0$}", col + 1, "^");
     eprintln!("");
 }
