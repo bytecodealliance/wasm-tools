@@ -166,6 +166,8 @@ fn parse_wabt() {
                         return Some(render_error(&test, &contents, e.line(), e.col(), &e));
                     }
                 }
+
+                let bytes = wast::binary::encode(&module);
             }
 
             None

@@ -1,6 +1,6 @@
 use crate::ast::*;
 
-pub fn emit(module: &Module<'_>) -> Vec<u8> {
+pub fn encode(module: &Module<'_>) -> Vec<u8> {
     let fields = match &module.kind {
         ModuleKind::Text(fields) => fields,
         ModuleKind::Quote(_) => panic!("unknown what to do here"),
@@ -56,7 +56,7 @@ pub fn emit(module: &Module<'_>) -> Vec<u8> {
     section_list(10, &funcs, &mut tmp, &mut wasm);
     section_list(11, &data, &mut tmp, &mut wasm);
 
-    panic!();
+    return wasm;
 
     fn section_list<T: Encode>(id: u8, list: &[T], tmp: &mut Vec<u8>, dst: &mut Vec<u8>) {
         if !list.is_empty() {

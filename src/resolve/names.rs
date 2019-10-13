@@ -153,10 +153,14 @@ impl<'a> Resolver<'a> {
                 ExportKind::Table(f) => self.resolve_idx(f, Ns::Table),
             },
 
-            ModuleField::Table(_)
-            | ModuleField::Global(_)
-            | ModuleField::Memory(_)
-            | ModuleField::Type(_) => Ok(()),
+            ModuleField::Global(g) => {
+                if let GlobalKind::Inline(expr) = &mut g.kind {
+                    self.resolve_expr(expr)?;
+                }
+                Ok(())
+            }
+
+            ModuleField::Table(_) | ModuleField::Memory(_) | ModuleField::Type(_) => Ok(()),
         }
     }
 
@@ -243,11 +247,9 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
         use crate::ast::Instruction::*;
 
         match instr {
-            MemoryInit(i) => self.resolver.resolve_idx(i, Ns::Data),
+            MemoryInit(i) | DataDrop(i) => self.resolver.resolve_idx(i, Ns::Data),
 
-            DataDrop(i) => self.resolver.resolve_idx(i, Ns::Data),
-
-            ElemDrop(i) => self.resolver.resolve_idx(i, Ns::Elem),
+            TableInit(i) | ElemDrop(i) => self.resolver.resolve_idx(i, Ns::Elem),
 
             TableFill(i) | TableSet(i) | TableGet(i) | TableSize(i) | TableGrow(i) => {
                 self.resolver.resolve_idx(i, Ns::Table)

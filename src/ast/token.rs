@@ -1,8 +1,9 @@
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
+use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 pub struct Id<'a> {
     name: &'a str,
     pub(crate) orig: Option<&'a str>,
@@ -10,10 +11,7 @@ pub struct Id<'a> {
 
 impl<'a> Id<'a> {
     pub fn new(name: &str) -> Id<'_> {
-        Id {
-            name,
-            orig: None,
-        }
+        Id { name, orig: None }
     }
 
     pub fn name(&self) -> &'a str {
@@ -49,6 +47,12 @@ impl<'a> Parse<'a> for Id<'a> {
             }
             Err(c.error("expected an identifier"))
         })
+    }
+}
+
+impl fmt::Debug for Id<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.name.fmt(f)
     }
 }
 
