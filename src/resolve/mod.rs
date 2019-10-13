@@ -2,8 +2,8 @@ use crate::ast::*;
 use std::fmt;
 
 mod expand;
-mod tyexpand;
 mod names;
+mod tyexpand;
 
 #[derive(Debug)]
 pub struct ResolveError {
@@ -78,11 +78,9 @@ pub fn resolve(module: &mut Module) -> Result<(), ResolveError> {
 }
 
 fn move_imports_first(fields: &mut [ModuleField<'_>]) {
-    fields.sort_by_key(|f| {
-        match f {
-            ModuleField::Import(_) => false,
-            _ => true,
-        }
+    fields.sort_by_key(|f| match f {
+        ModuleField::Import(_) => false,
+        _ => true,
     });
 }
 

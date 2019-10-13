@@ -10,7 +10,10 @@ pub struct Id<'a> {
 
 impl<'a> Id<'a> {
     pub fn new(name: &str) -> Id<'_> {
-        Id { name, linecol: None }
+        Id {
+            name,
+            linecol: None,
+        }
     }
 
     pub fn name(&self) -> &'a str {
@@ -30,14 +33,19 @@ impl<'a> PartialEq for Id<'a> {
     }
 }
 
-impl<'a> Eq for Id<'a> {
-}
+impl<'a> Eq for Id<'a> {}
 
 impl<'a> Parse<'a> for Id<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.step(|c| {
             if let Some(((name, line, col), rest)) = c.id() {
-                return Ok((Id { name, linecol: Some((line, col)) }, rest));
+                return Ok((
+                    Id {
+                        name,
+                        linecol: Some((line, col)),
+                    },
+                    rest,
+                ));
             }
             Err(c.error("expected an identifier"))
         })
