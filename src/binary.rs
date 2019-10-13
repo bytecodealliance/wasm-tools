@@ -412,7 +412,11 @@ impl Encode for BlockType<'_> {
                 return ty.results[0].encode(e);
             }
         }
-        self.ty.index.as_ref().expect("`TypeUse` should be filled in").encode(e)
+        self.ty
+            .index
+            .as_ref()
+            .expect("`TypeUse` should be filled in")
+            .encode(e)
     }
 }
 

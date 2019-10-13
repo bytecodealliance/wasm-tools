@@ -64,7 +64,6 @@ fn parse_folded_instrs<'a>(
     Ok(())
 }
 
-
 // TODO: document this obscenity
 macro_rules! instructions {
     (pub enum Instruction<'a> {

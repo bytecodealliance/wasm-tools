@@ -193,9 +193,7 @@ impl<'a> Cursor<'a> {
 
     pub fn id(mut self) -> Option<(&'a str, Self)> {
         match self.advance()? {
-            Token::Id(id) => {
-                Some((&id[1..], self))
-            }
+            Token::Id(id) => Some((&id[1..], self)),
             _ => None,
         }
     }
