@@ -12,5 +12,13 @@ fuzz_target!(|data: &[u8]| {
         Ok(b) => b,
         Err(_) => return,
     };
-    drop(buf.parser().parse::<wast::ast::Wat>());
+    let mut wat = match buf.parser().parse::<wast::ast::Wat>() {
+        Ok(m) => m,
+        Err(_) => return,
+    };
+    match wast::resolve::resolve(&mut wat.module) {
+        Ok(()) => (),
+        Err(_) => return,
+    }
+    wast::binary::encode(&wat.module);
 });

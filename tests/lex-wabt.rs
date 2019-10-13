@@ -73,69 +73,21 @@ fn parse_wabt() {
     let failed = tests
         .par_iter()
         .filter_map(|test| {
-            // This is something that doesn't seem worth supporting at this
-            // time, `*.wast` files with inline modules (although we do support
-            // it for `*.wat` files.
-            if test.ends_with("inline-module.wast") {
-                return None;
-            }
-
-            // This test still uses a bunch of old names and I don't feel like
-            // typing them all out at this time, so just skip it. We get some
-            // testing from wabt's test suite anyway.
-            if test.ends_with("threads/atomic.wast") {
-                return None;
-            }
-
-            // TODO: need to fix this test, how in the world is `if` supposed to
-            // be parsed anyway?
-            if test.ends_with("dump/br-loop-inner.txt") {
-                return None;
-            }
-
             let contents = std::fs::read_to_string(&test).unwrap();
-
-            // Skip tests that are supposed to fail
-            if contents.contains(";; ERROR") {
-                return None;
-            }
-            // Tests that have a different input
-            if contents.contains("STDIN_FILE") {
-                return None;
-            }
-            // Some exception-handling tests don't use `--enable-exceptions` since
-            // `run-objdump` enables everything
-            if contents.contains("run-objdump") && contents.contains("(event") {
-                return None;
-            }
-            // contains weird stuff at the end of the file we don't parse
-            if contents.contains("TOOL: run-objdump-spec") {
+            if skip_test(&test, &contents) {
                 return None;
             }
 
-            // Skip tests that exercise unimplemented proposals
-            if contents.contains("--enable-exceptions") {
-                return None;
-            }
-            if contents.contains("--enable-all") {
-                return None;
-            }
-            if contents.contains("--enable-annotations") {
-                return None;
-            }
-            if contents.contains("--enable-simd") {
-                return None;
-            }
-            if contents.contains("--enable-tail-call") {
-                return None;
-            }
-
+            // Lex everything into a `ParseBuffer`...
             let buf = match wast::parser::ParseBuffer::new(&contents) {
                 Ok(b) => b,
                 Err(e) => {
                     return Some(render_error(&test, &contents, e.line(), e.col(), &e));
                 }
             };
+
+            // ... then parse as a `*.wast` file, handling `*.txt` vs `*.wast`
+            // and various test suite directives in wabt ...
             let wast = contents.contains("TOOL: wast2json")
                 || test.display().to_string().ends_with(".wast");
             let result = if wast {
@@ -151,10 +103,14 @@ fn parse_wabt() {
                     return Some(render_error(&test, &contents, e.line(), e.col(), &e));
                 }
             };
+
+            // ... and ensure that we actually parsed everything ...
             if !buf.parser().is_empty() {
                 return Some(format!("failed to parse all of {:?}", test));
             }
 
+            // ... and then test our binary emission/resolution for all modules
+            // found, ensuring that it matches wabt's
             for directive in directives {
                 let mut module = match directive {
                     WastDirective::Module(m) => m,
@@ -181,6 +137,64 @@ fn parse_wabt() {
 
         panic!("{} tests failed", failed.len())
     }
+}
+
+fn skip_test(test: &Path, contents: &str) -> bool {
+    // This is something that doesn't seem worth supporting at this
+    // time, `*.wast` files with inline modules (although we do support
+    // it for `*.wat` files.
+    if test.ends_with("inline-module.wast") {
+        return true;
+    }
+
+    // This test still uses a bunch of old names and I don't feel like
+    // typing them all out at this time, so just skip it. We get some
+    // testing from wabt's test suite anyway.
+    if test.ends_with("threads/atomic.wast") {
+        return true;
+    }
+
+    // TODO: need to fix this test, how in the world is `if` supposed to
+    // be parsed anyway?
+    if test.ends_with("dump/br-loop-inner.txt") {
+        return true;
+    }
+
+    // Skip tests that are supposed to fail
+    if contents.contains(";; ERROR") {
+        return true;
+    }
+    // Tests that have a different input
+    if contents.contains("STDIN_FILE") {
+        return true;
+    }
+    // Some exception-handling tests don't use `--enable-exceptions` since
+    // `run-objdump` enables everything
+    if contents.contains("run-objdump") && contents.contains("(event") {
+        return true;
+    }
+    // contains weird stuff at the end of the file we don't parse
+    if contents.contains("TOOL: run-objdump-spec") {
+        return true;
+    }
+
+    // Skip tests that exercise unimplemented proposals
+    if contents.contains("--enable-exceptions") {
+        return true;
+    }
+    if contents.contains("--enable-all") {
+        return true;
+    }
+    if contents.contains("--enable-annotations") {
+        return true;
+    }
+    if contents.contains("--enable-simd") {
+        return true;
+    }
+    if contents.contains("--enable-tail-call") {
+        return true;
+    }
+    false
 }
 
 fn render_error(
