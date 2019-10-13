@@ -1,6 +1,8 @@
 use rayon::prelude::*;
 use std::fmt;
+use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use wast::ast::*;
 use wast::lexer::Lexer;
 
@@ -111,6 +113,7 @@ fn parse_wabt() {
 
             // ... and then test our binary emission/resolution for all modules
             // found, ensuring that it matches wabt's
+            let mut modules = 0;
             for directive in directives {
                 let mut module = match directive {
                     WastDirective::Module(m) => m,
@@ -123,7 +126,15 @@ fn parse_wabt() {
                     }
                 }
 
-                let bytes = wast::binary::encode(&module);
+                let actual = wast::binary::encode(&module);
+                if let Some(expected) = wat2wasm(&test, modules) {
+                    if actual == expected {
+                        continue;
+                    }
+                    return Some(binary_compare_failure(&test, &actual, &expected));
+                }
+
+                modules += 1;
             }
 
             None
@@ -136,6 +147,120 @@ fn parse_wabt() {
         }
 
         panic!("{} tests failed", failed.len())
+    }
+}
+
+fn binary_compare_failure(test: &Path, actual: &[u8], expected: &[u8]) -> String {
+    use wasmparser::WasmDecoder;
+
+    let difference = actual.iter().enumerate()
+        .zip(expected)
+        .find(|((_, actual), expected)| actual != expected);
+    let pos = match difference {
+        Some(((pos, _), _)) => format!("at byte {} ({0:#x})", pos),
+        None => format!("by being too small"),
+    };
+    let mut msg = format!(
+        "
+error: actual wasm differs {pos} from expected wasm
+      --> {file}
+",
+        pos = pos,
+        file = test.display(),
+    );
+
+    if let Some(((pos, _), _)) = difference {
+        msg.push_str(&format!("  {:4} |   {:#04x}\n", pos - 2, actual[pos - 2]));
+        msg.push_str(&format!("  {:4} |   {:#04x}\n", pos - 1, actual[pos - 1]));
+        msg.push_str(&format!("  {:4} | - {:#04x}\n", pos, expected[pos]));
+        msg.push_str(&format!("       | + {:#04x}\n", actual[pos]));
+    }
+
+    let mut actual_parser = wasmparser::Parser::new(actual);
+    let mut expected_parser = wasmparser::Parser::new(expected);
+
+    let mut differences = 0;
+    while differences < 5 {
+        let actual_state = actual_parser.read();
+        let expected_state = expected_parser.read();
+        if format!("{:?}", actual_state) == format!("{:?}", expected_state) {
+            if differences > 0 {
+                msg.push_str(&format!("       |   ...\n"));
+            }
+            continue;
+        }
+
+        if differences == 0 {
+            msg.push_str("\n\n");
+        }
+        msg.push_str(&format!("       | - {:?}\n", expected_state));
+        msg.push_str(&format!("       | + {:?}\n", actual_state));
+        differences += 1;
+
+        match actual_state {
+            wasmparser::ParserState::Error(_) => break,
+            wasmparser::ParserState::EndWasm => break,
+            _ => {}
+        }
+        match expected_state {
+            wasmparser::ParserState::Error(_) => break,
+            wasmparser::ParserState::EndWasm => break,
+            _ => {}
+        }
+    }
+
+    return msg;
+
+}
+
+fn wat2wasm(test: &Path, module: usize) -> Option<Vec<u8>> {
+    if test.to_str().unwrap().ends_with(".wast") {
+        let td = tempfile::TempDir::new().unwrap();
+        let result = Command::new("wast2json")
+            .arg(test)
+            .arg("--enable-all")
+            .arg("--no-check")
+            .arg("-o")
+            .arg(td.path().join("foo.json"))
+            .output()
+            .expect("failed to spawn `wat2wasm`");
+        if !result.status.success() {
+            // TODO: handle this case better
+            return None;
+        }
+        let json = fs::read_to_string(td.path().join("foo.json")).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&json).unwrap();
+        let commands = json["commands"].as_array().unwrap();
+        let module = commands
+            .iter()
+            .filter_map(|m| {
+                if m["type"] == "module" {
+                    Some(td.path().join(m["filename"].as_str().unwrap()))
+                } else {
+                    None
+                }
+            })
+            .skip(module)
+            .next()
+            .expect("failed to find right module");
+        Some(fs::read(module).unwrap())
+    } else {
+        assert_eq!(module, 0);
+        let f = tempfile::NamedTempFile::new().unwrap();
+        let result = Command::new("wat2wasm")
+            .arg(test)
+            .arg("--enable-all")
+            .arg("--no-check")
+            .arg("-o")
+            .arg(f.path())
+            .output()
+            .expect("failed to spawn `wat2wasm`");
+        if result.status.success() {
+            Some(fs::read(f.path()).unwrap())
+        } else {
+            // TODO: handle this case better
+            None
+        }
     }
 }
 

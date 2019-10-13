@@ -12,3 +12,11 @@ leb128 = "0.2"
 
 [dev-dependencies]
 rayon = "1.0"
+anyhow = "1.0"
+tempfile = "3.1"
+wasmparser = "0.39"
+serde_json = "1.0"
+
+[profile.release]
+debug-assertions = true
+overflow-checks = true

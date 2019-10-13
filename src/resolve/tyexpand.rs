@@ -14,6 +14,9 @@ impl<'a> Expander<'a> {
             ModuleField::Type(t) => self.register_type(t),
             ModuleField::Import(i) => self.expand_import(i),
             ModuleField::Func(f) => self.expand_func(f),
+            ModuleField::Global(g) => self.expand_global(g),
+            ModuleField::Data(d) => self.expand_data(d),
+            ModuleField::Elem(e) => self.expand_elem(e),
             _ => {}
         }
     }
@@ -35,6 +38,29 @@ impl<'a> Expander<'a> {
         self.expand_type_use(&mut func.ty);
         if let FuncKind::Inline { expression, .. } = &mut func.kind {
             self.expand_expression(expression);
+        }
+    }
+
+    fn expand_global(&mut self, global: &mut Global<'a>) {
+        if let GlobalKind::Inline(expr) = &mut global.kind {
+            self.expand_expression(expr);
+        }
+    }
+
+    fn expand_elem(&mut self, elem: &mut Elem<'a>) {
+        if let ElemKind::Active { offset, .. } = &mut elem.kind {
+            self.expand_expression(offset);
+        }
+        if let Elems::Funcrefs(list) = &mut elem.elems {
+            for expr in list {
+                self.expand_expression(expr);
+            }
+        }
+    }
+
+    fn expand_data(&mut self, data: &mut Data<'a>) {
+        if let DataKind::Active { offset, .. } = &mut data.kind {
+            self.expand_expression(offset);
         }
     }
 

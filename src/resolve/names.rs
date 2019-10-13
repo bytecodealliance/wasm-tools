@@ -96,7 +96,13 @@ impl<'a> Resolver<'a> {
                             }
                         }
                         None => {
-                            for _ in 0..self.ty_nargs[ty_idx as usize] {
+                            // if `ty_idx` is out of bounds ignore it and any
+                            // unresolved locals will report errors anyway
+                            let nargs = match self.ty_nargs.get(ty_idx as usize) {
+                                Some(n) => *n,
+                                None => 0,
+                            };
+                            for _ in 0..nargs {
                                 resolver.locals.register(None);
                             }
                         }
