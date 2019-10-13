@@ -179,7 +179,13 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_error(&self, id: Id<'a>, ns: &str) -> ResolveError {
-        let (line, col) = id.linecol.unwrap_or((0, 0));
+        let (line, col) = match id.orig {
+            Some(orig) => {
+                let pos = id.name().as_ptr() as usize - orig.as_ptr() as usize;
+                crate::to_linecol(orig, pos)
+            }
+            None => (0, 0),
+        };
         ResolveError {
             inner: Box::new(ResolveErrorInner {
                 message: format!("failed to find {} named `${}`", ns, id.name()),

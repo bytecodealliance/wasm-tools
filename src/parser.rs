@@ -169,6 +169,10 @@ impl<'a> Parser<'a> {
 }
 
 impl<'a> Cursor<'a> {
+    pub fn input(&self) -> &'a str {
+        self.parser.buf.input
+    }
+
     pub fn error(&self, msg: impl fmt::Display) -> Error {
         self.parser.error_at_token(self.cur, &msg)
     }
@@ -187,12 +191,10 @@ impl<'a> Cursor<'a> {
         }
     }
 
-    pub fn id(mut self) -> Option<((&'a str, usize, usize), Self)> {
+    pub fn id(mut self) -> Option<(&'a str, Self)> {
         match self.advance()? {
             Token::Id(id) => {
-                let pos = self.parser.input_pos(id);
-                let (line, col) = crate::to_linecol(self.parser.buf.input, pos);
-                Some(((&id[1..], line, col), self))
+                Some((&id[1..], self))
             }
             _ => None,
         }

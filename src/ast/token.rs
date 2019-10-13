@@ -5,14 +5,14 @@ use std::str;
 #[derive(Copy, Clone, Debug)]
 pub struct Id<'a> {
     name: &'a str,
-    pub(crate) linecol: Option<(usize, usize)>,
+    pub(crate) orig: Option<&'a str>,
 }
 
 impl<'a> Id<'a> {
     pub fn new(name: &str) -> Id<'_> {
         Id {
             name,
-            linecol: None,
+            orig: None,
         }
     }
 
@@ -38,11 +38,11 @@ impl<'a> Eq for Id<'a> {}
 impl<'a> Parse<'a> for Id<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.step(|c| {
-            if let Some(((name, line, col), rest)) = c.id() {
+            if let Some((name, rest)) = c.id() {
                 return Ok((
                     Id {
                         name,
-                        linecol: Some((line, col)),
+                        orig: Some(c.input()),
                     },
                     rest,
                 ));
