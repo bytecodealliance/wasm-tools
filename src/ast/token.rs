@@ -70,10 +70,14 @@ pub enum Index<'a> {
 
 impl<'a> Parse<'a> for Index<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        Ok(match parser.parse::<Id>() {
-            Ok(id) => Index::Id(id),
-            Err(_) => Index::Num(parser.parse()?),
-        })
+        let mut l = parser.lookahead1();
+        if l.peek::<Id>() {
+            Ok(Index::Id(parser.parse()?))
+        } else if l.peek::<u32>() {
+            Ok(Index::Num(parser.parse()?))
+        } else {
+            Err(l.error())
+        }
     }
 }
 
