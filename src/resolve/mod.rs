@@ -61,8 +61,8 @@ pub fn resolve(module: &mut Module) -> Result<(), ResolveError> {
         cur += 1;
     }
 
-    // And finally perform name resolution over all `Index` items to resolve
-    // them all to indices instead of symbolic names.
+    // Perform name resolution over all `Index` items to resolve them all to
+    // indices instead of symbolic names.
     //
     // For this operation we do need to make sure that imports are sorted first
     // because otherwise we'll be calculating indices in the wrong order.

@@ -30,7 +30,13 @@ impl Ns {
 #[derive(Default)]
 pub struct Resolver<'a> {
     ns: [Namespace<'a>; 7],
-    ty_nargs: Vec<usize>,
+    tys: Vec<Type>,
+}
+
+struct Type {
+    nparams: usize,
+    nresults: usize,
+    result0: Option<ValType>,
 }
 
 #[derive(Default)]
@@ -57,7 +63,11 @@ impl<'a> Resolver<'a> {
             ModuleField::Table(i) => register(Ns::Table, i.name),
             ModuleField::Type(i) => {
                 register(Ns::Type, i.name);
-                self.ty_nargs.push(i.func.params.len());
+                self.tys.push(Type {
+                    nparams: i.func.params.len(),
+                    nresults: i.func.results.len(),
+                    result0: i.func.results.get(0).cloned(),
+                });
             }
             ModuleField::Elem(e) => register(Ns::Elem, e.name),
             ModuleField::Data(d) => register(Ns::Data, d.name),
@@ -96,8 +106,8 @@ impl<'a> Resolver<'a> {
                     } else {
                         // if `ty_idx` is out of bounds ignore it and any
                         // unresolved locals will report errors anyway
-                        let nargs = match self.ty_nargs.get(ty_idx as usize) {
-                            Some(n) => *n,
+                        let nargs = match self.tys.get(ty_idx as usize) {
+                            Some(t) => t.nparams,
                             None => 0,
                         };
                         for _ in 0..nargs {
@@ -284,17 +294,41 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             Block(bt) | If(bt) | Loop(bt) => {
                 self.labels.push(bt.label);
 
-                // If an index was listed, we resolve it. Otherwise we only
-                // actually do full resolution if the type has more than one
-                // result to backwards-compatibly handle the multi-value
-                // proposal.
-                if let Some(i) = &mut bt.ty.index {
-                    self.resolver.resolve_idx(i, Ns::Type)?;
+                // Ok things get interesting here. First off when parsing `bt`
+                // *optionally* has an index and a function type listed. If
+                // they're both not present it's equivalent to 0 params and 0
+                // results.
+                //
+                // In MVP wasm blocks can have 0 params and 0-1 results. Now
+                // there's also multi-value. We want to prefer MVP wasm wherever
+                // possible (for backcompat) so we want to list this block as
+                // being an "MVP" block if we can. The encoder only has
+                // `BlockType` to work with, so it'll be looking at `params` and
+                // `results` to figure out what to encode. If `params` and
+                // `results` fit within MVP, then it uses MVP encoding
+                //
+                // To put all that together, here we handle:
+                //
+                // * If the `index` was specified, resolve it and use it as the
+                //   source of truth. If this turns out to be an MVP type,
+                //   record it as such.
+                // * Otherwise use `params` and `results` as the source of
+                //   truth. *If* this were a non-MVP compatible block `index`
+                //   would be filled by by `tyexpand.rs`.
+                //
+                // tl;dr; we handle the `index` here if it's set and then fill
+                // out `params` and `results` if we can, otherwise no work
+                // happens.
+                if bt.ty.index.is_some() {
+                    let ty = self.resolver.resolve_type_use(&mut bt.ty)?;
+                    let ty = &self.resolver.tys[ty as usize];
+                    if ty.nparams == 0 && ty.nresults <= 1 {
+                        bt.ty.ty.params.truncate(0);
+                        bt.ty.ty.results.truncate(0);
+                        bt.ty.ty.results.extend(ty.result0);
+                        bt.ty.index = None;
+                    }
                 }
-                if bt.ty.ty.params.len() == 0 && bt.ty.ty.results.len() <= 1 {
-                    return Ok(());
-                }
-                self.resolver.resolve_type_use(&mut bt.ty)?;
                 Ok(())
             }
 
