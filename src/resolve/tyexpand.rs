@@ -73,6 +73,13 @@ impl<'a> Expander<'a> {
     fn expand_instr(&mut self, instr: &mut Instruction<'a>) {
         match instr {
             Instruction::Block(bt) | Instruction::If(bt) | Instruction::Loop(bt) => {
+                /*
+                if let Some(func) = &bt.ty.ty {
+                    if func.params.len() == 0 && func.results.len() <= 1 {
+                        return;
+                    }
+                }
+                */
                 self.expand_type_use(&mut bt.ty)
             }
             Instruction::CallIndirect(c) => self.expand_type_use(&mut c.ty),

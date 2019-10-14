@@ -70,10 +70,12 @@ fn find_tests() -> Vec<PathBuf> {
 
 #[test]
 fn parse_wabt() {
-    let tests = find_tests();
+    let mut tests = find_tests();
+    tests.sort_by_key(|k| std::fs::read(&k).map(|b| b.len()).unwrap_or(0));
+    tests.reverse();
 
     let failed = tests
-        .par_iter()
+        .iter()
         .filter_map(|test| {
             let contents = std::fs::read_to_string(&test).unwrap();
             if skip_test(&test, &contents) {
@@ -128,10 +130,9 @@ fn parse_wabt() {
 
                 let actual = wast::binary::encode(&module);
                 if let Some(expected) = wat2wasm(&test, modules) {
-                    if actual == expected {
-                        continue;
+                    if let Some(msg) = binary_compare(&test, &actual, &expected) {
+                        return Some(msg);
                     }
-                    return Some(binary_compare_failure(&test, &actual, &expected));
                 }
 
                 modules += 1;
@@ -150,8 +151,12 @@ fn parse_wabt() {
     }
 }
 
-fn binary_compare_failure(test: &Path, actual: &[u8], expected: &[u8]) -> String {
-    use wasmparser::WasmDecoder;
+fn binary_compare(test: &Path, actual: &[u8], expected: &[u8]) -> Option<String> {
+    use wasmparser::*;
+
+    if actual == expected {
+        return None;
+    }
 
     let difference = actual.iter().enumerate()
         .zip(expected)
@@ -176,14 +181,21 @@ error: actual wasm differs {pos} from expected wasm
         msg.push_str(&format!("       | + {:#04x}\n", actual[pos]));
     }
 
-    let mut actual_parser = wasmparser::Parser::new(actual);
-    let mut expected_parser = wasmparser::Parser::new(expected);
+    let mut actual_parser = Parser::new(actual);
+    let mut expected_parser = Parser::new(expected);
 
     let mut differences = 0;
     while differences < 5 {
-        let actual_state = actual_parser.read();
-        let expected_state = expected_parser.read();
-        if format!("{:?}", actual_state) == format!("{:?}", expected_state) {
+        let actual_state = match read_state(&mut actual_parser) {
+            Some(s) => s,
+            None => break,
+        };
+        let expected_state = match read_state(&mut expected_parser) {
+            Some(s) => s,
+            None => break,
+        };
+
+        if actual_state == expected_state {
             if differences > 0 {
                 msg.push_str(&format!("       |   ...\n"));
             }
@@ -193,24 +205,24 @@ error: actual wasm differs {pos} from expected wasm
         if differences == 0 {
             msg.push_str("\n\n");
         }
-        msg.push_str(&format!("       | - {:?}\n", expected_state));
-        msg.push_str(&format!("       | + {:?}\n", actual_state));
+        msg.push_str(&format!("       | - {}\n", expected_state));
+        msg.push_str(&format!("       | + {}\n", actual_state));
         differences += 1;
-
-        match actual_state {
-            wasmparser::ParserState::Error(_) => break,
-            wasmparser::ParserState::EndWasm => break,
-            _ => {}
-        }
-        match expected_state {
-            wasmparser::ParserState::Error(_) => break,
-            wasmparser::ParserState::EndWasm => break,
-            _ => {}
-        }
     }
 
-    return msg;
+    return Some(msg);
 
+    fn read_state<'a, 'b>(parser: &'b mut Parser<'a>) -> Option<String> {
+        loop {
+            match parser.read() {
+                // ParserState::BeginSection { code: SectionCode::DataCount, .. } => {}
+                // ParserState::DataCountSectionEntry(_) => {}
+                ParserState::Error(_) |
+                ParserState::EndWasm => break None,
+                other => break Some(format!("{:?}", other)),
+            }
+        }
+    }
 }
 
 fn wat2wasm(test: &Path, module: usize) -> Option<Vec<u8>> {

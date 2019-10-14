@@ -280,8 +280,15 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             }
 
             Block(bt) | If(bt) | Loop(bt) => {
-                self.resolver.resolve_type_use(&mut bt.ty)?;
                 self.labels.push(bt.label);
+                /*
+                if let Some(func) = &bt.ty.ty {
+                    if func.params.len() == 0 && func.results.len() <= 1 {
+                        return Ok(());
+                    }
+                }
+                */
+                self.resolver.resolve_type_use(&mut bt.ty)?;
                 Ok(())
             }
 

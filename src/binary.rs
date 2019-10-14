@@ -50,7 +50,7 @@ pub fn encode(module: &Module<'_>) -> Vec<u8> {
         section(8, start, &mut tmp, &mut wasm);
     }
     section_list(9, &elem, &mut tmp, &mut wasm);
-    if contains_bulk_memory(&funcs) {
+    if contains_bulk_memory(&funcs) || true { // TODO: make this conditional
         section(12, data.len(), &mut tmp, &mut wasm);
     }
     section_list(10, &funcs, &mut tmp, &mut wasm);
