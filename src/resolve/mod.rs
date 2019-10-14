@@ -50,8 +50,12 @@ pub fn resolve(module: &mut Module) -> Result<(), ResolveError> {
     // the order that we see them, append to the list of types. Note that types
     // are indexed so we're careful to always insert new types just before the
     // field that we're looking at.
+    //
+    // It's not strictly required that we `move_types_first` here but it gets
+    // our indexing to exactly match wabt's which our test suite is asserting.
     let mut cur = 0;
     let mut expander = tyexpand::Expander::default();
+    move_types_first(fields);
     while cur < fields.len() {
         expander.expand(&mut fields[cur]);
         for new in expander.to_prepend.drain(..) {
@@ -80,6 +84,13 @@ pub fn resolve(module: &mut Module) -> Result<(), ResolveError> {
 fn move_imports_first(fields: &mut [ModuleField<'_>]) {
     fields.sort_by_key(|f| match f {
         ModuleField::Import(_) => false,
+        _ => true,
+    });
+}
+
+fn move_types_first(fields: &mut [ModuleField<'_>]) {
+    fields.sort_by_key(|f| match f {
+        ModuleField::Type(_) => false,
         _ => true,
     });
 }
