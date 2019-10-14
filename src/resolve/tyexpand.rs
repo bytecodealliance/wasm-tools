@@ -73,13 +73,13 @@ impl<'a> Expander<'a> {
     fn expand_instr(&mut self, instr: &mut Instruction<'a>) {
         match instr {
             Instruction::Block(bt) | Instruction::If(bt) | Instruction::Loop(bt) => {
-                /*
-                if let Some(func) = &bt.ty.ty {
-                    if func.params.len() == 0 && func.results.len() <= 1 {
-                        return;
-                    }
+                // Only actually expand `TypeUse` with an index which appends a
+                // type if it looks like we need one. This way if the
+                // multi-value proposal isn't enabled and/or used we won't
+                // encode it.
+                if bt.ty.ty.params.len() == 0 && bt.ty.ty.results.len() <= 1 {
+                    return;
                 }
-                */
                 self.expand_type_use(&mut bt.ty)
             }
             Instruction::CallIndirect(c) => self.expand_type_use(&mut c.ty),
@@ -91,12 +91,7 @@ impl<'a> Expander<'a> {
         if item.index.is_some() {
             return;
         }
-        let default = FunctionType {
-            params: Vec::new(),
-            results: Vec::new(),
-        };
-        let func = item.ty.as_ref().unwrap_or(&default);
-        let key = self.key(func);
+        let key = self.key(&item.ty);
         item.index = Some(Index::Num(match self.types.get(&key) {
             Some(i) => *i,
             None => self.prepend(key),

@@ -238,10 +238,10 @@ impl<'a> Parse<'a> for Type<'a> {
 }
 
 /// A type declaration in a module
-#[derive(Clone, Default, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct TypeUse<'a> {
     pub index: Option<ast::Index<'a>>,
-    pub ty: Option<ast::FunctionType<'a>>,
+    pub ty: ast::FunctionType<'a>,
 }
 
 impl<'a> Parse<'a> for TypeUse<'a> {
@@ -254,16 +254,13 @@ impl<'a> Parse<'a> for TypeUse<'a> {
         } else {
             None
         };
-        let ty = if parser.peek2::<kw::param>() || parser.peek2::<kw::result>() {
-            let mut ft = FunctionType {
-                params: Vec::new(),
-                results: Vec::new(),
-            };
-            ft.finish_parse(parser)?;
-            Some(ft)
-        } else {
-            None
+        let mut ty = FunctionType {
+            params: Vec::new(),
+            results: Vec::new(),
         };
+        if parser.peek2::<kw::param>() || parser.peek2::<kw::result>() {
+            ty.finish_parse(parser)?;
+        }
 
         Ok(TypeUse { index, ty })
     }

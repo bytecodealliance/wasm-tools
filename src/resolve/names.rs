@@ -89,22 +89,19 @@ impl<'a> Resolver<'a> {
                     let mut resolver = ExprResolver::new(self);
 
                     // Parameters come first in the local namespace...
-                    match &f.ty.ty {
-                        Some(fty) => {
-                            for (name, _) in fty.params.iter() {
-                                resolver.locals.register(*name);
-                            }
+                    if f.ty.ty.params.len() > 0 {
+                        for (name, _) in f.ty.ty.params.iter() {
+                            resolver.locals.register(*name);
                         }
-                        None => {
-                            // if `ty_idx` is out of bounds ignore it and any
-                            // unresolved locals will report errors anyway
-                            let nargs = match self.ty_nargs.get(ty_idx as usize) {
-                                Some(n) => *n,
-                                None => 0,
-                            };
-                            for _ in 0..nargs {
-                                resolver.locals.register(None);
-                            }
+                    } else {
+                        // if `ty_idx` is out of bounds ignore it and any
+                        // unresolved locals will report errors anyway
+                        let nargs = match self.ty_nargs.get(ty_idx as usize) {
+                            Some(n) => *n,
+                            None => 0,
+                        };
+                        for _ in 0..nargs {
+                            resolver.locals.register(None);
                         }
                     }
 
@@ -281,13 +278,17 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
 
             Block(bt) | If(bt) | Loop(bt) => {
                 self.labels.push(bt.label);
-                /*
-                if let Some(func) = &bt.ty.ty {
-                    if func.params.len() == 0 && func.results.len() <= 1 {
-                        return Ok(());
-                    }
+
+                // If an index was listed, we resolve it. Otherwise we only
+                // actually do full resolution if the type has more than one
+                // result to backwards-compatibly handle the multi-value
+                // proposal.
+                if let Some(i) = &mut bt.ty.index {
+                    self.resolver.resolve_idx(i, Ns::Type)?;
                 }
-                */
+                if bt.ty.ty.params.len() == 0 && bt.ty.ty.results.len() <= 1 {
+                    return Ok(());
+                }
                 self.resolver.resolve_type_use(&mut bt.ty)?;
                 Ok(())
             }

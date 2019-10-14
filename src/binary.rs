@@ -404,19 +404,16 @@ impl Encode for Expression<'_> {
 
 impl Encode for BlockType<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
-        if let Some(ty) = &self.ty.ty {
-            if ty.params.is_empty() && ty.results.is_empty() {
-                return e.push(0x40);
-            }
-            if ty.params.is_empty() && ty.results.len() == 1 {
-                return ty.results[0].encode(e);
-            }
+        if let Some(index) = &self.ty.index {
+            return index.encode(e);
         }
-        self.ty
-            .index
-            .as_ref()
-            .expect("`TypeUse` should be filled in")
-            .encode(e)
+        if self.ty.ty.params.is_empty() && self.ty.ty.results.is_empty() {
+            return e.push(0x40);
+        }
+        if self.ty.ty.params.is_empty() && self.ty.ty.results.len() == 1 {
+            return self.ty.ty.results[0].encode(e);
+        }
+        panic!("multi-value block types should have an index");
     }
 }
 
