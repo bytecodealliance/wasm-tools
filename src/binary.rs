@@ -166,8 +166,8 @@ impl Encode for ValType {
             ValType::I64 => e.push(0x7e),
             ValType::F32 => e.push(0x7d),
             ValType::F64 => e.push(0x7c),
-            ValType::Anyref => e.push(0x00),
-            ValType::Funcref => e.push(0x00),
+            ValType::Funcref => e.push(0x70),
+            ValType::Anyref => e.push(0x6f),
         }
     }
 }
@@ -226,7 +226,7 @@ impl Encode for TableElemType {
     fn encode(&self, e: &mut Vec<u8>) {
         match self {
             TableElemType::Funcref => e.push(0x70),
-            TableElemType::Anyref => e.push(0x00),
+            TableElemType::Anyref => e.push(0x6f),
         }
     }
 }

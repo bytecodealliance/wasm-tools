@@ -155,8 +155,8 @@ instructions! {
         GlobalGet(ast::Index<'a>) : [0x23] : "global.get" | "get_global",
         GlobalSet(ast::Index<'a>) : [0x24] : "global.set" | "set_global",
 
-        TableGet(ast::Index<'a>) : [0x00] : "table.get",
-        TableSet(ast::Index<'a>) : [0x00] : "table.set",
+        TableGet(ast::Index<'a>) : [0x25] : "table.get",
+        TableSet(ast::Index<'a>) : [0x26] : "table.set",
 
         I32Load(MemArg<4>) : [0x28] : "i32.load",
         I64Load(MemArg<8>) : [0x29] : "i64.load",
@@ -185,21 +185,21 @@ instructions! {
         // Lots of bulk memory proposal here as well
         MemorySize : [0x3f, 0x00] : "memory.size" | "current_memory",
         MemoryGrow : [0x40, 0x00] : "memory.grow" | "grow_memory",
-        MemoryInit(ast::Index<'a>) : [0x00] : "memory.init",
-        MemoryCopy : [0x00] : "memory.copy",
-        MemoryFill : [0x00] : "memory.fill",
-        DataDrop(ast::Index<'a>) : [0x00] : "data.drop",
-        ElemDrop(ast::Index<'a>) : [0x00] : "elem.drop",
-        TableInit(ast::Index<'a>) : [0x00] : "table.init",
-        TableCopy : [0x00] : "table.copy",
-        TableFill(ast::Index<'a>) : [0x00] : "table.fill",
-        TableSize(ast::Index<'a>) : [0x00] : "table.size",
-        TableGrow(ast::Index<'a>) : [0x00] : "table.grow",
+        MemoryInit(ast::Index<'a>) : [0xfc, 0x08, 0x00] : "memory.init",
+        MemoryCopy : [0xfc, 0x0a, 0x00, 0x00] : "memory.copy",
+        MemoryFill : [0xfc, 0x0b, 0x00] : "memory.fill",
+        DataDrop(ast::Index<'a>) : [0xfc, 0x09] : "data.drop",
+        ElemDrop(ast::Index<'a>) : [0xfc, 0x0d] : "elem.drop",
+        TableInit(ast::Index<'a>) : [0xfc, 0x0c, 0x00] : "table.init",
+        TableCopy : [0xfc, 0x0e, 0x00, 0x00] : "table.copy",
+        TableFill(ast::Index<'a>) : [0xfc, 0x11] : "table.fill",
+        TableSize(ast::Index<'a>) : [0xfc, 0x10] : "table.size",
+        TableGrow(ast::Index<'a>) : [0xfc, 0x0f] : "table.grow",
 
-        RefNull : [0x00] : "ref.null",
-        RefIsNull : [0x00] : "ref.is_null",
-        RefHost(u32) : [0x00] : "ref.host", // only used in test harness
-        RefFunc(ast::Index<'a>) : [0x00] : "ref.func", // only used in test harness
+        RefNull : [0xd0] : "ref.null",
+        RefIsNull : [0xd1] : "ref.is_null",
+        RefHost(u32) : [0xff] : "ref.host", // only used in test harness
+        RefFunc(ast::Index<'a>) : [0xd2] : "ref.func", // only used in test harness
 
         I32Const(i32) : [0x41] : "i32.const",
         I64Const(i64) : [0x42] : "i64.const",
