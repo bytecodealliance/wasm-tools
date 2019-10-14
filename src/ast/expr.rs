@@ -339,14 +339,14 @@ instructions! {
         F64ReinterpretI64 : [0xbf] : "f64.reinterpret_i64" | "f64.reinterpret/i64",
 
         // non-trapping float to int
-        I32TruncSatF32S : [0x00] : "i32.trunc_sat_f32_s" | "i32.trunc_s:sat/f32",
-        I32TruncSatF32U : [0x00] : "i32.trunc_sat_f32_u" | "i32.trunc_u:sat/f32",
-        I32TruncSatF64S : [0x00] : "i32.trunc_sat_f64_s" | "i32.trunc_s:sat/f64",
-        I32TruncSatF64U : [0x00] : "i32.trunc_sat_f64_u" | "i32.trunc_u:sat/f64",
-        I64TruncSatF32S : [0x00] : "i64.trunc_sat_f32_s" | "i64.trunc_s:sat/f32",
-        I64TruncSatF32U : [0x00] : "i64.trunc_sat_f32_u" | "i64.trunc_u:sat/f32",
-        I64TruncSatF64S : [0x00] : "i64.trunc_sat_f64_s" | "i64.trunc_s:sat/f64",
-        I64TruncSatF64U : [0x00] : "i64.trunc_sat_f64_u" | "i64.trunc_u:sat/f64",
+        I32TruncSatF32S : [0xfc, 0x00] : "i32.trunc_sat_f32_s" | "i32.trunc_s:sat/f32",
+        I32TruncSatF32U : [0xfc, 0x01] : "i32.trunc_sat_f32_u" | "i32.trunc_u:sat/f32",
+        I32TruncSatF64S : [0xfc, 0x02] : "i32.trunc_sat_f64_s" | "i32.trunc_s:sat/f64",
+        I32TruncSatF64U : [0xfc, 0x03] : "i32.trunc_sat_f64_u" | "i32.trunc_u:sat/f64",
+        I64TruncSatF32S : [0xfc, 0x04] : "i64.trunc_sat_f32_s" | "i64.trunc_s:sat/f32",
+        I64TruncSatF32U : [0xfc, 0x05] : "i64.trunc_sat_f32_u" | "i64.trunc_u:sat/f32",
+        I64TruncSatF64S : [0xfc, 0x06] : "i64.trunc_sat_f64_s" | "i64.trunc_s:sat/f64",
+        I64TruncSatF64U : [0xfc, 0x07] : "i64.trunc_sat_f64_u" | "i64.trunc_u:sat/f64",
 
         // sign extension proposal
         I32Extend8S : [0xc0] : "i32.extend8_s",
