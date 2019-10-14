@@ -440,7 +440,7 @@ impl Encode for BlockType<'_> {
 
 impl Encode for MemArg {
     fn encode(&self, e: &mut Vec<u8>) {
-        self.align.leading_zeros().encode(e);
+        self.align.trailing_zeros().encode(e);
         self.offset.encode(e);
     }
 }
