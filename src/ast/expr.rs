@@ -192,7 +192,7 @@ instructions! {
         // Lots of bulk memory proposal here as well
         MemorySize : [0x3f, 0x00] : "memory.size" | "current_memory",
         MemoryGrow : [0x40, 0x00] : "memory.grow" | "grow_memory",
-        MemoryInit(ast::Index<'a>) : [0xfc, 0x08, 0x00] : "memory.init",
+        MemoryInit(MemoryInit<'a>) : [0xfc, 0x08] : "memory.init",
         MemoryCopy : [0xfc, 0x0a, 0x00, 0x00] : "memory.copy",
         MemoryFill : [0xfc, 0x0b, 0x00] : "memory.fill",
         DataDrop(ast::Index<'a>) : [0xfc, 0x09] : "data.drop",
@@ -548,6 +548,19 @@ impl<'a> Parse<'a> for TableInit<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         Ok(TableInit {
             elem: parser.parse()?,
+        })
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct MemoryInit<'a> {
+    pub data: ast::Index<'a>,
+}
+
+impl<'a> Parse<'a> for MemoryInit<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        Ok(MemoryInit {
+            data: parser.parse()?,
         })
     }
 }

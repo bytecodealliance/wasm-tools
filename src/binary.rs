@@ -465,6 +465,16 @@ impl Encode for TableInit<'_> {
     }
 }
 
+impl Encode for MemoryInit<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        // TODO: this agrees with `wabt` but disagrees with the current online
+        // spec. Online spec says `0x00` comes before data segment, wabt says
+        // otherwise. Let's match `wabt` for now.
+        self.data.encode(e);
+        e.push(0x00);
+    }
+}
+
 impl Encode for BrTableIndices<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.labels.encode(e);

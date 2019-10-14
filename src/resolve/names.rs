@@ -264,7 +264,8 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
         use crate::ast::Instruction::*;
 
         match instr {
-            MemoryInit(i) | DataDrop(i) => self.resolver.resolve_idx(i, Ns::Data),
+            MemoryInit(i) => self.resolver.resolve_idx(&mut i.data, Ns::Data),
+            DataDrop(i) => self.resolver.resolve_idx(i, Ns::Data),
 
             TableInit(i) => self.resolver.resolve_idx(&mut i.elem, Ns::Elem),
             ElemDrop(i) => self.resolver.resolve_idx(i, Ns::Elem),
