@@ -127,6 +127,13 @@ fn parse_wabt() {
                     }
                 }
 
+                // Apparently wabt parses this and then reencodes it while we
+                // just pass it through. Let's not check these since wabt
+                // inserts data count sections and we don't.
+                if let ModuleKind::Binary(_) = module.kind {
+                    continue;
+                }
+
                 let actual = wast::binary::encode(&module);
                 if let Some(expected) = wat2wasm(&test, modules) {
                     if let Some(msg) = binary_compare(&test, &actual, &expected) {
