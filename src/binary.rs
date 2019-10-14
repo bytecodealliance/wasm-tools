@@ -456,14 +456,14 @@ impl Encode for i64 {
     }
 }
 
-impl Encode for Float32<'_> {
+impl Encode for Float32 {
     fn encode(&self, e: &mut Vec<u8>) {
-        e.push(0x00);
+        e.extend_from_slice(&self.bits.to_le_bytes());
     }
 }
 
-impl Encode for Float64<'_> {
+impl Encode for Float64 {
     fn encode(&self, e: &mut Vec<u8>) {
-        e.push(0x00);
+        e.extend_from_slice(&self.bits.to_le_bytes());
     }
 }

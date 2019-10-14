@@ -1,3 +1,4 @@
+use crate::lexer::FloatVal;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -167,42 +168,49 @@ impl Peek for &'_ str {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub struct Float32<'a> {
-    src: &'a str,
+macro_rules! float {
+    ($($name:ident => ($int:ident, $float:ident))*) => ($(
+        #[derive(Debug, PartialEq)]
+        pub struct $name {
+            pub bits: $int,
+        }
+
+        impl<'a> Parse<'a> for $name {
+            fn parse(parser: Parser<'a>) -> Result<Self> {
+                fn handle(val: &FloatVal<'_>) -> Option<$int> {
+                    None
+                }
+
+                parser.step(|c| {
+                    let (val, rest) = if let Some((f, rest)) = c.float() {
+                        (handle(f.val()), rest)
+                    } else if let Some((i, rest)) = c.integer() {
+                        let (s, base) = i.val();
+                        (
+                            handle(&FloatVal::Val {
+                                hex: base == 16,
+                                integral: s.into(),
+                                decimal: None,
+                                exponent: None,
+                            }),
+                            rest,
+                        )
+                    } else {
+                        return Err(c.error("expected a float"));
+                    };
+                    match val {
+                        Some(bits) => Ok(($name { bits }, rest)),
+                        None => Err(c.error("invalid float value")),
+                    }
+                })
+            }
+        }
+    )*)
 }
 
-impl<'a> Parse<'a> for Float32<'a> {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.step(|c| {
-            if let Some((f, rest)) = c.float() {
-                return Ok((Float32 { src: f.src() }, rest));
-            }
-            if let Some((i, rest)) = c.integer() {
-                return Ok((Float32 { src: i.src() }, rest));
-            }
-            Err(c.error("expected a float"))
-        })
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub struct Float64<'a> {
-    src: &'a str,
-}
-
-impl<'a> Parse<'a> for Float64<'a> {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.step(|c| {
-            if let Some((f, rest)) = c.float() {
-                return Ok((Float64 { src: f.src() }, rest));
-            }
-            if let Some((i, rest)) = c.integer() {
-                return Ok((Float64 { src: i.src() }, rest));
-            }
-            Err(c.error("expected a float"))
-        })
-    }
+float! {
+    Float32 => (u32, f32)
+    Float64 => (u64, f64)
 }
 
 pub struct LParen {

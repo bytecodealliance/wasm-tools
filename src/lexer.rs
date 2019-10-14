@@ -178,19 +178,32 @@ pub struct Float<'a> {
     val: FloatVal<'a>,
 }
 
+/// Possible parsed float values
 #[derive(Debug, PartialEq)]
-enum FloatVal<'a> {
+pub enum FloatVal<'a> {
+    /// A float `NaN` representation
     Nan {
+        /// The specific bits to encode for this float, optionally
         val: Option<u64>,
+        /// Whether or not this is a negative `NaN` or not.
         negative: bool,
     },
+    /// An float infinite representation,
     Inf {
+        #[allow(missing_docs)]
         negative: bool,
     },
+    /// A parsed and separated floating point value
     Val {
+        /// Whether or not the `integral` and `decimal` are specified in hex
         hex: bool,
+        /// The float parts before the `.`
         integral: Cow<'a, str>,
+        /// The float parts after the `.`
         decimal: Option<Cow<'a, str>>,
+        /// The exponent to multiple this `integral.decimal` portion of the
+        /// float by. If `hex` is true this is `2^exponent` and otherwise it's
+        /// `10^exponent`
         exponent: Option<Cow<'a, str>>,
     },
 }
@@ -764,6 +777,12 @@ impl<'a> Float<'a> {
     /// Returns the original source text for this integer.
     pub fn src(&self) -> &'a str {
         self.src
+    }
+
+    /// Returns a parsed value of this float with all of the components still
+    /// listed as strings.
+    pub fn val(&self) -> &FloatVal<'a> {
+        &self.val
     }
 }
 

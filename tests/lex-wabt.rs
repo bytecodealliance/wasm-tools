@@ -72,7 +72,6 @@ fn find_tests() -> Vec<PathBuf> {
 fn parse_wabt() {
     let mut tests = find_tests();
     tests.sort_by_key(|k| std::fs::read(&k).map(|b| b.len()).unwrap_or(0));
-    tests.reverse();
 
     let failed = tests
         .iter()
@@ -140,6 +139,7 @@ fn parse_wabt() {
 
             None
         })
+        .take(2)
         .collect::<Vec<_>>();
 
     if !failed.is_empty() {

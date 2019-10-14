@@ -203,8 +203,8 @@ instructions! {
 
         I32Const(i32) : [0x41] : "i32.const",
         I64Const(i64) : [0x42] : "i64.const",
-        F32Const(ast::Float32<'a>) : [0x43] : "f32.const",
-        F64Const(ast::Float64<'a>) : [0x44] : "f64.const",
+        F32Const(ast::Float32) : [0x43] : "f32.const",
+        F64Const(ast::Float64) : [0x44] : "f64.const",
 
         I32Clz : [0x00] : "i32.clz",
         I32Ctz : [0x00] : "i32.ctz",
