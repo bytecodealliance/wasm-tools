@@ -8,7 +8,6 @@ edition = "2018"
 members = ['fuzz']
 
 [dependencies]
-hexf-parse = "0.1"
 leb128 = "0.2"
 
 [dev-dependencies]
