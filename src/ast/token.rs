@@ -169,7 +169,7 @@ impl Peek for &'_ str {
 }
 
 macro_rules! float {
-    ($($name:ident => ($int:ident, $float:ident, $exp_bits:tt))*) => ($(
+    ($($name:ident => ($int:ident, $float:ident, $exp_bits:tt, $parse:ident))*) => ($(
         #[derive(Debug, PartialEq)]
         pub struct $name {
             pub bits: $int,
@@ -203,18 +203,30 @@ macro_rules! float {
 
                         FloatVal::Val { hex, integral, decimal, exponent } => {
                             if *hex {
-                                return None;
+                                let mut s = format!("0x{}", integral);
+                                if let Some(decimal) = decimal {
+                                    s.push_str(".");
+                                    s.push_str(&decimal);
+                                }
+                                if let Some(exponent) = exponent {
+                                    s.push_str("p");
+                                    s.push_str(&exponent);
+                                }
+                                hexf_parse::$parse(&s, false)
+                                    .ok()
+                                    .map(|s| s.to_bits())
+                            } else {
+                                let mut s = integral.to_string();
+                                if let Some(decimal) = decimal {
+                                    s.push_str(".");
+                                    s.push_str(&decimal);
+                                }
+                                if let Some(exponent) = exponent {
+                                    s.push_str("e");
+                                    s.push_str(&exponent);
+                                }
+                                s.parse::<$float>().ok().map(|s| s.to_bits())
                             }
-                            let mut s = integral.to_string();
-                            if let Some(decimal) = decimal {
-                                s.push_str(".");
-                                s.push_str(&decimal);
-                            }
-                            if let Some(exponent) = exponent {
-                                s.push_str("e");
-                                s.push_str(&exponent);
-                            }
-                            s.parse::<$float>().ok().map(|s| s.to_bits())
                         }
                     }
                 }
@@ -247,8 +259,8 @@ macro_rules! float {
 }
 
 float! {
-    Float32 => (u32, f32, 8)
-    Float64 => (u64, f64, 11)
+    Float32 => (u32, f32, 8, parse_hexf32)
+    Float64 => (u64, f64, 11, parse_hexf64)
 }
 
 pub struct LParen {
