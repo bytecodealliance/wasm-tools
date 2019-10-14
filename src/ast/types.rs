@@ -161,13 +161,7 @@ pub struct MemoryType {
 impl<'a> Parse<'a> for MemoryType {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let limits: Limits = parser.parse()?;
-        let shared = parser.peek::<kw::shared>();
-        if shared {
-            if limits.max.is_none() {
-                return Err(parser.error("shared memories must have a max limit"));
-            }
-            parser.parse::<kw::shared>()?;
-        }
+        let shared = parser.parse::<Option<kw::shared>>()?.is_some();
         Ok(MemoryType { limits, shared })
     }
 }
