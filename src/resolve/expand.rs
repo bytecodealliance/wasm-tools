@@ -96,7 +96,7 @@ impl<'a> Expander<'a> {
                 for name in g.exports.names.drain(..) {
                     self.to_append.push(ModuleField::Export(Export {
                         name,
-                        kind: ExportKind::Table(Index::Num(self.globals)),
+                        kind: ExportKind::Global(Index::Num(self.globals)),
                     }));
                 }
                 *item = ModuleField::Import(Import {
@@ -216,7 +216,7 @@ impl<'a> Expander<'a> {
                 for name in g.exports.names.drain(..) {
                     self.to_append.push(ModuleField::Export(Export {
                         name,
-                        kind: ExportKind::Table(Index::Num(self.globals)),
+                        kind: ExportKind::Global(Index::Num(self.globals)),
                     }));
                 }
                 self.globals += 1;
