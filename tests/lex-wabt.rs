@@ -139,7 +139,7 @@ fn parse_wabt() {
 
             None
         })
-        .take(2)
+        .take(1)
         .collect::<Vec<_>>();
 
     if !failed.is_empty() {

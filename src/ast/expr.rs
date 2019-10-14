@@ -190,7 +190,7 @@ instructions! {
         MemoryFill : [0xfc, 0x0b, 0x00] : "memory.fill",
         DataDrop(ast::Index<'a>) : [0xfc, 0x09] : "data.drop",
         ElemDrop(ast::Index<'a>) : [0xfc, 0x0d] : "elem.drop",
-        TableInit(ast::Index<'a>) : [0xfc, 0x0c, 0x00] : "table.init",
+        TableInit(TableInit<'a>) : [0xfc, 0x0c] : "table.init",
         TableCopy : [0xfc, 0x0e, 0x00, 0x00] : "table.copy",
         TableFill(ast::Index<'a>) : [0xfc, 0x11] : "table.fill",
         TableSize(ast::Index<'a>) : [0xfc, 0x10] : "table.size",
@@ -529,5 +529,18 @@ impl<'a> Parse<'a> for CallIndirect<'a> {
             table = parser.parse()?;
         }
         Ok(CallIndirect { table, ty })
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct TableInit<'a> {
+    pub elem: ast::Index<'a>,
+}
+
+impl<'a> Parse<'a> for TableInit<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        Ok(TableInit {
+            elem: parser.parse()?,
+        })
     }
 }

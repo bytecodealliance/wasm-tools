@@ -256,7 +256,8 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
         match instr {
             MemoryInit(i) | DataDrop(i) => self.resolver.resolve_idx(i, Ns::Data),
 
-            TableInit(i) | ElemDrop(i) => self.resolver.resolve_idx(i, Ns::Elem),
+            TableInit(i) => self.resolver.resolve_idx(&mut i.elem, Ns::Elem),
+            ElemDrop(i) => self.resolver.resolve_idx(i, Ns::Elem),
 
             TableFill(i) | TableSet(i) | TableGet(i) | TableSize(i) | TableGrow(i) => {
                 self.resolver.resolve_idx(i, Ns::Table)
