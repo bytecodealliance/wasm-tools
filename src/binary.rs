@@ -50,7 +50,8 @@ pub fn encode(module: &Module<'_>) -> Vec<u8> {
         section(8, start, &mut tmp, &mut wasm);
     }
     section_list(9, &elem, &mut tmp, &mut wasm);
-    if contains_bulk_memory(&funcs) || true { // TODO: make this conditional
+    if contains_bulk_memory(&funcs) || true {
+        // TODO: make this conditional
         section(12, data.len(), &mut tmp, &mut wasm);
     }
     section_list(10, &funcs, &mut tmp, &mut wasm);
@@ -331,24 +332,36 @@ impl Encode for Export<'_> {
 impl Encode for Elem<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         match &self.kind {
-            ElemKind::Passive { ty } => {
+            ElemKind::Passive { ty, elems } => {
                 e.push(0x01);
                 ty.encode(e);
+                elems.len().encode(e);
+                for idx in elems {
+                    match idx {
+                        Some(idx) => {
+                            Instruction::RefFunc(*idx).encode(e);
+                        }
+                        None => {
+                            Instruction::RefNull.encode(e);
+                        }
+                    }
+                    Instruction::End(None).encode(e);
+                }
             }
-            ElemKind::Active { table, offset } => {
+            ElemKind::Active {
+                table,
+                offset,
+                elems,
+            } => {
                 if *table == Index::Num(0) {
                     e.push(0x00);
-                    offset.encode(e);
                 } else {
                     e.push(0x02);
                     table.encode(e);
-                    offset.encode(e);
                 }
+                offset.encode(e);
+                elems.encode(e);
             }
-        }
-        match &self.elems {
-            Elems::Indices(list) => list.encode(e),
-            Elems::Funcrefs(list) => list.encode(e),
         }
     }
 }
@@ -360,12 +373,11 @@ impl Encode for Data<'_> {
             DataKind::Active { memory, offset } => {
                 if *memory == Index::Num(0) {
                     e.push(0x00);
-                    offset.encode(e);
                 } else {
                     e.push(0x02);
                     memory.encode(e);
-                    offset.encode(e);
                 }
+                offset.encode(e);
             }
         }
         self.data.iter().map(|l| l.len()).sum::<usize>().encode(e);

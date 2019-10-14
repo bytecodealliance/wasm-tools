@@ -107,4 +107,6 @@ pub mod kw {
     custom_keyword!(start);
     custom_keyword!(table);
     custom_keyword!(then);
+    custom_keyword!(ref_null = "ref.null");
+    custom_keyword!(ref_func = "ref.func");
 }

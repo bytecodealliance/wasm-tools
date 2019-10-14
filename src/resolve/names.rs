@@ -117,19 +117,23 @@ impl<'a> Resolver<'a> {
             }
 
             ModuleField::Elem(e) => {
-                if let ElemKind::Active { table, offset } = &mut e.kind {
-                    self.resolve_idx(table, Ns::Table)?;
-                    self.resolve_expr(offset)?;
-                }
-                match &mut e.elems {
-                    Elems::Indices(i) => {
-                        for idx in i {
+                match &mut e.kind {
+                    ElemKind::Active {
+                        table,
+                        offset,
+                        elems,
+                    } => {
+                        self.resolve_idx(table, Ns::Table)?;
+                        self.resolve_expr(offset)?;
+                        for idx in elems {
                             self.resolve_idx(idx, Ns::Func)?;
                         }
                     }
-                    Elems::Funcrefs(i) => {
-                        for expr in i {
-                            self.resolve_expr(expr)?;
+                    ElemKind::Passive { elems, .. } => {
+                        for funcref in elems {
+                            if let Some(idx) = funcref {
+                                self.resolve_idx(idx, Ns::Func)?;
+                            }
                         }
                     }
                 }

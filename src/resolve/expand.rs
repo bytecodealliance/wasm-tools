@@ -204,8 +204,8 @@ impl<'a> Expander<'a> {
                             offset: Expression {
                                 instrs: vec![Instruction::I32Const(0)],
                             },
+                            elems,
                         },
-                        elems: Elems::Indices(elems),
                     }));
                 }
 

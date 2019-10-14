@@ -158,7 +158,9 @@ fn binary_compare(test: &Path, actual: &[u8], expected: &[u8]) -> Option<String>
         return None;
     }
 
-    let difference = actual.iter().enumerate()
+    let difference = actual
+        .iter()
+        .enumerate()
         .zip(expected)
         .find(|((_, actual), expected)| actual != expected);
     let pos = match difference {
@@ -217,8 +219,7 @@ error: actual wasm differs {pos} from expected wasm
             match parser.read() {
                 // ParserState::BeginSection { code: SectionCode::DataCount, .. } => {}
                 // ParserState::DataCountSectionEntry(_) => {}
-                ParserState::Error(_) |
-                ParserState::EndWasm => break None,
+                ParserState::Error(_) | ParserState::EndWasm => break None,
                 other => break Some(format!("{:?}", other)),
             }
         }

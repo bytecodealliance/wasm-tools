@@ -51,11 +51,6 @@ impl<'a> Expander<'a> {
         if let ElemKind::Active { offset, .. } = &mut elem.kind {
             self.expand_expression(offset);
         }
-        if let Elems::Funcrefs(list) = &mut elem.elems {
-            for expr in list {
-                self.expand_expression(expr);
-            }
-        }
     }
 
     fn expand_data(&mut self, data: &mut Data<'a>) {

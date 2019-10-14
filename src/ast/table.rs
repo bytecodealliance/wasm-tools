@@ -72,24 +72,19 @@ impl<'a> Parse<'a> for Table<'a> {
 pub struct Elem<'a> {
     pub name: Option<ast::Id<'a>>,
     pub kind: ElemKind<'a>,
-    pub elems: Elems<'a>,
 }
 
 #[derive(Debug, PartialEq)]
 pub enum ElemKind<'a> {
     Passive {
         ty: ast::TableElemType,
+        elems: Vec<Option<ast::Index<'a>>>,
     },
     Active {
         table: ast::Index<'a>,
         offset: ast::Expression<'a>,
+        elems: Vec<ast::Index<'a>>,
     },
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Elems<'a> {
-    Indices(Vec<ast::Index<'a>>),
-    Funcrefs(Vec<ast::Expression<'a>>),
 }
 
 impl<'a> Parse<'a> for Elem<'a> {
@@ -99,7 +94,28 @@ impl<'a> Parse<'a> for Elem<'a> {
 
         let kind = if parser.peek::<ast::TableElemType>() {
             let ty = parser.parse::<ast::TableElemType>()?;
-            ElemKind::Passive { ty }
+            let mut elems = Vec::new();
+            if parser.peek::<ast::LParen>() {
+                while !parser.is_empty() {
+                    elems.push(parser.parens(|p| {
+                        let mut l = p.lookahead1();
+                        if l.peek::<kw::ref_null>() {
+                            p.parse::<kw::ref_null>()?;
+                            Ok(None)
+                        } else if l.peek::<kw::ref_func>() {
+                            p.parse::<kw::ref_func>()?;
+                            Ok(Some(p.parse()?))
+                        } else {
+                            Err(l.error())
+                        }
+                    })?);
+                }
+            } else {
+                while !parser.is_empty() {
+                    elems.push(Some(parser.parse()?));
+                }
+            }
+            ElemKind::Passive { ty, elems }
         } else {
             let table = parser.parse::<Option<ast::Index>>()?;
             let offset = parser.parens(|parser| {
@@ -108,25 +124,16 @@ impl<'a> Parse<'a> for Elem<'a> {
                 }
                 parser.parse()
             })?;
-            ElemKind::Active {
-                table: table.unwrap_or(ast::Index::Num(0)),
-                offset,
-            }
-        };
-
-        let elems = if parser.is_empty() || parser.peek::<ast::Index>() {
             let mut elems = Vec::new();
             while !parser.is_empty() {
                 elems.push(parser.parse()?);
             }
-            Elems::Indices(elems)
-        } else {
-            let mut elems = Vec::new();
-            while !parser.is_empty() {
-                elems.push(parser.parens(|p| p.parse())?);
+            ElemKind::Active {
+                table: table.unwrap_or(ast::Index::Num(0)),
+                offset,
+                elems,
             }
-            Elems::Funcrefs(elems)
         };
-        Ok(Elem { name, kind, elems })
+        Ok(Elem { name, kind })
     }
 }
