@@ -23,7 +23,9 @@ impl<'a> Expander<'a> {
 
     fn register_type(&mut self, ty: &Type<'a>) {
         let key = self.key(&ty.func);
-        self.types.insert(key, self.ntypes);
+        if !self.types.contains_key(&key) {
+            self.types.insert(key, self.ntypes);
+        }
         self.ntypes += 1;
     }
 

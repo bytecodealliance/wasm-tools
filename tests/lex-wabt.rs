@@ -70,11 +70,10 @@ fn find_tests() -> Vec<PathBuf> {
 
 #[test]
 fn parse_wabt() {
-    let mut tests = find_tests();
-    tests.sort_by_key(|k| std::fs::read(&k).map(|b| b.len()).unwrap_or(0));
+    let tests = find_tests();
 
     let failed = tests
-        .iter()
+        .par_iter()
         .filter_map(|test| {
             let contents = std::fs::read_to_string(&test).unwrap();
             if skip_test(&test, &contents) {
@@ -146,7 +145,6 @@ fn parse_wabt() {
 
             None
         })
-        .take(3)
         .collect::<Vec<_>>();
 
     if !failed.is_empty() {
@@ -194,7 +192,8 @@ error: actual wasm differs {pos} from expected wasm
     let mut expected_parser = Parser::new(expected);
 
     let mut differences = 0;
-    while differences < 5 {
+    let mut dots = 0;
+    while differences < 5 && dots < 5 {
         let actual_state = match read_state(&mut actual_parser) {
             Some(s) => s,
             None => break,
@@ -206,6 +205,7 @@ error: actual wasm differs {pos} from expected wasm
 
         if actual_state == expected_state {
             if differences > 0 {
+                dots += 1;
                 msg.push_str(&format!("       |   ...\n"));
             }
             continue;
