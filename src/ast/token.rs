@@ -169,7 +169,7 @@ impl Peek for &'_ str {
 }
 
 macro_rules! float {
-    ($($name:ident => ($int:ident, $float:ident))*) => ($(
+    ($($name:ident => ($int:ident, $float:ident, $exp_bits:tt))*) => ($(
         #[derive(Debug, PartialEq)]
         pub struct $name {
             pub bits: $int,
@@ -178,7 +178,45 @@ macro_rules! float {
         impl<'a> Parse<'a> for $name {
             fn parse(parser: Parser<'a>) -> Result<Self> {
                 fn handle(val: &FloatVal<'_>) -> Option<$int> {
-                    None
+                    let width = std::mem::size_of::<$int>() * 8;
+                    let neg_offset = width - 1;
+                    let exp_offset = neg_offset - $exp_bits;
+                    let signif_bits = width - 1 - $exp_bits;
+                    let signif_mask = (1 << exp_offset) - 1;
+                    match val {
+                        FloatVal::Inf { negative } => {
+                            let exp_bits = (1 << $exp_bits) - 1;
+                            let neg_bit = *negative as $int;
+                            Some((neg_bit << neg_offset) | (exp_bits << exp_offset))
+                        }
+
+                        FloatVal::Nan { negative, val } => {
+                            let exp_bits = (1 << $exp_bits) - 1;
+                            let neg_bit = *negative as $int;
+                            let signif = val.unwrap_or(1 << (signif_bits - 1)) as $int;
+                            Some(
+                                (neg_bit << neg_offset) |
+                                (exp_bits << exp_offset) |
+                                (signif & signif_mask)
+                            )
+                        }
+
+                        FloatVal::Val { hex, integral, decimal, exponent } => {
+                            if *hex {
+                                return None;
+                            }
+                            let mut s = integral.to_string();
+                            if let Some(decimal) = decimal {
+                                s.push_str(".");
+                                s.push_str(&decimal);
+                            }
+                            if let Some(exponent) = exponent {
+                                s.push_str("e");
+                                s.push_str(&exponent);
+                            }
+                            s.parse::<$float>().ok().map(|s| s.to_bits())
+                        }
+                    }
                 }
 
                 parser.step(|c| {
@@ -209,8 +247,8 @@ macro_rules! float {
 }
 
 float! {
-    Float32 => (u32, f32)
-    Float64 => (u64, f64)
+    Float32 => (u32, f32, 8)
+    Float64 => (u64, f64, 11)
 }
 
 pub struct LParen {

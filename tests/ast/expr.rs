@@ -10,7 +10,7 @@ fn bt() -> BlockType<'static> {
         label: None,
         ty: TypeUse {
             index: None,
-            ty: None,
+            ty: FunctionType { params: Vec::new(), results: Vec::new() },
         },
     }
 }
