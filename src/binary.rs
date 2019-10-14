@@ -249,7 +249,16 @@ impl Encode for Limits {
 
 impl Encode for MemoryType {
     fn encode(&self, e: &mut Vec<u8>) {
-        self.limits.encode(e);
+        if self.shared {
+            e.push(0x03);
+            self.limits.min.encode(e);
+            // Handle a textual error here by deferring the validation error
+            // until later. This isn't great though and we should probably just
+            // make `Encode` fallible if this comes up somewhere else
+            self.limits.max.unwrap_or(0).encode(e);
+        } else {
+            self.limits.encode(e);
+        }
     }
 }
 
