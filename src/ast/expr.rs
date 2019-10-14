@@ -40,11 +40,18 @@ fn parse_folded_instrs<'a>(
                             parse_folded_instrs(parser, instrs, false)
                         })?;
                         if parser.peek2::<kw::r#else>() {
+                            // Parse the `else` clause, but if it was empty then
+                            // drop it. This, while strictly optional, matches
+                            // wabt's behavior in parsing.
+                            let before = instrs.len();
                             instrs.push(Instruction::Else(None));
                             parser.parens(|parser| {
                                 parser.parse::<kw::r#else>()?;
                                 parse_folded_instrs(parser, instrs, false)
                             })?;
+                            if before + 1 == instrs.len() {
+                                instrs.truncate(before);
+                            }
                         }
                         instrs.push(Instruction::End(None));
                     }
