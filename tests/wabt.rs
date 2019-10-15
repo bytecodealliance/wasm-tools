@@ -3,9 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use wast_parser::ast::*;
-use wast_parser::binary;
 use wast_parser::parser::{self, ParseBuffer};
-use wast_parser::resolve;
 
 fn main() {
     let tests = find_tests();
@@ -77,8 +75,7 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
     for directive in wast.directives {
         match directive {
             WastDirective::Module(mut module) => {
-                resolve::resolve(&mut module).map_err(|e| adjust!(e))?;
-                let actual = binary::encode(&module);
+                let actual = module.encode().map_err(|e| adjust!(e))?;
 
                 match module.kind {
                     ModuleKind::Text(_) => {
@@ -114,7 +111,7 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
                 let result = ParseBuffer::new(&source).map_err(|e| e.into()).and_then(
                     |b| -> Result<(), wast_parser::Error> {
                         let mut wat = parser::parse::<Wat>(&b)?;
-                        resolve::resolve(&mut wat.module)?;
+                        wat.module.encode()?;
                         Ok(())
                     },
                 );

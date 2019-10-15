@@ -1,7 +1,13 @@
 use crate::ast::{self, kw};
 use crate::parser::{Parse, Parser, Result};
 
+/// A `*.wat` file parser, or a parser for one parenthesized module.
+///
+/// This is the top-level type which you'll frequently parse when working with
+/// this crate. A `*.wat` file is either one `module` s-expression or a sequence
+/// of s-expressions that are module fields.
 pub struct Wat<'a> {
+    #[allow(missing_docs)]
     pub module: Module<'a>,
 }
 
@@ -23,17 +29,79 @@ impl<'a> Parse<'a> for Wat<'a> {
     }
 }
 
+/// A parsed WebAssembly module.
 pub struct Module<'a> {
+    /// An optional name to refer to this module by.
     pub name: Option<ast::Id<'a>>,
+    /// What kind of module this was parsed as.
     pub kind: ModuleKind<'a>,
 }
 
+/// The different kinds of ways to define a module.
 pub enum ModuleKind<'a> {
     /// A module defined in the textual s-expression format.
     Text(Vec<ModuleField<'a>>),
     /// A module that had its raw binary bytes defined via the `binary`
     /// directive.
     Binary(Vec<&'a [u8]>),
+}
+
+impl Module<'_> {
+    /// Performs a name resolution pass on this [`Module`], resolving all
+    /// symbolic names to indices.
+    ///
+    /// The WAT format contains a number of shorthands to make it easier to
+    /// write, such as inline exports, inline imports, inline type definitions,
+    /// etc. Additionally it allows using symbolic names such as `$foo` instead
+    /// of using indices. This module will postprocess an AST to remove all of
+    /// this syntactic sugar, preparing the AST for binary emission.  This is
+    /// where expansion and name resolution happens.
+    ///
+    /// This function will mutate the AST of this [`Module`] and replace all
+    /// [`Index`] arguments with `Index::Num`. This will also expand inline
+    /// exports/imports listed on fields and handle various other shorthands of
+    /// the text format.
+    ///
+    /// If successful, nothing is returned, and the AST was modified to be ready
+    /// for binary encoding.
+    ///
+    /// # Errors
+    ///
+    /// If an error happens during resolution, such a name resolution error or
+    /// items are found in the wrong order, then an error is returned.
+    fn resolve(&mut self) -> std::result::Result<(), crate::Error> {
+        crate::resolve::resolve(self)?;
+        Ok(())
+    }
+
+    /// Encodes this [`Module`] to its binary form.
+    ///
+    /// This function will take the textual representation in [`Module`] and
+    /// perform all steps necessary to convert it to a binary WebAssembly
+    /// module, suitable for writing to a `*.wasm` file. This function may
+    /// internally modify the [`Module`], for example:
+    ///
+    /// * Name resolution is performed to ensure that `Index::Id` isn't present
+    ///   anywhere in the AST.
+    ///
+    /// * Inline shorthands such as imports/exports/types are all expanded to be
+    ///   dedicated fields of the module.
+    ///
+    /// * Module fields may be shuffled around to preserve index ordering from
+    ///   expansions.
+    ///
+    /// After all of this expansion has happened the module will be converted to
+    /// its binary form and returned as a `Vec<u8>`. This is then suitable to
+    /// hand off to other wasm runtimes and such.
+    ///
+    /// # Errors
+    ///
+    /// This function can return an error for name resolution errors and other
+    /// expansion-related errors.
+    pub fn encode(&mut self) -> std::result::Result<Vec<u8>, crate::Error> {
+        self.resolve()?;
+        Ok(crate::binary::encode(self))
+    }
 }
 
 impl<'a> Parse<'a> for Module<'a> {
@@ -59,6 +127,8 @@ impl<'a> Parse<'a> for Module<'a> {
     }
 }
 
+/// A listing of all possible fields that can make up a WebAssembly module.
+#[allow(missing_docs)]
 #[derive(PartialEq, Debug)]
 pub enum ModuleField<'a> {
     Type(ast::Type<'a>),

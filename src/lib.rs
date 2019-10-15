@@ -70,9 +70,7 @@
 use std::fmt;
 use std::path::Path;
 use wast_parser::ast;
-use wast_parser::binary;
 use wast_parser::parser::{self, ParseBuffer};
-use wast_parser::resolve;
 
 /// Parses a file on disk as a [WebAssembly Text format][wat] file, returning
 /// the file translated to a WebAssembly binary file.
@@ -162,8 +160,7 @@ pub fn parse_str(wat: impl AsRef<str>) -> Result<Vec<u8>> {
 fn _parse_str(wat: &str) -> Result<Vec<u8>> {
     let buf = ParseBuffer::new(&wat).map_err(|e| Error::cvt(e, wat))?;
     let mut ast = parser::parse::<ast::Wat>(&buf).map_err(|e| Error::cvt(e, wat))?;
-    resolve::resolve(&mut ast.module).map_err(|e| Error::cvt(e, wat))?;
-    Ok(binary::encode(&ast.module))
+    Ok(ast.module.encode().map_err(|e| Error::cvt(e, wat))?)
 }
 
 /// A convenience type definition for `Result` where the error is [`Error`]

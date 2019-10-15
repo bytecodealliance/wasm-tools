@@ -1,11 +1,67 @@
+//! A crate for low-level parsing of the WebAssembly text formats: WAT and WAST.
+//!
+//! This crate is intended to be a low-level detail of the `wast` crate,
+//! providing a low-level parsing API for parsing WebAssembly text format
+//! structures. The API provided by this crate is very similar to
+//! [`syn`](https://docs.rs/syn) and provides the ability to write customized
+//! parsers which may be an extension to the core WebAssembly text format. For
+//! more documentation see the [`parser`] module.
+//!
+//! # High-level Overview
+//!
+//! This crate provides a few major pieces of functionality
+//!
+//! * [`lexer`] - this is a raw lexer for the wasm text format. This is not
+//!   customizable, but if you'd like to iterate over raw tokens this is the
+//!   module for you. You likely won't use this much.
+//!
+//! * [`parser`] - this is the workhorse of this crate. The [`parser`] module
+//!   provides the [`Parse`][] trait primarily and utilities
+//!   around working with a [`Parser`](`parser::Parser`) to parse streams of
+//!   tokens.
+//!
+//! * [`Module`] - this contains an Abstract Syntax Tree (AST) of the
+//!   WebAssembly Text format (WAT) as well as the unofficial WAST format. This
+//!   also has a [`Module::encode`] method to emit a module in its binary form.
+//!
+//! # Errors
+//!
+//! Naturally with parsing a lot of errors can happen. This crate strives to
+//! provide useful error information wherever it can, also ideally providing
+//! convenient ways to render the error in a user-readable fashion. The
+//! low-level error types of [`LexError`][] or [`parser::Error`], and contain
+//! positional and detailed information about what went wrong.
+//!
+//! A convenience [`Error`] type is also provided to unify all these errors and
+//! provide utilities for rendering them all in a "pretty" format.
+//!
+//! # Stability and WebAssembly Features
+//!
+//! This crate provides support for many in-progress WebAssembly features such
+//! as reference types, multi-value, etc. Be sure to check out the documentation
+//! of the [`wast` crate](https://docs.rs/wast) for policy information on crate
+//! stability vs WebAssembly Features. The tl;dr; version is that this crate
+//! will issue semver-non-breaking releases which will break the parsing of the
+//! text format. This crate, unlike `wast`, is expected to have numerous Rust
+//! public API changes, all of which will be accompanied with a semver-breaking
+//! release.
+//!
+//! [`Parse`]: parser::Parse
+//! [`LexError`]: lexer::LexError
+
+#![deny(missing_docs)]
+
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-pub mod ast;
-pub mod binary;
+mod binary;
+mod resolve;
+
+mod ast;
+pub use self::ast::*;
+
 pub mod lexer;
 pub mod parser;
-pub mod resolve;
 
 /// Converts an offset within `self.input` to a line/column number.
 ///
@@ -24,6 +80,16 @@ fn to_linecol(input: &str, offset: usize) -> (usize, usize) {
     (input.lines().count(), 0)
 }
 
+/// A convenience error type to tie together all the detailed errors produced by
+/// this crate.
+///
+/// This type can be created from a [`lexer::LexError`] or [`parser::Error`].
+/// This also contains storage for file/text information so a nice error can be
+/// rendered along the same lines of rustc's own error messages (minus the
+/// color).
+///
+/// This type is typically suitable for use in public APIs for consumers of this
+/// crate.
 #[derive(Debug)]
 pub struct Error {
     inner: Box<ErrorInner>,
@@ -37,7 +103,7 @@ struct ErrorInner {
 }
 
 #[derive(Debug)]
-pub enum ErrorKind {
+enum ErrorKind {
     Lex(lexer::LexError),
     Parse(parser::Error),
     Resolve(resolve::ResolveError),
@@ -118,7 +184,12 @@ impl From<resolve::ResolveError> for Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let file = self.inner.file.as_ref().and_then(|p| p.to_str()).unwrap_or("<anon>");
+        let file = self
+            .inner
+            .file
+            .as_ref()
+            .and_then(|p| p.to_str())
+            .unwrap_or("<anon>");
         let empty = String::new();
         let text = self.inner.text.as_ref().unwrap_or(&empty);
         let err = match &self.inner.kind {

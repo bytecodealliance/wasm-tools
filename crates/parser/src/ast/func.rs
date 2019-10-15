@@ -1,22 +1,46 @@
 use crate::ast::{self, kw};
 use crate::parser::{Parse, Parser, Result};
 
+/// A WebAssembly function to be inserted into a module.
+///
+/// This is a member of both the function and code sections.
 #[derive(Debug, PartialEq)]
 pub struct Func<'a> {
+    /// An optional name to reference this function by.
     pub name: Option<ast::Id<'a>>,
+    /// If present, inline export annotations which indicate names this
+    /// definition should be exported under.
     pub exports: ast::InlineExport<'a>,
+    /// What kind of function this is, be it an inline-defined or imported
+    /// function.
     pub kind: FuncKind<'a>,
+    /// The type that this function will have.
     pub ty: ast::TypeUse<'a>,
 }
 
+/// Possible ways to define a function in the text format.
 #[derive(Debug, PartialEq)]
 pub enum FuncKind<'a> {
+    /// A function which is actually defined as an import, such as:
+    ///
+    /// ```text
+    /// (func (type 3) (import "foo" "bar"))
+    /// ```
     Import {
+        /// The module that this function is imported from
         module: &'a str,
+        /// The module field name this function is imported from
         name: &'a str,
     },
+
+
+    /// Almost all functions, those defined inline in a wasm module.
     Inline {
+        /// The list of locals, if any, for this function. Each local has an
+        /// optional name associated with it.
         locals: Vec<(Option<ast::Id<'a>>, ast::ValType)>,
+
+        /// The instructions of the function.
         expression: ast::Expression<'a>,
     },
 }

@@ -1,17 +1,36 @@
 use crate::ast::{self, kw};
 use crate::parser::{Parse, Parser, Result};
 
+/// A WebAssembly global in a module
 #[derive(Debug, PartialEq)]
 pub struct Global<'a> {
+    /// An optional name to reference this global by
     pub name: Option<ast::Id<'a>>,
+    /// If present, inline export annotations which indicate names this
+    /// definition should be exported under.
     pub exports: ast::InlineExport<'a>,
+    /// The type of this global, both its value type and whether it's mutable.
     pub ty: ast::GlobalType,
+    /// What kind of global this defined as.
     pub kind: GlobalKind<'a>,
 }
 
+/// Different kinds of globals that can be defined in a module.
 #[derive(Debug, PartialEq)]
 pub enum GlobalKind<'a> {
-    Import { module: &'a str, name: &'a str },
+    /// A global which is actually defined as an import, such as:
+    ///
+    /// ```text
+    /// (global i32 (import "foo" "bar"))
+    /// ```
+    Import {
+        /// The module that this function is imported from
+        module: &'a str,
+        /// The module field name this function is imported from
+        name: &'a str,
+    },
+
+    /// A global defined inline in the module itself
     Inline(ast::Expression<'a>),
 }
 

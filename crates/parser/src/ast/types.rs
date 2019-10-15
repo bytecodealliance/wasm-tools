@@ -169,7 +169,9 @@ impl<'a> Parse<'a> for MemoryType {
 /// A function type with parameters and results.
 #[derive(Clone, Debug, PartialEq)]
 pub struct FunctionType<'a> {
+    /// The parameters of a function, optionally each having a name.
     pub params: Vec<(Option<ast::Id<'a>>, ValType)>,
+    /// The results types of a function.
     pub results: Vec<ValType>,
 }
 
@@ -226,7 +228,9 @@ impl<'a> Parse<'a> for FunctionType<'a> {
 /// A type declaration in a module
 #[derive(Debug, PartialEq)]
 pub struct Type<'a> {
+    /// An optional name to refer to this `type` by.
     pub name: Option<ast::Id<'a>>,
+    /// The type that we're declaring.
     pub func: FunctionType<'a>,
 }
 
@@ -239,10 +243,17 @@ impl<'a> Parse<'a> for Type<'a> {
     }
 }
 
-/// A type declaration in a module
+/// A reference to a type defined in this module.
+///
+/// This is a pretty tricky type used in a lot of places and is somewhat subtly
+/// handled as well. In general `(type)` or `(param)` annotations are parsed as
+/// this.
 #[derive(Clone, Debug, PartialEq)]
 pub struct TypeUse<'a> {
+    /// The type that we're referencing, if it was present.
     pub index: Option<ast::Index<'a>>,
+    /// The inline function type defined. If nothing was defined inline this is
+    /// empty.
     pub ty: ast::FunctionType<'a>,
 }
 

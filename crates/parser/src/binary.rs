@@ -447,10 +447,7 @@ impl Encode for MemArg {
 impl Encode for CallIndirect<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.ty.encode(e);
-        match &self.table {
-            Some(t) => t.encode(e),
-            None => e.push(0x00),
-        }
+        self.table.encode(e);
     }
 }
 

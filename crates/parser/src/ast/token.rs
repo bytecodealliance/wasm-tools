@@ -4,6 +4,11 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str;
 
+/// An identifier in a WebAssembly module, prefixed by `$` in the textual
+/// format.
+///
+/// An identifier is used to symbolically refer to items in a a wasm module,
+/// typically via the [`Index`] type.
 #[derive(Copy, Clone)]
 pub struct Id<'a> {
     name: &'a str,
@@ -11,10 +16,14 @@ pub struct Id<'a> {
 }
 
 impl<'a> Id<'a> {
+    /// Creates a new identifier with the specified `name`.
     pub fn new(name: &str) -> Id<'_> {
         Id { name, orig: None }
     }
 
+    /// Returns the underlying name of this identifier.
+    ///
+    /// The name returned does not contain the leading `$`.
     pub fn name(&self) -> &'a str {
         self.name
     }
@@ -67,9 +76,21 @@ impl Peek for Id<'_> {
     }
 }
 
+/// A reference to another item in a wasm module.
+///
+/// This type is used for items referring to other items (such as `call $foo`
+/// referencing function `$foo`). References can be either an index (u32) or an
+/// [`Id`] in the textual format.
+///
+/// The emission phase of a module will ensure that `Index::Id` is never used
+/// and switch them all to `Index::Num`.
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Index<'a> {
+    /// A numerical index that this references. The index space this is
+    /// referencing is implicit based on where this [`Index`] is stored.
     Num(u32),
+    /// A human-readable identifier this references. Like `Num`, the namespace
+    /// this references is based on where this is stored.
     Id(Id<'a>),
 }
 
@@ -174,8 +195,10 @@ impl Peek for &'_ str {
 
 macro_rules! float {
     ($($name:ident => ($int:ident, $float:ident, $exp_bits:tt, $parse:ident))*) => ($(
+        /// A parsed floating-point type
         #[derive(Debug, PartialEq)]
         pub struct $name {
+            /// The raw bits that this floating point number represents.
             pub bits: $int,
         }
 
@@ -291,6 +314,8 @@ float! {
     Float64 => (u64, f64, 11, strtod)
 }
 
+/// A convenience type to use with [`Parser::peek`](crate::parser::Parser::peek)
+/// to see if the next token is an s-expression.
 pub struct LParen {
     _priv: (),
 }

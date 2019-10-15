@@ -34,7 +34,7 @@ fn assert_not_parses<'a, T>(buf: &'a ParseBuffer<'a>, msg: &str)
 where
     T: Parse<'a> + PartialEq + std::fmt::Debug,
 {
-    let err = buf.parser().parse::<T>().unwrap_err();
+    let err = wast_parser::parser::parse::<T>(buf).unwrap_err();
     assert!(
         err.to_string().contains(msg),
         "`{}` did not contain `{}`",

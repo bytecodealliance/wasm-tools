@@ -3,6 +3,14 @@ name = "wast"
 version = "1.0.0"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 edition = "2018"
+license = "MIT/Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/alexcrichton/wast"
+homepage = "https://github.com/alexcrichton/wast"
+documentation = "https://docs.rs/wast"
+description = """
+Rust parser for the WebAssembly Text format, WAT
+"""
 
 [workspace]
 members = ['fuzz']

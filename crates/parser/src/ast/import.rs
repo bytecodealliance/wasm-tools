@@ -1,15 +1,23 @@
 use crate::ast::{self, kw};
 use crate::parser::{Parse, Parser, Result};
 
+/// An `import` statement and entry in a WebAssembly module.
 #[derive(Debug, PartialEq)]
 pub struct Import<'a> {
+    /// The module that this statement is importing from
     pub module: &'a str,
+    /// The name of the field in the module this statement imports from.
     pub name: &'a str,
+    /// An optional identifier to refer to this import as in the rest of the
+    /// module.
     pub id: Option<ast::Id<'a>>,
+    /// What kind of item is being imported.
     pub kind: ImportKind<'a>,
 }
 
+/// All possible types of items that can be imported into a wasm module.
 #[derive(Debug, PartialEq)]
+#[allow(missing_docs)]
 pub enum ImportKind<'a> {
     Func(ast::TypeUse<'a>),
     Table(ast::TableType),

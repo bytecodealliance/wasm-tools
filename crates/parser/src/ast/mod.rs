@@ -1,3 +1,40 @@
+/// A macro to create a custom keyword parser.
+///
+/// This macro is invoked in one of two forms:
+///
+/// ```
+/// // keyword derived from the Rust identifier:
+/// wast_parser::custom_keyword!(foo);
+///
+/// // or an explicitly specified string representation of the keyword:
+/// wast_parser::custom_keyword!(my_keyword = "the-wasm-keyword");
+/// ```
+///
+/// This can then be used to parse custom keyword for custom items, such as:
+///
+/// ```
+/// use wast_parser::parser::{Parser, Result, Parse};
+///
+/// struct InlineModule<'a> {
+///     inline_text: &'a str,
+/// }
+///
+/// mod kw {
+///     wast_parser::custom_keyword!(inline);
+/// }
+///
+/// // Parse an inline string module of the form:
+/// //
+/// //    (inline "(module (func))")
+/// impl<'a> Parse<'a> for InlineModule<'a> {
+///     fn parse(parser: Parser<'a>) -> Result<Self> {
+///         parser.parse::<kw::inline>()?;
+///         Ok(InlineModule {
+///             inline_text: parser.parse()?,
+///         })
+///     }
+/// }
+/// ```
 #[macro_export]
 macro_rules! custom_keyword {
     ($name:ident) => {
@@ -5,6 +42,7 @@ macro_rules! custom_keyword {
     };
     ($name:ident = $kw:expr) => {
         #[allow(non_camel_case_types)]
+        #[allow(missing_docs)]
         pub struct $name {
             _priv: (),
         }
@@ -61,6 +99,7 @@ pub use self::token::*;
 pub use self::types::*;
 pub use self::wast::*;
 
+/// Common keyword used to parse WebAssembly text files.
 pub mod kw {
     custom_keyword!(anyfunc);
     custom_keyword!(anyref);

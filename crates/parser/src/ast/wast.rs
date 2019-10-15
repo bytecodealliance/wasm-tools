@@ -1,7 +1,13 @@
 use crate::ast::{self, kw};
 use crate::parser::{Parse, Parser, Result};
 
+/// A parsed representation of a `*.wast` file.
+///
+/// WAST files are not officially specified but are used in the official test
+/// suite to write official spec tests for wasm. This type represents a parsed
+/// `*.wast` file which parses a list of directives in a file.
 pub struct Wast<'a> {
+    #[allow(missing_docs)]
     pub directives: Vec<WastDirective<'a>>,
 }
 
@@ -15,6 +21,11 @@ impl<'a> Parse<'a> for Wast<'a> {
     }
 }
 
+/// The different kinds of directives found in a `*.wast` file.
+///
+/// It's not entirely clear to me what all of these are per se, but they're only
+/// really interesting to test harnesses mostly.
+#[allow(missing_docs)]
 pub enum WastDirective<'a> {
     Module(ast::Module<'a>),
     AssertMalformed {
@@ -123,6 +134,7 @@ impl<'a> Parse<'a> for WastDirective<'a> {
     }
 }
 
+#[allow(missing_docs)]
 pub enum WastExecute<'a> {
     Invoke(WastInvoke<'a>),
     Module(ast::Module<'a>),
@@ -151,6 +163,7 @@ impl<'a> Parse<'a> for WastExecute<'a> {
     }
 }
 
+#[allow(missing_docs)]
 pub struct WastInvoke<'a> {
     pub module: Option<ast::Id<'a>>,
     pub name: &'a str,
@@ -170,6 +183,7 @@ impl<'a> Parse<'a> for WastInvoke<'a> {
     }
 }
 
+#[allow(missing_docs)]
 pub enum QuoteModule<'a> {
     Module(ast::Module<'a>),
     Quote(Vec<&'a str>),

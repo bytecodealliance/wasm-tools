@@ -1,21 +1,33 @@
 use crate::ast::{self, kw};
 use crate::parser::{Parse, Parser, Result};
 
+/// A defined WebAssembly memory instance inside of a module.
 #[derive(Debug, PartialEq)]
 pub struct Memory<'a> {
+    /// An optional name to refer to this memory by.
     pub name: Option<ast::Id<'a>>,
+    /// If present, inline export annotations which indicate names this
+    /// definition should be exported under.
     pub exports: ast::InlineExport<'a>,
+    /// How this memory is defined in the module.
     pub kind: MemoryKind<'a>,
 }
 
+/// Different syntactical ways a memory can be defined in a module.
 #[derive(Debug, PartialEq)]
 pub enum MemoryKind<'a> {
+    /// This memory is actually an inlined import definition.
+    #[allow(missing_docs)]
     Import {
         module: &'a str,
         name: &'a str,
         ty: ast::MemoryType,
     },
+
+    /// A typical memory definition which simply says the limits of the memory
     Normal(ast::MemoryType),
+
+    /// The data of this memory, starting from 0, explicitly listed
     Inline(Vec<&'a [u8]>),
 }
 
@@ -73,6 +85,7 @@ impl<'a> Parse<'a> for Memory<'a> {
     }
 }
 
+/// A `data` directive in a WebAssembly module.
 #[derive(Debug, PartialEq)]
 pub struct Data<'a> {
     /// The optional name of this data segment
@@ -86,9 +99,15 @@ pub struct Data<'a> {
     pub data: Vec<&'a [u8]>,
 }
 
+/// Different kinds of data segments, either passive or active.
 #[derive(Debug, PartialEq)]
 pub enum DataKind<'a> {
+    /// A passive data segment which isn't associated with a memory and is
+    /// referenced from various instructions.
     Passive,
+
+    /// An active data segment which is associated and loaded into a particular
+    /// memory on module instantiation.
     Active {
         /// The memory that this `Data` will be associated with.
         memory: ast::Index<'a>,

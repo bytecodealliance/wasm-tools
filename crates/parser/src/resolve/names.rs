@@ -301,9 +301,7 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             Call(i) | RefFunc(i) => self.resolver.resolve_idx(i, Ns::Func),
 
             CallIndirect(c) => {
-                if let Some(table) = &mut c.table {
-                    self.resolver.resolve_idx(table, Ns::Table)?;
-                }
+                self.resolver.resolve_idx(&mut c.table, Ns::Table)?;
                 self.resolver.resolve_type_use(&mut c.ty)?;
                 Ok(())
             }

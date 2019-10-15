@@ -1,7 +1,13 @@
 use crate::ast::{self, kw};
 use crate::parser::{Parse, Parser, Result};
 
+/// An expression, or a list of instructions, in the WebAssembly text format.
+///
+/// This expression type will parse s-expression-folded instructions into a flat
+/// list of instructions for emission later on. The implicit `end` instruction
+/// at the end of an expression is not included in the `instrs` field.
 #[derive(Debug, PartialEq)]
+#[allow(missing_docs)]
 pub struct Expression<'a> {
     pub instrs: Vec<Instruction<'a>>,
 }
@@ -75,12 +81,17 @@ fn parse_folded_instrs<'a>(
 macro_rules! instructions {
     (pub enum Instruction<'a> {
         $(
+            $(#[$doc:meta])*
             $name:ident $(($($arg:tt)*))? : [$($binary:tt)*] : $instr:tt $( | $deprecated:tt )?,
         )*
     }) => (
+        /// A listing of all WebAssembly instructions that can be in a module
+        /// that this crate currently parses.
         #[derive(Debug, PartialEq)]
+        #[allow(missing_docs)]
         pub enum Instruction<'a> {
             $(
+                $(#[$doc])*
                 $name $(( instructions!(@ty $($arg)*) ))?,
             )*
 
@@ -441,7 +452,12 @@ instructions! {
     }
 }
 
+/// Extra information associated with block-related instructions.
+///
+/// This is used to label blocks and also annotate what types are expected for
+/// the block.
 #[derive(Debug, PartialEq)]
+#[allow(missing_docs)]
 pub struct BlockType<'a> {
     pub label: Option<ast::Id<'a>>,
     pub ty: ast::TypeUse<'a>,
@@ -456,6 +472,8 @@ impl<'a> Parse<'a> for BlockType<'a> {
     }
 }
 
+/// Extra information associated with the `br_table` instruction.
+#[allow(missing_docs)]
 #[derive(Debug, PartialEq)]
 pub struct BrTableIndices<'a> {
     pub labels: Vec<ast::Index<'a>>,
@@ -474,9 +492,16 @@ impl<'a> Parse<'a> for BrTableIndices<'a> {
     }
 }
 
+/// Payload for memory-related instructions indicating offset/alignment of
+/// memory accesses.
 #[derive(Debug, PartialEq)]
 pub struct MemArg {
+    /// The alignment of this access.
+    ///
+    /// This is not stored as a log, this is the actual alignment (e.g. 1, 2, 4,
+    /// 8, etc).
     pub align: u32,
+    /// The offset, in bytes of this access.
     pub offset: u32,
 }
 
@@ -523,9 +548,12 @@ impl MemArg {
     }
 }
 
+/// Extra data associated with the `call_indirect` instruction.
 #[derive(Debug, PartialEq)]
 pub struct CallIndirect<'a> {
-    pub table: Option<ast::Index<'a>>,
+    /// The table that this call is going to be indexing.
+    pub table: ast::Index<'a>,
+    /// Type type signature that this `call_indirect` instruction is using.
     pub ty: ast::TypeUse<'a>,
 }
 
@@ -539,12 +567,14 @@ impl<'a> Parse<'a> for CallIndirect<'a> {
         if table.is_none() {
             table = parser.parse()?;
         }
-        Ok(CallIndirect { table, ty })
+        Ok(CallIndirect { table: table.unwrap_or(ast::Index::Num(0)), ty })
     }
 }
 
+/// Extra data associated with the `table.init` instruction
 #[derive(Debug, PartialEq)]
 pub struct TableInit<'a> {
+    /// The index of the element segment we're copying into a table.
     pub elem: ast::Index<'a>,
 }
 
@@ -556,8 +586,10 @@ impl<'a> Parse<'a> for TableInit<'a> {
     }
 }
 
+/// Extra data associated with the `memory.init` instruction
 #[derive(Debug, PartialEq)]
 pub struct MemoryInit<'a> {
+    /// The index of the data segment we're copying into memory.
     pub data: ast::Index<'a>,
 }
 

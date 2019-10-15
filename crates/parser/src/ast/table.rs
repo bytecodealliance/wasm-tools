@@ -1,23 +1,38 @@
 use crate::ast::{self, kw};
 use crate::parser::{Parse, Parser, Result};
 
+/// A WebAssembly `table` directive in a module.
 #[derive(Debug, PartialEq)]
 pub struct Table<'a> {
+    /// An optional name to refer to this table by.
     pub name: Option<ast::Id<'a>>,
+    /// If present, inline export annotations which indicate names this
+    /// definition should be exported under.
     pub exports: ast::InlineExport<'a>,
+    /// How this table is textually defined in the module.
     pub kind: TableKind<'a>,
 }
 
+/// Different ways to textually define a table.
 #[derive(Debug, PartialEq)]
 pub enum TableKind<'a> {
+    /// This table is actually an inlined import definition.
+    #[allow(missing_docs)]
     Import {
         module: &'a str,
         name: &'a str,
         ty: ast::TableType,
     },
+
+    /// A typical memory definition which simply says the limits of the table
     Normal(ast::TableType),
+
+    /// The elem segments of this table, starting from 0, explicitly listed
     Inline {
+        /// The element type of this table.
         elem: ast::TableElemType,
+        /// The element table entries to have, and the length of this list is
+        /// the limits of the table as well.
         elems: Vec<ast::Index<'a>>,
     },
 }
@@ -68,21 +83,35 @@ impl<'a> Parse<'a> for Table<'a> {
     }
 }
 
+/// An `elem` segment in a WebAssembly module.
 #[derive(Debug, PartialEq)]
 pub struct Elem<'a> {
+    /// An optional name by which to refer to this segment.
     pub name: Option<ast::Id<'a>>,
+    /// The way this segment was defined in the module.
     pub kind: ElemKind<'a>,
 }
 
+/// Different ways to define an element segment in an mdoule.
 #[derive(Debug, PartialEq)]
 pub enum ElemKind<'a> {
+    /// A passive segment that isn't associated with a table and can be used in
+    /// various bulk-memory instructions.
     Passive {
+        /// The type of elements within this segment.
         ty: ast::TableElemType,
+        /// The function indices (for now) of elements in this segment. `None`
+        /// entries represent `ref.null` instructions.
         elems: Vec<Option<ast::Index<'a>>>,
     },
+
+    /// An active segment associated with a table.
     Active {
+        /// The table this `elem` is initializing.
         table: ast::Index<'a>,
+        /// The offset within `table` that we'll initialize at.
         offset: ast::Expression<'a>,
+        /// The function indices that will be inserted into the table.
         elems: Vec<ast::Index<'a>>,
     },
 }

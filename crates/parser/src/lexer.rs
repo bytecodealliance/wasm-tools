@@ -1,6 +1,28 @@
-//! TODO: docs
-
-#![deny(missing_docs)]
+//! Definition of a lexer for the WebAssembly text format.
+//!
+//! This module provides a [`Lexer`][] type which is an iterate over the raw
+//! tokens of a WebAssembly text file. A [`Lexer`][] accounts for every single
+//! byte in a WebAssembly text field, returning tokens even for comments and
+//! whitespace. Typically you'll ignore comments and whitespace, however.
+//!
+//! If you'd like to iterate over the tokens in a file you can do so via:
+//!
+//! ```
+//! # fn foo() -> Result<(), wast_parser::Error> {
+//! use wast_parser::lexer::Lexer;
+//!
+//! let wat = "(module (func $foo))";
+//! for token in Lexer::new(wat) {
+//!     println!("{:?}", token?);
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! Note that you'll typically not use this module but will rather use
+//! [`ParseBuffer`](crate::parser::ParseBuffer) instead.
+//!
+//! [`Lexer`]: crate::lexer::Lexer
 
 use std::borrow::Cow;
 use std::char;
@@ -10,9 +32,9 @@ use std::str;
 
 /// A structure used to lex the s-expression syntax of WAT files.
 ///
-/// This structure is used to generate `Source` items, which should account for
-/// every single byte of the input as we iterate over it. Errors are returned
-/// for any non-lexable text.
+/// This structure is used to generate [`Source`] items, which should account for
+/// every single byte of the input as we iterate over it. A [`LexError`] is
+/// returned for any non-lexable text.
 #[derive(Clone)]
 pub struct Lexer<'a> {
     it: iter::Peekable<str::CharIndices<'a>>,
