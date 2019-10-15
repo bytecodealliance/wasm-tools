@@ -22,12 +22,6 @@ fuzz_target!(|data: &[u8]| {
         return;
     }
 
-    // ignore `quote` modules since they're only there for the test suite in
-    // wabt to parse anyway
-    if let wast::ast::ModuleKind::Quote(_) = wat.module.kind {
-        return;
-    }
-
     match wast::resolve::resolve(&mut wat.module) {
         Ok(()) => (),
         Err(_) => return,

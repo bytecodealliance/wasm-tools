@@ -18,7 +18,7 @@ impl<'a> Parse<'a> for Wast<'a> {
 pub enum WastDirective<'a> {
     Module(ast::Module<'a>),
     AssertMalformed {
-        module: ast::Module<'a>,
+        module: QuoteModule<'a>,
         message: &'a str,
     },
     AssertInvalid {
@@ -167,5 +167,26 @@ impl<'a> Parse<'a> for WastInvoke<'a> {
             args.push(parser.parens(|p| p.parse())?);
         }
         Ok(WastInvoke { module, name, args })
+    }
+}
+
+pub enum QuoteModule<'a> {
+    Module(ast::Module<'a>),
+    Quote(Vec<&'a str>),
+}
+
+impl<'a> Parse<'a> for QuoteModule<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        if parser.peek2::<kw::quote>() {
+            parser.parse::<kw::module>()?;
+            parser.parse::<kw::quote>()?;
+            let mut src = Vec::new();
+            while !parser.is_empty() {
+                src.push(parser.parse()?);
+            }
+            Ok(QuoteModule::Quote(src))
+        } else {
+            Ok(QuoteModule::Module(parser.parse()?))
+        }
     }
 }

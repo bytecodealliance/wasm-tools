@@ -31,8 +31,6 @@ pub struct Module<'a> {
 pub enum ModuleKind<'a> {
     /// A module defined in the textual s-expression format.
     Text(Vec<ModuleField<'a>>),
-    /// TODO: what is this?
-    Quote(Vec<&'a [u8]>),
     /// A module that had its raw binary bytes defined via the `binary`
     /// directive.
     Binary(Vec<&'a [u8]>),
@@ -50,13 +48,6 @@ impl<'a> Parse<'a> for Module<'a> {
                 data.push(parser.parse()?);
             }
             ModuleKind::Binary(data)
-        } else if parser.peek::<kw::quote>() {
-            parser.parse::<kw::quote>()?;
-            let mut data = Vec::new();
-            while !parser.is_empty() {
-                data.push(parser.parse()?);
-            }
-            ModuleKind::Quote(data)
         } else {
             let mut fields = Vec::new();
             while !parser.is_empty() {

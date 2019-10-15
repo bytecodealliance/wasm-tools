@@ -3,7 +3,6 @@ use crate::ast::*;
 pub fn encode(module: &Module<'_>) -> Vec<u8> {
     let fields = match &module.kind {
         ModuleKind::Text(fields) => fields,
-        ModuleKind::Quote(_) => panic!("unknown what to do here"),
         ModuleKind::Binary(bytes) => {
             return bytes.iter().flat_map(|b| b.iter().cloned()).collect();
         }
