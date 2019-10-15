@@ -1,4 +1,4 @@
-use wast::ast::*;
+use wast_parser::ast::*;
 
 #[test]
 fn id() {

@@ -1,5 +1,5 @@
-use wast::ast::Instruction::*;
-use wast::ast::*;
+use wast_parser::ast::Instruction::*;
+use wast_parser::ast::*;
 
 macro_rules! expr {
     ($($t:tt)*) => (Expression { instrs: vec![$($t)*] })

@@ -1,15 +1,15 @@
-use wast::parser::{Parse, ParseBuffer};
+use wast_parser::parser::{Parse, ParseBuffer};
 
 macro_rules! assert_parses {
     ($text:expr, $item:expr) => {{
-        let pb = wast::parser::ParseBuffer::new($text).unwrap();
+        let pb = wast_parser::parser::ParseBuffer::new($text).unwrap();
         crate::assert_parses($text, &pb, $item);
     }};
 }
 
 macro_rules! assert_not_parses {
     ($text:expr, $ty:ty, $msg:expr) => {{
-        let pb = wast::parser::ParseBuffer::new($text).unwrap();
+        let pb = wast_parser::parser::ParseBuffer::new($text).unwrap();
         crate::assert_not_parses::<$ty>(&pb, $msg);
     }};
 }
@@ -22,29 +22,12 @@ fn assert_parses<'a, T>(orig: &str, buf: &'a ParseBuffer<'a>, reference: T)
 where
     T: Parse<'a> + PartialEq + std::fmt::Debug,
 {
-    let result = buf
-        .parser()
-        .parse::<T>()
-        .unwrap_or_else(|e| render_err(orig, e));
-    if !buf.parser().is_empty() {
-        panic!("extra tokens when parsing {:?}", orig);
-    }
+    let result = wast_parser::parser::parse::<T>(buf).unwrap_or_else(|e| {
+        let mut err = wast_parser::Error::from(e);
+        err.set_text(orig);
+        panic!("{}", err)
+    });
     assert_eq!(result, reference);
-}
-
-fn render_err(input: &str, err: wast::parser::Error) -> ! {
-    eprintln!("");
-    eprintln!("error: {}", err);
-    eprintln!("     --> <anon>:{}:{}", err.line() + 1, err.col() + 1);
-    eprintln!("      |");
-    eprintln!(
-        " {:4} | {}",
-        err.line() + 1,
-        input.lines().nth(err.line()).unwrap()
-    );
-    eprintln!("      | {1:>0$}", err.col() + 1, "^");
-    eprintln!("");
-    panic!("{}", err);
 }
 
 fn assert_not_parses<'a, T>(buf: &'a ParseBuffer<'a>, msg: &str)
