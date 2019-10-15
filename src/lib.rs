@@ -183,10 +183,7 @@ pub struct Error {
 #[derive(Debug)]
 enum ErrorKind {
     Wast(wast_parser::Error),
-    Io {
-        err: std::io::Error,
-        msg: String,
-    },
+    Io { err: std::io::Error, msg: String },
 }
 
 impl Error {

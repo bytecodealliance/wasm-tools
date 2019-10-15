@@ -567,7 +567,10 @@ impl<'a> Parse<'a> for CallIndirect<'a> {
         if table.is_none() {
             table = parser.parse()?;
         }
-        Ok(CallIndirect { table: table.unwrap_or(ast::Index::Num(0)), ty })
+        Ok(CallIndirect {
+            table: table.unwrap_or(ast::Index::Num(0)),
+            ty,
+        })
     }
 }
 

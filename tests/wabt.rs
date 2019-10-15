@@ -61,12 +61,12 @@ fn run_test(test: &Path, contents: &str) -> anyhow::Result<()> {
 
 fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
     macro_rules! adjust {
-        ($e:expr) => ({
+        ($e:expr) => {{
             let mut e = wast_parser::Error::from($e);
             e.set_path(test);
             e.set_text(contents);
             e
-        })
+        }};
     }
     let buf = ParseBuffer::new(contents).map_err(|e| adjust!(e))?;
     let wast = parser::parse::<Wast>(&buf).map_err(|e| adjust!(e))?;
@@ -95,9 +95,7 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
             // test the semantics here and I'm a bit lazy to implement
             // this validation for now.
             WastDirective::AssertMalformed { message, .. }
-                if message.starts_with("import after ") =>
-            {
-            }
+                if message.starts_with("import after ") => {}
 
             WastDirective::AssertMalformed {
                 module: QuoteModule::Quote(source),
@@ -116,15 +114,15 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
                     },
                 );
                 match result {
-                    Ok(()) => {
-                        anyhow::bail!(
-                            "\
-                             in test {:?} parsed {:?} successfully\n\
-                             but should have failed with: {}\
-                             ",
-                            test, source, message,
-                        )
-                    }
+                    Ok(()) => anyhow::bail!(
+                        "\
+                         in test {:?} parsed {:?} successfully\n\
+                         but should have failed with: {}\
+                         ",
+                        test,
+                        source,
+                        message,
+                    ),
                     Err(e) => {
                         if e.to_string().contains(message) {
                             continue;
@@ -134,7 +132,10 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
                              in test {:?} parsed {:?} with error: {}\n\
                              but should have failed with: {}\
                              ",
-                            test, source, e, message,
+                            test,
+                            source,
+                            e,
+                            message,
                         );
                     }
                 }

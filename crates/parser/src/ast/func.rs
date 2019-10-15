@@ -33,7 +33,6 @@ pub enum FuncKind<'a> {
         name: &'a str,
     },
 
-
     /// Almost all functions, those defined inline in a wasm module.
     Inline {
         /// The list of locals, if any, for this function. Each local has an
