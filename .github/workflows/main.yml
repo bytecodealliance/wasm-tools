@@ -33,13 +33,24 @@ jobs:
       with:
         submodules: 'recursive'
     - name: Install Rust (rustup)
-      run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
+      run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
       if: matrix.os != 'macos-latest'
     - name: Install Rust (macos)
       run: |
         curl https://sh.rustup.rs | sh -s -- -y
         echo "##[add-path]$HOME/.cargo/bin"
       if: matrix.os == 'macos-latest'
+
+    - name: Build wat2wasm
+      run: |
+        set -e
+        cd tests/wabt
+        mkdir build
+        cmake .. -G Ninja
+        ninja wasm2wat
+        echo "##[add-path]`pwd`"
+      shell: bash
+
     - run: cargo test
     - run: cargo test -p wast-parser
 
