@@ -71,3 +71,15 @@ jobs:
     - name: Install Rust
       run: rustup update stable && rustup default stable && rustup component add rustfmt
     - run: cargo fmt -- --check
+
+  fuzz:
+    name: Fuzz
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [parser, binary, lexer]
+    steps:
+    - uses: actions/checkout@master
+    - name: Install Rust
+      run: rustup update nightly && rustup default nightly
+    - run: cargo fuzz run --release ${{ matrix.target }} -- -max_total_time=30 -jobs=2 -verbosity=0

@@ -12,5 +12,5 @@ fuzz_target!(|data: &[u8]| {
         Ok(b) => b,
         Err(_) => return,
     };
-    drop(wast_parser::parser::parse::<wast_parser::ast::Wast>(&buf));
+    drop(wast_parser::parser::parse::<wast_parser::Wast>(&buf));
 });
