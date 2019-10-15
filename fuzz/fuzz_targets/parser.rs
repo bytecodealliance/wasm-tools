@@ -8,9 +8,9 @@ fuzz_target!(|data: &[u8]| {
         Ok(s) => s,
         Err(_) => return,
     };
-    let buf = match wast::parser::ParseBuffer::new(s) {
+    let buf = match wast_parser::parser::ParseBuffer::new(s) {
         Ok(b) => b,
         Err(_) => return,
     };
-    drop(wast::parser::parse::<wast::ast::Wast>(&buf));
+    drop(wast_parser::parser::parse::<wast_parser::ast::Wast>(&buf));
 });

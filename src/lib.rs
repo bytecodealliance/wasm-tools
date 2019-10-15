@@ -68,7 +68,7 @@
 #![deny(missing_docs)]
 
 use std::fmt;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use wast_parser::ast;
 use wast_parser::binary;
 use wast_parser::parser::{self, ParseBuffer};
