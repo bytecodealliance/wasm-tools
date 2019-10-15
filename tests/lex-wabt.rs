@@ -112,6 +112,38 @@ fn parse_wabt() {
             for directive in directives {
                 let mut module = match directive {
                     WastDirective::Module(m) => m,
+                    WastDirective::AssertMalformed {
+                        module: QuoteModule::Quote(source),
+                        message,
+                    } => {
+                        let source = source.concat();
+                        let result = wast::parser::ParseBuffer::new(&source)
+                            .map_err(|e| e.into())
+                            .and_then(|b| wast::parser::parse::<Wat>(&b).map(|_| ()));
+                        match result {
+                            Ok(()) => {
+                                return Some(format!(
+                                    "\
+                                     in test {:?} parsed {:?} successfully\n\
+                                     but should have failed with: {}\
+                                     ",
+                                    test, source, message,
+                                ))
+                            }
+                            Err(e) => {
+                                if e.to_string().contains(message) {
+                                    continue;
+                                }
+                                return Some(format!(
+                                    "\
+                                     in test {:?} parsed {:?} with error: {}\n\
+                                     but should have failed with: {}\
+                                     ",
+                                    test, source, e, message,
+                                ));
+                            }
+                        }
+                    }
                     _ => continue,
                 };
                 match wast::resolve::resolve(&mut module) {

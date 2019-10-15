@@ -109,7 +109,11 @@ macro_rules! integers {
                             });
                         return match val {
                             Ok(n) => Ok((n, rest)),
-                            Err(_) => Err(c.error(concat!("invalid ", stringify!($i), " number"))),
+                            Err(_) => Err(c.error(concat!(
+                                "invalid ",
+                                stringify!($i),
+                                " number: constant out of range",
+                            ))),
                         };
                     }
                     Err(c.error(concat!("expected a ", stringify!($i))))
@@ -154,7 +158,7 @@ impl Peek for &'_ [u8] {
 
 impl<'a> Parse<'a> for &'a str {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        str::from_utf8(parser.parse()?).map_err(|_| parser.error("invalid utf-8"))
+        str::from_utf8(parser.parse()?).map_err(|_| parser.error("invalid UTF-8 encoding"))
     }
 }
 

@@ -103,7 +103,7 @@ macro_rules! instructions {
                     };
                     match kw {
                         $($instr $( | $deprecated )?=> Ok(($name as fn(_) -> _, rest)),)*
-                        _ => return Err(c.error("unknown instruction")),
+                        _ => return Err(c.error("unknown operator")),
                     }
                 })?;
                 parse_remainder(parser)

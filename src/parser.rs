@@ -262,16 +262,16 @@ impl Lookahead1<'_> {
                 }
             }
             1 => {
-                let message = format!("expected {}", self.attempts[0]);
+                let message = format!("unexpected token, expected {}", self.attempts[0]);
                 self.parser.error(&message)
             }
             2 => {
-                let message = format!("expected {} or {}", self.attempts[0], self.attempts[1]);
+                let message = format!("unexpected token, expected {} or {}", self.attempts[0], self.attempts[1]);
                 self.parser.error(&message)
             }
             _ => {
                 let join = self.attempts.join(", ");
-                let message = format!("expected one of: {}", join);
+                let message = format!("unexpected token, expected one of: {}", join);
                 self.parser.error(&message)
             }
         }

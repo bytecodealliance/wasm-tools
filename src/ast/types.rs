@@ -181,7 +181,9 @@ impl<'a> FunctionType<'a> {
                 if l.peek::<kw::param>() {
                     p.parse::<kw::param>()?;
                     if self.results.len() > 0 {
-                        return Err(p.error("cannot list params after results"));
+                        return Err(
+                            p.error("result before parameter: cannot list params after results")
+                        );
                     }
                     if p.is_empty() {
                         return Ok(());
