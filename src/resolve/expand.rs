@@ -3,7 +3,7 @@ use std::mem;
 
 #[derive(Default)]
 pub struct Expander<'a> {
-    pub to_append: Vec<ModuleField<'a>>,
+    to_append: Vec<ModuleField<'a>>,
     funcs: u32,
     memories: u32,
     tables: u32,
@@ -15,6 +15,26 @@ fn page_size() -> u32 {
 }
 
 impl<'a> Expander<'a> {
+    /// Process all elements of `fields`, with the specified expansion method.
+    ///
+    /// This method will handle the `to_append` field of this `Expander`,
+    /// appending items after processing a `ModuleField` as necessary.
+    pub fn process(
+        &mut self,
+        fields: &mut Vec<ModuleField<'a>>,
+        mut f: impl FnMut(&mut Self, &mut ModuleField<'a>),
+    ) {
+        let mut cur = 0;
+        while cur < fields.len() {
+            f(self, &mut fields[cur]);
+            for new in self.to_append.drain(..) {
+                fields.insert(cur, new);
+                cur += 1;
+            }
+            cur += 1;
+        }
+    }
+
     /// Inverts inline `import` descriptions into actual `import` statements.
     ///
     /// In doing so this also takes care of inline `export` statements, if any,

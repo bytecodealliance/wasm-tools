@@ -38,13 +38,8 @@ pub fn resolve(module: &mut Module) -> Result<(), ResolveError> {
     // The final step is then taking all of the injected `export` fields and
     // actually pushing them onto our list of fields.
     let mut expander = expand::Expander::default();
-    for field in fields.iter_mut() {
-        expander.deinline_import(field);
-    }
-    for field in fields.iter_mut() {
-        expander.deinline_export(field);
-    }
-    fields.extend(expander.to_append.drain(..));
+    expander.process(fields, expand::Expander::deinline_import);
+    expander.process(fields, expand::Expander::deinline_export);
 
     // For the second pass we resolve all inline type annotations. This will, in
     // the order that we see them, append to the list of types. Note that types
