@@ -42,7 +42,7 @@ jobs:
       if: matrix.os == 'macos-latest'
 
     - name: Install Ninja (Linux)
-      run: sudo apt install ninja
+      run: sudo apt install ninja-build
       if: matrix.os == 'ubuntu-latest'
     - name: Install Ninja (macOS)
       run: brew install ninja
