@@ -56,7 +56,7 @@ jobs:
         set -e
         cd tests/wabt
         cmake . -G Ninja
-        ninja wast2json wasm2wat
+        ninja wast2json wat2wasm
         echo "##[add-path]`pwd`"
       shell: bash
 
