@@ -15,6 +15,8 @@ impl<'a> Parse<'a> for Wat<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let module = if !parser.peek2::<kw::module>() {
             let mut fields = Vec::new();
+            // must have at least one field
+            fields.push(parser.parens(ModuleField::parse)?);
             while !parser.is_empty() {
                 fields.push(parser.parens(ModuleField::parse)?);
             }
