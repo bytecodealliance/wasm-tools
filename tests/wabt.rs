@@ -339,14 +339,14 @@ fn skip_test(test: &Path, contents: &str) -> bool {
     // FIXME(WebAssembly/wabt#1187) on macos this appears to be incorrect with
     // wabt, although still waiting on that issue itself.
     if test.ends_with("bulk-memory-named.txt") && cfg!(target_os = "macos") {
-        return Ok(());
+        return true;
     }
 
     // FIXME(#13) we're shielding ourselves from platform differences in hex
     // float parsing for now, but we should implement a Rust version that works
     // everywhere
     if test.ends_with("const.wast") && !cfg!(target_os = "linux") {
-        return Ok(());
+        return true;
     }
 
     // Skip tests that are supposed to fail
