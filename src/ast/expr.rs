@@ -103,7 +103,7 @@ macro_rules! instructions {
                     };
                     match kw {
                         $($instr $( | $deprecated )?=> Ok(($name as fn(_) -> _, rest)),)*
-                        _ => return Err(c.error("unknown operator")),
+                        _ => return Err(c.error("unknown operator or unexpected token")),
                     }
                 })?;
                 parse_remainder(parser)
@@ -499,23 +499,27 @@ impl MemArg {
                 let num = if num.starts_with("0x") {
                     match u32::from_str_radix(&num[2..], 16) {
                         Ok(n) => n,
-                        Err(_) => return Err(c.error("invalid number")),
+                        Err(_) => return Err(c.error("i32 constant out of range")),
                     }
                 } else {
                     match num.parse() {
                         Ok(n) => n,
-                        Err(_) => return Err(c.error("invalid number")),
+                        Err(_) => return Err(c.error("i32 constant out of range")),
                     }
                 };
 
                 Ok((Some(num), rest))
             })
         }
+        let offset = parse_field("offset", parser)?.unwrap_or(0);
+        let align = match parse_field("align", parser)? {
+            Some(n) if !n.is_power_of_two() => {
+                return Err(parser.error("alignment must be a power of two"))
+            }
+            n => n.unwrap_or(default_align),
+        };
 
-        Ok(MemArg {
-            offset: parse_field("offset", parser)?.unwrap_or(0),
-            align: parse_field("align", parser)?.unwrap_or(default_align),
-        })
+        Ok(MemArg { offset, align })
     }
 }
 

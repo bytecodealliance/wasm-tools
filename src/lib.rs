@@ -1,3 +1,5 @@
+use std::fmt;
+
 pub mod ast;
 pub mod binary;
 pub mod lexer;
@@ -20,3 +22,58 @@ fn to_linecol(input: &str, offset: usize) -> (usize, usize) {
     }
     (input.lines().count(), 0)
 }
+
+#[derive(Debug)]
+pub enum Error {
+    Lex(lexer::LexError),
+    Parse(parser::Error),
+    Resolve(resolve::ResolveError),
+}
+
+impl Error {
+    pub fn line(&self) -> usize {
+        match self {
+            Error::Lex(e) => e.line(),
+            Error::Parse(e) => e.line(),
+            Error::Resolve(e) => e.line(),
+        }
+    }
+
+    pub fn col(&self) -> usize {
+        match self {
+            Error::Lex(e) => e.col(),
+            Error::Parse(e) => e.col(),
+            Error::Resolve(e) => e.col(),
+        }
+    }
+}
+
+impl From<lexer::LexError> for Error {
+    fn from(err: lexer::LexError) -> Error {
+        Error::Lex(err)
+    }
+}
+
+impl From<parser::Error> for Error {
+    fn from(err: parser::Error) -> Error {
+        Error::Parse(err)
+    }
+}
+
+impl From<resolve::ResolveError> for Error {
+    fn from(err: resolve::ResolveError) -> Error {
+        Error::Resolve(err)
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Error::Lex(e) => e.fmt(f),
+            Error::Parse(e) => e.fmt(f),
+            Error::Resolve(e) => e.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for Error {}

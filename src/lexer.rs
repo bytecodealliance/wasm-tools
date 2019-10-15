@@ -261,43 +261,10 @@ impl<'a> Lexer<'a> {
             return Ok(Some(Token::String { val, src }));
         }
 
-        // ... And after that, things get interesting. According to the official
-        // spec there are "reserved" tokens and an "idchar" set of characters.
-        // These all intersect interestingly with numbers as well, since every
-        // number is apparently a valid reserved token. This whole thing is
-        // somewhat janky and we should probably stop trying to handle the
-        // spec-level `reserved` token here at some point, but in any case this
-        // is what we have for now:
-        //
-        // * First, try to peel off a sign character like `+` and `-`.
-        // * Using this, parse a number, and if we get a number it consumes the
-        //   `+` and `-`
-        // * Otherwise we peel off all `idchar` tokens we can find.
-        // * Looking at the result of that, we try to pattern match on a few
-        //   known types like +/- nan/inf, actual ids (starting with `$`) and
-        //   general keywords (starting with letters)
-        //
-        // Failing all that we return a `Reserved` token, but honestly by the
-        // time this lexer is finished I suspect that'll get removed.
-        let (sign_start, negative) = if let Some(i) = self.eat_char('-') {
-            (Some(i), true)
-        } else if let Some(i) = self.eat_char('+') {
-            (Some(i), false)
-        } else {
-            (None, false)
-        };
-
-        if let Some(n) = self.number(sign_start)? {
-            return Ok(Some(n));
-        }
-
-        let start = match sign_start {
-            Some(i) => i,
-            None => match self.it.peek().cloned() {
-                Some((i, ch)) if is_idchar(ch) => i,
-                Some((i, ch)) => return Err(self.error(i, LexErrorKind::Unexpected(ch))),
-                None => return Ok(None),
-            },
+        let (start, prefix) = match self.it.peek().cloned() {
+            Some((i, ch)) if is_idchar(ch) => (i, ch),
+            Some((i, ch)) => return Err(self.error(i, LexErrorKind::Unexpected(ch))),
+            None => return Ok(None),
         };
 
         while let Some((_, ch)) = self.it.peek().cloned() {
@@ -308,88 +275,91 @@ impl<'a> Lexer<'a> {
             }
         }
 
-        // Handle `inf` and `nan` which are special numbers here
-        let src = &self.input[start..self.cur()];
-        let num = if sign_start.is_some() { &src[1..] } else { src };
+        let reserved = &self.input[start..self.cur()];
 
+        if let Some(number) = self.number(reserved) {
+            Ok(Some(number))
+        } else if prefix == '$' && reserved.len() > 1 {
+            Ok(Some(Token::Id(reserved)))
+        } else if 'a' <= prefix && prefix <= 'z' {
+            Ok(Some(Token::Keyword(reserved)))
+        } else {
+            Ok(Some(Token::Reserved(reserved)))
+        }
+    }
+
+    fn number(&self, src: &'a str) -> Option<Token<'a>> {
+        let (negative, num) = if src.starts_with('+') {
+            (false, &src[1..])
+        } else if src.starts_with('-') {
+            (true, &src[1..])
+        } else {
+            (false, src)
+        };
+
+        // Handle `inf` and `nan` which are special numbers here
         if num == "inf" {
-            return Ok(Some(Token::Float(Float {
+            return Some(Token::Float(Float {
                 src,
                 val: FloatVal::Inf { negative },
-            })));
-        }
-        if num == "nan" {
-            return Ok(Some(Token::Float(Float {
+            }));
+        } else if num == "nan" {
+            return Some(Token::Float(Float {
                 src,
                 val: FloatVal::Nan {
                     val: None,
                     negative,
                 },
-            })));
-        }
-        if num.starts_with("nan:0x") {
-            let to_parse = num[6..].replace("_", "");
-            if let Ok(n) = u64::from_str_radix(&to_parse, 16) {
-                return Ok(Some(Token::Float(Float {
-                    src,
-                    val: FloatVal::Nan {
-                        val: Some(n),
-                        negative,
-                    },
-                })));
+            }));
+        } else if num.starts_with("nan:0x") {
+            let mut it = num[6..].chars();
+            let to_parse = skip_undescores(&mut it, false, char::is_ascii_hexdigit)?;
+            if it.next().is_some() {
+                return None;
             }
+            let n = u64::from_str_radix(&to_parse, 16).ok()?;
+            return Some(Token::Float(Float {
+                src,
+                val: FloatVal::Nan {
+                    val: Some(n),
+                    negative,
+                },
+            }));
         }
 
-        let ch = src.chars().next().unwrap();
-        if ch == '$' && src.len() > 1 {
-            Ok(Some(Token::Id(src)))
-        } else if 'a' <= ch && ch <= 'z' {
-            Ok(Some(Token::Keyword(src)))
+        // Figure out if we're a hex number or not
+        let (mut it, hex, test_valid) = if num.starts_with("0x") {
+            (
+                num[2..].chars(),
+                true,
+                char::is_ascii_hexdigit as fn(&char) -> bool,
+            )
         } else {
-            Ok(Some(Token::Reserved(src)))
-        }
-    }
-
-    fn number(&mut self, sign_start: Option<usize>) -> Result<Option<Token<'a>>, LexError> {
-        let start = sign_start.unwrap_or(self.cur());
-
-        // Make sure the next digit is an ascii digit, otherwise this isn't a
-        // number but it's probably an identifier
-        match self.it.peek() {
-            Some((_, c)) if c.is_ascii_digit() => {}
-            Some(_) | None => return Ok(None),
-        }
-
-        let negative = match sign_start {
-            Some(i) => self.input.as_bytes()[i] == b'-',
-            None => false,
-        };
-        let (hex, val) = if self.eat_str("0x").is_some() {
-            (true, self.hexnum(negative)?.1)
-        } else {
-            (false, self.num(negative)?.1)
+            (
+                num.chars(),
+                false,
+                char::is_ascii_digit as fn(&char) -> bool,
+            )
         };
 
-        // If there's a fractional part, parse that but don't record the value
-        // since we defer float parsing until much later.
-        let has_decimal = self.eat_char('.').is_some();
-        let decimal = if has_decimal {
-            if let Some((_, ch)) = self.it.peek() {
-                if hex {
-                    if ch.is_ascii_hexdigit() {
-                        Some(self.hexnum(false)?.1)
-                    } else {
-                        None
-                    }
-                } else {
-                    if ch.is_ascii_digit() {
-                        Some(self.num(false)?.1)
-                    } else {
-                        None
-                    }
-                }
-            } else {
-                None
+        // Evaluate the first part, moving out all underscores
+        let val = skip_undescores(&mut it, negative, test_valid)?;
+
+        match it.clone().next() {
+            // If we're followed by something this may be a float so keep going.
+            Some(_) => {}
+
+            // Otherwise this is a valid integer literal!
+            None => return Some(Token::Integer(Integer { src, val, hex })),
+        }
+
+        // A number can optionally be after the decimal so only actually try to
+        // parse one if it's there.
+        let decimal = if it.clone().next() == Some('.') {
+            it.next();
+            match it.clone().next() {
+                Some(c) if test_valid(&c) => Some(skip_undescores(&mut it, false, test_valid)?),
+                Some(_) | None => None,
             }
         } else {
             None
@@ -397,38 +367,91 @@ impl<'a> Lexer<'a> {
 
         // Figure out if there's an exponential part here to make a float, and
         // if so parse it but defer its actual calculation until later.
-        let has_exponent = if hex {
-            self.eat_char('p').is_some() || self.eat_char('P').is_some()
-        } else {
-            self.eat_char('e').is_some() || self.eat_char('E').is_some()
-        };
-        let exponent = if has_exponent {
-            // chew a sign if it's there, again we'll parse it later if need be.
-            let negative = self.eat_char('-').is_some();
-            if !negative {
-                drop(self.eat_char('+'));
+        let exponent = match (hex, it.next()) {
+            (true, Some('p')) | (true, Some('P')) | (false, Some('e')) | (false, Some('E')) => {
+                let negative = match it.clone().next() {
+                    Some('-') => {
+                        it.next();
+                        true
+                    }
+                    Some('+') => {
+                        it.next();
+                        false
+                    }
+                    _ => false,
+                };
+                Some(skip_undescores(&mut it, negative, char::is_ascii_digit)?)
             }
-            Some(self.num(negative)?.1)
-        } else {
-            None
+            (_, None) => None,
+            _ => return None,
         };
 
-        if has_decimal || has_exponent {
-            return Ok(Some(Token::Float(Float {
-                src: &self.input[start..self.cur()],
-                val: FloatVal::Val {
-                    hex,
-                    integral: val,
-                    exponent,
-                    decimal,
-                },
-            })));
-        } else {
-            return Ok(Some(Token::Integer(Integer {
-                src: &self.input[start..self.cur()],
-                val,
+        // We should have eaten everything by now, if not then this is surely
+        // not a float or integer literal.
+        if it.next().is_some() {
+            return None;
+        }
+
+        return Some(Token::Float(Float {
+            src,
+            val: FloatVal::Val {
                 hex,
-            })));
+                integral: val,
+                exponent,
+                decimal,
+            },
+        }));
+
+        fn skip_undescores<'a>(
+            it: &mut str::Chars<'a>,
+            negative: bool,
+            good: fn(&char) -> bool,
+        ) -> Option<Cow<'a, str>> {
+            enum State {
+                Raw,
+                Collecting(String),
+            }
+            let mut last_underscore = false;
+            let mut state = if negative {
+                State::Collecting("-".to_string())
+            } else {
+                State::Raw
+            };
+            let input = it.as_str();
+            let first = it.next()?;
+            if !good(&first) {
+                return None;
+            }
+            if let State::Collecting(s) = &mut state {
+                s.push(first);
+            }
+            let mut last = 1;
+            while let Some(c) = it.clone().next() {
+                if c == '_' {
+                    if let State::Raw = state {
+                        state = State::Collecting(input[..last].to_string());
+                    }
+                    it.next();
+                    last_underscore = true;
+                    continue;
+                }
+                if !good(&c) {
+                    break;
+                }
+                if let State::Collecting(s) = &mut state {
+                    s.push(c);
+                }
+                last_underscore = false;
+                it.next();
+                last += 1;
+            }
+            if last_underscore {
+                return None;
+            }
+            Some(match state {
+                State::Raw => input[..last].into(),
+                State::Collecting(s) => s.into(),
+            })
         }
     }
 
@@ -563,13 +586,6 @@ impl<'a> Lexer<'a> {
         self.skip_undescores(start, negative, char::is_ascii_hexdigit)
     }
 
-    /// Reads an integer number from the input string, returning the textual
-    /// representation as well as the parsed number.
-    fn num(&mut self, negative: bool) -> Result<(&'a str, Cow<'a, str>), LexError> {
-        let (start, _n) = self.digit()?;
-        self.skip_undescores(start, negative, char::is_ascii_digit)
-    }
-
     fn skip_undescores(
         &mut self,
         start: usize,
@@ -630,18 +646,6 @@ impl<'a> Lexer<'a> {
             Ok((i, to_hex(ch)))
         } else {
             Err(self.error(i, LexErrorKind::InvalidHexDigit(ch)))
-        }
-    }
-
-    /// Reads a digit from the input stream, returning where it's
-    /// defined and the hex value. Returns an error on EOF or an invalid hex
-    /// digit.
-    fn digit(&mut self) -> Result<(usize, u8), LexError> {
-        let (i, ch) = self.must_char()?;
-        if ch.is_ascii_digit() {
-            Ok((i, ch as u8 - b'0'))
-        } else {
-            Err(self.error(i, LexErrorKind::InvalidDigit(ch)))
         }
     }
 
@@ -1106,7 +1110,7 @@ mod tests {
                     assert_eq!(input, i.src());
                     i.val
                 }
-                other => panic!("not reserved {:?}", other),
+                other => panic!("not integer {:?}", other),
             }
         }
         assert_eq!(get_integer("1"), "1");
@@ -1118,23 +1122,6 @@ mod tests {
         assert_eq!(get_integer("+0x10"), "10");
         assert_eq!(get_integer("-0x10"), "-10");
         assert_eq!(get_integer("0x10"), "10");
-
-        assert_eq!(
-            *Lexer::new("1_").parse().unwrap_err().kind(),
-            LexErrorKind::LoneUnderscore,
-        );
-        assert_eq!(
-            *Lexer::new("0x ").parse().unwrap_err().kind(),
-            LexErrorKind::InvalidHexDigit(' '),
-        );
-        assert_eq!(
-            *Lexer::new("0x").parse().unwrap_err().kind(),
-            LexErrorKind::UnexpectedEof,
-        );
-        assert_eq!(
-            *Lexer::new("0xx").parse().unwrap_err().kind(),
-            LexErrorKind::InvalidHexDigit('x'),
-        );
     }
 
     #[test]
@@ -1248,6 +1235,15 @@ mod tests {
                 decimal: None,
                 exponent: None,
                 hex: false,
+            },
+        );
+        assert_eq!(
+            get_float("0x1p-24"),
+            FloatVal::Val {
+                integral: "1".into(),
+                decimal: None,
+                exponent: Some("-24".into()),
+                hex: true,
             },
         );
     }

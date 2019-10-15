@@ -179,12 +179,13 @@ impl<'a> FunctionType<'a> {
             parser.parens(|p| {
                 let mut l = p.lookahead1();
                 if l.peek::<kw::param>() {
-                    p.parse::<kw::param>()?;
                     if self.results.len() > 0 {
-                        return Err(
-                            p.error("result before parameter: cannot list params after results")
-                        );
+                        return Err(p.error(
+                            "result before parameter (or unexpected token): \
+                             cannot list params after results",
+                        ));
                     }
+                    p.parse::<kw::param>()?;
                     if p.is_empty() {
                         return Ok(());
                     }

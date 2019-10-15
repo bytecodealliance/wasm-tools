@@ -183,9 +183,25 @@ impl<'a> Resolver<'a> {
 
     fn resolve_type_use(&self, ty: &mut TypeUse<'a>) -> Result<u32, ResolveError> {
         assert!(ty.index.is_some());
-        self.ns(Ns::Type)
+        let idx = self
+            .ns(Ns::Type)
             .resolve(ty.index.as_mut().unwrap())
-            .map_err(|id| self.resolve_error(id, "type"))
+            .map_err(|id| self.resolve_error(id, "type"))?;
+
+        // If the type was listed inline *and* it was specified via a type index
+        // we need to assert they're the same.
+        //
+        // TODO: need to report an error here
+        /*
+        let expected = &self.tys[idx as usize];
+        if ty.ty.params.len() > 0 || ty.ty.results.len() > 0 {
+            if expected.nparams != ty.ty.params.len() || expected.nresults != ty.ty.results.len() {
+                panic!()
+            }
+        }
+        */
+
+        Ok(idx)
     }
 
     fn resolve_expr(&self, expr: &mut Expression<'a>) -> Result<(), ResolveError> {
