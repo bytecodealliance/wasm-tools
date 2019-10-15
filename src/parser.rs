@@ -2,6 +2,16 @@ use crate::lexer::{Float, Integer, LexError, Lexer, Source, Token};
 use std::cell::Cell;
 use std::fmt;
 
+pub fn parse<'a, T: Parse<'a>>(buf: &'a ParseBuffer<'a>) -> Result<T> {
+    let parser = buf.parser();
+    let result = parser.parse()?;
+    if parser.is_empty() {
+        Ok(result)
+    } else {
+        Err(parser.error("extra tokens remaining after parse"))
+    }
+}
+
 pub trait Parse<'a>: Sized {
     fn parse(parser: Parser<'a>) -> Result<Self>;
 }

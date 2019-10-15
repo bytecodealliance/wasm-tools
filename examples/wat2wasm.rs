@@ -22,15 +22,10 @@ fn main() -> anyhow::Result<()> {
         Ok(b) => b,
         Err(e) => return Err(render_error(&file, &input, e.line(), e.col(), &e)),
     };
-    let mut wat = match buf.parser().parse::<wast::ast::Wat>() {
+    let mut wat = match wast::parser::parse::<wast::ast::Wat>(&buf) {
         Ok(m) => m,
         Err(e) => return Err(render_error(&file, &input, e.line(), e.col(), &e)),
     };
-    if !buf.parser().is_empty() {
-        let e = buf.parser().error("unparsed tokens remaining");
-        return Err(render_error(&file, &input, e.line(), e.col(), &e));
-    }
-
     match wast::resolve::resolve(&mut wat.module) {
         Ok(()) => (),
         Err(e) => return Err(render_error(&file, &input, e.line(), e.col(), &e)),

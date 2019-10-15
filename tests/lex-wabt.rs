@@ -93,9 +93,9 @@ fn parse_wabt() {
             let wast = contents.contains("TOOL: wast2json")
                 || test.display().to_string().ends_with(".wast");
             let result = if wast {
-                buf.parser().parse::<Wast>()
+                wast::parser::parse::<Wast>(&buf)
             } else {
-                buf.parser().parse::<Wat>().map(|wat| Wast {
+                wast::parser::parse::<Wat>(&buf).map(|wat| Wast {
                     directives: vec![WastDirective::Module(wat.module)],
                 })
             };
@@ -105,11 +105,6 @@ fn parse_wabt() {
                     return Some(render_error(&test, &contents, e.line(), e.col(), &e));
                 }
             };
-
-            // ... and ensure that we actually parsed everything ...
-            if !buf.parser().is_empty() {
-                return Some(format!("failed to parse all of {:?}", test));
-            }
 
             // ... and then test our binary emission/resolution for all modules
             // found, ensuring that it matches wabt's

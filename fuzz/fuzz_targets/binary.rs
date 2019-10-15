@@ -12,15 +12,10 @@ fuzz_target!(|data: &[u8]| {
         Ok(b) => b,
         Err(_) => return,
     };
-    let mut wat = match buf.parser().parse::<wast::ast::Wat>() {
+    let mut wat = match wast::parser::parse::<wast::ast::Wat>(&buf) {
         Ok(m) => m,
         Err(_) => return,
     };
-
-    // make sure we parsed all the tokens
-    if !buf.parser().is_empty() {
-        return;
-    }
 
     match wast::resolve::resolve(&mut wat.module) {
         Ok(()) => (),
