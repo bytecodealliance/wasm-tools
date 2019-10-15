@@ -2,8 +2,8 @@
 
 A Rust parser for the [WebAssembly Text format (WAT)][wat]
 
-[![Documentation (`wast`)](https://docs.rs/wast/badge.svg)](https://docs.rs/wast)
-[![Documentation (`wast-parser`)](https://docs.rs/wast-parser/badge.svg)](https://docs.rs/wast-parser)
+* `wast` - [![Documentation (`wast`)](https://docs.rs/wast/badge.svg)](https://docs.rs/wast)
+* `wast-parser` - [![Documentation (`wast-parser`)](https://docs.rs/wast-parser/badge.svg)](https://docs.rs/wast-parser)
 
 [wat]: http://webassembly.github.io/spec/core/text/index.html
 
