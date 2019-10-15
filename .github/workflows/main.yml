@@ -57,9 +57,13 @@ jobs:
         cd tests/wabt
         cmake . -G Ninja
         ninja wast2json wat2wasm
-        ls -alh
-        echo "##[add-path]`pwd`"
       shell: bash
+    - name: Add wat2wasm to path (unix)
+      run: echo "##[add-path]`pwd`/tests/wabt"
+      if: matrix.os != 'windows-latest'
+    - name: Add wat2wasm to path (windows)
+      run: echo "##[add-path]`pwd -W`/tests/wabt"
+      if: matrix.os == 'windows-latest'
 
     - run: cargo test
     - run: cargo test -p wast-parser
