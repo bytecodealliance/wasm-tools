@@ -537,9 +537,7 @@ impl<'a> Lexer<'a> {
                         Some((_, '\\')) => buf.push(b'\\'),
                         Some((i, 'u')) => {
                             self.must_eat_char('{')?;
-                            let (_, num) = self.hexnum(false)?;
-                            let n = u32::from_str_radix(&num, 16)
-                                .map_err(|_| self.error(i, LexErrorKind::NumberTooBig))?;
+                            let n = self.hexnum()?;
                             let c = char::from_u32(n).ok_or_else(|| {
                                 self.error(i, LexErrorKind::InvalidUnicodeValue(n))
                             })?;
@@ -579,62 +577,31 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// Reads a hexadecimal number from the input string, returning the textual
-    /// representation as well as the parsed number.
-    fn hexnum(&mut self, negative: bool) -> Result<(&'a str, Cow<'a, str>), LexError> {
-        let (start, _n) = self.hexdigit()?;
-        self.skip_undescores(start, negative, char::is_ascii_hexdigit)
-    }
-
-    fn skip_undescores(
-        &mut self,
-        start: usize,
-        negative: bool,
-        good: fn(&char) -> bool,
-    ) -> Result<(&'a str, Cow<'a, str>), LexError> {
-        enum State {
-            Raw(usize),
-            Collecting(String),
-        }
+    fn hexnum(&mut self) -> Result<u32, LexError> {
+        let (_, n) = self.hexdigit()?;
         let mut last_underscore = false;
-        let mut state = if negative {
-            if self.input.as_bytes()[start - 1] == b'-' {
-                State::Raw(start - 1)
-            } else {
-                let mut s = String::from("-");
-                s.push(self.input.as_bytes()[start] as char);
-                State::Collecting(s)
-            }
-        } else {
-            State::Raw(start)
-        };
+        let mut n = n as u32;
         while let Some((i, c)) = self.it.peek().cloned() {
             if c == '_' {
-                if let State::Raw(start) = state {
-                    state = State::Collecting(self.input[start..i].to_string());
-                }
                 self.it.next();
                 last_underscore = true;
                 continue;
             }
-            if !good(&c) {
+            if !c.is_ascii_hexdigit() {
                 break;
-            }
-            if let State::Collecting(s) = &mut state {
-                s.push(c);
             }
             last_underscore = false;
             self.it.next();
+            n = n
+                .checked_mul(16)
+                .and_then(|n| n.checked_add(to_hex(c) as u32))
+                .ok_or_else(|| self.error(i, LexErrorKind::NumberTooBig))?;
         }
-        let end = self.cur();
         if last_underscore {
-            return Err(self.error(end, LexErrorKind::LoneUnderscore));
+            let cur = self.cur();
+            return Err(self.error(cur, LexErrorKind::LoneUnderscore));
         }
-        let val = match state {
-            State::Raw(start) => self.input[start..end].into(),
-            State::Collecting(s) => s.into(),
-        };
-        Ok((&self.input[start..end], val))
+        Ok(n)
     }
 
     /// Reads a hexidecimal digit from the input stream, returning where it's
