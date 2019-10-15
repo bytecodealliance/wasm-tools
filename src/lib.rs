@@ -69,7 +69,6 @@
 
 use std::fmt;
 use std::path::Path;
-use wast_parser::ast;
 use wast_parser::parser::{self, ParseBuffer};
 
 /// Parses a file on disk as a [WebAssembly Text format][wat] file, returning
@@ -159,7 +158,7 @@ pub fn parse_str(wat: impl AsRef<str>) -> Result<Vec<u8>> {
 
 fn _parse_str(wat: &str) -> Result<Vec<u8>> {
     let buf = ParseBuffer::new(&wat).map_err(|e| Error::cvt(e, wat))?;
-    let mut ast = parser::parse::<ast::Wat>(&buf).map_err(|e| Error::cvt(e, wat))?;
+    let mut ast = parser::parse::<wast_parser::Wat>(&buf).map_err(|e| Error::cvt(e, wat))?;
     Ok(ast.module.encode().map_err(|e| Error::cvt(e, wat))?)
 }
 

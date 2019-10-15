@@ -1,4 +1,4 @@
-use wast_parser::ast::*;
+use wast_parser::*;
 
 #[test]
 fn valtype() {

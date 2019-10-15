@@ -2,8 +2,8 @@ use rayon::prelude::*;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use wast_parser::ast::*;
-use wast_parser::parser::{self, ParseBuffer};
+use wast_parser::*;
+use wast_parser::parser::ParseBuffer;
 
 fn main() {
     let tests = find_tests();
