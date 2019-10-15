@@ -45,7 +45,7 @@ pub fn encode(module: &Module<'_>) -> Vec<u8> {
     section_list(5, &memories, &mut tmp, &mut wasm);
     section_list(6, &globals, &mut tmp, &mut wasm);
     section_list(7, &exports, &mut tmp, &mut wasm);
-    for start in start {
+    if let Some(start) = start.get(0) {
         section(8, start, &mut tmp, &mut wasm);
     }
     section_list(9, &elem, &mut tmp, &mut wasm);
