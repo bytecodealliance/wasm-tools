@@ -7,10 +7,18 @@ use wast_parser::*;
 
 fn main() {
     let tests = find_tests();
+    let filter = std::env::args().nth(1);
 
     let tests = tests
         .par_iter()
         .filter_map(|test| {
+            if let Some(filter) = &filter {
+                if let Some(s) = test.file_name().and_then(|s| s.to_str()) {
+                    if !s.contains(filter) {
+                        return None;
+                    }
+                }
+            }
             let contents = std::fs::read_to_string(test).unwrap();
             if skip_test(&test, &contents) {
                 None
@@ -160,6 +168,7 @@ fn find_tests() -> Vec<PathBuf> {
     find_tests("tests/wabt/test/spec".as_ref(), &mut tests);
     find_tests("tests/wabt/test/typecheck".as_ref(), &mut tests);
     find_tests("tests/wabt/third_party/testsuite".as_ref(), &mut tests);
+    find_tests("tests/regression".as_ref(), &mut tests);
     tests.sort();
     return tests;
 
@@ -172,7 +181,7 @@ fn find_tests() -> Vec<PathBuf> {
             }
 
             match f.path().extension().and_then(|s| s.to_str()) {
-                Some("txt") | Some("wast") => {}
+                Some("txt") | Some("wast") | Some("wat") => {}
                 _ => continue,
             }
             tests.push(f.path());
