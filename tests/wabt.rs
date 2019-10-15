@@ -2,36 +2,151 @@ use rayon::prelude::*;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use wast::ast::*;
-use wast::lexer::Lexer;
+use wast_parser::ast::*;
+use wast_parser::binary;
+use wast_parser::parser::{self, ParseBuffer};
+use wast_parser::resolve;
 
-#[test]
-fn lex_wabt() {
+fn main() {
     let tests = find_tests();
 
-    tests.par_iter().for_each(|test| {
-        let contents = std::fs::read_to_string(test).unwrap();
-        if contents.contains(";; ERROR") {
-            return;
+    let tests = tests
+        .par_iter()
+        .filter_map(|test| {
+            let contents = std::fs::read_to_string(test).unwrap();
+            if skip_test(&test, &contents) {
+                None
+            } else {
+                Some((test, contents))
+            }
+        })
+        .collect::<Vec<_>>();
+
+    println!("running {} tests\n", tests.len());
+
+    let errors = tests
+        .par_iter()
+        .filter_map(|(test, contents)| run_test(test, contents).err())
+        .collect::<Vec<_>>();
+
+    if !errors.is_empty() {
+        for msg in errors.iter() {
+            eprintln!("{}", msg);
         }
-        let mut cur = contents.as_ptr();
-        for token in Lexer::new(&contents) {
-            let token = match token {
-                Ok(t) => t,
-                Err(e) => {
-                    panic!("{}", render_error(test, &contents, e.into()));
+
+        panic!("{} tests failed", errors.len())
+    }
+
+    println!("test result: ok. {} passed\n", tests.len());
+}
+
+fn run_test(test: &Path, contents: &str) -> anyhow::Result<()> {
+    let wast =
+        contents.contains("TOOL: wast2json") || test.display().to_string().ends_with(".wast");
+    if wast {
+        return test_wast(test, contents);
+    }
+    let binary = wast::parse_file(test)?;
+
+    // FIXME(#5) fix these tests
+    if test.ends_with("invalid-elem-segment-offset.txt")
+        || test.ends_with("invalid-data-segment-offset.txt")
+    {
+        return Ok(());
+    }
+
+    if let Some(expected) = wat2wasm(&test, 0) {
+        binary_compare(&test, &binary, &expected)?;
+    }
+    Ok(())
+}
+
+fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
+    macro_rules! adjust {
+        ($e:expr) => ({
+            let mut e = wast_parser::Error::from($e);
+            e.set_path(test);
+            e.set_text(contents);
+            e
+        })
+    }
+    let buf = ParseBuffer::new(contents).map_err(|e| adjust!(e))?;
+    let wast = parser::parse::<Wast>(&buf).map_err(|e| adjust!(e))?;
+
+    let mut modules = 0;
+    for directive in wast.directives {
+        match directive {
+            WastDirective::Module(mut module) => {
+                resolve::resolve(&mut module).map_err(|e| adjust!(e))?;
+                let actual = binary::encode(&module);
+
+                match module.kind {
+                    ModuleKind::Text(_) => {
+                        if let Some(expected) = wat2wasm(&test, modules) {
+                            binary_compare(&test, &actual, &expected)?;
+                        }
+                    }
+                    // Skip these for the same reason we skip
+                    // `module/binary-module.txt` in `binary_compare` below.
+                    ModuleKind::Binary(_) => {}
                 }
-            };
-            let source = token.src();
-            assert_eq!(
-                cur,
-                source.as_ptr(),
-                "tokenization missed a character before {:?}",
-                token
-            );
-            cur = unsafe { cur.add(source.len()) };
+
+                modules += 1;
+            }
+
+            // Skip these `assert_malformed` since it feels weird to
+            // test the semantics here and I'm a bit lazy to implement
+            // this validation for now.
+            WastDirective::AssertMalformed { message, .. }
+                if message.starts_with("import after ") =>
+            {
+            }
+
+            WastDirective::AssertMalformed {
+                module: QuoteModule::Quote(source),
+                message,
+            } => {
+                // FIXME(#4) need more fixes before proceeding
+                if true {
+                    continue;
+                }
+                let source = source.concat();
+                let result = ParseBuffer::new(&source).map_err(|e| e.into()).and_then(
+                    |b| -> Result<(), wast_parser::Error> {
+                        let mut wat = parser::parse::<Wat>(&b)?;
+                        resolve::resolve(&mut wat.module)?;
+                        Ok(())
+                    },
+                );
+                match result {
+                    Ok(()) => {
+                        anyhow::bail!(
+                            "\
+                             in test {:?} parsed {:?} successfully\n\
+                             but should have failed with: {}\
+                             ",
+                            test, source, message,
+                        )
+                    }
+                    Err(e) => {
+                        if e.to_string().contains(message) {
+                            continue;
+                        }
+                        anyhow::bail!(
+                            "\
+                             in test {:?} parsed {:?} with error: {}\n\
+                             but should have failed with: {}\
+                             ",
+                            test, source, e, message,
+                        );
+                    }
+                }
+            }
+            _ => continue,
         }
-    })
+    }
+
+    Ok(())
 }
 
 fn find_tests() -> Vec<PathBuf> {
@@ -67,151 +182,18 @@ fn find_tests() -> Vec<PathBuf> {
     }
 }
 
-#[test]
-fn parse_wabt() {
-    let tests = find_tests();
-
-    let failed = tests
-        .par_iter()
-        .filter_map(|test| {
-            let contents = std::fs::read_to_string(&test).unwrap();
-            if skip_test(&test, &contents) {
-                return None;
-            }
-
-            // Lex everything into a `ParseBuffer`...
-            let buf = match wast::parser::ParseBuffer::new(&contents) {
-                Ok(b) => b,
-                Err(e) => {
-                    return Some(render_error(&test, &contents, e.into()));
-                }
-            };
-
-            // ... then parse as a `*.wast` file, handling `*.txt` vs `*.wast`
-            // and various test suite directives in wabt ...
-            let wast = contents.contains("TOOL: wast2json")
-                || test.display().to_string().ends_with(".wast");
-            let result = if wast {
-                wast::parser::parse::<Wast>(&buf)
-            } else {
-                wast::parser::parse::<Wat>(&buf).map(|wat| Wast {
-                    directives: vec![WastDirective::Module(wat.module)],
-                })
-            };
-            let directives = match result {
-                Ok(wast) => wast.directives,
-                Err(e) => {
-                    return Some(render_error(&test, &contents, e.into()));
-                }
-            };
-
-            // ... and then test our binary emission/resolution for all modules
-            // found, ensuring that it matches wabt's
-            let mut modules = 0;
-            for directive in directives {
-                let mut module = match directive {
-                    WastDirective::Module(m) => m,
-
-                    // Skip these `assert_malformed` since it feels weird to
-                    // test the semantics here and I'm a bit lazy to implement
-                    // this validation for now.
-                    WastDirective::AssertMalformed { message, .. }
-                        if message.starts_with("import after ") =>
-                    {
-                        continue;
-                    }
-
-                    WastDirective::AssertMalformed {
-                        module: QuoteModule::Quote(source),
-                        message,
-                    } => {
-                        // FIXME(#4) need more fixes before proceeding
-                        if true {
-                            continue;
-                        }
-                        let source = source.concat();
-                        let result = wast::parser::ParseBuffer::new(&source)
-                            .map_err(|e| e.into())
-                            .and_then(|b| -> Result<(), wast::Error> {
-                                let mut wat = wast::parser::parse::<Wat>(&b)?;
-                                wast::resolve::resolve(&mut wat.module)?;
-                                Ok(())
-                            });
-                        match result {
-                            Ok(()) => {
-                                return Some(format!(
-                                    "\
-                                     in test {:?} parsed {:?} successfully\n\
-                                     but should have failed with: {}\
-                                     ",
-                                    test, source, message,
-                                ))
-                            }
-                            Err(e) => {
-                                if e.to_string().contains(message) {
-                                    continue;
-                                }
-                                return Some(format!(
-                                    "\
-                                     in test {:?} parsed {:?} with error: {}\n\
-                                     but should have failed with: {}\
-                                     ",
-                                    test, source, e, message,
-                                ));
-                            }
-                        }
-                    }
-                    _ => continue,
-                };
-                match wast::resolve::resolve(&mut module) {
-                    Ok(()) => {}
-                    Err(e) => {
-                        return Some(render_error(&test, &contents, e.into()));
-                    }
-                }
-
-                // Apparently wabt parses this and then reencodes it while we
-                // just pass it through. Let's not check these since wabt
-                // inserts data count sections and we don't.
-                if let ModuleKind::Binary(_) = module.kind {
-                    continue;
-                }
-
-                // FIXME(#5) fix these tests
-                if test.ends_with("invalid-elem-segment-offset.txt")
-                    || test.ends_with("invalid-data-segment-offset.txt")
-                {
-                    continue;
-                }
-
-                let actual = wast::binary::encode(&module);
-                if let Some(expected) = wat2wasm(&test, modules) {
-                    if let Some(msg) = binary_compare(&test, &actual, &expected) {
-                        return Some(msg);
-                    }
-                }
-
-                modules += 1;
-            }
-
-            None
-        })
-        .collect::<Vec<_>>();
-
-    if !failed.is_empty() {
-        for msg in failed.iter() {
-            println!("{}", msg);
-        }
-
-        panic!("{} tests failed", failed.len())
-    }
-}
-
-fn binary_compare(test: &Path, actual: &[u8], expected: &[u8]) -> Option<String> {
+fn binary_compare(test: &Path, actual: &[u8], expected: &[u8]) -> Result<(), anyhow::Error> {
     use wasmparser::*;
 
+    // We pass through `test` as-is with binary encoding but wabt will parse and
+    // re-emit, possibly including a data count section which we're missing.
+    // Skip this test if that's the case.
+    if test.ends_with("module/binary-module.txt") {
+        return Ok(());
+    }
+
     if actual == expected {
-        return None;
+        return Ok(());
     }
 
     let difference = actual
@@ -270,7 +252,7 @@ error: actual wasm differs {pos} from expected wasm
         differences += 1;
     }
 
-    return Some(msg);
+    anyhow::bail!("{}", msg);
 
     fn read_state<'a, 'b>(parser: &'b mut Parser<'a>) -> Option<String> {
         loop {
@@ -391,23 +373,4 @@ fn skip_test(test: &Path, contents: &str) -> bool {
         return true;
     }
     false
-}
-
-fn render_error(file: &Path, contents: &str, err: wast::Error) -> String {
-    format!(
-        "
-error: {err}
-     --> {file}:{line}:{col}
-      |
- {line:4} | {text}
-      | {marker:>0$}
-",
-        err.col() + 1,
-        file = file.display(),
-        line = err.line() + 1,
-        col = err.col() + 1,
-        err = err,
-        text = contents.lines().nth(err.line()).unwrap_or(""),
-        marker = "^",
-    )
 }

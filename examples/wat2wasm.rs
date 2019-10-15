@@ -1,60 +1,36 @@
 use anyhow::Context;
 use std::env;
-use std::fmt;
-use std::fs;
-use std::io::{self, Read};
 
 fn main() -> anyhow::Result<()> {
-    let (file, input) = match env::args().nth(1) {
-        Some(f) => {
-            let contents = fs::read_to_string(&f).context(format!("failed to read: {}", f))?;
-            (f, contents)
-        }
-        None => {
-            let mut dst = String::new();
-            io::stdin()
-                .read_to_string(&mut dst)
-                .context("failed to read stdin")?;
-            ("<stdin>".to_string(), dst)
-        }
-    };
-    let buf = match wast::parser::ParseBuffer::new(&input) {
-        Ok(b) => b,
-        Err(e) => return Err(render_error(&file, &input, e.line(), e.col(), &e)),
-    };
-    let mut wat = match wast::parser::parse::<wast::ast::Wat>(&buf) {
-        Ok(m) => m,
-        Err(e) => return Err(render_error(&file, &input, e.line(), e.col(), &e)),
-    };
-    match wast::resolve::resolve(&mut wat.module) {
-        Ok(()) => (),
-        Err(e) => return Err(render_error(&file, &input, e.line(), e.col(), &e)),
+    // Use the `getopts` crate to parse the `-o` option as well as `-h`
+    let program = env::args().nth(0).unwrap();
+    let mut opts = getopts::Options::new();
+    opts.optopt("o", "", "set output file name", "NAME");
+    opts.optflag("h", "help", "print this help menu");
+    let matches = opts.parse(env::args_os().skip(1))?;
+    if matches.opt_present("h") {
+        return Ok(print_usage(&program, opts));
     }
-    let _binary = wast::binary::encode(&wat.module);
+    let input = match matches.free.len() {
+        0 => {
+            print_usage(&program, opts);
+            std::process::exit(1);
+        }
+        1 => &matches.free[0],
+        _ => anyhow::bail!("more than one input file specified on command line"),
+    };
+
+    // Using `wast`, parse this input file into a wasm binary...
+    let binary = wast::parse_file(&input)?;
+
+    // ... and if requested, write out that file!
+    if let Some(output) = matches.opt_str("o") {
+        std::fs::write(&output, binary).context(format!("failed to write: {}", output))?;
+    }
     Ok(())
 }
 
-fn render_error(
-    file: &str,
-    contents: &str,
-    line: usize,
-    col: usize,
-    err: &dyn fmt::Display,
-) -> anyhow::Error {
-    anyhow::anyhow!(
-        "
-error: {err}
-     --> {file}:{line}:{col}
-      |
- {line:4} | {text}
-      | {marker:>0$}
-",
-        col + 1,
-        file = file,
-        line = line + 1,
-        col = col + 1,
-        err = err,
-        text = contents.lines().nth(line).unwrap_or(""),
-        marker = "^",
-    )
+fn print_usage(program: &str, opts: getopts::Options) {
+    let brief = format!("Usage: {} FILE [options]", program);
+    print!("{}", opts.usage(&brief));
 }
