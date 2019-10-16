@@ -7,7 +7,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        build: [stable, beta, nightly, macos, windows, mingw]
+        build: [stable, beta, nightly, macos, windows]
         include:
           - build: stable
             os: ubuntu-latest
@@ -24,9 +24,6 @@ jobs:
           - build: windows
             os: windows-latest
             rust: stable
-          - build: mingw
-            os: windows-latest
-            rust: stable-x86_64-gnu
     steps:
     - uses: actions/checkout@master
       with:
@@ -37,7 +34,7 @@ jobs:
     - name: Install Rust (macos)
       run: |
         curl https://sh.rustup.rs | sh -s -- -y
-        echo "##[add-path]$HOME/.cargo/bin"
+        echo ::add-path::$HOME/.cargo/bin
       if: matrix.os == 'macos-latest'
 
     - name: Install Ninja (Linux)
@@ -58,7 +55,7 @@ jobs:
         ninja wast2json wat2wasm
       shell: bash
     - name: Add wat2wasm to path (unix)
-      run: echo "##[add-path]`pwd`/tests/wabt"
+      run: echo ::add-path::`pwd`/tests/wabt
       if: matrix.os != 'windows-latest'
     - name: Add wat2wasm to path (windows)
       run: echo ::add-path::D:/a/wast/wast/tests/wabt
