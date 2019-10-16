@@ -358,7 +358,7 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                     None => return Ok(()),
                 };
                 if Some(*label) == matching_label {
-                    return Ok(())
+                    return Ok(());
                 }
                 return Err(Error::new(
                     label.span(),

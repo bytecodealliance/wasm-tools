@@ -57,8 +57,7 @@ fn main() {
 }
 
 fn run_test(test: &Path, contents: &str) -> anyhow::Result<()> {
-    let wast =
-        contents.contains("TOOL: wast2json")
+    let wast = contents.contains("TOOL: wast2json")
         || contents.contains("TOOL: run-objdump-spec")
         || test.display().to_string().ends_with(".wast");
     if wast {

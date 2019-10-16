@@ -290,7 +290,11 @@ impl<'a> TypeUse<'a> {
             ty.finish_parse(allow_names, parser)?;
         }
 
-        Ok(TypeUse { index, index_span, ty })
+        Ok(TypeUse {
+            index,
+            index_span,
+            ty,
+        })
     }
 }
 
