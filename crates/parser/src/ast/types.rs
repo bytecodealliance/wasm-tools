@@ -176,7 +176,7 @@ pub struct FunctionType<'a> {
 }
 
 impl<'a> FunctionType<'a> {
-    fn finish_parse(&mut self, parser: Parser<'a>) -> Result<()> {
+    fn finish_parse(&mut self, allow_names: bool, parser: Parser<'a>) -> Result<()> {
         while parser.peek2::<kw::param>() || parser.peek2::<kw::result>() {
             parser.parens(|p| {
                 let mut l = p.lookahead1();
@@ -191,7 +191,11 @@ impl<'a> FunctionType<'a> {
                     if p.is_empty() {
                         return Ok(());
                     }
-                    let id = p.parse::<Option<_>>()?;
+                    let id = if allow_names {
+                        p.parse::<Option<_>>()?
+                    } else {
+                        None
+                    };
                     let parse_more = id.is_none();
                     let ty = p.parse()?;
                     self.params.push((id, ty));
@@ -220,7 +224,7 @@ impl<'a> Parse<'a> for FunctionType<'a> {
             params: Vec::new(),
             results: Vec::new(),
         };
-        ret.finish_parse(parser)?;
+        ret.finish_parse(true, parser)?;
         Ok(ret)
     }
 }
@@ -257,8 +261,13 @@ pub struct TypeUse<'a> {
     pub ty: ast::FunctionType<'a>,
 }
 
-impl<'a> Parse<'a> for TypeUse<'a> {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
+impl<'a> TypeUse<'a> {
+    /// Parse a `TypeUse`, but don't allow any names of `param` tokens.
+    pub fn parse_no_names(parser: Parser<'a>) -> Result<Self> {
+        TypeUse::parse_allow_names(parser, false)
+    }
+
+    fn parse_allow_names(parser: Parser<'a>, allow_names: bool) -> Result<Self> {
         let index = if parser.peek2::<kw::r#type>() {
             Some(parser.parens(|parser| {
                 parser.parse::<kw::r#type>()?;
@@ -272,9 +281,15 @@ impl<'a> Parse<'a> for TypeUse<'a> {
             results: Vec::new(),
         };
         if parser.peek2::<kw::param>() || parser.peek2::<kw::result>() {
-            ty.finish_parse(parser)?;
+            ty.finish_parse(allow_names, parser)?;
         }
 
         Ok(TypeUse { index, ty })
+    }
+}
+
+impl<'a> Parse<'a> for TypeUse<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        TypeUse::parse_allow_names(parser, true)
     }
 }

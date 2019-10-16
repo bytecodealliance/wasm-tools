@@ -449,7 +449,7 @@ impl<'a> Lexer<'a> {
             }
             let mut last = 1;
             while let Some(c) = it.clone().next() {
-                if c == '_' {
+                if c == '_' && !last_underscore {
                     if let State::Raw = state {
                         state = State::Collecting(input[..last].to_string());
                     }

@@ -467,7 +467,7 @@ impl<'a> Parse<'a> for BlockType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         Ok(BlockType {
             label: parser.parse()?,
-            ty: parser.parse()?,
+            ty: ast::TypeUse::parse_no_names(parser)?,
         })
     }
 }
@@ -560,7 +560,7 @@ pub struct CallIndirect<'a> {
 impl<'a> Parse<'a> for CallIndirect<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let mut table: Option<_> = parser.parse()?;
-        let ty = parser.parse()?;
+        let ty = ast::TypeUse::parse_no_names(parser)?;
         // Turns out the official test suite at this time thinks table
         // identifiers comes first but wabt's test suites asserts differently
         // putting them second. Let's just handle both.

@@ -99,28 +99,32 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
                 modules += 1;
             }
 
-            // Skip these `assert_malformed` since it feels weird to
-            // test the semantics here and I'm a bit lazy to implement
-            // this validation for now.
+            // FIXME(#19) run these tests
             WastDirective::AssertMalformed { message, .. }
                 if message.starts_with("import after ") => {}
+            WastDirective::AssertMalformed { message, .. }
+                if message.starts_with("mismatching label") => {}
+            WastDirective::AssertMalformed { message, .. }
+                if message.starts_with("inline function type") => {}
+            WastDirective::AssertMalformed { message, .. }
+                if message.starts_with("constant out of range") => {}
 
             WastDirective::AssertMalformed {
                 module: QuoteModule::Quote(source),
                 message,
             } => {
-                // FIXME(#4) need more fixes before proceeding
-                if true {
-                    continue;
-                }
                 let source = source.concat();
-                let result = ParseBuffer::new(&source).map_err(|e| e.into()).and_then(
-                    |b| -> Result<(), wast_parser::Error> {
+                let result = ParseBuffer::new(&source)
+                    .map_err(|e| e.into())
+                    .and_then(|b| -> Result<(), wast_parser::Error> {
                         let mut wat = parser::parse::<Wat>(&b)?;
                         wat.module.encode()?;
                         Ok(())
-                    },
-                );
+                    })
+                    .map_err(|mut e| {
+                        e.set_text(&source);
+                        e
+                    });
                 match result {
                     Ok(()) => anyhow::bail!(
                         "\
@@ -132,7 +136,7 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
                         message,
                     ),
                     Err(e) => {
-                        if e.to_string().contains(message) {
+                        if error_matches(&e.to_string(), message) {
                             continue;
                         }
                         anyhow::bail!(
@@ -153,6 +157,16 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+fn error_matches(error: &str, message: &str) -> bool {
+    if error.contains(message) {
+        return true;
+    }
+    if message == "unknown operator" {
+        return error.contains("expected a ") || error.contains("expected an ");
+    }
+    return false;
 }
 
 fn find_tests() -> Vec<PathBuf> {
