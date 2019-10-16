@@ -81,9 +81,18 @@ jobs:
         target: [parser, binary, lexer]
     steps:
     - uses: actions/checkout@master
+      with:
+        submodules: 'recursive'
     - name: Install Rust
       run: rustup update nightly && rustup default nightly
     - run: cargo install cargo-fuzz
+    - name: Build wat2wasm
+      run: |
+        set -e
+        cd tests/wabt
+        cmake . -G Ninja
+        ninja wat2wasm
+        echo ::add-path::`pwd`/tests/wabt
     - run: cargo fuzz run --release ${{ matrix.target }} -- -max_total_time=30 -jobs=2 -verbosity=0
       env:
         # See rust-fuzz/cargo-fuzz#161
