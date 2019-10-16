@@ -14,7 +14,6 @@ fuzz_target!(|data: &[u8]| {
         Err(_) => return,
     };
 
-
     // FIXME(#8) needs some more work to enable
     if true {
         return;

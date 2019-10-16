@@ -907,7 +907,6 @@ mod tests {
             let s = format!("\"\\{:02x}\"", i);
             assert_eq!(&*get_string(&s), &[i as u8]);
         }
-
     }
 
     #[test]

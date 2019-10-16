@@ -64,7 +64,7 @@
 //! likely also draw inspiration from the excellent examples in the `syn` crate.
 
 use crate::lexer::{Float, Integer, Lexer, Source, Token};
-use crate::{Span, Error};
+use crate::{Error, Span};
 use std::cell::Cell;
 use std::fmt;
 

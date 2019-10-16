@@ -41,7 +41,7 @@ pub fn resolve(module: &mut Module) -> Result<(), Error> {
             ModuleField::Global(_) => "global",
             _ => continue,
         };
-        return Err(Error::new(span, format!("import after {}", name)))
+        return Err(Error::new(span, format!("import after {}", name)));
     }
 
     // For the second pass we resolve all inline type annotations. This will, in
