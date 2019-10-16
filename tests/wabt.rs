@@ -1,3 +1,13 @@
+//! Finds as many tests as we can in the `wabt` submodule and does a few things:
+//!
+//! * First, asserts that we can parse and encode them all to binary.
+//! * Next uses `wat2wasm` to encode to binary.
+//! * Finally, asserts that the two binary encodings are byte-for-byte the same.
+//!
+//! This also has support for handling `*.wast` files from the official test
+//! suite which involve parsing as a wast file and handling assertions. Also has
+//! rudimentary support for running some of the assertions.
+
 use rayon::prelude::*;
 use std::fs;
 use std::path::{Path, PathBuf};
