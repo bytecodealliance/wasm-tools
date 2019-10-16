@@ -1,0 +1,5 @@
+invalid string escape '\n'
+     --> tests/parse-fail/string5.wat:1:3
+      |
+    1 | "\
+      |   ^

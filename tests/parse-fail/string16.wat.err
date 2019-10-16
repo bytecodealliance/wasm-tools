@@ -1,0 +1,5 @@
+expected '}' but found '\n'
+     --> tests/parse-fail/string16.wat:1:6
+      |
+    1 | "\u{3
+      |      ^

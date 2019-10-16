@@ -601,7 +601,7 @@ impl<'a> Lexer<'a> {
         }
         if last_underscore {
             let cur = self.cur();
-            return Err(self.error(cur, LexError::LoneUnderscore));
+            return Err(self.error(cur - 1, LexError::LoneUnderscore));
         }
         Ok(n)
     }
@@ -800,7 +800,7 @@ impl fmt::Display for LexError {
             Expected { wanted, found } => write!(f, "expected {:?} but found {:?}", wanted, found)?,
             UnexpectedEof => write!(f, "unexpected end-of-file")?,
             NumberTooBig => f.write_str("number is too big to parse")?,
-            InvalidUnicodeValue(c) => write!(f, "invalid unicode scalar value {:x}", c)?,
+            InvalidUnicodeValue(c) => write!(f, "invalid unicode scalar value 0x{:x}", c)?,
             LoneUnderscore => write!(f, "bare underscore in numeric literal")?,
             __Nonexhaustive => unreachable!(),
         }
@@ -811,15 +811,6 @@ impl fmt::Display for LexError {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn err(s: &str) -> LexError {
-        Lexer::new(s)
-            .parse()
-            .unwrap_err()
-            .lex_error()
-            .unwrap()
-            .clone()
-    }
 
     #[test]
     fn ws_smoke() {
@@ -862,9 +853,6 @@ mod tests {
         assert_eq!(get_block_comment("(;;)"), "(;;)");
         assert_eq!(get_block_comment("(; ;)"), "(; ;)");
         assert_eq!(get_block_comment("(; (;;) ;)"), "(; (;;) ;)");
-        assert_eq!(err("(; "), LexError::DanglingBlockComment);
-        assert_eq!(err("(; (;;)"), LexError::DanglingBlockComment);
-        assert_eq!(err("(; ;"), LexError::DanglingBlockComment);
     }
 
     fn get_token(input: &str) -> Token<'_> {
@@ -920,37 +908,6 @@ mod tests {
             assert_eq!(&*get_string(&s), &[i as u8]);
         }
 
-        assert_eq!(err("\""), LexError::UnexpectedEof);
-        assert_eq!(err("\"\\x\""), LexError::InvalidStringEscape('x'));
-        assert_eq!(err("\"\\0\""), LexError::InvalidHexDigit('"'));
-        assert_eq!(err("\"\\0"), LexError::UnexpectedEof);
-        assert_eq!(err("\"\\"), LexError::UnexpectedEof);
-        assert_eq!(err("\"\u{7f}\""), LexError::InvalidStringElement('\u{7f}'));
-        assert_eq!(err("\"\u{0}\""), LexError::InvalidStringElement('\u{0}'));
-        assert_eq!(err("\"\u{1f}\""), LexError::InvalidStringElement('\u{1f}'));
-        assert_eq!(err("\"\\u{x}\""), LexError::InvalidHexDigit('x'));
-        assert_eq!(err("\"\\u{1_}\""), LexError::LoneUnderscore);
-        assert_eq!(err("\"\\u{fffffffffffffffff}\""), LexError::NumberTooBig);
-        assert_eq!(
-            err("\"\\u{ffffffff}\""),
-            LexError::InvalidUnicodeValue(0xffffffff),
-        );
-        assert_eq!(
-            err("\"\\u\""),
-            LexError::Expected {
-                wanted: '{',
-                found: '"'
-            },
-        );
-        assert_eq!(err("\"\\u{\""), LexError::InvalidHexDigit('"'));
-        assert_eq!(
-            err("\"\\u{1\""),
-            LexError::Expected {
-                wanted: '}',
-                found: '"'
-            },
-        );
-        assert_eq!(err("\"\\u{1"), LexError::UnexpectedEof);
     }
 
     #[test]

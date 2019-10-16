@@ -33,3 +33,7 @@ overflow-checks = true
 [[test]]
 name = "wabt"
 harness = false
+
+[[test]]
+name = "parse-fail"
+harness = false
