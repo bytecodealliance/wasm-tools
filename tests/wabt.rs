@@ -211,12 +211,16 @@ fn find_tests() -> Vec<PathBuf> {
 fn binary_compare(test: &Path, actual: &[u8], expected: &[u8]) -> Result<(), anyhow::Error> {
     use wasmparser::*;
 
-    // We pass through `test` as-is with binary encoding but wabt will parse and
-    // re-emit, possibly including a data count section which we're missing.
-    // Skip this test if that's the case.
-    if test.ends_with("module/binary-module.txt") {
-        return Ok(());
-    }
+    // We test wabt with `--enable-all`, but this *always* emits a data count
+    // section in the binary. We, however, only emit it if necessary. To handle
+    // these differences remove wabt's data count section if our binary doesn't
+    // have one.
+    let expected = if contains_datacount_section(actual) {
+        expected.to_vec()
+    } else {
+        remove_datacount_section(expected)
+    };
+    let expected = expected.as_slice();
 
     if actual == expected {
         return Ok(());
@@ -289,6 +293,37 @@ error: actual wasm differs {pos} from expected wasm
                 other => break Some(format!("{:?}", other)),
             }
         }
+    }
+
+    fn contains_datacount_section(bytes: &[u8]) -> bool {
+        if let Ok(mut r) = ModuleReader::new(bytes) {
+            while let Ok(s) = r.read() {
+                match s.code {
+                    SectionCode::DataCount => return true,
+                    _ => {}
+                }
+            }
+        }
+        false
+    }
+
+    fn remove_datacount_section(bytes: &[u8]) -> Vec<u8> {
+        if let Ok(mut r) = ModuleReader::new(bytes) {
+            loop {
+                let start = r.current_position();
+                if let Ok(s) = r.read() {
+                    match s.code {
+                        SectionCode::DataCount => {
+                            let mut bytes = bytes.to_vec();
+                            bytes.drain(start..s.range().end);
+                            return bytes;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        return bytes.to_vec();
     }
 }
 
