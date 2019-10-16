@@ -90,6 +90,7 @@ jobs:
     - name: Build wat2wasm
       run: |
         set -e
+        sudo apt install ninja-build
         cd tests/wabt
         cmake . -G Ninja
         ninja wat2wasm
