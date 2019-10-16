@@ -190,7 +190,10 @@ impl<'a> Resolver<'a> {
 
         // If the type was listed inline *and* it was specified via a type index
         // we need to assert they're the same.
-        let expected = &self.tys[idx as usize];
+        let expected = match self.tys.get(idx as usize) {
+            Some(ty) => ty,
+            None => return Ok(idx),
+        };
         if ty.ty.params.len() > 0 || ty.ty.results.len() > 0 {
             if expected.nparams != ty.ty.params.len() || expected.nresults != ty.ty.results.len() {
                 let span = ty.index_span.unwrap();
