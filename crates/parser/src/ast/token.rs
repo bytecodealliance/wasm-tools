@@ -220,72 +220,78 @@ macro_rules! float {
                     let exp_offset = neg_offset - $exp_bits;
                     let signif_bits = width - 1 - $exp_bits;
                     let signif_mask = (1 << exp_offset) - 1;
-                    match val {
+                    let (hex, integral, decimal, exponent) = match val {
                         FloatVal::Inf { negative } => {
                             let exp_bits = (1 << $exp_bits) - 1;
                             let neg_bit = *negative as $int;
-                            Some((neg_bit << neg_offset) | (exp_bits << exp_offset))
+                            return Some(
+                                (neg_bit << neg_offset) |
+                                (exp_bits << exp_offset)
+                            );
                         }
 
                         FloatVal::Nan { negative, val } => {
                             let exp_bits = (1 << $exp_bits) - 1;
                             let neg_bit = *negative as $int;
                             let signif = val.unwrap_or(1 << (signif_bits - 1)) as $int;
-                            Some(
+                            return Some(
                                 (neg_bit << neg_offset) |
                                 (exp_bits << exp_offset) |
                                 (signif & signif_mask)
-                            )
+                            );
                         }
 
                         FloatVal::Val { hex, integral, decimal, exponent } => {
-                            if *hex {
-                                let (sign, num) = if integral.starts_with("-") {
-                                    ("-", &integral[1..])
-                                } else {
-                                    ("", &integral[..])
-                                };
-                                let mut s = format!("{}0x{}", sign, num);
-                                    s.push_str(".");
-                                if let Some(decimal) = decimal {
-                                    s.push_str(&decimal);
-                                } else {
-                                    s.push_str("0");
-                                }
-                                if let Some(exponent) = exponent {
-                                    s.push_str("p");
-                                    s.push_str(&exponent);
-                                }
-                                let s = CString::new(s).unwrap();
-
-                                // Match what wabt does for now and use
-                                // `strtof` and `strtod` until hex float
-                                // parsing in Rust is up to par.
-                                extern {
-                                    fn $parse(input: *const c_char, other: *mut *mut c_char) -> $float;
-                                }
-                                unsafe {
-                                    Some(
-                                        $parse(
-                                            s.as_ptr(),
-                                            ptr::null_mut(),
-                                        ).to_bits(),
-                                    )
-                                }
-                            } else {
-                                let mut s = integral.to_string();
-                                if let Some(decimal) = decimal {
-                                    s.push_str(".");
-                                    s.push_str(&decimal);
-                                }
-                                if let Some(exponent) = exponent {
-                                    s.push_str("e");
-                                    s.push_str(&exponent);
-                                }
-                                s.parse::<$float>().ok().map(|s| s.to_bits())
-                            }
+                            (hex, integral, decimal, exponent)
                         }
+                    };
+
+                    // Rely on Rust's standard library to parse base 10 floats
+                    // correctly.
+                    if !*hex {
+                        let mut s = integral.to_string();
+                        if let Some(decimal) = decimal {
+                            s.push_str(".");
+                            s.push_str(&decimal);
+                        }
+                        if let Some(exponent) = exponent {
+                            s.push_str("e");
+                            s.push_str(&exponent);
+                        }
+                        return s.parse::<$float>().ok().map(|s| s.to_bits());
                     }
+
+                    // FIXME(#13) shouldn't use C here, we should use something
+                    // Rust-based
+                    let (sign, num) = if integral.starts_with("-") {
+                        ("-", &integral[1..])
+                    } else {
+                        ("", &integral[..])
+                    };
+                    let mut s = format!("{}0x{}", sign, num);
+                    if let Some(decimal) = decimal {
+                        s.push_str(".");
+                        s.push_str(&decimal);
+                    }
+                    if let Some(exponent) = exponent {
+                        s.push_str("p");
+                        s.push_str(&exponent);
+                    }
+                    let s = CString::new(s).unwrap();
+
+                    // Match what wabt does for now and use
+                    // `strtof` and `strtod` until hex float
+                    // parsing in Rust is up to par.
+                    extern {
+                        fn $parse(input: *const c_char, other: *mut *mut c_char) -> $float;
+                    }
+                    let ret = unsafe {
+                        $parse(
+                            s.as_ptr(),
+                            ptr::null_mut(),
+                        )
+                    };
+                    Some(ret.to_bits())
                 }
 
                 parser.step(|c| {
