@@ -1107,7 +1107,7 @@ mod tests {
         assert_eq!(get_integer("-1"), "-1");
         assert_eq!(get_integer("+1"), "1");
         assert_eq!(get_integer("+1_000"), "1000");
-        assert_eq!(get_integer("+1_0______0_0"), "1000");
+        assert_eq!(get_integer("+1_0_0_0"), "1000");
         assert_eq!(get_integer("+0x10"), "10");
         assert_eq!(get_integer("-0x10"), "-10");
         assert_eq!(get_integer("0x10"), "10");
