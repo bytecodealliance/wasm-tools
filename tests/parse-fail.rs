@@ -57,6 +57,7 @@ fn run_test(test: &Path, bless: bool) -> anyhow::Result<()> {
         return Ok(());
     }
     let assert = std::fs::read_to_string(assert).unwrap_or(String::new());
+    let assert = assert.replace("\r\n", "\n");
     if assert == err {
         return Ok(());
     }
