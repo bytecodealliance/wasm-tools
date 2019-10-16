@@ -381,7 +381,8 @@ fn skip_test(test: &Path, contents: &str) -> bool {
     if contents.contains(";; ERROR") {
         return true;
     }
-    // Tests that have a different input
+    // These tests are acually ones that run with the `*.wast` files from the
+    // official test suite, and we slurp those up elsewhere anyway.
     if contents.contains("STDIN_FILE") {
         return true;
     }
