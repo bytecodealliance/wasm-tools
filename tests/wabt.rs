@@ -111,8 +111,6 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
 
             // FIXME(#19) run these tests
             WastDirective::AssertMalformed { message, .. }
-                if message.starts_with("mismatching label") => {}
-            WastDirective::AssertMalformed { message, .. }
                 if message.starts_with("constant out of range") => {}
 
             WastDirective::AssertMalformed {

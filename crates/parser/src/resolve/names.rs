@@ -337,9 +337,30 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 Ok(())
             }
 
-            End(_) => {
-                self.labels.pop();
-                Ok(())
+            // On `End` instructions we pop a label from the stack, and for both
+            // `End` and `Else` instructions if they have labels listed we
+            // verify that they match the label at the beginning of the block.
+            Else(_) | End(_) => {
+                let (matching_label, label) = match instr {
+                    Else(label) => (self.labels.last().cloned(), label),
+                    End(label) => (self.labels.pop(), label),
+                    _ => unreachable!(),
+                };
+                let matching_label = match matching_label {
+                    Some(l) => l,
+                    None => return Ok(()),
+                };
+                let label = match label {
+                    Some(l) => l,
+                    None => return Ok(()),
+                };
+                if Some(*label) == matching_label {
+                    return Ok(())
+                }
+                return Err(Error::new(
+                    label.span(),
+                    "mismatching labels between end and block".to_string(),
+                ));
             }
 
             Br(i) | BrIf(i) => self.resolve_label(i),
