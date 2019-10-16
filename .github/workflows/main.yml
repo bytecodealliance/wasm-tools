@@ -8,8 +8,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        #build: [stable, beta, nightly, macos, windows, mingw]
-        build: [windows, mingw]
+        build: [stable, beta, nightly, macos]
+        # FIXME(#20): get windows installation of wat2wasm working
+        # build: [windows, mingw]
         include:
           - build: stable
             os: ubuntu-latest
@@ -78,18 +79,18 @@ jobs:
       run: rustup update stable && rustup default stable && rustup component add rustfmt
     - run: cargo fmt -- --check
 
-  # fuzz:
-  #   name: Fuzz
-  #   runs-on: ubuntu-latest
-  #   strategy:
-  #     matrix:
-  #       target: [parser, binary, lexer]
-  #   steps:
-  #   - uses: actions/checkout@master
-  #   - name: Install Rust
-  #     run: rustup update nightly && rustup default nightly
-  #   - run: cargo install cargo-fuzz
-  #   - run: cargo fuzz run --release ${{ matrix.target }} -- -max_total_time=30 -jobs=2 -verbosity=0
-  #     env:
-  #       # See rust-fuzz/cargo-fuzz#161
-  #       RUSTFLAGS: -C codegen-units=1
+  fuzz:
+    name: Fuzz
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [parser, binary, lexer]
+    steps:
+    - uses: actions/checkout@master
+    - name: Install Rust
+      run: rustup update nightly && rustup default nightly
+    - run: cargo install cargo-fuzz
+    - run: cargo fuzz run --release ${{ matrix.target }} -- -max_total_time=30 -jobs=2 -verbosity=0
+      env:
+        # See rust-fuzz/cargo-fuzz#161
+        RUSTFLAGS: -C codegen-units=1
