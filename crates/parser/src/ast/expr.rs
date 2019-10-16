@@ -6,7 +6,7 @@ use crate::parser::{Parse, Parser, Result};
 /// This expression type will parse s-expression-folded instructions into a flat
 /// list of instructions for emission later on. The implicit `end` instruction
 /// at the end of an expression is not included in the `instrs` field.
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 #[allow(missing_docs)]
 pub struct Expression<'a> {
     pub instrs: Vec<Instruction<'a>>,
@@ -87,7 +87,7 @@ macro_rules! instructions {
     }) => (
         /// A listing of all WebAssembly instructions that can be in a module
         /// that this crate currently parses.
-        #[derive(Debug, PartialEq)]
+        #[derive(Debug)]
         #[allow(missing_docs)]
         pub enum Instruction<'a> {
             $(
@@ -456,7 +456,7 @@ instructions! {
 ///
 /// This is used to label blocks and also annotate what types are expected for
 /// the block.
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 #[allow(missing_docs)]
 pub struct BlockType<'a> {
     pub label: Option<ast::Id<'a>>,
@@ -474,7 +474,7 @@ impl<'a> Parse<'a> for BlockType<'a> {
 
 /// Extra information associated with the `br_table` instruction.
 #[allow(missing_docs)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct BrTableIndices<'a> {
     pub labels: Vec<ast::Index<'a>>,
     pub default: ast::Index<'a>,
@@ -494,7 +494,7 @@ impl<'a> Parse<'a> for BrTableIndices<'a> {
 
 /// Payload for memory-related instructions indicating offset/alignment of
 /// memory accesses.
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct MemArg {
     /// The alignment of this access.
     ///
@@ -549,7 +549,7 @@ impl MemArg {
 }
 
 /// Extra data associated with the `call_indirect` instruction.
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct CallIndirect<'a> {
     /// The table that this call is going to be indexing.
     pub table: ast::Index<'a>,
@@ -575,7 +575,7 @@ impl<'a> Parse<'a> for CallIndirect<'a> {
 }
 
 /// Extra data associated with the `table.init` instruction
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct TableInit<'a> {
     /// The index of the element segment we're copying into a table.
     pub elem: ast::Index<'a>,
@@ -590,7 +590,7 @@ impl<'a> Parse<'a> for TableInit<'a> {
 }
 
 /// Extra data associated with the `memory.init` instruction
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct MemoryInit<'a> {
     /// The index of the data segment we're copying into memory.
     pub data: ast::Index<'a>,

@@ -101,8 +101,6 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
 
             // FIXME(#19) run these tests
             WastDirective::AssertMalformed { message, .. }
-                if message.starts_with("import after ") => {}
-            WastDirective::AssertMalformed { message, .. }
                 if message.starts_with("mismatching label") => {}
             WastDirective::AssertMalformed { message, .. }
                 if message.starts_with("inline function type") => {}

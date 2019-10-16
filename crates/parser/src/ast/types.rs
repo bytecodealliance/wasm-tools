@@ -41,7 +41,7 @@ impl<'a> Parse<'a> for ValType {
 }
 
 /// Type for a `global` in a wasm module
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug)]
 pub struct GlobalType {
     /// The element type of this `global`
     pub ty: ValType,
@@ -71,7 +71,7 @@ impl<'a> Parse<'a> for GlobalType {
 /// List of different kinds of table types we can have.
 ///
 /// Currently there's only one, a `funcref`.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug)]
 pub enum TableElemType {
     /// An element for a table that is a list of functions.
     Funcref,
@@ -111,7 +111,7 @@ impl Peek for TableElemType {
 }
 
 /// Min/max limits used for tables/memories.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug)]
 pub struct Limits {
     /// The minimum number of units for this type.
     pub min: u32,
@@ -132,7 +132,7 @@ impl<'a> Parse<'a> for Limits {
 }
 
 /// Configuration for a table of a wasm mdoule
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug)]
 pub struct TableType {
     /// Limits on the element sizes of this table
     pub limits: Limits,
@@ -150,7 +150,7 @@ impl<'a> Parse<'a> for TableType {
 }
 
 /// Configuration for a memory of a wasm module
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug)]
 pub struct MemoryType {
     /// Limits on the page sizes of this memory
     pub limits: Limits,
@@ -167,7 +167,7 @@ impl<'a> Parse<'a> for MemoryType {
 }
 
 /// A function type with parameters and results.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct FunctionType<'a> {
     /// The parameters of a function, optionally each having a name.
     pub params: Vec<(Option<ast::Id<'a>>, ValType)>,
@@ -230,7 +230,7 @@ impl<'a> Parse<'a> for FunctionType<'a> {
 }
 
 /// A type declaration in a module
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Type<'a> {
     /// An optional name to refer to this `type` by.
     pub name: Option<ast::Id<'a>>,
@@ -252,7 +252,7 @@ impl<'a> Parse<'a> for Type<'a> {
 /// This is a pretty tricky type used in a lot of places and is somewhat subtly
 /// handled as well. In general `(type)` or `(param)` annotations are parsed as
 /// this.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct TypeUse<'a> {
     /// The type that we're referencing, if it was present.
     pub index: Option<ast::Index<'a>>,

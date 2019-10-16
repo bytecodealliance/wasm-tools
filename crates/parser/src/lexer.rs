@@ -24,6 +24,7 @@
 //!
 //! [`Lexer`]: crate::lexer::Lexer
 
+use crate::{Error, Span};
 use std::borrow::Cow;
 use std::char;
 use std::fmt;
@@ -113,25 +114,9 @@ pub enum Comment<'a> {
 /// Errors that can be generated while lexing.
 ///
 /// All lexing errors have line/colum/position information as well as a
-/// `LexErrorKind` indicating what kind of error happened while lexing.
-#[derive(Debug, Clone)]
-pub struct LexError {
-    inner: Box<LexErrorInner>,
-}
-
-#[derive(Debug, Clone)]
-struct LexErrorInner {
-    line: usize,
-    col: usize,
-    pos: usize,
-    kind: LexErrorKind,
-}
-
-/// The different classes of errors that can happen while lexing.
-///
-/// Do not exhaustively match on this enumeration.
-#[derive(Debug, PartialEq, Clone)]
-pub enum LexErrorKind {
+/// `LexError` indicating what kind of error happened while lexing.
+#[derive(Debug, Clone, PartialEq)]
+pub enum LexError {
     /// A dangling block comment was found with an unbalanced `(;` which was
     /// never terminated in the file.
     DanglingBlockComment,
@@ -251,7 +236,7 @@ impl<'a> Lexer<'a> {
     /// # Errors
     ///
     /// Returns an error if the input is malformed.
-    pub fn parse(&mut self) -> Result<Option<Source<'a>>, LexError> {
+    pub fn parse(&mut self) -> Result<Option<Source<'a>>, Error> {
         if let Some(ws) = self.ws() {
             return Ok(Some(Source::Whitespace(ws)));
         }
@@ -262,12 +247,12 @@ impl<'a> Lexer<'a> {
             return Ok(Some(Source::Token(token)));
         }
         match self.it.next() {
-            Some((i, ch)) => Err(self.error(i, LexErrorKind::Unexpected(ch))),
+            Some((i, ch)) => Err(self.error(i, LexError::Unexpected(ch))),
             None => Ok(None),
         }
     }
 
-    fn token(&mut self) -> Result<Option<Token<'a>>, LexError> {
+    fn token(&mut self) -> Result<Option<Token<'a>>, Error> {
         // First two are easy, they're just parens
         if let Some(pos) = self.eat_char('(') {
             return Ok(Some(Token::LParen(&self.input[pos..pos + 1])));
@@ -285,7 +270,7 @@ impl<'a> Lexer<'a> {
 
         let (start, prefix) = match self.it.peek().cloned() {
             Some((i, ch)) if is_idchar(ch) => (i, ch),
-            Some((i, ch)) => return Err(self.error(i, LexErrorKind::Unexpected(ch))),
+            Some((i, ch)) => return Err(self.error(i, LexError::Unexpected(ch))),
             None => return Ok(None),
         };
 
@@ -498,7 +483,7 @@ impl<'a> Lexer<'a> {
     }
 
     /// Attempts to read a comment from the input stream
-    fn comment(&mut self) -> Result<Option<Comment<'a>>, LexError> {
+    fn comment(&mut self) -> Result<Option<Comment<'a>>, Error> {
         if let Some(start) = self.eat_str(";;") {
             loop {
                 match self.it.peek() {
@@ -524,14 +509,14 @@ impl<'a> Lexer<'a> {
                 }
             }
 
-            return Err(self.error(start, LexErrorKind::DanglingBlockComment));
+            return Err(self.error(start, LexError::DanglingBlockComment));
         }
         Ok(None)
     }
 
     /// Reads everything for a literal string except the leading `"`. Returns
     /// the string value that has been read.
-    fn string(&mut self) -> Result<Cow<'a, [u8]>, LexError> {
+    fn string(&mut self) -> Result<Cow<'a, [u8]>, Error> {
         enum State {
             Start(usize),
             String(Vec<u8>),
@@ -560,9 +545,8 @@ impl<'a> Lexer<'a> {
                         Some((i, 'u')) => {
                             self.must_eat_char('{')?;
                             let n = self.hexnum()?;
-                            let c = char::from_u32(n).ok_or_else(|| {
-                                self.error(i, LexErrorKind::InvalidUnicodeValue(n))
-                            })?;
+                            let c = char::from_u32(n)
+                                .ok_or_else(|| self.error(i, LexError::InvalidUnicodeValue(n)))?;
                             buf.extend(c.encode_utf8(&mut [0; 4]).as_bytes());
                             self.must_eat_char('}')?;
                         }
@@ -570,18 +554,14 @@ impl<'a> Lexer<'a> {
                             let (_, c2) = self.hexdigit()?;
                             buf.push(to_hex(c1) * 16 + c2);
                         }
-                        Some((i, c)) => {
-                            return Err(self.error(i, LexErrorKind::InvalidStringEscape(c)))
-                        }
-                        None => {
-                            return Err(self.error(self.input.len(), LexErrorKind::UnexpectedEof))
-                        }
+                        Some((i, c)) => return Err(self.error(i, LexError::InvalidStringEscape(c))),
+                        None => return Err(self.error(self.input.len(), LexError::UnexpectedEof)),
                     }
                 }
                 Some((_, '"')) => break,
                 Some((i, c)) => {
                     if (c as u32) < 0x20 || c as u32 == 0x7f {
-                        return Err(self.error(i, LexErrorKind::InvalidStringElement(c)));
+                        return Err(self.error(i, LexError::InvalidStringElement(c)));
                     }
                     match &mut state {
                         State::Start(_) => {}
@@ -590,7 +570,7 @@ impl<'a> Lexer<'a> {
                         }
                     }
                 }
-                None => return Err(self.error(self.input.len(), LexErrorKind::UnexpectedEof)),
+                None => return Err(self.error(self.input.len(), LexError::UnexpectedEof)),
             }
         }
         match state {
@@ -599,7 +579,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn hexnum(&mut self) -> Result<u32, LexError> {
+    fn hexnum(&mut self) -> Result<u32, Error> {
         let (_, n) = self.hexdigit()?;
         let mut last_underscore = false;
         let mut n = n as u32;
@@ -617,11 +597,11 @@ impl<'a> Lexer<'a> {
             n = n
                 .checked_mul(16)
                 .and_then(|n| n.checked_add(to_hex(c) as u32))
-                .ok_or_else(|| self.error(i, LexErrorKind::NumberTooBig))?;
+                .ok_or_else(|| self.error(i, LexError::NumberTooBig))?;
         }
         if last_underscore {
             let cur = self.cur();
-            return Err(self.error(cur, LexErrorKind::LoneUnderscore));
+            return Err(self.error(cur, LexError::LoneUnderscore));
         }
         Ok(n)
     }
@@ -629,12 +609,12 @@ impl<'a> Lexer<'a> {
     /// Reads a hexidecimal digit from the input stream, returning where it's
     /// defined and the hex value. Returns an error on EOF or an invalid hex
     /// digit.
-    fn hexdigit(&mut self) -> Result<(usize, u8), LexError> {
+    fn hexdigit(&mut self) -> Result<(usize, u8), Error> {
         let (i, ch) = self.must_char()?;
         if ch.is_ascii_hexdigit() {
             Ok((i, to_hex(ch)))
         } else {
-            Err(self.error(i, LexErrorKind::InvalidHexDigit(ch)))
+            Err(self.error(i, LexError::InvalidHexDigit(ch)))
         }
     }
 
@@ -664,19 +644,19 @@ impl<'a> Lexer<'a> {
 
     /// Reads the next character from the input string and where it's located,
     /// returning an error if the input stream is empty.
-    fn must_char(&mut self) -> Result<(usize, char), LexError> {
+    fn must_char(&mut self) -> Result<(usize, char), Error> {
         self.it
             .next()
-            .ok_or_else(|| self.error(self.input.len(), LexErrorKind::UnexpectedEof))
+            .ok_or_else(|| self.error(self.input.len(), LexError::UnexpectedEof))
     }
 
     /// Expects that a specific character must be read next
-    fn must_eat_char(&mut self, wanted: char) -> Result<usize, LexError> {
+    fn must_eat_char(&mut self, wanted: char) -> Result<usize, Error> {
         let (pos, found) = self.must_char()?;
         if wanted == found {
             Ok(pos)
         } else {
-            Err(self.error(pos, LexErrorKind::Expected { wanted, found }))
+            Err(self.error(pos, LexError::Expected { wanted, found }))
         }
     }
 
@@ -691,25 +671,13 @@ impl<'a> Lexer<'a> {
     }
 
     /// Creates an error at `pos` with the specified `kind`
-    fn error(&self, pos: usize, kind: LexErrorKind) -> LexError {
-        let (line, col) = self.to_linecol(pos);
-        LexError {
-            inner: Box::new(LexErrorInner {
-                line,
-                col,
-                pos,
-                kind,
-            }),
-        }
-    }
-
-    fn to_linecol(&self, offset: usize) -> (usize, usize) {
-        crate::to_linecol(self.input, offset)
+    fn error(&self, pos: usize, kind: LexError) -> Error {
+        Error::lex(Span { offset: pos }, self.input, kind)
     }
 }
 
 impl<'a> Iterator for Lexer<'a> {
-    type Item = Result<Source<'a>, LexError>;
+    type Item = Result<Source<'a>, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.parse().transpose()
@@ -779,13 +747,6 @@ impl<'a> Float<'a> {
     }
 }
 
-impl LexError {
-    /// Returns the associated `LexErrorKind` for this error.
-    pub fn kind(&self) -> &LexErrorKind {
-        &self.inner.kind
-    }
-}
-
 fn to_hex(c: char) -> u8 {
     match c {
         'a'..='f' => c as u8 - b'a' + 10,
@@ -826,22 +787,10 @@ fn is_idchar(c: char) -> bool {
     }
 }
 
-impl LexError {
-    /// Returns the 0-indexed line number that this lex error happened at
-    pub fn line(&self) -> usize {
-        self.inner.line
-    }
-
-    /// Returns the 0-indexed column number that this lex error happened at
-    pub fn col(&self) -> usize {
-        self.inner.col
-    }
-}
-
 impl fmt::Display for LexError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use LexErrorKind::*;
-        match self.inner.kind {
+        use LexError::*;
+        match self {
             DanglingBlockComment => f.write_str("unterminated block comment")?,
             Unexpected(c) => write!(f, "unexpected character {:?}", c)?,
             InvalidStringElement(c) => write!(f, "invalid character in string {:?}", c)?,
@@ -859,11 +808,18 @@ impl fmt::Display for LexError {
     }
 }
 
-impl std::error::Error for LexError {}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn err(s: &str) -> LexError {
+        Lexer::new(s)
+            .parse()
+            .unwrap_err()
+            .lex_error()
+            .unwrap()
+            .clone()
+    }
 
     #[test]
     fn ws_smoke() {
@@ -906,18 +862,9 @@ mod tests {
         assert_eq!(get_block_comment("(;;)"), "(;;)");
         assert_eq!(get_block_comment("(; ;)"), "(; ;)");
         assert_eq!(get_block_comment("(; (;;) ;)"), "(; (;;) ;)");
-        assert_eq!(
-            *Lexer::new("(; ").parse().unwrap_err().kind(),
-            LexErrorKind::DanglingBlockComment,
-        );
-        assert_eq!(
-            *Lexer::new("(; (;;)").parse().unwrap_err().kind(),
-            LexErrorKind::DanglingBlockComment,
-        );
-        assert_eq!(
-            *Lexer::new("(; ;").parse().unwrap_err().kind(),
-            LexErrorKind::DanglingBlockComment,
-        );
+        assert_eq!(err("(; "), LexError::DanglingBlockComment);
+        assert_eq!(err("(; (;;)"), LexError::DanglingBlockComment);
+        assert_eq!(err("(; ;"), LexError::DanglingBlockComment);
     }
 
     fn get_token(input: &str) -> Token<'_> {
@@ -973,79 +920,37 @@ mod tests {
             assert_eq!(&*get_string(&s), &[i as u8]);
         }
 
+        assert_eq!(err("\""), LexError::UnexpectedEof);
+        assert_eq!(err("\"\\x\""), LexError::InvalidStringEscape('x'));
+        assert_eq!(err("\"\\0\""), LexError::InvalidHexDigit('"'));
+        assert_eq!(err("\"\\0"), LexError::UnexpectedEof);
+        assert_eq!(err("\"\\"), LexError::UnexpectedEof);
+        assert_eq!(err("\"\u{7f}\""), LexError::InvalidStringElement('\u{7f}'));
+        assert_eq!(err("\"\u{0}\""), LexError::InvalidStringElement('\u{0}'));
+        assert_eq!(err("\"\u{1f}\""), LexError::InvalidStringElement('\u{1f}'));
+        assert_eq!(err("\"\\u{x}\""), LexError::InvalidHexDigit('x'));
+        assert_eq!(err("\"\\u{1_}\""), LexError::LoneUnderscore);
+        assert_eq!(err("\"\\u{fffffffffffffffff}\""), LexError::NumberTooBig);
         assert_eq!(
-            *Lexer::new("\"").parse().unwrap_err().kind(),
-            LexErrorKind::UnexpectedEof,
+            err("\"\\u{ffffffff}\""),
+            LexError::InvalidUnicodeValue(0xffffffff),
         );
         assert_eq!(
-            *Lexer::new("\"\\x\"").parse().unwrap_err().kind(),
-            LexErrorKind::InvalidStringEscape('x'),
-        );
-        assert_eq!(
-            *Lexer::new("\"\\0\"").parse().unwrap_err().kind(),
-            LexErrorKind::InvalidHexDigit('"'),
-        );
-        assert_eq!(
-            *Lexer::new("\"\\0").parse().unwrap_err().kind(),
-            LexErrorKind::UnexpectedEof,
-        );
-        assert_eq!(
-            *Lexer::new("\"\\").parse().unwrap_err().kind(),
-            LexErrorKind::UnexpectedEof,
-        );
-        assert_eq!(
-            *Lexer::new("\"\u{7f}\"").parse().unwrap_err().kind(),
-            LexErrorKind::InvalidStringElement('\u{7f}'),
-        );
-        assert_eq!(
-            *Lexer::new("\"\u{0}\"").parse().unwrap_err().kind(),
-            LexErrorKind::InvalidStringElement('\u{0}'),
-        );
-        assert_eq!(
-            *Lexer::new("\"\u{1f}\"").parse().unwrap_err().kind(),
-            LexErrorKind::InvalidStringElement('\u{1f}'),
-        );
-        assert_eq!(
-            *Lexer::new("\"\\u{x}\"").parse().unwrap_err().kind(),
-            LexErrorKind::InvalidHexDigit('x'),
-        );
-        assert_eq!(
-            *Lexer::new("\"\\u{1_}\"").parse().unwrap_err().kind(),
-            LexErrorKind::LoneUnderscore,
-        );
-        assert_eq!(
-            *Lexer::new("\"\\u{fffffffffffffffff}\"")
-                .parse()
-                .unwrap_err()
-                .kind(),
-            LexErrorKind::NumberTooBig,
-        );
-        assert_eq!(
-            *Lexer::new("\"\\u{ffffffff}\"").parse().unwrap_err().kind(),
-            LexErrorKind::InvalidUnicodeValue(0xffffffff),
-        );
-        assert_eq!(
-            *Lexer::new("\"\\u\"").parse().unwrap_err().kind(),
-            LexErrorKind::Expected {
+            err("\"\\u\""),
+            LexError::Expected {
                 wanted: '{',
                 found: '"'
             },
         );
+        assert_eq!(err("\"\\u{\""), LexError::InvalidHexDigit('"'));
         assert_eq!(
-            *Lexer::new("\"\\u{\"").parse().unwrap_err().kind(),
-            LexErrorKind::InvalidHexDigit('"'),
-        );
-        assert_eq!(
-            *Lexer::new("\"\\u{1\"").parse().unwrap_err().kind(),
-            LexErrorKind::Expected {
+            err("\"\\u{1\""),
+            LexError::Expected {
                 wanted: '}',
                 found: '"'
             },
         );
-        assert_eq!(
-            *Lexer::new("\"\\u{1").parse().unwrap_err().kind(),
-            LexErrorKind::UnexpectedEof,
-        );
+        assert_eq!(err("\"\\u{1"), LexError::UnexpectedEof);
     }
 
     #[test]

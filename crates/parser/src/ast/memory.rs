@@ -2,8 +2,10 @@ use crate::ast::{self, kw};
 use crate::parser::{Parse, Parser, Result};
 
 /// A defined WebAssembly memory instance inside of a module.
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Memory<'a> {
+    /// Where this `memory` was defined
+    pub span: ast::Span,
     /// An optional name to refer to this memory by.
     pub name: Option<ast::Id<'a>>,
     /// If present, inline export annotations which indicate names this
@@ -14,7 +16,7 @@ pub struct Memory<'a> {
 }
 
 /// Different syntactical ways a memory can be defined in a module.
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum MemoryKind<'a> {
     /// This memory is actually an inlined import definition.
     #[allow(missing_docs)]
@@ -33,7 +35,7 @@ pub enum MemoryKind<'a> {
 
 impl<'a> Parse<'a> for Memory<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::memory>()?;
+        let span = parser.parse::<kw::memory>()?.0;
         let name = parser.parse()?;
         let exports = parser.parse()?;
 
@@ -78,6 +80,7 @@ impl<'a> Parse<'a> for Memory<'a> {
             return Err(l.error());
         };
         Ok(Memory {
+            span,
             name,
             exports,
             kind,
@@ -86,7 +89,7 @@ impl<'a> Parse<'a> for Memory<'a> {
 }
 
 /// A `data` directive in a WebAssembly module.
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Data<'a> {
     /// The optional name of this data segment
     pub name: Option<ast::Id<'a>>,
@@ -100,7 +103,7 @@ pub struct Data<'a> {
 }
 
 /// Different kinds of data segments, either passive or active.
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum DataKind<'a> {
     /// A passive data segment which isn't associated with a memory and is
     /// referenced from various instructions.

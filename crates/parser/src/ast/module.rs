@@ -131,7 +131,7 @@ impl<'a> Parse<'a> for Module<'a> {
 
 /// A listing of all possible fields that can make up a WebAssembly module.
 #[allow(missing_docs)]
-#[derive(PartialEq, Debug)]
+#[derive(Debug)]
 pub enum ModuleField<'a> {
     Type(ast::Type<'a>),
     Import(ast::Import<'a>),

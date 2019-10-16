@@ -4,8 +4,10 @@ use crate::parser::{Parse, Parser, Result};
 /// A WebAssembly function to be inserted into a module.
 ///
 /// This is a member of both the function and code sections.
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Func<'a> {
+    /// Where this `func` was defined.
+    pub span: ast::Span,
     /// An optional name to reference this function by.
     pub name: Option<ast::Id<'a>>,
     /// If present, inline export annotations which indicate names this
@@ -19,7 +21,7 @@ pub struct Func<'a> {
 }
 
 /// Possible ways to define a function in the text format.
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum FuncKind<'a> {
     /// A function which is actually defined as an import, such as:
     ///
@@ -46,7 +48,7 @@ pub enum FuncKind<'a> {
 
 impl<'a> Parse<'a> for Func<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::func>()?;
+        let span = parser.parse::<kw::func>()?.0;
         let name = parser.parse()?;
         let exports = parser.parse()?;
 
@@ -85,6 +87,7 @@ impl<'a> Parse<'a> for Func<'a> {
         };
 
         Ok(Func {
+            span,
             name,
             exports,
             ty,

@@ -60,6 +60,7 @@ impl<'a> Expander<'a> {
                     }));
                 }
                 *item = ModuleField::Import(Import {
+                    span: f.span,
                     module,
                     name,
                     id: f.name,
@@ -80,6 +81,7 @@ impl<'a> Expander<'a> {
                     }));
                 }
                 *item = ModuleField::Import(Import {
+                    span: m.span,
                     module,
                     name,
                     id: m.name,
@@ -100,6 +102,7 @@ impl<'a> Expander<'a> {
                     }));
                 }
                 *item = ModuleField::Import(Import {
+                    span: t.span,
                     module,
                     name,
                     id: t.name,
@@ -120,6 +123,7 @@ impl<'a> Expander<'a> {
                     }));
                 }
                 *item = ModuleField::Import(Import {
+                    span: g.span,
                     module,
                     name,
                     id: g.name,

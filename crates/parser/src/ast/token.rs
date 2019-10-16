@@ -4,6 +4,12 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str;
 
+/// A position in the original source stream, used to render errors.
+#[derive(Copy, Clone, Debug)]
+pub struct Span {
+    pub(crate) offset: usize,
+}
+
 /// An identifier in a WebAssembly module, prefixed by `$` in the textual
 /// format.
 ///
@@ -12,20 +18,20 @@ use std::str;
 #[derive(Copy, Clone)]
 pub struct Id<'a> {
     name: &'a str,
-    pub(crate) orig: Option<&'a str>,
+    span: Span,
 }
 
 impl<'a> Id<'a> {
-    /// Creates a new identifier with the specified `name`.
-    pub fn new(name: &str) -> Id<'_> {
-        Id { name, orig: None }
-    }
-
     /// Returns the underlying name of this identifier.
     ///
     /// The name returned does not contain the leading `$`.
     pub fn name(&self) -> &'a str {
         self.name
+    }
+
+    /// Returns span of this identifier in the original source
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
@@ -50,7 +56,7 @@ impl<'a> Parse<'a> for Id<'a> {
                 return Ok((
                     Id {
                         name,
-                        orig: Some(c.input()),
+                        span: c.cur_span(),
                     },
                     rest,
                 ));
@@ -196,7 +202,7 @@ impl Peek for &'_ str {
 macro_rules! float {
     ($($name:ident => ($int:ident, $float:ident, $exp_bits:tt, $parse:ident))*) => ($(
         /// A parsed floating-point type
-        #[derive(Debug, PartialEq)]
+        #[derive(Debug)]
         pub struct $name {
             /// The raw bits that this floating point number represents.
             pub bits: $int,

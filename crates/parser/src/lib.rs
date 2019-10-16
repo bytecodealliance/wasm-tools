@@ -24,17 +24,6 @@
 //!   WebAssembly Text format (WAT) as well as the unofficial WAST format. This
 //!   also has a [`Module::encode`] method to emit a module in its binary form.
 //!
-//! # Errors
-//!
-//! Naturally with parsing a lot of errors can happen. This crate strives to
-//! provide useful error information wherever it can, also ideally providing
-//! convenient ways to render the error in a user-readable fashion. The
-//! low-level error types of [`LexError`][] or [`parser::Error`], and contain
-//! positional and detailed information about what went wrong.
-//!
-//! A convenience [`Error`] type is also provided to unify all these errors and
-//! provide utilities for rendering them all in a "pretty" format.
-//!
 //! # Stability and WebAssembly Features
 //!
 //! This crate provides support for many in-progress WebAssembly features such
@@ -97,25 +86,59 @@ pub struct Error {
 
 #[derive(Debug)]
 struct ErrorInner {
-    text: Option<String>,
+    text: Option<Text>,
     file: Option<PathBuf>,
+    span: Span,
     kind: ErrorKind,
+}
+
+#[derive(Debug)]
+struct Text {
+    line: usize,
+    col: usize,
+    snippet: String,
 }
 
 #[derive(Debug)]
 enum ErrorKind {
     Lex(lexer::LexError),
-    Parse(parser::Error),
-    Resolve(resolve::ResolveError),
+    Custom(String),
 }
 
 impl Error {
-    fn new(kind: ErrorKind) -> Error {
+    fn lex(span: Span, content: &str, kind: lexer::LexError) -> Error {
+        let mut ret = Error {
+            inner: Box::new(ErrorInner {
+                text: None,
+                file: None,
+                span,
+                kind: ErrorKind::Lex(kind),
+            }),
+        };
+        ret.set_text(content);
+        return ret;
+    }
+
+    fn parse(span: Span, content: &str, message: String) -> Error {
+        let mut ret = Error {
+            inner: Box::new(ErrorInner {
+                text: None,
+                file: None,
+                span,
+                kind: ErrorKind::Custom(message),
+            }),
+        };
+        ret.set_text(content);
+        return ret;
+    }
+
+    fn new(span: Span, message: String) -> Error {
         Error {
             inner: Box::new(ErrorInner {
                 text: None,
                 file: None,
-                kind,
+                span,
+                kind: ErrorKind::Custom(message),
             }),
         }
     }
@@ -130,7 +153,7 @@ impl Error {
         if self.inner.text.is_some() {
             return;
         }
-        self.inner.text = Some(contents.lines().nth(self.line()).unwrap_or("").to_string());
+        self.inner.text = Some(Text::new(contents, self.inner.span));
     }
 
     /// To provide a more useful error this function can be used to set
@@ -145,58 +168,33 @@ impl Error {
         self.inner.file = Some(path.to_path_buf());
     }
 
-    /// Returns the 0-indexed line number that this error happened at
-    pub fn line(&self) -> usize {
+    /// Returns the underlying `LexError`, if any, that describes this error.
+    pub fn lex_error(&self) -> Option<&lexer::LexError> {
         match &self.inner.kind {
-            ErrorKind::Lex(e) => e.line(),
-            ErrorKind::Parse(e) => e.line(),
-            ErrorKind::Resolve(e) => e.line(),
+            ErrorKind::Lex(e) => Some(e),
+            _ => None,
         }
-    }
-
-    /// Returns the 0-indexed column number that this error happened at
-    pub fn col(&self) -> usize {
-        match &self.inner.kind {
-            ErrorKind::Lex(e) => e.col(),
-            ErrorKind::Parse(e) => e.col(),
-            ErrorKind::Resolve(e) => e.col(),
-        }
-    }
-}
-
-impl From<lexer::LexError> for Error {
-    fn from(err: lexer::LexError) -> Error {
-        Error::new(ErrorKind::Lex(err))
-    }
-}
-
-impl From<parser::Error> for Error {
-    fn from(err: parser::Error) -> Error {
-        Error::new(ErrorKind::Parse(err))
-    }
-}
-
-impl From<resolve::ResolveError> for Error {
-    fn from(err: resolve::ResolveError) -> Error {
-        Error::new(ErrorKind::Resolve(err))
     }
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let err = match &self.inner.kind {
+            ErrorKind::Lex(e) => e as &dyn fmt::Display,
+            ErrorKind::Custom(e) => e as &dyn fmt::Display,
+        };
+        let text = match &self.inner.text {
+            Some(text) => text,
+            None => {
+                return write!(f, "{} at byte offset {}", err, self.inner.span.offset);
+            }
+        };
         let file = self
             .inner
             .file
             .as_ref()
             .and_then(|p| p.to_str())
             .unwrap_or("<anon>");
-        let empty = String::new();
-        let text = self.inner.text.as_ref().unwrap_or(&empty);
-        let err = match &self.inner.kind {
-            ErrorKind::Lex(e) => e as &dyn fmt::Display,
-            ErrorKind::Parse(e) => e as &dyn fmt::Display,
-            ErrorKind::Resolve(e) => e as &dyn fmt::Display,
-        };
         write!(
             f,
             "\
@@ -205,15 +203,23 @@ impl fmt::Display for Error {
       |
  {line:4} | {text}
       | {marker:>0$}",
-            self.col() + 1,
+            text.col + 1,
             file = file,
-            line = self.line() + 1,
-            col = self.col() + 1,
+            line = text.line + 1,
+            col = text.col + 1,
             err = err,
-            text = text,
+            text = text.snippet,
             marker = "^",
         )
     }
 }
 
 impl std::error::Error for Error {}
+
+impl Text {
+    fn new(content: &str, span: Span) -> Text {
+        let (line, col) = to_linecol(content, span.offset);
+        let snippet = content.lines().nth(line).unwrap_or("").to_string();
+        Text { line, col, snippet }
+    }
+}

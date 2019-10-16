@@ -2,8 +2,10 @@ use crate::ast::{self, kw};
 use crate::parser::{Parse, Parser, Result};
 
 /// A WebAssembly `table` directive in a module.
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Table<'a> {
+    /// Where this table was defined.
+    pub span: ast::Span,
     /// An optional name to refer to this table by.
     pub name: Option<ast::Id<'a>>,
     /// If present, inline export annotations which indicate names this
@@ -14,7 +16,7 @@ pub struct Table<'a> {
 }
 
 /// Different ways to textually define a table.
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum TableKind<'a> {
     /// This table is actually an inlined import definition.
     #[allow(missing_docs)]
@@ -39,7 +41,7 @@ pub enum TableKind<'a> {
 
 impl<'a> Parse<'a> for Table<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::table>()?;
+        let span = parser.parse::<kw::table>()?.0;
         let name = parser.parse()?;
         let exports = parser.parse()?;
 
@@ -76,6 +78,7 @@ impl<'a> Parse<'a> for Table<'a> {
             return Err(l.error());
         };
         Ok(Table {
+            span,
             name,
             exports,
             kind,
@@ -84,7 +87,7 @@ impl<'a> Parse<'a> for Table<'a> {
 }
 
 /// An `elem` segment in a WebAssembly module.
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Elem<'a> {
     /// An optional name by which to refer to this segment.
     pub name: Option<ast::Id<'a>>,
@@ -93,7 +96,7 @@ pub struct Elem<'a> {
 }
 
 /// Different ways to define an element segment in an mdoule.
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum ElemKind<'a> {
     /// A passive segment that isn't associated with a table and can be used in
     /// various bulk-memory instructions.

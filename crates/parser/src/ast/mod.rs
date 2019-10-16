@@ -43,16 +43,15 @@ macro_rules! custom_keyword {
     ($name:ident = $kw:expr) => {
         #[allow(non_camel_case_types)]
         #[allow(missing_docs)]
-        pub struct $name {
-            _priv: (),
-        }
+        #[derive(Debug)]
+        pub struct $name(pub $crate::Span);
 
         impl<'a> $crate::parser::Parse<'a> for $name {
             fn parse(parser: $crate::parser::Parser<'a>) -> $crate::parser::Result<Self> {
                 parser.step(|c| {
                     if let Some((kw, rest)) = c.keyword() {
                         if kw == $kw {
-                            return Ok(($name { _priv: () }, rest));
+                            return Ok(($name(c.cur_span()), rest));
                         }
                     }
                     Err(c.error(concat!("expected keyword `", $kw, "`")))

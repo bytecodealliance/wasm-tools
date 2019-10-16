@@ -1,5 +1,5 @@
 use crate::ast::*;
-use crate::resolve::{ResolveError, ResolveErrorInner};
+use crate::Error;
 use std::collections::HashMap;
 
 #[derive(Copy, Clone)]
@@ -84,7 +84,7 @@ impl<'a> Resolver<'a> {
         &self.ns[ns as usize]
     }
 
-    pub fn resolve(&self, field: &mut ModuleField<'a>) -> Result<(), ResolveError> {
+    pub fn resolve(&self, field: &mut ModuleField<'a>) -> Result<(), Error> {
         match field {
             ModuleField::Import(i) => {
                 if let ImportKind::Func(f) = &mut i.kind {
@@ -181,7 +181,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn resolve_type_use(&self, ty: &mut TypeUse<'a>) -> Result<u32, ResolveError> {
+    fn resolve_type_use(&self, ty: &mut TypeUse<'a>) -> Result<u32, Error> {
         assert!(ty.index.is_some());
         let idx = self
             .ns(Ns::Type)
@@ -204,32 +204,22 @@ impl<'a> Resolver<'a> {
         Ok(idx)
     }
 
-    fn resolve_expr(&self, expr: &mut Expression<'a>) -> Result<(), ResolveError> {
+    fn resolve_expr(&self, expr: &mut Expression<'a>) -> Result<(), Error> {
         ExprResolver::new(self).resolve(expr)
     }
 
-    fn resolve_idx(&self, idx: &mut Index<'a>, ns: Ns) -> Result<(), ResolveError> {
+    fn resolve_idx(&self, idx: &mut Index<'a>, ns: Ns) -> Result<(), Error> {
         match self.ns(ns).resolve(idx) {
             Ok(_n) => Ok(()),
             Err(id) => Err(self.resolve_error(id, ns.desc())),
         }
     }
 
-    fn resolve_error(&self, id: Id<'a>, ns: &str) -> ResolveError {
-        let (line, col) = match id.orig {
-            Some(orig) => {
-                let pos = id.name().as_ptr() as usize - orig.as_ptr() as usize;
-                crate::to_linecol(orig, pos)
-            }
-            None => (0, 0),
-        };
-        ResolveError {
-            inner: Box::new(ResolveErrorInner {
-                message: format!("failed to find {} named `${}`", ns, id.name()),
-                line,
-                col,
-            }),
-        }
+    fn resolve_error(&self, id: Id<'a>, ns: &str) -> Error {
+        Error::new(
+            id.span(),
+            format!("failed to find {} named `${}`", ns, id.name()),
+        )
     }
 }
 
@@ -269,14 +259,14 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
         }
     }
 
-    fn resolve(&mut self, expr: &mut Expression<'a>) -> Result<(), ResolveError> {
+    fn resolve(&mut self, expr: &mut Expression<'a>) -> Result<(), Error> {
         for instr in expr.instrs.iter_mut() {
             self.resolve_instr(instr)?;
         }
         Ok(())
     }
 
-    fn resolve_instr(&mut self, instr: &mut Instruction<'a>) -> Result<(), ResolveError> {
+    fn resolve_instr(&mut self, instr: &mut Instruction<'a>) -> Result<(), Error> {
         use crate::ast::Instruction::*;
 
         match instr {
@@ -365,7 +355,7 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
         }
     }
 
-    fn resolve_label(&self, label: &mut Index<'a>) -> Result<(), ResolveError> {
+    fn resolve_label(&self, label: &mut Index<'a>) -> Result<(), Error> {
         let id = match label {
             Index::Num(_) => return Ok(()),
             Index::Id(id) => *id,

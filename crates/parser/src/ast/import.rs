@@ -2,8 +2,10 @@ use crate::ast::{self, kw};
 use crate::parser::{Parse, Parser, Result};
 
 /// An `import` statement and entry in a WebAssembly module.
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Import<'a> {
+    /// Where this `import` was defined
+    pub span: ast::Span,
     /// The module that this statement is importing from
     pub module: &'a str,
     /// The name of the field in the module this statement imports from.
@@ -16,7 +18,7 @@ pub struct Import<'a> {
 }
 
 /// All possible types of items that can be imported into a wasm module.
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 #[allow(missing_docs)]
 pub enum ImportKind<'a> {
     Func(ast::TypeUse<'a>),
@@ -27,7 +29,7 @@ pub enum ImportKind<'a> {
 
 impl<'a> Parse<'a> for Import<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::import>()?;
+        let span = parser.parse::<kw::import>()?.0;
         let module = parser.parse()?;
         let name = parser.parse()?;
         let (id, kind) = parser.parens(|parser| {
@@ -49,6 +51,7 @@ impl<'a> Parse<'a> for Import<'a> {
             }
         })?;
         Ok(Import {
+            span,
             module,
             name,
             id,

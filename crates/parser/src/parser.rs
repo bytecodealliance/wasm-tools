@@ -63,7 +63,8 @@
 //! This module is heavily inspired by [`syn`](https://docs.rs/syn) so you can
 //! likely also draw inspiration from the excellent examples in the `syn` crate.
 
-use crate::lexer::{Float, Integer, LexError, Lexer, Source, Token};
+use crate::lexer::{Float, Integer, Lexer, Source, Token};
+use crate::{Span, Error};
 use std::cell::Cell;
 use std::fmt;
 
@@ -299,26 +300,6 @@ pub struct Lookahead1<'a> {
 pub struct Cursor<'a> {
     parser: Parser<'a>,
     cur: usize,
-}
-
-/// An error which can happen during parsing.
-///
-/// Errors all have line/column information since they're associated with a
-/// token, and errors can have custom error messages. Errors are constructed
-/// through the [`Parser::error`] method or [`Lookahead1::error`].
-#[derive(Debug, Clone)]
-pub struct Error {
-    inner: Box<ErrorInner>,
-}
-
-#[derive(Debug, Clone)]
-enum ErrorInner {
-    LexError(LexError),
-    Custom {
-        line: usize,
-        col: usize,
-        message: String,
-    },
 }
 
 impl ParseBuffer<'_> {
@@ -629,26 +610,11 @@ impl<'a> Parser<'a> {
     /// right location in the input stream, and the `msg` here is arbitrary text
     /// used to associate with the error and indicate why it was generated.
     pub fn error(self, msg: impl fmt::Display) -> Error {
-        self.error_at_token(self.buf.cur.get(), &msg)
+        self.error_at(self.cursor().cur_span(), &msg)
     }
 
-    fn error_at_token(self, token: usize, msg: &dyn fmt::Display) -> Error {
-        let last_pos = match self.buf.tokens.get(token) {
-            None => self.buf.input.len(),
-            Some(t) => self.input_pos(t.src()),
-        };
-        self._error_at(last_pos, msg)
-    }
-
-    fn _error_at(self, pos: usize, msg: &dyn fmt::Display) -> Error {
-        let (line, col) = crate::to_linecol(self.buf.input, pos);
-        Error {
-            inner: Box::new(ErrorInner::Custom {
-                line,
-                col,
-                message: msg.to_string(),
-            }),
-        }
+    fn error_at(self, span: Span, msg: &dyn fmt::Display) -> Error {
+        Error::parse(span, self.buf.input, msg.to_string())
     }
 
     fn input_pos(self, src: &'a str) -> usize {
@@ -657,16 +623,19 @@ impl<'a> Parser<'a> {
 }
 
 impl<'a> Cursor<'a> {
-    /// Returns the entire original text that we're iterating over, useful for
-    /// perhaps generation positional error messages.
-    pub fn input(&self) -> &'a str {
-        self.parser.buf.input
+    /// Returns the span of the current token
+    pub fn cur_span(&self) -> Span {
+        let offset = match self.parser.buf.tokens.get(self.cur) {
+            Some(token) => self.parser.input_pos(token.src()),
+            None => 0,
+        };
+        Span { offset }
     }
 
     /// Same as [`Parser::error`], but works with the current token in this
     /// [`Cursor`] instead.
     pub fn error(&self, msg: impl fmt::Display) -> Error {
-        self.parser.error_at_token(self.cur, &msg)
+        self.parser.error_at(self.cur_span(), &msg)
     }
 
     /// Attempts to advance this cursor if the current token is a `(`.
@@ -809,43 +778,6 @@ impl Lookahead1<'_> {
         }
     }
 }
-
-impl Error {
-    /// Returns the 0-indexed line number this error happened at.
-    pub fn line(&self) -> usize {
-        match &*self.inner {
-            ErrorInner::LexError(e) => e.line(),
-            ErrorInner::Custom { line, .. } => *line,
-        }
-    }
-
-    /// Returns the 0-indexed column number this error happened at.
-    pub fn col(&self) -> usize {
-        match &*self.inner {
-            ErrorInner::LexError(e) => e.col(),
-            ErrorInner::Custom { col, .. } => *col,
-        }
-    }
-}
-
-impl From<LexError> for Error {
-    fn from(err: LexError) -> Error {
-        Error {
-            inner: Box::new(ErrorInner::LexError(err)),
-        }
-    }
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &*self.inner {
-            ErrorInner::LexError(e) => e.fmt(f),
-            ErrorInner::Custom { message, .. } => message.fmt(f),
-        }
-    }
-}
-
-impl std::error::Error for Error {}
 
 impl<'a, T: Peek + Parse<'a>> Parse<'a> for Option<T> {
     fn parse(parser: Parser<'a>) -> Result<Option<T>> {

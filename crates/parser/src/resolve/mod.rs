@@ -1,23 +1,11 @@
 use crate::ast::*;
-use std::fmt;
+use crate::Error;
 
 mod expand;
 mod names;
 mod tyexpand;
 
-#[derive(Debug)]
-pub struct ResolveError {
-    inner: Box<ResolveErrorInner>,
-}
-
-#[derive(Debug)]
-struct ResolveErrorInner {
-    line: usize,
-    col: usize,
-    message: String,
-}
-
-pub fn resolve(module: &mut Module) -> Result<(), ResolveError> {
+pub fn resolve(module: &mut Module) -> Result<(), Error> {
     let fields = match &mut module.kind {
         ModuleKind::Text(fields) => fields,
         _ => return Ok(()),
@@ -40,6 +28,21 @@ pub fn resolve(module: &mut Module) -> Result<(), ResolveError> {
     let mut expander = expand::Expander::default();
     expander.process(fields, expand::Expander::deinline_import);
     expander.process(fields, expand::Expander::deinline_export);
+
+    for i in 1..fields.len() {
+        let span = match &fields[i] {
+            ModuleField::Import(i) => i.span,
+            _ => continue,
+        };
+        let name = match &fields[i - 1] {
+            ModuleField::Memory(_) => "memory",
+            ModuleField::Func(_) => "function",
+            ModuleField::Table(_) => "table",
+            ModuleField::Global(_) => "global",
+            _ => continue,
+        };
+        return Err(Error::new(span, format!("import after {}", name)))
+    }
 
     // For the second pass we resolve all inline type annotations. This will, in
     // the order that we see them, append to the list of types. Note that types
@@ -89,20 +92,3 @@ fn move_types_first(fields: &mut [ModuleField<'_>]) {
         _ => true,
     });
 }
-
-impl ResolveError {
-    pub fn line(&self) -> usize {
-        self.inner.line
-    }
-    pub fn col(&self) -> usize {
-        self.inner.col
-    }
-}
-
-impl fmt::Display for ResolveError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.inner.message.fmt(f)
-    }
-}
-
-impl std::error::Error for ResolveError {}
