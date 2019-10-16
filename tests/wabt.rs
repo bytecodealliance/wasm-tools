@@ -111,7 +111,7 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
                 modules += 1;
             }
 
-            // FIXME(#19) run these tests
+            // FIXME(#13) run these tests
             WastDirective::AssertMalformed { message, .. }
                 if message.starts_with("constant out of range") => {}
 
