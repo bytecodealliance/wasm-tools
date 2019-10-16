@@ -56,21 +56,30 @@ fn run_test(test: &Path, bless: bool) -> anyhow::Result<()> {
         std::fs::write(assert, err.to_string())?;
         return Ok(());
     }
-    let assert = std::fs::read_to_string(assert).unwrap_or(String::new());
-    let assert = assert.replace("\r\n", "\n");
-    if assert == err {
-        return Ok(());
-    }
 
-    fn tab(s: &str) -> String {
-        s.replace("\n", "\n\t")
+    // Ignore CRLF line ending and force always `\n`
+    let assert = std::fs::read_to_string(assert)
+        .unwrap_or(String::new())
+        .replace("\r\n", "\n");
+
+    // Compare normalize verisons which handles weirdness like path differences
+    if normalize(&assert) == normalize(&err) {
+        return Ok(());
     }
 
     anyhow::bail!(
         "errors did not match:\n\nexpected:\n\t{}\nactual:\n\t{}\n",
         tab(&assert),
         tab(&err),
-    )
+    );
+
+    fn normalize(s: &str) -> String {
+        s.replace("\\", "/")
+    }
+
+    fn tab(s: &str) -> String {
+        s.replace("\n", "\n\t")
+    }
 }
 
 fn find_tests(path: &Path, tests: &mut Vec<PathBuf>) {
