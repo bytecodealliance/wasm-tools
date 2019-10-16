@@ -58,7 +58,9 @@ fn main() {
 
 fn run_test(test: &Path, contents: &str) -> anyhow::Result<()> {
     let wast =
-        contents.contains("TOOL: wast2json") || test.display().to_string().ends_with(".wast");
+        contents.contains("TOOL: wast2json")
+        || contents.contains("TOOL: run-objdump-spec")
+        || test.display().to_string().ends_with(".wast");
     if wast {
         return test_wast(test, contents);
     }
@@ -71,7 +73,7 @@ fn run_test(test: &Path, contents: &str) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    if let Some(expected) = wat2wasm(&test, 0) {
+    if let Some(expected) = wat2wasm(&test, None) {
         binary_compare(&test, &binary, &expected)?;
     }
     Ok(())
@@ -97,7 +99,7 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
 
                 match module.kind {
                     ModuleKind::Text(_) => {
-                        if let Some(expected) = wat2wasm(&test, modules) {
+                        if let Some(expected) = wat2wasm(&test, Some(modules)) {
                             binary_compare(&test, &actual, &expected)?;
                         }
                     }
@@ -291,8 +293,8 @@ error: actual wasm differs {pos} from expected wasm
     }
 }
 
-fn wat2wasm(test: &Path, module: usize) -> Option<Vec<u8>> {
-    if test.to_str().unwrap().ends_with(".wast") {
+fn wat2wasm(test: &Path, module: Option<usize>) -> Option<Vec<u8>> {
+    if let Some(module) = module {
         let td = tempfile::TempDir::new().unwrap();
         let result = Command::new("wast2json")
             .arg(test)
@@ -323,7 +325,6 @@ fn wat2wasm(test: &Path, module: usize) -> Option<Vec<u8>> {
             .expect("failed to find right module");
         Some(fs::read(module).unwrap())
     } else {
-        assert_eq!(module, 0);
         let f = tempfile::NamedTempFile::new().unwrap();
         let result = Command::new("wat2wasm")
             .arg(test)
@@ -387,10 +388,6 @@ fn skip_test(test: &Path, contents: &str) -> bool {
     // Some exception-handling tests don't use `--enable-exceptions` since
     // `run-objdump` enables everything
     if contents.contains("run-objdump") && contents.contains("(event") {
-        return true;
-    }
-    // contains weird stuff at the end of the file we don't parse
-    if contents.contains("TOOL: run-objdump-spec") {
         return true;
     }
 
