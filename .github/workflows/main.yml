@@ -94,7 +94,7 @@ jobs:
         cd tests/wabt
         cmake . -G Ninja
         ninja wat2wasm
-        echo ::add-path::`pwd`/tests/wabt
+        echo ::add-path::`pwd`
 
     - name: Install wasm-opt
       run: |
