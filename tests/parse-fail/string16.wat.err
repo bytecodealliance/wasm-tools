@@ -1,4 +1,4 @@
-expected '}' but found '\n'
+unexpected end-of-file
      --> tests/parse-fail/string16.wat:1:6
       |
     1 | "\u{3
