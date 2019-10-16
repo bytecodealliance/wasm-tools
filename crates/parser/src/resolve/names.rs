@@ -190,16 +190,16 @@ impl<'a> Resolver<'a> {
 
         // If the type was listed inline *and* it was specified via a type index
         // we need to assert they're the same.
-        //
-        // TODO: need to report an error here
-        /*
         let expected = &self.tys[idx as usize];
         if ty.ty.params.len() > 0 || ty.ty.results.len() > 0 {
             if expected.nparams != ty.ty.params.len() || expected.nresults != ty.ty.results.len() {
-                panic!()
+                let span = ty.index_span.unwrap();
+                return Err(Error::new(
+                    span,
+                    format!("inline function type type doesn't match type reference"),
+                ));
             }
         }
-        */
 
         Ok(idx)
     }

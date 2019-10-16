@@ -254,6 +254,8 @@ impl<'a> Parse<'a> for Type<'a> {
 /// this.
 #[derive(Clone, Debug)]
 pub struct TypeUse<'a> {
+    /// The span of the index specifier, if it was found
+    pub index_span: Option<ast::Span>,
     /// The type that we're referencing, if it was present.
     pub index: Option<ast::Index<'a>>,
     /// The inline function type defined. If nothing was defined inline this is
@@ -271,10 +273,14 @@ impl<'a> TypeUse<'a> {
         let index = if parser.peek2::<kw::r#type>() {
             Some(parser.parens(|parser| {
                 parser.parse::<kw::r#type>()?;
-                Ok(parser.parse()?)
+                Ok((parser.cur_span(), parser.parse()?))
             })?)
         } else {
             None
+        };
+        let (index_span, index) = match index {
+            Some((a, b)) => (Some(a), Some(b)),
+            None => (None, None),
         };
         let mut ty = FunctionType {
             params: Vec::new(),
@@ -284,7 +290,7 @@ impl<'a> TypeUse<'a> {
             ty.finish_parse(allow_names, parser)?;
         }
 
-        Ok(TypeUse { index, ty })
+        Ok(TypeUse { index, index_span, ty })
     }
 }
 

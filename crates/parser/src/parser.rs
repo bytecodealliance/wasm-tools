@@ -620,6 +620,11 @@ impl<'a> Parser<'a> {
     fn input_pos(self, src: &'a str) -> usize {
         src.as_ptr() as usize - self.buf.input.as_ptr() as usize
     }
+
+    /// Returns the span of the current token
+    pub fn cur_span(&self) -> Span {
+        self.cursor().cur_span()
+    }
 }
 
 impl<'a> Cursor<'a> {
