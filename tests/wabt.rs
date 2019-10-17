@@ -211,16 +211,20 @@ fn find_tests() -> Vec<PathBuf> {
 fn binary_compare(test: &Path, actual: &[u8], expected: &[u8]) -> Result<(), anyhow::Error> {
     use wasmparser::*;
 
+    // I tried for a bit but honestly couldn't figure out a great way to match
+    // wabt's encoding of the name section. Just remove it from our asserted
+    // sections and don't compare against wabt's.
+    let actual = remove_name_section(actual);
+
     // We test wabt with `--enable-all`, but this *always* emits a data count
     // section in the binary. We, however, only emit it if necessary. To handle
     // these differences remove wabt's data count section if our binary doesn't
     // have one.
-    let expected = if contains_datacount_section(actual) {
+    let expected = if contains_datacount_section(&actual) {
         expected.to_vec()
     } else {
         remove_datacount_section(expected)
     };
-    let expected = expected.as_slice();
 
     if actual == expected {
         return Ok(());
@@ -229,7 +233,7 @@ fn binary_compare(test: &Path, actual: &[u8], expected: &[u8]) -> Result<(), any
     let difference = actual
         .iter()
         .enumerate()
-        .zip(expected)
+        .zip(&expected)
         .find(|((_, actual), expected)| actual != expected);
     let pos = match difference {
         Some(((pos, _), _)) => format!("at byte {} ({0:#x})", pos),
@@ -251,8 +255,8 @@ error: actual wasm differs {pos} from expected wasm
         msg.push_str(&format!("       | + {:#04x}\n", actual[pos]));
     }
 
-    let mut actual_parser = Parser::new(actual);
-    let mut expected_parser = Parser::new(expected);
+    let mut actual_parser = Parser::new(&actual);
+    let mut expected_parser = Parser::new(&expected);
 
     let mut differences = 0;
     let mut dots = 0;
@@ -307,6 +311,27 @@ error: actual wasm differs {pos} from expected wasm
         false
     }
 
+    fn remove_name_section(bytes: &[u8]) -> Vec<u8> {
+        if let Ok(mut r) = ModuleReader::new(bytes) {
+            loop {
+                let start = r.current_position();
+                if let Ok(s) = r.read() {
+                    match s.code {
+                        SectionCode::Custom { name: "name", .. } => {
+                            let mut bytes = bytes.to_vec();
+                            bytes.drain(start..s.range().end);
+                            return bytes;
+                        }
+                        _ => {}
+                    }
+                } else {
+                    break;
+                }
+            }
+        }
+        return bytes.to_vec();
+    }
+
     fn remove_datacount_section(bytes: &[u8]) -> Vec<u8> {
         if let Ok(mut r) = ModuleReader::new(bytes) {
             loop {
@@ -320,6 +345,8 @@ error: actual wasm differs {pos} from expected wasm
                         }
                         _ => {}
                     }
+                } else {
+                    break;
                 }
             }
         }

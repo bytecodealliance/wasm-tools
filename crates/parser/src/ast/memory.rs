@@ -91,6 +91,9 @@ impl<'a> Parse<'a> for Memory<'a> {
 /// A `data` directive in a WebAssembly module.
 #[derive(Debug)]
 pub struct Data<'a> {
+    /// Where this `data` was defined
+    pub span: ast::Span,
+
     /// The optional name of this data segment
     pub name: Option<ast::Id<'a>>,
 
@@ -122,7 +125,7 @@ pub enum DataKind<'a> {
 
 impl<'a> Parse<'a> for Data<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::data>()?;
+        let span = parser.parse::<kw::data>()?.0;
         let name = parser.parse()?;
 
         // The `passive` keyword is mentioned in the current spec but isn't
@@ -155,6 +158,11 @@ impl<'a> Parse<'a> for Data<'a> {
         while !parser.is_empty() {
             data.push(parser.parse()?);
         }
-        Ok(Data { name, kind, data })
+        Ok(Data {
+            span,
+            name,
+            kind,
+            data,
+        })
     }
 }

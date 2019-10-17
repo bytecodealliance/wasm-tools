@@ -185,6 +185,7 @@ impl<'a> Expander<'a> {
                         _ => unreachable!(),
                     };
                     self.to_append.push(ModuleField::Data(Data {
+                        span: m.span,
                         name: None,
                         kind: DataKind::Active {
                             memory: Index::Num(self.memories),
@@ -222,6 +223,7 @@ impl<'a> Expander<'a> {
                         _ => unreachable!(),
                     };
                     self.to_append.push(ModuleField::Elem(Elem {
+                        span: t.span,
                         name: None,
                         kind: ElemKind::Active {
                             table: Index::Num(self.tables),

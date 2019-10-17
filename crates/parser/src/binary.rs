@@ -55,6 +55,11 @@ pub fn encode(module: &Module<'_>) -> Vec<u8> {
     section_list(10, &funcs, &mut tmp, &mut wasm);
     section_list(11, &data, &mut tmp, &mut wasm);
 
+    let names = find_names(module, fields);
+    if !names.is_empty() {
+        section(0, ("name", names), &mut tmp, &mut wasm);
+    }
+
     return wasm;
 
     fn section_list<T: Encode>(id: u8, list: &[T], tmp: &mut Vec<u8>, dst: &mut Vec<u8>) {
@@ -67,8 +72,7 @@ pub fn encode(module: &Module<'_>) -> Vec<u8> {
         tmp.truncate(0);
         list.encode(tmp);
         dst.push(id);
-        tmp.len().encode(dst);
-        dst.extend_from_slice(tmp);
+        tmp.encode(dst);
     }
 
     fn contains_bulk_memory(funcs: &[&Func<'_>]) -> bool {
@@ -102,6 +106,13 @@ impl<T: Encode> Encode for [T] {
         for item in self {
             item.encode(e);
         }
+    }
+}
+
+impl Encode for [u8] {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.len().encode(e);
+        e.extend_from_slice(self);
     }
 }
 
@@ -492,5 +503,102 @@ impl Encode for Float32 {
 impl Encode for Float64 {
     fn encode(&self, e: &mut Vec<u8>) {
         e.extend_from_slice(&self.bits.to_le_bytes());
+    }
+}
+
+struct Names<'a> {
+    module: Option<Id<'a>>,
+    funcs: Vec<(u32, Id<'a>)>,
+    locals: Vec<(u32, Vec<(u32, Id<'a>)>)>,
+}
+
+fn find_names<'a>(module: &Module<'a>, fields: &[ModuleField<'a>]) -> Names<'a> {
+    let mut funcs = Vec::new();
+    let mut locals = Vec::new();
+    let mut idx = 0;
+    for field in fields {
+        match field {
+            ModuleField::Import(i) => {
+                match i.kind {
+                    ImportKind::Func(_) => {}
+                    _ => continue,
+                }
+
+                if let Some(id) = i.id {
+                    funcs.push((idx, id));
+                }
+
+                idx += 1;
+            }
+            ModuleField::Func(f) => {
+                if let Some(id) = f.name {
+                    funcs.push((idx, id));
+                }
+                let mut local_names = Vec::new();
+                let mut local_idx = 0;
+                for (name, _) in f.ty.ty.params.iter() {
+                    if let Some(id) = name {
+                        local_names.push((local_idx, *id));
+                    }
+                    local_idx += 1;
+                }
+                if let FuncKind::Inline { locals, .. } = &f.kind {
+                    for (name, _) in locals {
+                        if let Some(id) = name {
+                            local_names.push((local_idx, *id));
+                        }
+                        local_idx += 1;
+                    }
+                }
+                if local_names.len() > 0 {
+                    locals.push((idx, local_names));
+                }
+                idx += 1;
+            }
+            _ => {}
+        }
+    }
+
+    Names {
+        module: module.name,
+        funcs,
+        locals,
+    }
+}
+
+impl Names<'_> {
+    fn is_empty(&self) -> bool {
+        self.module.is_none() && self.funcs.is_empty() && self.locals.is_empty()
+    }
+}
+
+impl Encode for Names<'_> {
+    fn encode(&self, dst: &mut Vec<u8>) {
+        let mut tmp = Vec::new();
+
+        let mut subsec = |id: u8, data: &mut Vec<u8>| {
+            dst.push(id);
+            data.encode(dst);
+            data.truncate(0);
+        };
+
+        if let Some(id) = self.module {
+            id.encode(&mut tmp);
+            subsec(0, &mut tmp);
+        }
+        if self.funcs.len() > 0 {
+            self.funcs.encode(&mut tmp);
+            subsec(1, &mut tmp);
+        }
+        if self.locals.len() > 0 {
+            self.locals.encode(&mut tmp);
+            subsec(2, &mut tmp);
+        }
+    }
+}
+
+impl Encode for Id<'_> {
+    fn encode(&self, dst: &mut Vec<u8>) {
+        self.name().encode(dst);
     }
 }

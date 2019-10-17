@@ -30,13 +30,12 @@ impl Ns {
 #[derive(Default)]
 pub struct Resolver<'a> {
     ns: [Namespace<'a>; 7],
-    tys: Vec<Type>,
+    tys: Vec<Type<'a>>,
 }
 
-struct Type {
-    nparams: usize,
-    nresults: usize,
-    result0: Option<ValType>,
+struct Type<'a> {
+    params: Vec<(Option<Id<'a>>, ValType)>,
+    results: Vec<ValType>,
 }
 
 #[derive(Default)]
@@ -64,9 +63,8 @@ impl<'a> Resolver<'a> {
             ModuleField::Type(i) => {
                 register(Ns::Type, i.name);
                 self.tys.push(Type {
-                    nparams: i.func.params.len(),
-                    nresults: i.func.results.len(),
-                    result0: i.func.results.get(0).cloned(),
+                    params: i.func.params.clone(),
+                    results: i.func.results.clone(),
                 });
             }
             ModuleField::Elem(e) => register(Ns::Elem, e.name),
@@ -88,31 +86,19 @@ impl<'a> Resolver<'a> {
         match field {
             ModuleField::Import(i) => {
                 if let ImportKind::Func(f) = &mut i.kind {
-                    self.resolve_type_use(f)?;
+                    self.resolve_type_use(i.span, f)?;
                 }
                 Ok(())
             }
 
             ModuleField::Func(f) => {
-                let ty_idx = self.resolve_type_use(&mut f.ty)?;
+                self.resolve_type_use(f.span, &mut f.ty)?;
                 if let FuncKind::Inline { locals, expression } = &mut f.kind {
-                    let mut resolver = ExprResolver::new(self);
+                    let mut resolver = ExprResolver::new(self, f.span);
 
                     // Parameters come first in the local namespace...
-                    if f.ty.ty.params.len() > 0 {
-                        for (name, _) in f.ty.ty.params.iter() {
-                            resolver.locals.register(*name);
-                        }
-                    } else {
-                        // if `ty_idx` is out of bounds ignore it and any
-                        // unresolved locals will report errors anyway
-                        let nargs = match self.tys.get(ty_idx as usize) {
-                            Some(t) => t.nparams,
-                            None => 0,
-                        };
-                        for _ in 0..nargs {
-                            resolver.locals.register(None);
-                        }
+                    for (name, _) in f.ty.ty.params.iter() {
+                        resolver.locals.register(*name);
                     }
 
                     // .. followed by locals themselves
@@ -134,7 +120,7 @@ impl<'a> Resolver<'a> {
                         elems,
                     } => {
                         self.resolve_idx(table, Ns::Table)?;
-                        self.resolve_expr(offset)?;
+                        self.resolve_expr(e.span, offset)?;
                         for idx in elems {
                             self.resolve_idx(idx, Ns::Func)?;
                         }
@@ -153,7 +139,7 @@ impl<'a> Resolver<'a> {
             ModuleField::Data(d) => {
                 if let DataKind::Active { memory, offset } = &mut d.kind {
                     self.resolve_idx(memory, Ns::Memory)?;
-                    self.resolve_expr(offset)?;
+                    self.resolve_expr(d.span, offset)?;
                 }
                 Ok(())
             }
@@ -172,7 +158,7 @@ impl<'a> Resolver<'a> {
 
             ModuleField::Global(g) => {
                 if let GlobalKind::Inline(expr) = &mut g.kind {
-                    self.resolve_expr(expr)?;
+                    self.resolve_expr(g.span, expr)?;
                 }
                 Ok(())
             }
@@ -181,7 +167,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn resolve_type_use(&self, ty: &mut TypeUse<'a>) -> Result<u32, Error> {
+    fn resolve_type_use(&self, span: Span, ty: &mut TypeUse<'a>) -> Result<u32, Error> {
         assert!(ty.index.is_some());
         let idx = self
             .ns(Ns::Type)
@@ -195,20 +181,28 @@ impl<'a> Resolver<'a> {
             None => return Ok(idx),
         };
         if ty.ty.params.len() > 0 || ty.ty.results.len() > 0 {
-            if expected.nparams != ty.ty.params.len() || expected.nresults != ty.ty.results.len() {
-                let span = ty.index_span.unwrap();
+            let params_not_equal = expected.params.iter().map(|t| t.1).ne(ty
+                .ty
+                .params
+                .iter()
+                .map(|t| t.1));
+            if params_not_equal || expected.results != ty.ty.results {
+                let span = ty.index_span.unwrap_or(span);
                 return Err(Error::new(
                     span,
                     format!("inline function type type doesn't match type reference"),
                 ));
             }
+        } else {
+            ty.ty.params = expected.params.clone();
+            ty.ty.results = expected.results.clone();
         }
 
         Ok(idx)
     }
 
-    fn resolve_expr(&self, expr: &mut Expression<'a>) -> Result<(), Error> {
-        ExprResolver::new(self).resolve(expr)
+    fn resolve_expr(&self, span: Span, expr: &mut Expression<'a>) -> Result<(), Error> {
+        ExprResolver::new(self, span).resolve(expr)
     }
 
     fn resolve_idx(&self, idx: &mut Index<'a>, ns: Ns) -> Result<(), Error> {
@@ -251,14 +245,16 @@ struct ExprResolver<'a, 'b> {
     resolver: &'b Resolver<'a>,
     locals: Namespace<'a>,
     labels: Vec<Option<Id<'a>>>,
+    span: Span,
 }
 
 impl<'a, 'b> ExprResolver<'a, 'b> {
-    fn new(resolver: &'b Resolver<'a>) -> ExprResolver<'a, 'b> {
+    fn new(resolver: &'b Resolver<'a>, span: Span) -> ExprResolver<'a, 'b> {
         ExprResolver {
             resolver,
             locals: Default::default(),
             labels: Vec::new(),
+            span,
         }
     }
 
@@ -295,7 +291,7 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
 
             CallIndirect(c) => {
                 self.resolver.resolve_idx(&mut c.table, Ns::Table)?;
-                self.resolver.resolve_type_use(&mut c.ty)?;
+                self.resolver.resolve_type_use(self.span, &mut c.ty)?;
                 Ok(())
             }
 
@@ -328,12 +324,11 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 // out `params` and `results` if we can, otherwise no work
                 // happens.
                 if bt.ty.index.is_some() {
-                    let ty = self.resolver.resolve_type_use(&mut bt.ty)?;
+                    let ty = self.resolver.resolve_type_use(self.span, &mut bt.ty)?;
                     let ty = &self.resolver.tys[ty as usize];
-                    if ty.nparams == 0 && ty.nresults <= 1 {
+                    if ty.params.len() == 0 && ty.results.len() <= 1 {
                         bt.ty.ty.params.truncate(0);
-                        bt.ty.ty.results.truncate(0);
-                        bt.ty.ty.results.extend(ty.result0);
+                        bt.ty.ty.results = ty.results.clone();
                         bt.ty.index = None;
                     }
                 }

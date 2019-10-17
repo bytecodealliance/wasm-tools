@@ -89,6 +89,8 @@ impl<'a> Parse<'a> for Table<'a> {
 /// An `elem` segment in a WebAssembly module.
 #[derive(Debug)]
 pub struct Elem<'a> {
+    /// Where this `elem` was defined.
+    pub span: ast::Span,
     /// An optional name by which to refer to this segment.
     pub name: Option<ast::Id<'a>>,
     /// The way this segment was defined in the module.
@@ -121,7 +123,7 @@ pub enum ElemKind<'a> {
 
 impl<'a> Parse<'a> for Elem<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::elem>()?;
+        let span = parser.parse::<kw::elem>()?.0;
         let name = parser.parse()?;
 
         let kind = if parser.peek::<ast::TableElemType>() {
@@ -166,6 +168,6 @@ impl<'a> Parse<'a> for Elem<'a> {
                 elems,
             }
         };
-        Ok(Elem { name, kind })
+        Ok(Elem { span, name, kind })
     }
 }
