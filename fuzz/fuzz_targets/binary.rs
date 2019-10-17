@@ -72,12 +72,18 @@ fuzz_target!(|data: &[u8]| {
         }
 
         // If we failed to parse the input wasm, then `wat2wasm` from `wabt`
-        // should fail as well.
+        // should fail as well. Only enable implemented proposals though to
+        // avoid where we fail to parse something because it's not supported but
+        // wat2wasm supports it.
         Err(_) => {
             let output = Command::new("wat2wasm")
                 .arg(&wat)
                 .arg("--no-check")
-                .arg("--enable-all")
+                .arg("--enable-sign-extension")
+                .arg("--enable-threads")
+                .arg("--enable-multi-value")
+                .arg("--enable-refrence-types")
+                .arg("--enable-saturating-float-to-int")
                 .arg("-o")
                 .arg(&wasm)
                 .output()
