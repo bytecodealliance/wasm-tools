@@ -325,7 +325,10 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 // happens.
                 if bt.ty.index.is_some() {
                     let ty = self.resolver.resolve_type_use(self.span, &mut bt.ty)?;
-                    let ty = &self.resolver.tys[ty as usize];
+                    let ty = match self.resolver.tys.get(ty as usize) {
+                        Some(ty) => ty,
+                        None => return Ok(()),
+                    };
                     if ty.params.len() == 0 && ty.results.len() <= 1 {
                         bt.ty.ty.params.truncate(0);
                         bt.ty.ty.results = ty.results.clone();
