@@ -50,7 +50,7 @@ low-level details and is the implementation of the `wast` crate. Be sure to
 
 Consult the [crate documentation](https://docs.rs/wast) for more information,
 but the general idea is this crate will not issue a semver-breaking change for
-breaking changes in teh WAT format, either for MVP features or post-MVP
+breaking changes in the WAT format, either for MVP features or post-MVP
 features. No opt-in is required to use WebAssembly features, so using them may
 break if the upstream spec changes.
 
