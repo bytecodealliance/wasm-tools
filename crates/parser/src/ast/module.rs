@@ -21,6 +21,7 @@ impl<'a> Parse<'a> for Wat<'a> {
                 fields.push(parser.parens(ModuleField::parse)?);
             }
             Module {
+                span: ast::Span { offset: 0 },
                 name: None,
                 kind: ModuleKind::Text(fields),
             }
@@ -33,6 +34,8 @@ impl<'a> Parse<'a> for Wat<'a> {
 
 /// A parsed WebAssembly module.
 pub struct Module<'a> {
+    /// Where this `module` was defined
+    pub span: ast::Span,
     /// An optional name to refer to this module by.
     pub name: Option<ast::Id<'a>>,
     /// What kind of module this was parsed as.
@@ -108,7 +111,7 @@ impl Module<'_> {
 
 impl<'a> Parse<'a> for Module<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::module>()?;
+        let span = parser.parse::<kw::module>()?.0;
         let name = parser.parse()?;
 
         let kind = if parser.peek::<kw::binary>() {
@@ -125,7 +128,7 @@ impl<'a> Parse<'a> for Module<'a> {
             }
             ModuleKind::Text(fields)
         };
-        Ok(Module { name, kind })
+        Ok(Module { span, name, kind })
     }
 }
 

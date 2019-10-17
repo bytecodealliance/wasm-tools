@@ -115,6 +115,7 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
                 if message.starts_with("constant out of range") => {}
 
             WastDirective::AssertMalformed {
+                span: _,
                 module: QuoteModule::Quote(source),
                 message,
             } => {

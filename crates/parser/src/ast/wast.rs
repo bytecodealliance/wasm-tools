@@ -29,34 +29,50 @@ impl<'a> Parse<'a> for Wast<'a> {
 pub enum WastDirective<'a> {
     Module(ast::Module<'a>),
     AssertMalformed {
+        span: ast::Span,
         module: QuoteModule<'a>,
         message: &'a str,
     },
     AssertInvalid {
+        span: ast::Span,
         module: ast::Module<'a>,
         message: &'a str,
     },
     Register {
+        span: ast::Span,
         name: &'a str,
         module: Option<ast::Id<'a>>,
     },
     Invoke(WastInvoke<'a>),
     AssertTrap {
+        span: ast::Span,
         exec: WastExecute<'a>,
         message: &'a str,
     },
     AssertReturn {
+        span: ast::Span,
         exec: WastExecute<'a>,
         results: Vec<ast::Expression<'a>>,
     },
-    AssertReturnCanonicalNan(WastInvoke<'a>),
-    AssertReturnArithmeticNan(WastInvoke<'a>),
-    AssertReturnFunc(WastInvoke<'a>),
+    AssertReturnCanonicalNan {
+        span: ast::Span,
+        invoke: WastInvoke<'a>,
+    },
+    AssertReturnArithmeticNan {
+        span: ast::Span,
+        invoke: WastInvoke<'a>,
+    },
+    AssertReturnFunc {
+        span: ast::Span,
+        invoke: WastInvoke<'a>,
+    },
     AssertExhaustion {
+        span: ast::Span,
         call: WastInvoke<'a>,
         message: &'a str,
     },
     AssertUnlinkable {
+        span: ast::Span,
         module: ast::Module<'a>,
         message: &'a str,
     },
@@ -68,63 +84,76 @@ impl<'a> Parse<'a> for WastDirective<'a> {
         if l.peek::<kw::module>() {
             Ok(WastDirective::Module(parser.parse()?))
         } else if l.peek::<kw::assert_malformed>() {
-            parser.parse::<kw::assert_malformed>()?;
+            let span = parser.parse::<kw::assert_malformed>()?.0;
             Ok(WastDirective::AssertMalformed {
+                span,
                 module: parser.parens(|p| p.parse())?,
                 message: parser.parse()?,
             })
         } else if l.peek::<kw::assert_invalid>() {
-            parser.parse::<kw::assert_invalid>()?;
+            let span = parser.parse::<kw::assert_invalid>()?.0;
             Ok(WastDirective::AssertInvalid {
+                span,
                 module: parser.parens(|p| p.parse())?,
                 message: parser.parse()?,
             })
         } else if l.peek::<kw::register>() {
-            parser.parse::<kw::register>()?;
+            let span = parser.parse::<kw::register>()?.0;
             Ok(WastDirective::Register {
+                span,
                 name: parser.parse()?,
                 module: parser.parse()?,
             })
         } else if l.peek::<kw::invoke>() {
             Ok(WastDirective::Invoke(parser.parse()?))
         } else if l.peek::<kw::assert_trap>() {
-            parser.parse::<kw::assert_trap>()?;
+            let span = parser.parse::<kw::assert_trap>()?.0;
             Ok(WastDirective::AssertTrap {
+                span,
                 exec: parser.parens(|p| p.parse())?,
                 message: parser.parse()?,
             })
         } else if l.peek::<kw::assert_return>() {
-            parser.parse::<kw::assert_return>()?;
+            let span = parser.parse::<kw::assert_return>()?.0;
             let exec = parser.parens(|p| p.parse())?;
             let mut results = Vec::new();
             while !parser.is_empty() {
                 results.push(parser.parens(|p| p.parse())?);
             }
-            Ok(WastDirective::AssertReturn { exec, results })
+            Ok(WastDirective::AssertReturn {
+                span,
+                exec,
+                results,
+            })
         } else if l.peek::<kw::assert_return_canonical_nan>() {
-            parser.parse::<kw::assert_return_canonical_nan>()?;
-            Ok(WastDirective::AssertReturnCanonicalNan(
-                parser.parens(|p| p.parse())?,
-            ))
+            let span = parser.parse::<kw::assert_return_canonical_nan>()?.0;
+            Ok(WastDirective::AssertReturnCanonicalNan {
+                span,
+                invoke: parser.parens(|p| p.parse())?,
+            })
         } else if l.peek::<kw::assert_return_arithmetic_nan>() {
-            parser.parse::<kw::assert_return_arithmetic_nan>()?;
-            Ok(WastDirective::AssertReturnArithmeticNan(
-                parser.parens(|p| p.parse())?,
-            ))
+            let span = parser.parse::<kw::assert_return_arithmetic_nan>()?.0;
+            Ok(WastDirective::AssertReturnArithmeticNan {
+                span,
+                invoke: parser.parens(|p| p.parse())?,
+            })
         } else if l.peek::<kw::assert_return_func>() {
-            parser.parse::<kw::assert_return_func>()?;
-            Ok(WastDirective::AssertReturnFunc(
-                parser.parens(|p| p.parse())?,
-            ))
+            let span = parser.parse::<kw::assert_return_func>()?.0;
+            Ok(WastDirective::AssertReturnFunc {
+                span,
+                invoke: parser.parens(|p| p.parse())?,
+            })
         } else if l.peek::<kw::assert_exhaustion>() {
-            parser.parse::<kw::assert_exhaustion>()?;
+            let span = parser.parse::<kw::assert_exhaustion>()?.0;
             Ok(WastDirective::AssertExhaustion {
+                span,
                 call: parser.parens(|p| p.parse())?,
                 message: parser.parse()?,
             })
         } else if l.peek::<kw::assert_unlinkable>() {
-            parser.parse::<kw::assert_unlinkable>()?;
+            let span = parser.parse::<kw::assert_unlinkable>()?.0;
             Ok(WastDirective::AssertUnlinkable {
+                span,
                 module: parser.parens(|p| p.parse())?,
                 message: parser.parse()?,
             })
@@ -165,6 +194,7 @@ impl<'a> Parse<'a> for WastExecute<'a> {
 
 #[allow(missing_docs)]
 pub struct WastInvoke<'a> {
+    pub span: ast::Span,
     pub module: Option<ast::Id<'a>>,
     pub name: &'a str,
     pub args: Vec<ast::Expression<'a>>,
@@ -172,14 +202,19 @@ pub struct WastInvoke<'a> {
 
 impl<'a> Parse<'a> for WastInvoke<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::invoke>()?;
+        let span = parser.parse::<kw::invoke>()?.0;
         let module = parser.parse()?;
         let name = parser.parse()?;
         let mut args = Vec::new();
         while !parser.is_empty() {
             args.push(parser.parens(|p| p.parse())?);
         }
-        Ok(WastInvoke { module, name, args })
+        Ok(WastInvoke {
+            span,
+            module,
+            name,
+            args,
+        })
     }
 }
 
