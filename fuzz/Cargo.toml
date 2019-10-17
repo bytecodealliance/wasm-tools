@@ -8,8 +8,8 @@ edition = "2018"
 cargo-fuzz = true
 
 [dependencies]
-wast = { path = ".." }
-wast-parser = { path = "../crates/parser" }
+wat = { path = ".." }
+wast = { path = "../crates/wast" }
 libfuzzer-sys = { git = "https://github.com/rust-fuzz/libfuzzer-sys" }
 tempfile = "3.0"
 wasmparser = "0.32"

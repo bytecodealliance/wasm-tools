@@ -21,7 +21,7 @@ fn main() -> anyhow::Result<()> {
     };
 
     // Using `wast`, parse this input file into a wasm binary...
-    let binary = wast::parse_file(&input)?;
+    let binary = wat::parse_file(&input)?;
 
     // ... and if requested, write out that file!
     if let Some(output) = matches.opt_str("o") {

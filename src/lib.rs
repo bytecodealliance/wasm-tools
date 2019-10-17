@@ -9,7 +9,7 @@
 //! Parse an in-memory string:
 //!
 //! ```
-//! # fn foo() -> wast::Result<()> {
+//! # fn foo() -> wat::Result<()> {
 //! let wat = r#"
 //!     (module
 //!         (func $foo)
@@ -20,7 +20,7 @@
 //!     )
 //! "#;
 //!
-//! let binary = wast::parse_str(wat)?;
+//! let binary = wat::parse_str(wat)?;
 //! // ...
 //! # Ok(())
 //! # }
@@ -29,8 +29,8 @@
 //! Parse an on-disk file:
 //!
 //! ```
-//! # fn foo() -> wast::Result<()> {
-//! let binary = wast::parse_file("./foo.wat")?;
+//! # fn foo() -> wat::Result<()> {
+//! let binary = wat::parse_file("./foo.wat")?;
 //! // ...
 //! # Ok(())
 //! # }
@@ -53,8 +53,8 @@
 //!
 //! ## Stability
 //!
-//! This crate is intended to be a very stable shim over the `wast-parser` crate
-//! which is expected to be much more unstable. The `wast-parser` crate contains
+//! This crate is intended to be a very stable shim over the `wast` crate
+//! which is expected to be much more unstable. The `wast` crate contains
 //! AST data structures for parsing `*.wat` files and they will evolve was the
 //! WAT and WebAssembly specifications evolve over time.
 //!
@@ -69,7 +69,7 @@
 
 use std::fmt;
 use std::path::Path;
-use wast_parser::parser::{self, ParseBuffer};
+use wast::parser::{self, ParseBuffer};
 
 /// Parses a file on disk as a [WebAssembly Text format][wat] file, returning
 /// the file translated to a WebAssembly binary file.
@@ -83,8 +83,8 @@ use wast_parser::parser::{self, ParseBuffer};
 /// # Examples
 ///
 /// ```
-/// # fn foo() -> wast::Result<()> {
-/// let binary = wast::parse_file("./foo.wat")?;
+/// # fn foo() -> wat::Result<()> {
+/// let binary = wat::parse_file("./foo.wat")?;
 /// // ...
 /// # Ok(())
 /// # }
@@ -116,7 +116,7 @@ fn _parse_file(file: &Path) -> Result<Vec<u8>> {
 /// This function is intended to be a stable convenience function for parsing a
 /// wat file into a WebAssembly binary file. This is a high-level operation
 /// which does not expose any parsing internals, for that you'll want to use the
-/// `wast-parser` crate.
+/// `wast` crate.
 ///
 /// # Errors
 ///
@@ -131,9 +131,9 @@ fn _parse_file(file: &Path) -> Result<Vec<u8>> {
 /// # Examples
 ///
 /// ```
-/// # fn foo() -> wast::Result<()> {
-/// assert_eq!(wast::parse_str("(module)")?, b"\0asm\x01\0\0\0");
-/// assert!(wast::parse_str("module").is_err());
+/// # fn foo() -> wat::Result<()> {
+/// assert_eq!(wat::parse_str("(module)")?, b"\0asm\x01\0\0\0");
+/// assert!(wat::parse_str("module").is_err());
 ///
 /// let wat = r#"
 ///     (module
@@ -145,7 +145,7 @@ fn _parse_file(file: &Path) -> Result<Vec<u8>> {
 ///     )
 /// "#;
 ///
-/// let binary = wast::parse_str(wat)?;
+/// let binary = wat::parse_str(wat)?;
 /// // ...
 /// # Ok(())
 /// # }
@@ -158,7 +158,7 @@ pub fn parse_str(wat: impl AsRef<str>) -> Result<Vec<u8>> {
 
 fn _parse_str(wat: &str) -> Result<Vec<u8>> {
     let buf = ParseBuffer::new(&wat).map_err(|e| Error::cvt(e, wat))?;
-    let mut ast = parser::parse::<wast_parser::Wat>(&buf).map_err(|e| Error::cvt(e, wat))?;
+    let mut ast = parser::parse::<wast::Wat>(&buf).map_err(|e| Error::cvt(e, wat))?;
     Ok(ast.module.encode().map_err(|e| Error::cvt(e, wat))?)
 }
 
@@ -181,12 +181,12 @@ pub struct Error {
 
 #[derive(Debug)]
 enum ErrorKind {
-    Wast(wast_parser::Error),
+    Wast(wast::Error),
     Io { err: std::io::Error, msg: String },
 }
 
 impl Error {
-    fn cvt<E: Into<wast_parser::Error>>(e: E, contents: &str) -> Error {
+    fn cvt<E: Into<wast::Error>>(e: E, contents: &str) -> Error {
         let mut err = e.into();
         err.set_text(contents);
         Error {

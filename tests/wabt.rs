@@ -12,8 +12,8 @@ use rayon::prelude::*;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use wast_parser::parser::ParseBuffer;
-use wast_parser::*;
+use wast::parser::ParseBuffer;
+use wast::*;
 
 fn main() {
     let tests = find_tests();
@@ -63,7 +63,7 @@ fn run_test(test: &Path, contents: &str) -> anyhow::Result<()> {
     if wast {
         return test_wast(test, contents);
     }
-    let binary = wast::parse_file(test)?;
+    let binary = wat::parse_file(test)?;
 
     // FIXME(#5) fix these tests
     if test.ends_with("invalid-elem-segment-offset.txt")
@@ -81,7 +81,7 @@ fn run_test(test: &Path, contents: &str) -> anyhow::Result<()> {
 fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
     macro_rules! adjust {
         ($e:expr) => {{
-            let mut e = wast_parser::Error::from($e);
+            let mut e = wast::Error::from($e);
             e.set_path(test);
             e.set_text(contents);
             e
@@ -122,7 +122,7 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
                 let source = source.concat();
                 let result = ParseBuffer::new(&source)
                     .map_err(|e| e.into())
-                    .and_then(|b| -> Result<(), wast_parser::Error> {
+                    .and_then(|b| -> Result<(), wast::Error> {
                         let mut wat = parser::parse::<Wat>(&b)?;
                         wat.module.encode()?;
                         Ok(())

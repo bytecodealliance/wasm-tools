@@ -1,13 +1,13 @@
 [package]
-name = "wast-parser"
-version = "0.3.0"
+name = "wast"
+version = "2.0.0"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 edition = "2018"
 license = "MIT/Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/alexcrichton/wast/tree/master/crates/parser"
-homepage = "https://github.com/alexcrichton/wast/tree/master/crates/parser"
-documentation = "https://docs.rs/wast-parser"
+repository = "https://github.com/alexcrichton/wat/tree/master/crates/wast"
+homepage = "https://github.com/alexcrichton/wat/tree/master/crates/wast"
+documentation = "https://docs.rs/wast"
 description = """
 Customizable Rust parsers for the WebAssembly Text formats WAT and WAST
 """

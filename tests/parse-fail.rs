@@ -47,7 +47,7 @@ fn main() {
 }
 
 fn run_test(test: &Path, bless: bool) -> anyhow::Result<()> {
-    let err = match wast::parse_file(test) {
+    let err = match wat::parse_file(test) {
         Ok(_) => anyhow::bail!("{} parsed successfully", test.display()),
         Err(e) => e.to_string() + "\n",
     };

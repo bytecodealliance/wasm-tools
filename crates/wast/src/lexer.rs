@@ -8,8 +8,8 @@
 //! If you'd like to iterate over the tokens in a file you can do so via:
 //!
 //! ```
-//! # fn foo() -> Result<(), wast_parser::Error> {
-//! use wast_parser::lexer::Lexer;
+//! # fn foo() -> Result<(), wast::Error> {
+//! use wast::lexer::Lexer;
 //!
 //! let wat = "(module (func $foo))";
 //! for token in Lexer::new(wat) {

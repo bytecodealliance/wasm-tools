@@ -1,4 +1,4 @@
 #[test]
 fn empty_string_fails() {
-    assert!(wast::parse_str("").is_err());
+    assert!(wat::parse_str("").is_err());
 }

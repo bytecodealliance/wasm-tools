@@ -1,13 +1,13 @@
 [package]
-name = "wast"
+name = "wat"
 version = "1.0.2"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 edition = "2018"
 license = "MIT/Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/alexcrichton/wast"
-homepage = "https://github.com/alexcrichton/wast"
-documentation = "https://docs.rs/wast"
+repository = "https://github.com/alexcrichton/wat"
+homepage = "https://github.com/alexcrichton/wat"
+documentation = "https://docs.rs/wat"
 description = """
 Rust parser for the WebAssembly Text format, WAT
 """
@@ -17,7 +17,7 @@ exclude = ['tests/wabt']
 members = ['fuzz']
 
 [dependencies]
-wast-parser = { path = 'crates/parser', version = '0.3.0' }
+wast = { path = 'crates/wast', version = '2.0.0' }
 
 [dev-dependencies]
 anyhow = "1.0"

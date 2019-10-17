@@ -9,10 +9,10 @@
 //! The top-level [`parse`](crate::parser::parse) function can be used to fully parse AST fragments:
 //!
 //! ```
-//! use wast_parser::Wat;
-//! use wast_parser::parser::{self, ParseBuffer};
+//! use wast::Wat;
+//! use wast::parser::{self, ParseBuffer};
 //!
-//! # fn foo() -> Result<(), wast_parser::Error> {
+//! # fn foo() -> Result<(), wast::Error> {
 //! let wat = "(module (func))";
 //! let buf = ParseBuffer::new(wat)?;
 //! let module = parser::parse::<Wat>(&buf)?;
@@ -24,8 +24,8 @@
 //! [`Parse`](crate::parser::Parse) trait:
 //!
 //! ```
-//! use wast_parser::{kw, Import, Func};
-//! use wast_parser::parser::{Parser, Parse, Result};
+//! use wast::{kw, Import, Func};
+//! use wast::parser::{Parser, Parse, Result};
 //!
 //! // Fields of a WebAssembly which only allow imports and functions, and all
 //! // imports must come before all the functions
@@ -77,10 +77,10 @@ use std::fmt;
 /// # Examples
 ///
 /// ```
-/// use wast_parser::Wat;
-/// use wast_parser::parser::{self, ParseBuffer};
+/// use wast::Wat;
+/// use wast::parser::{self, ParseBuffer};
 ///
-/// # fn foo() -> Result<(), wast_parser::Error> {
+/// # fn foo() -> Result<(), wast::Error> {
 /// let wat = "(module (func))";
 /// let buf = ParseBuffer::new(wat)?;
 /// let module = parser::parse::<Wat>(&buf)?;
@@ -91,9 +91,9 @@ use std::fmt;
 /// or parsing simply a fragment
 ///
 /// ```
-/// use wast_parser::parser::{self, ParseBuffer};
+/// use wast::parser::{self, ParseBuffer};
 ///
-/// # fn foo() -> Result<(), wast_parser::Error> {
+/// # fn foo() -> Result<(), wast::Error> {
 /// let wat = "12";
 /// let buf = ParseBuffer::new(wat)?;
 /// let val = parser::parse::<u32>(&buf)?;
@@ -140,8 +140,8 @@ pub fn parse<'a, T: Parse<'a>>(buf: &'a ParseBuffer<'a>) -> Result<T> {
 /// but the [`Import`](crate::ast::Import) type parser looks like:
 ///
 /// ```
-/// # use wast_parser::kw;
-/// # use wast_parser::parser::{Parser, Parse, Result};
+/// # use wast::kw;
+/// # use wast::parser::{Parser, Parse, Result};
 /// # struct Import<'a>(&'a str);
 /// impl<'a> Parse<'a> for Import<'a> {
 ///     fn parse(parser: Parser<'a>) -> Result<Self> {
@@ -168,8 +168,8 @@ pub fn parse<'a, T: Parse<'a>>(buf: &'a ParseBuffer<'a>) -> Result<T> {
 /// before all functions. An example [`Parse`] implementation might look like:
 ///
 /// ```
-/// use wast_parser::{Import, Func, kw};
-/// use wast_parser::parser::{Parser, Parse, Result};
+/// use wast::{Import, Func, kw};
+/// use wast::parser::{Parser, Parse, Result};
 ///
 /// // Fields of a WebAssembly which only allow imports and functions, and all
 /// // imports must come before all the functions
@@ -368,8 +368,8 @@ impl<'a> Parser<'a> {
     /// and a [`TableElemType`]
     ///
     /// ```
-    /// # use wast_parser::*;
-    /// # use wast_parser::parser::*;
+    /// # use wast::*;
+    /// # use wast::parser::*;
     /// struct TableType {
     ///     limits: Limits,
     ///     elem: TableElemType,
@@ -421,7 +421,7 @@ impl<'a> Parser<'a> {
     /// whether to consume two tokens or one:
     ///
     /// ```
-    /// # use wast_parser::parser::*;
+    /// # use wast::parser::*;
     /// struct Limits {
     ///     min: u32,
     ///     max: Option<u32>,
@@ -485,8 +485,8 @@ impl<'a> Parser<'a> {
     /// parsing an [`Index`] we can do:
     ///
     /// ```
-    /// # use wast_parser::*;
-    /// # use wast_parser::parser::*;
+    /// # use wast::*;
+    /// # use wast::parser::*;
     /// enum Index<'a> {
     ///     Num(u32),
     ///     Id(Id<'a>),
@@ -539,8 +539,8 @@ impl<'a> Parser<'a> {
     /// the exact definition, but it's close enough!
     ///
     /// ```
-    /// # use wast_parser::*;
-    /// # use wast_parser::parser::*;
+    /// # use wast::*;
+    /// # use wast::parser::*;
     /// struct Module<'a> {
     ///     fields: Vec<ModuleField<'a>>,
     /// }

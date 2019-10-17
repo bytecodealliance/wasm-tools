@@ -15,7 +15,7 @@ fuzz_target!(|data: &[u8]| {
     let wasm = td.path().join("foo.wasm");
     std::fs::write(&wat, &s).unwrap();
 
-    match wast::parse_str(s) {
+    match wat::parse_str(s) {
         // If we succesfully parsed the binary, then we want to make sure that
         // `wabt` agrees on the binary encoding of the input wat file. There's a
         // few caveats though:
@@ -36,20 +36,20 @@ fuzz_target!(|data: &[u8]| {
         // verify that it's the same, but for now that's producing a lot of
         // unintersting failures.
         Ok(binary) => {
-            let lexer = wast_parser::lexer::Lexer::new(s);
+            let lexer = wast::lexer::Lexer::new(s);
             for token in lexer {
                 let t = match token.unwrap() {
-                    wast_parser::lexer::Source::Token(t) => t,
+                    wast::lexer::Source::Token(t) => t,
                     _ => continue,
                 };
                 match t {
-                    wast_parser::lexer::Token::Keyword(k) => {
+                    wast::lexer::Token::Keyword(k) => {
                         if k == "binary" {
                             return;
                         }
                     }
-                    wast_parser::lexer::Token::Float(f) => {
-                        if let wast_parser::lexer::FloatVal::Val { hex: true, .. } = f.val() {
+                    wast::lexer::Token::Float(f) => {
+                        if let wast::lexer::FloatVal::Val { hex: true, .. } = f.val() {
                             return;
                         }
                     }

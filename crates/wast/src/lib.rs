@@ -1,6 +1,6 @@
 //! A crate for low-level parsing of the WebAssembly text formats: WAT and WAST.
 //!
-//! This crate is intended to be a low-level detail of the `wast` crate,
+//! This crate is intended to be a low-level detail of the `wat` crate,
 //! providing a low-level parsing API for parsing WebAssembly text format
 //! structures. The API provided by this crate is very similar to
 //! [`syn`](https://docs.rs/syn) and provides the ability to write customized

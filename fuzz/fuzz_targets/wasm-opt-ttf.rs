@@ -32,21 +32,21 @@ fuzz_target!(|data: &[u8]| {
     let wasm = td.path().join("foo.wasm");
     std::fs::write(&wat, &s).unwrap();
 
-    let binary = wast::parse_str(&s).unwrap();
-    let lexer = wast_parser::lexer::Lexer::new(&s);
+    let binary = wat::parse_str(&s).unwrap();
+    let lexer = wast::lexer::Lexer::new(&s);
     for token in lexer {
         let t = match token.unwrap() {
-            wast_parser::lexer::Source::Token(t) => t,
+            wast::lexer::Source::Token(t) => t,
             _ => continue,
         };
         match t {
-            wast_parser::lexer::Token::Keyword(k) => {
+            wast::lexer::Token::Keyword(k) => {
                 if k == "binary" {
                     return;
                 }
             }
-            wast_parser::lexer::Token::Float(f) => {
-                if let wast_parser::lexer::FloatVal::Val { hex: true, .. } = f.val() {
+            wast::lexer::Token::Float(f) => {
+                if let wast::lexer::FloatVal::Val { hex: true, .. } = f.val() {
                     return;
                 }
             }

@@ -1,8 +1,8 @@
-# wast-parser
+# wast
 
 A Rust parser for the WebAssembly Text format: [WAT][wat] and WAST
 
-[![Documentation](https://docs.rs/wast-parser/badge.svg)](https://docs.rs/wast-parser)
+[![Documentation](https://docs.rs/wast/badge.svg)](https://docs.rs/wast)
 
 [wat]: http://webassembly.github.io/spec/core/text/index.html
 
@@ -12,8 +12,20 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-wast-parser = "1.0"
+wast = "1.0"
 ```
+
+The intent of this crate is to provide utilities, combinators, and built-in
+types to parse anything that looks like a WebAssembly s-expression.
+
+* Need to parse a `*.wat` file?
+* Need to parse a `*.wast` file?
+* Need to run test suite assertions from the official wasm test suite?
+* Want to write an extension do the WebAssembly text format?
+
+If you'd like to do any of the above this crate might be right for you! You may
+also want to check out the `wat` crate which provides a much more stable
+interface if all you'd like to do is convert `*.wat` to `*.wasm`.
 
 # License
 

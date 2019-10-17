@@ -4,23 +4,23 @@
 ///
 /// ```
 /// // keyword derived from the Rust identifier:
-/// wast_parser::custom_keyword!(foo);
+/// wast::custom_keyword!(foo);
 ///
 /// // or an explicitly specified string representation of the keyword:
-/// wast_parser::custom_keyword!(my_keyword = "the-wasm-keyword");
+/// wast::custom_keyword!(my_keyword = "the-wasm-keyword");
 /// ```
 ///
 /// This can then be used to parse custom keyword for custom items, such as:
 ///
 /// ```
-/// use wast_parser::parser::{Parser, Result, Parse};
+/// use wast::parser::{Parser, Result, Parse};
 ///
 /// struct InlineModule<'a> {
 ///     inline_text: &'a str,
 /// }
 ///
 /// mod kw {
-///     wast_parser::custom_keyword!(inline);
+///     wast::custom_keyword!(inline);
 /// }
 ///
 /// // Parse an inline string module of the form:
