@@ -1,5 +1,5 @@
 use crate::ast::{self, kw};
-use crate::parser::{Parse, Parser, Result, Peek, Cursor};
+use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 
 /// A parsed representation of a `*.wast` file.
 ///
@@ -37,10 +37,7 @@ impl Peek for WastDirectiveToken {
             Some((kw, _)) => kw,
             None => return false,
         };
-        kw.starts_with("assert_") ||
-            kw == "module" ||
-            kw == "register" ||
-            kw == "invoke"
+        kw.starts_with("assert_") || kw == "module" || kw == "register" || kw == "invoke"
     }
 
     fn display() -> &'static str {
