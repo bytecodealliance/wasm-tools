@@ -17,7 +17,7 @@ exclude = ['tests/wabt']
 members = ['fuzz']
 
 [dependencies]
-wast-parser = { path = 'crates/parser', version = '0.2.0' }
+wast-parser = { path = 'crates/parser', version = '0.3.0' }
 
 [dev-dependencies]
 anyhow = "1.0"
