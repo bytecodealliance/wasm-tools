@@ -62,6 +62,31 @@ fuzz_target!(|data: &[u8]| {
         .unwrap();
     if output.status.success() {
         let wabt_bytes = std::fs::read(&wasm).unwrap();
-        assert_eq!(binary, wabt_bytes);
+        // see comments in the test suite for why we remove the name
+        // section
+        assert_eq!(remove_name_section(&binary), wabt_bytes);
     }
 });
+
+fn remove_name_section(bytes: &[u8]) -> Vec<u8> {
+    use wasmparser::*;
+
+    if let Ok(mut r) = ModuleReader::new(bytes) {
+        loop {
+            let start = r.current_position();
+            if let Ok(s) = r.read() {
+                match s.code {
+                    SectionCode::Custom { name: "name", .. } => {
+                        let mut bytes = bytes.to_vec();
+                        bytes.drain(start..s.range().end);
+                        return bytes;
+                    }
+                    _ => {}
+                }
+            } else {
+                break;
+            }
+        }
+    }
+    return bytes.to_vec();
+}
