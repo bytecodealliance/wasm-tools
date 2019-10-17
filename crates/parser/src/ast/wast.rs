@@ -1,5 +1,5 @@
 use crate::ast::{self, kw};
-use crate::parser::{Parse, Parser, Result};
+use crate::parser::{Parse, Parser, Result, Peek, Cursor};
 
 /// A parsed representation of a `*.wast` file.
 ///
@@ -14,10 +14,37 @@ pub struct Wast<'a> {
 impl<'a> Parse<'a> for Wast<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let mut directives = Vec::new();
-        while !parser.is_empty() {
-            directives.push(parser.parens(|p| p.parse())?);
+
+        // If it looks like a directive token is in the stream then we parse a
+        // bunch of directives, otherwise assume this is an inline module.
+        if parser.peek2::<WastDirectiveToken>() {
+            while !parser.is_empty() {
+                directives.push(parser.parens(|p| p.parse())?);
+            }
+        } else {
+            let module = parser.parse::<ast::Wat>()?.module;
+            directives.push(WastDirective::Module(module));
         }
         Ok(Wast { directives })
+    }
+}
+
+struct WastDirectiveToken;
+
+impl Peek for WastDirectiveToken {
+    fn peek(cursor: Cursor<'_>) -> bool {
+        let kw = match cursor.keyword() {
+            Some((kw, _)) => kw,
+            None => return false,
+        };
+        kw.starts_with("assert_") ||
+            kw == "module" ||
+            kw == "register" ||
+            kw == "invoke"
+    }
+
+    fn display() -> &'static str {
+        unimplemented!()
     }
 }
 

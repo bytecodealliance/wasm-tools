@@ -406,13 +406,6 @@ fn wat2wasm(test: &Path, module: Option<usize>) -> Option<Vec<u8>> {
 }
 
 fn skip_test(test: &Path, contents: &str) -> bool {
-    // This is something that doesn't seem worth supporting at this
-    // time, `*.wast` files with inline modules (although we do support
-    // it for `*.wat` files.
-    if test.ends_with("inline-module.wast") {
-        return true;
-    }
-
     // This test still uses a bunch of old names and I don't feel like
     // typing them all out at this time, so just skip it. We get some
     // testing from wabt's test suite anyway.
