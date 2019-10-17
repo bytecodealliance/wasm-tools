@@ -176,6 +176,7 @@ impl Encode for ValType {
             ValType::I64 => e.push(0x7e),
             ValType::F32 => e.push(0x7d),
             ValType::F64 => e.push(0x7c),
+            ValType::V128 => e.push(0x7b),
             ValType::Funcref => e.push(0x70),
             ValType::Anyref => e.push(0x6f),
         }
@@ -600,5 +601,48 @@ impl Encode for Names<'_> {
 impl Encode for Id<'_> {
     fn encode(&self, dst: &mut Vec<u8>) {
         self.name().encode(dst);
+    }
+}
+
+impl Encode for V128Const {
+    fn encode(&self, dst: &mut Vec<u8>) {
+        match self {
+            V128Const::I8x16(arr) => {
+                for element in arr {
+                    dst.push(*element as u8);
+                }
+            }
+            V128Const::I16x8(arr) => {
+                for element in arr {
+                    dst.extend_from_slice(&element.to_le_bytes());
+                }
+            }
+            V128Const::I32x4(arr) => {
+                for element in arr {
+                    dst.extend_from_slice(&element.to_le_bytes());
+                }
+            }
+            V128Const::I64x2(arr) => {
+                for element in arr {
+                    dst.extend_from_slice(&element.to_le_bytes());
+                }
+            }
+            V128Const::F32x4(arr) => {
+                for element in arr {
+                    dst.extend_from_slice(&element.bits.to_le_bytes());
+                }
+            }
+            V128Const::F64x2(arr) => {
+                for element in arr {
+                    dst.extend_from_slice(&element.bits.to_le_bytes());
+                }
+            }
+        }
+    }
+}
+
+impl Encode for V8x16Shuffle {
+    fn encode(&self, dst: &mut Vec<u8>) {
+        dst.extend_from_slice(&self.lanes);
     }
 }

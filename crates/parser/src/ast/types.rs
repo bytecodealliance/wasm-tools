@@ -11,6 +11,7 @@ pub enum ValType {
     F64,
     Anyref,
     Funcref,
+    V128,
 }
 
 impl<'a> Parse<'a> for ValType {
@@ -34,6 +35,9 @@ impl<'a> Parse<'a> for ValType {
         } else if l.peek::<kw::funcref>() {
             parser.parse::<kw::funcref>()?;
             Ok(ValType::Funcref)
+        } else if l.peek::<kw::v128>() {
+            parser.parse::<kw::v128>()?;
+            Ok(ValType::V128)
         } else {
             Err(l.error())
         }

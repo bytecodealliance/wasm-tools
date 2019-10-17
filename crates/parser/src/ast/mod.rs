@@ -147,4 +147,11 @@ pub mod kw {
     custom_keyword!(then);
     custom_keyword!(ref_null = "ref.null");
     custom_keyword!(ref_func = "ref.func");
+    custom_keyword!(v128);
+    custom_keyword!(f32x4);
+    custom_keyword!(f64x2);
+    custom_keyword!(i16x8);
+    custom_keyword!(i32x4);
+    custom_keyword!(i64x2);
+    custom_keyword!(i8x16);
 }

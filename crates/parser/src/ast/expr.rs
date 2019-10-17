@@ -128,7 +128,7 @@ macro_rules! instructions {
                     $(
                         Instruction::$name $((instructions!(@first $($arg)*)))? => {
                             fn encode<'a>($(arg: &instructions!(@ty $($arg)*),)? v: &mut Vec<u8>) {
-                                v.extend_from_slice(&[$($binary)*]);
+                                instructions!(@encode v $($binary)*);
                                 $(<instructions!(@ty $($arg)*) as crate::binary::Encode>::encode(arg, v);)?
                             }
                             encode($( instructions!(@first $($arg)*), )? v)
@@ -147,6 +147,13 @@ macro_rules! instructions {
     (@parse $parser:ident MemArg<$amt:tt>) => (MemArg::parse($parser, $amt));
     (@parse $parser:ident MemArg) => (compile_error!("must specify `MemArg` default"));
     (@parse $parser:ident $other:ty) => ($parser.parse::<$other>());
+
+    // simd opcodes prefixed with `0xfd` get a varuint32 encoding for their payload
+    (@encode $dst:ident 0xfd, $simd:tt) => ({
+        $dst.push(0xfd);
+        <u32 as crate::binary::Encode>::encode(&$simd, $dst);
+    });
+    (@encode $dst:ident $($bytes:tt)*) => ($dst.extend_from_slice(&[$($bytes)*]););
 }
 
 instructions! {
@@ -449,6 +456,186 @@ instructions! {
         I64AtomicRmw8CmpxchgU(MemArg<1>) : [0xfe, 0x4c] : "i64.atomic.rmw8.cmpxchg_u",
         I64AtomicRmw16CmpxchgU(MemArg<2>) : [0xfe, 0x4d] : "i64.atomic.rmw16.cmpxchg_u",
         I64AtomicRmw32CmpxchgU(MemArg<4>) : [0xfe, 0x4e] : "i64.atomic.rmw32.cmpxchg_u",
+
+        V128Load(MemArg<16>) : [0xfd, 0x00] : "v128.load",
+        V128Store(MemArg<16>) : [0xfd, 0x01] : "v128.store",
+        V128Const(V128Const) : [0xfd, 0x02] : "v128.const",
+
+        I8x16Splat : [0xfd, 0x04] : "i8x16.splat",
+        I8x16ExtractLaneS(u32) : [0xfd, 0x05] : "i8x16.extract_lane_s",
+        I8x16ExtractLaneU(u32) : [0xfd, 0x06] : "i8x16.extract_lane_u",
+        I8x16ReplaceLane(u32) : [0xfd, 0x07] : "i8x16.replace_lane",
+        I16x8Splat : [0xfd, 0x08] : "i16x8.splat",
+        I16x8ExtractLaneS(u32) : [0xfd, 0x09] : "i16x8.extract_lane_s",
+        I16x8ExtractLaneU(u32) : [0xfd, 0x0a] : "i16x8.extract_lane_u",
+        I16x8ReplaceLane(u32) : [0xfd, 0x0b] : "i16x8.replace_lane",
+        I32x4Splat : [0xfd, 0x0c] : "i32x4.splat",
+        I32x4ExtractLane(u32) : [0xfd, 0x0d] : "i32x4.extract_lane",
+        I32x4ReplaceLane(u32) : [0xfd, 0x0e] : "i32x4.replace_lane",
+        I64x2Splat : [0xfd, 0x0f] : "i64x2.splat",
+        I64x2ExtractLane(u32) : [0xfd, 0x10] : "i64x2.extract_lane",
+        I64x2ReplaceLane(u32) : [0xfd, 0x11] : "i64x2.replace_lane",
+        F32x4Splat : [0xfd, 0x12] : "f32x4.splat",
+        F32x4ExtractLane(u32) : [0xfd, 0x13] : "f32x4.extract_lane",
+        F32x4ReplaceLane(u32) : [0xfd, 0x14] : "f32x4.replace_lane",
+        F64x2Splat : [0xfd, 0x15] : "f64x2.splat",
+        F64x2ExtractLane(u32) : [0xfd, 0x16] : "f64x2.extract_lane",
+        F64x2ReplaceLane(u32) : [0xfd, 0x17] : "f64x2.replace_lane",
+
+        I8x16Eq : [0xfd, 0x18] : "i8x16.eq",
+        I8x16Ne : [0xfd, 0x19] : "i8x16.ne",
+        I8x16LtS : [0xfd, 0x1a] : "i8x16.lt_s",
+        I8x16LtU : [0xfd, 0x1b] : "i8x16.lt_u",
+        I8x16GtS : [0xfd, 0x1c] : "i8x16.gt_s",
+        I8x16GtU : [0xfd, 0x1d] : "i8x16.gt_u",
+        I8x16LeS : [0xfd, 0x1e] : "i8x16.le_s",
+        I8x16LeU : [0xfd, 0x1f] : "i8x16.le_u",
+        I8x16GeS : [0xfd, 0x20] : "i8x16.ge_s",
+        I8x16GeU : [0xfd, 0x21] : "i8x16.ge_u",
+        I16x8Eq : [0xfd, 0x22] : "i16x8.eq",
+        I16x8Ne : [0xfd, 0x23] : "i16x8.ne",
+        I16x8LtS : [0xfd, 0x24] : "i16x8.lt_s",
+        I16x8LtU : [0xfd, 0x25] : "i16x8.lt_u",
+        I16x8GtS : [0xfd, 0x26] : "i16x8.gt_s",
+        I16x8GtU : [0xfd, 0x27] : "i16x8.gt_u",
+        I16x8LeS : [0xfd, 0x28] : "i16x8.le_s",
+        I16x8LeU : [0xfd, 0x29] : "i16x8.le_u",
+        I16x8GeS : [0xfd, 0x2a] : "i16x8.ge_s",
+        I16x8GeU : [0xfd, 0x2b] : "i16x8.ge_u",
+        I32x4Eq : [0xfd, 0x2c] : "i32x4.eq",
+        I32x4Ne : [0xfd, 0x2d] : "i32x4.ne",
+        I32x4LtS : [0xfd, 0x2e] : "i32x4.lt_s",
+        I32x4LtU : [0xfd, 0x2f] : "i32x4.lt_u",
+        I32x4GtS : [0xfd, 0x30] : "i32x4.gt_s",
+        I32x4GtU : [0xfd, 0x31] : "i32x4.gt_u",
+        I32x4LeS : [0xfd, 0x32] : "i32x4.le_s",
+        I32x4LeU : [0xfd, 0x33] : "i32x4.le_u",
+        I32x4GeS : [0xfd, 0x34] : "i32x4.ge_s",
+        I32x4GeU : [0xfd, 0x35] : "i32x4.ge_u",
+
+        F32x4Eq : [0xfd, 0x40] : "f32x4.eq",
+        F32x4Ne : [0xfd, 0x41] : "f32x4.ne",
+        F32x4Lt : [0xfd, 0x42] : "f32x4.lt",
+        F32x4Gt : [0xfd, 0x43] : "f32x4.gt",
+        F32x4Le : [0xfd, 0x44] : "f32x4.le",
+        F32x4Ge : [0xfd, 0x45] : "f32x4.ge",
+        F64x2Eq : [0xfd, 0x46] : "f64x2.eq",
+        F64x2Ne : [0xfd, 0x47] : "f64x2.ne",
+        F64x2Lt : [0xfd, 0x48] : "f64x2.lt",
+        F64x2Gt : [0xfd, 0x49] : "f64x2.gt",
+        F64x2Le : [0xfd, 0x4a] : "f64x2.le",
+        F64x2Ge : [0xfd, 0x4b] : "f64x2.ge",
+
+        V128Not : [0xfd, 0x4c] : "v128.not",
+        V128And : [0xfd, 0x4d] : "v128.and",
+        V128Or : [0xfd, 0x4e] : "v128.or",
+        V128Xor : [0xfd, 0x4f] : "v128.xor",
+        V128Bitselect : [0xfd, 0x50] : "v128.bitselect",
+
+        I8x16Neg : [0xfd, 0x51] : "i8x16.neg",
+        I8x16AnyTrue : [0xfd, 0x52] : "i8x16.any_true",
+        I8x16AllTrue : [0xfd, 0x53] : "i8x16.all_true",
+        I8x16Shl : [0xfd, 0x54] : "i8x16.shl",
+        I8x16ShrS : [0xfd, 0x55] : "i8x16.shr_s",
+        I8x16ShrU : [0xfd, 0x56] : "i8x16.shr_u",
+        I8x16Add : [0xfd, 0x57] : "i8x16.add",
+        I8x16AddSaturateS : [0xfd, 0x58] : "i8x16.add_saturate_s",
+        I8x16AddSaturateU : [0xfd, 0x59] : "i8x16.add_saturate_u",
+        I8x16Sub : [0xfd, 0x5a] : "i8x16.sub",
+        I8x16SubSaturateS : [0xfd, 0x5b] : "i8x16.sub_saturate_s",
+        I8x16SubSaturateU : [0xfd, 0x5c] : "i8x16.sub_saturate_u",
+        I8x16Mul : [0xfd, 0x5d] : "i8x16.mul",
+
+        I16x8Neg : [0xfd, 0x62] : "i16x8.neg",
+        I16x8AnyTrue : [0xfd, 0x63] : "i16x8.any_true",
+        I16x8AllTrue : [0xfd, 0x64] : "i16x8.all_true",
+        I16x8Shl : [0xfd, 0x65] : "i16x8.shl",
+        I16x8ShrS : [0xfd, 0x66] : "i16x8.shr_s",
+        I16x8ShrU : [0xfd, 0x67] : "i16x8.shr_u",
+        I16x8Add : [0xfd, 0x68] : "i16x8.add",
+        I16x8AddSaturateS : [0xfd, 0x69] : "i16x8.add_saturate_s",
+        I16x8AddSaturateU : [0xfd, 0x6a] : "i16x8.add_saturate_u",
+        I16x8Sub : [0xfd, 0x6b] : "i16x8.sub",
+        I16x8SubSaturateS : [0xfd, 0x6c] : "i16x8.sub_saturate_s",
+        I16x8SubSaturateU : [0xfd, 0x6d] : "i16x8.sub_saturate_u",
+        I16x8Mul : [0xfd, 0x6e] : "i16x8.mul",
+
+        I32x4Neg : [0xfd, 0x73] : "i32x4.neg",
+        I32x4AnyTrue : [0xfd, 0x74] : "i32x4.any_true",
+        I32x4AllTrue : [0xfd, 0x75] : "i32x4.all_true",
+        I32x4Shl : [0xfd, 0x76] : "i32x4.shl",
+        I32x4ShrS : [0xfd, 0x77] : "i32x4.shr_s",
+        I32x4ShrU : [0xfd, 0x78] : "i32x4.shr_u",
+        I32x4Add : [0xfd, 0x79] : "i32x4.add",
+        I32x4Sub : [0xfd, 0x7c] : "i32x4.sub",
+        I32x4Mul : [0xfd, 0x7f] : "i32x4.mul",
+
+        I64x2Neg : [0xfd, 0x84] : "i64x2.neg",
+        I64x2AnyTrue : [0xfd, 0x85] : "i64x2.any_true",
+        I64x2AllTrue : [0xfd, 0x86] : "i64x2.all_true",
+        I64x2Shl : [0xfd, 0x87] : "i64x2.shl",
+        I64x2ShrS : [0xfd, 0x88] : "i64x2.shr_s",
+        I64x2ShrU : [0xfd, 0x89] : "i64x2.shr_u",
+        I64x2Add : [0xfd, 0x8a] : "i64x2.add",
+        I64x2Sub : [0xfd, 0x8d] : "i64x2.sub",
+        I64x2Mul : [0xfd, 0x90] : "i64x2.mul",
+
+        F32x4Abs : [0xfd, 0x95] : "f32x4.abs",
+        F32x4Neg : [0xfd, 0x96] : "f32x4.neg",
+        F32x4Sqrt : [0xfd, 0x97] : "f32x4.sqrt",
+        F32x4Add : [0xfd, 0x9a] : "f32x4.add",
+        F32x4Sub : [0xfd, 0x9b] : "f32x4.sub",
+        F32x4Mul : [0xfd, 0x9c] : "f32x4.mul",
+        F32x4Div : [0xfd, 0x9d] : "f32x4.div",
+        F32x4Min : [0xfd, 0x9e] : "f32x4.min",
+        F32x4Max : [0xfd, 0x9f] : "f32x4.max",
+
+        F64x2Abs : [0xfd, 0xa0] : "f64x2.abs",
+        F64x2Neg : [0xfd, 0xa1] : "f64x2.neg",
+        F64x2Sqrt : [0xfd, 0xa2] : "f64x2.sqrt",
+        F64x2Add : [0xfd, 0xa5] : "f64x2.add",
+        F64x2Sub : [0xfd, 0xa6] : "f64x2.sub",
+        F64x2Mul : [0xfd, 0xa7] : "f64x2.mul",
+        F64x2Div : [0xfd, 0xa8] : "f64x2.div",
+        F64x2Min : [0xfd, 0xa9] : "f64x2.min",
+        F64x2Max : [0xfd, 0xaa] : "f64x2.max",
+
+        I32x4TruncSatF32x4S : [0xfd, 0xab] : "i32x4.trunc_sat_f32x4_s",
+        I32x4TruncSatF32x4U : [0xfd, 0xac] : "i32x4.trunc_sat_f32x4_u",
+        I64x2TruncSatF64x2S : [0xfd, 0xad] : "i64x2.trunc_sat_f64x2_s",
+        I64x2TruncSatF64x2U : [0xfd, 0xae] : "i64x2.trunc_sat_f64x2_u",
+        F32x4ConvertI32x4S : [0xfd, 0xaf] : "f32x4.convert_i32x4_s",
+        F32x4ConvertI32x4U : [0xfd, 0xb0] : "f32x4.convert_i32x4_u",
+        F64x2ConvertI64x2S : [0xfd, 0xb1] : "f64x2.convert_i64x2_s",
+        F64x2ConvertI64x2U : [0xfd, 0xb2] : "f64x2.convert_i64x2_u",
+        V8x16Swizzle : [0xfd, 0xc0] : "v8x16.swizzle",
+        V8x16Shuffle(V8x16Shuffle) : [0xfd, 0xc1] : "v8x16.shuffle",
+        V8x16LoadSplat : [0xfd, 0xc2] : "v8x16.load_splat",
+        V16x8LoadSplat : [0xfd, 0xc3] : "v16x8.load_splat",
+        V32x4LoadSplat : [0xfd, 0xc4] : "v32x4.load_splat",
+        V64x2LoadSplat : [0xfd, 0xc5] : "v64x2.load_splat",
+
+        I8x16NarrowI16x8S : [0xfd, 0xc6] : "i8x16.narrow_i16x8_s",
+        I8x16NarrowI16x8U : [0xfd, 0xc7] : "i8x16.narrow_i16x8_u",
+        I16x8NarrowI32x4S : [0xfd, 0xc8] : "i16x8.narrow_i32x4_s",
+        I16x8NarrowI32x4U : [0xfd, 0xc9] : "i16x8.narrow_i32x4_u",
+
+        I16x8WidenLowI8x16S : [0xfd, 0xca] : "i16x8.widen_low_i8x16_s",
+        I16x8WidenHighI8x16S : [0xfd, 0xcb] : "i16x8.widen_high_i8x16_s",
+        I16x8WidenLowI8x16U : [0xfd, 0xcc] : "i16x8.widen_low_i8x16_u",
+        I16x8WidenHighI8x16u : [0xfd, 0xcd] : "i16x8.widen_high_i8x16_u",
+        I32x4WidenLowI16x8S : [0xfd, 0xce] : "i32x4.widen_low_i16x8_s",
+        I32x4WidenHighI16x8S : [0xfd, 0xcf] : "i32x4.widen_high_i16x8_s",
+        I32x4WidenLowI16x8U : [0xfd, 0xd0] : "i32x4.widen_low_i16x8_u",
+        I32x4WidenHighI16x8u : [0xfd, 0xd1] : "i32x4.widen_high_i16x8_u",
+
+        I16x8Load8x8S(MemArg<16>) : [0xfd, 0xd2] : "i16x8.load8x8_s",
+        I16x8Load8x8U(MemArg<16>) : [0xfd, 0xd3] : "i16x8.load8x8_u",
+        I32x4Load16x4S(MemArg<16>) : [0xfd, 0xd4] : "i32x4.load16x4_s",
+        I32x4Load16x4U(MemArg<16>) : [0xfd, 0xd5] : "i32x4.load16x4_u",
+        I64x2Load32x2S(MemArg<16>) : [0xfd, 0xd6] : "i64x2.load32x2_s",
+        I64x2Load32x2U(MemArg<16>) : [0xfd, 0xd7] : "i64x2.load32x2_u",
+        V128Andnot : [0xfd, 0xd8] : "v128.andnot",
     }
 }
 
@@ -600,6 +787,114 @@ impl<'a> Parse<'a> for MemoryInit<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         Ok(MemoryInit {
             data: parser.parse()?,
+        })
+    }
+}
+
+/// Different ways to specify a `v128.const` instruction
+#[derive(Debug)]
+#[rustfmt::skip]
+#[allow(missing_docs)]
+pub enum V128Const {
+    I8x16([i8; 16]),
+    I16x8([i16; 8]),
+    I32x4([i32; 4]),
+    I64x2([i64; 2]),
+    F32x4([ast::Float32; 4]),
+    F64x2([ast::Float64; 2]),
+}
+
+impl<'a> Parse<'a> for V128Const {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let mut l = parser.lookahead1();
+        if l.peek::<kw::i8x16>() {
+            parser.parse::<kw::i8x16>()?;
+            Ok(V128Const::I8x16([
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+            ]))
+        } else if l.peek::<kw::i16x8>() {
+            parser.parse::<kw::i16x8>()?;
+            Ok(V128Const::I16x8([
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+            ]))
+        } else if l.peek::<kw::i32x4>() {
+            parser.parse::<kw::i32x4>()?;
+            Ok(V128Const::I32x4([
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+            ]))
+        } else if l.peek::<kw::i64x2>() {
+            parser.parse::<kw::i64x2>()?;
+            Ok(V128Const::I64x2([parser.parse()?, parser.parse()?]))
+        } else if l.peek::<kw::f32x4>() {
+            parser.parse::<kw::f32x4>()?;
+            Ok(V128Const::F32x4([
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+            ]))
+        } else if l.peek::<kw::f64x2>() {
+            parser.parse::<kw::f64x2>()?;
+            Ok(V128Const::F64x2([parser.parse()?, parser.parse()?]))
+        } else {
+            Err(l.error())
+        }
+    }
+}
+
+/// Lanes being shuffled in the `v8x16.shuffle` instruction
+#[derive(Debug)]
+pub struct V8x16Shuffle {
+    #[allow(missing_docs)]
+    pub lanes: [u8; 16],
+}
+
+impl<'a> Parse<'a> for V8x16Shuffle {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        Ok(V8x16Shuffle {
+            lanes: [
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+                parser.parse()?,
+            ],
         })
     }
 }

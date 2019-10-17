@@ -412,6 +412,11 @@ fn skip_test(test: &Path, contents: &str) -> bool {
     if test.ends_with("threads/atomic.wast") {
         return true;
     }
+    // The current SIMD spec and wabt seem to disagree about this test, let's
+    // ignore it while the spec settles
+    if test.ends_with("interp/simd-load-store.txt") {
+        return true;
+    }
 
     // TODO: need to fix this test, how in the world is `if` supposed to
     // be parsed anyway?
@@ -455,9 +460,6 @@ fn skip_test(test: &Path, contents: &str) -> bool {
         return true;
     }
     if contents.contains("--enable-annotations") {
-        return true;
-    }
-    if contents.contains("--enable-simd") {
         return true;
     }
     if contents.contains("--enable-tail-call") {
