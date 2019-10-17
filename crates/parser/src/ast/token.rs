@@ -10,6 +10,23 @@ pub struct Span {
     pub(crate) offset: usize,
 }
 
+impl Span {
+    /// Returns the line/column information of this span within `text`
+    pub fn linecol_in(&self, text: &str) -> (usize, usize) {
+        let mut cur = 0;
+        // Use split_terminator instead of lines so that if there is a `\r`,
+        // it is included in the offset calculation. The `+1` values below
+        // account for the `\n`.
+        for (i, line) in text.split_terminator('\n').enumerate() {
+            if cur + line.len() + 1 > self.offset {
+                return (i, self.offset - cur);
+            }
+            cur += line.len() + 1;
+        }
+        (text.lines().count(), 0)
+    }
+}
+
 /// An identifier in a WebAssembly module, prefixed by `$` in the textual
 /// format.
 ///
