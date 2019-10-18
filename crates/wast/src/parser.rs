@@ -104,7 +104,7 @@ use std::fmt;
 pub fn parse<'a, T: Parse<'a>>(buf: &'a ParseBuffer<'a>) -> Result<T> {
     let parser = buf.parser();
     let result = parser.parse()?;
-    if parser.is_empty() {
+    if parser.buf.tokens.get(parser.buf.cur.get()).is_none() {
         Ok(result)
     } else {
         Err(parser.error("extra tokens remaining after parse"))
