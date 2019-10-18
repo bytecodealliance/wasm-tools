@@ -241,6 +241,8 @@ macro_rules! float {
                     let signif_bits = width - 1 - $exp_bits;
                     let signif_mask = (1 << exp_offset) - 1;
                     let (hex, integral, decimal, exponent) = match val {
+                        // Infinity is when the exponent bits are all set and
+                        // the significand is zero.
                         FloatVal::Inf { negative } => {
                             let exp_bits = (1 << $exp_bits) - 1;
                             let neg_bit = *negative as $int;
@@ -250,6 +252,9 @@ macro_rules! float {
                             );
                         }
 
+                        // NaN is when the exponent bits are all set and
+                        // the significand is nonzero. The default of NaN is
+                        // when only the highest bit of the significand is set.
                         FloatVal::Nan { negative, val } => {
                             let exp_bits = (1 << $exp_bits) - 1;
                             let neg_bit = *negative as $int;
@@ -261,6 +266,7 @@ macro_rules! float {
                             );
                         }
 
+                        // This is trickier, handle this below
                         FloatVal::Val { hex, integral, decimal, exponent } => {
                             (hex, integral, decimal, exponent)
                         }
