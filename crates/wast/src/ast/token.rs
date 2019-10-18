@@ -230,103 +230,13 @@ macro_rules! float {
 
         impl<'a> Parse<'a> for $name {
             fn parse(parser: Parser<'a>) -> Result<Self> {
-                fn handle(val: &FloatVal<'_>) -> Option<$int> {
-                    use std::ffi::CString;
-                    use std::os::raw::c_char;
-                    use std::ptr;
-
-                    let width = std::mem::size_of::<$int>() * 8;
-                    let neg_offset = width - 1;
-                    let exp_offset = neg_offset - $exp_bits;
-                    let signif_bits = width - 1 - $exp_bits;
-                    let signif_mask = (1 << exp_offset) - 1;
-                    let (hex, integral, decimal, exponent) = match val {
-                        // Infinity is when the exponent bits are all set and
-                        // the significand is zero.
-                        FloatVal::Inf { negative } => {
-                            let exp_bits = (1 << $exp_bits) - 1;
-                            let neg_bit = *negative as $int;
-                            return Some(
-                                (neg_bit << neg_offset) |
-                                (exp_bits << exp_offset)
-                            );
-                        }
-
-                        // NaN is when the exponent bits are all set and
-                        // the significand is nonzero. The default of NaN is
-                        // when only the highest bit of the significand is set.
-                        FloatVal::Nan { negative, val } => {
-                            let exp_bits = (1 << $exp_bits) - 1;
-                            let neg_bit = *negative as $int;
-                            let signif = val.unwrap_or(1 << (signif_bits - 1)) as $int;
-                            return Some(
-                                (neg_bit << neg_offset) |
-                                (exp_bits << exp_offset) |
-                                (signif & signif_mask)
-                            );
-                        }
-
-                        // This is trickier, handle this below
-                        FloatVal::Val { hex, integral, decimal, exponent } => {
-                            (hex, integral, decimal, exponent)
-                        }
-                    };
-
-                    // Rely on Rust's standard library to parse base 10 floats
-                    // correctly.
-                    if !*hex {
-                        let mut s = integral.to_string();
-                        if let Some(decimal) = decimal {
-                            s.push_str(".");
-                            s.push_str(&decimal);
-                        }
-                        if let Some(exponent) = exponent {
-                            s.push_str("e");
-                            s.push_str(&exponent);
-                        }
-                        return s.parse::<$float>().ok().map(|s| s.to_bits());
-                    }
-
-                    // FIXME(#13) shouldn't use C here, we should use something
-                    // Rust-based
-                    let (sign, num) = if integral.starts_with("-") {
-                        ("-", &integral[1..])
-                    } else {
-                        ("", &integral[..])
-                    };
-                    let mut s = format!("{}0x{}", sign, num);
-                    if let Some(decimal) = decimal {
-                        s.push_str(".");
-                        s.push_str(&decimal);
-                    }
-                    if let Some(exponent) = exponent {
-                        s.push_str("p");
-                        s.push_str(&exponent);
-                    }
-                    let s = CString::new(s).unwrap();
-
-                    // Match what wabt does for now and use
-                    // `strtof` and `strtod` until hex float
-                    // parsing in Rust is up to par.
-                    extern {
-                        fn $parse(input: *const c_char, other: *mut *mut c_char) -> $float;
-                    }
-                    let ret = unsafe {
-                        $parse(
-                            s.as_ptr(),
-                            ptr::null_mut(),
-                        )
-                    };
-                    Some(ret.to_bits())
-                }
-
                 parser.step(|c| {
                     let (val, rest) = if let Some((f, rest)) = c.float() {
-                        (handle(f.val()), rest)
+                        ($parse(f.val()), rest)
                     } else if let Some((i, rest)) = c.integer() {
                         let (s, base) = i.val();
                         (
-                            handle(&FloatVal::Val {
+                            $parse(&FloatVal::Val {
                                 hex: base == 16,
                                 integral: s.into(),
                                 decimal: None,
@@ -344,6 +254,97 @@ macro_rules! float {
                 })
             }
         }
+
+        fn $parse(val: &FloatVal<'_>) -> Option<$int> {
+            use std::ffi::CString;
+            use std::os::raw::c_char;
+            use std::ptr;
+
+            let width = std::mem::size_of::<$int>() * 8;
+            let neg_offset = width - 1;
+            let exp_offset = neg_offset - $exp_bits;
+            let signif_bits = width - 1 - $exp_bits;
+            let signif_mask = (1 << exp_offset) - 1;
+            let (hex, integral, decimal, exponent) = match val {
+                // Infinity is when the exponent bits are all set and
+                // the significand is zero.
+                FloatVal::Inf { negative } => {
+                    let exp_bits = (1 << $exp_bits) - 1;
+                    let neg_bit = *negative as $int;
+                    return Some(
+                        (neg_bit << neg_offset) |
+                        (exp_bits << exp_offset)
+                    );
+                }
+
+                // NaN is when the exponent bits are all set and
+                // the significand is nonzero. The default of NaN is
+                // when only the highest bit of the significand is set.
+                FloatVal::Nan { negative, val } => {
+                    let exp_bits = (1 << $exp_bits) - 1;
+                    let neg_bit = *negative as $int;
+                    let signif = val.unwrap_or(1 << (signif_bits - 1)) as $int;
+                    return Some(
+                        (neg_bit << neg_offset) |
+                        (exp_bits << exp_offset) |
+                        (signif & signif_mask)
+                    );
+                }
+
+                // This is trickier, handle this below
+                FloatVal::Val { hex, integral, decimal, exponent } => {
+                    (hex, integral, decimal, exponent)
+                }
+            };
+
+            // Rely on Rust's standard library to parse base 10 floats
+            // correctly.
+            if !*hex {
+                let mut s = integral.to_string();
+                if let Some(decimal) = decimal {
+                    s.push_str(".");
+                    s.push_str(&decimal);
+                }
+                if let Some(exponent) = exponent {
+                    s.push_str("e");
+                    s.push_str(&exponent);
+                }
+                return s.parse::<$float>().ok().map(|s| s.to_bits());
+            }
+
+            // FIXME(#13) shouldn't use C here, we should use something
+            // Rust-based
+            let (sign, num) = if integral.starts_with("-") {
+                ("-", &integral[1..])
+            } else {
+                ("", &integral[..])
+            };
+            let mut s = format!("{}0x{}", sign, num);
+            if let Some(decimal) = decimal {
+                s.push_str(".");
+                s.push_str(&decimal);
+            }
+            if let Some(exponent) = exponent {
+                s.push_str("p");
+                s.push_str(&exponent);
+            }
+            let s = CString::new(s).unwrap();
+
+            // Match what wabt does for now and use
+            // `strtof` and `strtod` until hex float
+            // parsing in Rust is up to par.
+            extern {
+                fn $parse(input: *const c_char, other: *mut *mut c_char) -> $float;
+            }
+            let ret = unsafe {
+                $parse(
+                    s.as_ptr(),
+                    ptr::null_mut(),
+                )
+            };
+            Some(ret.to_bits())
+        }
+
     )*)
 }
 
