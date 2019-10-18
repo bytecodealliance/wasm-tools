@@ -102,7 +102,7 @@ jobs:
         curl -L https://github.com/WebAssembly/binaryen/releases/download/version_89/$version-x86_64-linux.tar.gz | tar xzvf -
         echo ::add-path::`pwd`/$version
 
-    - run: cargo fuzz run --release ${{ matrix.target }} -- -max_total_time=30 -jobs=2 -verbosity=0
+    - run: cargo fuzz run --release ${{ matrix.target }} -- -max_total_time=30
       env:
         # See rust-fuzz/cargo-fuzz#161
         RUSTFLAGS: -C codegen-units=1
