@@ -73,7 +73,7 @@ fn run_test(test: &Path, contents: &str) -> anyhow::Result<()> {
     }
 
     if let Some(expected) = wat2wasm(&test, None) {
-        binary_compare(&test, &binary, &expected)?;
+        binary_compare(&test, 0, &binary, &expected)?;
     }
     Ok(())
 }
@@ -99,7 +99,8 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
                 match module.kind {
                     ModuleKind::Text(_) => {
                         if let Some(expected) = wat2wasm(&test, Some(modules)) {
-                            binary_compare(&test, &actual, &expected)?;
+                            let (line, _) = module.span.linecol_in(contents);
+                            binary_compare(&test, line, &actual, &expected)?;
                         }
                     }
                     // Skip these for the same reason we skip
@@ -209,7 +210,7 @@ fn find_tests() -> Vec<PathBuf> {
     }
 }
 
-fn binary_compare(test: &Path, actual: &[u8], expected: &[u8]) -> Result<(), anyhow::Error> {
+fn binary_compare(test: &Path, line: usize, actual: &[u8], expected: &[u8]) -> Result<(), anyhow::Error> {
     use wasmparser::*;
 
     // I tried for a bit but honestly couldn't figure out a great way to match
@@ -243,10 +244,11 @@ fn binary_compare(test: &Path, actual: &[u8], expected: &[u8]) -> Result<(), any
     let mut msg = format!(
         "
 error: actual wasm differs {pos} from expected wasm
-      --> {file}
+      --> {file}:{line}
 ",
         pos = pos,
         file = test.display(),
+        line = line + 1,
     );
 
     if let Some(((pos, _), _)) = difference {
