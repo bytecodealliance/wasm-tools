@@ -67,18 +67,22 @@
 
 #![deny(missing_docs)]
 
+use std::borrow::Cow;
 use std::fmt;
 use std::path::Path;
+use std::str;
 use wast::parser::{self, ParseBuffer};
 
-/// Parses a file on disk as a [WebAssembly Text format][wat] file, returning
-/// the file translated to a WebAssembly binary file.
+/// Parses a file on disk as a [WebAssembly Text format][wat] file, or a binary
+/// WebAssembly file
 ///
-/// For more information see the [`parse_str`] documentation.
+/// This function will read the bytes on disk and delegate them to the
+/// [`parse_bytes`] function. For more information on the behavior of parsing
+/// see [`parse_bytes`].
 ///
 /// # Errors
 ///
-/// For information about errors, see the [`parse_str`] documentation.
+/// For information about errors, see the [`parse_bytes`] documentation.
 ///
 /// # Examples
 ///
@@ -96,18 +100,72 @@ pub fn parse_file(file: impl AsRef<Path>) -> Result<Vec<u8>> {
 }
 
 fn _parse_file(file: &Path) -> Result<Vec<u8>> {
-    let contents = std::fs::read_to_string(file).map_err(|err| Error {
+    let contents = std::fs::read(file).map_err(|err| Error {
         kind: Box::new(ErrorKind::Io {
             err,
             msg: format!("failed to read `{}` to a string", file.display()),
         }),
     })?;
-    parse_str(&contents).map_err(|mut e| {
-        if let ErrorKind::Wast(e) = &mut *e.kind {
-            e.set_path(file);
+    match parse_bytes(&contents) {
+        Ok(bytes) => Ok(bytes.into_owned()),
+        Err(mut e) => {
+            if let ErrorKind::Wast(e) = &mut *e.kind {
+                e.set_path(file);
+            }
+            Err(e)
         }
-        e
-    })
+    }
+}
+
+/// Parses in-memory bytes as either the [WebAssembly Text format][wat], or a
+/// binary WebAssembly module.
+///
+/// This function will attempt to interpret the given bytes as one of two
+/// options:
+///
+/// * A utf-8 string which is a `*.wat` file to be parsed.
+/// * A binary WebAssembly file starting with `b"\0asm"`
+///
+/// If the input is a string then it will be parsed as `*.wat`, and then after
+/// parsing it will be encoded back into a WebAssembly binary module. If the
+/// input is a binary that starts with `b"\0asm"` it will be returned verbatim.
+/// Everything that doesn't start with `b"\0asm"` will be parsed as a utf-8
+/// `*.wat` file, returning errors as appropriate.
+///
+/// For more information about parsing wat files, see [`parse_str`].
+///
+/// # Errors
+///
+/// In addition to all of the errors that can be returned from [`parse_str`],
+/// this function will also return an error if the input does not start with
+/// `b"\0asm"` and is invalid utf-8. (failed to even try to call [`parse_str`]).
+///
+/// # Examples
+///
+/// ```
+/// # fn foo() -> wat::Result<()> {
+/// // Parsing bytes that are actually `*.wat` files
+/// assert_eq!(&*wat::parse_bytes(b"(module)")?, b"\0asm\x01\0\0\0");
+/// assert!(wat::parse_bytes(b"module").is_err());
+/// assert!(wat::parse_bytes(b"binary\0file\0\that\0is\0not\0wat").is_err());
+///
+/// // Pass through binaries that look like real wasm files
+/// assert_eq!(&*wat::parse_bytes(b"\0asm\x01\0\0\0")?, b"\0asm\x01\0\0\0");
+/// # Ok(())
+/// # }
+/// ```
+///
+/// [wat]: http://webassembly.github.io/spec/core/text/index.html
+pub fn parse_bytes(bytes: &[u8]) -> Result<Cow<'_, [u8]>> {
+    if bytes.starts_with(b"\0asm") {
+        return Ok(bytes.into());
+    }
+    match str::from_utf8(bytes) {
+        Ok(s) => _parse_str(s).map(|s| s.into()),
+        Err(_) => Err(Error {
+            kind: Box::new(ErrorKind::Custom(format!("input bytes aren't valid utf-8"))),
+        }),
+    }
 }
 
 /// Parses an in-memory string as the [WebAssembly Text format][wat], returning
@@ -183,6 +241,7 @@ pub struct Error {
 enum ErrorKind {
     Wast(wast::Error),
     Io { err: std::io::Error, msg: String },
+    Custom(String),
 }
 
 impl Error {
@@ -199,6 +258,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &*self.kind {
             ErrorKind::Wast(err) => err.fmt(f),
+            ErrorKind::Custom(err) => err.fmt(f),
             ErrorKind::Io { msg, .. } => msg.fmt(f),
         }
     }
@@ -208,6 +268,7 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match &*self.kind {
             ErrorKind::Wast(_) => None,
+            ErrorKind::Custom(_) => None,
             ErrorKind::Io { err, .. } => Some(err),
         }
     }
