@@ -58,11 +58,11 @@ jobs:
       run: echo ::add-path::`pwd`/tests/wabt
       if: matrix.os != 'windows-latest'
     - name: Add wat2wasm to path (windows)
-      run: echo ::add-path::D:/a/wast/wast/tests/wabt
+      run: echo ::add-path::D:/a/wat/wat/tests/wabt
       if: matrix.os == 'windows-latest'
 
     - run: cargo test
-    - run: cargo test -p wast-parser
+    - run: cargo test -p wast
 
   rustfmt:
     name: Rustfmt
