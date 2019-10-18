@@ -20,14 +20,6 @@ pub fn wabt_may_disagree_on_binary(wast: &str) -> bool {
                 }
             }
 
-            // Ignore anything with a hex float literal. Our parsing is
-            // different than wabt's (#13) and it's not super interesting for us
-            // to fuzz those differences right now anyway.
-            wast::lexer::Token::Float(f) => {
-                if let wast::lexer::FloatVal::Val { hex: true, .. } = f.val() {
-                    return true;
-                }
-            }
             _ => {}
         }
     }

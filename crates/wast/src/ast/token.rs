@@ -220,7 +220,12 @@ impl Peek for &'_ str {
 }
 
 macro_rules! float {
-    ($($name:ident => ($int:ident, $float:ident, $exp_bits:tt, $parse:ident))*) => ($(
+    ($($name:ident => {
+        bits: $int:ident,
+        float: $float:ident,
+        exponent_bits: $exp_bits:tt,
+        name: $parse:ident,
+    })*) => ($(
         /// A parsed floating-point type
         #[derive(Debug)]
         pub struct $name {
@@ -256,16 +261,16 @@ macro_rules! float {
         }
 
         fn $parse(val: &FloatVal<'_>) -> Option<$int> {
-            use std::ffi::CString;
-            use std::os::raw::c_char;
-            use std::ptr;
-
+            // Compute a few well-known constants about the float representation
+            // given the parameters to the macro here.
             let width = std::mem::size_of::<$int>() * 8;
             let neg_offset = width - 1;
             let exp_offset = neg_offset - $exp_bits;
             let signif_bits = width - 1 - $exp_bits;
             let signif_mask = (1 << exp_offset) - 1;
-            let (hex, integral, decimal, exponent) = match val {
+            let bias = (1 << ($exp_bits - 1)) - 1;
+
+            let (hex, integral, decimal, exponent_str) = match val {
                 // Infinity is when the exponent bits are all set and
                 // the significand is zero.
                 FloatVal::Inf { negative } => {
@@ -305,52 +310,161 @@ macro_rules! float {
                     s.push_str(".");
                     s.push_str(&decimal);
                 }
-                if let Some(exponent) = exponent {
+                if let Some(exponent) = exponent_str {
                     s.push_str("e");
                     s.push_str(&exponent);
                 }
                 return s.parse::<$float>().ok().map(|s| s.to_bits());
             }
 
-            // FIXME(#13) shouldn't use C here, we should use something
-            // Rust-based
-            let (sign, num) = if integral.starts_with("-") {
-                ("-", &integral[1..])
-            } else {
-                ("", &integral[..])
-            };
-            let mut s = format!("{}0x{}", sign, num);
-            if let Some(decimal) = decimal {
-                s.push_str(".");
-                s.push_str(&decimal);
-            }
-            if let Some(exponent) = exponent {
-                s.push_str("p");
-                s.push_str(&exponent);
-            }
-            let s = CString::new(s).unwrap();
+            // Parsing hex floats is... hard! I don't really know what most of
+            // this below does. It was copied from Gecko's implementation in
+            // `WasmTextToBinary.cpp`. Would love comments on this if you have
+            // them!
+            let decimal = decimal.as_ref().map(|s| &**s).unwrap_or("");
+            let negative = integral.starts_with('-');
+            let integral = integral.trim_start_matches('-').trim_start_matches('0');
 
-            // Match what wabt does for now and use
-            // `strtof` and `strtod` until hex float
-            // parsing in Rust is up to par.
-            extern {
-                fn $parse(input: *const c_char, other: *mut *mut c_char) -> $float;
-            }
-            let ret = unsafe {
-                $parse(
-                    s.as_ptr(),
-                    ptr::null_mut(),
-                )
+            // Do a bunch of work up front to locate the first non-zero digit
+            // to determine the initial exponent. There's a number of
+            // adjustments depending on where the digit was found, but the
+            // general idea here is that I'm not really sure why things are
+            // calculated the way they are but it should match Gecko.
+            let decimal_no_leading = decimal.trim_start_matches('0');
+            let decimal_iter = if integral.is_empty() {
+                decimal_no_leading.chars()
+            } else {
+                decimal.chars()
             };
-            Some(ret.to_bits())
+            let mut digits = integral.chars()
+                .map(|c| (to_hex(c) as $int, false))
+                .chain(decimal_iter.map(|c| (to_hex(c) as $int, true)));
+            let lead_nonzero_digit = match digits.next() {
+                Some((c, _)) => c,
+                // No digits? Must be `+0` or `-0`, being careful to handle the
+                // sign encoding here.
+                None if negative => return Some(1 << (width - 1)),
+                None => return Some(0),
+            };
+            let mut significand = 0 as $int;
+            let mut exponent = if !integral.is_empty() {
+                1
+            } else {
+                -((decimal.len() - decimal_no_leading.len() + 1) as i32) + 1
+            };
+            let lz = (lead_nonzero_digit as u8).leading_zeros() as i32 - 4;
+            exponent = exponent.checked_mul(4)?.checked_sub(lz + 1)?;
+            let mut significand_pos = (width - (4 - (lz as usize))) as isize;
+            assert!(significand_pos >= 0);
+            significand |= lead_nonzero_digit << significand_pos;
+
+            // Now that we've got an anchor in the string we parse the remaining
+            // digits. Again, not entirely sure why everything is the way it is
+            // here! This is copied frmo gecko.
+            let mut discarded_extra_nonzero = false;
+            for (digit, decimal) in digits {
+                if !decimal {
+                    exponent += 4;
+                }
+                if significand_pos > -4 {
+                    significand_pos -= 4;
+                }
+
+                if significand_pos >= 0 {
+                    significand |= digit << significand_pos;
+                } else if significand_pos > -4 {
+                    significand |= digit >> (4 - significand_pos);
+                    discarded_extra_nonzero = (digit & !((!0) >> (4 - significand_pos))) != 0;
+                } else if digit != 0 {
+                    discarded_extra_nonzero = true;
+                }
+            }
+
+            exponent = exponent.checked_add(match exponent_str {
+                Some(s) => s.parse::<i32>().ok()?,
+                None => 0,
+            })?;
+            debug_assert!(significand != 0);
+
+            let (encoded_exponent, encoded_significand, discarded_significand) =
+                if exponent <= -bias {
+                    // Underflow to subnormal or zero.
+                    let shift = exp_offset as i32 + exponent + bias;
+                    if shift == 0 {
+                        (0, 0, significand)
+                    } else {
+                        (
+                            0,
+                            significand >> (width as i32 - shift),
+                            significand << shift,
+                        )
+                    }
+                } else if exponent <= bias {
+                    // Normal (non-zero). The significand's leading 1 is encoded
+                    // implicitly.
+                    (
+                        ((exponent + bias) as $int) << exp_offset,
+                        (significand >> (width - exp_offset - 1)) & signif_mask,
+                        significand << (exp_offset + 1),
+                    )
+                } else {
+                    // Overflow to infinity.
+                    (
+                        ((1 << $exp_bits) - 1) << exp_offset,
+                        0,
+                        0,
+                    )
+                };
+
+            let bits = encoded_exponent | encoded_significand;
+
+            // Apply rounding. If this overflows the significand, it carries
+            // into the exponent bit according to the magic of the IEEE 754
+            // encoding.
+            //
+            // Or rather, the comment above is what Gecko says so it's copied
+            // here too.
+            let msb = 1 << (width - 1);
+            let bits = bits
+                + (((discarded_significand & msb != 0)
+                    && ((discarded_significand & !msb != 0) ||
+                         discarded_extra_nonzero ||
+                         // ties to even
+                         (encoded_significand & 1 != 0))) as $int);
+
+            // Just before we return the bits be sure to handle the sign bit we
+            // found at the beginning.
+            Some(if negative {
+                bits | (1 << (width - 1))
+            } else {
+                bits
+            })
         }
 
     )*)
 }
 
 float! {
-    Float32 => (u32, f32, 8, strtof)
-    Float64 => (u64, f64, 11, strtod)
+    Float32 => {
+        bits: u32,
+        float: f32,
+        exponent_bits: 8,
+        name: strtof,
+    }
+    Float64 => {
+        bits: u64,
+        float: f64,
+        exponent_bits: 11,
+        name: strtod,
+    }
+}
+
+fn to_hex(c: char) -> u8 {
+    match c {
+        'a'..='f' => c as u8 - b'a' + 10,
+        'A'..='F' => c as u8 - b'A' + 10,
+        _ => c as u8 - b'0',
+    }
 }
 
 /// A convenience type to use with [`Parser::peek`](crate::parser::Parser::peek)
@@ -366,5 +480,45 @@ impl Peek for LParen {
 
     fn display() -> &'static str {
         "left paren"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn hex_strtof() {
+        macro_rules! f {
+            ($a:tt) => (f!(@mk $a, None, None));
+            ($a:tt p $e:tt) => (f!(@mk $a, None, Some($e.into())));
+            ($a:tt . $b:tt) => (f!(@mk $a, Some($b.into()), None));
+            ($a:tt . $b:tt p $e:tt) => (f!(@mk $a, Some($b.into()), Some($e.into())));
+            (@mk $a:tt, $b:expr, $e:expr) => (crate::lexer::FloatVal::Val {
+                hex: true,
+                integral: $a.into(),
+                decimal: $b,
+                exponent: $e
+            });
+        }
+        assert_eq!(super::strtof(&f!("0")), Some(0));
+        assert_eq!(super::strtof(&f!("0" . "0")), Some(0));
+        assert_eq!(super::strtof(&f!("0" . "0" p "2354")), Some(0));
+        assert_eq!(super::strtof(&f!("-0")), Some(1 << 31));
+        assert_eq!(super::strtof(&f!("f32")), Some(0x45732000));
+        assert_eq!(super::strtof(&f!("0" . "f32")), Some(0x3f732000));
+        assert_eq!(super::strtof(&f!("1" . "2")), Some(0x3f900000));
+        assert_eq!(
+            super::strtof(&f!("0" . "00000100000000000" p "-126")),
+            Some(0)
+        );
+        assert_eq!(
+            super::strtof(&f!("1" . "fffff4" p "-106")),
+            Some(0x0afffffa)
+        );
+        assert_eq!(super::strtof(&f!("fffff98" p "-133")), Some(0x0afffffa));
+        assert_eq!(super::strtof(&f!("0" . "081" p "023")), Some(0x48810000));
+        assert_eq!(
+            super::strtof(&f!("1" . "00000100000000000" p "-50")),
+            Some(0x26800000)
+        );
     }
 }

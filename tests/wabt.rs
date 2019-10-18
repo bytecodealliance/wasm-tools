@@ -210,7 +210,12 @@ fn find_tests() -> Vec<PathBuf> {
     }
 }
 
-fn binary_compare(test: &Path, line: usize, actual: &[u8], expected: &[u8]) -> Result<(), anyhow::Error> {
+fn binary_compare(
+    test: &Path,
+    line: usize,
+    actual: &[u8],
+    expected: &[u8],
+) -> Result<(), anyhow::Error> {
     use wasmparser::*;
 
     // I tried for a bit but honestly couldn't figure out a great way to match
