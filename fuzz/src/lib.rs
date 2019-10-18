@@ -18,7 +18,6 @@ pub fn wabt_may_disagree_on_binary(wast: &str) -> bool {
                 if k == "else" {
                     return true;
                 }
-
             }
 
             // Ignore anything with a hex float literal. Our parsing is
