@@ -33,25 +33,8 @@ fuzz_target!(|data: &[u8]| {
     std::fs::write(&wat, &s).unwrap();
 
     let binary = wat::parse_str(&s).unwrap();
-    let lexer = wast::lexer::Lexer::new(&s);
-    for token in lexer {
-        let t = match token.unwrap() {
-            wast::lexer::Source::Token(t) => t,
-            _ => continue,
-        };
-        match t {
-            wast::lexer::Token::Keyword(k) => {
-                if k == "binary" {
-                    return;
-                }
-            }
-            wast::lexer::Token::Float(f) => {
-                if let wast::lexer::FloatVal::Val { hex: true, .. } = f.val() {
-                    return;
-                }
-            }
-            _ => {}
-        }
+    if wast_fuzz::wabt_may_disagree_on_binary(&s) {
+        return;
     }
 
     let output = Command::new("wat2wasm")
@@ -64,29 +47,6 @@ fuzz_target!(|data: &[u8]| {
         let wabt_bytes = std::fs::read(&wasm).unwrap();
         // see comments in the test suite for why we remove the name
         // section
-        assert_eq!(remove_name_section(&binary), wabt_bytes);
+        assert_eq!(wast_fuzz::remove_name_section(&binary), wabt_bytes);
     }
 });
-
-fn remove_name_section(bytes: &[u8]) -> Vec<u8> {
-    use wasmparser::*;
-
-    if let Ok(mut r) = ModuleReader::new(bytes) {
-        loop {
-            let start = r.current_position();
-            if let Ok(s) = r.read() {
-                match s.code {
-                    SectionCode::Custom { name: "name", .. } => {
-                        let mut bytes = bytes.to_vec();
-                        bytes.drain(start..s.range().end);
-                        return bytes;
-                    }
-                    _ => {}
-                }
-            } else {
-                break;
-            }
-        }
-    }
-    return bytes.to_vec();
-}
