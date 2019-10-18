@@ -437,13 +437,6 @@ fn skip_test(test: &Path, contents: &str) -> bool {
         return true;
     }
 
-    // FIXME(#13) we're shielding ourselves from platform differences in hex
-    // float parsing for now, but we should implement a Rust version that works
-    // everywhere
-    if test.ends_with("const.wast") && !cfg!(target_os = "linux") {
-        return true;
-    }
-
     // Skip tests that are supposed to fail
     if contents.contains(";; ERROR") {
         return true;
