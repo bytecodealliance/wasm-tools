@@ -254,7 +254,7 @@ macro_rules! float {
                     };
                     match val {
                         Some(bits) => Ok(($name { bits }, rest)),
-                        None => Err(c.error("invalid float value")),
+                        None => Err(c.error("invalid float value: constant out of range")),
                     }
                 })
             }
@@ -289,6 +289,11 @@ macro_rules! float {
                     let exp_bits = (1 << $exp_bits) - 1;
                     let neg_bit = *negative as $int;
                     let signif = val.unwrap_or(1 << (signif_bits - 1)) as $int;
+                    // If the significand is zero then this is actually infinity
+                    // so we fail to parse it.
+                    if signif & signif_mask == 0 {
+                        return None;
+                    }
                     return Some(
                         (neg_bit << neg_offset) |
                         (exp_bits << exp_offset) |
@@ -314,7 +319,13 @@ macro_rules! float {
                     s.push_str("e");
                     s.push_str(&exponent);
                 }
-                return s.parse::<$float>().ok().map(|s| s.to_bits());
+                let float = s.parse::<$float>().ok()?;
+                // looks like the `*.wat` format considers infinite overflow to
+                // be invalid.
+                if float.is_infinite() {
+                    return None;
+                }
+                return Some(float.to_bits());
             }
 
             // Parsing hex floats is... hard! I don't really know what most of
@@ -434,11 +445,17 @@ macro_rules! float {
 
             // Just before we return the bits be sure to handle the sign bit we
             // found at the beginning.
-            Some(if negative {
+            let bits = if negative {
                 bits | (1 << (width - 1))
             } else {
                 bits
-            })
+            };
+            // looks like the `*.wat` format considers infinite overflow to
+            // be invalid.
+            if $float::from_bits(bits).is_infinite() {
+                return None;
+            }
+            Some(bits)
         }
 
     )*)

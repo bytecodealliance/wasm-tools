@@ -105,9 +105,9 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
         })
         .collect::<Vec<_>>();
 
-    directives
+    let results = directives
         .into_par_iter()
-        .try_for_each(|(directive, modulei)| {
+        .map(|(directive, modulei)| {
             match directive {
                 WastDirective::Module(mut module) => {
                     let actual = module.encode().map_err(|e| adjust!(e))?;
@@ -124,10 +124,6 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
                         ModuleKind::Binary(_) => {}
                     }
                 }
-
-                // FIXME(#13) run these tests
-                WastDirective::AssertMalformed { message, .. }
-                    if message.starts_with("constant out of range") => {}
 
                 WastDirective::AssertMalformed {
                     span: _,
@@ -177,9 +173,19 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
             }
 
             Ok(())
-        })?;
+        })
+        .collect::<Vec<_>>();
 
-    Ok(())
+    let errors = results.into_iter().filter_map(|e| e.err()).collect::<Vec<_>>();
+    if errors.is_empty() {
+        return Ok(());
+    }
+    let mut s = format!("{} test failures in {}:", errors.len(), test.display());
+    for error in errors {
+        s.push_str("\n\t");
+        s.push_str(&error.to_string().replace("\n", "\n\t"));
+    }
+    anyhow::bail!("{}", s)
 }
 
 fn error_matches(error: &str, message: &str) -> bool {
