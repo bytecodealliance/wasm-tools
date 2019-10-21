@@ -90,78 +90,94 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
     let buf = ParseBuffer::new(contents).map_err(|e| adjust!(e))?;
     let wast = parser::parse::<Wast>(&buf).map_err(|e| adjust!(e))?;
 
+    // Number each `Module` directive with the nth module directive that it is,
+    // and then afterwards we can iterate over everything in parallel.
     let mut modules = 0;
-    for directive in wast.directives {
-        match directive {
-            WastDirective::Module(mut module) => {
-                let actual = module.encode().map_err(|e| adjust!(e))?;
+    let directives = wast
+        .directives
+        .into_iter()
+        .map(|directive| match directive {
+            WastDirective::Module(_) => {
+                modules += 1;
+                (directive, modules - 1)
+            }
+            other => (other, modules),
+        })
+        .collect::<Vec<_>>();
 
-                match module.kind {
-                    ModuleKind::Text(_) => {
-                        if let Some(expected) = wat2wasm(&test, Some(modules)) {
-                            let (line, _) = module.span.linecol_in(contents);
-                            binary_compare(&test, line, &actual, &expected)?;
+    directives
+        .into_par_iter()
+        .try_for_each(|(directive, modulei)| {
+            match directive {
+                WastDirective::Module(mut module) => {
+                    let actual = module.encode().map_err(|e| adjust!(e))?;
+
+                    match module.kind {
+                        ModuleKind::Text(_) => {
+                            if let Some(expected) = wat2wasm(&test, Some(modulei)) {
+                                let (line, _) = module.span.linecol_in(contents);
+                                binary_compare(&test, line, &actual, &expected)?;
+                            }
                         }
+                        // Skip these for the same reason we skip
+                        // `module/binary-module.txt` in `binary_compare` below.
+                        ModuleKind::Binary(_) => {}
                     }
-                    // Skip these for the same reason we skip
-                    // `module/binary-module.txt` in `binary_compare` below.
-                    ModuleKind::Binary(_) => {}
                 }
 
-                modules += 1;
-            }
+                // FIXME(#13) run these tests
+                WastDirective::AssertMalformed { message, .. }
+                    if message.starts_with("constant out of range") => {}
 
-            // FIXME(#13) run these tests
-            WastDirective::AssertMalformed { message, .. }
-                if message.starts_with("constant out of range") => {}
-
-            WastDirective::AssertMalformed {
-                span: _,
-                module: QuoteModule::Quote(source),
-                message,
-            } => {
-                let source = source.concat();
-                let result = ParseBuffer::new(&source)
-                    .map_err(|e| e.into())
-                    .and_then(|b| -> Result<(), wast::Error> {
-                        let mut wat = parser::parse::<Wat>(&b)?;
-                        wat.module.encode()?;
-                        Ok(())
-                    })
-                    .map_err(|mut e| {
-                        e.set_text(&source);
-                        e
-                    });
-                match result {
-                    Ok(()) => anyhow::bail!(
-                        "\
-                         in test {:?} parsed {:?} successfully\n\
-                         but should have failed with: {}\
-                         ",
-                        test,
-                        source,
-                        message,
-                    ),
-                    Err(e) => {
-                        if error_matches(&e.to_string(), message) {
-                            continue;
-                        }
-                        anyhow::bail!(
+                WastDirective::AssertMalformed {
+                    span: _,
+                    module: QuoteModule::Quote(source),
+                    message,
+                } => {
+                    let source = source.concat();
+                    let result = ParseBuffer::new(&source)
+                        .map_err(|e| e.into())
+                        .and_then(|b| -> Result<(), wast::Error> {
+                            let mut wat = parser::parse::<Wat>(&b)?;
+                            wat.module.encode()?;
+                            Ok(())
+                        })
+                        .map_err(|mut e| {
+                            e.set_text(&source);
+                            e
+                        });
+                    match result {
+                        Ok(()) => anyhow::bail!(
                             "\
-                             in test {:?} parsed {:?} with error: {}\n\
+                             in test {:?} parsed {:?} successfully\n\
                              but should have failed with: {}\
                              ",
                             test,
                             source,
-                            e,
                             message,
-                        );
+                        ),
+                        Err(e) => {
+                            if error_matches(&e.to_string(), message) {
+                                return Ok(());
+                            }
+                            anyhow::bail!(
+                                "\
+                                 in test {:?} parsed {:?} with error: {}\n\
+                                 but should have failed with: {}\
+                                 ",
+                                test,
+                                source,
+                                e,
+                                message,
+                            );
+                        }
                     }
                 }
+                _ => {}
             }
-            _ => continue,
-        }
-    }
+
+            Ok(())
+        })?;
 
     Ok(())
 }
