@@ -209,6 +209,12 @@ impl<'a> Parse<'a> for &'a str {
     }
 }
 
+impl Parse<'_> for String {
+    fn parse(parser: Parser<'_>) -> Result<Self> {
+        Ok(<&str>::parse(parser)?.to_string())
+    }
+}
+
 impl Peek for &'_ str {
     fn peek(cursor: Cursor<'_>) -> bool {
         <&[u8]>::peek(cursor)
