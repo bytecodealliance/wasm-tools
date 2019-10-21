@@ -424,6 +424,11 @@ fn skip_test(test: &Path, contents: &str) -> bool {
     if test.ends_with("interp/simd-load-store.txt") {
         return true;
     }
+    // Like above this uses `iNNxMM.load_splat` but the simd spec doesn't have
+    // these and the test seems to disagree at least a bit on encoding.
+    if test.ends_with("logging-all-opcodes.txt") {
+        return true;
+    }
 
     // TODO: need to fix this test, how in the world is `if` supposed to
     // be parsed anyway?
@@ -460,9 +465,6 @@ fn skip_test(test: &Path, contents: &str) -> bool {
         return true;
     }
     if contents.contains("--enable-annotations") {
-        return true;
-    }
-    if contents.contains("--enable-tail-call") {
         return true;
     }
     false

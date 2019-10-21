@@ -172,6 +172,8 @@ instructions! {
         Return : [0x0f] : "return",
         Call(ast::Index<'a>) : [0x10] : "call",
         CallIndirect(CallIndirect<'a>) : [0x11] : "call_indirect",
+        ReturnCall(ast::Index<'a>) : [0x12] : "return_call",
+        ReturnCallIndirect(CallIndirect<'a>) : [0x13] : "return_call_indirect",
         Drop : [0x1a] : "drop",
         Select : [0x1b] : "select",
         LocalGet(ast::Index<'a>) : [0x20] : "local.get" | "get_local",

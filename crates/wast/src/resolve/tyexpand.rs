@@ -79,7 +79,9 @@ impl<'a> Expander<'a> {
                 }
                 self.expand_type_use(&mut bt.ty)
             }
-            Instruction::CallIndirect(c) => self.expand_type_use(&mut c.ty),
+            Instruction::CallIndirect(c) | Instruction::ReturnCallIndirect(c) => {
+                self.expand_type_use(&mut c.ty)
+            }
             _ => {}
         }
     }

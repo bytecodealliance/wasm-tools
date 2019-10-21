@@ -287,9 +287,9 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 .map(|_| ())
                 .map_err(|id| self.resolver.resolve_error(id, "local")),
 
-            Call(i) | RefFunc(i) => self.resolver.resolve_idx(i, Ns::Func),
+            Call(i) | RefFunc(i) | ReturnCall(i) => self.resolver.resolve_idx(i, Ns::Func),
 
-            CallIndirect(c) => {
+            CallIndirect(c) | ReturnCallIndirect(c) => {
                 self.resolver.resolve_idx(&mut c.table, Ns::Table)?;
                 self.resolver.resolve_type_use(self.span, &mut c.ty)?;
                 Ok(())
