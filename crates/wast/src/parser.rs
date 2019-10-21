@@ -692,6 +692,19 @@ impl<'a> Cursor<'a> {
     }
 
     /// Attempts to advance this cursor if the current token is a
+    /// [`Token::Reserved`](crate::lexer::Token)
+    ///
+    /// If the current token is `Reserved`, returns the reserved token as well
+    /// as a new [`Cursor`] pointing at the rest of the tokens in the stream.
+    /// Otherwise returns `None`.
+    pub fn reserved(mut self) -> Option<(&'a str, Self)> {
+        match self.advance()? {
+            Token::Reserved(id) => Some((id, self)),
+            _ => None,
+        }
+    }
+
+    /// Attempts to advance this cursor if the current token is a
     /// [`Token::Integer`](crate::lexer::Token)
     ///
     /// If the current token is `Integer`, returns the integer as well as a new
