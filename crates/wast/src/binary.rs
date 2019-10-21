@@ -606,38 +606,7 @@ impl Encode for Id<'_> {
 
 impl Encode for V128Const {
     fn encode(&self, dst: &mut Vec<u8>) {
-        match self {
-            V128Const::I8x16(arr) => {
-                for element in arr {
-                    dst.push(*element as u8);
-                }
-            }
-            V128Const::I16x8(arr) => {
-                for element in arr {
-                    dst.extend_from_slice(&element.to_le_bytes());
-                }
-            }
-            V128Const::I32x4(arr) => {
-                for element in arr {
-                    dst.extend_from_slice(&element.to_le_bytes());
-                }
-            }
-            V128Const::I64x2(arr) => {
-                for element in arr {
-                    dst.extend_from_slice(&element.to_le_bytes());
-                }
-            }
-            V128Const::F32x4(arr) => {
-                for element in arr {
-                    dst.extend_from_slice(&element.bits.to_le_bytes());
-                }
-            }
-            V128Const::F64x2(arr) => {
-                for element in arr {
-                    dst.extend_from_slice(&element.bits.to_le_bytes());
-                }
-            }
-        }
+        dst.extend_from_slice(&self.to_le_bytes());
     }
 }
 

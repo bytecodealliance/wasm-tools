@@ -806,6 +806,97 @@ pub enum V128Const {
     F64x2([ast::Float64; 2]),
 }
 
+impl V128Const {
+    /// Returns the raw little-ended byte sequence used to represent this
+    /// `v128` constant`
+    ///
+    /// This is typically suitable for encoding as the payload of the
+    /// `v128.const` instruction.
+    #[rustfmt::skip]
+    pub fn to_le_bytes(&self) -> [u8; 16] {
+        match self {
+            V128Const::I8x16(arr) => [
+                arr[0] as u8,
+                arr[1] as u8,
+                arr[2] as u8,
+                arr[3] as u8,
+                arr[4] as u8,
+                arr[5] as u8,
+                arr[6] as u8,
+                arr[7] as u8,
+                arr[8] as u8,
+                arr[9] as u8,
+                arr[10] as u8,
+                arr[11] as u8,
+                arr[12] as u8,
+                arr[13] as u8,
+                arr[14] as u8,
+                arr[15] as u8,
+            ],
+            V128Const::I16x8(arr) => {
+                let a1 = arr[0].to_le_bytes();
+                let a2 = arr[1].to_le_bytes();
+                let a3 = arr[2].to_le_bytes();
+                let a4 = arr[3].to_le_bytes();
+                let a5 = arr[4].to_le_bytes();
+                let a6 = arr[5].to_le_bytes();
+                let a7 = arr[6].to_le_bytes();
+                let a8 = arr[7].to_le_bytes();
+                [
+                    a1[0], a1[1],
+                    a2[0], a2[1],
+                    a3[0], a3[1],
+                    a4[0], a4[1],
+                    a5[0], a5[1],
+                    a6[0], a6[1],
+                    a7[0], a7[1],
+                    a8[0], a8[1],
+                ]
+            }
+            V128Const::I32x4(arr) => {
+                let a1 = arr[0].to_le_bytes();
+                let a2 = arr[1].to_le_bytes();
+                let a3 = arr[2].to_le_bytes();
+                let a4 = arr[3].to_le_bytes();
+                [
+                    a1[0], a1[1], a1[2], a1[3],
+                    a2[0], a2[1], a2[2], a2[3],
+                    a3[0], a3[1], a3[2], a3[3],
+                    a4[0], a4[1], a4[2], a4[3],
+                ]
+            }
+            V128Const::I64x2(arr) => {
+                let a1 = arr[0].to_le_bytes();
+                let a2 = arr[1].to_le_bytes();
+                [
+                    a1[0], a1[1], a1[2], a1[3], a1[4], a1[5], a1[6], a1[7],
+                    a2[0], a2[1], a2[2], a2[3], a2[4], a2[5], a2[6], a2[7],
+                ]
+            }
+            V128Const::F32x4(arr) => {
+                let a1 = arr[0].bits.to_le_bytes();
+                let a2 = arr[1].bits.to_le_bytes();
+                let a3 = arr[2].bits.to_le_bytes();
+                let a4 = arr[3].bits.to_le_bytes();
+                [
+                    a1[0], a1[1], a1[2], a1[3],
+                    a2[0], a2[1], a2[2], a2[3],
+                    a3[0], a3[1], a3[2], a3[3],
+                    a4[0], a4[1], a4[2], a4[3],
+                ]
+            }
+            V128Const::F64x2(arr) => {
+                let a1 = arr[0].bits.to_le_bytes();
+                let a2 = arr[1].bits.to_le_bytes();
+                [
+                    a1[0], a1[1], a1[2], a1[3], a1[4], a1[5], a1[6], a1[7],
+                    a2[0], a2[1], a2[2], a2[3], a2[4], a2[5], a2[6], a2[7],
+                ]
+            }
+        }
+    }
+}
+
 impl<'a> Parse<'a> for V128Const {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let mut l = parser.lookahead1();
