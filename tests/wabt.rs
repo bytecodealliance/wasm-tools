@@ -176,7 +176,10 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
         })
         .collect::<Vec<_>>();
 
-    let errors = results.into_iter().filter_map(|e| e.err()).collect::<Vec<_>>();
+    let errors = results
+        .into_iter()
+        .filter_map(|e| e.err())
+        .collect::<Vec<_>>();
     if errors.is_empty() {
         return Ok(());
     }
