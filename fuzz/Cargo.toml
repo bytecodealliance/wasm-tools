@@ -26,7 +26,3 @@ path = "fuzz_targets/parser.rs"
 [[bin]]
 name = "binary"
 path = "fuzz_targets/binary.rs"
-
-[[bin]]
-name = "wasm-opt-ttf"
-path = "fuzz_targets/wasm-opt-ttf.rs"
