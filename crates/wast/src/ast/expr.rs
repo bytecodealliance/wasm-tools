@@ -15,66 +15,107 @@ pub struct Expression<'a> {
 impl<'a> Parse<'a> for Expression<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let mut instrs = Vec::new();
-        parse_folded_instrs(parser, &mut instrs, false)?;
+        parse_folded_instrs(parser, &mut instrs)?;
         Ok(Expression { instrs })
     }
 }
 
-fn parse_folded_instrs<'a>(
-    parser: Parser<'a>,
-    instrs: &mut Vec<Instruction<'a>>,
-    stop_on_then: bool,
-) -> Result<()> {
+fn parse_folded_instrs<'a>(parser: Parser<'a>, instrs: &mut Vec<Instruction<'a>>) -> Result<()> {
     while !parser.is_empty() {
-        if stop_on_then && parser.peek2::<kw::then>() {
-            break;
-        }
-
-        if parser.peek::<ast::LParen>() {
-            parser.parens(|parser| {
-                match parser.parse()? {
-                    i @ Instruction::Block(_) | i @ Instruction::Loop(_) => {
-                        instrs.push(i);
-                        parse_folded_instrs(parser, instrs, false)?;
-                        instrs.push(Instruction::End(None));
-                    }
-                    i @ Instruction::If(_) => {
-                        parse_folded_instrs(parser, instrs, true)?;
-                        instrs.push(i);
-                        parser.parens(|parser| {
-                            parser.parse::<kw::then>()?;
-                            parse_folded_instrs(parser, instrs, false)
-                        })?;
-                        if parser.peek2::<kw::r#else>() {
-                            // Parse the `else` clause, but if it was empty then
-                            // drop it. This, while strictly optional, matches
-                            // wabt's behavior in parsing.
-                            let before = instrs.len();
-                            instrs.push(Instruction::Else(None));
-                            parser.parens(|parser| {
-                                parser.parse::<kw::r#else>()?;
-                                parse_folded_instrs(parser, instrs, false)
-                            })?;
-                            if before + 1 == instrs.len() {
-                                instrs.truncate(before);
-                            }
-                        }
-                        instrs.push(Instruction::End(None));
-                    }
-                    other => {
-                        parse_folded_instrs(parser, instrs, false)?;
-                        instrs.push(other);
-                    }
-                }
-                Ok(())
-            })?;
-            continue;
-        }
-
-        let instr = parser.parse::<Instruction>()?;
-        instrs.push(instr);
+        parse_one_instr(parser, instrs)?;
     }
     Ok(())
+}
+
+fn parse_one_instr<'a>(parser: Parser<'a>, instrs: &mut Vec<Instruction<'a>>) -> Result<()> {
+    if !parser.peek::<ast::LParen>() {
+        let instr = parser.parse::<Instruction>()?;
+        instrs.push(instr);
+        return Ok(());
+    }
+
+    parser.parens(|parser| {
+        match parser.parse()? {
+            i @ Instruction::Block(_) | i @ Instruction::Loop(_) => {
+                instrs.push(i);
+                parse_folded_instrs(parser, instrs)?;
+                instrs.push(Instruction::End(None));
+            }
+
+            // Parsing `if` is... apparently weird. The official spec seems to
+            // indicate that the grammar is
+            //
+            //      (if $clause (then $then) (else $else)?)
+            //
+            // but wabt's test suite and the output of wasm-opt seems to
+            // indicate that the keyword `then` is actually optional. To handle
+            // all this we try to adapt to these grammars and accept both.
+            //
+            // We require that the clause is itself surrounded with `(` which
+            // the official wasm spec doesn't seem to require. We then
+            // require the next expression to be parenthesized as well. If it
+            // starts with `then` then we look for an `else` block. Otherwise we
+            // simply parse as usual and then return.
+            i @ Instruction::If(_) => {
+                // Handle the clause...
+                if !parser.peek::<ast::LParen>() {
+                    return Err(parser.error("expected `(`"));
+                }
+                if !parser.peek2::<kw::then>() {
+                    parse_one_instr(parser, instrs)?;
+                }
+
+                // Make sure the `if` instruction itself enters the instruction
+                // stream.
+                instrs.push(i);
+
+                // Handle the `then`, for now requiring it's in parens and then
+                // otherwise we look for `else` with a `then` block. If `then`
+                // is missing we only parse one more instruction then assume
+                // we're at the end.
+                if !parser.peek::<ast::LParen>() {
+                    return Err(parser.error("expected `(`"));
+                }
+                if parser.peek2::<kw::then>() {
+                    parser.parens(|parser| {
+                        parser.parse::<kw::then>()?;
+                        parse_folded_instrs(parser, instrs)
+                    })?;
+                } else {
+                    parse_one_instr(parser, instrs)?;
+                }
+
+
+                // Like above parse the `else` clause but optionally require the
+                // `else` keyword since wabt doesn't seem to require it.
+                if parser.peek::<ast::LParen>() {
+                    let before = instrs.len();
+                    instrs.push(Instruction::Else(None));
+                    if parser.peek2::<kw::r#else>() {
+                        parser.parens(|parser| {
+                            parser.parse::<kw::r#else>()?;
+                            parse_folded_instrs(parser, instrs)
+                        })?;
+                        // Note that as a minor tweak here if the clause is
+                        // empty then it's dropped. This, while strictly
+                        // optional, matches wabt's behavior in parsing/binary
+                        // emission.
+                        if before + 1 == instrs.len() {
+                            instrs.truncate(before);
+                        }
+                    } else {
+                        parse_one_instr(parser, instrs)?;
+                    }
+                }
+                instrs.push(Instruction::End(None));
+            }
+            other => {
+                parse_folded_instrs(parser, instrs)?;
+                instrs.push(other);
+            }
+        }
+        Ok(())
+    })
 }
 
 // TODO: document this obscenity

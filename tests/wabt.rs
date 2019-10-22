@@ -292,8 +292,8 @@ error: actual wasm differs {pos} from expected wasm
     let mut expected_parser = Parser::new(&expected);
 
     let mut differences = 0;
-    let mut dots = 0;
-    while differences < 5 && dots < 5 {
+    let mut last_dots = false;
+    while differences < 5 {
         let actual_state = match read_state(&mut actual_parser) {
             Some(s) => s,
             None => break,
@@ -304,18 +304,19 @@ error: actual wasm differs {pos} from expected wasm
         };
 
         if actual_state == expected_state {
-            if differences > 0 {
-                dots += 1;
+            if differences > 0 && !last_dots {
                 msg.push_str(&format!("       |   ...\n"));
+                last_dots = true;
             }
             continue;
         }
+        last_dots = false;
 
         if differences == 0 {
             msg.push_str("\n\n");
         }
-        msg.push_str(&format!("       | - {}\n", expected_state));
-        msg.push_str(&format!("       | + {}\n", actual_state));
+        msg.push_str(&format!("  {:4} | - {}\n", expected_parser.current_position(), expected_state));
+        msg.push_str(&format!("  {:4} | + {}\n", actual_parser.current_position(), actual_state));
         differences += 1;
     }
 
@@ -452,12 +453,6 @@ fn skip_test(test: &Path, contents: &str) -> bool {
     // Like above this uses `iNNxMM.load_splat` but the simd spec doesn't have
     // these and the test seems to disagree at least a bit on encoding.
     if test.ends_with("logging-all-opcodes.txt") {
-        return true;
-    }
-
-    // TODO: need to fix this test, how in the world is `if` supposed to
-    // be parsed anyway?
-    if test.ends_with("dump/br-loop-inner.txt") {
         return true;
     }
 

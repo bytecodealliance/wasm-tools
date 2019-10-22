@@ -108,3 +108,9 @@ jobs:
       env:
         # See rust-fuzz/cargo-fuzz#161
         RUSTFLAGS: -C codegen-units=1
+      if: matrix.target != 'wasm-opt-ttf'
+
+    - run: cargo test -p wast
+      env:
+        FUZZ_TIME_LIMIT: 30
+      if: matrix.target == 'wasm-opt-ttf'

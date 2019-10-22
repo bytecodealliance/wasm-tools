@@ -48,3 +48,4 @@ pub fn remove_name_section(bytes: &[u8]) -> Vec<u8> {
     }
     return bytes.to_vec();
 }
+
