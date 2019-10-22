@@ -6,8 +6,8 @@
 
 use std::io::Read;
 use std::path::Path;
-use std::time::{Duration, Instant};
 use std::process::{Command, Stdio};
+use std::time::{Duration, Instant};
 
 #[test]
 fn fuzz() {

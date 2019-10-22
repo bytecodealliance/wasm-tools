@@ -315,8 +315,16 @@ error: actual wasm differs {pos} from expected wasm
         if differences == 0 {
             msg.push_str("\n\n");
         }
-        msg.push_str(&format!("  {:4} | - {}\n", expected_parser.current_position(), expected_state));
-        msg.push_str(&format!("  {:4} | + {}\n", actual_parser.current_position(), actual_state));
+        msg.push_str(&format!(
+            "  {:4} | - {}\n",
+            expected_parser.current_position(),
+            expected_state
+        ));
+        msg.push_str(&format!(
+            "  {:4} | + {}\n",
+            actual_parser.current_position(),
+            actual_state
+        ));
         differences += 1;
     }
 
