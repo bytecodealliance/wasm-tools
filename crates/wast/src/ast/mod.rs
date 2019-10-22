@@ -75,28 +75,27 @@ macro_rules! custom_keyword {
     };
 }
 
-mod export;
-mod expr;
-mod func;
-mod global;
-mod import;
-mod memory;
-mod module;
-mod table;
-mod token;
-mod types;
-mod wast;
-pub use self::export::*;
-pub use self::expr::*;
-pub use self::func::*;
-pub use self::global::*;
-pub use self::import::*;
-pub use self::memory::*;
-pub use self::module::*;
-pub use self::table::*;
-pub use self::token::*;
-pub use self::types::*;
-pub use self::wast::*;
+macro_rules! reexport {
+    ($(mod $name:ident;)*) => ($(mod $name; pub use self::$name::*;)*);
+}
+
+reexport! {
+    mod token;
+}
+
+#[cfg(feature = "wasm-module")]
+reexport! {
+    mod export;
+    mod expr;
+    mod func;
+    mod global;
+    mod import;
+    mod memory;
+    mod module;
+    mod table;
+    mod types;
+    mod wast;
+}
 
 /// Common keyword used to parse WebAssembly text files.
 pub mod kw {

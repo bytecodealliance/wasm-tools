@@ -21,3 +21,14 @@ anyhow = "1.0"
 tempfile = "3.1"
 wasmparser = "0.39"
 serde_json = "1.0"
+
+[features]
+default = ['wasm-module']
+
+# Includes default parsing support for `*.wat` and `*.wast` files (wasm
+# modules). This isn't always needed though if you're parsing just an
+# s-expression based format. If you'd like to slim down this dependency to just
+# the lexer, parser framework, and token support, this feature can be disabled.
+#
+# This feature is turned on by default.
+wasm-module = []

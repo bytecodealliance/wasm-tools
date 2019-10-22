@@ -35,6 +35,13 @@
 //! public API changes, all of which will be accompanied with a semver-breaking
 //! release.
 //!
+//! # Compile-time Cargo features
+//!
+//! This crate has a `wasm-module` feature which is turned on by default which
+//! includes all necessary support to parse full WebAssembly modules. If you
+//! don't need this (for example you're parsing your own s-expression format)
+//! then this feature can be disabled.
+//!
 //! [`Parse`]: parser::Parse
 //! [`LexError`]: lexer::LexError
 
@@ -43,7 +50,9 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
 
+#[cfg(feature = "wasm-module")]
 mod binary;
+#[cfg(feature = "wasm-module")]
 mod resolve;
 
 mod ast;
@@ -115,6 +124,7 @@ impl Error {
         return ret;
     }
 
+    #[cfg(feature = "wasm-module")]
     fn new(span: Span, message: String) -> Error {
         Error {
             inner: Box::new(ErrorInner {

@@ -63,6 +63,8 @@ jobs:
 
     - run: cargo test
     - run: cargo test -p wast
+    - run: cargo build --manifest-path crates/wast/Cargo.toml --no-default-features
+    - run: cargo build --manifest-path crates/wast/Cargo.toml --no-default-features --features wasm-module
 
   rustfmt:
     name: Rustfmt

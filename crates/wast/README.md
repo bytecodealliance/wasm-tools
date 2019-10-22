@@ -12,7 +12,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-wast = "1.0"
+wast = "3.0"
 ```
 
 The intent of this crate is to provide utilities, combinators, and built-in
@@ -26,6 +26,20 @@ types to parse anything that looks like a WebAssembly s-expression.
 If you'd like to do any of the above this crate might be right for you! You may
 also want to check out the `wat` crate which provides a much more stable
 interface if all you'd like to do is convert `*.wat` to `*.wasm`.
+
+## Cargo features
+
+By default this crate enables and exports support necessary to parse `*.wat` and
+`*.wast` files, or in other words entire wasm modules. If you're using this
+crate, however, to parse simply an s-expression wasm-related format (like
+`*.witx` or `*.wit` perhaps) then you can disable the default set of features to
+only include a lexer, the parsing framework, and a few basic token-related
+parsers.
+
+```toml
+[dependencies]
+wast = { version = "3.0", default-features = false }
+```
 
 # License
 
