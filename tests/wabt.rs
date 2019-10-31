@@ -486,10 +486,7 @@ fn skip_test(test: &Path, contents: &str) -> bool {
     }
 
     // Skip tests that exercise unimplemented proposals
-    if contents.contains("--enable-exceptions") {
-        return true;
-    }
-    if contents.contains("--enable-all") {
+    if contents.contains("--enable-exceptions") || test.ends_with("all-features.txt") {
         return true;
     }
     if contents.contains("--enable-annotations") {
