@@ -63,7 +63,7 @@
 //! This module is heavily inspired by [`syn`](https://docs.rs/syn) so you can
 //! likely also draw inspiration from the excellent examples in the `syn` crate.
 
-use crate::lexer::{Float, Integer, Lexer, Source, Token};
+use crate::lexer::{Comment, Float, Integer, Lexer, Source, Token};
 use crate::{Error, Span};
 use std::cell::Cell;
 use std::fmt;
@@ -104,7 +104,7 @@ use std::fmt;
 pub fn parse<'a, T: Parse<'a>>(buf: &'a ParseBuffer<'a>) -> Result<T> {
     let parser = buf.parser();
     let result = parser.parse()?;
-    if parser.buf.tokens.get(parser.buf.cur.get()).is_none() {
+    if parser.cursor().advance_token().is_none() {
         Ok(result)
     } else {
         Err(parser.error("extra tokens remaining after parse"))
@@ -264,7 +264,10 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// tokens internally. A `ParseBuffer` only used to pass to the top-level
 /// [`parse`] function.
 pub struct ParseBuffer<'a> {
-    tokens: Box<[Token<'a>]>,
+    // list of tokens from the tokenized source (including whitespace and
+    // comments), and the second element is the index of the next `Token` token,
+    // if any.
+    tokens: Box<[(Source<'a>, Option<usize>)]>,
     input: &'a str,
     cur: Cell<usize>,
 }
@@ -311,10 +314,24 @@ impl ParseBuffer<'_> {
     pub fn new(input: &str) -> Result<ParseBuffer<'_>> {
         let mut tokens = Vec::new();
         for token in Lexer::new(input) {
-            if let Source::Token(t) = token? {
-                tokens.push(t);
+            tokens.push((token?, None));
+        }
+
+        // Calculate the "next token" for each token in the list. This'll allow
+        // us to advance quickly inside of `advance_token` below instead of
+        // having to skip over all comments/whitespace, perhaps repeatedly.
+        //
+        // To calculate this we go back-to-front, and just keep track of where
+        // the last token was seen and fill that in for all the `next_token`
+        // blanks.
+        let mut last_token = None;
+        for (i, (token, next_token)) in tokens.iter_mut().enumerate().rev() {
+            *next_token = last_token;
+            if let Source::Token(_) = token {
+                last_token = Some(i);
             }
         }
+
         Ok(ParseBuffer {
             tokens: tokens.into_boxed_slice(),
             cur: Cell::new(0),
@@ -328,16 +345,19 @@ impl ParseBuffer<'_> {
 }
 
 impl<'a> Parser<'a> {
-    /// Returns whether there are no more tokens to parse from this [`Parser`].
+    /// Returns whether there are no more `Token` tokens to parse from this
+    /// [`Parser`].
     ///
     /// This indicates that either we've reached the end of the input, or we're
     /// a sub-[`Parser`] inside of a parenthesized expression and we've hit the
     /// `)` token.
+    ///
+    /// Note that if `false` is returned there *may* be more comments. Comments
+    /// and whitespace are not considered for whether this parser is empty.
     pub fn is_empty(self) -> bool {
-        match self.buf.tokens.get(self.buf.cur.get()) {
-            Some(Token::RParen(_)) => true,
-            Some(_) => false,
-            None => true,
+        match self.cursor().advance_token() {
+            Some(Token::RParen(_)) | None => true,
+            Some(_) => false, // more tokens to parse!
         }
     }
 
@@ -454,7 +474,7 @@ impl<'a> Parser<'a> {
     /// the current token.
     pub fn peek2<T: Peek>(self) -> bool {
         let mut cursor = self.cursor();
-        if cursor.advance().is_some() {
+        if cursor.advance_token().is_some() {
             T::peek(cursor)
         } else {
             false
@@ -628,11 +648,13 @@ impl<'a> Parser<'a> {
 }
 
 impl<'a> Cursor<'a> {
-    /// Returns the span of the current token
+    /// Returns the span of the next `Token` token.
+    ///
+    /// Does not take into account whitespace or comments.
     pub fn cur_span(&self) -> Span {
-        let offset = match self.parser.buf.tokens.get(self.cur) {
-            Some(token) => self.parser.input_pos(token.src()),
-            None => 0,
+        let offset = match self.clone().advance_token() {
+            Some(t) => self.parser.input_pos(t.src()),
+            None => self.parser.buf.input.len(),
         };
         Span { offset }
     }
@@ -647,8 +669,11 @@ impl<'a> Cursor<'a> {
     ///
     /// If the current token is `(`, returns a new [`Cursor`] pointing at the
     /// rest of the tokens in the stream. Otherwise returns `None`.
+    ///
+    /// This function will automatically skip over any comment or whitespace
+    /// tokens.
     pub fn lparen(mut self) -> Option<Self> {
-        match self.advance()? {
+        match self.advance_token()? {
             Token::LParen(_) => Some(self),
             _ => None,
         }
@@ -658,8 +683,11 @@ impl<'a> Cursor<'a> {
     ///
     /// If the current token is `)`, returns a new [`Cursor`] pointing at the
     /// rest of the tokens in the stream. Otherwise returns `None`.
+    ///
+    /// This function will automatically skip over any comment or whitespace
+    /// tokens.
     pub fn rparen(mut self) -> Option<Self> {
-        match self.advance()? {
+        match self.advance_token()? {
             Token::RParen(_) => Some(self),
             _ => None,
         }
@@ -671,8 +699,11 @@ impl<'a> Cursor<'a> {
     /// If the current token is `Id`, returns the identifier minus the leading
     /// `$` character as well as a new [`Cursor`] pointing at the rest of the
     /// tokens in the stream. Otherwise returns `None`.
+    ///
+    /// This function will automatically skip over any comment or whitespace
+    /// tokens.
     pub fn id(mut self) -> Option<(&'a str, Self)> {
-        match self.advance()? {
+        match self.advance_token()? {
             Token::Id(id) => Some((&id[1..], self)),
             _ => None,
         }
@@ -684,8 +715,11 @@ impl<'a> Cursor<'a> {
     /// If the current token is `Keyword`, returns the keyword as well as a new
     /// [`Cursor`] pointing at the rest of the tokens in the stream. Otherwise
     /// returns `None`.
+    ///
+    /// This function will automatically skip over any comment or whitespace
+    /// tokens.
     pub fn keyword(mut self) -> Option<(&'a str, Self)> {
-        match self.advance()? {
+        match self.advance_token()? {
             Token::Keyword(id) => Some((id, self)),
             _ => None,
         }
@@ -697,8 +731,11 @@ impl<'a> Cursor<'a> {
     /// If the current token is `Reserved`, returns the reserved token as well
     /// as a new [`Cursor`] pointing at the rest of the tokens in the stream.
     /// Otherwise returns `None`.
+    ///
+    /// This function will automatically skip over any comment or whitespace
+    /// tokens.
     pub fn reserved(mut self) -> Option<(&'a str, Self)> {
-        match self.advance()? {
+        match self.advance_token()? {
             Token::Reserved(id) => Some((id, self)),
             _ => None,
         }
@@ -710,8 +747,11 @@ impl<'a> Cursor<'a> {
     /// If the current token is `Integer`, returns the integer as well as a new
     /// [`Cursor`] pointing at the rest of the tokens in the stream. Otherwise
     /// returns `None`.
+    ///
+    /// This function will automatically skip over any comment or whitespace
+    /// tokens.
     pub fn integer(mut self) -> Option<(&'a Integer<'a>, Self)> {
-        match self.advance()? {
+        match self.advance_token()? {
             Token::Integer(i) => Some((i, self)),
             _ => None,
         }
@@ -723,8 +763,11 @@ impl<'a> Cursor<'a> {
     /// If the current token is `Float`, returns the float as well as a new
     /// [`Cursor`] pointing at the rest of the tokens in the stream. Otherwise
     /// returns `None`.
+    ///
+    /// This function will automatically skip over any comment or whitespace
+    /// tokens.
     pub fn float(mut self) -> Option<(&'a Float<'a>, Self)> {
-        match self.advance()? {
+        match self.advance_token()? {
             Token::Float(f) => Some((f, self)),
             _ => None,
         }
@@ -736,16 +779,62 @@ impl<'a> Cursor<'a> {
     /// If the current token is `String`, returns the byte value of the string
     /// as well as a new [`Cursor`] pointing at the rest of the tokens in the
     /// stream. Otherwise returns `None`.
+    ///
+    /// This function will automatically skip over any comment or whitespace
+    /// tokens.
     pub fn string(mut self) -> Option<(&'a [u8], Self)> {
-        match self.advance()? {
+        match self.advance_token()? {
             Token::String { val, .. } => Some((&**val, self)),
             _ => None,
         }
     }
 
-    fn advance(&mut self) -> Option<&'a Token<'a>> {
-        self.cur += 1;
-        self.parser.buf.tokens.get(self.cur - 1)
+    /// Attempts to advance this cursor if the current token is a
+    /// [`Source::Comment`](crate::lexer::Comment)
+    ///
+    /// This function will skip any whitespace tokens, but it will not skip any
+    /// other tokens.
+    pub fn comment(mut self) -> Option<(&'a Comment<'a>, Self)> {
+        let comment = loop {
+            match &self.parser.buf.tokens.get(self.cur)?.0 {
+                Source::Token(_) => return None,
+                Source::Comment(c) => {
+                    self.cur += 1;
+                    break c;
+                }
+                Source::Whitespace(_) => {
+                    self.cur += 1;
+                }
+            }
+        };
+        Some((comment, self))
+    }
+
+    fn advance_token(&mut self) -> Option<&'a Token<'a>> {
+        let (token, next) = self.parser.buf.tokens.get(self.cur)?;
+        match token {
+            // If the current token is a `Token`, then only advance ourselves
+            // one token further. That way if after this `Token` you want
+            // comments, we can find the comments!
+            Source::Token(t) => {
+                self.cur += 1;
+                Some(t)
+            }
+
+            // Otherwise this is a comment or whitespace token. In that case
+            // `next` points to the next `Token` token if `next` was listed.
+            _ => {
+                let next = (*next)?;
+                let (token, _) = &self.parser.buf.tokens[next];
+                match token {
+                    Source::Token(t) => {
+                        self.cur = next + 1;
+                        Some(t)
+                    }
+                    _ => unreachable!(),
+                }
+            }
+        }
     }
 }
 
