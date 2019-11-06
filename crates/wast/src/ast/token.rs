@@ -11,7 +11,10 @@ pub struct Span {
 }
 
 impl Span {
-    /// Returns the line/column information of this span within `text`
+    /// Returns the line/column information of this span within `text`.
+    /// Line and column numbers are 0-indexed. User presentation is typically
+    /// 1-indexed, but 0-indexing is appropriate for internal use with
+    /// iterators and slices.
     pub fn linecol_in(&self, text: &str) -> (usize, usize) {
         let mut cur = 0;
         // Use split_terminator instead of lines so that if there is a `\r`,
