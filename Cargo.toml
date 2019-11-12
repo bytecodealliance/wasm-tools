@@ -5,8 +5,8 @@ authors = ["Alex Crichton <alex@alexcrichton.com>"]
 edition = "2018"
 license = "MIT/Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/alexcrichton/wat"
-homepage = "https://github.com/alexcrichton/wat"
+repository = "https://github.com/bytecodealliance/wat"
+homepage = "https://github.com/bytecodealliance/wat"
 documentation = "https://docs.rs/wat"
 description = """
 Rust parser for the WebAssembly Text format, WAT
