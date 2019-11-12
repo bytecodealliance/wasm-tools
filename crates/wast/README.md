@@ -1,5 +1,7 @@
 # wast
 
+**A [Bytecode Alliance](https://bytecodealliance.org/) project**
+
 A Rust parser for the WebAssembly Text format: [WAT][wat] and WAST
 
 [![Documentation](https://docs.rs/wast/badge.svg)](https://docs.rs/wast)
