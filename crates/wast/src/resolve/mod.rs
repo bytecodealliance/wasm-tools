@@ -5,10 +5,10 @@ mod expand;
 mod names;
 mod tyexpand;
 
-pub fn resolve(module: &mut Module) -> Result<(), Error> {
+pub fn resolve<'a>(module: &mut Module<'a>) -> Result<Names<'a>, Error> {
     let fields = match &mut module.kind {
         ModuleKind::Text(fields) => fields,
-        _ => return Ok(()),
+        _ => return Ok(Default::default()),
     };
 
     // First up, let's de-inline import/export annotations since this'll
@@ -76,7 +76,7 @@ pub fn resolve(module: &mut Module) -> Result<(), Error> {
     for field in fields.iter_mut() {
         resolver.resolve(field)?;
     }
-    Ok(())
+    Ok(Names { resolver })
 }
 
 fn move_imports_first(fields: &mut [ModuleField<'_>]) {
@@ -91,4 +91,52 @@ fn move_types_first(fields: &mut [ModuleField<'_>]) {
         ModuleField::Type(_) => false,
         _ => true,
     });
+}
+
+/// Representation of the results of name resolution for a module.
+///
+/// This structure is returned from the
+/// [`Module::resolve`](crate::Module::resolve) function and can be used to
+/// resolve your own name arguments if you have any.
+#[derive(Default)]
+pub struct Names<'a> {
+    resolver: names::Resolver<'a>,
+}
+
+impl<'a> Names<'a> {
+    /// Resolves `idx` within the function namespace.
+    ///
+    /// If `idx` is a `Num`, it is ignored, but if it's an `Id` then it will be
+    /// looked up in the function namespace and converted to a `Num`. If the
+    /// `Id` is not defined then an error will be returned.
+    pub fn resolve_func(&self, idx: &mut Index<'a>) -> Result<(), Error> {
+        self.resolver.resolve_idx(idx, names::Ns::Func)
+    }
+
+    /// Resolves `idx` within the memory namespace.
+    ///
+    /// If `idx` is a `Num`, it is ignored, but if it's an `Id` then it will be
+    /// looked up in the memory namespace and converted to a `Num`. If the
+    /// `Id` is not defined then an error will be returned.
+    pub fn resolve_memory(&self, idx: &mut Index<'a>) -> Result<(), Error> {
+        self.resolver.resolve_idx(idx, names::Ns::Memory)
+    }
+
+    /// Resolves `idx` within the table namespace.
+    ///
+    /// If `idx` is a `Num`, it is ignored, but if it's an `Id` then it will be
+    /// looked up in the table namespace and converted to a `Num`. If the
+    /// `Id` is not defined then an error will be returned.
+    pub fn resolve_table(&self, idx: &mut Index<'a>) -> Result<(), Error> {
+        self.resolver.resolve_idx(idx, names::Ns::Table)
+    }
+
+    /// Resolves `idx` within the global namespace.
+    ///
+    /// If `idx` is a `Num`, it is ignored, but if it's an `Id` then it will be
+    /// looked up in the global namespace and converted to a `Num`. If the
+    /// `Id` is not defined then an error will be returned.
+    pub fn resolve_global(&self, idx: &mut Index<'a>) -> Result<(), Error> {
+        self.resolver.resolve_idx(idx, names::Ns::Global)
+    }
 }

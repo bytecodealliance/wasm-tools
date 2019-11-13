@@ -3,7 +3,7 @@ use crate::Error;
 use std::collections::HashMap;
 
 #[derive(Copy, Clone)]
-enum Ns {
+pub enum Ns {
     Data,
     Elem,
     Func,
@@ -205,7 +205,7 @@ impl<'a> Resolver<'a> {
         ExprResolver::new(self, span).resolve(expr)
     }
 
-    fn resolve_idx(&self, idx: &mut Index<'a>, ns: Ns) -> Result<(), Error> {
+    pub fn resolve_idx(&self, idx: &mut Index<'a>, ns: Ns) -> Result<(), Error> {
         match self.ns(ns).resolve(idx) {
             Ok(_n) => Ok(()),
             Err(id) => Err(self.resolve_error(id, ns.desc())),

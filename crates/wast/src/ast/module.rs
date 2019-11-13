@@ -1,6 +1,8 @@
 use crate::ast::{self, kw};
 use crate::parser::{Parse, Parser, Result};
 
+pub use crate::resolve::Names;
+
 /// A `*.wat` file parser, or a parser for one parenthesized module.
 ///
 /// This is the top-level type which you'll frequently parse when working with
@@ -51,7 +53,7 @@ pub enum ModuleKind<'a> {
     Binary(Vec<&'a [u8]>),
 }
 
-impl Module<'_> {
+impl<'a> Module<'a> {
     /// Performs a name resolution pass on this [`Module`], resolving all
     /// symbolic names to indices.
     ///
@@ -67,16 +69,16 @@ impl Module<'_> {
     /// exports/imports listed on fields and handle various other shorthands of
     /// the text format.
     ///
-    /// If successful, nothing is returned, and the AST was modified to be ready
-    /// for binary encoding.
+    /// If successful the AST was modified to be ready for binary encoding. A
+    /// [`Names`] structure is also returned so if you'd like to do your own
+    /// name lookups on the result you can do so as well.
     ///
     /// # Errors
     ///
     /// If an error happens during resolution, such a name resolution error or
     /// items are found in the wrong order, then an error is returned.
-    fn resolve(&mut self) -> std::result::Result<(), crate::Error> {
-        crate::resolve::resolve(self)?;
-        Ok(())
+    pub fn resolve(&mut self) -> std::result::Result<Names<'a>, crate::Error> {
+        crate::resolve::resolve(self)
     }
 
     /// Encodes this [`Module`] to its binary form.

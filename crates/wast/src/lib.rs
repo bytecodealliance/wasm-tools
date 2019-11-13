@@ -124,8 +124,12 @@ impl Error {
         return ret;
     }
 
-    #[cfg(feature = "wasm-module")]
-    fn new(span: Span, message: String) -> Error {
+    /// Creates a new error with the given `message` which is targeted at the
+    /// given `span`
+    ///
+    /// Note that you'll want to ensure that `set_text` or `set_path` is called
+    /// on the resulting error to improve the rendering of the error message.
+    pub fn new(span: Span, message: String) -> Error {
         Error {
             inner: Box::new(ErrorInner {
                 text: None,
