@@ -179,8 +179,19 @@ impl Printer {
     fn print_functype(&mut self, ty: &FuncType, names_for: Option<u32>) -> Result<u32> {
         if ty.params.len() > 0 {
             self.result.push_str(" (param");
+            // When local variables are named `wasm2wat` seems to have odd
+            // behavior where it'll print everything in one `(param)` block
+            // until something is named. All further parameters go into a
+            // separate `(param)` block. I'm not entirely certain why or if it's
+            // really even valid syntax, but for now we mirror `wasm2wat`.
+            let mut restart = false;
             for (i, param) in ty.params.iter().enumerate() {
-                self.result.push_str(" ");
+                if restart {
+                    self.result.push_str(") (param ");
+                    restart = false;
+                } else {
+                    self.result.push_str(" ");
+                }
                 let local_names = &self.local_names;
                 let name = names_for
                     .and_then(|n| local_names.get(&n))
@@ -189,6 +200,7 @@ impl Printer {
                     self.result.push_str("$");
                     self.result.push_str(name);
                     self.result.push_str(" ");
+                    restart = true;
                 }
                 self.print_valtype(*param)?;
             }
@@ -337,6 +349,7 @@ impl Printer {
 
             let mut first = true;
             let mut idx = params;
+            let mut restart = false;
             for local in body.get_locals_reader()? {
                 let (cnt, ty) = local?;
                 if first {
@@ -344,11 +357,19 @@ impl Printer {
                     first = false;
                 }
                 for _ in 0..cnt {
-                    self.result.push_str(" ");
+                    // See comments in `print_functype` for why `restart` is
+                    // here.
+                    if restart {
+                        self.result.push_str(") (local ");
+                        restart = false;
+                    } else {
+                        self.result.push_str(" ");
+                    }
                     if let Some(name) = self.local_names.get(&self.func).and_then(|m| m.get(&idx)) {
                         self.result.push_str("$");
                         self.result.push_str(name);
                         self.result.push_str(" ");
+                        restart = true;
                     }
                     self.print_valtype(ty)?;
                     idx += 1;
