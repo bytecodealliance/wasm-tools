@@ -1,0 +1,33 @@
+[package]
+name = "wasmprinter"
+version = "0.1.0"
+authors = ["Alex Crichton <alex@alexcrichton.com>"]
+edition = "2018"
+license = "MIT/Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/bytecodealliance/wasmprinter"
+homepage = "https://github.com/bytecodealliance/wasmprinter"
+documentation = "https://docs.rs/wasmprinter"
+description = """
+Rust converter from the WebAssembly binary format to the text format.
+"""
+exclude = ['tests/wabt']
+
+[dependencies]
+anyhow = "1.0"
+wasmparser = "0.39"
+
+[dev-dependencies]
+rayon = "1.0"
+tempfile = "3.0"
+wast = "3.0"
+wat = "1.0"
+diff = "0.1"
+
+[[test]]
+name = "wabt"
+harness = false
+
+[patch.crates-io]
+wast = { git = 'https://github.com/bytecodealliance/wat' }
+wat = { git = 'https://github.com/bytecodealliance/wat' }
