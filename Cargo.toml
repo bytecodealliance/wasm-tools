@@ -13,9 +13,12 @@ Rust converter from the WebAssembly binary format to the text format.
 """
 exclude = ['tests/wabt']
 
+[workspace]
+members = ['fuzz']
+
 [dependencies]
 anyhow = "1.0"
-wasmparser = "0.39"
+wasmparser = "0.40"
 
 [dev-dependencies]
 rayon = "1.0"
@@ -32,3 +35,7 @@ harness = false
 wast = { git = 'https://github.com/bytecodealliance/wat' }
 wat = { git = 'https://github.com/bytecodealliance/wat' }
 wasmparser = { path = "../wasmparser.rs" }
+
+[profile.release]
+debug-assertions = true
+overflow-checks = true

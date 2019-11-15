@@ -476,23 +476,23 @@ impl Printer {
 
             Drop => self.result.push_str("drop"),
             Select => self.result.push_str("select"),
-            GetLocal { local_index } => {
+            LocalGet { local_index } => {
                 self.result.push_str("local.get ");
                 self.print_local_idx(self.func, *local_index)?;
             }
-            SetLocal { local_index } => {
+            LocalSet { local_index } => {
                 self.result.push_str("local.set ");
                 self.print_local_idx(self.func, *local_index)?;
             }
-            TeeLocal { local_index } => {
+            LocalTee { local_index } => {
                 self.result.push_str("local.tee ");
                 self.print_local_idx(self.func, *local_index)?;
             }
 
-            GetGlobal { global_index } => {
+            GlobalGet { global_index } => {
                 write!(self.result, "global.get {}", global_index)?;
             }
-            SetGlobal { global_index } => {
+            GlobalSet { global_index } => {
                 write!(self.result, "global.set {}", global_index)?;
             }
 
@@ -649,26 +649,26 @@ impl Printer {
             F64Copysign => self.result.push_str("f64.copysign"),
 
             I32WrapI64 => self.result.push_str("i32.wrap_i64"),
-            I32TruncSF32 => self.result.push_str("i32.trunc_f32_s"),
-            I32TruncUF32 => self.result.push_str("i32.trunc_f32_u"),
-            I32TruncSF64 => self.result.push_str("i32.trunc_f64_s"),
-            I32TruncUF64 => self.result.push_str("i32.trunc_f64_u"),
-            I64ExtendSI32 => self.result.push_str("i64.extend_i32_s"),
-            I64ExtendUI32 => self.result.push_str("i64.extend_i32_u"),
-            I64TruncSF32 => self.result.push_str("i64.trunc_f32_s"),
-            I64TruncUF32 => self.result.push_str("i64.trunc_f32_u"),
-            I64TruncSF64 => self.result.push_str("i64.trunc_f64_s"),
-            I64TruncUF64 => self.result.push_str("i64.trunc_f64_u"),
+            I32TruncF32S => self.result.push_str("i32.trunc_f32_s"),
+            I32TruncF32U => self.result.push_str("i32.trunc_f32_u"),
+            I32TruncF64S => self.result.push_str("i32.trunc_f64_s"),
+            I32TruncF64U => self.result.push_str("i32.trunc_f64_u"),
+            I64ExtendI32S => self.result.push_str("i64.extend_i32_s"),
+            I64ExtendI32U => self.result.push_str("i64.extend_i32_u"),
+            I64TruncF32S => self.result.push_str("i64.trunc_f32_s"),
+            I64TruncF32U => self.result.push_str("i64.trunc_f32_u"),
+            I64TruncF64S => self.result.push_str("i64.trunc_f64_s"),
+            I64TruncF64U => self.result.push_str("i64.trunc_f64_u"),
 
-            F32ConvertSI32 => self.result.push_str("f32.convert_i32_s"),
-            F32ConvertUI32 => self.result.push_str("f32.convert_i32_u"),
-            F32ConvertSI64 => self.result.push_str("f32.convert_i64_s"),
-            F32ConvertUI64 => self.result.push_str("f32.convert_i64_u"),
+            F32ConvertI32S => self.result.push_str("f32.convert_i32_s"),
+            F32ConvertI32U => self.result.push_str("f32.convert_i32_u"),
+            F32ConvertI64S => self.result.push_str("f32.convert_i64_s"),
+            F32ConvertI64U => self.result.push_str("f32.convert_i64_u"),
             F32DemoteF64 => self.result.push_str("f32.demote_f64"),
-            F64ConvertSI32 => self.result.push_str("f64.convert_i32_s"),
-            F64ConvertUI32 => self.result.push_str("f64.convert_i32_u"),
-            F64ConvertSI64 => self.result.push_str("f64.convert_i64_s"),
-            F64ConvertUI64 => self.result.push_str("f64.convert_i64_u"),
+            F64ConvertI32S => self.result.push_str("f64.convert_i32_s"),
+            F64ConvertI32U => self.result.push_str("f64.convert_i32_u"),
+            F64ConvertI64S => self.result.push_str("f64.convert_i64_s"),
+            F64ConvertI64U => self.result.push_str("f64.convert_i64_u"),
             F64PromoteF32 => self.result.push_str("f64.promote_f32"),
 
             I32ReinterpretF32 => self.result.push_str("i32.reinterpret_f32"),
@@ -682,14 +682,14 @@ impl Printer {
             I64Extend16S => self.result.push_str("i64.extend16_s"),
             I64Extend32S => self.result.push_str("i64.extend32_s"),
 
-            I32TruncSSatF32 => self.result.push_str("i32.trunc_sat_f32_s"),
-            I32TruncUSatF32 => self.result.push_str("i32.trunc_sat_f32_u"),
-            I32TruncSSatF64 => self.result.push_str("i32.trunc_sat_f64_s"),
-            I32TruncUSatF64 => self.result.push_str("i32.trunc_sat_f64_u"),
-            I64TruncSSatF32 => self.result.push_str("i64.trunc_sat_f32_s"),
-            I64TruncUSatF32 => self.result.push_str("i64.trunc_sat_f32_u"),
-            I64TruncSSatF64 => self.result.push_str("i64.trunc_sat_f64_s"),
-            I64TruncUSatF64 => self.result.push_str("i64.trunc_sat_f64_u"),
+            I32TruncSatF32S => self.result.push_str("i32.trunc_sat_f32_s"),
+            I32TruncSatF32U => self.result.push_str("i32.trunc_sat_f32_u"),
+            I32TruncSatF64S => self.result.push_str("i32.trunc_sat_f64_s"),
+            I32TruncSatF64U => self.result.push_str("i32.trunc_sat_f64_u"),
+            I64TruncSatF32S => self.result.push_str("i64.trunc_sat_f32_s"),
+            I64TruncSatF32U => self.result.push_str("i64.trunc_sat_f32_u"),
+            I64TruncSatF64S => self.result.push_str("i64.trunc_sat_f64_s"),
+            I64TruncSatF64U => self.result.push_str("i64.trunc_sat_f64_u"),
 
             MemoryInit { segment } => write!(self.result, "memory.init {}", segment)?,
             DataDrop { segment } => write!(self.result, "data.drop {}", segment)?,
