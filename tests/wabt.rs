@@ -110,24 +110,6 @@ fn skip_test(test: &Path, contents: &str) -> bool {
         return true;
     }
 
-    // Skip some intentionally valid tests sinc `wasm2wat` can't work on the
-    // resulting binary, even with `--no-check`.
-    if let Some(name) = test.file_name().and_then(|s| s.to_str()) {
-        if name.starts_with("invalid-elem-segment") || name.starts_with("invalid-data-segment") {
-            return true;
-        }
-    }
-
-    // This just looks sort of buggy in wabt, they both use multiple tables with
-    // active segments, but the text format doesn't actually say that the active
-    // segment goes to th right table
-    if test.ends_with("dump/table-multi.txt") {
-        return true;
-    }
-    if test.ends_with("reference-types/select.wast") {
-        return true;
-    }
-
     // The `wat` crate doesn't parse this deprecated syntax yet, wait for the
     // official test suite to get updated with the new syntax then let's
     // propagate the change here.
@@ -135,6 +117,18 @@ fn skip_test(test: &Path, contents: &str) -> bool {
         return true;
     }
 
+    // The `wat` crate ignores these tests, so we need to do so as well.
+    if test.ends_with("interp/simd-load-store.txt") {
+        return true;
+    }
+    if test.ends_with("logging-all-opcodes.txt") {
+        return true;
+    }
+
+    false
+}
+
+fn skip_wabt_compare(test: &Path) -> bool {
     // Looks like wabt doesn't implement table.fill yet
     if test.ends_with("reference-types/table_fill.wast") {
         return true;
@@ -145,12 +139,33 @@ fn skip_test(test: &Path, contents: &str) -> bool {
         return true;
     }
 
-    // The `wat` crate ignores these tests, so we need to do so as well.
-    if test.ends_with("interp/simd-load-store.txt") {
+    // wabt doesn't print the table index for element segments on the nonzero
+    // table, so their textual representation of these tests are lossy
+    if test.ends_with("reference-types/ref_is_null.wast") {
         return true;
     }
-    if test.ends_with("logging-all-opcodes.txt") {
+    if test.ends_with("reference-types/table_get.wast") {
         return true;
+    }
+    if test.ends_with("reference-types/table_set.wast") {
+        return true;
+    }
+    if test.ends_with("reference-types/select.wast") {
+        return true;
+    }
+    if test.ends_with("dump/reference-types.txt") {
+        return true;
+    }
+    if test.ends_with("dump/table-multi.txt") {
+        return true;
+    }
+
+    // Skip some intentionally valid tests sinc `wasm2wat` can't work on the
+    // resulting binary, even with `--no-check`.
+    if let Some(name) = test.file_name().and_then(|s| s.to_str()) {
+        if name.starts_with("invalid-elem-segment") || name.starts_with("invalid-data-segment") {
+            return true;
+        }
     }
 
     false
@@ -222,11 +237,15 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
 fn test_binary(path: &Path, contents: &[u8]) -> anyhow::Result<()> {
     let actual = wasmprinter::print_bytes(contents)
         .context(format!("rust failed to print `{}`", path.display()))?;
+
+    if skip_wabt_compare(path) {
+        return Ok(());
+    }
+
     let expected =
         wasm2wat(contents).context(format!("failed to run `wasm2wat` on `{}`", path.display()))?;
 
     let actual = normalize(&actual);
-
     let mut expected = normalize(&expected);
 
     // Currently `wabt` seems to accidentally insert a newline after

@@ -1138,7 +1138,7 @@ impl Printer {
                     items,
                 } => {
                     if *table_index != 0 {
-                        bail!("don't know how to print active nonzero table elem");
+                        write!(self.result, "{} ", table_index)?;
                     }
                     self.print_init_expr(&init_expr)?;
                     for item in items.get_items_reader()? {
