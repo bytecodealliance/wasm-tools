@@ -25,7 +25,7 @@ fn main() -> Result<()> {
     let foo_wat = wasmprinter::print_file("path/to/foo.wasm")?;
 
     let binary = /* ... */;
-    let wat = wasmprinter::parse_bytes(&binary)?;
+    let wat = wasmprinter::print_bytes(&binary)?;
 
     // ...
 }
