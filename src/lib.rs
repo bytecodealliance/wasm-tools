@@ -467,10 +467,11 @@ impl Printer {
                 self.print_func_idx(*function_index)?;
             }
             CallIndirect { table_index, index } => {
-                write!(self.result, "call_indirect (type {})", index)?;
+                self.result.push_str("call_indirect");
                 if *table_index != 0 {
                     write!(self.result, " {}", table_index)?;
                 }
+                write!(self.result, " (type {})", index)?;
             }
 
             Drop => self.result.push_str("drop"),
@@ -536,6 +537,10 @@ impl Printer {
 
             RefNull => self.result.push_str("ref.null"),
             RefIsNull => self.result.push_str("ref.is_null"),
+            RefFunc { index }  => {
+                self.result.push_str("ref.func ");
+                self.print_func_idx(*index)?;
+            }
 
             I32Eqz => self.result.push_str("i32.eqz"),
             I32Eq => self.result.push_str("i32.eq"),
@@ -775,23 +780,38 @@ impl Printer {
 
     fn print_elems(&mut self, data: ElementSectionReader) -> Result<()> {
         for (i, elem) in data.into_iter().enumerate() {
-            let elem = elem?;
+            let mut elem = elem?;
             write!(self.result, "\n  (elem (;{};) ", i)?;
-            match &elem.kind {
-                ElementKind::Passive(_) => {}
+            match &mut elem.kind {
+                ElementKind::Passive { ty: _, items } => {
+                    self.result.push_str("funcref");
+                    for _ in 0..items.get_count() {
+                        match items.get_next_func_idx()? {
+                            Some(idx) => {
+                                self.result.push_str(" (ref.func ");
+                                self.print_func_idx(idx)?;
+                                self.result.push_str(")");
+                            }
+                            None => {
+                                self.result.push_str(" (ref.null)");
+                            }
+                        }
+                    }
+                }
                 ElementKind::Active {
                     table_index,
                     init_expr,
+                    items,
                 } => {
                     if *table_index != 0 {
                         bail!("don't know how to print active nonzero table elem");
                     }
                     self.print_init_expr(&init_expr)?;
+                    for item in items.get_items_reader()? {
+                        self.result.push_str(" ");
+                        self.print_func_idx(item?)?;
+                    }
                 }
-            }
-            for item in elem.items.get_items_reader()? {
-                self.result.push_str(" ");
-                self.print_func_idx(item?)?;
             }
             self.result.push_str(")");
         }

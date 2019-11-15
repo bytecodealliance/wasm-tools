@@ -31,3 +31,4 @@ harness = false
 [patch.crates-io]
 wast = { git = 'https://github.com/bytecodealliance/wat' }
 wat = { git = 'https://github.com/bytecodealliance/wat' }
+wasmparser = { path = "../wasmparser.rs" }

@@ -114,6 +114,20 @@ fn skip_test(test: &Path, contents: &str) -> bool {
     if contents.contains("run-objdump") && contents.contains("(event") {
         return true;
     }
+
+    // Skip some intentionally valid tests sinc `wasm2wat` can't work on the
+    // resulting binary, even with `--no-check`.
+    if let Some(name) = test.file_name().and_then(|s| s.to_str()) {
+        if name.starts_with("invalid-elem-segment") || name.starts_with("invalid-data-segment") {
+            return true;
+        }
+    }
+
+    // This just looks sort of buggy in wabt
+    if test.ends_with("dump/table-multi.txt") {
+        return true;
+    }
+
     false
 }
 
@@ -146,7 +160,8 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
         .into_par_iter()
         .map(|directive| -> anyhow::Result<()> {
             match directive {
-                WastDirective::Module(mut module) => {
+                WastDirective::Module(mut module)
+                | WastDirective::AssertUnlinkable { mut module, .. } => {
                     let binary = module.encode().map_err(|e| adjust!(e))?;
                     test_binary(test, &binary)?;
                 }
@@ -191,6 +206,18 @@ fn test_binary(path: &Path, contents: &[u8]) -> anyhow::Result<()> {
         while let Some(i) = s.find("(;=") {
             let end = s[i..].find(";)").unwrap();
             s.drain(i..end + i + 2);
+        }
+
+        // Currently `wabt` seems to accidentally insert a newline after
+        // `ref.func`, but we don't do that, so normalize wabt's output to not
+        // have a newline.
+        let needle = "ref.func\n";
+        while let Some(i) = s.find(needle) {
+            let len = s[i + needle.len()..]
+                .chars()
+                .take_while(|c| c.is_whitespace())
+                .count();
+            s.drain(i + needle.len() - 1..i + needle.len() - 1 + len);
         }
         return s;
     }
