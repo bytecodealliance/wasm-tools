@@ -1013,14 +1013,14 @@ impl Printer {
             F64x2Min => self.result.push_str("f64x2.min"),
             F64x2Max => self.result.push_str("f64x2.max"),
 
-            I32x4TruncSF32x4Sat => self.result.push_str("i32x4.trunc_sat_f32x4_s"),
-            I32x4TruncUF32x4Sat => self.result.push_str("i32x4.trunc_sat_f32x4_u"),
-            I64x2TruncSF64x2Sat => self.result.push_str("i64x2.trunc_sat_f64x2_s"),
-            I64x2TruncUF64x2Sat => self.result.push_str("i64x2.trunc_sat_f64x2_u"),
-            F32x4ConvertSI32x4 => self.result.push_str("f32x4.convert_i32x4_s"),
-            F32x4ConvertUI32x4 => self.result.push_str("f32x4.convert_i32x4_u"),
-            F64x2ConvertSI64x2 => self.result.push_str("f64x2.convert_i64x2_s"),
-            F64x2ConvertUI64x2 => self.result.push_str("f64x2.convert_i64x2_u"),
+            I32x4TruncSatF32x4S => self.result.push_str("i32x4.trunc_sat_f32x4_s"),
+            I32x4TruncSatF32x4U => self.result.push_str("i32x4.trunc_sat_f32x4_u"),
+            I64x2TruncSatF64x2S => self.result.push_str("i64x2.trunc_sat_f64x2_s"),
+            I64x2TruncSatF64x2U => self.result.push_str("i64x2.trunc_sat_f64x2_u"),
+            F32x4ConvertI32x4S => self.result.push_str("f32x4.convert_i32x4_s"),
+            F32x4ConvertI32x4U => self.result.push_str("f32x4.convert_i32x4_u"),
+            F64x2ConvertI64x2S => self.result.push_str("f64x2.convert_i64x2_s"),
+            F64x2ConvertI64x2U => self.result.push_str("f64x2.convert_i64x2_u"),
 
             V8x16Swizzle => self.result.push_str("v8x16.swizzle"),
             V8x16Shuffle { lanes } => {
@@ -1031,10 +1031,10 @@ impl Printer {
                     write!(self.result, "  {}", lane)?;
                 }
             }
-            I8x16LoadSplat { memarg } => self.mem_instr("v8x16.load_splat", memarg, 1)?,
-            I16x8LoadSplat { memarg } => self.mem_instr("v16x8.load_splat", memarg, 2)?,
-            I32x4LoadSplat { memarg } => self.mem_instr("v32x4.load_splat", memarg, 4)?,
-            I64x2LoadSplat { memarg } => self.mem_instr("v64x2.load_splat", memarg, 8)?,
+            V8x16LoadSplat { memarg } => self.mem_instr("v8x16.load_splat", memarg, 1)?,
+            V16x8LoadSplat { memarg } => self.mem_instr("v16x8.load_splat", memarg, 2)?,
+            V32x4LoadSplat { memarg } => self.mem_instr("v32x4.load_splat", memarg, 4)?,
+            V64x2LoadSplat { memarg } => self.mem_instr("v64x2.load_splat", memarg, 8)?,
         }
         Ok(())
     }

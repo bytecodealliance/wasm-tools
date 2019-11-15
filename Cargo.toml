@@ -18,9 +18,7 @@ members = ['fuzz']
 
 [dependencies]
 anyhow = "1.0"
-#wasmparser = { git = 'https://github.com/alexcrichton/wasmparser.rs', branch = 'update-passive-segment-encoding' }
-wasmparser = { path = "../wasmparser.rs" }
-
+wasmparser = { git = 'https://github.com/alexcrichton/wasmparser.rs', branch = 'updates' }
 [dev-dependencies]
 rayon = "1.0"
 tempfile = "3.0"
