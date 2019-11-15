@@ -1602,12 +1602,28 @@ impl OperatorValidator {
                 }
                 self.func_state.change_frame_with_type(2, Type::V128)?;
             }
-            Operator::I8x16LoadSplat { ref memarg }
-            | Operator::I16x8LoadSplat { ref memarg }
-            | Operator::I32x4LoadSplat { ref memarg }
-            | Operator::I64x2LoadSplat { ref memarg } => {
+            Operator::I8x16LoadSplat { ref memarg } => {
                 self.check_simd_enabled()?;
-                self.check_memarg(memarg, 4, resources)?;
+                self.check_memarg(memarg, 0, resources)?;
+                self.check_operands_1(Type::I32)?;
+                self.func_state.change_frame_with_type(1, Type::V128)?;
+            }
+            Operator::I16x8LoadSplat { ref memarg } => {
+                self.check_simd_enabled()?;
+                self.check_memarg(memarg, 1, resources)?;
+                self.check_operands_1(Type::I32)?;
+                self.func_state.change_frame_with_type(1, Type::V128)?;
+            }
+            Operator::I32x4LoadSplat { ref memarg } => {
+                self.check_simd_enabled()?;
+                self.check_memarg(memarg, 2, resources)?;
+                self.check_operands_1(Type::I32)?;
+                self.func_state.change_frame_with_type(1, Type::V128)?;
+            }
+            Operator::I64x2LoadSplat { ref memarg } => {
+                self.check_simd_enabled()?;
+                self.check_memarg(memarg, 3, resources)?;
+                self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::V128)?;
             }
 
