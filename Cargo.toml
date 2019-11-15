@@ -18,23 +18,20 @@ members = ['fuzz']
 
 [dependencies]
 anyhow = "1.0"
-wasmparser = "0.40"
+wasmparser = { git = 'https://github.com/alexcrichton/wasmparser.rs', branch = 'update-passive-segment-encoding' }
 
 [dev-dependencies]
 rayon = "1.0"
 tempfile = "3.0"
-wast = "3.0"
-wat = "1.0"
+# wast = "3.0"
+# wat = "1.0"
+wast = { git = 'https://github.com/bytecodealliance/wat' }
+wat = { git = 'https://github.com/bytecodealliance/wat' }
 diff = "0.1"
 
 [[test]]
 name = "wabt"
 harness = false
-
-[patch.crates-io]
-wast = { git = 'https://github.com/bytecodealliance/wat' }
-wat = { git = 'https://github.com/bytecodealliance/wat' }
-wasmparser = { path = "../wasmparser.rs" }
 
 [profile.release]
 debug-assertions = true
