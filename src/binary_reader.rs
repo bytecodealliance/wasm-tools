@@ -631,16 +631,16 @@ impl<'a> BinaryReader<'a> {
     fn read_0xfe_operator(&mut self) -> Result<Operator<'a>> {
         let code = self.read_u8()? as u8;
         Ok(match code {
-            0x00 => Operator::Wake {
+            0x00 => Operator::AtomicNotify {
                 memarg: self.read_memarg_of_align(2)?,
             },
-            0x01 => Operator::I32Wait {
+            0x01 => Operator::I32AtomicWait {
                 memarg: self.read_memarg_of_align(2)?,
             },
-            0x02 => Operator::I64Wait {
+            0x02 => Operator::I64AtomicWait {
                 memarg: self.read_memarg_of_align(3)?,
             },
-            0x03 => Operator::Fence {
+            0x03 => Operator::AtomicFence {
                 flags: self.read_u8()? as u8,
             },
             0x10 => Operator::I32AtomicLoad {
@@ -691,19 +691,19 @@ impl<'a> BinaryReader<'a> {
             0x1f => Operator::I64AtomicRmwAdd {
                 memarg: self.read_memarg_of_align(3)?,
             },
-            0x20 => Operator::I32AtomicRmw8UAdd {
+            0x20 => Operator::I32AtomicRmw8AddU {
                 memarg: self.read_memarg_of_align(0)?,
             },
-            0x21 => Operator::I32AtomicRmw16UAdd {
+            0x21 => Operator::I32AtomicRmw16AddU {
                 memarg: self.read_memarg_of_align(1)?,
             },
-            0x22 => Operator::I64AtomicRmw8UAdd {
+            0x22 => Operator::I64AtomicRmw8AddU {
                 memarg: self.read_memarg_of_align(0)?,
             },
-            0x23 => Operator::I64AtomicRmw16UAdd {
+            0x23 => Operator::I64AtomicRmw16AddU {
                 memarg: self.read_memarg_of_align(1)?,
             },
-            0x24 => Operator::I64AtomicRmw32UAdd {
+            0x24 => Operator::I64AtomicRmw32AddU {
                 memarg: self.read_memarg_of_align(2)?,
             },
             0x25 => Operator::I32AtomicRmwSub {
@@ -712,19 +712,19 @@ impl<'a> BinaryReader<'a> {
             0x26 => Operator::I64AtomicRmwSub {
                 memarg: self.read_memarg_of_align(3)?,
             },
-            0x27 => Operator::I32AtomicRmw8USub {
+            0x27 => Operator::I32AtomicRmw8SubU {
                 memarg: self.read_memarg_of_align(0)?,
             },
-            0x28 => Operator::I32AtomicRmw16USub {
+            0x28 => Operator::I32AtomicRmw16SubU {
                 memarg: self.read_memarg_of_align(1)?,
             },
-            0x29 => Operator::I64AtomicRmw8USub {
+            0x29 => Operator::I64AtomicRmw8SubU {
                 memarg: self.read_memarg_of_align(0)?,
             },
-            0x2a => Operator::I64AtomicRmw16USub {
+            0x2a => Operator::I64AtomicRmw16SubU {
                 memarg: self.read_memarg_of_align(1)?,
             },
-            0x2b => Operator::I64AtomicRmw32USub {
+            0x2b => Operator::I64AtomicRmw32SubU {
                 memarg: self.read_memarg_of_align(2)?,
             },
             0x2c => Operator::I32AtomicRmwAnd {
@@ -733,19 +733,19 @@ impl<'a> BinaryReader<'a> {
             0x2d => Operator::I64AtomicRmwAnd {
                 memarg: self.read_memarg_of_align(3)?,
             },
-            0x2e => Operator::I32AtomicRmw8UAnd {
+            0x2e => Operator::I32AtomicRmw8AndU {
                 memarg: self.read_memarg_of_align(0)?,
             },
-            0x2f => Operator::I32AtomicRmw16UAnd {
+            0x2f => Operator::I32AtomicRmw16AndU {
                 memarg: self.read_memarg_of_align(1)?,
             },
-            0x30 => Operator::I64AtomicRmw8UAnd {
+            0x30 => Operator::I64AtomicRmw8AndU {
                 memarg: self.read_memarg_of_align(0)?,
             },
-            0x31 => Operator::I64AtomicRmw16UAnd {
+            0x31 => Operator::I64AtomicRmw16AndU {
                 memarg: self.read_memarg_of_align(1)?,
             },
-            0x32 => Operator::I64AtomicRmw32UAnd {
+            0x32 => Operator::I64AtomicRmw32AndU {
                 memarg: self.read_memarg_of_align(2)?,
             },
             0x33 => Operator::I32AtomicRmwOr {
@@ -754,19 +754,19 @@ impl<'a> BinaryReader<'a> {
             0x34 => Operator::I64AtomicRmwOr {
                 memarg: self.read_memarg_of_align(3)?,
             },
-            0x35 => Operator::I32AtomicRmw8UOr {
+            0x35 => Operator::I32AtomicRmw8OrU {
                 memarg: self.read_memarg_of_align(0)?,
             },
-            0x36 => Operator::I32AtomicRmw16UOr {
+            0x36 => Operator::I32AtomicRmw16OrU {
                 memarg: self.read_memarg_of_align(1)?,
             },
-            0x37 => Operator::I64AtomicRmw8UOr {
+            0x37 => Operator::I64AtomicRmw8OrU {
                 memarg: self.read_memarg_of_align(0)?,
             },
-            0x38 => Operator::I64AtomicRmw16UOr {
+            0x38 => Operator::I64AtomicRmw16OrU {
                 memarg: self.read_memarg_of_align(1)?,
             },
-            0x39 => Operator::I64AtomicRmw32UOr {
+            0x39 => Operator::I64AtomicRmw32OrU {
                 memarg: self.read_memarg_of_align(2)?,
             },
             0x3a => Operator::I32AtomicRmwXor {
@@ -775,19 +775,19 @@ impl<'a> BinaryReader<'a> {
             0x3b => Operator::I64AtomicRmwXor {
                 memarg: self.read_memarg_of_align(3)?,
             },
-            0x3c => Operator::I32AtomicRmw8UXor {
+            0x3c => Operator::I32AtomicRmw8XorU {
                 memarg: self.read_memarg_of_align(0)?,
             },
-            0x3d => Operator::I32AtomicRmw16UXor {
+            0x3d => Operator::I32AtomicRmw16XorU {
                 memarg: self.read_memarg_of_align(1)?,
             },
-            0x3e => Operator::I64AtomicRmw8UXor {
+            0x3e => Operator::I64AtomicRmw8XorU {
                 memarg: self.read_memarg_of_align(0)?,
             },
-            0x3f => Operator::I64AtomicRmw16UXor {
+            0x3f => Operator::I64AtomicRmw16XorU {
                 memarg: self.read_memarg_of_align(1)?,
             },
-            0x40 => Operator::I64AtomicRmw32UXor {
+            0x40 => Operator::I64AtomicRmw32XorU {
                 memarg: self.read_memarg_of_align(2)?,
             },
             0x41 => Operator::I32AtomicRmwXchg {
@@ -796,19 +796,19 @@ impl<'a> BinaryReader<'a> {
             0x42 => Operator::I64AtomicRmwXchg {
                 memarg: self.read_memarg_of_align(3)?,
             },
-            0x43 => Operator::I32AtomicRmw8UXchg {
+            0x43 => Operator::I32AtomicRmw8XchgU {
                 memarg: self.read_memarg_of_align(0)?,
             },
-            0x44 => Operator::I32AtomicRmw16UXchg {
+            0x44 => Operator::I32AtomicRmw16XchgU {
                 memarg: self.read_memarg_of_align(1)?,
             },
-            0x45 => Operator::I64AtomicRmw8UXchg {
+            0x45 => Operator::I64AtomicRmw8XchgU {
                 memarg: self.read_memarg_of_align(0)?,
             },
-            0x46 => Operator::I64AtomicRmw16UXchg {
+            0x46 => Operator::I64AtomicRmw16XchgU {
                 memarg: self.read_memarg_of_align(1)?,
             },
-            0x47 => Operator::I64AtomicRmw32UXchg {
+            0x47 => Operator::I64AtomicRmw32XchgU {
                 memarg: self.read_memarg_of_align(2)?,
             },
             0x48 => Operator::I32AtomicRmwCmpxchg {
@@ -817,19 +817,19 @@ impl<'a> BinaryReader<'a> {
             0x49 => Operator::I64AtomicRmwCmpxchg {
                 memarg: self.read_memarg_of_align(3)?,
             },
-            0x4a => Operator::I32AtomicRmw8UCmpxchg {
+            0x4a => Operator::I32AtomicRmw8CmpxchgU {
                 memarg: self.read_memarg_of_align(0)?,
             },
-            0x4b => Operator::I32AtomicRmw16UCmpxchg {
+            0x4b => Operator::I32AtomicRmw16CmpxchgU {
                 memarg: self.read_memarg_of_align(1)?,
             },
-            0x4c => Operator::I64AtomicRmw8UCmpxchg {
+            0x4c => Operator::I64AtomicRmw8CmpxchgU {
                 memarg: self.read_memarg_of_align(0)?,
             },
-            0x4d => Operator::I64AtomicRmw16UCmpxchg {
+            0x4d => Operator::I64AtomicRmw16CmpxchgU {
                 memarg: self.read_memarg_of_align(1)?,
             },
-            0x4e => Operator::I64AtomicRmw32UCmpxchg {
+            0x4e => Operator::I64AtomicRmw32CmpxchgU {
                 memarg: self.read_memarg_of_align(2)?,
             },
 
