@@ -894,19 +894,19 @@ impl<'a> BinaryReader<'a> {
             },
             0x1a => Operator::Drop,
             0x1b => Operator::Select,
-            0x20 => Operator::GetLocal {
+            0x20 => Operator::LocalGet {
                 local_index: self.read_var_u32()?,
             },
-            0x21 => Operator::SetLocal {
+            0x21 => Operator::LocalSet {
                 local_index: self.read_var_u32()?,
             },
-            0x22 => Operator::TeeLocal {
+            0x22 => Operator::LocalTee {
                 local_index: self.read_var_u32()?,
             },
-            0x23 => Operator::GetGlobal {
+            0x23 => Operator::GlobalGet {
                 global_index: self.read_var_u32()?,
             },
-            0x24 => Operator::SetGlobal {
+            0x24 => Operator::GlobalSet {
                 global_index: self.read_var_u32()?,
             },
             0x25 => Operator::TableGet {
@@ -1101,25 +1101,25 @@ impl<'a> BinaryReader<'a> {
             0xa5 => Operator::F64Max,
             0xa6 => Operator::F64Copysign,
             0xa7 => Operator::I32WrapI64,
-            0xa8 => Operator::I32TruncSF32,
-            0xa9 => Operator::I32TruncUF32,
-            0xaa => Operator::I32TruncSF64,
-            0xab => Operator::I32TruncUF64,
-            0xac => Operator::I64ExtendSI32,
-            0xad => Operator::I64ExtendUI32,
-            0xae => Operator::I64TruncSF32,
-            0xaf => Operator::I64TruncUF32,
-            0xb0 => Operator::I64TruncSF64,
-            0xb1 => Operator::I64TruncUF64,
-            0xb2 => Operator::F32ConvertSI32,
-            0xb3 => Operator::F32ConvertUI32,
-            0xb4 => Operator::F32ConvertSI64,
-            0xb5 => Operator::F32ConvertUI64,
+            0xa8 => Operator::I32TruncF32S,
+            0xa9 => Operator::I32TruncF32U,
+            0xaa => Operator::I32TruncF64S,
+            0xab => Operator::I32TruncF64U,
+            0xac => Operator::I64ExtendI32S,
+            0xad => Operator::I64ExtendI32U,
+            0xae => Operator::I64TruncF32S,
+            0xaf => Operator::I64TruncF32U,
+            0xb0 => Operator::I64TruncF64S,
+            0xb1 => Operator::I64TruncF64U,
+            0xb2 => Operator::F32ConvertI32S,
+            0xb3 => Operator::F32ConvertI32U,
+            0xb4 => Operator::F32ConvertI64S,
+            0xb5 => Operator::F32ConvertI64U,
             0xb6 => Operator::F32DemoteF64,
-            0xb7 => Operator::F64ConvertSI32,
-            0xb8 => Operator::F64ConvertUI32,
-            0xb9 => Operator::F64ConvertSI64,
-            0xba => Operator::F64ConvertUI64,
+            0xb7 => Operator::F64ConvertI32S,
+            0xb8 => Operator::F64ConvertI32U,
+            0xb9 => Operator::F64ConvertI64S,
+            0xba => Operator::F64ConvertI64U,
             0xbb => Operator::F64PromoteF32,
             0xbc => Operator::I32ReinterpretF32,
             0xbd => Operator::I64ReinterpretF64,
@@ -1151,14 +1151,14 @@ impl<'a> BinaryReader<'a> {
     fn read_0xfc_operator(&mut self) -> Result<Operator<'a>> {
         let code = self.read_u8()? as u8;
         Ok(match code {
-            0x00 => Operator::I32TruncSSatF32,
-            0x01 => Operator::I32TruncUSatF32,
-            0x02 => Operator::I32TruncSSatF64,
-            0x03 => Operator::I32TruncUSatF64,
-            0x04 => Operator::I64TruncSSatF32,
-            0x05 => Operator::I64TruncUSatF32,
-            0x06 => Operator::I64TruncSSatF64,
-            0x07 => Operator::I64TruncUSatF64,
+            0x00 => Operator::I32TruncSatF32S,
+            0x01 => Operator::I32TruncSatF32U,
+            0x02 => Operator::I32TruncSatF64S,
+            0x03 => Operator::I32TruncSatF64U,
+            0x04 => Operator::I64TruncSatF32S,
+            0x05 => Operator::I64TruncSatF32U,
+            0x06 => Operator::I64TruncSatF64S,
+            0x07 => Operator::I64TruncSatF64U,
 
             0x08 => {
                 let segment = self.read_var_u32()?;

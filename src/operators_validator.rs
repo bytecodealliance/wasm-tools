@@ -760,14 +760,14 @@ impl OperatorValidator {
                 let ty = self.check_select()?;
                 self.func_state.change_frame_after_select(ty)?;
             }
-            Operator::GetLocal { local_index } => {
+            Operator::LocalGet { local_index } => {
                 if local_index as usize >= self.func_state.local_types.len() {
                     return Err("local index out of bounds");
                 }
                 let local_type = self.func_state.local_types[local_index as usize];
                 self.func_state.change_frame_with_type(0, local_type)?;
             }
-            Operator::SetLocal { local_index } => {
+            Operator::LocalSet { local_index } => {
                 if local_index as usize >= self.func_state.local_types.len() {
                     return Err("local index out of bounds");
                 }
@@ -775,7 +775,7 @@ impl OperatorValidator {
                 self.check_operands_1(local_type)?;
                 self.func_state.change_frame(1)?;
             }
-            Operator::TeeLocal { local_index } => {
+            Operator::LocalTee { local_index } => {
                 if local_index as usize >= self.func_state.local_types.len() {
                     return Err("local index out of bounds");
                 }
@@ -783,14 +783,14 @@ impl OperatorValidator {
                 self.check_operands_1(local_type)?;
                 self.func_state.change_frame_with_type(1, local_type)?;
             }
-            Operator::GetGlobal { global_index } => {
+            Operator::GlobalGet { global_index } => {
                 if global_index as usize >= resources.globals().len() {
                     return Err("global index out of bounds");
                 }
                 let ty = &resources.globals()[global_index as usize];
                 self.func_state.change_frame_with_type(0, ty.content_type)?;
             }
-            Operator::SetGlobal { global_index } => {
+            Operator::GlobalSet { global_index } => {
                 if global_index as usize >= resources.globals().len() {
                     return Err("global index out of bounds");
                 }
@@ -1089,32 +1089,32 @@ impl OperatorValidator {
                 self.check_operands_1(Type::I64)?;
                 self.func_state.change_frame_with_type(1, Type::I32)?;
             }
-            Operator::I32TruncSF32 | Operator::I32TruncUF32 => {
+            Operator::I32TruncF32S | Operator::I32TruncF32U => {
                 self.check_operands_1(Type::F32)?;
                 self.func_state.change_frame_with_type(1, Type::I32)?;
             }
-            Operator::I32TruncSF64 | Operator::I32TruncUF64 => {
+            Operator::I32TruncF64S | Operator::I32TruncF64U => {
                 self.check_operands_1(Type::F64)?;
                 self.func_state.change_frame_with_type(1, Type::I32)?;
             }
-            Operator::I64ExtendSI32 | Operator::I64ExtendUI32 => {
+            Operator::I64ExtendI32S | Operator::I64ExtendI32U => {
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::I64)?;
             }
-            Operator::I64TruncSF32 | Operator::I64TruncUF32 => {
+            Operator::I64TruncF32S | Operator::I64TruncF32U => {
                 self.check_operands_1(Type::F32)?;
                 self.func_state.change_frame_with_type(1, Type::I64)?;
             }
-            Operator::I64TruncSF64 | Operator::I64TruncUF64 => {
+            Operator::I64TruncF64S | Operator::I64TruncF64U => {
                 self.check_operands_1(Type::F64)?;
                 self.func_state.change_frame_with_type(1, Type::I64)?;
             }
-            Operator::F32ConvertSI32 | Operator::F32ConvertUI32 => {
+            Operator::F32ConvertI32S | Operator::F32ConvertI32U => {
                 self.check_non_deterministic_enabled()?;
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::F32)?;
             }
-            Operator::F32ConvertSI64 | Operator::F32ConvertUI64 => {
+            Operator::F32ConvertI64S | Operator::F32ConvertI64U => {
                 self.check_non_deterministic_enabled()?;
                 self.check_operands_1(Type::I64)?;
                 self.func_state.change_frame_with_type(1, Type::F32)?;
@@ -1124,12 +1124,12 @@ impl OperatorValidator {
                 self.check_operands_1(Type::F64)?;
                 self.func_state.change_frame_with_type(1, Type::F32)?;
             }
-            Operator::F64ConvertSI32 | Operator::F64ConvertUI32 => {
+            Operator::F64ConvertI32S | Operator::F64ConvertI32U => {
                 self.check_non_deterministic_enabled()?;
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::F64)?;
             }
-            Operator::F64ConvertSI64 | Operator::F64ConvertUI64 => {
+            Operator::F64ConvertI64S | Operator::F64ConvertI64U => {
                 self.check_non_deterministic_enabled()?;
                 self.check_operands_1(Type::I64)?;
                 self.func_state.change_frame_with_type(1, Type::F64)?;
@@ -1157,19 +1157,19 @@ impl OperatorValidator {
                 self.check_operands_1(Type::I64)?;
                 self.func_state.change_frame_with_type(1, Type::F64)?;
             }
-            Operator::I32TruncSSatF32 | Operator::I32TruncUSatF32 => {
+            Operator::I32TruncSatF32S | Operator::I32TruncSatF32U => {
                 self.check_operands_1(Type::F32)?;
                 self.func_state.change_frame_with_type(1, Type::I32)?;
             }
-            Operator::I32TruncSSatF64 | Operator::I32TruncUSatF64 => {
+            Operator::I32TruncSatF64S | Operator::I32TruncSatF64U => {
                 self.check_operands_1(Type::F64)?;
                 self.func_state.change_frame_with_type(1, Type::I32)?;
             }
-            Operator::I64TruncSSatF32 | Operator::I64TruncUSatF32 => {
+            Operator::I64TruncSatF32S | Operator::I64TruncSatF32U => {
                 self.check_operands_1(Type::F32)?;
                 self.func_state.change_frame_with_type(1, Type::I64)?;
             }
-            Operator::I64TruncSSatF64 | Operator::I64TruncUSatF64 => {
+            Operator::I64TruncSatF64S | Operator::I64TruncSatF64U => {
                 self.check_operands_1(Type::F64)?;
                 self.func_state.change_frame_with_type(1, Type::I64)?;
             }

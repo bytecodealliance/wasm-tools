@@ -319,7 +319,7 @@ impl<'a> ValidatingParser<'a> {
                 }
                 Type::V128
             }
-            Operator::GetGlobal { global_index } => {
+            Operator::GlobalGet { global_index } => {
                 if global_index as usize >= state.global_count {
                     return self.create_error("init_expr global index out of bounds");
                 }
