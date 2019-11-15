@@ -162,7 +162,14 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
                 WastDirective::Module(mut module)
                 | WastDirective::AssertUnlinkable { mut module, .. } => {
                     let binary = module.encode().map_err(|e| adjust!(e))?;
-                    test_binary(test, &binary)?;
+                    let (line, col) = module.span.linecol_in(contents);
+                    let context = format!(
+                        "failed for module at {}:{}:{}",
+                        test.display(),
+                        line + 1,
+                        col + 1,
+                    );
+                    test_binary(test, &binary).context(context)?;
                 }
                 _ => {}
             }
