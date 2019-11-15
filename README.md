@@ -5,7 +5,31 @@
 A Rust parser for printing a WebAssembly binary in the [WebAssembly Text format
 (WAT)][wat]
 
+[Documentation](https://docs.rs/wasmprinter)
+
 [wat]: http://webassembly.github.io/spec/core/text/index.html
+
+## Usage
+
+This crate is published on crates.io, so you can depend on it with:
+
+```toml
+[dependencies]
+wasmprinter = "1.0"
+```
+
+You can then convert wasm binaries to strings like so:
+
+```rust
+fn main() -> Result<()> {
+    let foo_wat = wasmprinter::print_file("path/to/foo.wasm")?;
+
+    let binary = /* ... */;
+    let wat = wasmprinter::parse_bytes(&binary)?;
+
+    // ...
+}
+```
 
 # License
 
