@@ -97,10 +97,8 @@ fn skip_test(test: &Path, contents: &str) -> bool {
     if contents.contains("--enable-exceptions") || test.ends_with("all-features.txt") {
         return true;
     }
+    // not implemented in wasmparser
     if contents.contains("--enable-tail-call") {
-        return true;
-    }
-    if contents.contains("--enable-threads") {
         return true;
     }
     if contents.contains("--enable-simd") {
@@ -133,7 +131,9 @@ fn skip_test(test: &Path, contents: &str) -> bool {
         return true;
     }
 
-    // Need to implement threads spec
+    // The `wat` crate doesn't parse this deprecated syntax yet, wait for the
+    // official test suite to get updated with the new syntax then let's
+    // propagate the change here.
     if test.ends_with("threads/atomic.wast") {
         return true;
     }
