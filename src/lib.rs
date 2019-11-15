@@ -133,11 +133,15 @@ impl Printer {
                     self.print_imports(section.get_import_section_reader()?)?;
                 }
                 SectionCode::Function => {
+                    let reader = section.get_function_section_reader()?;
+                    if reader.get_count() == 0 {
+                        continue;
+                    }
                     let code = match code.take() {
                         Some(f) => f,
                         None => bail!("found function section without code section"),
                     };
-                    self.print_code(code, section.get_function_section_reader()?)?;
+                    self.print_code(code, reader)?;
                 }
                 SectionCode::Table => {
                     self.print_tables(section.get_table_section_reader()?)?;
