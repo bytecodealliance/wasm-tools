@@ -62,6 +62,7 @@ fn find_tests() -> Vec<PathBuf> {
     find_tests("tests/wabt/test/spec".as_ref(), &mut tests);
     find_tests("tests/wabt/test/typecheck".as_ref(), &mut tests);
     find_tests("tests/wabt/third_party/testsuite".as_ref(), &mut tests);
+    find_tests("tests/regression".as_ref(), &mut tests);
     tests.sort();
     return tests;
 

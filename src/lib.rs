@@ -967,6 +967,8 @@ macro_rules! print_float {
             let exp_width = $exp_bits;
             let mantissa_width = int_width - 1 - exp_width;
             let bias = (1 << (exp_width - 1)) - 1;
+            let max_exp = (1 as $sint) << (exp_width - 1);
+            let min_exp = -max_exp + 1;
 
             // Handle `NaN` and infinity specially
             let f = $float::from_bits(bits);
@@ -1003,17 +1005,31 @@ macro_rules! print_float {
             // Overall this should do basic arithmetic for `$exp_bits` bit
             // numbers and get the result back as a signed integer with `$sint`
             // bits in `exponent` representing the same decimal value.
-            let exponent = (((bits << 1) as $sint) >> (mantissa_width + 1)).wrapping_sub(bias);
-            let exponent = (exponent << (int_width - exp_width)) >> (int_width - exp_width);
-            let fraction = bits & ((1 << mantissa_width) - 1);
+            let mut exponent = (((bits << 1) as $sint) >> (mantissa_width + 1)).wrapping_sub(bias);
+            exponent = (exponent << (int_width - exp_width)) >> (int_width - exp_width);
+            let mut fraction = bits & ((1 << mantissa_width) - 1);
             self.result.push_str("0x");
             if bits == 0 {
                 self.result.push_str("0p+0");
             } else {
                 self.result.push_str("1");
                 if fraction > 0 {
+                    fraction = fraction << (int_width - mantissa_width);
+
+                    // Apparently the subnormal is handled here. I don't know
+                    // what a subnormal is. If someone else does, please let me
+                    // know!
+                    if exponent == min_exp {
+                        let leading = fraction.leading_zeros();
+                        if (leading as usize) < int_width - 1 {
+                            fraction <<= leading + 1;
+                        } else {
+                            fraction = 0;
+                        }
+                        exponent -= leading as $sint;
+                    }
+
                     self.result.push_str(".");
-                    let mut fraction = fraction << (int_width - mantissa_width);
                     while fraction > 0 {
                         write!(self.result, "{:x}", fraction >> (int_width - 4))?;
                         fraction <<= 4;
