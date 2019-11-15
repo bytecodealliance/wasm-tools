@@ -157,9 +157,8 @@ impl Printer {
                 }
                 SectionCode::Start => {
                     self.result.push_str("\n  (start ");
-                    // TODO: this seems to be a bug in `wabt`, it probably
-                    // should be printing the name of the function rather than
-                    // the index here.
+                    // FIXME(WebAssembly/wabt#1226): we should print the pretty
+                    // name here.
                     // self.print_func_idx(section.get_start_section_content()?)?;
                     write!(self.result, "{}", section.get_start_section_content()?)?;
                     self.result.push_str(")");
@@ -1025,8 +1024,8 @@ impl Printer {
             V8x16Swizzle => self.result.push_str("v8x16.swizzle"),
             V8x16Shuffle { lanes } => {
                 self.result.push_str("v8x16.shuffle");
-                // TODO: the double space and trailing space seem like bugs in
-                // wabt
+                // FIXME(WebAssembly/wabt#1227): the double space and trailing
+                // space seem like bugs in wabt
                 for lane in lanes {
                     write!(self.result, "  {}", lane)?;
                 }

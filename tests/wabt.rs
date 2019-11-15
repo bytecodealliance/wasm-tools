@@ -251,6 +251,8 @@ fn test_binary(path: &Path, contents: &[u8]) -> anyhow::Result<()> {
     // Currently `wabt` seems to accidentally insert a newline after
     // `ref.func`, but we don't do that, so normalize wabt's output to not
     // have a newline.
+    //
+    // FIXME(WebAssembly/wabt#1228): shouldn't be necessary
     let needle = "ref.func\n";
     while let Some(i) = expected.find(needle) {
         let len = expected[i + needle.len()..]
@@ -268,6 +270,7 @@ fn test_binary(path: &Path, contents: &[u8]) -> anyhow::Result<()> {
         .map(|l| l.trim_end())
         .collect::<Vec<_>>()
         .join("\n")
+        // FIXME(WebAssembly/wabt#1227) shouldn't be necessary
         .replace(" )", ")");
 
     fn normalize(s: &str) -> String {
