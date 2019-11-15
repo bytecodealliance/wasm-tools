@@ -1,3 +1,13 @@
+//! A crate to convert a WebAssembly binary to its textual representation in the
+//! WebAssembly Text Format (WAT).
+//!
+//! This crate is intended for developer toolchains and debugging, supporting
+//! human-readable versions of a wasm binary. This can also be useful when
+//! developing wasm toolchain support in Rust for various purposes like testing
+//! and debugging and such.
+
+#![deny(missing_docs)]
+
 use anyhow::{bail, Context, Result};
 use std::collections::HashMap;
 use std::fmt::Write;
@@ -5,6 +15,8 @@ use std::mem;
 use std::path::Path;
 use wasmparser::*;
 
+/// Reads a WebAssembly `file` from the filesystem and then prints it into an
+/// in-memory `String`.
 pub fn print_file(file: impl AsRef<Path>) -> Result<String> {
     _parse_file(file.as_ref())
 }
@@ -14,13 +26,19 @@ fn _parse_file(file: &Path) -> Result<String> {
     Printer::new().print(&contents)
 }
 
+/// Prints an in-memory `wasm` binary blob into an in-memory `String` which is
+/// its textual representation.
 pub fn print_bytes(wasm: impl AsRef<[u8]>) -> Result<String> {
     Printer::new().print(wasm.as_ref())
 }
 
+/// Context used for printing a WebAssembly binary.
+///
+/// This is largely only required if you'd like to register custom printers for
+/// custom sections in a wasm binary.
 #[derive(Default)]
 pub struct Printer {
-    printers: HashMap<String, Box<dyn FnMut(&mut String, &[u8]) -> Result<()>>>,
+    printers: HashMap<String, Box<dyn FnMut(&mut Printer, &[u8]) -> Result<()>>>,
     result: String,
     func: u32,
     memory: u32,
@@ -34,19 +52,39 @@ pub struct Printer {
 }
 
 impl Printer {
+    /// Creates a new `Printer` object that's ready to start printing wasm
+    /// binaries to strings.
     pub fn new() -> Printer {
         Printer::default()
     }
 
+    /// Registers a custom `printer` function to get invoked whenever a custom
+    /// section of name `section` is seen.
+    ///
+    /// This can be used to register printers into a textual format for custom
+    /// sections, such as by emitting annotations and/or other textual
+    /// references (maybe coments!)
+    ///
+    /// By default all custom sections are ignored for the text format.
     pub fn add_custom_section_printer(
         &mut self,
         section: &str,
-        printer: impl FnMut(&mut String, &[u8]) -> Result<()> + 'static,
+        printer: impl FnMut(&mut Printer, &[u8]) -> Result<()> + 'static,
     ) {
         self.printers.insert(section.to_string(), Box::new(printer));
     }
 
+    /// Gets the output result of this `Printer`, or where all output is going.
+    pub fn result_mut(&mut self) -> &mut String {
+        &mut self.result
+    }
+
+    /// Prints a WebAssembly binary into a `String`
+    ///
+    /// This function takes an entire `wasm` binary blob and will print it to
+    /// the WebAssembly Text Format and return the result as a `String`.
     pub fn print(&mut self, wasm: &[u8]) -> Result<String> {
+        // Reset internal state which will get configured throughout printing.
         self.func = 0;
         self.memory = 0;
         self.global = 0;
@@ -54,8 +92,12 @@ impl Printer {
         self.functypes.truncate(0);
         self.local_names.drain();
         self.module_name = None;
-        let mut code = None;
+
+        // First up try to find the `name` subsection which we'll use to print
+        // pretty names everywhere. Also look for the `code` section so we can
+        // print out functions as soon as we hit the function section.
         let mut parser = wasmparser::ModuleReader::new(wasm)?;
+        let mut code = None;
         while !parser.eof() {
             let section = parser.read()?;
             match section.code {
@@ -67,19 +109,22 @@ impl Printer {
             }
         }
 
+        // ... and here we go, time to print all the sections!
         self.result.push_str("(module");
         if let Some(name) = &self.module_name {
             self.result.push_str(" $");
             self.result.push_str(name);
         }
         let mut parser = wasmparser::ModuleReader::new(wasm)?;
+        let mut printers = mem::replace(&mut self.printers, HashMap::new());
         while !parser.eof() {
             let section = parser.read()?;
             match section.code {
                 SectionCode::Custom { name, .. } => {
-                    // let range = section.get_binary_reader().range();
-                    // render_wit(&mut s, &wasm[range.start..range.end]);
-                    drop(name);
+                    let range = section.get_binary_reader().range();
+                    if let Some(printer) = printers.get_mut(name) {
+                        printer(self, &wasm[range.start..range.end])?;
+                    }
                 }
                 SectionCode::Type => {
                     self.print_types(section.get_type_section_reader()?)?;
@@ -108,6 +153,9 @@ impl Printer {
                 }
                 SectionCode::Start => {
                     self.result.push_str("\n  (start ");
+                    // TODO: this seems to be a bug in `wabt`, it probably
+                    // should be printing the name of the function rather than
+                    // the index here.
                     // self.print_func_idx(section.get_start_section_content()?)?;
                     write!(self.result, "{}", section.get_start_section_content()?)?;
                     self.result.push_str(")");
@@ -115,14 +163,19 @@ impl Printer {
                 SectionCode::Element => {
                     self.print_elems(section.get_element_section_reader()?)?;
                 }
-                SectionCode::Code => {}
+                SectionCode::Code => {
+                    // printed above with the `Function` section
+                }
                 SectionCode::Data => {
                     self.print_data(section.get_data_section_reader()?)?;
                 }
-                SectionCode::DataCount => {}
+                SectionCode::DataCount => {
+                    // not part of the text format
+                }
             }
         }
         self.result.push_str(")");
+        self.printers = printers;
         Ok(mem::replace(&mut self.result, String::new()))
     }
 
@@ -762,7 +815,11 @@ impl Printer {
         return Ok(());
     }
 
-    fn print_func_idx(&mut self, idx: u32) -> Result<()> {
+    /// Prints a function index specified, using the identifier for the function
+    /// from the `name` section if it was present.
+    ///
+    /// This will either print `$foo` or `idx` as a raw integer.
+    pub fn print_func_idx(&mut self, idx: u32) -> Result<()> {
         match self.names.get(&idx) {
             Some(name) => write!(self.result, "${}", name)?,
             None => write!(self.result, "{}", idx)?,
