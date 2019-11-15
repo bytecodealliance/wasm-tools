@@ -5,6 +5,8 @@
 A Rust parser for printing a WebAssembly binary in the [WebAssembly Text format
 (WAT)][wat]
 
+[wat]: http://webassembly.github.io/spec/core/text/index.html
+
 # License
 
 This project is licensed under either of
