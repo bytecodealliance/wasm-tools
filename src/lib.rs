@@ -840,8 +840,8 @@ impl Printer {
             let mut elem = elem?;
             write!(self.result, "\n  (elem (;{};) ", i)?;
             match &mut elem.kind {
-                ElementKind::Passive { ty: _, items } => {
-                    self.result.push_str("funcref");
+                ElementKind::Passive { ty, items } => {
+                    self.print_valtype(*ty)?;
                     for _ in 0..items.get_count() {
                         match items.get_next_func_idx()? {
                             Some(idx) => {
