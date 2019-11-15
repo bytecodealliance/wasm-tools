@@ -124,7 +124,7 @@ pub enum ElemKind<'a> {
 impl<'a> Parse<'a> for Elem<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::elem>()?.0;
-        let name = parser.parse()?;
+        let mut name = parser.parse::<Option<_>>()?;
 
         let kind = if parser.peek::<ast::TableElemType>() {
             let ty = parser.parse::<ast::TableElemType>()?;
@@ -151,7 +151,16 @@ impl<'a> Parse<'a> for Elem<'a> {
             }
             ElemKind::Passive { ty, elems }
         } else {
-            let table = parser.parse::<Option<ast::Index>>()?;
+            // TODO: this should be brought up with the bulk memory proposal,
+            // it's sort of ambiguous but apparently if one name is present it's
+            // a table name, but if two then it's an element name and a segment
+            // name. I'm a bit confused but this seems to pass tests.
+            let mut table = parser.parse::<Option<ast::Index>>()?;
+            if table.is_none() {
+                if let Some(name) = name.take() {
+                    table = Some(ast::Index::Id(name));
+                }
+            }
             let offset = parser.parens(|parser| {
                 if parser.peek::<kw::offset>() {
                     parser.parse::<kw::offset>()?;
