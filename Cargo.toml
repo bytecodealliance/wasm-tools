@@ -21,11 +21,12 @@ anyhow = "1.0"
 wasmparser = { git = 'https://github.com/alexcrichton/wasmparser.rs', branch = 'updates' }
 
 [dev-dependencies]
+diff = "0.1"
+getopts = "0.2"
 rayon = "1.0"
 tempfile = "3.0"
 wast = "3.0.3"
 wat = "1.0.4"
-diff = "0.1"
 
 [[test]]
 name = "wabt"
