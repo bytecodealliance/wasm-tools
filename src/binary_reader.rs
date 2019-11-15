@@ -1438,14 +1438,14 @@ impl<'a> BinaryReader<'a> {
             0xa8 => Operator::F64x2Div,
             0xa9 => Operator::F64x2Min,
             0xaa => Operator::F64x2Max,
-            0xab => Operator::I32x4TruncSF32x4Sat,
-            0xac => Operator::I32x4TruncUF32x4Sat,
-            0xad => Operator::I64x2TruncSF64x2Sat,
-            0xae => Operator::I64x2TruncUF64x2Sat,
-            0xaf => Operator::F32x4ConvertSI32x4,
-            0xb0 => Operator::F32x4ConvertUI32x4,
-            0xb1 => Operator::F64x2ConvertSI64x2,
-            0xb2 => Operator::F64x2ConvertUI64x2,
+            0xab => Operator::I32x4TruncSatF32x4S,
+            0xac => Operator::I32x4TruncSatF32x4U,
+            0xad => Operator::I64x2TruncSatF64x2S,
+            0xae => Operator::I64x2TruncSatF64x2U,
+            0xaf => Operator::F32x4ConvertI32x4S,
+            0xb0 => Operator::F32x4ConvertI32x4U,
+            0xb1 => Operator::F64x2ConvertI64x2S,
+            0xb2 => Operator::F64x2ConvertI64x2U,
             0xc0 => Operator::V8x16Swizzle,
             0x03 | 0xc1 => {
                 let mut lanes = [0 as SIMDLaneIndex; 16];
@@ -1454,16 +1454,16 @@ impl<'a> BinaryReader<'a> {
                 }
                 Operator::V8x16Shuffle { lanes }
             }
-            0xc2 => Operator::I8x16LoadSplat {
+            0xc2 => Operator::V8x16LoadSplat {
                 memarg: self.read_memarg_of_align(0)?,
             },
-            0xc3 => Operator::I16x8LoadSplat {
+            0xc3 => Operator::V16x8LoadSplat {
                 memarg: self.read_memarg_of_align(1)?,
             },
-            0xc4 => Operator::I32x4LoadSplat {
+            0xc4 => Operator::V32x4LoadSplat {
                 memarg: self.read_memarg_of_align(2)?,
             },
-            0xc5 => Operator::I64x2LoadSplat {
+            0xc5 => Operator::V64x2LoadSplat {
                 memarg: self.read_memarg_of_align(3)?,
             },
             _ => {

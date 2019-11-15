@@ -1534,10 +1534,10 @@ impl OperatorValidator {
             | Operator::F64x2Abs
             | Operator::F64x2Neg
             | Operator::F64x2Sqrt
-            | Operator::F32x4ConvertSI32x4
-            | Operator::F32x4ConvertUI32x4
-            | Operator::F64x2ConvertSI64x2
-            | Operator::F64x2ConvertUI64x2 => {
+            | Operator::F32x4ConvertI32x4S
+            | Operator::F32x4ConvertI32x4U
+            | Operator::F64x2ConvertI64x2S
+            | Operator::F64x2ConvertI64x2U => {
                 self.check_non_deterministic_enabled()?;
                 self.check_simd_enabled()?;
                 self.check_operands_1(Type::V128)?;
@@ -1548,10 +1548,10 @@ impl OperatorValidator {
             | Operator::I16x8Neg
             | Operator::I32x4Neg
             | Operator::I64x2Neg
-            | Operator::I32x4TruncSF32x4Sat
-            | Operator::I32x4TruncUF32x4Sat
-            | Operator::I64x2TruncSF64x2Sat
-            | Operator::I64x2TruncUF64x2Sat => {
+            | Operator::I32x4TruncSatF32x4S
+            | Operator::I32x4TruncSatF32x4U
+            | Operator::I64x2TruncSatF64x2S
+            | Operator::I64x2TruncSatF64x2U => {
                 self.check_simd_enabled()?;
                 self.check_operands_1(Type::V128)?;
                 self.func_state.change_frame_with_type(1, Type::V128)?;
@@ -1602,25 +1602,25 @@ impl OperatorValidator {
                 }
                 self.func_state.change_frame_with_type(2, Type::V128)?;
             }
-            Operator::I8x16LoadSplat { ref memarg } => {
+            Operator::V8x16LoadSplat { ref memarg } => {
                 self.check_simd_enabled()?;
                 self.check_memarg(memarg, 0, resources)?;
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::V128)?;
             }
-            Operator::I16x8LoadSplat { ref memarg } => {
+            Operator::V16x8LoadSplat { ref memarg } => {
                 self.check_simd_enabled()?;
                 self.check_memarg(memarg, 1, resources)?;
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::V128)?;
             }
-            Operator::I32x4LoadSplat { ref memarg } => {
+            Operator::V32x4LoadSplat { ref memarg } => {
                 self.check_simd_enabled()?;
                 self.check_memarg(memarg, 2, resources)?;
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::V128)?;
             }
-            Operator::I64x2LoadSplat { ref memarg } => {
+            Operator::V64x2LoadSplat { ref memarg } => {
                 self.check_simd_enabled()?;
                 self.check_memarg(memarg, 3, resources)?;
                 self.check_operands_1(Type::I32)?;
