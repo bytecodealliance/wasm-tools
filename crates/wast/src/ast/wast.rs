@@ -102,6 +102,26 @@ pub enum WastDirective<'a> {
     },
 }
 
+impl WastDirective<'_> {
+    /// Returns the location in the source that this directive was defined at
+    pub fn span(&self) -> ast::Span {
+        match self {
+            WastDirective::Module(m) => m.span,
+            WastDirective::AssertMalformed { span, .. } |
+            WastDirective::Register { span, .. } |
+            WastDirective::AssertTrap { span, .. } |
+            WastDirective::AssertReturn { span, .. } |
+            WastDirective::AssertReturnCanonicalNan { span, .. } |
+            WastDirective::AssertReturnArithmeticNan { span, .. } |
+            WastDirective::AssertReturnFunc { span, .. } |
+            WastDirective::AssertExhaustion { span, .. } |
+            WastDirective::AssertUnlinkable { span, .. } |
+            WastDirective::AssertInvalid { span, .. } => *span,
+            WastDirective::Invoke(i) => i.span,
+        }
+    }
+}
+
 impl<'a> Parse<'a> for WastDirective<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let mut l = parser.lookahead1();
