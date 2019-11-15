@@ -1244,6 +1244,11 @@ impl<'a> BinaryReader<'a> {
                 Operator::TableSize { table }
             }
 
+            0x11 => {
+                let table = self.read_var_u32()?;
+                Operator::TableFill { table }
+            }
+
             _ => {
                 return Err(BinaryReaderError {
                     message: "Unknown 0xfc opcode",

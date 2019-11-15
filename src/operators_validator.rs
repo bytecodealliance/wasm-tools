@@ -1704,6 +1704,15 @@ impl OperatorValidator {
                 }
                 self.func_state.change_frame_with_type(1, Type::I32)?;
             }
+            Operator::TableFill { table } => {
+                self.check_bulk_memory_enabled()?;
+                let ty = match resources.tables().get(table as usize) {
+                    Some(ty) => ty.element_type,
+                    None => return Err("table index out of bounds"),
+                };
+                self.check_operands(&[Type::I32, ty, Type::I32])?;
+                self.func_state.change_frame(3)?;
+            }
         }
         Ok(FunctionEnd::No)
     }

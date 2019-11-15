@@ -435,6 +435,7 @@ pub enum Operator<'a> {
     TableInit { segment: u32 },
     ElemDrop { segment: u32 },
     TableCopy,
+    TableFill { table: u32 },
     TableGet { table: u32 },
     TableSet { table: u32 },
     TableGrow { table: u32 },
