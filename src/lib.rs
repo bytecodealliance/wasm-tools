@@ -916,7 +916,7 @@ impl Printer {
         self.result.push_str("\"");
         for c in name.chars() {
             let v = c as u32;
-            if v >= 0x20 && v != 0x7f && c != '"' && c != '\\' && v < 0xff {
+            if v >= 0x20 && v < 0x7f && c != '"' && c != '\\' && v < 0xff {
                 self.result.push(c);
             } else {
                 for byte in c.encode_utf8(&mut bytes).as_bytes() {
