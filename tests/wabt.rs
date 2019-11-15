@@ -123,8 +123,13 @@ fn skip_test(test: &Path, contents: &str) -> bool {
         }
     }
 
-    // This just looks sort of buggy in wabt
+    // This just looks sort of buggy in wabt, they both use multiple tables with
+    // active segments, but the text format doesn't actually say that the active
+    // segment goes to th right table
     if test.ends_with("dump/table-multi.txt") {
+        return true;
+    }
+    if test.ends_with("reference-types/select.wast") {
         return true;
     }
 
