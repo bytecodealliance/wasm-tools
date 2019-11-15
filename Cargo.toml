@@ -3,7 +3,7 @@ name = "wasmprinter"
 version = "0.1.0"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 edition = "2018"
-license = "MIT/Apache-2.0"
+license = "Apache-2.0 WITH LLVM-exception"
 readme = "README.md"
 repository = "https://github.com/bytecodealliance/wasmprinter"
 homepage = "https://github.com/bytecodealliance/wasmprinter"
@@ -18,7 +18,8 @@ members = ['fuzz']
 
 [dependencies]
 anyhow = "1.0"
-wasmparser = { git = 'https://github.com/alexcrichton/wasmparser.rs', branch = 'update-passive-segment-encoding' }
+#wasmparser = { git = 'https://github.com/alexcrichton/wasmparser.rs', branch = 'update-passive-segment-encoding' }
+wasmparser = { path = "../wasmparser.rs" }
 
 [dev-dependencies]
 rayon = "1.0"
