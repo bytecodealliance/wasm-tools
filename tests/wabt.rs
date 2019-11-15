@@ -128,6 +128,11 @@ fn skip_test(test: &Path, contents: &str) -> bool {
         return true;
     }
 
+    // Need to implement threads spec
+    if test.ends_with("threads/atomic.wast") {
+        return true;
+    }
+
     false
 }
 
