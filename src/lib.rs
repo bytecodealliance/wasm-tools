@@ -975,8 +975,8 @@ macro_rules! print_float {
                 return Ok(())
             }
             if f.is_nan() {
-                let payload = bits & ((1 << (mantissa_width - 1)) - 1);
-                if payload == 0 {
+                let payload = bits & ((1 << mantissa_width) - 1);
+                if payload == 1 << (mantissa_width - 1) {
                     write!(self.result, "nan (;={};)", f)?;
                 } else {
                     write!(self.result, "nan:{:#x} (;={};)", payload, f)?;
