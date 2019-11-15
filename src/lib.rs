@@ -859,7 +859,182 @@ impl Printer {
                 self.mem_instr("i64.atomic.rmw32.cmpxchg_u", memarg, 4)?
             }
 
-            _ => {}
+            V128Load { memarg } => self.mem_instr("v128.load", memarg, 16)?,
+            V128Store { memarg } => self.mem_instr("v128.store", memarg, 16)?,
+            V128Const { value } => {
+                write!(self.result, "v128.const i32x4")?;
+                for chunk in value.bytes().chunks(4) {
+                    write!(
+                        self.result,
+                        " 0x{:02x}{:02x}{:02x}{:02x}",
+                        chunk[3], chunk[2], chunk[1], chunk[0]
+                    )?;
+                }
+            }
+
+            I8x16Splat => self.result.push_str("i8x16.splat"),
+            I8x16ExtractLaneS { lane } => write!(self.result, "i8x16.extract_lane_s {}", lane)?,
+            I8x16ExtractLaneU { lane } => write!(self.result, "i8x16.extract_lane_u {}", lane)?,
+            I8x16ReplaceLane { lane } => write!(self.result, "i8x16.replace_lane {}", lane)?,
+            I16x8Splat => self.result.push_str("i16x8.splat"),
+            I16x8ExtractLaneS { lane } => write!(self.result, "i16x8.extract_lane_s {}", lane)?,
+            I16x8ExtractLaneU { lane } => write!(self.result, "i16x8.extract_lane_u {}", lane)?,
+            I16x8ReplaceLane { lane } => write!(self.result, "i16x8.replace_lane {}", lane)?,
+            I32x4Splat => self.result.push_str("i32x4.splat"),
+            I32x4ExtractLane { lane } => write!(self.result, "i32x4.extract_lane {}", lane)?,
+            I32x4ReplaceLane { lane } => write!(self.result, "i32x4.replace_lane {}", lane)?,
+            I64x2Splat => self.result.push_str("i64x2.splat"),
+            I64x2ExtractLane { lane } => write!(self.result, "i64x2.extract_lane {}", lane)?,
+            I64x2ReplaceLane { lane } => write!(self.result, "i64x2.replace_lane {}", lane)?,
+            F32x4Splat => self.result.push_str("f32x4.splat"),
+            F32x4ExtractLane { lane } => write!(self.result, "f32x4.extract_lane {}", lane)?,
+            F32x4ReplaceLane { lane } => write!(self.result, "f32x4.replace_lane {}", lane)?,
+            F64x2Splat => self.result.push_str("f64x2.splat"),
+            F64x2ExtractLane { lane } => write!(self.result, "f64x2.extract_lane {}", lane)?,
+            F64x2ReplaceLane { lane } => write!(self.result, "f64x2.replace_lane {}", lane)?,
+
+            I8x16Eq => self.result.push_str("i8x16.eq"),
+            I8x16Ne => self.result.push_str("i8x16.ne"),
+            I8x16LtS => self.result.push_str("i8x16.lt_s"),
+            I8x16LtU => self.result.push_str("i8x16.lt_u"),
+            I8x16GtS => self.result.push_str("i8x16.gt_s"),
+            I8x16GtU => self.result.push_str("i8x16.gt_u"),
+            I8x16LeS => self.result.push_str("i8x16.le_s"),
+            I8x16LeU => self.result.push_str("i8x16.le_u"),
+            I8x16GeS => self.result.push_str("i8x16.ge_s"),
+            I8x16GeU => self.result.push_str("i8x16.ge_u"),
+
+            I16x8Eq => self.result.push_str("i16x8.eq"),
+            I16x8Ne => self.result.push_str("i16x8.ne"),
+            I16x8LtS => self.result.push_str("i16x8.lt_s"),
+            I16x8LtU => self.result.push_str("i16x8.lt_u"),
+            I16x8GtS => self.result.push_str("i16x8.gt_s"),
+            I16x8GtU => self.result.push_str("i16x8.gt_u"),
+            I16x8LeS => self.result.push_str("i16x8.le_s"),
+            I16x8LeU => self.result.push_str("i16x8.le_u"),
+            I16x8GeS => self.result.push_str("i16x8.ge_s"),
+            I16x8GeU => self.result.push_str("i16x8.ge_u"),
+
+            I32x4Eq => self.result.push_str("i32x4.eq"),
+            I32x4Ne => self.result.push_str("i32x4.ne"),
+            I32x4LtS => self.result.push_str("i32x4.lt_s"),
+            I32x4LtU => self.result.push_str("i32x4.lt_u"),
+            I32x4GtS => self.result.push_str("i32x4.gt_s"),
+            I32x4GtU => self.result.push_str("i32x4.gt_u"),
+            I32x4LeS => self.result.push_str("i32x4.le_s"),
+            I32x4LeU => self.result.push_str("i32x4.le_u"),
+            I32x4GeS => self.result.push_str("i32x4.ge_s"),
+            I32x4GeU => self.result.push_str("i32x4.ge_u"),
+
+            F32x4Eq => self.result.push_str("f32x4.eq"),
+            F32x4Ne => self.result.push_str("f32x4.ne"),
+            F32x4Lt => self.result.push_str("f32x4.lt"),
+            F32x4Gt => self.result.push_str("f32x4.gt"),
+            F32x4Le => self.result.push_str("f32x4.le"),
+            F32x4Ge => self.result.push_str("f32x4.ge"),
+
+            F64x2Eq => self.result.push_str("f64x2.eq"),
+            F64x2Ne => self.result.push_str("f64x2.ne"),
+            F64x2Lt => self.result.push_str("f64x2.lt"),
+            F64x2Gt => self.result.push_str("f64x2.gt"),
+            F64x2Le => self.result.push_str("f64x2.le"),
+            F64x2Ge => self.result.push_str("f64x2.ge"),
+
+            V128Not => self.result.push_str("v128.not"),
+            V128And => self.result.push_str("v128.and"),
+            V128Or => self.result.push_str("v128.or"),
+            V128Xor => self.result.push_str("v128.xor"),
+            V128Bitselect => self.result.push_str("v128.bitselect"),
+
+            I8x16Neg => self.result.push_str("i8x16.neg"),
+            I8x16AnyTrue => self.result.push_str("i8x16.any_true"),
+            I8x16AllTrue => self.result.push_str("i8x16.all_true"),
+            I8x16Shl => self.result.push_str("i8x16.shl"),
+            I8x16ShrU => self.result.push_str("i8x16.shr_u"),
+            I8x16ShrS => self.result.push_str("i8x16.shr_s"),
+            I8x16Add => self.result.push_str("i8x16.add"),
+            I8x16AddSaturateS => self.result.push_str("i8x16.add_saturate_s"),
+            I8x16AddSaturateU => self.result.push_str("i8x16.add_saturate_u"),
+            I8x16Sub => self.result.push_str("i8x16.sub"),
+            I8x16SubSaturateS => self.result.push_str("i8x16.sub_saturate_s"),
+            I8x16SubSaturateU => self.result.push_str("i8x16.sub_saturate_u"),
+            I8x16Mul => self.result.push_str("i8x16.mul"),
+
+            I16x8Neg => self.result.push_str("i16x8.neg"),
+            I16x8AnyTrue => self.result.push_str("i16x8.any_true"),
+            I16x8AllTrue => self.result.push_str("i16x8.all_true"),
+            I16x8Shl => self.result.push_str("i16x8.shl"),
+            I16x8ShrU => self.result.push_str("i16x8.shr_u"),
+            I16x8ShrS => self.result.push_str("i16x8.shr_s"),
+            I16x8Add => self.result.push_str("i16x8.add"),
+            I16x8AddSaturateS => self.result.push_str("i16x8.add_saturate_s"),
+            I16x8AddSaturateU => self.result.push_str("i16x8.add_saturate_u"),
+            I16x8Sub => self.result.push_str("i16x8.sub"),
+            I16x8SubSaturateS => self.result.push_str("i16x8.sub_saturate_s"),
+            I16x8SubSaturateU => self.result.push_str("i16x8.sub_saturate_u"),
+            I16x8Mul => self.result.push_str("i16x8.mul"),
+
+            I32x4Neg => self.result.push_str("i32x4.neg"),
+            I32x4AnyTrue => self.result.push_str("i32x4.any_true"),
+            I32x4AllTrue => self.result.push_str("i32x4.all_true"),
+            I32x4Shl => self.result.push_str("i32x4.shl"),
+            I32x4ShrU => self.result.push_str("i32x4.shr_u"),
+            I32x4ShrS => self.result.push_str("i32x4.shr_s"),
+            I32x4Add => self.result.push_str("i32x4.add"),
+            I32x4Sub => self.result.push_str("i32x4.sub"),
+            I32x4Mul => self.result.push_str("i32x4.mul"),
+
+            I64x2Neg => self.result.push_str("i64x2.neg"),
+            I64x2AnyTrue => self.result.push_str("i64x2.any_true"),
+            I64x2AllTrue => self.result.push_str("i64x2.all_true"),
+            I64x2Shl => self.result.push_str("i64x2.shl"),
+            I64x2ShrU => self.result.push_str("i64x2.shr_u"),
+            I64x2ShrS => self.result.push_str("i64x2.shr_s"),
+            I64x2Add => self.result.push_str("i64x2.add"),
+            I64x2Sub => self.result.push_str("i64x2.sub"),
+
+            F32x4Abs => self.result.push_str("f32x4.abs"),
+            F32x4Neg => self.result.push_str("f32x4.neg"),
+            F32x4Sqrt => self.result.push_str("f32x4.sqrt"),
+            F32x4Add => self.result.push_str("f32x4.add"),
+            F32x4Sub => self.result.push_str("f32x4.sub"),
+            F32x4Div => self.result.push_str("f32x4.div"),
+            F32x4Mul => self.result.push_str("f32x4.mul"),
+            F32x4Min => self.result.push_str("f32x4.min"),
+            F32x4Max => self.result.push_str("f32x4.max"),
+
+            F64x2Abs => self.result.push_str("f64x2.abs"),
+            F64x2Neg => self.result.push_str("f64x2.neg"),
+            F64x2Sqrt => self.result.push_str("f64x2.sqrt"),
+            F64x2Add => self.result.push_str("f64x2.add"),
+            F64x2Sub => self.result.push_str("f64x2.sub"),
+            F64x2Div => self.result.push_str("f64x2.div"),
+            F64x2Mul => self.result.push_str("f64x2.mul"),
+            F64x2Min => self.result.push_str("f64x2.min"),
+            F64x2Max => self.result.push_str("f64x2.max"),
+
+            I32x4TruncSF32x4Sat => self.result.push_str("i32x4.trunc_sat_f32x4_s"),
+            I32x4TruncUF32x4Sat => self.result.push_str("i32x4.trunc_sat_f32x4_u"),
+            I64x2TruncSF64x2Sat => self.result.push_str("i64x2.trunc_sat_f64x2_s"),
+            I64x2TruncUF64x2Sat => self.result.push_str("i64x2.trunc_sat_f64x2_u"),
+            F32x4ConvertSI32x4 => self.result.push_str("f32x4.convert_i32x4_s"),
+            F32x4ConvertUI32x4 => self.result.push_str("f32x4.convert_i32x4_u"),
+            F64x2ConvertSI64x2 => self.result.push_str("f64x2.convert_i64x2_s"),
+            F64x2ConvertUI64x2 => self.result.push_str("f64x2.convert_i64x2_u"),
+
+            V8x16Swizzle => self.result.push_str("v8x16.swizzle"),
+            V8x16Shuffle { lanes } => {
+                self.result.push_str("v8x16.shuffle");
+                // TODO: the double space and trailing space seem like bugs in
+                // wabt
+                for lane in lanes {
+                    write!(self.result, "  {}", lane)?;
+                }
+            }
+            I8x16LoadSplat { memarg } => self.mem_instr("v8x16.load_splat", memarg, 1)?,
+            I16x8LoadSplat { memarg } => self.mem_instr("v16x8.load_splat", memarg, 2)?,
+            I32x4LoadSplat { memarg } => self.mem_instr("v32x4.load_splat", memarg, 4)?,
+            I64x2LoadSplat { memarg } => self.mem_instr("v64x2.load_splat", memarg, 8)?,
         }
         Ok(())
     }

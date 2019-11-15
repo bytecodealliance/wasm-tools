@@ -101,9 +101,6 @@ fn skip_test(test: &Path, contents: &str) -> bool {
     if contents.contains("--enable-tail-call") {
         return true;
     }
-    if contents.contains("--enable-simd") {
-        return true;
-    }
     if contents.contains("--enable-annotations") {
         return true;
     }
@@ -145,6 +142,14 @@ fn skip_test(test: &Path, contents: &str) -> bool {
 
     // Looks like wabt doesn't implement ref.func in globals yet
     if test.ends_with("reference-types/ref_func.wast") {
+        return true;
+    }
+
+    // The `wat` crate ignores these tests, so we need to do so as well.
+    if test.ends_with("interp/simd-load-store.txt") {
+        return true;
+    }
+    if test.ends_with("logging-all-opcodes.txt") {
         return true;
     }
 
@@ -221,7 +226,29 @@ fn test_binary(path: &Path, contents: &[u8]) -> anyhow::Result<()> {
         wasm2wat(contents).context(format!("failed to run `wasm2wat` on `{}`", path.display()))?;
 
     let actual = normalize(&actual);
-    let expected = normalize(&expected);
+
+    let mut expected = normalize(&expected);
+
+    // Currently `wabt` seems to accidentally insert a newline after
+    // `ref.func`, but we don't do that, so normalize wabt's output to not
+    // have a newline.
+    let needle = "ref.func\n";
+    while let Some(i) = expected.find(needle) {
+        let len = expected[i + needle.len()..]
+            .chars()
+            .take_while(|c| c.is_whitespace())
+            .count();
+        expected.drain(i + needle.len() - 1..i + needle.len() - 1 + len);
+    }
+
+    // Additionally wabt sometimes leaves behind trailing whitespace, so juts
+    // chop of all that off because we don't want to generate trailing
+    // whitespace.
+    let expected = expected.lines()
+        .map(|l| l.trim_end())
+        .collect::<Vec<_>>()
+        .join("\n")
+        .replace(" )", ")");
 
     fn normalize(s: &str) -> String {
         let mut s = s.trim().to_string();
@@ -230,21 +257,9 @@ fn test_binary(path: &Path, contents: &[u8]) -> anyhow::Result<()> {
         // hand-check seems to show that they're equivalent just different
         // renderings. To paper over these inconsequential differences delete
         // these comments.
-        while let Some(i) = s.find("(;=") {
+        while let Some(i) = s.find(" (;=") {
             let end = s[i..].find(";)").unwrap();
             s.drain(i..end + i + 2);
-        }
-
-        // Currently `wabt` seems to accidentally insert a newline after
-        // `ref.func`, but we don't do that, so normalize wabt's output to not
-        // have a newline.
-        let needle = "ref.func\n";
-        while let Some(i) = s.find(needle) {
-            let len = s[i + needle.len()..]
-                .chars()
-                .take_while(|c| c.is_whitespace())
-                .count();
-            s.drain(i + needle.len() - 1..i + needle.len() - 1 + len);
         }
         return s;
     }
