@@ -244,7 +244,8 @@ fn test_binary(path: &Path, contents: &[u8]) -> anyhow::Result<()> {
     // Additionally wabt sometimes leaves behind trailing whitespace, so juts
     // chop of all that off because we don't want to generate trailing
     // whitespace.
-    let expected = expected.lines()
+    let expected = expected
+        .lines()
         .map(|l| l.trim_end())
         .collect::<Vec<_>>()
         .join("\n")
