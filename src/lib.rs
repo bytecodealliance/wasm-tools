@@ -761,10 +761,10 @@ impl Printer {
             TableGrow { table } => write!(self.result, "table.grow {}", table)?,
             TableSize { table } => write!(self.result, "table.size {}", table)?,
 
-            Wake { memarg } => self.mem_instr("atomic.notify", memarg, 4)?,
-            I32Wait { memarg } => self.mem_instr("i32.atomic.wait", memarg, 4)?,
-            I64Wait { memarg } => self.mem_instr("i64.atomic.wait", memarg, 8)?,
-            Fence { flags: _ } => self.result.push_str("atomic.fence"),
+            AtomicNotify { memarg } => self.mem_instr("atomic.notify", memarg, 4)?,
+            I32AtomicWait { memarg } => self.mem_instr("i32.atomic.wait", memarg, 4)?,
+            I64AtomicWait { memarg } => self.mem_instr("i64.atomic.wait", memarg, 8)?,
+            AtomicFence { flags: _ } => self.result.push_str("atomic.fence"),
 
             I32AtomicLoad { memarg } => self.mem_instr("i32.atomic.load", memarg, 4)?,
             I64AtomicLoad { memarg } => self.mem_instr("i64.atomic.load", memarg, 8)?,
@@ -784,55 +784,55 @@ impl Printer {
 
             I32AtomicRmwAdd { memarg } => self.mem_instr("i32.atomic.rmw.add", memarg, 4)?,
             I64AtomicRmwAdd { memarg } => self.mem_instr("i64.atomic.rmw.add", memarg, 8)?,
-            I32AtomicRmw8UAdd { memarg } => self.mem_instr("i32.atomic.rmw8.add_u", memarg, 1)?,
-            I32AtomicRmw16UAdd { memarg } => self.mem_instr("i32.atomic.rmw16.add_u", memarg, 2)?,
-            I64AtomicRmw8UAdd { memarg } => self.mem_instr("i64.atomic.rmw8.add_u", memarg, 1)?,
-            I64AtomicRmw16UAdd { memarg } => self.mem_instr("i64.atomic.rmw16.add_u", memarg, 2)?,
-            I64AtomicRmw32UAdd { memarg } => self.mem_instr("i64.atomic.rmw32.add_u", memarg, 4)?,
+            I32AtomicRmw8AddU { memarg } => self.mem_instr("i32.atomic.rmw8.add_u", memarg, 1)?,
+            I32AtomicRmw16AddU { memarg } => self.mem_instr("i32.atomic.rmw16.add_u", memarg, 2)?,
+            I64AtomicRmw8AddU { memarg } => self.mem_instr("i64.atomic.rmw8.add_u", memarg, 1)?,
+            I64AtomicRmw16AddU { memarg } => self.mem_instr("i64.atomic.rmw16.add_u", memarg, 2)?,
+            I64AtomicRmw32AddU { memarg } => self.mem_instr("i64.atomic.rmw32.add_u", memarg, 4)?,
 
             I32AtomicRmwSub { memarg } => self.mem_instr("i32.atomic.rmw.sub", memarg, 4)?,
             I64AtomicRmwSub { memarg } => self.mem_instr("i64.atomic.rmw.sub", memarg, 8)?,
-            I32AtomicRmw8USub { memarg } => self.mem_instr("i32.atomic.rmw8.sub_u", memarg, 1)?,
-            I32AtomicRmw16USub { memarg } => self.mem_instr("i32.atomic.rmw16.sub_u", memarg, 2)?,
-            I64AtomicRmw8USub { memarg } => self.mem_instr("i64.atomic.rmw8.sub_u", memarg, 1)?,
-            I64AtomicRmw16USub { memarg } => self.mem_instr("i64.atomic.rmw16.sub_u", memarg, 2)?,
-            I64AtomicRmw32USub { memarg } => self.mem_instr("i64.atomic.rmw32.sub_u", memarg, 4)?,
+            I32AtomicRmw8SubU { memarg } => self.mem_instr("i32.atomic.rmw8.sub_u", memarg, 1)?,
+            I32AtomicRmw16SubU { memarg } => self.mem_instr("i32.atomic.rmw16.sub_u", memarg, 2)?,
+            I64AtomicRmw8SubU { memarg } => self.mem_instr("i64.atomic.rmw8.sub_u", memarg, 1)?,
+            I64AtomicRmw16SubU { memarg } => self.mem_instr("i64.atomic.rmw16.sub_u", memarg, 2)?,
+            I64AtomicRmw32SubU { memarg } => self.mem_instr("i64.atomic.rmw32.sub_u", memarg, 4)?,
 
             I32AtomicRmwAnd { memarg } => self.mem_instr("i32.atomic.rmw.and", memarg, 4)?,
             I64AtomicRmwAnd { memarg } => self.mem_instr("i64.atomic.rmw.and", memarg, 8)?,
-            I32AtomicRmw8UAnd { memarg } => self.mem_instr("i32.atomic.rmw8.and_u", memarg, 1)?,
-            I32AtomicRmw16UAnd { memarg } => self.mem_instr("i32.atomic.rmw16.and_u", memarg, 2)?,
-            I64AtomicRmw8UAnd { memarg } => self.mem_instr("i64.atomic.rmw8.and_u", memarg, 1)?,
-            I64AtomicRmw16UAnd { memarg } => self.mem_instr("i64.atomic.rmw16.and_u", memarg, 2)?,
-            I64AtomicRmw32UAnd { memarg } => self.mem_instr("i64.atomic.rmw32.and_u", memarg, 4)?,
+            I32AtomicRmw8AndU { memarg } => self.mem_instr("i32.atomic.rmw8.and_u", memarg, 1)?,
+            I32AtomicRmw16AndU { memarg } => self.mem_instr("i32.atomic.rmw16.and_u", memarg, 2)?,
+            I64AtomicRmw8AndU { memarg } => self.mem_instr("i64.atomic.rmw8.and_u", memarg, 1)?,
+            I64AtomicRmw16AndU { memarg } => self.mem_instr("i64.atomic.rmw16.and_u", memarg, 2)?,
+            I64AtomicRmw32AndU { memarg } => self.mem_instr("i64.atomic.rmw32.and_u", memarg, 4)?,
 
             I32AtomicRmwOr { memarg } => self.mem_instr("i32.atomic.rmw.or", memarg, 4)?,
             I64AtomicRmwOr { memarg } => self.mem_instr("i64.atomic.rmw.or", memarg, 8)?,
-            I32AtomicRmw8UOr { memarg } => self.mem_instr("i32.atomic.rmw8.or_u", memarg, 1)?,
-            I32AtomicRmw16UOr { memarg } => self.mem_instr("i32.atomic.rmw16.or_u", memarg, 2)?,
-            I64AtomicRmw8UOr { memarg } => self.mem_instr("i64.atomic.rmw8.or_u", memarg, 1)?,
-            I64AtomicRmw16UOr { memarg } => self.mem_instr("i64.atomic.rmw16.or_u", memarg, 2)?,
-            I64AtomicRmw32UOr { memarg } => self.mem_instr("i64.atomic.rmw32.or_u", memarg, 4)?,
+            I32AtomicRmw8OrU { memarg } => self.mem_instr("i32.atomic.rmw8.or_u", memarg, 1)?,
+            I32AtomicRmw16OrU { memarg } => self.mem_instr("i32.atomic.rmw16.or_u", memarg, 2)?,
+            I64AtomicRmw8OrU { memarg } => self.mem_instr("i64.atomic.rmw8.or_u", memarg, 1)?,
+            I64AtomicRmw16OrU { memarg } => self.mem_instr("i64.atomic.rmw16.or_u", memarg, 2)?,
+            I64AtomicRmw32OrU { memarg } => self.mem_instr("i64.atomic.rmw32.or_u", memarg, 4)?,
 
             I32AtomicRmwXor { memarg } => self.mem_instr("i32.atomic.rmw.xor", memarg, 4)?,
             I64AtomicRmwXor { memarg } => self.mem_instr("i64.atomic.rmw.xor", memarg, 8)?,
-            I32AtomicRmw8UXor { memarg } => self.mem_instr("i32.atomic.rmw8.xor_u", memarg, 1)?,
-            I32AtomicRmw16UXor { memarg } => self.mem_instr("i32.atomic.rmw16.xor_u", memarg, 2)?,
-            I64AtomicRmw8UXor { memarg } => self.mem_instr("i64.atomic.rmw8.xor_u", memarg, 1)?,
-            I64AtomicRmw16UXor { memarg } => self.mem_instr("i64.atomic.rmw16.xor_u", memarg, 2)?,
-            I64AtomicRmw32UXor { memarg } => self.mem_instr("i64.atomic.rmw32.xor_u", memarg, 4)?,
+            I32AtomicRmw8XorU { memarg } => self.mem_instr("i32.atomic.rmw8.xor_u", memarg, 1)?,
+            I32AtomicRmw16XorU { memarg } => self.mem_instr("i32.atomic.rmw16.xor_u", memarg, 2)?,
+            I64AtomicRmw8XorU { memarg } => self.mem_instr("i64.atomic.rmw8.xor_u", memarg, 1)?,
+            I64AtomicRmw16XorU { memarg } => self.mem_instr("i64.atomic.rmw16.xor_u", memarg, 2)?,
+            I64AtomicRmw32XorU { memarg } => self.mem_instr("i64.atomic.rmw32.xor_u", memarg, 4)?,
 
             I32AtomicRmwXchg { memarg } => self.mem_instr("i32.atomic.rmw.xchg", memarg, 4)?,
             I64AtomicRmwXchg { memarg } => self.mem_instr("i64.atomic.rmw.xchg", memarg, 8)?,
-            I32AtomicRmw8UXchg { memarg } => self.mem_instr("i32.atomic.rmw8.xchg_u", memarg, 1)?,
-            I32AtomicRmw16UXchg { memarg } => {
+            I32AtomicRmw8XchgU { memarg } => self.mem_instr("i32.atomic.rmw8.xchg_u", memarg, 1)?,
+            I32AtomicRmw16XchgU { memarg } => {
                 self.mem_instr("i32.atomic.rmw16.xchg_u", memarg, 2)?
             }
-            I64AtomicRmw8UXchg { memarg } => self.mem_instr("i64.atomic.rmw8.xchg_u", memarg, 1)?,
-            I64AtomicRmw16UXchg { memarg } => {
+            I64AtomicRmw8XchgU { memarg } => self.mem_instr("i64.atomic.rmw8.xchg_u", memarg, 1)?,
+            I64AtomicRmw16XchgU { memarg } => {
                 self.mem_instr("i64.atomic.rmw16.xchg_u", memarg, 2)?
             }
-            I64AtomicRmw32UXchg { memarg } => {
+            I64AtomicRmw32XchgU { memarg } => {
                 self.mem_instr("i64.atomic.rmw32.xchg_u", memarg, 4)?
             }
 
@@ -842,19 +842,19 @@ impl Printer {
             I64AtomicRmwCmpxchg { memarg } => {
                 self.mem_instr("i64.atomic.rmw.cmpxchg", memarg, 8)?
             }
-            I32AtomicRmw8UCmpxchg { memarg } => {
+            I32AtomicRmw8CmpxchgU { memarg } => {
                 self.mem_instr("i32.atomic.rmw8.cmpxchg_u", memarg, 1)?
             }
-            I32AtomicRmw16UCmpxchg { memarg } => {
+            I32AtomicRmw16CmpxchgU { memarg } => {
                 self.mem_instr("i32.atomic.rmw16.cmpxchg_u", memarg, 2)?
             }
-            I64AtomicRmw8UCmpxchg { memarg } => {
+            I64AtomicRmw8CmpxchgU { memarg } => {
                 self.mem_instr("i64.atomic.rmw8.cmpxchg_u", memarg, 1)?
             }
-            I64AtomicRmw16UCmpxchg { memarg } => {
+            I64AtomicRmw16CmpxchgU { memarg } => {
                 self.mem_instr("i64.atomic.rmw16.cmpxchg_u", memarg, 2)?
             }
-            I64AtomicRmw32UCmpxchg { memarg } => {
+            I64AtomicRmw32CmpxchgU { memarg } => {
                 self.mem_instr("i64.atomic.rmw32.cmpxchg_u", memarg, 4)?
             }
 
