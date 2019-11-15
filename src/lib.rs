@@ -537,7 +537,7 @@ impl Printer {
 
             RefNull => self.result.push_str("ref.null"),
             RefIsNull => self.result.push_str("ref.is_null"),
-            RefFunc { index }  => {
+            RefFunc { index } => {
                 self.result.push_str("ref.func ");
                 self.print_func_idx(*index)?;
             }
