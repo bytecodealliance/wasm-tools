@@ -760,6 +760,7 @@ impl Printer {
             TableSet { table } => write!(self.result, "table.set {}", table)?,
             TableGrow { table } => write!(self.result, "table.grow {}", table)?,
             TableSize { table } => write!(self.result, "table.size {}", table)?,
+            TableFill { table } => write!(self.result, "table.fill {}", table)?,
 
             AtomicNotify { memarg } => self.mem_instr("atomic.notify", memarg, 4)?,
             I32AtomicWait { memarg } => self.mem_instr("i32.atomic.wait", memarg, 4)?,
