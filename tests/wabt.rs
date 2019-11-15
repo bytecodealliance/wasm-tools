@@ -138,6 +138,16 @@ fn skip_test(test: &Path, contents: &str) -> bool {
         return true;
     }
 
+    // Looks like wabt doesn't implement table.fill yet
+    if test.ends_with("reference-types/table_fill.wast") {
+        return true;
+    }
+
+    // Looks like wabt doesn't implement ref.func in globals yet
+    if test.ends_with("reference-types/ref_func.wast") {
+        return true;
+    }
+
     false
 }
 
