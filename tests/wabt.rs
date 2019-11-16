@@ -126,7 +126,7 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
                 }
 
                 WastDirective::AssertMalformed {
-                    span: _,
+                    span,
                     module: QuoteModule::Quote(source),
                     message,
                 } => {
@@ -142,14 +142,16 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
                             e.set_text(&source);
                             e
                         });
+                    let (line, col) = span.linecol_in(&contents);
                     match result {
                         Ok(()) => anyhow::bail!(
                             "\
-                             in test {:?} parsed {:?} successfully\n\
+                             test {}:{}:{} parsed successfully\n\
                              but should have failed with: {}\
                              ",
-                            test,
-                            source,
+                            test.display(),
+                            line + 1,
+                            col + 1,
                             message,
                         ),
                         Err(e) => {
@@ -158,11 +160,12 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
                             }
                             anyhow::bail!(
                                 "\
-                                 in test {:?} parsed {:?} with error: {}\n\
-                                 but should have failed with: {}\
+                                 in test {}:{}:{} parsed with:\nerror: {}\n\
+                                 but should have failed with: {:?}\
                                  ",
-                                test,
-                                source,
+                                test.display(),
+                                line + 1,
+                                col + 1,
                                 e,
                                 message,
                             );
@@ -185,7 +188,7 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
     }
     let mut s = format!("{} test failures in {}:", errors.len(), test.display());
     for error in errors {
-        s.push_str("\n\t");
+        s.push_str("\n\n\t--------------------------------\n\n\t");
         s.push_str(&error.to_string().replace("\n", "\n\t"));
     }
     anyhow::bail!("{}", s)
