@@ -412,6 +412,8 @@ macro_rules! float {
                     let shift = exp_offset as i32 + exponent + bias;
                     if shift == 0 {
                         (0, 0, significand)
+                    } else if shift < 0 || shift >= width as i32 {
+                        (0, 0, 0)
                     } else {
                         (
                             0,
