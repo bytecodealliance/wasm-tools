@@ -38,7 +38,7 @@ pub fn print_bytes(wasm: impl AsRef<[u8]>) -> Result<String> {
 /// custom sections in a wasm binary.
 #[derive(Default)]
 pub struct Printer {
-    printers: HashMap<String, Box<dyn FnMut(&mut Printer, &[u8]) -> Result<()>>>,
+    printers: HashMap<String, Box<dyn FnMut(&mut Printer, usize, &[u8]) -> Result<()>>>,
     result: String,
     func: u32,
     memory: u32,
@@ -66,10 +66,17 @@ impl Printer {
     /// references (maybe coments!)
     ///
     /// By default all custom sections are ignored for the text format.
+    ///
+    /// The `printer` function provided takes three arguments:
+    ///
+    /// * A `&mut Printer`, or where to print results to
+    /// * A `usize` offset which is the start of the offset for the custom
+    ///   section
+    /// * A byte slice which is the actual contents of the custom section.
     pub fn add_custom_section_printer(
         &mut self,
         section: &str,
-        printer: impl FnMut(&mut Printer, &[u8]) -> Result<()> + 'static,
+        printer: impl FnMut(&mut Printer, usize, &[u8]) -> Result<()> + 'static,
     ) {
         self.printers.insert(section.to_string(), Box::new(printer));
     }
@@ -123,7 +130,7 @@ impl Printer {
                 SectionCode::Custom { name, .. } => {
                     let range = section.get_binary_reader().range();
                     if let Some(printer) = printers.get_mut(name) {
-                        printer(self, &wasm[range.start..range.end])?;
+                        printer(self, range.start, &wasm[range.start..range.end])?;
                     }
                 }
                 SectionCode::Type => {
