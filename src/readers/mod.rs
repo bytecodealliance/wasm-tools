@@ -33,6 +33,7 @@ pub use self::element_section::ActiveElementItemsReader;
 pub use self::element_section::Element;
 pub use self::element_section::ElementKind;
 pub use self::element_section::ElementSectionReader;
+pub use self::element_section::PassiveElementItem;
 pub use self::element_section::PassiveElementItems;
 pub use self::export_section::Export;
 pub use self::export_section::ExportSectionReader;
