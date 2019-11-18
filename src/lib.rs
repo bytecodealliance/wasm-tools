@@ -593,9 +593,9 @@ impl Printer {
 
             RefNull => self.result.push_str("ref.null"),
             RefIsNull => self.result.push_str("ref.is_null"),
-            RefFunc { index } => {
+            RefFunc { function_index } => {
                 self.result.push_str("ref.func ");
-                self.print_func_idx(*index)?;
+                self.print_func_idx(*function_index)?;
             }
 
             I32Eqz => self.result.push_str("i32.eqz"),
@@ -1119,13 +1119,13 @@ impl Printer {
                 ElementKind::Passive { ty, items } => {
                     self.print_valtype(*ty)?;
                     for _ in 0..items.get_count() {
-                        match items.get_next_func_idx()? {
-                            Some(idx) => {
+                        match items.read()? {
+                            PassiveElementItem::Func(idx) => {
                                 self.result.push_str(" (ref.func ");
                                 self.print_func_idx(idx)?;
                                 self.result.push_str(")");
                             }
-                            None => {
+                            PassiveElementItem::Null => {
                                 self.result.push_str(" (ref.null)");
                             }
                         }
