@@ -1134,6 +1134,9 @@ impl<'a> BinaryReader<'a> {
 
             0xd0 => Operator::RefNull,
             0xd1 => Operator::RefIsNull,
+            0xd2 => Operator::RefFunc {
+                function_index: self.read_var_u32()?,
+            },
 
             0xfc => self.read_0xfc_operator()?,
             0xfd => self.read_0xfd_operator()?,

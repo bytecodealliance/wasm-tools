@@ -45,6 +45,7 @@ type ValidatorResult<'a, T> = result::Result<T, ParserState<'a>>;
 struct InitExpressionState {
     ty: Type,
     global_count: usize,
+    function_count: usize,
     validated: bool,
 }
 
@@ -241,11 +242,15 @@ impl<'a> ValidatingParser<'a> {
     }
 
     fn check_table_type(&self, table_type: &TableType) -> ValidatorResult<'a, ()> {
-        if let Type::AnyFunc = table_type.element_type {
-            self.check_limits(&table_type.limits)
-        } else {
-            self.create_error("element is not anyfunc")
+        match table_type.element_type {
+            Type::AnyFunc => {}
+            _ => {
+                if !self.config.operator_config.enable_reference_types {
+                    return self.create_error("element is not anyfunc");
+                }
+            }
         }
+        self.check_limits(&table_type.limits)
     }
 
     fn check_memory_type(&self, memory_type: &MemoryType) -> ValidatorResult<'a, ()> {
@@ -277,7 +282,9 @@ impl<'a> ValidatingParser<'a> {
                 Ok(())
             }
             ImportSectionEntryType::Table(ref table_type) => {
-                if self.resources.tables.len() >= MAX_WASM_TABLES {
+                if !self.config.operator_config.enable_reference_types
+                    && self.resources.tables.len() >= MAX_WASM_TABLES
+                {
                     return self.create_error("tables count must be at most 1");
                 }
                 self.check_table_type(table_type)
@@ -324,6 +331,12 @@ impl<'a> ValidatingParser<'a> {
                     return self.create_error("init_expr global index out of bounds");
                 }
                 self.resources.globals[global_index as usize].content_type
+            }
+            Operator::RefFunc { function_index } => {
+                if function_index as usize >= state.function_count {
+                    return self.create_error("init_expr function index out of bounds");
+                }
+                Type::AnyFunc
             }
             _ => return self.create_error("invalid init_expr operator"),
         };
@@ -462,7 +475,9 @@ impl<'a> ValidatingParser<'a> {
                 }
             }
             ParserState::TableSectionEntry(ref table_type) => {
-                if self.resources.tables.len() >= MAX_WASM_TABLES {
+                if !self.config.operator_config.enable_reference_types
+                    && self.resources.tables.len() >= MAX_WASM_TABLES
+                {
                     self.validation_error =
                         self.create_validation_error("tables count must be at most 1");
                 } else {
@@ -488,6 +503,7 @@ impl<'a> ValidatingParser<'a> {
                     self.init_expression_state = Some(InitExpressionState {
                         ty: global_type.content_type,
                         global_count: self.resources.globals.len(),
+                        function_count: self.resources.func_type_indices.len(),
                         validated: false,
                     });
                     self.resources.globals.push(global_type);
@@ -531,6 +547,7 @@ impl<'a> ValidatingParser<'a> {
                     self.init_expression_state = Some(InitExpressionState {
                         ty: Type::I32,
                         global_count: self.resources.globals.len(),
+                        function_count: self.resources.func_type_indices.len(),
                         validated: false,
                     });
                 }
@@ -595,6 +612,7 @@ impl<'a> ValidatingParser<'a> {
                     self.init_expression_state = Some(InitExpressionState {
                         ty: Type::I32,
                         global_count: self.resources.globals.len(),
+                        function_count: self.resources.func_type_indices.len(),
                         validated: false,
                     });
                 }
