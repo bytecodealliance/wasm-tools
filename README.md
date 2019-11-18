@@ -1,21 +1,26 @@
-# wasmprinter
+<div align="center">
+  <h1><code>wasmprinter</code></h1>
 
-**A [Bytecode Alliance](https://bytecodealliance.org/) project**
+<strong>A <a href="https://bytecodealliance.org/">Bytecode Alliance</a> project</strong>
 
-A Rust parser for printing a WebAssembly binary in the [WebAssembly Text format
-(WAT)][wat]
+  <p>
+    <strong>A Rust parser for printing a WebAssembly binary in the <a href="https://webassembly.github.io/spec/core/text/index.html">WebAssembly Text Format (WAT)</a>.</strong>
+  </p>
 
-[Documentation](https://docs.rs/wasmprinter)
-
-[wat]: http://webassembly.github.io/spec/core/text/index.html
+  <p>
+    <a href="https://crates.io/crates/wasmprinter"><img src="https://img.shields.io/crates/v/wasmprinter.svg?style=flat-square" alt="Crates.io version" /></a>
+    <a href="https://crates.io/crates/wasmprinter"><img src="https://img.shields.io/crates/d/wasmprinter.svg?style=flat-square" alt="Download" /></a>
+    <a href="https://docs.rs/wasmprinter/"><img src="https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square" alt="docs.rs docs" /></a>
+  </p>
+</div>
 
 ## Usage
 
-This crate is published on crates.io, so you can depend on it with:
+This crate is published on `crates.io`, so you can depend on it with:
 
 ```toml
 [dependencies]
-wasmprinter = "1.0"
+wasmprinter = "0.2.0"
 ```
 
 You can then convert wasm binaries to strings like so:
@@ -31,10 +36,10 @@ fn main() -> Result<()> {
 }
 ```
 
-# License
+## License
 
-This project is license under the Apache 2.0 license with the LLVM exception.
-See [LICENSE] for more details.
+This project is licensed under the Apache 2.0 license with the LLVM exception.
+See [LICENSE](LICENSE) for more details.
 
 ### Contribution
 
