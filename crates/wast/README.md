@@ -1,12 +1,19 @@
-# wast
+<div align="center">
+  <h1><code>wast</code></h1>
 
-**A [Bytecode Alliance](https://bytecodealliance.org/) project**
+<strong>A <a href="https://bytecodealliance.org/">Bytecode Alliance</a> project</strong>
 
-A Rust parser for the WebAssembly Text format: [WAT][wat] and WAST
+  <p>
+    <strong>A Rust parser for the <a href="https://webassembly.github.io/spec/core/text/index.html">WebAssembly Text Format (WAT)</a>.</strong>
+  </p>
 
-[![Documentation](https://docs.rs/wast/badge.svg)](https://docs.rs/wast)
+  <p>
+    <a href="https://crates.io/crates/wast"><img src="https://img.shields.io/crates/v/wast.svg?style=flat-square" alt="Crates.io version" /></a>
+    <a href="https://crates.io/crates/wast"><img src="https://img.shields.io/crates/d/wast.svg?style=flat-square" alt="Download" /></a>
+    <a href="https://docs.rs/wast/"><img src="https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square" alt="docs.rs docs" /></a>
+  </p>
+</div>
 
-[wat]: http://webassembly.github.io/spec/core/text/index.html
 
 ## Usage
 
@@ -45,8 +52,8 @@ wast = { version = "3.0", default-features = false }
 
 # License
 
-This project is license under the Apache 2.0 license with the LLVM exception.
-See [LICENSE] for more details.
+This project is licensed under the Apache 2.0 license with the LLVM exception.
+See [LICENSE](LICENSE) for more details.
 
 ### Contribution
 

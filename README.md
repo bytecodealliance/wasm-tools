@@ -1,13 +1,19 @@
-# wat
+<div align="center">
+  <h1><code>wat</code></h1>
 
-**A [Bytecode Alliance](https://bytecodealliance.org/) project**
+<strong>A <a href="https://bytecodealliance.org/">Bytecode Alliance</a> project</strong>
 
-A Rust parser for the [WebAssembly Text format (WAT)][wat]
+  <p>
+    <strong>A Rust parser for the <a href="https://webassembly.github.io/spec/core/text/index.html">WebAssembly Text Format (WAT)</a>.</strong>
+  </p>
 
-* `wat` - [![Documentation (`wat`)](https://docs.rs/wat/badge.svg)](https://docs.rs/wat)
-* `wast` - [![Documentation (`wast`)](https://docs.rs/wast/badge.svg)](https://docs.rs/wast)
-
-[wat]: http://webassembly.github.io/spec/core/text/index.html
+  <p>
+    <a href="https://crates.io/crates/wat"><img src="https://img.shields.io/crates/v/wat.svg?style=flat-square" alt="Crates.io version" /></a>
+    <a href="https://crates.io/crates/wat"><img src="https://img.shields.io/crates/d/wat.svg?style=flat-square" alt="Download" /></a>
+    <a href="https://docs.rs/wat/"><img src="https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square&label=wat" alt="docs.rs docs" /></a>
+    <a href="https://docs.rs/wast/"><img src="https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square&label=wast" alt="docs.rs docs" /></a>
+  </p>
+</div>
 
 ## Usage
 
@@ -58,8 +64,8 @@ break if the upstream spec changes.
 
 # License
 
-This project is license under the Apache 2.0 license with the LLVM exception.
-See [LICENSE] for more details.
+This project is licensed under the Apache 2.0 license with the LLVM exception.
+See [LICENSE](LICENSE) for more details.
 
 ### Contribution
 
