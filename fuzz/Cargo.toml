@@ -13,7 +13,6 @@ wast = { path = "../crates/wast" }
 wast-fuzz = { path = "../crates/wast-fuzz" }
 libfuzzer-sys = { git = "https://github.com/rust-fuzz/libfuzzer-sys" }
 tempfile = "3.0"
-wasmparser = "0.32"
 
 [[bin]]
 name = "lexer"
