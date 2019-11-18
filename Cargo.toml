@@ -18,8 +18,7 @@ members = ['fuzz']
 
 [dependencies]
 anyhow = "1.0"
-#wasmparser = "0.42"
-wasmparser = { git = 'https://github.com/alexcrichton/wasmparser.rs', branch = 'reexport' }
+wasmparser = "0.42.1"
 
 [dev-dependencies]
 diff = "0.1"
