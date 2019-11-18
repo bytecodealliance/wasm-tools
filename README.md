@@ -10,8 +10,8 @@
   <p>
     <a href="https://crates.io/crates/wat"><img src="https://img.shields.io/crates/v/wat.svg?style=flat-square" alt="Crates.io version" /></a>
     <a href="https://crates.io/crates/wat"><img src="https://img.shields.io/crates/d/wat.svg?style=flat-square" alt="Download" /></a>
-    <a href="https://docs.rs/wat/"><img src="https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square&label=wat" alt="docs.rs docs" /></a>
-    <a href="https://docs.rs/wast/"><img src="https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square&label=wast" alt="docs.rs docs" /></a>
+    <a href="https://docs.rs/wat/"><img src="https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square&message=wat" alt="docs.rs docs" /></a>
+    <a href="https://docs.rs/wast/"><img src="https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square&message=wast" alt="docs.rs docs" /></a>
   </p>
 </div>
 
