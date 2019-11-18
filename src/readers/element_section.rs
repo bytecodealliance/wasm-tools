@@ -14,50 +14,54 @@
  */
 
 use super::{
-    BinaryReader, BinaryReaderError, InitExpr, Result, SectionIteratorLimited, SectionReader,
-    SectionWithLimitedItems, Type,
+    BinaryReader, BinaryReaderError, InitExpr, OperatorsReader, Result, SectionIteratorLimited,
+    SectionReader, SectionWithLimitedItems, Type,
 };
+use crate::Operator;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Clone)]
 pub struct Element<'a> {
     pub kind: ElementKind<'a>,
-    pub items: ElementItems<'a>,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Clone)]
 pub enum ElementKind<'a> {
-    Passive(Type),
+    Passive {
+        ty: Type,
+        items: PassiveElementItems<'a>,
+    },
     Active {
         table_index: u32,
         init_expr: InitExpr<'a>,
+        items: ActiveElementItems<'a>,
     },
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct ElementItems<'a> {
+pub struct ActiveElementItems<'a> {
     offset: usize,
     data: &'a [u8],
 }
 
-impl<'a> ElementItems<'a> {
-    pub fn get_items_reader<'b>(&self) -> Result<ElementItemsReader<'b>>
+impl<'a> ActiveElementItems<'a> {
+    pub fn get_items_reader<'b>(&self) -> Result<ActiveElementItemsReader<'b>>
     where
         'a: 'b,
     {
-        ElementItemsReader::new(self.data, self.offset)
+        ActiveElementItemsReader::new(self.data, self.offset)
     }
 }
 
-pub struct ElementItemsReader<'a> {
+pub struct ActiveElementItemsReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,
 }
 
-impl<'a> ElementItemsReader<'a> {
-    pub fn new(data: &[u8], offset: usize) -> Result<ElementItemsReader> {
+impl<'a> ActiveElementItemsReader<'a> {
+    pub fn new(data: &[u8], offset: usize) -> Result<ActiveElementItemsReader> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
-        Ok(ElementItemsReader { reader, count })
+        Ok(ActiveElementItemsReader { reader, count })
     }
 
     pub fn original_position(&self) -> usize {
@@ -73,12 +77,12 @@ impl<'a> ElementItemsReader<'a> {
     }
 }
 
-impl<'a> IntoIterator for ElementItemsReader<'a> {
+impl<'a> IntoIterator for ActiveElementItemsReader<'a> {
     type Item = Result<u32>;
-    type IntoIter = ElementItemsIterator<'a>;
+    type IntoIter = ActiveElementItemsIterator<'a>;
     fn into_iter(self) -> Self::IntoIter {
         let count = self.count;
-        ElementItemsIterator {
+        ActiveElementItemsIterator {
             reader: self,
             left: count,
             err: false,
@@ -86,13 +90,13 @@ impl<'a> IntoIterator for ElementItemsReader<'a> {
     }
 }
 
-pub struct ElementItemsIterator<'a> {
-    reader: ElementItemsReader<'a>,
+pub struct ActiveElementItemsIterator<'a> {
+    reader: ActiveElementItemsReader<'a>,
     left: u32,
     err: bool,
 }
 
-impl<'a> Iterator for ElementItemsIterator<'a> {
+impl<'a> Iterator for ActiveElementItemsIterator<'a> {
     type Item = Result<u32>;
     fn next(&mut self) -> Option<Self::Item> {
         if self.err || self.left == 0 {
@@ -106,6 +110,50 @@ impl<'a> Iterator for ElementItemsIterator<'a> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         let count = self.reader.get_count() as usize;
         (count, Some(count))
+    }
+}
+
+#[derive(Clone)]
+pub struct PassiveElementItems<'a> {
+    amt: u32,
+    reader: OperatorsReader<'a>,
+}
+
+pub enum PassiveElementItem {
+    Null,
+    Func(u32),
+}
+
+impl<'a> PassiveElementItems<'a> {
+    pub fn get_count(&self) -> u32 {
+        self.amt
+    }
+
+    pub fn read(&mut self) -> Result<PassiveElementItem> {
+        let ret = match self.reader.read_with_offset()? {
+            (Operator::RefNull, _) => PassiveElementItem::Null,
+            (Operator::RefFunc { function_index }, _) => PassiveElementItem::Func(function_index),
+            (_, offset) => {
+                return Err(BinaryReaderError {
+                    message: "invalid passive segment",
+                    offset,
+                })
+            }
+        };
+        match self.reader.read_with_offset()? {
+            (Operator::End, _) => {}
+            (_, offset) => {
+                return Err(BinaryReaderError {
+                    message: "invalid passive segment",
+                    offset,
+                })
+            }
+        }
+        self.amt -= 1;
+        if self.amt == 0 {
+            self.reader.ensure_end()?;
+        }
+        Ok(ret)
     }
 }
 
@@ -148,16 +196,15 @@ impl<'a> ElementSectionReader<'a> {
     /// let mut element_reader = section.get_element_section_reader().expect("element section reader");
     /// for _ in 0..element_reader.get_count() {
     ///     let element = element_reader.read().expect("element");
-    ///     println!("Element: {:?}", element);
-    ///     if let ElementKind::Active { init_expr, .. } = element.kind {
+    ///     if let ElementKind::Active { items, init_expr, .. } = element.kind {
     ///         let mut init_expr_reader = init_expr.get_binary_reader();
     ///         let op = init_expr_reader.read_operator().expect("op");
     ///         println!("Init const: {:?}", op);
-    ///     }
-    ///     let mut items_reader = element.items.get_items_reader().expect("items reader");
-    ///     for _ in 0..items_reader.get_count() {
-    ///         let item = items_reader.read().expect("item");
-    ///         println!("  Item: {}", item);
+    ///         let mut items_reader = items.get_items_reader().expect("items reader");
+    ///         for _ in 0..items_reader.get_count() {
+    ///             let item = items_reader.read().expect("item");
+    ///             println!("  Item: {}", item);
+    ///         }
     ///     }
     /// }
     /// ```
@@ -168,7 +215,29 @@ impl<'a> ElementSectionReader<'a> {
         let flags = self.reader.read_var_u32()?;
         let kind = if flags == 1 {
             let ty = self.reader.read_type()?;
-            ElementKind::Passive(ty)
+            let amt = self.reader.read_var_u32()?;
+            let data_start = self.reader.position;
+            let mut reader = OperatorsReader {
+                reader: self.reader.clone(),
+            };
+            for _ in 0..amt {
+                loop {
+                    match reader.read()? {
+                        Operator::End => break,
+                        _ => {}
+                    }
+                }
+            }
+            self.reader = reader.reader;
+            let data_end = self.reader.position;
+            let items = PassiveElementItems {
+                amt,
+                reader: OperatorsReader::new(
+                    &self.reader.buffer[data_start..data_end],
+                    self.reader.original_offset + data_start,
+                ),
+            };
+            ElementKind::Passive { ty, items }
         } else {
             let table_index = match flags {
                 0 => 0,
@@ -186,22 +255,23 @@ impl<'a> ElementSectionReader<'a> {
                 let data = &self.reader.buffer[expr_offset..self.reader.position];
                 InitExpr::new(data, self.reader.original_offset + expr_offset)
             };
+            let data_start = self.reader.position;
+            let items_count = self.reader.read_var_u32()?;
+            for _ in 0..items_count {
+                self.reader.skip_var_32()?;
+            }
+            let data_end = self.reader.position;
+            let items = ActiveElementItems {
+                offset: self.reader.original_offset + data_start,
+                data: &self.reader.buffer[data_start..data_end],
+            };
             ElementKind::Active {
                 table_index,
                 init_expr,
+                items,
             }
         };
-        let data_start = self.reader.position;
-        let items_count = self.reader.read_var_u32()?;
-        for _ in 0..items_count {
-            self.reader.skip_var_32()?;
-        }
-        let data_end = self.reader.position;
-        let items = ElementItems {
-            offset: self.reader.original_offset + data_start,
-            data: &self.reader.buffer[data_start..data_end],
-        };
-        Ok(Element { kind, items })
+        Ok(Element { kind })
     }
 }
 

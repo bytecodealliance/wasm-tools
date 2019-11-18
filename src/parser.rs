@@ -28,11 +28,11 @@ use crate::primitives::{
 };
 
 use crate::readers::{
-    CodeSectionReader, Data, DataKind, DataSectionReader, Element, ElementItems, ElementKind,
+    ActiveElementItems, CodeSectionReader, Data, DataKind, DataSectionReader, Element, ElementKind,
     ElementSectionReader, Export, ExportSectionReader, FunctionBody, FunctionSectionReader, Global,
     GlobalSectionReader, Import, ImportSectionReader, LinkingSectionReader, MemorySectionReader,
-    ModuleReader, Name, NameSectionReader, NamingReader, OperatorsReader, Reloc,
-    RelocSectionReader, Section, SectionReader, TableSectionReader, TypeSectionReader,
+    ModuleReader, Name, NameSectionReader, NamingReader, OperatorsReader, PassiveElementItems,
+    Reloc, RelocSectionReader, Section, SectionReader, TableSectionReader, TypeSectionReader,
 };
 
 use crate::binary_reader::{BinaryReader, Range};
@@ -204,7 +204,8 @@ pub struct Parser<'a> {
     module_reader: Option<ModuleReader<'a>>,
     current_section: Option<Section<'a>>,
     section_reader: ParserSectionReader<'a>,
-    element_items: Option<ElementItems<'a>>,
+    passive_element_items: Option<PassiveElementItems<'a>>,
+    active_element_items: Option<ActiveElementItems<'a>>,
     current_function_body: Option<FunctionBody<'a>>,
     init_expr_continuation: Option<InitExpressionContinuation>,
     current_data_segment: Option<&'a [u8]>,
@@ -230,7 +231,8 @@ impl<'a> Parser<'a> {
             module_reader: None,
             current_section: None,
             section_reader: ParserSectionReader::None,
-            element_items: None,
+            active_element_items: None,
+            passive_element_items: None,
             current_function_body: None,
             init_expr_continuation: None,
             current_data_segment: None,
@@ -419,27 +421,29 @@ impl<'a> Parser<'a> {
         if self.section_entries_left == 0 {
             return self.check_section_end();
         }
-        let Element { kind, items } = section_reader!(self, ElementSectionReader).read()?;
+        let Element { kind } = section_reader!(self, ElementSectionReader).read()?;
         match kind {
-            ElementKind::Passive(ty) => {
+            ElementKind::Passive { ty, items } => {
                 self.state = ParserState::BeginPassiveElementSectionEntry(ty);
+                self.passive_element_items = Some(items);
             }
             ElementKind::Active {
                 table_index,
                 init_expr,
+                items,
             } => {
                 self.state = ParserState::BeginActiveElementSectionEntry(table_index);
                 self.operators_reader = Some(init_expr.get_operators_reader());
+                self.active_element_items = Some(items);
             }
         }
-        self.element_items = Some(items);
         self.section_entries_left -= 1;
         Ok(())
     }
 
     fn read_element_entry_body(&mut self) -> Result<()> {
         let mut reader = self
-            .element_items
+            .active_element_items
             .take()
             .expect("element items")
             .get_items_reader()?;
