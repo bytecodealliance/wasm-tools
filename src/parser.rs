@@ -31,8 +31,9 @@ use crate::readers::{
     ActiveElementItems, CodeSectionReader, Data, DataKind, DataSectionReader, Element, ElementKind,
     ElementSectionReader, Export, ExportSectionReader, FunctionBody, FunctionSectionReader, Global,
     GlobalSectionReader, Import, ImportSectionReader, LinkingSectionReader, MemorySectionReader,
-    ModuleReader, Name, NameSectionReader, NamingReader, OperatorsReader, PassiveElementItems,
-    Reloc, RelocSectionReader, Section, SectionReader, TableSectionReader, TypeSectionReader,
+    ModuleReader, Name, NameSectionReader, NamingReader, OperatorsReader, PassiveElementItem,
+    PassiveElementItems, Reloc, RelocSectionReader, Section, SectionReader, TableSectionReader,
+    TypeSectionReader,
 };
 
 use crate::binary_reader::{BinaryReader, Range};
@@ -116,9 +117,12 @@ pub enum ParserState<'a> {
     EndFunctionBody,
     SkippingFunctionBody,
 
-    BeginPassiveElementSectionEntry(Type),
     BeginActiveElementSectionEntry(u32),
     ElementSectionEntryBody(Box<[u32]>),
+    PassiveElementSectionEntry {
+        ty: Type,
+        items: Box<[PassiveElementItem]>,
+    },
     EndElementSectionEntry,
 
     BeginPassiveDataSectionEntry,
@@ -204,7 +208,6 @@ pub struct Parser<'a> {
     module_reader: Option<ModuleReader<'a>>,
     current_section: Option<Section<'a>>,
     section_reader: ParserSectionReader<'a>,
-    passive_element_items: Option<PassiveElementItems<'a>>,
     active_element_items: Option<ActiveElementItems<'a>>,
     current_function_body: Option<FunctionBody<'a>>,
     init_expr_continuation: Option<InitExpressionContinuationSection>,
@@ -232,7 +235,6 @@ impl<'a> Parser<'a> {
             current_section: None,
             section_reader: ParserSectionReader::None,
             active_element_items: None,
-            passive_element_items: None,
             current_function_body: None,
             init_expr_continuation: None,
             current_data_segment: None,
@@ -424,8 +426,10 @@ impl<'a> Parser<'a> {
         let Element { kind } = section_reader!(self, ElementSectionReader).read()?;
         match kind {
             ElementKind::Passive { ty, items } => {
-                self.state = ParserState::BeginPassiveElementSectionEntry(ty);
-                self.passive_element_items = Some(items);
+                self.state = ParserState::PassiveElementSectionEntry {
+                    ty,
+                    items: self.read_passive_elements(items)?,
+                };
             }
             ElementKind::Active {
                 table_index,
@@ -460,6 +464,22 @@ impl<'a> Parser<'a> {
         }
         self.state = ParserState::ElementSectionEntryBody(elements.into_boxed_slice());
         Ok(())
+    }
+
+    fn read_passive_elements(
+        &mut self,
+        items: PassiveElementItems,
+    ) -> Result<Box<[PassiveElementItem]>> {
+        let reader = items.get_items_reader()?;
+        let num_elements = reader.get_count() as usize;
+        if num_elements > MAX_WASM_TABLE_ENTRIES {
+            return Err(BinaryReaderError {
+                message: "num_elements is out of bounds",
+                offset: 0, // reader.position - 1, // TODO offset
+            });
+        }
+        let elements: Vec<PassiveElementItem> = reader.into_iter().collect::<Result<Vec<_>>>()?;
+        Ok(elements.into_boxed_slice())
     }
 
     fn read_function_body(&mut self) -> Result<()> {
@@ -914,7 +934,7 @@ impl<'a> Parser<'a> {
                 self.read_init_expression_body(InitExpressionContinuationSection::Global)
             }
             ParserState::EndGlobalSectionEntry => self.read_global_entry()?,
-            ParserState::BeginPassiveElementSectionEntry(_) => self.read_element_entry_body()?,
+            ParserState::PassiveElementSectionEntry { .. } => self.read_element_entry()?,
             ParserState::BeginActiveElementSectionEntry(_) => {
                 self.read_init_expression_body(InitExpressionContinuationSection::Element)
             }

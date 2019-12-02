@@ -111,6 +111,7 @@ pub use crate::readers::NamingReader;
 pub use crate::readers::OperatorsReader;
 pub use crate::readers::PassiveElementItem;
 pub use crate::readers::PassiveElementItems;
+pub use crate::readers::PassiveElementItemsReader;
 pub use crate::readers::ProducersField;
 pub use crate::readers::ProducersFieldValue;
 pub use crate::readers::ProducersSectionReader;

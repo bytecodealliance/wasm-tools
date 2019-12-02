@@ -523,7 +523,7 @@ impl<'a> ValidatingParser<'a> {
             ParserState::DataCountSectionEntry(count) => {
                 self.resources.data_count = Some(count);
             }
-            ParserState::BeginPassiveElementSectionEntry(_ty) => {
+            ParserState::PassiveElementSectionEntry { .. } => {
                 self.resources.element_count += 1;
             }
             ParserState::BeginActiveElementSectionEntry(table_index) => {

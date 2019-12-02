@@ -115,18 +115,40 @@ impl<'a> Iterator for ActiveElementItemsIterator<'a> {
 
 #[derive(Clone)]
 pub struct PassiveElementItems<'a> {
+    offset: usize,
+    data: &'a [u8],
     amt: u32,
-    reader: OperatorsReader<'a>,
 }
 
+impl<'a> PassiveElementItems<'a> {
+    pub fn get_items_reader<'b>(&self) -> Result<PassiveElementItemsReader<'b>>
+    where
+        'a: 'b,
+    {
+        PassiveElementItemsReader::new(self.data, self.offset, self.amt)
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum PassiveElementItem {
     Null,
     Func(u32),
 }
 
-impl<'a> PassiveElementItems<'a> {
+#[derive(Clone)]
+pub struct PassiveElementItemsReader<'a> {
+    reader: OperatorsReader<'a>,
+    count: u32,
+}
+
+impl<'a> PassiveElementItemsReader<'a> {
+    pub fn new(data: &[u8], offset: usize, count: u32) -> Result<PassiveElementItemsReader> {
+        let reader = OperatorsReader::new(data, offset);
+        Ok(PassiveElementItemsReader { reader, count })
+    }
+
     pub fn get_count(&self) -> u32 {
-        self.amt
+        self.count
     }
 
     pub fn read(&mut self) -> Result<PassiveElementItem> {
@@ -149,11 +171,43 @@ impl<'a> PassiveElementItems<'a> {
                 })
             }
         }
-        self.amt -= 1;
-        if self.amt == 0 {
-            self.reader.ensure_end()?;
-        }
         Ok(ret)
+    }
+}
+
+impl<'a> IntoIterator for PassiveElementItemsReader<'a> {
+    type Item = Result<PassiveElementItem>;
+    type IntoIter = PassiveElementItemsIterator<'a>;
+    fn into_iter(self) -> Self::IntoIter {
+        let count = self.count;
+        PassiveElementItemsIterator {
+            reader: self,
+            left: count,
+            err: false,
+        }
+    }
+}
+
+pub struct PassiveElementItemsIterator<'a> {
+    reader: PassiveElementItemsReader<'a>,
+    left: u32,
+    err: bool,
+}
+
+impl<'a> Iterator for PassiveElementItemsIterator<'a> {
+    type Item = Result<PassiveElementItem>;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.err || self.left == 0 {
+            return None;
+        }
+        let result = self.reader.read();
+        self.err = result.is_err();
+        self.left -= 1;
+        Some(result)
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let count = self.reader.get_count() as usize;
+        (count, Some(count))
     }
 }
 
@@ -184,7 +238,8 @@ impl<'a> ElementSectionReader<'a> {
     /// # let data: &[u8] = &[0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
     /// #     0x01, 0x4, 0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00,
     /// #     0x05, 0x03, 0x01, 0x00, 0x02,
-    /// #     0x09, 0x07, 0x01, 0x00, 0x41, 0x00, 0x0B, 0x01, 0x00,
+    /// #     0x09, 0x0F, 0x02, 0x00, 0x41, 0x00, 0x0B, 0x01, 0x00,
+    /// #     0x01, 0x70, 0x02, 0xD0, 0x0B, 0xD2, 0x00, 0x0B,
     /// #     0x0a, 0x05, 0x01, 0x03, 0x00, 0x01, 0x0b];
     /// use wasmparser::{ModuleReader, ElementKind};
     ///use wasmparser::Result;
@@ -206,6 +261,14 @@ impl<'a> ElementSectionReader<'a> {
     ///             println!("  Item: {}", item);
     ///         }
     ///     }
+    ///     if let ElementKind::Passive { ty, items } = element.kind {
+    ///         println!("Type: {:?}", ty);
+    ///         let mut items_reader = items.get_items_reader().expect("items reader");
+    ///         for _ in 0..items_reader.get_count() {
+    ///             let item = items_reader.read().expect("item");
+    ///             println!("  Item: {:?}", item);
+    ///         }
+    ///     }
     /// }
     /// ```
     pub fn read<'b>(&mut self) -> Result<Element<'b>>
@@ -217,24 +280,14 @@ impl<'a> ElementSectionReader<'a> {
             let ty = self.reader.read_type()?;
             let amt = self.reader.read_var_u32()?;
             let data_start = self.reader.position;
-            let mut reader = OperatorsReader {
-                reader: self.reader.clone(),
-            };
             for _ in 0..amt {
-                loop {
-                    if let Operator::End = reader.read()? {
-                        break;
-                    }
-                }
+                self.reader.skip_init_expr()?;
             }
-            self.reader = reader.reader;
             let data_end = self.reader.position;
             let items = PassiveElementItems {
                 amt,
-                reader: OperatorsReader::new(
-                    &self.reader.buffer[data_start..data_end],
-                    self.reader.original_offset + data_start,
-                ),
+                offset: self.reader.original_offset + data_start,
+                data: &self.reader.buffer[data_start..data_end],
             };
             ElementKind::Passive { ty, items }
         } else {

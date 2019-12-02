@@ -35,6 +35,7 @@ pub use self::element_section::ElementKind;
 pub use self::element_section::ElementSectionReader;
 pub use self::element_section::PassiveElementItem;
 pub use self::element_section::PassiveElementItems;
+pub use self::element_section::PassiveElementItemsReader;
 pub use self::export_section::Export;
 pub use self::export_section::ExportSectionReader;
 pub use self::function_section::FunctionSectionReader;
