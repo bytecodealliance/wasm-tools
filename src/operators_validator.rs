@@ -1658,12 +1658,15 @@ impl OperatorValidator {
                 self.check_operands(&[Type::I32, Type::I32, Type::I32])?;
                 self.func_state.change_frame(3)?;
             }
-            Operator::TableInit { segment } => {
+            Operator::TableInit { segment, table } => {
                 self.check_bulk_memory_enabled()?;
                 if segment >= resources.element_count() {
                     return Err("segment index out of bounds");
                 }
-                if 0 >= resources.tables().len() {
+                if table > 0 {
+                    self.check_reference_types_enabled()?;
+                }
+                if table as usize >= resources.tables().len() {
                     return Err("table index out of bounds");
                 }
                 self.check_operands(&[Type::I32, Type::I32, Type::I32])?;
@@ -1675,9 +1678,17 @@ impl OperatorValidator {
                     return Err("segment index out of bounds");
                 }
             }
-            Operator::TableCopy => {
+            Operator::TableCopy {
+                src_table,
+                dst_table,
+            } => {
                 self.check_bulk_memory_enabled()?;
-                if 0 >= resources.tables().len() {
+                if src_table > 0 || dst_table > 0 {
+                    self.check_reference_types_enabled()?;
+                }
+                if src_table as usize >= resources.tables().len()
+                    || dst_table as usize >= resources.tables().len()
+                {
                     return Err("table index out of bounds");
                 }
                 self.check_operands(&[Type::I32, Type::I32, Type::I32])?;
