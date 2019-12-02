@@ -222,9 +222,8 @@ impl<'a> ElementSectionReader<'a> {
             };
             for _ in 0..amt {
                 loop {
-                    match reader.read()? {
-                        Operator::End => break,
-                        _ => {}
+                    if let Operator::End = reader.read()? {
+                        break;
                     }
                 }
             }

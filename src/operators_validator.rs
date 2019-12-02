@@ -373,10 +373,10 @@ impl OperatorValidator {
     fn check_operands(&self, expected_types: &[Type]) -> OperatorValidatorResult<()> {
         let len = expected_types.len();
         self.check_frame_size(len)?;
-        for i in 0..len {
+        for (i, expected_type) in expected_types.iter().enumerate() {
             if !self
                 .func_state
-                .assert_stack_type_at(len - 1 - i, expected_types[i])
+                .assert_stack_type_at(len - 1 - i, *expected_type)
             {
                 return Err("stack operand type mismatch");
             }
@@ -690,10 +690,9 @@ impl OperatorValidator {
                     self.func_state.end_function();
                     return Ok(FunctionEnd::Yes);
                 }
-                if {
-                    let last_block = &self.func_state.last_block();
-                    last_block.is_else_allowed && last_block.start_types != last_block.return_types
-                } {
+
+                let last_block = &self.func_state.last_block();
+                if last_block.is_else_allowed && last_block.start_types != last_block.return_types {
                     return Err("else is expected: if block has a type that can't be implemented with a no-op");
                 }
                 self.func_state.pop_block()

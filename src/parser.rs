@@ -60,10 +60,10 @@ pub struct RelocEntry {
     pub addend: Option<u32>,
 }
 
-enum InitExpressionContinuation {
-    GlobalSection,
-    ElementSection,
-    DataSection,
+enum InitExpressionContinuationSection {
+    Global,
+    Element,
+    Data,
 }
 
 #[derive(Debug)]
@@ -207,7 +207,7 @@ pub struct Parser<'a> {
     passive_element_items: Option<PassiveElementItems<'a>>,
     active_element_items: Option<ActiveElementItems<'a>>,
     current_function_body: Option<FunctionBody<'a>>,
-    init_expr_continuation: Option<InitExpressionContinuation>,
+    init_expr_continuation: Option<InitExpressionContinuationSection>,
     current_data_segment: Option<&'a [u8]>,
     binary_reader: Option<BinaryReader<'a>>,
     operators_reader: Option<OperatorsReader<'a>>,
@@ -387,7 +387,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn read_init_expression_body(&mut self, cont: InitExpressionContinuation) {
+    fn read_init_expression_body(&mut self, cont: InitExpressionContinuationSection) {
         self.state = ParserState::BeginInitExpressionBody;
         self.init_expr_continuation = Some(cont);
     }
@@ -867,7 +867,7 @@ impl<'a> Parser<'a> {
 
     fn read_data_chunk(&mut self) -> Result<()> {
         let data = self.current_data_segment.expect("data");
-        if data.len() == 0 {
+        if data.is_empty() {
             self.state = ParserState::EndDataSectionEntryBody;
             self.current_data_segment = None;
             return Ok(());
@@ -911,12 +911,12 @@ impl<'a> Parser<'a> {
             ParserState::TableSectionEntry(_) => self.read_table_entry()?,
             ParserState::ExportSectionEntry { .. } => self.read_export_entry()?,
             ParserState::BeginGlobalSectionEntry(_) => {
-                self.read_init_expression_body(InitExpressionContinuation::GlobalSection)
+                self.read_init_expression_body(InitExpressionContinuationSection::Global)
             }
             ParserState::EndGlobalSectionEntry => self.read_global_entry()?,
             ParserState::BeginPassiveElementSectionEntry(_) => self.read_element_entry_body()?,
             ParserState::BeginActiveElementSectionEntry(_) => {
-                self.read_init_expression_body(InitExpressionContinuation::ElementSection)
+                self.read_init_expression_body(InitExpressionContinuationSection::Element)
             }
             ParserState::BeginInitExpressionBody | ParserState::InitExpressionOperator(_) => {
                 self.read_init_expression_operator()?
@@ -925,17 +925,17 @@ impl<'a> Parser<'a> {
                 self.read_data_entry_body()?;
             }
             ParserState::BeginActiveDataSectionEntry(_) => {
-                self.read_init_expression_body(InitExpressionContinuation::DataSection)
+                self.read_init_expression_body(InitExpressionContinuationSection::Data)
             }
             ParserState::EndInitExpressionBody => {
                 match self.init_expr_continuation {
-                    Some(InitExpressionContinuation::GlobalSection) => {
+                    Some(InitExpressionContinuationSection::Global) => {
                         self.state = ParserState::EndGlobalSectionEntry
                     }
-                    Some(InitExpressionContinuation::ElementSection) => {
+                    Some(InitExpressionContinuationSection::Element) => {
                         self.read_element_entry_body()?
                     }
-                    Some(InitExpressionContinuation::DataSection) => self.read_data_entry_body()?,
+                    Some(InitExpressionContinuationSection::Data) => self.read_data_entry_body()?,
                     None => unreachable!(),
                 }
                 self.init_expr_continuation = None;
