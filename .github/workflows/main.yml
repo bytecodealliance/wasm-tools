@@ -25,7 +25,7 @@ jobs:
             os: windows-latest
             rust: stable
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@v1
       with:
         submodules: 'recursive'
     - name: Install Rust (rustup)
@@ -71,7 +71,7 @@ jobs:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@v1
     - name: Install Rust
       run: rustup update stable && rustup default stable && rustup component add rustfmt
     - run: cargo fmt -- --check
@@ -83,7 +83,7 @@ jobs:
       matrix:
         target: [parser, binary, lexer, wasm-opt-ttf]
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@v1
       with:
         submodules: 'recursive'
     - name: Install Rust
