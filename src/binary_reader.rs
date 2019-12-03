@@ -14,6 +14,7 @@
  */
 
 use std::boxed::Box;
+use std::convert::TryInto;
 use std::str;
 use std::vec::Vec;
 
@@ -38,36 +39,43 @@ fn is_name_prefix(name: &str, prefix: &'static str) -> bool {
     name.starts_with(prefix)
 }
 
-const WASM_MAGIC_NUMBER: u32 = 0x6d736100;
+const WASM_MAGIC_NUMBER: &'static [u8; 4] = b"\0asm";
 const WASM_EXPERIMENTAL_VERSION: u32 = 0xd;
 const WASM_SUPPORTED_VERSION: u32 = 0x1;
 
-pub struct SectionHeader<'a> {
+pub(crate) struct SectionHeader<'a> {
     pub code: SectionCode<'a>,
     pub payload_start: usize,
     pub payload_len: usize,
 }
 
 /// Bytecode range in the WebAssembly module.
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Range {
+    /// The start bound of the range.
     pub start: usize,
+    /// The end bound of the range.
     pub end: usize,
 }
 
 impl Range {
+    /// Constructs a new instance of `Range`.
+    ///
+    /// # Panics
+    /// If `start` is greater than `end`.
     pub fn new(start: usize, end: usize) -> Range {
         assert!(start <= end);
         Range { start, end }
     }
 
+    /// Returns a new slice between `start` and `end - 1` from `data`.
     pub fn slice<'a>(&self, data: &'a [u8]) -> &'a [u8] {
         &data[self.start..self.end]
     }
 }
 
 /// A binary reader of the WebAssembly structures and types.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BinaryReader<'a> {
     pub(crate) buffer: &'a [u8],
     pub(crate) position: usize,
@@ -94,6 +102,7 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
+    /// Constructs a `BinaryReader` with an explicit starting offset.
     pub fn new_with_offset(data: &[u8], original_offset: usize) -> BinaryReader {
         BinaryReader {
             buffer: data,
@@ -106,6 +115,7 @@ impl<'a> BinaryReader<'a> {
         self.original_offset + self.position
     }
 
+    /// Returns a range from the starting offset to the end of the buffer.
     pub fn range(&self) -> Range {
         Range {
             start: self.original_offset,
@@ -374,18 +384,26 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
+    /// Returns whether the `BinaryReader` has reached the end of the file.
     pub fn eof(&self) -> bool {
         self.position >= self.buffer.len()
     }
 
+    /// Returns the `BinaryReader`'s current position.
     pub fn current_position(&self) -> usize {
         self.position
     }
 
+    /// Returns the number of bytes remaining in the `BinaryReader`.
     pub fn bytes_remaining(&self) -> usize {
         self.buffer.len() - self.position
     }
 
+    /// Advances the `BinaryReader` `size` bytes, and returns a slice from the
+    /// current position of `size` length.
+    ///
+    /// # Errors
+    /// If `size` exceeds the remaining length in `BinaryReader`.
     pub fn read_bytes(&mut self, size: usize) -> Result<&'a [u8]> {
         self.ensure_has_bytes(size)?;
         let start = self.position;
@@ -393,22 +411,38 @@ impl<'a> BinaryReader<'a> {
         Ok(&self.buffer[start..self.position])
     }
 
+    /// Advances the `BinaryReader` four bytes and returns a `u32`.
+    /// # Errors
+    /// If `BinaryReader` has less than four bytes remaining.
     pub fn read_u32(&mut self) -> Result<u32> {
         self.ensure_has_bytes(4)?;
-        let b1 = u32::from(self.buffer[self.position]);
-        let b2 = u32::from(self.buffer[self.position + 1]);
-        let b3 = u32::from(self.buffer[self.position + 2]);
-        let b4 = u32::from(self.buffer[self.position + 3]);
+        let word = u32::from_le_bytes(
+            self.buffer[self.position..self.position + 4]
+                .try_into()
+                .unwrap(),
+        );
         self.position += 4;
-        Ok(b1 | (b2 << 8) | (b3 << 16) | (b4 << 24))
+        Ok(word)
     }
 
+    /// Advances the `BinaryReader` eight bytes and returns a `u64`.
+    /// # Errors
+    /// If `BinaryReader` has less than eight bytes remaining.
     pub fn read_u64(&mut self) -> Result<u64> {
-        let w1 = u64::from(self.read_u32()?);
-        let w2 = u64::from(self.read_u32()?);
-        Ok(w1 | (w2 << 32))
+        self.ensure_has_bytes(8)?;
+        let word = u64::from_le_bytes(
+            self.buffer[self.position..self.position + 8]
+                .try_into()
+                .unwrap(),
+        );
+        self.position += 8;
+        Ok(word)
     }
 
+    /// Advances the `BinaryReader` a single byte, and returns the data as
+    /// a `u32`.
+    /// # Errors
+    /// If `BinaryReader` has no bytes remaining.
     pub fn read_u8(&mut self) -> Result<u32> {
         self.ensure_has_byte()?;
         let b = u32::from(self.buffer[self.position]);
@@ -416,6 +450,11 @@ impl<'a> BinaryReader<'a> {
         Ok(b)
     }
 
+    /// Advances the `BinaryReader` up to two bytes to parse a variable
+    /// length integer as a `u8`.
+    /// # Errors
+    /// If `BinaryReader` has less than one or two bytes remaining, or the
+    /// integer is larger than eight bits.
     pub fn read_var_u8(&mut self) -> Result<u32> {
         // Optimization for single byte i32.
         let byte = self.read_u8()?;
@@ -433,6 +472,11 @@ impl<'a> BinaryReader<'a> {
         Ok(result)
     }
 
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a `u32`.
+    /// # Errors
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    /// the integer is larger than 32 bits.
     pub fn read_var_u32(&mut self) -> Result<u32> {
         // Optimization for single byte i32.
         let byte = self.read_u8()?;
@@ -460,6 +504,11 @@ impl<'a> BinaryReader<'a> {
         Ok(result)
     }
 
+    /// Advances the `BinaryReader` up to four bytes over a variable length 32
+    /// bit integer, discarding the result.
+    /// # Errors
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    /// the integer is larger than 32 bits.
     pub fn skip_var_32(&mut self) -> Result<()> {
         for _ in 0..5 {
             let byte = self.read_u8()?;
@@ -473,16 +522,26 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
+    /// Alias method for `BinaryReader::skip_var_u32`.
     pub fn skip_type(&mut self) -> Result<()> {
         self.skip_var_32()
     }
 
+    /// Advances the `BinaryReader` `len` bytes, skipping the result.
+    /// # Errors
+    /// If `BinaryReader` has less than `len` bytes remaining.
     pub fn skip_bytes(&mut self, len: usize) -> Result<()> {
         self.ensure_has_bytes(len)?;
         self.position += len;
         Ok(())
     }
 
+    /// Advances the `BinaryReader` past a WebAssembly string. This method does
+    /// not perform any utf-8 validation.
+    /// # Errors
+    /// If `BinaryReader` has less than four bytes, the string's length exceeds
+    /// the remaining bytes, or the string length
+    /// exceeds `limits::MAX_WASM_STRING_SIZE`.
     pub fn skip_string(&mut self) -> Result<()> {
         let len = self.read_var_u32()? as usize;
         if len > MAX_WASM_STRING_SIZE {
@@ -502,6 +561,11 @@ impl<'a> BinaryReader<'a> {
         self.position = position;
     }
 
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a `i32`.
+    /// # Errors
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    /// the integer is larger than 32 bits.
     pub fn read_var_i32(&mut self) -> Result<i32> {
         // Optimization for single byte i32.
         let byte = self.read_u8()?;
@@ -534,6 +598,11 @@ impl<'a> BinaryReader<'a> {
         Ok((result << ashift) >> ashift)
     }
 
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a signed 33 bit integer, returned as a `i64`.
+    /// # Errors
+    /// If `BinaryReader` has less than one or up to five bytes remaining, or
+    /// the integer is larger than 33 bits.
     pub fn read_var_s33(&mut self) -> Result<i64> {
         // Optimization for single byte.
         let byte = self.read_u8()?;
@@ -551,7 +620,7 @@ impl<'a> BinaryReader<'a> {
                 let sign_and_unused_bit = (byte << 1) as i8 >> (33 - shift);
                 if continuation_bit || (sign_and_unused_bit != 0 && sign_and_unused_bit != -1) {
                     return Err(BinaryReaderError {
-                        message: "Invalid var_i33",
+                        message: "Invalid var_s33",
                         offset: self.original_position() - 1,
                     });
                 }
@@ -566,6 +635,11 @@ impl<'a> BinaryReader<'a> {
         Ok((result << ashift) >> ashift)
     }
 
+    /// Advances the `BinaryReader` up to eight bytes to parse a variable
+    /// length integer as a 64 bit integer, returned as a `i64`.
+    /// # Errors
+    /// If `BinaryReader` has less than one or up to eight bytes remaining, or
+    /// the integer is larger than 64 bits.
     pub fn read_var_i64(&mut self) -> Result<i64> {
         let mut result: i64 = 0;
         let mut shift = 0;
@@ -592,16 +666,31 @@ impl<'a> BinaryReader<'a> {
         Ok((result << ashift) >> ashift)
     }
 
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a 32 bit floating point integer, returned as `Ieee32`.
+    /// # Errors
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    /// the integer is larger than 32 bits.
     pub fn read_f32(&mut self) -> Result<Ieee32> {
         let value = self.read_u32()?;
         Ok(Ieee32(value))
     }
 
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a 32 bit floating point integer, returned as `Ieee32`.
+    /// # Errors
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    /// the integer is larger than 32 bits.
     pub fn read_f64(&mut self) -> Result<Ieee64> {
         let value = self.read_u64()?;
         Ok(Ieee64(value))
     }
 
+    /// Reads a WebAssembly string from the module.
+    /// # Errors
+    /// If `BinaryReader` has less than up to four bytes remaining, the string's
+    /// length exceeds the remaining bytes, the string's length exceeds
+    /// `limits::MAX_WASM_STRING_SIZE`, or the string contains invalid utf-8.
     pub fn read_string(&mut self) -> Result<&'a str> {
         let len = self.read_var_u32()? as usize;
         if len > MAX_WASM_STRING_SIZE {
@@ -859,6 +948,10 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
+    /// Reads the next available `Operator`.
+    /// # Errors
+    /// If `BinaryReader` has less bytes remaining than required to parse
+    /// the `Operator`.
     pub fn read_operator(&mut self) -> Result<Operator<'a>> {
         let code = self.read_u8()? as u8;
         Ok(match code {
@@ -1442,8 +1535,8 @@ impl<'a> BinaryReader<'a> {
             0xc0 => Operator::V8x16Swizzle,
             0x03 | 0xc1 => {
                 let mut lanes = [0 as SIMDLaneIndex; 16];
-                for i in 0..16 {
-                    lanes[i] = self.read_lane_index(32)?
+                for lane in &mut lanes {
+                    *lane = self.read_lane_index(32)?
                 }
                 Operator::V8x16Shuffle { lanes }
             }
@@ -1469,7 +1562,7 @@ impl<'a> BinaryReader<'a> {
     }
 
     pub(crate) fn read_file_header(&mut self) -> Result<u32> {
-        let magic_number = self.read_u32()?;
+        let magic_number = self.read_bytes(4)?;
         if magic_number != WASM_MAGIC_NUMBER {
             return Err(BinaryReaderError {
                 message: "Bad magic number",
@@ -1560,6 +1653,11 @@ impl<'a> BrTable<'a> {
         self.cnt
     }
 
+    /// Returns whether `BrTable` doesn't have any labels apart from the default one.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Reads br_table entries.
     ///
     /// # Examples
@@ -1602,6 +1700,7 @@ impl<'a> BrTable<'a> {
 ///     }
 /// }
 /// ```
+#[derive(Clone, Debug)]
 pub struct BrTableIterator<'a> {
     reader: BinaryReader<'a>,
 }
