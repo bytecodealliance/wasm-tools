@@ -13,10 +13,9 @@
  * limitations under the License.
  */
 
-use core::cmp::min;
-use core::result;
+use std::cmp::min;
+use std::result;
 use std::str;
-use std::vec::Vec;
 
 use crate::primitives::{
     FuncType, GlobalType, MemoryImmediate, MemoryType, Operator, SIMDLaneIndex, TableType, Type,

@@ -11,27 +11,14 @@ A simple event-driven library for parsing WebAssembly binary files.
 exclude = ["fuzz/**/*", "tests/**/*", "testsuite/**/*"]
 edition = "2018"
 
-[dependencies]
-
 [dev-dependencies]
 criterion = "0.2"
 wast = "3.0.4"
-
-[dependencies.hashbrown]
-version = "0.5.0"
-optional = true
 
 [badges]
 travis-ci = { repository = "yurydelendik/wasmparser.rs" }
 
 [features]
-# The "std" feature enables use of libstd. The "core" feature enables use
-# of some minimal std-like replacement libraries. At least one of these two
-# features needs to be enabled.
-default = ["std"]
-std = []
-core = ["hashbrown"]
-
 # The "deterministic" feature supports only wasm code with "deterministic" execution
 # across any hardware. This feature is very critical for many Blockchain infrastructures
 # that rely on deterministic executions of smart contracts across different hardwares.

@@ -13,11 +13,9 @@
  * limitations under the License.
  */
 
-use super::HashSet;
-use core::result;
+use std::collections::HashSet;
+use std::result;
 use std::str;
-use std::string::String;
-use std::vec::Vec;
 
 use crate::limits::{
     MAX_WASM_FUNCTIONS, MAX_WASM_FUNCTION_LOCALS, MAX_WASM_GLOBALS, MAX_WASM_MEMORIES,

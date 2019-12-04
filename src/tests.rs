@@ -13,7 +13,6 @@
  * limitations under the License.
  */
 
-#[cfg(feature = "std")]
 #[cfg(test)]
 mod simple_tests {
     use crate::operators_validator::OperatorValidatorConfig;
@@ -316,7 +315,6 @@ mod simple_tests {
     }
 }
 
-#[cfg(feature = "std")]
 #[cfg(test)]
 mod wast_tests {
     use crate::operators_validator::OperatorValidatorConfig;
