@@ -25,7 +25,7 @@ getopts = "0.2"
 rayon = "1.0"
 serde_json = "1.0"
 tempfile = "3.1"
-wasmparser = "0.42"
+wasmparser = "0.44"
 
 [profile.release]
 debug-assertions = true
