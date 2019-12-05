@@ -759,9 +759,24 @@ impl Printer {
             MemoryCopy => self.result.push_str("memory.copy"),
             MemoryFill => self.result.push_str("memory.fill"),
 
-            TableInit { segment } => write!(self.result, "table.init {}", segment)?,
+            TableInit { table, segment } => {
+                if *table == 0 {
+                    write!(self.result, "table.init {}", segment)?
+                } else {
+                    write!(self.result, "table.init {} {}", table, segment)?
+                }
+            }
             ElemDrop { segment } => write!(self.result, "elem.drop {}", segment)?,
-            TableCopy => self.result.push_str("table.copy"),
+            TableCopy {
+                dst_table,
+                src_table,
+            } => {
+                if *dst_table == *src_table && *src_table == 0 {
+                    self.result.push_str("table.copy");
+                } else {
+                    write!(self.result, "table.copy {} {}", dst_table, src_table)?
+                }
+            }
             TableGet { table } => write!(self.result, "table.get {}", table)?,
             TableSet { table } => write!(self.result, "table.set {}", table)?,
             TableGrow { table } => write!(self.result, "table.grow {}", table)?,
@@ -1125,6 +1140,7 @@ impl Printer {
             match &mut elem.kind {
                 ElementKind::Passive { ty, items } => {
                     self.print_valtype(*ty)?;
+                    let mut items = items.get_items_reader()?;
                     for _ in 0..items.get_count() {
                         match items.read()? {
                             PassiveElementItem::Func(idx) => {
