@@ -82,7 +82,23 @@ pub enum WastDirective<'a> {
         span: ast::Span,
         invoke: WastInvoke<'a>,
     },
+    AssertReturnCanonicalNanF32x4 {
+        span: ast::Span,
+        invoke: WastInvoke<'a>,
+    },
+    AssertReturnCanonicalNanF64x2 {
+        span: ast::Span,
+        invoke: WastInvoke<'a>,
+    },
     AssertReturnArithmeticNan {
+        span: ast::Span,
+        invoke: WastInvoke<'a>,
+    },
+    AssertReturnArithmeticNanF32x4 {
+        span: ast::Span,
+        invoke: WastInvoke<'a>,
+    },
+    AssertReturnArithmeticNanF64x2 {
         span: ast::Span,
         invoke: WastInvoke<'a>,
     },
@@ -112,7 +128,11 @@ impl WastDirective<'_> {
             WastDirective::AssertTrap { span, .. } |
             WastDirective::AssertReturn { span, .. } |
             WastDirective::AssertReturnCanonicalNan { span, .. } |
+            WastDirective::AssertReturnCanonicalNanF32x4 { span, .. } |
+            WastDirective::AssertReturnCanonicalNanF64x2 { span, .. } |
             WastDirective::AssertReturnArithmeticNan { span, .. } |
+            WastDirective::AssertReturnArithmeticNanF32x4 { span, .. } |
+            WastDirective::AssertReturnArithmeticNanF64x2 { span, .. } |
             WastDirective::AssertReturnFunc { span, .. } |
             WastDirective::AssertExhaustion { span, .. } |
             WastDirective::AssertUnlinkable { span, .. } |
@@ -175,9 +195,33 @@ impl<'a> Parse<'a> for WastDirective<'a> {
                 span,
                 invoke: parser.parens(|p| p.parse())?,
             })
+        } else if l.peek::<kw::assert_return_canonical_nan_f32x4>() {
+            let span = parser.parse::<kw::assert_return_canonical_nan_f32x4>()?.0;
+            Ok(WastDirective::AssertReturnCanonicalNanF32x4 {
+                span,
+                invoke: parser.parens(|p| p.parse())?,
+            })
+        } else if l.peek::<kw::assert_return_canonical_nan_f64x2>() {
+            let span = parser.parse::<kw::assert_return_canonical_nan_f64x2>()?.0;
+            Ok(WastDirective::AssertReturnCanonicalNanF64x2 {
+                span,
+                invoke: parser.parens(|p| p.parse())?,
+            })
         } else if l.peek::<kw::assert_return_arithmetic_nan>() {
             let span = parser.parse::<kw::assert_return_arithmetic_nan>()?.0;
             Ok(WastDirective::AssertReturnArithmeticNan {
+                span,
+                invoke: parser.parens(|p| p.parse())?,
+            })
+        } else if l.peek::<kw::assert_return_arithmetic_nan_f32x4>() {
+            let span = parser.parse::<kw::assert_return_arithmetic_nan_f32x4>()?.0;
+            Ok(WastDirective::AssertReturnArithmeticNanF32x4 {
+                span,
+                invoke: parser.parens(|p| p.parse())?,
+            })
+        } else if l.peek::<kw::assert_return_arithmetic_nan_f64x2>() {
+            let span = parser.parse::<kw::assert_return_arithmetic_nan_f64x2>()?.0;
+            Ok(WastDirective::AssertReturnArithmeticNanF64x2 {
                 span,
                 invoke: parser.parens(|p| p.parse())?,
             })
@@ -281,5 +325,27 @@ impl<'a> Parse<'a> for QuoteModule<'a> {
         } else {
             Ok(QuoteModule::Module(parser.parse()?))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::parser::{ParseBuffer, parse};
+    use crate::ast::wast::{WastDirective};
+
+    macro_rules! assert_parses_to_directive {
+        ($text:expr, $pattern:pat) => ({
+            let buffer = ParseBuffer::new($text).unwrap();
+            let directive: WastDirective = parse(&buffer).unwrap();
+            if let $pattern = directive {} else { panic!("assertion failed") }
+        })
+    }
+
+    #[test]
+    fn assert_nan() {
+        assert_parses_to_directive!("assert_return_canonical_nan_f32x4 (invoke \"foo\" (f32.const 0))", WastDirective::AssertReturnCanonicalNanF32x4 { .. });
+        assert_parses_to_directive!("assert_return_canonical_nan_f64x2 (invoke \"foo\" (f32.const 0))", WastDirective::AssertReturnCanonicalNanF64x2 { .. });
+        assert_parses_to_directive!("assert_return_arithmetic_nan_f32x4 (invoke \"foo\" (f32.const 0))", WastDirective::AssertReturnArithmeticNanF32x4 { .. });
+        assert_parses_to_directive!("assert_return_arithmetic_nan_f64x2 (invoke \"foo\" (f32.const 0))", WastDirective::AssertReturnArithmeticNanF64x2 { .. });
     }
 }

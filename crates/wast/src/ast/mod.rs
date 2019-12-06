@@ -106,7 +106,11 @@ pub mod kw {
     custom_keyword!(assert_malformed);
     custom_keyword!(assert_return);
     custom_keyword!(assert_return_arithmetic_nan);
+    custom_keyword!(assert_return_arithmetic_nan_f32x4);
+    custom_keyword!(assert_return_arithmetic_nan_f64x2);
     custom_keyword!(assert_return_canonical_nan);
+    custom_keyword!(assert_return_canonical_nan_f32x4);
+    custom_keyword!(assert_return_canonical_nan_f64x2);
     custom_keyword!(assert_return_func);
     custom_keyword!(assert_trap);
     custom_keyword!(assert_unlinkable);
