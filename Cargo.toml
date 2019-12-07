@@ -1,6 +1,6 @@
 [package]
 name = "wat"
-version = "1.0.4"
+version = "1.0.5"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 edition = "2018"
 license = "Apache-2.0 WITH LLVM-exception"
@@ -17,7 +17,7 @@ exclude = ['tests/wabt']
 members = ['fuzz']
 
 [dependencies]
-wast = { path = 'crates/wast', version = '3.0.3' }
+wast = { path = 'crates/wast', version = '4.0.0' }
 
 [dev-dependencies]
 anyhow = "1.0"
