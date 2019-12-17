@@ -141,7 +141,14 @@ impl<'a> Parse<'a> for Data<'a> {
         // ... and otherwise we must be attached to a particular memory as well
         // as having an initialization offset.
         } else {
-            let memory = parser.parse::<Option<ast::Index>>()?;
+            let memory = if parser.peek2::<kw::memory>() {
+                Some(parser.parens(|p| {
+                    p.parse::<kw::memory>()?;
+                    p.parse()
+                })?)
+            } else {
+                parser.parse()?
+            };
             let offset = parser.parens(|parser| {
                 if parser.peek::<kw::offset>() {
                     parser.parse::<kw::offset>()?;
