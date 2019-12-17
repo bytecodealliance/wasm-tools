@@ -1511,6 +1511,7 @@ impl OperatorValidator {
             | Operator::I32x4GeS
             | Operator::I32x4GeU
             | Operator::V128And
+            | Operator::V128AndNot
             | Operator::V128Or
             | Operator::V128Xor
             | Operator::I8x16Add
@@ -1531,7 +1532,14 @@ impl OperatorValidator {
             | Operator::I32x4Sub
             | Operator::I32x4Mul
             | Operator::I64x2Add
-            | Operator::I64x2Sub => {
+            | Operator::I64x2Sub
+            | Operator::I64x2Mul
+            | Operator::I8x16RoundingAverageU
+            | Operator::I16x8RoundingAverageU
+            | Operator::I8x16NarrowI16x8S
+            | Operator::I8x16NarrowI16x8U
+            | Operator::I16x8NarrowI32x4S
+            | Operator::I16x8NarrowI32x4U => {
                 self.check_simd_enabled()?;
                 self.check_operands_2(Type::V128, Type::V128)?;
                 self.func_state.change_frame_with_type(2, Type::V128)?;
@@ -1559,7 +1567,15 @@ impl OperatorValidator {
             | Operator::I32x4TruncSatF32x4S
             | Operator::I32x4TruncSatF32x4U
             | Operator::I64x2TruncSatF64x2S
-            | Operator::I64x2TruncSatF64x2U => {
+            | Operator::I64x2TruncSatF64x2U
+            | Operator::I16x8WidenLowI8x16S
+            | Operator::I16x8WidenHighI8x16S
+            | Operator::I16x8WidenLowI8x16U
+            | Operator::I16x8WidenHighI8x16U
+            | Operator::I32x4WidenLowI16x8S
+            | Operator::I32x4WidenHighI16x8S
+            | Operator::I32x4WidenLowI16x8U
+            | Operator::I32x4WidenHighI16x8U => {
                 self.check_simd_enabled()?;
                 self.check_operands_1(Type::V128)?;
                 self.func_state.change_frame_with_type(1, Type::V128)?;
@@ -1628,7 +1644,13 @@ impl OperatorValidator {
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::V128)?;
             }
-            Operator::V64x2LoadSplat { ref memarg } => {
+            Operator::V64x2LoadSplat { ref memarg }
+            | Operator::I16x8Load8x8S { ref memarg }
+            | Operator::I16x8Load8x8U { ref memarg }
+            | Operator::I32x4Load16x4S { ref memarg }
+            | Operator::I32x4Load16x4U { ref memarg }
+            | Operator::I64x2Load32x2S { ref memarg }
+            | Operator::I64x2Load32x2U { ref memarg } => {
                 self.check_simd_enabled()?;
                 self.check_memarg(memarg, 3, resources)?;
                 self.check_operands_1(Type::I32)?;
