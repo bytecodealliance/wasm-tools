@@ -146,7 +146,7 @@ pub enum ImportSectionEntryType {
     Global(GlobalType),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct MemoryImmediate {
     pub flags: u32,
     pub offset: u32,
@@ -183,7 +183,7 @@ pub enum RelocType {
 }
 
 /// A br_table entries representation.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BrTable<'a> {
     pub(crate) buffer: &'a [u8],
     pub(crate) cnt: usize,
@@ -229,7 +229,7 @@ pub type SIMDLaneIndex = u8;
 /// Instructions as defined [here].
 ///
 /// [here]: https://webassembly.github.io/spec/core/binary/instructions.html
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Operator<'a> {
     Unreachable,
     Nop,
