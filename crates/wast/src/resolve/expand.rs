@@ -210,16 +210,20 @@ impl<'a> Expander<'a> {
 
                 // If data is defined inline insert an explicit `data` module
                 // field here instead, switching this to a `Normal` memory.
-                if let TableKind::Inline { elems, elem } = &mut t.kind {
+                if let TableKind::Inline { payload, elem } = &mut t.kind {
+                    let len = match payload {
+                        ElemPayload::Indices(v) => v.len(),
+                        ElemPayload::Exprs { exprs, .. } => exprs.len(),
+                    };
                     let kind = TableKind::Normal(TableType {
                         limits: Limits {
-                            min: elems.len() as u32,
-                            max: Some(elems.len() as u32),
+                            min: len as u32,
+                            max: Some(len as u32),
                         },
                         elem: *elem,
                     });
-                    let elems = match mem::replace(&mut t.kind, kind) {
-                        TableKind::Inline { elems, .. } => elems,
+                    let payload = match mem::replace(&mut t.kind, kind) {
+                        TableKind::Inline { payload, .. } => payload,
                         _ => unreachable!(),
                     };
                     self.to_append.push(ModuleField::Elem(Elem {
@@ -230,8 +234,9 @@ impl<'a> Expander<'a> {
                             offset: Expression {
                                 instrs: vec![Instruction::I32Const(0)],
                             },
-                            elems,
                         },
+                        payload,
+                        force_nonzero_flags: false,
                     }));
                 }
 

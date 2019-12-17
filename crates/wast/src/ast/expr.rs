@@ -216,7 +216,7 @@ instructions! {
         ReturnCall(ast::Index<'a>) : [0x12] : "return_call",
         ReturnCallIndirect(CallIndirect<'a>) : [0x13] : "return_call_indirect",
         Drop : [0x1a] : "drop",
-        Select : [0x1b] : "select",
+        Select(SelectTypes) : [] : "select",
         LocalGet(ast::Index<'a>) : [0x20] : "local.get" | "get_local",
         LocalSet(ast::Index<'a>) : [0x21] : "local.set" | "set_local",
         LocalTee(ast::Index<'a>) : [0x22] : "local.tee" | "tee_local",
@@ -1030,5 +1030,28 @@ impl<'a> Parse<'a> for V8x16Shuffle {
                 parser.parse()?,
             ],
         })
+    }
+}
+
+/// Payload of the `select` instructions
+#[derive(Debug)]
+pub struct SelectTypes {
+    #[allow(missing_docs)]
+    pub tys: Vec<ast::ValType>,
+}
+
+impl<'a> Parse<'a> for SelectTypes {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let mut tys = Vec::new();
+        while parser.peek2::<kw::result>() {
+            parser.parens(|p| {
+                p.parse::<kw::result>()?;
+                while !p.is_empty() {
+                    tys.push(p.parse()?);
+                }
+                Ok(())
+            })?;
+        }
+        Ok(SelectTypes { tys })
     }
 }

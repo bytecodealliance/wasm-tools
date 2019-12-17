@@ -30,6 +30,7 @@ impl<'a> Parse<'a> for Wat<'a> {
         } else {
             parser.parens(|parser| parser.parse())?
         };
+        module.validate(parser)?;
         Ok(Wat { module })
     }
 }
@@ -108,6 +109,21 @@ impl<'a> Module<'a> {
     pub fn encode(&mut self) -> std::result::Result<Vec<u8>, crate::Error> {
         self.resolve()?;
         Ok(crate::binary::encode(self))
+    }
+
+    fn validate(&self, parser: Parser<'_>) -> Result<()> {
+        let mut starts = 0;
+        if let ModuleKind::Text(fields) = &self.kind {
+            for item in fields.iter() {
+                if let ModuleField::Start(_) = item {
+                    starts += 1;
+                }
+            }
+        }
+        if starts > 1 {
+            return Err(parser.error("multiple start sections found"))
+        }
+        Ok(())
     }
 }
 

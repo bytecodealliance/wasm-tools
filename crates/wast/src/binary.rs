@@ -341,12 +341,63 @@ impl Encode for Export<'_> {
 
 impl Encode for Elem<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
-        match &self.kind {
-            ElemKind::Passive { ty, elems } => {
-                e.push(0x01);
+        match (&self.kind, &self.payload) {
+            (
+                ElemKind::Active {
+                    table: Index::Num(0),
+                    offset,
+                },
+                ElemPayload::Indices(_),
+            ) if !self.force_nonzero_flags => {
+                e.push(0x00);
+                offset.encode(e);
+            }
+            (ElemKind::Passive, ElemPayload::Indices(_)) => {
+                e.push(0x01); // flags
+                e.push(0x00); // extern_kind
+            }
+            (ElemKind::Active { table, offset }, ElemPayload::Indices(_)) => {
+                e.push(0x02); // flags
+                table.encode(e);
+                offset.encode(e);
+                e.push(0x00); // extern_kind
+            }
+            (
+                ElemKind::Active {
+                    table: Index::Num(0),
+                    offset,
+                },
+                ElemPayload::Exprs {
+                    ty: TableElemType::Funcref,
+                    ..
+                },
+            ) => {
+                e.push(0x04);
+                offset.encode(e);
+            }
+            (ElemKind::Passive, ElemPayload::Exprs { ty, .. }) => {
+                e.push(0x05);
                 ty.encode(e);
-                elems.len().encode(e);
-                for idx in elems {
+            }
+            (ElemKind::Active { table, offset }, ElemPayload::Exprs { ty, .. }) => {
+                e.push(0x06);
+                table.encode(e);
+                offset.encode(e);
+                ty.encode(e);
+            }
+        }
+
+        self.payload.encode(e);
+    }
+}
+
+impl Encode for ElemPayload<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        match self {
+            ElemPayload::Indices(v) => v.encode(e),
+            ElemPayload::Exprs { exprs, .. } => {
+                exprs.len().encode(e);
+                for idx in exprs {
                     match idx {
                         Some(idx) => {
                             Instruction::RefFunc(*idx).encode(e);
@@ -357,20 +408,6 @@ impl Encode for Elem<'_> {
                     }
                     Instruction::End(None).encode(e);
                 }
-            }
-            ElemKind::Active {
-                table,
-                offset,
-                elems,
-            } => {
-                if *table == Index::Num(0) {
-                    e.push(0x00);
-                } else {
-                    e.push(0x02);
-                    table.encode(e);
-                }
-                offset.encode(e);
-                elems.encode(e);
             }
         }
     }
@@ -613,5 +650,16 @@ impl Encode for V128Const {
 impl Encode for V8x16Shuffle {
     fn encode(&self, dst: &mut Vec<u8>) {
         dst.extend_from_slice(&self.lanes);
+    }
+}
+
+impl Encode for SelectTypes {
+    fn encode(&self, dst: &mut Vec<u8>) {
+        if self.tys.len() == 0 {
+            dst.push(0x1b);
+        } else {
+            dst.push(0x1c);
+            self.tys.encode(dst);
+        }
     }
 }

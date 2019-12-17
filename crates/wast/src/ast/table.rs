@@ -35,7 +35,7 @@ pub enum TableKind<'a> {
         elem: ast::TableElemType,
         /// The element table entries to have, and the length of this list is
         /// the limits of the table as well.
-        elems: Vec<ast::Index<'a>>,
+        payload: ElemPayload<'a>,
     },
 }
 
@@ -53,15 +53,16 @@ impl<'a> Parse<'a> for Table<'a> {
         let mut l = parser.lookahead1();
         let kind = if l.peek::<ast::TableElemType>() {
             let elem = parser.parse()?;
-            let mut elems = Vec::new();
-            parser.parens(|p| {
+            let payload = parser.parens(|p| {
                 p.parse::<kw::elem>()?;
-                while !p.is_empty() {
-                    elems.push(p.parse()?);
-                }
-                Ok(())
+                let ty = if parser.peek::<ast::LParen>() {
+                    Some(elem)
+                } else {
+                    None
+                };
+                ElemPayload::parse_tail(parser, ty)
             })?;
-            TableKind::Inline { elem, elems }
+            TableKind::Inline { elem, payload }
         } else if l.peek::<u32>() {
             TableKind::Normal(parser.parse()?)
         } else if l.peek::<ast::LParen>() {
@@ -95,6 +96,15 @@ pub struct Elem<'a> {
     pub name: Option<ast::Id<'a>>,
     /// The way this segment was defined in the module.
     pub kind: ElemKind<'a>,
+    /// The payload of this element segment, typically a list of functions.
+    pub payload: ElemPayload<'a>,
+
+    // FIXME(WebAssembly/wabt#1268) we favor MVP encodings but our reference
+    // tests against wabt for us to use wabt's encoding, and it seems like we
+    // should remove this. At least we should remove it eventually for this
+    // specific library and fix the test harness to ignore the difference.
+    #[doc(hidden)]
+    pub force_nonzero_flags: bool,
 }
 
 /// Different ways to define an element segment in an mdoule.
@@ -102,13 +112,7 @@ pub struct Elem<'a> {
 pub enum ElemKind<'a> {
     /// A passive segment that isn't associated with a table and can be used in
     /// various bulk-memory instructions.
-    Passive {
-        /// The type of elements within this segment.
-        ty: ast::TableElemType,
-        /// The function indices (for now) of elements in this segment. `None`
-        /// entries represent `ref.null` instructions.
-        elems: Vec<Option<ast::Index<'a>>>,
-    },
+    Passive,
 
     /// An active segment associated with a table.
     Active {
@@ -116,67 +120,100 @@ pub enum ElemKind<'a> {
         table: ast::Index<'a>,
         /// The offset within `table` that we'll initialize at.
         offset: ast::Expression<'a>,
-        /// The function indices that will be inserted into the table.
-        elems: Vec<ast::Index<'a>>,
+    },
+}
+
+/// Different ways to define the element segment payload in a module.
+#[derive(Debug)]
+pub enum ElemPayload<'a> {
+    /// This element segment has a contiguous list of function indices
+    Indices(Vec<ast::Index<'a>>),
+
+    /// This element segment has a list of optional function indices,
+    /// represented as expressions using `ref.func` and `ref.null`.
+    Exprs {
+        /// The desired type of each expression below.
+        ty: ast::TableElemType,
+        /// The expressions, currently optional function indices, in this
+        /// segment.
+        exprs: Vec<Option<ast::Index<'a>>>,
     },
 }
 
 impl<'a> Parse<'a> for Elem<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::elem>()?.0;
-        let mut name = parser.parse::<Option<_>>()?;
+        let name = parser.parse()?;
+        let mut force_nonzero_flags = false;
 
-        let kind = if parser.peek::<ast::TableElemType>() {
-            let ty = parser.parse::<ast::TableElemType>()?;
-            let mut elems = Vec::new();
-            if parser.peek::<ast::LParen>() {
-                while !parser.is_empty() {
-                    elems.push(parser.parens(|p| {
-                        let mut l = p.lookahead1();
-                        if l.peek::<kw::ref_null>() {
-                            p.parse::<kw::ref_null>()?;
-                            Ok(None)
-                        } else if l.peek::<kw::ref_func>() {
-                            p.parse::<kw::ref_func>()?;
-                            Ok(Some(p.parse()?))
-                        } else {
-                            Err(l.error())
-                        }
-                    })?);
-                }
+        let kind = if parser.peek::<u32>() || parser.peek::<ast::LParen>() {
+            let table = if parser.peek2::<kw::table>() {
+                force_nonzero_flags = true;
+                Some(parser.parens(|p| {
+                    p.parse::<kw::table>()?;
+                    p.parse()
+                })?)
+            } else if parser.peek::<u32>() {
+                Some(ast::Index::Num(parser.parse()?))
             } else {
-                while !parser.is_empty() {
-                    elems.push(Some(parser.parse()?));
-                }
-            }
-            ElemKind::Passive { ty, elems }
-        } else {
-            // TODO: this should be brought up with the bulk memory proposal,
-            // it's sort of ambiguous but apparently if one name is present it's
-            // a table name, but if two then it's an element name and a segment
-            // name. I'm a bit confused but this seems to pass tests.
-            let mut table = parser.parse::<Option<ast::Index>>()?;
-            if table.is_none() {
-                if let Some(name) = name.take() {
-                    table = Some(ast::Index::Id(name));
-                }
-            }
+                None
+            };
             let offset = parser.parens(|parser| {
                 if parser.peek::<kw::offset>() {
                     parser.parse::<kw::offset>()?;
                 }
                 parser.parse()
             })?;
+            ElemKind::Active {
+                table: table.unwrap_or(ast::Index::Num(0)),
+                offset,
+            }
+        } else {
+            ElemKind::Passive
+        };
+        let payload = parser.parse()?;
+        Ok(Elem {
+            span,
+            name,
+            kind,
+            payload,
+            force_nonzero_flags,
+        })
+    }
+}
+
+impl<'a> Parse<'a> for ElemPayload<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        ElemPayload::parse_tail(parser, parser.parse()?)
+    }
+}
+
+impl<'a> ElemPayload<'a> {
+    fn parse_tail(parser: Parser<'a>, ty: Option<ast::TableElemType>) -> Result<Self> {
+        if let Some(ty) = ty {
+            let mut exprs = Vec::new();
+            while !parser.is_empty() {
+                exprs.push(parser.parens(|p| {
+                    let mut l = p.lookahead1();
+                    if l.peek::<kw::ref_null>() {
+                        p.parse::<kw::ref_null>()?;
+                        Ok(None)
+                    } else if l.peek::<kw::ref_func>() {
+                        p.parse::<kw::ref_func>()?;
+                        Ok(Some(p.parse()?))
+                    } else {
+                        Err(l.error())
+                    }
+                })?);
+            }
+            Ok(ElemPayload::Exprs { exprs, ty })
+        } else {
+            parser.parse::<Option<kw::func>>()?;
             let mut elems = Vec::new();
             while !parser.is_empty() {
                 elems.push(parser.parse()?);
             }
-            ElemKind::Active {
-                table: table.unwrap_or(ast::Index::Num(0)),
-                offset,
-                elems,
-            }
-        };
-        Ok(Elem { span, name, kind })
+            Ok(ElemPayload::Indices(elems))
+        }
     }
 }

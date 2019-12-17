@@ -198,8 +198,10 @@ fn error_matches(error: &str, message: &str) -> bool {
     if error.contains(message) {
         return true;
     }
-    if message == "unknown operator" {
-        return error.contains("expected a ") || error.contains("expected an ");
+    if message == "unknown operator" || message == "unexpected token" {
+        return error.contains("expected a ")
+            || error.contains("expected an ")
+            || error.contains("constant out of range");
     }
     return false;
 }
@@ -464,6 +466,18 @@ fn skip_test(test: &Path, contents: &str) -> bool {
     // Like above this uses `iNNxMM.load_splat` but the simd spec doesn't have
     // these and the test seems to disagree at least a bit on encoding.
     if test.ends_with("logging-all-opcodes.txt") {
+        return true;
+    }
+
+    // FIXME(WebAssembly/wabt#1269) I think the wabt encoding of the elem
+    // segments here may just be wrong
+    if test.ends_with("bulk-memory-operations/elem.wast") {
+        return true;
+    }
+
+    // FIXME(WebAssembly/simd#140) test needs to be updated to not have
+    // unintentional invalid syntax
+    if test.ends_with("simd/simd_lane.wast") {
         return true;
     }
 
