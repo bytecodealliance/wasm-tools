@@ -506,7 +506,7 @@ mod wast_tests {
                 ("br_table.wast", _)
                 | ("select.wast", _)
                 | ("binary.wast", _)
-                | ("linking.wast", _) => true,
+                | ("linking.wast", 280) => true,
                 _ => false,
             },
         );

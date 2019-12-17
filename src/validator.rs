@@ -529,9 +529,10 @@ impl<'a> ValidatingParser<'a> {
                 if table_index as usize >= self.resources.tables.len() {
                     self.set_validation_error("element section table index out of bounds");
                 } else {
-                    assert!(
-                        self.resources.tables[table_index as usize].element_type == Type::AnyFunc
-                    );
+                    if self.resources.tables[table_index as usize].element_type != Type::AnyFunc {
+                        self.set_validation_error("element_type != anyfunc is not supported yet");
+                        return;
+                    }
                     self.init_expression_state = Some(InitExpressionState {
                         ty: Type::I32,
                         global_count: self.resources.globals.len(),
