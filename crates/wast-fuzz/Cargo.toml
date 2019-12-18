@@ -8,6 +8,6 @@ edition = "2018"
 anyhow = "1.0"
 getrandom = "0.1"
 tempfile = "3"
-wasmparser = "0.42"
+wasmparser = "0.45"
 wast = { path = "../wast" }
 wat = { path = "../.." }
