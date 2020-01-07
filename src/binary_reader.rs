@@ -706,9 +706,9 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    fn read_memarg_of_align(&mut self, align: u32) -> Result<MemoryImmediate> {
+    fn read_memarg_of_align(&mut self, max_align: u32) -> Result<MemoryImmediate> {
         let imm = self.read_memarg()?;
-        if align != imm.flags {
+        if imm.flags > max_align {
             return Err(BinaryReaderError {
                 message: "Unexpected memarg alignment",
                 offset: self.original_position() - 1,
