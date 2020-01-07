@@ -497,7 +497,7 @@ impl OperatorValidator {
         self.check_memory_index(0, resources)?;
         let align = memarg.flags;
         if align > max_align {
-            return Err("align is required to be at most the number of accessed bytes");
+            return Err("alignment must not be larger than natural");
         }
         Ok(())
     }
