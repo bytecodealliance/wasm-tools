@@ -343,7 +343,16 @@ impl Encode for Export<'_> {
 
 impl Encode for Elem<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
-        match (&self.kind, &self.payload) {
+        // Try to switch element expressions to indices if we can which uses a
+        // more MVP-compatible encoding.
+        let mut to_encode = self.payload.clone();
+        if let ElemPayload::Exprs { ty: TableElemType::Funcref, exprs } = &to_encode {
+            if let Some(indices) = extract_indices(exprs) {
+                to_encode = ElemPayload::Indices(indices);
+            }
+        }
+
+        match (&self.kind, &to_encode) {
             (
                 ElemKind::Active {
                     table: Index::Num(0),
@@ -389,7 +398,11 @@ impl Encode for Elem<'_> {
             }
         }
 
-        self.payload.encode(e);
+        to_encode.encode(e);
+
+        fn extract_indices<'a>(indices: &[Option<Index<'a>>]) -> Option<Vec<Index<'a>>> {
+            indices.iter().cloned().collect()
+        }
     }
 }
 

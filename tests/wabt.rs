@@ -469,13 +469,6 @@ fn skip_test(test: &Path, contents: &str) -> bool {
         return true;
     }
 
-    // FIXME(WebAssembly/wabt#1291) a module is dropped here by accident so we
-    // report one more module than wabt thinks exists, causing lots of
-    // mismatches.
-    if test.ends_with("bulk-memory-operations/elem.wast") {
-        return true;
-    }
-
     // FIXME(WebAssembly/simd#140) test needs to be updated to not have
     // unintentional invalid syntax
     if test.ends_with("simd/simd_lane.wast") {

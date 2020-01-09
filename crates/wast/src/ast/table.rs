@@ -117,7 +117,7 @@ pub enum ElemKind<'a> {
 }
 
 /// Different ways to define the element segment payload in a module.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ElemPayload<'a> {
     /// This element segment has a contiguous list of function indices
     Indices(Vec<ast::Index<'a>>),
