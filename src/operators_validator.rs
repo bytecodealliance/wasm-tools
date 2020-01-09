@@ -26,9 +26,9 @@ use crate::primitives::{
 pub(crate) fn is_subtype_supertype(subtype: Type, supertype: Type) -> bool {
     match supertype {
         Type::AnyRef => {
-            subtype == Type::AnyRef || subtype == Type::AnyFunc || subtype == Type::Null
+            subtype == Type::AnyRef || subtype == Type::AnyFunc || subtype == Type::NullRef
         }
-        Type::AnyFunc => subtype == Type::AnyFunc || subtype == Type::Null,
+        Type::AnyFunc => subtype == Type::AnyFunc || subtype == Type::NullRef,
         _ => subtype == supertype,
     }
 }
@@ -624,28 +624,35 @@ impl OperatorValidator {
         self.check_frame_size(3)?;
         let func_state = &self.func_state;
         let last_block = func_state.last_block();
-        Ok(if last_block.is_stack_polymorphic() {
+
+        let ty = if last_block.is_stack_polymorphic() {
             match func_state.stack_types.len() - last_block.stack_starts_at {
-                0 => None,
+                0 => return Ok(None),
                 1 => {
                     self.check_operands_1(Type::I32)?;
-                    None
+                    return Ok(None);
                 }
                 2 => {
                     self.check_operands_1(Type::I32)?;
-                    Some(func_state.stack_types[func_state.stack_types.len() - 2])
+                    func_state.stack_types[func_state.stack_types.len() - 2]
                 }
                 _ => {
                     let ty = func_state.stack_types[func_state.stack_types.len() - 3];
                     self.check_operands_2(ty, Type::I32)?;
-                    Some(ty)
+                    ty
                 }
             }
         } else {
             let ty = func_state.stack_types[func_state.stack_types.len() - 3];
             self.check_operands_2(ty, Type::I32)?;
-            Some(ty)
-        })
+            ty
+        };
+
+        if !ty.is_valid_for_old_select() {
+            return Err("invalid type for select");
+        }
+
+        Ok(Some(ty))
     }
 
     pub(crate) fn process_operator(
@@ -760,6 +767,10 @@ impl OperatorValidator {
             Operator::Select => {
                 let ty = self.check_select()?;
                 self.func_state.change_frame_after_select(ty)?;
+            }
+            Operator::TypedSelect { ty } => {
+                self.check_operands(&[Type::I32, ty, ty])?;
+                self.func_state.change_frame_after_select(Some(ty))?;
             }
             Operator::LocalGet { local_index } => {
                 if local_index as usize >= self.func_state.local_types.len() {
@@ -1323,7 +1334,7 @@ impl OperatorValidator {
             }
             Operator::RefNull => {
                 self.check_reference_types_enabled()?;
-                self.func_state.change_frame_with_type(0, Type::Null)?;
+                self.func_state.change_frame_with_type(0, Type::NullRef)?;
             }
             Operator::RefIsNull => {
                 self.check_reference_types_enabled()?;

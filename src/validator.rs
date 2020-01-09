@@ -195,7 +195,7 @@ impl<'a> ValidatingParser<'a> {
     fn check_value_type(&self, ty: Type) -> ValidatorResult<'a, ()> {
         match ty {
             Type::I32 | Type::I64 | Type::F32 | Type::F64 => Ok(()),
-            Type::Null | Type::AnyFunc | Type::AnyRef => {
+            Type::NullRef | Type::AnyFunc | Type::AnyRef => {
                 if !self.config.operator_config.enable_reference_types {
                     return self.create_error("reference types support is not enabled");
                 }
@@ -316,7 +316,7 @@ impl<'a> ValidatingParser<'a> {
                 if !self.config.operator_config.enable_reference_types {
                     return self.create_error("reference types support is not enabled");
                 }
-                Type::Null
+                Type::NullRef
             }
             Operator::V128Const { .. } => {
                 if !self.config.operator_config.enable_simd {
