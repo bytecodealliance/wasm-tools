@@ -469,8 +469,9 @@ fn skip_test(test: &Path, contents: &str) -> bool {
         return true;
     }
 
-    // FIXME(WebAssembly/wabt#1269) I think the wabt encoding of the elem
-    // segments here may just be wrong
+    // FIXME(WebAssembly/wabt#1291) a module is dropped here by accident so we
+    // report one more module than wabt thinks exists, causing lots of
+    // mismatches.
     if test.ends_with("bulk-memory-operations/elem.wast") {
         return true;
     }
@@ -478,12 +479,6 @@ fn skip_test(test: &Path, contents: &str) -> bool {
     // FIXME(WebAssembly/simd#140) test needs to be updated to not have
     // unintentional invalid syntax
     if test.ends_with("simd/simd_lane.wast") {
-        return true;
-    }
-
-    // FIXME(WebAssembly/wabt#1187) on macos this appears to be incorrect with
-    // wabt, although still waiting on that issue itself.
-    if test.ends_with("bulk-memory-named.txt") && cfg!(target_os = "macos") {
         return true;
     }
 
