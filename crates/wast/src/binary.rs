@@ -346,7 +346,11 @@ impl Encode for Elem<'_> {
         // Try to switch element expressions to indices if we can which uses a
         // more MVP-compatible encoding.
         let mut to_encode = self.payload.clone();
-        if let ElemPayload::Exprs { ty: TableElemType::Funcref, exprs } = &to_encode {
+        if let ElemPayload::Exprs {
+            ty: TableElemType::Funcref,
+            exprs,
+        } = &to_encode
+        {
             if let Some(indices) = extract_indices(exprs) {
                 to_encode = ElemPayload::Indices(indices);
             }
