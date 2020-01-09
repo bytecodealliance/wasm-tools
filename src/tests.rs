@@ -429,12 +429,6 @@ mod wast_tests {
                 | Invoke { .. }
                 | AssertTrap { .. }
                 | AssertReturn { .. }
-                | AssertReturnCanonicalNan { .. }
-                | AssertReturnArithmeticNan { .. }
-                | AssertReturnCanonicalNanF32x4 { .. }
-                | AssertReturnCanonicalNanF64x2 { .. }
-                | AssertReturnArithmeticNanF32x4 { .. }
-                | AssertReturnArithmeticNanF64x2 { .. }
                 | AssertReturnFunc { .. }
                 | AssertExhaustion { .. } => {}
             }
