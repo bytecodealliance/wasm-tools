@@ -179,6 +179,7 @@ impl Encode for ValType {
             ValType::V128 => e.push(0x7b),
             ValType::Funcref => e.push(0x70),
             ValType::Anyref => e.push(0x6f),
+            ValType::Nullref => e.push(0x6e),
         }
     }
 }
@@ -236,8 +237,9 @@ impl Encode for TableType {
 impl Encode for TableElemType {
     fn encode(&self, e: &mut Vec<u8>) {
         match self {
-            TableElemType::Funcref => e.push(0x70),
-            TableElemType::Anyref => e.push(0x6f),
+            TableElemType::Funcref => ValType::Funcref.encode(e),
+            TableElemType::Anyref => ValType::Anyref.encode(e),
+            TableElemType::Nullref => ValType::Nullref.encode(e),
         }
     }
 }
@@ -348,7 +350,7 @@ impl Encode for Elem<'_> {
                     offset,
                 },
                 ElemPayload::Indices(_),
-            ) if !self.force_nonzero_flags => {
+            ) => {
                 e.push(0x00);
                 offset.encode(e);
             }

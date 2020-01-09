@@ -236,7 +236,6 @@ impl<'a> Expander<'a> {
                             },
                         },
                         payload,
-                        force_nonzero_flags: false,
                     }));
                 }
 

@@ -12,6 +12,7 @@ pub enum ValType {
     Anyref,
     Funcref,
     V128,
+    Nullref,
 }
 
 impl<'a> Parse<'a> for ValType {
@@ -38,6 +39,9 @@ impl<'a> Parse<'a> for ValType {
         } else if l.peek::<kw::anyfunc>() {
             parser.parse::<kw::anyfunc>()?;
             Ok(ValType::Funcref)
+        } else if l.peek::<kw::nullref>() {
+            parser.parse::<kw::nullref>()?;
+            Ok(ValType::Nullref)
         } else if l.peek::<kw::v128>() {
             parser.parse::<kw::v128>()?;
             Ok(ValType::V128)
@@ -84,6 +88,8 @@ pub enum TableElemType {
     Funcref,
     /// An element for a table that is a list of `anyref` values.
     Anyref,
+    /// An element for a table that is a list of `nullref` values.
+    Nullref,
 }
 
 impl<'a> Parse<'a> for TableElemType {
@@ -100,6 +106,9 @@ impl<'a> Parse<'a> for TableElemType {
         } else if l.peek::<kw::anyref>() {
             parser.parse::<kw::anyref>()?;
             Ok(TableElemType::Anyref)
+        } else if l.peek::<kw::nullref>() {
+            parser.parse::<kw::nullref>()?;
+            Ok(TableElemType::Nullref)
         } else {
             Err(l.error())
         }

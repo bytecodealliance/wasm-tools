@@ -98,13 +98,6 @@ pub struct Elem<'a> {
     pub kind: ElemKind<'a>,
     /// The payload of this element segment, typically a list of functions.
     pub payload: ElemPayload<'a>,
-
-    // FIXME(WebAssembly/wabt#1268) we favor MVP encodings but our reference
-    // tests against wabt for us to use wabt's encoding, and it seems like we
-    // should remove this. At least we should remove it eventually for this
-    // specific library and fix the test harness to ignore the difference.
-    #[doc(hidden)]
-    pub force_nonzero_flags: bool,
 }
 
 /// Different ways to define an element segment in an mdoule.
@@ -144,11 +137,9 @@ impl<'a> Parse<'a> for Elem<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::elem>()?.0;
         let name = parser.parse()?;
-        let mut force_nonzero_flags = false;
 
         let kind = if parser.peek::<u32>() || parser.peek::<ast::LParen>() {
             let table = if parser.peek2::<kw::table>() {
-                force_nonzero_flags = true;
                 Some(parser.parens(|p| {
                     p.parse::<kw::table>()?;
                     p.parse()
@@ -177,7 +168,6 @@ impl<'a> Parse<'a> for Elem<'a> {
             name,
             kind,
             payload,
-            force_nonzero_flags,
         })
     }
 }
