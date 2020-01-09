@@ -125,38 +125,36 @@ fn skip_test(test: &Path, contents: &str) -> bool {
         return true;
     }
 
+    // FIXME(WebAssembly/simd#140)
+    if test.ends_with("simd/simd_lane.wast") {
+        return true;
+    }
+
     false
 }
 
-fn skip_wabt_compare(test: &Path) -> bool {
-    // Looks like wabt doesn't implement table.fill yet
-    if test.ends_with("reference-types/table_fill.wast") {
-        return true;
-    }
-
-    // Looks like wabt doesn't implement ref.func in globals yet
-    if test.ends_with("reference-types/ref_func.wast") {
-        return true;
-    }
-
+fn skip_wabt_compare(test: &Path, line: usize) -> bool {
     // wabt doesn't print the table index for element segments on the nonzero
     // table, so their textual representation of these tests are lossy
-    if test.ends_with("reference-types/ref_is_null.wast") {
-        return true;
-    }
-    if test.ends_with("reference-types/table_get.wast") {
-        return true;
-    }
-    if test.ends_with("reference-types/table_set.wast") {
-        return true;
-    }
     if test.ends_with("reference-types/select.wast") {
         return true;
     }
-    if test.ends_with("dump/reference-types.txt") {
+    if test.ends_with("dump/table-multi.txt") {
         return true;
     }
-    if test.ends_with("dump/table-multi.txt") {
+
+    // This is a binary-encoded blob and wabt appears to print the elem segment
+    // with `func 0` where we do `funcref (ref.func 0)` since that's what's
+    // actually encoded. Looks like `wabt` does a number of internal
+    // transformations. This seems harmless and fine, so just skip the wabt
+    // comparison here.
+    if test.ends_with("bulk-memory-operations/binary.wast") && line == 776 {
+        return true;
+    }
+
+    // Right now there's a good number of differences between wabt's simd
+    // parsing and the official simd spec, let's just wait for wabt to update.
+    if test.iter().any(|t| t == "simd") {
         return true;
     }
 
@@ -179,7 +177,7 @@ fn run_test(test: &Path, contents: &str) -> anyhow::Result<()> {
         test_wast(test, contents)
     } else {
         let binary = wat::parse_file(test)?;
-        test_binary(test, &binary)
+        test_binary(test, 0, &binary)
     }
 }
 
@@ -210,7 +208,7 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
                         line + 1,
                         col + 1,
                     );
-                    test_binary(test, &binary).context(context)?;
+                    test_binary(test, line + 1, &binary).context(context)?;
                 }
                 _ => {}
             }
@@ -234,11 +232,11 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
     bail!("{}", s)
 }
 
-fn test_binary(path: &Path, contents: &[u8]) -> anyhow::Result<()> {
+fn test_binary(path: &Path, line: usize, contents: &[u8]) -> anyhow::Result<()> {
     let actual = wasmprinter::print_bytes(contents)
         .context(format!("rust failed to print `{}`", path.display()))?;
 
-    if skip_wabt_compare(path) {
+    if skip_wabt_compare(path, line) {
         return Ok(());
     }
 

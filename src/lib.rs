@@ -164,10 +164,7 @@ impl Printer {
                 }
                 SectionCode::Start => {
                     self.result.push_str("\n  (start ");
-                    // FIXME(WebAssembly/wabt#1226): we should print the pretty
-                    // name here.
-                    // self.print_func_idx(section.get_start_section_content()?)?;
-                    write!(self.result, "{}", section.get_start_section_content()?)?;
+                    self.print_func_idx(section.get_start_section_content()?)?;
                     self.result.push_str(")");
                 }
                 SectionCode::Element => {
@@ -289,6 +286,7 @@ impl Printer {
             Type::V128 => self.result.push_str("v128"),
             Type::AnyFunc => self.result.push_str("funcref"),
             Type::AnyRef => self.result.push_str("anyref"),
+            Type::NullRef => self.result.push_str("nullref"),
             _ => bail!("unimplemented {:?}", ty),
         }
         Ok(())
@@ -539,6 +537,7 @@ impl Printer {
 
             Drop => self.result.push_str("drop"),
             Select => self.result.push_str("select"),
+            TypedSelect { .. } => self.result.push_str("select"),
             LocalGet { local_index } => {
                 self.result.push_str("local.get ");
                 self.print_local_idx(self.func, *local_index)?;
@@ -1162,36 +1161,39 @@ impl Printer {
     fn print_elems(&mut self, data: ElementSectionReader) -> Result<()> {
         for (i, elem) in data.into_iter().enumerate() {
             let mut elem = elem?;
-            write!(self.result, "\n  (elem (;{};) ", i)?;
+            write!(self.result, "\n  (elem (;{};)", i)?;
             match &mut elem.kind {
-                ElementKind::Passive { ty, items } => {
-                    self.print_valtype(*ty)?;
-                    let mut items = items.get_items_reader()?;
-                    for _ in 0..items.get_count() {
-                        match items.read()? {
-                            PassiveElementItem::Func(idx) => {
-                                self.result.push_str(" (ref.func ");
-                                self.print_func_idx(idx)?;
-                                self.result.push_str(")");
-                            }
-                            PassiveElementItem::Null => {
-                                self.result.push_str(" (ref.null)");
-                            }
-                        }
-                    }
-                }
+                ElementKind::Passive | ElementKind::Declared => {}
                 ElementKind::Active {
                     table_index,
                     init_expr,
-                    items,
                 } => {
                     if *table_index != 0 {
-                        write!(self.result, "{} ", table_index)?;
+                        write!(self.result, " (table {})", table_index)?;
                     }
+                    self.result.push_str(" ");
                     self.print_init_expr(&init_expr)?;
-                    for item in items.get_items_reader()? {
+                }
+            }
+            let mut items_reader = elem.items.get_items_reader()?;
+            if items_reader.uses_exprs() {
+                self.result.push_str(" funcref");
+            } else {
+                self.result.push_str(" func");
+            }
+            for _ in 0..items_reader.get_count() {
+                match items_reader.read()? {
+                    ElementItem::Null => {
+                        self.result.push_str(" (ref.null)");
+                    }
+                    ElementItem::Func(idx) if items_reader.uses_exprs() => {
+                        self.result.push_str(" (ref.func ");
+                        self.print_func_idx(idx)?;
+                        self.result.push_str(")");
+                    }
+                    ElementItem::Func(idx) => {
                         self.result.push_str(" ");
-                        self.print_func_idx(item?)?;
+                        self.print_func_idx(idx)?;
                     }
                 }
             }
