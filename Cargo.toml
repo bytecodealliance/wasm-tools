@@ -17,7 +17,7 @@ exclude = ['tests/wabt']
 members = ['fuzz']
 
 [dependencies]
-wast = { path = 'crates/wast', version = '5.0.0' }
+wast = { path = 'crates/wast', version = '6.0.0' }
 
 [dev-dependencies]
 anyhow = "1.0"
