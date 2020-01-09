@@ -13,7 +13,7 @@ edition = "2018"
 
 [dev-dependencies]
 criterion = "0.2"
-wast = "3.0.4"
+wast = "5.0.0"
 
 [badges]
 travis-ci = { repository = "yurydelendik/wasmparser.rs" }

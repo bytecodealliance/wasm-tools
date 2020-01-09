@@ -28,11 +28,11 @@ use crate::primitives::{
 };
 
 use crate::readers::{
-    ActiveElementItems, CodeSectionReader, Data, DataKind, DataSectionReader, Element, ElementKind,
-    ElementSectionReader, Export, ExportSectionReader, FunctionBody, FunctionSectionReader, Global,
-    GlobalSectionReader, Import, ImportSectionReader, LinkingSectionReader, MemorySectionReader,
-    ModuleReader, Name, NameSectionReader, NamingReader, OperatorsReader, PassiveElementItem,
-    PassiveElementItems, Reloc, RelocSectionReader, Section, SectionReader, TableSectionReader,
+    CodeSectionReader, Data, DataKind, DataSectionReader, Element, ElementItem, ElementItems,
+    ElementKind, ElementSectionReader, Export, ExportSectionReader, FunctionBody,
+    FunctionSectionReader, Global, GlobalSectionReader, Import, ImportSectionReader,
+    LinkingSectionReader, MemorySectionReader, ModuleReader, Name, NameSectionReader, NamingReader,
+    OperatorsReader, Reloc, RelocSectionReader, Section, SectionReader, TableSectionReader,
     TypeSectionReader,
 };
 
@@ -117,12 +117,12 @@ pub enum ParserState<'a> {
     EndFunctionBody,
     SkippingFunctionBody,
 
-    BeginActiveElementSectionEntry(u32),
-    ElementSectionEntryBody(Box<[u32]>),
-    PassiveElementSectionEntry {
+    BeginElementSectionEntry {
+        /// `None` means this is a passive or defined entry
+        table: ElemSectionEntryTable,
         ty: Type,
-        items: Box<[PassiveElementItem]>,
     },
+    ElementSectionEntryBody(Box<[ElementItem]>),
     EndElementSectionEntry,
 
     BeginPassiveDataSectionEntry,
@@ -140,6 +140,13 @@ pub enum ParserState<'a> {
     LinkingSectionEntry(LinkingType),
 
     SourceMappingURL(&'a str),
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum ElemSectionEntryTable {
+    Passive,
+    Declared,
+    Active(u32),
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -208,7 +215,7 @@ pub struct Parser<'a> {
     module_reader: Option<ModuleReader<'a>>,
     current_section: Option<Section<'a>>,
     section_reader: ParserSectionReader<'a>,
-    active_element_items: Option<ActiveElementItems<'a>>,
+    element_items: Option<ElementItems<'a>>,
     current_function_body: Option<FunctionBody<'a>>,
     init_expr_continuation: Option<InitExpressionContinuationSection>,
     current_data_segment: Option<&'a [u8]>,
@@ -234,7 +241,7 @@ impl<'a> Parser<'a> {
             module_reader: None,
             current_section: None,
             section_reader: ParserSectionReader::None,
-            active_element_items: None,
+            element_items: None,
             current_function_body: None,
             init_expr_continuation: None,
             current_data_segment: None,
@@ -423,31 +430,27 @@ impl<'a> Parser<'a> {
         if self.section_entries_left == 0 {
             return self.check_section_end();
         }
-        let Element { kind } = section_reader!(self, ElementSectionReader).read()?;
-        match kind {
-            ElementKind::Passive { ty, items } => {
-                self.state = ParserState::PassiveElementSectionEntry {
-                    ty,
-                    items: self.read_passive_elements(items)?,
-                };
-            }
+        let Element { kind, items, ty } = section_reader!(self, ElementSectionReader).read()?;
+        let table = match kind {
+            ElementKind::Passive => ElemSectionEntryTable::Passive,
+            ElementKind::Declared => ElemSectionEntryTable::Declared,
             ElementKind::Active {
                 table_index,
                 init_expr,
-                items,
             } => {
-                self.state = ParserState::BeginActiveElementSectionEntry(table_index);
                 self.operators_reader = Some(init_expr.get_operators_reader());
-                self.active_element_items = Some(items);
+                ElemSectionEntryTable::Active(table_index)
             }
-        }
+        };
+        self.state = ParserState::BeginElementSectionEntry { table, ty };
+        self.element_items = Some(items);
         self.section_entries_left -= 1;
         Ok(())
     }
 
     fn read_element_entry_body(&mut self) -> Result<()> {
         let mut reader = self
-            .active_element_items
+            .element_items
             .take()
             .expect("element items")
             .get_items_reader()?;
@@ -458,28 +461,12 @@ impl<'a> Parser<'a> {
                 offset: 0, // reader.position - 1, // TODO offset
             });
         }
-        let mut elements: Vec<u32> = Vec::with_capacity(num_elements);
+        let mut elements = Vec::with_capacity(num_elements);
         for _ in 0..num_elements {
             elements.push(reader.read()?);
         }
         self.state = ParserState::ElementSectionEntryBody(elements.into_boxed_slice());
         Ok(())
-    }
-
-    fn read_passive_elements(
-        &mut self,
-        items: PassiveElementItems,
-    ) -> Result<Box<[PassiveElementItem]>> {
-        let reader = items.get_items_reader()?;
-        let num_elements = reader.get_count() as usize;
-        if num_elements > MAX_WASM_TABLE_ENTRIES {
-            return Err(BinaryReaderError {
-                message: "num_elements is out of bounds",
-                offset: 0, // reader.position - 1, // TODO offset
-            });
-        }
-        let elements: Vec<PassiveElementItem> = reader.into_iter().collect::<Result<Vec<_>>>()?;
-        Ok(elements.into_boxed_slice())
     }
 
     fn read_function_body(&mut self) -> Result<()> {
@@ -934,16 +921,17 @@ impl<'a> Parser<'a> {
                 self.read_init_expression_body(InitExpressionContinuationSection::Global)
             }
             ParserState::EndGlobalSectionEntry => self.read_global_entry()?,
-            ParserState::PassiveElementSectionEntry { .. } => self.read_element_entry()?,
-            ParserState::BeginActiveElementSectionEntry(_) => {
-                self.read_init_expression_body(InitExpressionContinuationSection::Element)
+            ParserState::BeginElementSectionEntry {
+                table: ElemSectionEntryTable::Active(_),
+                ..
+            } => self.read_init_expression_body(InitExpressionContinuationSection::Element),
+            ParserState::BeginElementSectionEntry { table: _, .. } => {
+                self.read_element_entry_body()?
             }
             ParserState::BeginInitExpressionBody | ParserState::InitExpressionOperator(_) => {
                 self.read_init_expression_operator()?
             }
-            ParserState::BeginPassiveDataSectionEntry => {
-                self.read_data_entry_body()?;
-            }
+            ParserState::BeginPassiveDataSectionEntry => self.read_data_entry_body()?,
             ParserState::BeginActiveDataSectionEntry(_) => {
                 self.read_init_expression_body(InitExpressionContinuationSection::Data)
             }

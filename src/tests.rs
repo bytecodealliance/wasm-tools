@@ -431,6 +431,10 @@ mod wast_tests {
                 | AssertReturn { .. }
                 | AssertReturnCanonicalNan { .. }
                 | AssertReturnArithmeticNan { .. }
+                | AssertReturnCanonicalNanF32x4 { .. }
+                | AssertReturnCanonicalNanF64x2 { .. }
+                | AssertReturnArithmeticNanF32x4 { .. }
+                | AssertReturnArithmeticNanF64x2 { .. }
                 | AssertReturnFunc { .. }
                 | AssertExhaustion { .. } => {}
             }

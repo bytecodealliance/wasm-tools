@@ -35,6 +35,7 @@ use crate::operators_validator::{
     is_subtype_supertype, FunctionEnd, OperatorValidator, OperatorValidatorConfig,
     WasmModuleResources, DEFAULT_OPERATOR_VALIDATOR_CONFIG,
 };
+use crate::{ElemSectionEntryTable, ElementItem};
 
 use crate::readers::FunctionBody;
 
@@ -521,17 +522,27 @@ impl<'a> ValidatingParser<'a> {
             ParserState::DataCountSectionEntry(count) => {
                 self.resources.data_count = Some(count);
             }
-            ParserState::PassiveElementSectionEntry { .. } => {
+            ParserState::BeginElementSectionEntry { table, ty } => {
                 self.resources.element_count += 1;
-            }
-            ParserState::BeginActiveElementSectionEntry(table_index) => {
-                self.resources.element_count += 1;
-                if table_index as usize >= self.resources.tables.len() {
-                    self.set_validation_error("element section table index out of bounds");
-                } else {
-                    if self.resources.tables[table_index as usize].element_type != Type::AnyFunc {
-                        self.set_validation_error("element_type != anyfunc is not supported yet");
+                if let ElemSectionEntryTable::Active(table_index) = table {
+                    let table = match self.resources.tables.get(table_index as usize) {
+                        Some(t) => t,
+                        None => {
+                            self.set_validation_error("element section table index out of bounds");
+                            return;
+                        }
+                    };
+                    if !is_subtype_supertype(ty, table.element_type) {
+                        self.set_validation_error("element_type != table type");
                         return;
+                    }
+                    if !self.config.operator_config.enable_reference_types {
+                        if ty != Type::AnyFunc {
+                            self.set_validation_error(
+                                "element_type != anyfunc is not supported yet",
+                            );
+                            return;
+                        }
                     }
                     self.init_expression_state = Some(InitExpressionState {
                         ty: Type::I32,
@@ -542,10 +553,12 @@ impl<'a> ValidatingParser<'a> {
                 }
             }
             ParserState::ElementSectionEntryBody(ref indices) => {
-                for func_index in &**indices {
-                    if *func_index as usize >= self.resources.func_type_indices.len() {
-                        self.set_validation_error("element func index out of bounds");
-                        break;
+                for item in &**indices {
+                    if let ElementItem::Func(func_index) = item {
+                        if *func_index as usize >= self.resources.func_type_indices.len() {
+                            self.set_validation_error("element func index out of bounds");
+                            break;
+                        }
                     }
                 }
             }
