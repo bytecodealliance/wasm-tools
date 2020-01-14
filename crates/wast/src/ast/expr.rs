@@ -672,12 +672,12 @@ instructions! {
         I32x4WidenLowI16x8U : [0xfd, 0xd0] : "i32x4.widen_low_i16x8_u",
         I32x4WidenHighI16x8u : [0xfd, 0xd1] : "i32x4.widen_high_i16x8_u",
 
-        I16x8Load8x8S(MemArg<1>) : [0xfd, 0xd2] : "i16x8.load8x8_s",
-        I16x8Load8x8U(MemArg<1>) : [0xfd, 0xd3] : "i16x8.load8x8_u",
-        I32x4Load16x4S(MemArg<2>) : [0xfd, 0xd4] : "i32x4.load16x4_s",
-        I32x4Load16x4U(MemArg<2>) : [0xfd, 0xd5] : "i32x4.load16x4_u",
-        I64x2Load32x2S(MemArg<4>) : [0xfd, 0xd6] : "i64x2.load32x2_s",
-        I64x2Load32x2U(MemArg<4>) : [0xfd, 0xd7] : "i64x2.load32x2_u",
+        I16x8Load8x8S(MemArg<8>) : [0xfd, 0xd2] : "i16x8.load8x8_s",
+        I16x8Load8x8U(MemArg<8>) : [0xfd, 0xd3] : "i16x8.load8x8_u",
+        I32x4Load16x4S(MemArg<8>) : [0xfd, 0xd4] : "i32x4.load16x4_s",
+        I32x4Load16x4U(MemArg<8>) : [0xfd, 0xd5] : "i32x4.load16x4_u",
+        I64x2Load32x2S(MemArg<8>) : [0xfd, 0xd6] : "i64x2.load32x2_s",
+        I64x2Load32x2U(MemArg<8>) : [0xfd, 0xd7] : "i64x2.load32x2_u",
         V128Andnot : [0xfd, 0xd8] : "v128.andnot",
 
         I8x16AvgrU : [0xfd, 0xd9] : "i8x16.avgr_u",
