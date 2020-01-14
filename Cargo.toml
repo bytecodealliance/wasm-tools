@@ -25,8 +25,8 @@ diff = "0.1"
 getopts = "0.2"
 rayon = "1.0"
 tempfile = "3.0"
-wast = "6.0.0"
-wat = "1.0.7"
+wast = { git = 'https://github.com/bytecodealliance/wat' }
+wat = { git = 'https://github.com/bytecodealliance/wat' }
 
 [[test]]
 name = "wabt"

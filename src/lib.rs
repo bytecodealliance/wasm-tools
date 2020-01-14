@@ -1072,12 +1072,12 @@ impl Printer {
             I32x4WidenLowI16x8U => self.result.push_str("i32x4.widen_low_i16x8_u"),
             I32x4WidenHighI16x8U => self.result.push_str("i32x4.widen_high_i16x8_u"),
 
-            I16x8Load8x8S { memarg } => self.mem_instr("i16x8.load8x8_s", memarg, 1)?,
-            I16x8Load8x8U { memarg } => self.mem_instr("i16x8.load8x8_u", memarg, 1)?,
-            I32x4Load16x4S { memarg } => self.mem_instr("i32x4.load16x4_s", memarg, 2)?,
-            I32x4Load16x4U { memarg } => self.mem_instr("i32x4.load16x4_u", memarg, 2)?,
-            I64x2Load32x2S { memarg } => self.mem_instr("i64x2.load32x2_s", memarg, 4)?,
-            I64x2Load32x2U { memarg } => self.mem_instr("i64x2.load32x2_u", memarg, 4)?,
+            I16x8Load8x8S { memarg } => self.mem_instr("i16x8.load8x8_s", memarg, 8)?,
+            I16x8Load8x8U { memarg } => self.mem_instr("i16x8.load8x8_u", memarg, 8)?,
+            I32x4Load16x4S { memarg } => self.mem_instr("i32x4.load16x4_s", memarg, 8)?,
+            I32x4Load16x4U { memarg } => self.mem_instr("i32x4.load16x4_u", memarg, 8)?,
+            I64x2Load32x2S { memarg } => self.mem_instr("i64x2.load32x2_s", memarg, 8)?,
+            I64x2Load32x2U { memarg } => self.mem_instr("i64x2.load32x2_u", memarg, 8)?,
 
             I8x16RoundingAverageU => self.result.push_str("i8x16.avgr_u"),
             I16x8RoundingAverageU => self.result.push_str("i16x8.avgr_u"),
