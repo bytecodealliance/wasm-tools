@@ -679,6 +679,9 @@ instructions! {
         I64x2Load32x2S(MemArg<4>) : [0xfd, 0xd6] : "i64x2.load32x2_s",
         I64x2Load32x2U(MemArg<4>) : [0xfd, 0xd7] : "i64x2.load32x2_u",
         V128Andnot : [0xfd, 0xd8] : "v128.andnot",
+
+        I8x16AvgrU : [0xfd, 0xd9] : "i8x16.avgr_u",
+        I16x8AvgrU : [0xfd, 0xda] : "i16x8.avgr_u",
     }
 }
 

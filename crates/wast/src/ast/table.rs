@@ -180,30 +180,37 @@ impl<'a> Parse<'a> for ElemPayload<'a> {
 
 impl<'a> ElemPayload<'a> {
     fn parse_tail(parser: Parser<'a>, ty: Option<ast::TableElemType>) -> Result<Self> {
-        if let Some(ty) = ty {
-            let mut exprs = Vec::new();
-            while !parser.is_empty() {
-                exprs.push(parser.parens(|p| {
-                    let mut l = p.lookahead1();
-                    if l.peek::<kw::ref_null>() {
-                        p.parse::<kw::ref_null>()?;
-                        Ok(None)
-                    } else if l.peek::<kw::ref_func>() {
-                        p.parse::<kw::ref_func>()?;
-                        Ok(Some(p.parse()?))
-                    } else {
-                        Err(l.error())
-                    }
-                })?);
+        let ty = match ty {
+            None => {
+                parser.parse::<Option<kw::func>>()?;
+                ast::TableElemType::Funcref
             }
-            Ok(ElemPayload::Exprs { exprs, ty })
-        } else {
-            parser.parse::<Option<kw::func>>()?;
-            let mut elems = Vec::new();
-            while !parser.is_empty() {
-                elems.push(parser.parse()?);
+            Some(ty) => ty,
+        };
+        if let ast::TableElemType::Funcref = ty {
+            if parser.peek::<ast::Index>() {
+                let mut elems = Vec::new();
+                while !parser.is_empty() {
+                    elems.push(parser.parse()?);
+                }
+                return Ok(ElemPayload::Indices(elems));
             }
-            Ok(ElemPayload::Indices(elems))
         }
+        let mut exprs = Vec::new();
+        while !parser.is_empty() {
+            exprs.push(parser.parens(|p| {
+                let mut l = p.lookahead1();
+                if l.peek::<kw::ref_null>() {
+                    p.parse::<kw::ref_null>()?;
+                    Ok(None)
+                } else if l.peek::<kw::ref_func>() {
+                    p.parse::<kw::ref_func>()?;
+                    Ok(Some(p.parse()?))
+                } else {
+                    Err(l.error())
+                }
+            })?);
+        }
+        Ok(ElemPayload::Exprs { exprs, ty })
     }
 }
