@@ -1356,7 +1356,7 @@ impl<'a> BinaryReader<'a> {
         let index = self.read_u8()?;
         if index >= max {
             return Err(BinaryReaderError {
-                message: "lane index out of range",
+                message: "invalid lane index",
                 offset: self.original_position() - 1,
             });
         }
