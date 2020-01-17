@@ -668,7 +668,8 @@ impl Encode for V128Const {
 
 impl Encode for V8x16Shuffle {
     fn encode(&self, dst: &mut Vec<u8>) {
-        dst.extend_from_slice(&self.lanes);
+        let indexes: Vec<u8> = self.lanes.iter().map(|&i| i as u8).collect();
+        dst.extend_from_slice(&indexes);
     }
 }
 

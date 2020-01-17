@@ -1020,7 +1020,7 @@ impl<'a> Parse<'a> for V128Const {
 #[derive(Debug)]
 pub struct V8x16Shuffle {
     #[allow(missing_docs)]
-    pub lanes: [u8; 16],
+    pub lanes: [i8; 16],
 }
 
 impl<'a> Parse<'a> for V8x16Shuffle {
