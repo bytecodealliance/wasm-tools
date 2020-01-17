@@ -19,7 +19,7 @@ pub enum AssertExpression<'a> {
 
     RefNull,
     RefHost(u32),
-    RefFunc(Index<'a>),
+    RefFunc(Option<Index<'a>>),
 
     // Either matches an f32 or f64 for an arithmetic nan pattern
     LegacyArithmeticNaN,

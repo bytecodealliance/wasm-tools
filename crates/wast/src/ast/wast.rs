@@ -79,10 +79,6 @@ pub enum WastDirective<'a> {
         exec: WastExecute<'a>,
         results: Vec<ast::AssertExpression<'a>>,
     },
-    AssertReturnFunc {
-        span: ast::Span,
-        invoke: WastInvoke<'a>,
-    },
     AssertExhaustion {
         span: ast::Span,
         call: WastInvoke<'a>,
@@ -100,14 +96,13 @@ impl WastDirective<'_> {
     pub fn span(&self) -> ast::Span {
         match self {
             WastDirective::Module(m) => m.span,
-            WastDirective::AssertMalformed { span, .. } |
-            WastDirective::Register { span, .. } |
-            WastDirective::AssertTrap { span, .. } |
-            WastDirective::AssertReturn { span, .. } |
-            WastDirective::AssertReturnFunc { span, .. } |
-            WastDirective::AssertExhaustion { span, .. } |
-            WastDirective::AssertUnlinkable { span, .. } |
-            WastDirective::AssertInvalid { span, .. } => *span,
+            WastDirective::AssertMalformed { span, .. }
+            | WastDirective::Register { span, .. }
+            | WastDirective::AssertTrap { span, .. }
+            | WastDirective::AssertReturn { span, .. }
+            | WastDirective::AssertExhaustion { span, .. }
+            | WastDirective::AssertUnlinkable { span, .. }
+            | WastDirective::AssertInvalid { span, .. } => *span,
             WastDirective::Invoke(i) => i.span,
         }
     }
@@ -165,7 +160,7 @@ impl<'a> Parse<'a> for WastDirective<'a> {
             Ok(WastDirective::AssertReturn {
                 span,
                 exec: parser.parens(|p| p.parse())?,
-                results: vec![AssertExpression::LegacyCanonicalNaN]
+                results: vec![AssertExpression::LegacyCanonicalNaN],
             })
         } else if l.peek::<kw::assert_return_canonical_nan_f32x4>() {
             let span = parser.parse::<kw::assert_return_canonical_nan_f32x4>()?.0;
@@ -178,25 +173,22 @@ impl<'a> Parse<'a> for WastDirective<'a> {
             Ok(WastDirective::AssertReturn {
                 span,
                 exec: parser.parens(|p| p.parse())?,
-                results: vec![AssertExpression::V128(pat)]
+                results: vec![AssertExpression::V128(pat)],
             })
         } else if l.peek::<kw::assert_return_canonical_nan_f64x2>() {
             let span = parser.parse::<kw::assert_return_canonical_nan_f64x2>()?.0;
-            let pat = V128Pattern::F64x2([
-                NanPattern::CanonicalNan,
-                NanPattern::CanonicalNan,
-            ]);
+            let pat = V128Pattern::F64x2([NanPattern::CanonicalNan, NanPattern::CanonicalNan]);
             Ok(WastDirective::AssertReturn {
                 span,
                 exec: parser.parens(|p| p.parse())?,
-                results: vec![AssertExpression::V128(pat)]
+                results: vec![AssertExpression::V128(pat)],
             })
         } else if l.peek::<kw::assert_return_arithmetic_nan>() {
             let span = parser.parse::<kw::assert_return_arithmetic_nan>()?.0;
             Ok(WastDirective::AssertReturn {
                 span,
                 exec: parser.parens(|p| p.parse())?,
-                results: vec![AssertExpression::LegacyArithmeticNaN]
+                results: vec![AssertExpression::LegacyArithmeticNaN],
             })
         } else if l.peek::<kw::assert_return_arithmetic_nan_f32x4>() {
             let span = parser.parse::<kw::assert_return_arithmetic_nan_f32x4>()?.0;
@@ -209,24 +201,22 @@ impl<'a> Parse<'a> for WastDirective<'a> {
             Ok(WastDirective::AssertReturn {
                 span,
                 exec: parser.parens(|p| p.parse())?,
-                results: vec![AssertExpression::V128(pat)]
+                results: vec![AssertExpression::V128(pat)],
             })
         } else if l.peek::<kw::assert_return_arithmetic_nan_f64x2>() {
             let span = parser.parse::<kw::assert_return_arithmetic_nan_f64x2>()?.0;
-            let pat = V128Pattern::F64x2([
-                NanPattern::ArithmeticNan,
-                NanPattern::ArithmeticNan,
-            ]);
+            let pat = V128Pattern::F64x2([NanPattern::ArithmeticNan, NanPattern::ArithmeticNan]);
             Ok(WastDirective::AssertReturn {
                 span,
                 exec: parser.parens(|p| p.parse())?,
-                results: vec![AssertExpression::V128(pat)]
+                results: vec![AssertExpression::V128(pat)],
             })
         } else if l.peek::<kw::assert_return_func>() {
             let span = parser.parse::<kw::assert_return_func>()?.0;
-            Ok(WastDirective::AssertReturnFunc {
+            Ok(WastDirective::AssertReturn {
                 span,
-                invoke: parser.parens(|p| p.parse())?,
+                exec: parser.parens(|p| p.parse())?,
+                results: vec![AssertExpression::RefFunc(None)],
             })
         } else if l.peek::<kw::assert_exhaustion>() {
             let span = parser.parse::<kw::assert_exhaustion>()?.0;
@@ -327,15 +317,18 @@ impl<'a> Parse<'a> for QuoteModule<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::{ParseBuffer, parse};
-    use crate::ast::wast::{WastDirective};
+    use crate::ast::wast::WastDirective;
+    use crate::parser::{parse, ParseBuffer};
 
     macro_rules! assert_parses_to_directive {
-        ($text:expr, $pattern:pat) => ({
+        ($text:expr, $pattern:pat) => {{
             let buffer = ParseBuffer::new($text).unwrap();
             let directive: WastDirective = parse(&buffer).unwrap();
-            if let $pattern = directive {} else { panic!("assertion failed") }
-        })
+            if let $pattern = directive {
+            } else {
+                panic!("assertion failed")
+            }
+        }};
     }
 
     #[test]

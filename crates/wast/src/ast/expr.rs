@@ -588,6 +588,10 @@ instructions! {
         I8x16SubSaturateS : [0xfd, 0x5b] : "i8x16.sub_saturate_s",
         I8x16SubSaturateU : [0xfd, 0x5c] : "i8x16.sub_saturate_u",
         I8x16Mul : [0xfd, 0x5d] : "i8x16.mul",
+        I8x16MinS : [0xfd, 0x5e] : "i8x16.min_s",
+        I8x16MinU : [0xfd, 0x5f] : "i8x16.min_u",
+        I8x16MaxS : [0xfd, 0x60] : "i8x16.max_s",
+        I8x16MaxU : [0xfd, 0x61] : "i8x16.max_u",
 
         I16x8Neg : [0xfd, 0x62] : "i16x8.neg",
         I16x8AnyTrue : [0xfd, 0x63] : "i16x8.any_true",
@@ -602,6 +606,10 @@ instructions! {
         I16x8SubSaturateS : [0xfd, 0x6c] : "i16x8.sub_saturate_s",
         I16x8SubSaturateU : [0xfd, 0x6d] : "i16x8.sub_saturate_u",
         I16x8Mul : [0xfd, 0x6e] : "i16x8.mul",
+        I16x8MinS : [0xfd, 0x6f] : "i16x8.min_s",
+        I16x8MinU : [0xfd, 0x70] : "i16x8.min_u",
+        I16x8MaxS : [0xfd, 0x71] : "i16x8.max_s",
+        I16x8MaxU : [0xfd, 0x72] : "i16x8.max_u",
 
         I32x4Neg : [0xfd, 0x73] : "i32x4.neg",
         I32x4AnyTrue : [0xfd, 0x74] : "i32x4.any_true",
@@ -612,6 +620,10 @@ instructions! {
         I32x4Add : [0xfd, 0x79] : "i32x4.add",
         I32x4Sub : [0xfd, 0x7c] : "i32x4.sub",
         I32x4Mul : [0xfd, 0x7f] : "i32x4.mul",
+        I32x4MinS : [0xfd, 0x80] : "i32x4.min_s",
+        I32x4MinU : [0xfd, 0x81] : "i32x4.min_u",
+        I32x4MaxS : [0xfd, 0x82] : "i32x4.max_s",
+        I32x4MaxU : [0xfd, 0x83] : "i32x4.max_u",
 
         I64x2Neg : [0xfd, 0x84] : "i64x2.neg",
         I64x2AnyTrue : [0xfd, 0x85] : "i64x2.any_true",
