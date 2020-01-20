@@ -18,7 +18,7 @@ members = ['fuzz']
 
 [dependencies]
 anyhow = "1.0"
-wasmparser = "0.47.0"
+wasmparser = "0.48.1"
 
 [dev-dependencies]
 diff = "0.1"
