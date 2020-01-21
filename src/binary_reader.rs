@@ -39,7 +39,7 @@ fn is_name_prefix(name: &str, prefix: &'static str) -> bool {
     name.starts_with(prefix)
 }
 
-const WASM_MAGIC_NUMBER: &'static [u8; 4] = b"\0asm";
+const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
 const WASM_EXPERIMENTAL_VERSION: u32 = 0xd;
 const WASM_SUPPORTED_VERSION: u32 = 0x1;
 

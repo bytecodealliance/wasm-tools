@@ -548,13 +548,9 @@ impl<'a> ValidatingParser<'a> {
                         self.set_validation_error("element_type != table type");
                         return;
                     }
-                    if !self.config.operator_config.enable_reference_types {
-                        if ty != Type::AnyFunc {
-                            self.set_validation_error(
-                                "element_type != anyfunc is not supported yet",
-                            );
-                            return;
-                        }
+                    if !self.config.operator_config.enable_reference_types && ty != Type::AnyFunc {
+                        self.set_validation_error("element_type != anyfunc is not supported yet");
+                        return;
                     }
                     self.init_expression_state = Some(InitExpressionState {
                         ty: Type::I32,

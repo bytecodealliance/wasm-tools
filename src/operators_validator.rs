@@ -549,7 +549,7 @@ impl OperatorValidator {
 
     fn check_memarg<F: WasmFuncType, T: WasmTableType, M: WasmMemoryType, G: WasmGlobalType>(
         &self,
-        memarg: &MemoryImmediate,
+        memarg: MemoryImmediate,
         max_align: u32,
         resources: &dyn WasmModuleResources<
             FuncType = F,
@@ -615,7 +615,7 @@ impl OperatorValidator {
         G: WasmGlobalType,
     >(
         &self,
-        _: &MemoryImmediate,
+        _: MemoryImmediate,
         resources: &dyn WasmModuleResources<
             FuncType = F,
             TableType = T,
@@ -928,121 +928,121 @@ impl OperatorValidator {
                     return Err("global index out of bounds");
                 };
             }
-            Operator::I32Load { ref memarg } => {
+            Operator::I32Load { memarg } => {
                 self.check_memarg(memarg, 2, resources)?;
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::I32)?;
             }
-            Operator::I64Load { ref memarg } => {
+            Operator::I64Load { memarg } => {
                 self.check_memarg(memarg, 3, resources)?;
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::I64)?;
             }
-            Operator::F32Load { ref memarg } => {
+            Operator::F32Load { memarg } => {
                 self.check_non_deterministic_enabled()?;
                 self.check_memarg(memarg, 2, resources)?;
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::F32)?;
             }
-            Operator::F64Load { ref memarg } => {
+            Operator::F64Load { memarg } => {
                 self.check_non_deterministic_enabled()?;
                 self.check_memarg(memarg, 3, resources)?;
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::F64)?;
             }
-            Operator::I32Load8S { ref memarg } => {
+            Operator::I32Load8S { memarg } => {
                 self.check_memarg(memarg, 0, resources)?;
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::I32)?;
             }
-            Operator::I32Load8U { ref memarg } => {
+            Operator::I32Load8U { memarg } => {
                 self.check_memarg(memarg, 0, resources)?;
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::I32)?;
             }
-            Operator::I32Load16S { ref memarg } => {
+            Operator::I32Load16S { memarg } => {
                 self.check_memarg(memarg, 1, resources)?;
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::I32)?;
             }
-            Operator::I32Load16U { ref memarg } => {
+            Operator::I32Load16U { memarg } => {
                 self.check_memarg(memarg, 1, resources)?;
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::I32)?;
             }
-            Operator::I64Load8S { ref memarg } => {
+            Operator::I64Load8S { memarg } => {
                 self.check_memarg(memarg, 0, resources)?;
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::I64)?;
             }
-            Operator::I64Load8U { ref memarg } => {
+            Operator::I64Load8U { memarg } => {
                 self.check_memarg(memarg, 0, resources)?;
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::I64)?;
             }
-            Operator::I64Load16S { ref memarg } => {
+            Operator::I64Load16S { memarg } => {
                 self.check_memarg(memarg, 1, resources)?;
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::I64)?;
             }
-            Operator::I64Load16U { ref memarg } => {
+            Operator::I64Load16U { memarg } => {
                 self.check_memarg(memarg, 1, resources)?;
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::I64)?;
             }
-            Operator::I64Load32S { ref memarg } => {
+            Operator::I64Load32S { memarg } => {
                 self.check_memarg(memarg, 2, resources)?;
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::I64)?;
             }
-            Operator::I64Load32U { ref memarg } => {
+            Operator::I64Load32U { memarg } => {
                 self.check_memarg(memarg, 2, resources)?;
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::I64)?;
             }
-            Operator::I32Store { ref memarg } => {
+            Operator::I32Store { memarg } => {
                 self.check_memarg(memarg, 2, resources)?;
                 self.check_operands_2(Type::I32, Type::I32)?;
                 self.func_state.change_frame(2)?;
             }
-            Operator::I64Store { ref memarg } => {
+            Operator::I64Store { memarg } => {
                 self.check_memarg(memarg, 3, resources)?;
                 self.check_operands_2(Type::I32, Type::I64)?;
                 self.func_state.change_frame(2)?;
             }
-            Operator::F32Store { ref memarg } => {
+            Operator::F32Store { memarg } => {
                 self.check_non_deterministic_enabled()?;
                 self.check_memarg(memarg, 2, resources)?;
                 self.check_operands_2(Type::I32, Type::F32)?;
                 self.func_state.change_frame(2)?;
             }
-            Operator::F64Store { ref memarg } => {
+            Operator::F64Store { memarg } => {
                 self.check_non_deterministic_enabled()?;
                 self.check_memarg(memarg, 3, resources)?;
                 self.check_operands_2(Type::I32, Type::F64)?;
                 self.func_state.change_frame(2)?;
             }
-            Operator::I32Store8 { ref memarg } => {
+            Operator::I32Store8 { memarg } => {
                 self.check_memarg(memarg, 0, resources)?;
                 self.check_operands_2(Type::I32, Type::I32)?;
                 self.func_state.change_frame(2)?;
             }
-            Operator::I32Store16 { ref memarg } => {
+            Operator::I32Store16 { memarg } => {
                 self.check_memarg(memarg, 1, resources)?;
                 self.check_operands_2(Type::I32, Type::I32)?;
                 self.func_state.change_frame(2)?;
             }
-            Operator::I64Store8 { ref memarg } => {
+            Operator::I64Store8 { memarg } => {
                 self.check_memarg(memarg, 0, resources)?;
                 self.check_operands_2(Type::I32, Type::I64)?;
                 self.func_state.change_frame(2)?;
             }
-            Operator::I64Store16 { ref memarg } => {
+            Operator::I64Store16 { memarg } => {
                 self.check_memarg(memarg, 1, resources)?;
                 self.check_operands_2(Type::I32, Type::I64)?;
                 self.func_state.change_frame(2)?;
             }
-            Operator::I64Store32 { ref memarg } => {
+            Operator::I64Store32 { memarg } => {
                 self.check_memarg(memarg, 2, resources)?;
                 self.check_operands_2(Type::I32, Type::I64)?;
                 self.func_state.change_frame(2)?;
@@ -1310,132 +1310,132 @@ impl OperatorValidator {
                 self.func_state.change_frame_with_type(1, Type::I64)?;
             }
 
-            Operator::I32AtomicLoad { ref memarg }
-            | Operator::I32AtomicLoad16U { ref memarg }
-            | Operator::I32AtomicLoad8U { ref memarg } => {
+            Operator::I32AtomicLoad { memarg }
+            | Operator::I32AtomicLoad16U { memarg }
+            | Operator::I32AtomicLoad8U { memarg } => {
                 self.check_threads_enabled()?;
                 self.check_shared_memarg_wo_align(memarg, resources)?;
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::I32)?;
             }
-            Operator::I64AtomicLoad { ref memarg }
-            | Operator::I64AtomicLoad32U { ref memarg }
-            | Operator::I64AtomicLoad16U { ref memarg }
-            | Operator::I64AtomicLoad8U { ref memarg } => {
+            Operator::I64AtomicLoad { memarg }
+            | Operator::I64AtomicLoad32U { memarg }
+            | Operator::I64AtomicLoad16U { memarg }
+            | Operator::I64AtomicLoad8U { memarg } => {
                 self.check_threads_enabled()?;
                 self.check_shared_memarg_wo_align(memarg, resources)?;
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::I64)?;
             }
-            Operator::I32AtomicStore { ref memarg }
-            | Operator::I32AtomicStore16 { ref memarg }
-            | Operator::I32AtomicStore8 { ref memarg } => {
+            Operator::I32AtomicStore { memarg }
+            | Operator::I32AtomicStore16 { memarg }
+            | Operator::I32AtomicStore8 { memarg } => {
                 self.check_threads_enabled()?;
                 self.check_shared_memarg_wo_align(memarg, resources)?;
                 self.check_operands_2(Type::I32, Type::I32)?;
                 self.func_state.change_frame(2)?;
             }
-            Operator::I64AtomicStore { ref memarg }
-            | Operator::I64AtomicStore32 { ref memarg }
-            | Operator::I64AtomicStore16 { ref memarg }
-            | Operator::I64AtomicStore8 { ref memarg } => {
+            Operator::I64AtomicStore { memarg }
+            | Operator::I64AtomicStore32 { memarg }
+            | Operator::I64AtomicStore16 { memarg }
+            | Operator::I64AtomicStore8 { memarg } => {
                 self.check_threads_enabled()?;
                 self.check_shared_memarg_wo_align(memarg, resources)?;
                 self.check_operands_2(Type::I32, Type::I64)?;
                 self.func_state.change_frame(2)?;
             }
-            Operator::I32AtomicRmwAdd { ref memarg }
-            | Operator::I32AtomicRmwSub { ref memarg }
-            | Operator::I32AtomicRmwAnd { ref memarg }
-            | Operator::I32AtomicRmwOr { ref memarg }
-            | Operator::I32AtomicRmwXor { ref memarg }
-            | Operator::I32AtomicRmw16AddU { ref memarg }
-            | Operator::I32AtomicRmw16SubU { ref memarg }
-            | Operator::I32AtomicRmw16AndU { ref memarg }
-            | Operator::I32AtomicRmw16OrU { ref memarg }
-            | Operator::I32AtomicRmw16XorU { ref memarg }
-            | Operator::I32AtomicRmw8AddU { ref memarg }
-            | Operator::I32AtomicRmw8SubU { ref memarg }
-            | Operator::I32AtomicRmw8AndU { ref memarg }
-            | Operator::I32AtomicRmw8OrU { ref memarg }
-            | Operator::I32AtomicRmw8XorU { ref memarg } => {
+            Operator::I32AtomicRmwAdd { memarg }
+            | Operator::I32AtomicRmwSub { memarg }
+            | Operator::I32AtomicRmwAnd { memarg }
+            | Operator::I32AtomicRmwOr { memarg }
+            | Operator::I32AtomicRmwXor { memarg }
+            | Operator::I32AtomicRmw16AddU { memarg }
+            | Operator::I32AtomicRmw16SubU { memarg }
+            | Operator::I32AtomicRmw16AndU { memarg }
+            | Operator::I32AtomicRmw16OrU { memarg }
+            | Operator::I32AtomicRmw16XorU { memarg }
+            | Operator::I32AtomicRmw8AddU { memarg }
+            | Operator::I32AtomicRmw8SubU { memarg }
+            | Operator::I32AtomicRmw8AndU { memarg }
+            | Operator::I32AtomicRmw8OrU { memarg }
+            | Operator::I32AtomicRmw8XorU { memarg } => {
                 self.check_threads_enabled()?;
                 self.check_shared_memarg_wo_align(memarg, resources)?;
                 self.check_operands_2(Type::I32, Type::I32)?;
                 self.func_state.change_frame_with_type(2, Type::I32)?;
             }
-            Operator::I64AtomicRmwAdd { ref memarg }
-            | Operator::I64AtomicRmwSub { ref memarg }
-            | Operator::I64AtomicRmwAnd { ref memarg }
-            | Operator::I64AtomicRmwOr { ref memarg }
-            | Operator::I64AtomicRmwXor { ref memarg }
-            | Operator::I64AtomicRmw32AddU { ref memarg }
-            | Operator::I64AtomicRmw32SubU { ref memarg }
-            | Operator::I64AtomicRmw32AndU { ref memarg }
-            | Operator::I64AtomicRmw32OrU { ref memarg }
-            | Operator::I64AtomicRmw32XorU { ref memarg }
-            | Operator::I64AtomicRmw16AddU { ref memarg }
-            | Operator::I64AtomicRmw16SubU { ref memarg }
-            | Operator::I64AtomicRmw16AndU { ref memarg }
-            | Operator::I64AtomicRmw16OrU { ref memarg }
-            | Operator::I64AtomicRmw16XorU { ref memarg }
-            | Operator::I64AtomicRmw8AddU { ref memarg }
-            | Operator::I64AtomicRmw8SubU { ref memarg }
-            | Operator::I64AtomicRmw8AndU { ref memarg }
-            | Operator::I64AtomicRmw8OrU { ref memarg }
-            | Operator::I64AtomicRmw8XorU { ref memarg } => {
+            Operator::I64AtomicRmwAdd { memarg }
+            | Operator::I64AtomicRmwSub { memarg }
+            | Operator::I64AtomicRmwAnd { memarg }
+            | Operator::I64AtomicRmwOr { memarg }
+            | Operator::I64AtomicRmwXor { memarg }
+            | Operator::I64AtomicRmw32AddU { memarg }
+            | Operator::I64AtomicRmw32SubU { memarg }
+            | Operator::I64AtomicRmw32AndU { memarg }
+            | Operator::I64AtomicRmw32OrU { memarg }
+            | Operator::I64AtomicRmw32XorU { memarg }
+            | Operator::I64AtomicRmw16AddU { memarg }
+            | Operator::I64AtomicRmw16SubU { memarg }
+            | Operator::I64AtomicRmw16AndU { memarg }
+            | Operator::I64AtomicRmw16OrU { memarg }
+            | Operator::I64AtomicRmw16XorU { memarg }
+            | Operator::I64AtomicRmw8AddU { memarg }
+            | Operator::I64AtomicRmw8SubU { memarg }
+            | Operator::I64AtomicRmw8AndU { memarg }
+            | Operator::I64AtomicRmw8OrU { memarg }
+            | Operator::I64AtomicRmw8XorU { memarg } => {
                 self.check_threads_enabled()?;
                 self.check_shared_memarg_wo_align(memarg, resources)?;
                 self.check_operands_2(Type::I32, Type::I64)?;
                 self.func_state.change_frame_with_type(2, Type::I64)?;
             }
-            Operator::I32AtomicRmwXchg { ref memarg }
-            | Operator::I32AtomicRmw16XchgU { ref memarg }
-            | Operator::I32AtomicRmw8XchgU { ref memarg } => {
+            Operator::I32AtomicRmwXchg { memarg }
+            | Operator::I32AtomicRmw16XchgU { memarg }
+            | Operator::I32AtomicRmw8XchgU { memarg } => {
                 self.check_threads_enabled()?;
                 self.check_shared_memarg_wo_align(memarg, resources)?;
                 self.check_operands_2(Type::I32, Type::I32)?;
                 self.func_state.change_frame_with_type(2, Type::I32)?;
             }
-            Operator::I32AtomicRmwCmpxchg { ref memarg }
-            | Operator::I32AtomicRmw16CmpxchgU { ref memarg }
-            | Operator::I32AtomicRmw8CmpxchgU { ref memarg } => {
+            Operator::I32AtomicRmwCmpxchg { memarg }
+            | Operator::I32AtomicRmw16CmpxchgU { memarg }
+            | Operator::I32AtomicRmw8CmpxchgU { memarg } => {
                 self.check_threads_enabled()?;
                 self.check_shared_memarg_wo_align(memarg, resources)?;
                 self.check_operands_3(Type::I32, Type::I32, Type::I32)?;
                 self.func_state.change_frame_with_type(3, Type::I32)?;
             }
-            Operator::I64AtomicRmwXchg { ref memarg }
-            | Operator::I64AtomicRmw32XchgU { ref memarg }
-            | Operator::I64AtomicRmw16XchgU { ref memarg }
-            | Operator::I64AtomicRmw8XchgU { ref memarg } => {
+            Operator::I64AtomicRmwXchg { memarg }
+            | Operator::I64AtomicRmw32XchgU { memarg }
+            | Operator::I64AtomicRmw16XchgU { memarg }
+            | Operator::I64AtomicRmw8XchgU { memarg } => {
                 self.check_threads_enabled()?;
                 self.check_shared_memarg_wo_align(memarg, resources)?;
                 self.check_operands_2(Type::I32, Type::I64)?;
                 self.func_state.change_frame_with_type(2, Type::I64)?;
             }
-            Operator::I64AtomicRmwCmpxchg { ref memarg }
-            | Operator::I64AtomicRmw32CmpxchgU { ref memarg }
-            | Operator::I64AtomicRmw16CmpxchgU { ref memarg }
-            | Operator::I64AtomicRmw8CmpxchgU { ref memarg } => {
+            Operator::I64AtomicRmwCmpxchg { memarg }
+            | Operator::I64AtomicRmw32CmpxchgU { memarg }
+            | Operator::I64AtomicRmw16CmpxchgU { memarg }
+            | Operator::I64AtomicRmw8CmpxchgU { memarg } => {
                 self.check_threads_enabled()?;
                 self.check_shared_memarg_wo_align(memarg, resources)?;
                 self.check_operands_3(Type::I32, Type::I64, Type::I64)?;
                 self.func_state.change_frame_with_type(3, Type::I64)?;
             }
-            Operator::AtomicNotify { ref memarg } => {
+            Operator::AtomicNotify { memarg } => {
                 self.check_threads_enabled()?;
                 self.check_shared_memarg_wo_align(memarg, resources)?;
                 self.check_operands_2(Type::I32, Type::I32)?;
                 self.func_state.change_frame_with_type(2, Type::I32)?;
             }
-            Operator::I32AtomicWait { ref memarg } => {
+            Operator::I32AtomicWait { memarg } => {
                 self.check_threads_enabled()?;
                 self.check_shared_memarg_wo_align(memarg, resources)?;
                 self.check_operands_3(Type::I32, Type::I32, Type::I64)?;
                 self.func_state.change_frame_with_type(3, Type::I32)?;
             }
-            Operator::I64AtomicWait { ref memarg } => {
+            Operator::I64AtomicWait { memarg } => {
                 self.check_threads_enabled()?;
                 self.check_shared_memarg_wo_align(memarg, resources)?;
                 self.check_operands_3(Type::I32, Type::I64, Type::I64)?;
@@ -1463,13 +1463,13 @@ impl OperatorValidator {
                 }
                 self.func_state.change_frame_with_type(0, Type::AnyFunc)?;
             }
-            Operator::V128Load { ref memarg } => {
+            Operator::V128Load { memarg } => {
                 self.check_simd_enabled()?;
                 self.check_memarg(memarg, 4, resources)?;
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::V128)?;
             }
-            Operator::V128Store { ref memarg } => {
+            Operator::V128Store { memarg } => {
                 self.check_simd_enabled()?;
                 self.check_memarg(memarg, 4, resources)?;
                 self.check_operands_2(Type::I32, Type::V128)?;
@@ -1752,31 +1752,31 @@ impl OperatorValidator {
                 }
                 self.func_state.change_frame_with_type(2, Type::V128)?;
             }
-            Operator::V8x16LoadSplat { ref memarg } => {
+            Operator::V8x16LoadSplat { memarg } => {
                 self.check_simd_enabled()?;
                 self.check_memarg(memarg, 0, resources)?;
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::V128)?;
             }
-            Operator::V16x8LoadSplat { ref memarg } => {
+            Operator::V16x8LoadSplat { memarg } => {
                 self.check_simd_enabled()?;
                 self.check_memarg(memarg, 1, resources)?;
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::V128)?;
             }
-            Operator::V32x4LoadSplat { ref memarg } => {
+            Operator::V32x4LoadSplat { memarg } => {
                 self.check_simd_enabled()?;
                 self.check_memarg(memarg, 2, resources)?;
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::V128)?;
             }
-            Operator::V64x2LoadSplat { ref memarg }
-            | Operator::I16x8Load8x8S { ref memarg }
-            | Operator::I16x8Load8x8U { ref memarg }
-            | Operator::I32x4Load16x4S { ref memarg }
-            | Operator::I32x4Load16x4U { ref memarg }
-            | Operator::I64x2Load32x2S { ref memarg }
-            | Operator::I64x2Load32x2U { ref memarg } => {
+            Operator::V64x2LoadSplat { memarg }
+            | Operator::I16x8Load8x8S { memarg }
+            | Operator::I16x8Load8x8U { memarg }
+            | Operator::I32x4Load16x4S { memarg }
+            | Operator::I32x4Load16x4U { memarg }
+            | Operator::I64x2Load32x2S { memarg }
+            | Operator::I64x2Load32x2U { memarg } => {
                 self.check_simd_enabled()?;
                 self.check_memarg(memarg, 3, resources)?;
                 self.check_operands_1(Type::I32)?;
