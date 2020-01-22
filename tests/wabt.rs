@@ -256,16 +256,6 @@ fn binary_compare(
     // sections and don't compare against wabt's.
     let actual = remove_name_section(actual);
 
-    // We test wabt with `--enable-all`, but this *always* emits a data count
-    // section in the binary. We, however, only emit it if necessary. To handle
-    // these differences remove wabt's data count section if our binary doesn't
-    // have one.
-    let expected = if contains_datacount_section(&actual) {
-        expected.to_vec()
-    } else {
-        remove_datacount_section(expected)
-    };
-
     if actual == expected {
         return Ok(());
     }
@@ -273,7 +263,7 @@ fn binary_compare(
     let difference = actual
         .iter()
         .enumerate()
-        .zip(&expected)
+        .zip(expected)
         .find(|((_, actual), expected)| actual != expected);
     let pos = match difference {
         Some(((pos, _), _)) => format!("at byte {} ({0:#x})", pos),
@@ -349,18 +339,6 @@ error: actual wasm differs {pos} from expected wasm
         }
     }
 
-    fn contains_datacount_section(bytes: &[u8]) -> bool {
-        if let Ok(mut r) = ModuleReader::new(bytes) {
-            while let Ok(s) = r.read() {
-                match s.code {
-                    SectionCode::DataCount => return true,
-                    _ => {}
-                }
-            }
-        }
-        false
-    }
-
     fn remove_name_section(bytes: &[u8]) -> Vec<u8> {
         if let Ok(mut r) = ModuleReader::new(bytes) {
             loop {
@@ -368,27 +346,6 @@ error: actual wasm differs {pos} from expected wasm
                 if let Ok(s) = r.read() {
                     match s.code {
                         SectionCode::Custom { name: "name", .. } => {
-                            let mut bytes = bytes.to_vec();
-                            bytes.drain(start..s.range().end);
-                            return bytes;
-                        }
-                        _ => {}
-                    }
-                } else {
-                    break;
-                }
-            }
-        }
-        return bytes.to_vec();
-    }
-
-    fn remove_datacount_section(bytes: &[u8]) -> Vec<u8> {
-        if let Ok(mut r) = ModuleReader::new(bytes) {
-            loop {
-                let start = r.current_position();
-                if let Ok(s) = r.read() {
-                    match s.code {
-                        SectionCode::DataCount => {
                             let mut bytes = bytes.to_vec();
                             bytes.drain(start..s.range().end);
                             return bytes;
