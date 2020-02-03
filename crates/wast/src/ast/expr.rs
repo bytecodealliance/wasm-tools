@@ -644,25 +644,25 @@ instructions! {
         V128Const(V128Const) : [0xfd, 0x02] : "v128.const",
 
         I8x16Splat : [0xfd, 0x04] : "i8x16.splat",
-        I8x16ExtractLaneS(i32) : [0xfd, 0x05] : "i8x16.extract_lane_s",
-        I8x16ExtractLaneU(i32) : [0xfd, 0x06] : "i8x16.extract_lane_u",
-        I8x16ReplaceLane(i32) : [0xfd, 0x07] : "i8x16.replace_lane",
+        I8x16ExtractLaneS(u8) : [0xfd, 0x05] : "i8x16.extract_lane_s",
+        I8x16ExtractLaneU(u8) : [0xfd, 0x06] : "i8x16.extract_lane_u",
+        I8x16ReplaceLane(u8) : [0xfd, 0x07] : "i8x16.replace_lane",
         I16x8Splat : [0xfd, 0x08] : "i16x8.splat",
-        I16x8ExtractLaneS(i32) : [0xfd, 0x09] : "i16x8.extract_lane_s",
-        I16x8ExtractLaneU(i32) : [0xfd, 0x0a] : "i16x8.extract_lane_u",
-        I16x8ReplaceLane(i32) : [0xfd, 0x0b] : "i16x8.replace_lane",
+        I16x8ExtractLaneS(u8) : [0xfd, 0x09] : "i16x8.extract_lane_s",
+        I16x8ExtractLaneU(u8) : [0xfd, 0x0a] : "i16x8.extract_lane_u",
+        I16x8ReplaceLane(u8) : [0xfd, 0x0b] : "i16x8.replace_lane",
         I32x4Splat : [0xfd, 0x0c] : "i32x4.splat",
-        I32x4ExtractLane(i32) : [0xfd, 0x0d] : "i32x4.extract_lane",
-        I32x4ReplaceLane(i32) : [0xfd, 0x0e] : "i32x4.replace_lane",
+        I32x4ExtractLane(u8) : [0xfd, 0x0d] : "i32x4.extract_lane",
+        I32x4ReplaceLane(u8) : [0xfd, 0x0e] : "i32x4.replace_lane",
         I64x2Splat : [0xfd, 0x0f] : "i64x2.splat",
-        I64x2ExtractLane(i32) : [0xfd, 0x10] : "i64x2.extract_lane",
-        I64x2ReplaceLane(i32) : [0xfd, 0x11] : "i64x2.replace_lane",
+        I64x2ExtractLane(u8) : [0xfd, 0x10] : "i64x2.extract_lane",
+        I64x2ReplaceLane(u8) : [0xfd, 0x11] : "i64x2.replace_lane",
         F32x4Splat : [0xfd, 0x12] : "f32x4.splat",
-        F32x4ExtractLane(i32) : [0xfd, 0x13] : "f32x4.extract_lane",
-        F32x4ReplaceLane(i32) : [0xfd, 0x14] : "f32x4.replace_lane",
+        F32x4ExtractLane(u8) : [0xfd, 0x13] : "f32x4.extract_lane",
+        F32x4ReplaceLane(u8) : [0xfd, 0x14] : "f32x4.replace_lane",
         F64x2Splat : [0xfd, 0x15] : "f64x2.splat",
-        F64x2ExtractLane(i32) : [0xfd, 0x16] : "f64x2.extract_lane",
-        F64x2ReplaceLane(i32) : [0xfd, 0x17] : "f64x2.replace_lane",
+        F64x2ExtractLane(u8) : [0xfd, 0x16] : "f64x2.extract_lane",
+        F64x2ReplaceLane(u8) : [0xfd, 0x17] : "f64x2.replace_lane",
 
         I8x16Eq : [0xfd, 0x18] : "i8x16.eq",
         I8x16Ne : [0xfd, 0x19] : "i8x16.ne",
@@ -796,12 +796,8 @@ instructions! {
 
         I32x4TruncSatF32x4S : [0xfd, 0xab] : "i32x4.trunc_sat_f32x4_s",
         I32x4TruncSatF32x4U : [0xfd, 0xac] : "i32x4.trunc_sat_f32x4_u",
-        I64x2TruncSatF64x2S : [0xfd, 0xad] : "i64x2.trunc_sat_f64x2_s",
-        I64x2TruncSatF64x2U : [0xfd, 0xae] : "i64x2.trunc_sat_f64x2_u",
         F32x4ConvertI32x4S : [0xfd, 0xaf] : "f32x4.convert_i32x4_s",
         F32x4ConvertI32x4U : [0xfd, 0xb0] : "f32x4.convert_i32x4_u",
-        F64x2ConvertI64x2S : [0xfd, 0xb1] : "f64x2.convert_i64x2_s",
-        F64x2ConvertI64x2U : [0xfd, 0xb2] : "f64x2.convert_i64x2_u",
         V8x16Swizzle : [0xfd, 0xc0] : "v8x16.swizzle",
         V8x16Shuffle(V8x16Shuffle) : [0xfd, 0xc1] : "v8x16.shuffle",
         V8x16LoadSplat(MemArg<1>) : [0xfd, 0xc2] : "v8x16.load_splat",
@@ -1159,7 +1155,7 @@ impl<'a> Parse<'a> for V128Const {
 #[derive(Debug)]
 pub struct V8x16Shuffle {
     #[allow(missing_docs)]
-    pub lanes: [i8; 16],
+    pub lanes: [u8; 16],
 }
 
 impl<'a> Parse<'a> for V8x16Shuffle {

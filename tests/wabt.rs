@@ -130,7 +130,7 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
                     module: QuoteModule::Quote(source),
                     message,
                 } => {
-                    let source = source.concat();
+                    let source = source.join(" ");
                     let result = ParseBuffer::new(&source)
                         .map_err(|e| e.into())
                         .and_then(|b| -> Result<(), wast::Error> {
@@ -201,11 +201,17 @@ fn error_matches(error: &str, message: &str) -> bool {
     if message == "unknown operator"
         || message == "unexpected token"
         || message == "wrong number of lane literals"
+        || message == "type mismatch"
+        || message == "malformed lane index"
+        || message == "expected i8 literal"
+        || message == "invalid lane length"
+        || message == "alignment must be a power of two"
     {
         return error.contains("expected a ")
             || error.contains("expected an ")
             || error.contains("constant out of range");
     }
+
     return false;
 }
 
@@ -426,6 +432,15 @@ fn skip_test(test: &Path, contents: &str) -> bool {
     // Like above this uses `iNNxMM.load_splat` but the simd spec doesn't have
     // these and the test seems to disagree at least a bit on encoding.
     if test.ends_with("logging-all-opcodes.txt") {
+        return true;
+    }
+
+    // These all use now-removed simd instructions, so we're waiting for wabt to
+    // update to the latest simd spec
+    if test.ends_with("tracing-all-opcodes.txt")
+        || test.ends_with("simd-unary.txt")
+        || test.ends_with("simd/simd_conversions.wast")
+    {
         return true;
     }
 

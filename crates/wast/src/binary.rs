@@ -109,13 +109,6 @@ impl<T: Encode> Encode for [T] {
     }
 }
 
-impl Encode for [u8] {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.len().encode(e);
-        e.extend_from_slice(self);
-    }
-}
-
 impl<T: Encode> Encode for Vec<T> {
     fn encode(&self, e: &mut Vec<u8>) {
         <[T]>::encode(self, e)
@@ -133,6 +126,12 @@ impl Encode for usize {
     fn encode(&self, e: &mut Vec<u8>) {
         assert!(*self <= u32::max_value() as usize);
         (*self as u32).encode(e)
+    }
+}
+
+impl Encode for u8 {
+    fn encode(&self, e: &mut Vec<u8>) {
+        e.push(*self);
     }
 }
 
@@ -668,8 +667,7 @@ impl Encode for V128Const {
 
 impl Encode for V8x16Shuffle {
     fn encode(&self, dst: &mut Vec<u8>) {
-        let indexes: Vec<u8> = self.lanes.iter().map(|&i| i as u8).collect();
-        dst.extend_from_slice(&indexes);
+        dst.extend_from_slice(&self.lanes);
     }
 }
 
