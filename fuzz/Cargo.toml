@@ -9,7 +9,7 @@ cargo-fuzz = true
 
 [dependencies]
 wasmprinter = { path = ".." }
-libfuzzer-sys = { git = "https://github.com/rust-fuzz/libfuzzer-sys" }
+libfuzzer-sys = "0.3.0"
 
 [[bin]]
 name = "print"
