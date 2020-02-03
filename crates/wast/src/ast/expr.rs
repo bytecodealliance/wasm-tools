@@ -1,5 +1,6 @@
 use crate::ast::{self, kw};
 use crate::parser::{Parse, Parser, Result};
+use std::mem;
 
 /// An expression, or a list of instructions, in the WebAssembly text format.
 ///
@@ -14,108 +15,246 @@ pub struct Expression<'a> {
 
 impl<'a> Parse<'a> for Expression<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let mut instrs = Vec::new();
-        parse_folded_instrs(parser, &mut instrs)?;
-        Ok(Expression { instrs })
+        ExpressionParser::default().parse(parser)
     }
 }
 
-fn parse_folded_instrs<'a>(parser: Parser<'a>, instrs: &mut Vec<Instruction<'a>>) -> Result<()> {
-    while !parser.is_empty() {
-        parse_one_instr(parser, instrs)?;
-    }
-    Ok(())
+/// Helper struct used to parse an `Expression` with helper methods and such.
+///
+/// The primary purpose of this is to avoid defining expression parsing as a
+/// call-thread-stack recursive function. Since we're parsing user input that
+/// runs the risk of blowing the call stack, so we want to be sure to use a heap
+/// stack structure wherever possible.
+#[derive(Default)]
+struct ExpressionParser<'a> {
+    /// The flat list of instructions that we've parsed so far, and will
+    /// eventually become the final `Expression`.
+    instrs: Vec<Instruction<'a>>,
+
+    /// Descriptor of all our nested s-expr blocks. This only happens when
+    /// instructions themselves are nested.
+    stack: Vec<Level<'a>>,
 }
 
-fn parse_one_instr<'a>(parser: Parser<'a>, instrs: &mut Vec<Instruction<'a>>) -> Result<()> {
-    if !parser.peek::<ast::LParen>() {
-        let instr = parser.parse::<Instruction>()?;
-        instrs.push(instr);
-        return Ok(());
-    }
+enum Paren {
+    None,
+    Left,
+    Right,
+}
 
-    parser.parens(|parser| {
-        match parser.parse()? {
-            i @ Instruction::Block(_) | i @ Instruction::Loop(_) => {
-                instrs.push(i);
-                parse_folded_instrs(parser, instrs)?;
-                instrs.push(Instruction::End(None));
+/// A "kind" of nested block that we can be parsing inside of.
+enum Level<'a> {
+    /// This is a normal `block` or `loop` or similar, where the instruction
+    /// payload here is pushed when the block is exited.
+    EndWith(Instruction<'a>),
+
+    /// This is a pretty special variant which means that we're parsing an `if`
+    /// statement, and the state of the `if` parsing is tracked internally in
+    /// the payload.
+    If(If<'a>),
+
+    /// This means we're either parsing inside of `(then ...)` or `(else ...)`
+    /// which don't correspond to terminating instructions, we're just in a
+    /// nested block.
+    IfArm,
+}
+
+/// Possible states of "what should be parsed next?" in an `if` expression.
+enum If<'a> {
+    /// Only the `if` has been parsed, next thing to parse is the clause, if
+    /// any, of the `if` instruction.
+    Clause(Instruction<'a>),
+    /// Next thing to parse is the `then` block
+    Then(Instruction<'a>),
+    /// Next thing to parse is the `else` block
+    Else,
+    /// This `if` statement has finished parsing and if anything remains it's a
+    /// syntax error.
+    End,
+}
+
+impl<'a> ExpressionParser<'a> {
+    fn parse(mut self, parser: Parser<'a>) -> Result<Expression<'a>> {
+        // Here we parse instructions in a loop, and we do not recursively
+        // invoke this parse function to avoid blowing the stack on
+        // deeply-recursive parses.
+        //
+        // Our loop generally only finishes once there's no more input left int
+        // the `parser`. If there's some unclosed delimiters though (on our
+        // `stack`), then we also keep parsing to generate error messages if
+        // there's no input left.
+        while !parser.is_empty() || !self.stack.is_empty() {
+            // As a small ease-of-life adjustment here, if we're parsing inside
+            // of an `if block then we require that all sub-components are
+            // s-expressions surrounded by `(` and `)`, so verify that here.
+            if let Some(Level::If(_)) = self.stack.last() {
+                if !parser.is_empty() && !parser.peek::<ast::LParen>() {
+                    return Err(parser.error("expected `(`"));
+                }
             }
 
-            // Parsing `if` is... apparently weird. The official spec seems to
-            // indicate that the grammar is
-            //
-            //      (if $clause (then $then) (else $else)?)
-            //
-            // but wabt's test suite and the output of wasm-opt seems to
-            // indicate that the keyword `then` is actually optional. To handle
-            // all this we try to adapt to these grammars and accept both.
-            //
-            // We require that the clause is itself surrounded with `(` which
-            // the official wasm spec doesn't seem to require. We then
-            // require the next expression to be parenthesized as well. If it
-            // starts with `then` then we look for an `else` block. Otherwise we
-            // simply parse as usual and then return.
-            i @ Instruction::If(_) => {
-                // Handle the clause...
-                if !parser.peek::<ast::LParen>() {
-                    return Err(parser.error("expected `(`"));
-                }
-                if !parser.peek2::<kw::then>() {
-                    parse_one_instr(parser, instrs)?;
-                }
+            match self.paren(parser)? {
+                // No parenthesis seen? Then we just parse the next instruction
+                // and move on.
+                Paren::None => self.instrs.push(parser.parse()?),
 
-                // Make sure the `if` instruction itself enters the instruction
-                // stream.
-                instrs.push(i);
-
-                // Handle the `then`, for now requiring it's in parens and then
-                // otherwise we look for `else` with a `then` block. If `then`
-                // is missing we only parse one more instruction then assume
-                // we're at the end.
-                if !parser.peek::<ast::LParen>() {
-                    return Err(parser.error("expected `(`"));
-                }
-                if parser.peek2::<kw::then>() {
-                    parser.parens(|parser| {
-                        parser.parse::<kw::then>()?;
-                        parse_folded_instrs(parser, instrs)
-                    })?;
-                } else {
-                    parse_one_instr(parser, instrs)?;
-                }
-
-
-                // Like above parse the `else` clause but optionally require the
-                // `else` keyword since wabt doesn't seem to require it.
-                if parser.peek::<ast::LParen>() {
-                    let before = instrs.len();
-                    instrs.push(Instruction::Else(None));
-                    if parser.peek2::<kw::r#else>() {
-                        parser.parens(|parser| {
-                            parser.parse::<kw::r#else>()?;
-                            parse_folded_instrs(parser, instrs)
-                        })?;
-                        // Note that as a minor tweak here if the clause is
-                        // empty then it's dropped. This, while strictly
-                        // optional, matches wabt's behavior in parsing/binary
-                        // emission.
-                        if before + 1 == instrs.len() {
-                            instrs.truncate(before);
+                // If we see a left-parenthesis then things are a little
+                // special. We handle block-like instructions specially
+                // (`block`, `loop`, and `if`), and otherwise all other
+                // instructions simply get appended once we reach the end of the
+                // s-expression.
+                //
+                // In all cases here we push something onto the `stack` to get
+                // popped when the `)` character is seen.
+                Paren::Left => {
+                    // First up is handling `if` parsing, which is funky in a
+                    // whole bunch of ways. See the method internally for more
+                    // information.
+                    if self.handle_if_lparen(parser)? {
+                        continue;
+                    }
+                    match parser.parse()? {
+                        // If block/loop show up then we just need to be sure to
+                        // push an `end` instruction whenever the `)` token is
+                        // seen
+                        i @ Instruction::Block(_) | i @ Instruction::Loop(_) => {
+                            self.instrs.push(i);
+                            self.stack.push(Level::EndWith(Instruction::End(None)));
                         }
-                    } else {
-                        parse_one_instr(parser, instrs)?;
+
+                        // Parsing an `if` instruction is super tricky, so we
+                        // push an `If` scope and we let all our scope-based
+                        // parsing handle the remaining items.
+                        i @ Instruction::If(_) => {
+                            self.stack.push(Level::If(If::Clause(i)));
+                        }
+
+                        // Anything else means that we're parsing a nested form
+                        // such as `(i32.add ...)` which means that the
+                        // instruction we parsed will be coming at the end.
+                        other => self.stack.push(Level::EndWith(other)),
                     }
                 }
-                instrs.push(Instruction::End(None));
-            }
-            other => {
-                parse_folded_instrs(parser, instrs)?;
-                instrs.push(other);
+
+                // If we registered a `)` token as being seen, then we're
+                // guaranteed there's an item in the `stack` stack for us to
+                // pop. We peel that off and take a look at what it says to do.
+                Paren::Right => match self.stack.pop().unwrap() {
+                    Level::EndWith(i) => self.instrs.push(i),
+                    Level::IfArm => {}
+
+                    // If an `if` statement hasn't parsed the clause or `then`
+                    // block, then that's an error because there weren't enough
+                    // items in the `if` statement. Otherwise we're just careful
+                    // to terminate with an `end` instruction.
+                    Level::If(If::Clause(_)) => {
+                        return Err(parser.error("previous `if` had no clause"));
+                    }
+                    Level::If(If::Then(_)) => {
+                        return Err(parser.error("previous `if` had no `then`"));
+                    }
+                    Level::If(_) => {
+                        self.instrs.push(Instruction::End(None));
+                    }
+                },
             }
         }
-        Ok(())
-    })
+
+        Ok(Expression {
+            instrs: self.instrs,
+        })
+    }
+
+    /// Parses either `(`, `)`, or nothing.
+    fn paren(&self, parser: Parser<'a>) -> Result<Paren> {
+        parser.step(|cursor| {
+            Ok(match cursor.lparen() {
+                Some(rest) => (Paren::Left, rest),
+                None if self.stack.is_empty() => (Paren::None, cursor),
+                None => match cursor.rparen() {
+                    Some(rest) => (Paren::Right, rest),
+                    None => (Paren::None, cursor),
+                },
+            })
+        })
+    }
+
+    /// Handles all parsing of an `if` statement.
+    ///
+    /// The syntactical form of an `if` stament looks like:
+    ///
+    /// ```wat
+    /// (if $clause (then $then) (else $else))
+    /// ```
+    ///
+    /// but it turns out we practically see a few things in the wild:
+    ///
+    /// * inside the `(if ...)` every sub-thing is surrounded by parens
+    /// * The `then` and `else` keywords are optional
+    /// * The `$then` and `$else` blocks don't need to be surrounded by parens
+    ///
+    /// That's all attempted to be handled here. The part about all sub-parts
+    /// being surrounded by `(` and `)` means that we hook into the `LParen`
+    /// parsing above to call this method there unconditionally.
+    ///
+    /// Returns `true` if the rest of the arm above should be skipped, or
+    /// `false` if we should parse the next item as an instruction (because we
+    /// didn't handle the lparen here).
+    fn handle_if_lparen(&mut self, parser: Parser<'a>) -> Result<bool> {
+        // Only execute the code below if there's an `If` listed last.
+        let i = match self.stack.last_mut() {
+            Some(Level::If(i)) => i,
+            _ => return Ok(false),
+        };
+
+        // The first thing parsed in an `if` statement is the clause. If the
+        // clause starts with `then`, however, then we know to skip the clause
+        // and fall through to below.
+        if let If::Clause(if_instr) = i {
+            let instr = mem::replace(if_instr, Instruction::End(None));
+            *i = If::Then(instr);
+            if !parser.peek::<kw::then>() {
+                return Ok(false);
+            }
+        }
+
+        // All `if` statements are required to have a `then`. This is either the
+        // second s-expr (with or without a leading `then`) or the first s-expr
+        // with a leading `then`. The optionality of `then` isn't strictly what
+        // the text spec says but it matches wabt for now.
+        //
+        // Note that when we see the `then`, that's when we actually add the
+        // original `if` instruction to the stream.
+        if let If::Then(if_instr) = i {
+            let instr = mem::replace(if_instr, Instruction::End(None));
+            self.instrs.push(instr);
+            *i = If::Else;
+            if parser.parse::<Option<kw::then>>()?.is_some() {
+                self.stack.push(Level::IfArm);
+                return Ok(true);
+            }
+            return Ok(false);
+        }
+
+        // effectively the same as the `then` parsing above
+        if let If::Else = i {
+            self.instrs.push(Instruction::Else(None));
+            if parser.parse::<Option<kw::r#else>>()?.is_some() {
+                if parser.is_empty() {
+                    self.instrs.pop();
+                }
+                self.stack.push(Level::IfArm);
+                return Ok(true);
+            }
+            *i = If::End;
+            return Ok(false);
+        }
+
+        // If we made it this far then we're at `If::End` which means that there
+        // were too many s-expressions inside the `(if)` and we don't want to
+        // parse anything else.
+        Err(parser.error("too many payloads inside of `(if)`"))
+    }
 }
 
 // TODO: document this obscenity
