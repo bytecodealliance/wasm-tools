@@ -1647,6 +1647,10 @@ impl OperatorValidator {
             | Operator::I8x16SubSaturateS
             | Operator::I8x16SubSaturateU
             | Operator::I8x16Mul
+            | Operator::I8x16MinS
+            | Operator::I8x16MinU
+            | Operator::I8x16MaxS
+            | Operator::I8x16MaxU
             | Operator::I16x8Add
             | Operator::I16x8AddSaturateS
             | Operator::I16x8AddSaturateU
@@ -1654,9 +1658,17 @@ impl OperatorValidator {
             | Operator::I16x8SubSaturateS
             | Operator::I16x8SubSaturateU
             | Operator::I16x8Mul
+            | Operator::I16x8MinS
+            | Operator::I16x8MinU
+            | Operator::I16x8MaxS
+            | Operator::I16x8MaxU
             | Operator::I32x4Add
             | Operator::I32x4Sub
             | Operator::I32x4Mul
+            | Operator::I32x4MinS
+            | Operator::I32x4MinU
+            | Operator::I32x4MaxS
+            | Operator::I32x4MaxU
             | Operator::I64x2Add
             | Operator::I64x2Sub
             | Operator::I64x2Mul
