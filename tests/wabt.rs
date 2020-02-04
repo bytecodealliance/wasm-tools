@@ -126,7 +126,15 @@ fn skip_test(test: &Path, contents: &str) -> bool {
     }
 
     // FIXME(WebAssembly/simd#140)
-    if test.ends_with("simd/simd_lane.wast") {
+    if test.ends_with("simd/simd_lane.wast")
+        || test.ends_with("simd/simd_load.wast")
+        || test.ends_with("simd/simd_conversions.wast")
+    {
+        return true;
+    }
+
+    // wasmparser doesn't implement this yet
+    if test.iter().any(|t| t == "tail-call") {
         return true;
     }
 
@@ -136,10 +144,13 @@ fn skip_test(test: &Path, contents: &str) -> bool {
 fn skip_wabt_compare(test: &Path, line: usize) -> bool {
     // wabt doesn't print the table index for element segments on the nonzero
     // table, so their textual representation of these tests are lossy
-    if test.ends_with("reference-types/select.wast") {
-        return true;
-    }
-    if test.ends_with("dump/table-multi.txt") {
+    if (test.ends_with("reference-types/select.wast") && line == 1)
+        || (test.ends_with("reference-types/table_get.wast") && line == 1)
+        || (test.ends_with("reference-types/table_set.wast") && line == 1)
+        || (test.ends_with("reference-types/ref_is_null.wast") && line == 1)
+        || test.ends_with("dump/table-multi.txt")
+        || test.ends_with("dump/reference-types.txt")
+    {
         return true;
     }
 
@@ -148,7 +159,15 @@ fn skip_wabt_compare(test: &Path, line: usize) -> bool {
     // actually encoded. Looks like `wabt` does a number of internal
     // transformations. This seems harmless and fine, so just skip the wabt
     // comparison here.
-    if test.ends_with("bulk-memory-operations/binary.wast") && line == 776 {
+    if (test.ends_with("bulk-memory-operations/binary.wast") && line == 776)
+        || (test.ends_with("reference-types/binary.wast") && line == 1083)
+    {
+        return true;
+    }
+
+    // Looks like we have import/export tables with richer types than wabt
+    // reports? Unsure.
+    if test.ends_with("reference-types/linking.wast") {
         return true;
     }
 
