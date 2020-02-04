@@ -13,7 +13,7 @@ edition = "2018"
 
 [dev-dependencies]
 criterion = "0.3"
-wast = "6.0.0"
+wast = "7.0.0"
 
 [badges]
 travis-ci = { repository = "bytecodealliance/wasmparser.rs" }

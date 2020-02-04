@@ -429,7 +429,6 @@ mod wast_tests {
                 | Invoke { .. }
                 | AssertTrap { .. }
                 | AssertReturn { .. }
-                | AssertReturnFunc { .. }
                 | AssertExhaustion { .. } => {}
             }
         }
@@ -464,20 +463,16 @@ mod wast_tests {
             "simd",
             {
                 let mut config: ValidatingParserConfig = default_config();
+                config.operator_config.enable_reference_types = true;
                 config.operator_config.enable_simd = true;
                 config
             },
             |name, line| match (name, line) {
                 // FIXME(WebAssembly/simd#140) needs a few updates to the
                 // `*.wast` file to successfully parse it (or so I think)
-                ("simd_lane.wast", _) => true,
-                ("simd_load_extend.wast", _) => true,
-                ("simd_f32x4_arith.wast", _) => true,
-                ("simd_f64x2_arith.wast", _) => true,
-                ("simd_f32x4.wast", _) => true,
-                ("simd_f64x2.wast", _) => true,
-                ("simd_const.wast", _) => true,
-                ("simd_load_splat.wast", _) => true,
+                ("simd_lane.wast", _) => true, // due to ";; Test operation with empty argument"
+                ("simd_conversions.wast", _) => true, // unknown `i64x2.trunc_sat_f64x2_s`
+                ("simd_load.wast", _) => true, // due to ";; Test operation with empty argument"
                 _ => false,
             },
         );
@@ -502,6 +497,7 @@ mod wast_tests {
             },
             |name, line| match (name, line) {
                 ("br_table.wast", _) | ("select.wast", _) => true,
+                ("binary.wast", 1057) => true,
                 _ => false,
             },
         );
