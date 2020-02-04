@@ -79,7 +79,7 @@ mod simple_tests {
                 let state = parser.read();
                 match *state {
                     ParserState::EndWasm => break,
-                    ParserState::Error(err) => panic!("Error: {:?}", err),
+                    ParserState::Error(ref err) => panic!("Error: {:?}", err),
                     _ => (),
                 }
                 max_iteration -= 1;
@@ -104,7 +104,7 @@ mod simple_tests {
                 let state = parser.read();
                 match *state {
                     ParserState::EndWasm => break,
-                    ParserState::Error(err) => panic!("Error: {:?}", err),
+                    ParserState::Error(ref err) => panic!("Error: {:?}", err),
                     _ => (),
                 }
                 max_iteration -= 1;
@@ -352,7 +352,7 @@ mod wast_tests {
             let state = parser.read();
             match *state {
                 ParserState::EndWasm => break,
-                ParserState::Error(err) => return Err(err),
+                ParserState::Error(ref err) => return Err(err.clone()),
                 _ => (),
             }
             max_iteration -= 1;
@@ -403,22 +403,52 @@ mod wast_tests {
             match directive {
                 Module(module) | AssertUnlinkable { module, .. } => {
                     if let Err(err) = validate_module(module, config.clone()) {
-                        panic!("{}:{}: invalid module: {}", filename, line, err.message);
+                        panic!("{}:{}: invalid module: {}", filename, line, err.message());
                     }
                 }
-                AssertInvalid { module, .. }
-                | AssertMalformed {
+                AssertInvalid {
+                    module,
+                    message,
+                    span: _,
+                } => match validate_module(module, config.clone()) {
+                    Ok(_) => {
+                        panic!(
+                            "{}:{}: invalid module was successfully parsed",
+                            filename, line
+                        );
+                    }
+                    Err(e) => {
+                        if message.contains("unknown table")
+                            && e.message().contains("unknown element segment")
+                        {
+                            println!(
+                                "{}:{}: skipping until \
+                                 https://github.com/WebAssembly/testsuite/pull/18 is merged",
+                                filename, line,
+                            );
+                            continue;
+                        }
+                        assert!(
+                            e.message().contains(message),
+                            "{file}:{line}: expected \"{spec}\", got \"{actual}\"",
+                            file = filename,
+                            line = line,
+                            spec = message,
+                            actual = e.message(),
+                        );
+                    }
+                },
+                AssertMalformed {
                     module: wast::QuoteModule::Module(module),
                     ..
                 } => {
-                    // TODO diffentiate between assert_invalid and assert_malformed
                     if let Ok(_) = validate_module(module, config.clone()) {
                         panic!(
                             "{}:{}: invalid module was successfully parsed",
                             filename, line
                         );
                     }
-                    // TODO: Check the assert_invalid or assert_malformed message
+                    // TODO: Check the assert_malformed message
                 }
 
                 AssertMalformed {
