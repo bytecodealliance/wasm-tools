@@ -18,15 +18,15 @@ members = ['fuzz']
 
 [dependencies]
 anyhow = "1.0"
-wasmparser = "0.48.1"
+wasmparser = "0.49.0"
 
 [dev-dependencies]
 diff = "0.1"
 getopts = "0.2"
 rayon = "1.0"
 tempfile = "3.0"
-wast = { git = 'https://github.com/bytecodealliance/wat' }
-wat = { git = 'https://github.com/bytecodealliance/wat' }
+wast = "7.0.0"
+wat = "1.0.8"
 
 [[test]]
 name = "wabt"

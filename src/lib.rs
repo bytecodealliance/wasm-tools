@@ -1081,6 +1081,19 @@ impl Printer {
 
             I8x16RoundingAverageU => self.result.push_str("i8x16.avgr_u"),
             I16x8RoundingAverageU => self.result.push_str("i16x8.avgr_u"),
+
+            I8x16MinS => self.result.push_str("i8x16.min_s"),
+            I8x16MinU => self.result.push_str("i8x16.min_u"),
+            I8x16MaxS => self.result.push_str("i8x16.max_s"),
+            I8x16MaxU => self.result.push_str("i8x16.max_u"),
+            I16x8MinS => self.result.push_str("i16x8.min_s"),
+            I16x8MinU => self.result.push_str("i16x8.min_u"),
+            I16x8MaxS => self.result.push_str("i16x8.max_s"),
+            I16x8MaxU => self.result.push_str("i16x8.max_u"),
+            I32x4MinS => self.result.push_str("i32x4.min_s"),
+            I32x4MinU => self.result.push_str("i32x4.min_u"),
+            I32x4MaxS => self.result.push_str("i32x4.max_s"),
+            I32x4MaxU => self.result.push_str("i32x4.max_u"),
         }
         Ok(())
     }
