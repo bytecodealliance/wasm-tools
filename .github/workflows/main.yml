@@ -15,7 +15,7 @@ jobs:
     - name: Install Rust
       run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
     - run: ./test-all.sh
-    - run: ./compare-master.sh
+#    - run: ./compare-master.sh
 
   rustfmt:
     name: Rustfmt
