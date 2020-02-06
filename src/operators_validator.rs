@@ -338,6 +338,30 @@ pub(crate) const DEFAULT_OPERATOR_VALIDATOR_CONFIG: OperatorValidatorConfig =
         deterministic_only: true,
     };
 
+pub(crate) fn check_value_type(
+    ty: Type,
+    operator_config: &OperatorValidatorConfig,
+) -> OperatorValidatorResult<()> {
+    match ty {
+        Type::I32 | Type::I64 | Type::F32 | Type::F64 => Ok(()),
+        Type::NullRef | Type::AnyFunc | Type::AnyRef => {
+            if !operator_config.enable_reference_types {
+                return Err(OperatorValidatorError::new(
+                    "reference types support is not enabled",
+                ));
+            }
+            Ok(())
+        }
+        Type::V128 => {
+            if !operator_config.enable_simd {
+                return Err(OperatorValidatorError::new("SIMD support is not enabled"));
+            }
+            Ok(())
+        }
+        _ => Err(OperatorValidatorError::new("invalid value type")),
+    }
+}
+
 #[derive(Debug)]
 pub(crate) struct OperatorValidator {
     func_state: FuncState,
@@ -349,7 +373,7 @@ impl OperatorValidator {
         func_type: &F,
         locals: &[(u32, Type)],
         config: OperatorValidatorConfig,
-    ) -> OperatorValidator
+    ) -> OperatorValidatorResult<OperatorValidator>
     where
         F: WasmFuncType<Type = T>,
         T: WasmType,
@@ -359,6 +383,7 @@ impl OperatorValidator {
                 .map(WasmType::to_parser_type)
                 .collect::<Vec<_>>();
             for local in locals {
+                check_value_type(local.1, &config)?;
                 for _ in 0..local.0 {
                     local_types.push(local.1);
                 }
@@ -379,7 +404,7 @@ impl OperatorValidator {
             polymorphic_values: None,
         });
 
-        OperatorValidator {
+        Ok(OperatorValidator {
             func_state: FuncState {
                 local_types,
                 blocks,
@@ -387,7 +412,7 @@ impl OperatorValidator {
                 end_function: false,
             },
             config,
-        }
+        })
     }
 
     pub fn is_dead_code(&self) -> bool {

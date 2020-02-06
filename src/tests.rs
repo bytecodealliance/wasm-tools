@@ -324,6 +324,7 @@ mod wast_tests {
     use std::fs::{read, read_dir};
     use std::str;
 
+    const WAST_TESTS_PATH: &str = "tests/wast";
     const SPEC_TESTS_PATH: &str = "testsuite";
 
     fn default_config() -> ValidatingParserConfig {
@@ -531,6 +532,26 @@ mod wast_tests {
                 _ => false,
             },
         );
+    }
+
+    #[test]
+    fn run_wast_tests() {
+        for entry in read_dir(WAST_TESTS_PATH).unwrap() {
+            let dir = entry.unwrap();
+            if !dir.file_type().unwrap().is_file()
+                || dir.path().extension().map(|s| s.to_str().unwrap()) != Some("wast")
+            {
+                continue;
+            }
+
+            let data = read(&dir.path()).expect("wast data");
+            run_wabt_scripts(
+                dir.file_name().to_str().expect("name"),
+                &data,
+                default_config(),
+                |_, _| false,
+            );
+        }
     }
 
     #[test]

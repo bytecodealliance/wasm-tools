@@ -30,8 +30,8 @@ use crate::primitives::{
 };
 
 use crate::operators_validator::{
-    is_subtype_supertype, FunctionEnd, OperatorValidator, OperatorValidatorConfig,
-    OperatorValidatorError, DEFAULT_OPERATOR_VALIDATOR_CONFIG,
+    check_value_type, is_subtype_supertype, FunctionEnd, OperatorValidator,
+    OperatorValidatorConfig, OperatorValidatorError, DEFAULT_OPERATOR_VALIDATOR_CONFIG,
 };
 use crate::parser::{Parser, ParserInput, ParserState, WasmDecoder};
 use crate::{ElemSectionEntryTable, ElementItem};
@@ -211,22 +211,10 @@ impl<'a> ValidatingParser<'a> {
     }
 
     fn check_value_type(&self, ty: Type) -> ValidatorResult<'a, ()> {
-        match ty {
-            Type::I32 | Type::I64 | Type::F32 | Type::F64 => Ok(()),
-            Type::NullRef | Type::AnyFunc | Type::AnyRef => {
-                if !self.config.operator_config.enable_reference_types {
-                    return self.create_error("reference types support is not enabled");
-                }
-                Ok(())
-            }
-            Type::V128 => {
-                if !self.config.operator_config.enable_simd {
-                    return self.create_error("SIMD support is not enabled");
-                }
-                Ok(())
-            }
-            _ => self.create_error("invalid value type"),
-        }
+        check_value_type(ty, &self.config.operator_config).map_err(|e| {
+            let offset = self.read_position.unwrap();
+            ParserState::Error(e.set_offset(offset))
+        })
     }
 
     fn check_value_types(&self, types: &[Type]) -> ValidatorResult<'a, ()> {
@@ -604,8 +592,14 @@ impl<'a> ValidatingParser<'a> {
                 let func_type =
                     &self.resources.types[self.resources.func_type_indices[index] as usize];
                 let operator_config = self.config.operator_config;
-                self.current_operator_validator =
-                    Some(OperatorValidator::new(func_type, locals, operator_config));
+                match OperatorValidator::new(func_type, locals, operator_config) {
+                    Ok(validator) => self.current_operator_validator = Some(validator),
+                    Err(err) => {
+                        self.validation_error = Some(ParserState::Error(
+                            err.set_offset(self.read_position.unwrap()),
+                        ));
+                    }
+                }
             }
             ParserState::CodeOperator(ref operator) => {
                 let check = self
@@ -665,7 +659,9 @@ impl<'a> ValidatingParser<'a> {
         };
     }
 
-    pub fn create_validating_operator_parser<'b>(&mut self) -> ValidatingOperatorParser<'b>
+    pub fn create_validating_operator_parser<'b>(
+        &mut self,
+    ) -> ValidatorResult<ValidatingOperatorParser<'b>>
     where
         'a: 'b,
     {
@@ -681,11 +677,16 @@ impl<'a> ValidatingParser<'a> {
                     &self.resources.types[self.resources.func_type_indices[index] as usize];
                 let operator_config = self.config.operator_config;
                 OperatorValidator::new(func_type, locals, operator_config)
+                    .map_err(|e| ParserState::Error(e.set_offset(self.read_position.unwrap())))?
             }
             _ => panic!("Invalid reader state"),
         };
         let reader = self.create_binary_reader();
-        ValidatingOperatorParser::new(operator_validator, reader, func_body_offset)
+        Ok(ValidatingOperatorParser::new(
+            operator_validator,
+            reader,
+            func_body_offset,
+        ))
     }
 }
 
@@ -795,7 +796,9 @@ impl<'b> ValidatingOperatorParser<'b> {
     ///             _ => continue
     ///         }
     ///     }
-    ///     let mut reader = parser.create_validating_operator_parser();
+    ///     let mut reader = parser
+    ///         .create_validating_operator_parser()
+    ///         .expect("validating parser");
     ///     println!("Function {}", i);
     ///     i += 1;
     ///     while !reader.eof() {
@@ -898,7 +901,8 @@ pub fn validate_function_body<
         // so I assumed it is considered a bug to access a non-existing function
         // id here and went with panicking instead of returning a proper error.
         .expect("the function type indexof the validated function itself is out of bounds");
-    let mut operator_validator = OperatorValidator::new(func_type, &locals, operator_config);
+    let mut operator_validator = OperatorValidator::new(func_type, &locals, operator_config)
+        .map_err(|e| e.set_offset(offset))?;
     let mut eof_found = false;
     let mut last_op = 0;
     for item in operators_reader.into_iter_with_offsets() {
