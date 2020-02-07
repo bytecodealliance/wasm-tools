@@ -36,10 +36,15 @@ pub(crate) fn is_subtype_supertype(subtype: Type, supertype: Type) -> bool {
 struct BlockState {
     start_types: Vec<Type>,
     return_types: Vec<Type>,
+    // Position in `FuncState::stack_types` array where block values
+    // start.
     stack_starts_at: usize,
     jump_to_top: bool,
     is_else_allowed: bool,
     is_dead_code: bool,
+    // Amount of the required polymorphic values at the stack_starts_at
+    // position in `FuncState::stack_types` array. These values are
+    // fictitious and are not actually present in the stack_types.
     polymorphic_values: Option<usize>,
 }
 
@@ -154,6 +159,7 @@ impl FuncState {
             }
         };
         if block_type == BlockType::If {
+            // Collect conditional value from the stack_types.
             let last_block = self.blocks.last().unwrap();
             if !last_block.is_stack_polymorphic()
                 || self.stack_types.len() > last_block.stack_starts_at
@@ -167,7 +173,20 @@ impl FuncState {
                 return Err(OperatorValidatorError::new("stack operand type mismatch"));
             }
         }
-        let stack_starts_at = self.stack_types.len() - start_types.len();
+        let (stack_starts_at, polymorphic_values) = {
+            // When stack for last block is polymorphic, ensure that
+            // the polymorphic_values matches, and next block is informed about that.
+            let last_block = self.blocks.last_mut().unwrap();
+            if !last_block.is_stack_polymorphic()
+                || last_block.stack_starts_at + start_types.len() <= self.stack_types.len()
+            {
+                (self.stack_types.len() - start_types.len(), None)
+            } else {
+                let unknown_stack_types_len =
+                    last_block.stack_starts_at + start_types.len() - self.stack_types.len();
+                (last_block.stack_starts_at, Some(unknown_stack_types_len))
+            }
+        };
         self.blocks.push(BlockState {
             start_types,
             return_types,
@@ -175,7 +194,7 @@ impl FuncState {
             jump_to_top: block_type == BlockType::Loop,
             is_else_allowed: block_type == BlockType::If,
             is_dead_code: false,
-            polymorphic_values: None,
+            polymorphic_values,
         });
         Ok(())
     }

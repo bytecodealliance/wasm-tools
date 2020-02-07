@@ -342,6 +342,26 @@ mod wast_tests {
         }
     }
 
+    fn extract_config(wast: &str) -> ValidatingParserConfig {
+        let first = wast.split('\n').next();
+        if first.is_none() || !first.unwrap().starts_with(";;; ") {
+            return default_config();
+        }
+        let first = first.unwrap();
+        ValidatingParserConfig {
+            operator_config: OperatorValidatorConfig {
+                enable_threads: first.contains("--enable-threads"),
+                enable_reference_types: first.contains("--enable-reference-types"),
+                enable_simd: first.contains("--enable-simd"),
+                enable_bulk_memory: first.contains("--enable-bulk-memory"),
+                enable_multi_value: first.contains("--enable-multi-value"),
+
+                #[cfg(feature = "deterministic")]
+                deterministic_only: true,
+            },
+        }
+    }
+
     fn validate_module(
         mut module: wast::Module,
         config: ValidatingParserConfig,
@@ -545,10 +565,11 @@ mod wast_tests {
             }
 
             let data = read(&dir.path()).expect("wast data");
+            let config = extract_config(&String::from_utf8_lossy(&data));
             run_wabt_scripts(
                 dir.file_name().to_str().expect("name"),
                 &data,
-                default_config(),
+                config,
                 |_, _| false,
             );
         }
