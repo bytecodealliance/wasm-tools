@@ -118,7 +118,7 @@ impl<'a> Resolver<'a> {
                         self.resolve_idx(table, Ns::Table)?;
                         self.resolve_expr(e.span, offset)?;
                     }
-                    ElemKind::Passive { .. } => {}
+                    ElemKind::Passive { .. } | ElemKind::Declared { .. } => {}
                 }
                 match &mut e.payload {
                     ElemPayload::Indices(elems) => {

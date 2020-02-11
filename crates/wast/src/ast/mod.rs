@@ -118,6 +118,7 @@ pub mod kw {
     custom_keyword!(binary);
     custom_keyword!(block);
     custom_keyword!(data);
+    custom_keyword!(declare);
     custom_keyword!(elem);
     custom_keyword!(end);
     custom_keyword!(export);
@@ -137,6 +138,7 @@ pub mod kw {
     custom_keyword!(i8x16);
     custom_keyword!(import);
     custom_keyword!(invoke);
+    custom_keyword!(item);
     custom_keyword!(local);
     custom_keyword!(memory);
     custom_keyword!(module);

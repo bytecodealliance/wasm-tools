@@ -399,6 +399,14 @@ impl Encode for Elem<'_> {
                 offset.encode(e);
                 ty.encode(e);
             }
+            (ElemKind::Declared, ElemPayload::Indices(_)) => {
+                e.push(0x03); // flags
+                e.push(0x00); // extern_kind
+            }
+            (ElemKind::Declared, ElemPayload::Exprs { ty, .. }) => {
+                e.push(0x07); // flags
+                ty.encode(e);
+            }
         }
 
         to_encode.encode(e);

@@ -107,6 +107,10 @@ pub enum ElemKind<'a> {
     /// various bulk-memory instructions.
     Passive,
 
+    /// A declared element segment that is purely used to declare function
+    /// references.
+    Declared,
+
     /// An active segment associated with a table.
     Active {
         /// The table this `elem` is initializing.
@@ -159,6 +163,9 @@ impl<'a> Parse<'a> for Elem<'a> {
                 table: table.unwrap_or(ast::Index::Num(0)),
                 offset,
             }
+        } else if parser.peek::<kw::declare>() {
+            parser.parse::<kw::declare>()?;
+            ElemKind::Declared
         } else {
             ElemKind::Passive
         };
@@ -198,19 +205,31 @@ impl<'a> ElemPayload<'a> {
         }
         let mut exprs = Vec::new();
         while !parser.is_empty() {
-            exprs.push(parser.parens(|p| {
-                let mut l = p.lookahead1();
-                if l.peek::<kw::ref_null>() {
-                    p.parse::<kw::ref_null>()?;
-                    Ok(None)
-                } else if l.peek::<kw::ref_func>() {
-                    p.parse::<kw::ref_func>()?;
-                    Ok(Some(p.parse()?))
-                } else {
-                    Err(l.error())
+            let func = parser.parens(|p| match p.parse::<Option<kw::item>>()? {
+                Some(_) => {
+                    if parser.peek::<ast::LParen>() {
+                        parser.parens(parse_ref_func)
+                    } else {
+                        parse_ref_func(parser)
+                    }
                 }
-            })?);
+                None => parse_ref_func(p),
+            })?;
+            exprs.push(func);
         }
         Ok(ElemPayload::Exprs { exprs, ty })
+    }
+}
+
+fn parse_ref_func<'a>(parser: Parser<'a>) -> Result<Option<ast::Index<'a>>> {
+    let mut l = parser.lookahead1();
+    if l.peek::<kw::ref_null>() {
+        parser.parse::<kw::ref_null>()?;
+        Ok(None)
+    } else if l.peek::<kw::ref_func>() {
+        parser.parse::<kw::ref_func>()?;
+        Ok(Some(parser.parse()?))
+    } else {
+        Err(l.error())
     }
 }
