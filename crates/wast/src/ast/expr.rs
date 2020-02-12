@@ -398,7 +398,7 @@ instructions! {
         DataDrop(ast::Index<'a>) : [0xfc, 0x09] : "data.drop",
         ElemDrop(ast::Index<'a>) : [0xfc, 0x0d] : "elem.drop",
         TableInit(TableInit<'a>) : [0xfc, 0x0c] : "table.init",
-        TableCopy : [0xfc, 0x0e, 0x00, 0x00] : "table.copy",
+        TableCopy(TableCopy<'a>) : [0xfc, 0x0e] : "table.copy",
         TableFill(ast::Index<'a>) : [0xfc, 0x11] : "table.fill",
         TableSize(ast::Index<'a>) : [0xfc, 0x10] : "table.size",
         TableGrow(ast::Index<'a>) : [0xfc, 0x0f] : "table.grow",
@@ -966,6 +966,26 @@ impl<'a> Parse<'a> for TableInit<'a> {
         Ok(TableInit {
             elem: parser.parse()?,
         })
+    }
+}
+
+/// Extra data associated with the `table.copy` instruction.
+#[derive(Debug)]
+pub struct TableCopy<'a> {
+    /// The index of the destination table to copy into.
+    pub dst: ast::Index<'a>,
+    /// The index of the source table to copy from.
+    pub src: ast::Index<'a>,
+}
+
+impl<'a> Parse<'a> for TableCopy<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let (dst, src) = if let Some(dst) = parser.parse()? {
+            (dst, parser.parse()?)
+        } else {
+            (ast::Index::Num(0), ast::Index::Num(0))
+        };
+        Ok(TableCopy { dst, src })
     }
 }
 

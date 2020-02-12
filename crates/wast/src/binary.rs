@@ -535,6 +535,13 @@ impl Encode for TableInit<'_> {
     }
 }
 
+impl Encode for TableCopy<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.dst.encode(e);
+        self.src.encode(e);
+    }
+}
+
 impl Encode for MemoryInit<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         // TODO: this agrees with `wabt` but disagrees with the current online

@@ -276,6 +276,11 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             TableInit(i) => self.resolver.resolve_idx(&mut i.elem, Ns::Elem),
             ElemDrop(i) => self.resolver.resolve_idx(i, Ns::Elem),
 
+            TableCopy(i) => {
+                self.resolver.resolve_idx(&mut i.dst, Ns::Table)?;
+                self.resolver.resolve_idx(&mut i.src, Ns::Table)
+            }
+
             TableFill(i) | TableSet(i) | TableGet(i) | TableSize(i) | TableGrow(i) => {
                 self.resolver.resolve_idx(i, Ns::Table)
             }
