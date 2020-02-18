@@ -39,6 +39,7 @@ struct BlockState {
     // Position in `FuncState::stack_types` array where block values
     // start.
     stack_starts_at: usize,
+    // True for loop.
     jump_to_top: bool,
     is_else_allowed: bool,
     is_dead_code: bool,
@@ -550,10 +551,24 @@ impl OperatorValidator {
         }
         let block = self.func_state.block_at(relative_depth as usize);
         if block.jump_to_top {
-            if !self.func_state.assert_block_stack_len(0, reserve_items) {
+            let len = block.start_types.len();
+            if !self
+                .func_state
+                .assert_block_stack_len(0, reserve_items + len)
+            {
                 return Err(OperatorValidatorError::new(
                     "type mismatch: stack size does not match target loop type",
                 ));
+            }
+            for i in 0..len {
+                if !self
+                    .func_state
+                    .assert_stack_type_at(len - 1 - i + reserve_items, block.start_types[i])
+                {
+                    return Err(OperatorValidatorError::new(
+                        "type mismatch: stack item type does not match block param type",
+                    ));
+                }
             }
             return Ok(());
         }
