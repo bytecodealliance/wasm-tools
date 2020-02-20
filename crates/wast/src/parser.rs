@@ -156,7 +156,7 @@ pub fn parse<'a, T: Parse<'a>>(buf: &'a ParseBuffer<'a>) -> Result<T> {
 /// statement in the WebAssembly text format are parsed by the parent item
 /// parsing `Import`.
 ///
-/// Note that this is just a a convention, so it's not necessarily required of
+/// Note that this is just a convention, so it's not necessarily required for
 /// all types. It's recommended that your types stick to this convention where
 /// possible to avoid nested calls to [`Parser::parens`] or accidentally trying
 /// to parse too many parenthesis.
@@ -370,7 +370,7 @@ impl<'a> Parser<'a> {
     ///
     /// Typically you always want to use `?` with the result of this method, you
     /// should not handle errors and decide what else to parse. To handle
-    /// branches in parsing, ue [`Parser::peek`].
+    /// branches in parsing, use [`Parser::peek`].
     ///
     /// # Examples
     ///
@@ -537,7 +537,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Parsea an item surrounded by parentheses.
+    /// Parse an item surrounded by parentheses.
     ///
     /// WebAssembly's text format is all based on s-expressions, so naturally
     /// you're going to want to parse a lot of parenthesized things! As noted in
