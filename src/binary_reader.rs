@@ -706,7 +706,7 @@ impl<'a> BinaryReader<'a> {
         let imm = self.read_memarg()?;
         if imm.flags > max_align {
             return Err(BinaryReaderError::new(
-                "Unexpected memarg alignment",
+                "alignment must not be larger than natural",
                 self.original_position() - 1,
             ));
         }

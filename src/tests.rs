@@ -549,6 +549,10 @@ mod wast_tests {
             |name, line| match (name, line) {
                 ("br_table.wast", _) | ("select.wast", _) => true,
                 ("binary.wast", 1057) => true,
+                ("elem.wast", _) => true,
+                ("ref_func.wast", _) => true,
+                ("table-sub.wast", _) => true,
+                ("table_grow.wast", _) => true,
                 _ => false,
             },
         );
