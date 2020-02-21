@@ -66,7 +66,7 @@ impl<'a> Module<'a> {
     /// where expansion and name resolution happens.
     ///
     /// This function will mutate the AST of this [`Module`] and replace all
-    /// [`Index`] arguments with `Index::Num`. This will also expand inline
+    /// [`super::Index`] arguments with `Index::Num`. This will also expand inline
     /// exports/imports listed on fields and handle various other shorthands of
     /// the text format.
     ///
@@ -121,7 +121,7 @@ impl<'a> Module<'a> {
             }
         }
         if starts > 1 {
-            return Err(parser.error("multiple start sections found"))
+            return Err(parser.error("multiple start sections found"));
         }
         Ok(())
     }
