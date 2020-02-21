@@ -957,15 +957,20 @@ impl<'a> Parse<'a> for CallIndirect<'a> {
 /// Extra data associated with the `table.init` instruction
 #[derive(Debug)]
 pub struct TableInit<'a> {
+    /// The index of the table we're copying into.
+    pub table: ast::Index<'a>,
     /// The index of the element segment we're copying into a table.
     pub elem: ast::Index<'a>,
 }
 
 impl<'a> Parse<'a> for TableInit<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        Ok(TableInit {
-            elem: parser.parse()?,
-        })
+        let table_or_elem = parser.parse()?;
+        let (table, elem) = match parser.parse()? {
+            Some(elem) => (table_or_elem, elem),
+            None => (ast::Index::Num(0), table_or_elem),
+        };
+        Ok(TableInit { table, elem })
     }
 }
 

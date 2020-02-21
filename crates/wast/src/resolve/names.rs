@@ -273,7 +273,10 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             MemoryInit(i) => self.resolver.resolve_idx(&mut i.data, Ns::Data),
             DataDrop(i) => self.resolver.resolve_idx(i, Ns::Data),
 
-            TableInit(i) => self.resolver.resolve_idx(&mut i.elem, Ns::Elem),
+            TableInit(i) => {
+                self.resolver.resolve_idx(&mut i.elem, Ns::Elem)?;
+                self.resolver.resolve_idx(&mut i.table, Ns::Table)
+            }
             ElemDrop(i) => self.resolver.resolve_idx(i, Ns::Elem),
 
             TableCopy(i) => {

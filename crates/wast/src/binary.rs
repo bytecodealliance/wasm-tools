@@ -531,7 +531,7 @@ impl Encode for TableInit<'_> {
         // spec. Online spec says `0x00` comes before elem segment, wabt says
         // otherwise. Let's match `wabt` for now.
         self.elem.encode(e);
-        e.push(0x00);
+        self.table.encode(e);
     }
 }
 
