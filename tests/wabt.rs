@@ -418,39 +418,9 @@ fn wat2wasm(test: &Path, module: Option<usize>) -> Option<Vec<u8>> {
 }
 
 fn skip_test(test: &Path, contents: &str) -> bool {
-    // This test still uses a bunch of old names and I don't feel like
-    // typing them all out at this time, so just skip it. We get some
-    // testing from wabt's test suite anyway.
-    if test.ends_with("threads/atomic.wast") {
-        return true;
-    }
-    // The current SIMD spec and wabt seem to disagree about this test, let's
-    // ignore it while the spec settles
-    if test.ends_with("interp/simd-load-store.txt") {
-        return true;
-    }
-    // Like above this uses `iNNxMM.load_splat` but the simd spec doesn't have
-    // these and the test seems to disagree at least a bit on encoding.
-    if test.ends_with("logging-all-opcodes.txt") {
-        return true;
-    }
-
-    // These all use now-removed simd instructions, so we're waiting for wabt to
-    // update to the latest simd spec
-    if test.ends_with("tracing-all-opcodes.txt")
-        || test.ends_with("simd-unary.txt")
-        || test.ends_with("simd/simd_conversions.wast")
-    {
-        return true;
-    }
-
     // FIXME(WebAssembly/simd#140) test needs to be updated to not have
     // unintentional invalid syntax
     if test.ends_with("simd/simd_lane.wast") {
-        return true;
-    }
-    // FIXME(WebAssembly/simd#181) what is going on
-    if test.ends_with("simd/simd_load.wast") {
         return true;
     }
 
