@@ -527,9 +527,6 @@ impl Encode for CallIndirect<'_> {
 
 impl Encode for TableInit<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
-        // TODO: this agrees with `wabt` but disagrees with the current online
-        // spec. Online spec says `0x00` comes before elem segment, wabt says
-        // otherwise. Let's match `wabt` for now.
         self.elem.encode(e);
         self.table.encode(e);
     }
@@ -544,9 +541,6 @@ impl Encode for TableCopy<'_> {
 
 impl Encode for MemoryInit<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
-        // TODO: this agrees with `wabt` but disagrees with the current online
-        // spec. Online spec says `0x00` comes before data segment, wabt says
-        // otherwise. Let's match `wabt` for now.
         self.data.encode(e);
         e.push(0x00);
     }
