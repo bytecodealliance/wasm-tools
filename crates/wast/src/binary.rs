@@ -1,15 +1,15 @@
 use crate::ast::*;
 
 pub fn encode(module: &Module<'_>) -> Vec<u8> {
+    use crate::ast::CustomPlace::*;
+    use crate::ast::CustomPlaceAnchor::*;
+
     let fields = match &module.kind {
         ModuleKind::Text(fields) => fields,
         ModuleKind::Binary(bytes) => {
             return bytes.iter().flat_map(|b| b.iter().cloned()).collect();
         }
     };
-    let mut wasm = Vec::new();
-    wasm.extend(b"\0asm");
-    wasm.extend(b"\x01\0\0\0");
 
     let mut types = Vec::new();
     let mut imports = Vec::new();
@@ -21,6 +21,7 @@ pub fn encode(module: &Module<'_>) -> Vec<u8> {
     let mut start = Vec::new();
     let mut elem = Vec::new();
     let mut data = Vec::new();
+    let mut customs = Vec::new();
     for field in fields {
         match field {
             ModuleField::Type(i) => types.push(i),
@@ -33,49 +34,48 @@ pub fn encode(module: &Module<'_>) -> Vec<u8> {
             ModuleField::Start(i) => start.push(i),
             ModuleField::Elem(i) => elem.push(i),
             ModuleField::Data(i) => data.push(i),
+            ModuleField::Custom(i) => customs.push(i),
         }
     }
 
-    let mut tmp = Vec::new();
-    section_list(1, &types, &mut tmp, &mut wasm);
-    section_list(2, &imports, &mut tmp, &mut wasm);
+    let mut e = Encoder {
+        wasm: Vec::new(),
+        tmp: Vec::new(),
+        customs: &customs,
+    };
+    e.wasm.extend(b"\0asm");
+    e.wasm.extend(b"\x01\0\0\0");
+
+    e.custom_sections(BeforeFirst);
+    e.section_list(1, Type, &types);
+    e.section_list(2, Import, &imports);
     let functys = funcs.iter().map(|f| &f.ty).collect::<Vec<_>>();
-    section_list(3, &functys, &mut tmp, &mut wasm);
-    section_list(4, &tables, &mut tmp, &mut wasm);
-    section_list(5, &memories, &mut tmp, &mut wasm);
-    section_list(6, &globals, &mut tmp, &mut wasm);
-    section_list(7, &exports, &mut tmp, &mut wasm);
+    e.section_list(3, Func, &functys);
+    e.section_list(4, Table, &tables);
+    e.section_list(5, Memory, &memories);
+    e.section_list(6, Global, &globals);
+    e.section_list(7, Export, &exports);
+    e.custom_sections(Before(Start));
     if let Some(start) = start.get(0) {
-        section(8, start, &mut tmp, &mut wasm);
+        e.section(8, start);
     }
-    section_list(9, &elem, &mut tmp, &mut wasm);
+    e.custom_sections(After(Start));
+    e.section_list(9, Elem, &elem);
     if contains_bulk_memory(&funcs) {
-        section(12, data.len(), &mut tmp, &mut wasm);
+        e.section(12, &data.len());
     }
-    section_list(10, &funcs, &mut tmp, &mut wasm);
-    section_list(11, &data, &mut tmp, &mut wasm);
+    e.section_list(10, Code, &funcs);
+    e.section_list(11, Data, &data);
 
     let names = find_names(module, fields);
     if !names.is_empty() {
-        section(0, ("name", names), &mut tmp, &mut wasm);
+        e.section(0, &("name", names));
     }
+    e.custom_sections(AfterLast);
 
-    return wasm;
+    return e.wasm;
 
-    fn section_list<T: Encode>(id: u8, list: &[T], tmp: &mut Vec<u8>, dst: &mut Vec<u8>) {
-        if !list.is_empty() {
-            section(id, list, tmp, dst)
-        }
-    }
-
-    fn section<T: Encode>(id: u8, list: T, tmp: &mut Vec<u8>, dst: &mut Vec<u8>) {
-        tmp.truncate(0);
-        list.encode(tmp);
-        dst.push(id);
-        tmp.encode(dst);
-    }
-
-    fn contains_bulk_memory(funcs: &[&Func<'_>]) -> bool {
+    fn contains_bulk_memory(funcs: &[&crate::ast::Func<'_>]) -> bool {
         funcs
             .iter()
             .filter_map(|f| match &f.kind {
@@ -87,6 +87,37 @@ pub fn encode(module: &Module<'_>) -> Vec<u8> {
                 Instruction::MemoryInit(_) | Instruction::DataDrop(_) => true,
                 _ => false,
             })
+    }
+}
+
+struct Encoder<'a> {
+    wasm: Vec<u8>,
+    tmp: Vec<u8>,
+    customs: &'a [&'a Custom<'a>],
+}
+
+impl Encoder<'_> {
+    fn section(&mut self, id: u8, section: &dyn Encode) {
+        self.tmp.truncate(0);
+        section.encode(&mut self.tmp);
+        self.wasm.push(id);
+        self.tmp.encode(&mut self.wasm);
+    }
+
+    fn custom_sections(&mut self, place: CustomPlace) {
+        for entry in self.customs.iter() {
+            if entry.place == place {
+                self.section(0, &(entry.name, entry));
+            }
+        }
+    }
+
+    fn section_list(&mut self, id: u8, anchor: CustomPlaceAnchor, list: &[impl Encode]) {
+        self.custom_sections(CustomPlace::Before(anchor));
+        if !list.is_empty() {
+            self.section(id, &list)
+        }
+        self.custom_sections(CustomPlace::After(anchor));
     }
 }
 
@@ -150,7 +181,10 @@ impl Encode for i32 {
 impl Encode for Type<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         e.push(0x60);
-        self.func.params.encode(e);
+        self.func.params.len().encode(e);
+        for (_, _, ty) in self.func.params.iter() {
+            ty.encode(e);
+        }
         self.func.results.encode(e);
     }
 }
@@ -186,7 +220,7 @@ impl Encode for ValType {
 impl Encode for Import<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.module.encode(e);
-        self.name.encode(e);
+        self.field.encode(e);
         match &self.kind {
             ImportKind::Func(f) => {
                 e.push(0x00);
@@ -470,7 +504,7 @@ impl Encode for Func<'_> {
         };
 
         let mut locals_compressed = Vec::<(u32, ValType)>::new();
-        for (_, ty) in locals {
+        for (_, _, ty) in locals {
             if let Some((cnt, prev)) = locals_compressed.last_mut() {
                 if prev == ty {
                     *cnt += 1;
@@ -572,12 +606,16 @@ impl Encode for Float64 {
 }
 
 struct Names<'a> {
-    module: Option<Id<'a>>,
-    funcs: Vec<(u32, Id<'a>)>,
-    locals: Vec<(u32, Vec<(u32, Id<'a>)>)>,
+    module: Option<&'a str>,
+    funcs: Vec<(u32, &'a str)>,
+    locals: Vec<(u32, Vec<(u32, &'a str)>)>,
 }
 
 fn find_names<'a>(module: &Module<'a>, fields: &[ModuleField<'a>]) -> Names<'a> {
+    fn get_name<'a>(id: &Option<Id<'a>>, name: &Option<NameAnnotation<'a>>) -> Option<&'a str> {
+        name.as_ref().map(|n| n.name).or(id.map(|id| id.name()))
+    }
+
     let mut funcs = Vec::new();
     let mut locals = Vec::new();
     let mut idx = 0;
@@ -589,28 +627,28 @@ fn find_names<'a>(module: &Module<'a>, fields: &[ModuleField<'a>]) -> Names<'a> 
                     _ => continue,
                 }
 
-                if let Some(id) = i.id {
-                    funcs.push((idx, id));
+                if let Some(name) = get_name(&i.id, &i.name) {
+                    funcs.push((idx, name));
                 }
 
                 idx += 1;
             }
             ModuleField::Func(f) => {
-                if let Some(id) = f.name {
-                    funcs.push((idx, id));
+                if let Some(name) = get_name(&f.id, &f.name) {
+                    funcs.push((idx, name));
                 }
                 let mut local_names = Vec::new();
                 let mut local_idx = 0;
-                for (name, _) in f.ty.ty.params.iter() {
-                    if let Some(id) = name {
-                        local_names.push((local_idx, *id));
+                for (id, name, _) in f.ty.ty.params.iter() {
+                    if let Some(name) = get_name(id, name) {
+                        local_names.push((local_idx, name));
                     }
                     local_idx += 1;
                 }
                 if let FuncKind::Inline { locals, .. } = &f.kind {
-                    for (name, _) in locals {
-                        if let Some(id) = name {
-                            local_names.push((local_idx, *id));
+                    for (id, name, _) in locals {
+                        if let Some(name) = get_name(id, name) {
+                            local_names.push((local_idx, name));
                         }
                         local_idx += 1;
                     }
@@ -625,7 +663,7 @@ fn find_names<'a>(module: &Module<'a>, fields: &[ModuleField<'a>]) -> Names<'a> 
     }
 
     Names {
-        module: module.name,
+        module: get_name(&module.id, &module.name),
         funcs,
         locals,
     }
@@ -687,6 +725,14 @@ impl Encode for SelectTypes {
         } else {
             dst.push(0x1c);
             self.tys.encode(dst);
+        }
+    }
+}
+
+impl Encode for Custom<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        for list in self.data.iter() {
+            e.extend_from_slice(list);
         }
     }
 }

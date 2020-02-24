@@ -8,8 +8,11 @@ use crate::parser::{Parse, Parser, Result};
 pub struct Func<'a> {
     /// Where this `func` was defined.
     pub span: ast::Span,
-    /// An optional name to reference this function by.
-    pub name: Option<ast::Id<'a>>,
+    /// An identifier that this function is resolved with (optionally) for name
+    /// resolution.
+    pub id: Option<ast::Id<'a>>,
+    /// An optional name for this function stored in the custom `name` section.
+    pub name: Option<ast::NameAnnotation<'a>>,
     /// If present, inline export annotations which indicate names this
     /// definition should be exported under.
     pub exports: ast::InlineExport<'a>,
@@ -32,14 +35,15 @@ pub enum FuncKind<'a> {
         /// The module that this function is imported from
         module: &'a str,
         /// The module field name this function is imported from
-        name: &'a str,
+        field: &'a str,
     },
 
     /// Almost all functions, those defined inline in a wasm module.
     Inline {
         /// The list of locals, if any, for this function. Each local has an
-        /// optional name associated with it.
-        locals: Vec<(Option<ast::Id<'a>>, ast::ValType)>,
+        /// optional identifier for name resolution and name for the custom
+        /// `name` section associated with it.
+        locals: Vec<(Option<ast::Id<'a>>, Option<ast::NameAnnotation<'a>>, ast::ValType)>,
 
         /// The instructions of the function.
         expression: ast::Expression<'a>,
@@ -49,15 +53,16 @@ pub enum FuncKind<'a> {
 impl<'a> Parse<'a> for Func<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::func>()?.0;
+        let id = parser.parse()?;
         let name = parser.parse()?;
         let exports = parser.parse()?;
 
         let (ty, kind) = if parser.peek2::<kw::import>() {
-            let (module, name) = parser.parens(|p| {
+            let (module, field) = parser.parens(|p| {
                 p.parse::<kw::import>()?;
                 Ok((p.parse()?, p.parse()?))
             })?;
-            (parser.parse()?, FuncKind::Import { module, name })
+            (parser.parse()?, FuncKind::Import { module, field })
         } else {
             let ty = parser.parse()?;
             let mut locals = Vec::new();
@@ -68,11 +73,12 @@ impl<'a> Parse<'a> for Func<'a> {
                         return Ok(());
                     }
                     let id: Option<_> = p.parse()?;
+                    let name: Option<_> = p.parse()?;
                     let ty = p.parse()?;
-                    let parse_more = id.is_none();
-                    locals.push((id, ty));
+                    let parse_more = id.is_none() && name.is_none();
+                    locals.push((id, name, ty));
                     while parse_more && !p.is_empty() {
-                        locals.push((None, p.parse()?));
+                        locals.push((None, None, p.parse()?));
                     }
                     Ok(())
                 })?;
@@ -88,6 +94,7 @@ impl<'a> Parse<'a> for Func<'a> {
 
         Ok(Func {
             span,
+            id,
             name,
             exports,
             ty,

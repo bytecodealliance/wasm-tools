@@ -7,7 +7,7 @@ pub struct Table<'a> {
     /// Where this table was defined.
     pub span: ast::Span,
     /// An optional name to refer to this table by.
-    pub name: Option<ast::Id<'a>>,
+    pub id: Option<ast::Id<'a>>,
     /// If present, inline export annotations which indicate names this
     /// definition should be exported under.
     pub exports: ast::InlineExport<'a>,
@@ -22,7 +22,7 @@ pub enum TableKind<'a> {
     #[allow(missing_docs)]
     Import {
         module: &'a str,
-        name: &'a str,
+        field: &'a str,
         ty: ast::TableType,
     },
 
@@ -42,7 +42,7 @@ pub enum TableKind<'a> {
 impl<'a> Parse<'a> for Table<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::table>()?.0;
-        let name = parser.parse()?;
+        let id = parser.parse()?;
         let exports = parser.parse()?;
 
         // Afterwards figure out which style this is, either:
@@ -66,13 +66,13 @@ impl<'a> Parse<'a> for Table<'a> {
         } else if l.peek::<u32>() {
             TableKind::Normal(parser.parse()?)
         } else if l.peek::<ast::LParen>() {
-            let (module, name) = parser.parens(|p| {
+            let (module, field) = parser.parens(|p| {
                 p.parse::<kw::import>()?;
                 Ok((p.parse()?, p.parse()?))
             })?;
             TableKind::Import {
                 module,
-                name,
+                field,
                 ty: parser.parse()?,
             }
         } else {
@@ -80,7 +80,7 @@ impl<'a> Parse<'a> for Table<'a> {
         };
         Ok(Table {
             span,
-            name,
+            id,
             exports,
             kind,
         })
@@ -93,7 +93,7 @@ pub struct Elem<'a> {
     /// Where this `elem` was defined.
     pub span: ast::Span,
     /// An optional name by which to refer to this segment.
-    pub name: Option<ast::Id<'a>>,
+    pub id: Option<ast::Id<'a>>,
     /// The way this segment was defined in the module.
     pub kind: ElemKind<'a>,
     /// The payload of this element segment, typically a list of functions.
@@ -140,7 +140,7 @@ pub enum ElemPayload<'a> {
 impl<'a> Parse<'a> for Elem<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::elem>()?.0;
-        let name = parser.parse()?;
+        let id = parser.parse()?;
 
         let kind = if parser.peek::<u32>() || parser.peek::<ast::LParen>() {
             let table = if parser.peek2::<kw::table>() {
@@ -172,7 +172,7 @@ impl<'a> Parse<'a> for Elem<'a> {
         let payload = parser.parse()?;
         Ok(Elem {
             span,
-            name,
+            id,
             kind,
             payload,
         })

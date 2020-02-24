@@ -270,6 +270,10 @@ impl<'a> Lexer<'a> {
 
         let (start, prefix) = match self.it.peek().cloned() {
             Some((i, ch)) if is_idchar(ch) => (i, ch),
+            Some((i, ch)) if is_reserved_extra(ch) => {
+                self.it.next();
+                return Ok(Some(Token::Reserved(&self.input[i..self.cur()])));
+            }
             Some((i, ch)) => return Err(self.error(i, LexError::Unexpected(ch))),
             None => return Ok(None),
         };
@@ -283,7 +287,6 @@ impl<'a> Lexer<'a> {
         }
 
         let reserved = &self.input[start..self.cur()];
-
         if let Some(number) = self.number(reserved) {
             Ok(Some(number))
         } else if prefix == '$' && reserved.len() > 1 {
@@ -783,6 +786,13 @@ fn is_idchar(c: char) -> bool {
         | '`'
         | '|'
         | '~' => true,
+        _ => false,
+    }
+}
+
+fn is_reserved_extra(c: char) -> bool {
+    match c {
+        ',' | ';' | '[' | ']' | '{' | '}' => true,
         _ => false,
     }
 }

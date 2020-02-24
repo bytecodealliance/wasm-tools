@@ -34,7 +34,7 @@ pub struct Resolver<'a> {
 }
 
 struct Type<'a> {
-    params: Vec<(Option<Id<'a>>, ValType)>,
+    params: Vec<(Option<Id<'a>>, Option<NameAnnotation<'a>>, ValType)>,
     results: Vec<ValType>,
 }
 
@@ -56,21 +56,22 @@ impl<'a> Resolver<'a> {
                 ImportKind::Table(_) => register(Ns::Table, i.id),
                 ImportKind::Global(_) => register(Ns::Global, i.id),
             },
-            ModuleField::Global(i) => register(Ns::Global, i.name),
-            ModuleField::Memory(i) => register(Ns::Memory, i.name),
-            ModuleField::Func(i) => register(Ns::Func, i.name),
-            ModuleField::Table(i) => register(Ns::Table, i.name),
+            ModuleField::Global(i) => register(Ns::Global, i.id),
+            ModuleField::Memory(i) => register(Ns::Memory, i.id),
+            ModuleField::Func(i) => register(Ns::Func, i.id),
+            ModuleField::Table(i) => register(Ns::Table, i.id),
             ModuleField::Type(i) => {
-                register(Ns::Type, i.name);
+                register(Ns::Type, i.id);
                 self.tys.push(Type {
                     params: i.func.params.clone(),
                     results: i.func.results.clone(),
                 });
             }
-            ModuleField::Elem(e) => register(Ns::Elem, e.name),
-            ModuleField::Data(d) => register(Ns::Data, d.name),
+            ModuleField::Elem(e) => register(Ns::Elem, e.id),
+            ModuleField::Data(d) => register(Ns::Data, d.id),
             ModuleField::Start(_) => {}
             ModuleField::Export(_) => {}
+            ModuleField::Custom(_) => {}
         }
     }
 
@@ -97,13 +98,13 @@ impl<'a> Resolver<'a> {
                     let mut resolver = ExprResolver::new(self, f.span);
 
                     // Parameters come first in the local namespace...
-                    for (name, _) in f.ty.ty.params.iter() {
-                        resolver.locals.register(*name);
+                    for (id, _, _) in f.ty.ty.params.iter() {
+                        resolver.locals.register(*id);
                     }
 
                     // .. followed by locals themselves
-                    for (name, _) in locals {
-                        resolver.locals.register(*name);
+                    for (id, _, _) in locals {
+                        resolver.locals.register(*id);
                     }
 
                     // and then we can resolve the expression!
@@ -164,7 +165,10 @@ impl<'a> Resolver<'a> {
                 Ok(())
             }
 
-            ModuleField::Table(_) | ModuleField::Memory(_) | ModuleField::Type(_) => Ok(()),
+            ModuleField::Table(_)
+            | ModuleField::Memory(_)
+            | ModuleField::Type(_)
+            | ModuleField::Custom(_) => Ok(()),
         }
     }
 
@@ -182,16 +186,16 @@ impl<'a> Resolver<'a> {
             None => return Ok(idx),
         };
         if ty.ty.params.len() > 0 || ty.ty.results.len() > 0 {
-            let params_not_equal = expected.params.iter().map(|t| t.1).ne(ty
+            let params_not_equal = expected.params.iter().map(|t| t.2).ne(ty
                 .ty
                 .params
                 .iter()
-                .map(|t| t.1));
+                .map(|t| t.2));
             if params_not_equal || expected.results != ty.ty.results {
                 let span = ty.index_span.unwrap_or(span);
                 return Err(Error::new(
                     span,
-                    format!("inline function type type doesn't match type reference"),
+                    format!("inline function type doesn't match type reference"),
                 ));
             }
         } else {

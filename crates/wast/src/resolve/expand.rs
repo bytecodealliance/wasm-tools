@@ -49,8 +49,8 @@ impl<'a> Expander<'a> {
     pub fn deinline_import(&mut self, item: &mut ModuleField<'a>) {
         match item {
             ModuleField::Func(f) => {
-                let (module, name) = match f.kind {
-                    FuncKind::Import { module, name } => (module, name),
+                let (module, field) = match f.kind {
+                    FuncKind::Import { module, field } => (module, field),
                     _ => return,
                 };
                 for name in f.exports.names.drain(..) {
@@ -62,16 +62,17 @@ impl<'a> Expander<'a> {
                 *item = ModuleField::Import(Import {
                     span: f.span,
                     module,
-                    name,
-                    id: f.name,
+                    field,
+                    id: f.id,
+                    name: f.name,
                     kind: ImportKind::Func(f.ty.clone()),
                 });
                 self.funcs += 1;
             }
 
             ModuleField::Memory(m) => {
-                let (module, name, ty) = match m.kind {
-                    MemoryKind::Import { module, name, ty } => (module, name, ty),
+                let (module, field, ty) = match m.kind {
+                    MemoryKind::Import { module, field, ty } => (module, field, ty),
                     _ => return,
                 };
                 for name in m.exports.names.drain(..) {
@@ -83,16 +84,17 @@ impl<'a> Expander<'a> {
                 *item = ModuleField::Import(Import {
                     span: m.span,
                     module,
-                    name,
-                    id: m.name,
+                    field,
+                    id: m.id,
+                    name: None,
                     kind: ImportKind::Memory(ty),
                 });
                 self.memories += 1;
             }
 
             ModuleField::Table(t) => {
-                let (module, name, ty) = match t.kind {
-                    TableKind::Import { module, name, ty } => (module, name, ty),
+                let (module, field, ty) = match t.kind {
+                    TableKind::Import { module, field, ty } => (module, field, ty),
                     _ => return,
                 };
                 for name in t.exports.names.drain(..) {
@@ -104,16 +106,17 @@ impl<'a> Expander<'a> {
                 *item = ModuleField::Import(Import {
                     span: t.span,
                     module,
-                    name,
-                    id: t.name,
+                    field,
+                    id: t.id,
+                    name: None,
                     kind: ImportKind::Table(ty),
                 });
                 self.tables += 1;
             }
 
             ModuleField::Global(g) => {
-                let (module, name) = match g.kind {
-                    GlobalKind::Import { module, name } => (module, name),
+                let (module, field) = match g.kind {
+                    GlobalKind::Import { module, field } => (module, field),
                     _ => return,
                 };
                 for name in g.exports.names.drain(..) {
@@ -125,8 +128,9 @@ impl<'a> Expander<'a> {
                 *item = ModuleField::Import(Import {
                     span: g.span,
                     module,
-                    name,
-                    id: g.name,
+                    field,
+                    id: g.id,
+                    name: None,
                     kind: ImportKind::Global(g.ty),
                 });
                 self.globals += 1;
@@ -186,7 +190,7 @@ impl<'a> Expander<'a> {
                     };
                     self.to_append.push(ModuleField::Data(Data {
                         span: m.span,
-                        name: None,
+                        id: None,
                         kind: DataKind::Active {
                             memory: Index::Num(self.memories),
                             offset: Expression {
@@ -228,7 +232,7 @@ impl<'a> Expander<'a> {
                     };
                     self.to_append.push(ModuleField::Elem(Elem {
                         span: t.span,
-                        name: None,
+                        id: None,
                         kind: ElemKind::Active {
                             table: Index::Num(self.tables),
                             offset: Expression {

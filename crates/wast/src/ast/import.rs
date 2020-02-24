@@ -9,10 +9,13 @@ pub struct Import<'a> {
     /// The module that this statement is importing from
     pub module: &'a str,
     /// The name of the field in the module this statement imports from.
-    pub name: &'a str,
-    /// An optional identifier to refer to this import as in the rest of the
-    /// module.
+    pub field: &'a str,
+    /// An optional identifier used during name resolution to refer to this item
+    /// from the rest of the module.
     pub id: Option<ast::Id<'a>>,
+    /// An optional name which, for functions, will be stored in the
+    /// custom `name` section.
+    pub name: Option<ast::NameAnnotation<'a>>,
     /// What kind of item is being imported.
     pub kind: ImportKind<'a>,
 }
@@ -31,21 +34,25 @@ impl<'a> Parse<'a> for Import<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::import>()?.0;
         let module = parser.parse()?;
-        let name = parser.parse()?;
-        let (id, kind) = parser.parens(|parser| {
+        let field = parser.parse()?;
+        let (id, name, kind) = parser.parens(|parser| {
             let mut l = parser.lookahead1();
             if l.peek::<kw::func>() {
                 parser.parse::<kw::func>()?;
-                Ok((parser.parse()?, ImportKind::Func(parser.parse()?)))
+                Ok((
+                    parser.parse()?,
+                    parser.parse()?,
+                    ImportKind::Func(parser.parse()?),
+                ))
             } else if l.peek::<kw::table>() {
                 parser.parse::<kw::table>()?;
-                Ok((parser.parse()?, ImportKind::Table(parser.parse()?)))
+                Ok((parser.parse()?, None, ImportKind::Table(parser.parse()?)))
             } else if l.peek::<kw::memory>() {
                 parser.parse::<kw::memory>()?;
-                Ok((parser.parse()?, ImportKind::Memory(parser.parse()?)))
+                Ok((parser.parse()?, None, ImportKind::Memory(parser.parse()?)))
             } else if l.peek::<kw::global>() {
                 parser.parse::<kw::global>()?;
-                Ok((parser.parse()?, ImportKind::Global(parser.parse()?)))
+                Ok((parser.parse()?, None, ImportKind::Global(parser.parse()?)))
             } else {
                 Err(l.error())
             }
@@ -53,9 +60,10 @@ impl<'a> Parse<'a> for Import<'a> {
         Ok(Import {
             span,
             module,
-            name,
+            field,
             id,
             kind,
+            name,
         })
     }
 }

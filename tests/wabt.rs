@@ -205,11 +205,15 @@ fn error_matches(error: &str, message: &str) -> bool {
         || message == "malformed lane index"
         || message == "expected i8 literal"
         || message == "invalid lane length"
+        || message == "unclosed annotation"
+        || message == "malformed annotation id"
         || message == "alignment must be a power of two"
     {
-        return error.contains("expected a ")
-            || error.contains("expected an ")
-            || error.contains("constant out of range");
+        return error.contains("expected ") || error.contains("constant out of range");
+    }
+
+    if message == "unclosed string" {
+        return error.contains("unexpected end-of-file");
     }
 
     return false;
@@ -443,8 +447,13 @@ fn skip_test(test: &Path, contents: &str) -> bool {
     if contents.contains("--enable-exceptions") || test.ends_with("all-features.txt") {
         return true;
     }
-    if contents.contains("--enable-annotations") {
+
+    // We've made the opinionated decision that well-known annotations like
+    // `@custom` and `@name` must be well-formed. This test, however, uses
+    // `@custom` in ways the spec doesn't specify, so we skip it.
+    if test.ends_with("test/parse/annotations.txt") {
         return true;
     }
+
     false
 }

@@ -7,7 +7,7 @@ pub struct Memory<'a> {
     /// Where this `memory` was defined
     pub span: ast::Span,
     /// An optional name to refer to this memory by.
-    pub name: Option<ast::Id<'a>>,
+    pub id: Option<ast::Id<'a>>,
     /// If present, inline export annotations which indicate names this
     /// definition should be exported under.
     pub exports: ast::InlineExport<'a>,
@@ -22,7 +22,7 @@ pub enum MemoryKind<'a> {
     #[allow(missing_docs)]
     Import {
         module: &'a str,
-        name: &'a str,
+        field: &'a str,
         ty: ast::MemoryType,
     },
 
@@ -36,7 +36,7 @@ pub enum MemoryKind<'a> {
 impl<'a> Parse<'a> for Memory<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::memory>()?.0;
-        let name = parser.parse()?;
+        let id = parser.parse()?;
         let exports = parser.parse()?;
 
         // Afterwards figure out which style this is, either:
@@ -68,9 +68,9 @@ impl<'a> Parse<'a> for Memory<'a> {
             })?;
             match result {
                 Which::Inline(data) => MemoryKind::Inline(data),
-                Which::Import(module, name) => MemoryKind::Import {
+                Which::Import(module, field) => MemoryKind::Import {
                     module,
-                    name,
+                    field,
                     ty: parser.parse()?,
                 },
             }
@@ -81,7 +81,7 @@ impl<'a> Parse<'a> for Memory<'a> {
         };
         Ok(Memory {
             span,
-            name,
+            id,
             exports,
             kind,
         })
@@ -95,7 +95,7 @@ pub struct Data<'a> {
     pub span: ast::Span,
 
     /// The optional name of this data segment
-    pub name: Option<ast::Id<'a>>,
+    pub id: Option<ast::Id<'a>>,
 
     /// Whether this data segment is passive or active
     pub kind: DataKind<'a>,
@@ -126,7 +126,7 @@ pub enum DataKind<'a> {
 impl<'a> Parse<'a> for Data<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::data>()?.0;
-        let name = parser.parse()?;
+        let id = parser.parse()?;
 
         // The `passive` keyword is mentioned in the current spec but isn't
         // mentioned in `wabt` tests, so consider it optional for now
@@ -167,7 +167,7 @@ impl<'a> Parse<'a> for Data<'a> {
         }
         Ok(Data {
             span,
-            name,
+            id,
             kind,
             data,
         })

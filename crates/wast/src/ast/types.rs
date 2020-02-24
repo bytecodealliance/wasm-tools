@@ -185,8 +185,9 @@ impl<'a> Parse<'a> for MemoryType {
 /// A function type with parameters and results.
 #[derive(Clone, Debug)]
 pub struct FunctionType<'a> {
-    /// The parameters of a function, optionally each having a name.
-    pub params: Vec<(Option<ast::Id<'a>>, ValType)>,
+    /// The parameters of a function, optionally each having an identifier for
+    /// name resolution and a name for the custom `name` section.
+    pub params: Vec<(Option<ast::Id<'a>>, Option<ast::NameAnnotation<'a>>, ValType)>,
     /// The results types of a function.
     pub results: Vec<ValType>,
 }
@@ -207,16 +208,16 @@ impl<'a> FunctionType<'a> {
                     if p.is_empty() {
                         return Ok(());
                     }
-                    let id = if allow_names {
-                        p.parse::<Option<_>>()?
+                    let (id, name) = if allow_names {
+                        (p.parse::<Option<_>>()?, p.parse::<Option<_>>()?)
                     } else {
-                        None
+                        (None, None)
                     };
-                    let parse_more = id.is_none();
+                    let parse_more = id.is_none() && name.is_none();
                     let ty = p.parse()?;
-                    self.params.push((id, ty));
+                    self.params.push((id, name, ty));
                     while parse_more && !p.is_empty() {
-                        self.params.push((None, p.parse()?));
+                        self.params.push((None, None, p.parse()?));
                     }
                 } else if l.peek::<kw::result>() {
                     p.parse::<kw::result>()?;
@@ -248,8 +249,9 @@ impl<'a> Parse<'a> for FunctionType<'a> {
 /// A type declaration in a module
 #[derive(Debug)]
 pub struct Type<'a> {
-    /// An optional name to refer to this `type` by.
-    pub name: Option<ast::Id<'a>>,
+    /// An optional identifer to refer to this `type` by as part of name
+    /// resolution.
+    pub id: Option<ast::Id<'a>>,
     /// The type that we're declaring.
     pub func: FunctionType<'a>,
 }
@@ -257,9 +259,9 @@ pub struct Type<'a> {
 impl<'a> Parse<'a> for Type<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::r#type>()?;
-        let name = parser.parse()?;
+        let id = parser.parse()?;
         let func = parser.parens(FunctionType::parse)?;
-        Ok(Type { name, func })
+        Ok(Type { id, func })
     }
 }
 

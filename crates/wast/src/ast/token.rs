@@ -3,6 +3,7 @@ use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str;
+use crate::ast::annotation;
 
 /// A position in the original source stream, used to render errors.
 #[derive(Copy, Clone, Debug)]
@@ -140,6 +141,32 @@ impl Peek for Index<'_> {
 
     fn display() -> &'static str {
         "an index"
+    }
+}
+
+/// An `@name` annotation in source, currently of the form `@name "foo"`
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct NameAnnotation<'a> {
+    /// The name specified for the item
+    pub name: &'a str,
+}
+
+impl<'a> Parse<'a> for NameAnnotation<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.parse::<annotation::name>()?;
+        let name = parser.parse()?;
+        Ok(NameAnnotation { name })
+    }
+}
+
+impl<'a> Parse<'a> for Option<NameAnnotation<'a>> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let _r = parser.register_annotation("name");
+        Ok(if parser.peek2::<annotation::name>() {
+            Some(parser.parens(|p| p.parse())?)
+        } else {
+            None
+        })
     }
 }
 

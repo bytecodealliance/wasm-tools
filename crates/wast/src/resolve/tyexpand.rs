@@ -98,16 +98,16 @@ impl<'a> Expander<'a> {
     }
 
     fn key(&self, ty: &FunctionType) -> (Vec<ValType>, Vec<ValType>) {
-        let params = ty.params.iter().map(|p| p.1).collect::<Vec<_>>();
+        let params = ty.params.iter().map(|p| p.2).collect::<Vec<_>>();
         let results = ty.results.clone();
         (params, results)
     }
 
     fn prepend(&mut self, key: (Vec<ValType>, Vec<ValType>)) -> u32 {
         self.to_prepend.push(ModuleField::Type(Type {
-            name: None,
+            id: None,
             func: FunctionType {
-                params: key.0.iter().map(|t| (None, *t)).collect(),
+                params: key.0.iter().map(|t| (None, None, *t)).collect(),
                 results: key.1.clone(),
             },
         }));

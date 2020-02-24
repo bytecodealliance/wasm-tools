@@ -1,4 +1,4 @@
-use crate::ast::{self, kw};
+use crate::ast::{self, kw, annotation};
 use crate::parser::{Parse, Parser, Result};
 
 pub use crate::resolve::Names;
@@ -15,15 +15,15 @@ pub struct Wat<'a> {
 
 impl<'a> Parse<'a> for Wat<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
+        let _r = parser.register_annotation("custom");
         let module = if !parser.peek2::<kw::module>() {
-            let mut fields = Vec::new();
-            // must have at least one field
-            fields.push(parser.parens(ModuleField::parse)?);
-            while !parser.is_empty() {
-                fields.push(parser.parens(ModuleField::parse)?);
+            let fields = ModuleField::parse_remaining(parser)?;
+            if fields.is_empty() {
+                return Err(parser.error("expected at least one module field"));
             }
             Module {
                 span: ast::Span { offset: 0 },
+                id: None,
                 name: None,
                 kind: ModuleKind::Text(fields),
             }
@@ -39,8 +39,10 @@ impl<'a> Parse<'a> for Wat<'a> {
 pub struct Module<'a> {
     /// Where this `module` was defined
     pub span: ast::Span,
-    /// An optional name to refer to this module by.
-    pub name: Option<ast::Id<'a>>,
+    /// An optional identifier this module is known by
+    pub id: Option<ast::Id<'a>>,
+    /// An optional `@name` annotation for this module
+    pub name: Option<ast::NameAnnotation<'a>>,
     /// What kind of module this was parsed as.
     pub kind: ModuleKind<'a>,
 }
@@ -129,7 +131,9 @@ impl<'a> Module<'a> {
 
 impl<'a> Parse<'a> for Module<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
+        let _r = parser.register_annotation("custom");
         let span = parser.parse::<kw::module>()?.0;
+        let id = parser.parse()?;
         let name = parser.parse()?;
 
         let kind = if parser.peek::<kw::binary>() {
@@ -140,13 +144,14 @@ impl<'a> Parse<'a> for Module<'a> {
             }
             ModuleKind::Binary(data)
         } else {
-            let mut fields = Vec::new();
-            while !parser.is_empty() {
-                fields.push(parser.parens(ModuleField::parse)?);
-            }
-            ModuleKind::Text(fields)
+            ModuleKind::Text(ModuleField::parse_remaining(parser)?)
         };
-        Ok(Module { span, name, kind })
+        Ok(Module {
+            span,
+            id,
+            name,
+            kind,
+        })
     }
 }
 
@@ -164,6 +169,17 @@ pub enum ModuleField<'a> {
     Start(ast::Index<'a>),
     Elem(ast::Elem<'a>),
     Data(ast::Data<'a>),
+    Custom(ast::Custom<'a>),
+}
+
+impl<'a> ModuleField<'a> {
+    fn parse_remaining(parser: Parser<'a>) -> Result<Vec<ModuleField>> {
+        let mut fields = Vec::new();
+        while !parser.is_empty() {
+            fields.push(parser.parens(ModuleField::parse)?);
+        }
+        Ok(fields)
+    }
 }
 
 impl<'a> Parse<'a> for ModuleField<'a> {
@@ -198,6 +214,9 @@ impl<'a> Parse<'a> for ModuleField<'a> {
         }
         if parser.peek::<kw::data>() {
             return Ok(ModuleField::Data(parser.parse()?));
+        }
+        if parser.peek::<annotation::custom>() {
+            return Ok(ModuleField::Custom(parser.parse()?));
         }
         Err(parser.error("expected valid module field"))
     }
