@@ -566,7 +566,7 @@ instructions! {
         AtomicNotify(MemArg<4>) : [0xfe, 0x00] : "atomic.notify",
         I32AtomicWait(MemArg<4>) : [0xfe, 0x01] : "i32.atomic.wait",
         I64AtomicWait(MemArg<8>) : [0xfe, 0x02] : "i64.atomic.wait",
-        AtomicFence : [0xfe, 0x03] : "atomic.fence",
+        AtomicFence : [0xfe, 0x03, 0x00] : "atomic.fence",
 
         I32AtomicLoad(MemArg<4>) : [0xfe, 0x10] : "i32.atomic.load",
         I64AtomicLoad(MemArg<8>) : [0xfe, 0x11] : "i64.atomic.load",
