@@ -799,7 +799,7 @@ instructions! {
         F32x4ConvertI32x4S : [0xfd, 0xaf] : "f32x4.convert_i32x4_s",
         F32x4ConvertI32x4U : [0xfd, 0xb0] : "f32x4.convert_i32x4_u",
         V8x16Swizzle : [0xfd, 0xc0] : "v8x16.swizzle",
-        V8x16Shuffle(V8x16Shuffle) : [0xfd, 0xc1] : "v8x16.shuffle",
+        V8x16Shuffle(V8x16Shuffle) : [0xfd, 0x03] : "v8x16.shuffle",
         V8x16LoadSplat(MemArg<1>) : [0xfd, 0xc2] : "v8x16.load_splat",
         V16x8LoadSplat(MemArg<2>) : [0xfd, 0xc3] : "v16x8.load_splat",
         V32x4LoadSplat(MemArg<4>) : [0xfd, 0xc4] : "v32x4.load_splat",
