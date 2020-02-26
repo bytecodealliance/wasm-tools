@@ -688,6 +688,10 @@ impl<'a> ValidatingParser<'a> {
             func_body_offset,
         ))
     }
+
+    pub fn current_poisiton(&self) -> usize {
+        self.parser.current_position()
+    }
 }
 
 impl<'a> WasmDecoder<'a> for ValidatingParser<'a> {
