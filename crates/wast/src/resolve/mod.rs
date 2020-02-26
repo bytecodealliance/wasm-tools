@@ -71,7 +71,7 @@ pub fn resolve<'a>(module: &mut Module<'a>) -> Result<Names<'a>, Error> {
     move_imports_first(fields);
     let mut resolver = names::Resolver::default();
     for field in fields.iter_mut() {
-        resolver.register(field);
+        resolver.register(field)?;
     }
     for field in fields.iter_mut() {
         resolver.resolve(field)?;
