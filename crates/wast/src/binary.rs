@@ -532,8 +532,9 @@ impl Encode for Expression<'_> {
 
 impl Encode for BlockType<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
-        if let Some(index) = &self.ty.index {
-            return index.encode(e);
+        // block types using an index are encoded as an sleb, not a uleb
+        if let Some(Index::Num(n)) = &self.ty.index {
+            return i64::from(*n).encode(e);
         }
         if self.ty.ty.params.is_empty() && self.ty.ty.results.is_empty() {
             return e.push(0x40);
