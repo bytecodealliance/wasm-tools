@@ -171,9 +171,17 @@ fn skip_wabt_compare(test: &Path, line: usize) -> bool {
         return true;
     }
 
+    // wabt's printing of `declare` segments seems buggy with `ref.func`, maybe?
+    if test.ends_with("reference-types/elem.wast") {
+        return true;
+    }
+
     // Right now there's a good number of differences between wabt's simd
     // parsing and the official simd spec, let's just wait for wabt to update.
-    if test.iter().any(|t| t == "simd") {
+    if test.iter().any(|t| t == "simd")
+        || test.ends_with("simd-lane.txt")
+        || test.ends_with("simd.txt")
+    {
         return true;
     }
 

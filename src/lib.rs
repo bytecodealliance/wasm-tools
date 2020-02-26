@@ -1176,7 +1176,8 @@ impl Printer {
             let mut elem = elem?;
             write!(self.result, "\n  (elem (;{};)", i)?;
             match &mut elem.kind {
-                ElementKind::Passive | ElementKind::Declared => {}
+                ElementKind::Passive => {}
+                ElementKind::Declared => write!(self.result, " declare")?,
                 ElementKind::Active {
                     table_index,
                     init_expr,
