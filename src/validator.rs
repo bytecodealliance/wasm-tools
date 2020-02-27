@@ -689,7 +689,7 @@ impl<'a> ValidatingParser<'a> {
         ))
     }
 
-    pub fn current_poisiton(&self) -> usize {
+    pub fn current_position(&self) -> usize {
         self.parser.current_position()
     }
 }
