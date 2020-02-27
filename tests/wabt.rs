@@ -9,10 +9,10 @@
 //! rudimentary support for running some of the assertions.
 
 use rayon::prelude::*;
-use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 use wast::parser::ParseBuffer;
 use wast::*;
 
@@ -55,7 +55,10 @@ fn main() {
         panic!("{} tests failed", errors.len())
     }
 
-    println!("test result: ok. {} directives passed\n", ntests.load(SeqCst));
+    println!(
+        "test result: ok. {} directives passed\n",
+        ntests.load(SeqCst)
+    );
 }
 
 fn run_test(test: &Path, contents: &str, ntests: &AtomicUsize) -> anyhow::Result<()> {
@@ -110,7 +113,6 @@ fn test_wast(test: &Path, contents: &str, ntests: &AtomicUsize) -> anyhow::Resul
             other => (other, None),
         })
         .collect::<Vec<_>>();
-
 
     let results = directives
         .into_par_iter()
