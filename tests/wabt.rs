@@ -9,6 +9,7 @@
 //! rudimentary support for running some of the assertions.
 
 use rayon::prelude::*;
+use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -38,11 +39,12 @@ fn main() {
         })
         .collect::<Vec<_>>();
 
-    println!("running {} tests\n", tests.len());
+    println!("running {} test files\n", tests.len());
 
+    let ntests = AtomicUsize::new(0);
     let errors = tests
         .par_iter()
-        .filter_map(|(test, contents)| run_test(test, contents).err())
+        .filter_map(|(test, contents)| run_test(test, contents, &ntests).err())
         .collect::<Vec<_>>();
 
     if !errors.is_empty() {
@@ -53,17 +55,18 @@ fn main() {
         panic!("{} tests failed", errors.len())
     }
 
-    println!("test result: ok. {} passed\n", tests.len());
+    println!("test result: ok. {} directives passed\n", ntests.load(SeqCst));
 }
 
-fn run_test(test: &Path, contents: &str) -> anyhow::Result<()> {
+fn run_test(test: &Path, contents: &str, ntests: &AtomicUsize) -> anyhow::Result<()> {
     let wast = contents.contains("TOOL: wast2json")
         || contents.contains("TOOL: run-objdump-spec")
         || test.display().to_string().ends_with(".wast");
     if wast {
-        return test_wast(test, contents);
+        return test_wast(test, contents, ntests);
     }
     let binary = wat::parse_file(test)?;
+    ntests.fetch_add(1, SeqCst); // tested the parse
 
     // FIXME(#5) fix these tests
     if test.ends_with("invalid-elem-segment-offset.txt")
@@ -74,11 +77,12 @@ fn run_test(test: &Path, contents: &str) -> anyhow::Result<()> {
 
     if let Some(expected) = wat2wasm(&test) {
         binary_compare(&test, 0, &binary, &expected)?;
+        ntests.fetch_add(1, SeqCst); // tested the wabt compare
     }
     Ok(())
 }
 
-fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
+fn test_wast(test: &Path, contents: &str, ntests: &AtomicUsize) -> anyhow::Result<()> {
     macro_rules! adjust {
         ($e:expr) => {{
             let mut e = wast::Error::from($e);
@@ -89,9 +93,11 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
     }
     let buf = ParseBuffer::new(contents).map_err(|e| adjust!(e))?;
     let wast = parser::parse::<Wast>(&buf).map_err(|e| adjust!(e))?;
+    ntests.fetch_add(1, SeqCst); // wast parse test
+    let json = wast2json(&test);
 
-    // Number each `Module` directive with the nth module directive that it is,
-    // and then afterwards we can iterate over everything in parallel.
+    // Pair each `Module` directive with the result of wast2json's output
+    // `*.wasm` file, and then execute each test in parallel.
     let mut modules = 0;
     let directives = wast
         .directives
@@ -99,27 +105,29 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
         .map(|directive| match directive {
             WastDirective::Module(_) => {
                 modules += 1;
-                (directive, modules - 1)
+                (directive, json.as_ref().map(|j| &j.modules[modules - 1]))
             }
-            other => (other, modules),
+            other => (other, None),
         })
         .collect::<Vec<_>>();
 
-    let json = wast2json(&test);
 
     let results = directives
         .into_par_iter()
-        .map(|(directive, modulei)| {
+        .map(|(directive, expected)| {
             match directive {
                 WastDirective::Module(mut module) => {
-                    let actual = module.encode().map_err(|e| adjust!(e))?;
+                    assert_eq!(expected.is_some(), json.is_some());
 
+                    let actual = module.encode().map_err(|e| adjust!(e))?;
+                    ntests.fetch_add(1, SeqCst); // testing encode
                     match module.kind {
                         ModuleKind::Text(_) => {
-                            if let Some(json) = &json {
-                                let expected = fs::read(&json.modules[modulei])?;
+                            if let Some(expected) = &expected {
+                                let expected = fs::read(expected)?;
                                 let (line, _) = module.span.linecol_in(contents);
                                 binary_compare(&test, line, &actual, &expected)?;
+                                ntests.fetch_add(1, SeqCst); // testing compare
                             }
                         }
                         // Skip these for the same reason we skip
@@ -159,6 +167,7 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
                         ),
                         Err(e) => {
                             if error_matches(&e.to_string(), message) {
+                                ntests.fetch_add(1, SeqCst);
                                 return Ok(());
                             }
                             anyhow::bail!(
