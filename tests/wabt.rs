@@ -72,7 +72,7 @@ fn run_test(test: &Path, contents: &str) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    if let Some(expected) = wat2wasm(&test, None) {
+    if let Some(expected) = wat2wasm(&test) {
         binary_compare(&test, 0, &binary, &expected)?;
     }
     Ok(())
@@ -105,6 +105,8 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
         })
         .collect::<Vec<_>>();
 
+    let json = wast2json(&test);
+
     let results = directives
         .into_par_iter()
         .map(|(directive, modulei)| {
@@ -114,7 +116,8 @@ fn test_wast(test: &Path, contents: &str) -> anyhow::Result<()> {
 
                     match module.kind {
                         ModuleKind::Text(_) => {
-                            if let Some(expected) = wat2wasm(&test, Some(modulei)) {
+                            if let Some(json) = &json {
+                                let expected = fs::read(&json.modules[modulei])?;
                                 let (line, _) = module.span.linecol_in(contents);
                                 binary_compare(&test, line, &actual, &expected)?;
                             }
@@ -372,54 +375,57 @@ error: actual wasm differs {pos} from expected wasm
     }
 }
 
-fn wat2wasm(test: &Path, module: Option<usize>) -> Option<Vec<u8>> {
-    if let Some(module) = module {
-        let td = tempfile::TempDir::new().unwrap();
-        let result = Command::new("wast2json")
-            .arg(test)
-            .arg("--enable-all")
-            .arg("--no-check")
-            .arg("-o")
-            .arg(td.path().join("foo.json"))
-            .output()
-            .expect("failed to spawn `wat2wasm`");
-        if !result.status.success() {
-            // TODO: handle this case better
-            return None;
-        }
-        let json = fs::read_to_string(td.path().join("foo.json")).unwrap();
-        let json: serde_json::Value = serde_json::from_str(&json).unwrap();
-        let commands = json["commands"].as_array().unwrap();
-        let module = commands
-            .iter()
-            .filter_map(|m| {
-                if m["type"] == "module" {
-                    Some(td.path().join(m["filename"].as_str().unwrap()))
-                } else {
-                    None
-                }
-            })
-            .skip(module)
-            .next()
-            .expect("failed to find right module");
-        Some(fs::read(module).unwrap())
+fn wat2wasm(test: &Path) -> Option<Vec<u8>> {
+    let f = tempfile::NamedTempFile::new().unwrap();
+    let result = Command::new("wat2wasm")
+        .arg(test)
+        .arg("--enable-all")
+        .arg("--no-check")
+        .arg("-o")
+        .arg(f.path())
+        .output()
+        .expect("failed to spawn `wat2wasm`");
+    if result.status.success() {
+        Some(fs::read(f.path()).unwrap())
     } else {
-        let f = tempfile::NamedTempFile::new().unwrap();
-        let result = Command::new("wat2wasm")
-            .arg(test)
-            .arg("--enable-all")
-            .arg("--no-check")
-            .arg("-o")
-            .arg(f.path())
-            .output()
-            .expect("failed to spawn `wat2wasm`");
-        if result.status.success() {
-            Some(fs::read(f.path()).unwrap())
-        } else {
-            // TODO: handle this case better
-            None
-        }
+        // TODO: handle this case better
+        None
     }
+}
+
+struct Wast2Json {
+    _td: tempfile::TempDir,
+    modules: Vec<PathBuf>,
+}
+
+fn wast2json(test: &Path) -> Option<Wast2Json> {
+    let td = tempfile::TempDir::new().unwrap();
+    let result = Command::new("wast2json")
+        .arg(test)
+        .arg("--enable-all")
+        .arg("--no-check")
+        .arg("-o")
+        .arg(td.path().join("foo.json"))
+        .output()
+        .expect("failed to spawn `wat2wasm`");
+    if !result.status.success() {
+        // TODO: handle this case better
+        return None;
+    }
+    let json = fs::read_to_string(td.path().join("foo.json")).unwrap();
+    let json: serde_json::Value = serde_json::from_str(&json).unwrap();
+    let commands = json["commands"].as_array().unwrap();
+    let modules = commands
+        .iter()
+        .filter_map(|m| {
+            if m["type"] == "module" {
+                Some(td.path().join(m["filename"].as_str().unwrap()))
+            } else {
+                None
+            }
+        })
+        .collect();
+    Some(Wast2Json { _td: td, modules })
 }
 
 fn skip_test(test: &Path, contents: &str) -> bool {
