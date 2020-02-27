@@ -563,9 +563,9 @@ instructions! {
         I64Extend32S : [0xc4] : "i64.extend32_s",
 
         // atomics proposal
-        AtomicNotify(MemArg<4>) : [0xfe, 0x00] : "atomic.notify",
-        I32AtomicWait(MemArg<4>) : [0xfe, 0x01] : "i32.atomic.wait",
-        I64AtomicWait(MemArg<8>) : [0xfe, 0x02] : "i64.atomic.wait",
+        MemoryAtomicNotify(MemArg<4>) : [0xfe, 0x00] : "memory.atomic.notify" | "atomic.notify",
+        MemoryAtomicWait32(MemArg<4>) : [0xfe, 0x01] : "memory.atomic.wait32" | "i32.atomic.wait",
+        MemoryAtomicWait64(MemArg<8>) : [0xfe, 0x02] : "memory.atomic.wait64" | "i64.atomic.wait",
         AtomicFence : [0xfe, 0x03, 0x00] : "atomic.fence",
 
         I32AtomicLoad(MemArg<4>) : [0xfe, 0x10] : "i32.atomic.load",

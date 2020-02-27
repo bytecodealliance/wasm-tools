@@ -233,6 +233,7 @@ fn find_tests() -> Vec<PathBuf> {
     find_tests("tests/wabt/test/typecheck".as_ref(), &mut tests);
     find_tests("tests/wabt/third_party/testsuite".as_ref(), &mut tests);
     find_tests("tests/regression".as_ref(), &mut tests);
+    find_tests("tests/testsuite".as_ref(), &mut tests);
     tests.sort();
     return tests;
 
@@ -452,6 +453,12 @@ fn skip_test(test: &Path, contents: &str) -> bool {
     // `@custom` and `@name` must be well-formed. This test, however, uses
     // `@custom` in ways the spec doesn't specify, so we skip it.
     if test.ends_with("test/parse/annotations.txt") {
+        return true;
+    }
+
+    // Waiting for https://github.com/WebAssembly/annotations/pull/7 to make its
+    // way into the testsuite repo.
+    if test.ends_with("testsuite/proposals/annotations/annotations.wast") {
         return true;
     }
 
