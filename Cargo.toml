@@ -25,7 +25,7 @@ diff = "0.1"
 getopts = "0.2"
 rayon = "1.0"
 tempfile = "3.0"
-wast = "8.0.0"
+wast = "9.0.0"
 wat = "1.0.8"
 
 [[test]]
