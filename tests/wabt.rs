@@ -365,20 +365,17 @@ error: actual wasm differs {pos} from expected wasm
     }
 
     fn remove_name_section(bytes: &[u8]) -> Vec<u8> {
-        if let Ok(mut r) = ModuleReader::new(bytes) {
-            loop {
-                let start = r.current_position();
-                if let Ok(s) = r.read() {
-                    match s.code {
-                        SectionCode::Custom { name: "name", .. } => {
-                            let mut bytes = bytes.to_vec();
-                            bytes.drain(start..s.range().end);
-                            return bytes;
-                        }
-                        _ => {}
+        let mut r = ModuleReader::new(bytes).expect("should produce valid header");
+        while !r.eof() {
+            let start = r.current_position();
+            if let Ok(s) = r.read() {
+                match s.code {
+                    SectionCode::Custom { name: "name", .. } => {
+                        let mut bytes = bytes.to_vec();
+                        bytes.drain(start..s.range().end);
+                        return bytes;
                     }
-                } else {
-                    break;
+                    _ => {}
                 }
             }
         }
@@ -440,12 +437,6 @@ fn wast2json(test: &Path) -> Option<Wast2Json> {
 }
 
 fn skip_test(test: &Path, contents: &str) -> bool {
-    // FIXME(WebAssembly/simd#140) test needs to be updated to not have
-    // unintentional invalid syntax
-    if test.ends_with("simd/simd_lane.wast") {
-        return true;
-    }
-
     // Skip tests that are supposed to fail
     if contents.contains(";; ERROR") {
         return true;
@@ -453,16 +444,6 @@ fn skip_test(test: &Path, contents: &str) -> bool {
     // These tests are acually ones that run with the `*.wast` files from the
     // official test suite, and we slurp those up elsewhere anyway.
     if contents.contains("STDIN_FILE") {
-        return true;
-    }
-    // Some exception-handling tests don't use `--enable-exceptions` since
-    // `run-objdump` enables everything
-    if contents.contains("run-objdump") && contents.contains("(event") {
-        return true;
-    }
-
-    // Skip tests that exercise unimplemented proposals
-    if contents.contains("--enable-exceptions") || test.ends_with("all-features.txt") {
         return true;
     }
 

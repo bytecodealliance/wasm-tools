@@ -8,6 +8,7 @@ pub struct Expander<'a> {
     memories: u32,
     tables: u32,
     globals: u32,
+    events: u32,
 }
 
 fn page_size() -> u32 {
@@ -141,6 +142,7 @@ impl<'a> Expander<'a> {
                 ImportKind::Memory(_) => self.memories += 1,
                 ImportKind::Table(_) => self.tables += 1,
                 ImportKind::Global(_) => self.globals += 1,
+                ImportKind::Event(_) => self.events += 1,
             },
 
             _ => {}
@@ -254,6 +256,16 @@ impl<'a> Expander<'a> {
                     }));
                 }
                 self.globals += 1;
+            }
+
+            ModuleField::Event(e) => {
+                for name in e.exports.names.drain(..) {
+                    self.to_append.push(ModuleField::Export(Export {
+                        name,
+                        kind: ExportKind::Event(Index::Num(self.events)),
+                    }));
+                }
+                self.events += 1;
             }
 
             _ => {}

@@ -45,6 +45,7 @@ pub enum CustomPlaceAnchor {
     Elem,
     Code,
     Data,
+    Event,
 }
 
 impl<'a> Parse<'a> for Custom<'a> {
@@ -133,6 +134,10 @@ impl<'a> Parse<'a> for CustomPlaceAnchor {
         if parser.peek::<kw::data>() {
             parser.parse::<kw::data>()?;
             return Ok(CustomPlaceAnchor::Data)
+        }
+        if parser.peek::<kw::event>() {
+            parser.parse::<kw::event>()?;
+            return Ok(CustomPlaceAnchor::Event)
         }
 
         Err(parser.error("expected a valid section name"))

@@ -829,6 +829,12 @@ instructions! {
 
         I8x16AvgrU : [0xfd, 0xd9] : "i8x16.avgr_u",
         I16x8AvgrU : [0xfd, 0xda] : "i16x8.avgr_u",
+
+        Try(BlockType<'a>) : [0x06] : "try",
+        Catch : [0x07] : "catch",
+        Throw(ast::Index<'a>) : [0x08] : "throw",
+        Rethrow : [0x09] : "rethrow",
+        BrOnExn(BrOnExn<'a>) : [0x0a] : "br_on_exn",
     }
 }
 
@@ -1228,5 +1234,21 @@ impl<'a> Parse<'a> for SelectTypes {
             })?;
         }
         Ok(SelectTypes { tys })
+    }
+}
+
+/// Payload of the `br_on_exn` instruction
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub struct BrOnExn<'a> {
+    pub label: ast::Index<'a>,
+    pub exn: ast::Index<'a>,
+}
+
+impl<'a> Parse<'a> for BrOnExn<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let label = parser.parse()?;
+        let exn = parser.parse()?;
+        Ok(BrOnExn { label, exn })
     }
 }

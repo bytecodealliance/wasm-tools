@@ -169,6 +169,7 @@ pub enum ModuleField<'a> {
     Start(ast::Index<'a>),
     Elem(ast::Elem<'a>),
     Data(ast::Data<'a>),
+    Event(ast::Event<'a>),
     Custom(ast::Custom<'a>),
 }
 
@@ -214,6 +215,9 @@ impl<'a> Parse<'a> for ModuleField<'a> {
         }
         if parser.peek::<kw::data>() {
             return Ok(ModuleField::Data(parser.parse()?));
+        }
+        if parser.peek::<kw::event>() {
+            return Ok(ModuleField::Event(parser.parse()?));
         }
         if parser.peek::<annotation::custom>() {
             return Ok(ModuleField::Custom(parser.parse()?));

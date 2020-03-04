@@ -19,6 +19,7 @@ pub enum ExportKind<'a> {
     Table(ast::Index<'a>),
     Memory(ast::Index<'a>),
     Global(ast::Index<'a>),
+    Event(ast::Index<'a>),
 }
 
 impl<'a> Parse<'a> for Export<'a> {
@@ -39,6 +40,9 @@ impl<'a> Parse<'a> for Export<'a> {
             } else if l.peek::<kw::global>() {
                 parser.parse::<kw::global>()?;
                 Ok(ExportKind::Global(parser.parse()?))
+            } else if l.peek::<kw::event>() {
+                parser.parse::<kw::event>()?;
+                Ok(ExportKind::Event(parser.parse()?))
             } else {
                 Err(l.error())
             }

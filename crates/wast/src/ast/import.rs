@@ -28,6 +28,7 @@ pub enum ImportKind<'a> {
     Table(ast::TableType),
     Memory(ast::MemoryType),
     Global(ast::GlobalType),
+    Event(ast::EventType<'a>),
 }
 
 impl<'a> Parse<'a> for Import<'a> {
@@ -53,6 +54,9 @@ impl<'a> Parse<'a> for Import<'a> {
             } else if l.peek::<kw::global>() {
                 parser.parse::<kw::global>()?;
                 Ok((parser.parse()?, None, ImportKind::Global(parser.parse()?)))
+            } else if l.peek::<kw::event>() {
+                parser.parse::<kw::event>()?;
+                Ok((parser.parse()?, None, ImportKind::Event(parser.parse()?)))
             } else {
                 Err(l.error())
             }

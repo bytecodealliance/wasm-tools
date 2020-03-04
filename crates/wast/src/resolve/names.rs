@@ -6,6 +6,7 @@ use std::collections::HashMap;
 pub enum Ns {
     Data,
     Elem,
+    Event,
     Func,
     Global,
     Memory,
@@ -18,6 +19,7 @@ impl Ns {
         match self {
             Ns::Data => "data",
             Ns::Elem => "elem",
+            Ns::Event => "event",
             Ns::Func => "func",
             Ns::Global => "global",
             Ns::Memory => "memory",
@@ -29,7 +31,7 @@ impl Ns {
 
 #[derive(Default)]
 pub struct Resolver<'a> {
-    ns: [Namespace<'a>; 7],
+    ns: [Namespace<'a>; 8],
     tys: Vec<Type<'a>>,
 }
 
@@ -53,6 +55,7 @@ impl<'a> Resolver<'a> {
                 ImportKind::Memory(_) => register(Ns::Memory, i.id),
                 ImportKind::Table(_) => register(Ns::Table, i.id),
                 ImportKind::Global(_) => register(Ns::Global, i.id),
+                ImportKind::Event(_) => register(Ns::Event, i.id),
             },
             ModuleField::Global(i) => register(Ns::Global, i.id),
             ModuleField::Memory(i) => register(Ns::Memory, i.id),
@@ -68,6 +71,7 @@ impl<'a> Resolver<'a> {
             }
             ModuleField::Elem(e) => register(Ns::Elem, e.id),
             ModuleField::Data(d) => register(Ns::Data, d.id),
+            ModuleField::Event(e) => register(Ns::Event, e.id),
             ModuleField::Start(_) => Ok(()),
             ModuleField::Export(_) => Ok(()),
             ModuleField::Custom(_) => Ok(()),
@@ -85,8 +89,11 @@ impl<'a> Resolver<'a> {
     pub fn resolve(&self, field: &mut ModuleField<'a>) -> Result<(), Error> {
         match field {
             ModuleField::Import(i) => {
-                if let ImportKind::Func(f) = &mut i.kind {
-                    self.resolve_type_use(i.span, f)?;
+                match &mut i.kind {
+                    ImportKind::Func(t) | ImportKind::Event(EventType::Exception(t)) => {
+                        self.resolve_type_use(i.span, t)?;
+                    }
+                    _ => {}
                 }
                 Ok(())
             }
@@ -155,6 +162,7 @@ impl<'a> Resolver<'a> {
                 ExportKind::Memory(f) => self.resolve_idx(f, Ns::Memory),
                 ExportKind::Global(f) => self.resolve_idx(f, Ns::Global),
                 ExportKind::Table(f) => self.resolve_idx(f, Ns::Table),
+                ExportKind::Event(f) => self.resolve_idx(f, Ns::Event),
             },
 
             ModuleField::Global(g) => {
@@ -163,6 +171,8 @@ impl<'a> Resolver<'a> {
                 }
                 Ok(())
             }
+
+            ModuleField::Event(e) => self.resolve_event_type(e.span, &mut e.ty),
 
             ModuleField::Table(_)
             | ModuleField::Memory(_)
@@ -207,6 +217,15 @@ impl<'a> Resolver<'a> {
 
     fn resolve_expr(&self, span: Span, expr: &mut Expression<'a>) -> Result<(), Error> {
         ExprResolver::new(self, span).resolve(expr)
+    }
+
+    fn resolve_event_type(&self, span: Span, ty: &mut EventType<'a>) -> Result<(), Error> {
+        match ty {
+            EventType::Exception(ty) => {
+                self.resolve_type_use(span, ty)?;
+            }
+        }
+        Ok(())
     }
 
     pub fn resolve_idx(&self, idx: &mut Index<'a>, ns: Ns) -> Result<(), Error> {
@@ -335,7 +354,7 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 Ok(())
             }
 
-            Block(bt) | If(bt) | Loop(bt) => {
+            Block(bt) | If(bt) | Loop(bt) | Try(bt) => {
                 self.labels.push(bt.label);
 
                 // Ok things get interesting here. First off when parsing `bt`
@@ -411,6 +430,12 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                     self.resolve_label(label)?;
                 }
                 self.resolve_label(&mut i.default)
+            }
+
+            Throw(i) => self.resolver.resolve_idx(i, Ns::Event),
+            BrOnExn(b) => {
+                self.resolve_label(&mut b.label)?;
+                self.resolver.resolve_idx(&mut b.exn, Ns::Event)
             }
 
             _ => Ok(()),

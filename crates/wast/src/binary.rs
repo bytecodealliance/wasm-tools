@@ -21,6 +21,7 @@ pub fn encode(module: &Module<'_>) -> Vec<u8> {
     let mut start = Vec::new();
     let mut elem = Vec::new();
     let mut data = Vec::new();
+    let mut events = Vec::new();
     let mut customs = Vec::new();
     for field in fields {
         match field {
@@ -34,6 +35,7 @@ pub fn encode(module: &Module<'_>) -> Vec<u8> {
             ModuleField::Start(i) => start.push(i),
             ModuleField::Elem(i) => elem.push(i),
             ModuleField::Data(i) => data.push(i),
+            ModuleField::Event(i) => events.push(i),
             ModuleField::Custom(i) => customs.push(i),
         }
     }
@@ -54,6 +56,7 @@ pub fn encode(module: &Module<'_>) -> Vec<u8> {
     e.section_list(4, Table, &tables);
     e.section_list(5, Memory, &memories);
     e.section_list(6, Global, &globals);
+    e.section_list(13, Event, &events);
     e.section_list(7, Export, &exports);
     e.custom_sections(Before(Start));
     if let Some(start) = start.get(0) {
@@ -238,6 +241,10 @@ impl Encode for Import<'_> {
                 e.push(0x03);
                 f.encode(e);
             }
+            ImportKind::Event(f) => {
+                e.push(0x04);
+                f.encode(e);
+            }
         }
     }
 }
@@ -368,6 +375,10 @@ impl Encode for Export<'_> {
             }
             ExportKind::Global(f) => {
                 e.push(0x03);
+                f.encode(e);
+            }
+            ExportKind::Event(f) => {
+                e.push(0x04);
                 f.encode(e);
             }
         }
@@ -735,5 +746,29 @@ impl Encode for Custom<'_> {
         for list in self.data.iter() {
             e.extend_from_slice(list);
         }
+    }
+}
+
+impl Encode for Event<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.ty.encode(e);
+    }
+}
+
+impl Encode for EventType<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        match self {
+            EventType::Exception(ty) => {
+                e.push(0x00);
+                ty.encode(e);
+            }
+        }
+    }
+}
+
+impl Encode for BrOnExn<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.label.encode(e);
+        self.exn.encode(e);
     }
 }

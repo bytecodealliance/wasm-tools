@@ -17,6 +17,7 @@ impl<'a> Expander<'a> {
             ModuleField::Global(g) => self.expand_global(g),
             ModuleField::Data(d) => self.expand_data(d),
             ModuleField::Elem(e) => self.expand_elem(e),
+            ModuleField::Event(e) => self.expand_event(e),
             _ => {}
         }
     }
@@ -31,7 +32,9 @@ impl<'a> Expander<'a> {
 
     fn expand_import(&mut self, import: &mut Import<'a>) {
         match &mut import.kind {
-            ImportKind::Func(f) => self.expand_type_use(f),
+            ImportKind::Func(t) | ImportKind::Event(EventType::Exception(t)) => {
+                self.expand_type_use(t)
+            }
             _ => {}
         }
     }
@@ -55,6 +58,12 @@ impl<'a> Expander<'a> {
         }
     }
 
+    fn expand_event(&mut self, event: &mut Event<'a>) {
+        match &mut event.ty {
+            EventType::Exception(ty) => self.expand_type_use(ty),
+        }
+    }
+
     fn expand_data(&mut self, data: &mut Data<'a>) {
         if let DataKind::Active { offset, .. } = &mut data.kind {
             self.expand_expression(offset);
@@ -69,7 +78,10 @@ impl<'a> Expander<'a> {
 
     fn expand_instr(&mut self, instr: &mut Instruction<'a>) {
         match instr {
-            Instruction::Block(bt) | Instruction::If(bt) | Instruction::Loop(bt) => {
+            Instruction::Block(bt)
+            | Instruction::If(bt)
+            | Instruction::Loop(bt)
+            | Instruction::Try(bt) => {
                 // Only actually expand `TypeUse` with an index which appends a
                 // type if it looks like we need one. This way if the
                 // multi-value proposal isn't enabled and/or used we won't
