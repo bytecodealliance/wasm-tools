@@ -75,6 +75,73 @@ macro_rules! custom_keyword {
     };
 }
 
+/// A macro for defining custom reserved symbols.
+///
+/// This is like `custom_keyword!` but for reserved symbols (`Token::Reserved`)
+/// instead of keywords (`Token::Keyword`).
+///
+/// ```
+/// use wast::parser::{Parser, Result, Parse};
+///
+/// // Define a custom reserved symbol, the "spaceship" operator: `<=>`.
+/// wast::custom_reserved!(spaceship = "<=>");
+///
+/// /// A "three-way comparison" like `(<=> a b)` that returns -1 if `a` is less
+/// /// than `b`, 0 if they're equal, and 1 if `a` is greater than `b`.
+/// struct ThreeWayComparison<'a> {
+///     lhs: wast::Expression<'a>,
+///     rhs: wast::Expression<'a>,
+/// }
+///
+/// impl<'a> Parse<'a> for ThreeWayComparison<'a> {
+///     fn parse(parser: Parser<'a>) -> Result<Self> {
+///         parser.parse::<spaceship>()?;
+///         let lhs = parser.parse()?;
+///         let rhs = parser.parse()?;
+///         Ok(ThreeWayComparison { lhs, rhs })
+///     }
+/// }
+/// ```
+#[macro_export]
+macro_rules! custom_reserved {
+    ($name:ident) => {
+        $crate::custom_reserved!($name = stringify!($name));
+    };
+    ($name:ident = $rsv:expr) => {
+        #[allow(non_camel_case_types)]
+        #[allow(missing_docs)]
+        #[derive(Debug)]
+        pub struct $name(pub $crate::Span);
+
+        impl<'a> $crate::parser::Parse<'a> for $name {
+            fn parse(parser: $crate::parser::Parser<'a>) -> $crate::parser::Result<Self> {
+                parser.step(|c| {
+                    if let Some((rsv, rest)) = c.reserved() {
+                        if rsv == $rsv {
+                            return Ok(($name(c.cur_span()), rest));
+                        }
+                    }
+                    Err(c.error(concat!("expected reserved symbol `", $rsv, "`")))
+                })
+            }
+        }
+
+        impl $crate::parser::Peek for $name {
+            fn peek(cursor: $crate::parser::Cursor<'_>) -> bool {
+                if let Some((rsv, _rest)) = cursor.reserved() {
+                    rsv == $rsv
+                } else {
+                    false
+                }
+            }
+
+            fn display() -> &'static str {
+                concat!("`", $rsv, "`")
+            }
+        }
+    };
+}
+
 /// A macro, like [`custom_keyword`], to create a type which can be used to
 /// parse/peek annotation directives.
 ///
