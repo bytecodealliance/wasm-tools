@@ -12,6 +12,7 @@ pub enum Ns {
     Memory,
     Table,
     Type,
+    Field,
 }
 
 impl Ns {
@@ -25,19 +26,15 @@ impl Ns {
             Ns::Memory => "memory",
             Ns::Table => "table",
             Ns::Type => "type",
+            Ns::Field => "field",
         }
     }
 }
 
 #[derive(Default)]
 pub struct Resolver<'a> {
-    ns: [Namespace<'a>; 8],
-    tys: Vec<Type<'a>>,
-}
-
-struct Type<'a> {
-    params: Vec<(Option<Id<'a>>, Option<NameAnnotation<'a>>, ValType)>,
-    results: Vec<ValType>,
+    ns: [Namespace<'a>; 9],
+    func_tys: HashMap<u32, FunctionType<'a>>,
 }
 
 #[derive(Default)]
@@ -48,7 +45,8 @@ struct Namespace<'a> {
 
 impl<'a> Resolver<'a> {
     pub fn register(&mut self, item: &ModuleField<'a>) -> Result<(), Error> {
-        let mut register = |ns: Ns, name: Option<Id<'a>>| self.ns_mut(ns).register(name, ns.desc());
+        let mut register =
+            |ns: Ns, name: Option<Id<'a>>| self.ns_mut(ns).register(name, ns.desc()).map(|_| ());
         match item {
             ModuleField::Import(i) => match i.kind {
                 ImportKind::Func(_) => register(Ns::Func, i.id),
@@ -62,19 +60,39 @@ impl<'a> Resolver<'a> {
             ModuleField::Func(i) => register(Ns::Func, i.id),
             ModuleField::Table(i) => register(Ns::Table, i.id),
             ModuleField::Type(i) => {
-                register(Ns::Type, i.id)?;
-                self.tys.push(Type {
-                    params: i.func.params.clone(),
-                    results: i.func.results.clone(),
-                });
+                let index = self.ns_mut(Ns::Type).register(i.id, Ns::Type.desc())?;
+                match &i.def {
+                    TypeDef::Func(func) => {
+                        // Store a copy of this function type for resolving
+                        // type uses later. We can't resolve this copy yet, so
+                        // we will take care of that when resolving the type
+                        // use.
+                        self.func_tys.insert(index, func.clone());
+                    }
+                    TypeDef::Struct(r#struct) => {
+                        for (i, field) in r#struct.fields.iter().enumerate() {
+                            if let Some(id) = field.id {
+                                // The field namespace is global, but the
+                                // resolved indices are relative to the struct
+                                // they are defined in
+                                self.ns_mut(Ns::Field).register_specific(
+                                    id,
+                                    i as u32,
+                                    Ns::Field.desc(),
+                                )?;
+                            }
+                        }
+                    }
+                }
                 Ok(())
             }
             ModuleField::Elem(e) => register(Ns::Elem, e.id),
             ModuleField::Data(d) => register(Ns::Data, d.id),
             ModuleField::Event(e) => register(Ns::Event, e.id),
-            ModuleField::Start(_) => Ok(()),
-            ModuleField::Export(_) => Ok(()),
-            ModuleField::Custom(_) => Ok(()),
+            ModuleField::Start(_)
+            | ModuleField::Export(_)
+            | ModuleField::GcOptIn(_)
+            | ModuleField::Custom(_) => Ok(()),
         }
     }
 
@@ -98,13 +116,22 @@ impl<'a> Resolver<'a> {
                 Ok(())
             }
 
+            ModuleField::Type(t) => self.resolve_type(t),
+
             ModuleField::Func(f) => {
                 self.resolve_type_use(f.span, &mut f.ty)?;
                 if let FuncKind::Inline { locals, expression } = &mut f.kind {
+                    // Resolve (ref T) in locals
+                    for (_, _, valtype) in locals.iter_mut() {
+                        self.resolve_valtype(valtype)?;
+                    }
+
+                    // Build a resolver with local namespace for the function
+                    // body
                     let mut resolver = ExprResolver::new(self, f.span);
 
                     // Parameters come first in the local namespace...
-                    for (id, _, _) in f.ty.ty.params.iter() {
+                    for (id, _, _) in f.ty.func_ty.params.iter() {
                         resolver.locals.register(*id, "local")?;
                     }
 
@@ -166,6 +193,7 @@ impl<'a> Resolver<'a> {
             },
 
             ModuleField::Global(g) => {
+                self.resolve_valtype(&mut g.ty.ty)?;
                 if let GlobalKind::Inline(expr) = &mut g.kind {
                     self.resolve_expr(g.span, expr)?;
                 }
@@ -176,9 +204,42 @@ impl<'a> Resolver<'a> {
 
             ModuleField::Table(_)
             | ModuleField::Memory(_)
-            | ModuleField::Type(_)
+            | ModuleField::GcOptIn(_)
             | ModuleField::Custom(_) => Ok(()),
         }
+    }
+
+    fn resolve_valtype(&self, ty: &mut ValType<'a>) -> Result<(), Error> {
+        if let ValType::Ref(id) = ty {
+            self.ns(Ns::Type)
+                .resolve(id)
+                .map_err(|id| self.resolve_error(id, "type"))?;
+        }
+        Ok(())
+    }
+
+    fn resolve_type(&self, ty: &mut Type<'a>) -> Result<(), Error> {
+        match &mut ty.def {
+            TypeDef::Func(func) => self.resolve_function_type(func),
+            TypeDef::Struct(r#struct) => self.resolve_struct_type(r#struct),
+        }
+    }
+
+    fn resolve_function_type(&self, func: &mut FunctionType<'a>) -> Result<(), Error> {
+        for param in &mut func.params {
+            self.resolve_valtype(&mut param.2)?;
+        }
+        for result in &mut func.results {
+            self.resolve_valtype(result)?;
+        }
+        Ok(())
+    }
+
+    fn resolve_struct_type(&self, r#struct: &mut StructType<'a>) -> Result<(), Error> {
+        for field in &mut r#struct.fields {
+            self.resolve_valtype(&mut field.ty)?;
+        }
+        Ok(())
     }
 
     fn resolve_type_use(&self, span: Span, ty: &mut TypeUse<'a>) -> Result<u32, Error> {
@@ -190,17 +251,20 @@ impl<'a> Resolver<'a> {
 
         // If the type was listed inline *and* it was specified via a type index
         // we need to assert they're the same.
-        let expected = match self.tys.get(idx as usize) {
+        let expected = match self.func_tys.get(&(idx as u32)) {
             Some(ty) => ty,
             None => return Ok(idx),
         };
-        if ty.ty.params.len() > 0 || ty.ty.results.len() > 0 {
+        if ty.func_ty.params.len() > 0 || ty.func_ty.results.len() > 0 {
+            // The function type for this type use hasn't been resolved,
+            // but neither has the expected function type, so this comparison
+            // is valid.
             let params_not_equal = expected.params.iter().map(|t| t.2).ne(ty
-                .ty
+                .func_ty
                 .params
                 .iter()
                 .map(|t| t.2));
-            if params_not_equal || expected.results != ty.ty.results {
+            if params_not_equal || expected.results != ty.func_ty.results {
                 let span = ty.index_span.unwrap_or(span);
                 return Err(Error::new(
                     span,
@@ -208,9 +272,12 @@ impl<'a> Resolver<'a> {
                 ));
             }
         } else {
-            ty.ty.params = expected.params.clone();
-            ty.ty.results = expected.results.clone();
+            ty.func_ty.params = expected.params.clone();
+            ty.func_ty.results = expected.results.clone();
         }
+
+        // Resolve the (ref T) value types in the final function type
+        self.resolve_function_type(&mut ty.func_ty)?;
 
         Ok(idx)
     }
@@ -244,9 +311,10 @@ impl<'a> Resolver<'a> {
 }
 
 impl<'a> Namespace<'a> {
-    fn register(&mut self, name: Option<Id<'a>>, desc: &str) -> Result<(), Error> {
+    fn register(&mut self, name: Option<Id<'a>>, desc: &str) -> Result<u32, Error> {
+        let index = self.count;
         if let Some(name) = name {
-            if let Some(_prev) = self.names.insert(name, self.count) {
+            if let Some(_prev) = self.names.insert(name, index) {
                 // FIXME: temporarily allow duplicately-named data and element
                 // segments. This is a sort of dumb hack to get the spec test
                 // suite working (ironically).
@@ -276,6 +344,16 @@ impl<'a> Namespace<'a> {
             }
         }
         self.count += 1;
+        Ok(index)
+    }
+
+    fn register_specific(&mut self, name: Id<'a>, index: u32, desc: &str) -> Result<(), Error> {
+        if let Some(_prev) = self.names.insert(name, index) {
+            return Err(Error::new(
+                name.span(),
+                format!("duplicate identifier for {}", desc),
+            ));
+        }
         Ok(())
     }
 
@@ -384,16 +462,20 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 // happens.
                 if bt.ty.index.is_some() {
                     let ty = self.resolver.resolve_type_use(self.span, &mut bt.ty)?;
-                    let ty = match self.resolver.tys.get(ty as usize) {
+                    let ty = match self.resolver.func_tys.get(&(ty as u32)) {
                         Some(ty) => ty,
                         None => return Ok(()),
                     };
                     if ty.params.len() == 0 && ty.results.len() <= 1 {
-                        bt.ty.ty.params.truncate(0);
-                        bt.ty.ty.results = ty.results.clone();
+                        bt.ty.func_ty.params.truncate(0);
+                        bt.ty.func_ty.results = ty.results.clone();
                         bt.ty.index = None;
                     }
                 }
+
+                // Resolve (ref T) params and results
+                self.resolver.resolve_function_type(&mut bt.ty.func_ty)?;
+
                 Ok(())
             }
 
@@ -436,6 +518,23 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             BrOnExn(b) => {
                 self.resolve_label(&mut b.label)?;
                 self.resolver.resolve_idx(&mut b.exn, Ns::Event)
+            }
+
+            Select(s) => {
+                for ty in &mut s.tys {
+                    self.resolver.resolve_valtype(ty)?;
+                }
+                Ok(())
+            }
+
+            StructNew(s) => self.resolver.resolve_idx(s, Ns::Type),
+            StructSet(s) | StructGet(s) => {
+                self.resolver.resolve_idx(&mut s.r#struct, Ns::Type)?;
+                self.resolver.resolve_idx(&mut s.field, Ns::Field)
+            }
+            StructNarrow(s) => {
+                self.resolver.resolve_valtype(&mut s.from)?;
+                self.resolver.resolve_valtype(&mut s.to)
             }
 
             _ => Ok(()),

@@ -111,7 +111,7 @@ impl Peek for Id<'_> {
 ///
 /// The emission phase of a module will ensure that `Index::Id` is never used
 /// and switch them all to `Index::Num`.
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Index<'a> {
     /// A numerical index that this references. The index space this is
     /// referencing is implicit based on where this [`Index`] is stored.

@@ -170,6 +170,7 @@ pub enum ModuleField<'a> {
     Elem(ast::Elem<'a>),
     Data(ast::Data<'a>),
     Event(ast::Event<'a>),
+    GcOptIn(ast::GcOptIn),
     Custom(ast::Custom<'a>),
 }
 
@@ -218,6 +219,9 @@ impl<'a> Parse<'a> for ModuleField<'a> {
         }
         if parser.peek::<kw::event>() {
             return Ok(ModuleField::Event(parser.parse()?));
+        }
+        if parser.peek::<kw::gc_feature_opt_in>() {
+            return Ok(ModuleField::GcOptIn(parser.parse()?));
         }
         if parser.peek::<annotation::custom>() {
             return Ok(ModuleField::Custom(parser.parse()?));

@@ -355,7 +355,7 @@ instructions! {
         ReturnCall(ast::Index<'a>) : [0x12] : "return_call",
         ReturnCallIndirect(CallIndirect<'a>) : [0x13] : "return_call_indirect",
         Drop : [0x1a] : "drop",
-        Select(SelectTypes) : [] : "select",
+        Select(SelectTypes<'a>) : [] : "select",
         LocalGet(ast::Index<'a>) : [0x20] : "local.get" | "get_local",
         LocalSet(ast::Index<'a>) : [0x21] : "local.set" | "set_local",
         LocalTee(ast::Index<'a>) : [0x22] : "local.tee" | "tee_local",
@@ -405,8 +405,15 @@ instructions! {
 
         RefNull : [0xd0] : "ref.null",
         RefIsNull : [0xd1] : "ref.is_null",
+        RefEq : [0xf0] : "ref.eq", // unofficial, part of gc proposal
         RefHost(u32) : [0xff] : "ref.host", // only used in test harness
         RefFunc(ast::Index<'a>) : [0xd2] : "ref.func", // only used in test harness
+
+        // unofficial, part of gc proposal
+        StructNew(ast::Index<'a>) : [0xfc, 0x50] : "struct.new",
+        StructGet(StructAccess<'a>) : [0xfc, 0x51] : "struct.get",
+        StructSet(StructAccess<'a>) : [0xfc, 0x52] : "struct.set",
+        StructNarrow(StructNarrow<'a>) : [0xfc, 0x53] : "struct.narrow",
 
         I32Const(i32) : [0x41] : "i32.const",
         I64Const(i64) : [0x42] : "i64.const",
@@ -1015,6 +1022,42 @@ impl<'a> Parse<'a> for MemoryInit<'a> {
     }
 }
 
+/// Extra data associated with the `struct.get/set` instructions
+#[derive(Debug)]
+pub struct StructAccess<'a> {
+    /// The index of the struct type we're accessing.
+    pub r#struct: ast::Index<'a>,
+    /// The index of the field of the struct we're accessing
+    pub field: ast::Index<'a>,
+}
+
+impl<'a> Parse<'a> for StructAccess<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        Ok(StructAccess {
+            r#struct: parser.parse()?,
+            field: parser.parse()?,
+        })
+    }
+}
+
+/// Extra data associated with the `struct.narrow` instruction
+#[derive(Debug)]
+pub struct StructNarrow<'a> {
+    /// The type of the struct we're casting from
+    pub from: ast::ValType<'a>,
+    /// The type of the struct we're casting to
+    pub to: ast::ValType<'a>,
+}
+
+impl<'a> Parse<'a> for StructNarrow<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        Ok(StructNarrow {
+            from: parser.parse()?,
+            to: parser.parse()?,
+        })
+    }
+}
+
 /// Different ways to specify a `v128.const` instruction
 #[derive(Debug)]
 #[rustfmt::skip]
@@ -1216,12 +1259,12 @@ impl<'a> Parse<'a> for V8x16Shuffle {
 
 /// Payload of the `select` instructions
 #[derive(Debug)]
-pub struct SelectTypes {
+pub struct SelectTypes<'a> {
     #[allow(missing_docs)]
-    pub tys: Vec<ast::ValType>,
+    pub tys: Vec<ast::ValType<'a>>,
 }
 
-impl<'a> Parse<'a> for SelectTypes {
+impl<'a> Parse<'a> for SelectTypes<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let mut tys = Vec::new();
         while parser.peek2::<kw::result>() {

@@ -43,7 +43,7 @@ pub enum FuncKind<'a> {
         /// The list of locals, if any, for this function. Each local has an
         /// optional identifier for name resolution and name for the custom
         /// `name` section associated with it.
-        locals: Vec<(Option<ast::Id<'a>>, Option<ast::NameAnnotation<'a>>, ast::ValType)>,
+        locals: Vec<(Option<ast::Id<'a>>, Option<ast::NameAnnotation<'a>>, ast::ValType<'a>)>,
 
         /// The instructions of the function.
         expression: ast::Expression<'a>,

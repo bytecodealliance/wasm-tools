@@ -4,7 +4,7 @@ use std::collections::HashMap;
 #[derive(Default)]
 pub struct Expander<'a> {
     pub to_prepend: Vec<ModuleField<'a>>,
-    types: HashMap<(Vec<ValType>, Vec<ValType>), u32>,
+    func_types: HashMap<(Vec<ValType<'a>>, Vec<ValType<'a>>), u32>,
     ntypes: u32,
 }
 
@@ -23,9 +23,11 @@ impl<'a> Expander<'a> {
     }
 
     fn register_type(&mut self, ty: &Type<'a>) {
-        let key = self.key(&ty.func);
-        if !self.types.contains_key(&key) {
-            self.types.insert(key, self.ntypes);
+        if let TypeDef::Func(func) = &ty.def {
+            let key = self.key(func);
+            if !self.func_types.contains_key(&key) {
+                self.func_types.insert(key, self.ntypes);
+            }
         }
         self.ntypes += 1;
     }
@@ -86,7 +88,7 @@ impl<'a> Expander<'a> {
                 // type if it looks like we need one. This way if the
                 // multi-value proposal isn't enabled and/or used we won't
                 // encode it.
-                if bt.ty.ty.params.len() == 0 && bt.ty.ty.results.len() <= 1 {
+                if bt.ty.func_ty.params.len() == 0 && bt.ty.func_ty.results.len() <= 1 {
                     return;
                 }
                 self.expand_type_use(&mut bt.ty)
@@ -102,28 +104,28 @@ impl<'a> Expander<'a> {
         if item.index.is_some() {
             return;
         }
-        let key = self.key(&item.ty);
-        item.index = Some(Index::Num(match self.types.get(&key) {
+        let key = self.key(&item.func_ty);
+        item.index = Some(Index::Num(match self.func_types.get(&key) {
             Some(i) => *i,
             None => self.prepend(key),
         }));
     }
 
-    fn key(&self, ty: &FunctionType) -> (Vec<ValType>, Vec<ValType>) {
+    fn key(&self, ty: &FunctionType<'a>) -> (Vec<ValType<'a>>, Vec<ValType<'a>>) {
         let params = ty.params.iter().map(|p| p.2).collect::<Vec<_>>();
         let results = ty.results.clone();
         (params, results)
     }
 
-    fn prepend(&mut self, key: (Vec<ValType>, Vec<ValType>)) -> u32 {
+    fn prepend(&mut self, key: (Vec<ValType<'a>>, Vec<ValType<'a>>)) -> u32 {
         self.to_prepend.push(ModuleField::Type(Type {
             id: None,
-            func: FunctionType {
+            def: TypeDef::Func(FunctionType {
                 params: key.0.iter().map(|t| (None, None, *t)).collect(),
                 results: key.1.clone(),
-            },
+            }),
         }));
-        self.types.insert(key, self.ntypes);
+        self.func_types.insert(key, self.ntypes);
         self.ntypes += 1;
         return self.ntypes - 1;
     }

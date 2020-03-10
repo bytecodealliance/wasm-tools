@@ -4,7 +4,7 @@ use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 /// The value types for a wasm module.
 #[allow(missing_docs)]
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-pub enum ValType {
+pub enum ValType<'a> {
     I32,
     I64,
     F32,
@@ -13,9 +13,10 @@ pub enum ValType {
     Funcref,
     V128,
     Nullref,
+    Ref(ast::Index<'a>)
 }
 
-impl<'a> Parse<'a> for ValType {
+impl<'a> Parse<'a> for ValType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let mut l = parser.lookahead1();
         if l.peek::<kw::i32>() {
@@ -45,6 +46,11 @@ impl<'a> Parse<'a> for ValType {
         } else if l.peek::<kw::v128>() {
             parser.parse::<kw::v128>()?;
             Ok(ValType::V128)
+        } else if l.peek::<ast::LParen>() {
+            parser.parens(|p| {
+                p.parse::<kw::r#ref>()?;
+                Ok(ValType::Ref(parser.parse()?))
+            })
         } else {
             Err(l.error())
         }
@@ -53,14 +59,14 @@ impl<'a> Parse<'a> for ValType {
 
 /// Type for a `global` in a wasm module
 #[derive(Copy, Clone, Debug)]
-pub struct GlobalType {
+pub struct GlobalType<'a> {
     /// The element type of this `global`
-    pub ty: ValType,
+    pub ty: ValType<'a>,
     /// Whether or not the global is mutable or not.
     pub mutable: bool,
 }
 
-impl<'a> Parse<'a> for GlobalType {
+impl<'a> Parse<'a> for GlobalType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         if parser.peek2::<kw::r#mut>() {
             parser.parens(|p| {
@@ -187,9 +193,9 @@ impl<'a> Parse<'a> for MemoryType {
 pub struct FunctionType<'a> {
     /// The parameters of a function, optionally each having an identifier for
     /// name resolution and a name for the custom `name` section.
-    pub params: Vec<(Option<ast::Id<'a>>, Option<ast::NameAnnotation<'a>>, ValType)>,
+    pub params: Vec<(Option<ast::Id<'a>>, Option<ast::NameAnnotation<'a>>, ValType<'a>)>,
     /// The results types of a function.
-    pub results: Vec<ValType>,
+    pub results: Vec<ValType<'a>>,
 }
 
 impl<'a> FunctionType<'a> {
@@ -246,6 +252,70 @@ impl<'a> Parse<'a> for FunctionType<'a> {
     }
 }
 
+/// A struct type with fields.
+#[derive(Clone, Debug)]
+pub struct StructType<'a> {
+    /// The fields of the struct
+    pub fields: Vec<StructField<'a>>,
+}
+
+impl<'a> Parse<'a> for StructType<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.parse::<kw::r#struct>()?;
+        let mut ret = StructType {
+            fields: Vec::new(),
+        };
+        while !parser.is_empty() {
+            parser.parens(|parser| {
+                ret.fields.push(parser.parse()?);
+                Ok(())
+            })?;
+        }
+        Ok(ret)
+    }
+}
+
+/// A field of a struct type.
+#[derive(Clone, Debug)]
+pub struct StructField<'a> {
+    /// An optional identifier for name resolution.
+    pub id: Option<ast::Id<'a>>,
+    /// Whether this field may be mutated or not.
+    pub mutable: bool,
+    /// The value type stored in this field.
+    pub ty: ValType<'a>,
+}
+
+impl<'a> Parse<'a> for StructField<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.parse::<kw::field>()?;
+        let id = parser.parse()?;
+        let (ty, mutable) = if parser.peek2::<kw::r#mut>() {
+            let ty = parser.parens(|parser| {
+                parser.parse::<kw::r#mut>()?;
+                parser.parse()
+            })?;
+            (ty, true)
+        } else {
+            (parser.parse::<ValType<'a>>()?, false)
+        };
+        Ok(StructField {
+            id,
+            mutable,
+            ty,
+        })
+    }
+}
+
+/// A definition of a type.
+#[derive(Debug)]
+pub enum TypeDef<'a> {
+    /// A function type definition.
+    Func(FunctionType<'a>),
+    /// A struct type definition.
+    Struct(StructType<'a>),
+}
+
 /// A type declaration in a module
 #[derive(Debug)]
 pub struct Type<'a> {
@@ -253,15 +323,24 @@ pub struct Type<'a> {
     /// resolution.
     pub id: Option<ast::Id<'a>>,
     /// The type that we're declaring.
-    pub func: FunctionType<'a>,
+    pub def: TypeDef<'a>,
 }
 
 impl<'a> Parse<'a> for Type<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::r#type>()?;
         let id = parser.parse()?;
-        let func = parser.parens(FunctionType::parse)?;
-        Ok(Type { id, func })
+        let def = parser.parens(|parser| {
+            let mut l = parser.lookahead1();
+            if l.peek::<kw::func>() {
+                Ok(TypeDef::Func(parser.parse()?))
+            } else if l.peek::<kw::r#struct>() {
+                Ok(TypeDef::Struct(parser.parse()?))
+            } else {
+                Err(l.error())
+            }
+        })?;
+        Ok(Type { id, def })
     }
 }
 
@@ -278,7 +357,7 @@ pub struct TypeUse<'a> {
     pub index: Option<ast::Index<'a>>,
     /// The inline function type defined. If nothing was defined inline this is
     /// empty.
-    pub ty: ast::FunctionType<'a>,
+    pub func_ty: ast::FunctionType<'a>,
 }
 
 impl<'a> TypeUse<'a> {
@@ -300,18 +379,18 @@ impl<'a> TypeUse<'a> {
             Some((a, b)) => (Some(a), Some(b)),
             None => (None, None),
         };
-        let mut ty = FunctionType {
+        let mut func_ty = FunctionType {
             params: Vec::new(),
             results: Vec::new(),
         };
         if parser.peek2::<kw::param>() || parser.peek2::<kw::result>() {
-            ty.finish_parse(allow_names, parser)?;
+            func_ty.finish_parse(allow_names, parser)?;
         }
 
         Ok(TypeUse {
             index,
             index_span,
-            ty,
+            func_ty,
         })
     }
 }

@@ -12,7 +12,7 @@ pub struct Global<'a> {
     /// definition should be exported under.
     pub exports: ast::InlineExport<'a>,
     /// The type of this global, both its value type and whether it's mutable.
-    pub ty: ast::GlobalType,
+    pub ty: ast::GlobalType<'a>,
     /// What kind of global this defined as.
     pub kind: GlobalKind<'a>,
 }

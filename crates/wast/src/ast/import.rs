@@ -27,7 +27,7 @@ pub enum ImportKind<'a> {
     Func(ast::TypeUse<'a>),
     Table(ast::TableType),
     Memory(ast::MemoryType),
-    Global(ast::GlobalType),
+    Global(ast::GlobalType<'a>),
     Event(ast::EventType<'a>),
 }
 
