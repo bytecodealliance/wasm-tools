@@ -362,8 +362,8 @@ instructions! {
         GlobalGet(ast::Index<'a>) : [0x23] : "global.get" | "get_global",
         GlobalSet(ast::Index<'a>) : [0x24] : "global.set" | "set_global",
 
-        TableGet(ast::Index<'a>) : [0x25] : "table.get",
-        TableSet(ast::Index<'a>) : [0x26] : "table.set",
+        TableGet(TableArg<'a>) : [0x25] : "table.get",
+        TableSet(TableArg<'a>) : [0x26] : "table.set",
 
         I32Load(MemArg<4>) : [0x28] : "i32.load",
         I64Load(MemArg<8>) : [0x29] : "i64.load",
@@ -399,9 +399,9 @@ instructions! {
         ElemDrop(ast::Index<'a>) : [0xfc, 0x0d] : "elem.drop",
         TableInit(TableInit<'a>) : [0xfc, 0x0c] : "table.init",
         TableCopy(TableCopy<'a>) : [0xfc, 0x0e] : "table.copy",
-        TableFill(ast::Index<'a>) : [0xfc, 0x11] : "table.fill",
-        TableSize(ast::Index<'a>) : [0xfc, 0x10] : "table.size",
-        TableGrow(ast::Index<'a>) : [0xfc, 0x0f] : "table.grow",
+        TableFill(TableArg<'a>) : [0xfc, 0x11] : "table.fill",
+        TableSize(TableArg<'a>) : [0xfc, 0x10] : "table.size",
+        TableGrow(TableArg<'a>) : [0xfc, 0x0f] : "table.grow",
 
         RefNull : [0xd0] : "ref.null",
         RefIsNull : [0xd1] : "ref.is_null",
@@ -1004,6 +1004,24 @@ impl<'a> Parse<'a> for TableCopy<'a> {
             (ast::Index::Num(0), ast::Index::Num(0))
         };
         Ok(TableCopy { dst, src })
+    }
+}
+
+/// Extra data associated with unary table instructions.
+#[derive(Debug)]
+pub struct TableArg<'a> {
+    /// The index of the table argument.
+    pub dst: ast::Index<'a>,
+}
+
+impl<'a> Parse<'a> for TableArg<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let dst = if let Some(dst) = parser.parse()? {
+            dst
+        } else {
+            ast::Index::Num(0)
+        };
+        Ok(TableArg { dst })
     }
 }
 

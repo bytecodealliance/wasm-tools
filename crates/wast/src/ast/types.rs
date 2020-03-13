@@ -125,6 +125,7 @@ impl Peek for TableElemType {
     fn peek(cursor: Cursor<'_>) -> bool {
         kw::funcref::peek(cursor)
             || kw::anyref::peek(cursor)
+            || kw::nullref::peek(cursor)
             || /* legacy */ kw::anyfunc::peek(cursor)
     }
     fn display() -> &'static str {

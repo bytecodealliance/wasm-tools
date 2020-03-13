@@ -335,15 +335,13 @@ impl Encode for Limits {
 
 impl Encode for MemoryType {
     fn encode(&self, e: &mut Vec<u8>) {
-        if self.shared {
-            e.push(0x03);
-            self.limits.min.encode(e);
-            // Handle a textual error here by deferring the validation error
-            // until later. This isn't great though and we should probably just
-            // make `Encode` fallible if this comes up somewhere else
-            self.limits.max.unwrap_or(0).encode(e);
-        } else {
-            self.limits.encode(e);
+        let flag_max = self.limits.max.is_some() as u8;
+        let flag_shared = self.shared as u8;
+        let flags = flag_max | (flag_shared << 1);
+        e.push(flags);
+        self.limits.min.encode(e);
+        if let Some(max) = self.limits.max {
+            max.encode(e);
         }
     }
 }
@@ -615,6 +613,12 @@ impl Encode for TableCopy<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.dst.encode(e);
         self.src.encode(e);
+    }
+}
+
+impl Encode for TableArg<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.dst.encode(e);
     }
 }
 
