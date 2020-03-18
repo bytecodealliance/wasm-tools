@@ -11,7 +11,7 @@ documentation = "https://docs.rs/wat"
 description = """
 Rust parser for the WebAssembly Text format, WAT
 """
-exclude = ['tests/wabt']
+exclude = ['tests/wabt', 'tests/testsuite']
 
 [workspace]
 members = ['fuzz']
