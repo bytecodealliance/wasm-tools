@@ -1,12 +1,12 @@
+use crate::ast::annotation;
 use crate::lexer::FloatVal;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str;
-use crate::ast::annotation;
 
 /// A position in the original source stream, used to render errors.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub struct Span {
     pub(crate) offset: usize,
 }
