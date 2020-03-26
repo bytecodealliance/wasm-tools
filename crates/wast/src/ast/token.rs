@@ -235,7 +235,7 @@ impl Peek for &'_ [u8] {
 
 impl<'a> Parse<'a> for &'a str {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        str::from_utf8(parser.parse()?).map_err(|_| parser.error("invalid UTF-8 encoding"))
+        str::from_utf8(parser.parse()?).map_err(|_| parser.error("malformed UTF-8 encoding"))
     }
 }
 
