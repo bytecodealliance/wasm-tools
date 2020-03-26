@@ -460,5 +460,12 @@ fn skip_test(test: &Path, contents: &str) -> bool {
         return true;
     }
 
+    // Waiting for wabt to recognize the integer abs simd opcodes; they have been added
+    // upstream in the spec test suite, https://github.com/WebAssembly/simd/pull/197,
+    // but need to be pulled, filed https://github.com/WebAssembly/wabt/issues/1379.
+    if test.ends_with("simd/simd_f32x4.wast") {
+        return true;
+    }
+
     false
 }
