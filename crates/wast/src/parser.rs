@@ -352,7 +352,7 @@ impl ParseBuffer<'_> {
         enum State {
             None,
             LParen,
-            Annotation { depth: usize, span: Span }
+            Annotation { depth: usize, span: Span },
         }
         let mut state = State::None;
         for token in self.tokens.iter() {
@@ -366,7 +366,10 @@ impl ParseBuffer<'_> {
                 // annotation if the next keyword is reserved
                 (Token(Reserved(s)), State::LParen) if s.starts_with("@") && s.len() > 0 => {
                     let offset = self.input_pos(s);
-                    State::Annotation { span: Span { offset }, depth: 1 }
+                    State::Annotation {
+                        span: Span { offset },
+                        depth: 1,
+                    }
                 }
                 // ... otherwise anything after an `LParen` kills the lparen
                 // state.
@@ -374,21 +377,21 @@ impl ParseBuffer<'_> {
 
                 // Once we're in an annotation we need to balance parentheses,
                 // so handle the depth changes.
-                (Token(LParen(_)), State::Annotation { span, depth }) => {
-                    State::Annotation { span, depth: depth + 1 }
-                }
-                (Token(RParen(_)), State::Annotation { depth: 1, .. }) => {
-                    State::None
-                }
-                (Token(RParen(_)), State::Annotation { span, depth }) => {
-                    State::Annotation { span, depth: depth - 1 }
-                }
+                (Token(LParen(_)), State::Annotation { span, depth }) => State::Annotation {
+                    span,
+                    depth: depth + 1,
+                },
+                (Token(RParen(_)), State::Annotation { depth: 1, .. }) => State::None,
+                (Token(RParen(_)), State::Annotation { span, depth }) => State::Annotation {
+                    span,
+                    depth: depth - 1,
+                },
                 // ... and otherwise all tokens are allowed in annotations.
                 (_, s @ State::Annotation { .. }) => s,
             };
         }
         if let State::Annotation { span, .. } = state {
-            return Err(Error::new(span, format!("unclosed annotation")))
+            return Err(Error::new(span, format!("unclosed annotation")));
         }
         Ok(())
     }
