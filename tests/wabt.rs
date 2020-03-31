@@ -492,11 +492,6 @@ fn skip_test(test: &Path, contents: &str) -> bool {
         return true;
     }
 
-    // Currently wabt's implemented syntax is slightly different from ours
-    if contents.contains("--enable-gc") {
-        return true;
-    }
-
     // Waiting for wabt to recognize the integer abs simd opcodes; they have been added
     // upstream in the spec test suite, https://github.com/WebAssembly/simd/pull/197,
     // but need to be pulled, filed https://github.com/WebAssembly/wabt/issues/1379.

@@ -22,7 +22,6 @@ pub fn encode(module: &Module<'_>) -> Vec<u8> {
     let mut elem = Vec::new();
     let mut data = Vec::new();
     let mut events = Vec::new();
-    let mut gcs = Vec::new();
     let mut customs = Vec::new();
     for field in fields {
         match field {
@@ -37,7 +36,6 @@ pub fn encode(module: &Module<'_>) -> Vec<u8> {
             ModuleField::Elem(i) => elem.push(i),
             ModuleField::Data(i) => data.push(i),
             ModuleField::Event(i) => events.push(i),
-            ModuleField::GcOptIn(i) => gcs.push(i),
             ModuleField::Custom(i) => customs.push(i),
         }
     }
@@ -51,9 +49,6 @@ pub fn encode(module: &Module<'_>) -> Vec<u8> {
     e.wasm.extend(b"\x01\0\0\0");
 
     e.custom_sections(BeforeFirst);
-    if let Some(gc) = gcs.get(0) {
-        e.section(42, gc);
-    }
     e.section_list(1, Type, &types);
     e.section_list(2, Import, &imports);
     let functys = funcs.iter().map(|f| &f.ty).collect::<Vec<_>>();
@@ -200,9 +195,16 @@ impl Encode for StructType<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.fields.len().encode(e);
         for field in self.fields.iter() {
-            (field.mutable as i32).encode(e);
             field.ty.encode(e);
+            (field.mutable as i32).encode(e);
         }
+    }
+}
+
+impl Encode for ArrayType<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.ty.encode(e);
+        (self.mutable as i32).encode(e);
     }
 }
 
@@ -214,8 +216,12 @@ impl Encode for Type<'_> {
                 func.encode(e)
             }
             TypeDef::Struct(r#struct) => {
-                e.push(0x50);
+                e.push(0x5f);
                 r#struct.encode(e)
+            }
+            TypeDef::Array(array) => {
+                e.push(0x5e);
+                array.encode(e)
             }
         }
     }
@@ -242,14 +248,26 @@ impl<'a> Encode for ValType<'a> {
             ValType::F32 => e.push(0x7d),
             ValType::F64 => e.push(0x7c),
             ValType::V128 => e.push(0x7b),
+            ValType::I8 => e.push(0x7a),
+            ValType::I16 => e.push(0x79),
             ValType::Funcref => e.push(0x70),
             ValType::Anyref => e.push(0x6f),
             ValType::Nullref => e.push(0x6e),
-            ValType::Exnref => e.push(0x68),
             ValType::Ref(index) => {
                 e.push(0x6d);
                 index.encode(e);
             }
+            ValType::Optref(index) => {
+                e.push(0x6c);
+                index.encode(e);
+            }
+            ValType::Eqref => e.push(0x6b),
+            ValType::I31ref => e.push(0x6a),
+            ValType::Rtt(index) => {
+                e.push(0x69);
+                index.encode(e);
+            }
+            ValType::Exnref => e.push(0x68),
         }
     }
 }
@@ -785,12 +803,6 @@ impl Encode for Custom<'_> {
         for list in self.data.iter() {
             e.extend_from_slice(list);
         }
-    }
-}
-
-impl Encode for GcOptIn {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.version.encode(e);
     }
 }
 
