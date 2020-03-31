@@ -15,7 +15,7 @@ pub struct Wat<'a> {
 
 impl<'a> Parse<'a> for Wat<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        if !parser.has_tokens() {
+        if !parser.has_meaningful_tokens() {
             return Err(parser.error("expected at least one module field"));
         }
         let _r = parser.register_annotation("custom");

@@ -275,7 +275,7 @@ pub struct ParseBuffer<'a> {
     known_annotations: RefCell<HashMap<String, usize>>,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 enum NextTokenAt {
     /// Haven't computed where the next token is yet.
     Unknown,
@@ -418,9 +418,14 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub(crate) fn has_tokens(self) -> bool {
-        let cursor = self.cursor();
-        cursor.cur < self.buf.tokens.len()
+    pub(crate) fn has_meaningful_tokens(self) -> bool {
+        self.buf.tokens[self.cursor().cur..]
+            .iter()
+            .any(|(t, _)| match t {
+                Source::Token(_) => true,
+                Source::Comment(_) => false,
+                Source::Whitespace(_) => false,
+            })
     }
 
     /// Parses a `T` from this [`Parser`].
