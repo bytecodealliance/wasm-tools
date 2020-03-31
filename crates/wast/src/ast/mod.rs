@@ -344,6 +344,7 @@ pub mod kw {
     custom_keyword!(elem);
     custom_keyword!(end);
     custom_keyword!(event);
+    custom_keyword!(exnref);
     custom_keyword!(export);
     custom_keyword!(f32);
     custom_keyword!(f32x4);

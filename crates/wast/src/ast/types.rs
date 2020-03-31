@@ -13,6 +13,7 @@ pub enum ValType<'a> {
     Funcref,
     V128,
     Nullref,
+    Exnref,
     Ref(ast::Index<'a>)
 }
 
@@ -43,6 +44,9 @@ impl<'a> Parse<'a> for ValType<'a> {
         } else if l.peek::<kw::nullref>() {
             parser.parse::<kw::nullref>()?;
             Ok(ValType::Nullref)
+        } else if l.peek::<kw::exnref>() {
+            parser.parse::<kw::exnref>()?;
+            Ok(ValType::Exnref)
         } else if l.peek::<kw::v128>() {
             parser.parse::<kw::v128>()?;
             Ok(ValType::V128)
@@ -96,6 +100,8 @@ pub enum TableElemType {
     Anyref,
     /// An element for a table that is a list of `nullref` values.
     Nullref,
+    /// An element for a table that is a list of `exnref` values.
+    Exnref,
 }
 
 impl<'a> Parse<'a> for TableElemType {
@@ -115,6 +121,9 @@ impl<'a> Parse<'a> for TableElemType {
         } else if l.peek::<kw::nullref>() {
             parser.parse::<kw::nullref>()?;
             Ok(TableElemType::Nullref)
+        } else if l.peek::<kw::exnref>() {
+            parser.parse::<kw::exnref>()?;
+            Ok(TableElemType::Exnref)
         } else {
             Err(l.error())
         }
@@ -127,6 +136,7 @@ impl Peek for TableElemType {
             || kw::anyref::peek(cursor)
             || kw::nullref::peek(cursor)
             || /* legacy */ kw::anyfunc::peek(cursor)
+            || kw::exnref::peek(cursor)
     }
     fn display() -> &'static str {
         "table element type"
