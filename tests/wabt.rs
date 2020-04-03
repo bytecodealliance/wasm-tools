@@ -104,6 +104,9 @@ fn skip_test(test: &Path, contents: &str) -> bool {
     if contents.contains("--enable-annotations") {
         return true;
     }
+    if contents.contains("--enable-gc") {
+        return true;
+    }
     // Some exception-handling tests don't use `--enable-exceptions` since
     // `run-objdump` enables everything
     if contents.contains("run-objdump") && contents.contains("(event") {
@@ -133,6 +136,14 @@ fn skip_test(test: &Path, contents: &str) -> bool {
         return true;
     }
 
+    // simd not implemented by wasmparser yet
+    if test.ends_with("simd/simd_i8x16_arith2.wast")
+        || test.ends_with("simd/simd_i16x8_arith2.wast")
+        || test.ends_with("simd/simd_i32x4_arith2.wast")
+    {
+        return true;
+    }
+
     // wasmparser doesn't implement this yet
     if test.iter().any(|t| t == "tail-call") {
         return true;
@@ -149,7 +160,8 @@ fn skip_wabt_compare(test: &Path, line: usize) -> bool {
         || (test.ends_with("reference-types/table_set.wast") && line == 1)
         || (test.ends_with("reference-types/ref_is_null.wast") && line == 1)
         || test.ends_with("dump/table-multi.txt")
-        || test.ends_with("dump/reference-types.txt")
+        || test.ends_with("reference-types.txt")
+        || test.ends_with("table-sub.wast")
     {
         return true;
     }

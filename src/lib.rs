@@ -1047,10 +1047,8 @@ impl Printer {
             V8x16Swizzle => self.result.push_str("v8x16.swizzle"),
             V8x16Shuffle { lanes } => {
                 self.result.push_str("v8x16.shuffle");
-                // FIXME(WebAssembly/wabt#1227): the double space and trailing
-                // space seem like bugs in wabt
                 for lane in lanes {
-                    write!(self.result, "  {}", lane)?;
+                    write!(self.result, " {}", lane)?;
                 }
             }
             V8x16LoadSplat { memarg } => self.mem_instr("v8x16.load_splat", memarg, 1)?,
