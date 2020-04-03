@@ -271,32 +271,7 @@ fn test_binary(path: &Path, line: usize, contents: &[u8]) -> anyhow::Result<()> 
         wasm2wat(contents).context(format!("failed to run `wasm2wat` on `{}`", path.display()))?;
 
     let actual = normalize(&actual);
-    let mut expected = normalize(&expected);
-
-    // Currently `wabt` seems to accidentally insert a newline after
-    // `ref.func`, but we don't do that, so normalize wabt's output to not
-    // have a newline.
-    //
-    // FIXME(WebAssembly/wabt#1228): shouldn't be necessary
-    let needle = "ref.func\n";
-    while let Some(i) = expected.find(needle) {
-        let len = expected[i + needle.len()..]
-            .chars()
-            .take_while(|c| c.is_whitespace())
-            .count();
-        expected.drain(i + needle.len() - 1..i + needle.len() - 1 + len);
-    }
-
-    // Additionally wabt sometimes leaves behind trailing whitespace, so juts
-    // chop of all that off because we don't want to generate trailing
-    // whitespace.
-    let expected = expected
-        .lines()
-        .map(|l| l.trim_end())
-        .collect::<Vec<_>>()
-        .join("\n")
-        // FIXME(WebAssembly/wabt#1227) shouldn't be necessary
-        .replace(" )", ")");
+    let expected = normalize(&expected);
 
     fn normalize(s: &str) -> String {
         let mut s = s.trim().to_string();
