@@ -100,7 +100,7 @@ pub enum SectionCode<'a> {
 /// Types as defined [here].
 ///
 /// [here]: https://webassembly.github.io/spec/core/syntax/types.html#types
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Type {
     I32,
     I64,
