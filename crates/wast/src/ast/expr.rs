@@ -773,7 +773,6 @@ instructions! {
         I8x16Sub : [0xfd, 0x5a] : "i8x16.sub",
         I8x16SubSaturateS : [0xfd, 0x5b] : "i8x16.sub_saturate_s",
         I8x16SubSaturateU : [0xfd, 0x5c] : "i8x16.sub_saturate_u",
-        I8x16Mul : [0xfd, 0x5d] : "i8x16.mul",
         I8x16MinS : [0xfd, 0x5e] : "i8x16.min_s",
         I8x16MinU : [0xfd, 0x5f] : "i8x16.min_u",
         I8x16MaxS : [0xfd, 0x60] : "i8x16.max_s",
@@ -812,8 +811,6 @@ instructions! {
         I32x4MaxU : [0xfd, 0x83] : "i32x4.max_u",
 
         I64x2Neg : [0xfd, 0x84] : "i64x2.neg",
-        I64x2AnyTrue : [0xfd, 0x85] : "i64x2.any_true",
-        I64x2AllTrue : [0xfd, 0x86] : "i64x2.all_true",
         I64x2Shl : [0xfd, 0x87] : "i64x2.shl",
         I64x2ShrS : [0xfd, 0x88] : "i64x2.shr_s",
         I64x2ShrU : [0xfd, 0x89] : "i64x2.shr_u",
