@@ -514,7 +514,7 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 ));
             }
 
-            Br(i) | BrIf(i) | BrOnCast(i) => self.resolve_label(i),
+            Br(i) | BrIf(i) | BrOnCast(i) | BrOnNull(i) => self.resolve_label(i),
 
             BrTable(i) => {
                 for label in i.labels.iter_mut() {
