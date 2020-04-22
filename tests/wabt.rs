@@ -245,6 +245,7 @@ fn error_matches(error: &str, message: &str) -> bool {
         || message == "unclosed annotation"
         || message == "malformed annotation id"
         || message == "alignment must be a power of two"
+        || message == "i32 constant out of range"
     {
         return error.contains("expected ")
             || error.contains("constant out of range")
