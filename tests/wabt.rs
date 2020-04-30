@@ -113,34 +113,17 @@ fn skip_test(test: &Path, contents: &str) -> bool {
         return true;
     }
 
-    // The `wat` crate doesn't parse this deprecated syntax yet, wait for the
-    // official test suite to get updated with the new syntax then let's
-    // propagate the change here.
-    if test.ends_with("threads/atomic.wast") {
-        return true;
-    }
-
-    // The `wat` crate ignores these tests, so we need to do so as well.
-    if test.ends_with("interp/simd-load-store.txt") {
-        return true;
-    }
-    if test.ends_with("logging-all-opcodes.txt") {
-        return true;
-    }
-
-    // FIXME(WebAssembly/simd#140)
-    if test.ends_with("simd/simd_lane.wast")
-        || test.ends_with("simd/simd_load.wast")
-        || test.ends_with("simd/simd_conversions.wast")
-    {
-        return true;
-    }
-
     // simd not implemented by wasmparser yet
     if test.ends_with("simd/simd_i8x16_arith2.wast")
         || test.ends_with("simd/simd_i16x8_arith2.wast")
         || test.ends_with("simd/simd_i32x4_arith2.wast")
     {
+        return true;
+    }
+
+    // Contains invalid binary encodings and such, needs to wait for upstream
+    // spec to update.
+    if test.ends_with("simd_const.wast") {
         return true;
     }
 
@@ -185,15 +168,6 @@ fn skip_wabt_compare(test: &Path, line: usize) -> bool {
 
     // wabt's printing of `declare` segments seems buggy with `ref.func`, maybe?
     if test.ends_with("reference-types/elem.wast") {
-        return true;
-    }
-
-    // Right now there's a good number of differences between wabt's simd
-    // parsing and the official simd spec, let's just wait for wabt to update.
-    if test.iter().any(|t| t == "simd")
-        || test.ends_with("simd-lane.txt")
-        || test.ends_with("simd.txt")
-    {
         return true;
     }
 
