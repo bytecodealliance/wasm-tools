@@ -1295,7 +1295,7 @@ impl Printer {
 }
 
 macro_rules! print_float {
-    ($name:ident $float:ident $uint:ident $sint:ident $exp_bits:tt) => (
+    ($name:ident $float:ident $uint:ident $sint:ident $exp_bits:tt) => {
         fn $name(&mut self, mut bits: $uint) -> Result<()> {
             // Calculate a few constants
             let int_width = mem::size_of::<$uint>() * 8;
@@ -1313,7 +1313,7 @@ macro_rules! print_float {
             }
             if f.is_infinite() {
                 write!(self.result, "inf (;={};)", f)?;
-                return Ok(())
+                return Ok(());
             }
             if f.is_nan() {
                 let payload = bits & ((1 << mantissa_width) - 1);
@@ -1322,7 +1322,7 @@ macro_rules! print_float {
                 } else {
                     write!(self.result, "nan:{:#x} (;={};)", payload, f)?;
                 }
-                return Ok(())
+                return Ok(());
             }
 
             // Figure out our exponent, but keep in mine that it's in an
@@ -1375,7 +1375,7 @@ macro_rules! print_float {
             write!(self.result, " (;={};)", f)?;
             Ok(())
         }
-    )
+    };
 }
 
 impl Printer {
