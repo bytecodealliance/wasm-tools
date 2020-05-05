@@ -518,7 +518,8 @@ mod wast_tests {
                 config.operator_config.enable_simd = true;
                 config
             },
-            |_name, _line| false,
+            // FIXME disabled due to renumbering
+            |_name, _line| true,
         );
 
         run_proposal_tests(
