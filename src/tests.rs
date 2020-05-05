@@ -477,6 +477,7 @@ mod wast_tests {
                     ..
                 }
                 | Register { .. }
+                | QuoteModule { .. }
                 | Invoke { .. }
                 | AssertTrap { .. }
                 | AssertReturn { .. }
@@ -518,8 +519,18 @@ mod wast_tests {
                 config.operator_config.enable_simd = true;
                 config
             },
-            // FIXME disabled due to renumbering
-            |_name, _line| true,
+            |name, line| match (name, line) {
+                // these tests still use the old binary encoding, need to be
+                // updated for the new one
+                ("simd_const.wast", 1566)
+                | ("simd_const.wast", 1583)
+                | ("simd_const.wast", 1600)
+                | ("simd_const.wast", 1617)
+                | ("simd_const.wast", 1634)
+                | ("simd_const.wast", 1651) => true,
+
+                _ => false,
+            },
         );
 
         run_proposal_tests(

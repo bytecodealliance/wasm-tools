@@ -15,7 +15,7 @@ edition = "2018"
 anyhow = "1.0"
 criterion = "0.3"
 getopts = "0.2"
-wast = "7.0.0"
+wast = "15.0.0"
 
 [badges]
 travis-ci = { repository = "bytecodealliance/wasmparser.rs" }
