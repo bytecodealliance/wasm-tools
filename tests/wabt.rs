@@ -446,6 +446,10 @@ struct Wast2Json {
 }
 
 fn wast2json(test: &Path) -> Option<Wast2Json> {
+    // Right now wabt infinite loops on this test.
+    if test.ends_with("testsuite/proposals/annotations/annotations.wast") {
+        return None;
+    }
     let td = tempfile::TempDir::new().unwrap();
     let result = Command::new("wast2json")
         .arg(test)
