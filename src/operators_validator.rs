@@ -1969,7 +1969,6 @@ impl OperatorValidator {
             }
             Operator::DataDrop { segment } => {
                 self.check_bulk_memory_enabled()?;
-                self.check_memory_index(0, resources)?;
                 if segment >= resources.data_count() {
                     return Err(OperatorValidatorError::new(
                         "unknown data segment: segment index out of bounds",

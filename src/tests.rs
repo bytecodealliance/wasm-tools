@@ -558,6 +558,7 @@ mod wast_tests {
                 ("ref_func.wast", _) => true,
                 ("table-sub.wast", _) => true,
                 ("table_grow.wast", _) => true,
+                ("memory_init.wast", _) => true,
                 _ => false,
             },
         );
