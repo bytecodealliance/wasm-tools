@@ -1809,7 +1809,6 @@ impl OperatorValidator {
             | Operator::I8x16Sub
             | Operator::I8x16SubSaturateS
             | Operator::I8x16SubSaturateU
-            | Operator::I8x16Mul
             | Operator::I8x16MinS
             | Operator::I8x16MinU
             | Operator::I8x16MaxS
@@ -1852,23 +1851,22 @@ impl OperatorValidator {
             | Operator::F64x2Neg
             | Operator::F64x2Sqrt
             | Operator::F32x4ConvertI32x4S
-            | Operator::F32x4ConvertI32x4U
-            | Operator::F64x2ConvertI64x2S
-            | Operator::F64x2ConvertI64x2U => {
+            | Operator::F32x4ConvertI32x4U => {
                 self.check_non_deterministic_enabled()?;
                 self.check_simd_enabled()?;
                 self.check_operands_1(Type::V128)?;
                 self.func_state.change_frame_with_type(1, Type::V128)?;
             }
             Operator::V128Not
+            | Operator::I8x16Abs
             | Operator::I8x16Neg
+            | Operator::I16x8Abs
             | Operator::I16x8Neg
+            | Operator::I32x4Abs
             | Operator::I32x4Neg
             | Operator::I64x2Neg
             | Operator::I32x4TruncSatF32x4S
             | Operator::I32x4TruncSatF32x4U
-            | Operator::I64x2TruncSatF64x2S
-            | Operator::I64x2TruncSatF64x2U
             | Operator::I16x8WidenLowI8x16S
             | Operator::I16x8WidenHighI8x16S
             | Operator::I16x8WidenLowI8x16U
@@ -1891,9 +1889,7 @@ impl OperatorValidator {
             | Operator::I16x8AnyTrue
             | Operator::I16x8AllTrue
             | Operator::I32x4AnyTrue
-            | Operator::I32x4AllTrue
-            | Operator::I64x2AnyTrue
-            | Operator::I64x2AllTrue => {
+            | Operator::I32x4AllTrue => {
                 self.check_simd_enabled()?;
                 self.check_operands_1(Type::V128)?;
                 self.func_state.change_frame_with_type(1, Type::I32)?;

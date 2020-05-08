@@ -1362,10 +1362,40 @@ impl<'a> BinaryReader<'a> {
     }
 
     fn read_0xfd_operator(&mut self) -> Result<Operator<'a>> {
-        let code = self.read_var_u8()? as u8;
+        let code = self.read_var_u32()?;
         Ok(match code {
             0x00 => Operator::V128Load {
                 memarg: self.read_memarg()?,
+            },
+            0x01 => Operator::I16x8Load8x8S {
+                memarg: self.read_memarg_of_align(3)?,
+            },
+            0x02 => Operator::I16x8Load8x8U {
+                memarg: self.read_memarg_of_align(3)?,
+            },
+            0x03 => Operator::I32x4Load16x4S {
+                memarg: self.read_memarg_of_align(3)?,
+            },
+            0x04 => Operator::I32x4Load16x4U {
+                memarg: self.read_memarg_of_align(3)?,
+            },
+            0x05 => Operator::I64x2Load32x2S {
+                memarg: self.read_memarg_of_align(3)?,
+            },
+            0x06 => Operator::I64x2Load32x2U {
+                memarg: self.read_memarg_of_align(3)?,
+            },
+            0x07 => Operator::V8x16LoadSplat {
+                memarg: self.read_memarg_of_align(0)?,
+            },
+            0x08 => Operator::V16x8LoadSplat {
+                memarg: self.read_memarg_of_align(1)?,
+            },
+            0x09 => Operator::V32x4LoadSplat {
+                memarg: self.read_memarg_of_align(2)?,
+            },
+            0x0a => Operator::V64x2LoadSplat {
+                memarg: self.read_memarg_of_align(3)?,
             },
             0x0b => Operator::V128Store {
                 memarg: self.read_memarg()?,
@@ -1373,7 +1403,20 @@ impl<'a> BinaryReader<'a> {
             0x0c => Operator::V128Const {
                 value: self.read_v128()?,
             },
+            0x0d => {
+                let mut lanes = [0 as SIMDLaneIndex; 16];
+                for lane in &mut lanes {
+                    *lane = self.read_lane_index(32)?
+                }
+                Operator::V8x16Shuffle { lanes }
+            }
+            0x0e => Operator::V8x16Swizzle,
             0x0f => Operator::I8x16Splat,
+            0x10 => Operator::I16x8Splat,
+            0x11 => Operator::I32x4Splat,
+            0x12 => Operator::I64x2Splat,
+            0x13 => Operator::F32x4Splat,
+            0x14 => Operator::F64x2Splat,
             0x15 => Operator::I8x16ExtractLaneS {
                 lane: self.read_lane_index(16)?,
             },
@@ -1383,7 +1426,6 @@ impl<'a> BinaryReader<'a> {
             0x17 => Operator::I8x16ReplaceLane {
                 lane: self.read_lane_index(16)?,
             },
-            0x10 => Operator::I16x8Splat,
             0x18 => Operator::I16x8ExtractLaneS {
                 lane: self.read_lane_index(8)?,
             },
@@ -1393,28 +1435,24 @@ impl<'a> BinaryReader<'a> {
             0x1a => Operator::I16x8ReplaceLane {
                 lane: self.read_lane_index(8)?,
             },
-            0x11 => Operator::I32x4Splat,
             0x1b => Operator::I32x4ExtractLane {
                 lane: self.read_lane_index(4)?,
             },
             0x1c => Operator::I32x4ReplaceLane {
                 lane: self.read_lane_index(4)?,
             },
-            0x12 => Operator::I64x2Splat,
             0x1d => Operator::I64x2ExtractLane {
                 lane: self.read_lane_index(2)?,
             },
             0x1e => Operator::I64x2ReplaceLane {
                 lane: self.read_lane_index(2)?,
             },
-            0x13 => Operator::F32x4Splat,
             0x1f => Operator::F32x4ExtractLane {
                 lane: self.read_lane_index(4)?,
             },
             0x20 => Operator::F32x4ReplaceLane {
                 lane: self.read_lane_index(4)?,
             },
-            0x14 => Operator::F64x2Splat,
             0x21 => Operator::F64x2ExtractLane {
                 lane: self.read_lane_index(2)?,
             },
@@ -1465,12 +1503,16 @@ impl<'a> BinaryReader<'a> {
             0x4c => Operator::F64x2Ge,
             0x4d => Operator::V128Not,
             0x4e => Operator::V128And,
+            0x4f => Operator::V128AndNot,
             0x50 => Operator::V128Or,
             0x51 => Operator::V128Xor,
             0x52 => Operator::V128Bitselect,
+            0x60 => Operator::I8x16Abs,
             0x61 => Operator::I8x16Neg,
             0x62 => Operator::I8x16AnyTrue,
             0x63 => Operator::I8x16AllTrue,
+            0x65 => Operator::I8x16NarrowI16x8S,
+            0x66 => Operator::I8x16NarrowI16x8U,
             0x6b => Operator::I8x16Shl,
             0x6c => Operator::I8x16ShrS,
             0x6d => Operator::I8x16ShrU,
@@ -1480,14 +1522,21 @@ impl<'a> BinaryReader<'a> {
             0x71 => Operator::I8x16Sub,
             0x72 => Operator::I8x16SubSaturateS,
             0x73 => Operator::I8x16SubSaturateU,
-            0x75 => Operator::I8x16Mul,
             0x76 => Operator::I8x16MinS,
             0x77 => Operator::I8x16MinU,
             0x78 => Operator::I8x16MaxS,
             0x79 => Operator::I8x16MaxU,
+            0x7b => Operator::I8x16RoundingAverageU,
+            0x80 => Operator::I16x8Abs,
             0x81 => Operator::I16x8Neg,
             0x82 => Operator::I16x8AnyTrue,
             0x83 => Operator::I16x8AllTrue,
+            0x85 => Operator::I16x8NarrowI32x4S,
+            0x86 => Operator::I16x8NarrowI32x4U,
+            0x87 => Operator::I16x8WidenLowI8x16S,
+            0x88 => Operator::I16x8WidenHighI8x16S,
+            0x89 => Operator::I16x8WidenLowI8x16U,
+            0x8a => Operator::I16x8WidenHighI8x16U,
             0x8b => Operator::I16x8Shl,
             0x8c => Operator::I16x8ShrS,
             0x8d => Operator::I16x8ShrU,
@@ -1502,9 +1551,15 @@ impl<'a> BinaryReader<'a> {
             0x97 => Operator::I16x8MinU,
             0x98 => Operator::I16x8MaxS,
             0x99 => Operator::I16x8MaxU,
+            0x9b => Operator::I16x8RoundingAverageU,
+            0xa0 => Operator::I32x4Abs,
             0xa1 => Operator::I32x4Neg,
             0xa2 => Operator::I32x4AnyTrue,
             0xa3 => Operator::I32x4AllTrue,
+            0xa7 => Operator::I32x4WidenLowI16x8S,
+            0xa8 => Operator::I32x4WidenHighI16x8S,
+            0xa9 => Operator::I32x4WidenLowI16x8U,
+            0xaa => Operator::I32x4WidenHighI16x8U,
             0xab => Operator::I32x4Shl,
             0xac => Operator::I32x4ShrS,
             0xad => Operator::I32x4ShrU,
@@ -1516,8 +1571,6 @@ impl<'a> BinaryReader<'a> {
             0xb8 => Operator::I32x4MaxS,
             0xb9 => Operator::I32x4MaxU,
             0xc1 => Operator::I64x2Neg,
-            0xc2 => Operator::I64x2AnyTrue,
-            0xc3 => Operator::I64x2AllTrue,
             0xcb => Operator::I64x2Shl,
             0xcc => Operator::I64x2ShrS,
             0xcd => Operator::I64x2ShrU,
@@ -1546,59 +1599,6 @@ impl<'a> BinaryReader<'a> {
             0xf9 => Operator::I32x4TruncSatF32x4U,
             0xfa => Operator::F32x4ConvertI32x4S,
             0xfb => Operator::F32x4ConvertI32x4U,
-            0x0e => Operator::V8x16Swizzle,
-            0x0d => {
-                let mut lanes = [0 as SIMDLaneIndex; 16];
-                for lane in &mut lanes {
-                    *lane = self.read_lane_index(32)?
-                }
-                Operator::V8x16Shuffle { lanes }
-            }
-            0x07 => Operator::V8x16LoadSplat {
-                memarg: self.read_memarg_of_align(0)?,
-            },
-            0x08 => Operator::V16x8LoadSplat {
-                memarg: self.read_memarg_of_align(1)?,
-            },
-            0x09 => Operator::V32x4LoadSplat {
-                memarg: self.read_memarg_of_align(2)?,
-            },
-            0x0a => Operator::V64x2LoadSplat {
-                memarg: self.read_memarg_of_align(3)?,
-            },
-            0x65 => Operator::I8x16NarrowI16x8S,
-            0x66 => Operator::I8x16NarrowI16x8U,
-            0x85 => Operator::I16x8NarrowI32x4S,
-            0x86 => Operator::I16x8NarrowI32x4U,
-            0x87 => Operator::I16x8WidenLowI8x16S,
-            0x88 => Operator::I16x8WidenHighI8x16S,
-            0x89 => Operator::I16x8WidenLowI8x16U,
-            0x8a => Operator::I16x8WidenHighI8x16U,
-            0xa7 => Operator::I32x4WidenLowI16x8S,
-            0xa8 => Operator::I32x4WidenHighI16x8S,
-            0xa9 => Operator::I32x4WidenLowI16x8U,
-            0xaa => Operator::I32x4WidenHighI16x8U,
-            0x01 => Operator::I16x8Load8x8S {
-                memarg: self.read_memarg_of_align(3)?,
-            },
-            0x02 => Operator::I16x8Load8x8U {
-                memarg: self.read_memarg_of_align(3)?,
-            },
-            0x03 => Operator::I32x4Load16x4S {
-                memarg: self.read_memarg_of_align(3)?,
-            },
-            0x04 => Operator::I32x4Load16x4U {
-                memarg: self.read_memarg_of_align(3)?,
-            },
-            0x05 => Operator::I64x2Load32x2S {
-                memarg: self.read_memarg_of_align(3)?,
-            },
-            0x06 => Operator::I64x2Load32x2U {
-                memarg: self.read_memarg_of_align(3)?,
-            },
-            0x4f => Operator::V128AndNot,
-            0x7b => Operator::I8x16RoundingAverageU,
-            0x9b => Operator::I16x8RoundingAverageU,
             _ => {
                 return Err(BinaryReaderError::new(
                     "Unknown 0xfd opcode",
