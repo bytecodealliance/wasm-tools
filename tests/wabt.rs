@@ -509,5 +509,23 @@ fn skip_test(test: &Path, contents: &str) -> bool {
         return true;
     }
 
+    // Waiting for wabt to remove subtyping from reference-types.
+    if test
+        .iter()
+        .any(|x| x == "bulk-memory-operations" || x == "reference-types")
+        || test.ends_with("reference-types.txt")
+        || test.ends_with("all-features.txt")
+        || test.ends_with("all-features.txt")
+        || test.ends_with("bulk-memory-named.txt")
+        || test.ends_with("reference-types-named.txt")
+        || test.ends_with("table-grow.txt")
+        || test.ends_with("result-exnref.txt")
+        || test.ends_with("global-exnref.txt")
+        || test.ends_with("global.txt")
+        || test.ends_with("bulk-memory.txt")
+    {
+        return true;
+    }
+
     false
 }

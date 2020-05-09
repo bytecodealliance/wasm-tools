@@ -1,4 +1,4 @@
-use crate::ast::{self, kw};
+use crate::ast::{self, kw, RefType};
 use crate::parser::{Parse, Parser, Result};
 use std::mem;
 
@@ -411,8 +411,8 @@ instructions! {
         TableSize(TableArg<'a>) : [0xfc, 0x10] : "table.size",
         TableGrow(TableArg<'a>) : [0xfc, 0x0f] : "table.grow",
 
-        RefNull : [0xd0] : "ref.null",
-        RefIsNull : [0xd1] : "ref.is_null",
+        RefNull(RefType<'a>) : [0xd0] : "ref.null",
+        RefIsNull(RefType<'a>) : [0xd1] : "ref.is_null",
         RefHost(u32) : [0xff] : "ref.host", // only used in test harness
         RefFunc(ast::Index<'a>) : [0xd2] : "ref.func",
 
