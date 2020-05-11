@@ -132,6 +132,15 @@ fn skip_test(test: &Path, contents: &str) -> bool {
         return true;
     }
 
+    // reference types just changed to remove subtyping, wait for tests and
+    // repos to settle.
+    if test.iter().any(|t| t == "reference-types")
+        || test.ends_with("bulk-memory-operations/elem.wast")
+        || test.ends_with("bulk-memory-operations/bulk.wast")
+    {
+        return true;
+    }
+
     false
 }
 

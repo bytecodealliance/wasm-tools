@@ -967,6 +967,7 @@ impl Printer {
             V128Xor => self.result.push_str("v128.xor"),
             V128Bitselect => self.result.push_str("v128.bitselect"),
 
+            I8x16Abs => self.result.push_str("i8x16.abs"),
             I8x16Neg => self.result.push_str("i8x16.neg"),
             I8x16AnyTrue => self.result.push_str("i8x16.any_true"),
             I8x16AllTrue => self.result.push_str("i8x16.all_true"),
@@ -979,8 +980,8 @@ impl Printer {
             I8x16Sub => self.result.push_str("i8x16.sub"),
             I8x16SubSaturateS => self.result.push_str("i8x16.sub_saturate_s"),
             I8x16SubSaturateU => self.result.push_str("i8x16.sub_saturate_u"),
-            I8x16Mul => self.result.push_str("i8x16.mul"),
 
+            I16x8Abs => self.result.push_str("i16x8.abs"),
             I16x8Neg => self.result.push_str("i16x8.neg"),
             I16x8AnyTrue => self.result.push_str("i16x8.any_true"),
             I16x8AllTrue => self.result.push_str("i16x8.all_true"),
@@ -995,6 +996,7 @@ impl Printer {
             I16x8SubSaturateU => self.result.push_str("i16x8.sub_saturate_u"),
             I16x8Mul => self.result.push_str("i16x8.mul"),
 
+            I32x4Abs => self.result.push_str("i32x4.abs"),
             I32x4Neg => self.result.push_str("i32x4.neg"),
             I32x4AnyTrue => self.result.push_str("i32x4.any_true"),
             I32x4AllTrue => self.result.push_str("i32x4.all_true"),
@@ -1006,8 +1008,6 @@ impl Printer {
             I32x4Mul => self.result.push_str("i32x4.mul"),
 
             I64x2Neg => self.result.push_str("i64x2.neg"),
-            I64x2AnyTrue => self.result.push_str("i64x2.any_true"),
-            I64x2AllTrue => self.result.push_str("i64x2.all_true"),
             I64x2Shl => self.result.push_str("i64x2.shl"),
             I64x2ShrU => self.result.push_str("i64x2.shr_u"),
             I64x2ShrS => self.result.push_str("i64x2.shr_s"),
@@ -1037,12 +1037,8 @@ impl Printer {
 
             I32x4TruncSatF32x4S => self.result.push_str("i32x4.trunc_sat_f32x4_s"),
             I32x4TruncSatF32x4U => self.result.push_str("i32x4.trunc_sat_f32x4_u"),
-            I64x2TruncSatF64x2S => self.result.push_str("i64x2.trunc_sat_f64x2_s"),
-            I64x2TruncSatF64x2U => self.result.push_str("i64x2.trunc_sat_f64x2_u"),
             F32x4ConvertI32x4S => self.result.push_str("f32x4.convert_i32x4_s"),
             F32x4ConvertI32x4U => self.result.push_str("f32x4.convert_i32x4_u"),
-            F64x2ConvertI64x2S => self.result.push_str("f64x2.convert_i64x2_s"),
-            F64x2ConvertI64x2U => self.result.push_str("f64x2.convert_i64x2_u"),
 
             V8x16Swizzle => self.result.push_str("v8x16.swizzle"),
             V8x16Shuffle { lanes } => {
