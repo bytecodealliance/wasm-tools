@@ -1982,14 +1982,19 @@ impl OperatorValidator {
                 if table > 0 {
                     self.check_reference_types_enabled()?;
                 }
-                if resources.table_at(table).is_none() {
-                    bail_op_err!("unknown table {}: table index out of bounds", table);
-                }
-                if segment >= resources.element_count() {
-                    bail_op_err!(
-                        "unknown element segment {}: segment index out of bounds",
+                let table = match resources.table_at(table) {
+                    Some(table) => table,
+                    None => bail_op_err!("unknown table {}: table index out of bounds", table),
+                };
+                let segment_ty = match resources.element_type_at(segment) {
+                    Some(ty) => ty,
+                    None => bail_op_err!(
+                        "unknown elem segment {}: segment index out of bounds",
                         segment
-                    );
+                    ),
+                };
+                if !is_subtype_supertype(segment_ty, table.element_type().to_parser_type()) {
+                    return Err(OperatorValidatorError::new("type mismatch"));
                 }
                 self.check_operands_3(Type::I32, Type::I32, Type::I32)?;
                 self.func_state.change_frame(3)?;
@@ -1998,7 +2003,7 @@ impl OperatorValidator {
                 self.check_bulk_memory_enabled()?;
                 if segment >= resources.element_count() {
                     bail_op_err!(
-                        "unknown element segment {}: segment index out of bounds",
+                        "unknown elem segment {}: segment index out of bounds",
                         segment
                     );
                 }
@@ -2011,10 +2016,16 @@ impl OperatorValidator {
                 if src_table > 0 || dst_table > 0 {
                     self.check_reference_types_enabled()?;
                 }
-                if resources.table_at(src_table).is_none()
-                    || resources.table_at(dst_table).is_none()
-                {
-                    return Err(OperatorValidatorError::new("table index out of bounds"));
+                let (src, dst) =
+                    match (resources.table_at(src_table), resources.table_at(dst_table)) {
+                        (Some(a), Some(b)) => (a, b),
+                        _ => return Err(OperatorValidatorError::new("table index out of bounds")),
+                    };
+                if !is_subtype_supertype(
+                    src.element_type().to_parser_type(),
+                    dst.element_type().to_parser_type(),
+                ) {
+                    return Err(OperatorValidatorError::new("type mismatch"));
                 }
                 self.check_operands_3(Type::I32, Type::I32, Type::I32)?;
                 self.func_state.change_frame(3)?;

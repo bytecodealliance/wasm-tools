@@ -99,7 +99,7 @@ struct ValidatingParserResources {
     tables: Vec<TableType>,
     memories: Vec<MemoryType>,
     globals: Vec<GlobalType>,
-    element_count: u32,
+    element_types: Vec<Type>,
     data_count: Option<u32>,
     func_type_indices: Vec<u32>,
 }
@@ -130,8 +130,12 @@ impl<'a> WasmModuleResources for ValidatingParserResources {
         self.func_type_indices.get(at as usize).copied()
     }
 
+    fn element_type_at(&self, at: u32) -> Option<Type> {
+        self.element_types.get(at as usize).cloned()
+    }
+
     fn element_count(&self) -> u32 {
-        self.element_count
+        self.element_types.len() as u32
     }
 
     fn data_count(&self) -> u32 {
@@ -166,7 +170,7 @@ impl<'a> ValidatingParser<'a> {
                 tables: Vec::new(),
                 memories: Vec::new(),
                 globals: Vec::new(),
-                element_count: 0,
+                element_types: Vec::new(),
                 data_count: None,
                 func_type_indices: Vec::new(),
             },
@@ -266,6 +270,14 @@ impl<'a> ValidatingParser<'a> {
         let maximum = memory_type.limits.maximum;
         if maximum.is_some() && maximum.unwrap() as usize > MAX_WASM_MEMORY_PAGES {
             return self.create_error("memory size must be at most 65536 pages (4GiB)");
+        }
+        if memory_type.shared {
+            if !self.config.operator_config.enable_threads {
+                return self.create_error("threads must be enabled for shared memories");
+            }
+            if memory_type.limits.maximum.is_none() {
+                return self.create_error("shared memory must have maximum size");
+            }
         }
         Ok(())
     }
@@ -542,31 +554,39 @@ impl<'a> ValidatingParser<'a> {
                 self.resources.data_count = Some(count);
             }
             ParserState::BeginElementSectionEntry { table, ty } => {
-                self.resources.element_count += 1;
-                if let ElemSectionEntryTable::Active(table_index) = table {
-                    let table = match self.resources.tables.get(table_index as usize) {
-                        Some(t) => t,
-                        None => {
-                            self.set_validation_error(
-                                "unknown table: element section table index out of bounds",
-                            );
+                self.resources.element_types.push(ty);
+                match table {
+                    ElemSectionEntryTable::Active(table_index) => {
+                        let table = match self.resources.tables.get(table_index as usize) {
+                            Some(t) => t,
+                            None => {
+                                self.set_validation_error(
+                                    "unknown table: element section table index out of bounds",
+                                );
+                                return;
+                            }
+                        };
+                        if !is_subtype_supertype(ty, table.element_type) {
+                            self.set_validation_error("element_type != table type");
                             return;
                         }
-                    };
-                    if !is_subtype_supertype(ty, table.element_type) {
-                        self.set_validation_error("element_type != table type");
-                        return;
+                        self.init_expression_state = Some(InitExpressionState {
+                            ty: Type::I32,
+                            global_count: self.resources.globals.len(),
+                            function_count: self.resources.func_type_indices.len(),
+                            validated: false,
+                        });
                     }
-                    if !self.config.operator_config.enable_reference_types && ty != Type::AnyFunc {
-                        self.set_validation_error("element_type != anyfunc is not supported yet");
-                        return;
+                    ElemSectionEntryTable::Passive | ElemSectionEntryTable::Declared => {
+                        if !self.config.operator_config.enable_bulk_memory {
+                            self.set_validation_error("reference types must be enabled");
+                            return;
+                        }
                     }
-                    self.init_expression_state = Some(InitExpressionState {
-                        ty: Type::I32,
-                        global_count: self.resources.globals.len(),
-                        function_count: self.resources.func_type_indices.len(),
-                        validated: false,
-                    });
+                }
+                if !self.config.operator_config.enable_reference_types && ty != Type::AnyFunc {
+                    self.set_validation_error("element_type != anyfunc is not supported yet");
+                    return;
                 }
             }
             ParserState::ElementSectionEntryBody(ref indices) => {

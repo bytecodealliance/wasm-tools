@@ -295,6 +295,8 @@ pub trait WasmModuleResources {
     fn global_at(&self, at: u32) -> Option<&Self::GlobalType>;
     /// Returns the function signature ID at given index.
     fn func_type_id_at(&self, at: u32) -> Option<u32>;
+    /// Returns the element type at the given index.
+    fn element_type_at(&self, at: u32) -> Option<crate::Type>;
 
     /// Returns the number of elements.
     fn element_count(&self) -> u32;
