@@ -413,7 +413,7 @@ instructions! {
 
         RefNull(RefType<'a>) : [0xd0] : "ref.null",
         RefIsNull(RefType<'a>) : [0xd1] : "ref.is_null",
-        RefHost(u32) : [0xff] : "ref.host", // only used in test harness
+        RefExtern(u32) : [0xff] : "ref.extern", // only used in test harness
         RefFunc(ast::Index<'a>) : [0xd2] : "ref.func",
 
         // function-references proposal
