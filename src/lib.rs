@@ -237,35 +237,20 @@ impl Printer {
     /// Returns the number of parameters, useful for local index calculations
     /// later.
     fn print_functype(&mut self, ty: &FuncType, names_for: Option<u32>) -> Result<u32> {
-        if ty.params.len() > 0 {
-            self.result.push_str(" (param");
-            // When local variables are named `wasm2wat` seems to have odd
-            // behavior where it'll print everything in one `(param)` block
-            // until something is named. All further parameters go into a
-            // separate `(param)` block. I'm not entirely certain why or if it's
-            // really even valid syntax, but for now we mirror `wasm2wat`.
-            let mut restart = false;
-            for (i, param) in ty.params.iter().enumerate() {
-                if restart {
-                    self.result.push_str(") (param ");
-                    restart = false;
-                } else {
-                    self.result.push_str(" ");
-                }
-                let local_names = &self.local_names;
-                let name = names_for
-                    .and_then(|n| local_names.get(&n))
-                    .and_then(|n| n.get(&(i as u32)));
-                if let Some(name) = name {
-                    self.result.push_str("$");
-                    self.result.push_str(name);
-                    self.result.push_str(" ");
-                    restart = true;
-                }
-                self.print_valtype(*param)?;
-            }
-            self.result.push_str(")");
+        let mut params = NamedLocalPrinter::new("param");
+        // Note that named parameters must be alone in a `param` block, so
+        // we need to be careful to terminate previous param blocks and open
+        // a new one if that's the case with a named parameter.
+        for (i, param) in ty.params.iter().enumerate() {
+            let local_names = &self.local_names;
+            let name = names_for
+                .and_then(|n| local_names.get(&n))
+                .and_then(|n| n.get(&(i as u32)));
+            params.start_local(name, &mut self.result);
+            self.print_valtype(*param)?;
+            params.end_local(&mut self.result);
         }
+        params.finish(&mut self.result);
         if ty.returns.len() > 0 {
             self.result.push_str(" (result");
             for result in ty.returns.iter() {
@@ -409,36 +394,26 @@ impl Printer {
             let params = self.print_functype_idx(ty, Some(self.func))?;
 
             let mut first = true;
-            let mut idx = params;
-            let mut restart = false;
+            let mut local_idx = 0;
+            let mut locals = NamedLocalPrinter::new("local");
             for local in body.get_locals_reader()? {
                 let (cnt, ty) = local?;
-                if first {
-                    self.result.push_str("\n    (local");
-                    first = false;
-                }
                 for _ in 0..cnt {
-                    // See comments in `print_functype` for why `restart` is
-                    // here.
-                    if restart {
-                        self.result.push_str(") (local ");
-                        restart = false;
-                    } else {
-                        self.result.push_str(" ");
+                    if first {
+                        self.result.push_str("\n   ");
+                        first = false;
                     }
-                    if let Some(name) = self.local_names.get(&self.func).and_then(|m| m.get(&idx)) {
-                        self.result.push_str("$");
-                        self.result.push_str(name);
-                        self.result.push_str(" ");
-                        restart = true;
-                    }
+                    let name = self
+                        .local_names
+                        .get(&self.func)
+                        .and_then(|m| m.get(&(params + local_idx)));
+                    locals.start_local(name, &mut self.result);
                     self.print_valtype(ty)?;
-                    idx += 1;
+                    locals.end_local(&mut self.result);
+                    local_idx += 1;
                 }
             }
-            if !first {
-                self.result.push_str(")");
-            }
+            locals.finish(&mut self.result);
 
             self.nesting = 1;
             for operator in body.get_operators_reader()? {
@@ -1236,10 +1211,15 @@ impl Printer {
     fn print_init_expr(&mut self, expr: &InitExpr) -> Result<()> {
         self.result.push_str("(");
         self.nesting = 1;
-        for op in expr.get_operators_reader() {
+        for (i, op) in expr.get_operators_reader().into_iter().enumerate() {
             match op? {
                 Operator::End => {}
-                other => self.print_operator(&other)?,
+                other => {
+                    if i > 0 {
+                        self.result.push_str(" ");
+                    }
+                    self.print_operator(&other)?
+                }
             }
         }
         self.result.push_str(")");
@@ -1287,6 +1267,62 @@ impl Printer {
         self.result.push('\\');
         self.result.push(to_hex((byte >> 4) & 0xf));
         self.result.push(to_hex(byte & 0xf));
+    }
+}
+
+struct NamedLocalPrinter {
+    group_name: &'static str,
+    in_group: bool,
+    end_group_after_local: bool,
+}
+
+impl NamedLocalPrinter {
+    fn new(group_name: &'static str) -> NamedLocalPrinter {
+        NamedLocalPrinter {
+            group_name,
+            in_group: false,
+            end_group_after_local: false,
+        }
+    }
+
+    fn start_local(&mut self, name: Option<&String>, dst: &mut String) {
+        // Named locals must be in their own group, so if we have a name we need
+        // to terminate the previous group.
+        if name.is_some() && self.in_group {
+            dst.push_str(")");
+            self.in_group = false;
+        }
+
+        // Next we either need a separator if we're already in a group or we
+        // need to open a group for our new local.
+        dst.push_str(" ");
+        if !self.in_group {
+            dst.push_str("(");
+            dst.push_str(self.group_name);
+            dst.push_str(" ");
+            self.in_group = true;
+        }
+
+        // Print the optional name if given...
+        if let Some(name) = name {
+            dst.push_str("$");
+            dst.push_str(name);
+            dst.push_str(" ");
+        }
+        self.end_group_after_local = name.is_some();
+    }
+
+    fn end_local(&mut self, dst: &mut String) {
+        if self.end_group_after_local {
+            dst.push_str(")");
+            self.end_group_after_local = false;
+            self.in_group = false;
+        }
+    }
+    fn finish(self, dst: &mut String) {
+        if self.in_group {
+            dst.push_str(")");
+        }
     }
 }
 

@@ -285,7 +285,32 @@ fn test_binary(path: &Path, line: usize, contents: &[u8]) -> anyhow::Result<()> 
             let end = s[i..].find(";)").unwrap();
             s.drain(i..end + i + 2);
         }
+
+        fixup_locals(&mut s, "param");
+        fixup_locals(&mut s, "local");
         return s;
+    }
+
+    // FIXME(WebAssembly/wabt#1417) - collapse `(param)` and `(local)` blocks
+    // for comparison.
+    fn fixup_locals(s: &mut String, name: &str) {
+        let mut pos = 0;
+        while let Some(start) = s.get(pos..).and_then(|s| s.find(name)) {
+            let start = pos + start;
+            if !s[..start].ends_with("(") {
+                pos = start + 1;
+                continue;
+            }
+            let end = match s[start..].find(")") {
+                Some(j) => start + j,
+                None => return,
+            };
+            if s[end..].starts_with(") (") && s[end + 3..].starts_with(name) {
+                s.drain(end..end + 3 + name.len());
+            } else {
+                pos = start + 1;
+            }
+        }
     }
 
     let mut bad = false;
