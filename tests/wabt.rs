@@ -137,6 +137,12 @@ fn skip_test(test: &Path, contents: &str) -> bool {
     if test.iter().any(|t| t == "reference-types")
         || test.ends_with("bulk-memory-operations/elem.wast")
         || test.ends_with("bulk-memory-operations/bulk.wast")
+        || test.ends_with("reference-types.txt")
+        || test.ends_with("bulk-memory.txt")
+        || test.ends_with("table-grow.txt")
+        || test.ends_with("global.txt")
+        || test.ends_with("bulk-memory-named.txt")
+        || test.ends_with("reference-types-named.txt")
     {
         return true;
     }
