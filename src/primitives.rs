@@ -107,20 +107,10 @@ pub enum Type {
     F32,
     F64,
     V128,
-    AnyFunc,
-    AnyRef,
-    NullRef,
+    FuncRef,
+    ExternRef,
     Func,
     EmptyBlockType,
-}
-
-impl Type {
-    pub(crate) fn is_valid_for_old_select(self) -> bool {
-        match self {
-            Type::I32 | Type::I64 | Type::F32 | Type::F64 => true,
-            _ => false,
-        }
-    }
 }
 
 /// Either a value type or a function type.
@@ -321,8 +311,8 @@ pub enum Operator<'a> {
     I64Const { value: i64 },
     F32Const { value: Ieee32 },
     F64Const { value: Ieee64 },
-    RefNull,
-    RefIsNull,
+    RefNull { ty: Type },
+    RefIsNull { ty: Type },
     RefFunc { function_index: u32 },
     I32Eqz,
     I32Eq,

@@ -30,8 +30,8 @@ use crate::primitives::{
 };
 
 use crate::operators_validator::{
-    check_value_type, is_subtype_supertype, FunctionEnd, OperatorValidator,
-    OperatorValidatorConfig, OperatorValidatorError, DEFAULT_OPERATOR_VALIDATOR_CONFIG,
+    check_value_type, FunctionEnd, OperatorValidator, OperatorValidatorConfig,
+    OperatorValidatorError, DEFAULT_OPERATOR_VALIDATOR_CONFIG,
 };
 use crate::parser::{Parser, ParserInput, ParserState, WasmDecoder};
 use crate::{ElemSectionEntryTable, ElementItem};
@@ -251,7 +251,7 @@ impl<'a> ValidatingParser<'a> {
 
     fn check_table_type(&self, table_type: &TableType) -> ValidatorResult<'a, ()> {
         match table_type.element_type {
-            Type::AnyFunc => {}
+            Type::FuncRef => {}
             _ => {
                 if !self.config.operator_config.enable_reference_types {
                     return self.create_error("element is not anyfunc");
@@ -332,11 +332,11 @@ impl<'a> ValidatingParser<'a> {
             Operator::I64Const { .. } => Type::I64,
             Operator::F32Const { .. } => Type::F32,
             Operator::F64Const { .. } => Type::F64,
-            Operator::RefNull => {
+            Operator::RefNull { ty } => {
                 if !self.config.operator_config.enable_reference_types {
                     return self.create_error("reference types support is not enabled");
                 }
-                Type::NullRef
+                ty
             }
             Operator::V128Const { .. } => {
                 if !self.config.operator_config.enable_simd {
@@ -358,14 +358,14 @@ impl<'a> ValidatingParser<'a> {
                         function_index
                     ));
                 }
-                Type::AnyFunc
+                Type::FuncRef
             }
             _ => {
                 return self
                     .create_error("constant expression required: invalid init_expr operator")
             }
         };
-        if !is_subtype_supertype(ty, state.ty) {
+        if ty != state.ty {
             return self.create_error("type mismatch: invalid init_expr type");
         }
         Ok(())
@@ -566,7 +566,7 @@ impl<'a> ValidatingParser<'a> {
                                 return;
                             }
                         };
-                        if !is_subtype_supertype(ty, table.element_type) {
+                        if ty != table.element_type {
                             self.set_validation_error("element_type != table type");
                             return;
                         }
@@ -584,9 +584,19 @@ impl<'a> ValidatingParser<'a> {
                         }
                     }
                 }
-                if !self.config.operator_config.enable_reference_types && ty != Type::AnyFunc {
-                    self.set_validation_error("element_type != anyfunc is not supported yet");
-                    return;
+                match ty {
+                    Type::FuncRef => {}
+                    Type::ExternRef if self.config.operator_config.enable_reference_types => {}
+                    Type::ExternRef => {
+                        self.set_validation_error(
+                            "reference types must be enabled for anyref elem segment",
+                        );
+                        return;
+                    }
+                    _ => {
+                        self.set_validation_error("invalid reference type");
+                        return;
+                    }
                 }
             }
             ParserState::ElementSectionEntryBody(ref indices) => {

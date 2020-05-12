@@ -186,9 +186,8 @@ impl<'a> BinaryReader<'a> {
             -0x03 => Ok(Type::F32),
             -0x04 => Ok(Type::F64),
             -0x05 => Ok(Type::V128),
-            -0x10 => Ok(Type::AnyFunc),
-            -0x11 => Ok(Type::AnyRef),
-            -0x12 => Ok(Type::NullRef),
+            -0x10 => Ok(Type::FuncRef),
+            -0x11 => Ok(Type::ExternRef),
             -0x20 => Ok(Type::Func),
             -0x40 => Ok(Type::EmptyBlockType),
             _ => Err(BinaryReaderError::new(
@@ -984,7 +983,7 @@ impl<'a> BinaryReader<'a> {
                 let results = self.read_var_u32()?;
                 if results != 1 {
                     return Err(BinaryReaderError::new(
-                        "bad number of results",
+                        "invalid result arity",
                         self.position,
                     ));
                 }
@@ -1230,8 +1229,12 @@ impl<'a> BinaryReader<'a> {
             0xc3 => Operator::I64Extend16S,
             0xc4 => Operator::I64Extend32S,
 
-            0xd0 => Operator::RefNull,
-            0xd1 => Operator::RefIsNull,
+            0xd0 => Operator::RefNull {
+                ty: self.read_type()?,
+            },
+            0xd1 => Operator::RefIsNull {
+                ty: self.read_type()?,
+            },
             0xd2 => Operator::RefFunc {
                 function_index: self.read_var_u32()?,
             },

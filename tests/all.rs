@@ -164,6 +164,10 @@ fn validate_not_deterministic(wasm: &[u8], mut _config: ValidatingParserConfig) 
 }
 
 fn run_wast(filename: &Path, wast: &[u8]) -> Result<()> {
+    if skip_wast_test(filename, 0) {
+        return Ok(());
+    }
+
     let contents = str::from_utf8(wast)?;
     let buf = wast::parser::ParseBuffer::new(&contents).map_err(|mut e| {
         e.set_path(filename);
@@ -246,19 +250,17 @@ fn skip_wast_test(filename: &Path, line: usize) -> bool {
             || line == 1651;
     }
 
-    // uses an old error message and we're waiting for repo to update
-    if filename.ends_with("reference-types/memory_init.wast") {
-        return line == 188;
-    }
-
-    // TODO: need to implement these
-    if filename.ends_with("reference-types/select.wast")
-        || filename.ends_with("reference-types/table_init.wast")
-        || filename.ends_with("reference-types/br_table.wast")
-        || filename.ends_with("reference-types/binary.wast")
-        || filename.ends_with("reference-types/ref_func.wast")
+    // waiting to be updated for `ref.null` syntax and binary usage
+    if filename.ends_with("bulk-memory-operations/elem.wast")
+        || filename.ends_with("bulk-memory-operations/bulk.wast")
+        || filename.ends_with("bulk-memory-operations/binary.wast")
     {
         return true;
+    }
+
+    // Waiting for WebAssembly/reference-types#76 to get resolved
+    if filename.ends_with("ref_func.wast") {
+        return line == 77 || line == 81;
     }
 
     false
@@ -347,6 +349,7 @@ fn find_tests() -> Vec<(Test, PathBuf)> {
         }
     };
     push_wast("tests/wast");
+    push_wast("tests/wast/reference-types");
     push_wast("testsuite");
     push_wast("testsuite/proposals/multi-value");
     push_wast("testsuite/proposals/bulk-memory-operations");
@@ -355,7 +358,6 @@ fn find_tests() -> Vec<(Test, PathBuf)> {
     push_wast("testsuite/proposals/nontrapping-float-to-int-conversions");
     push_wast("testsuite/proposals/threads");
     push_wast("testsuite/proposals/simd");
-    push_wast("testsuite/proposals/reference-types");
 
     return tests;
 }
