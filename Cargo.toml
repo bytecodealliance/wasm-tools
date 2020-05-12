@@ -26,6 +26,7 @@ rayon = "1.0"
 serde_json = "1.0"
 tempfile = "3.1"
 wasmparser = "0.53"
+diff = "0.1"
 
 [profile.release]
 debug-assertions = true
@@ -38,4 +39,8 @@ harness = false
 
 [[test]]
 name = "parse-fail"
+harness = false
+
+[[test]]
+name = "dump"
 harness = false
