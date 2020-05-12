@@ -33,4 +33,5 @@ harness = false
 
 [[test]]
 name = "all"
+path = "tests/all.rs"
 harness = false
