@@ -97,7 +97,8 @@ fn valid_wasm(contents: &[u8], config: ValidatingParserConfig) -> Result<()> {
     const MAX: usize = 100000000;
 
     // First test the wasm simply parses.
-    let mut parser = Parser::new(contents);
+    let contents = wat::parse_bytes(contents).unwrap_or(contents.into());
+    let mut parser = Parser::new(&contents);
     let mut iter = MAX;
     loop {
         let state = parser.read();
@@ -113,7 +114,7 @@ fn valid_wasm(contents: &[u8], config: ValidatingParserConfig) -> Result<()> {
     }
 
     // Then test that it validates as well.
-    let mut parser = ValidatingParser::new(contents, Some(config));
+    let mut parser = ValidatingParser::new(&contents, Some(config));
     iter = MAX;
     loop {
         let state = parser.read();
@@ -314,7 +315,7 @@ fn find_tests() -> Vec<(Test, PathBuf)> {
     // also assert they're not deterministic if they have floating ops in them.
     for entry in fs::read_dir("tests").unwrap() {
         let path = entry.unwrap().path();
-        if path.extension() == Some("wasm".as_ref()) {
+        if path.extension() == Some("wasm".as_ref()) || path.extension() == Some("wat".as_ref()) {
             tests.push((Test::Wasm, path.clone()));
         }
         if let Some(s) = path.file_name().and_then(|s| s.to_str()) {
@@ -331,7 +332,7 @@ fn find_tests() -> Vec<(Test, PathBuf)> {
     // Slurp up all of `tests/invalid/*.wasm` and assert they're invalid.
     for entry in fs::read_dir("tests/invalid").unwrap() {
         let path = entry.unwrap().path();
-        if path.extension() == Some("wasm".as_ref()) {
+        if path.extension() == Some("wasm".as_ref()) || path.extension() == Some("wat".as_ref()) {
             tests.push((Test::InvalidWasm, path));
         }
     }
