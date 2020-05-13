@@ -165,10 +165,11 @@ impl<'a> ElementSectionReader<'a> {
     /// Reads content of the element section.
     ///
     /// # Examples
-    /// ```no-run
+    ///
+    /// ```no_run
     /// # let data: &[u8] = &[];
     /// use wasmparser::{ModuleReader, ElementKind};
-    ///use wasmparser::Result;
+    /// use wasmparser::Result;
     /// let mut reader = ModuleReader::new(data).expect("module reader");
     /// let section = reader.read().expect("type section");
     /// let section = reader.read().expect("function section");
