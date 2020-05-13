@@ -113,14 +113,6 @@ fn skip_test(test: &Path, contents: &str) -> bool {
         return true;
     }
 
-    // simd not implemented by wasmparser yet
-    if test.ends_with("simd/simd_i8x16_arith2.wast")
-        || test.ends_with("simd/simd_i16x8_arith2.wast")
-        || test.ends_with("simd/simd_i32x4_arith2.wast")
-    {
-        return true;
-    }
-
     // Contains invalid binary encodings and such, needs to wait for upstream
     // spec to update.
     if test.ends_with("simd_const.wast") {
@@ -137,12 +129,17 @@ fn skip_test(test: &Path, contents: &str) -> bool {
     if test.iter().any(|t| t == "reference-types")
         || test.ends_with("bulk-memory-operations/elem.wast")
         || test.ends_with("bulk-memory-operations/bulk.wast")
+        || test.ends_with("bulk-memory-operations/binary.wast")
         || test.ends_with("reference-types.txt")
         || test.ends_with("bulk-memory.txt")
         || test.ends_with("table-grow.txt")
         || test.ends_with("global.txt")
         || test.ends_with("bulk-memory-named.txt")
         || test.ends_with("reference-types-named.txt")
+        || test.ends_with("expr/table-get.txt")
+        || test.ends_with("expr/table-set.txt")
+        || test.ends_with("if-anyref.txt")
+        || test.ends_with("fold-reference-types.txt")
     {
         return true;
     }

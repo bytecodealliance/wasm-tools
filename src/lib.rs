@@ -269,10 +269,18 @@ impl Printer {
             Type::F32 => self.result.push_str("f32"),
             Type::F64 => self.result.push_str("f64"),
             Type::V128 => self.result.push_str("v128"),
-            Type::AnyFunc => self.result.push_str("funcref"),
-            Type::AnyRef => self.result.push_str("anyref"),
-            Type::NullRef => self.result.push_str("nullref"),
+            Type::FuncRef => self.result.push_str("funcref"),
+            Type::ExternRef => self.result.push_str("externref"),
             _ => bail!("unimplemented {:?}", ty),
+        }
+        Ok(())
+    }
+
+    fn print_reftype(&mut self, ty: Type) -> Result<()> {
+        match ty {
+            Type::FuncRef => self.result.push_str("func"),
+            Type::ExternRef => self.result.push_str("extern"),
+            _ => bail!("invalid reference type {:?}", ty),
         }
         Ok(())
     }
@@ -572,8 +580,14 @@ impl Printer {
                 self.print_f64(value.bits())?;
             }
 
-            RefNull => self.result.push_str("ref.null"),
-            RefIsNull => self.result.push_str("ref.is_null"),
+            RefNull { ty } => {
+                self.result.push_str("ref.null");
+                self.print_reftype(*ty)?;
+            }
+            RefIsNull { ty } => {
+                self.result.push_str("ref.is_null");
+                self.print_reftype(*ty)?;
+            }
             RefFunc { function_index } => {
                 self.result.push_str("ref.func ");
                 self.print_func_idx(*function_index)?;
@@ -1166,8 +1180,10 @@ impl Printer {
             }
             for _ in 0..items_reader.get_count() {
                 match items_reader.read()? {
-                    ElementItem::Null => {
-                        self.result.push_str(" (ref.null)");
+                    ElementItem::Null(ty) => {
+                        self.result.push_str(" (ref.null ");
+                        self.print_reftype(ty)?;
+                        self.result.push_str(")");
                     }
                     ElementItem::Func(idx) if items_reader.uses_exprs() => {
                         self.result.push_str(" (ref.func ");
