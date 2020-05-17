@@ -23,8 +23,8 @@ use crate::limits::{
 };
 
 use crate::primitives::{
-    BinaryReaderError, BrTable, CustomSectionKind, ExternalKind, FuncType, GlobalType,
-    Ieee32, Ieee64, LinkingType, MemoryImmediate, MemoryType, NameType, Operator, RelocType,
+    BinaryReaderError, BrTable, CustomSectionKind, ExternalKind, FuncType, GlobalType, Ieee32,
+    Ieee64, LinkingType, MemoryImmediate, MemoryType, NameType, Operator, RelocType,
     ResizableLimits, Result, SIMDLaneIndex, SectionCode, TableType, Type, TypeOrFuncType, V128,
 };
 

@@ -291,7 +291,9 @@ impl WasmBrTableBuilder for BrTableBuilder {
     type BrTable = BrTable;
 
     fn new(targets_hint: usize) -> Self {
-        Self { targets: Vec::with_capacity(targets_hint) }
+        Self {
+            targets: Vec::with_capacity(targets_hint),
+        }
     }
 
     fn push_target(&mut self, target: u32) {

@@ -38,8 +38,6 @@ pub use crate::parser::WasmDecoder;
 
 pub use crate::primitives::BinaryReaderError;
 pub use crate::primitives::BrTable;
-pub use crate::primitives::WasmBrTable;
-pub use crate::primitives::WasmBrTableBuilder;
 pub use crate::primitives::BrTableBuilder;
 pub use crate::primitives::CustomSectionKind;
 pub use crate::primitives::ExternalKind;
@@ -61,6 +59,8 @@ pub use crate::primitives::SectionCode;
 pub use crate::primitives::TableType;
 pub use crate::primitives::Type;
 pub use crate::primitives::TypeOrFuncType;
+pub use crate::primitives::WasmBrTable;
+pub use crate::primitives::WasmBrTableBuilder;
 pub use crate::primitives::V128;
 
 pub use crate::validator::validate;

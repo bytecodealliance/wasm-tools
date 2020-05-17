@@ -949,7 +949,11 @@ impl OperatorValidator {
                 let mut depth0: Option<u32> = None;
                 use crate::WasmBrTable as _;
                 let len_targets = table.len();
-                fn check_target(validator: &OperatorValidator, depth0: &mut Option<u32>, relative_depth: u32) -> OperatorValidatorResult<()> {
+                fn check_target(
+                    validator: &OperatorValidator,
+                    depth0: &mut Option<u32>,
+                    relative_depth: u32,
+                ) -> OperatorValidatorResult<()> {
                     if depth0.is_none() {
                         validator.check_jump_from_block(relative_depth, 1)?;
                         depth0.replace(relative_depth);
@@ -961,7 +965,8 @@ impl OperatorValidator {
                 }
                 // Check normal branch targets:
                 for i in 0..len_targets {
-                    let relative_depth = table.target_offset(i).expect("encountered missing target");
+                    let relative_depth =
+                        table.target_offset(i).expect("encountered missing target");
                     check_target(self, &mut depth0, relative_depth)?;
                 }
                 // Check default branch target:
