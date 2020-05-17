@@ -255,14 +255,14 @@ pub trait WasmBrTableBuilder {
 ///
 /// Stores its target and default branch offsets.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BrTable2 {
+pub struct BrTable {
     /// Non-empty vector storing the target offsets followed by the default offset.
     targets: Box<[u32]>,
     /// The default target offset.
     default_target: u32,
 }
 
-impl WasmBrTable for BrTable2 {
+impl WasmBrTable for BrTable {
     fn len(&self) -> usize {
         self.targets.len().saturating_sub(1)
     }
@@ -288,7 +288,7 @@ pub struct BrTableBuilder {
 }
 
 impl WasmBrTableBuilder for BrTableBuilder {
-    type BrTable = BrTable2;
+    type BrTable = BrTable;
 
     fn new(targets_hint: usize) -> Self {
         Self { targets: Vec::with_capacity(targets_hint) }
@@ -298,9 +298,9 @@ impl WasmBrTableBuilder for BrTableBuilder {
         self.targets.push(target);
     }
 
-    fn default_target(mut self, default_target: u32) -> BrTable2 {
+    fn default_target(mut self, default_target: u32) -> BrTable {
         self.targets.push(default_target);
-        BrTable2 {
+        BrTable {
             targets: self.targets.into_boxed_slice(),
             default_target,
         }
@@ -358,7 +358,7 @@ pub enum Operator {
     End,
     Br { relative_depth: u32 },
     BrIf { relative_depth: u32 },
-    BrTable { table: BrTable2 },
+    BrTable { table: BrTable },
     Return,
     Call { function_index: u32 },
     CallIndirect { index: u32, table_index: u32 },

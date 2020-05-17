@@ -23,7 +23,7 @@ use crate::limits::{
 };
 
 use crate::primitives::{
-    BinaryReaderError, BrTable2, CustomSectionKind, ExternalKind, FuncType, GlobalType,
+    BinaryReaderError, BrTable, CustomSectionKind, ExternalKind, FuncType, GlobalType,
     Ieee32, Ieee64, LinkingType, MemoryImmediate, MemoryType, NameType, Operator, RelocType,
     ResizableLimits, Result, SIMDLaneIndex, SectionCode, TableType, Type, TypeOrFuncType, V128,
 };
@@ -360,8 +360,8 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
-    fn read_br_table(&mut self) -> Result<BrTable2> {
-        BrTable2::read_table::<crate::BrTableBuilder>(self)
+    fn read_br_table(&mut self) -> Result<BrTable> {
+        BrTable::read_table::<crate::BrTableBuilder>(self)
     }
 
     /// Returns whether the `BinaryReader` has reached the end of the file.
@@ -1682,17 +1682,17 @@ impl<'a> BinaryReader<'a> {
 
 use crate::primitives::WasmBrTableBuilder;
 
-impl BrTable2 {
+impl BrTable {
     /// Reads branch table (`br_table`) entries from the given buffer.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// # use wasmparser::{BinaryReader, BrTable2, BrTableBuilder, WasmBrTable, WasmBrTableBuilder};
+    /// # use wasmparser::{BinaryReader, BrTable, BrTableBuilder, WasmBrTable, WasmBrTableBuilder};
     /// // `0x0e` (`br_table` ID) and count already parsed at this point:
     /// let buffer = vec![0x02, 0x01, 0x02, 0x00];
     /// let mut reader = BinaryReader::new(&buffer);
-    /// let br_table = BrTable2::read_table::<BrTableBuilder>(&mut reader).unwrap();
+    /// let br_table = BrTable::read_table::<BrTableBuilder>(&mut reader).unwrap();
     /// let expected = {
     ///     let mut builder = BrTableBuilder::new(2);
     ///     builder.push_target(1);
