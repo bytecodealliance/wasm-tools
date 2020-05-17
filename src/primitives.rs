@@ -219,44 +219,64 @@ pub struct BrTable<'a> {
     pub(crate) cnt: usize,
 }
 
+/// Trait implemented by Wasm branching table (`br_table`) operators.
+pub trait WasmBrTable {
+    /// Returns the number of branching targets, not including the default label.
+    fn len(&self) -> usize;
+
+    /// Returns `true` if the branch table doesn't have any labels apart from the default one.
+    fn is_empty(&self) -> bool;
+
+    /// Returns the branch offset for the target at the given index.
+    fn target_offset(&self, at: usize) -> Option<u32>;
+
+    /// Returns the default branch offset.
+    fn default_offset(&self) -> u32;
+}
+
+/// Trait implemented by Wasm branching table builders.
+///
+/// A branching table builder can build up a Wasm branch table incrementally
+/// while upholding its invariants throughout the building process. This way
+/// the internals of the Wasm branching table are less constraint by the build
+/// procedure.
+pub trait WasmBrTableBuilder: Default {
+    /// The branch table that is going to be build.
+    type BrTable;
+
+    /// Pushes another branching target offset to the built branch table.
+    fn push_target(&mut self, offset: u32);
+
+    /// Finalizes the branching table with the given default offset.
+    fn default_target(self, default_offset: u32) -> Self::BrTable;
+}
+
 /// A branch table (`br_table`).
 ///
 /// Stores its target and default branch offsets.
 #[derive(Debug, Clone)]
 pub struct BrTable2 {
     /// Non-empty vector storing the target offsets followed by the default offset.
-    targets: Vec<u32>,
+    targets: Box<[u32]>,
+    /// The default target offset.
+    default_target: u32,
 }
 
-impl BrTable2 {
-    /// Creates a new branch table builder.
-    pub fn new() -> BrTableBuilder {
-        BrTableBuilder::default()
-    }
-
-    /// Returns an iterator over the non-default branching targets.
-    pub fn non_default_targets<'a>(&'a self) -> impl Iterator<Item = u32> + 'a {
-        self.targets.iter().copied()
-    }
-
-    /// Returns an iterator over the branching targets.
-    pub fn targets(&self) -> core::slice::Iter<u32> {
-        self.targets.iter()
-    }
-
-    /// Returns the number of non-default branch targets.
-    pub fn len_non_default_targets(&self) -> usize {
+impl WasmBrTable for BrTable2 {
+    fn len(&self) -> usize {
         self.targets.len().saturating_sub(1)
     }
 
-    /// Returns the number of branch target.
-    pub fn len_targets(&self) -> usize {
-        self.targets.len()
+    fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
-    /// Returns the default branch offset.
-    pub fn default_offset(&self) -> u32 {
-        self.targets.last().copied().expect("targets list is empty")
+    fn target_offset(&self, at: usize) -> Option<u32> {
+        self.targets.get(at).copied()
+    }
+
+    fn default_offset(&self) -> u32 {
+        self.default_target
     }
 }
 
@@ -264,37 +284,30 @@ impl BrTable2 {
 #[derive(Debug)]
 pub struct BrTableBuilder {
     /// The building branch table.
-    br_table: BrTable2,
+    targets: Vec<u32>,
 }
 
 impl Default for BrTableBuilder {
     fn default() -> Self {
-        Self { br_table: BrTable2 { targets: Vec::new() } }
+        Self {
+            targets: Vec::new(),
+        }
     }
 }
 
-impl BrTableBuilder {
-    /// Pushes another branching target to the branch table.
-    pub fn push_target(mut self, target: u32) -> Self {
-        self.br_table.targets.push(target);
-        self
+impl WasmBrTableBuilder for BrTableBuilder {
+    type BrTable = BrTable2;
+
+    fn push_target(&mut self, target: u32) {
+        self.targets.push(target);
     }
 
-    /// Pushes the given branching targets to the branch table.
-    pub fn push_targets<I>(mut self, targets: I) -> Self
-    where
-        I: IntoIterator<Item = u32>,
-    {
-        for target in targets {
-            self.br_table.targets.push(target);
+    fn default_target(mut self, default_target: u32) -> BrTable2 {
+        self.targets.push(default_target);
+        BrTable2 {
+            targets: self.targets.into_boxed_slice(),
+            default_target,
         }
-        self
-    }
-
-    /// Finalizes the branch table with the given default branching offset.
-    pub fn default_target(mut self, default_target: u32) -> BrTable2 {
-        self.br_table.targets.push(default_target);
-        self.br_table
     }
 }
 
