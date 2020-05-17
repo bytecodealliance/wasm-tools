@@ -48,7 +48,7 @@ impl<'a> OperatorsReader<'a> {
         ))
     }
 
-    pub fn read<'b>(&mut self) -> Result<Operator<'b>>
+    pub fn read<'b>(&mut self) -> Result<Operator>
     where
         'a: 'b,
     {
@@ -65,7 +65,7 @@ impl<'a> OperatorsReader<'a> {
         }
     }
 
-    pub fn read_with_offset<'b>(&mut self) -> Result<(Operator<'b>, usize)>
+    pub fn read_with_offset<'b>(&mut self) -> Result<(Operator, usize)>
     where
         'a: 'b,
     {
@@ -75,7 +75,7 @@ impl<'a> OperatorsReader<'a> {
 }
 
 impl<'a> IntoIterator for OperatorsReader<'a> {
-    type Item = Result<Operator<'a>>;
+    type Item = Result<Operator>;
     type IntoIter = OperatorsIterator<'a>;
 
     /// Reads content of the code section.
@@ -116,7 +116,7 @@ pub struct OperatorsIterator<'a> {
 }
 
 impl<'a> Iterator for OperatorsIterator<'a> {
-    type Item = Result<Operator<'a>>;
+    type Item = Result<Operator>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.err || self.reader.eof() {
@@ -134,7 +134,7 @@ pub struct OperatorsIteratorWithOffsets<'a> {
 }
 
 impl<'a> Iterator for OperatorsIteratorWithOffsets<'a> {
-    type Item = Result<(Operator<'a>, usize)>;
+    type Item = Result<(Operator, usize)>;
 
     /// Reads content of the code section with offsets.
     ///

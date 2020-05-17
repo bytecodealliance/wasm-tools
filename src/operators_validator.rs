@@ -947,14 +947,26 @@ impl OperatorValidator {
             Operator::BrTable { ref table } => {
                 self.check_operands_1(Type::I32)?;
                 let mut depth0: Option<u32> = None;
-                for relative_depth in table {
+                use crate::WasmBrTable as _;
+                let len_targets = table.len();
+                fn check_target(validator: &OperatorValidator, depth0: &mut Option<u32>, relative_depth: u32) -> OperatorValidatorResult<()> {
                     if depth0.is_none() {
-                        self.check_jump_from_block(relative_depth, 1)?;
-                        depth0 = Some(relative_depth);
-                        continue;
+                        validator.check_jump_from_block(relative_depth, 1)?;
+                        depth0.replace(relative_depth);
+                    } else {
+                        validator.match_block_return(relative_depth, depth0.unwrap())?;
                     }
-                    self.match_block_return(relative_depth, depth0.unwrap())?;
+                    validator.match_block_return(relative_depth, depth0.unwrap())?;
+                    Ok(())
                 }
+                // Check normal branch targets:
+                for i in 0..len_targets {
+                    let relative_depth = table.target_offset(i).expect("encountered missing target");
+                    check_target(self, &mut depth0, relative_depth)?;
+                }
+                // Check default branch target:
+                let default_depth = table.default_offset();
+                check_target(self, &mut depth0, default_depth)?;
                 self.func_state.start_dead_code()
             }
             Operator::Return => {

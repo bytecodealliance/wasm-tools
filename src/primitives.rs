@@ -355,7 +355,7 @@ pub type SIMDLaneIndex = u8;
 ///
 /// [here]: https://webassembly.github.io/spec/core/binary/instructions.html
 #[derive(Debug, Clone)]
-pub enum Operator<'a> {
+pub enum Operator {
     Unreachable,
     Nop,
     Block { ty: TypeOrFuncType },
@@ -365,7 +365,7 @@ pub enum Operator<'a> {
     End,
     Br { relative_depth: u32 },
     BrIf { relative_depth: u32 },
-    BrTable { table: BrTable<'a> },
+    BrTable { table: BrTable2 },
     Return,
     Call { function_index: u32 },
     CallIndirect { index: u32, table_index: u32 },

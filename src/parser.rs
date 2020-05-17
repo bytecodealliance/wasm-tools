@@ -104,7 +104,7 @@ pub enum ParserState<'a> {
     DataCountSectionEntry(u32),
 
     BeginInitExpressionBody,
-    InitExpressionOperator(Operator<'a>),
+    InitExpressionOperator(Operator),
     EndInitExpressionBody,
 
     BeginFunctionBody {
@@ -113,7 +113,7 @@ pub enum ParserState<'a> {
     FunctionBodyLocals {
         locals: Box<[(u32, Type)]>,
     },
-    CodeOperator(Operator<'a>),
+    CodeOperator(Operator),
     EndFunctionBody,
     SkippingFunctionBody,
 

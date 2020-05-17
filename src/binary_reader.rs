@@ -24,8 +24,8 @@ use crate::limits::{
 };
 
 use crate::primitives::{
-    BinaryReaderError, BrTable, CustomSectionKind, ExternalKind, FuncType, GlobalType, Ieee32,
-    Ieee64, LinkingType, MemoryImmediate, MemoryType, NameType, Operator, RelocType,
+    BinaryReaderError, BrTable, BrTable2, CustomSectionKind, ExternalKind, FuncType, GlobalType,
+    Ieee32, Ieee64, LinkingType, MemoryImmediate, MemoryType, NameType, Operator, RelocType,
     ResizableLimits, Result, SIMDLaneIndex, SectionCode, TableType, Type, TypeOrFuncType, V128,
 };
 
@@ -361,23 +361,8 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
-    fn read_br_table(&mut self) -> Result<BrTable<'a>> {
-        let targets_len = self.read_var_u32()? as usize;
-        if targets_len > MAX_WASM_BR_TABLE_SIZE {
-            return Err(BinaryReaderError::new(
-                "br_table size is out of bound",
-                self.original_position() - 1,
-            ));
-        }
-        let start = self.position;
-        for _ in 0..targets_len {
-            self.skip_var_32()?;
-        }
-        self.skip_var_32()?;
-        Ok(BrTable {
-            buffer: &self.buffer[start..self.position],
-            cnt: targets_len as usize,
-        })
+    fn read_br_table(&mut self) -> Result<BrTable2> {
+        BrTable2::read_table::<crate::BrTableBuilder>(self.buffer)
     }
 
     /// Returns whether the `BinaryReader` has reached the end of the file.
@@ -712,7 +697,7 @@ impl<'a> BinaryReader<'a> {
         Ok(imm)
     }
 
-    fn read_0xfe_operator(&mut self) -> Result<Operator<'a>> {
+    fn read_0xfe_operator(&mut self) -> Result<Operator> {
         let code = self.read_u8()? as u8;
         Ok(match code {
             0x00 => Operator::AtomicNotify {
@@ -944,7 +929,7 @@ impl<'a> BinaryReader<'a> {
     /// # Errors
     /// If `BinaryReader` has less bytes remaining than required to parse
     /// the `Operator`.
-    pub fn read_operator(&mut self) -> Result<Operator<'a>> {
+    pub fn read_operator(&mut self) -> Result<Operator> {
         let code = self.read_u8()? as u8;
         Ok(match code {
             0x00 => Operator::Unreachable,
@@ -1252,7 +1237,7 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    fn read_0xfc_operator(&mut self) -> Result<Operator<'a>> {
+    fn read_0xfc_operator(&mut self) -> Result<Operator> {
         let code = self.read_u8()? as u8;
         Ok(match code {
             0x00 => Operator::I32TruncSatF32S,
@@ -1364,7 +1349,7 @@ impl<'a> BinaryReader<'a> {
         Ok(V128(bytes))
     }
 
-    fn read_0xfd_operator(&mut self) -> Result<Operator<'a>> {
+    fn read_0xfd_operator(&mut self) -> Result<Operator> {
         let code = self.read_var_u32()?;
         Ok(match code {
             0x00 => Operator::V128Load {
@@ -1693,6 +1678,63 @@ impl<'a> BinaryReader<'a> {
                 return Ok(());
             }
         }
+    }
+}
+
+use crate::primitives::WasmBrTableBuilder;
+
+impl BrTable2 {
+    /// Reads branch table (`br_table`) entries from the given buffer.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // `0x0e` (`br_table` ID) and count already parsed at this point:
+    /// let buffer = vec![0x02, 0x01, 0x02, 0x00];
+    /// # use wasmparser::{BrTable2, WasmBrTable, WasmBrTableBuilder};
+    /// let br_table = BrTable2::read_table::<WasmBrTableBuilder>(&buffer).unwrap();
+    /// let expected = {
+    ///     let mut builder = BrTableBuilder::default();
+    ///     builder.push_target(1);
+    ///     builder.push_target(2);
+    ///     builder.default_target(0)
+    /// };
+    /// assert_eq!(br_table, expected);
+    /// ```
+    pub fn read_table<B>(buffer: &[u8]) -> Result<Self>
+    where
+        B: WasmBrTableBuilder<BrTable = Self>,
+    {
+        let mut reader = BinaryReader::new(buffer);
+        let targets_len = reader.read_var_u32().map_err(|_| {
+            BinaryReaderError::new(
+                "br_table: missing target count",
+                reader.original_position(),
+            )
+        })? as usize;
+        if targets_len > MAX_WASM_BR_TABLE_SIZE {
+            return Err(BinaryReaderError::new(
+                "br_table: size is out of bound",
+                reader.original_position() - 1,
+            ));
+        }
+        let mut builder = <B as WasmBrTableBuilder>::new(targets_len);
+        for _ in 0..targets_len {
+            let target = reader.read_var_u32().map_err(|_| {
+                BinaryReaderError::new(
+                    "br_table: encountered invalid or missing branch target",
+                    reader.original_position(),
+                )
+            })?;
+            builder.push_target(target);
+        }
+        let default_target = reader.read_var_u32().map_err(|_| {
+            BinaryReaderError::new(
+                "br_table: missing default target",
+                reader.original_position(),
+            )
+        })?;
+        Ok(builder.default_target(default_target))
     }
 }
 

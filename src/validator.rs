@@ -853,7 +853,7 @@ impl<'b> ValidatingOperatorParser<'b> {
             MemoryType = M,
             GlobalType = G,
         >,
-    ) -> Result<Operator<'c>>
+    ) -> Result<Operator>
     where
         'b: 'c,
     {
