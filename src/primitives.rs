@@ -212,13 +212,6 @@ pub enum RelocType {
     GlobalIndexLEB,
 }
 
-/// A br_table entries representation.
-#[derive(Debug, Clone)]
-pub struct BrTable<'a> {
-    pub(crate) buffer: &'a [u8],
-    pub(crate) cnt: usize,
-}
-
 /// Trait implemented by Wasm branching table (`br_table`) operators.
 pub trait WasmBrTable {
     /// Returns the number of branching targets, not including the default label.

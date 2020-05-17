@@ -13,7 +13,6 @@
  * limitations under the License.
  */
 
-use std::boxed::Box;
 use std::convert::TryInto;
 use std::str;
 use std::vec::Vec;
@@ -24,7 +23,7 @@ use crate::limits::{
 };
 
 use crate::primitives::{
-    BinaryReaderError, BrTable, BrTable2, CustomSectionKind, ExternalKind, FuncType, GlobalType,
+    BinaryReaderError, BrTable2, CustomSectionKind, ExternalKind, FuncType, GlobalType,
     Ieee32, Ieee64, LinkingType, MemoryImmediate, MemoryType, NameType, Operator, RelocType,
     ResizableLimits, Result, SIMDLaneIndex, SectionCode, TableType, Type, TypeOrFuncType, V128,
 };
@@ -1732,88 +1731,5 @@ impl BrTable2 {
             )
         })?;
         Ok(builder.default_target(default_target))
-    }
-}
-
-impl<'a> BrTable<'a> {
-    /// Returns the number of `br_table` entries, not including the default
-    /// label
-    pub fn len(&self) -> usize {
-        self.cnt
-    }
-
-    /// Returns whether `BrTable` doesn't have any labels apart from the default one.
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    /// Reads br_table entries.
-    ///
-    /// # Examples
-    /// ```rust
-    /// let buf = vec![0x0e, 0x02, 0x01, 0x02, 0x00];
-    /// let mut reader = wasmparser::BinaryReader::new(&buf);
-    /// let op = reader.read_operator().unwrap();
-    /// if let wasmparser::Operator::BrTable { ref table } = op {
-    ///     let br_table_depths = table.read_table().unwrap();
-    ///     assert!(br_table_depths.0 == vec![1,2].into_boxed_slice() &&
-    ///             br_table_depths.1 == 0);
-    /// } else {
-    ///     unreachable!();
-    /// }
-    /// ```
-    pub fn read_table(&self) -> Result<(Box<[u32]>, u32)> {
-        let mut reader = BinaryReader::new(self.buffer);
-        let mut table = Vec::new();
-        while !reader.eof() {
-            table.push(reader.read_var_u32()?);
-        }
-        let default_target = table.pop().ok_or_else(|| {
-            BinaryReaderError::new(
-                "br_table missing default target",
-                reader.original_position(),
-            )
-        })?;
-        Ok((table.into_boxed_slice(), default_target))
-    }
-}
-
-/// Iterator for `BrTable`.
-///
-/// #Examples
-/// ```rust
-/// let buf = vec![0x0e, 0x02, 0x01, 0x02, 0x00];
-/// let mut reader = wasmparser::BinaryReader::new(&buf);
-/// let op = reader.read_operator().unwrap();
-/// if let wasmparser::Operator::BrTable { ref table } = op {
-///     for depth in table {
-///         println!("BrTable depth: {}", depth);
-///     }
-/// }
-/// ```
-#[derive(Clone, Debug)]
-pub struct BrTableIterator<'a> {
-    reader: BinaryReader<'a>,
-}
-
-impl<'a> IntoIterator for &'a BrTable<'a> {
-    type Item = u32;
-    type IntoIter = BrTableIterator<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        BrTableIterator {
-            reader: BinaryReader::new(self.buffer),
-        }
-    }
-}
-
-impl<'a> Iterator for BrTableIterator<'a> {
-    type Item = u32;
-
-    fn next(&mut self) -> Option<u32> {
-        if self.reader.eof() {
-            return None;
-        }
-        self.reader.read_var_u32().ok()
     }
 }
