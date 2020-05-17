@@ -219,6 +219,85 @@ pub struct BrTable<'a> {
     pub(crate) cnt: usize,
 }
 
+/// A branch table (`br_table`).
+///
+/// Stores its target and default branch offsets.
+#[derive(Debug, Clone)]
+pub struct BrTable2 {
+    /// Non-empty vector storing the target offsets followed by the default offset.
+    targets: Vec<u32>,
+}
+
+impl BrTable2 {
+    /// Creates a new branch table builder.
+    pub fn new() -> BrTableBuilder {
+        BrTableBuilder::default()
+    }
+
+    /// Returns an iterator over the non-default branching targets.
+    pub fn non_default_targets<'a>(&'a self) -> impl Iterator<Item = u32> + 'a {
+        self.targets.iter().copied()
+    }
+
+    /// Returns an iterator over the branching targets.
+    pub fn targets(&self) -> core::slice::Iter<u32> {
+        self.targets.iter()
+    }
+
+    /// Returns the number of non-default branch targets.
+    pub fn len_non_default_targets(&self) -> usize {
+        self.targets.len().saturating_sub(1)
+    }
+
+    /// Returns the number of branch target.
+    pub fn len_targets(&self) -> usize {
+        self.targets.len()
+    }
+
+    /// Returns the default branch offset.
+    pub fn default_offset(&self) -> u32 {
+        self.targets.last().copied().expect("targets list is empty")
+    }
+}
+
+/// A builder for a branch table (`br_table`).
+#[derive(Debug)]
+pub struct BrTableBuilder {
+    /// The building branch table.
+    br_table: BrTable2,
+}
+
+impl Default for BrTableBuilder {
+    fn default() -> Self {
+        Self { br_table: BrTable2 { targets: Vec::new() } }
+    }
+}
+
+impl BrTableBuilder {
+    /// Pushes another branching target to the branch table.
+    pub fn push_target(mut self, target: u32) -> Self {
+        self.br_table.targets.push(target);
+        self
+    }
+
+    /// Pushes the given branching targets to the branch table.
+    pub fn push_targets<I>(mut self, targets: I) -> Self
+    where
+        I: IntoIterator<Item = u32>,
+    {
+        for target in targets {
+            self.br_table.targets.push(target);
+        }
+        self
+    }
+
+    /// Finalizes the branch table with the given default branching offset.
+    pub fn default_target(mut self, default_target: u32) -> BrTable2 {
+        self.br_table.targets.push(default_target);
+        self.br_table
+    }
+}
+
 /// An IEEE binary32 immediate floating point value, represented as a u32
 /// containing the bitpattern.
 ///
