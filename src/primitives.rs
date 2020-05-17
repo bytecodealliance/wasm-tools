@@ -240,9 +240,16 @@ pub trait WasmBrTable {
 /// while upholding its invariants throughout the building process. This way
 /// the internals of the Wasm branching table are less constraint by the build
 /// procedure.
-pub trait WasmBrTableBuilder: Default {
+pub trait WasmBrTableBuilder {
     /// The branch table that is going to be build.
     type BrTable;
+
+    /// Creates a new branch table builder.
+    ///
+    /// The `targets_hint` tells the builder how many branch targets it can
+    /// expect. This can be used by the builder in order to speed-up
+    /// the branch table construction.
+    fn new(targets_hint: usize) -> Self;
 
     /// Pushes another branching target offset to the built branch table.
     fn push_target(&mut self, offset: u32);
@@ -287,16 +294,12 @@ pub struct BrTableBuilder {
     targets: Vec<u32>,
 }
 
-impl Default for BrTableBuilder {
-    fn default() -> Self {
-        Self {
-            targets: Vec::new(),
-        }
-    }
-}
-
 impl WasmBrTableBuilder for BrTableBuilder {
     type BrTable = BrTable2;
+
+    fn new(targets_hint: usize) -> Self {
+        Self { targets: Vec::with_capacity(targets_hint) }
+    }
 
     fn push_target(&mut self, target: u32) {
         self.targets.push(target);
