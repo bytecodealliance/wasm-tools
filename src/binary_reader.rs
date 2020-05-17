@@ -362,7 +362,7 @@ impl<'a> BinaryReader<'a> {
     }
 
     fn read_br_table(&mut self) -> Result<BrTable2> {
-        BrTable2::read_table::<crate::BrTableBuilder>(self.buffer)
+        BrTable2::read_table::<crate::BrTableBuilder>(self)
     }
 
     /// Returns whether the `BinaryReader` has reached the end of the file.
@@ -1689,28 +1689,25 @@ impl BrTable2 {
     /// # Examples
     ///
     /// ```rust
+    /// # use wasmparser::{BinaryReader, BrTable2, BrTableBuilder, WasmBrTable, WasmBrTableBuilder};
     /// // `0x0e` (`br_table` ID) and count already parsed at this point:
     /// let buffer = vec![0x02, 0x01, 0x02, 0x00];
-    /// # use wasmparser::{BrTable2, WasmBrTable, WasmBrTableBuilder};
-    /// let br_table = BrTable2::read_table::<WasmBrTableBuilder>(&buffer).unwrap();
+    /// let mut reader = BinaryReader::new(&buffer);
+    /// let br_table = BrTable2::read_table::<BrTableBuilder>(&mut reader).unwrap();
     /// let expected = {
-    ///     let mut builder = BrTableBuilder::default();
+    ///     let mut builder = BrTableBuilder::new(2);
     ///     builder.push_target(1);
     ///     builder.push_target(2);
     ///     builder.default_target(0)
     /// };
     /// assert_eq!(br_table, expected);
     /// ```
-    pub fn read_table<B>(buffer: &[u8]) -> Result<Self>
+    pub fn read_table<B>(reader: &mut BinaryReader) -> Result<Self>
     where
         B: WasmBrTableBuilder<BrTable = Self>,
     {
-        let mut reader = BinaryReader::new(buffer);
         let targets_len = reader.read_var_u32().map_err(|_| {
-            BinaryReaderError::new(
-                "br_table: missing target count",
-                reader.original_position(),
-            )
+            BinaryReaderError::new("br_table: missing target count", reader.original_position())
         })? as usize;
         if targets_len > MAX_WASM_BR_TABLE_SIZE {
             return Err(BinaryReaderError::new(
