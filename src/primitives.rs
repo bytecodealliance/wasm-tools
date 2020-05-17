@@ -261,7 +261,7 @@ pub trait WasmBrTableBuilder {
 /// A branch table (`br_table`).
 ///
 /// Stores its target and default branch offsets.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BrTable2 {
     /// Non-empty vector storing the target offsets followed by the default offset.
     targets: Box<[u32]>,
