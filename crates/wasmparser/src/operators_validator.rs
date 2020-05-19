@@ -338,7 +338,7 @@ pub(crate) const DEFAULT_OPERATOR_VALIDATOR_CONFIG: OperatorValidatorConfig =
         enable_reference_types: false,
         enable_simd: false,
         enable_bulk_memory: false,
-        enable_multi_value: false,
+        enable_multi_value: true,
 
         #[cfg(feature = "deterministic")]
         deterministic_only: true,
@@ -627,36 +627,6 @@ impl OperatorValidator {
         Ok(())
     }
 
-    fn check_shared_memory_index<
-        F: WasmFuncType,
-        T: WasmTableType,
-        M: WasmMemoryType,
-        G: WasmGlobalType,
-    >(
-        &self,
-        memory_index: u32,
-        resources: &dyn WasmModuleResources<
-            FuncType = F,
-            TableType = T,
-            MemoryType = M,
-            GlobalType = G,
-        >,
-    ) -> OperatorValidatorResult<()> {
-        match resources.memory_at(memory_index) {
-            Some(memory) if !memory.is_shared() => {
-                return Err(OperatorValidatorError::new(
-                    "atomic accesses require shared memory",
-                ))
-            }
-            None => {
-                return Err(OperatorValidatorError::new(
-                    "no linear memories are present",
-                ))
-            }
-            _ => Ok(()),
-        }
-    }
-
     fn check_memarg<F: WasmFuncType, T: WasmTableType, M: WasmMemoryType, G: WasmGlobalType>(
         &self,
         memarg: MemoryImmediate,
@@ -743,7 +713,7 @@ impl OperatorValidator {
             GlobalType = G,
         >,
     ) -> OperatorValidatorResult<()> {
-        self.check_shared_memory_index(0, resources)?;
+        self.check_memory_index(0, resources)?;
         Ok(())
     }
 

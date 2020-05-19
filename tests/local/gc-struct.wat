@@ -1,3 +1,5 @@
+;; --enable-gc
+
 (module
   (type (struct))
   (type (struct (field i32)))

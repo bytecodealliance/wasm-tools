@@ -1,3 +1,5 @@
+;; --enable-gc
+
 (module
   (type $a (struct))
   (type $b (struct))

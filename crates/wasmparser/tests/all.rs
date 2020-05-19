@@ -209,33 +209,6 @@ fn run_wast(filename: &Path, wast: &[u8]) -> Result<()> {
     if contents.contains("--enable-multi-value") {
         config.operator_config.enable_multi_value = true;
     }
-
-    let errors = wast
-        .directives
-        .into_par_iter()
-        .filter_map(|directive| {
-            let (line, col) = directive.span().linecol_in(&contents);
-            if skip_wast_test(filename, line + 1) {
-                return None;
-            }
-            run_directive(directive, &config)
-                .context(format!(
-                    "{}:{}:{}: wast directive failed",
-                    filename.display(),
-                    line + 1,
-                    col + 1
-                ))
-                .err()
-        })
-        .collect::<Vec<_>>();
-    if errors.len() > 0 {
-        let mut error = String::new();
-        for e in errors {
-            error.push_str(&format!("{:?}\n", e));
-        }
-        bail!("{}", error)
-    }
-    Ok(())
 }
 
 fn skip_wast_test(filename: &Path, line: usize) -> bool {
@@ -273,39 +246,6 @@ fn run_directive(directive: wast::WastDirective, config: &ValidatingParserConfig
             let wasm = module.encode()?;
             valid_wasm(&wasm, config.clone())?;
         }
-        AssertInvalid {
-            mut module,
-            message,
-            span: _,
-        } => {
-            let e = invalid_wasm(&module.encode()?, config.clone())?;
-            if !e.message().contains(message) {
-                bail!(
-                    "expected \"{spec}\", got \"{actual}\"",
-                    spec = message,
-                    actual = e,
-                );
-            }
-        }
-        AssertMalformed {
-            module: wast::QuoteModule::Module(mut module),
-            ..
-        } => {
-            let e = invalid_wasm(&module.encode()?, config.clone())?;
-            // TODO: Check the assert_malformed message
-            drop(e);
-        }
-
-        AssertMalformed {
-            module: wast::QuoteModule::Quote(_),
-            ..
-        }
-        | Register { .. }
-        | QuoteModule { .. }
-        | Invoke { .. }
-        | AssertTrap { .. }
-        | AssertReturn { .. }
-        | AssertExhaustion { .. } => {}
     }
     Ok(())
 }
