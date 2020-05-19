@@ -195,6 +195,10 @@ impl TestState {
         // Finally we test that this is indeed a valid wasm file. Note,
         // however, that wasmparser doesn't implement all features that wabt
         // does, so we skip some tests here too.
+        //
+        // TODO: implement tails calls in wasmparser
+        // TODO: implement gc types in wasmparser
+        // TODO: implement exceptions in wasmparser
         if !contents.contains("--enable-tail-call")
             && !contents.contains("--enable-exceptions")
             && !contents.contains("--enable-gc")
@@ -215,11 +219,32 @@ impl TestState {
 
         self.test_wasm_valid(test, contents)?;
 
-        // Test that we can print the bytes, parse them, and get the exact
-        // same bytes.
+        // Test that we can print these bytes, and if available make sure it
+        // matches wabt.
+        //
+        // TODO reference types are skiped here from wabt since those
+        //      haven't been renamed to externref yet.
+        let string = wasmprinter::print_bytes(contents)?;
+        self.bump_ntests();
+        if !test.iter().any(|t| t == "reference-types")
+            && !test.iter().any(|t| t == "bulk-memory-operations")
+            && !test.ends_with("table-set.txt")
+            && !test.ends_with("fold-reference-types.txt")
+            && !test.ends_with("if-anyref.txt")
+            && !test.ends_with("table-get.txt")
+            && !test.ends_with("table-multi.txt")
+            && !test.ends_with("local/ref.wat")
+            && !test.ends_with("local/table-copy.wat")
+            && !test.ends_with("local/reloc.wasm")
+        {
+            if let Some(expected) = self.wasm2wat(contents)? {
+                self.string_compare(&string, &expected)?;
+            }
+        }
+
+        // If we can, convert the string back to bytes and assert it has the
+        // same binary representation.
         if test_roundtrip {
-            let string = wasmprinter::print_bytes(contents)?;
-            self.bump_ntests();
             let binary2 = wat::parse_str(&string)?;
             self.bump_ntests();
             self.binary_compare(&binary2, contents, false)?;
@@ -431,6 +456,52 @@ impl TestState {
                 self.bump_ntests();
                 Ok(err)
             }
+        }
+    }
+
+    fn string_compare(&self, actual: &str, expected: &str) -> Result<()> {
+        let actual = normalize(&actual);
+        let expected = normalize(&expected);
+
+        fn normalize(s: &str) -> String {
+            let mut s = s.trim().to_string();
+
+            // We seem to have different decimal float printing than wabt, and a
+            // hand-check seems to show that they're equivalent just different
+            // renderings. To paper over these inconsequential differences delete
+            // these comments.
+            while let Some(i) = s.find(" (;=") {
+                let end = s[i..].find(";)").unwrap();
+                s.drain(i..end + i + 2);
+            }
+            return s;
+        }
+
+        let mut bad = false;
+        let mut result = String::new();
+        for diff in diff::lines(&expected, &actual) {
+            match diff {
+                diff::Result::Left(s) => {
+                    bad = true;
+                    result.push_str("-");
+                    result.push_str(s);
+                }
+                diff::Result::Right(s) => {
+                    bad = true;
+                    result.push_str("+");
+                    result.push_str(s);
+                }
+                diff::Result::Both(s, _) => {
+                    result.push_str(" ");
+                    result.push_str(s);
+                }
+            }
+            result.push_str("\n");
+        }
+        if bad {
+            bail!("expected != actual\n\n{}", result);
+        } else {
+            Ok(())
         }
     }
 
@@ -647,6 +718,32 @@ impl TestState {
             // TODO: handle this case better
             None
         })
+    }
+
+    fn wasm2wat(&self, contents: &[u8]) -> Result<Option<String>> {
+        let f = tempfile::TempDir::new().unwrap();
+        let wasm = f.path().join("wasm");
+        let wat = f.path().join("wat");
+        fs::write(&wasm, contents).context("failed to write wasm file")?;
+        let result = Command::new("wasm2wat")
+            .arg(&wasm)
+            .arg("--enable-all")
+            .arg("--no-check")
+            .arg("-o")
+            .arg(&wat)
+            .output()
+            .context("failed to spawn `wasm2wat`")?;
+        if result.status.success() {
+            Ok(Some(
+                fs::read_to_string(&wat).context("failed to read wat file")?,
+            ))
+        } else {
+            bail!(
+                "failed to run wasm2wat: {}\n\n    {}",
+                result.status,
+                String::from_utf8_lossy(&result.stderr).replace("\n", "\n    "),
+            )
+        }
     }
 
     fn wast2json(&self, test: &Path) -> Result<Option<Wast2Json>> {
