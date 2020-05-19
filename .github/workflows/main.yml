@@ -45,17 +45,17 @@ jobs:
       run: choco install ninja
       if: matrix.os == 'windows-latest'
 
-    - name: Build wat2wasm
+    - name: Build wabt
       run: |
         set -e
         cd tests/wabt
-        cmake . -G Ninja
+        cmake . -G Ninja -DBUILD_TESTS=OFF
         ninja wast2json wat2wasm
       shell: bash
-    - name: Add wat2wasm to path (unix)
+    - name: Add wabt to path (unix)
       run: echo ::add-path::`pwd`/tests/wabt
       if: matrix.os != 'windows-latest'
-    - name: Add wat2wasm to path (windows)
+    - name: Add wabt to path (windows)
       run: echo ::add-path::D:/a/wasm-tools/wasm-tools/tests/wabt
       if: matrix.os == 'windows-latest'
 
