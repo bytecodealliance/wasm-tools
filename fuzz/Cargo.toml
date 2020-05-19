@@ -13,7 +13,6 @@ tempfile = "3.0"
 wasmparser = { path = "../crates/wasmparser" }
 wasmprinter = { path = "../crates/wasmprinter" }
 wast = { path = "../crates/wast" }
-wast-fuzz = { path = "../crates/wast-fuzz" }
 wat = { path = "../crates/wat" }
 
 [[bin]]
