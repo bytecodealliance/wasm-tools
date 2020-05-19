@@ -43,7 +43,7 @@ mod simple_tests {
 
     #[test]
     fn default_read() {
-        let data = read_file_data(&PathBuf::from("tests/simple.wasm"));
+        let data = read_file_data(&PathBuf::from("../../tests/local/simple.wasm"));
         let mut parser = Parser::new(data.as_slice());
 
         expect_state!(parser.read(), ParserState::BeginWasm { .. });
@@ -65,7 +65,7 @@ mod simple_tests {
 
     #[test]
     fn default_read_with_input() {
-        let data = read_file_data(&PathBuf::from("tests/simple.wasm"));
+        let data = read_file_data(&PathBuf::from("../../tests/local/simple.wasm"));
         let mut parser = Parser::new(data.as_slice());
 
         expect_state!(parser.read(), ParserState::BeginWasm { .. });
@@ -90,7 +90,7 @@ mod simple_tests {
 
     #[test]
     fn skipping() {
-        let data = read_file_data(&PathBuf::from("tests/naming.wasm"));
+        let data = read_file_data(&PathBuf::from("../../tests/local/naming.wasm"));
         let mut parser = Parser::new(data.as_slice());
 
         expect_state!(parser.read(),

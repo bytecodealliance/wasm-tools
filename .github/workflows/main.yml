@@ -29,9 +29,9 @@ jobs:
             os: windows-latest
             rust: stable
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
       with:
-        submodules: 'recursive'
+        submodules: true
     - name: Install Rust (rustup)
       run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
       shell: bash
@@ -56,11 +56,11 @@ jobs:
       run: echo ::add-path::`pwd`/tests/wabt
       if: matrix.os != 'windows-latest'
     - name: Add wat2wasm to path (windows)
-      run: echo ::add-path::D:/a/wat/wat/tests/wabt
+      run: echo ::add-path::D:/a/wasm-tools/wasm-tools/tests/wabt
       if: matrix.os == 'windows-latest'
 
-    - run: cargo test
-    - run: cargo test -p wast
+    - run: cargo test --all
+    - run: cargo test --manifest-path crates/wasmparser/Cargo.toml --features deterministic
     - run: cargo build --manifest-path crates/wast/Cargo.toml --no-default-features
     - run: cargo build --manifest-path crates/wast/Cargo.toml --no-default-features --features wasm-module
 
