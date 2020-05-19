@@ -1,12 +1,27 @@
-//! Finds as many tests as we can in the `wabt` submodule and does a few things:
+//! Finds as many tests as we can checked into this repository, and then runs a
+//! bunch of assertions over them.
 //!
-//! * First, asserts that we can parse and encode them all to binary.
-//! * Next uses `wat2wasm` to encode to binary.
-//! * Finally, asserts that the two binary encodings are byte-for-byte the same.
+//! * For `*.wast` files, parses them and runs as many directives as we can.
+//! * For `*.wast` files, parse them with `wat`, parse that with `wasmparser`,
+//!   and make sure `wasmprinter` + `wat` produces the same bytes.
+//! * For `*.wasm`, assert they're either valid or invalid depending on their
+//!   path name,
 //!
-//! This also has support for handling `*.wast` files from the official test
-//! suite which involve parsing as a wast file and handling assertions. Also has
-//! rudimentary support for running some of the assertions.
+//! The goal here is to make adding tests very easy. It should be as simple as
+//! dropping tests into the `tests/local` directory or updating one of the
+//! `tests/wabt` or `tests/testsuite` submodules. The `wabt` submodule is
+//! intended to pull in a number of tests that wabt itself uses. The `testsuite`
+//! submodule is the upstream git repository of the spec tests, including
+//! proposals.
+//!
+//! You can run this test suite with:
+//!
+//!     cargo test --test roundtrip
+//!
+//! An argument can be passed as well to filter, based on filename, which test
+//! to run
+//!
+//!     cargo test --test roundtrip local/ref.wat
 
 use anyhow::{bail, Context, Result};
 use rayon::prelude::*;
