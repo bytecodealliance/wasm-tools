@@ -1,0 +1,17 @@
+[package]
+name = "wasm-tools"
+version = "0.1.0"
+authors = ["The Wasmtime Project Developers"]
+edition = "2018"
+publish = false
+
+[workspace]
+
+[dependencies]
+wasmparser = { path = "crates/wasmparser" }
+wasmprinter = { path = "crates/wasmprinter" }
+wat = { path = "crates/wat" }
+
+[profile.release]
+debug-assertions = true
+overflow-checks = true
