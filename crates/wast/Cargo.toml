@@ -15,6 +15,12 @@ Customizable Rust parsers for the WebAssembly Text formats WAT and WAST
 [dependencies]
 leb128 = "0.2"
 
+[dev-dependencies]
+anyhow = "1.0"
+rayon = "1.0"
+wasmparser = { path = "../wasmparser" }
+wat = { path = "../wat" }
+
 [features]
 default = ['wasm-module']
 
@@ -25,3 +31,7 @@ default = ['wasm-module']
 #
 # This feature is turned on by default.
 wasm-module = []
+
+[[test]]
+name = "parse-fail"
+harness = false

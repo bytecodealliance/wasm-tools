@@ -13,4 +13,21 @@ anyhow = "1.0"
 getopts = "0.2"
 wasmparser = { path = "crates/wasmparser" }
 wasmprinter = { path = "crates/wasmprinter" }
+wast = { path = "crates/wast" }
 wat = { path = "crates/wat" }
+
+[dev-dependencies]
+anyhow = "1.0"
+getopts = "0.2"
+rayon = "1.0"
+serde_json = "1.0"
+tempfile = "3.1"
+diff = "0.1"
+
+[[test]]
+name = "dump"
+harness = false
+
+[[test]]
+name = "roundtrip"
+harness = false

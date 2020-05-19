@@ -14,12 +14,3 @@ Rust parser for the WebAssembly Text format, WAT
 
 [dependencies]
 wast = { path = '../wast', version = '17.0.0' }
-
-[dev-dependencies]
-anyhow = "1.0"
-getopts = "0.2"
-rayon = "1.0"
-serde_json = "1.0"
-tempfile = "3.1"
-wasmparser = { path = '../wasmparser' }
-diff = "0.1"
