@@ -6,6 +6,7 @@ edition = "2018"
 publish = false
 
 [workspace]
+members = ['fuzz']
 
 [dependencies]
 anyhow = "1.0"
