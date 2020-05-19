@@ -8,10 +8,8 @@ publish = false
 [workspace]
 
 [dependencies]
+anyhow = "1.0"
+getopts = "0.2"
 wasmparser = { path = "crates/wasmparser" }
 wasmprinter = { path = "crates/wasmprinter" }
 wat = { path = "crates/wat" }
-
-[profile.release]
-debug-assertions = true
-overflow-checks = true
