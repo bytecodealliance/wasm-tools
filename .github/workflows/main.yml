@@ -68,7 +68,7 @@ jobs:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: Install Rust
       run: rustup update stable && rustup default stable && rustup component add rustfmt
     - run: cargo fmt -- --check
@@ -76,39 +76,15 @@ jobs:
   fuzz:
     name: Fuzz
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        target: [parser, binary, lexer, wasm-opt-ttf]
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
       with:
-        submodules: 'recursive'
+        submodules: true
     - name: Install Rust
       run: rustup update nightly && rustup default nightly
     - run: cargo install cargo-fuzz
-
-    - name: Build wat2wasm
-      run: |
-        set -e
-        sudo apt install ninja-build
-        cd tests/wabt
-        cmake . -G Ninja
-        ninja wat2wasm
-        echo ::add-path::`pwd`
-
-    - name: Install wasm-opt
-      run: |
-        version=binaryen-version_89
-        curl -L https://github.com/WebAssembly/binaryen/releases/download/version_89/$version-x86_64-linux.tar.gz | tar xzvf -
-        echo ::add-path::`pwd`/$version
-
-    - run: cargo fuzz run --release ${{ matrix.target }} -- -max_total_time=30
-      env:
-        # See rust-fuzz/cargo-fuzz#161
-        RUSTFLAGS: -C codegen-units=1
-      if: matrix.target != 'wasm-opt-ttf'
-
-    - run: cargo test -p wast
-      env:
-        FUZZ_TIME_LIMIT: 30
-      if: matrix.target == 'wasm-opt-ttf'
+    - run: cargo fuzz run --release --debug-assertions text-lexer -- -jobs=4 -max_total_time=20
+    - run: cargo fuzz run --release --debug-assertions text-parser -- -jobs=4 -max_total_time=20
+    - run: cargo fuzz run --release --debug-assertions binary-parse -- -jobs=4 -max_total_time=20
+    - run: cargo fuzz run --release --debug-assertions validate -- -jobs=4 -max_total_time=20
+    - run: cargo fuzz run --release --debug-assertions print -- -jobs=4 -max_total_time=20
