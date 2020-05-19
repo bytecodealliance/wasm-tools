@@ -50,7 +50,7 @@ jobs:
         set -e
         cd tests/wabt
         cmake . -G Ninja -DBUILD_TESTS=OFF
-        ninja wast2json wat2wasm
+        ninja wast2json wat2wasm wasm2wat
       shell: bash
     - name: Add wabt to path (unix)
       run: echo ::add-path::`pwd`/tests/wabt
