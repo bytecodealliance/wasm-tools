@@ -520,7 +520,11 @@ impl Printer {
 
             Drop => self.result.push_str("drop"),
             Select => self.result.push_str("select"),
-            TypedSelect { .. } => self.result.push_str("select"),
+            TypedSelect { ty } => {
+                self.result.push_str("select (result ");
+                self.print_valtype(*ty)?;
+                self.result.push_str(")");
+            }
             LocalGet { local_index } => {
                 self.result.push_str("local.get ");
                 self.print_local_idx(self.func, *local_index)?;
@@ -581,11 +585,11 @@ impl Printer {
             }
 
             RefNull { ty } => {
-                self.result.push_str("ref.null");
+                self.result.push_str("ref.null ");
                 self.print_reftype(*ty)?;
             }
             RefIsNull { ty } => {
-                self.result.push_str("ref.is_null");
+                self.result.push_str("ref.is_null ");
                 self.print_reftype(*ty)?;
             }
             RefFunc { function_index } => {

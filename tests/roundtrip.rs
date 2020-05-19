@@ -158,7 +158,7 @@ impl TestState {
     fn run_test(&self, test: &Path, contents: &[u8]) -> Result<()> {
         let result = match test.extension().and_then(|s| s.to_str()) {
             Some("wat") => self.test_wat(test, contents),
-            Some("wasm") => self.test_wasm(test, contents),
+            Some("wasm") => self.test_wasm(test, contents, false),
             Some("wast") => self.test_wast(test, contents),
             Some("txt") => match str::from_utf8(contents) {
                 Ok(s) if s.contains("TOOL: wast2json") || s.contains("TOOL: run-objdump-spec") => {
@@ -186,7 +186,7 @@ impl TestState {
             && !test.ends_with("invalid-elem-segment-offset.txt")
         {
             if let Some(expected) = self.wat2wasm(&test)? {
-                self.binary_compare(&binary, &expected)?;
+                self.binary_compare(&binary, &expected, true)?;
             }
         }
 
@@ -202,17 +202,29 @@ impl TestState {
             && !test.ends_with("dump/event.txt")
             && !test.ends_with("dump/import.txt")
         {
-            self.test_wasm(test, &binary)?;
+            self.test_wasm(test, &binary, true)?;
         }
         Ok(())
     }
 
-    fn test_wasm(&self, test: &Path, contents: &[u8]) -> Result<()> {
+    fn test_wasm(&self, test: &Path, contents: &[u8], test_roundtrip: bool) -> Result<()> {
         if test.iter().any(|t| t == "invalid") {
             self.test_wasm_invalid(test, contents)?;
-        } else {
-            self.test_wasm_valid(test, contents)?;
+            return Ok(());
         }
+
+        self.test_wasm_valid(test, contents)?;
+
+        // Test that we can print the bytes, parse them, and get the exact
+        // same bytes.
+        if test_roundtrip {
+            let string = wasmprinter::print_bytes(contents)?;
+            self.bump_ntests();
+            let binary2 = wat::parse_str(&string)?;
+            self.bump_ntests();
+            self.binary_compare(&binary2, contents, false)?;
+        }
+
         Ok(())
     }
 
@@ -285,20 +297,26 @@ impl TestState {
             WastDirective::Module(mut module) => {
                 let actual = module.encode()?;
                 self.bump_ntests(); // testing encode
-                if !wasmparser_disabled {
-                    self.test_wasm(test, &actual)?;
-                }
-                match module.kind {
+                let test_roundtrip = match module.kind {
                     ModuleKind::Text(_) => {
                         if let Some(expected) = &expected {
                             let expected = fs::read(expected)?;
-                            self.binary_compare(&actual, &expected)?;
+                            self.binary_compare(&actual, &expected, true)?;
                         }
+                        true
                     }
-                    // Skip these for the same reason we skip
-                    // `module/binary-module.txt` in `binary_compare` below.
-                    // TODO
-                    ModuleKind::Binary(_) => {}
+
+                    // Don't test the wasmprinter round trip since these bytes
+                    // may not be in their canonical form (didn't come from teh
+                    // `wat` crate).
+                    //
+                    // Additionally don't test against the expected value since
+                    // the encoding here is trivial and otherwise this disagrees
+                    // with wabt which does further parsing.
+                    ModuleKind::Binary(_) => false,
+                };
+                if !wasmparser_disabled {
+                    self.test_wasm(test, &actual, test_roundtrip)?;
                 }
             }
 
@@ -416,6 +434,7 @@ impl TestState {
         }
     }
 
+    /// Parses a quoted module, then asserts that it's valid.
     fn parse_quote_module(&self, test: &Path, source: &[&[u8]]) -> Result<()> {
         let mut ret = String::new();
         for src in source {
@@ -430,17 +449,25 @@ impl TestState {
         self.bump_ntests();
         let binary = wat.module.encode()?;
         self.bump_ntests();
-        self.test_wasm(test, &binary)?;
+        self.test_wasm(test, &binary, true)?;
         Ok(())
     }
 
-    fn binary_compare(&self, actual: &[u8], expected: &[u8]) -> Result<()> {
+    /// Compare the `actual` and `expected`, asserting that they are the same.
+    ///
+    /// If they are not equal this attempts to produce as nice of an error
+    /// message as it can to help narrow down on where the differences lie.
+    fn binary_compare(&self, actual: &[u8], expected: &[u8], expected_is_wabt: bool) -> Result<()> {
         use wasmparser::*;
 
         // I tried for a bit but honestly couldn't figure out a great way to match
         // wabt's encoding of the name section. Just remove it from our asserted
         // sections and don't compare against wabt's.
-        let actual = remove_name_section(actual);
+        let actual = if expected_is_wabt {
+            remove_name_section(actual)
+        } else {
+            actual.to_vec()
+        };
 
         if actual == expected {
             self.bump_ntests();
