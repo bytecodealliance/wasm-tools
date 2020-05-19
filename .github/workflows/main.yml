@@ -83,8 +83,4 @@ jobs:
     - name: Install Rust
       run: rustup update nightly && rustup default nightly
     - run: cargo install cargo-fuzz
-    - run: cargo fuzz run --release --debug-assertions text-lexer -- -jobs=4 -max_total_time=20
-    - run: cargo fuzz run --release --debug-assertions text-parser -- -jobs=4 -max_total_time=20
-    - run: cargo fuzz run --release --debug-assertions binary-parse -- -jobs=4 -max_total_time=20
-    - run: cargo fuzz run --release --debug-assertions validate -- -jobs=4 -max_total_time=20
-    - run: cargo fuzz run --release --debug-assertions print -- -jobs=4 -max_total_time=20
+    - run: cargo fuzz build
