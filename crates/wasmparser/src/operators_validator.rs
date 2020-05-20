@@ -1638,6 +1638,9 @@ impl OperatorValidator {
                         "unknown function: function index out of bounds",
                     ));
                 }
+                if !resources.is_function_referenced(function_index) {
+                    return Err(OperatorValidatorError::new("undeclared function reference"));
+                }
                 self.func_state.change_frame_with_type(0, Type::FuncRef)?;
             }
             Operator::V128Load { memarg } => {

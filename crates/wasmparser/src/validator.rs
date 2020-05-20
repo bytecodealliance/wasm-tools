@@ -102,6 +102,7 @@ struct ValidatingParserResources {
     element_types: Vec<Type>,
     data_count: Option<u32>,
     func_type_indices: Vec<u32>,
+    function_references: HashSet<u32>,
 }
 
 impl<'a> WasmModuleResources for ValidatingParserResources {
@@ -141,6 +142,10 @@ impl<'a> WasmModuleResources for ValidatingParserResources {
     fn data_count(&self) -> u32 {
         self.data_count.unwrap_or(0)
     }
+
+    fn is_function_referenced(&self, idx: u32) -> bool {
+        self.function_references.contains(&idx)
+    }
 }
 
 pub struct ValidatingParser<'a> {
@@ -173,6 +178,7 @@ impl<'a> ValidatingParser<'a> {
                 element_types: Vec::new(),
                 data_count: None,
                 func_type_indices: Vec::new(),
+                function_references: HashSet::new(),
             },
             current_func_index: 0,
             func_imports_count: 0,
@@ -320,14 +326,14 @@ impl<'a> ValidatingParser<'a> {
         }
     }
 
-    fn check_init_expression_operator(&self, operator: &Operator) -> ValidatorResult<'a, ()> {
+    fn check_init_expression_operator(&mut self, operator: Operator) -> ValidatorResult<'a, ()> {
         let state = self.init_expression_state.as_ref().unwrap();
         if state.validated {
             return self.create_error(
                 "constant expression required: type mismatch: only one init_expr operator is expected",
             );
         }
-        let ty = match *operator {
+        let ty = match operator {
             Operator::I32Const { .. } => Type::I32,
             Operator::I64Const { .. } => Type::I64,
             Operator::F32Const { .. } => Type::F32,
@@ -358,6 +364,7 @@ impl<'a> ValidatingParser<'a> {
                         function_index
                     ));
                 }
+                self.resources.function_references.insert(function_index);
                 Type::FuncRef
             }
             _ => {
@@ -372,7 +379,7 @@ impl<'a> ValidatingParser<'a> {
     }
 
     fn check_export_entry(
-        &self,
+        &mut self,
         field: &str,
         kind: ExternalKind,
         index: u32,
@@ -386,6 +393,7 @@ impl<'a> ValidatingParser<'a> {
                     return self
                         .create_error("unknown function: exported function index out of bounds");
                 }
+                self.resources.function_references.insert(index);
             }
             ExternalKind::Table => {
                 if index as usize >= self.resources.tables.len() {
@@ -534,6 +542,7 @@ impl<'a> ValidatingParser<'a> {
                 assert!(self.init_expression_state.is_some());
             }
             ParserState::InitExpressionOperator(ref operator) => {
+                let operator = operator.clone();
                 self.validation_error = self.check_init_expression_operator(operator).err();
                 self.init_expression_state.as_mut().unwrap().validated = true;
             }
@@ -608,6 +617,7 @@ impl<'a> ValidatingParser<'a> {
                             );
                             break;
                         }
+                        self.resources.function_references.insert(*func_index);
                     }
                 }
             }
