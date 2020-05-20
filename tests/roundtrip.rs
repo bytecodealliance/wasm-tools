@@ -211,11 +211,9 @@ impl TestState {
         // however, that wasmparser doesn't implement all features that wabt
         // does, so we skip some tests here too.
         //
-        // TODO: implement tails calls in wasmparser
         // TODO: implement gc types in wasmparser
         // TODO: implement exceptions in wasmparser
-        if !contents.contains("--enable-tail-call")
-            && !contents.contains("--enable-exceptions")
+        if !contents.contains("--enable-exceptions")
             && !contents.contains("--enable-gc")
             && !contents.contains("--no-check")
             && !test.ends_with("dump/event.txt")
@@ -651,11 +649,6 @@ impl TestState {
     }
 
     fn wasmparser_disabled(&self, test: &Path, line: usize) -> bool {
-        // tail calls aren't implemented yet in wasmparser
-        if test.iter().any(|t| t == "tail-call") {
-            return true;
-        }
-
         // Waiting for WebAssembly/reference-types#76 to get resolved
         if test.ends_with("reference-types/ref_func.wast") {
             return line == 108 || line == 112;
@@ -688,6 +681,7 @@ impl TestState {
                 enable_simd: true,
                 enable_bulk_memory: true,
                 enable_multi_value: true,
+                enable_tail_call: true,
             },
         };
         for part in test.iter().filter_map(|t| t.to_str()) {
@@ -697,6 +691,7 @@ impl TestState {
                     config.operator_config.enable_reference_types = false;
                     config.operator_config.enable_simd = false;
                     config.operator_config.enable_bulk_memory = false;
+                    config.operator_config.enable_tail_call = false;
                 }
                 "threads" => config.operator_config.enable_threads = true,
                 "simd" => config.operator_config.enable_simd = true,
@@ -707,6 +702,7 @@ impl TestState {
                 "bulk-memory-operations" => {
                     config.operator_config.enable_bulk_memory = true;
                 }
+                "tail-call" => config.operator_config.enable_tail_call = true,
                 _ => {}
             }
         }
@@ -841,7 +837,7 @@ fn error_matches(error: &str, message: &str) -> bool {
         return error.contains("Bad magic number");
     }
 
-    if message == "unknown function 1" {
+    if message.starts_with("unknown function ") {
         return error.contains("unknown function");
     }
 

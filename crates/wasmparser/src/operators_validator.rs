@@ -327,6 +327,7 @@ pub struct OperatorValidatorConfig {
     pub enable_simd: bool,
     pub enable_bulk_memory: bool,
     pub enable_multi_value: bool,
+    pub enable_tail_call: bool,
 
     #[cfg(feature = "deterministic")]
     pub deterministic_only: bool,
@@ -339,6 +340,7 @@ pub(crate) const DEFAULT_OPERATOR_VALIDATOR_CONFIG: OperatorValidatorConfig =
         enable_simd: false,
         enable_bulk_memory: false,
         enable_multi_value: true,
+        enable_tail_call: false,
 
         #[cfg(feature = "deterministic")]
         deterministic_only: true,
@@ -523,6 +525,72 @@ impl OperatorValidator {
             ));
         }
         self.check_block_return_types(self.func_state.last_block(), 0)
+    }
+
+    fn check_call(
+        &mut self,
+        function_index: u32,
+        resources: impl WasmModuleResources,
+    ) -> OperatorValidatorResult<()> {
+        let type_index = match resources.func_type_id_at(function_index) {
+            Some(i) => i,
+            None => {
+                bail_op_err!(
+                    "unknown function {}: function index out of bounds",
+                    function_index
+                );
+            }
+        };
+        let ty = resources
+            .type_at(type_index)
+            .expect("function type index is out of bounds");
+        self.check_operands(wasm_func_type_inputs(ty).map(WasmType::to_parser_type))?;
+        self.func_state.change_frame_with_types(
+            ty.len_inputs(),
+            wasm_func_type_outputs(ty).map(WasmType::to_parser_type),
+        )?;
+        Ok(())
+    }
+
+    fn check_call_indirect(
+        &mut self,
+        index: u32,
+        table_index: u32,
+        resources: impl WasmModuleResources,
+    ) -> OperatorValidatorResult<()> {
+        if resources.table_at(table_index).is_none() {
+            return Err(OperatorValidatorError::new(
+                "unknown table: table index out of bounds",
+            ));
+        }
+        match resources.type_at(index) {
+            None => {
+                return Err(OperatorValidatorError::new(
+                    "unknown type: type index out of bounds",
+                ))
+            }
+            Some(ty) => {
+                let types = {
+                    let mut types = Vec::with_capacity(ty.len_inputs() + 1);
+                    types.extend(wasm_func_type_inputs(ty).map(WasmType::to_parser_type));
+                    types.push(Type::I32);
+                    types
+                };
+                self.check_operands(types.into_iter())?;
+                self.func_state.change_frame_with_types(
+                    ty.len_inputs() + 1,
+                    wasm_func_type_outputs(ty).map(WasmType::to_parser_type),
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    fn check_return(&mut self) -> OperatorValidatorResult<()> {
+        let depth = (self.func_state.blocks.len() - 1) as u32;
+        self.check_jump_from_block(depth, 0)?;
+        self.func_state.start_dead_code();
+        Ok(())
     }
 
     fn check_jump_from_block(
@@ -927,59 +995,28 @@ impl OperatorValidator {
                 }
                 self.func_state.start_dead_code()
             }
-            Operator::Return => {
-                let depth = (self.func_state.blocks.len() - 1) as u32;
-                self.check_jump_from_block(depth, 0)?;
-                self.func_state.start_dead_code()
-            }
-            Operator::Call { function_index } => match resources.func_type_id_at(function_index) {
-                Some(type_index) => {
-                    let ty = resources
-                        .type_at(type_index)
-                        // Note: This was an out-of-bounds memory access before
-                        //       the change to return `Option` at `type_at`. So
-                        //       I assumed that invalid indices at this point are
-                        //       bugs.
-                        .expect("function type index is out of bounds");
-                    self.check_operands(wasm_func_type_inputs(ty).map(WasmType::to_parser_type))?;
-                    self.func_state.change_frame_with_types(
-                        ty.len_inputs(),
-                        wasm_func_type_outputs(ty).map(WasmType::to_parser_type),
-                    )?;
-                }
-                None => {
-                    bail_op_err!(
-                        "unknown function {}: function index out of bounds",
-                        function_index
-                    );
-                }
-            },
-            Operator::CallIndirect { index, table_index } => {
-                if resources.table_at(table_index).is_none() {
+            Operator::Return => self.check_return()?,
+            Operator::Call { function_index } => self.check_call(function_index, resources)?,
+            Operator::ReturnCall { function_index } => {
+                if !self.config.enable_tail_call {
                     return Err(OperatorValidatorError::new(
-                        "unknown table: table index out of bounds",
+                        "tail calls support is not enabled",
                     ));
                 }
-                match resources.type_at(index) {
-                    None => {
-                        return Err(OperatorValidatorError::new(
-                            "unknown type: type index out of bounds",
-                        ))
-                    }
-                    Some(ty) => {
-                        let types = {
-                            let mut types = Vec::with_capacity(ty.len_inputs() + 1);
-                            types.extend(wasm_func_type_inputs(ty).map(WasmType::to_parser_type));
-                            types.push(Type::I32);
-                            types
-                        };
-                        self.check_operands(types.into_iter())?;
-                        self.func_state.change_frame_with_types(
-                            ty.len_inputs() + 1,
-                            wasm_func_type_outputs(ty).map(WasmType::to_parser_type),
-                        )?;
-                    }
+                self.check_call(function_index, resources)?;
+                self.check_return()?;
+            }
+            Operator::CallIndirect { index, table_index } => {
+                self.check_call_indirect(index, table_index, resources)?
+            }
+            Operator::ReturnCallIndirect { index, table_index } => {
+                if !self.config.enable_tail_call {
+                    return Err(OperatorValidatorError::new(
+                        "tail calls support is not enabled",
+                    ));
                 }
+                self.check_call_indirect(index, table_index, resources)?;
+                self.check_return()?;
             }
             Operator::Drop => {
                 self.check_frame_size(1)?;
