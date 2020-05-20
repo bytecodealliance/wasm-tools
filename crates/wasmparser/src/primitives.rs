@@ -274,6 +274,8 @@ pub enum Operator<'a> {
     Return,
     Call { function_index: u32 },
     CallIndirect { index: u32, table_index: u32 },
+    ReturnCall { function_index: u32 },
+    ReturnCallIndirect { index: u32, table_index: u32 },
     Drop,
     Select,
     TypedSelect { ty: Type },

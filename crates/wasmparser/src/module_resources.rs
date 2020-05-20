@@ -304,6 +304,42 @@ pub trait WasmModuleResources {
     fn data_count(&self) -> u32;
 }
 
+impl<T> WasmModuleResources for &'_ T
+where
+    T: ?Sized + WasmModuleResources,
+{
+    type FuncType = T::FuncType;
+    type TableType = T::TableType;
+    type MemoryType = T::MemoryType;
+    type GlobalType = T::GlobalType;
+
+    fn type_at(&self, at: u32) -> Option<&Self::FuncType> {
+        T::type_at(self, at)
+    }
+    fn table_at(&self, at: u32) -> Option<&Self::TableType> {
+        T::table_at(self, at)
+    }
+    fn memory_at(&self, at: u32) -> Option<&Self::MemoryType> {
+        T::memory_at(self, at)
+    }
+    fn global_at(&self, at: u32) -> Option<&Self::GlobalType> {
+        T::global_at(self, at)
+    }
+    fn func_type_id_at(&self, at: u32) -> Option<u32> {
+        T::func_type_id_at(self, at)
+    }
+    fn element_type_at(&self, at: u32) -> Option<crate::Type> {
+        T::element_type_at(self, at)
+    }
+
+    fn element_count(&self) -> u32 {
+        T::element_count(self)
+    }
+    fn data_count(&self) -> u32 {
+        T::data_count(self)
+    }
+}
+
 impl WasmType for crate::Type {
     fn to_parser_type(&self) -> crate::Type {
         *self

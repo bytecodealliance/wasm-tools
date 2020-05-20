@@ -517,6 +517,17 @@ impl Printer {
                 }
                 write!(self.result, " (type {})", index)?;
             }
+            ReturnCall { function_index } => {
+                self.result.push_str("return_call ");
+                self.print_func_idx(*function_index)?;
+            }
+            ReturnCallIndirect { table_index, index } => {
+                self.result.push_str("return_call_indirect");
+                if *table_index != 0 {
+                    write!(self.result, " {}", table_index)?;
+                }
+                write!(self.result, " (type {})", index)?;
+            }
 
             Drop => self.result.push_str("drop"),
             Select => self.result.push_str("select"),

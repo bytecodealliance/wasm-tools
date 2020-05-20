@@ -977,6 +977,13 @@ impl<'a> BinaryReader<'a> {
                 index: self.read_var_u32()?,
                 table_index: self.read_var_u32()?,
             },
+            0x12 => Operator::ReturnCall {
+                function_index: self.read_var_u32()?,
+            },
+            0x13 => Operator::ReturnCallIndirect {
+                index: self.read_var_u32()?,
+                table_index: self.read_var_u32()?,
+            },
             0x1a => Operator::Drop,
             0x1b => Operator::Select,
             0x1c => {
