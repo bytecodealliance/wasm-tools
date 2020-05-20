@@ -649,16 +649,6 @@ impl TestState {
     }
 
     fn wasmparser_disabled(&self, test: &Path, line: usize) -> bool {
-        // Waiting for WebAssembly/reference-types#76 to get resolved
-        if test.ends_with("reference-types/ref_func.wast") {
-            return line == 108 || line == 112;
-        }
-
-        // Waiting for WebAssembly/reference-types#76 to get resolved
-        if test.ends_with("reference-types/ref_func.wast") {
-            return line == 108 || line == 112;
-        }
-
         // these tests still use the old binary encoding, need to be
         // updated for the new one
         if test.ends_with("simd_const.wast") {
