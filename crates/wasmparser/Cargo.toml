@@ -19,9 +19,6 @@ wat = { path = "../wat" }
 wast = { path = "../wast" }
 rayon = "1.3"
 
-[badges]
-travis-ci = { repository = "bytecodealliance/wasmparser.rs" }
-
 [features]
 # The "deterministic" feature supports only Wasm code with "deterministic" execution
 # across any hardware. This feature is very critical for many Blockchain infrastructures
