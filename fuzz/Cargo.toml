@@ -39,3 +39,8 @@ test = false
 name = "print"
 path = "fuzz_targets/print.rs"
 test = false
+
+[[bin]]
+name = "roundtrip"
+path = "fuzz_targets/roundtrip.rs"
+test = false
