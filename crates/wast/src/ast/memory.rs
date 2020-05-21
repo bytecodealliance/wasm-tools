@@ -21,8 +21,7 @@ pub enum MemoryKind<'a> {
     /// This memory is actually an inlined import definition.
     #[allow(missing_docs)]
     Import {
-        module: &'a str,
-        field: &'a str,
+        import: ast::InlineImport<'a>,
         ty: ast::MemoryType,
     },
 
@@ -41,39 +40,25 @@ impl<'a> Parse<'a> for Memory<'a> {
 
         // Afterwards figure out which style this is, either:
         //
-        //  *   `(data ...)`
         //  *   `(import "a" "b") limits`
+        //  *   `(data ...)`
         //  *   `limits`
         let mut l = parser.lookahead1();
-        let kind = if l.peek::<ast::LParen>() {
-            enum Which<'a, T> {
-                Inline(Vec<T>),
-                Import(&'a str, &'a str),
+        let kind = if let Some(import) = parser.parse()? {
+            MemoryKind::Import {
+                import,
+                ty: parser.parse()?,
             }
-            let result = parser.parens(|parser| {
-                let mut l = parser.lookahead1();
-                if l.peek::<kw::data>() {
-                    parser.parse::<kw::data>()?;
-                    let mut data = Vec::new();
-                    while !parser.is_empty() {
-                        data.push(parser.parse()?);
-                    }
-                    Ok(Which::Inline(data))
-                } else if l.peek::<kw::import>() {
-                    parser.parse::<kw::import>()?;
-                    Ok(Which::Import(parser.parse()?, parser.parse()?))
-                } else {
-                    Err(l.error())
+        } else if l.peek::<ast::LParen>() {
+            let data = parser.parens(|parser| {
+                parser.parse::<kw::data>()?;
+                let mut data = Vec::new();
+                while !parser.is_empty() {
+                    data.push(parser.parse()?);
                 }
+                Ok(data)
             })?;
-            match result {
-                Which::Inline(data) => MemoryKind::Inline(data),
-                Which::Import(module, field) => MemoryKind::Import {
-                    module,
-                    field,
-                    ty: parser.parse()?,
-                },
-            }
+            MemoryKind::Inline(data)
         } else if l.peek::<u32>() {
             MemoryKind::Normal(parser.parse()?)
         } else {
@@ -156,7 +141,7 @@ impl<'a> Parse<'a> for Data<'a> {
                 parser.parse()
             })?;
             DataKind::Active {
-                memory: memory.unwrap_or(ast::Index::Num(0)),
+                memory: memory.unwrap_or(ast::Index::Num(0, span)),
                 offset,
             }
         };

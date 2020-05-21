@@ -13,20 +13,18 @@
  * limitations under the License.
  */
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::result;
 use std::str;
 
-use crate::limits::{
-    MAX_WASM_FUNCTIONS, MAX_WASM_FUNCTION_LOCALS, MAX_WASM_GLOBALS, MAX_WASM_MEMORIES,
-    MAX_WASM_MEMORY_PAGES, MAX_WASM_TABLES, MAX_WASM_TYPES,
-};
+use crate::limits::*;
 
 use crate::binary_reader::BinaryReader;
 
 use crate::primitives::{
-    BinaryReaderError, ExternalKind, FuncType, GlobalType, ImportSectionEntryType, MemoryType,
-    Operator, ResizableLimits, Result, SectionCode, TableType, Type,
+    BinaryReaderError, ExportType, ExternalKind, FuncType, GlobalType, ImportSectionEntryType,
+    InstanceType, MemoryType, ModuleType, Operator, ResizableLimits, Result, SectionCode,
+    TableType, Type, TypeDef,
 };
 
 use crate::operators_validator::{
@@ -34,8 +32,8 @@ use crate::operators_validator::{
     OperatorValidatorError, DEFAULT_OPERATOR_VALIDATOR_CONFIG,
 };
 use crate::parser::{Parser, ParserInput, ParserState, WasmDecoder};
-use crate::{ElemSectionEntryTable, ElementItem};
-use crate::{WasmFuncType, WasmGlobalType, WasmMemoryType, WasmModuleResources, WasmTableType};
+use crate::{AliasedInstance, WasmModuleResources};
+use crate::{ElemSectionEntryTable, ElementItem, WasmTypeDef};
 
 use crate::readers::FunctionBody;
 
@@ -53,6 +51,7 @@ enum SectionOrderState {
     Initial,
     Type,
     Import,
+    ModuleLinkingHeader,
     Function,
     Table,
     Memory,
@@ -61,13 +60,22 @@ enum SectionOrderState {
     Start,
     Element,
     DataCount,
+    ModuleCode,
     Code,
     Data,
 }
 
 impl SectionOrderState {
-    pub fn from_section_code(code: &SectionCode) -> Option<SectionOrderState> {
+    pub fn from_section_code(
+        code: &SectionCode,
+        config: &ValidatingParserConfig,
+    ) -> Option<SectionOrderState> {
         match *code {
+            SectionCode::Type | SectionCode::Import
+                if config.operator_config.enable_module_linking =>
+            {
+                Some(SectionOrderState::ModuleLinkingHeader)
+            }
             SectionCode::Type => Some(SectionOrderState::Type),
             SectionCode::Import => Some(SectionOrderState::Import),
             SectionCode::Function => Some(SectionOrderState::Function),
@@ -80,7 +88,11 @@ impl SectionOrderState {
             SectionCode::Code => Some(SectionOrderState::Code),
             SectionCode::Data => Some(SectionOrderState::Data),
             SectionCode::DataCount => Some(SectionOrderState::DataCount),
-            _ => None,
+            SectionCode::Alias => Some(SectionOrderState::ModuleLinkingHeader),
+            SectionCode::Module => Some(SectionOrderState::ModuleLinkingHeader),
+            SectionCode::Instance => Some(SectionOrderState::ModuleLinkingHeader),
+            SectionCode::ModuleCode => Some(SectionOrderState::ModuleCode),
+            SectionCode::Custom { .. } => None,
         }
     }
 }
@@ -94,24 +106,31 @@ const DEFAULT_VALIDATING_PARSER_CONFIG: ValidatingParserConfig = ValidatingParse
     operator_config: DEFAULT_OPERATOR_VALIDATOR_CONFIG,
 };
 
-struct ValidatingParserResources {
-    types: Vec<FuncType>,
+struct ValidatingParserResources<'a> {
+    types: Vec<TypeDef<'a>>,
     tables: Vec<TableType>,
     memories: Vec<MemoryType>,
     globals: Vec<GlobalType>,
     element_types: Vec<Type>,
     data_count: Option<u32>,
     func_type_indices: Vec<u32>,
+    module_type_indices: Vec<u32>,
+    instance_type_indices: Vec<InstanceDef>,
     function_references: HashSet<u32>,
 }
 
-impl<'a> WasmModuleResources for ValidatingParserResources {
-    type FuncType = crate::FuncType;
+enum InstanceDef {
+    Imported { type_idx: u32 },
+    Instantiated { module_idx: u32 },
+}
+
+impl<'a> WasmModuleResources for ValidatingParserResources<'a> {
+    type TypeDef = crate::TypeDef<'a>;
     type TableType = crate::TableType;
     type MemoryType = crate::MemoryType;
     type GlobalType = crate::GlobalType;
 
-    fn type_at(&self, at: u32) -> Option<&Self::FuncType> {
+    fn type_at(&self, at: u32) -> Option<&Self::TypeDef> {
         self.types.get(at as usize)
     }
 
@@ -153,13 +172,14 @@ pub struct ValidatingParser<'a> {
     validation_error: Option<ParserState<'a>>,
     read_position: Option<usize>,
     section_order_state: SectionOrderState,
-    resources: ValidatingParserResources,
+    resources: ValidatingParserResources<'a>,
     current_func_index: u32,
-    func_imports_count: u32,
+    func_nonlocal_count: u32,
     init_expression_state: Option<InitExpressionState>,
     data_found: u32,
     exported_names: HashSet<String>,
     current_operator_validator: Option<OperatorValidator>,
+    module_instantiation: Option<(u32, usize)>,
     config: ValidatingParserConfig,
 }
 
@@ -178,26 +198,22 @@ impl<'a> ValidatingParser<'a> {
                 element_types: Vec::new(),
                 data_count: None,
                 func_type_indices: Vec::new(),
+                instance_type_indices: Vec::new(),
+                module_type_indices: Vec::new(),
                 function_references: HashSet::new(),
             },
             current_func_index: 0,
-            func_imports_count: 0,
+            func_nonlocal_count: 0,
             current_operator_validator: None,
             init_expression_state: None,
             data_found: 0,
             exported_names: HashSet::new(),
+            module_instantiation: None,
             config: config.unwrap_or(DEFAULT_VALIDATING_PARSER_CONFIG),
         }
     }
 
-    pub fn get_resources(
-        &self,
-    ) -> &dyn WasmModuleResources<
-        FuncType = crate::FuncType,
-        TableType = crate::TableType,
-        MemoryType = crate::MemoryType,
-        GlobalType = crate::GlobalType,
-    > {
+    pub fn get_resources<'b>(&'b self) -> impl WasmModuleResources + 'b {
         &self.resources
     }
 
@@ -251,6 +267,37 @@ impl<'a> ValidatingParser<'a> {
         }
     }
 
+    fn check_module_type(&self, ty: &ModuleType<'a>) -> ValidatorResult<'a, ()> {
+        if !self.config.operator_config.enable_module_linking {
+            return self.create_error("module linking proposal not enabled");
+        }
+        for i in ty.imports.iter() {
+            self.check_import_entry(&i.ty)?;
+        }
+        let mut names = HashSet::new();
+        for e in ty.exports.iter() {
+            if !names.insert(e.name) {
+                return self.create_error("duplicate export name");
+            }
+            self.check_import_entry(&e.ty)?;
+        }
+        Ok(())
+    }
+
+    fn check_instance_type(&self, ty: &InstanceType<'a>) -> ValidatorResult<'a, ()> {
+        if !self.config.operator_config.enable_module_linking {
+            return self.create_error("module linking proposal not enabled");
+        }
+        let mut names = HashSet::new();
+        for e in ty.exports.iter() {
+            if !names.insert(e.name) {
+                return self.create_error("duplicate export name");
+            }
+            self.check_import_entry(&e.ty)?;
+        }
+        Ok(())
+    }
+
     fn check_table_type(&self, table_type: &TableType) -> ValidatorResult<'a, ()> {
         match table_type.element_type {
             Type::FuncRef => {}
@@ -294,13 +341,12 @@ impl<'a> ValidatingParser<'a> {
                 if self.resources.func_type_indices.len() >= MAX_WASM_FUNCTIONS {
                     return self.create_error("functions count out of bounds");
                 }
-                if type_index as usize >= self.resources.types.len() {
-                    return self.create_error("unknown type: type index out of bounds");
-                }
+                self.func_type_at(type_index)?;
                 Ok(())
             }
             ImportSectionEntryType::Table(ref table_type) => {
                 if !self.config.operator_config.enable_reference_types
+                    && !self.config.operator_config.enable_module_linking
                     && self.resources.tables.len() >= MAX_WASM_TABLES
                 {
                     return self.create_error("multiple tables: tables count must be at most 1");
@@ -308,16 +354,32 @@ impl<'a> ValidatingParser<'a> {
                 self.check_table_type(table_type)
             }
             ImportSectionEntryType::Memory(ref memory_type) => {
-                if self.resources.memories.len() >= MAX_WASM_MEMORIES {
+                if !self.config.operator_config.enable_module_linking
+                    && self.resources.memories.len() >= MAX_WASM_MEMORIES
+                {
                     return self.create_error("multiple memories: memory count must be at most 1");
                 }
                 self.check_memory_type(memory_type)
             }
             ImportSectionEntryType::Global(global_type) => {
                 if self.resources.globals.len() >= MAX_WASM_GLOBALS {
-                    return self.create_error("functions count out of bounds");
+                    return self.create_error("globals count out of bounds");
                 }
                 self.check_global_type(global_type)
+            }
+            ImportSectionEntryType::Module(type_index) => {
+                if self.resources.module_type_indices.len() >= MAX_WASM_MODULES {
+                    return self.create_error("modules count out of bounds");
+                }
+                self.module_type_at(type_index)?;
+                Ok(())
+            }
+            ImportSectionEntryType::Instance(type_index) => {
+                if self.resources.instance_type_indices.len() >= MAX_WASM_INSTANCES {
+                    return self.create_error("instance count out of bounds");
+                }
+                self.instance_type_at(type_index)?;
+                Ok(())
             }
         }
     }
@@ -383,33 +445,75 @@ impl<'a> ValidatingParser<'a> {
         if self.exported_names.contains(field) {
             return self.create_error("duplicate export name");
         }
-        match kind {
-            ExternalKind::Function => {
-                if index as usize >= self.resources.func_type_indices.len() {
-                    return self
-                        .create_error("unknown function: exported function index out of bounds");
-                }
-                self.resources.function_references.insert(index);
-            }
-            ExternalKind::Table => {
-                if index as usize >= self.resources.tables.len() {
-                    return self.create_error("unknown table: exported table index out of bounds");
-                }
-            }
-            ExternalKind::Memory => {
-                if index as usize >= self.resources.memories.len() {
-                    return self
-                        .create_error("unknown memory: exported memory index out of bounds");
-                }
-            }
-            ExternalKind::Global => {
-                if index as usize >= self.resources.globals.len() {
-                    return self
-                        .create_error("unknown global: exported global index out of bounds");
-                }
-            }
-        };
+        if let ExternalKind::Type = kind {
+            return self.create_error("cannot export types");
+        }
+        self.check_external_kind("exported", kind, index)?;
         Ok(())
+    }
+
+    fn check_external_kind(
+        &mut self,
+        desc: &str,
+        kind: ExternalKind,
+        index: u32,
+    ) -> ValidatorResult<'a, ()> {
+        let (ty, total) = match kind {
+            ExternalKind::Function => ("function", self.resources.func_type_indices.len()),
+            ExternalKind::Table => ("table", self.resources.tables.len()),
+            ExternalKind::Memory => ("memory", self.resources.memories.len()),
+            ExternalKind::Global => ("global", self.resources.globals.len()),
+            ExternalKind::Module => ("module", self.resources.module_type_indices.len()),
+            ExternalKind::Instance => ("instance", self.resources.instance_type_indices.len()),
+            ExternalKind::Type => return self.create_error("cannot export types"),
+        };
+        if index as usize >= total {
+            return self.create_error(&format!(
+                "unknown {0}: {1} {0} index out of bounds",
+                ty, desc
+            ));
+        }
+        if let ExternalKind::Function = kind {
+            self.resources.function_references.insert(index);
+        }
+        Ok(())
+    }
+
+    fn type_at<'me>(&'me self, type_index: u32) -> ValidatorResult<'a, &'me TypeDef<'a>> {
+        match self.resources.types.get(type_index as usize) {
+            Some(ty) => Ok(ty),
+            None => self.create_error("unknown type: type index out of bounds"),
+        }
+    }
+
+    fn func_type_at<'me>(&'me self, type_index: u32) -> ValidatorResult<'a, &'me FuncType> {
+        match self.type_at(type_index)? {
+            TypeDef::Func(f) => Ok(f),
+            _ => self.create_error("type index is not a function"),
+        }
+    }
+
+    fn module_type_at<'me>(&'me self, type_index: u32) -> ValidatorResult<'a, &'me ModuleType<'a>> {
+        if !self.config.operator_config.enable_module_linking {
+            return self.create_error("module linking proposal not enabled");
+        }
+        match self.type_at(type_index)? {
+            TypeDef::Module(m) => Ok(m),
+            _ => self.create_error("type index is not a module"),
+        }
+    }
+
+    fn instance_type_at<'me>(
+        &'me self,
+        type_index: u32,
+    ) -> ValidatorResult<'a, &'me InstanceType<'a>> {
+        if !self.config.operator_config.enable_module_linking {
+            return self.create_error("module linking proposal not enabled");
+        }
+        match self.type_at(type_index)? {
+            TypeDef::Instance(i) => Ok(i),
+            _ => self.create_error("type index is not an instance"),
+        }
     }
 
     fn check_start(&self, func_index: u32) -> ValidatorResult<'a, ()> {
@@ -417,7 +521,7 @@ impl<'a> ValidatingParser<'a> {
             return self.create_error("unknown function: start function index out of bounds");
         }
         let type_index = self.resources.func_type_indices[func_index as usize];
-        let ty = &self.resources.types[type_index as usize];
+        let ty = self.func_type_at(type_index)?;
         if !ty.params.is_empty() || !ty.returns.is_empty() {
             return self.create_error("invlid start function type");
         }
@@ -425,22 +529,32 @@ impl<'a> ValidatingParser<'a> {
     }
 
     fn process_begin_section(&self, code: &SectionCode) -> ValidatorResult<'a, SectionOrderState> {
-        let order_state = SectionOrderState::from_section_code(code);
+        use SectionOrderState::*;
+
+        let state = SectionOrderState::from_section_code(code, &self.config);
+        let state = match state {
+            Some(state) => state,
+            None => return Ok(self.section_order_state),
+        };
         Ok(match self.section_order_state {
-            SectionOrderState::Initial => match order_state {
-                Some(section) => section,
-                _ => SectionOrderState::Initial,
-            },
-            previous => {
-                if let Some(order_state_unwraped) = order_state {
-                    if previous >= order_state_unwraped {
-                        return self.create_error("section out of order");
-                    }
-                    order_state_unwraped
-                } else {
-                    previous
-                }
+            // Did we just start? In that case move to our newly-found state.
+            Initial => state,
+
+            // If our previous state comes before our current state, nothing to
+            // worry about, just advance ourselves.
+            previous if previous < state => state,
+
+            // In the module linking proposal we can see this state multiple
+            // times in a row.
+            ModuleLinkingHeader
+                if state == ModuleLinkingHeader
+                    && self.config.operator_config.enable_module_linking =>
+            {
+                ModuleLinkingHeader
             }
+
+            // otherwise the sections are out of order
+            _ => return self.create_error("section out of order"),
         })
     }
 
@@ -459,14 +573,18 @@ impl<'a> ValidatingParser<'a> {
                     self.section_order_state = check.ok().unwrap();
                 }
             }
-            ParserState::TypeSectionEntry(ref func_type) => {
-                let check = self.check_func_type(func_type);
+            ParserState::TypeSectionEntry(ref def) => {
+                let check = match def {
+                    TypeDef::Func(ty) => self.check_func_type(ty),
+                    TypeDef::Instance(ty) => self.check_instance_type(ty),
+                    TypeDef::Module(ty) => self.check_module_type(ty),
+                };
                 if check.is_err() {
                     self.validation_error = check.err();
                 } else if self.resources.types.len() > MAX_WASM_TYPES {
                     self.set_validation_error("types count is out of bounds");
                 } else {
-                    self.resources.types.push(func_type.clone());
+                    self.resources.types.push(def.clone());
                 }
             }
             ParserState::ImportSectionEntry { ref ty, .. } => {
@@ -476,7 +594,7 @@ impl<'a> ValidatingParser<'a> {
                 } else {
                     match *ty {
                         ImportSectionEntryType::Function(type_index) => {
-                            self.func_imports_count += 1;
+                            self.func_nonlocal_count += 1;
                             self.resources.func_type_indices.push(type_index);
                         }
                         ImportSectionEntryType::Table(ref table_type) => {
@@ -487,6 +605,16 @@ impl<'a> ValidatingParser<'a> {
                         }
                         ImportSectionEntryType::Global(ref global_type) => {
                             self.resources.globals.push(global_type.clone());
+                        }
+                        ImportSectionEntryType::Instance(type_index) => {
+                            self.resources
+                                .instance_type_indices
+                                .push(InstanceDef::Imported {
+                                    type_idx: type_index,
+                                });
+                        }
+                        ImportSectionEntryType::Module(type_index) => {
+                            self.resources.module_type_indices.push(type_index);
                         }
                     }
                 }
@@ -502,6 +630,7 @@ impl<'a> ValidatingParser<'a> {
             }
             ParserState::TableSectionEntry(ref table_type) => {
                 if !self.config.operator_config.enable_reference_types
+                    && !self.config.operator_config.enable_module_linking
                     && self.resources.tables.len() >= MAX_WASM_TABLES
                 {
                     self.set_validation_error("multiple tables: tables count must be at most 1");
@@ -511,7 +640,9 @@ impl<'a> ValidatingParser<'a> {
                 }
             }
             ParserState::MemorySectionEntry(ref memory_type) => {
-                if self.resources.memories.len() >= MAX_WASM_MEMORIES {
+                if !self.config.operator_config.enable_module_linking
+                    && self.resources.memories.len() >= MAX_WASM_MEMORIES
+                {
                     self.set_validation_error(
                         "multiple memories: memories count must be at most 1",
                     );
@@ -618,15 +749,16 @@ impl<'a> ValidatingParser<'a> {
                 }
             }
             ParserState::BeginFunctionBody { .. } => {
-                let index = (self.current_func_index + self.func_imports_count) as usize;
+                let index = (self.current_func_index + self.func_nonlocal_count) as usize;
                 if index as usize >= self.resources.func_type_indices.len() {
                     self.set_validation_error("func type is not defined");
                 }
             }
             ParserState::FunctionBodyLocals { ref locals } => {
-                let index = (self.current_func_index + self.func_imports_count) as usize;
-                let func_type =
-                    &self.resources.types[self.resources.func_type_indices[index] as usize];
+                let index = (self.current_func_index + self.func_nonlocal_count) as usize;
+                let func_type = self
+                    .func_type_at(self.resources.func_type_indices[index])
+                    .unwrap();
                 let operator_config = self.config.operator_config;
                 match OperatorValidator::new(func_type, locals, operator_config) {
                     Ok(validator) => self.current_operator_validator = Some(validator),
@@ -679,7 +811,7 @@ impl<'a> ValidatingParser<'a> {
             }
             ParserState::EndWasm => {
                 if self.resources.func_type_indices.len()
-                    != self.current_func_index as usize + self.func_imports_count as usize
+                    != self.current_func_index as usize + self.func_nonlocal_count as usize
                 {
                     self.set_validation_error(
                         "function and code section have inconsistent lengths",
@@ -691,6 +823,68 @@ impl<'a> ValidatingParser<'a> {
                     }
                 }
             }
+
+            ParserState::ModuleSectionEntry(type_index) => {
+                if !self.config.operator_config.enable_module_linking {
+                    self.set_validation_error("module linking proposal not enabled");
+                } else if self.resources.module_type_indices.len() >= MAX_WASM_MODULES {
+                    self.set_validation_error("modules count out of bounds");
+                } else {
+                    match self.module_type_at(type_index) {
+                        Ok(_) => self.resources.module_type_indices.push(type_index),
+                        Err(e) => self.validation_error = Some(e),
+                    }
+                }
+            }
+            ParserState::BeginInstantiate { module, count } => {
+                if !self.config.operator_config.enable_module_linking {
+                    self.set_validation_error("module linking proposal not enabled");
+                } else if module as usize >= self.resources.module_type_indices.len() {
+                    self.set_validation_error("module is not defined");
+                } else if self.resources.instance_type_indices.len() >= MAX_WASM_INSTANCES {
+                    self.set_validation_error("instance count out of bounds");
+                } else {
+                    self.resources
+                        .instance_type_indices
+                        .push(InstanceDef::Instantiated { module_idx: module });
+                    let module_ty = self.resources.module_type_indices[module as usize];
+                    if count as usize != self.module_type_at(module_ty).unwrap().imports.len() {
+                        self.set_validation_error("wrong number of imports provided");
+                    } else {
+                        self.module_instantiation = Some((module_ty, 0));
+                    }
+                }
+            }
+            ParserState::InstantiateParameter { kind, index } => {
+                let (module_ty_idx, import_idx) = self.module_instantiation.take().unwrap();
+                let module_ty = self.module_type_at(module_ty_idx).unwrap();
+                let ty = module_ty.imports[import_idx].ty.clone();
+                match self.check_instantiate_field(&ty, kind, index) {
+                    Ok(()) => {
+                        self.module_instantiation = Some((module_ty_idx, import_idx + 1));
+                    }
+                    Err(e) => self.validation_error = Some(e),
+                }
+            }
+            ParserState::EndInstantiate => {
+                let (module_ty, import_idx) = self.module_instantiation.take().unwrap();
+                let module_ty = self.module_type_at(module_ty).unwrap();
+                if import_idx != module_ty.imports.len() {
+                    self.set_validation_error("not enough imports provided");
+                }
+            }
+            ParserState::AliasSectionEntry(ref alias) => match alias.instance {
+                AliasedInstance::Parent => {
+                    self.set_validation_error("parent instances not supported");
+                }
+                AliasedInstance::Child(instance_idx) => {
+                    let (kind, index) = (alias.kind, alias.index);
+                    match self.check_alias_entry(instance_idx, kind, index) {
+                        Ok(()) => {}
+                        Err(e) => self.validation_error = Some(e),
+                    }
+                }
+            },
             _ => (),
         };
     }
@@ -708,9 +902,10 @@ impl<'a> ValidatingParser<'a> {
         self.read();
         let operator_validator = match *self.last_state() {
             ParserState::FunctionBodyLocals { ref locals } => {
-                let index = (self.current_func_index + self.func_imports_count) as usize;
-                let func_type =
-                    &self.resources.types[self.resources.func_type_indices[index] as usize];
+                let index = (self.current_func_index + self.func_nonlocal_count) as usize;
+                let func_type = self
+                    .func_type_at(self.resources.func_type_indices[index])
+                    .unwrap();
                 let operator_config = self.config.operator_config;
                 OperatorValidator::new(func_type, locals, operator_config)
                     .map_err(|e| ParserState::Error(e.set_offset(self.read_position.unwrap())))?
@@ -727,6 +922,202 @@ impl<'a> ValidatingParser<'a> {
 
     pub fn current_position(&self) -> usize {
         self.parser.current_position()
+    }
+
+    fn check_instantiate_field(
+        &mut self,
+        expected: &ImportSectionEntryType,
+        kind: ExternalKind,
+        index: u32,
+    ) -> ValidatorResult<'a, ()> {
+        self.check_external_kind("referenced", kind, index)?;
+        let actual = match kind {
+            ExternalKind::Function => {
+                let actual_type = self.resources.func_type_indices[index as usize];
+                ImportSectionEntryType::Function(actual_type)
+            }
+            ExternalKind::Table => {
+                ImportSectionEntryType::Table(self.resources.tables[index as usize])
+            }
+            ExternalKind::Memory => {
+                ImportSectionEntryType::Memory(self.resources.memories[index as usize])
+            }
+            ExternalKind::Global => {
+                ImportSectionEntryType::Global(self.resources.globals[index as usize])
+            }
+            ExternalKind::Module => {
+                let actual_type = self.resources.module_type_indices[index as usize];
+                ImportSectionEntryType::Module(actual_type)
+            }
+            ExternalKind::Instance => match self.resources.instance_type_indices[index as usize] {
+                InstanceDef::Imported { type_idx } => ImportSectionEntryType::Instance(type_idx),
+                InstanceDef::Instantiated { module_idx } => {
+                    let expected = match expected {
+                        ImportSectionEntryType::Instance(idx) => idx,
+                        _ => return self.create_error("wrong kind of item used for instantiate"),
+                    };
+                    let expected = self.instance_type_at(*expected)?;
+                    let actual_ty = self.resources.module_type_indices[module_idx as usize];
+                    let actual = self.module_type_at(actual_ty)?;
+                    return self.check_export_sets_match(&expected.exports, &actual.exports);
+                }
+            },
+            ExternalKind::Type => return self.create_error("cannot export types"),
+        };
+        self.check_imports_match(expected, &actual)
+    }
+
+    // Note that this function is basically implementing
+    // https://webassembly.github.io/spec/core/exec/modules.html#import-matching
+    fn check_imports_match(
+        &self,
+        expected: &ImportSectionEntryType,
+        actual: &ImportSectionEntryType,
+    ) -> ValidatorResult<'a, ()> {
+        let limits_match = |expected: &ResizableLimits, actual: &ResizableLimits| {
+            actual.initial >= expected.initial
+                && match expected.maximum {
+                    Some(expected_max) => match actual.maximum {
+                        Some(actual_max) => actual_max <= expected_max,
+                        None => false,
+                    },
+                    None => true,
+                }
+        };
+        match (expected, actual) {
+            (
+                ImportSectionEntryType::Function(expected),
+                ImportSectionEntryType::Function(actual),
+            ) => {
+                let expected = self.func_type_at(*expected)?;
+                let actual = self.func_type_at(*actual)?;
+                if actual == expected {
+                    return Ok(());
+                }
+                self.create_error("function provided for instantiation has wrong type")
+            }
+            (ImportSectionEntryType::Table(expected), ImportSectionEntryType::Table(actual)) => {
+                if expected.element_type == actual.element_type
+                    && limits_match(&expected.limits, &actual.limits)
+                {
+                    return Ok(());
+                }
+                self.create_error("table provided for instantiation has wrong type")
+            }
+            (ImportSectionEntryType::Memory(expected), ImportSectionEntryType::Memory(actual)) => {
+                if limits_match(&expected.limits, &actual.limits)
+                    && expected.shared == actual.shared
+                {
+                    return Ok(());
+                }
+                self.create_error("memory provided for instantiation has wrong type")
+            }
+            (ImportSectionEntryType::Global(expected), ImportSectionEntryType::Global(actual)) => {
+                if expected == actual {
+                    return Ok(());
+                }
+                self.create_error("global provided for instantiation has wrong type")
+            }
+            (
+                ImportSectionEntryType::Instance(expected),
+                ImportSectionEntryType::Instance(actual),
+            ) => {
+                let expected = self.instance_type_at(*expected)?;
+                let actual = self.instance_type_at(*actual)?;
+                self.check_export_sets_match(&expected.exports, &actual.exports)?;
+                Ok(())
+            }
+            (ImportSectionEntryType::Module(expected), ImportSectionEntryType::Module(actual)) => {
+                let expected = self.module_type_at(*expected)?;
+                let actual = self.module_type_at(*actual)?;
+                if expected.imports.len() != actual.imports.len() {
+                    return self.create_error("mismatched number of module imports");
+                }
+                for (expected, actual) in expected.imports.iter().zip(&actual.imports) {
+                    self.check_imports_match(&expected.ty, &actual.ty)?;
+                }
+                self.check_export_sets_match(&expected.exports, &actual.exports)?;
+                Ok(())
+            }
+            _ => self.create_error("wrong kind of item used for instantiate"),
+        }
+    }
+
+    fn check_export_sets_match(
+        &self,
+        expected: &[ExportType<'_>],
+        actual: &[ExportType<'_>],
+    ) -> ValidatorResult<'a, ()> {
+        let name_to_idx = actual
+            .iter()
+            .enumerate()
+            .map(|(i, e)| (e.name, i))
+            .collect::<HashMap<_, _>>();
+        for expected in expected {
+            let idx = match name_to_idx.get(expected.name) {
+                Some(i) => *i,
+                None => return self.create_error(&format!("no export named `{}`", expected.name)),
+            };
+            self.check_imports_match(&expected.ty, &actual[idx].ty)?;
+        }
+        Ok(())
+    }
+
+    fn check_alias_entry(
+        &mut self,
+        instance_idx: u32,
+        kind: ExternalKind,
+        export_idx: u32,
+    ) -> ValidatorResult<'a, ()> {
+        let ty = match self
+            .resources
+            .instance_type_indices
+            .get(instance_idx as usize)
+        {
+            Some(ty) => ty,
+            None => {
+                return self.create_error("unknown instance: aliased instance index out of bounds");
+            }
+        };
+        let exports = match ty {
+            InstanceDef::Imported { type_idx } => &self.instance_type_at(*type_idx)?.exports,
+            InstanceDef::Instantiated { module_idx } => {
+                let ty = self.resources.module_type_indices[*module_idx as usize];
+                &self.module_type_at(ty)?.exports
+            }
+        };
+        let export = match exports.get(export_idx as usize) {
+            Some(e) => e,
+            None => {
+                return self.create_error("aliased export index out of bounds");
+            }
+        };
+        match (export.ty, kind) {
+            (ImportSectionEntryType::Function(ty), ExternalKind::Function) => {
+                self.func_nonlocal_count += 1;
+                self.resources.func_type_indices.push(ty);
+            }
+            (ImportSectionEntryType::Table(ty), ExternalKind::Table) => {
+                self.resources.tables.push(ty);
+            }
+            (ImportSectionEntryType::Memory(ty), ExternalKind::Memory) => {
+                self.resources.memories.push(ty);
+            }
+            (ImportSectionEntryType::Global(ty), ExternalKind::Global) => {
+                self.resources.globals.push(ty);
+            }
+            (ImportSectionEntryType::Instance(ty), ExternalKind::Instance) => {
+                self.resources
+                    .instance_type_indices
+                    .push(InstanceDef::Imported { type_idx: ty });
+            }
+            (ImportSectionEntryType::Module(ty), ExternalKind::Module) => {
+                self.resources.module_type_indices.push(ty);
+            }
+            _ => return self.create_error("alias kind mismatch with export kind"),
+        }
+
+        Ok(())
     }
 }
 
@@ -851,20 +1242,12 @@ impl<'b> ValidatingOperatorParser<'b> {
     ///     }
     /// }
     /// ```
-    pub fn next<'c, F: WasmFuncType, T: WasmTableType, M: WasmMemoryType, G: WasmGlobalType>(
-        &mut self,
-        resources: &dyn WasmModuleResources<
-            FuncType = F,
-            TableType = T,
-            MemoryType = M,
-            GlobalType = G,
-        >,
-    ) -> Result<Operator<'c>>
+    pub fn next<'c>(&mut self, resources: impl WasmModuleResources) -> Result<Operator<'c>>
     where
         'b: 'c,
     {
         let op = self.reader.read_operator()?;
-        match self.operator_validator.process_operator(&op, resources) {
+        match self.operator_validator.process_operator(&op, &resources) {
             Err(err) => {
                 let offset = self.func_body_offset + self.reader.current_position();
                 return Err(err.set_offset(offset));
@@ -886,21 +1269,11 @@ impl<'b> ValidatingOperatorParser<'b> {
 
 /// Test whether the given buffer contains a valid WebAssembly function.
 /// The resources parameter contains all needed data to validate the operators.
-pub fn validate_function_body<
-    F: WasmFuncType,
-    T: WasmTableType,
-    M: WasmMemoryType,
-    G: WasmGlobalType,
->(
+pub fn validate_function_body(
     bytes: &[u8],
     offset: usize,
     func_index: u32,
-    resources: &dyn WasmModuleResources<
-        FuncType = F,
-        TableType = T,
-        MemoryType = M,
-        GlobalType = G,
-    >,
+    resources: impl WasmModuleResources,
     operator_config: Option<OperatorValidatorConfig>,
 ) -> Result<()> {
     let operator_config = operator_config.unwrap_or(DEFAULT_OPERATOR_VALIDATOR_CONFIG);
@@ -940,7 +1313,9 @@ pub fn validate_function_body<
         // Note: This was an out-of-bounds access before the change to return `Option`
         // so I assumed it is considered a bug to access a non-existing function
         // id here and went with panicking instead of returning a proper error.
-        .expect("the function type indexof the validated function itself is out of bounds");
+        .expect("the function type indexof the validated function itself is out of bounds")
+        .as_func()
+        .unwrap();
     let mut operator_validator = OperatorValidator::new(func_type, &locals, operator_config)
         .map_err(|e| e.set_offset(offset))?;
     let mut eof_found = false;
@@ -948,7 +1323,7 @@ pub fn validate_function_body<
     for item in operators_reader.into_iter_with_offsets() {
         let (ref op, offset) = item?;
         match operator_validator
-            .process_operator(op, resources)
+            .process_operator(op, &resources)
             .map_err(|e| e.set_offset(offset))?
         {
             FunctionEnd::Yes => {
@@ -987,7 +1362,7 @@ pub fn validate(bytes: &[u8], config: Option<ValidatingParserConfig>) -> Result<
     let operator_config = config.map(|c| c.operator_config);
     for (i, range) in func_ranges.into_iter().enumerate() {
         let function_body = range.slice(bytes);
-        let function_index = i as u32 + parser.func_imports_count;
+        let function_index = i as u32 + parser.func_nonlocal_count;
         validate_function_body(
             function_body,
             range.start,

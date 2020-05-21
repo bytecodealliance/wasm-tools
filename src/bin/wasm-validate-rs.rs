@@ -19,6 +19,11 @@ fn main() -> Result<()> {
     );
     opts.optflag("", "enable-multi-value", "Enable wasm multi-value feature");
     opts.optflag("", "enable-tail-call", "Enable wasm tail-call feature");
+    opts.optflag(
+        "",
+        "enable-module-linking",
+        "Enable wasm module-linking feature",
+    );
     #[cfg(feature = "deterministic")]
     opts.optflag(
         "",
@@ -47,6 +52,7 @@ fn main() -> Result<()> {
             enable_bulk_memory: matches.opt_present("enable-bulk-memory"),
             enable_multi_value: matches.opt_present("enable-multi-value"),
             enable_tail_call: matches.opt_present("enable-tail-call"),
+            enable_module_linking: matches.opt_present("enable-module-linking"),
             #[cfg(feature = "deterministic")]
             deterministic_only: matches.opt_present("deterministic-only"),
         },

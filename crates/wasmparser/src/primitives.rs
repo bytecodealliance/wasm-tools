@@ -83,18 +83,22 @@ pub enum SectionCode<'a> {
         name: &'a str,
         kind: CustomSectionKind,
     },
-    Type,      // Function signature declarations
-    Import,    // Import declarations
-    Function,  // Function declarations
-    Table,     // Indirect function table and other tables
-    Memory,    // Memory attributes
-    Global,    // Global declarations
-    Export,    // Exports
-    Start,     // Start function declaration
-    Element,   // Elements section
-    Code,      // Function bodies (code)
-    Data,      // Data segments
-    DataCount, // Count of passive data segments
+    Type,       // Function signature declarations
+    Alias,      // Aliased indices from nested/parent modules
+    Import,     // Import declarations
+    Module,     // Module declarations
+    Instance,   // Instance definitions
+    Function,   // Function declarations
+    Table,      // Indirect function table and other tables
+    Memory,     // Memory attributes
+    Global,     // Global declarations
+    Export,     // Exports
+    Start,      // Start function declaration
+    Element,    // Elements section
+    ModuleCode, // Module definitions
+    Code,       // Function bodies (code)
+    Data,       // Data segments
+    DataCount,  // Count of passive data segments
 }
 
 /// Types as defined [here].
@@ -135,12 +139,39 @@ pub enum ExternalKind {
     Table,
     Memory,
     Global,
+    Type,
+    Module,
+    Instance,
+}
+
+#[derive(Debug, Clone)]
+pub enum TypeDef<'a> {
+    Func(FuncType),
+    Instance(InstanceType<'a>),
+    Module(ModuleType<'a>),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct FuncType {
     pub params: Box<[Type]>,
     pub returns: Box<[Type]>,
+}
+
+#[derive(Debug, Clone)]
+pub struct InstanceType<'a> {
+    pub exports: Vec<ExportType<'a>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ModuleType<'a> {
+    pub imports: Vec<crate::Import<'a>>,
+    pub exports: Vec<ExportType<'a>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExportType<'a> {
+    pub name: &'a str,
+    pub ty: ImportSectionEntryType,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -161,7 +192,7 @@ pub struct MemoryType {
     pub shared: bool,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct GlobalType {
     pub content_type: Type,
     pub mutable: bool,
@@ -173,6 +204,8 @@ pub enum ImportSectionEntryType {
     Table(TableType),
     Memory(MemoryType),
     Global(GlobalType),
+    Module(u32),
+    Instance(u32),
 }
 
 #[derive(Debug, Copy, Clone)]

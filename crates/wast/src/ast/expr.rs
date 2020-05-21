@@ -897,14 +897,16 @@ instructions! {
 #[allow(missing_docs)]
 pub struct BlockType<'a> {
     pub label: Option<ast::Id<'a>>,
-    pub ty: ast::TypeUse<'a>,
+    pub ty: ast::TypeUse<'a, ast::FunctionType<'a>>,
 }
 
 impl<'a> Parse<'a> for BlockType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         Ok(BlockType {
             label: parser.parse()?,
-            ty: ast::TypeUse::parse_no_names(parser)?,
+            ty: parser
+                .parse::<ast::TypeUse<'a, ast::FunctionTypeNoNames<'a>>>()?
+                .into(),
         })
     }
 }
@@ -991,13 +993,14 @@ pub struct CallIndirect<'a> {
     /// The table that this call is going to be indexing.
     pub table: ast::Index<'a>,
     /// Type type signature that this `call_indirect` instruction is using.
-    pub ty: ast::TypeUse<'a>,
+    pub ty: ast::TypeUse<'a, ast::FunctionType<'a>>,
 }
 
 impl<'a> Parse<'a> for CallIndirect<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
+        let prev_span = parser.prev_span();
         let mut table: Option<_> = parser.parse()?;
-        let ty = ast::TypeUse::parse_no_names(parser)?;
+        let ty = parser.parse::<ast::TypeUse<'a, ast::FunctionTypeNoNames<'a>>>()?;
         // Turns out the official test suite at this time thinks table
         // identifiers comes first but wabt's test suites asserts differently
         // putting them second. Let's just handle both.
@@ -1005,8 +1008,8 @@ impl<'a> Parse<'a> for CallIndirect<'a> {
             table = parser.parse()?;
         }
         Ok(CallIndirect {
-            table: table.unwrap_or(ast::Index::Num(0)),
-            ty,
+            table: table.unwrap_or(ast::Index::Num(0, prev_span)),
+            ty: ty.into(),
         })
     }
 }
@@ -1022,10 +1025,11 @@ pub struct TableInit<'a> {
 
 impl<'a> Parse<'a> for TableInit<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
+        let prev_span = parser.prev_span();
         let table_or_elem = parser.parse()?;
         let (table, elem) = match parser.parse()? {
             Some(elem) => (table_or_elem, elem),
-            None => (ast::Index::Num(0), table_or_elem),
+            None => (ast::Index::Num(0, prev_span), table_or_elem),
         };
         Ok(TableInit { table, elem })
     }
@@ -1045,7 +1049,8 @@ impl<'a> Parse<'a> for TableCopy<'a> {
         let (dst, src) = if let Some(dst) = parser.parse()? {
             (dst, parser.parse()?)
         } else {
-            (ast::Index::Num(0), ast::Index::Num(0))
+            let span = parser.prev_span();
+            (ast::Index::Num(0, span), ast::Index::Num(0, span))
         };
         Ok(TableCopy { dst, src })
     }
@@ -1063,7 +1068,7 @@ impl<'a> Parse<'a> for TableArg<'a> {
         let dst = if let Some(dst) = parser.parse()? {
             dst
         } else {
-            ast::Index::Num(0)
+            ast::Index::Num(0, parser.prev_span())
         };
         Ok(TableArg { dst })
     }
