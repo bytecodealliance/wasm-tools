@@ -243,7 +243,13 @@ impl<'a> BinaryReader<'a> {
     }
 
     pub(crate) fn read_func_type(&mut self) -> Result<FuncType> {
-        let form = self.read_type()?;
+        if self.read_type()? != Type::Func {
+            return Err(BinaryReaderError::new(
+                "type signature is not a func",
+                self.original_position() - 1,
+            ));
+        }
+
         let params_len = self.read_var_u32()? as usize;
         if params_len > MAX_WASM_FUNCTION_PARAMS {
             return Err(BinaryReaderError::new(
@@ -267,7 +273,6 @@ impl<'a> BinaryReader<'a> {
             returns.push(self.read_type()?);
         }
         Ok(FuncType {
-            form,
             params: params.into_boxed_slice(),
             returns: returns.into_boxed_slice(),
         })

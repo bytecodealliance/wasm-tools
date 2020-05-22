@@ -137,9 +137,8 @@ pub enum ExternalKind {
     Global,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct FuncType {
-    pub form: Type,
     pub params: Box<[Type]>,
     pub returns: Box<[Type]>,
 }
