@@ -139,7 +139,6 @@ pub enum ExternalKind {
 
 #[derive(Debug, Clone)]
 pub struct FuncType {
-    pub form: Type,
     pub params: Box<[Type]>,
     pub returns: Box<[Type]>,
 }

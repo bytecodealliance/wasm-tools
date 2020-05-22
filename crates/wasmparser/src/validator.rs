@@ -242,16 +242,12 @@ impl<'a> ValidatingParser<'a> {
     }
 
     fn check_func_type(&self, func_type: &FuncType) -> ValidatorResult<'a, ()> {
-        if let Type::Func = func_type.form {
-            self.check_value_types(&*func_type.params)?;
-            self.check_value_types(&*func_type.returns)?;
-            if !self.config.operator_config.enable_multi_value && func_type.returns.len() > 1 {
-                self.create_error("invalid result arity: func type returns multiple values")
-            } else {
-                Ok(())
-            }
+        self.check_value_types(&*func_type.params)?;
+        self.check_value_types(&*func_type.returns)?;
+        if !self.config.operator_config.enable_multi_value && func_type.returns.len() > 1 {
+            self.create_error("invalid result arity: func type returns multiple values")
         } else {
-            self.create_error("type signature is not a func")
+            Ok(())
         }
     }
 

@@ -2,8 +2,8 @@
        | 01 00 00 00
 0x0008 | 01 08       | section Type
 0x000a | 02          | 2 count
-0x000b | 60 01 7f 00 | type FuncType { form: Func, params: [I32], returns: [] }
-0x000f | 60 00 00    | type FuncType { form: Func, params: [], returns: [] }
+0x000b | 60 01 7f 00 | type FuncType { params: [I32], returns: [] }
+0x000f | 60 00 00    | type FuncType { params: [], returns: [] }
 0x0012 | 02 07       | section Import
 0x0014 | 01          | 1 count
 0x0015 | 01 6d 01 6e | import [func 0] Import { module: "m", field: "n", ty: Function(0) }

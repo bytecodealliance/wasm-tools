@@ -2,7 +2,7 @@
        | 01 00 00 00
 0x0008 | 01 04       | section Type
 0x000a | 01          | 1 count
-0x000b | 60 00 00    | type FuncType { form: Func, params: [], returns: [] }
+0x000b | 60 00 00    | type FuncType { params: [], returns: [] }
 0x000e | 03 02       | section Function
 0x0010 | 01          | 1 count
 0x0011 | 00          | [func 0] type 0
