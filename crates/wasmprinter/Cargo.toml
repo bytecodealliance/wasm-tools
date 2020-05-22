@@ -14,7 +14,7 @@ Rust converter from the WebAssembly binary format to the text format.
 
 [dependencies]
 anyhow = "1.0"
-wasmparser = { path = '../wasmparser', version = '0.55' }
+wasmparser = { path = '../wasmparser', version = '0.56' }
 
 [dev-dependencies]
 diff = "0.1"
