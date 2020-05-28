@@ -1188,10 +1188,11 @@ impl Printer {
                 }
             }
             let mut items_reader = elem.items.get_items_reader()?;
+            self.result.push_str(" ");
             if items_reader.uses_exprs() {
-                self.result.push_str(" funcref");
+                self.print_valtype(elem.ty)?;
             } else {
-                self.result.push_str(" func");
+                self.print_reftype(elem.ty)?;
             }
             for _ in 0..items_reader.get_count() {
                 match items_reader.read()? {
