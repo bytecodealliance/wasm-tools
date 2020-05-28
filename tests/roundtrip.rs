@@ -128,22 +128,6 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         return true;
     }
 
-    // Waiting for wabt to remove subtyping from reference-types, updating the
-    // test syntax
-    if test.ends_with("reference-types.txt")
-        || test.ends_with("all-features.txt")
-        || test.ends_with("all-features.txt")
-        || test.ends_with("bulk-memory-named.txt")
-        || test.ends_with("reference-types-named.txt")
-        || test.ends_with("table-grow.txt")
-        || test.ends_with("result-exnref.txt")
-        || test.ends_with("global-exnref.txt")
-        || test.ends_with("global.txt")
-        || test.ends_with("bulk-memory.txt")
-    {
-        return true;
-    }
-
     if let Ok(contents) = str::from_utf8(contents) {
         // Skip tests that are supposed to fail
         if contents.contains(";; ERROR") {
@@ -216,8 +200,12 @@ impl TestState {
         if !contents.contains("--enable-exceptions")
             && !contents.contains("--enable-gc")
             && !contents.contains("--no-check")
+            // intentionally invalid wasm files
+            && !contents.contains(";; TOOL: wat-desugar")
             && !test.ends_with("dump/event.txt")
             && !test.ends_with("dump/import.txt")
+            // uses exceptions
+            && !test.ends_with("parse/all-features.txt")
         {
             self.test_wasm(test, &binary, true)?;
         }
@@ -234,21 +222,23 @@ impl TestState {
 
         // Test that we can print these bytes, and if available make sure it
         // matches wabt.
-        //
-        // TODO reference types are skiped here from wabt since those
-        //      haven't been renamed to externref yet.
         let string = wasmprinter::print_bytes(contents)?;
         self.bump_ntests();
-        if !test.iter().any(|t| t == "reference-types")
-            && !test.iter().any(|t| t == "bulk-memory-operations")
-            && !test.ends_with("table-set.txt")
-            && !test.ends_with("fold-reference-types.txt")
-            && !test.ends_with("if-anyref.txt")
-            && !test.ends_with("table-get.txt")
+        if !test.ends_with("local/reloc.wasm")
+            // FIXME(WebAssembly/wabt#1443)
+            && !test.ends_with("dump/reference-types.txt")
             && !test.ends_with("table-multi.txt")
+
+            // FIXME(WebAssembly/wabt#1444)
             && !test.ends_with("local/ref.wat")
+
+            // FIXME(WebAssembly/wabt#1445)
             && !test.ends_with("local/table-copy.wat")
-            && !test.ends_with("local/reloc.wasm")
+
+            // thought to be some combination of the above issues for these test
+            // suites
+            && !test.iter().any(|t| t == "reference-types")
+            && !test.iter().any(|t| t == "bulk-memory-operations")
         {
             if let Some(expected) = self.wasm2wat(contents)? {
                 self.string_compare(&string, &expected)?;
