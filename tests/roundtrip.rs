@@ -232,20 +232,9 @@ impl TestState {
         let string = wasmprinter::print_bytes(contents)?;
         self.bump_ntests();
         if !test.ends_with("local/reloc.wasm")
-
             // FIXME(WebAssembly/wabt#1447)
             && !test.ends_with("bulk-memory-operations/binary.wast")
             && !test.ends_with("reference-types/binary.wast")
-
-            // FIXME(WebAssembly/wabt#1448)
-            && !test.ends_with("reference-types/linking.wast")
-
-            // FIXME(WebAssembly/wabt#1449)
-            && !test.ends_with("reference-types/elem.wast")
-
-            // FIXME(WebAssembly/wabt#1444)
-            && !test.ends_with("local/ref.wat")
-            && !test.ends_with("reference-types/select.wast")
         {
             if let Some(expected) = self.wasm2wat(contents)? {
                 self.string_compare(&string, &expected)?;
