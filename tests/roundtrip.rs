@@ -232,20 +232,9 @@ impl TestState {
         let string = wasmprinter::print_bytes(contents)?;
         self.bump_ntests();
         if !test.ends_with("local/reloc.wasm")
-
             // FIXME(WebAssembly/wabt#1447)
             && !test.ends_with("bulk-memory-operations/binary.wast")
             && !test.ends_with("reference-types/binary.wast")
-
-            // FIXME(WebAssembly/wabt#1448)
-            && !test.ends_with("reference-types/linking.wast")
-
-            // FIXME(WebAssembly/wabt#1449)
-            && !test.ends_with("reference-types/elem.wast")
-
-            // FIXME(WebAssembly/wabt#1444)
-            && !test.ends_with("local/ref.wat")
-            && !test.ends_with("reference-types/select.wast")
         {
             if let Some(expected) = self.wasm2wat(contents)? {
                 self.string_compare(&string, &expected)?;
@@ -297,7 +286,7 @@ impl TestState {
             .into_par_iter()
             .filter_map(|(directive, expected)| {
                 let (line, col) = directive.span().linecol_in(contents);
-                self.test_wast_directive(test, line, directive, expected)
+                self.test_wast_directive(test, directive, expected)
                     .with_context(|| {
                         format!(
                             "failed directive on {}:{}:{}",
@@ -323,11 +312,9 @@ impl TestState {
     fn test_wast_directive(
         &self,
         test: &Path,
-        line: usize,
         directive: WastDirective,
         expected: Option<&PathBuf>,
     ) -> Result<()> {
-        let wasmparser_disabled = self.wasmparser_disabled(test, line + 1);
         match directive {
             WastDirective::Module(mut module) => {
                 let actual = module.encode()?;
@@ -350,9 +337,7 @@ impl TestState {
                     // with wabt which does further parsing.
                     ModuleKind::Binary(_) => false,
                 };
-                if !wasmparser_disabled {
-                    self.test_wasm(test, &actual, test_roundtrip)?;
-                }
+                self.test_wasm(test, &actual, test_roundtrip)?;
             }
 
             WastDirective::QuoteModule { source, span: _ } => {
@@ -384,9 +369,6 @@ impl TestState {
                 message,
                 span: _,
             } => {
-                if wasmparser_disabled {
-                    return Ok(());
-                }
                 let wasm = module.encode()?;
                 self.bump_ntests();
                 let e = self.test_wasm_invalid(test, &wasm)?;
@@ -403,9 +385,6 @@ impl TestState {
                 module: QuoteModule::Module(mut module),
                 ..
             } => {
-                if wasmparser_disabled {
-                    return Ok(());
-                }
                 let wasm = module.encode()?;
                 self.bump_ntests();
                 let e = self.test_wasm_invalid(test, &wasm)?;
@@ -643,21 +622,6 @@ impl TestState {
             }
             return bytes.to_vec();
         }
-    }
-
-    fn wasmparser_disabled(&self, test: &Path, line: usize) -> bool {
-        // these tests still use the old binary encoding, need to be
-        // updated for the new one
-        if test.ends_with("simd_const.wast") {
-            return line == 1566
-                || line == 1583
-                || line == 1600
-                || line == 1617
-                || line == 1634
-                || line == 1651;
-        }
-
-        false
     }
 
     fn wasmparser_config_for(&self, test: &Path) -> ValidatingParserConfig {
