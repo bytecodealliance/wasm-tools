@@ -1903,10 +1903,13 @@ impl OperatorValidator {
             }
             Operator::I8x16AnyTrue
             | Operator::I8x16AllTrue
+            | Operator::I8x16Bitmask
             | Operator::I16x8AnyTrue
             | Operator::I16x8AllTrue
+            | Operator::I16x8Bitmask
             | Operator::I32x4AnyTrue
-            | Operator::I32x4AllTrue => {
+            | Operator::I32x4AllTrue
+            | Operator::I32x4Bitmask => {
                 self.check_simd_enabled()?;
                 self.check_operands_1(Type::V128)?;
                 self.func_state.change_frame_with_type(1, Type::I32)?;
