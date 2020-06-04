@@ -12,6 +12,7 @@ const VALIDATOR_CONFIG: Option<ValidatingParserConfig> = Some(ValidatingParserCo
         enable_simd: true,
         enable_bulk_memory: true,
         enable_multi_value: true,
+        enable_tail_call: true,
     },
 });
 
