@@ -44,7 +44,7 @@ where
 
 fn it_works_benchmark(c: &mut Criterion) {
     let mut data: Vec<Vec<u8>> = vec![];
-    for entry in read_dir("tests").unwrap() {
+    for entry in read_dir("../../tests").unwrap() {
         let dir = entry.unwrap();
         if !dir.file_type().unwrap().is_file() {
             continue;
@@ -60,7 +60,7 @@ fn it_works_benchmark(c: &mut Criterion) {
 
 fn validator_not_fails_benchmark(c: &mut Criterion) {
     let mut data: Vec<Vec<u8>> = vec![];
-    for entry in read_dir("tests").unwrap() {
+    for entry in read_dir("../../tests").unwrap() {
         let dir = entry.unwrap();
         if !dir.file_type().unwrap().is_file() {
             continue;
@@ -76,7 +76,7 @@ fn validator_not_fails_benchmark(c: &mut Criterion) {
 
 fn validate_benchmark(c: &mut Criterion) {
     let mut data: Vec<Vec<u8>> = vec![vec![]];
-    for entry in read_dir("tests").unwrap() {
+    for entry in read_dir("../../tests").unwrap() {
         let dir = entry.unwrap();
         if !dir.file_type().unwrap().is_file() {
             continue;
