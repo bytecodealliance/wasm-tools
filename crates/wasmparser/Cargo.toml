@@ -19,6 +19,10 @@ wat = { path = "../wat" }
 wast = { path = "../wast" }
 rayon = "1.3"
 
+[[bench]]
+name = "benchmark"
+harness = false
+
 [features]
 # The "deterministic" feature supports only Wasm code with "deterministic" execution
 # across any hardware. This feature is very critical for many Blockchain infrastructures
