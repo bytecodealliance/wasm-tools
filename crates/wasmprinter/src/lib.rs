@@ -445,7 +445,7 @@ impl Printer {
         Ok(())
     }
 
-    fn print_operator(&mut self, op: &Operator<'_>) -> Result<()> {
+    fn print_operator(&mut self, op: &Operator) -> Result<()> {
         use Operator::*;
         let nesting = self.nesting;
         let label =
@@ -498,11 +498,15 @@ impl Printer {
                 )?;
             }
             BrTable { table } => {
-                let (table, default) = table.read_table()?;
+                use wasmparser::WasmBrTable as _;
                 self.result.push_str("br_table");
-                for item in table.iter().cloned().chain(Some(default)) {
+                let len_targets = table.len();
+                for i in 0..len_targets {
+                    let item = table.target_offset(i).expect("within bounds");
                     write!(self.result, " {} (;{};)", item, label(item))?;
                 }
+                let default_offset = table.default_offset();
+                write!(self.result, " {} (;{};)", default_offset, label(default_offset))?;
             }
 
             Return => self.result.push_str("return"),
