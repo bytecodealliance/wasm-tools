@@ -506,7 +506,12 @@ impl Printer {
                     write!(self.result, " {} (;{};)", item, label(item))?;
                 }
                 let default_offset = table.default_offset();
-                write!(self.result, " {} (;{};)", default_offset, label(default_offset))?;
+                write!(
+                    self.result,
+                    " {} (;{};)",
+                    default_offset,
+                    label(default_offset)
+                )?;
             }
 
             Return => self.result.push_str("return"),
