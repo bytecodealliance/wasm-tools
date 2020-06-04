@@ -1,9 +1,15 @@
-pub fn read_file_data(path: &PathBuf) -> Vec<u8> {
-    let mut data = Vec::new();
-    let mut f = File::open(path).ok().unwrap();
-    f.read_to_end(&mut data).unwrap();
-    data
-}
+#[macro_use]
+extern crate criterion;
+
+use criterion::Criterion;
+use std::fs::{read_dir, File};
+use std::io::Read;
+use std::path::Path;
+use std::path::PathBuf;
+use wasmparser::{
+    validate, OperatorValidatorConfig, Parser, ParserState, ValidatingParser,
+    ValidatingParserConfig, WasmDecoder,
+};
 
 const VALIDATOR_CONFIG: Option<ValidatingParserConfig> = Some(ValidatingParserConfig {
     operator_config: OperatorValidatorConfig {
@@ -15,20 +21,6 @@ const VALIDATOR_CONFIG: Option<ValidatingParserConfig> = Some(ValidatingParserCo
         enable_tail_call: true,
     },
 });
-
-#[macro_use]
-extern crate criterion;
-extern crate wasmparser;
-
-use criterion::Criterion;
-use wasmparser::{
-    validate, OperatorValidatorConfig, Parser, ParserState, ValidatingParser,
-    ValidatingParserConfig, WasmDecoder,
-};
-
-use std::fs::{read_dir, File};
-use std::io::Read;
-use std::path::PathBuf;
 
 fn read_all_wasm<'a, T>(mut d: T)
 where
@@ -43,6 +35,12 @@ where
     }
 }
 
+fn read_file_data(path: &PathBuf) -> Vec<u8> {
+    let mut data = Vec::new();
+    let mut f = File::open(path).ok().unwrap();
+    f.read_to_end(&mut data).unwrap();
+    data
+}
 fn it_works_benchmark(c: &mut Criterion) {
     let mut data: Vec<Vec<u8>> = vec![];
     for entry in read_dir("../../tests").unwrap() {
