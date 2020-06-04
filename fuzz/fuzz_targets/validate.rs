@@ -1,9 +1,6 @@
 #![no_main]
 
-#[macro_use]
-extern crate libfuzzer_sys;
-extern crate wasmparser;
-
+use libfuzzer_sys::*;
 use wasmparser::WasmDecoder;
 
 fuzz_target!(|data: &[u8]| {

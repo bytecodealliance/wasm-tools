@@ -1,27 +1,86 @@
 name: CI
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
 
 jobs:
   test:
     name: Test
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        rust: [stable, beta, nightly]
+        build: [stable, beta, nightly, macos, windows]
+        include:
+          - build: stable
+            os: ubuntu-latest
+            rust: stable
+          - build: beta
+            os: ubuntu-latest
+            rust: beta
+          - build: nightly
+            os: ubuntu-latest
+            rust: nightly
+          - build: macos
+            os: macos-latest
+            rust: stable
+          - build: windows
+            os: windows-latest
+            rust: stable
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
       with:
         submodules: true
-    - name: Install Rust
+    - name: Install Rust (rustup)
       run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
-    - run: ./test-all.sh
-#    - run: ./compare-master.sh
+      shell: bash
+    - name: Install Ninja (Linux)
+      run: sudo apt install ninja-build
+      if: matrix.os == 'ubuntu-latest'
+    - name: Install Ninja (macOS)
+      run: brew install ninja
+      if: matrix.os == 'macos-latest'
+    - name: Install Ninja (Windows)
+      run: choco install ninja
+      if: matrix.os == 'windows-latest'
+
+    - name: Build wabt
+      run: |
+        set -e
+        cd tests/wabt
+        cmake . -G Ninja -DBUILD_TESTS=OFF
+        ninja wast2json wat2wasm wasm2wat
+      shell: bash
+    - name: Add wabt to path (unix)
+      run: echo ::add-path::`pwd`/tests/wabt
+      if: matrix.os != 'windows-latest'
+    - name: Add wabt to path (windows)
+      run: echo ::add-path::D:/a/wasm-tools/wasm-tools/tests/wabt
+      if: matrix.os == 'windows-latest'
+
+    - run: cargo test --all
+    - run: cargo test --manifest-path crates/wasmparser/Cargo.toml --features deterministic
+    - run: cargo build --manifest-path crates/wast/Cargo.toml --no-default-features
+    - run: cargo build --manifest-path crates/wast/Cargo.toml --no-default-features --features wasm-module
 
   rustfmt:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: Install Rust
       run: rustup update stable && rustup default stable && rustup component add rustfmt
     - run: cargo fmt -- --check
+
+  fuzz:
+    name: Fuzz
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: Install Rust
+      run: rustup update nightly && rustup default nightly
+    - run: cargo install cargo-fuzz
+    - run: cargo fuzz build

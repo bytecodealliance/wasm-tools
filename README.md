@@ -1,70 +1,33 @@
-# The WebAssembly binary file decoder in Rust
+<div align="center">
+  <h1><code>wasm-tools</code></h1>
 
-**A [Bytecode Alliance](https://bytecodealliance.org/) project**
+<strong>A <a href="https://bytecodealliance.org/">Bytecode Alliance</a> project</strong>
 
-![CI](https://github.com/bytecodealliance/wasmparser/workflows/CI/badge.svg)
-[![crates.io link](https://img.shields.io/crates/v/wasmparser.svg)](https://crates.io/crates/wasmparser)
+  <p>
+    <strong>Rust tooling for low-level manipulation of WebAssembly modules</strong>
+  </p>
+</div>
 
-The decoder library provides lightweight and fast decoding/parsing of WebAssembly binary files.
+# Tools included
 
-The other goal is minimal memory footprint. For this reason, there is no AST or IR of WebAssembly data.
+This project is intended to house a number of tools related to the low-level
+workings of WebAssembly. The top-level crate here ties everything together but
+isn't currently intended for general use. Instead you probably want to take a
+look at the sub-crates:
 
-See also its sibling at https://github.com/wasdk/wasmparser
+* [**`wasmparser`**](crates/wasmparser) - a library to parse WebAssembly binaries
+* [**`wat`**](crates/wat) - a library to parse the WebAssembly text format
+* [**`wast`**](crates/wast) - like `wat`, except provides an AST
+* [**`wasmprinter`**](crates/wasmprinter) - prints WebAssembly binaries in their
+  string form
 
+# License
 
-## Documentation
+This project is licensed under the Apache 2.0 license with the LLVM exception.
+See [LICENSE](LICENSE) for more details.
 
-The documentation and examples can be found at the https://docs.rs/wasmparser/
+### Contribution
 
-
-## Example
-
-```rust
-use wasmparser::WasmDecoder;
-use wasmparser::Parser;
-use wasmparser::ParserState;
-
-fn get_name(bytes: &[u8]) -> &str {
-  str::from_utf8(bytes).ok().unwrap()
-}
-
-fn main() {
-  let ref buf: Vec<u8> = read_wasm_bytes();
-  let mut parser = Parser::new(buf);
-  loop {
-    let state = parser.read();
-    match *state {
-        ParserState::BeginWasm { .. } => {
-            println!("====== Module");
-        }
-        ParserState::ExportSectionEntry { field, ref kind, .. } => {
-            println!("  Export {} {:?}", get_name(field), kind);
-        }
-        ParserState::ImportSectionEntry { module, field, .. } => {
-            println!("  Import {}::{}", get_name(module), get_name(field))
-        }
-        ParserState::EndWasm => break,
-        _ => ( /* println!(" Other {:?}", state) */ )
-    }
-  }
-}
-```
-
-
-## Fuzzing
-
-To fuzz test wasmparser.rs, switch to a nightly Rust compiler and install [cargo-fuzz]:
-
-```
-cargo install cargo-fuzz
-```
-
-Then, from the root of the repository, run:
-
-```
-cargo fuzz run parse
-```
-
-If you want to use files as seeds for the fuzzer, add them to `fuzz/corpus/parse/` and restart cargo-fuzz.
-
-[cargo-fuzz]: https://github.com/rust-fuzz/cargo-fuzz
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in this project by you, as defined in the Apache-2.0 license,
+shall be licensed as above, without any additional terms or conditions.

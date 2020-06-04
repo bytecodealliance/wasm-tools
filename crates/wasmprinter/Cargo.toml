@@ -1,0 +1,25 @@
+[package]
+name = "wasmprinter"
+version = "0.2.5"
+authors = ["Alex Crichton <alex@alexcrichton.com>"]
+edition = "2018"
+license = "Apache-2.0 WITH LLVM-exception"
+readme = "README.md"
+repository = "https://github.com/bytecodealliance/wasm-tools/tree/master/crates/wasmprinter"
+homepage = "https://github.com/bytecodealliance/wasm-tools/tree/master/crates/wasmprinter"
+documentation = "https://docs.rs/wasmprinter"
+description = """
+Rust converter from the WebAssembly binary format to the text format.
+"""
+
+[dependencies]
+anyhow = "1.0"
+wasmparser = { path = '../wasmparser', version = '0.57' }
+
+[dev-dependencies]
+diff = "0.1"
+getopts = "0.2"
+rayon = "1.0"
+tempfile = "3.0"
+wat = { path = "../wat" }
+wast = { path = "../wast" }

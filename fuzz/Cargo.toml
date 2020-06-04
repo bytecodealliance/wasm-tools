@@ -1,27 +1,46 @@
 [package]
-name = "wasmparser-fuzz"
+name = "wasm-tools-libfuzzer"
 version = "0.0.1"
-authors = ["Yury Delendik <ydelendik@mozilla.com>"]
 publish = false
 edition = "2018"
 
 [package.metadata]
 cargo-fuzz = true
 
-[dependencies.wasmparser]
-path = ".."
-
-[dependencies.libfuzzer-sys]
-git = "https://github.com/rust-fuzz/libfuzzer-sys.git"
-
-# Prevent this from interfering with workspaces
-[workspace]
-members = ["."]
+[dependencies]
+libfuzzer-sys = { git = "https://github.com/rust-fuzz/libfuzzer-sys" }
+tempfile = "3.0"
+wasmparser = { path = "../crates/wasmparser" }
+wasmprinter = { path = "../crates/wasmprinter" }
+wast = { path = "../crates/wast" }
+wat = { path = "../crates/wat" }
 
 [[bin]]
-name = "parse"
-path = "fuzz_targets/parse.rs"
+name = "text-lexer"
+path = "fuzz_targets/text-lexer.rs"
+test = false
+
+[[bin]]
+name = "text-parser"
+path = "fuzz_targets/text-parser.rs"
+test = false
+
+[[bin]]
+name = "binary-parse"
+path = "fuzz_targets/binary-parse.rs"
+test = false
 
 [[bin]]
 name = "validate"
 path = "fuzz_targets/validate.rs"
+test = false
+
+[[bin]]
+name = "print"
+path = "fuzz_targets/print.rs"
+test = false
+
+[[bin]]
+name = "roundtrip"
+path = "fuzz_targets/roundtrip.rs"
+test = false
