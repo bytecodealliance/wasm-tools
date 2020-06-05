@@ -22,19 +22,6 @@ const VALIDATOR_CONFIG: Option<ValidatingParserConfig> = Some(ValidatingParserCo
     },
 });
 
-fn read_all_wasm<'a, T>(mut d: T)
-where
-    T: WasmDecoder<'a>,
-{
-    loop {
-        match *d.read() {
-            ParserState::Error(ref e) => panic!("unexpected error while reading Wasm: {}", e),
-            ParserState::EndWasm => return,
-            _ => (),
-        }
-    }
-}
-
 fn read_file_data(path: &PathBuf) -> Vec<u8> {
     wat::parse_file(path).expect("encountered error while parsing Wasm text format file")
 }
@@ -80,6 +67,19 @@ where
     )
     .expect("encountered error while reading test directory");
     file_contents
+}
+
+fn read_all_wasm<'a, T>(mut d: T)
+where
+    T: WasmDecoder<'a>,
+{
+    loop {
+        match *d.read() {
+            ParserState::Error(ref e) => panic!("unexpected error while reading Wasm: {}", e),
+            ParserState::EndWasm => return,
+            _ => (),
+        }
+    }
 }
 
 fn it_works_benchmark(c: &mut Criterion) {
