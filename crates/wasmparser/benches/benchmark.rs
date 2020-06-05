@@ -3,9 +3,7 @@ extern crate criterion;
 
 use criterion::Criterion;
 use std::fs;
-use std::fs::File;
 use std::io;
-use std::io::Read;
 use std::path::Path;
 use std::path::PathBuf;
 use wasmparser::{
