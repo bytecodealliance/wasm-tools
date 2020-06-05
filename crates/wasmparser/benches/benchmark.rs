@@ -75,7 +75,7 @@ where
         path.as_ref(),
         &|dir_entry| dir_entry.file_name().to_str() != Some("proposals"),
         &mut |dir_entry| {
-            if dir_entry.path().extension() == Some(std::ffi::OsStr::new("wast")) {
+            if dir_entry.path().extension().and_then(|ext| ext.to_str()) == Some("wast") {
                 file_contents.push(read_file_data(&dir_entry.path()))
             }
         },
