@@ -2,7 +2,9 @@
 extern crate criterion;
 
 use criterion::Criterion;
-use std::fs::{read_dir, File};
+use std::fs;
+use std::fs::File;
+use std::io;
 use std::io::Read;
 use std::path::Path;
 use std::path::PathBuf;
@@ -36,10 +38,32 @@ where
 }
 
 fn read_file_data(path: &PathBuf) -> Vec<u8> {
-    let mut data = Vec::new();
-    let mut f = File::open(path).ok().unwrap();
-    f.read_to_end(&mut data).unwrap();
-    data
+    wat::parse_file(path).expect("encountered error while parsing Wasm text format file")
+}
+
+/// Visits all directory entries within the given directory path.
+///
+/// - `pred` can be used to filter some directories, e.g. all directories named
+///   `"proposals"`.
+/// - `cb` is the callback that is being called for every file within the non
+///   filtered and visited directories.
+fn visit_dirs<P, F>(dir: &Path, pred: &P, cb: &mut F) -> io::Result<()>
+where
+    P: Fn(&fs::DirEntry) -> bool,
+    F: FnMut(&fs::DirEntry),
+{
+    if dir.is_dir() {
+        for entry in fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() && pred(&entry) {
+                visit_dirs(&path, pred, cb)?;
+            } else {
+                cb(&entry);
+            }
+        }
+    }
+    Ok(())
 }
 
 fn collect_test_files<P>(path: P) -> Vec<Vec<u8>>
@@ -47,13 +71,16 @@ where
     P: AsRef<Path>,
 {
     let mut file_contents: Vec<Vec<u8>> = vec![];
-    for entry in read_dir(path).expect("cannot find the benchmark test files") {
-        let dir = entry.unwrap();
-        if !dir.file_type().unwrap().is_file() {
-            continue;
-        }
-        file_contents.push(read_file_data(&dir.path()));
-    }
+    visit_dirs(
+        path.as_ref(),
+        &|dir_entry| dir_entry.file_name().to_str() != Some("proposals"),
+        &mut |dir_entry| {
+            if dir_entry.path().extension() == Some(std::ffi::OsStr::new("wast")) {
+                file_contents.push(read_file_data(&dir_entry.path()))
+            }
+        },
+    )
+    .expect("encountered error while reading test directory");
     file_contents
 }
 
