@@ -144,7 +144,7 @@ where
     loop {
         match *d.read() {
             ParserState::Error(ref e) => {
-                panic!("unexpected error while reading Wasm at {:?}: {}", path, e)
+                panic!("unexpected error while reading Wasm from {:?}: {}", path, e)
             }
             ParserState::EndWasm => return,
             _ => (),
