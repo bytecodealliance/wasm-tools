@@ -152,8 +152,27 @@ where
     }
 }
 
+/// Returns the default benchmark inputs that are proper `wasmparser` benchmark
+/// test inputs.
+fn collect_benchmark_inputs() -> Vec<BenchmarkInput> {
+    let from_testsuite = collect_test_files("../../testsuite");
+    let from_tests = collect_test_files("../../tests");
+    from_testsuite.into_iter().chain(from_tests.into_iter()).collect::<Vec<_>>()
+}
+
 fn it_works_benchmark(c: &mut Criterion) {
-    let mut inputs = collect_test_files("../../testsuite");
+    let mut inputs = collect_benchmark_inputs();
+    // Filter out all benchmark inputs that fail to parse via `wasmparser`.
+    inputs.retain(|input| {
+        let mut parser = Parser::new(input.wasm.as_slice());
+        'outer: loop {
+            match parser.read() {
+                ParserState::Error(_) => break 'outer false,
+                ParserState::EndWasm => break 'outer true,
+                _ => continue,
+            }
+        }
+    });
     c.bench_function("it works benchmark", move |b| {
         for input in &mut inputs {
             b.iter(|| read_all_wasm(&input.path, Parser::new(input.wasm.as_slice())));
@@ -162,7 +181,18 @@ fn it_works_benchmark(c: &mut Criterion) {
 }
 
 fn validator_not_fails_benchmark(c: &mut Criterion) {
-    let mut inputs = collect_test_files("../../testsuite");
+    let mut inputs = collect_benchmark_inputs();
+    // Filter out all benchmark inputs that fail to validate via `wasmparser`.
+    inputs.retain(|input| {
+        let mut parser = ValidatingParser::new(input.wasm.as_slice(), VALIDATOR_CONFIG);
+        'outer: loop {
+            match parser.read() {
+                ParserState::Error(_) => break 'outer false,
+                ParserState::EndWasm => break 'outer true,
+                _ => continue,
+            }
+        }
+    });
     c.bench_function("validator no fails benchmark", move |b| {
         for input in &mut inputs {
             b.iter(|| {
@@ -176,7 +206,11 @@ fn validator_not_fails_benchmark(c: &mut Criterion) {
 }
 
 fn validate_benchmark(c: &mut Criterion) {
-    let mut inputs = collect_test_files("../../testsuite");
+    let mut inputs = collect_benchmark_inputs();
+    // Filter out all benchmark inputs that fail to validate via `wasmparser`.
+    inputs.retain(|input| {
+        validate(input.wasm.as_slice(), VALIDATOR_CONFIG).is_ok()
+    });
     c.bench_function("validate benchmark", move |b| {
         for input in &mut inputs {
             b.iter(|| validate(input.wasm.as_slice(), VALIDATOR_CONFIG));
