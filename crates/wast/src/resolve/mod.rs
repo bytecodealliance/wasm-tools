@@ -69,6 +69,19 @@ impl Ns {
             Ns::Type => ExportKind::Type(index),
         }
     }
+
+    fn desc(&self) -> &'static str {
+        match self {
+            Ns::Func => "func",
+            Ns::Table => "table",
+            Ns::Global => "global",
+            Ns::Memory => "memory",
+            Ns::Module => "module",
+            Ns::Instance => "instance",
+            Ns::Event => "event",
+            Ns::Type => "type",
+        }
+    }
 }
 
 pub fn resolve<'a>(module: &mut Module<'a>) -> Result<Names<'a>, Error> {

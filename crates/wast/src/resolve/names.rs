@@ -801,16 +801,7 @@ impl<'a> Resolver<'a> {
         module_idx: usize,
         idx: &Index<'a>,
     ) -> Result<(&TypeInfo<'a>, usize), Error> {
-        self.item_for(
-            &self.modules[module_idx],
-            idx,
-            "type",
-            &|m| &m.types,
-            &|e| match e {
-                ExportKind::Type(i) => Some(*i),
-                _ => None,
-            },
-        )
+        self.item_for(&self.modules[module_idx], idx, Ns::Type, &|m| &m.types)
     }
 
     fn global_for(
@@ -818,29 +809,11 @@ impl<'a> Resolver<'a> {
         module_idx: usize,
         idx: &Index<'a>,
     ) -> Result<(&GlobalType<'a>, usize), Error> {
-        self.item_for(
-            &self.modules[module_idx],
-            idx,
-            "global",
-            &|m| &m.globals,
-            &|e| match e {
-                ExportKind::Global(i) => Some(*i),
-                _ => None,
-            },
-        )
+        self.item_for(&self.modules[module_idx], idx, Ns::Global, &|m| &m.globals)
     }
 
     fn table_for(&self, module_idx: usize, idx: &Index<'a>) -> Result<(&TableType, usize), Error> {
-        self.item_for(
-            &self.modules[module_idx],
-            idx,
-            "table",
-            &|m| &m.tables,
-            &|e| match e {
-                ExportKind::Table(i) => Some(*i),
-                _ => None,
-            },
-        )
+        self.item_for(&self.modules[module_idx], idx, Ns::Table, &|m| &m.tables)
     }
 
     fn module_for(
@@ -848,16 +821,7 @@ impl<'a> Resolver<'a> {
         module_idx: usize,
         idx: &Index<'a>,
     ) -> Result<(&ModuleInfo<'a>, usize), Error> {
-        self.item_for(
-            &self.modules[module_idx],
-            idx,
-            "module",
-            &|m| &m.modules,
-            &|e| match e {
-                ExportKind::Module(i) => Some(*i),
-                _ => None,
-            },
-        )
+        self.item_for(&self.modules[module_idx], idx, Ns::Module, &|m| &m.modules)
     }
 
     fn instance_for(
@@ -865,42 +829,17 @@ impl<'a> Resolver<'a> {
         module_idx: usize,
         idx: &Index<'a>,
     ) -> Result<(&InstanceDef<'a>, usize), Error> {
-        self.item_for(
-            &self.modules[module_idx],
-            idx,
-            "instance",
-            &|m| &m.instances,
-            &|e| match e {
-                ExportKind::Instance(i) => Some(*i),
-                _ => None,
-            },
-        )
+        self.item_for(&self.modules[module_idx], idx, Ns::Instance, &|m| {
+            &m.instances
+        })
     }
 
     fn func_for(&self, module_idx: usize, idx: &Index<'a>) -> Result<(&Index<'a>, usize), Error> {
-        self.item_for(
-            &self.modules[module_idx],
-            idx,
-            "func",
-            &|m| &m.funcs,
-            &|e| match e {
-                ExportKind::Func(i) => Some(*i),
-                _ => None,
-            },
-        )
+        self.item_for(&self.modules[module_idx], idx, Ns::Func, &|m| &m.funcs)
     }
 
     fn event_for(&self, module_idx: usize, idx: &Index<'a>) -> Result<(&Index<'a>, usize), Error> {
-        self.item_for(
-            &self.modules[module_idx],
-            idx,
-            "event",
-            &|m| &m.events,
-            &|e| match e {
-                ExportKind::Event(i) => Some(*i),
-                _ => None,
-            },
-        )
+        self.item_for(&self.modules[module_idx], idx, Ns::Event, &|m| &m.events)
     }
 
     fn memory_for(
@@ -908,16 +847,7 @@ impl<'a> Resolver<'a> {
         module_idx: usize,
         idx: &Index<'a>,
     ) -> Result<(&MemoryType, usize), Error> {
-        self.item_for(
-            &self.modules[module_idx],
-            idx,
-            "memory",
-            &|m| &m.memories,
-            &|e| match e {
-                ExportKind::Memory(i) => Some(*i),
-                _ => None,
-            },
-        )
+        self.item_for(&self.modules[module_idx], idx, Ns::Memory, &|m| &m.memories)
     }
 
     /// A gnarly method that resolves an `idx` within the `module` provided to
@@ -935,19 +865,17 @@ impl<'a> Resolver<'a> {
         &'b self,
         module: &'b Module<'a>,
         idx: &Index<'a>,
-        desc: &str,
+        ns: Ns,
         get_ns: &impl for<'c> Fn(&'c Module<'a>) -> &'c Namespace<'a, T>,
-        get_kind: &impl Fn(&ExportKind<'a>) -> Option<Index<'a>>,
     ) -> Result<(&'b T, usize), Error> {
-        let ns = get_ns(module);
-        let i = get_ns(module).resolve(&mut idx.clone(), desc)?;
-        match ns.items.get(i as usize) {
+        let i = get_ns(module).resolve(&mut idx.clone(), ns.desc())?;
+        match get_ns(module).items.get(i as usize) {
             // This can arise if you do something like `(export "" (func
             // 10000))`, in which case we can't infer the type signature of that
             // module, so we generate an error.
             None => Err(Error::new(
                 idx.span(),
-                format!("reference to {} is out of bounds", desc),
+                format!("reference to {} is out of bounds", ns.desc()),
             )),
 
             // This happens when a module refers to something that's defined
@@ -962,7 +890,7 @@ impl<'a> Resolver<'a> {
             // handle these cases, but for now re return this error.
             Some(Sig::Unknown) => Err(Error::new(
                 idx.span(),
-                format!("reference to {} before item is defined", desc),
+                format!("reference to {} before item is defined", ns.desc()),
             )),
 
             // This item was defined in the module and we know its signature!
@@ -989,15 +917,16 @@ impl<'a> Resolver<'a> {
                             format!("aliased from an export that does not exist"),
                         )
                     })?;
-                let idx = get_kind(kind).ok_or_else(|| {
-                    Error::new(
+                let (idx, ns2) = Ns::from_export(kind);
+                if ns != ns2 {
+                    return Err(Error::new(
                         idx.span(),
                         format!("alias points to export of wrong kind of item"),
-                    )
-                })?;
+                    ));
+                }
 
                 // Once we have our desired index within `module`, recurse!
-                self.item_for(module, &idx, desc, get_ns, get_kind)
+                self.item_for(module, &idx, ns, get_ns)
             }
 
             // This item is aliasing the export of a type. This type could be an
@@ -1028,13 +957,14 @@ impl<'a> Resolver<'a> {
                         format!("aliased from an export that does not exist"),
                     )
                 })?;
-                let idx = get_kind(kind).ok_or_else(|| {
-                    Error::new(
+                let (idx, ns2) = Ns::from_export(kind);
+                if ns != ns2 {
+                    return Err(Error::new(
                         idx.span(),
                         format!("alias points to export of wrong kind of item"),
-                    )
-                })?;
-                self.item_for(info, &idx, desc, get_ns, get_kind)
+                    ));
+                }
+                self.item_for(info, &idx, ns, get_ns)
             }
 
             // In this final case we're aliasing an item defined in a child
@@ -1042,7 +972,7 @@ impl<'a> Resolver<'a> {
             Some(Sig::Alias(SigAlias::Item {
                 module: module_idx,
                 idx,
-            })) => self.item_for(&self.modules[*module_idx], &idx, desc, get_ns, get_kind),
+            })) => self.item_for(&self.modules[*module_idx], &idx, ns, get_ns),
         }
     }
 }
@@ -2318,6 +2248,6 @@ impl<'a> ExportNamespace<'a> {
             *idx = Index::Num(n, id.span());
             return Ok(n);
         }
-        Err(resolve_error(*id, "wut"))
+        Err(resolve_error(*id, ns.desc()))
     }
 }
