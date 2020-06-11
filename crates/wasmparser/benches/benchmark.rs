@@ -51,21 +51,26 @@ fn read_wat_module(path: &PathBuf) -> BenchmarkInput {
 ///
 /// We simply pull out all the module directives of the `.wast` file and return them.
 fn read_wast_module(path: &PathBuf) -> Vec<BenchmarkInput> {
-    let mut inputs = Vec::new();
-    let mut wast_file = fs::File::open(path).ok().unwrap();
+    let mut wast_file = fs::File::open(path)
+        .ok()
+        .expect("encountered error while reading `.wast` benchmark file");
     let mut wast_file_contents = String::new();
     use io::Read as _;
-    wast_file.read_to_string(&mut wast_file_contents).unwrap();
-    let parse_buffer = wast::parser::ParseBuffer::new(&wast_file_contents).unwrap();
-    'outer: while let Ok(directive) = wast::parser::parse::<wast::WastDirective>(&parse_buffer) {
-        match directive {
-            wast::WastDirective::Module(mut module) => {
-                let encoded_wasm = module
-                    .encode()
-                    .expect("encountered error while encoding the Wast module into Wasm");
-                inputs.push(BenchmarkInput::new(path.clone(), encoded_wasm));
+    wast_file
+        .read_to_string(&mut wast_file_contents)
+        .expect("encountered error while reading `.wast` benchmark file to string");
+    let mut inputs = Vec::new();
+    if let Ok(parse_buffer) = wast::parser::ParseBuffer::new(&wast_file_contents) {
+        'outer: while let Ok(directive) = wast::parser::parse::<wast::WastDirective>(&parse_buffer) {
+            match directive {
+                wast::WastDirective::Module(mut module) => {
+                    let encoded_wasm = module
+                        .encode()
+                        .expect("encountered error while encoding the Wast module into Wasm");
+                    inputs.push(BenchmarkInput::new(path.clone(), encoded_wasm));
+                }
+                _ => continue 'outer,
             }
-            _ => continue 'outer,
         }
     }
     inputs
