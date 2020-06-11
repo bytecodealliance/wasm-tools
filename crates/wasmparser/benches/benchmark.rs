@@ -61,7 +61,8 @@ fn read_wast_module(path: &PathBuf) -> Vec<BenchmarkInput> {
         .expect("encountered error while reading `.wast` benchmark file to string");
     let mut inputs = Vec::new();
     if let Ok(parse_buffer) = wast::parser::ParseBuffer::new(&wast_file_contents) {
-        'outer: while let Ok(directive) = wast::parser::parse::<wast::WastDirective>(&parse_buffer) {
+        'outer: while let Ok(directive) = wast::parser::parse::<wast::WastDirective>(&parse_buffer)
+        {
             match directive {
                 wast::WastDirective::Module(mut module) => {
                     let encoded_wasm = module
@@ -157,7 +158,10 @@ where
 fn collect_benchmark_inputs() -> Vec<BenchmarkInput> {
     let from_testsuite = collect_test_files("../../testsuite");
     let from_tests = collect_test_files("../../tests");
-    from_testsuite.into_iter().chain(from_tests.into_iter()).collect::<Vec<_>>()
+    from_testsuite
+        .into_iter()
+        .chain(from_tests.into_iter())
+        .collect::<Vec<_>>()
 }
 
 fn it_works_benchmark(c: &mut Criterion) {
@@ -208,9 +212,7 @@ fn validator_not_fails_benchmark(c: &mut Criterion) {
 fn validate_benchmark(c: &mut Criterion) {
     let mut inputs = collect_benchmark_inputs();
     // Filter out all benchmark inputs that fail to validate via `wasmparser`.
-    inputs.retain(|input| {
-        validate(input.wasm.as_slice(), VALIDATOR_CONFIG).is_ok()
-    });
+    inputs.retain(|input| validate(input.wasm.as_slice(), VALIDATOR_CONFIG).is_ok());
     c.bench_function("validate benchmark", move |b| {
         for input in &mut inputs {
             b.iter(|| validate(input.wasm.as_slice(), VALIDATOR_CONFIG));
