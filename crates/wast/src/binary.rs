@@ -81,30 +81,39 @@ fn encode_fields(
             _ => false,
         })
         .peekable();
-    while let Some(field) = items.next() {
-        macro_rules! list {
-            ($code:expr, $name:ident) => {
-                list!($code, $name, $name, |f| f)
-            };
-            ($code:expr, $field:ident, $custom:ident, |$f:ident| $e:expr) => {
-                if let ModuleField::$field($f) = field {
-                    let mut list = vec![$e];
-                    while let Some(ModuleField::$field($f)) = items.peek() {
-                        list.push($e);
-                        items.next();
+
+    // A special path is used for now to handle non-module-linking modules to
+    // work around WebAssembly/annotations#11
+    if aliases.len() == 0 && modules.len() == 0 && instances.len() == 0 {
+        e.section_list(1, Type, &types);
+        e.section_list(2, Import, &imports);
+    } else {
+        while let Some(field) = items.next() {
+            macro_rules! list {
+                ($code:expr, $name:ident) => {
+                    list!($code, $name, $name, |f| f)
+                };
+                ($code:expr, $field:ident, $custom:ident, |$f:ident| $e:expr) => {
+                    if let ModuleField::$field($f) = field {
+                        let mut list = vec![$e];
+                        while let Some(ModuleField::$field($f)) = items.peek() {
+                            list.push($e);
+                            items.next();
+                        }
+                        e.section_list($code, $custom, &list);
                     }
-                    e.section_list($code, $custom, &list);
-                }
-            };
+                };
+            }
+            list!(1, Type);
+            list!(2, Import);
+            list!(100, NestedModule, Module, |m| match &m.kind {
+                NestedModuleKind::Inline { ty, .. } =>
+                    ty.as_ref().expect("type should be filled in"),
+                _ => panic!("only inline modules should be present now"),
+            });
+            list!(101, Instance);
+            list!(102, Alias);
         }
-        list!(1, Type);
-        list!(2, Import);
-        list!(100, NestedModule, Module, |m| match &m.kind {
-            NestedModuleKind::Inline { ty, .. } => ty.as_ref().expect("type should be filled in"),
-            _ => panic!("only inline modules should be present now"),
-        });
-        list!(101, Instance);
-        list!(102, Alias);
     }
 
     let functys = funcs.iter().map(|f| &f.ty).collect::<Vec<_>>();
