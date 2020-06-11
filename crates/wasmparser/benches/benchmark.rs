@@ -33,13 +33,17 @@ pub struct BenchmarkInput {
 impl BenchmarkInput {
     /// Creates a new benchmark input.
     pub fn new(test_path: PathBuf, encoded_wasm: Vec<u8>) -> Self {
-        Self { path: test_path, wasm: encoded_wasm }
+        Self {
+            path: test_path,
+            wasm: encoded_wasm,
+        }
     }
 }
 
 /// Read a `.wat` formatted benchmark test file as benchmark input.
 fn read_wat_module(path: &PathBuf) -> BenchmarkInput {
-    let encoded_wasm = wat::parse_file(path).expect("encountered error while parsing `.wat` file into `.wasm`");
+    let encoded_wasm =
+        wat::parse_file(path).expect("encountered error while parsing `.wat` file into `.wasm`");
     BenchmarkInput::new(path.clone(), encoded_wasm)
 }
 
@@ -56,12 +60,12 @@ fn read_wast_module(path: &PathBuf) -> Vec<BenchmarkInput> {
     'outer: while let Ok(directive) = wast::parser::parse::<wast::WastDirective>(&parse_buffer) {
         match directive {
             wast::WastDirective::Module(mut module) => {
-                let encoded_wasm = module.encode().expect("encountered error while encoding the Wast module into Wasm");
+                let encoded_wasm = module
+                    .encode()
+                    .expect("encountered error while encoding the Wast module into Wasm");
                 inputs.push(BenchmarkInput::new(path.clone(), encoded_wasm));
             }
-            _ => {
-                continue 'outer
-            }
+            _ => continue 'outer,
         }
     }
     inputs
@@ -105,7 +109,10 @@ where
         path.as_ref(),
         &|_| true, // accept all benchmarks
         &mut |dir_entry| {
-            let ext: Option<String> = dir_entry.path().extension().and_then(|ext| ext.to_str().map(|str| str.to_string()));
+            let ext: Option<String> = dir_entry
+                .path()
+                .extension()
+                .and_then(|ext| ext.to_str().map(|str| str.to_string()));
             match ext.as_ref().map(|string| string.as_str()) {
                 Some("wat") => file_contents.push(read_wat_module(&dir_entry.path())),
                 Some("wast") => {
@@ -131,7 +138,9 @@ where
 {
     loop {
         match *d.read() {
-            ParserState::Error(ref e) => panic!("unexpected error while reading Wasm at {:?}: {}", path, e),
+            ParserState::Error(ref e) => {
+                panic!("unexpected error while reading Wasm at {:?}: {}", path, e)
+            }
             ParserState::EndWasm => return,
             _ => (),
         }
@@ -151,7 +160,12 @@ fn validator_not_fails_benchmark(c: &mut Criterion) {
     let mut inputs = collect_test_files("../../testsuite");
     c.bench_function("validator no fails benchmark", move |b| {
         for input in &mut inputs {
-            b.iter(|| read_all_wasm(&input.path, ValidatingParser::new(input.wasm.as_slice(), VALIDATOR_CONFIG)));
+            b.iter(|| {
+                read_all_wasm(
+                    &input.path,
+                    ValidatingParser::new(input.wasm.as_slice(), VALIDATOR_CONFIG),
+                )
+            });
         }
     });
 }
