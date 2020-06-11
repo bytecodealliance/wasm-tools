@@ -1197,7 +1197,7 @@ impl<'a> WasmDecoder<'a> for Parser<'a> {
     /// #              0x80, 0x80, 0x0, 0x0, 0xa, 0x91, 0x80, 0x80, 0x80, 0x0,
     /// #              0x2, 0x83, 0x80, 0x80, 0x80, 0x0, 0x0, 0x1, 0xb, 0x83,
     /// #              0x80, 0x80, 0x80, 0x0, 0x0, 0x0, 0xb];
-    /// use wasmparser::{WasmDecoder, Parser, ParserState};
+    /// use wasmparser::{WasmDecoder, Parser, ParserState, TypeDef};
     /// let mut parser = Parser::new(data);
     /// let mut types = Vec::new();
     /// let mut function_types = Vec::new();
@@ -1206,7 +1206,7 @@ impl<'a> WasmDecoder<'a> for Parser<'a> {
     ///     match parser.read() {
     ///         ParserState::Error(_) |
     ///         ParserState::EndWasm => break,
-    ///         ParserState::TypeSectionEntry(ty) => {
+    ///         ParserState::TypeSectionEntry(TypeDef::Func(ty)) => {
     ///             types.push(ty.clone());
     ///         }
     ///         ParserState::FunctionSectionEntry(id) => {
