@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate criterion;
 
-use criterion::Criterion;
+use criterion::{black_box, Criterion};
 use std::fs;
 use std::io;
 use std::path::Path;
@@ -178,9 +178,14 @@ fn it_works_benchmark(c: &mut Criterion) {
         }
     });
     c.bench_function("it works benchmark", move |b| {
-        for input in &mut inputs {
-            b.iter(|| read_all_wasm(&input.path, Parser::new(input.wasm.as_slice())));
-        }
+        b.iter(|| {
+            for input in &mut inputs {
+                let _ = black_box(read_all_wasm(
+                    &input.path,
+                    Parser::new(input.wasm.as_slice()),
+                ));
+            }
+        })
     });
 }
 
@@ -198,14 +203,14 @@ fn validator_not_fails_benchmark(c: &mut Criterion) {
         }
     });
     c.bench_function("validator no fails benchmark", move |b| {
-        for input in &mut inputs {
-            b.iter(|| {
-                read_all_wasm(
+        b.iter(|| {
+            for input in &mut inputs {
+                let _ = black_box(read_all_wasm(
                     &input.path,
                     ValidatingParser::new(input.wasm.as_slice(), VALIDATOR_CONFIG),
-                )
-            });
-        }
+                ));
+            }
+        });
     });
 }
 
@@ -214,9 +219,11 @@ fn validate_benchmark(c: &mut Criterion) {
     // Filter out all benchmark inputs that fail to validate via `wasmparser`.
     inputs.retain(|input| validate(input.wasm.as_slice(), VALIDATOR_CONFIG).is_ok());
     c.bench_function("validate benchmark", move |b| {
-        for input in &mut inputs {
-            b.iter(|| validate(input.wasm.as_slice(), VALIDATOR_CONFIG));
-        }
+        b.iter(|| {
+            for input in &mut inputs {
+                let _ = black_box(validate(input.wasm.as_slice(), VALIDATOR_CONFIG));
+            }
+        })
     });
 }
 
