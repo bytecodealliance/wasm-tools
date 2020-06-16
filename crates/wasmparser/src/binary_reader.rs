@@ -293,7 +293,7 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    fn read_export_types(&mut self) -> Result<Vec<ExportType<'a>>> {
+    fn read_export_types(&mut self) -> Result<Box<[ExportType<'a>]>> {
         let pos = self.original_position();
         let exports_len = self.read_var_u32()? as usize;
         if exports_len > MAX_WASM_EXPORTS {
@@ -304,6 +304,11 @@ impl<'a> BinaryReader<'a> {
 
     pub(crate) fn read_import(&mut self) -> Result<Import<'a>> {
         let module = self.read_string()?;
+
+        // For the `field`, figure out if we're the experimental encoding of
+        // single-level imports for the module linking proposal (a single-byte
+        // string which is 0xc0, which is invalid utf-8) or if we have a second
+        // level of import.
         let mut clone = self.clone();
         let field = if clone.read_var_u32()? == 1 && clone.read_u8()? == 0xc0 {
             *self = clone;
@@ -311,6 +316,7 @@ impl<'a> BinaryReader<'a> {
         } else {
             Some(self.read_string()?)
         };
+
         let ty = self.read_import_desc()?;
         Ok(Import { module, field, ty })
     }

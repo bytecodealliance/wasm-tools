@@ -159,13 +159,13 @@ pub struct FuncType {
 
 #[derive(Debug, Clone)]
 pub struct InstanceType<'a> {
-    pub exports: Vec<ExportType<'a>>,
+    pub exports: Box<[ExportType<'a>]>,
 }
 
 #[derive(Debug, Clone)]
 pub struct ModuleType<'a> {
-    pub imports: Vec<crate::Import<'a>>,
-    pub exports: Vec<ExportType<'a>>,
+    pub imports: Box<[crate::Import<'a>]>,
+    pub exports: Box<[ExportType<'a>]>,
 }
 
 #[derive(Debug, Clone)]

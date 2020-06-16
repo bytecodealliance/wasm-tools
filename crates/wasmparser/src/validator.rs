@@ -1033,7 +1033,7 @@ impl<'a> ValidatingParser<'a> {
                 if expected.imports.len() != actual.imports.len() {
                     return self.create_error("mismatched number of module imports");
                 }
-                for (expected, actual) in expected.imports.iter().zip(&actual.imports) {
+                for (expected, actual) in expected.imports.iter().zip(actual.imports.iter()) {
                     self.check_imports_match(&expected.ty, &actual.ty)?;
                 }
                 self.check_export_sets_match(&expected.exports, &actual.exports)?;
