@@ -121,17 +121,29 @@ fn find_tests() -> Vec<PathBuf> {
 /// Note that this is used to skip tests for all crates, not just one at a
 /// time. There's further filters applied while testing.
 fn skip_test(test: &Path, contents: &[u8]) -> bool {
-    // We've made the opinionated decision that well-known annotations like
-    // `@custom` and `@name` must be well-formed. This test, however, uses
-    // `@custom` in ways the spec doesn't specify, so we skip it.
-    if test.ends_with("test/parse/annotations.txt") {
-        return true;
-    }
-
-    // this has syntax of an element segment `(elem $e 0)` which isn't used
-    // anywhere else, and I'm not entirely certain if it's vaild, and for now I
-    // don't feel like filing an issue or adding parsing for this.
-    if test.ends_with("roundtrip/table-init-index.txt") {
+    let broken = &[
+        // We've made the opinionated decision that well-known annotations like
+        // `@custom` and `@name` must be well-formed. This test, however, uses
+        // `@custom` in ways the spec doesn't specify, so we skip it.
+        "test/parse/annotations.txt",
+        // this has syntax of an element segment `(elem $e 0)` which isn't used
+        // anywhere else, and I'm not entirely certain if it's vaild, and for now I
+        // don't feel like filing an issue or adding parsing for this.
+        "roundtrip/table-init-index.txt",
+        // The following tests are broken until wabt removes the ref.is_null
+        // type annotation.
+        "local/ref.wat",
+        "proposals/reference-types/table_set.wast",
+        "proposals/reference-types/table_grow.wast",
+        "proposals/reference-types/table_get.wast",
+        "proposals/reference-types/ref_is_null.wast",
+        "proposals/reference-types/ref_func.wast",
+        "proposals/reference-types/ref_func.wast",
+        "dump/reference-types.txt",
+        "interp/reference-types.txt",
+        "expr/reference-types.txt",
+    ];
+    if broken.iter().any(|x| test.ends_with(x)) {
         return true;
     }
 
