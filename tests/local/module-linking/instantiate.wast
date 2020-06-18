@@ -249,3 +249,9 @@
   ))
   (instance (instantiate $m (instance $i)))
 )
+
+(assert_invalid
+  (module
+    (instance (instantiate 0))
+  )
+  "module is not defined")

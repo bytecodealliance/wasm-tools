@@ -624,6 +624,8 @@ impl<'a> ValidatingParser<'a> {
                     self.set_validation_error("unknown type: func type index out of bounds");
                 } else if self.resources.func_type_indices.len() >= MAX_WASM_FUNCTIONS {
                     self.set_validation_error("functions count out of bounds");
+                } else if let Err(err) = self.func_type_at(type_index) {
+                    self.validation_error = Some(err);
                 } else {
                     self.resources.func_type_indices.push(type_index);
                 }
