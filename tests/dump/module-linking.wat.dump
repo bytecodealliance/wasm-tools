@@ -1,0 +1,85 @@
+0x0000 | 00 61 73 6d | version 1
+       | 01 00 00 00
+0x0008 | 01 4c       | section Type
+0x000a | 05          | 5 count
+0x000b | 60 00 00    | [type 0] Func(FuncType { params: [], returns: [] })
+0x000e | 61 00 00    | [type 1] Module(ModuleType { imports: [], exports: [] })
+0x0011 | 62 00       | [type 2] Instance(InstanceType { exports: [] })
+0x0013 | 62 06 01 31 | [type 3] Instance(InstanceType { exports: [ExportType { name: "1", ty: Function(0) }, ExportType { name: "2", ty: Memory(MemoryType { limits: ResizableLimits { initial: 1, maximum: None }, shared: false }) }, ExportType { name: "3", ty: Table(TableType { element_type: FuncRef, limits: ResizableLimits { initial: 1, maximum: None } }) }, ExportType { name: "4", ty: Global(GlobalType { content_type: I32, mutable: false }) }, ExportType { name: "5", ty: Module(1) }, ExportType { name: "6", ty: Instance(2) }] })
+       | 00 00 01 32
+       | 02 00 01 01
+       | 33 01 70 00
+       | 01 01 34 03
+       | 7f 00 01 35
+       | 05 01 01 36
+       | 06 02      
+0x0031 | 61 06 00 01 | [type 4] Module(ModuleType { imports: [Import { module: "", field: None, ty: Function(0) }, Import { module: "", field: None, ty: Memory(MemoryType { limits: ResizableLimits { initial: 1, maximum: None }, shared: false }) }, Import { module: "", field: None, ty: Global(GlobalType { content_type: I32, mutable: false }) }, Import { module: "", field: None, ty: Table(TableType { element_type: FuncRef, limits: ResizableLimits { initial: 1, maximum: None } }) }, Import { module: "", field: None, ty: Module(1) }, Import { module: "", field: None, ty: Instance(2) }], exports: [] })
+       | c0 00 00 00
+       | 01 c0 02 00
+       | 01 00 01 c0
+       | 03 7f 00 00
+       | 01 c0 01 70
+       | 00 01 00 01
+       | c0 05 01 00
+       | 01 c0 06 02
+       | 00         
+0x0056 | 02 06       | section Import
+0x0058 | 01          | 1 count
+0x0059 | 00 01 c0 06 | import [instance 0] Import { module: "", field: None, ty: Instance(3) }
+       | 03         
+0x005e | 66 19       | section Alias
+0x0060 | 06          | 6 count
+0x0061 | 00 00 00 00 | [alias] Alias { instance: Child(0), kind: Function, index: 0 }
+0x0065 | 00 00 02 01 | [alias] Alias { instance: Child(0), kind: Memory, index: 1 }
+0x0069 | 00 00 01 02 | [alias] Alias { instance: Child(0), kind: Table, index: 2 }
+0x006d | 00 00 03 03 | [alias] Alias { instance: Child(0), kind: Global, index: 3 }
+0x0071 | 00 00 05 04 | [alias] Alias { instance: Child(0), kind: Module, index: 4 }
+0x0075 | 00 00 06 05 | [alias] Alias { instance: Child(0), kind: Instance, index: 5 }
+0x0079 | 64 02       | section Module
+0x007b | 01          | 1 count
+0x007c | 04          | [module 1] type 4
+0x007d | 65 0f       | section Instance
+0x007f | 01          | 1 count
+0x0080 | 01          | [instance 2] module:1
+0x0081 | 06          | 6 count
+0x0082 | 00 00       | [instantiate arg] Function 0
+0x0084 | 02 00       | [instantiate arg] Memory 0
+0x0086 | 03 00       | [instantiate arg] Global 0
+0x0088 | 01 00       | [instantiate arg] Table 0
+0x008a | 05 00       | [instantiate arg] Module 0
+0x008c | 06 01       | [instantiate arg] Instance 1
+0x008e | 67 45       | section ModuleCode
+0x0090 | 01          | 1 count
+0x0091 | 43          | inline module
+  0x0092 | 00 61 73 6d | version 1
+         | 01 00 00 00
+  0x009a | 01 09       | section Type
+  0x009c | 03          | 3 count
+  0x009d | 60 00 00    | [type 0] Func(FuncType { params: [], returns: [] })
+  0x00a0 | 61 00 00    | [type 1] Module(ModuleType { imports: [], exports: [] })
+  0x00a3 | 62 00       | [type 2] Instance(InstanceType { exports: [] })
+  0x00a5 | 02 23       | section Import
+  0x00a7 | 06          | 6 count
+  0x00a8 | 00 01 c0 00 | import [func 0] Import { module: "", field: None, ty: Function(0) }
+         | 00         
+  0x00ad | 00 01 c0 02 | import [memory 0] Import { module: "", field: None, ty: Memory(MemoryType { limits: ResizableLimits { initial: 1, maximum: None }, shared: false }) }
+         | 00 01      
+  0x00b3 | 00 01 c0 03 | import [global 0] Import { module: "", field: None, ty: Global(GlobalType { content_type: I32, mutable: false }) }
+         | 7f 00      
+  0x00b9 | 00 01 c0 01 | import [table 0] Import { module: "", field: None, ty: Table(TableType { element_type: FuncRef, limits: ResizableLimits { initial: 1, maximum: None } }) }
+         | 70 00 01   
+  0x00c0 | 00 01 c0 05 | import [module 0] Import { module: "", field: None, ty: Module(1) }
+         | 01         
+  0x00c5 | 00 01 c0 06 | import [instance 0] Import { module: "", field: None, ty: Instance(2) }
+         | 02         
+  0x00ca | 00 09 04 6e | section Custom { name: "name", kind: Name }
+         | 61 6d 65   
+  0x00d1 | 00 02       | module name
+  0x00d3 | 01 6d       | "m"
+0x00d5 | 00 11 04 6e | section Custom { name: "name", kind: Name }
+       | 61 6d 65   
+0x00dc | 01 0a       | function names
+0x00de | 01          | 1 count
+0x00df | 00 07 69 2e | Naming { index: 0, name: "i.$func" }
+       | 24 66 75 6e
+       | 63         

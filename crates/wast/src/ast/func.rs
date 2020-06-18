@@ -20,7 +20,7 @@ pub struct Func<'a> {
     /// function.
     pub kind: FuncKind<'a>,
     /// The type that this function will have.
-    pub ty: ast::TypeUse<'a>,
+    pub ty: ast::TypeUse<'a, ast::FunctionType<'a>>,
 }
 
 /// Possible ways to define a function in the text format.
@@ -31,19 +31,18 @@ pub enum FuncKind<'a> {
     /// ```text
     /// (func (type 3) (import "foo" "bar"))
     /// ```
-    Import {
-        /// The module that this function is imported from
-        module: &'a str,
-        /// The module field name this function is imported from
-        field: &'a str,
-    },
+    Import(ast::InlineImport<'a>),
 
     /// Almost all functions, those defined inline in a wasm module.
     Inline {
         /// The list of locals, if any, for this function. Each local has an
         /// optional identifier for name resolution and name for the custom
         /// `name` section associated with it.
-        locals: Vec<(Option<ast::Id<'a>>, Option<ast::NameAnnotation<'a>>, ast::ValType<'a>)>,
+        locals: Vec<(
+            Option<ast::Id<'a>>,
+            Option<ast::NameAnnotation<'a>>,
+            ast::ValType<'a>,
+        )>,
 
         /// The instructions of the function.
         expression: ast::Expression<'a>,
@@ -57,12 +56,8 @@ impl<'a> Parse<'a> for Func<'a> {
         let name = parser.parse()?;
         let exports = parser.parse()?;
 
-        let (ty, kind) = if parser.peek2::<kw::import>() {
-            let (module, field) = parser.parens(|p| {
-                p.parse::<kw::import>()?;
-                Ok((p.parse()?, p.parse()?))
-            })?;
-            (parser.parse()?, FuncKind::Import { module, field })
+        let (ty, kind) = if let Some(import) = parser.parse()? {
+            (parser.parse()?, FuncKind::Import(import))
         } else {
             let ty = parser.parse()?;
             let mut locals = Vec::new();

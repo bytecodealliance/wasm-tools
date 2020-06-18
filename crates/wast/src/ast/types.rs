@@ -153,7 +153,7 @@ impl<'a> Parse<'a> for RefType<'a> {
 }
 
 /// Type for a `global` in a wasm module
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct GlobalType<'a> {
     /// The element type of this `global`
     pub ty: ValType<'a>,
@@ -181,7 +181,7 @@ impl<'a> Parse<'a> for GlobalType<'a> {
 }
 
 /// List of different kinds of table types we can have.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum TableElemType {
     /// An element for a table that is a list of functions.
     Funcref,
@@ -233,7 +233,7 @@ impl Peek for TableElemType {
 }
 
 /// Min/max limits used for tables/memories.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
     /// The minimum number of units for this type.
     pub min: u32,
@@ -254,7 +254,7 @@ impl<'a> Parse<'a> for Limits {
 }
 
 /// Configuration for a table of a wasm mdoule
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TableType {
     /// Limits on the element sizes of this table
     pub limits: Limits,
@@ -272,7 +272,7 @@ impl<'a> Parse<'a> for TableType {
 }
 
 /// Configuration for a memory of a wasm module
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct MemoryType {
     /// Limits on the page sizes of this memory
     pub limits: Limits,
@@ -289,11 +289,15 @@ impl<'a> Parse<'a> for MemoryType {
 }
 
 /// A function type with parameters and results.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct FunctionType<'a> {
     /// The parameters of a function, optionally each having an identifier for
     /// name resolution and a name for the custom `name` section.
-    pub params: Vec<(Option<ast::Id<'a>>, Option<ast::NameAnnotation<'a>>, ValType<'a>)>,
+    pub params: Vec<(
+        Option<ast::Id<'a>>,
+        Option<ast::NameAnnotation<'a>>,
+        ValType<'a>,
+    )>,
     /// The results types of a function.
     pub results: Vec<ValType<'a>>,
 }
@@ -342,13 +346,60 @@ impl<'a> FunctionType<'a> {
 
 impl<'a> Parse<'a> for FunctionType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::func>()?;
         let mut ret = FunctionType {
             params: Vec::new(),
             results: Vec::new(),
         };
         ret.finish_parse(true, parser)?;
         Ok(ret)
+    }
+}
+
+impl<'a> Peek for FunctionType<'a> {
+    fn peek(cursor: Cursor<'_>) -> bool {
+        if let Some(next) = cursor.lparen() {
+            match next.keyword() {
+                Some(("param", _)) | Some(("result", _)) => return true,
+                _ => {}
+            }
+        }
+
+        false
+    }
+
+    fn display() -> &'static str {
+        "function type"
+    }
+}
+
+/// A function type with parameters and results.
+#[derive(Clone, Debug, Default)]
+pub struct FunctionTypeNoNames<'a>(pub FunctionType<'a>);
+
+impl<'a> Parse<'a> for FunctionTypeNoNames<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let mut ret = FunctionType {
+            params: Vec::new(),
+            results: Vec::new(),
+        };
+        ret.finish_parse(false, parser)?;
+        Ok(FunctionTypeNoNames(ret))
+    }
+}
+
+impl<'a> Peek for FunctionTypeNoNames<'a> {
+    fn peek(cursor: Cursor<'_>) -> bool {
+        FunctionType::peek(cursor)
+    }
+
+    fn display() -> &'static str {
+        FunctionType::display()
+    }
+}
+
+impl<'a> From<FunctionTypeNoNames<'a>> for FunctionType<'a> {
+    fn from(ty: FunctionTypeNoNames<'a>) -> FunctionType<'a> {
+        ty.0
     }
 }
 
@@ -361,10 +412,7 @@ pub struct StructType<'a> {
 
 impl<'a> Parse<'a> for StructType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::r#struct>()?;
-        let mut ret = StructType {
-            fields: Vec::new(),
-        };
+        let mut ret = StructType { fields: Vec::new() };
         while !parser.is_empty() {
             let field = if parser.peek2::<kw::field>() {
                 parser.parens(|parser| {
@@ -393,11 +441,7 @@ pub struct StructField<'a> {
 
 impl<'a> StructField<'a> {
     fn parse(parser: Parser<'a>, with_id: bool) -> Result<Self> {
-        let id = if with_id {
-            parser.parse()?
-        } else {
-            None
-        };
+        let id = if with_id { parser.parse()? } else { None };
         let (ty, mutable) = if parser.peek2::<kw::r#mut>() {
             let ty = parser.parens(|parser| {
                 parser.parse::<kw::r#mut>()?;
@@ -407,11 +451,7 @@ impl<'a> StructField<'a> {
         } else {
             (parser.parse::<ValType<'a>>()?, false)
         };
-        Ok(StructField {
-            id,
-            mutable,
-            ty,
-        })
+        Ok(StructField { id, mutable, ty })
     }
 }
 
@@ -426,7 +466,6 @@ pub struct ArrayType<'a> {
 
 impl<'a> Parse<'a> for ArrayType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::array>()?;
         let (ty, mutable) = if parser.peek2::<kw::r#mut>() {
             let ty = parser.parens(|parser| {
                 parser.parse::<kw::r#mut>()?;
@@ -436,10 +475,116 @@ impl<'a> Parse<'a> for ArrayType<'a> {
         } else {
             (parser.parse::<ValType<'a>>()?, false)
         };
-        Ok(ArrayType {
-            mutable,
-            ty
+        Ok(ArrayType { mutable, ty })
+    }
+}
+
+/// A type for a nested module
+#[derive(Clone, Debug, Default)]
+pub struct ModuleType<'a> {
+    /// The imports that are expected for this module type.
+    pub imports: Vec<ast::Import<'a>>,
+    /// The exports that this module type is expected to have.
+    pub exports: Vec<ExportType<'a>>,
+    /// Instances within this module which are entirely exported.
+    pub instance_exports: Vec<(ast::Span, ast::Id<'a>)>,
+}
+
+impl<'a> Parse<'a> for ModuleType<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let mut imports = Vec::new();
+        while parser.peek2::<kw::import>() {
+            imports.push(parser.parens(|p| p.parse())?);
+        }
+        let mut exports = Vec::new();
+        let mut instance_exports = Vec::new();
+        while parser.peek2::<kw::export>() {
+            parser.parens(|p| {
+                if p.peek2::<ast::Index>() {
+                    let span = p.parse::<kw::export>()?.0;
+                    instance_exports.push((span, p.parse()?));
+                } else {
+                    exports.push(p.parse()?);
+                }
+                Ok(())
+            })?;
+        }
+        Ok(ModuleType {
+            imports,
+            exports,
+            instance_exports,
         })
+    }
+}
+
+impl<'a> Peek for ModuleType<'a> {
+    fn peek(cursor: Cursor<'_>) -> bool {
+        if let Some(next) = cursor.lparen() {
+            match next.keyword() {
+                Some(("import", _)) | Some(("export", _)) => return true,
+                _ => {}
+            }
+        }
+
+        false
+    }
+
+    fn display() -> &'static str {
+        "module type"
+    }
+}
+
+/// A type for a nested instance
+#[derive(Clone, Debug, Default)]
+pub struct InstanceType<'a> {
+    /// The exported types from this instance
+    pub exports: Vec<ExportType<'a>>,
+}
+
+impl<'a> Parse<'a> for InstanceType<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let mut exports = Vec::new();
+        while !parser.is_empty() {
+            exports.push(parser.parens(|p| p.parse())?);
+        }
+        Ok(InstanceType { exports })
+    }
+}
+
+impl<'a> Peek for InstanceType<'a> {
+    fn peek(cursor: Cursor<'_>) -> bool {
+        if let Some(next) = cursor.lparen() {
+            match next.keyword() {
+                Some(("export", _)) => return true,
+                _ => {}
+            }
+        }
+
+        false
+    }
+
+    fn display() -> &'static str {
+        "instance type"
+    }
+}
+
+/// The type of an exported item from a module or instance.
+#[derive(Debug, Clone)]
+pub struct ExportType<'a> {
+    /// Where this export was defined.
+    pub span: ast::Span,
+    /// The name of this export.
+    pub name: &'a str,
+    /// The signature of the item that's exported.
+    pub item: ast::ItemSig<'a>,
+}
+
+impl<'a> Parse<'a> for ExportType<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let span = parser.parse::<kw::export>()?.0;
+        let name = parser.parse()?;
+        let item = parser.parens(|p| p.parse())?;
+        Ok(ExportType { span, name, item })
     }
 }
 
@@ -452,11 +597,17 @@ pub enum TypeDef<'a> {
     Struct(StructType<'a>),
     /// An array type definition.
     Array(ArrayType<'a>),
+    /// A module type definition.
+    Module(ModuleType<'a>),
+    /// An instance type definition.
+    Instance(InstanceType<'a>),
 }
 
 /// A type declaration in a module
 #[derive(Debug)]
 pub struct Type<'a> {
+    /// Where this type was defined.
+    pub span: ast::Span,
     /// An optional identifer to refer to this `type` by as part of name
     /// resolution.
     pub id: Option<ast::Id<'a>>,
@@ -466,77 +617,74 @@ pub struct Type<'a> {
 
 impl<'a> Parse<'a> for Type<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::r#type>()?;
+        let span = parser.parse::<kw::r#type>()?.0;
         let id = parser.parse()?;
         let def = parser.parens(|parser| {
             let mut l = parser.lookahead1();
             if l.peek::<kw::func>() {
+                parser.parse::<kw::func>()?;
                 Ok(TypeDef::Func(parser.parse()?))
             } else if l.peek::<kw::r#struct>() {
+                parser.parse::<kw::r#struct>()?;
                 Ok(TypeDef::Struct(parser.parse()?))
             } else if l.peek::<kw::array>() {
+                parser.parse::<kw::array>()?;
                 Ok(TypeDef::Array(parser.parse()?))
+            } else if l.peek::<kw::module>() {
+                parser.parse::<kw::module>()?;
+                Ok(TypeDef::Module(parser.parse()?))
+            } else if l.peek::<kw::instance>() {
+                parser.parse::<kw::instance>()?;
+                Ok(TypeDef::Instance(parser.parse()?))
             } else {
                 Err(l.error())
             }
         })?;
-        Ok(Type { id, def })
+        Ok(Type { span, id, def })
     }
 }
 
 /// A reference to a type defined in this module.
-///
-/// This is a pretty tricky type used in a lot of places and is somewhat subtly
-/// handled as well. In general `(type)` or `(param)` annotations are parsed as
-/// this.
 #[derive(Clone, Debug)]
-pub struct TypeUse<'a> {
-    /// The span of the index specifier, if it was found
-    pub index_span: Option<ast::Span>,
+pub struct TypeUse<'a, T> {
     /// The type that we're referencing, if it was present.
     pub index: Option<ast::Index<'a>>,
-    /// The inline function type defined. If nothing was defined inline this is
-    /// empty.
-    pub func_ty: ast::FunctionType<'a>,
+    /// The inline type, if present.
+    pub inline: Option<T>,
 }
 
-impl<'a> TypeUse<'a> {
-    /// Parse a `TypeUse`, but don't allow any names of `param` tokens.
-    pub fn parse_no_names(parser: Parser<'a>) -> Result<Self> {
-        TypeUse::parse_allow_names(parser, false)
+impl<'a, T> TypeUse<'a, T> {
+    /// Constructs a new instance of `TypeUse` without an inline definition but
+    /// with an index specified.
+    pub fn new_with_index(index: ast::Index<'a>) -> TypeUse<'a, T> {
+        TypeUse {
+            index: Some(index),
+            inline: None,
+        }
     }
+}
 
-    fn parse_allow_names(parser: Parser<'a>, allow_names: bool) -> Result<Self> {
+impl<'a, T: Peek + Parse<'a>> Parse<'a> for TypeUse<'a, T> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
         let index = if parser.peek2::<kw::r#type>() {
             Some(parser.parens(|parser| {
                 parser.parse::<kw::r#type>()?;
-                Ok((parser.cur_span(), parser.parse()?))
+                Ok(parser.parse()?)
             })?)
         } else {
             None
         };
-        let (index_span, index) = match index {
-            Some((a, b)) => (Some(a), Some(b)),
-            None => (None, None),
-        };
-        let mut func_ty = FunctionType {
-            params: Vec::new(),
-            results: Vec::new(),
-        };
-        if parser.peek2::<kw::param>() || parser.peek2::<kw::result>() {
-            func_ty.finish_parse(allow_names, parser)?;
-        }
+        let inline = parser.parse()?;
 
-        Ok(TypeUse {
-            index,
-            index_span,
-            func_ty,
-        })
+        Ok(TypeUse { index, inline })
     }
 }
 
-impl<'a> Parse<'a> for TypeUse<'a> {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        TypeUse::parse_allow_names(parser, true)
+impl<'a> From<TypeUse<'a, FunctionTypeNoNames<'a>>> for TypeUse<'a, FunctionType<'a>> {
+    fn from(src: TypeUse<'a, FunctionTypeNoNames<'a>>) -> TypeUse<'a, FunctionType<'a>> {
+        TypeUse {
+            index: src.index,
+            inline: src.inline.map(|x| x.into()),
+        }
     }
 }

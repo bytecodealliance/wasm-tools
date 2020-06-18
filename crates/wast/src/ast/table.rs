@@ -21,8 +21,7 @@ pub enum TableKind<'a> {
     /// This table is actually an inlined import definition.
     #[allow(missing_docs)]
     Import {
-        module: &'a str,
-        field: &'a str,
+        import: ast::InlineImport<'a>,
         ty: ast::TableType,
     },
 
@@ -65,14 +64,9 @@ impl<'a> Parse<'a> for Table<'a> {
             TableKind::Inline { elem, payload }
         } else if l.peek::<u32>() {
             TableKind::Normal(parser.parse()?)
-        } else if l.peek::<ast::LParen>() {
-            let (module, field) = parser.parens(|p| {
-                p.parse::<kw::import>()?;
-                Ok((p.parse()?, p.parse()?))
-            })?;
+        } else if let Some(import) = parser.parse()? {
             TableKind::Import {
-                module,
-                field,
+                import,
                 ty: parser.parse()?,
             }
         } else {
@@ -149,7 +143,7 @@ impl<'a> Parse<'a> for Elem<'a> {
                     p.parse()
                 })?)
             } else if parser.peek::<u32>() {
-                Some(ast::Index::Num(parser.parse()?))
+                Some(parser.parse()?)
             } else {
                 None
             };
@@ -160,7 +154,7 @@ impl<'a> Parse<'a> for Elem<'a> {
                 parser.parse()
             })?;
             ElemKind::Active {
-                table: table.unwrap_or(ast::Index::Num(0)),
+                table: table.unwrap_or(ast::Index::Num(0, span)),
                 offset,
             }
         } else if parser.peek::<kw::declare>() {
@@ -221,7 +215,10 @@ impl<'a> ElemPayload<'a> {
     }
 }
 
-fn parse_ref_func<'a>(parser: Parser<'a>, ty: ast::TableElemType) -> Result<Option<ast::Index<'a>>> {
+fn parse_ref_func<'a>(
+    parser: Parser<'a>,
+    ty: ast::TableElemType,
+) -> Result<Option<ast::Index<'a>>> {
     let mut l = parser.lookahead1();
     if l.peek::<kw::ref_null>() {
         parser.parse::<kw::ref_null>()?;

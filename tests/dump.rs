@@ -120,6 +120,7 @@ struct Dump<'a> {
     cur: usize,
     state: String,
     dst: String,
+    nesting: u32,
 }
 
 const NBYTES: usize = 4;
@@ -129,20 +130,30 @@ impl<'a> Dump<'a> {
         Dump {
             bytes,
             cur: 0,
+            nesting: 0,
             state: String::new(),
             dst: String::new(),
         }
     }
 
     fn run(&mut self) -> Result<()> {
-        let mut parser = ModuleReader::new(self.bytes)?;
+        self.print_module(ModuleReader::new(self.bytes)?)?;
+        assert_eq!(self.cur, self.bytes.len());
+        Ok(())
+    }
+
+    fn print_module(&mut self, mut parser: ModuleReader<'a>) -> Result<()> {
+        self.nesting += 1;
         write!(self.state, "version {}", parser.get_version())?;
-        self.print(parser.current_position())?;
+        self.print(parser.original_position())?;
 
         let mut funcs = 0;
         let mut globals = 0;
         let mut tables = 0;
         let mut memories = 0;
+        let mut modules = 0;
+        let mut instances = 0;
+        let mut types = 0;
 
         while !parser.eof() {
             let section = parser.read()?;
@@ -151,7 +162,8 @@ impl<'a> Dump<'a> {
             match section.code {
                 SectionCode::Type => {
                     self.print_iter(section.get_type_section_reader()?, |me, end, i| {
-                        write!(me.state, "type {:?}", i)?;
+                        write!(me.state, "[type {}] {:?}", types, i)?;
+                        types += 1;
                         me.print(end)
                     })?
                 }
@@ -174,6 +186,14 @@ impl<'a> Dump<'a> {
                             ImportSectionEntryType::Global(_) => {
                                 write!(me.state, "[global {}]", globals)?;
                                 globals += 1;
+                            }
+                            ImportSectionEntryType::Instance(_) => {
+                                write!(me.state, "[instance {}]", instances)?;
+                                instances += 1;
+                            }
+                            ImportSectionEntryType::Module(_) => {
+                                write!(me.state, "[module {}]", modules)?;
+                                modules += 1;
                             }
                         }
                         write!(me.state, " {:?}", i)?;
@@ -214,6 +234,48 @@ impl<'a> Dump<'a> {
                         globals += 1;
                         me.print(i.init_expr.get_binary_reader().original_position())?;
                         me.print_ops(i.init_expr.get_operators_reader())
+                    })?
+                }
+                SectionCode::Alias => {
+                    self.print_iter(section.get_alias_section_reader()?, |me, end, i| {
+                        write!(me.state, "[alias] {:?}", i)?;
+                        match i.kind {
+                            ExternalKind::Function => funcs += 1,
+                            ExternalKind::Global => globals += 1,
+                            ExternalKind::Module => modules += 1,
+                            ExternalKind::Table => tables += 1,
+                            ExternalKind::Instance => instances += 1,
+                            ExternalKind::Memory => memories += 1,
+                            ExternalKind::Type => types += 1,
+                        }
+                        me.print(end)
+                    })?
+                }
+                SectionCode::Module => {
+                    let mut cnt = 0;
+                    self.print_iter(section.get_module_section_reader()?, |me, end, i| {
+                        write!(me.state, "[module {}] type {:?}", cnt + modules, i)?;
+                        cnt += 1;
+                        me.print(end)
+                    })?
+                }
+                SectionCode::Instance => {
+                    self.print_iter(section.get_instance_section_reader()?, |me, _end, i| {
+                        write!(me.state, "[instance {}] module:{}", instances, i.module())?;
+                        me.print(i.original_position())?;
+                        instances += 1;
+                        me.print_iter(i.args()?, |me, end, (kind, index)| {
+                            write!(me.state, "[instantiate arg] {:?} {}", kind, index)?;
+                            me.print(end)
+                        })
+                    })?
+                }
+                SectionCode::ModuleCode => {
+                    self.print_iter(section.get_module_code_section_reader()?, |me, _end, i| {
+                        write!(me.state, "inline module")?;
+                        me.print(i.original_position())?;
+                        modules += 1;
+                        me.print_module(i.module()?)
                     })?
                 }
                 SectionCode::Start => {
@@ -306,22 +368,72 @@ impl<'a> Dump<'a> {
                     })?
                 }
 
-                SectionCode::Custom { .. } => {
-                    write!(self.dst, "0x{:04x} |", self.cur)?;
-                    for _ in 0..NBYTES {
-                        write!(self.dst, "---")?;
+                SectionCode::Custom { kind, name: _ } => match kind {
+                    CustomSectionKind::Name => {
+                        let mut iter = section.get_name_section_reader()?;
+                        while !iter.eof() {
+                            self.print_custom_name_section(iter.read()?, iter.original_position())?;
+                        }
                     }
-                    write!(
-                        self.dst,
-                        "-| ... {} bytes of data\n",
-                        section.get_binary_reader().bytes_remaining()
-                    )?;
-                    self.cur = section.range().end;
-                }
+                    _ => {
+                        write!(self.dst, "0x{:04x} |", self.cur)?;
+                        for _ in 0..NBYTES {
+                            write!(self.dst, "---")?;
+                        }
+                        write!(
+                            self.dst,
+                            "-| ... {} bytes of data\n",
+                            section.get_binary_reader().bytes_remaining()
+                        )?;
+                        self.cur = section.range().end;
+                    }
+                },
             }
         }
 
-        assert_eq!(self.cur, self.bytes.len());
+        self.nesting -= 1;
+        Ok(())
+    }
+
+    fn print_custom_name_section(&mut self, name: Name<'_>, end: usize) -> Result<()> {
+        match name {
+            Name::Module(n) => {
+                write!(self.state, "module name")?;
+                self.print(n.original_position())?;
+                write!(self.state, "{:?}", n.get_name()?)?;
+                self.print(end)?;
+            }
+            Name::Function(n) => {
+                write!(self.state, "function names")?;
+                self.print(n.original_position())?;
+                let mut map = n.get_map()?;
+                write!(self.state, "{} count", map.get_count())?;
+                self.print(map.original_position())?;
+                for _ in 0..map.get_count() {
+                    write!(self.state, "{:?}", map.read()?)?;
+                    self.print(map.original_position())?;
+                }
+            }
+            Name::Local(n) => {
+                write!(self.state, "local names")?;
+                self.print(n.original_position())?;
+                let mut function_map = n.get_function_local_reader()?;
+                write!(self.state, "{} count", function_map.get_count())?;
+                self.print(function_map.original_position())?;
+                for _ in 0..function_map.get_count() {
+                    let function_names = function_map.read()?;
+                    write!(self.state, "function {} locals", function_names.func_index)?;
+                    self.print(function_names.original_position())?;
+                    let mut map = function_names.get_map()?;
+                    write!(self.state, "{} count", map.get_count())?;
+                    self.print(map.original_position())?;
+                    for _ in 0..map.get_count() {
+                        write!(self.state, "{:?}", map.read()?)?;
+                        self.print(map.original_position())?;
+                    }
+                }
+            }
+        }
         Ok(())
     }
 
@@ -357,11 +469,23 @@ impl<'a> Dump<'a> {
     }
 
     fn print(&mut self, end: usize) -> Result<()> {
-        assert!(self.cur < end);
+        assert!(
+            self.cur < end,
+            "{:#x} >= {:#x}\n{}",
+            self.cur,
+            end,
+            self.dst
+        );
         let bytes = &self.bytes[self.cur..end];
+        for _ in 0..self.nesting - 1 {
+            write!(self.dst, "  ")?;
+        }
         write!(self.dst, "0x{:04x} |", self.cur)?;
         for (i, chunk) in bytes.chunks(NBYTES).enumerate() {
             if i > 0 {
+                for _ in 0..self.nesting - 1 {
+                    write!(self.dst, "  ")?;
+                }
                 self.dst.push_str("       |");
             }
             for j in 0..NBYTES {

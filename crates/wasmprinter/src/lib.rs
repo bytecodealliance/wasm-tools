@@ -40,12 +40,19 @@ pub fn print_bytes(wasm: impl AsRef<[u8]>) -> Result<String> {
 pub struct Printer {
     printers: HashMap<String, Box<dyn FnMut(&mut Printer, usize, &[u8]) -> Result<()>>>,
     result: String,
+    state: ModuleState,
+    nesting: u32,
+}
+
+#[derive(Default)]
+struct ModuleState {
     func: u32,
+    module: u32,
+    instance: u32,
     memory: u32,
     global: u32,
     table: u32,
-    nesting: u32,
-    functypes: Vec<FuncType>,
+    types: Vec<Option<FuncType>>,
     names: HashMap<u32, String>,
     local_names: HashMap<u32, HashMap<u32, String>>,
     module_name: Option<String>,
@@ -91,24 +98,28 @@ impl Printer {
     /// This function takes an entire `wasm` binary blob and will print it to
     /// the WebAssembly Text Format and return the result as a `String`.
     pub fn print(&mut self, wasm: &[u8]) -> Result<String> {
-        // Reset internal state which will get configured throughout printing.
-        self.func = 0;
-        self.memory = 0;
-        self.global = 0;
-        self.table = 0;
-        self.functypes.truncate(0);
-        self.local_names.drain();
-        self.module_name = None;
+        let parser = wasmparser::ModuleReader::new(wasm)?;
+        self.start_group("module");
+        self.print_contents(parser, "")?;
+        self.end_group();
+        Ok(mem::take(&mut self.result))
+    }
 
+    fn print_contents(&mut self, mut parser: ModuleReader, module_ty: &str) -> Result<()> {
         // First up try to find the `name` subsection which we'll use to print
         // pretty names everywhere. Also look for the `code` section so we can
         // print out functions as soon as we hit the function section.
-        let mut parser = wasmparser::ModuleReader::new(wasm)?;
         let mut code = None;
-        while !parser.eof() {
-            let section = parser.read()?;
+        let mut module_code = None;
+        let mut pre_parser = parser.clone();
+        let prev = mem::take(&mut self.state);
+        while !pre_parser.eof() {
+            let section = pre_parser.read()?;
             match section.code {
                 SectionCode::Code => code = Some(section.get_code_section_reader()?),
+                SectionCode::ModuleCode => {
+                    module_code = Some(section.get_module_code_section_reader()?)
+                }
                 SectionCode::Custom { name: "name", .. } => {
                     self.register_names(section.get_name_section_reader()?)?;
                 }
@@ -117,21 +128,21 @@ impl Printer {
         }
 
         // ... and here we go, time to print all the sections!
-        self.result.push_str("(module");
-        if let Some(name) = &self.module_name {
+        if let Some(name) = &self.state.module_name {
             self.result.push_str(" $");
             self.result.push_str(name);
         }
-        let mut parser = wasmparser::ModuleReader::new(wasm)?;
-        let mut printers = mem::replace(&mut self.printers, HashMap::new());
+        self.result.push_str(module_ty);
         while !parser.eof() {
             let section = parser.read()?;
             match section.code {
                 SectionCode::Custom { name, .. } => {
                     let range = section.get_binary_reader().range();
+                    let mut printers = mem::replace(&mut self.printers, HashMap::new());
                     if let Some(printer) = printers.get_mut(name) {
-                        printer(self, range.start, &wasm[range.start..range.end])?;
+                        printer(self, range.start, section.content_raw())?;
                     }
+                    self.printers = printers;
                 }
                 SectionCode::Type => {
                     self.print_types(section.get_type_section_reader()?)?;
@@ -179,22 +190,52 @@ impl Printer {
                 SectionCode::DataCount => {
                     // not part of the text format
                 }
+                SectionCode::Alias => {
+                    self.print_aliases(section.get_alias_section_reader()?)?;
+                }
+                SectionCode::Module => {
+                    let reader = section.get_module_section_reader()?;
+                    if reader.get_count() == 0 {
+                        continue;
+                    }
+                    let module_code = match module_code.as_mut() {
+                        Some(f) => f,
+                        None => bail!("found function section without code section"),
+                    };
+                    self.print_module_code(module_code, reader)?;
+                }
+                SectionCode::Instance => {
+                    self.print_instances(section.get_instance_section_reader()?)?;
+                }
+                SectionCode::ModuleCode => {
+                    // printed in `Module` section
+                }
             }
         }
+        self.state = prev;
+        Ok(())
+    }
+
+    fn start_group(&mut self, name: &str) {
+        self.result.push_str("(");
+        self.result.push_str(name);
+        self.nesting += 1;
+    }
+
+    fn end_group(&mut self) {
         self.result.push_str(")");
-        self.printers = printers;
-        Ok(mem::replace(&mut self.result, String::new()))
+        self.nesting -= 1;
     }
 
     fn register_names(&mut self, names: NameSectionReader<'_>) -> Result<()> {
         for section in names {
             match section? {
-                Name::Module(n) => self.module_name = Some(n.get_name()?.to_string()),
+                Name::Module(n) => self.state.module_name = Some(n.get_name()?.to_string()),
                 Name::Function(n) => {
                     let mut map = n.get_map()?;
                     for _ in 0..map.get_count() {
                         let name = map.read()?;
-                        self.names.insert(name.index, name.name.to_string());
+                        self.state.names.insert(name.index, name.name.to_string());
                     }
                 }
                 Name::Local(n) => {
@@ -207,7 +248,9 @@ impl Printer {
                             let name = map.read()?;
                             local_map.insert(name.index, name.name.to_string());
                         }
-                        self.local_names.insert(local_name.func_index, local_map);
+                        self.state
+                            .local_names
+                            .insert(local_name.func_index, local_map);
                     }
                 }
             }
@@ -216,19 +259,57 @@ impl Printer {
     }
 
     fn print_types(&mut self, parser: TypeSectionReader<'_>) -> Result<()> {
-        for (i, ty) in parser.into_iter().enumerate() {
-            let ty = ty?;
-            write!(self.result, "\n  (type (;{};) (func", i)?;
-            self.print_functype(&ty, None)?;
-            self.result.push_str("))");
-            self.functypes.push(ty);
+        for ty in parser {
+            self.newline();
+            self.start_group("type");
+            write!(self.result, " (;{};) ", self.state.types.len())?;
+            let ty = match ty? {
+                TypeDef::Func(ty) => {
+                    self.start_group("func");
+                    self.print_functype(&ty, None)?;
+                    Some(ty)
+                }
+                TypeDef::Module(ty) => {
+                    self.newline();
+                    self.start_group("module");
+                    for import in ty.imports.iter() {
+                        self.print_import(import, false)?;
+                    }
+                    for export in ty.exports.iter() {
+                        self.newline();
+                        self.start_group("export ");
+                        self.print_str(export.name)?;
+                        self.result.push_str(" ");
+                        self.print_import_ty(&export.ty, false)?;
+                        self.end_group();
+                    }
+                    None
+                }
+                TypeDef::Instance(ty) => {
+                    self.newline();
+                    self.start_group("instance");
+                    for export in ty.exports.iter() {
+                        self.newline();
+                        self.start_group("export ");
+                        self.print_str(export.name)?;
+                        self.result.push_str(" ");
+                        self.print_import_ty(&export.ty, false)?;
+                        self.end_group();
+                    }
+                    None
+                }
+            };
+            self.end_group(); // inner type
+            self.end_group(); // `type` itself
+            self.state.types.push(ty);
         }
         Ok(())
     }
 
     fn print_functype_idx(&mut self, idx: u32, names_for: Option<u32>) -> Result<u32> {
-        let ty = match self.functypes.get(idx as usize) {
-            Some(ty) => ty.clone(),
+        let ty = match self.state.types.get(idx as usize) {
+            Some(Some(ty)) => ty.clone(),
+            Some(None) => bail!("function type index `{}` is not a function", idx),
             None => bail!("function type index `{}` out of bounds", idx),
         };
         self.print_functype(&ty, names_for)
@@ -242,7 +323,7 @@ impl Printer {
         // we need to be careful to terminate previous param blocks and open
         // a new one if that's the case with a named parameter.
         for (i, param) in ty.params.iter().enumerate() {
-            let local_names = &self.local_names;
+            let local_names = &self.state.local_names;
             let name = names_for
                 .and_then(|n| local_names.get(&n))
                 .and_then(|n| n.get(&(i as u32)));
@@ -286,49 +367,90 @@ impl Printer {
     }
 
     fn print_imports(&mut self, parser: ImportSectionReader<'_>) -> Result<()> {
-        use ImportSectionEntryType::*;
         for import in parser {
             let import = import?;
-            self.result.push_str("\n  (import ");
-            self.print_str(import.module)?;
-            self.result.push_str(" ");
-            self.print_str(import.field)?;
-            self.result.push_str(" (");
+            self.print_import(&import, true)?;
             match import.ty {
-                Function(f) => {
-                    self.result.push_str("func ");
-                    match self.names.get(&self.func) {
-                        Some(name) => write!(self.result, "${}", name)?,
-                        None => write!(self.result, "(;{};)", self.func)?,
-                    }
-                    write!(self.result, " (type {})", f)?;
-                    self.func += 1;
-                }
-                Table(f) => self.print_table_type(&f)?,
-                Memory(f) => self.print_memory_type(&f)?,
-                Global(f) => self.print_global_type(&f)?,
+                ImportSectionEntryType::Function(_) => self.state.func += 1,
+                ImportSectionEntryType::Module(_) => self.state.module += 1,
+                ImportSectionEntryType::Instance(_) => self.state.instance += 1,
+                ImportSectionEntryType::Table(_) => self.state.table += 1,
+                ImportSectionEntryType::Memory(_) => self.state.memory += 1,
+                ImportSectionEntryType::Global(_) => self.state.global += 1,
             }
-            self.result.push_str("))");
         }
         Ok(())
     }
 
-    fn print_table_type(&mut self, ty: &TableType) -> Result<()> {
-        write!(self.result, "table (;{};) ", self.table)?;
-        self.print_limits(&ty.limits)?;
+    fn print_import(&mut self, import: &Import<'_>, index: bool) -> Result<()> {
+        self.newline();
+        self.start_group("import ");
+        self.print_str(import.module)?;
+        if let Some(field) = import.field {
+            self.result.push_str(" ");
+            self.print_str(field)?;
+        }
         self.result.push_str(" ");
-        self.print_valtype(ty.element_type)?;
-        self.table += 1;
+        self.print_import_ty(&import.ty, index)?;
+        self.end_group();
         Ok(())
     }
 
-    fn print_memory_type(&mut self, ty: &MemoryType) -> Result<()> {
-        write!(self.result, "memory (;{};) ", self.memory)?;
+    fn print_import_ty(&mut self, ty: &ImportSectionEntryType, index: bool) -> Result<()> {
+        use ImportSectionEntryType::*;
+        match ty {
+            Function(f) => {
+                self.start_group("func");
+                if index {
+                    match self.state.names.get(&self.state.func) {
+                        Some(name) => write!(self.result, " ${}", name)?,
+                        None => write!(self.result, " (;{};)", self.state.func)?,
+                    }
+                }
+                write!(self.result, " (type {})", f)?;
+            }
+            Module(f) => {
+                self.start_group("module ");
+                if index {
+                    write!(self.result, "(;{};) ", self.state.module)?;
+                }
+                write!(self.result, "(type {})", f)?;
+            }
+            Instance(f) => {
+                self.start_group("instance ");
+                if index {
+                    write!(self.result, "(;{};) ", self.state.instance)?;
+                }
+                write!(self.result, "(type {})", f)?;
+            }
+            Table(f) => self.print_table_type(&f, index)?,
+            Memory(f) => self.print_memory_type(&f, index)?,
+            Global(f) => self.print_global_type(&f, index)?,
+        }
+        self.end_group();
+        Ok(())
+    }
+
+    fn print_table_type(&mut self, ty: &TableType, index: bool) -> Result<()> {
+        self.start_group("table ");
+        if index {
+            write!(self.result, "(;{};) ", self.state.table)?;
+        }
+        self.print_limits(&ty.limits)?;
+        self.result.push_str(" ");
+        self.print_valtype(ty.element_type)?;
+        Ok(())
+    }
+
+    fn print_memory_type(&mut self, ty: &MemoryType, index: bool) -> Result<()> {
+        self.start_group("memory ");
+        if index {
+            write!(self.result, "(;{};) ", self.state.memory)?;
+        }
         self.print_limits(&ty.limits)?;
         if ty.shared {
             self.result.push_str(" shared");
         }
-        self.memory += 1;
         Ok(())
     }
 
@@ -340,8 +462,11 @@ impl Printer {
         Ok(())
     }
 
-    fn print_global_type(&mut self, ty: &GlobalType) -> Result<()> {
-        write!(self.result, "global (;{};) ", self.global)?;
+    fn print_global_type(&mut self, ty: &GlobalType, index: bool) -> Result<()> {
+        self.start_group("global ");
+        if index {
+            write!(self.result, "(;{};) ", self.state.global)?;
+        }
         if ty.mutable {
             self.result.push_str("(mut ");
             self.print_valtype(ty.content_type)?;
@@ -349,16 +474,16 @@ impl Printer {
         } else {
             self.print_valtype(ty.content_type)?;
         }
-        self.global += 1;
         Ok(())
     }
 
     fn print_tables(&mut self, parser: TableSectionReader<'_>) -> Result<()> {
         for table in parser {
             let table = table?;
-            self.result.push_str("\n  (");
-            self.print_table_type(&table)?;
-            self.result.push_str(")");
+            self.newline();
+            self.print_table_type(&table, true)?;
+            self.end_group();
+            self.state.table += 1;
         }
         Ok(())
     }
@@ -366,9 +491,10 @@ impl Printer {
     fn print_memories(&mut self, parser: MemorySectionReader<'_>) -> Result<()> {
         for memory in parser {
             let memory = memory?;
-            self.result.push_str("\n  (");
-            self.print_memory_type(&memory)?;
-            self.result.push_str(")");
+            self.newline();
+            self.print_memory_type(&memory, true)?;
+            self.end_group();
+            self.state.memory += 1;
         }
         Ok(())
     }
@@ -376,11 +502,12 @@ impl Printer {
     fn print_globals(&mut self, parser: GlobalSectionReader<'_>) -> Result<()> {
         for global in parser {
             let global = global?;
-            self.result.push_str("\n  (");
-            self.print_global_type(&global.ty)?;
+            self.newline();
+            self.print_global_type(&global.ty, true)?;
             self.result.push_str(" ");
             self.print_init_expr(&global.init_expr)?;
-            self.result.push_str(")");
+            self.end_group();
+            self.state.global += 1;
         }
         Ok(())
     }
@@ -393,13 +520,14 @@ impl Printer {
         for body in code {
             let body = body?;
             let ty = funcs.read()?;
-            self.result.push_str("\n  (func ");
-            match self.names.get(&self.func) {
+            self.newline();
+            self.start_group("func ");
+            match self.state.names.get(&self.state.func) {
                 Some(name) => write!(self.result, "${}", name)?,
-                None => write!(self.result, "(;{};)", self.func)?,
+                None => write!(self.result, "(;{};)", self.state.func)?,
             }
             write!(self.result, " (type {})", ty)?;
-            let params = self.print_functype_idx(ty, Some(self.func))?;
+            let params = self.print_functype_idx(ty, Some(self.state.func))?;
 
             let mut first = true;
             let mut local_idx = 0;
@@ -412,8 +540,9 @@ impl Printer {
                         first = false;
                     }
                     let name = self
+                        .state
                         .local_names
-                        .get(&self.func)
+                        .get(&self.state.func)
                         .and_then(|m| m.get(&(params + local_idx)));
                     locals.start_local(name, &mut self.result);
                     self.print_valtype(ty)?;
@@ -423,55 +552,58 @@ impl Printer {
             }
             locals.finish(&mut self.result);
 
-            self.nesting = 1;
+            let nesting_start = self.nesting;
             for operator in body.get_operators_reader()? {
                 let operator = operator?;
                 match operator {
                     Operator::Else => self.nesting -= 1,
-                    Operator::End if self.nesting == 1 => continue,
+                    Operator::End if self.nesting == nesting_start => continue,
                     Operator::End => self.nesting -= 1,
                     _ => {}
                 }
-                self.result.push_str("\n  ");
-                for _ in 0..self.nesting {
-                    self.result.push_str("  ");
-                }
-                self.print_operator(&operator)?;
+                self.newline();
+                self.print_operator(&operator, nesting_start)?;
             }
-            self.result.push_str(")");
+            self.end_group();
 
-            self.func += 1;
+            self.state.func += 1;
         }
         Ok(())
     }
 
-    fn print_operator(&mut self, op: &Operator<'_>) -> Result<()> {
+    fn newline(&mut self) {
+        self.result.push_str("\n");
+        for _ in 0..self.nesting {
+            self.result.push_str("  ");
+        }
+    }
+
+    fn print_operator(&mut self, op: &Operator<'_>, nesting_start: u32) -> Result<()> {
         use Operator::*;
-        let nesting = self.nesting;
-        let label =
-            |relative: u32| match nesting.checked_sub(relative).and_then(|s| s.checked_sub(1)) {
-                Some(i) => format!("@{}", i),
-                None => format!(" INVALID "),
-            };
+        let cur_label = self.nesting - nesting_start + 1;
+        let label = |relative: u32| match cur_label.checked_sub(relative + 1) {
+            Some(i) => format!("@{}", i),
+            None => format!(" INVALID "),
+        };
         match op {
             Nop => self.result.push_str("nop"),
             Unreachable => self.result.push_str("unreachable"),
             Block { ty } => {
                 self.result.push_str("block");
                 self.print_blockty(ty)?;
-                write!(self.result, "  ;; label = @{}", self.nesting)?;
+                write!(self.result, "  ;; label = @{}", cur_label)?;
                 self.nesting += 1;
             }
             Loop { ty } => {
                 self.result.push_str("loop");
                 self.print_blockty(ty)?;
-                write!(self.result, "  ;; label = @{}", self.nesting)?;
+                write!(self.result, "  ;; label = @{}", cur_label)?;
                 self.nesting += 1;
             }
             If { ty } => {
                 self.result.push_str("if");
                 self.print_blockty(ty)?;
-                write!(self.result, "  ;; label = @{}", self.nesting)?;
+                write!(self.result, "  ;; label = @{}", cur_label)?;
                 self.nesting += 1;
             }
             Else => {
@@ -538,15 +670,15 @@ impl Printer {
             }
             LocalGet { local_index } => {
                 self.result.push_str("local.get ");
-                self.print_local_idx(self.func, *local_index)?;
+                self.print_local_idx(self.state.func, *local_index)?;
             }
             LocalSet { local_index } => {
                 self.result.push_str("local.set ");
-                self.print_local_idx(self.func, *local_index)?;
+                self.print_local_idx(self.state.func, *local_index)?;
             }
             LocalTee { local_index } => {
                 self.result.push_str("local.tee ");
-                self.print_local_idx(self.func, *local_index)?;
+                self.print_local_idx(self.state.func, *local_index)?;
             }
 
             GlobalGet { global_index } => {
@@ -1135,9 +1267,11 @@ impl Printer {
     fn print_exports(&mut self, data: ExportSectionReader) -> Result<()> {
         for export in data {
             let export = export?;
-            self.result.push_str("\n  (export ");
+            self.newline();
+            self.start_group("export ");
             self.print_str(export.field)?;
-            self.result.push_str(" (");
+            self.result.push_str(" ");
+            self.start_group("");
             match export.kind {
                 ExternalKind::Function => {
                     self.result.push_str("func ");
@@ -1146,10 +1280,32 @@ impl Printer {
                 ExternalKind::Table => write!(self.result, "table {}", export.index)?,
                 ExternalKind::Global => write!(self.result, "global {}", export.index)?,
                 ExternalKind::Memory => write!(self.result, "memory {}", export.index)?,
+                ExternalKind::Module => write!(self.result, "module {}", export.index)?,
+                ExternalKind::Instance => write!(self.result, "instance {}", export.index)?,
+                ExternalKind::Type => write!(self.result, "type {}", export.index)?,
             }
-            self.result.push_str("))");
+            self.end_group(); // field
+            self.end_group(); // export
         }
         return Ok(());
+    }
+
+    fn print_external(&mut self, kind: ExternalKind, index: u32) -> Result<()> {
+        self.result.push_str("(");
+        match kind {
+            ExternalKind::Function => {
+                self.result.push_str("func ");
+                self.print_func_idx(index)?;
+            }
+            ExternalKind::Table => write!(self.result, "table {}", index)?,
+            ExternalKind::Global => write!(self.result, "global {}", index)?,
+            ExternalKind::Memory => write!(self.result, "memory {}", index)?,
+            ExternalKind::Module => write!(self.result, "module {}", index)?,
+            ExternalKind::Instance => write!(self.result, "instance {}", index)?,
+            ExternalKind::Type => write!(self.result, "type {}", index)?,
+        }
+        self.result.push_str(")");
+        Ok(())
     }
 
     /// Prints a function index specified, using the identifier for the function
@@ -1157,7 +1313,7 @@ impl Printer {
     ///
     /// This will either print `$foo` or `idx` as a raw integer.
     pub fn print_func_idx(&mut self, idx: u32) -> Result<()> {
-        match self.names.get(&idx) {
+        match self.state.names.get(&idx) {
             Some(name) => write!(self.result, "${}", name)?,
             None => write!(self.result, "{}", idx)?,
         }
@@ -1165,7 +1321,7 @@ impl Printer {
     }
 
     fn print_local_idx(&mut self, func: u32, idx: u32) -> Result<()> {
-        match self.local_names.get(&func).and_then(|f| f.get(&idx)) {
+        match self.state.local_names.get(&func).and_then(|f| f.get(&idx)) {
             Some(name) => write!(self.result, "${}", name)?,
             None => write!(self.result, "{}", idx)?,
         }
@@ -1243,9 +1399,109 @@ impl Printer {
         Ok(())
     }
 
+    fn print_instances(&mut self, instances: InstanceSectionReader) -> Result<()> {
+        for (i, instance) in instances.into_iter().enumerate() {
+            let instance = instance?;
+            self.newline();
+            self.start_group("instance");
+            write!(self.result, " (;{};)", i)?;
+            self.newline();
+            self.start_group("instantiate");
+            write!(self.result, " {}", instance.module())?;
+            for export in instance.args()? {
+                let (kind, index) = export?;
+                self.newline();
+                self.print_external(kind, index)?;
+            }
+            self.end_group(); // instantiate
+            self.end_group(); // instance
+        }
+        Ok(())
+    }
+
+    fn print_aliases(&mut self, aliases: AliasSectionReader) -> Result<()> {
+        for alias in aliases {
+            let alias = alias?;
+            self.newline();
+            self.start_group("alias");
+            match alias.kind {
+                ExternalKind::Function => {
+                    match self.state.names.get(&self.state.func) {
+                        Some(name) => write!(self.result, " ${}", name)?,
+                        None => write!(self.result, " (;{};)", self.state.func)?,
+                    }
+                    self.state.func += 1;
+                }
+                ExternalKind::Table => {
+                    write!(self.result, " (;{};)", self.state.table)?;
+                    self.state.table += 1;
+                }
+                ExternalKind::Memory => {
+                    write!(self.result, " (;{};)", self.state.memory)?;
+                    self.state.memory += 1;
+                }
+                ExternalKind::Global => {
+                    write!(self.result, " (;{};)", self.state.global)?;
+                    self.state.global += 1;
+                }
+                ExternalKind::Instance => {
+                    write!(self.result, " (;{};)", self.state.instance)?;
+                    self.state.instance += 1;
+                }
+                ExternalKind::Module => {
+                    write!(self.result, " (;{};)", self.state.module)?;
+                    self.state.module += 1;
+                }
+                ExternalKind::Type => self.state.types.push(None),
+            }
+            self.result.push_str(" ");
+            match alias.instance {
+                AliasedInstance::Parent => self.result.push_str("parent"),
+                AliasedInstance::Child(i) => {
+                    self.start_group("instance");
+                    write!(self.result, " {}", i)?;
+                    self.end_group();
+                }
+            }
+            self.result.push_str(" ");
+            match alias.kind {
+                ExternalKind::Function => self.start_group("func"),
+                ExternalKind::Table => self.start_group("table"),
+                ExternalKind::Memory => self.start_group("memory"),
+                ExternalKind::Global => self.start_group("global"),
+                ExternalKind::Instance => self.start_group("instance"),
+                ExternalKind::Module => self.start_group("module"),
+                ExternalKind::Type => self.start_group("type"),
+            }
+            write!(self.result, " {}", alias.index)?;
+            self.end_group();
+            self.end_group();
+        }
+        Ok(())
+    }
+
+    fn print_module_code(
+        &mut self,
+        module_code: &mut ModuleCodeSectionReader<'_>,
+        tys: ModuleSectionReader<'_>,
+    ) -> Result<()> {
+        for ty in tys {
+            let ty = ty?;
+            let module = module_code.read()?;
+            self.newline();
+            self.start_group("module");
+            self.print_contents(
+                module.module()?,
+                &format!(" (;{};) (type {})", self.state.module, ty),
+            )?;
+            self.end_group();
+            self.state.module += 1;
+        }
+        Ok(())
+    }
+
     fn print_init_expr(&mut self, expr: &InitExpr) -> Result<()> {
-        self.result.push_str("(");
-        self.nesting = 1;
+        self.start_group("");
         for (i, op) in expr.get_operators_reader().into_iter().enumerate() {
             match op? {
                 Operator::End => {}
@@ -1253,11 +1509,11 @@ impl Printer {
                     if i > 0 {
                         self.result.push_str(" ");
                     }
-                    self.print_operator(&other)?
+                    self.print_operator(&other, self.nesting)?
                 }
             }
         }
-        self.result.push_str(")");
+        self.end_group();
         Ok(())
     }
 

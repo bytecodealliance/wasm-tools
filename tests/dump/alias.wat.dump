@@ -1,0 +1,36 @@
+0x0000 | 00 61 73 6d | version 1
+       | 01 00 00 00
+0x0008 | 01 14       | section Type
+0x000a | 03          | 3 count
+0x000b | 60 00 00    | [type 0] Func(FuncType { params: [], returns: [] })
+0x000e | 60 01 7f 00 | [type 1] Func(FuncType { params: [I32], returns: [] })
+0x0012 | 62 02 02 66 | [type 2] Instance(InstanceType { exports: [ExportType { name: "f1", ty: Function(0) }, ExportType { name: "f2", ty: Function(1) }] })
+       | 31 00 00 02
+       | 66 32 00 01
+0x001e | 02 07       | section Import
+0x0020 | 01          | 1 count
+0x0021 | 01 69 01 c0 | import [instance 0] Import { module: "i", field: None, ty: Instance(2) }
+       | 06 02      
+0x0027 | 66 05       | section Alias
+0x0029 | 01          | 1 count
+0x002a | 00 00 00 00 | [alias] Alias { instance: Child(0), kind: Function, index: 0 }
+0x002e | 03 02       | section Function
+0x0030 | 01          | 1 count
+0x0031 | 00          | [func 1] type 0
+0x0032 | 07 07       | section Export
+0x0034 | 01          | 1 count
+0x0035 | 03 72 75 6e | export Export { field: "run", kind: Function, index: 1 }
+       | 00 01      
+0x003b | 0a 06       | section Code
+0x003d | 01          | 1 count
+============== func 1 ====================
+0x003e | 04          | size of function
+0x003f | 00          | 0 local blocks
+0x0040 | 10 00       | Call { function_index: 0 }
+0x0042 | 0b          | End
+0x0043 | 00 0f 04 6e | section Custom { name: "name", kind: Name }
+       | 61 6d 65   
+0x004a | 01 08       | function names
+0x004c | 01          | 1 count
+0x004d | 00 05 69 2e | Naming { index: 0, name: "i.$f1" }
+       | 24 66 31   

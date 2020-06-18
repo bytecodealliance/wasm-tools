@@ -225,8 +225,10 @@ impl TestState {
             && !test.ends_with("dump/import.txt")
             // uses exceptions
             && !test.ends_with("parse/all-features.txt")
+            && !test.iter().any(|t| t == "module-linking")
         {
-            self.test_wasm(test, &binary, true)?;
+            self.test_wasm(test, &binary, true)
+                .context("failed testing the binary output of `wat`")?;
         }
         Ok(())
     }
@@ -247,6 +249,9 @@ impl TestState {
             // FIXME(WebAssembly/wabt#1447)
             && !test.ends_with("bulk-memory-operations/binary.wast")
             && !test.ends_with("reference-types/binary.wast")
+
+            // not implemented in wabt
+            && !test.iter().any(|t| t == "module-linking")
         {
             if let Some(expected) = self.wasm2wat(contents)? {
                 self.string_compare(&string, &expected)?;
@@ -256,9 +261,11 @@ impl TestState {
         // If we can, convert the string back to bytes and assert it has the
         // same binary representation.
         if test_roundtrip {
-            let binary2 = wat::parse_str(&string)?;
+            let binary2 =
+                wat::parse_str(&string).context("failed to parse `wat` from `wasmprinter`")?;
             self.bump_ntests();
-            self.binary_compare(&binary2, contents, false)?;
+            self.binary_compare(&binary2, contents, false)
+                .context("failed to compare original `wat` with roundtrip `wat`")?;
         }
 
         Ok(())
@@ -314,7 +321,11 @@ impl TestState {
             return Ok(());
         }
         let mut s = format!("{} test failures in {}:", errors.len(), test.display());
-        for error in errors {
+        for mut error in errors {
+            if let Some(err) = error.downcast_mut::<wast::Error>() {
+                err.set_path(test);
+                err.set_text(contents);
+            }
             s.push_str("\n\n\t--------------------------------\n\n\t");
             s.push_str(&format!("{:?}", error).replace("\n", "\n\t"));
         }
@@ -349,7 +360,8 @@ impl TestState {
                     // with wabt which does further parsing.
                     ModuleKind::Binary(_) => false,
                 };
-                self.test_wasm(test, &actual, test_roundtrip)?;
+                self.test_wasm(test, &actual, test_roundtrip)
+                    .context("failed testing wasm binary produced by `wast`")?;
             }
 
             WastDirective::QuoteModule { source, span: _ } => {
@@ -645,6 +657,7 @@ impl TestState {
                 enable_bulk_memory: true,
                 enable_multi_value: true,
                 enable_tail_call: true,
+                enable_module_linking: true,
             },
         };
         for part in test.iter().filter_map(|t| t.to_str()) {
@@ -655,6 +668,7 @@ impl TestState {
                     config.operator_config.enable_simd = false;
                     config.operator_config.enable_bulk_memory = false;
                     config.operator_config.enable_tail_call = false;
+                    config.operator_config.enable_module_linking = false;
                 }
                 "threads" => config.operator_config.enable_threads = true,
                 "simd" => config.operator_config.enable_simd = true,

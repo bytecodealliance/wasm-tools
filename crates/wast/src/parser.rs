@@ -709,6 +709,11 @@ impl<'a> Parser<'a> {
         self.cursor().cur_span()
     }
 
+    /// Returns the span of the previous token
+    pub fn prev_span(&self) -> Span {
+        self.cursor().prev_span().unwrap_or(Span::from_offset(0))
+    }
+
     /// Registers a new known annotation with this parser to allow parsing
     /// annotations with this name.
     ///
@@ -871,6 +876,16 @@ impl<'a> Cursor<'a> {
             None => self.parser.buf.input.len(),
         };
         Span { offset }
+    }
+
+    /// Returns the span of the previous `Token` token.
+    ///
+    /// Does not take into account whitespace or comments.
+    pub(crate) fn prev_span(&self) -> Option<Span> {
+        let (token, _) = self.parser.buf.tokens.get(self.cur.checked_sub(1)?)?;
+        Some(Span {
+            offset: self.parser.buf.input_pos(token.src()),
+        })
     }
 
     /// Same as [`Parser::error`], but works with the current token in this

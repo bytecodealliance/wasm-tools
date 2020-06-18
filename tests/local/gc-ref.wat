@@ -11,6 +11,9 @@
   (global (ref $b))
 
   (func (param (ref $a)))
+  (func (param (ref 0)))
+  (func (type $f1) (param (ref 0)))
+  (func (type 2) (param (ref 0)))
   (func (result (ref $a)))
   (func (local (ref $a)))
 
