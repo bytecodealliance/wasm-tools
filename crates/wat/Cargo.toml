@@ -13,4 +13,4 @@ Rust parser for the WebAssembly Text format, WAT
 """
 
 [dependencies]
-wast = { path = '../wast', version = '18.0.0' }
+wast = { path = '../wast', version = '19.0.0' }
