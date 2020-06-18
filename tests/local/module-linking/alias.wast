@@ -474,3 +474,136 @@
     ")"
   )
   "reference to module is out of bounds")
+
+(assert_invalid
+  (module
+    (import "" (instance $i))
+    (alias (instance $i) (func 0))
+  )
+  "aliased export index out of bounds")
+
+(assert_invalid
+  (module
+    (import "" (instance $i
+      (export "" (memory 1))
+    ))
+    (alias (instance $i) (func 0))
+  )
+  "alias kind mismatch with export kind")
+
+(assert_invalid
+  (module
+    (import "" (instance $i
+      (export "" (func))
+    ))
+    (alias (instance $i) (func 0))
+
+    (func
+      i32.const 0
+      call 0)
+  )
+  "type mismatch")
+
+;; aliasing various items works
+(module
+  (import "" (instance $i
+    (export "" (global $g (mut i32)))
+  ))
+  (alias $g (instance $i) (global $g))
+
+  (func
+    global.get $g
+    global.set $g)
+)
+
+(module
+  (import "" (instance $i
+    (export "" (table $t 1 funcref))
+  ))
+  (alias $t (instance $i) (table $t))
+
+  (func
+    i32.const 0
+    table.get $t
+    drop)
+)
+
+(module
+  (import "" (instance $i
+    (export "" (memory $m 1))
+  ))
+  (alias (instance $i) (memory $m))
+
+  (func
+    i32.const 0
+    i32.load
+    drop)
+)
+
+(module
+  (import "" (instance $i
+    (export "" (func $f))
+  ))
+  (alias $f (instance $i) (func $f))
+
+  (func
+    call $f)
+)
+
+(module
+  (import "" (instance $i
+    (export "" (instance $i2
+      (export "" (func))
+    ))
+  ))
+  (alias $i2 (instance $i) (instance $i2))
+  (alias $f (instance $i2) (func 0))
+
+  (func
+    call $f)
+)
+
+(module
+  (import "" (instance $i
+    (export "" (module $m))
+  ))
+  (alias $m (instance $i) (module $m))
+  (instance (instantiate $m))
+)
+
+(assert_malformed
+  (module quote
+    "(alias (instance 0) (module 0))"
+  )
+  "reference to instance is out of bounds")
+
+(assert_invalid
+  (module binary
+    "\00asm" "\01\00\00\00"
+    "\66\05"        ;; alias section
+    "\01"           ;; 1 alias
+    "\00\00\00\00"  ;; (alias (instance 0) (func 0))
+  )
+  "aliased instance index out of bounds")
+
+(module
+  (import "" (module $m
+    (export "" (func $f))
+  ))
+  (instance $i (instantiate $m))
+  (alias $f (instance $i) (func $f))
+
+  (func
+    call $f)
+)
+
+(module
+  (module $m
+    (func $f (export ""))
+  )
+  (instance $i (instantiate $m))
+  (alias $f (instance $i) (func $f))
+
+  (func
+    call $f)
+)
