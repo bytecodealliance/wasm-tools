@@ -708,7 +708,7 @@ impl Encode for ElemPayload<'_> {
                             Instruction::RefFunc(*idx).encode(e);
                         }
                         None => {
-                            Instruction::RefNull((*ty).into()).encode(e);
+                            Instruction::RefNull(ty.heap).encode(e);
                         }
                     }
                     Instruction::End(None).encode(e);

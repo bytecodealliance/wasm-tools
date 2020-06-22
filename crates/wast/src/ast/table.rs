@@ -222,8 +222,8 @@ fn parse_ref_func<'a>(
     let mut l = parser.lookahead1();
     if l.peek::<kw::ref_null>() {
         parser.parse::<kw::ref_null>()?;
-        let null_ty: ast::RefType = parser.parse()?;
-        if null_ty != ty.into() {
+        let null_ty: ast::HeapType = parser.parse()?;
+        if ty.heap != null_ty {
             return Err(parser.error("elem segment item doesn't match elem segment type"));
         }
         Ok(None)

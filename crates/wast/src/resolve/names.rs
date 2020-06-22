@@ -1452,7 +1452,7 @@ impl<'a> Module<'a> {
 
     fn resolve_valtype(&self, ty: &mut ValType<'a>) -> Result<(), Error> {
         match ty {
-            ValType::Ref(ty) => self.resolve_reftype(ty)?,
+            ValType::Ref(ty) => self.resolve_heaptype(&mut ty.heap)?,
             ValType::Rtt(i) => {
                 self.resolve(i, Ns::Type)?;
             }
@@ -1461,12 +1461,9 @@ impl<'a> Module<'a> {
         Ok(())
     }
 
-    fn resolve_reftype(&self, ty: &mut RefType<'a>) -> Result<(), Error> {
+    fn resolve_heaptype(&self, ty: &mut HeapType<'a>) -> Result<(), Error> {
         match ty {
-            RefType {
-                nullable: _,
-                heap: HeapType::Index(i),
-            } => {
+            HeapType::Index(i) => {
                 self.resolve(i, Ns::Type)?;
             }
             _ => {}
@@ -1866,7 +1863,7 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 self.module.resolve_valtype(&mut s.to)?;
             }
 
-            RefNull(ty) => self.module.resolve_reftype(ty)?,
+            RefNull(ty) => self.module.resolve_heaptype(ty)?,
 
             _ => {}
         }
