@@ -42,18 +42,18 @@ impl<'a> Parse<'a> for ValType<'a> {
             Ok(ValType::I16)
         } else if l.peek::<kw::funcref>() {
             parser.parse::<kw::funcref>()?;
-            Ok(ValType::Ref(RefType::Func))
+            Ok(ValType::Ref(RefType::func()))
         } else if l.peek::<kw::anyfunc>() {
             parser.parse::<kw::anyfunc>()?;
-            Ok(ValType::Ref(RefType::Func))
+            Ok(ValType::Ref(RefType::func()))
         } else if l.peek::<kw::externref>() {
             parser.parse::<kw::externref>()?;
-            Ok(ValType::Ref(RefType::Extern))
+            Ok(ValType::Ref(RefType::r#extern()))
         } else if l.peek::<kw::anyref>() {
             // Parse `anyref` as an alias of `externref` until all tests are
             // ported to use the new name
             parser.parse::<kw::anyref>()?;
-            Ok(ValType::Ref(RefType::Extern))
+            Ok(ValType::Ref(RefType::r#extern()))
         } else if l.peek::<ast::LParen>() {
             parser.parens(|p| {
                 let mut l = parser.lookahead1();
@@ -62,7 +62,10 @@ impl<'a> Parse<'a> for ValType<'a> {
                     Ok(ValType::Ref(p.parse()?))
                 } else if l.peek::<kw::optref>() {
                     p.parse::<kw::optref>()?;
-                    Ok(ValType::Ref(RefType::OptType(parser.parse()?)))
+                    Ok(ValType::Ref(RefType {
+                        nullable: true,
+                        heap: parser.parse()?,
+                    }))
                 } else if l.peek::<kw::rtt>() {
                     p.parse::<kw::rtt>()?;
                     Ok(ValType::Rtt(parser.parse()?))
@@ -72,23 +75,23 @@ impl<'a> Parse<'a> for ValType<'a> {
             })
         } else if l.peek::<kw::exnref>() {
             parser.parse::<kw::exnref>()?;
-            Ok(ValType::Ref(RefType::Exn))
+            Ok(ValType::Ref(RefType::exn()))
         } else if l.peek::<kw::eqref>() {
             parser.parse::<kw::eqref>()?;
-            Ok(ValType::Ref(RefType::Eq))
+            Ok(ValType::Ref(RefType::eq()))
         } else if l.peek::<kw::i31ref>() {
             parser.parse::<kw::i31ref>()?;
-            Ok(ValType::Ref(RefType::I31))
+            Ok(ValType::Ref(RefType::i31()))
         } else {
             Err(l.error())
         }
     }
 }
 
-/// The reference value types for a wasm module.
+/// A heap type for a reference type
 #[allow(missing_docs)]
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-pub enum RefType<'a> {
+pub enum HeapType<'a> {
     /// An untyped function reference: funcref. This is part of the reference
     /// types proposal.
     Func,
@@ -107,18 +110,91 @@ pub enum RefType<'a> {
     I31,
     /// A reference to a function, struct, or array: ref T. This is part of the
     /// GC proposal.
-    Type(ast::Index<'a>),
-    /// A nullable reference to a function, struct, or array: optref T. This is
-    /// part of the GC proposal.
-    OptType(ast::Index<'a>),
+    Index(ast::Index<'a>),
+}
+
+impl<'a> Parse<'a> for HeapType<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let mut l = parser.lookahead1();
+        if l.peek::<kw::func>() {
+            parser.parse::<kw::func>()?;
+            Ok(HeapType::Func)
+        } else if l.peek::<kw::r#extern>() {
+            parser.parse::<kw::r#extern>()?;
+            Ok(HeapType::Extern)
+        } else if l.peek::<kw::exn>() {
+            parser.parse::<kw::exn>()?;
+            Ok(HeapType::Exn)
+        } else if l.peek::<kw::eq>() {
+            parser.parse::<kw::eq>()?;
+            Ok(HeapType::Eq)
+        } else if l.peek::<kw::i31>() {
+            parser.parse::<kw::i31>()?;
+            Ok(HeapType::I31)
+        } else if l.peek::<ast::Index>() {
+            Ok(HeapType::Index(parser.parse()?))
+        } else {
+            Err(l.error())
+        }
+    }
+}
+
+/// A reference type in a wasm module.
+#[allow(missing_docs)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+pub struct RefType<'a> {
+    pub nullable: bool,
+    pub heap: HeapType<'a>
+}
+
+impl<'a> RefType<'a> {
+    /// A `funcref` as an abbreviation for `(ref null func)`.
+    pub fn func() -> Self {
+        RefType {
+            nullable: true,
+            heap: HeapType::Func
+        }
+    }
+
+    /// An `externref` as an abbreviation for `(ref null extern)`.
+    pub fn r#extern() -> Self {
+        RefType {
+            nullable: true,
+            heap: HeapType::Extern
+        }
+    }
+
+    /// An `exnref` as an abbreviation for `(ref null exn)`.
+    pub fn exn() -> Self {
+        RefType {
+            nullable: true,
+            heap: HeapType::Exn
+        }
+    }
+
+    /// An `eqref` as an abbreviation for `(ref null eq)`.
+    pub fn eq() -> Self {
+        RefType {
+            nullable: true,
+            heap: HeapType::Eq
+        }
+    }
+
+    /// An `i31ref` as an abbreviation for `(ref null i31)`.
+    pub fn i31() -> Self {
+        RefType {
+            nullable: true,
+            heap: HeapType::I31
+        }
+    }
 }
 
 impl<'a> From<TableElemType> for RefType<'a> {
     fn from(elem: TableElemType) -> Self {
         match elem {
-            TableElemType::Funcref => RefType::Func,
-            TableElemType::Externref => RefType::Extern,
-            TableElemType::Exnref => RefType::Exn,
+            TableElemType::Funcref => RefType::func(),
+            TableElemType::Externref => RefType::r#extern(),
+            TableElemType::Exnref => RefType::exn(),
         }
     }
 }
@@ -128,24 +204,30 @@ impl<'a> Parse<'a> for RefType<'a> {
         let mut l = parser.lookahead1();
         if l.peek::<kw::func>() {
             parser.parse::<kw::func>()?;
-            Ok(RefType::Func)
+            Ok(RefType::func())
         } else if l.peek::<kw::r#extern>() {
             parser.parse::<kw::r#extern>()?;
-            Ok(RefType::Extern)
+            Ok(RefType::r#extern())
         } else if l.peek::<kw::exn>() {
             parser.parse::<kw::exn>()?;
-            Ok(RefType::Exn)
+            Ok(RefType::exn())
         } else if l.peek::<kw::eq>() {
             parser.parse::<kw::eq>()?;
-            Ok(RefType::Eq)
+            Ok(RefType::eq())
         } else if l.peek::<kw::i31>() {
             parser.parse::<kw::i31>()?;
-            Ok(RefType::I31)
+            Ok(RefType::i31())
         } else if l.peek::<kw::opt>() {
             parser.parse::<kw::opt>()?;
-            Ok(RefType::OptType(parser.parse()?))
+            Ok(RefType {
+                nullable: true,
+                heap: parser.parse()?
+            })
         } else if l.peek::<ast::Index>() {
-            Ok(RefType::Type(parser.parse()?))
+            Ok(RefType {
+                nullable: false,
+                heap: parser.parse()?
+            })
         } else {
             Err(l.error())
         }

@@ -768,8 +768,10 @@ impl<'a> Resolver<'a> {
             // is only invoked with the module-linking proposal, which means
             // that we have two proposals interacting, and that's always weird
             // territory anywya.
-            ValType::Ref(RefType::Type(_))
-            | ValType::Ref(RefType::OptType(_))
+            ValType::Ref(RefType {
+                nullable: _,
+                heap: HeapType::Index(_),
+            })
             | ValType::Rtt(_) => Err(Error::new(
                 span,
                 format!("cannot copy reference types between modules right now"),
@@ -782,11 +784,26 @@ impl<'a> Resolver<'a> {
             | ValType::V128
             | ValType::I8
             | ValType::I16
-            | ValType::Ref(RefType::Extern)
-            | ValType::Ref(RefType::Func)
-            | ValType::Ref(RefType::Exn)
-            | ValType::Ref(RefType::Eq)
-            | ValType::Ref(RefType::I31) => Ok(ty),
+            | ValType::Ref(RefType {
+                nullable: _,
+                heap: HeapType::Extern,
+            })
+            | ValType::Ref(RefType {
+                nullable: _,
+                heap: HeapType::Func,
+            })
+            | ValType::Ref(RefType {
+                nullable: _,
+                heap: HeapType::Exn,
+            })
+            | ValType::Ref(RefType {
+                nullable: _,
+                heap: HeapType::Eq,
+            })
+            | ValType::Ref(RefType {
+                nullable: _,
+                heap: HeapType::I31,
+            }) => Ok(ty),
         }
     }
 
@@ -1436,10 +1453,13 @@ impl<'a> Module<'a> {
 
     fn resolve_reftype(&self, ty: &mut RefType<'a>) -> Result<(), Error> {
         match ty {
-            RefType::Type(i) | RefType::OptType(i) => {
+            RefType {
+                nullable: _,
+                heap: HeapType::Index(i),
+            } => {
                 self.resolve(i, Ns::Type)?;
             }
-            RefType::Eq | RefType::Func | RefType::Extern | RefType::Exn | RefType::I31 => {}
+            _ => {}
         }
         Ok(())
     }
