@@ -391,8 +391,6 @@ pub mod kw {
     custom_keyword!(null);
     custom_keyword!(nullref);
     custom_keyword!(offset);
-    custom_keyword!(opt);
-    custom_keyword!(optref);
     custom_keyword!(param);
     custom_keyword!(parent);
     custom_keyword!(passive);
