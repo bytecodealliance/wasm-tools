@@ -159,16 +159,6 @@ impl<'a> RefType<'a> {
     }
 }
 
-impl<'a> From<TableElemType> for RefType<'a> {
-    fn from(elem: TableElemType) -> Self {
-        match elem {
-            TableElemType::Funcref => RefType::func(),
-            TableElemType::Externref => RefType::r#extern(),
-            TableElemType::Exnref => RefType::exn(),
-        }
-    }
-}
-
 impl<'a> Parse<'a> for RefType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let mut l = parser.lookahead1();
@@ -259,53 +249,6 @@ impl<'a> Parse<'a> for GlobalType<'a> {
     }
 }
 
-/// List of different kinds of table types we can have.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub enum TableElemType {
-    /// An element for a table that is a list of functions.
-    Funcref,
-    /// An element for a table that is a list of `externref` values.
-    Externref,
-    /// An element for a table that is a list of `exnref` values.
-    Exnref,
-}
-
-impl<'a> Parse<'a> for TableElemType {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        // legacy support for `anyfunc`
-        if parser.peek::<kw::anyfunc>() {
-            parser.parse::<kw::anyfunc>()?;
-            return Ok(TableElemType::Funcref);
-        }
-        let mut l = parser.lookahead1();
-        if l.peek::<kw::funcref>() {
-            parser.parse::<kw::funcref>()?;
-            Ok(TableElemType::Funcref)
-        } else if l.peek::<kw::externref>() {
-            parser.parse::<kw::externref>()?;
-            Ok(TableElemType::Externref)
-        } else if l.peek::<kw::exnref>() {
-            parser.parse::<kw::exnref>()?;
-            Ok(TableElemType::Exnref)
-        } else {
-            Err(l.error())
-        }
-    }
-}
-
-impl Peek for TableElemType {
-    fn peek(cursor: Cursor<'_>) -> bool {
-        kw::funcref::peek(cursor)
-            || kw::anyref::peek(cursor)
-            || kw::externref::peek(cursor)
-            || /* legacy */ kw::anyfunc::peek(cursor)
-            || kw::exnref::peek(cursor)
-    }
-    fn display() -> &'static str {
-        "table element type"
-    }
-}
-
 /// Min/max limits used for tables/memories.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
@@ -329,14 +272,14 @@ impl<'a> Parse<'a> for Limits {
 
 /// Configuration for a table of a wasm mdoule
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct TableType {
+pub struct TableType<'a> {
     /// Limits on the element sizes of this table
     pub limits: Limits,
     /// The type of element stored in this table
-    pub elem: TableElemType,
+    pub elem: RefType<'a>,
 }
 
-impl<'a> Parse<'a> for TableType {
+impl<'a> Parse<'a> for TableType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         Ok(TableType {
             limits: parser.parse()?,

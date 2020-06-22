@@ -487,20 +487,10 @@ impl Encode for Index<'_> {
     }
 }
 
-impl Encode for TableType {
+impl<'a> Encode for TableType<'a> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.elem.encode(e);
         self.limits.encode(e);
-    }
-}
-
-impl Encode for TableElemType {
-    fn encode(&self, e: &mut Vec<u8>) {
-        match self {
-            TableElemType::Funcref => RefType::func().encode(e),
-            TableElemType::Externref => RefType::r#extern().encode(e),
-            TableElemType::Exnref => RefType::exn().encode(e),
-        }
     }
 }
 
@@ -627,7 +617,11 @@ impl Encode for Elem<'_> {
         // more MVP-compatible encoding.
         let mut to_encode = self.payload.clone();
         if let ElemPayload::Exprs {
-            ty: TableElemType::Funcref,
+            ty:
+                RefType {
+                    nullable: true,
+                    heap: HeapType::Func,
+                },
             exprs,
         } = &to_encode
         {
@@ -663,7 +657,11 @@ impl Encode for Elem<'_> {
                     offset,
                 },
                 ElemPayload::Exprs {
-                    ty: TableElemType::Funcref,
+                    ty:
+                        RefType {
+                            nullable: true,
+                            heap: HeapType::Func,
+                        },
                     ..
                 },
             ) => {
