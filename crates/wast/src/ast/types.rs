@@ -181,11 +181,6 @@ impl<'a> Parse<'a> for RefType<'a> {
         } else if l.peek::<kw::externref>() {
             parser.parse::<kw::externref>()?;
             Ok(RefType::r#extern())
-        } else if l.peek::<kw::anyref>() {
-            // Parse `anyref` as an alias of `externref` until all tests are
-            // ported to use the new name
-            parser.parse::<kw::anyref>()?;
-            Ok(RefType::r#extern())
         } else if l.peek::<kw::exnref>() {
             parser.parse::<kw::exnref>()?;
             Ok(RefType::exn())
@@ -286,11 +281,6 @@ impl<'a> Parse<'a> for TableElemType {
         if l.peek::<kw::funcref>() {
             parser.parse::<kw::funcref>()?;
             Ok(TableElemType::Funcref)
-        } else if l.peek::<kw::anyref>() {
-            // Parse `anyref` as an alias of `externref` until all tests are
-            // ported to use the new name
-            parser.parse::<kw::anyref>()?;
-            Ok(TableElemType::Externref)
         } else if l.peek::<kw::externref>() {
             parser.parse::<kw::externref>()?;
             Ok(TableElemType::Externref)
