@@ -48,7 +48,7 @@
 
   (module
     (module $empty)
-    (instance $i (instantiate $m (module $m)))
+    (instance $i (instantiate $m (module $empty)))
     (export "1" (func $i.$f))
     (export "2" (global $i.$g))
     (export "3" (table $i.$t))

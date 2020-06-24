@@ -523,7 +523,7 @@ impl OperatorValidator {
         function_index: u32,
         resources: impl WasmModuleResources,
     ) -> OperatorValidatorResult<()> {
-        let type_index = match resources.func_type_id_at(function_index) {
+        let ty = match resources.func_type_at(function_index) {
             Some(i) => i,
             None => {
                 bail_op_err!(
@@ -532,7 +532,6 @@ impl OperatorValidator {
                 );
             }
         };
-        let ty = func_type_at(&resources, type_index)?;
         self.check_operands(wasm_func_type_inputs(ty).map(WasmType::to_parser_type))?;
         self.func_state.change_frame_with_types(
             ty.len_inputs(),
@@ -1557,7 +1556,7 @@ impl OperatorValidator {
             }
             Operator::RefFunc { function_index } => {
                 self.check_reference_types_enabled()?;
-                if resources.func_type_id_at(function_index).is_none() {
+                if resources.func_type_at(function_index).is_none() {
                     return Err(OperatorValidatorError::new(
                         "unknown function: function index out of bounds",
                     ));

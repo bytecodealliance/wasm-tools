@@ -57,3 +57,14 @@
     ))
   )
   "type index is not a func")
+
+(assert_invalid
+  (module
+    (export "" (module 0))
+  )
+  "exported module index out of bounds")
+(assert_invalid
+  (module
+    (export "" (instance 0))
+  )
+  "exported instance index out of bounds")

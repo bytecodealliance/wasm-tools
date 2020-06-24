@@ -72,13 +72,13 @@
   (module
     (instance (instantiate 0))
   )
-  "module is not defined")
+  "unknown module")
 (assert_invalid
   (module
     (import "" (module))
     (instance (instantiate 1))
   )
-  "module is not defined")
+  "unknown module")
 
 (assert_invalid
   (module
@@ -254,4 +254,4 @@
   (module
     (instance (instantiate 0))
   )
-  "module is not defined")
+  "unknown module")
