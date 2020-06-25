@@ -37,7 +37,7 @@ pub struct Module<'a> {
     // type annotations if necessary.
     funcs: Namespace<'a, Index<'a>>,
     globals: Namespace<'a, GlobalType<'a>>,
-    tables: Namespace<'a, TableType>,
+    tables: Namespace<'a, TableType<'a>>,
     memories: Namespace<'a, MemoryType>,
     types: Namespace<'a, TypeInfo<'a>>,
     events: Namespace<'a, Index<'a>>,
@@ -664,12 +664,16 @@ impl<'a> Resolver<'a> {
         Ok(match item {
             // These items have everything specified inline, nothing to recurse
             // with, so we just clone it.
-            Item::Table(_) | Item::Memory(_) => item.clone(),
+            Item::Memory(_) => item.clone(),
             // Items with indirect indices means the contents of the index need
             // to be fully copied into our module.
             Item::Func(idx) | Item::Event(idx) | Item::Module(idx) | Item::Instance(idx) => {
                 self.copy_type_from_module(span, child, idx, false)?
             }
+            Item::Table(ty) => Item::Table(TableType {
+                limits: ty.limits,
+                elem: self.copy_reftype_from_module(span, child, ty.elem)?,
+            }),
             // Globals just need to copy over the value type and otherwise
             // contain most information inline.
             Item::Global(ty) => Item::Global(GlobalType {
@@ -756,37 +760,56 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn copy_valtype_from_module(
+    fn copy_reftype_from_module(
         &mut self,
         span: Span,
         _child: usize,
-        ty: ValType<'a>,
-    ) -> Result<ValType<'a>, Error> {
-        match ty {
-            // It's not clear to me at this time what to do about these types.
+        ty: RefType<'a>,
+    ) -> Result<RefType<'a>, Error> {
+        match ty.heap {
+            HeapType::Extern | HeapType::Func | HeapType::Exn | HeapType::Eq | HeapType::I31 => {
+                Ok(ty)
+            }
+
+            // It's not clear to me at this time what to do about this type.
             // What to do here sort of depends on the GC proposal. This method
             // is only invoked with the module-linking proposal, which means
             // that we have two proposals interacting, and that's always weird
-            // territory anywya.
-            ValType::Ref(RefType::Type(_))
-            | ValType::Ref(RefType::OptType(_))
-            | ValType::Rtt(_) => Err(Error::new(
+            // territory anyway.
+            HeapType::Index(_) => Err(Error::new(
                 span,
                 format!("cannot copy reference types between modules right now"),
             )),
+        }
+    }
 
+    fn copy_valtype_from_module(
+        &mut self,
+        span: Span,
+        child: usize,
+        ty: ValType<'a>,
+    ) -> Result<ValType<'a>, Error> {
+        match ty {
             ValType::I32
             | ValType::I64
             | ValType::F32
             | ValType::F64
             | ValType::V128
             | ValType::I8
-            | ValType::I16
-            | ValType::Ref(RefType::Extern)
-            | ValType::Ref(RefType::Func)
-            | ValType::Ref(RefType::Exn)
-            | ValType::Ref(RefType::Eq)
-            | ValType::Ref(RefType::I31) => Ok(ty),
+            | ValType::I16 => Ok(ty),
+
+            ValType::Ref(ty) => Ok(ValType::Ref(
+                self.copy_reftype_from_module(span, child, ty)?,
+            )),
+            // It's not clear to me at this time what to do about this type.
+            // What to do here sort of depends on the GC proposal. This method
+            // is only invoked with the module-linking proposal, which means
+            // that we have two proposals interacting, and that's always weird
+            // territory anyway.
+            ValType::Rtt(_) => Err(Error::new(
+                span,
+                format!("cannot copy reference types between modules right now"),
+            )),
         }
     }
 
@@ -812,7 +835,11 @@ impl<'a> Resolver<'a> {
         self.item_for(&self.modules[module_idx], idx, Ns::Global, &|m| &m.globals)
     }
 
-    fn table_for(&self, module_idx: usize, idx: &Index<'a>) -> Result<(&TableType, usize), Error> {
+    fn table_for(
+        &self,
+        module_idx: usize,
+        idx: &Index<'a>,
+    ) -> Result<(&TableType<'a>, usize), Error> {
         self.item_for(&self.modules[module_idx], idx, Ns::Table, &|m| &m.tables)
     }
 
@@ -1425,7 +1452,7 @@ impl<'a> Module<'a> {
 
     fn resolve_valtype(&self, ty: &mut ValType<'a>) -> Result<(), Error> {
         match ty {
-            ValType::Ref(ty) => self.resolve_reftype(ty)?,
+            ValType::Ref(ty) => self.resolve_heaptype(&mut ty.heap)?,
             ValType::Rtt(i) => {
                 self.resolve(i, Ns::Type)?;
             }
@@ -1434,12 +1461,12 @@ impl<'a> Module<'a> {
         Ok(())
     }
 
-    fn resolve_reftype(&self, ty: &mut RefType<'a>) -> Result<(), Error> {
+    fn resolve_heaptype(&self, ty: &mut HeapType<'a>) -> Result<(), Error> {
         match ty {
-            RefType::Type(i) | RefType::OptType(i) => {
+            HeapType::Index(i) => {
                 self.resolve(i, Ns::Type)?;
             }
-            RefType::Eq | RefType::Func | RefType::Extern | RefType::Exn | RefType::I31 => {}
+            _ => {}
         }
         Ok(())
     }
@@ -1836,7 +1863,7 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 self.module.resolve_valtype(&mut s.to)?;
             }
 
-            RefNull(ty) => self.module.resolve_reftype(ty)?,
+            RefNull(ty) => self.module.resolve_heaptype(ty)?,
 
             _ => {}
         }
@@ -2172,7 +2199,7 @@ impl<'a> TypeKey<'a> for ModuleKey<'a> {
 #[derive(Clone, PartialEq, Eq, Hash)]
 enum Item<'a> {
     Func(Index<'a>),
-    Table(TableType),
+    Table(TableType<'a>),
     Memory(MemoryType),
     Global(GlobalType<'a>),
     Event(Index<'a>),

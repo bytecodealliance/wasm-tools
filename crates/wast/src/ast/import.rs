@@ -48,7 +48,7 @@ pub struct ItemSig<'a> {
 #[allow(missing_docs)]
 pub enum ItemKind<'a> {
     Func(ast::TypeUse<'a, ast::FunctionType<'a>>),
-    Table(ast::TableType),
+    Table(ast::TableType<'a>),
     Memory(ast::MemoryType),
     Global(ast::GlobalType<'a>),
     Event(ast::EventType<'a>),

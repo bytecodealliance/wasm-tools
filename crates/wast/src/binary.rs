@@ -356,21 +356,65 @@ impl<'a> Encode for ValType<'a> {
     }
 }
 
+impl<'a> Encode for HeapType<'a> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        match self {
+            HeapType::Func => e.push(0x70),
+            HeapType::Extern => e.push(0x6f),
+            HeapType::Eq => e.push(0x6d),
+            HeapType::I31 => e.push(0x6a),
+            HeapType::Exn => e.push(0x68),
+            HeapType::Index(index) => {
+                index.encode(e);
+            }
+        }
+    }
+}
+
 impl<'a> Encode for RefType<'a> {
     fn encode(&self, e: &mut Vec<u8>) {
         match self {
-            RefType::Func => e.push(0x70),
-            RefType::Extern => e.push(0x6f),
-            RefType::Eq => e.push(0x6b),
-            RefType::I31 => e.push(0x6a),
-            RefType::Exn => e.push(0x68),
-            RefType::Type(index) => {
-                e.push(0x6d);
-                index.encode(e);
-            }
-            RefType::OptType(index) => {
+            // The 'funcref' binary abbreviation
+            RefType {
+                nullable: true,
+                heap: HeapType::Func,
+            } => e.push(0x70),
+            // The 'externref' binary abbreviation
+            RefType {
+                nullable: true,
+                heap: HeapType::Extern,
+            } => e.push(0x6f),
+            // The 'eqref' binary abbreviation
+            RefType {
+                nullable: true,
+                heap: HeapType::Eq,
+            } => e.push(0x6d),
+            // The 'i31ref' binary abbreviation
+            RefType {
+                nullable: true,
+                heap: HeapType::I31,
+            } => e.push(0x6a),
+            // The 'exnref' binary abbreviation
+            RefType {
+                nullable: true,
+                heap: HeapType::Exn,
+            } => e.push(0x68),
+
+            // Generic 'ref opt <heaptype>' encoding
+            RefType {
+                nullable: true,
+                heap,
+            } => {
                 e.push(0x6c);
-                index.encode(e);
+                heap.encode(e);
+            }
+            // Generic 'ref <heaptype>' encoding
+            RefType {
+                nullable: false,
+                heap,
+            } => {
+                e.push(0x6b);
+                heap.encode(e);
             }
         }
     }
@@ -443,20 +487,10 @@ impl Encode for Index<'_> {
     }
 }
 
-impl Encode for TableType {
+impl<'a> Encode for TableType<'a> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.elem.encode(e);
         self.limits.encode(e);
-    }
-}
-
-impl Encode for TableElemType {
-    fn encode(&self, e: &mut Vec<u8>) {
-        match self {
-            TableElemType::Funcref => RefType::Func.encode(e),
-            TableElemType::Externref => RefType::Extern.encode(e),
-            TableElemType::Exnref => RefType::Exn.encode(e),
-        }
     }
 }
 
@@ -583,7 +617,11 @@ impl Encode for Elem<'_> {
         // more MVP-compatible encoding.
         let mut to_encode = self.payload.clone();
         if let ElemPayload::Exprs {
-            ty: TableElemType::Funcref,
+            ty:
+                RefType {
+                    nullable: true,
+                    heap: HeapType::Func,
+                },
             exprs,
         } = &to_encode
         {
@@ -619,7 +657,11 @@ impl Encode for Elem<'_> {
                     offset,
                 },
                 ElemPayload::Exprs {
-                    ty: TableElemType::Funcref,
+                    ty:
+                        RefType {
+                            nullable: true,
+                            heap: HeapType::Func,
+                        },
                     ..
                 },
             ) => {
@@ -666,7 +708,7 @@ impl Encode for ElemPayload<'_> {
                             Instruction::RefFunc(*idx).encode(e);
                         }
                         None => {
-                            Instruction::RefNull((*ty).into()).encode(e);
+                            Instruction::RefNull(ty.heap).encode(e);
                         }
                     }
                     Instruction::End(None).encode(e);
