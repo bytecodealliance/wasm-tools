@@ -458,21 +458,21 @@ impl<'a> Parser<'a> {
     /// [spec]: https://webassembly.github.io/spec/core/text/types.html#table-types
     ///
     /// ```text
-    /// tabletype ::= lim:limits et:elemtype
+    /// tabletype ::= lim:limits et:reftype
     /// ```
     ///
     /// so to parse a [`TableType`] we recursively need to parse a [`Limits`]
-    /// and a [`TableElemType`]
+    /// and a [`RefType`]
     ///
     /// ```
     /// # use wast::*;
     /// # use wast::parser::*;
-    /// struct TableType {
+    /// struct TableType<'a> {
     ///     limits: Limits,
-    ///     elem: TableElemType,
+    ///     elem: RefType<'a>,
     /// }
     ///
-    /// impl<'a> Parse<'a> for TableType {
+    /// impl<'a> Parse<'a> for TableType<'a> {
     ///     fn parse(parser: Parser<'a>) -> Result<Self> {
     ///         // parse the `lim` then `et` in sequence
     ///         Ok(TableType {
@@ -485,7 +485,7 @@ impl<'a> Parser<'a> {
     ///
     /// [`Limits`]: crate::ast::Limits
     /// [`TableType`]: crate::ast::TableType
-    /// [`TableElemType`]: crate::ast::TableElemType
+    /// [`RefType`]: crate::ast::RefType
     pub fn parse<T: Parse<'a>>(self) -> Result<T> {
         T::parse(self)
     }
