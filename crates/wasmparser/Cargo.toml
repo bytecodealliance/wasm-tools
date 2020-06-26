@@ -3,8 +3,8 @@ name = "wasmparser"
 version = "0.57.0"
 authors = ["Yury Delendik <ydelendik@mozilla.com>"]
 license = "Apache-2.0 WITH LLVM-exception"
-repository = "https://github.com/bytecodealliance/wasm-tools/tree/master/crates/wasmparser"
-homepage = "https://github.com/bytecodealliance/wasm-tools/tree/master/crates/wasmparser"
+repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasmparser"
+homepage = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasmparser"
 keywords = ["parser", "WebAssembly", "wasm"]
 description = """
 A simple event-driven library for parsing WebAssembly binary files.

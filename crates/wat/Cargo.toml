@@ -5,8 +5,8 @@ authors = ["Alex Crichton <alex@alexcrichton.com>"]
 edition = "2018"
 license = "Apache-2.0 WITH LLVM-exception"
 readme = "README.md"
-repository = "https://github.com/bytecodealliance/wasm-tools/tree/master/crates/wat"
-homepage = "https://github.com/bytecodealliance/wasm-tools/tree/master/crates/wat"
+repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wat"
+homepage = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wat"
 documentation = "https://docs.rs/wat"
 description = """
 Rust parser for the WebAssembly Text format, WAT
