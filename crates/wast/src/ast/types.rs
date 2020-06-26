@@ -65,10 +65,12 @@ pub enum HeapType<'a> {
     /// An untyped function reference: funcref. This is part of the reference
     /// types proposal.
     Func,
-    /// A reference to any host value: externref. This was originally known as
-    /// anyref when it was the supertype of all reference value types. This is
-    /// part of the reference types proposal.
+    /// A reference to any host value: externref. This is part of the reference
+    /// types proposal.
     Extern,
+    /// A reference to any reference value: anyref. This is part of the GC
+    /// proposal.
+    Any,
     /// A reference to an exception: exnref. This is part of the exception
     /// handling proposal.
     Exn,
@@ -92,6 +94,9 @@ impl<'a> Parse<'a> for HeapType<'a> {
         } else if l.peek::<kw::r#extern>() {
             parser.parse::<kw::r#extern>()?;
             Ok(HeapType::Extern)
+        } else if l.peek::<kw::r#any>() {
+            parser.parse::<kw::r#any>()?;
+            Ok(HeapType::Any)
         } else if l.peek::<kw::exn>() {
             parser.parse::<kw::exn>()?;
             Ok(HeapType::Exn)
@@ -134,6 +139,14 @@ impl<'a> RefType<'a> {
         }
     }
 
+    /// An `anyref` as an abbreviation for `(ref null any)`.
+    pub fn any() -> Self {
+        RefType {
+            nullable: true,
+            heap: HeapType::Any
+        }
+    }
+
     /// An `exnref` as an abbreviation for `(ref null exn)`.
     pub fn exn() -> Self {
         RefType {
@@ -171,6 +184,9 @@ impl<'a> Parse<'a> for RefType<'a> {
         } else if l.peek::<kw::externref>() {
             parser.parse::<kw::externref>()?;
             Ok(RefType::r#extern())
+        } else if l.peek::<kw::anyref>() {
+            parser.parse::<kw::anyref>()?;
+            Ok(RefType::any())
         } else if l.peek::<kw::exnref>() {
             parser.parse::<kw::exnref>()?;
             Ok(RefType::exn())
@@ -211,6 +227,7 @@ impl<'a> Peek for RefType<'a> {
         kw::funcref::peek(cursor)
             || /* legacy */ kw::anyfunc::peek(cursor)
             || kw::externref::peek(cursor)
+            || kw::anyref::peek(cursor)
             || kw::exnref::peek(cursor)
             || kw::eqref::peek(cursor)
             || kw::i31ref::peek(cursor)
