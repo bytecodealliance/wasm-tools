@@ -767,9 +767,12 @@ impl<'a> Resolver<'a> {
         ty: RefType<'a>,
     ) -> Result<RefType<'a>, Error> {
         match ty.heap {
-            HeapType::Extern | HeapType::Func | HeapType::Exn | HeapType::Eq | HeapType::I31 => {
-                Ok(ty)
-            }
+            HeapType::Extern
+            | HeapType::Any
+            | HeapType::Func
+            | HeapType::Exn
+            | HeapType::Eq
+            | HeapType::I31 => Ok(ty),
 
             // It's not clear to me at this time what to do about this type.
             // What to do here sort of depends on the GC proposal. This method

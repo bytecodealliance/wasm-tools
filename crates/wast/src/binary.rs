@@ -361,6 +361,7 @@ impl<'a> Encode for HeapType<'a> {
         match self {
             HeapType::Func => e.push(0x70),
             HeapType::Extern => e.push(0x6f),
+            HeapType::Any => e.push(0x6e),
             HeapType::Eq => e.push(0x6d),
             HeapType::I31 => e.push(0x6a),
             HeapType::Exn => e.push(0x68),
