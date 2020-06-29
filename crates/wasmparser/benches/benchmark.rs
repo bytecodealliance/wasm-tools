@@ -1,9 +1,9 @@
 #[macro_use]
 extern crate criterion;
 
+use anyhow::Result;
 use criterion::{black_box, Criterion};
 use std::fs;
-use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 use wasmparser::{
@@ -41,99 +41,52 @@ impl BenchmarkInput {
     }
 }
 
-/// Read a `.wat` formatted benchmark test file as benchmark input.
-fn read_wat_module(path: &PathBuf) -> BenchmarkInput {
-    let encoded_wasm =
-        wat::parse_file(path).expect("encountered error while parsing `.wat` file into `.wasm`");
-    BenchmarkInput::new(path.clone(), encoded_wasm)
-}
-
-/// Read a `.wast` formatted benchmark test file as benchmark input.
-///
-/// We simply pull out all the module directives of the `.wast` file and return them.
-fn read_wast_module(path: &PathBuf) -> Vec<BenchmarkInput> {
-    let mut wast_file = fs::File::open(path)
-        .ok()
-        .expect("encountered error while reading `.wast` benchmark file");
-    let mut wast_file_contents = String::new();
-    use io::Read as _;
-    wast_file
-        .read_to_string(&mut wast_file_contents)
-        .expect("encountered error while reading `.wast` benchmark file to string");
-    let mut inputs = Vec::new();
-    if let Ok(parse_buffer) = wast::parser::ParseBuffer::new(&wast_file_contents) {
-        'outer: while let Ok(directive) = wast::parser::parse::<wast::WastDirective>(&parse_buffer)
-        {
-            match directive {
-                wast::WastDirective::Module(mut module) => {
-                    let encoded_wasm = module
-                        .encode()
-                        .expect("encountered error while encoding the Wast module into Wasm");
-                    inputs.push(BenchmarkInput::new(path.clone(), encoded_wasm));
-                }
-                _ => continue 'outer,
-            }
-        }
-    }
-    inputs
-}
-
-/// Visits all directory entries within the given directory path.
-///
-/// - `pred` can be used to filter some directories, e.g. all directories named
-///   `"proposals"`.
-/// - `cb` is the callback that is being called for every file within the non
-///   filtered and visited directories.
-fn visit_dirs<P, F>(dir: &Path, pred: &P, cb: &mut F) -> io::Result<()>
-where
-    P: Fn(&fs::DirEntry) -> bool,
-    F: FnMut(&fs::DirEntry),
-{
-    if dir.is_dir() {
-        for entry in fs::read_dir(dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_dir() && pred(&entry) {
-                visit_dirs(&path, pred, cb)?;
-            } else {
-                cb(&entry);
-            }
-        }
-    }
-    Ok(())
-}
-
 /// Returns a vector of all found benchmark input files under the given directory.
 ///
 /// Benchmark input files can be `.wat` or `.wast` formatted files.
 /// For `.wast` files we pull out all the module directives and run them in the benchmarks.
-fn collect_test_files<P>(path: P) -> Vec<BenchmarkInput>
-where
-    P: AsRef<Path>,
-{
-    let mut file_contents: Vec<BenchmarkInput> = vec![];
-    visit_dirs(
-        path.as_ref(),
-        &|_| true, // accept all benchmarks
-        &mut |dir_entry| {
-            let ext: Option<String> = dir_entry
-                .path()
-                .extension()
-                .and_then(|ext| ext.to_str().map(|str| str.to_string()));
-            match ext.as_ref().map(|string| string.as_str()) {
-                // TODO enable wat
-                // Some("wat") => file_contents.push(read_wat_module(&dir_entry.path())),
-                Some("wast") => {
-                    for wasm_module in read_wast_module(&dir_entry.path()) {
-                        file_contents.push(wasm_module)
+fn collect_test_files(path: &Path, list: &mut Vec<BenchmarkInput>) -> Result<()> {
+    for entry in path.read_dir()? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() {
+            collect_test_files(&path, list)?;
+            continue;
+        }
+        match path.extension().and_then(|ext| ext.to_str()) {
+            Some("wasm") => {
+                let wasm = fs::read(&path)?;
+                list.push(BenchmarkInput::new(path, wasm));
+            }
+            Some("wat") | Some("txt") => {
+                if let Ok(wasm) = wat::parse_file(&path) {
+                    list.push(BenchmarkInput::new(path, wasm));
+                }
+            }
+            Some("wast") => {
+                let contents = fs::read_to_string(&path)?;
+                let buf = match wast::parser::ParseBuffer::new(&contents) {
+                    Ok(buf) => buf,
+                    Err(_) => continue,
+                };
+                let wast: wast::Wast<'_> = match wast::parser::parse(&buf) {
+                    Ok(wast) => wast,
+                    Err(_) => continue,
+                };
+                for directive in wast.directives {
+                    match directive {
+                        wast::WastDirective::Module(mut module) => {
+                            let wasm = module.encode()?;
+                            list.push(BenchmarkInput::new(path.clone(), wasm));
+                        }
+                        _ => continue,
                     }
                 }
-                _ => (),
             }
-        },
-    )
-    .expect("encountered error while reading test directory");
-    file_contents
+            _ => (),
+        }
+    }
+    Ok(())
 }
 
 /// Reads the input given the Wasm parser or validator.
@@ -158,12 +111,9 @@ where
 /// Returns the default benchmark inputs that are proper `wasmparser` benchmark
 /// test inputs.
 fn collect_benchmark_inputs() -> Vec<BenchmarkInput> {
-    let from_testsuite = collect_test_files("../../testsuite");
-    let from_tests = collect_test_files("../../tests");
-    from_testsuite
-        .into_iter()
-        .chain(from_tests.into_iter())
-        .collect::<Vec<_>>()
+    let mut ret = Vec::new();
+    collect_test_files("../../tests".as_ref(), &mut ret).unwrap();
+    return ret;
 }
 
 fn it_works_benchmark(c: &mut Criterion) {
