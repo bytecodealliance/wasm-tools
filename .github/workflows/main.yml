@@ -80,7 +80,7 @@ jobs:
     - uses: actions/checkout@v2
       with:
         submodules: true
-    - run: git fetch origin main && git branch main origin/main
+    - run: git fetch --recurse-submodules=no origin main && git branch main origin/main
       if: github.ref != 'refs/heads/main'
     - run: (cd crates/wasmparser && ./compare-with-main.sh)
 
