@@ -29,3 +29,13 @@
   (import "" (module))
   (type (module))
 )
+
+;; be sure to typecheck nested modules
+(assert_invalid
+  (module
+    (module
+      (func
+        i32.add)
+    )
+  )
+  "type mismatch")

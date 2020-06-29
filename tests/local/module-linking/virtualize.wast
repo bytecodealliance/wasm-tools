@@ -57,7 +57,11 @@
     (import "wasi_file" (instance $wasi-file (type $WasiFile)))
     (alias $wasi-file.$read (instance $wasi-file) (func 0))
     (func $play (export "play")
+      i32.const 0
+      i32.const 0
+      i32.const 0
       call $wasi-file.$read
+      drop
     )
   )
 

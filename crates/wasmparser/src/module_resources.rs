@@ -302,7 +302,7 @@ pub trait WasmModuleResources {
     /// Returns the global variable at given index.
     fn global_at(&self, at: u32) -> Option<&Self::GlobalType>;
     /// Returns the function signature ID at given index.
-    fn func_type_id_at(&self, at: u32) -> Option<u32>;
+    fn func_type_at(&self, at: u32) -> Option<&<Self::TypeDef as WasmTypeDef>::FuncType>;
     /// Returns the element type at the given index.
     fn element_type_at(&self, at: u32) -> Option<crate::Type>;
 
@@ -336,8 +336,8 @@ where
     fn global_at(&self, at: u32) -> Option<&Self::GlobalType> {
         T::global_at(self, at)
     }
-    fn func_type_id_at(&self, at: u32) -> Option<u32> {
-        T::func_type_id_at(self, at)
+    fn func_type_at(&self, at: u32) -> Option<&<T::TypeDef as WasmTypeDef>::FuncType> {
+        T::func_type_at(self, at)
     }
     fn element_type_at(&self, at: u32) -> Option<crate::Type> {
         T::element_type_at(self, at)

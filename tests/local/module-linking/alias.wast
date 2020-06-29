@@ -359,18 +359,20 @@
     call $i.$f)
 )
 
-(module
-  (import "" (instance $i (export "a" (func))))
+(assert_invalid
+  (module
+    (import "" (instance $i (export "a" (func))))
 
-  (import "" (module $m
-    (import "" (module (export "a" (func))))
-  ))
+    (import "" (module $m
+      (import "" (module (export "a" (func))))
+    ))
 
-  (module $local
-    (export $i))
+    (module $local
+      (export $i))
 
-  (instance (instantiate $m (module $local)))
-)
+    (instance (instantiate $m (module $local)))
+  )
+  "only parent types/modules can be aliased")
 
 (assert_malformed
   (module quote
@@ -584,7 +586,7 @@
     "\01"           ;; 1 alias
     "\00\00\00\00"  ;; (alias (instance 0) (func 0))
   )
-  "aliased instance index out of bounds")
+  "unknown module")
 
 (module
   (import "" (module $m

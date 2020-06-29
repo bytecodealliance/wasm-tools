@@ -1294,3 +1294,20 @@ impl<'a> WasmDecoder<'a> for Parser<'a> {
         &self.state
     }
 }
+
+impl<'a> From<ModuleReader<'a>> for Parser<'a> {
+    fn from(reader: ModuleReader<'a>) -> Parser<'a> {
+        let mut parser = Parser::default();
+        parser.state = ParserState::BeginWasm {
+            version: reader.get_version(),
+        };
+        parser.module_reader = Some(reader);
+        return parser;
+    }
+}
+
+impl<'a> Default for Parser<'a> {
+    fn default() -> Parser<'a> {
+        Parser::new(&[])
+    }
+}
