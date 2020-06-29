@@ -457,6 +457,9 @@ impl TestState {
                 bail!("Max iterations exceeded");
             }
         }
+
+        // Also test the top-level validation function
+        wasmparser::validate(contents, Some(config))?;
         self.bump_ntests();
         Ok(())
     }

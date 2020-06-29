@@ -1584,8 +1584,10 @@ pub fn validate(bytes: &[u8], config: Option<ValidatingParserConfig>) -> Result<
             ParserState::EndWasm => break,
             ParserState::Error(ref e) => return Err(e.clone()),
             ParserState::BeginFunctionBody { range } => {
-                parser_input = Some(ParserInput::SkipFunctionBody);
-                func_ranges.push(range);
+                if parser.modules.len() == 1 {
+                    parser_input = Some(ParserInput::SkipFunctionBody);
+                    func_ranges.push(range);
+                }
             }
             _ => (),
         }
