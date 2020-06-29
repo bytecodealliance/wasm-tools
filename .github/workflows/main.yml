@@ -73,6 +73,13 @@ jobs:
       run: rustup update stable && rustup default stable && rustup component add rustfmt
     - run: cargo fmt -- --check
 
+  compare-with-main:
+    name: wasmparser bench
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - run: (cd crates/wasmparser && ./compare-with-main.sh)
+
   fuzz:
     name: Fuzz
     runs-on: ubuntu-latest

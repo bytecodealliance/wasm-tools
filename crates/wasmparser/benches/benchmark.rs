@@ -19,6 +19,7 @@ const VALIDATOR_CONFIG: Option<ValidatingParserConfig> = Some(ValidatingParserCo
         enable_bulk_memory: true,
         enable_multi_value: true,
         enable_tail_call: true,
+        enable_module_linking: true,
     },
 });
 
@@ -120,7 +121,8 @@ where
                 .extension()
                 .and_then(|ext| ext.to_str().map(|str| str.to_string()));
             match ext.as_ref().map(|string| string.as_str()) {
-                Some("wat") => file_contents.push(read_wat_module(&dir_entry.path())),
+                // TODO enable wat
+                // Some("wat") => file_contents.push(read_wat_module(&dir_entry.path())),
                 Some("wast") => {
                     for wasm_module in read_wast_module(&dir_entry.path()) {
                         file_contents.push(wasm_module)

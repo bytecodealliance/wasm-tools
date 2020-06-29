@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
+set -e
 
 # record current bench results
 cargo bench --bench benchmark -- --noplot --save-baseline after
 
-# switch to master and record its bench results
-git checkout master && \
+# switch to main branch and record its bench results
+git checkout main && \
 cargo bench --bench benchmark -- --noplot --save-baseline before
 
 # compare
