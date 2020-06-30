@@ -22,9 +22,8 @@ use crate::limits::{
 };
 
 use crate::primitives::{
-    BinaryReaderError, CustomSectionKind, ExternalKind, GlobalType, ImportSectionEntryType,
-    LinkingType, MemoryType, Naming, Operator, RelocType, Result, SectionCode, TableType, Type,
-    TypeDef,
+    BinaryReaderError, CustomSectionKind, ExternalKind, GlobalType, LinkingType, MemoryType,
+    Naming, Operator, RelocType, Result, SectionCode, TableType, Type, TypeDef,
 };
 
 use crate::readers::*;
@@ -79,19 +78,11 @@ pub enum ParserState<'a> {
     SectionRawData(&'a [u8]),
 
     TypeSectionEntry(TypeDef<'a>),
-    ImportSectionEntry {
-        module: &'a str,
-        field: Option<&'a str>,
-        ty: ImportSectionEntryType,
-    },
+    ImportSectionEntry(Import<'a>),
     FunctionSectionEntry(u32),
     TableSectionEntry(TableType),
     MemorySectionEntry(MemoryType),
-    ExportSectionEntry {
-        field: &'a str,
-        kind: ExternalKind,
-        index: u32,
-    },
+    ExportSectionEntry(Export<'a>),
     NameSectionEntry(NameEntry<'a>),
     StartSectionEntry(u32),
     DataCountSectionEntry(u32),
@@ -371,8 +362,8 @@ impl<'a> Parser<'a> {
         if self.section_entries_left == 0 {
             return self.check_section_end();
         }
-        let Import { module, field, ty } = section_reader!(self, ImportSectionReader).read()?;
-        self.state = ParserState::ImportSectionEntry { module, field, ty };
+        let import = section_reader!(self, ImportSectionReader).read()?;
+        self.state = ParserState::ImportSectionEntry(import);
         self.section_entries_left -= 1;
         Ok(())
     }
@@ -432,8 +423,8 @@ impl<'a> Parser<'a> {
         if self.section_entries_left == 0 {
             return self.check_section_end();
         }
-        let Export { field, kind, index } = section_reader!(self, ExportSectionReader).read()?;
-        self.state = ParserState::ExportSectionEntry { field, kind, index };
+        let export = section_reader!(self, ExportSectionReader).read()?;
+        self.state = ParserState::ExportSectionEntry(export);
         self.section_entries_left -= 1;
         Ok(())
     }
@@ -1016,11 +1007,11 @@ impl<'a> Parser<'a> {
                 self.read_next_section()?;
             }
             ParserState::TypeSectionEntry(_) => self.read_type_entry()?,
-            ParserState::ImportSectionEntry { .. } => self.read_import_entry()?,
+            ParserState::ImportSectionEntry(_) => self.read_import_entry()?,
             ParserState::FunctionSectionEntry(_) => self.read_function_entry()?,
             ParserState::MemorySectionEntry(_) => self.read_memory_entry()?,
             ParserState::TableSectionEntry(_) => self.read_table_entry()?,
-            ParserState::ExportSectionEntry { .. } => self.read_export_entry()?,
+            ParserState::ExportSectionEntry(_) => self.read_export_entry()?,
             ParserState::BeginGlobalSectionEntry(_) => {
                 self.read_init_expression_body(InitExpressionContinuationSection::Global)
             }
