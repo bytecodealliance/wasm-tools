@@ -24,16 +24,12 @@ fn main() {
             ParserState::BeginWasm { .. } => {
                 println!("====== Module");
             }
-            ParserState::ExportSectionEntry {
-                field, ref kind, ..
-            } => {
-                println!("  Export {} {:?}", field, kind);
+            ParserState::ExportSectionEntry(entry) => {
+                println!("  Export {} {:?}", entry.field, entry.kind);
             }
-            ParserState::ImportSectionEntry {
-                module,
-                field: Some(field),
-                ..
-            } => println!("  Import {}::{}", module, field),
+            ParserState::ImportSectionEntry(entry) => {
+                println!("  Import {}::{}", entry.module, entry.field.unwrap())
+            }
             ParserState::EndWasm => break,
             ParserState::Error(ref err) => panic!("Error: {:?}", err),
             _ => ( /* println!(" Other {:?}", state); */ ),
