@@ -274,7 +274,7 @@ pub enum FunctionEnd {
 /// temporary placeholder value. This can be converted into a proper
 /// `BinaryReaderError` via the `set_offset` method, which replaces the
 /// placeholder offset with an actual offset.
-pub(crate) struct OperatorValidatorError(BinaryReaderError);
+pub(crate) struct OperatorValidatorError(pub(crate) BinaryReaderError);
 
 /// Create an `OperatorValidatorError` with a format string.
 macro_rules! format_op_err {
@@ -412,10 +412,6 @@ impl OperatorValidator {
             },
             config,
         })
-    }
-
-    pub fn is_dead_code(&self) -> bool {
-        self.func_state.last_block().is_dead_code
     }
 
     fn check_frame_size(&self, require_count: usize) -> OperatorValidatorResult<()> {
@@ -2013,13 +2009,6 @@ impl OperatorValidator {
             }
         }
         Ok(FunctionEnd::No)
-    }
-
-    pub(crate) fn process_end_function(&self) -> OperatorValidatorResult<()> {
-        if !self.func_state.end_function {
-            return Err(OperatorValidatorError::new("expected end of function"));
-        }
-        Ok(())
     }
 }
 

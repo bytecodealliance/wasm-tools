@@ -98,31 +98,57 @@ impl Printer {
     /// This function takes an entire `wasm` binary blob and will print it to
     /// the WebAssembly Text Format and return the result as a `String`.
     pub fn print(&mut self, wasm: &[u8]) -> Result<String> {
-        let parser = wasmparser::ModuleReader::new(wasm)?;
         self.start_group("module");
-        self.print_contents(parser, "")?;
+        self.print_contents(0, wasm, "")?;
         self.end_group();
         Ok(mem::take(&mut self.result))
     }
 
-    fn print_contents(&mut self, mut parser: ModuleReader, module_ty: &str) -> Result<()> {
+    fn print_contents(&mut self, offset: u64, wasm: &[u8], module_ty: &str) -> Result<()> {
         // First up try to find the `name` subsection which we'll use to print
         // pretty names everywhere. Also look for the `code` section so we can
         // print out functions as soon as we hit the function section.
         let mut code = None;
         let mut module_code = None;
-        let mut pre_parser = parser.clone();
+        let mut parser = Parser::new(offset);
         let prev = mem::take(&mut self.state);
-        while !pre_parser.eof() {
-            let section = pre_parser.read()?;
-            match section.code {
-                SectionCode::Code => code = Some(section.get_code_section_reader()?),
-                SectionCode::ModuleCode => {
-                    module_code = Some(section.get_module_code_section_reader()?)
+        let mut bytes = wasm;
+        loop {
+            let payload = match parser.parse(bytes, true)? {
+                Chunk::NeedMoreData(_) => unreachable!(),
+                Chunk::Parsed { payload, consumed } => {
+                    bytes = &bytes[consumed..];
+                    payload
                 }
-                SectionCode::Custom { name: "name", .. } => {
-                    self.register_names(section.get_name_section_reader()?)?;
+            };
+            match payload {
+                Payload::CodeSectionStart { size, range, .. } => {
+                    let offset = offset as usize;
+                    code = Some(CodeSectionReader::new(
+                        &wasm[range.start - offset..range.end - offset],
+                        range.start,
+                    )?);
+                    parser.skip_section();
+                    bytes = &bytes[size as usize..];
                 }
+                Payload::ModuleCodeSectionStart { size, range, .. } => {
+                    let offset = offset as usize;
+                    module_code = Some(ModuleCodeSectionReader::new(
+                        &wasm[range.start - offset..range.end - offset],
+                        range.start,
+                    )?);
+                    parser.skip_section();
+                    bytes = &bytes[size as usize..];
+                }
+                Payload::CustomSection {
+                    name: "name",
+                    data_offset,
+                    data,
+                } => {
+                    let reader = NameSectionReader::new(data, data_offset)?;
+                    self.register_names(reader)?;
+                }
+                Payload::End => break,
                 _ => {}
             }
         }
@@ -133,25 +159,31 @@ impl Printer {
             self.result.push_str(name);
         }
         self.result.push_str(module_ty);
-        while !parser.eof() {
-            let section = parser.read()?;
-            match section.code {
-                SectionCode::Custom { name, .. } => {
-                    let range = section.get_binary_reader().range();
+        let mut parser = Parser::new(offset);
+        let mut bytes = wasm;
+        loop {
+            let payload = match parser.parse(bytes, true)? {
+                Chunk::NeedMoreData(_) => unreachable!(),
+                Chunk::Parsed { payload, consumed } => {
+                    bytes = &bytes[consumed..];
+                    payload
+                }
+            };
+            match payload {
+                Payload::CustomSection {
+                    name,
+                    data,
+                    data_offset,
+                } => {
                     let mut printers = mem::replace(&mut self.printers, HashMap::new());
                     if let Some(printer) = printers.get_mut(name) {
-                        printer(self, range.start, section.content_raw())?;
+                        printer(self, data_offset, data)?;
                     }
                     self.printers = printers;
                 }
-                SectionCode::Type => {
-                    self.print_types(section.get_type_section_reader()?)?;
-                }
-                SectionCode::Import => {
-                    self.print_imports(section.get_import_section_reader()?)?;
-                }
-                SectionCode::Function => {
-                    let reader = section.get_function_section_reader()?;
+                Payload::TypeSection(s) => self.print_types(s)?,
+                Payload::ImportSection(s) => self.print_imports(s)?,
+                Payload::FunctionSection(reader) => {
                     if reader.get_count() == 0 {
                         continue;
                     }
@@ -161,40 +193,28 @@ impl Printer {
                     };
                     self.print_code(code, reader)?;
                 }
-                SectionCode::Table => {
-                    self.print_tables(section.get_table_section_reader()?)?;
+                Payload::TableSection(s) => self.print_tables(s)?,
+                Payload::MemorySection(s) => self.print_memories(s)?,
+                Payload::GlobalSection(s) => self.print_globals(s)?,
+                Payload::ExportSection(s) => self.print_exports(s)?,
+                Payload::StartSection { func, .. } => {
+                    self.newline();
+                    self.start_group("start ");
+                    self.print_func_idx(func)?;
+                    self.end_group();
                 }
-                SectionCode::Memory => {
-                    self.print_memories(section.get_memory_section_reader()?)?;
+                Payload::ElementSection(s) => self.print_elems(s)?,
+                Payload::CodeSectionStart { size, .. }
+                | Payload::ModuleCodeSectionStart { size, .. } => {
+                    // printed with the `Function` or `Module` section, so we
+                    // skip these
+                    bytes = &bytes[size as usize..];
+                    parser.skip_section();
                 }
-                SectionCode::Global => {
-                    self.print_globals(section.get_global_section_reader()?)?;
-                }
-                SectionCode::Export => {
-                    self.print_exports(section.get_export_section_reader()?)?;
-                }
-                SectionCode::Start => {
-                    self.result.push_str("\n  (start ");
-                    self.print_func_idx(section.get_start_section_content()?)?;
-                    self.result.push_str(")");
-                }
-                SectionCode::Element => {
-                    self.print_elems(section.get_element_section_reader()?)?;
-                }
-                SectionCode::Code => {
-                    // printed above with the `Function` section
-                }
-                SectionCode::Data => {
-                    self.print_data(section.get_data_section_reader()?)?;
-                }
-                SectionCode::DataCount => {
-                    // not part of the text format
-                }
-                SectionCode::Alias => {
-                    self.print_aliases(section.get_alias_section_reader()?)?;
-                }
-                SectionCode::Module => {
-                    let reader = section.get_module_section_reader()?;
+
+                Payload::DataSection(s) => self.print_data(s)?,
+                Payload::AliasSection(s) => self.print_aliases(s)?,
+                Payload::ModuleSection(reader) => {
                     if reader.get_count() == 0 {
                         continue;
                     }
@@ -204,12 +224,18 @@ impl Printer {
                     };
                     self.print_module_code(module_code, reader)?;
                 }
-                SectionCode::Instance => {
-                    self.print_instances(section.get_instance_section_reader()?)?;
+                Payload::InstanceSection(s) => self.print_instances(s)?,
+
+                // not part of the text format
+                Payload::Version { .. } | Payload::DataCountSection { .. } => {}
+                // we skip these sections
+                Payload::CodeSectionEntry(_) | Payload::ModuleCodeSectionEntry { .. } => {
+                    unreachable!()
                 }
-                SectionCode::ModuleCode => {
-                    // printed in `Module` section
-                }
+
+                Payload::End => break,
+
+                Payload::UnknownSection { id, .. } => bail!("found unknown section `{}`", id),
             }
         }
         self.state = prev;
@@ -1488,10 +1514,12 @@ impl Printer {
         for ty in tys {
             let ty = ty?;
             let module = module_code.read()?;
+            let (offset, wasm) = module.raw_bytes();
             self.newline();
             self.start_group("module");
             self.print_contents(
-                module.module()?,
+                offset as u64,
+                wasm,
                 &format!(" (;{};) (type {})", self.state.module, ty),
             )?;
             self.end_group();

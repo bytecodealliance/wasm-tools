@@ -239,11 +239,12 @@ impl TestState {
             return Ok(());
         }
 
-        self.test_wasm_valid(test, contents)?;
+        self.test_wasm_valid(test, contents)
+            .context("wasm isn't valid")?;
 
         // Test that we can print these bytes, and if available make sure it
         // matches wabt.
-        let string = wasmprinter::print_bytes(contents)?;
+        let string = wasmprinter::print_bytes(contents).context("failed to print wasm")?;
         self.bump_ntests();
         if !test.ends_with("local/reloc.wasm")
             // FIXME(WebAssembly/wabt#1447)
@@ -422,44 +423,8 @@ impl TestState {
     }
 
     fn test_wasm_valid(&self, test: &Path, contents: &[u8]) -> Result<()> {
-        const MAX: usize = 100000000;
-
-        // First test the wasm simply parses.
-        let mut parser = Parser::new(contents);
-        let mut iter = MAX;
-        loop {
-            let state = parser.read();
-            match state {
-                ParserState::EndWasm => break,
-                ParserState::Error(err) => return Err(err.clone().into()),
-                _ => (),
-            }
-            iter -= 1;
-            if iter == 0 {
-                bail!("Max iterations exceeded");
-            }
-        }
-        self.bump_ntests();
-
-        // Then test that it validates as well.
-        let config = self.wasmparser_config_for(test);
-        let mut parser = ValidatingParser::new(contents, Some(config));
-        iter = MAX;
-        loop {
-            let state = parser.read();
-            match state {
-                ParserState::EndWasm => break,
-                ParserState::Error(err) => return Err(err.clone().into()),
-                _ => (),
-            }
-            iter -= 1;
-            if iter == 0 {
-                bail!("Max iterations exceeded");
-            }
-        }
-
-        // Also test the top-level validation function
-        wasmparser::validate(contents, Some(config))?;
+        let validator = self.wasmparser_validator_for(test);
+        validator.validate_all(contents)?;
         self.bump_ntests();
         Ok(())
     }
@@ -579,114 +544,102 @@ impl TestState {
             msg.push_str(&format!("       | + {:#04x}\n", actual[pos]));
         }
 
-        let mut actual_parser = Parser::new(&actual);
-        let mut expected_parser = Parser::new(&expected);
+        if let Ok(actual) = wasmparser_dump::dump_wasm(&actual) {
+            if let Ok(expected) = wasmparser_dump::dump_wasm(&expected) {
+                let mut actual = actual.lines();
+                let mut expected = expected.lines();
+                let mut differences = 0;
+                let mut last_dots = false;
+                while differences < 5 {
+                    let actual_state = match actual.next() {
+                        Some(s) => s,
+                        None => break,
+                    };
+                    let expected_state = match expected.next() {
+                        Some(s) => s,
+                        None => break,
+                    };
 
-        let mut differences = 0;
-        let mut last_dots = false;
-        while differences < 5 {
-            let actual_state = match read_state(&mut actual_parser) {
-                Some(s) => s,
-                None => break,
-            };
-            let expected_state = match read_state(&mut expected_parser) {
-                Some(s) => s,
-                None => break,
-            };
+                    if actual_state == expected_state {
+                        if differences > 0 && !last_dots {
+                            msg.push_str(&format!(" ...\n"));
+                            last_dots = true;
+                        }
+                        continue;
+                    }
+                    last_dots = false;
 
-            if actual_state == expected_state {
-                if differences > 0 && !last_dots {
-                    msg.push_str(&format!("       |   ...\n"));
-                    last_dots = true;
+                    if differences == 0 {
+                        msg.push_str("\n\n");
+                    }
+                    msg.push_str(&format!("- {}\n", expected_state));
+                    msg.push_str(&format!("+ {}\n", actual_state));
+                    differences += 1;
                 }
-                continue;
             }
-            last_dots = false;
-
-            if differences == 0 {
-                msg.push_str("\n\n");
-            }
-            msg.push_str(&format!(
-                "  {:4} | - {}\n",
-                expected_parser.current_position(),
-                expected_state
-            ));
-            msg.push_str(&format!(
-                "  {:4} | + {}\n",
-                actual_parser.current_position(),
-                actual_state
-            ));
-            differences += 1;
         }
 
         bail!("{}", msg);
 
-        fn read_state<'a, 'b>(parser: &'b mut Parser<'a>) -> Option<String> {
-            loop {
-                match parser.read() {
-                    // ParserState::BeginSection { code: SectionCode::DataCount, .. } => {}
-                    // ParserState::DataCountSectionEntry(_) => {}
-                    ParserState::Error(_) | ParserState::EndWasm => break None,
-                    other => break Some(format!("{:?}", other)),
-                }
-            }
-        }
-
         fn remove_name_section(bytes: &[u8]) -> Vec<u8> {
-            let mut r = ModuleReader::new(bytes).expect("should produce valid header");
-            while !r.eof() {
-                let start = r.current_position();
-                if let Ok(s) = r.read() {
-                    match s.code {
-                        SectionCode::Custom { name: "name", .. } => {
-                            let mut bytes = bytes.to_vec();
-                            bytes.drain(start..s.range().end);
-                            return bytes;
-                        }
-                        _ => {}
+            let mut p = Parser::new(0);
+            let mut offset = 0;
+            loop {
+                let start = offset;
+                let payload = match p.parse(&bytes[offset..], true) {
+                    Ok(Chunk::Parsed { consumed, payload }) => {
+                        offset += consumed;
+                        payload
                     }
+                    _ => break,
+                };
+                match payload {
+                    Payload::CustomSection { name: "name", .. } => {
+                        let mut bytes = bytes.to_vec();
+                        bytes.drain(start..offset);
+                        return bytes;
+                    }
+                    Payload::End => break,
+                    _ => {}
                 }
             }
             return bytes.to_vec();
         }
     }
 
-    fn wasmparser_config_for(&self, test: &Path) -> ValidatingParserConfig {
-        let mut config = ValidatingParserConfig {
-            operator_config: OperatorValidatorConfig {
-                enable_threads: true,
-                enable_reference_types: true,
-                enable_simd: true,
-                enable_bulk_memory: true,
-                enable_multi_value: true,
-                enable_tail_call: true,
-                enable_module_linking: true,
-            },
-        };
+    fn wasmparser_validator_for(&self, test: &Path) -> Validator {
+        let mut ret = Validator::new();
+        ret.wasm_threads(true)
+            .wasm_reference_types(true)
+            .wasm_simd(true)
+            .wasm_bulk_memory(true)
+            .wasm_tail_call(true)
+            .wasm_module_linking(true);
         for part in test.iter().filter_map(|t| t.to_str()) {
             match part {
                 "testsuite" | "wasmtime905.wast" | "missing-features" => {
-                    config.operator_config.enable_threads = false;
-                    config.operator_config.enable_reference_types = false;
-                    config.operator_config.enable_simd = false;
-                    config.operator_config.enable_bulk_memory = false;
-                    config.operator_config.enable_tail_call = false;
-                    config.operator_config.enable_module_linking = false;
+                    ret = Validator::new();
                 }
-                "threads" => config.operator_config.enable_threads = true,
-                "simd" => config.operator_config.enable_simd = true,
+                "threads" => {
+                    ret.wasm_threads(true);
+                }
+                "simd" => {
+                    ret.wasm_simd(true);
+                }
                 "reference-types" => {
-                    config.operator_config.enable_bulk_memory = true;
-                    config.operator_config.enable_reference_types = true;
+                    ret.wasm_bulk_memory(true);
+                    ret.wasm_reference_types(true);
                 }
                 "bulk-memory-operations" => {
-                    config.operator_config.enable_bulk_memory = true;
+                    ret.wasm_bulk_memory(true);
                 }
-                "tail-call" => config.operator_config.enable_tail_call = true,
+                "tail-call" => {
+                    ret.wasm_tail_call(true);
+                }
                 _ => {}
             }
         }
-        return config;
+        return ret;
     }
 
     fn bump_ntests(&self) {

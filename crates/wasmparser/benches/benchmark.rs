@@ -141,31 +141,6 @@ fn it_works_benchmark(c: &mut Criterion) {
     });
 }
 
-fn validator_not_fails_benchmark(c: &mut Criterion) {
-    let mut inputs = collect_benchmark_inputs();
-    // Filter out all benchmark inputs that fail to validate via `wasmparser`.
-    inputs.retain(|input| {
-        let mut parser = ValidatingParser::new(input.wasm.as_slice(), VALIDATOR_CONFIG);
-        'outer: loop {
-            match parser.read() {
-                ParserState::Error(_) => break 'outer false,
-                ParserState::EndWasm => break 'outer true,
-                _ => continue,
-            }
-        }
-    });
-    c.bench_function("validator no fails benchmark", move |b| {
-        b.iter(|| {
-            for input in &mut inputs {
-                let _ = black_box(read_all_wasm(
-                    &input.path,
-                    ValidatingParser::new(input.wasm.as_slice(), VALIDATOR_CONFIG),
-                ));
-            }
-        });
-    });
-}
-
 fn validate_benchmark(c: &mut Criterion) {
     let mut inputs = collect_benchmark_inputs();
     // Filter out all benchmark inputs that fail to validate via `wasmparser`.
@@ -179,10 +154,5 @@ fn validate_benchmark(c: &mut Criterion) {
     });
 }
 
-criterion_group!(
-    benchmark,
-    it_works_benchmark,
-    validator_not_fails_benchmark,
-    validate_benchmark
-);
+criterion_group!(benchmark, it_works_benchmark, validate_benchmark);
 criterion_main!(benchmark);

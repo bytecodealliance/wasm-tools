@@ -1,8 +1,9 @@
 use crate::{
-    BinaryReader, ExternalKind, Result, SectionIteratorLimited, SectionReader,
+    BinaryReader, ExternalKind, Range, Result, SectionIteratorLimited, SectionReader,
     SectionWithLimitedItems,
 };
 
+#[derive(Clone)]
 pub struct InstanceSectionReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,
@@ -49,6 +50,9 @@ impl<'a> SectionReader for InstanceSectionReader<'a> {
     }
     fn original_position(&self) -> usize {
         InstanceSectionReader::original_position(self)
+    }
+    fn range(&self) -> Range {
+        self.reader.range()
     }
 }
 
@@ -98,6 +102,7 @@ impl<'a> Instance<'a> {
     }
 }
 
+#[derive(Clone)]
 pub struct InstanceArgsReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,
@@ -128,6 +133,9 @@ impl<'a> SectionReader for InstanceArgsReader<'a> {
     }
     fn original_position(&self) -> usize {
         InstanceArgsReader::original_position(self)
+    }
+    fn range(&self) -> Range {
+        self.reader.range()
     }
 }
 
