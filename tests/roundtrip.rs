@@ -665,7 +665,7 @@ impl TestState {
         };
         for part in test.iter().filter_map(|t| t.to_str()) {
             match part {
-                "testsuite" | "wasmtime905.wast" => {
+                "testsuite" | "wasmtime905.wast" | "missing-features" => {
                     config.operator_config.enable_threads = false;
                     config.operator_config.enable_reference_types = false;
                     config.operator_config.enable_simd = false;

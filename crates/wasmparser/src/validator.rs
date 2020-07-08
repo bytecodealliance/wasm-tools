@@ -610,6 +610,11 @@ impl<'a> ValidatingParser<'a> {
             Some(state) => state,
             None => return Ok(self.cur_module().section_order_state),
         };
+        if state == SectionOrderState::ModuleLinkingHeader
+            && !self.config.operator_config.enable_module_linking
+        {
+            return self.create_error("module linking proposal not enabled");
+        }
         Ok(match self.cur_module().section_order_state {
             // Did we just start? In that case move to our newly-found state.
             Initial => state,
