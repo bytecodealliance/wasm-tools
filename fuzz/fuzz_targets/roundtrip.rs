@@ -15,7 +15,7 @@ fuzz_target!(|data: &[u8]| {
         Ok(bytes) => bytes,
         Err(_) => return,
     };
-    if wasmparser::validate(&wasm, None).is_err() {
+    if wasmparser::validate(&wasm).is_err() {
         return;
     }
     let string = match wasmprinter::print_bytes(&wasm) {
