@@ -174,19 +174,19 @@ pub struct ExportType<'a> {
     pub ty: ImportSectionEntryType,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ResizableLimits {
     pub initial: u32,
     pub maximum: Option<u32>,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct TableType {
     pub element_type: Type,
     pub limits: ResizableLimits,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct MemoryType {
     pub limits: ResizableLimits,
     pub shared: bool,

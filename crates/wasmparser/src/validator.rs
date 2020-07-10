@@ -36,7 +36,7 @@ use crate::parser::{Parser, ParserInput, ParserState, WasmDecoder};
 use crate::{AliasedInstance, WasmModuleResources};
 use crate::{ElemSectionEntryTable, ElementItem};
 
-use crate::readers::FunctionBody;
+use crate::readers::{Export, FunctionBody, Import};
 
 type ValidatorResult<'a, T> = result::Result<T, ParserState<'a>>;
 
@@ -176,6 +176,9 @@ pub struct ValidatingParser<'a> {
 
 #[derive(Default)]
 struct Module<'a> {
+    expected_ty: Option<Def<u32>>,
+    expected_import_idx: usize,
+    expected_export_idx: usize,
     parser: Parser<'a>,
     section_order_state: SectionOrderState,
     resources: ValidatingParserResources<'a>,
@@ -183,6 +186,8 @@ struct Module<'a> {
     func_nonlocal_count: u32,
     data_found: u32,
     exported_names: HashSet<String>,
+    module_code_types: Vec<Def<u32>>,
+    next_module_code_type: usize,
 }
 
 impl<'a> ValidatingParser<'a> {
@@ -431,20 +436,161 @@ impl<'a> ValidatingParser<'a> {
         Ok(())
     }
 
-    fn check_export_entry(
-        &mut self,
-        field: &str,
-        kind: ExternalKind,
-        index: u32,
-    ) -> ValidatorResult<'a, ()> {
-        if self.cur_module().exported_names.contains(field) {
+    fn check_export_entry(&mut self, entry: Export<'a>) -> ValidatorResult<'a, ()> {
+        if self.cur_module().exported_names.contains(entry.field) {
             return self.create_error("duplicate export name");
         }
-        if let ExternalKind::Type = kind {
+        self.check_if_export_expected(entry)?;
+        if let ExternalKind::Type = entry.kind {
             return self.create_error("cannot export types");
         }
-        self.check_external_kind("exported", kind, index)?;
+        self.check_external_kind("exported", entry.kind, entry.index)?;
         Ok(())
+    }
+
+    fn check_if_import_expected(&mut self, actual: Import<'a>) -> ValidatorResult<'a, ()> {
+        let module = self.cur_module_mut();
+        let expected_ty = match module.expected_ty {
+            Some(ty) => ty,
+            None => return Ok(()),
+        };
+        let idx = module.expected_import_idx;
+        module.expected_import_idx += 1;
+        let module_ty = self.module_type_at(expected_ty)?;
+        let equal = match module_ty.item.imports.get(idx) {
+            Some(import) => self.imports_equal(self.def(&actual), module_ty.map(|_| import)),
+            None => false,
+        };
+        if equal {
+            Ok(())
+        } else {
+            self.create_error("inline module type does not match declared type")
+        }
+    }
+
+    fn check_if_export_expected(&mut self, actual: Export<'a>) -> ValidatorResult<'a, ()> {
+        if self.export_is_expected(actual)? {
+            Ok(())
+        } else {
+            self.create_error("inline module type does not match declared type")
+        }
+    }
+
+    fn export_is_expected(&mut self, actual: Export<'a>) -> ValidatorResult<'a, bool> {
+        let module = self.cur_module_mut();
+        let expected_ty = match module.expected_ty {
+            Some(ty) => ty,
+            None => return Ok(true),
+        };
+        let idx = module.expected_export_idx;
+        module.expected_export_idx += 1;
+        let module_ty = self.module_type_at(expected_ty)?;
+        let expected = match module_ty.item.exports.get(idx) {
+            Some(expected) => module_ty.map(|_| expected),
+            None => return Ok(false),
+        };
+        let ty = match actual.kind {
+            ExternalKind::Function => self
+                .get_func_type_index(self.def(actual.index))?
+                .map(ImportSectionEntryType::Function),
+            ExternalKind::Table => self
+                .get_table(self.def(actual.index))?
+                .map(ImportSectionEntryType::Table),
+            ExternalKind::Memory => {
+                let ty = ImportSectionEntryType::Memory(*self.get_memory(self.def(actual.index))?);
+                self.def(ty)
+            }
+            ExternalKind::Global => self
+                .get_global(self.def(actual.index))?
+                .map(ImportSectionEntryType::Global),
+            ExternalKind::Module => self
+                .get_module_type_index(self.def(actual.index))?
+                .map(ImportSectionEntryType::Module),
+            ExternalKind::Instance => {
+                let def = self.get_instance_def(self.def(actual.index))?;
+                match def.item {
+                    InstanceDef::Imported { type_idx } => def
+                        .as_ref()
+                        .map(|_| ImportSectionEntryType::Instance(type_idx)),
+                    InstanceDef::Instantiated { module_idx } => {
+                        let a = self.get_module_type_index(def.as_ref().map(|_| module_idx))?;
+                        let a = self.module_type_at(a)?;
+                        let b = match expected.item.ty {
+                            ImportSectionEntryType::Instance(idx) => {
+                                self.instance_type_at(expected.map(|_| idx))?
+                            }
+                            _ => return Ok(false),
+                        };
+                        return Ok(actual.field == expected.item.name
+                            && a.item.exports.len() == b.item.exports.len()
+                            && a.item
+                                .exports
+                                .iter()
+                                .zip(b.item.exports.iter())
+                                .all(|(ae, be)| self.exports_equal(a.map(|_| ae), b.map(|_| be))));
+                    }
+                }
+            }
+            ExternalKind::Type => unreachable!(), // already validated to not exist
+        };
+        let actual = ty.map(|ty| ExportType {
+            name: actual.field,
+            ty,
+        });
+        Ok(self.exports_equal(actual.as_ref(), expected))
+    }
+
+    fn imports_equal(&self, a: Def<&Import<'a>>, b: Def<&Import<'a>>) -> bool {
+        a.item.module == b.item.module
+            && a.item.field == b.item.field
+            && self.import_ty_equal(a.map(|i| &i.ty), b.map(|t| &t.ty))
+    }
+
+    fn exports_equal(&self, a: Def<&ExportType<'a>>, b: Def<&ExportType<'a>>) -> bool {
+        a.item.name == b.item.name && self.import_ty_equal(a.map(|i| &i.ty), b.map(|t| &t.ty))
+    }
+
+    fn import_ty_equal(
+        &self,
+        a: Def<&ImportSectionEntryType>,
+        b: Def<&ImportSectionEntryType>,
+    ) -> bool {
+        match (a.item, b.item) {
+            (ImportSectionEntryType::Function(ai), ImportSectionEntryType::Function(bi)) => {
+                self.func_type_at(a.map(|_| *ai)).unwrap().item
+                    == self.func_type_at(b.map(|_| *bi)).unwrap().item
+            }
+            (ImportSectionEntryType::Table(a), ImportSectionEntryType::Table(b)) => a == b,
+            (ImportSectionEntryType::Memory(a), ImportSectionEntryType::Memory(b)) => a == b,
+            (ImportSectionEntryType::Global(a), ImportSectionEntryType::Global(b)) => a == b,
+            (ImportSectionEntryType::Instance(ai), ImportSectionEntryType::Instance(bi)) => {
+                let a = self.instance_type_at(a.map(|_| *ai)).unwrap();
+                let b = self.instance_type_at(b.map(|_| *bi)).unwrap();
+                a.item.exports.len() == b.item.exports.len()
+                    && a.item
+                        .exports
+                        .iter()
+                        .zip(b.item.exports.iter())
+                        .all(|(ae, be)| self.exports_equal(a.map(|_| ae), b.map(|_| be)))
+            }
+            (ImportSectionEntryType::Module(ai), ImportSectionEntryType::Module(bi)) => {
+                let a = self.module_type_at(a.map(|_| *ai)).unwrap();
+                let b = self.module_type_at(b.map(|_| *bi)).unwrap();
+                a.item.imports.len() == b.item.imports.len()
+                    && a.item
+                        .imports
+                        .iter()
+                        .zip(b.item.imports.iter())
+                        .all(|(ae, be)| self.imports_equal(a.map(|_| ae), b.map(|_| be)))
+                    && a.item.exports.len() == b.item.exports.len()
+                    && a.item
+                        .exports
+                        .iter()
+                        .zip(b.item.exports.iter())
+                        .all(|(ae, be)| self.exports_equal(a.map(|_| ae), b.map(|_| be)))
+            }
+            _ => false,
+        }
     }
 
     fn check_external_kind(
@@ -667,12 +813,14 @@ impl<'a> ValidatingParser<'a> {
                     self.cur_module_mut().resources.types.push(def);
                 }
             }
-            ParserState::ImportSectionEntry { ref ty, .. } => {
-                let check = self.check_import_entry(ty);
+            ParserState::ImportSectionEntry(import) => {
+                let check = self.check_import_entry(&import.ty);
                 if check.is_err() {
                     self.validation_error = check.err();
+                } else if let Err(e) = self.check_if_import_expected(import) {
+                    self.validation_error = Some(e);
                 } else {
-                    match *ty {
+                    match import.ty {
                         ImportSectionEntryType::Function(type_index) => {
                             let def = self.def(type_index);
                             self.cur_module_mut().resources.func_type_indices.push(def);
@@ -772,11 +920,11 @@ impl<'a> ValidatingParser<'a> {
                 }
                 self.init_expression_state = None;
             }
-            ParserState::ExportSectionEntry { field, kind, index } => {
-                self.validation_error = self.check_export_entry(field, kind, index).err();
+            ParserState::ExportSectionEntry(entry) => {
+                self.validation_error = self.check_export_entry(entry).err();
                 self.cur_module_mut()
                     .exported_names
-                    .insert(String::from(field));
+                    .insert(String::from(entry.field));
             }
             ParserState::StartSectionEntry(func_index) => {
                 self.validation_error = self.check_start(func_index).err();
@@ -904,6 +1052,23 @@ impl<'a> ValidatingParser<'a> {
                     );
                     return;
                 }
+                if module.module_code_types.len() != module.next_module_code_type {
+                    self.set_validation_error(
+                        "module and module code section have inconsistent lengths",
+                    );
+                    return;
+                }
+                if let Some(expected) = module.expected_ty {
+                    let ty = self.module_type_at(expected).unwrap();
+                    if module.expected_import_idx != ty.item.imports.len()
+                        || module.expected_export_idx != ty.item.exports.len()
+                    {
+                        self.set_validation_error(
+                            "inline module type does not match declared type",
+                        );
+                        return;
+                    }
+                }
                 if let Some(data_count) = module.resources.data_count {
                     if data_count != module.data_found {
                         self.set_validation_error("data count section and passive data mismatch");
@@ -932,11 +1097,11 @@ impl<'a> ValidatingParser<'a> {
                 } else {
                     let type_index = self.def(type_index);
                     match self.module_type_at(type_index) {
-                        Ok(_) => self
-                            .cur_module_mut()
-                            .resources
-                            .module_type_indices
-                            .push(type_index),
+                        Ok(_) => {
+                            let module = self.cur_module_mut();
+                            module.resources.module_type_indices.push(type_index);
+                            module.module_code_types.push(type_index);
+                        }
                         Err(e) => self.validation_error = Some(e),
                     }
                 }
@@ -1012,13 +1177,30 @@ impl<'a> ValidatingParser<'a> {
                     self.set_validation_error("too many nested modules");
                 }
 
+                let cur_module = self.cur_module_mut();
+                let expected_ty = match cur_module
+                    .module_code_types
+                    .get(cur_module.next_module_code_type)
+                {
+                    Some(ty) => *ty,
+                    None => {
+                        self.set_validation_error(
+                            "mismatch in length of module code and module sections",
+                        );
+                        return;
+                    }
+                };
+                cur_module.next_module_code_type += 1;
+
                 // Save the state of our parser in our module
                 let old_parser = mem::replace(&mut self.parser, parser.into());
                 self.cur_module_mut().parser = old_parser;
 
                 // Then allocate a child module and push it onto our stack of
                 // modules we're validating.
-                self.modules.push(Module::default());
+                let mut new_module = Module::default();
+                new_module.expected_ty = Some(expected_ty);
+                self.modules.push(new_module);
             }
             _ => (),
         };

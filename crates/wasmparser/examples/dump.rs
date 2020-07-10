@@ -22,24 +22,16 @@ fn main() {
         print!("0x{:08x}\t", parser.current_position());
         let state = parser.read();
         match *state {
-            ParserState::ExportSectionEntry {
-                field,
-                ref kind,
-                index,
-            } => {
+            ParserState::ExportSectionEntry(entry) => {
                 println!(
                     "ExportSectionEntry {{ field: \"{}\", kind: {:?}, index: {} }}",
-                    field, kind, index
+                    entry.field, entry.kind, entry.index
                 );
             }
-            ParserState::ImportSectionEntry {
-                module,
-                field,
-                ref ty,
-            } => {
+            ParserState::ImportSectionEntry(entry) => {
                 println!(
                     "ImportSectionEntry {{ module: \"{}\", field: {:?}, ty: {:?} }}",
-                    module, field, ty
+                    entry.module, entry.field, entry.ty
                 );
             }
             ParserState::EndWasm => break,
