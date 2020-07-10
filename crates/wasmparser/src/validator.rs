@@ -1484,7 +1484,7 @@ impl Validator {
         let ty = self.get_func_type_index(self.state.def(func))?;
         let ty = self.func_type_at(ty)?;
         if !ty.item.params.is_empty() || !ty.item.returns.is_empty() {
-            return self.create_error("invlid start function type");
+            return self.create_error("invalid start function type");
         }
         Ok(())
     }

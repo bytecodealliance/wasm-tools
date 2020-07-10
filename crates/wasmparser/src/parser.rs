@@ -400,7 +400,7 @@ impl Parser {
         } else {
             (data, eof)
         };
-        // TODO: thread thread through `offset: u64` to `BinaryReader`, remove
+        // TODO: thread through `offset: u64` to `BinaryReader`, remove
         // the cast here.
         let mut reader = BinaryReader::new_with_offset(data, self.offset as usize);
         match self.parse_reader(&mut reader, eof) {
