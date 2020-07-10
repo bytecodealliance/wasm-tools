@@ -8,7 +8,9 @@ edition = "2018"
 cargo-fuzz = true
 
 [dependencies]
+env_logger = "0.7"
 libfuzzer-sys = "0.3.2"
+log = "0.4"
 tempfile = "3.0"
 wasmparser = { path = "../crates/wasmparser" }
 wasmprinter = { path = "../crates/wasmprinter" }
@@ -38,4 +40,9 @@ test = false
 [[bin]]
 name = "roundtrip"
 path = "fuzz_targets/roundtrip.rs"
+test = false
+
+[[bin]]
+name = "incremental-parse"
+path = "fuzz_targets/incremental-parse.rs"
 test = false
