@@ -260,7 +260,7 @@ pub enum ValidPayload<'a> {
     ///
     /// This result indicates that the current validator needs to be saved until
     /// later. The returned parser and validator should be used instead.
-    Switch(Parser, Validator),
+    Push(Parser, Validator),
     /// The payload validated, and the current validator is finished. The last
     /// validator that was in use should be popped off the stack to resume.
     Pop,
@@ -367,7 +367,7 @@ impl Validator {
             match cur.payload(&payload?)? {
                 ValidPayload::Ok => {}
                 ValidPayload::Pop => cur = stack.pop().unwrap(),
-                ValidPayload::Switch(_parser, validator) => {
+                ValidPayload::Push(_parser, validator) => {
                     stack.push(cur);
                     cur = validator
                 }
@@ -443,7 +443,7 @@ impl Validator {
             UnknownSection { id, range, .. } => self.unknown_section(*id, range)?,
             ModuleCodeSectionEntry { parser, range: _ } => {
                 let subvalidator = self.module_code_section_entry();
-                return Ok(ValidPayload::Switch(parser.clone(), subvalidator));
+                return Ok(ValidPayload::Push(parser.clone(), subvalidator));
             }
         }
         Ok(ValidPayload::Ok)
