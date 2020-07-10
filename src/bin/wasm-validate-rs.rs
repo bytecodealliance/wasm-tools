@@ -79,7 +79,7 @@ fn main() -> Result<()> {
         match validator.payload(&payload?)? {
             ValidPayload::Ok => {}
             ValidPayload::Pop => validator = stack.pop().unwrap(),
-            ValidPayload::Switch(_parser, next) => {
+            ValidPayload::Push(_parser, next) => {
                 stack.push(validator);
                 validator = next;
             }

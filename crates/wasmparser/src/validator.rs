@@ -21,8 +21,8 @@ use crate::WasmModuleResources;
 use crate::{Alias, AliasedInstance, ExternalKind, Import, ImportSectionEntryType};
 use crate::{BinaryReaderError, GlobalType, MemoryType, Range, Result, TableType, Type};
 use crate::{DataKind, ElementItem, ElementKind, InitExpr, Instance, Operator};
+use crate::{Export, ExportType, FunctionBody, OperatorsReader, Parser, Payload};
 use crate::{FuncType, ResizableLimits, SectionReader, SectionWithLimitedItems};
-use crate::{FunctionBody, OperatorsReader, Parser, Payload};
 use std::collections::{HashMap, HashSet};
 use std::mem;
 use std::sync::Arc;
@@ -143,16 +143,52 @@ pub use func::FuncValidator;
 /// [core]: https://webassembly.github.io/spec/core/valid/index.html
 #[derive(Default)]
 pub struct Validator {
+    /// Internal state that is incrementally built-up for the module being
+    /// validate. This houses type information for all wasm items, like
+    /// functions. Note that this starts out as a solely owned `Arc<T>` so we can
+    /// get mutable access, but after we get to the code section this is never
+    /// mutated to we can clone it cheaply and hand it to sub-validators.
     state: arc::MaybeOwned<ModuleState>,
+
+    /// Enabled WebAssembly feature flags, dictating what's valid and what
+    /// isn't.
     features: WasmFeatures,
+
+    /// Where we are, order-wise, in the wasm binary.
     order: Order,
+
+    /// The current byte-level offset in the wasm binary. This is updated to
+    /// produce error messages in `create_error`.
     offset: usize,
-    exported_names: HashSet<String>,
+
+    /// The number of data segments we ended up finding in this module, or 0 if
+    /// they either weren't present or none were found.
     data_found: u32,
+
+    /// The number of functions we expect to be defined in the code section, or
+    /// basically the length of the function section if it was found. The next
+    /// index is where we are, in the function index space, for the next entry
+    /// in the code section (used to figure out what type is next for the
+    /// function being validated.
     expected_code_bodies: Option<u32>,
     code_section_index: usize,
+
+    /// Similar to code bodies above, but for module bodies instead.
     expected_modules: Option<u32>,
     module_code_section_index: usize,
+
+    /// If this validator is for a nested module then this keeps track of the
+    /// type of the module that we're matching against. The `expected_type` is
+    /// an entry in our parent's type index space, and the two positional
+    /// indices keep track of where we are in matching against imports/exports.
+    ///
+    /// Note that the exact algorithm for how it's determine that a submodule
+    /// matches its declare type is a bit up for debate. For now we go for 1:1
+    /// "everything must be equal" matching. This is the subject of
+    /// WebAssembly/module-linking#7, though.
+    expected_type: Option<Def<u32>>,
+    expected_import_pos: usize,
+    expected_export_pos: usize,
 }
 
 #[derive(Default)]
@@ -250,6 +286,21 @@ struct ModuleType {
 
 struct InstanceType {
     exports: Vec<(String, ImportSectionEntryType)>,
+}
+
+fn to_import(item: &(String, Option<String>, ImportSectionEntryType)) -> Import<'_> {
+    Import {
+        module: &item.0,
+        field: item.1.as_deref(),
+        ty: item.2,
+    }
+}
+
+fn to_export(item: &(String, ImportSectionEntryType)) -> ExportType<'_> {
+    ExportType {
+        name: &item.0,
+        ty: item.1,
+    }
 }
 
 /// Possible return values from [`Validator::payload`].
@@ -818,6 +869,21 @@ impl Validator {
             }
         };
         self.check_max(len, 0, max, desc)?;
+
+        if let Some(ty) = self.expected_type {
+            let idx = self.expected_import_pos;
+            self.expected_import_pos += 1;
+            let module_ty = self.module_type_at(ty)?;
+            let equal = match module_ty.item.imports.get(idx) {
+                Some(import) => {
+                    self.imports_equal(self.state.def(entry), module_ty.with(to_import(import)))
+                }
+                None => false,
+            };
+            if !equal {
+                return self.create_error("inline module type does not match declared type");
+            }
+        }
         Ok(())
     }
 
@@ -1255,14 +1321,18 @@ impl Validator {
 
     /// Validates [`Payload::ExportSection`](crate::Payload)
     pub fn export_section(&mut self, section: &crate::ExportSectionReader<'_>) -> Result<()> {
+        let mut exported_names = HashSet::new();
         self.section(Order::Export, section, |me, e| {
-            if !me.exported_names.insert(e.field.to_string()) {
+            if !exported_names.insert(e.field.to_string()) {
                 return me.create_error("duplicate export name");
             }
             if let ExternalKind::Type = e.kind {
                 return me.create_error("cannot export types");
             }
             me.check_external_kind("exported", e.kind, e.index)?;
+            if !me.export_is_expected(e)? {
+                return me.create_error("inline module type does not match declared type");
+            }
             Ok(())
         })
     }
@@ -1287,6 +1357,124 @@ impl Validator {
             self.state.assert_mut().function_references.insert(index);
         }
         Ok(())
+    }
+
+    fn export_is_expected(&mut self, actual: Export<'_>) -> Result<bool> {
+        let expected_ty = match self.expected_type {
+            Some(ty) => ty,
+            None => return Ok(true),
+        };
+        let idx = self.expected_export_pos;
+        self.expected_export_pos += 1;
+        let module_ty = self.module_type_at(expected_ty)?;
+        let expected = match module_ty.item.exports.get(idx) {
+            Some(expected) => module_ty.with(to_export(expected)),
+            None => return Ok(false),
+        };
+        let index = self.state.def(actual.index);
+        let ty = match actual.kind {
+            ExternalKind::Function => self
+                .get_func_type_index(index)?
+                .map(ImportSectionEntryType::Function),
+            ExternalKind::Table => self.get_table(index)?.map(ImportSectionEntryType::Table),
+            ExternalKind::Memory => {
+                let mem = *self.get_memory(index)?;
+                let ty = ImportSectionEntryType::Memory(mem);
+                self.state.def(ty)
+            }
+            ExternalKind::Global => self.get_global(index)?.map(ImportSectionEntryType::Global),
+            ExternalKind::Module => self
+                .get_module_type_index(index)?
+                .map(ImportSectionEntryType::Module),
+            ExternalKind::Instance => {
+                let def = self.get_instance_def(index)?;
+                match def.item {
+                    InstanceDef::Imported { type_idx } => {
+                        def.with(ImportSectionEntryType::Instance(type_idx))
+                    }
+                    InstanceDef::Instantiated { module_idx } => {
+                        let a = self.get_module_type_index(def.with(module_idx))?;
+                        let a = self.module_type_at(a)?;
+                        let b = match expected.item.ty {
+                            ImportSectionEntryType::Instance(idx) => {
+                                self.instance_type_at(expected.with(idx))?
+                            }
+                            _ => return Ok(false),
+                        };
+                        return Ok(actual.field == expected.item.name
+                            && a.item.exports.len() == b.item.exports.len()
+                            && a.item
+                                .exports
+                                .iter()
+                                .map(to_export)
+                                .zip(b.item.exports.iter().map(to_export))
+                                .all(|(ae, be)| self.exports_equal(a.with(ae), b.with(be))));
+                    }
+                }
+            }
+            ExternalKind::Type => unreachable!(), // already validated to not exist
+        };
+        let actual = ty.map(|ty| ExportType {
+            name: actual.field,
+            ty,
+        });
+        Ok(self.exports_equal(actual, expected))
+    }
+
+    fn imports_equal(&self, a: Def<Import<'_>>, b: Def<Import<'_>>) -> bool {
+        a.item.module == b.item.module
+            && a.item.field == b.item.field
+            && self.import_ty_equal(a.with(&a.item.ty), b.with(&b.item.ty))
+    }
+
+    fn exports_equal(&self, a: Def<ExportType<'_>>, b: Def<ExportType<'_>>) -> bool {
+        a.item.name == b.item.name && self.import_ty_equal(a.with(&a.item.ty), b.with(&b.item.ty))
+    }
+
+    fn import_ty_equal(
+        &self,
+        a: Def<&ImportSectionEntryType>,
+        b: Def<&ImportSectionEntryType>,
+    ) -> bool {
+        match (a.item, b.item) {
+            (ImportSectionEntryType::Function(ai), ImportSectionEntryType::Function(bi)) => {
+                self.func_type_at(a.with(*ai)).unwrap().item
+                    == self.func_type_at(b.with(*bi)).unwrap().item
+            }
+            (ImportSectionEntryType::Table(a), ImportSectionEntryType::Table(b)) => a == b,
+            (ImportSectionEntryType::Memory(a), ImportSectionEntryType::Memory(b)) => a == b,
+            (ImportSectionEntryType::Global(a), ImportSectionEntryType::Global(b)) => a == b,
+            (ImportSectionEntryType::Instance(ai), ImportSectionEntryType::Instance(bi)) => {
+                let a = self.instance_type_at(a.with(*ai)).unwrap();
+                let b = self.instance_type_at(b.with(*bi)).unwrap();
+                a.item.exports.len() == b.item.exports.len()
+                    && a.item
+                        .exports
+                        .iter()
+                        .map(to_export)
+                        .zip(b.item.exports.iter().map(to_export))
+                        .all(|(ae, be)| self.exports_equal(a.with(ae), b.with(be)))
+            }
+            (ImportSectionEntryType::Module(ai), ImportSectionEntryType::Module(bi)) => {
+                let a = self.module_type_at(a.with(*ai)).unwrap();
+                let b = self.module_type_at(b.with(*bi)).unwrap();
+                a.item.imports.len() == b.item.imports.len()
+                    && a.item
+                        .imports
+                        .iter()
+                        .map(to_import)
+                        .zip(b.item.imports.iter().map(to_import))
+                        .all(|(ai, bi)| self.imports_equal(a.with(ai), b.with(bi)))
+                    && a.item.exports.len() == b.item.exports.len()
+                    && a.item
+                        .exports
+                        .iter()
+                        .map(to_export)
+                        .zip(b.item.exports.iter().map(to_export))
+                        .all(|(ae, be)| self.exports_equal(a.with(ae), b.with(be)))
+            }
+            _ => false,
+        }
     }
 
     /// Validates [`Payload::StartSection`](crate::Payload)
@@ -1396,6 +1584,8 @@ impl Validator {
     pub fn module_code_section_entry<'a>(&mut self) -> Validator {
         let mut ret = Validator::default();
         ret.features = self.features.clone();
+        ret.expected_type = Some(self.state.module_type_indices[self.module_code_section_index]);
+        self.module_code_section_index += 1;
         let state = ret.state.assert_mut();
         state.parent = Some(self.state.arc().clone());
         state.depth = self.state.depth + 1;
@@ -1526,6 +1716,14 @@ impl Validator {
             if n > 0 {
                 return self
                     .create_error("module and module code sections have inconsistent lengths");
+            }
+        }
+        if let Some(t) = self.expected_type {
+            let ty = self.module_type_at(t)?;
+            if self.expected_import_pos != ty.item.imports.len()
+                || self.expected_export_pos != ty.item.exports.len()
+            {
+                return self.create_error("inline module type does not match declared type");
             }
         }
         Ok(())
