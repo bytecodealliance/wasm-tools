@@ -8,7 +8,7 @@ edition = "2018"
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = { git = "https://github.com/rust-fuzz/libfuzzer-sys" }
+libfuzzer-sys = "0.3.2"
 tempfile = "3.0"
 wasmparser = { path = "../crates/wasmparser" }
 wasmprinter = { path = "../crates/wasmprinter" }
