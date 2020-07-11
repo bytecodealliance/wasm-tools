@@ -1,5 +1,6 @@
 use crate::ast::{self, kw};
 use crate::parser::{Parse, Parser, Result};
+use alloc::vec::Vec;
 
 /// A WebAssembly `table` directive in a module.
 #[derive(Debug)]

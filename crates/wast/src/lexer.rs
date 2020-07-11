@@ -25,11 +25,13 @@
 //! [`Lexer`]: crate::lexer::Lexer
 
 use crate::{Error, Span};
-use std::borrow::Cow;
-use std::char;
-use std::fmt;
-use std::iter;
-use std::str;
+use alloc::borrow::Cow;
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
+use core::char;
+use core::fmt;
+use core::iter;
+use core::str;
 
 /// A structure used to lex the s-expression syntax of WAT files.
 ///

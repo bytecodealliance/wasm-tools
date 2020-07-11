@@ -1,4 +1,8 @@
 use crate::ast::*;
+use alloc::{vec, vec::Vec};
+use nano_leb128::{SLEB128, ULEB128};
+
+const PROOF_LEB_SIZE: &str = "A 64bit integer is guaranteed to be at most 10 bytes in LEB128; qed";
 
 pub fn encode(module: &Module<'_>) -> Vec<u8> {
     match &module.kind {
@@ -237,13 +241,21 @@ impl Encode for u8 {
 
 impl Encode for u32 {
     fn encode(&self, e: &mut Vec<u8>) {
-        leb128::write::unsigned(e, (*self).into()).unwrap();
+        let mut buf = [0; 10];
+        let len = ULEB128::from(u64::from(*self))
+            .write_into(&mut buf)
+            .expect(PROOF_LEB_SIZE);
+        e.extend_from_slice(&buf[..len]);
     }
 }
 
 impl Encode for i32 {
     fn encode(&self, e: &mut Vec<u8>) {
-        leb128::write::signed(e, (*self).into()).unwrap();
+        let mut buf = [0; 10];
+        let len = SLEB128::from(i64::from(*self))
+            .write_into(&mut buf)
+            .expect(PROOF_LEB_SIZE);
+        e.extend_from_slice(&buf[..len]);
     }
 }
 
@@ -847,7 +859,11 @@ impl Encode for BrTableIndices<'_> {
 
 impl Encode for i64 {
     fn encode(&self, e: &mut Vec<u8>) {
-        leb128::write::signed(e, *self).unwrap();
+        let mut buf = [0; 10];
+        let len = SLEB128::from(*self)
+            .write_into(&mut buf)
+            .expect(PROOF_LEB_SIZE);
+        e.extend_from_slice(&buf[..len]);
     }
 }
 

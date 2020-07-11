@@ -1,5 +1,6 @@
 use crate::ast::{self, kw};
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
+use alloc::vec::Vec;
 
 /// A entry in a WebAssembly module's export section.
 #[derive(Debug)]

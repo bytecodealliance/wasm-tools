@@ -12,5 +12,12 @@ description = """
 Rust parser for the WebAssembly Text format, WAT
 """
 
-[dependencies]
-wast = { path = '../wast', version = '21.0.0' }
+[dependencies.wast]
+path = '../wast'
+version = '21.0.0'
+features = ['wasm-module']
+default-features = false
+
+[features]
+default = ['std']
+std = ['wast/std']

@@ -1,6 +1,7 @@
 use crate::ast::{self, kw, HeapType};
 use crate::parser::{Parse, Parser, Result};
-use std::mem;
+use core::mem;
+use alloc::vec::Vec;
 
 /// An expression, or a list of instructions, in the WebAssembly text format.
 ///

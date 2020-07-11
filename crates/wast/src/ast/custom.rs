@@ -1,5 +1,6 @@
 use crate::ast::{self, annotation, kw};
 use crate::parser::{Parse, Parser, Result};
+use alloc::vec::Vec;
 
 /// A wasm custom section within a module.
 #[derive(Debug)]

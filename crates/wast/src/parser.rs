@@ -65,10 +65,19 @@
 
 use crate::lexer::{Comment, Float, Integer, Lexer, Source, Token};
 use crate::{Error, Span};
-use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
-use std::fmt;
-use std::usize;
+use alloc::boxed::Box;
+use alloc::format;
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
+use core::cell::{Cell, RefCell};
+use core::fmt;
+use core::usize;
+
+#[cfg(feature = "std")]
+use std::collections::hash_map::HashMap;
+
+#[cfg(not(feature = "std"))]
+use alloc::collections::btree_map::BTreeMap as HashMap;
 
 /// A top-level convenience parseing function that parss a `T` from `buf` and
 /// requires that all tokens in `buf` are consume.
@@ -268,7 +277,7 @@ pub trait Peek {
 
 /// A convenience type definition for `Result` where the error is hardwired to
 /// [`Error`].
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T> = core::result::Result<T, Error>;
 
 /// A low-level buffer of tokens which represents a completely lexed file.
 ///

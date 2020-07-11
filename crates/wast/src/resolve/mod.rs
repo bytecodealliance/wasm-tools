@@ -1,12 +1,21 @@
 use crate::ast::*;
 use crate::Error;
+use alloc::format;
 
 mod deinline_import_export;
 mod expand;
-mod gensym;
 mod names;
 
-#[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
+#[cfg(not(feature = "std"))]
+mod gensym;
+
+#[cfg(feature = "std")]
+mod gensym_std;
+
+#[cfg(feature = "std")]
+use gensym_std as gensym;
+
+#[derive(PartialEq, Eq, Hash, Copy, Clone, Debug, Ord, PartialOrd)]
 pub enum Ns {
     Func,
     Table,

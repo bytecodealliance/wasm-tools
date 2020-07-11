@@ -1,6 +1,7 @@
 use crate::ast::{self, kw};
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::{AssertExpression, NanPattern, V128Pattern};
+use alloc::{vec, vec::Vec};
 
 /// A parsed representation of a `*.wast` file.
 ///

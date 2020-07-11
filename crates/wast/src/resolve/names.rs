@@ -2,8 +2,16 @@ use crate::ast::*;
 use crate::resolve::gensym;
 use crate::resolve::Ns;
 use crate::Error;
-use std::collections::HashMap;
-use std::mem;
+use alloc::format;
+use alloc::string::ToString;
+use alloc::vec::Vec;
+use core::mem;
+
+#[cfg(feature = "std")]
+use std::collections::hash_map::HashMap;
+
+#[cfg(not(feature = "std"))]
+use alloc::collections::btree_map::BTreeMap as HashMap;
 
 pub fn resolve<'a>(fields: &mut Vec<ModuleField<'a>>) -> Result<Resolver<'a>, Error> {
     let mut resolver = Resolver::default();
@@ -2199,7 +2207,7 @@ impl<'a> TypeKey<'a> for ModuleKey<'a> {
 
 // A lookalike to `ItemKind` except without all non-relevant information for
 // hashing. This is used as a hash key for instance/module type lookup.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 enum Item<'a> {
     Func(Index<'a>),
     Table(TableType<'a>),

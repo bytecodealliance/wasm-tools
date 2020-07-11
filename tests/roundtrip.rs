@@ -276,7 +276,7 @@ impl TestState {
         macro_rules! adjust {
             ($e:expr) => {{
                 let mut e = wast::Error::from($e);
-                e.set_path(test);
+                e.set_path(test.display().to_string());
                 e.set_text(contents);
                 e
             }};
@@ -323,7 +323,7 @@ impl TestState {
         let mut s = format!("{} test failures in {}:", errors.len(), test.display());
         for mut error in errors {
             if let Some(err) = error.downcast_mut::<wast::Error>() {
-                err.set_path(test);
+                err.set_path(test.display().to_string());
                 err.set_text(contents);
             }
             s.push_str("\n\n\t--------------------------------\n\n\t");

@@ -62,12 +62,20 @@ breaking changes in the WAT format, either for MVP features or post-MVP
 features. No opt-in is required to use WebAssembly features, so using them may
 break if the upstream spec changes.
 
+## Cargo features
+
+* std (enabled by default)
+
+Enables usage of the Rust standatd library. This adds the `parse_file` function to the public
+API. In addition some performance improvements are gained due to the fact that the `wast`
+dependency can make use of Rust standard library.
+
 # License
 
 This project is licensed under the Apache 2.0 license with the LLVM exception.
 See [LICENSE](../../LICENSE) for more details.
 
-### Contribution
+## Contribution
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in this project by you, as defined in the Apache-2.0 license,

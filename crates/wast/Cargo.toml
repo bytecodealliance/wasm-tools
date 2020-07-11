@@ -13,7 +13,9 @@ Customizable Rust parsers for the WebAssembly Text formats WAT and WAST
 """
 
 [dependencies]
-leb128 = "0.2"
+nano-leb128 = { version = "0.1.0", default-features = false }
+# only used when std is not set to emulate thread_local
+spin = "0.5.2"
 
 [dev-dependencies]
 anyhow = "1.0"
@@ -22,7 +24,7 @@ wasmparser = { path = "../wasmparser" }
 wat = { path = "../wat" }
 
 [features]
-default = ['wasm-module']
+default = ['wasm-module', 'std']
 
 # Includes default parsing support for `*.wat` and `*.wast` files (wasm
 # modules). This isn't always needed though if you're parsing just an
@@ -31,6 +33,8 @@ default = ['wasm-module']
 #
 # This feature is turned on by default.
 wasm-module = []
+
+std = []
 
 [[test]]
 name = "parse-fail"

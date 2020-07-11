@@ -1,5 +1,6 @@
 use crate::ast::{self, kw};
 use crate::parser::{Parse, Parser, Result};
+use alloc::vec::Vec;
 
 /// A WebAssembly function to be inserted into a module.
 ///

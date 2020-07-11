@@ -38,24 +38,33 @@ interface if all you'd like to do is convert `*.wat` to `*.wasm`.
 
 ## Cargo features
 
-By default this crate enables and exports support necessary to parse `*.wat` and
+* std (enabled by default)
+
+Enables usage of the Rust standatd library. This makes the `Error` type implement
+`std::error::Error`. In addition some performance improvements are gained with this
+feature enabled as `thread_local` and `HashMap` are used as opposed to `spin` and
+`BTreeMap`.
+
+* wasm-module (enabled by default)
+
+This enables and exports support necessary to parse `*.wat` and
 `*.wast` files, or in other words entire wasm modules. If you're using this
 crate, however, to parse simply an s-expression wasm-related format (like
-`*.witx` or `*.wit` perhaps) then you can disable the default set of features to
+`*.witx` or `*.wit` perhaps) then you can disable this feature to
 only include a lexer, the parsing framework, and a few basic token-related
 parsers.
 
 ```toml
 [dependencies]
-wast = { version = "17.0", default-features = false }
+wast = { version = "21.0", default-features = false, features = ['std'] }
 ```
 
-# License
+## License
 
 This project is licensed under the Apache 2.0 license with the LLVM exception.
 See [LICENSE](LICENSE) for more details.
 
-### Contribution
+## Contribution
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in this project by you, as defined in the Apache-2.0 license,

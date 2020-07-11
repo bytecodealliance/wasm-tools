@@ -1,5 +1,6 @@
 use crate::ast::{self, kw};
 use crate::parser::{Parse, Parser, Result};
+use alloc::vec::Vec;
 
 /// A nested WebAssembly instance to be created as part of a module.
 #[derive(Debug)]

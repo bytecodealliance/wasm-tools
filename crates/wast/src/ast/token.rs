@@ -1,9 +1,10 @@
 use crate::ast::annotation;
 use crate::lexer::FloatVal;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
-use std::fmt;
-use std::hash::{Hash, Hasher};
-use std::str;
+use core::fmt;
+use core::hash::{Hash, Hasher};
+use core::str;
+use alloc::string::{String, ToString};
 
 /// A position in the original source stream, used to render errors.
 #[derive(Copy, Clone, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
@@ -41,7 +42,7 @@ impl Span {
 ///
 /// An identifier is used to symbolically refer to items in a a wasm module,
 /// typically via the [`Index`] type.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialOrd, Ord)]
 pub struct Id<'a> {
     name: &'a str,
     gen: u32,
@@ -128,7 +129,7 @@ impl Peek for Id<'_> {
 ///
 /// The emission phase of a module will ensure that `Index::Id` is never used
 /// and switch them all to `Index::Num`.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Ord, PartialOrd)]
 pub enum Index<'a> {
     /// A numerical index that this references. The index space this is
     /// referencing is implicit based on where this [`Index`] is stored.
@@ -360,7 +361,7 @@ macro_rules! float {
         fn $parse(val: &FloatVal<'_>) -> Option<$int> {
             // Compute a few well-known constants about the float representation
             // given the parameters to the macro here.
-            let width = std::mem::size_of::<$int>() * 8;
+            let width = core::mem::size_of::<$int>() * 8;
             let neg_offset = width - 1;
             let exp_offset = neg_offset - $exp_bits;
             let signif_bits = width - 1 - $exp_bits;

@@ -1,18 +1,17 @@
 use crate::ast::{Id, Span};
-use std::cell::Cell;
+use spin::Mutex;
 
-thread_local!(static NEXT: Cell<u32> = Cell::new(0));
+static NEXT: Mutex<u32> = Mutex::new(0);
 
 pub fn reset() {
-    NEXT.with(|c| c.set(0));
+    let mut next = NEXT.lock();
+    *next = 0;
 }
 
 pub fn gen(span: Span) -> Id<'static> {
-    NEXT.with(|next| {
-        let gen = next.get() + 1;
-        next.set(gen);
-        Id::gensym(span, gen)
-    })
+    let mut next = NEXT.lock();
+    *next = *next + 1;
+    Id::gensym(span, *next)
 }
 
 pub fn fill<'a>(span: Span, slot: &mut Option<Id<'a>>) -> Id<'a> {

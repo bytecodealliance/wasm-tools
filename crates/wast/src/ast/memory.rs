@@ -1,5 +1,6 @@
 use crate::ast::{self, kw};
 use crate::parser::{Parse, Parser, Result};
+use alloc::vec::Vec;
 
 /// A defined WebAssembly memory instance inside of a module.
 #[derive(Debug)]

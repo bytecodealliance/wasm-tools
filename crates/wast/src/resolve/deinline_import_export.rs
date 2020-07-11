@@ -1,6 +1,7 @@
 use crate::ast::*;
 use crate::resolve::gensym;
-use std::mem;
+use alloc::{vec, vec::Vec};
+use core::mem;
 
 pub fn run(fields: &mut Vec<ModuleField>) {
     let mut cur = 0;

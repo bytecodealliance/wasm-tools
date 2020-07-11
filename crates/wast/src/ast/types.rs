@@ -1,9 +1,10 @@
 use crate::ast::{self, kw};
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
+use alloc::vec::Vec;
 
 /// The value types for a wasm module.
 #[allow(missing_docs)]
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Ord, PartialOrd)]
 pub enum ValType<'a> {
     I32,
     I64,
@@ -60,7 +61,7 @@ impl<'a> Parse<'a> for ValType<'a> {
 
 /// A heap type for a reference type
 #[allow(missing_docs)]
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Ord, PartialOrd)]
 pub enum HeapType<'a> {
     /// An untyped function reference: funcref. This is part of the reference
     /// types proposal.
@@ -116,7 +117,7 @@ impl<'a> Parse<'a> for HeapType<'a> {
 
 /// A reference type in a wasm module.
 #[allow(missing_docs)]
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Ord, PartialOrd)]
 pub struct RefType<'a> {
     pub nullable: bool,
     pub heap: HeapType<'a>
@@ -239,7 +240,7 @@ impl<'a> Peek for RefType<'a> {
 }
 
 /// Type for a `global` in a wasm module
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct GlobalType<'a> {
     /// The element type of this `global`
     pub ty: ValType<'a>,
@@ -267,7 +268,7 @@ impl<'a> Parse<'a> for GlobalType<'a> {
 }
 
 /// Min/max limits used for tables/memories.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct Limits {
     /// The minimum number of units for this type.
     pub min: u32,
@@ -288,7 +289,7 @@ impl<'a> Parse<'a> for Limits {
 }
 
 /// Configuration for a table of a wasm mdoule
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct TableType<'a> {
     /// Limits on the element sizes of this table
     pub limits: Limits,
@@ -306,7 +307,7 @@ impl<'a> Parse<'a> for TableType<'a> {
 }
 
 /// Configuration for a memory of a wasm module
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct MemoryType {
     /// Limits on the page sizes of this memory
     pub limits: Limits,

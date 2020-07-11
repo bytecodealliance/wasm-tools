@@ -2,7 +2,20 @@ use crate::ast::*;
 use crate::resolve::gensym;
 use crate::resolve::Ns;
 use crate::Error;
-use std::collections::{HashMap, HashSet};
+use alloc::format;
+use alloc::vec::Vec;
+
+#[cfg(feature = "std")]
+use std::collections::hash_map::HashMap;
+
+#[cfg(feature = "std")]
+use std::collections::hash_set::HashSet;
+
+#[cfg(not(feature = "std"))]
+use alloc::collections::btree_map::BTreeMap as HashMap;
+
+#[cfg(not(feature = "std"))]
+use alloc::collections::btree_set::BTreeSet as HashSet;
 
 /// Runs an expansion process on the fields provided to elaborate and expand
 /// features from the module-linking proposal. Namely this handles>

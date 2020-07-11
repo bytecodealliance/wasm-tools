@@ -65,12 +65,18 @@
 //!
 //! [wat]: http://webassembly.github.io/spec/core/text/index.html
 
+#![cfg_attr(not(feature = "std"), no_std)]
 #![deny(missing_docs)]
 
-use std::borrow::Cow;
-use std::fmt;
-use std::path::Path;
-use std::str;
+extern crate alloc;
+
+use alloc::borrow::Cow;
+use alloc::boxed::Box;
+use alloc::format;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::fmt;
+use core::str;
 use wast::parser::{self, ParseBuffer};
 
 /// Parses a file on disk as a [WebAssembly Text format][wat] file, or a binary
@@ -84,6 +90,10 @@ use wast::parser::{self, ParseBuffer};
 ///
 /// For information about errors, see the [`parse_bytes`] documentation.
 ///
+/// # Note
+///
+/// Only available when the `std` feature is enabled.
+///
 /// # Examples
 ///
 /// ```
@@ -95,11 +105,13 @@ use wast::parser::{self, ParseBuffer};
 /// ```
 ///
 /// [wat]: http://webassembly.github.io/spec/core/text/index.html
-pub fn parse_file(file: impl AsRef<Path>) -> Result<Vec<u8>> {
+#[cfg(feature = "std")]
+pub fn parse_file(file: impl AsRef<std::path::Path>) -> Result<Vec<u8>> {
     _parse_file(file.as_ref())
 }
 
-fn _parse_file(file: &Path) -> Result<Vec<u8>> {
+#[cfg(feature = "std")]
+fn _parse_file(file: &std::path::Path) -> Result<Vec<u8>> {
     let contents = std::fs::read(file).map_err(|err| Error {
         kind: Box::new(ErrorKind::Io {
             err,
@@ -110,7 +122,7 @@ fn _parse_file(file: &Path) -> Result<Vec<u8>> {
         Ok(bytes) => Ok(bytes.into_owned()),
         Err(mut e) => {
             if let ErrorKind::Wast(e) = &mut *e.kind {
-                e.set_path(file);
+                e.set_path(file.display().to_string());
             }
             Err(e)
         }
@@ -221,7 +233,7 @@ fn _parse_str(wat: &str) -> Result<Vec<u8>> {
 }
 
 /// A convenience type definition for `Result` where the error is [`Error`]
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T> = core::result::Result<T, Error>;
 
 /// Errors from this crate related to parsing WAT files
 ///
@@ -240,7 +252,11 @@ pub struct Error {
 #[derive(Debug)]
 enum ErrorKind {
     Wast(wast::Error),
-    Io { err: std::io::Error, msg: String },
+    #[cfg(feature = "std")]
+    Io {
+        err: std::io::Error,
+        msg: String,
+    },
     Custom(String),
 }
 
@@ -259,11 +275,13 @@ impl fmt::Display for Error {
         match &*self.kind {
             ErrorKind::Wast(err) => err.fmt(f),
             ErrorKind::Custom(err) => err.fmt(f),
+            #[cfg(feature = "std")]
             ErrorKind::Io { msg, .. } => msg.fmt(f),
         }
     }
 }
 
+#[cfg(feature = "std")]
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match &*self.kind {

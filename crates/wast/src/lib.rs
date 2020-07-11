@@ -45,10 +45,14 @@
 //! [`Parse`]: parser::Parse
 //! [`LexError`]: lexer::LexError
 
+#![cfg_attr(not(feature = "std"), no_std)]
 #![deny(missing_docs, intra_doc_link_resolution_failure)]
 
-use std::fmt;
-use std::path::{Path, PathBuf};
+extern crate alloc;
+
+use alloc::boxed::Box;
+use alloc::string::{String, ToString};
+use core::fmt;
 
 #[cfg(feature = "wasm-module")]
 mod binary;
@@ -79,7 +83,7 @@ pub struct Error {
 #[derive(Debug)]
 struct ErrorInner {
     text: Option<Text>,
-    file: Option<PathBuf>,
+    file: Option<String>,
     span: Span,
     kind: ErrorKind,
 }
@@ -155,14 +159,11 @@ impl Error {
 
     /// To provide a more useful error this function can be used to set
     /// the file name that this error is associated with.
-    ///
-    /// The `path` here will be stored in this error and later rendered in the
-    /// `Display` implementation.
-    pub fn set_path(&mut self, path: &Path) {
+    pub fn set_path(&mut self, path: String) {
         if self.inner.file.is_some() {
             return;
         }
-        self.inner.file = Some(path.to_path_buf());
+        self.inner.file = Some(path);
     }
 
     /// Returns the underlying `LexError`, if any, that describes this error.
@@ -186,12 +187,8 @@ impl fmt::Display for Error {
                 return write!(f, "{} at byte offset {}", err, self.inner.span.offset);
             }
         };
-        let file = self
-            .inner
-            .file
-            .as_ref()
-            .and_then(|p| p.to_str())
-            .unwrap_or("<anon>");
+
+        let file = self.inner.file.as_deref().unwrap_or("<anon>");
         write!(
             f,
             "\
@@ -211,6 +208,7 @@ impl fmt::Display for Error {
     }
 }
 
+#[cfg(feature = "std")]
 impl std::error::Error for Error {}
 
 impl Text {
