@@ -1081,7 +1081,7 @@ impl Encode for Instance<'_> {
             InstanceKind::Inline { module, items } => (module, items),
             _ => panic!("should only have inline instances in emission"),
         };
-
+        e.push(0x00);
         module.encode(e);
         items.encode(e);
     }
