@@ -76,7 +76,7 @@ pub enum Chunk<'a> {
 pub enum Payload<'a> {
     /// Indicates the header of a WebAssembly binary.
     ///
-    /// This header also indicates the version number that was parser, which is
+    /// This header also indicates the version number that was parsed, which is
     /// currently always 1.
     Version {
         /// The version number found
@@ -203,12 +203,12 @@ pub enum Payload<'a> {
 
     /// An entry of the module code section, a module, was parsed.
     ///
-    /// This variant is special in that it returned a sub-`Parser`. Once a
-    /// `ModuleCodeSectionEntry` it is expected that the returned `Parser` will
-    /// used instead of the parent `Parser` until the parse has finished. You'll
-    /// need to feed data into the `Parser` returned until it returns
-    /// `Payload::End`. After that you'll switch back to the parent parser to
-    /// resume parsing the rest of the module code section.
+    /// This variant is special in that it returns a sub-`Parser`. Upon
+    /// receiving a `ModuleCodeSectionEntry` it is expected that the returned
+    /// `Parser` will be used instead of the parent `Parser` until the parse has
+    /// finished. You'll need to feed data into the `Parser` returned until it
+    /// returns `Payload::End`. After that you'll switch back to the parent
+    /// parser to resume parsing the rest of the module code section.
     ///
     /// Note that binaries will not be parsed correctly if you feed the data for
     /// a nested module into the parent [`Parser`].
