@@ -760,10 +760,7 @@ impl Printer {
                 self.result.push_str("ref.null ");
                 self.print_reftype(*ty)?;
             }
-            RefIsNull { ty } => {
-                self.result.push_str("ref.is_null ");
-                self.print_reftype(*ty)?;
-            }
+            RefIsNull => self.result.push_str("ref.is_null"),
             RefFunc { function_index } => {
                 self.result.push_str("ref.func ");
                 self.print_func_idx(*function_index)?;

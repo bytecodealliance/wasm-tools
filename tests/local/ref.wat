@@ -9,10 +9,10 @@
     local.set 1)
   (func (;1;) (type 1) (param funcref)
     global.get 0
-    ref.is_null extern
+    ref.is_null
     drop
     local.get 0
-    ref.is_null func
+    ref.is_null
     drop)
   (global (;0;) externref (ref.null extern))
 

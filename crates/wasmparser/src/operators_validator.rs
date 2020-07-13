@@ -60,15 +60,21 @@ impl FuncState {
     fn last_block(&self) -> &BlockState {
         self.blocks.last().unwrap()
     }
-    fn assert_stack_type_at(&self, index: usize, expected: Type) -> bool {
+    fn stack_type_at(&self, index: usize) -> Option<Type> {
         let stack_starts_at = self.last_block().stack_starts_at;
         if self.last_block().is_stack_polymorphic()
             && stack_starts_at + index >= self.stack_types.len()
         {
-            return true;
+            return None;
         }
         assert!(stack_starts_at + index < self.stack_types.len());
-        self.stack_types[self.stack_types.len() - 1 - index] == expected
+        Some(self.stack_types[self.stack_types.len() - 1 - index])
+    }
+    fn assert_stack_type_at(&self, index: usize, expected: Type) -> bool {
+        match self.stack_type_at(index) {
+            Some(ty) => ty == expected,
+            None => true,
+        }
     }
     fn assert_block_stack_len(&self, depth: usize, minimal_len: usize) -> bool {
         assert!(depth < self.blocks.len());
@@ -1537,17 +1543,17 @@ impl OperatorValidator {
                 }
                 self.func_state.change_frame_with_type(0, ty)?;
             }
-            Operator::RefIsNull { ty } => {
+            Operator::RefIsNull => {
                 self.check_reference_types_enabled()?;
-                match ty {
-                    Type::FuncRef | Type::ExternRef => {}
+                self.check_frame_size(1)?;
+                match self.func_state.stack_type_at(0) {
+                    None | Some(Type::FuncRef) | Some(Type::ExternRef) => {}
                     _ => {
                         return Err(OperatorValidatorError::new(
-                            "invalid reference type in ref.is_null",
+                            "type mismatch: invalid reference type in ref.is_null",
                         ))
                     }
                 }
-                self.check_operands_1(ty)?;
                 self.func_state.change_frame_with_type(1, Type::I32)?;
             }
             Operator::RefFunc { function_index } => {
