@@ -288,7 +288,7 @@ impl Parser {
     /// # Errors
     ///
     /// Parse errors are returned as an `Err`. Errors can happen when the
-    /// structure of the module is expected, or if sections are too large for
+    /// structure of the module is unexpected, or if sections are too large for
     /// example. Note that errors are not returned for malformed *contents* of
     /// sections here. Sections are generally not individually parsed and each
     /// returned [`Payload`] needs to be iterated over further to detect all
