@@ -66,52 +66,8 @@ pub(crate) use crate::module_resources::{wasm_func_type_inputs, wasm_func_type_o
 
 pub use crate::operators_validator::OperatorValidatorConfig;
 
-pub use crate::readers::Alias;
-pub use crate::readers::AliasSectionReader;
-pub use crate::readers::AliasedInstance;
-pub use crate::readers::CodeSectionReader;
-pub use crate::readers::Data;
-pub use crate::readers::DataKind;
-pub use crate::readers::DataSectionReader;
-pub use crate::readers::Element;
-pub use crate::readers::ElementItem;
-pub use crate::readers::ElementItems;
-pub use crate::readers::ElementItemsReader;
-pub use crate::readers::ElementKind;
-pub use crate::readers::ElementSectionReader;
-pub use crate::readers::Export;
-pub use crate::readers::ExportSectionReader;
-pub use crate::readers::FunctionBody;
-pub use crate::readers::FunctionSectionReader;
-pub use crate::readers::Global;
-pub use crate::readers::GlobalSectionReader;
-pub use crate::readers::Import;
-pub use crate::readers::ImportSectionReader;
-pub use crate::readers::InitExpr;
-pub use crate::readers::LinkingSectionReader;
-pub use crate::readers::LocalsReader;
-pub use crate::readers::MemorySectionReader;
-pub use crate::readers::ModuleCodeSectionReader;
-pub use crate::readers::ModuleSectionReader;
-pub use crate::readers::Name;
-pub use crate::readers::NameSectionReader;
-pub use crate::readers::NamingReader;
-pub use crate::readers::OperatorsReader;
-pub use crate::readers::ProducersField;
-pub use crate::readers::ProducersFieldValue;
-pub use crate::readers::ProducersFieldValuesReader;
-pub use crate::readers::ProducersSectionReader;
-pub use crate::readers::Reloc;
-pub use crate::readers::RelocSectionReader;
-pub use crate::readers::SectionIterator;
-pub use crate::readers::SectionIteratorLimited;
-pub use crate::readers::SectionReader;
-pub use crate::readers::SectionWithLimitedItems;
-pub use crate::readers::TableSectionReader;
-pub use crate::readers::TypeSectionReader;
-pub use crate::readers::{Instance, InstanceSectionReader};
-
 pub use crate::parser::*;
+pub use crate::readers::*;
 pub use crate::validator::*;
 
 mod binary_reader;
