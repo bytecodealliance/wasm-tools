@@ -1,6 +1,6 @@
 use crate::{
-    BinaryReader, ExternalKind, Range, Result, SectionIteratorLimited, SectionReader,
-    SectionWithLimitedItems,
+    BinaryReader, BinaryReaderError, ExternalKind, Range, Result, SectionIteratorLimited,
+    SectionReader, SectionWithLimitedItems,
 };
 
 #[derive(Clone)]
@@ -29,6 +29,7 @@ impl<'a> InstanceSectionReader<'a> {
             &self.reader.buffer[self.reader.position..],
             self.original_position(),
         )?;
+        self.reader.skip_bytes(1)?;
         self.reader.skip_var_32()?;
         let count = self.reader.read_var_u32()?;
         for _ in 0..count {
@@ -79,6 +80,12 @@ pub struct Instance<'a> {
 impl<'a> Instance<'a> {
     pub fn new(data: &'a [u8], offset: usize) -> Result<Instance<'a>> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
+        if reader.read_u8()? != 0 {
+            return Err(BinaryReaderError::new(
+                "instantiate instruction not found",
+                offset,
+            ));
+        }
         let module = reader.read_var_u32()?;
         Ok(Instance { module, reader })
     }
