@@ -7,9 +7,12 @@
 use anyhow::{Context, Result};
 use rayon::prelude::*;
 use std::env;
+use std::time::Instant;
 use wasmparser::{Parser, ValidPayload, Validator};
 
 fn main() -> Result<()> {
+    env_logger::init();
+
     // Use the `getopts` crate to parse the `-o` option as well as `-h`
     let program = env::args().nth(0).unwrap();
     let mut opts = getopts::Options::new();
@@ -75,6 +78,7 @@ fn main() -> Result<()> {
     let mut functions_to_validate = Vec::new();
     let mut stack = Vec::new();
     let wasm = std::fs::read(input).context(format!("failed to read input: {}", input))?;
+    let start = Instant::now();
     for payload in Parser::new(0).parse_all(&wasm) {
         match validator.payload(&payload?)? {
             ValidPayload::Ok => {}
@@ -86,10 +90,12 @@ fn main() -> Result<()> {
             ValidPayload::Func(validator, ops) => functions_to_validate.push((validator, ops)),
         }
     }
+    log::info!("module structure validated in {:?}", start.elapsed());
 
     // After we've validate the entire wasm module we'll use `rayon` to iterate
     // over all functions in parallel and perform parallel validation of the
     // input wasm module.
+    let start = Instant::now();
     functions_to_validate
         .into_par_iter()
         .try_for_each(|(mut validator, ops)| {
@@ -99,6 +105,7 @@ fn main() -> Result<()> {
             }
             validator.finish()
         })?;
+    log::info!("functions validated in {:?}", start.elapsed());
     Ok(())
 }
 

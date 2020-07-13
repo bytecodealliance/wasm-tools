@@ -10,7 +10,9 @@ members = ['fuzz']
 
 [dependencies]
 anyhow = "1.0"
+env_logger = "0.7"
 getopts = "0.2"
+log = "0.4"
 rayon = "1.0"
 wasmparser = { path = "crates/wasmparser" }
 wasmprinter = { path = "crates/wasmprinter" }
