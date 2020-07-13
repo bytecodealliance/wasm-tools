@@ -571,7 +571,10 @@ impl Validator {
     fn get_func_type_index<'me>(&'me self, idx: Def<u32>) -> Result<Def<u32>> {
         match self.state.get_func_type_index(idx) {
             Some(t) => Ok(t),
-            None => self.create_error("unknown function: func index out of bounds"),
+            None => self.create_error(format!(
+                "unknown function {}: func index out of bounds",
+                idx.item
+            )),
         }
     }
 
@@ -1349,8 +1352,10 @@ impl Validator {
         };
         if index as usize >= total {
             return self.create_error(&format!(
-                "unknown {0}: {1} {0} index out of bounds",
-                ty, desc
+                "unknown {ty} {index}: {desc} {ty} index out of bounds",
+                desc = desc,
+                index = index,
+                ty = ty,
             ));
         }
         if let ExternalKind::Function = kind {

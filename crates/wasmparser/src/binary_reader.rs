@@ -1313,9 +1313,7 @@ impl<'a> BinaryReader<'a> {
             0xd0 => Operator::RefNull {
                 ty: self.read_type()?,
             },
-            0xd1 => Operator::RefIsNull {
-                ty: self.read_type()?,
-            },
+            0xd1 => Operator::RefIsNull,
             0xd2 => Operator::RefFunc {
                 function_index: self.read_var_u32()?,
             },

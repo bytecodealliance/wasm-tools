@@ -130,20 +130,20 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         // anywhere else, and I'm not entirely certain if it's vaild, and for now I
         // don't feel like filing an issue or adding parsing for this.
         "roundtrip/table-init-index.txt",
-        // The following tests are broken until wabt removes the ref.is_null
-        // type annotation.
-        "local/ref.wat",
-        "proposals/reference-types/table_set.wast",
-        "proposals/reference-types/table_grow.wast",
-        "proposals/reference-types/table_get.wast",
-        "proposals/reference-types/ref_is_null.wast",
-        "proposals/reference-types/ref_func.wast",
-        "proposals/reference-types/ref_func.wast",
         "dump/reference-types.txt",
         "interp/reference-types.txt",
         "expr/reference-types.txt",
     ];
     if broken.iter().any(|x| test.ends_with(x)) {
+        return true;
+    }
+
+    // These test suites in the upstream proposals repo have not been
+    // implemented in this tooling yet.
+    if test.iter().any(|t| t == "function-references") {
+        return true;
+    }
+    if test.iter().any(|t| t == "exception-handling") {
         return true;
     }
 
@@ -204,7 +204,8 @@ impl TestState {
             && !test.ends_with("invalid-elem-segment-offset.txt")
         {
             if let Some(expected) = self.wat2wasm(&test)? {
-                self.binary_compare(&binary, &expected, true)?;
+                self.binary_compare(&binary, &expected, true)
+                    .context("`wat` doesn't match wabt's `wat2wasm`")?;
             }
         }
 
@@ -225,7 +226,6 @@ impl TestState {
             && !test.ends_with("dump/import.txt")
             // uses exceptions
             && !test.ends_with("parse/all-features.txt")
-            && !test.iter().any(|t| t == "module-linking")
         {
             self.test_wasm(test, &binary, true)
                 .context("failed testing the binary output of `wat`")?;
@@ -253,6 +253,10 @@ impl TestState {
 
             // not implemented in wabt
             && !test.iter().any(|t| t == "module-linking")
+
+            // wabt's encoding of `ref.is_null` hasn't been updated
+            && !test.ends_with("local/ref.wat")
+            && !test.iter().any(|t| t == "reference-types")
         {
             if let Some(expected) = self.wasm2wat(contents)? {
                 self.string_compare(&string, &expected)?;
@@ -347,7 +351,8 @@ impl TestState {
                     ModuleKind::Text(_) => {
                         if let Some(expected) = &expected {
                             let expected = fs::read(expected)?;
-                            self.binary_compare(&actual, &expected, true)?;
+                            self.binary_compare(&actual, &expected, true)
+                                .context("`wat` doesn't match output of wabt")?;
                         }
                         true
                     }
@@ -768,10 +773,6 @@ fn error_matches(error: &str, message: &str) -> bool {
 
     if message == "bad magic" {
         return error.contains("Bad magic number");
-    }
-
-    if message.starts_with("unknown function ") {
-        return error.contains("unknown function");
     }
 
     return false;

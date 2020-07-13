@@ -1446,10 +1446,17 @@ impl<'a> Module<'a> {
                 Ok(())
             }
 
+            ModuleField::Table(t) => {
+                if let TableKind::Normal(t) = &mut t.kind {
+                    self.resolve_heaptype(&mut t.elem.heap)?;
+                }
+                Ok(())
+            }
+
             // Everything about aliases is handled in `expand` above
             ModuleField::Alias(_) => Ok(()),
 
-            ModuleField::Table(_) | ModuleField::Memory(_) | ModuleField::Custom(_) => Ok(()),
+            ModuleField::Memory(_) | ModuleField::Custom(_) => Ok(()),
         }
     }
 
