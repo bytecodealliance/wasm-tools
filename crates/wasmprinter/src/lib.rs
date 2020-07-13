@@ -607,7 +607,10 @@ impl Printer {
     fn print_operator(&mut self, op: &Operator<'_>, nesting_start: u32) -> Result<()> {
         use Operator::*;
         let cur_label = self.nesting - nesting_start + 1;
-        let label = |relative: u32| match cur_label.checked_sub(relative + 1) {
+        let label = |relative: u32| match cur_label
+            .checked_sub(relative)
+            .and_then(|i| i.checked_sub(1))
+        {
             Some(i) => format!("@{}", i),
             None => format!(" INVALID "),
         };
