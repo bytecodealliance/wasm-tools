@@ -29,6 +29,7 @@ pub struct BinaryReaderError {
 pub(crate) struct BinaryReaderErrorInner {
     pub(crate) message: String,
     pub(crate) offset: usize,
+    pub(crate) needed_hint: Option<usize>,
 }
 
 pub type Result<T> = result::Result<T, BinaryReaderError>;
@@ -49,7 +50,21 @@ impl BinaryReaderError {
     pub(crate) fn new(message: impl Into<String>, offset: usize) -> Self {
         let message = message.into();
         BinaryReaderError {
-            inner: Box::new(BinaryReaderErrorInner { message, offset }),
+            inner: Box::new(BinaryReaderErrorInner {
+                message,
+                offset,
+                needed_hint: None,
+            }),
+        }
+    }
+
+    pub(crate) fn eof(offset: usize, needed_hint: usize) -> Self {
+        BinaryReaderError {
+            inner: Box::new(BinaryReaderErrorInner {
+                message: "Unexpected EOF".to_string(),
+                offset,
+                needed_hint: Some(needed_hint),
+            }),
         }
     }
 

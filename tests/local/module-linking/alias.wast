@@ -586,7 +586,7 @@
     "\01"           ;; 1 alias
     "\00\00\00\00"  ;; (alias (instance 0) (func 0))
   )
-  "unknown module")
+  "unknown instance")
 
 (module
   (import "" (module $m

@@ -25,16 +25,6 @@
 
 pub use crate::binary_reader::BinaryReader;
 pub use crate::binary_reader::Range;
-use crate::binary_reader::SectionHeader;
-
-pub use crate::parser::ElemSectionEntryTable;
-pub use crate::parser::LocalName;
-pub use crate::parser::NameEntry;
-pub use crate::parser::Parser;
-pub use crate::parser::ParserInput;
-pub use crate::parser::ParserState;
-pub use crate::parser::RelocEntry;
-pub use crate::parser::WasmDecoder;
 
 pub use crate::primitives::BinaryReaderError;
 pub use crate::primitives::BrTable;
@@ -64,12 +54,6 @@ pub use crate::primitives::TypeDef;
 pub use crate::primitives::TypeOrFuncType;
 pub use crate::primitives::V128;
 
-pub use crate::validator::validate;
-pub use crate::validator::validate_function_body;
-pub use crate::validator::ValidatingOperatorParser;
-pub use crate::validator::ValidatingParser;
-pub use crate::validator::ValidatingParserConfig;
-
 pub use crate::module_resources::WasmFuncType;
 pub use crate::module_resources::WasmGlobalType;
 pub use crate::module_resources::WasmMemoryType;
@@ -86,7 +70,6 @@ pub use crate::readers::Alias;
 pub use crate::readers::AliasSectionReader;
 pub use crate::readers::AliasedInstance;
 pub use crate::readers::CodeSectionReader;
-pub use crate::readers::CustomSectionContent;
 pub use crate::readers::Data;
 pub use crate::readers::DataKind;
 pub use crate::readers::DataSectionReader;
@@ -105,12 +88,10 @@ pub use crate::readers::GlobalSectionReader;
 pub use crate::readers::Import;
 pub use crate::readers::ImportSectionReader;
 pub use crate::readers::InitExpr;
-pub use crate::readers::InstanceSectionReader;
 pub use crate::readers::LinkingSectionReader;
 pub use crate::readers::LocalsReader;
 pub use crate::readers::MemorySectionReader;
 pub use crate::readers::ModuleCodeSectionReader;
-pub use crate::readers::ModuleReader;
 pub use crate::readers::ModuleSectionReader;
 pub use crate::readers::Name;
 pub use crate::readers::NameSectionReader;
@@ -122,14 +103,16 @@ pub use crate::readers::ProducersFieldValuesReader;
 pub use crate::readers::ProducersSectionReader;
 pub use crate::readers::Reloc;
 pub use crate::readers::RelocSectionReader;
-pub use crate::readers::Section;
-pub use crate::readers::SectionContent;
 pub use crate::readers::SectionIterator;
 pub use crate::readers::SectionIteratorLimited;
 pub use crate::readers::SectionReader;
 pub use crate::readers::SectionWithLimitedItems;
 pub use crate::readers::TableSectionReader;
 pub use crate::readers::TypeSectionReader;
+pub use crate::readers::{Instance, InstanceSectionReader};
+
+pub use crate::parser::*;
+pub use crate::validator::*;
 
 mod binary_reader;
 mod limits;
@@ -138,5 +121,4 @@ mod operators_validator;
 mod parser;
 mod primitives;
 mod readers;
-mod tests;
 mod validator;

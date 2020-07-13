@@ -1,11 +1,11 @@
 0x0000 | 00 61 73 6d | version 1
        | 01 00 00 00
-0x0008 | 01 09       | section Type
+0x0008 | 01 09       | type section
 0x000a | 03          | 3 count
 0x000b | 61 00 00    | [type 0] Module(ModuleType { imports: [], exports: [] })
 0x000e | 62 00       | [type 1] Instance(InstanceType { exports: [] })
 0x0010 | 60 00 00    | [type 2] Func(FuncType { params: [], returns: [] })
-0x0013 | 02 10       | section Import
+0x0013 | 02 10       | import section
 0x0015 | 03          | 3 count
 0x0016 | 00 01 c0 05 | import [module 0] Import { module: "", field: None, ty: Module(0) }
        | 00         
@@ -13,7 +13,7 @@
        | 00         
 0x0020 | 00 01 c0 06 | import [instance 0] Import { module: "", field: None, ty: Instance(1) }
        | 01         
-0x0025 | 65 0f       | section Instance
+0x0025 | 65 0f       | instance section
 0x0027 | 01          | 1 count
 0x0028 | 00          | [instance 1] module:0
 0x0029 | 06          | 6 count
@@ -23,27 +23,27 @@
 0x0030 | 06 00       | [instantiate arg] Instance 0
 0x0032 | 02 00       | [instantiate arg] Memory 0
 0x0034 | 01 00       | [instantiate arg] Table 0
-0x0036 | 03 02       | section Function
+0x0036 | 03 02       | func section
 0x0038 | 01          | 1 count
 0x0039 | 02          | [func 0] type 2
-0x003a | 04 04       | section Table
+0x003a | 04 04       | table section
 0x003c | 01          | 1 count
 0x003d | 70 00 01    | [table 0] TableType { element_type: FuncRef, limits: ResizableLimits { initial: 1, maximum: None } }
-0x0040 | 05 03       | section Memory
+0x0040 | 05 03       | memory section
 0x0042 | 01          | 1 count
 0x0043 | 00 01       | [memory 0] MemoryType { limits: ResizableLimits { initial: 1, maximum: None }, shared: false }
-0x0045 | 06 06       | section Global
+0x0045 | 06 06       | global section
 0x0047 | 01          | 1 count
 0x0048 | 7f 00       | [global 0] GlobalType { content_type: I32, mutable: false }
 0x004a | 41 00       | I32Const { value: 0 }
 0x004c | 0b          | End
-0x004d | 0a 04       | section Code
+0x004d | 0a 04       | code section
 0x004f | 01          | 1 count
 ============== func 0 ====================
 0x0050 | 02          | size of function
 0x0051 | 00          | 0 local blocks
 0x0052 | 0b          | End
-0x0053 | 00 0b 04 6e | section Custom { name: "name", kind: Name }
+0x0053 | 00 0b 04 6e | custom section: "name"
        | 61 6d 65   
 0x005a | 01 04       | function names
 0x005c | 01          | 1 count
