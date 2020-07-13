@@ -147,6 +147,15 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         return true;
     }
 
+    // These test suites in the upstream proposals repo have not been
+    // implemented in this tooling yet.
+    if test.iter().any(|t| t == "function-references") {
+        return true;
+    }
+    if test.iter().any(|t| t == "exception-handling") {
+        return true;
+    }
+
     if let Ok(contents) = str::from_utf8(contents) {
         // Skip tests that are supposed to fail
         if contents.contains(";; ERROR") {
