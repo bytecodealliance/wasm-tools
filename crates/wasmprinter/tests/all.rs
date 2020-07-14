@@ -10,3 +10,18 @@ fn no_panic() {
     .unwrap();
     wasmprinter::print_bytes(&bytes).unwrap();
 }
+
+#[test]
+fn code_section_overflow() {
+    let bytes = wat::parse_str(
+        r#"
+            (module binary
+                "\00asm"
+                "\01\00\00\00"
+                "\0a\10\01"
+            )
+        "#,
+    )
+    .unwrap();
+    wasmprinter::print_bytes(&bytes).unwrap_err();
+}
