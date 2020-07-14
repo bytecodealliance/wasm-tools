@@ -257,6 +257,13 @@ impl TestState {
             // wabt's encoding of `ref.is_null` hasn't been updated
             && !test.ends_with("local/ref.wat")
             && !test.iter().any(|t| t == "reference-types")
+
+            // wabt uses old instruction names for atomics
+            && !test.ends_with("atomic-no-shared-memory.txt")
+            && !test.ends_with("fold-atomic.txt")
+            && !test.ends_with("atomic.txt")
+            && !test.ends_with("atomic-align.txt")
+            && !test.ends_with("atomic.wast")
         {
             if let Some(expected) = self.wasm2wat(contents)? {
                 self.string_compare(&string, &expected)?;

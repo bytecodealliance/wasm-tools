@@ -946,9 +946,9 @@ impl Printer {
             TableSize { table } => write!(self.result, "table.size {}", table)?,
             TableFill { table } => write!(self.result, "table.fill {}", table)?,
 
-            AtomicNotify { memarg } => self.mem_instr("atomic.notify", memarg, 4)?,
-            I32AtomicWait { memarg } => self.mem_instr("i32.atomic.wait", memarg, 4)?,
-            I64AtomicWait { memarg } => self.mem_instr("i64.atomic.wait", memarg, 8)?,
+            MemoryAtomicNotify { memarg } => self.mem_instr("memory.atomic.notify", memarg, 4)?,
+            MemoryAtomicWait32 { memarg } => self.mem_instr("memory.atomic.wait32", memarg, 4)?,
+            MemoryAtomicWait64 { memarg } => self.mem_instr("memory.atomic.wait64", memarg, 8)?,
             AtomicFence { flags: _ } => self.result.push_str("atomic.fence"),
 
             I32AtomicLoad { memarg } => self.mem_instr("i32.atomic.load", memarg, 4)?,

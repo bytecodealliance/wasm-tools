@@ -1505,19 +1505,19 @@ impl OperatorValidator {
                 self.check_operands_3(Type::I32, Type::I64, Type::I64)?;
                 self.func_state.change_frame_with_type(3, Type::I64)?;
             }
-            Operator::AtomicNotify { memarg } => {
+            Operator::MemoryAtomicNotify { memarg } => {
                 self.check_threads_enabled()?;
                 self.check_shared_memarg_wo_align(memarg, resources)?;
                 self.check_operands_2(Type::I32, Type::I32)?;
                 self.func_state.change_frame_with_type(2, Type::I32)?;
             }
-            Operator::I32AtomicWait { memarg } => {
+            Operator::MemoryAtomicWait32 { memarg } => {
                 self.check_threads_enabled()?;
                 self.check_shared_memarg_wo_align(memarg, resources)?;
                 self.check_operands_3(Type::I32, Type::I32, Type::I64)?;
                 self.func_state.change_frame_with_type(3, Type::I32)?;
             }
-            Operator::I64AtomicWait { memarg } => {
+            Operator::MemoryAtomicWait64 { memarg } => {
                 self.check_threads_enabled()?;
                 self.check_shared_memarg_wo_align(memarg, resources)?;
                 self.check_operands_3(Type::I32, Type::I64, Type::I64)?;

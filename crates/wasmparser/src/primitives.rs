@@ -520,9 +520,9 @@ pub enum Operator<'a> {
 
     // 0xFE operators
     // https://github.com/WebAssembly/threads/blob/master/proposals/threads/Overview.md
-    AtomicNotify { memarg: MemoryImmediate },
-    I32AtomicWait { memarg: MemoryImmediate },
-    I64AtomicWait { memarg: MemoryImmediate },
+    MemoryAtomicNotify { memarg: MemoryImmediate },
+    MemoryAtomicWait32 { memarg: MemoryImmediate },
+    MemoryAtomicWait64 { memarg: MemoryImmediate },
     AtomicFence { flags: u8 },
     I32AtomicLoad { memarg: MemoryImmediate },
     I64AtomicLoad { memarg: MemoryImmediate },
