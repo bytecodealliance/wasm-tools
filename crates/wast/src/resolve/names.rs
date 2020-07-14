@@ -793,13 +793,7 @@ impl<'a> Resolver<'a> {
         ty: ValType<'a>,
     ) -> Result<ValType<'a>, Error> {
         match ty {
-            ValType::I32
-            | ValType::I64
-            | ValType::F32
-            | ValType::F64
-            | ValType::V128
-            | ValType::I8
-            | ValType::I16 => Ok(ty),
+            ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => Ok(ty),
 
             ValType::Ref(ty) => Ok(ValType::Ref(
                 self.copy_reftype_from_module(span, child, ty)?,
@@ -1310,10 +1304,10 @@ impl<'a> Module<'a> {
                     TypeDef::Func(func) => func.resolve(self)?,
                     TypeDef::Struct(struct_) => {
                         for field in &mut struct_.fields {
-                            self.resolve_valtype(&mut field.ty)?;
+                            self.resolve_storagetype(&mut field.ty)?;
                         }
                     }
-                    TypeDef::Array(array) => self.resolve_valtype(&mut array.ty)?,
+                    TypeDef::Array(array) => self.resolve_storagetype(&mut array.ty)?,
                     TypeDef::Module(m) => m.resolve(self)?,
                     TypeDef::Instance(i) => i.resolve(self)?,
                 }
@@ -1476,6 +1470,14 @@ impl<'a> Module<'a> {
             HeapType::Index(i) => {
                 self.resolve(i, Ns::Type)?;
             }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn resolve_storagetype(&self, ty: &mut StorageType<'a>) -> Result<(), Error> {
+        match ty {
+            StorageType::Val(ty) => self.resolve_valtype(ty)?,
             _ => {}
         }
         Ok(())

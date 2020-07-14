@@ -343,14 +343,12 @@ impl<'a> Encode for ValType<'a> {
             ValType::F32 => e.push(0x7d),
             ValType::F64 => e.push(0x7c),
             ValType::V128 => e.push(0x7b),
-            ValType::I8 => e.push(0x7a),
-            ValType::I16 => e.push(0x79),
-            ValType::Ref(ty) => {
-                ty.encode(e);
-            }
             ValType::Rtt(index) => {
                 e.push(0x69);
                 index.encode(e);
+            }
+            ValType::Ref(ty) => {
+                ty.encode(e);
             }
         }
     }
@@ -416,6 +414,18 @@ impl<'a> Encode for RefType<'a> {
             } => {
                 e.push(0x6b);
                 heap.encode(e);
+            }
+        }
+    }
+}
+
+impl<'a> Encode for StorageType<'a> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        match self {
+            StorageType::I8 => e.push(0x7a),
+            StorageType::I16 => e.push(0x79),
+            StorageType::Val(ty) => {
+                ty.encode(e);
             }
         }
     }
