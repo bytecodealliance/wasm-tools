@@ -1670,7 +1670,8 @@ impl Validator {
         let ty = self.func_type_at(ty_index)?;
         Ok((
             FuncValidator {
-                validator: OperatorValidator::new(ty.item, &list, config).map_err(|e| e.0)?,
+                validator: OperatorValidator::new(ty.item, &list, config)
+                    .map_err(|e| e.set_offset(self.offset))?,
                 state: self.state.arc().clone(),
                 offset: body.get_binary_reader().original_position(),
                 eof_found: false,
