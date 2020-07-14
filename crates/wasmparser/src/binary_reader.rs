@@ -789,13 +789,13 @@ impl<'a> BinaryReader<'a> {
     fn read_0xfe_operator(&mut self) -> Result<Operator<'a>> {
         let code = self.read_u8()? as u8;
         Ok(match code {
-            0x00 => Operator::AtomicNotify {
+            0x00 => Operator::MemoryAtomicNotify {
                 memarg: self.read_memarg_of_align(2)?,
             },
-            0x01 => Operator::I32AtomicWait {
+            0x01 => Operator::MemoryAtomicWait32 {
                 memarg: self.read_memarg_of_align(2)?,
             },
-            0x02 => Operator::I64AtomicWait {
+            0x02 => Operator::MemoryAtomicWait64 {
                 memarg: self.read_memarg_of_align(3)?,
             },
             0x03 => Operator::AtomicFence {
