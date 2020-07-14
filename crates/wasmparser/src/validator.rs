@@ -1552,6 +1552,9 @@ impl Validator {
         self.offset = range.start;
         self.update_order(Order::DataCount)?;
         self.state.assert_mut().data_count = Some(count);
+        if count > MAX_WASM_DATA_SEGMENTS as u32 {
+            return self.create_error("data count section specifies too many data segments");
+        }
         Ok(())
     }
 
@@ -1683,6 +1686,7 @@ impl Validator {
     /// Validates [`Payload::DataSection`](crate::Payload).
     pub fn data_section(&mut self, section: &crate::DataSectionReader<'_>) -> Result<()> {
         self.data_found = section.get_count();
+        self.check_max(0, section.get_count(), MAX_WASM_DATA_SEGMENTS, "segments")?;
         self.section(Order::Data, section, |me, d| {
             match d.kind {
                 DataKind::Passive => {}

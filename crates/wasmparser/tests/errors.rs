@@ -1,4 +1,4 @@
-use wasmparser::Validator;
+use wasmparser::{Range, Validator};
 
 #[test]
 fn simd_not_enabled() {
@@ -7,4 +7,12 @@ fn simd_not_enabled() {
     v.wasm_simd(false);
     let result = v.validate_all(&bytes).unwrap_err();
     assert_eq!(result.offset(), 11);
+}
+
+#[test]
+fn massive_data_count() {
+    let mut v = Validator::new();
+    assert!(v
+        .data_count_section(0x0fffffff, &Range { start: 0, end: 0 })
+        .is_err());
 }
