@@ -760,21 +760,27 @@ impl Encode for Func<'_> {
             _ => panic!("should only have inline functions in emission"),
         };
 
-        let mut locals_compressed = Vec::<(u32, ValType)>::new();
-        for (_, _, ty) in locals {
-            if let Some((cnt, prev)) = locals_compressed.last_mut() {
-                if prev == ty {
-                    *cnt += 1;
-                    continue;
-                }
-            }
-            locals_compressed.push((1, *ty));
-        }
-        locals_compressed.encode(&mut tmp);
+        locals.encode(&mut tmp);
         expr.encode(&mut tmp);
 
         tmp.len().encode(e);
         e.extend_from_slice(&tmp);
+    }
+}
+
+impl Encode for Vec<Local<'_>> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        let mut locals_compressed = Vec::<(u32, ValType)>::new();
+        for local in self {
+            if let Some((cnt, prev)) = locals_compressed.last_mut() {
+                if *prev == local.ty {
+                    *cnt += 1;
+                    continue;
+                }
+            }
+            locals_compressed.push((1, local.ty));
+        }
+        locals_compressed.encode(e);
     }
 }
 
@@ -805,6 +811,13 @@ impl Encode for BlockType<'_> {
             return ty.results[0].encode(e);
         }
         panic!("multi-value block types should have an index");
+    }
+}
+
+impl Encode for LetType<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.block.encode(e);
+        self.locals.encode(e);
     }
 }
 
@@ -932,8 +945,8 @@ fn find_names<'a>(
                     }
                 }
                 if let FuncKind::Inline { locals, .. } = &f.kind {
-                    for (id, name, _) in locals {
-                        if let Some(name) = get_name(id, name) {
+                    for local in locals {
+                        if let Some(name) = get_name(&local.id, &local.name) {
                             local_names.push((local_idx, name));
                         }
                         local_idx += 1;

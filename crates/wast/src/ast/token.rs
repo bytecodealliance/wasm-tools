@@ -146,6 +146,13 @@ impl Index<'_> {
             Index::Id(id) => id.span(),
         }
     }
+
+    pub(crate) fn is_resolved(&self) -> bool {
+        match self {
+            Index::Num(..) => true,
+            _ => false,
+        }
+    }
 }
 
 impl<'a> Parse<'a> for Index<'a> {
