@@ -343,8 +343,9 @@ impl<'a> Encode for ValType<'a> {
             ValType::F32 => e.push(0x7d),
             ValType::F64 => e.push(0x7c),
             ValType::V128 => e.push(0x7b),
-            ValType::Rtt(index) => {
+            ValType::Rtt(depth, index) => {
                 e.push(0x69);
+                depth.encode(e);
                 index.encode(e);
             }
             ValType::Ref(ty) => {

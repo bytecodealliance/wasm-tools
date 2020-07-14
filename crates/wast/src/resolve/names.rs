@@ -803,7 +803,7 @@ impl<'a> Resolver<'a> {
             // is only invoked with the module-linking proposal, which means
             // that we have two proposals interacting, and that's always weird
             // territory anyway.
-            ValType::Rtt(_) => Err(Error::new(
+            ValType::Rtt(..) => Err(Error::new(
                 span,
                 format!("cannot copy reference types between modules right now"),
             )),
@@ -1457,7 +1457,7 @@ impl<'a> Module<'a> {
     fn resolve_valtype(&self, ty: &mut ValType<'a>) -> Result<(), Error> {
         match ty {
             ValType::Ref(ty) => self.resolve_heaptype(&mut ty.heap)?,
-            ValType::Rtt(i) => {
+            ValType::Rtt(_d, i) => {
                 self.resolve(i, Ns::Type)?;
             }
             _ => {}
