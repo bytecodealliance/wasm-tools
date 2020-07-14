@@ -11,7 +11,7 @@ pub enum ValType<'a> {
     F64,
     V128,
     Ref(RefType<'a>),
-    Rtt(ast::Index<'a>),
+    Rtt(u32, ast::Index<'a>),
 }
 
 impl<'a> Parse<'a> for ValType<'a> {
@@ -39,7 +39,7 @@ impl<'a> Parse<'a> for ValType<'a> {
                 let mut l = p.lookahead1();
                 if l.peek::<kw::rtt>() {
                     p.parse::<kw::rtt>()?;
-                    Ok(ValType::Rtt(p.parse()?))
+                    Ok(ValType::Rtt(p.parse()?, p.parse()?))
                 } else {
                     Err(l.error())
                 }
