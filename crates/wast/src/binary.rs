@@ -1060,6 +1060,29 @@ impl Encode for BrOnExn<'_> {
     }
 }
 
+impl Encode for BrOnCast<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.label.encode(e);
+        self.val.encode(e);
+        self.rtt.encode(e);
+    }
+}
+
+impl Encode for RTTSub<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.depth.encode(e);
+        self.input_rtt.encode(e);
+        self.output_rtt.encode(e);
+    }
+}
+
+impl Encode for RefTest<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.val.encode(e);
+        self.rtt.encode(e);
+    }
+}
+
 impl Encode for StructAccess<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.r#struct.encode(e);

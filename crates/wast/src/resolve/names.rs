@@ -1833,7 +1833,7 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 ));
             }
 
-            Br(i) | BrIf(i) | BrOnCast(i) | BrOnNull(i) => {
+            Br(i) | BrIf(i) | BrOnNull(i) => {
                 self.resolve_label(i)?;
             }
 
@@ -1851,6 +1851,11 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 self.resolve_label(&mut b.label)?;
                 self.module.resolve(&mut b.exn, Ns::Event)?;
             }
+            BrOnCast(b) => {
+                self.resolve_label(&mut b.label)?;
+                self.module.resolve_heaptype(&mut b.val)?;
+                self.module.resolve_heaptype(&mut b.rtt)?;
+            }
 
             Select(s) => {
                 if let Some(list) = &mut s.tys {
@@ -1860,10 +1865,27 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 }
             }
 
-            StructNew(i) | StructNewSub(i) | StructNewDefault(i) | ArrayNew(i) | ArrayNewSub(i)
-            | ArrayNewDefault(i) | ArrayGet(i) | ArrayGetS(i) | ArrayGetU(i) | ArraySet(i)
-            | ArrayLen(i) | RTTGet(i) | RTTSub(i) => {
+            StructNewWithRtt(i)
+            | StructNewDefaultWithRtt(i)
+            | ArrayNewWithRtt(i)
+            | ArrayNewDefaultWithRtt(i)
+            | ArrayGet(i)
+            | ArrayGetS(i)
+            | ArrayGetU(i)
+            | ArraySet(i)
+            | ArrayLen(i) => {
                 self.module.resolve(i, Ns::Type)?;
+            }
+            RTTCanon(t) => {
+                self.module.resolve_heaptype(t)?;
+            }
+            RTTSub(s) => {
+                self.module.resolve_heaptype(&mut s.input_rtt)?;
+                self.module.resolve_heaptype(&mut s.output_rtt)?;
+            }
+            RefTest(t) | RefCast(t) => {
+                self.module.resolve_heaptype(&mut t.val)?;
+                self.module.resolve_heaptype(&mut t.rtt)?;
             }
 
             StructSet(s) | StructGet(s) | StructGetS(s) | StructGetU(s) => {
