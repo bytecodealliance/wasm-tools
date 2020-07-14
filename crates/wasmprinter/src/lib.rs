@@ -124,19 +124,21 @@ impl Printer {
             match payload {
                 Payload::CodeSectionStart { size, range, .. } => {
                     let offset = offset as usize;
-                    code = Some(CodeSectionReader::new(
-                        &wasm[range.start - offset..range.end - offset],
-                        range.start,
-                    )?);
+                    let section = match wasm.get(range.start - offset..range.end - offset) {
+                        Some(slice) => slice,
+                        None => bail!("invalid code section"),
+                    };
+                    code = Some(CodeSectionReader::new(section, range.start)?);
                     parser.skip_section();
                     bytes = &bytes[size as usize..];
                 }
                 Payload::ModuleCodeSectionStart { size, range, .. } => {
                     let offset = offset as usize;
-                    module_code = Some(ModuleCodeSectionReader::new(
-                        &wasm[range.start - offset..range.end - offset],
-                        range.start,
-                    )?);
+                    let section = match wasm.get(range.start - offset..range.end - offset) {
+                        Some(slice) => slice,
+                        None => bail!("invalid module code section"),
+                    };
+                    module_code = Some(ModuleCodeSectionReader::new(section, range.start)?);
                     parser.skip_section();
                     bytes = &bytes[size as usize..];
                 }
