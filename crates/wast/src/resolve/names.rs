@@ -1201,6 +1201,7 @@ impl<'a> Module<'a> {
             Instruction::Block(bt)
             | Instruction::If(bt)
             | Instruction::Loop(bt)
+            | Instruction::Let(LetType { block: bt, .. })
             | Instruction::Try(bt) => {
                 // No expansion necessary, a type reference is already here.
                 // We'll verify that it's the same as the inline type, if any,
@@ -1322,8 +1323,8 @@ impl<'a> Module<'a> {
                 };
                 if let FuncKind::Inline { locals, expression } = &mut f.kind {
                     // Resolve (ref T) in locals
-                    for (_, _, valtype) in locals.iter_mut() {
-                        self.resolve_valtype(valtype)?;
+                    for local in locals.iter_mut() {
+                        self.resolve_valtype(&mut local.ty)?;
                     }
 
                     // Build a resolver with local namespace for the function
@@ -1344,8 +1345,8 @@ impl<'a> Module<'a> {
                     }
 
                     // .. followed by locals themselves
-                    for (id, _, _) in locals {
-                        resolver.locals.register(*id, "local")?;
+                    for local in locals {
+                        resolver.locals.register(local.id, "local")?;
                     }
 
                     // and then we can resolve the expression!
@@ -1613,6 +1614,16 @@ impl<'a, T> Namespace<'a, T> {
         return index;
     }
 
+    fn dealloc_to(&mut self, count: u32) {
+        assert!(self.count >= count);
+        if self.count == count {
+            return;
+        }
+        self.count = count;
+        self.names.retain(|_, v| *v < count);
+        self.items.truncate(self.count as usize);
+    }
+
     fn register_specific(&mut self, name: Id<'a>, index: u32, desc: &str) -> Result<(), Error> {
         if let Some(_prev) = self.names.insert(name, index) {
             return Err(Error::new(
@@ -1677,10 +1688,18 @@ impl<'a, T> Default for Namespace<'a, T> {
     }
 }
 
+#[derive(Debug, Clone)]
+struct ExprBlock<'a> {
+    // The label of the block
+    label: Option<Id<'a>>,
+    // The amount of locals before this block was entered
+    locals: u32,
+}
+
 struct ExprResolver<'a, 'b> {
     module: &'b Module<'a>,
     locals: Namespace<'a, ()>,
-    labels: Vec<Option<Id<'a>>>,
+    blocks: Vec<ExprBlock<'a>>,
 }
 
 impl<'a, 'b> ExprResolver<'a, 'b> {
@@ -1688,13 +1707,71 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
         ExprResolver {
             module,
             locals: Default::default(),
-            labels: Vec::new(),
+            blocks: Vec::new(),
         }
     }
 
     fn resolve(&mut self, expr: &mut Expression<'a>) -> Result<(), Error> {
         for instr in expr.instrs.iter_mut() {
             self.resolve_instr(instr)?;
+        }
+        Ok(())
+    }
+
+    fn resolve_block_type(&mut self, bt: &mut BlockType<'a>) -> Result<(), Error> {
+        // Ok things get interesting here. First off when parsing `bt`
+        // *optionally* has an index and a function type listed. If
+        // they're both not present it's equivalent to 0 params and 0
+        // results.
+        //
+        // In MVP wasm blocks can have 0 params and 0-1 results. Now
+        // there's also multi-value. We want to prefer MVP wasm wherever
+        // possible (for backcompat) so we want to list this block as
+        // being an "MVP" block if we can. The encoder only has
+        // `BlockType` to work with, so it'll be looking at `params` and
+        // `results` to figure out what to encode. If `params` and
+        // `results` fit within MVP, then it uses MVP encoding
+        //
+        // To put all that together, here we handle:
+        //
+        // * If the `index` was specified, resolve it and use it as the
+        //   source of truth. If this turns out to be an MVP type,
+        //   record it as such.
+        // * Otherwise use `params` and `results` as the source of
+        //   truth. *If* this were a non-MVP compatible block `index`
+        //   would be filled by by `tyexpand.rs`.
+        //
+        // tl;dr; we handle the `index` here if it's set and then fill
+        // out `params` and `results` if we can, otherwise no work
+        // happens.
+        if bt.ty.index.is_some() {
+            let (ty, _) = self.module.resolve_type_use(&mut bt.ty)?;
+            let n = match ty {
+                Index::Num(n, _) => *n,
+                Index::Id(_) => panic!("expected `Num`"),
+            };
+            let ty = match self
+                .module
+                .types
+                .items
+                .get(n as usize)
+                .and_then(|s| s.item())
+            {
+                Some(TypeInfo::Func(ty)) => ty,
+                _ => return Ok(()),
+            };
+            if ty.0.len() == 0 && ty.1.len() <= 1 {
+                let mut inline = FunctionType::default();
+                inline.results = ty.1.clone();
+                bt.ty.inline = Some(inline);
+                bt.ty.index = None;
+            }
+        }
+
+        // If the inline annotation persists to this point then resolve
+        // all of its inline value types.
+        if let Some(inline) = &mut bt.ty.inline {
+            inline.resolve(self.module)?;
         }
         Ok(())
     }
@@ -1748,83 +1825,53 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 self.module.resolve(i, Ns::Type)?;
             }
 
+            Let(t) => {
+                self.blocks.push(ExprBlock {
+                    label: t.block.label,
+                    locals: self.locals.count,
+                });
+
+                // Resolve (ref T) in locals
+                for local in &mut t.locals {
+                    self.module.resolve_valtype(&mut local.ty)?;
+                }
+                // Register all locals defined in this let
+                for local in &t.locals {
+                    self.locals.register(local.id, "local")?;
+                }
+                self.resolve_block_type(&mut t.block)?;
+            }
+
             Block(bt) | If(bt) | Loop(bt) | Try(bt) => {
-                self.labels.push(bt.label);
-
-                // Ok things get interesting here. First off when parsing `bt`
-                // *optionally* has an index and a function type listed. If
-                // they're both not present it's equivalent to 0 params and 0
-                // results.
-                //
-                // In MVP wasm blocks can have 0 params and 0-1 results. Now
-                // there's also multi-value. We want to prefer MVP wasm wherever
-                // possible (for backcompat) so we want to list this block as
-                // being an "MVP" block if we can. The encoder only has
-                // `BlockType` to work with, so it'll be looking at `params` and
-                // `results` to figure out what to encode. If `params` and
-                // `results` fit within MVP, then it uses MVP encoding
-                //
-                // To put all that together, here we handle:
-                //
-                // * If the `index` was specified, resolve it and use it as the
-                //   source of truth. If this turns out to be an MVP type,
-                //   record it as such.
-                // * Otherwise use `params` and `results` as the source of
-                //   truth. *If* this were a non-MVP compatible block `index`
-                //   would be filled by by `tyexpand.rs`.
-                //
-                // tl;dr; we handle the `index` here if it's set and then fill
-                // out `params` and `results` if we can, otherwise no work
-                // happens.
-                if bt.ty.index.is_some() {
-                    let (ty, _) = self.module.resolve_type_use(&mut bt.ty)?;
-                    let n = match ty {
-                        Index::Num(n, _) => *n,
-                        Index::Id(_) => panic!("expected `Num`"),
-                    };
-                    let ty = match self
-                        .module
-                        .types
-                        .items
-                        .get(n as usize)
-                        .and_then(|s| s.item())
-                    {
-                        Some(TypeInfo::Func(ty)) => ty,
-                        _ => return Ok(()),
-                    };
-                    if ty.0.len() == 0 && ty.1.len() <= 1 {
-                        let mut inline = FunctionType::default();
-                        inline.results = ty.1.clone();
-                        bt.ty.inline = Some(inline);
-                        bt.ty.index = None;
-                    }
-                }
-
-                // If the inline annotation persists to this point then resolve
-                // all of its inline value types.
-                if let Some(inline) = &mut bt.ty.inline {
-                    inline.resolve(self.module)?;
-                }
+                self.blocks.push(ExprBlock {
+                    label: bt.label,
+                    locals: self.locals.count,
+                });
+                self.resolve_block_type(bt)?;
             }
 
             // On `End` instructions we pop a label from the stack, and for both
             // `End` and `Else` instructions if they have labels listed we
             // verify that they match the label at the beginning of the block.
             Else(_) | End(_) => {
-                let (matching_label, label) = match instr {
-                    Else(label) => (self.labels.last().cloned(), label),
-                    End(label) => (self.labels.pop(), label),
+                let (matching_block, label) = match instr {
+                    Else(label) => (self.blocks.last().cloned(), label),
+                    End(label) => (self.blocks.pop(), label),
                     _ => unreachable!(),
                 };
-                let matching_label = match matching_label {
+                let matching_block = match matching_block {
                     Some(l) => l,
                     None => return Ok(()),
                 };
+
+                // Reset the local stack to before this block was entered
+                self.locals.dealloc_to(matching_block.locals);
+
                 let label = match label {
                     Some(l) => l,
                     None => return Ok(()),
                 };
-                if Some(*label) == matching_label {
+                if Some(*label) == matching_block.label {
                     return Ok(());
                 }
                 return Err(Error::new(
@@ -1910,11 +1957,11 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             Index::Id(id) => *id,
         };
         let idx = self
-            .labels
+            .blocks
             .iter()
             .rev()
             .enumerate()
-            .filter_map(|(i, l)| l.map(|l| (i, l)))
+            .filter_map(|(i, b)| b.label.map(|l| (i, l)))
             .find(|(_, l)| *l == id);
         match idx {
             Some((idx, _)) => {

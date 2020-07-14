@@ -117,7 +117,7 @@ impl<'a> ExpressionParser<'a> {
                         // If block/loop show up then we just need to be sure to
                         // push an `end` instruction whenever the `)` token is
                         // seen
-                        i @ Instruction::Block(_) | i @ Instruction::Loop(_) => {
+                        i @ Instruction::Block(_) | i @ Instruction::Loop(_) | i @ Instruction::Let(_) => {
                             self.instrs.push(i);
                             self.stack.push(Level::EndWith(Instruction::End(None)));
                         }
@@ -361,6 +361,7 @@ instructions! {
         CallRef : [0x14] : "call_ref",
         ReturnCallRef : [0x15] : "return_call_ref",
         FuncBind(ast::Index<'a>) : [0x16] : "func.bind",
+        Let(LetType<'a>) : [0x17] : "let",
 
         Drop : [0x1a] : "drop",
         Select(SelectTypes<'a>) : [] : "select",
@@ -907,6 +908,23 @@ impl<'a> Parse<'a> for BlockType<'a> {
             ty: parser
                 .parse::<ast::TypeUse<'a, ast::FunctionTypeNoNames<'a>>>()?
                 .into(),
+        })
+    }
+}
+
+/// Extra information associated with the let instruction.
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub struct LetType<'a> {
+    pub block: BlockType<'a>,
+    pub locals: Vec<ast::Local<'a>>,
+}
+
+impl<'a> Parse<'a> for LetType<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        Ok(LetType {
+            block: parser.parse()?,
+            locals: ast::Local::parse_remainder(parser)?,
         })
     }
 }
