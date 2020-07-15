@@ -15,6 +15,8 @@ use std::mem;
 use std::path::Path;
 use wasmparser::*;
 
+const MAX_LOCALS: u32 = 50000;
+
 /// Reads a WebAssembly `file` from the filesystem and then prints it into an
 /// in-memory `String`.
 pub fn print_file(file: impl AsRef<Path>) -> Result<String> {
@@ -562,6 +564,13 @@ impl Printer {
             let mut locals = NamedLocalPrinter::new("local");
             for local in body.get_locals_reader()? {
                 let (cnt, ty) = local?;
+                if MAX_LOCALS
+                    .checked_sub(local_idx)
+                    .and_then(|s| s.checked_sub(cnt))
+                    .is_none()
+                {
+                    bail!("function exceeds the maximum number of locals that can be printed");
+                }
                 for _ in 0..cnt {
                     if first {
                         self.result.push_str("\n   ");
