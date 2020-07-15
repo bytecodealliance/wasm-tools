@@ -1235,6 +1235,9 @@ impl<'a> Module<'a> {
                 }
                 self.expand_type_use(&mut bt.ty);
             }
+            Instruction::FuncBind(b) => {
+                self.expand_type_use(&mut b.ty);
+            }
             Instruction::CallIndirect(c) | Instruction::ReturnCallIndirect(c) => {
                 self.expand_type_use(&mut c.ty);
             }
@@ -1836,8 +1839,8 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 self.module.resolve_type_use(&mut c.ty)?;
             }
 
-            FuncBind(i) => {
-                self.module.resolve(i, Ns::Type)?;
+            FuncBind(b) => {
+                self.module.resolve_type_use(&mut b.ty)?;
             }
 
             Let(t) => {

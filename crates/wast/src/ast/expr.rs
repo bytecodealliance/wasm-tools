@@ -360,7 +360,7 @@ instructions! {
         // function-references proposal
         CallRef : [0x14] : "call_ref",
         ReturnCallRef : [0x15] : "return_call_ref",
-        FuncBind(ast::Index<'a>) : [0x16] : "func.bind",
+        FuncBind(FuncBindType<'a>) : [0x16] : "func.bind",
         Let(LetType<'a>) : [0x17] : "let",
 
         Drop : [0x1a] : "drop",
@@ -905,6 +905,23 @@ impl<'a> Parse<'a> for BlockType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         Ok(BlockType {
             label: parser.parse()?,
+            ty: parser
+                .parse::<ast::TypeUse<'a, ast::FunctionTypeNoNames<'a>>>()?
+                .into(),
+        })
+    }
+}
+
+/// Extra information associated with the func.bind instruction.
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub struct FuncBindType<'a> {
+    pub ty: ast::TypeUse<'a, ast::FunctionType<'a>>,
+}
+
+impl<'a> Parse<'a> for FuncBindType<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        Ok(FuncBindType {
             ty: parser
                 .parse::<ast::TypeUse<'a, ast::FunctionTypeNoNames<'a>>>()?
                 .into(),

@@ -814,6 +814,12 @@ impl Encode for BlockType<'_> {
     }
 }
 
+impl Encode for FuncBindType<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.ty.encode(e);
+    }
+}
+
 impl Encode for LetType<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.block.encode(e);
