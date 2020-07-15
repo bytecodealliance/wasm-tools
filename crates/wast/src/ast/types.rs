@@ -113,8 +113,16 @@ impl<'a> Parse<'a> for HeapType<'a> {
         } else if l.peek::<kw::i31>() {
             parser.parse::<kw::i31>()?;
             Ok(HeapType::I31)
-        } else if l.peek::<ast::Index>() {
-            Ok(HeapType::Index(parser.parse()?))
+        } else if l.peek::<ast::LParen>() {
+            parser.parens(|p| {
+                let mut l = parser.lookahead1();
+                if l.peek::<kw::r#type>() {
+                    p.parse::<kw::r#type>()?;
+                    Ok(HeapType::Index(p.parse()?))
+                } else {
+                    Err(l.error())
+                }
+            })
         } else {
             Err(l.error())
         }
@@ -230,10 +238,17 @@ impl<'a> Parse<'a> for RefType<'a> {
                         nullable = true;
                     }
 
-                    Ok(RefType {
-                        nullable,
-                        heap: parser.parse()?
-                    })
+                    if parser.peek::<ast::Index>() {
+                        Ok(RefType {
+                            nullable,
+                            heap: HeapType::Index(parser.parse()?),
+                        })
+                    } else {
+                        Ok(RefType {
+                            nullable,
+                            heap: parser.parse()?
+                        })
+                    }
                 } else {
                     Err(l.error())
                 }
