@@ -18,5 +18,5 @@ fuzz_target!(|data: &[u8]| {
     validator.wasm_bulk_memory((byte & 0b0100_0000) != 0);
     validator.deterministic_only((byte & 0b1000_0000) != 0);
 
-    drop(validator.validate_all(data));
+    drop(validator.validate_all(&data[1..]));
 });
