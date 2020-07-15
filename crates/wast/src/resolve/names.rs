@@ -1383,12 +1383,13 @@ impl<'a> Module<'a> {
                             self.resolve(idx, Ns::Func)?;
                         }
                     }
-                    ElemPayload::Exprs { exprs, .. } => {
+                    ElemPayload::Exprs { exprs, ty } => {
                         for funcref in exprs {
                             if let Some(idx) = funcref {
                                 self.resolve(idx, Ns::Func)?;
                             }
                         }
+                        self.resolve_heaptype(&mut ty.heap)?;
                     }
                 }
                 Ok(())
@@ -1506,7 +1507,10 @@ impl<'a> Module<'a> {
             ItemKind::Module(m) => {
                 self.resolve_type_use(m)?;
             }
-            ItemKind::Table(_) | ItemKind::Memory(_) => {}
+            ItemKind::Table(t) => {
+                self.resolve_heaptype(&mut t.elem.heap)?;
+            }
+            ItemKind::Memory(_) => {}
         }
         Ok(())
     }
