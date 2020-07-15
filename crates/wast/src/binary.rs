@@ -343,14 +343,13 @@ impl<'a> Encode for ValType<'a> {
             ValType::F32 => e.push(0x7d),
             ValType::F64 => e.push(0x7c),
             ValType::V128 => e.push(0x7b),
-            ValType::I8 => e.push(0x7a),
-            ValType::I16 => e.push(0x79),
+            ValType::Rtt(depth, index) => {
+                e.push(0x69);
+                depth.encode(e);
+                index.encode(e);
+            }
             ValType::Ref(ty) => {
                 ty.encode(e);
-            }
-            ValType::Rtt(index) => {
-                e.push(0x69);
-                index.encode(e);
             }
         }
     }
@@ -416,6 +415,18 @@ impl<'a> Encode for RefType<'a> {
             } => {
                 e.push(0x6b);
                 heap.encode(e);
+            }
+        }
+    }
+}
+
+impl<'a> Encode for StorageType<'a> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        match self {
+            StorageType::I8 => e.push(0x7a),
+            StorageType::I16 => e.push(0x79),
+            StorageType::Val(ty) => {
+                ty.encode(e);
             }
         }
     }
@@ -749,21 +760,27 @@ impl Encode for Func<'_> {
             _ => panic!("should only have inline functions in emission"),
         };
 
-        let mut locals_compressed = Vec::<(u32, ValType)>::new();
-        for (_, _, ty) in locals {
-            if let Some((cnt, prev)) = locals_compressed.last_mut() {
-                if prev == ty {
-                    *cnt += 1;
-                    continue;
-                }
-            }
-            locals_compressed.push((1, *ty));
-        }
-        locals_compressed.encode(&mut tmp);
+        locals.encode(&mut tmp);
         expr.encode(&mut tmp);
 
         tmp.len().encode(e);
         e.extend_from_slice(&tmp);
+    }
+}
+
+impl Encode for Vec<Local<'_>> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        let mut locals_compressed = Vec::<(u32, ValType)>::new();
+        for local in self {
+            if let Some((cnt, prev)) = locals_compressed.last_mut() {
+                if *prev == local.ty {
+                    *cnt += 1;
+                    continue;
+                }
+            }
+            locals_compressed.push((1, local.ty));
+        }
+        locals_compressed.encode(e);
     }
 }
 
@@ -794,6 +811,13 @@ impl Encode for BlockType<'_> {
             return ty.results[0].encode(e);
         }
         panic!("multi-value block types should have an index");
+    }
+}
+
+impl Encode for LetType<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.block.encode(e);
+        self.locals.encode(e);
     }
 }
 
@@ -921,8 +945,8 @@ fn find_names<'a>(
                     }
                 }
                 if let FuncKind::Inline { locals, .. } = &f.kind {
-                    for (id, name, _) in locals {
-                        if let Some(name) = get_name(id, name) {
+                    for local in locals {
+                        if let Some(name) = get_name(&local.id, &local.name) {
                             local_names.push((local_idx, name));
                         }
                         local_idx += 1;
@@ -1046,6 +1070,29 @@ impl Encode for BrOnExn<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.label.encode(e);
         self.exn.encode(e);
+    }
+}
+
+impl Encode for BrOnCast<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.label.encode(e);
+        self.val.encode(e);
+        self.rtt.encode(e);
+    }
+}
+
+impl Encode for RTTSub<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.depth.encode(e);
+        self.input_rtt.encode(e);
+        self.output_rtt.encode(e);
+    }
+}
+
+impl Encode for RefTest<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.val.encode(e);
+        self.rtt.encode(e);
     }
 }
 
