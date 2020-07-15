@@ -15,8 +15,7 @@
   (type (struct (field $field_b externref) (field $field_c funcref)))
 
   (func
-    rtt.canon $a
-    struct.new_with_rtt $a
+    struct.new $a
     struct.get $a $field_a
     struct.set $b $field_c
   )

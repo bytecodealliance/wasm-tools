@@ -215,11 +215,9 @@ impl TestState {
         // however, that wasmparser doesn't implement all features that wabt
         // does, so we skip some tests here too.
         //
-        // TODO: implement function-references in wasmparser
         // TODO: implement gc types in wasmparser
         // TODO: implement exceptions in wasmparser
         if !contents.contains("--enable-exceptions")
-            && !contents.contains("--enable-function-references")
             && !contents.contains("--enable-gc")
             && !contents.contains("--no-check")
             // intentionally invalid wasm files

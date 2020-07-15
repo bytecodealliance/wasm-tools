@@ -10,8 +10,10 @@ pub enum ValType<'a> {
     F32,
     F64,
     V128,
+    I8,
+    I16,
     Ref(RefType<'a>),
-    Rtt(u32, ast::Index<'a>),
+    Rtt(ast::Index<'a>),
 }
 
 impl<'a> Parse<'a> for ValType<'a> {
@@ -32,6 +34,12 @@ impl<'a> Parse<'a> for ValType<'a> {
         } else if l.peek::<kw::v128>() {
             parser.parse::<kw::v128>()?;
             Ok(ValType::V128)
+        } else if l.peek::<kw::i8>() {
+            parser.parse::<kw::i8>()?;
+            Ok(ValType::I8)
+        } else if l.peek::<kw::i16>() {
+            parser.parse::<kw::i16>()?;
+            Ok(ValType::I16)
         } else if l.peek::<RefType>() {
             Ok(ValType::Ref(parser.parse()?))
         } else if l.peek::<ast::LParen>() {
@@ -39,7 +47,7 @@ impl<'a> Parse<'a> for ValType<'a> {
                 let mut l = p.lookahead1();
                 if l.peek::<kw::rtt>() {
                     p.parse::<kw::rtt>()?;
-                    Ok(ValType::Rtt(p.parse()?, p.parse()?))
+                    Ok(ValType::Rtt(p.parse()?))
                 } else {
                     Err(l.error())
                 }
@@ -47,21 +55,6 @@ impl<'a> Parse<'a> for ValType<'a> {
         } else {
             Err(l.error())
         }
-    }
-}
-
-impl<'a> Peek for ValType<'a> {
-    fn peek(cursor: Cursor<'_>) -> bool {
-        kw::i32::peek(cursor) ||
-        kw::i64::peek(cursor) ||
-        kw::f32::peek(cursor) ||
-        kw::f64::peek(cursor) ||
-        kw::v128::peek(cursor) ||
-        (ast::LParen::peek(cursor) && kw::rtt::peek2(cursor)) ||
-        RefType::peek(cursor)
-    }
-    fn display() -> &'static str {
-        "valtype"
     }
 }
 
@@ -242,32 +235,6 @@ impl<'a> Peek for RefType<'a> {
     }
     fn display() -> &'static str {
         "reftype"
-    }
-}
-
-/// The types of values that may be used in a struct or array.
-#[allow(missing_docs)]
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-pub enum StorageType<'a> {
-    I8,
-    I16,
-    Val(ValType<'a>),
-}
-
-impl<'a> Parse<'a> for StorageType<'a> {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        let mut l = parser.lookahead1();
-        if l.peek::<kw::i8>() {
-            parser.parse::<kw::i8>()?;
-            Ok(StorageType::I8)
-        } else if l.peek::<kw::i16>() {
-            parser.parse::<kw::i16>()?;
-            Ok(StorageType::I16)
-        } else if l.peek::<ValType>() {
-            Ok(StorageType::Val(parser.parse()?))
-        } else {
-            Err(l.error())
-        }
     }
 }
 
@@ -502,8 +469,8 @@ pub struct StructField<'a> {
     pub id: Option<ast::Id<'a>>,
     /// Whether this field may be mutated or not.
     pub mutable: bool,
-    /// The storage type stored in this field.
-    pub ty: StorageType<'a>,
+    /// The value type stored in this field.
+    pub ty: ValType<'a>,
 }
 
 impl<'a> StructField<'a> {
@@ -516,7 +483,7 @@ impl<'a> StructField<'a> {
             })?;
             (ty, true)
         } else {
-            (parser.parse::<StorageType<'a>>()?, false)
+            (parser.parse::<ValType<'a>>()?, false)
         };
         Ok(StructField { id, mutable, ty })
     }
@@ -527,8 +494,8 @@ impl<'a> StructField<'a> {
 pub struct ArrayType<'a> {
     /// Whether this field may be mutated or not.
     pub mutable: bool,
-    /// The storage type stored in this field.
-    pub ty: StorageType<'a>,
+    /// The value type stored in this field.
+    pub ty: ValType<'a>,
 }
 
 impl<'a> Parse<'a> for ArrayType<'a> {
@@ -540,7 +507,7 @@ impl<'a> Parse<'a> for ArrayType<'a> {
             })?;
             (ty, true)
         } else {
-            (parser.parse::<StorageType<'a>>()?, false)
+            (parser.parse::<ValType<'a>>()?, false)
         };
         Ok(ArrayType { mutable, ty })
     }
