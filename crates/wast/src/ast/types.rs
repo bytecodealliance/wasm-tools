@@ -121,6 +121,21 @@ impl<'a> Parse<'a> for HeapType<'a> {
     }
 }
 
+impl<'a> Peek for HeapType<'a> {
+    fn peek(cursor: Cursor<'_>) -> bool {
+        kw::func::peek(cursor)
+            || kw::r#extern::peek(cursor)
+            || kw::any::peek(cursor)
+            || kw::exn::peek(cursor)
+            || kw::eq::peek(cursor)
+            || kw::i31::peek(cursor)
+            || (ast::LParen::peek(cursor) && kw::r#type::peek2(cursor))
+    }
+    fn display() -> &'static str {
+        "heaptype"
+    }
+}
+
 /// A reference type in a wasm module.
 #[allow(missing_docs)]
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]

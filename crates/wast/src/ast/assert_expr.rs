@@ -17,7 +17,7 @@ pub enum AssertExpression<'a> {
     F64(NanPattern<Float64>),
     V128(V128Pattern),
 
-    RefNull(HeapType<'a>),
+    RefNull(Option<HeapType<'a>>),
     RefExtern(u32),
     RefFunc(Option<Index<'a>>),
 
