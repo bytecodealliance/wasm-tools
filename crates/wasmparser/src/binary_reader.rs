@@ -447,8 +447,9 @@ impl<'a> BinaryReader<'a> {
             self.skip_var_32()?;
         }
         self.skip_var_32()?;
+        let end = self.position;
         Ok(BrTable {
-            buffer: &self.buffer[start..self.position],
+            reader: BinaryReader::new_with_offset(&self.buffer[start..end], start),
             cnt: targets_len as usize,
         })
     }
@@ -1776,34 +1777,42 @@ impl<'a> BrTable<'a> {
         self.len() == 0
     }
 
-    /// Reads br_table entries.
+    /// Returns the list of targets that this `br_table` instruction will be
+    /// jumping to.
     ///
-    /// # Examples
+    /// This method will return an iterator which parses each target of this
+    /// `br_table` as well as the default target. The returned iterator will
+    /// yield `self.len() + 1` elements.
+    ///
+    /// Each iterator item is a tuple of `(u32, bool)`, where the first item is
+    /// the relative depth of the jump and the second item is `true` if the item
+    /// is the default label. You're guaranteed that `true` will only show up
+    /// for the final element of the iterator.
+    ///
+    /// #Examples
+    ///
     /// ```rust
-    /// let buf = vec![0x0e, 0x02, 0x01, 0x02, 0x00];
+    /// let buf = [0x0e, 0x02, 0x01, 0x02, 0x00];
     /// let mut reader = wasmparser::BinaryReader::new(&buf);
     /// let op = reader.read_operator().unwrap();
-    /// if let wasmparser::Operator::BrTable { ref table } = op {
-    ///     let br_table_depths = table.read_table().unwrap();
-    ///     assert!(br_table_depths.0 == vec![1,2].into_boxed_slice() &&
-    ///             br_table_depths.1 == 0);
-    /// } else {
-    ///     unreachable!();
+    /// if let wasmparser::Operator::BrTable { table } = op {
+    ///     let targets = table.targets().collect::<Result<Vec<_>, _>>().unwrap();
+    ///     assert_eq!(targets, [(1, false), (2, false), (0, true)]);
     /// }
     /// ```
-    pub fn read_table(&self) -> Result<(Box<[u32]>, u32)> {
-        let mut reader = BinaryReader::new(self.buffer);
-        let mut table = Vec::new();
-        while !reader.eof() {
-            table.push(reader.read_var_u32()?);
-        }
-        let default_target = table.pop().ok_or_else(|| {
-            BinaryReaderError::new(
-                "br_table missing default target",
-                reader.original_position(),
-            )
-        })?;
-        Ok((table.into_boxed_slice(), default_target))
+    pub fn targets<'b>(&'b self) -> impl Iterator<Item = Result<(u32, bool)>> + 'b {
+        let mut reader = self.reader.clone();
+        (0..self.cnt + 1).map(move |i| {
+            let label = reader.read_var_u32()?;
+            let ret = (label, i == self.cnt);
+            if ret.1 && !reader.eof() {
+                return Err(BinaryReaderError::new(
+                    "trailing data in br_table",
+                    reader.original_position(),
+                ));
+            }
+            Ok(ret)
+        })
     }
 }
 
@@ -1811,54 +1820,14 @@ impl fmt::Debug for BrTable<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut f = f.debug_struct("BrTable");
         f.field("count", &self.cnt);
-        match self.read_table() {
-            Ok((targets, default)) => {
-                f.field("targets", &targets).field("default", &default);
+        match self.targets().collect::<Result<Vec<_>>>() {
+            Ok(targets) => {
+                f.field("targets", &targets);
             }
             Err(_) => {
-                f.field("buffer", &self.buffer);
+                f.field("reader", &self.reader);
             }
         }
         f.finish()
-    }
-}
-
-/// Iterator for `BrTable`.
-///
-/// #Examples
-/// ```rust
-/// let buf = vec![0x0e, 0x02, 0x01, 0x02, 0x00];
-/// let mut reader = wasmparser::BinaryReader::new(&buf);
-/// let op = reader.read_operator().unwrap();
-/// if let wasmparser::Operator::BrTable { ref table } = op {
-///     for depth in table {
-///         println!("BrTable depth: {}", depth);
-///     }
-/// }
-/// ```
-#[derive(Clone, Debug)]
-pub struct BrTableIterator<'a> {
-    reader: BinaryReader<'a>,
-}
-
-impl<'a> IntoIterator for &'a BrTable<'a> {
-    type Item = u32;
-    type IntoIter = BrTableIterator<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        BrTableIterator {
-            reader: BinaryReader::new(self.buffer),
-        }
-    }
-}
-
-impl<'a> Iterator for BrTableIterator<'a> {
-    type Item = u32;
-
-    fn next(&mut self) -> Option<u32> {
-        if self.reader.eof() {
-            return None;
-        }
-        self.reader.read_var_u32().ok()
     }
 }
