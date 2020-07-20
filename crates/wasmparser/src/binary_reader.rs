@@ -13,10 +13,9 @@
  * limitations under the License.
  */
 
-use std::boxed::Box;
 use std::convert::TryInto;
+use std::fmt;
 use std::str;
-use std::vec::Vec;
 
 use crate::limits::*;
 
@@ -1805,6 +1804,22 @@ impl<'a> BrTable<'a> {
             )
         })?;
         Ok((table.into_boxed_slice(), default_target))
+    }
+}
+
+impl fmt::Debug for BrTable<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut f = f.debug_struct("BrTable");
+        f.field("count", &self.cnt);
+        match self.read_table() {
+            Ok((targets, default)) => {
+                f.field("targets", &targets).field("default", &default);
+            }
+            Err(_) => {
+                f.field("buffer", &self.buffer);
+            }
+        }
+        f.finish()
     }
 }
 

@@ -18,6 +18,7 @@ wasmparser = { path = "crates/wasmparser" }
 wasmprinter = { path = "crates/wasmprinter" }
 wast = { path = "crates/wast" }
 wat = { path = "crates/wat" }
+wasmparser-dump = { path = "crates/dump" }
 
 [dev-dependencies]
 anyhow = "1.0"
