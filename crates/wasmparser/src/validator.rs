@@ -526,7 +526,7 @@ impl Validator {
         }
         // ... otherwise if this is a repeated section then only the "module
         // linking header" is allows to have repeats
-        if order == self.order && self.order == Order::ModuleLinkingHeader {
+        if prev == self.order && self.order == Order::ModuleLinkingHeader {
             return Ok(());
         }
         self.create_error("section out of order")
