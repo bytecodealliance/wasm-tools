@@ -262,7 +262,7 @@ pub enum RelocType {
 /// A br_table entries representation.
 #[derive(Clone)]
 pub struct BrTable<'a> {
-    pub(crate) buffer: &'a [u8],
+    pub(crate) reader: crate::BinaryReader<'a>,
     pub(crate) cnt: usize,
 }
 

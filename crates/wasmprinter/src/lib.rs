@@ -670,9 +670,9 @@ impl Printer {
                 )?;
             }
             BrTable { table } => {
-                let (table, default) = table.read_table()?;
                 self.result.push_str("br_table");
-                for item in table.iter().cloned().chain(Some(default)) {
+                for item in table.targets() {
+                    let (item, _is_default) = item?;
                     write!(self.result, " {} (;{};)", item, label(item))?;
                 }
             }
