@@ -1,4 +1,4 @@
-use wasmparser::{Range, Validator};
+use wasmparser::*;
 
 #[test]
 fn simd_not_enabled() {
@@ -15,4 +15,17 @@ fn massive_data_count() {
     assert!(v
         .data_count_section(0x0fffffff, &Range { start: 0, end: 0 })
         .is_err());
+}
+
+#[test]
+fn module_linking_sections_out_of_order() {
+    let mut v = Validator::new();
+    v.wasm_module_linking(true);
+    v.type_section(&TypeSectionReader::new(&[0], 0).unwrap())
+        .unwrap();
+    v.data_section(&DataSectionReader::new(&[0], 0).unwrap())
+        .unwrap();
+    assert!(v
+        .type_section(&TypeSectionReader::new(&[0], 0).unwrap())
+        .is_err())
 }
