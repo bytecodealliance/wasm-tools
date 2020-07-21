@@ -202,6 +202,8 @@ impl TestState {
         // they're invalid anyway so it's not that worrisome.
         if !test.ends_with("invalid-data-segment-offset.txt")
             && !test.ends_with("invalid-elem-segment-offset.txt")
+            // FIXME(WebAssembly/wabt#1492)
+            && !test.ends_with("desugar/locals.txt")
         {
             if let Some(expected) = self.wat2wasm(&test)? {
                 self.binary_compare(&binary, &expected, true)
@@ -254,16 +256,17 @@ impl TestState {
             // not implemented in wabt
             && !test.iter().any(|t| t == "module-linking")
 
-            // wabt's encoding of `ref.is_null` hasn't been updated
-            && !test.ends_with("local/ref.wat")
-            && !test.iter().any(|t| t == "reference-types")
-
             // wabt uses old instruction names for atomics
             && !test.ends_with("atomic-no-shared-memory.txt")
             && !test.ends_with("fold-atomic.txt")
             && !test.ends_with("atomic.txt")
             && !test.ends_with("atomic-align.txt")
             && !test.ends_with("atomic.wast")
+
+            // FIXME(WebAssembly/wabt#1493)
+            && !test.ends_with("fold-reference-types.txt")
+            && !test.ends_with("table_grow.wast")
+            && !test.ends_with("ref.wat")
         {
             if let Some(expected) = self.wasm2wat(contents)? {
                 self.string_compare(&string, &expected)?;
