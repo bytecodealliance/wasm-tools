@@ -32,7 +32,7 @@ pub(crate) struct BinaryReaderErrorInner {
     pub(crate) needed_hint: Option<usize>,
 }
 
-pub type Result<T> = result::Result<T, BinaryReaderError>;
+pub type Result<T, E = BinaryReaderError> = result::Result<T, E>;
 
 impl Error for BinaryReaderError {}
 

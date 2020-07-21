@@ -13,13 +13,13 @@
  * limitations under the License.
  */
 
-use std::cmp::min;
-
+use crate::limits::MAX_WASM_FUNCTION_LOCALS;
 use crate::primitives::{MemoryImmediate, Operator, SIMDLaneIndex, Type, TypeOrFuncType};
 use crate::{
-    wasm_func_type_inputs, wasm_func_type_outputs, BinaryReaderError, WasmFuncType, WasmGlobalType,
-    WasmModuleResources, WasmTableType, WasmType, WasmTypeDef,
+    wasm_func_type_inputs, wasm_func_type_outputs, BinaryReaderError, Result, WasmFeatures,
+    WasmFuncType, WasmGlobalType, WasmModuleResources, WasmTableType, WasmType,
 };
+use std::cmp::min;
 
 #[derive(Debug)]
 struct BlockState {
@@ -315,86 +315,21 @@ impl OperatorValidatorError {
 
 type OperatorValidatorResult<T> = std::result::Result<T, OperatorValidatorError>;
 
-#[derive(Copy, Clone, Debug)]
-pub struct OperatorValidatorConfig {
-    pub enable_threads: bool,
-    pub enable_reference_types: bool,
-    pub enable_simd: bool,
-    pub enable_bulk_memory: bool,
-    pub enable_multi_value: bool,
-    pub enable_tail_call: bool,
-    pub enable_module_linking: bool,
-
-    #[cfg(feature = "deterministic")]
-    pub deterministic_only: bool,
-}
-
-pub(crate) const DEFAULT_OPERATOR_VALIDATOR_CONFIG: OperatorValidatorConfig =
-    OperatorValidatorConfig {
-        enable_threads: false,
-        enable_reference_types: false,
-        enable_simd: false,
-        enable_bulk_memory: false,
-        enable_multi_value: true,
-        enable_tail_call: false,
-        enable_module_linking: false,
-
-        #[cfg(feature = "deterministic")]
-        deterministic_only: true,
-    };
-
-pub(crate) fn check_value_type(
-    ty: Type,
-    operator_config: &OperatorValidatorConfig,
-) -> OperatorValidatorResult<()> {
-    match ty {
-        Type::I32 | Type::I64 | Type::F32 | Type::F64 => Ok(()),
-        Type::FuncRef | Type::ExternRef => {
-            if !operator_config.enable_reference_types {
-                return Err(OperatorValidatorError::new(
-                    "reference types support is not enabled",
-                ));
-            }
-            Ok(())
-        }
-        Type::V128 => {
-            if !operator_config.enable_simd {
-                return Err(OperatorValidatorError::new("SIMD support is not enabled"));
-            }
-            Ok(())
-        }
-        _ => Err(OperatorValidatorError::new("invalid value type")),
-    }
-}
-
 #[derive(Debug)]
 pub(crate) struct OperatorValidator {
     func_state: FuncState,
-    config: OperatorValidatorConfig,
+    features: WasmFeatures,
 }
 
 impl OperatorValidator {
-    pub fn new<F, T>(
-        func_type: &F,
-        locals: &[(u32, Type)],
-        config: OperatorValidatorConfig,
-    ) -> OperatorValidatorResult<OperatorValidator>
+    pub fn new<F, T>(func_type: &F, features: &WasmFeatures) -> OperatorValidator
     where
         F: WasmFuncType<Type = T>,
         T: WasmType,
     {
-        let local_types = {
-            let mut local_types = wasm_func_type_inputs(func_type)
-                .map(WasmType::to_parser_type)
-                .collect::<Vec<_>>();
-            for local in locals {
-                check_value_type(local.1, &config)?;
-                for _ in 0..local.0 {
-                    local_types.push(local.1);
-                }
-            }
-            local_types
-        };
+        let local_types = wasm_func_type_inputs(func_type)
+            .map(WasmType::to_parser_type)
+            .collect::<Vec<_>>();
         let mut blocks = Vec::new();
         let last_returns = wasm_func_type_outputs(func_type)
             .map(WasmType::to_parser_type)
@@ -409,15 +344,37 @@ impl OperatorValidator {
             polymorphic_values: None,
         });
 
-        Ok(OperatorValidator {
+        OperatorValidator {
             func_state: FuncState {
                 local_types,
                 blocks,
                 stack_types: Vec::new(),
                 end_function: false,
             },
-            config,
-        })
+            features: *features,
+        }
+    }
+    pub fn define_locals(&mut self, offset: usize, count: u32, ty: Type) -> Result<()> {
+        if (MAX_WASM_FUNCTION_LOCALS - self.func_state.local_types.len())
+            .checked_sub(count as usize)
+            .is_none()
+        {
+            if count
+                .checked_add(self.func_state.local_types.len() as u32)
+                .is_none()
+            {
+                return Err(BinaryReaderError::new("locals overflow", offset));
+            } else {
+                return Err(BinaryReaderError::new("locals exceed maximum", offset));
+            }
+        }
+        self.features
+            .check_value_type(ty)
+            .map_err(|e| BinaryReaderError::new(e, offset))?;
+        for _ in 0..count {
+            self.func_state.local_types.push(ty);
+        }
+        Ok(())
     }
 
     fn check_frame_size(&self, require_count: usize) -> OperatorValidatorResult<()> {
@@ -490,7 +447,7 @@ impl OperatorValidator {
         block: &BlockState,
         reserve_items: usize,
     ) -> OperatorValidatorResult<()> {
-        if !self.config.enable_multi_value && block.return_types.len() > 1 {
+        if !self.features.multi_value && block.return_types.len() > 1 {
             return Err(OperatorValidatorError::new(
                 "blocks, loops, and ifs may only return at most one \
                  value when multi-value is not enabled",
@@ -525,7 +482,7 @@ impl OperatorValidator {
         function_index: u32,
         resources: impl WasmModuleResources,
     ) -> OperatorValidatorResult<()> {
-        let ty = match resources.func_type_at(function_index) {
+        let ty = match resources.type_of_function(function_index) {
             Some(i) => i,
             None => {
                 bail_op_err!(
@@ -685,7 +642,7 @@ impl OperatorValidator {
 
     #[cfg(feature = "deterministic")]
     fn check_non_deterministic_enabled(&self) -> OperatorValidatorResult<()> {
-        if !self.config.deterministic_only {
+        if !self.features.deterministic_only {
             return Err(OperatorValidatorError::new(
                 "deterministic_only support is not enabled",
             ));
@@ -700,7 +657,7 @@ impl OperatorValidator {
     }
 
     fn check_threads_enabled(&self) -> OperatorValidatorResult<()> {
-        if !self.config.enable_threads {
+        if !self.features.threads {
             return Err(OperatorValidatorError::new(
                 "threads support is not enabled",
             ));
@@ -709,7 +666,7 @@ impl OperatorValidator {
     }
 
     fn check_reference_types_enabled(&self) -> OperatorValidatorResult<()> {
-        if !self.config.enable_reference_types {
+        if !self.features.reference_types {
             return Err(OperatorValidatorError::new(
                 "reference types support is not enabled",
             ));
@@ -718,14 +675,14 @@ impl OperatorValidator {
     }
 
     fn check_simd_enabled(&self) -> OperatorValidatorResult<()> {
-        if !self.config.enable_simd {
+        if !self.features.simd {
             return Err(OperatorValidatorError::new("SIMD support is not enabled"));
         }
         Ok(())
     }
 
     fn check_bulk_memory_enabled(&self) -> OperatorValidatorResult<()> {
-        if !self.config.enable_bulk_memory {
+        if !self.features.bulk_memory {
             return Err(OperatorValidatorError::new(
                 "bulk memory support is not enabled",
             ));
@@ -766,7 +723,7 @@ impl OperatorValidator {
             TypeOrFuncType::Type(Type::V128) => self.check_simd_enabled(),
             TypeOrFuncType::FuncType(idx) => {
                 let ty = func_type_at(&resources, idx)?;
-                if !self.config.enable_multi_value {
+                if !self.features.multi_value {
                     if ty.len_outputs() > 1 {
                         return Err(OperatorValidatorError::new(
                             "blocks, loops, and ifs may only return at most one \
@@ -927,7 +884,7 @@ impl OperatorValidator {
             Operator::Return => self.check_return()?,
             Operator::Call { function_index } => self.check_call(function_index, resources)?,
             Operator::ReturnCall { function_index } => {
-                if !self.config.enable_tail_call {
+                if !self.features.tail_call {
                     return Err(OperatorValidatorError::new(
                         "tail calls support is not enabled",
                     ));
@@ -939,7 +896,7 @@ impl OperatorValidator {
                 self.check_call_indirect(index, table_index, resources)?
             }
             Operator::ReturnCallIndirect { index, table_index } => {
-                if !self.config.enable_tail_call {
+                if !self.features.tail_call {
                     return Err(OperatorValidatorError::new(
                         "tail calls support is not enabled",
                     ));
@@ -1562,7 +1519,7 @@ impl OperatorValidator {
             }
             Operator::RefFunc { function_index } => {
                 self.check_reference_types_enabled()?;
-                if resources.func_type_at(function_index).is_none() {
+                if resources.type_of_function(function_index).is_none() {
                     return Err(OperatorValidatorError::new(
                         "unknown function: function index out of bounds",
                     ));
@@ -2025,15 +1982,8 @@ impl OperatorValidator {
 fn func_type_at<T: WasmModuleResources>(
     resources: &T,
     at: u32,
-) -> OperatorValidatorResult<&<T::TypeDef as WasmTypeDef>::FuncType> {
-    let ty = match resources.type_at(at) {
-        Some(ty) => ty,
-        None => {
-            return Err(OperatorValidatorError::new(
-                "unknown type: type index out of bounds",
-            ))
-        }
-    };
-    ty.as_func()
-        .ok_or_else(|| OperatorValidatorError::new("type index not a function type"))
+) -> OperatorValidatorResult<&T::FuncType> {
+    resources
+        .func_type_at(at)
+        .ok_or_else(|| OperatorValidatorError::new("unknown type: type index out of bounds"))
 }

@@ -60,11 +60,8 @@ pub use crate::module_resources::WasmMemoryType;
 pub use crate::module_resources::WasmModuleResources;
 pub use crate::module_resources::WasmTableType;
 pub use crate::module_resources::WasmType;
-pub use crate::module_resources::WasmTypeDef;
 
 pub(crate) use crate::module_resources::{wasm_func_type_inputs, wasm_func_type_outputs};
-
-pub use crate::operators_validator::OperatorValidatorConfig;
 
 pub use crate::parser::*;
 pub use crate::readers::*;

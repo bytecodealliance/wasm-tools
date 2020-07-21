@@ -73,7 +73,7 @@ impl Range {
 }
 
 /// A binary reader of the WebAssembly structures and types.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash)]
 pub struct BinaryReader<'a> {
     pub(crate) buffer: &'a [u8],
     pub(crate) position: usize,
@@ -192,37 +192,6 @@ impl<'a> BinaryReader<'a> {
                 self.original_position() - 1,
             )),
         }
-    }
-
-    /// Read a `count` indicating the number of times to call `read_local_decl`.
-    pub fn read_local_count(&mut self) -> Result<usize> {
-        let local_count = self.read_var_u32()? as usize;
-        if local_count > MAX_WASM_FUNCTION_LOCALS {
-            return Err(BinaryReaderError::new(
-                "local_count is out of bounds",
-                self.original_position() - 1,
-            ));
-        }
-        Ok(local_count)
-    }
-
-    /// Read a `(count, value_type)` declaration of local variables of the same type.
-    pub fn read_local_decl(&mut self, locals_total: &mut usize) -> Result<(u32, Type)> {
-        let count = self.read_var_u32()?;
-        let value_type = self.read_type()?;
-        *locals_total = locals_total.checked_add(count as usize).ok_or_else(|| {
-            BinaryReaderError::new(
-                "locals_total is out of bounds",
-                self.original_position() - 1,
-            )
-        })?;
-        if *locals_total > MAX_WASM_FUNCTION_LOCALS {
-            return Err(BinaryReaderError::new(
-                "locals_total is out of bounds",
-                self.original_position() - 1,
-            ));
-        }
-        Ok((count, value_type))
     }
 
     pub(crate) fn read_external_kind(&mut self) -> Result<ExternalKind> {

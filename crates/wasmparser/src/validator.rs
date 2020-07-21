@@ -14,83 +14,15 @@
  */
 
 use crate::limits::*;
-use crate::operators_validator::{
-    FunctionEnd, OperatorValidator, OperatorValidatorConfig, DEFAULT_OPERATOR_VALIDATOR_CONFIG,
-};
 use crate::WasmModuleResources;
 use crate::{Alias, AliasedInstance, ExternalKind, Import, ImportSectionEntryType};
 use crate::{BinaryReaderError, GlobalType, MemoryType, Range, Result, TableType, Type};
 use crate::{DataKind, ElementItem, ElementKind, InitExpr, Instance, Operator};
-use crate::{Export, ExportType, FunctionBody, OperatorsReader, Parser, Payload};
+use crate::{Export, ExportType, FunctionBody, Parser, Payload};
 use crate::{FuncType, ResizableLimits, SectionReader, SectionWithLimitedItems};
 use std::collections::{HashMap, HashSet};
 use std::mem;
 use std::sync::Arc;
-
-/// Test whether the given buffer contains a valid WebAssembly function.
-/// The resources parameter contains all needed data to validate the operators.
-pub fn validate_function_body(
-    bytes: &[u8],
-    offset: usize,
-    func_index: u32,
-    resources: impl WasmModuleResources,
-    operator_config: Option<OperatorValidatorConfig>,
-) -> Result<()> {
-    let operator_config = operator_config.unwrap_or(DEFAULT_OPERATOR_VALIDATOR_CONFIG);
-    let function_body = FunctionBody::new(offset, bytes);
-    let mut locals_reader = function_body.get_locals_reader()?;
-    let local_count = locals_reader.get_count() as usize;
-    if local_count > MAX_WASM_FUNCTION_LOCALS {
-        return Err(BinaryReaderError::new(
-            "locals exceed maximum",
-            locals_reader.original_position(),
-        ));
-    }
-    let mut locals: Vec<(u32, Type)> = Vec::with_capacity(local_count);
-    let mut locals_total: usize = 0;
-    for _ in 0..local_count {
-        let (count, ty) = locals_reader.read()?;
-        locals_total = locals_total.checked_add(count as usize).ok_or_else(|| {
-            BinaryReaderError::new("locals overflow", locals_reader.original_position())
-        })?;
-        if locals_total > MAX_WASM_FUNCTION_LOCALS {
-            return Err(BinaryReaderError::new(
-                "locals exceed maximum",
-                locals_reader.original_position(),
-            ));
-        }
-        locals.push((count, ty));
-    }
-    let operators_reader = function_body.get_operators_reader()?;
-    let func_type = resources
-        .func_type_at(func_index)
-        // Note: This was an out-of-bounds access before the change to return `Option`
-        // so I assumed it is considered a bug to access a non-existing function
-        // id here and went with panicking instead of returning a proper error.
-        .expect("the function index of the validated function itself is out of bounds");
-    let mut operator_validator = OperatorValidator::new(func_type, &locals, operator_config)
-        .map_err(|e| e.set_offset(offset))?;
-    let mut eof_found = false;
-    let mut last_op = 0;
-    for item in operators_reader.into_iter_with_offsets() {
-        let (ref op, offset) = item?;
-        match operator_validator
-            .process_operator(op, &resources)
-            .map_err(|e| e.set_offset(offset))?
-        {
-            FunctionEnd::Yes => {
-                eof_found = true;
-            }
-            FunctionEnd::No => {
-                last_op = offset;
-            }
-        }
-    }
-    if !eof_found {
-        return Err(BinaryReaderError::new("end of function not found", last_op));
-    }
-    Ok(())
-}
 
 /// Test whether the given buffer contains a valid WebAssembly module,
 /// analogous to [`WebAssembly.validate`][js] in the JS API.
@@ -207,16 +139,25 @@ struct ModuleState {
     parent: Option<Arc<ModuleState>>,
 }
 
-#[derive(Clone)]
-struct WasmFeatures {
-    reference_types: bool,
-    module_linking: bool,
-    simd: bool,
-    multi_value: bool,
-    threads: bool,
-    tail_call: bool,
-    bulk_memory: bool,
-    deterministic_only: bool,
+/// Flags for features that are enabled for validation.
+#[derive(Debug, Copy, Clone)]
+pub struct WasmFeatures {
+    /// The WebAssembly reference types proposal
+    pub reference_types: bool,
+    /// The WebAssembly module linking proposal
+    pub module_linking: bool,
+    /// The WebAssembly SIMD proposal
+    pub simd: bool,
+    /// The WebAssembly multi-value proposal (enabled by default)
+    pub multi_value: bool,
+    /// The WebAssembly threads proposal
+    pub threads: bool,
+    /// The WebAssembly tail-call proposal
+    pub tail_call: bool,
+    /// The WebAssembly bulk memory operations proposal
+    pub bulk_memory: bool,
+    /// Whether or not only deterministic instructions are allowed
+    pub deterministic_only: bool,
 }
 
 impl Default for WasmFeatures {
@@ -316,10 +257,7 @@ pub enum ValidPayload<'a> {
     /// validator that was in use should be popped off the stack to resume.
     Pop,
     /// A function was found to be validate.
-    ///
-    /// The function validator will need to be run over the operators in
-    /// [`OperatorsReader`] to finish validation.
-    Func(FuncValidator, OperatorsReader<'a>),
+    Func(FuncValidator<ValidatorResources>, FunctionBody<'a>),
 }
 
 impl Validator {
@@ -332,74 +270,9 @@ impl Validator {
         Validator::default()
     }
 
-    /// Configures whether the reference types proposal for WebAssembly is
-    /// enabled.
-    ///
-    /// The default for this option is `false`.
-    pub fn wasm_reference_types(&mut self, enabled: bool) -> &mut Validator {
-        self.features.reference_types = enabled;
-        self
-    }
-
-    /// Configures whether the module linking proposal for WebAssembly is
-    /// enabled.
-    ///
-    /// The default for this option is `false`.
-    pub fn wasm_module_linking(&mut self, enabled: bool) -> &mut Validator {
-        self.features.module_linking = enabled;
-        self
-    }
-
-    /// Configures whether the SIMD proposal for WebAssembly is
-    /// enabled.
-    ///
-    /// The default for this option is `false`.
-    pub fn wasm_simd(&mut self, enabled: bool) -> &mut Validator {
-        self.features.simd = enabled;
-        self
-    }
-
-    /// Configures whether the threads proposal for WebAssembly is
-    /// enabled.
-    ///
-    /// The default for this option is `false`.
-    pub fn wasm_threads(&mut self, enabled: bool) -> &mut Validator {
-        self.features.threads = enabled;
-        self
-    }
-
-    /// Configures whether the tail call proposal for WebAssembly is
-    /// enabled.
-    ///
-    /// The default for this option is `false`.
-    pub fn wasm_tail_call(&mut self, enabled: bool) -> &mut Validator {
-        self.features.tail_call = enabled;
-        self
-    }
-
-    /// Configures whether the multi-value proposal for WebAssembly is
-    /// enabled.
-    ///
-    /// The default for this option is `true`.
-    pub fn wasm_multi_value(&mut self, enabled: bool) -> &mut Validator {
-        self.features.multi_value = enabled;
-        self
-    }
-
-    /// Configures whether the bulk-memory proposal for WebAssembly is
-    /// enabled.
-    ///
-    /// The default for this option is `true`.
-    pub fn wasm_bulk_memory(&mut self, enabled: bool) -> &mut Validator {
-        self.features.bulk_memory = enabled;
-        self
-    }
-
-    /// Configures whether only deterministic instructions are allowed to validate.
-    ///
-    /// The default for this option is `true`.
-    pub fn deterministic_only(&mut self, enabled: bool) -> &mut Validator {
-        self.features.deterministic_only = enabled;
+    /// Configures the enabled WebAssembly features for this `Validator`.
+    pub fn wasm_features(&mut self, features: WasmFeatures) -> &mut Validator {
+        self.features = features;
         self
     }
 
@@ -426,12 +299,8 @@ impl Validator {
             }
         }
 
-        for (mut validator, ops) in functions_to_validate {
-            for item in ops.into_iter_with_offsets() {
-                let (op, offset) = item?;
-                validator.op(offset, &op)?;
-            }
-            validator.finish()?;
+        for (mut validator, body) in functions_to_validate {
+            validator.validate(&body)?;
         }
         Ok(())
     }
@@ -472,8 +341,8 @@ impl Validator {
                 size: _,
             } => self.code_section_start(*count, range)?,
             CodeSectionEntry(body) => {
-                let (func_validator, ops) = self.code_section_entry(body)?;
-                return Ok(ValidPayload::Func(func_validator, ops));
+                let func_validator = self.code_section_entry()?;
+                return Ok(ValidPayload::Func(func_validator, body.clone()));
             }
             ModuleCodeSectionStart {
                 count,
@@ -735,23 +604,9 @@ impl Validator {
     }
 
     fn value_type(&self, ty: Type) -> Result<()> {
-        match ty {
-            Type::I32 | Type::I64 | Type::F32 | Type::F64 => Ok(()),
-            Type::FuncRef | Type::ExternRef => {
-                if self.features.reference_types {
-                    Ok(())
-                } else {
-                    self.create_error("reference types support is not enabled")
-                }
-            }
-            Type::V128 => {
-                if self.features.simd {
-                    Ok(())
-                } else {
-                    self.create_error("SIMD support is not enabled")
-                }
-            }
-            _ => self.create_error("invalid value type"),
+        match self.features.check_value_type(ty) {
+            Ok(()) => Ok(()),
+            Err(e) => self.create_error(e),
         }
     }
 
@@ -1532,10 +1387,16 @@ impl Validator {
                 match items.read()? {
                     ElementItem::Null(ty) => {
                         if ty != e.ty {
-                            return me.create_error("null type doesn't match element type");
+                            return me.create_error(
+                                "type mismatch: null type doesn't match element type",
+                            );
                         }
                     }
                     ElementItem::Func(f) => {
+                        if e.ty != Type::FuncRef {
+                            return me
+                                .create_error("type mismatch: segment does not have funcref type");
+                        }
                         me.get_func_type_index(me.state.def(f))?;
                         me.state.assert_mut().function_references.insert(f);
                     }
@@ -1631,56 +1492,12 @@ impl Validator {
     /// validating the function. The [`FuncValidator`] can be sent to
     /// another thread, for example, to offload actual processing of functions
     /// elsewhere.
-    pub fn code_section_entry<'a>(
-        &mut self,
-        body: &FunctionBody<'a>,
-    ) -> Result<(FuncValidator, OperatorsReader<'a>)> {
+    pub fn code_section_entry(&mut self) -> Result<FuncValidator<ValidatorResources>> {
         let ty_index = self.state.func_type_indices[self.code_section_index];
         self.code_section_index += 1;
-        self.offset = body.get_binary_reader().original_position();
-
-        let mut locals = body.get_locals_reader()?;
-
-        let mut list = Vec::new();
-        let mut total = 0u32;
-        let max = MAX_WASM_FUNCTION_LOCALS as u32;
-        if locals.get_count() > max {
-            return self.create_error("locals exceed maximum");
-        }
-        for _ in 0..locals.get_count() {
-            self.offset = locals.original_position();
-            let (cnt, ty) = locals.read()?;
-            total = match total.checked_add(cnt) {
-                Some(total) => total,
-                None => return self.create_error("locals overflow"),
-            };
-            if total > max {
-                return self.create_error("locals exceed maximum");
-            }
-            list.push((cnt, ty));
-        }
-        let config = OperatorValidatorConfig {
-            enable_module_linking: self.features.module_linking,
-            enable_reference_types: self.features.reference_types,
-            enable_multi_value: self.features.multi_value,
-            enable_simd: self.features.simd,
-            enable_bulk_memory: self.features.bulk_memory,
-            enable_threads: self.features.threads,
-            enable_tail_call: self.features.tail_call,
-            #[cfg(feature = "deterministic")]
-            deterministic_only: self.features.deterministic_only,
-        };
+        let resources = ValidatorResources(self.state.arc().clone());
         let ty = self.func_type_at(ty_index)?;
-        Ok((
-            FuncValidator {
-                validator: OperatorValidator::new(ty.item, &list, config)
-                    .map_err(|e| e.set_offset(self.offset))?,
-                state: self.state.arc().clone(),
-                offset: body.get_binary_reader().original_position(),
-                eof_found: false,
-            },
-            body.get_operators_reader()?,
-        ))
+        Ok(FuncValidator::new(ty.item, resources, &self.features))
     }
 
     /// Validates [`Payload::DataSection`](crate::Payload).
@@ -1737,6 +1554,29 @@ impl Validator {
             }
         }
         Ok(())
+    }
+}
+
+impl WasmFeatures {
+    pub(crate) fn check_value_type(&self, ty: Type) -> Result<(), &'static str> {
+        match ty {
+            Type::I32 | Type::I64 | Type::F32 | Type::F64 => Ok(()),
+            Type::FuncRef | Type::ExternRef => {
+                if self.reference_types {
+                    Ok(())
+                } else {
+                    Err("reference types support is not enabled")
+                }
+            }
+            Type::V128 => {
+                if self.simd {
+                    Ok(())
+                } else {
+                    Err("SIMD support is not enabled")
+                }
+            }
+            _ => Err("invalid value type"),
+        }
     }
 }
 
@@ -1814,6 +1654,59 @@ impl<T> Def<T> {
             depth: self.depth,
             item: item,
         }
+    }
+}
+
+/// The implementation of [`WasmModuleResources`] used by [`Validator`].
+pub struct ValidatorResources(Arc<ModuleState>);
+
+impl WasmModuleResources for ValidatorResources {
+    type FuncType = crate::FuncType;
+    type TableType = crate::TableType;
+    type MemoryType = crate::MemoryType;
+    type GlobalType = crate::GlobalType;
+
+    fn table_at(&self, at: u32) -> Option<&Self::TableType> {
+        self.0.get_table(self.0.def(at)).map(|t| &t.item)
+    }
+
+    fn memory_at(&self, at: u32) -> Option<&Self::MemoryType> {
+        self.0.get_memory(self.0.def(at))
+    }
+
+    fn global_at(&self, at: u32) -> Option<&Self::GlobalType> {
+        self.0.get_global(self.0.def(at)).map(|t| &t.item)
+    }
+
+    fn func_type_at(&self, at: u32) -> Option<&Self::FuncType> {
+        match self.0.get_type(self.0.def(at))?.item {
+            TypeDef::Func(f) => Some(f),
+            _ => None,
+        }
+    }
+
+    fn type_of_function(&self, at: u32) -> Option<&Self::FuncType> {
+        let ty = self.0.get_func_type_index(self.0.def(at))?;
+        match self.0.get_type(ty)?.item {
+            TypeDef::Func(f) => Some(f),
+            _ => None,
+        }
+    }
+
+    fn element_type_at(&self, at: u32) -> Option<Type> {
+        self.0.element_types.get(at as usize).cloned()
+    }
+
+    fn element_count(&self) -> u32 {
+        self.0.element_types.len() as u32
+    }
+
+    fn data_count(&self) -> u32 {
+        self.0.data_count.unwrap_or(0)
+    }
+
+    fn is_function_referenced(&self, idx: u32) -> bool {
+        self.0.function_references.contains(&idx)
     }
 }
 

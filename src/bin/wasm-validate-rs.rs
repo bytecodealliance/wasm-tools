@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use rayon::prelude::*;
 use std::env;
 use std::time::Instant;
-use wasmparser::{Parser, ValidPayload, Validator};
+use wasmparser::{Parser, ValidPayload, Validator, WasmFeatures};
 
 fn main() -> Result<()> {
     env_logger::init();
@@ -57,15 +57,16 @@ fn main() -> Result<()> {
     // Create a `Validator` configured with all of the wasm features according
     // to our CLI flags.
     let mut validator = Validator::new();
-    validator
-        .wasm_threads(matches.opt_present("enable-threads"))
-        .wasm_reference_types(matches.opt_present("enable-reference-types"))
-        .wasm_simd(matches.opt_present("enable-simd"))
-        .wasm_bulk_memory(matches.opt_present("enable-bulk-memory"))
-        .wasm_multi_value(matches.opt_present("enable-multi-value"))
-        .wasm_tail_call(matches.opt_present("enable-tail-call"))
-        .wasm_module_linking(matches.opt_present("enable-module-linking"))
-        .deterministic_only(matches.opt_present("deterministic-only"));
+    validator.wasm_features(WasmFeatures {
+        threads: matches.opt_present("enable-threads"),
+        reference_types: matches.opt_present("enable-reference-types"),
+        simd: matches.opt_present("enable-simd"),
+        bulk_memory: matches.opt_present("enable-bulk-memory"),
+        multi_value: matches.opt_present("enable-multi-value"),
+        tail_call: matches.opt_present("enable-tail-call"),
+        module_linking: matches.opt_present("enable-module-linking"),
+        deterministic_only: matches.opt_present("deterministic-only"),
+    });
 
     // Note that here we're copying the contents of `Validator::validate_all`,
     // but the end is followed up with a parallel iteration over the functions
@@ -87,7 +88,7 @@ fn main() -> Result<()> {
                 stack.push(validator);
                 validator = next;
             }
-            ValidPayload::Func(validator, ops) => functions_to_validate.push((validator, ops)),
+            ValidPayload::Func(validator, body) => functions_to_validate.push((validator, body)),
         }
     }
     log::info!("module structure validated in {:?}", start.elapsed());
@@ -98,13 +99,7 @@ fn main() -> Result<()> {
     let start = Instant::now();
     functions_to_validate
         .into_par_iter()
-        .try_for_each(|(mut validator, ops)| {
-            for item in ops.into_iter_with_offsets() {
-                let (op, offset) = item?;
-                validator.op(offset, &op)?;
-            }
-            validator.finish()
-        })?;
+        .try_for_each(|(mut validator, body)| validator.validate(&body))?;
     log::info!("functions validated in {:?}", start.elapsed());
     Ok(())
 }
