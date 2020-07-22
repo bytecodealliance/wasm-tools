@@ -103,4 +103,9 @@ impl<T: WasmModuleResources> FuncValidator<T> {
         }
         Ok(())
     }
+
+    /// Returns the underlying module resources that this validator is using.
+    pub fn resources(&self) -> &T {
+        &self.resources
+    }
 }
