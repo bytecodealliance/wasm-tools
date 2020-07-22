@@ -16,8 +16,8 @@
 use crate::limits::MAX_WASM_FUNCTION_LOCALS;
 use crate::primitives::{MemoryImmediate, Operator, SIMDLaneIndex, Type, TypeOrFuncType};
 use crate::{
-    wasm_func_type_inputs, wasm_func_type_outputs, BinaryReaderError, Result, WasmFeatures,
-    WasmFuncType, WasmGlobalType, WasmModuleResources, WasmTableType, WasmType,
+    BinaryReaderError, Result, WasmFeatures, WasmFuncType, WasmGlobalType, WasmModuleResources,
+    WasmTableType, WasmType,
 };
 use std::cmp::min;
 
@@ -131,12 +131,8 @@ impl FuncState {
             TypeOrFuncType::FuncType(idx) => {
                 let ty = func_type_at(&resources, idx)?;
                 (
-                    wasm_func_type_inputs(ty)
-                        .map(WasmType::to_parser_type)
-                        .collect::<Vec<_>>(),
-                    wasm_func_type_outputs(ty)
-                        .map(WasmType::to_parser_type)
-                        .collect::<Vec<_>>(),
+                    ty.inputs().collect::<Vec<_>>(),
+                    ty.outputs().collect::<Vec<_>>(),
                 )
             }
         };
@@ -327,13 +323,9 @@ impl OperatorValidator {
         F: WasmFuncType<Type = T>,
         T: WasmType,
     {
-        let local_types = wasm_func_type_inputs(func_type)
-            .map(WasmType::to_parser_type)
-            .collect::<Vec<_>>();
+        let local_types = func_type.inputs().collect::<Vec<_>>();
         let mut blocks = Vec::new();
-        let last_returns = wasm_func_type_outputs(func_type)
-            .map(WasmType::to_parser_type)
-            .collect::<Vec<_>>();
+        let last_returns = func_type.outputs().collect::<Vec<_>>();
         blocks.push(BlockState {
             start_types: vec![],
             return_types: last_returns,
@@ -491,11 +483,9 @@ impl OperatorValidator {
                 );
             }
         };
-        self.check_operands(wasm_func_type_inputs(ty).map(WasmType::to_parser_type))?;
-        self.func_state.change_frame_with_types(
-            ty.len_inputs(),
-            wasm_func_type_outputs(ty).map(WasmType::to_parser_type),
-        )?;
+        self.check_operands(ty.inputs())?;
+        self.func_state
+            .change_frame_with_types(ty.len_inputs(), ty.outputs())?;
         Ok(())
     }
 
@@ -513,15 +503,13 @@ impl OperatorValidator {
         let ty = func_type_at(&resources, index)?;
         let types = {
             let mut types = Vec::with_capacity(ty.len_inputs() + 1);
-            types.extend(wasm_func_type_inputs(ty).map(WasmType::to_parser_type));
+            types.extend(ty.inputs());
             types.push(Type::I32);
             types
         };
         self.check_operands(types.into_iter())?;
-        self.func_state.change_frame_with_types(
-            ty.len_inputs() + 1,
-            wasm_func_type_outputs(ty).map(WasmType::to_parser_type),
-        )?;
+        self.func_state
+            .change_frame_with_types(ty.len_inputs() + 1, ty.outputs())?;
         Ok(())
     }
 
@@ -753,11 +741,8 @@ impl OperatorValidator {
             let func_ty = func_type_at(&resources, idx)?;
             let len = func_ty.len_inputs();
             self.check_frame_size(len + skip)?;
-            for (i, ty) in wasm_func_type_inputs(func_ty).enumerate() {
-                if !self
-                    .func_state
-                    .assert_stack_type_at(len - 1 - i + skip, ty.to_parser_type())
-                {
+            for (i, ty) in func_ty.inputs().enumerate() {
+                if !self.func_state.assert_stack_type_at(len - 1 - i + skip, ty) {
                     return Err(OperatorValidatorError::new(
                         "stack operand type mismatch for block",
                     ));

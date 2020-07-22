@@ -54,15 +54,7 @@ pub use crate::primitives::TypeDef;
 pub use crate::primitives::TypeOrFuncType;
 pub use crate::primitives::V128;
 
-pub use crate::module_resources::WasmFuncType;
-pub use crate::module_resources::WasmGlobalType;
-pub use crate::module_resources::WasmMemoryType;
-pub use crate::module_resources::WasmModuleResources;
-pub use crate::module_resources::WasmTableType;
-pub use crate::module_resources::WasmType;
-
-pub(crate) use crate::module_resources::{wasm_func_type_inputs, wasm_func_type_outputs};
-
+pub use crate::module_resources::*;
 pub use crate::parser::*;
 pub use crate::readers::*;
 pub use crate::validator::*;

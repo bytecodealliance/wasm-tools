@@ -13,6 +13,8 @@
  * limitations under the License.
  */
 
+use std::ops::Range;
+
 /// Types that qualify as Wasm types for validation purposes.
 ///
 /// Must be comparable with `wasmparser` given Wasm types and
@@ -49,188 +51,136 @@ pub trait WasmFuncType {
     /// The returned type may be wrapped by the user crate and thus
     /// the actually returned type only has to be comparable to a Wasm type.
     fn output_at(&self, at: u32) -> Option<&Self::Type>;
+
+    /// Returns the list of inputs as an iterator.
+    fn inputs(&self) -> WasmFuncTypeInputs<'_, Self>
+    where
+        Self: Sized,
+    {
+        WasmFuncTypeInputs {
+            func_type: self,
+            range: 0..self.len_inputs() as u32,
+        }
+    }
+
+    /// Returns the list of outputs as an iterator.
+    fn outputs(&self) -> WasmFuncTypeOutputs<'_, Self>
+    where
+        Self: Sized,
+    {
+        WasmFuncTypeOutputs {
+            func_type: self,
+            range: 0..self.len_outputs() as u32,
+        }
+    }
 }
 
 /// Iterator over the inputs of a Wasm function type.
-pub(crate) struct WasmFuncTypeInputs<'a, F, T>
-where
-    F: WasmFuncType<Type = T>,
-    T: WasmType + 'a,
-{
+pub struct WasmFuncTypeInputs<'a, T> {
     /// The iterated-over function type.
-    func_type: &'a F,
-    /// The current starting index.
-    start: u32,
-    /// The current ending index.
-    end: u32,
+    func_type: &'a T,
+    /// The range we're iterating over.
+    range: Range<u32>,
 }
 
-impl<'a, F, T> WasmFuncTypeInputs<'a, F, T>
+impl<T> Iterator for WasmFuncTypeInputs<'_, T>
 where
-    F: WasmFuncType<Type = T>,
-    T: WasmType + 'a,
+    T: WasmFuncType,
 {
-    fn new(func_type: &'a F) -> Self {
-        Self {
-            func_type,
-            start: 0,
-            end: func_type.len_inputs() as u32,
-        }
-    }
-}
-
-impl<'a, F, T> Iterator for WasmFuncTypeInputs<'a, F, T>
-where
-    F: WasmFuncType<Type = T>,
-    T: WasmType + 'a,
-{
-    type Item = &'a T;
+    type Item = crate::Type;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.start == self.end {
-            return None;
-        }
-        let ty = self
-            .func_type
-            .input_at(self.start)
-            // Expected since `self.start != self.end`.
-            .expect("we expect to receive an input type at this point");
-        self.start += 1;
-        Some(ty)
+        self.range
+            .next()
+            .map(|i| self.func_type.input_at(i).unwrap().to_parser_type())
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.len(), Some(self.len()))
+        self.range.size_hint()
     }
 }
 
-impl<'a, F, T> DoubleEndedIterator for WasmFuncTypeInputs<'a, F, T>
+impl<T> DoubleEndedIterator for WasmFuncTypeInputs<'_, T>
 where
-    F: WasmFuncType<Type = T>,
-    T: WasmType + 'a,
+    T: WasmFuncType,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        if self.start == self.end {
-            return None;
-        }
-        let ty = self
-            .func_type
-            .input_at(self.end)
-            // Expected since `self.start != self.end`.
-            .expect("we expect to receive an input type at this point");
-        self.end -= 1;
-        Some(ty)
+        self.range
+            .next_back()
+            .map(|i| self.func_type.input_at(i).unwrap().to_parser_type())
     }
 }
 
-impl<'a, F, T> ExactSizeIterator for WasmFuncTypeInputs<'a, F, T>
+impl<T> ExactSizeIterator for WasmFuncTypeInputs<'_, T>
 where
-    F: WasmFuncType<Type = T>,
-    T: WasmType + 'a,
+    T: WasmFuncType,
 {
     fn len(&self) -> usize {
-        (self.end as usize) - (self.start as usize)
+        self.range.len()
+    }
+}
+
+impl<'a, T> Clone for WasmFuncTypeInputs<'a, T> {
+    fn clone(&self) -> WasmFuncTypeInputs<'a, T> {
+        WasmFuncTypeInputs {
+            func_type: self.func_type,
+            range: self.range.clone(),
+        }
     }
 }
 
 /// Iterator over the outputs of a Wasm function type.
-pub(crate) struct WasmFuncTypeOutputs<'a, F, T>
-where
-    F: WasmFuncType<Type = T>,
-    T: WasmType + 'a,
-{
+pub struct WasmFuncTypeOutputs<'a, T> {
     /// The iterated-over function type.
-    func_type: &'a F,
-    /// The current starting index.
-    start: u32,
-    /// The current ending index.
-    end: u32,
+    func_type: &'a T,
+    /// The range we're iterating over.
+    range: Range<u32>,
 }
 
-impl<'a, F, T> WasmFuncTypeOutputs<'a, F, T>
+impl<T> Iterator for WasmFuncTypeOutputs<'_, T>
 where
-    F: WasmFuncType<Type = T>,
-    T: WasmType + 'a,
+    T: WasmFuncType,
 {
-    fn new(func_type: &'a F) -> Self {
-        Self {
-            func_type,
-            start: 0,
-            end: func_type.len_outputs() as u32,
-        }
-    }
-}
-
-impl<'a, F, T> Iterator for WasmFuncTypeOutputs<'a, F, T>
-where
-    F: WasmFuncType<Type = T>,
-    T: WasmType + 'a,
-{
-    type Item = &'a T;
+    type Item = crate::Type;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.start == self.end {
-            return None;
-        }
-        let ty = self
-            .func_type
-            .output_at(self.start)
-            // Expected since `self.start != self.end`.
-            .expect("we expect to receive an input type at this point");
-        self.start += 1;
-        Some(ty)
+        self.range
+            .next()
+            .map(|i| self.func_type.output_at(i).unwrap().to_parser_type())
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.len(), Some(self.len()))
+        self.range.size_hint()
     }
 }
 
-impl<'a, F, T> DoubleEndedIterator for WasmFuncTypeOutputs<'a, F, T>
+impl<T> DoubleEndedIterator for WasmFuncTypeOutputs<'_, T>
 where
-    F: WasmFuncType<Type = T>,
-    T: WasmType + 'a,
+    T: WasmFuncType,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        if self.start == self.end {
-            return None;
-        }
-        let ty = self
-            .func_type
-            .output_at(self.end)
-            // Expected since `self.start != self.end`.
-            .expect("we expect to receive an input type at this point");
-        self.end -= 1;
-        Some(ty)
+        self.range
+            .next_back()
+            .map(|i| self.func_type.output_at(i).unwrap().to_parser_type())
     }
 }
 
-impl<'a, F, T> ExactSizeIterator for WasmFuncTypeOutputs<'a, F, T>
+impl<T> ExactSizeIterator for WasmFuncTypeOutputs<'_, T>
 where
-    F: WasmFuncType<Type = T>,
-    T: WasmType + 'a,
+    T: WasmFuncType,
 {
     fn len(&self) -> usize {
-        (self.end as usize) - (self.start as usize)
+        self.range.len()
     }
 }
 
-/// Returns an iterator over the input types of a Wasm function type.
-pub(crate) fn wasm_func_type_inputs<'a, F, T>(func_type: &'a F) -> WasmFuncTypeInputs<'a, F, T>
-where
-    F: WasmFuncType<Type = T>,
-    T: WasmType + 'a,
-{
-    WasmFuncTypeInputs::new(func_type)
-}
-
-/// Returns an iterator over the output types of a Wasm function type.
-pub(crate) fn wasm_func_type_outputs<'a, F, T>(func_type: &'a F) -> WasmFuncTypeOutputs<'a, F, T>
-where
-    F: WasmFuncType<Type = T>,
-    T: WasmType + 'a,
-{
-    WasmFuncTypeOutputs::new(func_type)
+impl<'a, T> Clone for WasmFuncTypeOutputs<'a, T> {
+    fn clone(&self) -> WasmFuncTypeOutputs<'a, T> {
+        WasmFuncTypeOutputs {
+            func_type: self.func_type,
+            range: self.range.clone(),
+        }
+    }
 }
 
 /// Types that qualify as Wasm table types for validation purposes.
