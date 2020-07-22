@@ -401,9 +401,10 @@ impl<'a> Expander<'a> {
                 Block(t) | Loop(t) | If(t) | Try(t) => {
                     self.record_type_use(&t.ty);
                 }
-                FuncBind(f) | Call(f) | ReturnCall(f) | RefFunc(f) => {
-                    self.record_missing(f, Ns::Func)
+                FuncBind(b) => {
+                    self.record_type_use(&b.ty);
                 }
+                Call(f) | ReturnCall(f) | RefFunc(f) => self.record_missing(f, Ns::Func),
                 CallIndirect(f) | ReturnCallIndirect(f) => {
                     self.record_missing(&f.table, Ns::Table);
                     self.record_type_use(&f.ty);

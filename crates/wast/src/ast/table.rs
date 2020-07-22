@@ -136,7 +136,7 @@ impl<'a> Parse<'a> for Elem<'a> {
         let span = parser.parse::<kw::elem>()?.0;
         let id = parser.parse()?;
 
-        let kind = if parser.peek::<u32>() || parser.peek::<ast::LParen>() {
+        let kind = if parser.peek::<u32>() || (parser.peek::<ast::LParen>() && !parser.peek::<ast::RefType>()) {
             let table = if parser.peek2::<kw::table>() {
                 Some(parser.parens(|p| {
                     p.parse::<kw::table>()?;

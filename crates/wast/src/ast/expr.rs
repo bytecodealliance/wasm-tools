@@ -117,7 +117,7 @@ impl<'a> ExpressionParser<'a> {
                         // If block/loop show up then we just need to be sure to
                         // push an `end` instruction whenever the `)` token is
                         // seen
-                        i @ Instruction::Block(_) | i @ Instruction::Loop(_) => {
+                        i @ Instruction::Block(_) | i @ Instruction::Loop(_) | i @ Instruction::Let(_) => {
                             self.instrs.push(i);
                             self.stack.push(Level::EndWith(Instruction::End(None)));
                         }
@@ -360,7 +360,8 @@ instructions! {
         // function-references proposal
         CallRef : [0x14] : "call_ref",
         ReturnCallRef : [0x15] : "return_call_ref",
-        FuncBind(ast::Index<'a>) : [0x16] : "func.bind",
+        FuncBind(FuncBindType<'a>) : [0x16] : "func.bind",
+        Let(LetType<'a>) : [0x17] : "let",
 
         Drop : [0x1a] : "drop",
         Select(SelectTypes<'a>) : [] : "select",
@@ -424,19 +425,19 @@ instructions! {
         RefEq : [0xd5] : "ref.eq",
 
         // gc proposal: struct
-        StructNew(ast::Index<'a>) : [0xfb, 0x00] : "struct.new",
-        StructNewSub(ast::Index<'a>) : [0xfb, 0x01] : "struct.new_sub",
-        StructNewDefault(ast::Index<'a>) : [0xfb, 0x02] : "struct.new_default",
+        StructNewWithRtt(ast::Index<'a>) : [0xfb, 0x01] : "struct.new_with_rtt",
+        StructNewDefaultWithRtt(ast::Index<'a>) : [0xfb, 0x02] : "struct.new_default_with_rtt",
         StructGet(StructAccess<'a>) : [0xfb, 0x03] : "struct.get",
         StructGetS(StructAccess<'a>) : [0xfb, 0x04] : "struct.get_s",
         StructGetU(StructAccess<'a>) : [0xfb, 0x05] : "struct.get_u",
         StructSet(StructAccess<'a>) : [0xfb, 0x06] : "struct.set",
+
+        // gc proposal (moz specific, will be removed)
         StructNarrow(StructNarrow<'a>) : [0xfb, 0x07] : "struct.narrow",
 
         // gc proposal: array
-        ArrayNew(ast::Index<'a>) : [0xfb, 0x10] : "array.new",
-        ArrayNewSub(ast::Index<'a>) : [0xfb, 0x11] : "array.new_sub",
-        ArrayNewDefault(ast::Index<'a>) : [0xfb, 0x12] : "array.new_default",
+        ArrayNewWithRtt(ast::Index<'a>) : [0xfb, 0x11] : "array.new_with_rtt",
+        ArrayNewDefaultWithRtt(ast::Index<'a>) : [0xfb, 0x12] : "array.new_default_with_rtt",
         ArrayGet(ast::Index<'a>) : [0xfb, 0x13] : "array.get",
         ArrayGetS(ast::Index<'a>) : [0xfb, 0x14] : "array.get_s",
         ArrayGetU(ast::Index<'a>) : [0xfb, 0x15] : "array.get_u",
@@ -449,11 +450,11 @@ instructions! {
         I31GetU : [0xfb, 0x22] : "i31.get_u",
 
         // gc proposal, rtt/casting
-        RTTGet(ast::Index<'a>) : [0xfb, 0x30] : "rtt.get",
-        RTTSub(ast::Index<'a>) : [0xfb, 0x31] : "rtt.sub",
-        RefTest : [0xfb, 0x40] : "ref.test",
-        RefCast : [0xfb, 0x41] : "ref.cast",
-        BrOnCast(ast::Index<'a>) : [0xfb, 0x42] : "br_on_cast",
+        RTTCanon(HeapType<'a>) : [0xfb, 0x30] : "rtt.canon",
+        RTTSub(RTTSub<'a>) : [0xfb, 0x31] : "rtt.sub",
+        RefTest(RefTest<'a>) : [0xfb, 0x40] : "ref.test",
+        RefCast(RefTest<'a>) : [0xfb, 0x41] : "ref.cast",
+        BrOnCast(BrOnCast<'a>) : [0xfb, 0x42] : "br_on_cast",
 
         I32Const(i32) : [0x41] : "i32.const",
         I64Const(i64) : [0x42] : "i64.const",
@@ -911,6 +912,40 @@ impl<'a> Parse<'a> for BlockType<'a> {
     }
 }
 
+/// Extra information associated with the func.bind instruction.
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub struct FuncBindType<'a> {
+    pub ty: ast::TypeUse<'a, ast::FunctionType<'a>>,
+}
+
+impl<'a> Parse<'a> for FuncBindType<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        Ok(FuncBindType {
+            ty: parser
+                .parse::<ast::TypeUse<'a, ast::FunctionTypeNoNames<'a>>>()?
+                .into(),
+        })
+    }
+}
+
+/// Extra information associated with the let instruction.
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub struct LetType<'a> {
+    pub block: BlockType<'a>,
+    pub locals: Vec<ast::Local<'a>>,
+}
+
+impl<'a> Parse<'a> for LetType<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        Ok(LetType {
+            block: parser.parse()?,
+            locals: ast::Local::parse_remainder(parser)?,
+        })
+    }
+}
+
 /// Extra information associated with the `br_table` instruction.
 #[allow(missing_docs)]
 #[derive(Debug)]
@@ -1362,5 +1397,57 @@ impl<'a> Parse<'a> for BrOnExn<'a> {
         let label = parser.parse()?;
         let exn = parser.parse()?;
         Ok(BrOnExn { label, exn })
+    }
+}
+
+/// Payload of the `br_on_cast` instruction
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub struct BrOnCast<'a> {
+    pub label: ast::Index<'a>,
+    pub val: HeapType<'a>,
+    pub rtt: HeapType<'a>,
+}
+
+impl<'a> Parse<'a> for BrOnCast<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let label = parser.parse()?;
+        let val = parser.parse()?;
+        let rtt = parser.parse()?;
+        Ok(BrOnCast { label, val, rtt })
+    }
+}
+
+/// Payload of the `rtt.sub` instruction
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub struct RTTSub<'a> {
+    pub depth: u32,
+    pub input_rtt: HeapType<'a>,
+    pub output_rtt: HeapType<'a>,
+}
+
+impl<'a> Parse<'a> for RTTSub<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let depth = parser.parse()?;
+        let input_rtt = parser.parse()?;
+        let output_rtt = parser.parse()?;
+        Ok(RTTSub { depth, input_rtt, output_rtt })
+    }
+}
+
+/// Payload of the `ref.test/cast` instruction
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub struct RefTest<'a> {
+    pub val: HeapType<'a>,
+    pub rtt: HeapType<'a>,
+}
+
+impl<'a> Parse<'a> for RefTest<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let val = parser.parse()?;
+        let rtt = parser.parse()?;
+        Ok(RefTest { val, rtt })
     }
 }

@@ -793,13 +793,7 @@ impl<'a> Resolver<'a> {
         ty: ValType<'a>,
     ) -> Result<ValType<'a>, Error> {
         match ty {
-            ValType::I32
-            | ValType::I64
-            | ValType::F32
-            | ValType::F64
-            | ValType::V128
-            | ValType::I8
-            | ValType::I16 => Ok(ty),
+            ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => Ok(ty),
 
             ValType::Ref(ty) => Ok(ValType::Ref(
                 self.copy_reftype_from_module(span, child, ty)?,
@@ -809,7 +803,7 @@ impl<'a> Resolver<'a> {
             // is only invoked with the module-linking proposal, which means
             // that we have two proposals interacting, and that's always weird
             // territory anyway.
-            ValType::Rtt(_) => Err(Error::new(
+            ValType::Rtt(..) => Err(Error::new(
                 span,
                 format!("cannot copy reference types between modules right now"),
             )),
@@ -1207,6 +1201,7 @@ impl<'a> Module<'a> {
             Instruction::Block(bt)
             | Instruction::If(bt)
             | Instruction::Loop(bt)
+            | Instruction::Let(LetType { block: bt, .. })
             | Instruction::Try(bt) => {
                 // No expansion necessary, a type reference is already here.
                 // We'll verify that it's the same as the inline type, if any,
@@ -1239,6 +1234,9 @@ impl<'a> Module<'a> {
                     }
                 }
                 self.expand_type_use(&mut bt.ty);
+            }
+            Instruction::FuncBind(b) => {
+                self.expand_type_use(&mut b.ty);
             }
             Instruction::CallIndirect(c) | Instruction::ReturnCallIndirect(c) => {
                 self.expand_type_use(&mut c.ty);
@@ -1310,10 +1308,10 @@ impl<'a> Module<'a> {
                     TypeDef::Func(func) => func.resolve(self)?,
                     TypeDef::Struct(struct_) => {
                         for field in &mut struct_.fields {
-                            self.resolve_valtype(&mut field.ty)?;
+                            self.resolve_storagetype(&mut field.ty)?;
                         }
                     }
-                    TypeDef::Array(array) => self.resolve_valtype(&mut array.ty)?,
+                    TypeDef::Array(array) => self.resolve_storagetype(&mut array.ty)?,
                     TypeDef::Module(m) => m.resolve(self)?,
                     TypeDef::Instance(i) => i.resolve(self)?,
                 }
@@ -1328,34 +1326,41 @@ impl<'a> Module<'a> {
                 };
                 if let FuncKind::Inline { locals, expression } = &mut f.kind {
                     // Resolve (ref T) in locals
-                    for (_, _, valtype) in locals.iter_mut() {
-                        self.resolve_valtype(valtype)?;
+                    for local in locals.iter_mut() {
+                        self.resolve_valtype(&mut local.ty)?;
                     }
 
-                    // Build a resolver with local namespace for the function
+                    // Build a scope with a local namespace for the function
                     // body
-                    let mut resolver = ExprResolver::new(self);
+                    let mut scope = Namespace::default();
 
-                    // Parameters come first in the local namespace...
+                    // Parameters come first in the scope...
                     if let Some(inline) = &inline {
                         for (id, _, _) in inline.params.iter() {
-                            resolver.locals.register(*id, "local")?;
+                            scope.register(*id, "local")?;
                         }
                     } else if let Some(TypeInfo::Func((params, _))) =
                         self.types.items.get(n as usize).and_then(|i| i.item())
                     {
                         for _ in 0..params.len() {
-                            resolver.locals.register(None, "local")?;
+                            scope.register(None, "local")?;
                         }
                     }
 
                     // .. followed by locals themselves
-                    for (id, _, _) in locals {
-                        resolver.locals.register(*id, "local")?;
+                    for local in locals {
+                        scope.register(local.id, "local")?;
                     }
+
+                    // Initialize the expression resolver with this scope
+                    let mut resolver = ExprResolver::new(self, scope);
 
                     // and then we can resolve the expression!
                     resolver.resolve(expression)?;
+
+                    // All let scopes should be popped after the function has
+                    // been resolced.
+                    debug_assert!(resolver.scopes.len() == 1);
 
                     // specifically save the original `sig`, if it was present,
                     // because that's what we're using for local names.
@@ -1378,12 +1383,13 @@ impl<'a> Module<'a> {
                             self.resolve(idx, Ns::Func)?;
                         }
                     }
-                    ElemPayload::Exprs { exprs, .. } => {
+                    ElemPayload::Exprs { exprs, ty } => {
                         for funcref in exprs {
                             if let Some(idx) = funcref {
                                 self.resolve(idx, Ns::Func)?;
                             }
                         }
+                        self.resolve_heaptype(&mut ty.heap)?;
                     }
                 }
                 Ok(())
@@ -1463,7 +1469,7 @@ impl<'a> Module<'a> {
     fn resolve_valtype(&self, ty: &mut ValType<'a>) -> Result<(), Error> {
         match ty {
             ValType::Ref(ty) => self.resolve_heaptype(&mut ty.heap)?,
-            ValType::Rtt(i) => {
+            ValType::Rtt(_d, i) => {
                 self.resolve(i, Ns::Type)?;
             }
             _ => {}
@@ -1481,6 +1487,14 @@ impl<'a> Module<'a> {
         Ok(())
     }
 
+    fn resolve_storagetype(&self, ty: &mut StorageType<'a>) -> Result<(), Error> {
+        match ty {
+            StorageType::Val(ty) => self.resolve_valtype(ty)?,
+            _ => {}
+        }
+        Ok(())
+    }
+
     fn resolve_item_sig(&self, item: &mut ItemSig<'a>) -> Result<(), Error> {
         match &mut item.kind {
             ItemKind::Func(t) | ItemKind::Event(EventType::Exception(t)) => {
@@ -1493,7 +1507,10 @@ impl<'a> Module<'a> {
             ItemKind::Module(m) => {
                 self.resolve_type_use(m)?;
             }
-            ItemKind::Table(_) | ItemKind::Memory(_) => {}
+            ItemKind::Table(t) => {
+                self.resolve_heaptype(&mut t.elem.heap)?;
+            }
+            ItemKind::Memory(_) => {}
         }
         Ok(())
     }
@@ -1522,7 +1539,7 @@ impl<'a> Module<'a> {
     }
 
     fn resolve_expr(&self, expr: &mut Expression<'a>) -> Result<(), Error> {
-        ExprResolver::new(self).resolve(expr)
+        ExprResolver::new(self, Namespace::default()).resolve(expr)
     }
 
     pub fn resolve(&self, idx: &mut Index<'a>, ns: Ns) -> Result<u32, Error> {
@@ -1675,24 +1692,92 @@ impl<'a, T> Default for Namespace<'a, T> {
     }
 }
 
+#[derive(Debug, Clone)]
+struct ExprBlock<'a> {
+    // The label of the block
+    label: Option<Id<'a>>,
+    // Whether this block pushed a new scope for resolving locals
+    pushed_scope: bool,
+}
+
 struct ExprResolver<'a, 'b> {
     module: &'b Module<'a>,
-    locals: Namespace<'a, ()>,
-    labels: Vec<Option<Id<'a>>>,
+    // Scopes tracks the local namespace and dynamically grows as we enter/exit
+    // `let` blocks
+    scopes: Vec<Namespace<'a, ()>>,
+    blocks: Vec<ExprBlock<'a>>,
 }
 
 impl<'a, 'b> ExprResolver<'a, 'b> {
-    fn new(module: &'b Module<'a>) -> ExprResolver<'a, 'b> {
+    fn new(module: &'b Module<'a>, initial_scope: Namespace<'a, ()>) -> ExprResolver<'a, 'b> {
         ExprResolver {
             module,
-            locals: Default::default(),
-            labels: Vec::new(),
+            scopes: vec![initial_scope],
+            blocks: Vec::new(),
         }
     }
 
     fn resolve(&mut self, expr: &mut Expression<'a>) -> Result<(), Error> {
         for instr in expr.instrs.iter_mut() {
             self.resolve_instr(instr)?;
+        }
+        Ok(())
+    }
+
+    fn resolve_block_type(&mut self, bt: &mut BlockType<'a>) -> Result<(), Error> {
+        // Ok things get interesting here. First off when parsing `bt`
+        // *optionally* has an index and a function type listed. If
+        // they're both not present it's equivalent to 0 params and 0
+        // results.
+        //
+        // In MVP wasm blocks can have 0 params and 0-1 results. Now
+        // there's also multi-value. We want to prefer MVP wasm wherever
+        // possible (for backcompat) so we want to list this block as
+        // being an "MVP" block if we can. The encoder only has
+        // `BlockType` to work with, so it'll be looking at `params` and
+        // `results` to figure out what to encode. If `params` and
+        // `results` fit within MVP, then it uses MVP encoding
+        //
+        // To put all that together, here we handle:
+        //
+        // * If the `index` was specified, resolve it and use it as the
+        //   source of truth. If this turns out to be an MVP type,
+        //   record it as such.
+        // * Otherwise use `params` and `results` as the source of
+        //   truth. *If* this were a non-MVP compatible block `index`
+        //   would be filled by by `tyexpand.rs`.
+        //
+        // tl;dr; we handle the `index` here if it's set and then fill
+        // out `params` and `results` if we can, otherwise no work
+        // happens.
+        if bt.ty.index.is_some() {
+            let (ty, _) = self.module.resolve_type_use(&mut bt.ty)?;
+            let n = match ty {
+                Index::Num(n, _) => *n,
+                Index::Id(_) => panic!("expected `Num`"),
+            };
+            let ty = match self
+                .module
+                .types
+                .items
+                .get(n as usize)
+                .and_then(|s| s.item())
+            {
+                Some(TypeInfo::Func(ty)) => ty,
+                _ => return Ok(()),
+            };
+            if ty.0.len() == 0 && ty.1.len() <= 1 {
+                let mut inline = FunctionType::default();
+                inline.results = ty.1.clone();
+                bt.ty.inline = Some(inline);
+                bt.ty.index = None;
+            }
+        }
+
+        // If the inline annotation persists to this point then resolve
+        // all of its inline value types.
+        if let Some(inline) = &mut bt.ty.inline {
+            inline.resolve(self.module)?;
         }
         Ok(())
     }
@@ -1730,7 +1815,23 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             }
 
             LocalSet(i) | LocalGet(i) | LocalTee(i) => {
-                self.locals.resolve(i, "local")?;
+                assert!(self.scopes.len() > 0);
+                // Resolve a local by iterating over scopes from most recent
+                // to less recent. This allows locals added by `let` blocks to
+                // shadow less recent locals.
+                for (depth, scope) in self.scopes.iter().enumerate().rev() {
+                    if let Err(e) = scope.resolve(i, "local") {
+                        if depth == 0 {
+                            // There are no more scopes left, report this as
+                            // the result
+                            return Err(e);
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                // We must have taken the `break` and resolved the local
+                assert!(i.is_resolved());
             }
 
             Call(i) | RefFunc(i) | ReturnCall(i) => {
@@ -1742,87 +1843,62 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 self.module.resolve_type_use(&mut c.ty)?;
             }
 
-            FuncBind(i) => {
-                self.module.resolve(i, Ns::Type)?;
+            FuncBind(b) => {
+                self.module.resolve_type_use(&mut b.ty)?;
+            }
+
+            Let(t) => {
+                // Resolve (ref T) in locals
+                for local in &mut t.locals {
+                    self.module.resolve_valtype(&mut local.ty)?;
+                }
+
+                // Register all locals defined in this let
+                let mut scope = Namespace::default();
+                for local in &t.locals {
+                    scope.register(local.id, "local")?;
+                }
+                self.scopes.push(scope);
+                self.blocks.push(ExprBlock {
+                    label: t.block.label,
+                    pushed_scope: true,
+                });
+
+                self.resolve_block_type(&mut t.block)?;
             }
 
             Block(bt) | If(bt) | Loop(bt) | Try(bt) => {
-                self.labels.push(bt.label);
-
-                // Ok things get interesting here. First off when parsing `bt`
-                // *optionally* has an index and a function type listed. If
-                // they're both not present it's equivalent to 0 params and 0
-                // results.
-                //
-                // In MVP wasm blocks can have 0 params and 0-1 results. Now
-                // there's also multi-value. We want to prefer MVP wasm wherever
-                // possible (for backcompat) so we want to list this block as
-                // being an "MVP" block if we can. The encoder only has
-                // `BlockType` to work with, so it'll be looking at `params` and
-                // `results` to figure out what to encode. If `params` and
-                // `results` fit within MVP, then it uses MVP encoding
-                //
-                // To put all that together, here we handle:
-                //
-                // * If the `index` was specified, resolve it and use it as the
-                //   source of truth. If this turns out to be an MVP type,
-                //   record it as such.
-                // * Otherwise use `params` and `results` as the source of
-                //   truth. *If* this were a non-MVP compatible block `index`
-                //   would be filled by by `tyexpand.rs`.
-                //
-                // tl;dr; we handle the `index` here if it's set and then fill
-                // out `params` and `results` if we can, otherwise no work
-                // happens.
-                if bt.ty.index.is_some() {
-                    let (ty, _) = self.module.resolve_type_use(&mut bt.ty)?;
-                    let n = match ty {
-                        Index::Num(n, _) => *n,
-                        Index::Id(_) => panic!("expected `Num`"),
-                    };
-                    let ty = match self
-                        .module
-                        .types
-                        .items
-                        .get(n as usize)
-                        .and_then(|s| s.item())
-                    {
-                        Some(TypeInfo::Func(ty)) => ty,
-                        _ => return Ok(()),
-                    };
-                    if ty.0.len() == 0 && ty.1.len() <= 1 {
-                        let mut inline = FunctionType::default();
-                        inline.results = ty.1.clone();
-                        bt.ty.inline = Some(inline);
-                        bt.ty.index = None;
-                    }
-                }
-
-                // If the inline annotation persists to this point then resolve
-                // all of its inline value types.
-                if let Some(inline) = &mut bt.ty.inline {
-                    inline.resolve(self.module)?;
-                }
+                self.blocks.push(ExprBlock {
+                    label: bt.label,
+                    pushed_scope: false,
+                });
+                self.resolve_block_type(bt)?;
             }
 
             // On `End` instructions we pop a label from the stack, and for both
             // `End` and `Else` instructions if they have labels listed we
             // verify that they match the label at the beginning of the block.
             Else(_) | End(_) => {
-                let (matching_label, label) = match instr {
-                    Else(label) => (self.labels.last().cloned(), label),
-                    End(label) => (self.labels.pop(), label),
+                let (matching_block, label) = match instr {
+                    Else(label) => (self.blocks.last().cloned(), label),
+                    End(label) => (self.blocks.pop(), label),
                     _ => unreachable!(),
                 };
-                let matching_label = match matching_label {
+                let matching_block = match matching_block {
                     Some(l) => l,
                     None => return Ok(()),
                 };
+
+                // Reset the local scopes to before this block was entered
+                if matching_block.pushed_scope {
+                    self.scopes.pop();
+                }
+
                 let label = match label {
                     Some(l) => l,
                     None => return Ok(()),
                 };
-                if Some(*label) == matching_label {
+                if Some(*label) == matching_block.label {
                     return Ok(());
                 }
                 return Err(Error::new(
@@ -1831,7 +1907,7 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 ));
             }
 
-            Br(i) | BrIf(i) | BrOnCast(i) | BrOnNull(i) => {
+            Br(i) | BrIf(i) | BrOnNull(i) => {
                 self.resolve_label(i)?;
             }
 
@@ -1849,6 +1925,11 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 self.resolve_label(&mut b.label)?;
                 self.module.resolve(&mut b.exn, Ns::Event)?;
             }
+            BrOnCast(b) => {
+                self.resolve_label(&mut b.label)?;
+                self.module.resolve_heaptype(&mut b.val)?;
+                self.module.resolve_heaptype(&mut b.rtt)?;
+            }
 
             Select(s) => {
                 if let Some(list) = &mut s.tys {
@@ -1858,10 +1939,27 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 }
             }
 
-            StructNew(i) | StructNewSub(i) | StructNewDefault(i) | ArrayNew(i) | ArrayNewSub(i)
-            | ArrayNewDefault(i) | ArrayGet(i) | ArrayGetS(i) | ArrayGetU(i) | ArraySet(i)
-            | ArrayLen(i) | RTTGet(i) | RTTSub(i) => {
+            StructNewWithRtt(i)
+            | StructNewDefaultWithRtt(i)
+            | ArrayNewWithRtt(i)
+            | ArrayNewDefaultWithRtt(i)
+            | ArrayGet(i)
+            | ArrayGetS(i)
+            | ArrayGetU(i)
+            | ArraySet(i)
+            | ArrayLen(i) => {
                 self.module.resolve(i, Ns::Type)?;
+            }
+            RTTCanon(t) => {
+                self.module.resolve_heaptype(t)?;
+            }
+            RTTSub(s) => {
+                self.module.resolve_heaptype(&mut s.input_rtt)?;
+                self.module.resolve_heaptype(&mut s.output_rtt)?;
+            }
+            RefTest(t) | RefCast(t) => {
+                self.module.resolve_heaptype(&mut t.val)?;
+                self.module.resolve_heaptype(&mut t.rtt)?;
             }
 
             StructSet(s) | StructGet(s) | StructGetS(s) | StructGetU(s) => {
@@ -1886,11 +1984,11 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             Index::Id(id) => *id,
         };
         let idx = self
-            .labels
+            .blocks
             .iter()
             .rev()
             .enumerate()
-            .filter_map(|(i, l)| l.map(|l| (i, l)))
+            .filter_map(|(i, b)| b.label.map(|l| (i, l)))
             .find(|(_, l)| *l == id);
         match idx {
             Some((idx, _)) => {

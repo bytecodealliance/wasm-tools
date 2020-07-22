@@ -140,9 +140,6 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
 
     // These test suites in the upstream proposals repo have not been
     // implemented in this tooling yet.
-    if test.iter().any(|t| t == "function-references") {
-        return true;
-    }
     if test.iter().any(|t| t == "exception-handling") {
         return true;
     }
@@ -215,9 +212,11 @@ impl TestState {
         // however, that wasmparser doesn't implement all features that wabt
         // does, so we skip some tests here too.
         //
+        // TODO: implement function-references in wasmparser
         // TODO: implement gc types in wasmparser
         // TODO: implement exceptions in wasmparser
         if !contents.contains("--enable-exceptions")
+            && !contents.contains("--enable-function-references")
             && !contents.contains("--enable-gc")
             && !contents.contains("--no-check")
             // intentionally invalid wasm files
@@ -296,6 +295,7 @@ impl TestState {
         let buf = ParseBuffer::new(contents).map_err(|e| adjust!(e))?;
         let wast = parser::parse::<Wast>(&buf).map_err(|e| adjust!(e))?;
         self.bump_ntests();
+
         let json = self.wast2json(&test)?;
 
         // Pair each `Module` directive with the result of wast2json's output
@@ -350,10 +350,16 @@ impl TestState {
         directive: WastDirective,
         expected: Option<&PathBuf>,
     ) -> Result<()> {
+        // Only test parsing and encoding of modules that wabt doesn't support
+        let skip_verify = test.iter().any(|t| t == "function-references");
+
         match directive {
             WastDirective::Module(mut module) => {
                 let actual = module.encode()?;
                 self.bump_ntests(); // testing encode
+                if skip_verify {
+                    return Ok(());
+                }
                 let test_roundtrip = match module.kind {
                     ModuleKind::Text(_) => {
                         if let Some(expected) = &expected {
@@ -378,6 +384,9 @@ impl TestState {
             }
 
             WastDirective::QuoteModule { source, span: _ } => {
+                if skip_verify {
+                    return Ok(());
+                }
                 self.parse_quote_module(test, &source)?;
             }
 
@@ -386,6 +395,9 @@ impl TestState {
                 module: QuoteModule::Quote(source),
                 message,
             } => {
+                if skip_verify {
+                    return Ok(());
+                }
                 let result = self.parse_quote_module(test, &source);
                 match result {
                     Ok(()) => bail!(
@@ -408,6 +420,9 @@ impl TestState {
             } => {
                 let wasm = module.encode()?;
                 self.bump_ntests();
+                if skip_verify {
+                    return Ok(());
+                }
                 let e = self.test_wasm_invalid(test, &wasm)?;
                 if !error_matches(e.message(), message) {
                     bail!(
@@ -424,6 +439,9 @@ impl TestState {
             } => {
                 let wasm = module.encode()?;
                 self.bump_ntests();
+                if skip_verify {
+                    return Ok(());
+                }
                 let e = self.test_wasm_invalid(test, &wasm)?;
                 // TODO: Check the assert_malformed message
                 drop(e);
