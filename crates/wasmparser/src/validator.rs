@@ -684,6 +684,9 @@ impl Validator {
     }
 
     fn import(&mut self, entry: Import<'_>) -> Result<()> {
+        if !self.features.module_linking && entry.field.is_none() {
+            return self.create_error("module linking proposal is not enabled");
+        }
         self.import_entry_type(&entry.ty)?;
         let (len, max, desc) = match entry.ty {
             ImportSectionEntryType::Function(type_index) => {
