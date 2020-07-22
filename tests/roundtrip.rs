@@ -620,37 +620,34 @@ impl TestState {
     }
 
     fn wasmparser_validator_for(&self, test: &Path) -> Validator {
-        let mut ret = Validator::new();
-        ret.wasm_threads(true)
-            .wasm_reference_types(true)
-            .wasm_simd(true)
-            .wasm_bulk_memory(true)
-            .wasm_tail_call(true)
-            .wasm_module_linking(true);
+        let mut features = WasmFeatures {
+            threads: true,
+            reference_types: true,
+            simd: true,
+            bulk_memory: true,
+            tail_call: true,
+            module_linking: true,
+            deterministic_only: false,
+            multi_value: true,
+        };
         for part in test.iter().filter_map(|t| t.to_str()) {
             match part {
                 "testsuite" | "wasmtime905.wast" | "missing-features" => {
-                    ret = Validator::new();
+                    features = WasmFeatures::default();
                 }
-                "threads" => {
-                    ret.wasm_threads(true);
-                }
-                "simd" => {
-                    ret.wasm_simd(true);
-                }
+                "threads" => features.threads = true,
+                "simd" => features.simd = true,
                 "reference-types" => {
-                    ret.wasm_bulk_memory(true);
-                    ret.wasm_reference_types(true);
+                    features.bulk_memory = true;
+                    features.reference_types = true;
                 }
-                "bulk-memory-operations" => {
-                    ret.wasm_bulk_memory(true);
-                }
-                "tail-call" => {
-                    ret.wasm_tail_call(true);
-                }
+                "bulk-memory-operations" => features.bulk_memory = true,
+                "tail-call" => features.tail_call = true,
                 _ => {}
             }
         }
+        let mut ret = Validator::new();
+        ret.wasm_features(features);
         return ret;
     }
 

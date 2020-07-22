@@ -4,7 +4,10 @@ use wasmparser::*;
 fn simd_not_enabled() {
     let bytes = wat::parse_str("(module (func (param v128)))").unwrap();
     let mut v = Validator::new();
-    v.wasm_simd(false);
+    v.wasm_features(WasmFeatures {
+        simd: false,
+        ..WasmFeatures::default()
+    });
     let result = v.validate_all(&bytes).unwrap_err();
     assert_eq!(result.offset(), 11);
 }
@@ -20,7 +23,10 @@ fn massive_data_count() {
 #[test]
 fn module_linking_sections_out_of_order() {
     let mut v = Validator::new();
-    v.wasm_module_linking(true);
+    v.wasm_features(WasmFeatures {
+        module_linking: true,
+        ..WasmFeatures::default()
+    });
     v.type_section(&TypeSectionReader::new(&[0], 0).unwrap())
         .unwrap();
     v.data_section(&DataSectionReader::new(&[0], 0).unwrap())
