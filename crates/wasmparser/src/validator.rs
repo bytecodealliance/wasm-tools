@@ -140,7 +140,7 @@ struct ModuleState {
 }
 
 /// Flags for features that are enabled for validation.
-#[derive(Debug, Copy, Clone)]
+#[derive(Hash, Debug, Copy, Clone)]
 pub struct WasmFeatures {
     /// The WebAssembly reference types proposal
     pub reference_types: bool,
