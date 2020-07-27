@@ -343,9 +343,11 @@ pub mod kw {
     custom_keyword!(before);
     custom_keyword!(binary);
     custom_keyword!(block);
+    custom_keyword!(catch);
     custom_keyword!(code);
     custom_keyword!(data);
     custom_keyword!(declare);
+    custom_keyword!(r#do = "do");
     custom_keyword!(elem);
     custom_keyword!(end);
     custom_keyword!(event);
@@ -411,6 +413,7 @@ pub mod kw {
     custom_keyword!(r#struct = "struct");
     custom_keyword!(table);
     custom_keyword!(then);
+    custom_keyword!(r#try = "try");
     custom_keyword!(v128);
 }
 

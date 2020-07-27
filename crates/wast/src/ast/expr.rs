@@ -57,6 +57,13 @@ enum Level<'a> {
     /// which don't correspond to terminating instructions, we're just in a
     /// nested block.
     IfArm,
+
+    /// Similar to `If` but for `Try` statements, which has simpler parsing
+    /// state to track.
+    Try(Try<'a>),
+
+    /// Similar to `IfArm` but for `(do ...)` and `(catch ...)` blocks.
+    TryArm,
 }
 
 /// Possible states of "what should be parsed next?" in an `if` expression.
@@ -69,6 +76,17 @@ enum If<'a> {
     /// Next thing to parse is the `else` block
     Else,
     /// This `if` statement has finished parsing and if anything remains it's a
+    /// syntax error.
+    End,
+}
+
+/// Possible state of "what should be parsed next?" in a `try` expression.
+enum Try<'a> {
+    /// Next thing to parse is the `do` block.
+    Do(Instruction<'a>),
+    /// Next thing to parse is the `catch` block.
+    Catch,
+    /// This `try` statement has finished parsing and if anything remains it's a
     /// syntax error.
     End,
 }
@@ -87,11 +105,12 @@ impl<'a> ExpressionParser<'a> {
             // As a small ease-of-life adjustment here, if we're parsing inside
             // of an `if block then we require that all sub-components are
             // s-expressions surrounded by `(` and `)`, so verify that here.
-            if let Some(Level::If(_)) = self.stack.last() {
+            if let Some(Level::If(_)) | Some(Level::Try(_)) = self.stack.last() {
                 if !parser.is_empty() && !parser.peek::<ast::LParen>() {
                     return Err(parser.error("expected `(`"));
                 }
             }
+
 
             match self.paren(parser)? {
                 // No parenthesis seen? Then we just parse the next instruction
@@ -113,6 +132,11 @@ impl<'a> ExpressionParser<'a> {
                     if self.handle_if_lparen(parser)? {
                         continue;
                     }
+                    // Second, we handle `try` parsing, which is simpler than
+                    // `if` but more complicated than, e.g., `block`.
+                    if self.handle_try_lparen(parser)? {
+                        continue;
+                    }
                     match parser.parse()? {
                         // If block/loop show up then we just need to be sure to
                         // push an `end` instruction whenever the `)` token is
@@ -129,6 +153,12 @@ impl<'a> ExpressionParser<'a> {
                             self.stack.push(Level::If(If::Clause(i)));
                         }
 
+                        // Parsing a `try` is easier than `if` but we also push
+                        // a `Try` scope to handle the required nested blocks.
+                        i @ Instruction::Try(_) => {
+                            self.stack.push(Level::Try(Try::Do(i)));
+                        }
+
                         // Anything else means that we're parsing a nested form
                         // such as `(i32.add ...)` which means that the
                         // instruction we parsed will be coming at the end.
@@ -142,6 +172,7 @@ impl<'a> ExpressionParser<'a> {
                 Paren::Right => match self.stack.pop().unwrap() {
                     Level::EndWith(i) => self.instrs.push(i),
                     Level::IfArm => {}
+                    Level::TryArm => {}
 
                     // If an `if` statement hasn't parsed the clause or `then`
                     // block, then that's an error because there weren't enough
@@ -154,6 +185,19 @@ impl<'a> ExpressionParser<'a> {
                         return Err(parser.error("previous `if` had no `then`"));
                     }
                     Level::If(_) => {
+                        self.instrs.push(Instruction::End(None));
+                    }
+
+                    // Both `do` and `catch` are required in a `try` statement, so
+                    // we will signal those errors here. Otherwise, terminate with
+                    // an `end` instruction.
+                    Level::Try(Try::Do(_)) => {
+                        return Err(parser.error("previous `try` had no `do`"));
+                    }
+                    Level::Try(Try::Catch) => {
+                        return Err(parser.error("previous `try` had no `catch`"));
+                    }
+                    Level::Try(_) => {
                         self.instrs.push(Instruction::End(None));
                     }
                 },
@@ -254,6 +298,57 @@ impl<'a> ExpressionParser<'a> {
         // were too many s-expressions inside the `(if)` and we don't want to
         // parse anything else.
         Err(parser.error("too many payloads inside of `(if)`"))
+    }
+
+    /// Handles parsing of a `try` statement. A `try` statement is simpler
+    /// than an `if` as the syntactic form is:
+    ///
+    /// ```wat
+    /// (try (do $do) (catch $catch))
+    /// ```
+    ///
+    /// where the `do` and `catch` keywords are mandatory, even for an empty
+    /// $do or $catch.
+    ///
+    /// Returns `true` if the rest of the arm above should be skipped, or
+    /// `false` if we should parse the next item as an instruction (because we
+    /// didn't handle the lparen here).
+    fn handle_try_lparen(&mut self, parser: Parser<'a>) -> Result<bool> {
+        // Only execute the code below if there's a `Try` listed last.
+        let i = match self.stack.last_mut() {
+            Some(Level::Try(i)) => i,
+            _ => return Ok(false),
+        };
+
+        // Try statements must start with a `do` block.
+        if let Try::Do(try_instr) = i {
+            let instr = mem::replace(try_instr, Instruction::End(None));
+            self.instrs.push(instr);
+            if parser.parse::<Option<kw::r#do>>()?.is_some() {
+                // The state is advanced here only if the parse succeeds in
+                // order to strictly require the keyword.
+                *i = Try::Catch;
+                self.stack.push(Level::TryArm);
+                return Ok(true);
+            }
+            // We return here and continue parsing instead of raising an error
+            // immediately because the missing keyword will be caught more
+            // generally in the `Paren::Right` case in `parse`.
+            return Ok(false);
+        }
+
+        // `catch` handled similar to `do`, including requiring the keyword.
+        if let Try::Catch = i {
+            self.instrs.push(Instruction::Catch);
+            if parser.parse::<Option<kw::catch>>()?.is_some() {
+                *i = Try::End;
+                self.stack.push(Level::TryArm);
+                return Ok(true);
+            }
+            return Ok(false);
+        }
+
+        Err(parser.error("too many payloads inside of `(try)`"))
     }
 }
 
