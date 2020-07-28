@@ -1665,20 +1665,17 @@ pub struct ValidatorResources(Arc<ModuleState>);
 
 impl WasmModuleResources for ValidatorResources {
     type FuncType = crate::FuncType;
-    type TableType = crate::TableType;
-    type MemoryType = crate::MemoryType;
-    type GlobalType = crate::GlobalType;
 
-    fn table_at(&self, at: u32) -> Option<&Self::TableType> {
-        self.0.get_table(self.0.def(at)).map(|t| &t.item)
+    fn table_at(&self, at: u32) -> Option<TableType> {
+        self.0.get_table(self.0.def(at)).map(|t| t.item)
     }
 
-    fn memory_at(&self, at: u32) -> Option<&Self::MemoryType> {
-        self.0.get_memory(self.0.def(at))
+    fn memory_at(&self, at: u32) -> Option<MemoryType> {
+        self.0.get_memory(self.0.def(at)).copied()
     }
 
-    fn global_at(&self, at: u32) -> Option<&Self::GlobalType> {
-        self.0.get_global(self.0.def(at)).map(|t| &t.item)
+    fn global_at(&self, at: u32) -> Option<GlobalType> {
+        self.0.get_global(self.0.def(at)).map(|t| t.item)
     }
 
     fn func_type_at(&self, at: u32) -> Option<&Self::FuncType> {

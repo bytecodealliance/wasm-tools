@@ -15,10 +15,7 @@
 
 use crate::limits::MAX_WASM_FUNCTION_LOCALS;
 use crate::primitives::{MemoryImmediate, Operator, SIMDLaneIndex, Type, TypeOrFuncType};
-use crate::{
-    BinaryReaderError, Result, WasmFeatures, WasmFuncType, WasmGlobalType, WasmModuleResources,
-    WasmTableType, WasmType,
-};
+use crate::{BinaryReaderError, Result, WasmFeatures, WasmFuncType, WasmModuleResources};
 use std::cmp::min;
 
 #[derive(Debug)]
@@ -318,11 +315,7 @@ pub(crate) struct OperatorValidator {
 }
 
 impl OperatorValidator {
-    pub fn new<F, T>(func_type: &F, features: &WasmFeatures) -> OperatorValidator
-    where
-        F: WasmFuncType<Type = T>,
-        T: WasmType,
-    {
+    pub fn new(func_type: impl WasmFuncType, features: &WasmFeatures) -> OperatorValidator {
         let local_types = func_type.inputs().collect::<Vec<_>>();
         let mut blocks = Vec::new();
         let last_returns = func_type.outputs().collect::<Vec<_>>();
@@ -933,8 +926,7 @@ impl OperatorValidator {
             }
             Operator::GlobalGet { global_index } => {
                 if let Some(ty) = resources.global_at(global_index) {
-                    self.func_state
-                        .change_frame_with_type(0, ty.content_type().to_parser_type())?;
+                    self.func_state.change_frame_with_type(0, ty.content_type)?;
                 } else {
                     return Err(OperatorValidatorError::new(
                         "unknown global: global index out of bounds",
@@ -943,12 +935,12 @@ impl OperatorValidator {
             }
             Operator::GlobalSet { global_index } => {
                 if let Some(ty) = resources.global_at(global_index) {
-                    if !ty.is_mutable() {
+                    if !ty.mutable {
                         return Err(OperatorValidatorError::new(
                             "global is immutable: cannot modify it with `global.set`",
                         ));
                     }
-                    self.check_operands_1(ty.content_type().to_parser_type())?;
+                    self.check_operands_1(ty.content_type)?;
                     self.func_state.change_frame(1)?;
                 } else {
                     return Err(OperatorValidatorError::new(
@@ -1882,7 +1874,7 @@ impl OperatorValidator {
                         segment
                     ),
                 };
-                if segment_ty != table.element_type().to_parser_type() {
+                if segment_ty != table.element_type {
                     return Err(OperatorValidatorError::new("type mismatch"));
                 }
                 self.check_operands_3(Type::I32, Type::I32, Type::I32)?;
@@ -1910,7 +1902,7 @@ impl OperatorValidator {
                         (Some(a), Some(b)) => (a, b),
                         _ => return Err(OperatorValidatorError::new("table index out of bounds")),
                     };
-                if src.element_type().to_parser_type() != dst.element_type().to_parser_type() {
+                if src.element_type != dst.element_type {
                     return Err(OperatorValidatorError::new("type mismatch"));
                 }
                 self.check_operands_3(Type::I32, Type::I32, Type::I32)?;
@@ -1919,7 +1911,7 @@ impl OperatorValidator {
             Operator::TableGet { table } => {
                 self.check_reference_types_enabled()?;
                 let ty = match resources.table_at(table) {
-                    Some(ty) => ty.element_type().to_parser_type(),
+                    Some(ty) => ty.element_type,
                     None => return Err(OperatorValidatorError::new("table index out of bounds")),
                 };
                 self.check_operands_1(Type::I32)?;
@@ -1928,7 +1920,7 @@ impl OperatorValidator {
             Operator::TableSet { table } => {
                 self.check_reference_types_enabled()?;
                 let ty = match resources.table_at(table) {
-                    Some(ty) => ty.element_type().to_parser_type(),
+                    Some(ty) => ty.element_type,
                     None => return Err(OperatorValidatorError::new("table index out of bounds")),
                 };
                 self.check_operands_2(Type::I32, ty)?;
@@ -1937,7 +1929,7 @@ impl OperatorValidator {
             Operator::TableGrow { table } => {
                 self.check_reference_types_enabled()?;
                 let ty = match resources.table_at(table) {
-                    Some(ty) => ty.element_type().to_parser_type(),
+                    Some(ty) => ty.element_type,
                     None => return Err(OperatorValidatorError::new("table index out of bounds")),
                 };
                 self.check_operands_2(ty, Type::I32)?;
@@ -1953,7 +1945,7 @@ impl OperatorValidator {
             Operator::TableFill { table } => {
                 self.check_bulk_memory_enabled()?;
                 let ty = match resources.table_at(table) {
-                    Some(ty) => ty.element_type().to_parser_type(),
+                    Some(ty) => ty.element_type,
                     None => return Err(OperatorValidatorError::new("table index out of bounds")),
                 };
                 self.check_operands_3(Type::I32, ty, Type::I32)?;
