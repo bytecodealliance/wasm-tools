@@ -1358,10 +1358,6 @@ impl<'a> Module<'a> {
                     // and then we can resolve the expression!
                     resolver.resolve(expression)?;
 
-                    // All let scopes should be popped after the function has
-                    // been resolced.
-                    debug_assert!(resolver.scopes.len() == 1);
-
                     // specifically save the original `sig`, if it was present,
                     // because that's what we're using for local names.
                     f.ty.inline = inline;
