@@ -962,7 +962,7 @@ impl<'a> BinaryReader<'a> {
 
             _ => {
                 return Err(BinaryReaderError::new(
-                    "Unknown 0xFE opcode",
+                    format!("Unknown 0xfe subopcode: 0x{:x}", code),
                     self.original_position() - 1,
                 ));
             }
@@ -1293,7 +1293,7 @@ impl<'a> BinaryReader<'a> {
 
             _ => {
                 return Err(BinaryReaderError::new(
-                    "Unknown opcode",
+                    format!("Unknown opcode: 0x{:x}", code),
                     self.original_position() - 1,
                 ));
             }
@@ -1388,7 +1388,7 @@ impl<'a> BinaryReader<'a> {
 
             _ => {
                 return Err(BinaryReaderError::new(
-                    "Unknown 0xfc opcode",
+                    format!("Unknown 0xfc subopcode: 0x{:x}", code),
                     self.original_position() - 1,
                 ));
             }
@@ -1655,7 +1655,7 @@ impl<'a> BinaryReader<'a> {
             0xfb => Operator::F32x4ConvertI32x4U,
             _ => {
                 return Err(BinaryReaderError::new(
-                    "Unknown 0xfd opcode",
+                    format!("Unknown 0xfd subopcode: 0x{:x}", code),
                     self.original_position() - 1,
                 ));
             }
