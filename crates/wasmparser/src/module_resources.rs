@@ -13,26 +13,11 @@
  * limitations under the License.
  */
 
+use crate::{FuncType, GlobalType, MemoryType, TableType, Type};
 use std::ops::Range;
-
-/// Types that qualify as Wasm types for validation purposes.
-///
-/// Must be comparable with `wasmparser` given Wasm types and
-/// must be comparable to themselves.
-pub trait WasmType: PartialEq<crate::Type> + PartialEq + Eq {
-    /// Converts the custom type into a `wasmparser` known type.
-    ///
-    /// # Note
-    ///
-    /// This interface is required as bridge until transitioning is complete.
-    fn to_parser_type(&self) -> crate::Type;
-}
 
 /// Types that qualify as Wasm function types for validation purposes.
 pub trait WasmFuncType {
-    /// A type that is comparable with Wasm types.
-    type Type: WasmType;
-
     /// Returns the number of input types.
     fn len_inputs(&self) -> usize;
     /// Returns the number of output types.
@@ -43,14 +28,14 @@ pub trait WasmFuncType {
     ///
     /// The returned type may be wrapped by the user crate and thus
     /// the actually returned type only has to be comparable to a Wasm type.
-    fn input_at(&self, at: u32) -> Option<&Self::Type>;
+    fn input_at(&self, at: u32) -> Option<Type>;
     /// Returns the type at given index if any.
     ///
     /// # Note
     ///
     /// The returned type may be wrapped by the user crate and thus
     /// the actually returned type only has to be comparable to a Wasm type.
-    fn output_at(&self, at: u32) -> Option<&Self::Type>;
+    fn output_at(&self, at: u32) -> Option<Type>;
 
     /// Returns the list of inputs as an iterator.
     fn inputs(&self) -> WasmFuncTypeInputs<'_, Self>
@@ -75,6 +60,24 @@ pub trait WasmFuncType {
     }
 }
 
+impl<T> WasmFuncType for &'_ T
+where
+    T: ?Sized + WasmFuncType,
+{
+    fn len_inputs(&self) -> usize {
+        T::len_inputs(self)
+    }
+    fn len_outputs(&self) -> usize {
+        T::len_outputs(self)
+    }
+    fn input_at(&self, at: u32) -> Option<Type> {
+        T::input_at(self, at)
+    }
+    fn output_at(&self, at: u32) -> Option<Type> {
+        T::output_at(self, at)
+    }
+}
+
 /// Iterator over the inputs of a Wasm function type.
 pub struct WasmFuncTypeInputs<'a, T> {
     /// The iterated-over function type.
@@ -92,7 +95,7 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         self.range
             .next()
-            .map(|i| self.func_type.input_at(i).unwrap().to_parser_type())
+            .map(|i| self.func_type.input_at(i).unwrap())
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -107,7 +110,7 @@ where
     fn next_back(&mut self) -> Option<Self::Item> {
         self.range
             .next_back()
-            .map(|i| self.func_type.input_at(i).unwrap().to_parser_type())
+            .map(|i| self.func_type.input_at(i).unwrap())
     }
 }
 
@@ -146,7 +149,7 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         self.range
             .next()
-            .map(|i| self.func_type.output_at(i).unwrap().to_parser_type())
+            .map(|i| self.func_type.output_at(i).unwrap())
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -161,7 +164,7 @@ where
     fn next_back(&mut self) -> Option<Self::Item> {
         self.range
             .next_back()
-            .map(|i| self.func_type.output_at(i).unwrap().to_parser_type())
+            .map(|i| self.func_type.output_at(i).unwrap())
     }
 }
 
@@ -183,40 +186,6 @@ impl<'a, T> Clone for WasmFuncTypeOutputs<'a, T> {
     }
 }
 
-/// Types that qualify as Wasm table types for validation purposes.
-pub trait WasmTableType {
-    /// A type that is comparable with Wasm types.
-    type Type: WasmType;
-
-    /// Returns the element type of the table.
-    fn element_type(&self) -> &Self::Type;
-    /// Returns the initial limit of the table.
-    fn initial_limit(&self) -> u32;
-    /// Returns the maximum limit of the table if any.
-    fn maximum_limit(&self) -> Option<u32>;
-}
-
-/// Types that qualify as Wasm memory types for validation purposes.
-pub trait WasmMemoryType {
-    /// Returns `true` if the linear memory is shared.
-    fn is_shared(&self) -> bool;
-    /// Returns the initial limit of the linear memory.
-    fn initial_limit(&self) -> u32;
-    /// Returns the maximum limit of the linear memory if any.
-    fn maximum_limit(&self) -> Option<u32>;
-}
-
-/// Types that qualify as Wasm global types for validation purposes.
-pub trait WasmGlobalType {
-    /// A type that is comparable with Wasm types.
-    type Type: WasmType;
-
-    /// Returns `true` if the global variable is mutable.
-    fn is_mutable(&self) -> bool;
-    /// Returns the content type of the global variable.
-    fn content_type(&self) -> &Self::Type;
-}
-
 /// Types  that qualify as Wasm valiation database.
 ///
 /// # Note
@@ -228,25 +197,19 @@ pub trait WasmGlobalType {
 pub trait WasmModuleResources {
     /// The function type used for validation.
     type FuncType: WasmFuncType;
-    /// The table type used for validation.
-    type TableType: WasmTableType;
-    /// The memory type used for validation.
-    type MemoryType: WasmMemoryType;
-    /// The global type used for validation.
-    type GlobalType: WasmGlobalType;
 
     /// Returns the table at given index if any.
-    fn table_at(&self, at: u32) -> Option<&Self::TableType>;
+    fn table_at(&self, at: u32) -> Option<TableType>;
     /// Returns the linear memory at given index.
-    fn memory_at(&self, at: u32) -> Option<&Self::MemoryType>;
+    fn memory_at(&self, at: u32) -> Option<MemoryType>;
     /// Returns the global variable at given index.
-    fn global_at(&self, at: u32) -> Option<&Self::GlobalType>;
+    fn global_at(&self, at: u32) -> Option<GlobalType>;
     /// Returns the `FuncType` associated with the given type index.
     fn func_type_at(&self, type_idx: u32) -> Option<&Self::FuncType>;
     /// Returns the `FuncType` associated with the given function index.
     fn type_of_function(&self, func_idx: u32) -> Option<&Self::FuncType>;
     /// Returns the element type at the given index.
-    fn element_type_at(&self, at: u32) -> Option<crate::Type>;
+    fn element_type_at(&self, at: u32) -> Option<Type>;
 
     /// Returns the number of elements.
     fn element_count(&self) -> u32;
@@ -262,17 +225,14 @@ where
     T: ?Sized + WasmModuleResources,
 {
     type FuncType = T::FuncType;
-    type TableType = T::TableType;
-    type MemoryType = T::MemoryType;
-    type GlobalType = T::GlobalType;
 
-    fn table_at(&self, at: u32) -> Option<&Self::TableType> {
+    fn table_at(&self, at: u32) -> Option<TableType> {
         T::table_at(self, at)
     }
-    fn memory_at(&self, at: u32) -> Option<&Self::MemoryType> {
+    fn memory_at(&self, at: u32) -> Option<MemoryType> {
         T::memory_at(self, at)
     }
-    fn global_at(&self, at: u32) -> Option<&Self::GlobalType> {
+    fn global_at(&self, at: u32) -> Option<GlobalType> {
         T::global_at(self, at)
     }
     fn func_type_at(&self, at: u32) -> Option<&Self::FuncType> {
@@ -281,7 +241,7 @@ where
     fn type_of_function(&self, func_idx: u32) -> Option<&Self::FuncType> {
         T::type_of_function(self, func_idx)
     }
-    fn element_type_at(&self, at: u32) -> Option<crate::Type> {
+    fn element_type_at(&self, at: u32) -> Option<Type> {
         T::element_type_at(self, at)
     }
 
@@ -296,15 +256,7 @@ where
     }
 }
 
-impl WasmType for crate::Type {
-    fn to_parser_type(&self) -> crate::Type {
-        *self
-    }
-}
-
-impl WasmFuncType for crate::FuncType {
-    type Type = crate::Type;
-
+impl WasmFuncType for FuncType {
     fn len_inputs(&self) -> usize {
         self.params.len()
     }
@@ -313,52 +265,11 @@ impl WasmFuncType for crate::FuncType {
         self.returns.len()
     }
 
-    fn input_at(&self, at: u32) -> Option<&Self::Type> {
-        self.params.get(at as usize)
+    fn input_at(&self, at: u32) -> Option<Type> {
+        self.params.get(at as usize).copied()
     }
 
-    fn output_at(&self, at: u32) -> Option<&Self::Type> {
-        self.returns.get(at as usize)
-    }
-}
-
-impl WasmGlobalType for crate::GlobalType {
-    type Type = crate::Type;
-
-    fn is_mutable(&self) -> bool {
-        self.mutable
-    }
-
-    fn content_type(&self) -> &Self::Type {
-        &self.content_type
-    }
-}
-
-impl WasmTableType for crate::TableType {
-    type Type = crate::Type;
-
-    fn element_type(&self) -> &Self::Type {
-        &self.element_type
-    }
-
-    fn initial_limit(&self) -> u32 {
-        self.limits.initial
-    }
-
-    fn maximum_limit(&self) -> Option<u32> {
-        self.limits.maximum
-    }
-}
-
-impl WasmMemoryType for crate::MemoryType {
-    fn is_shared(&self) -> bool {
-        self.shared
-    }
-
-    fn initial_limit(&self) -> u32 {
-        self.limits.initial
-    }
-    fn maximum_limit(&self) -> Option<u32> {
-        self.limits.maximum
+    fn output_at(&self, at: u32) -> Option<Type> {
+        self.returns.get(at as usize).copied()
     }
 }
