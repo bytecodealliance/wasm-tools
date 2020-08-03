@@ -31,6 +31,6 @@ pub const MAX_WASM_FUNCTION_RETURNS: usize = 1000;
 pub const _MAX_WASM_TABLE_SIZE: usize = 10_000_000;
 pub const MAX_WASM_TABLE_ENTRIES: usize = 10_000_000;
 pub const MAX_WASM_TABLES: usize = 100;
-pub const MAX_WASM_MEMORIES: usize = 1;
+pub const MAX_WASM_MEMORIES: usize = 100;
 pub const MAX_WASM_MODULES: usize = 1_000;
 pub const MAX_WASM_INSTANCES: usize = 1_000;

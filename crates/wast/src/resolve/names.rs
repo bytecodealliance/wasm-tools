@@ -1782,8 +1782,16 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
         use crate::ast::Instruction::*;
 
         match instr {
+            MemorySize(i) | MemoryGrow(i) | MemoryFill(i) => {
+                self.module.resolve(&mut i.mem, Ns::Memory)?;
+            }
             MemoryInit(i) => {
                 self.module.datas.resolve(&mut i.data, "data")?;
+                self.module.resolve(&mut i.mem, Ns::Memory)?;
+            }
+            MemoryCopy(i) => {
+                self.module.resolve(&mut i.src, Ns::Memory)?;
+                self.module.resolve(&mut i.dst, Ns::Memory)?;
             }
             DataDrop(i) => {
                 self.module.datas.resolve(i, "data")?;
@@ -1968,6 +1976,110 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             }
 
             RefNull(ty) => self.module.resolve_heaptype(ty)?,
+
+            I32Load(m)
+            | I64Load(m)
+            | F32Load(m)
+            | F64Load(m)
+            | I32Load8s(m)
+            | I32Load8u(m)
+            | I32Load16s(m)
+            | I32Load16u(m)
+            | I64Load8s(m)
+            | I64Load8u(m)
+            | I64Load16s(m)
+            | I64Load16u(m)
+            | I64Load32s(m)
+            | I64Load32u(m)
+            | I32Store(m)
+            | I64Store(m)
+            | F32Store(m)
+            | F64Store(m)
+            | I32Store8(m)
+            | I32Store16(m)
+            | I64Store8(m)
+            | I64Store16(m)
+            | I64Store32(m)
+            | I32AtomicLoad(m)
+            | I64AtomicLoad(m)
+            | I32AtomicLoad8u(m)
+            | I32AtomicLoad16u(m)
+            | I64AtomicLoad8u(m)
+            | I64AtomicLoad16u(m)
+            | I64AtomicLoad32u(m)
+            | I32AtomicStore(m)
+            | I64AtomicStore(m)
+            | I32AtomicStore8(m)
+            | I32AtomicStore16(m)
+            | I64AtomicStore8(m)
+            | I64AtomicStore16(m)
+            | I64AtomicStore32(m)
+            | I32AtomicRmwAdd(m)
+            | I64AtomicRmwAdd(m)
+            | I32AtomicRmw8AddU(m)
+            | I32AtomicRmw16AddU(m)
+            | I64AtomicRmw8AddU(m)
+            | I64AtomicRmw16AddU(m)
+            | I64AtomicRmw32AddU(m)
+            | I32AtomicRmwSub(m)
+            | I64AtomicRmwSub(m)
+            | I32AtomicRmw8SubU(m)
+            | I32AtomicRmw16SubU(m)
+            | I64AtomicRmw8SubU(m)
+            | I64AtomicRmw16SubU(m)
+            | I64AtomicRmw32SubU(m)
+            | I32AtomicRmwAnd(m)
+            | I64AtomicRmwAnd(m)
+            | I32AtomicRmw8AndU(m)
+            | I32AtomicRmw16AndU(m)
+            | I64AtomicRmw8AndU(m)
+            | I64AtomicRmw16AndU(m)
+            | I64AtomicRmw32AndU(m)
+            | I32AtomicRmwOr(m)
+            | I64AtomicRmwOr(m)
+            | I32AtomicRmw8OrU(m)
+            | I32AtomicRmw16OrU(m)
+            | I64AtomicRmw8OrU(m)
+            | I64AtomicRmw16OrU(m)
+            | I64AtomicRmw32OrU(m)
+            | I32AtomicRmwXor(m)
+            | I64AtomicRmwXor(m)
+            | I32AtomicRmw8XorU(m)
+            | I32AtomicRmw16XorU(m)
+            | I64AtomicRmw8XorU(m)
+            | I64AtomicRmw16XorU(m)
+            | I64AtomicRmw32XorU(m)
+            | I32AtomicRmwXchg(m)
+            | I64AtomicRmwXchg(m)
+            | I32AtomicRmw8XchgU(m)
+            | I32AtomicRmw16XchgU(m)
+            | I64AtomicRmw8XchgU(m)
+            | I64AtomicRmw16XchgU(m)
+            | I64AtomicRmw32XchgU(m)
+            | I32AtomicRmwCmpxchg(m)
+            | I64AtomicRmwCmpxchg(m)
+            | I32AtomicRmw8CmpxchgU(m)
+            | I32AtomicRmw16CmpxchgU(m)
+            | I64AtomicRmw8CmpxchgU(m)
+            | I64AtomicRmw16CmpxchgU(m)
+            | I64AtomicRmw32CmpxchgU(m)
+            | V128Load(m)
+            | I16x8Load8x8S(m)
+            | I16x8Load8x8U(m)
+            | I32x4Load16x4S(m)
+            | I32x4Load16x4U(m)
+            | I64x2Load32x2S(m)
+            | I64x2Load32x2U(m)
+            | V8x16LoadSplat(m)
+            | V16x8LoadSplat(m)
+            | V32x4LoadSplat(m)
+            | V64x2LoadSplat(m)
+            | V128Store(m)
+            | MemoryAtomicNotify(m)
+            | MemoryAtomicWait32(m)
+            | MemoryAtomicWait64(m) => {
+                self.module.resolve(&mut m.memory, Ns::Memory)?;
+            }
 
             _ => {}
         }

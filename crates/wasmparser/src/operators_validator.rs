@@ -599,6 +599,11 @@ impl OperatorValidator {
         memory_index: u32,
         resources: impl WasmModuleResources,
     ) -> OperatorValidatorResult<()> {
+        if memory_index > 0 && !self.features.multi_memory {
+            return Err(OperatorValidatorError::new(
+                "multi-memory support is not enabled",
+            ));
+        }
         if resources.memory_at(memory_index).is_none() {
             bail_op_err!("unknown memory {}", memory_index);
         }
@@ -608,11 +613,11 @@ impl OperatorValidator {
     fn check_memarg(
         &self,
         memarg: MemoryImmediate,
-        max_align: u32,
+        max_align: u8,
         resources: impl WasmModuleResources,
     ) -> OperatorValidatorResult<()> {
-        self.check_memory_index(0, resources)?;
-        let align = memarg.flags;
+        self.check_memory_index(memarg.memory, resources)?;
+        let align = memarg.align;
         if align > max_align {
             return Err(OperatorValidatorError::new(
                 "alignment must not be larger than natural",
@@ -1067,16 +1072,18 @@ impl OperatorValidator {
                 self.check_operands_2(Type::I32, Type::I64)?;
                 self.func_state.change_frame(2)?;
             }
-            Operator::MemorySize {
-                reserved: memory_index,
-            } => {
-                self.check_memory_index(memory_index, resources)?;
+            Operator::MemorySize { mem, mem_byte } => {
+                if mem_byte != 0 && !self.features.multi_memory {
+                    return Err(OperatorValidatorError::new("multi-memory not enabled"));
+                }
+                self.check_memory_index(mem, resources)?;
                 self.func_state.change_frame_with_type(0, Type::I32)?;
             }
-            Operator::MemoryGrow {
-                reserved: memory_index,
-            } => {
-                self.check_memory_index(memory_index, resources)?;
+            Operator::MemoryGrow { mem, mem_byte } => {
+                if mem_byte != 0 && !self.features.multi_memory {
+                    return Err(OperatorValidatorError::new("multi-memory not enabled"));
+                }
+                self.check_memory_index(mem, resources)?;
                 self.check_operands_1(Type::I32)?;
                 self.func_state.change_frame_with_type(1, Type::I32)?;
             }
@@ -1837,9 +1844,9 @@ impl OperatorValidator {
                 self.func_state.change_frame_with_type(1, Type::V128)?;
             }
 
-            Operator::MemoryInit { segment } => {
+            Operator::MemoryInit { mem, segment } => {
                 self.check_bulk_memory_enabled()?;
-                self.check_memory_index(0, resources)?;
+                self.check_memory_index(mem, resources)?;
                 if segment >= resources.data_count() {
                     bail_op_err!("unknown data segment {}", segment);
                 }
@@ -1852,9 +1859,18 @@ impl OperatorValidator {
                     bail_op_err!("unknown data segment {}", segment);
                 }
             }
-            Operator::MemoryCopy | Operator::MemoryFill => {
+            Operator::MemoryCopy { src, dst } => {
                 self.check_bulk_memory_enabled()?;
-                self.check_memory_index(0, resources)?;
+                self.check_memory_index(src, resources)?;
+                if src != dst {
+                    self.check_memory_index(dst, resources)?;
+                }
+                self.check_operands_3(Type::I32, Type::I32, Type::I32)?;
+                self.func_state.change_frame(3)?;
+            }
+            Operator::MemoryFill { mem } => {
+                self.check_bulk_memory_enabled()?;
+                self.check_memory_index(mem, resources)?;
                 self.check_operands_3(Type::I32, Type::I32, Type::I32)?;
                 self.func_state.change_frame(3)?;
             }

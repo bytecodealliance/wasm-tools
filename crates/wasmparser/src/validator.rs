@@ -158,6 +158,8 @@ pub struct WasmFeatures {
     pub bulk_memory: bool,
     /// Whether or not only deterministic instructions are allowed
     pub deterministic_only: bool,
+    /// The WebAssembly multi memory operations proposal
+    pub multi_memory: bool,
 }
 
 impl Default for WasmFeatures {
@@ -170,6 +172,7 @@ impl Default for WasmFeatures {
             threads: false,
             tail_call: false,
             bulk_memory: false,
+            multi_memory: false,
             deterministic_only: cfg!(feature = "deterministic"),
 
             // on-by-default features
@@ -704,7 +707,7 @@ impl Validator {
             ImportSectionEntryType::Memory(ty) => {
                 let state = self.state.assert_mut();
                 state.memories.push(ty);
-                (state.memories.len(), MAX_WASM_MEMORIES, "memories")
+                (state.memories.len(), self.max_memories(), "memories")
             }
             ImportSectionEntryType::Global(ty) => {
                 let def = self.state.def(ty);
@@ -1090,11 +1093,19 @@ impl Validator {
         })
     }
 
+    fn max_memories(&self) -> usize {
+        if self.features.multi_memory {
+            MAX_WASM_MEMORIES
+        } else {
+            1
+        }
+    }
+
     pub fn memory_section(&mut self, section: &crate::MemorySectionReader<'_>) -> Result<()> {
         self.check_max(
             self.state.memories.len(),
             section.get_count(),
-            MAX_WASM_MEMORIES,
+            self.max_memories(),
             "memories",
         )?;
         self.section(Order::Memory, section, |me, ty| {

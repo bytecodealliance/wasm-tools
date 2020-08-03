@@ -225,8 +225,10 @@ pub enum ImportSectionEntryType {
 
 #[derive(Debug, Copy, Clone)]
 pub struct MemoryImmediate {
-    pub flags: u32,
+    /// Alignment, stored as `n` where the actual alignment is `2^n`
+    pub align: u8,
     pub offset: u32,
+    pub memory: u32,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -354,8 +356,8 @@ pub enum Operator<'a> {
     I64Store8 { memarg: MemoryImmediate },
     I64Store16 { memarg: MemoryImmediate },
     I64Store32 { memarg: MemoryImmediate },
-    MemorySize { reserved: u32 },
-    MemoryGrow { reserved: u32 },
+    MemorySize { mem: u32, mem_byte: u8 },
+    MemoryGrow { mem: u32, mem_byte: u8 },
     I32Const { value: i32 },
     I64Const { value: i64 },
     F32Const { value: Ieee32 },
@@ -505,10 +507,10 @@ pub enum Operator<'a> {
 
     // 0xFC operators
     // bulk memory https://github.com/WebAssembly/bulk-memory-operations/blob/master/proposals/bulk-memory-operations/Overview.md
-    MemoryInit { segment: u32 },
+    MemoryInit { segment: u32, mem: u32 },
     DataDrop { segment: u32 },
-    MemoryCopy,
-    MemoryFill,
+    MemoryCopy { src: u32, dst: u32 },
+    MemoryFill { mem: u32 },
     TableInit { segment: u32, table: u32 },
     ElemDrop { segment: u32 },
     TableCopy { dst_table: u32, src_table: u32 },

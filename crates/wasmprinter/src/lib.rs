@@ -753,8 +753,10 @@ impl Printer {
             I64Store16 { memarg } => self.mem_instr("i64.store16", memarg, 2)?,
             I64Store32 { memarg } => self.mem_instr("i64.store32", memarg, 4)?,
 
-            MemorySize { .. } => self.result.push_str("memory.size"),
-            MemoryGrow { .. } => self.result.push_str("memory.grow"),
+            MemorySize { mem: 0, .. } => self.result.push_str("memory.size"),
+            MemorySize { mem, .. } => write!(self.result, "memory.size {}", mem)?,
+            MemoryGrow { mem: 0, .. } => self.result.push_str("memory.grow"),
+            MemoryGrow { mem, .. } => write!(self.result, "memory.grow {}", mem)?,
 
             I32Const { value } => write!(self.result, "i32.const {}", value)?,
             I64Const { value } => write!(self.result, "i64.const {}", value)?,
@@ -926,10 +928,13 @@ impl Printer {
             I64TruncSatF64S => self.result.push_str("i64.trunc_sat_f64_s"),
             I64TruncSatF64U => self.result.push_str("i64.trunc_sat_f64_u"),
 
-            MemoryInit { segment } => write!(self.result, "memory.init {}", segment)?,
+            MemoryInit { segment, mem: 0 } => write!(self.result, "memory.init {}", segment)?,
+            MemoryInit { segment, mem } => write!(self.result, "memory.init {} {}", segment, mem)?,
             DataDrop { segment } => write!(self.result, "data.drop {}", segment)?,
-            MemoryCopy => self.result.push_str("memory.copy"),
-            MemoryFill => self.result.push_str("memory.fill"),
+            MemoryCopy { src: 0, dst: 0 } => self.result.push_str("memory.copy"),
+            MemoryCopy { src, dst } => write!(self.result, "memory.copy {} {}", dst, src)?,
+            MemoryFill { mem: 0 } => self.result.push_str("memory.fill"),
+            MemoryFill { mem } => write!(self.result, "memory.fill {}", mem)?,
 
             TableInit { table, segment } => {
                 if *table == 0 {
@@ -1275,10 +1280,13 @@ impl Printer {
         default_align: u32,
     ) -> Result<()> {
         self.result.push_str(name);
+        if memarg.memory != 0 {
+            write!(self.result, " {}", memarg.memory)?;
+        }
         if memarg.offset != 0 {
             write!(self.result, " offset={}", memarg.offset)?;
         }
-        let align = 1 << (memarg.flags & 0x1f);
+        let align = 1 << memarg.align;
         if default_align != align {
             write!(self.result, " align={}", align)?;
         }

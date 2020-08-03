@@ -117,7 +117,9 @@ impl<'a> ExpressionParser<'a> {
                         // If block/loop show up then we just need to be sure to
                         // push an `end` instruction whenever the `)` token is
                         // seen
-                        i @ Instruction::Block(_) | i @ Instruction::Loop(_) | i @ Instruction::Let(_) => {
+                        i @ Instruction::Block(_)
+                        | i @ Instruction::Loop(_)
+                        | i @ Instruction::Let(_) => {
                             self.instrs.push(i);
                             self.stack.push(Level::EndWith(Instruction::End(None)));
                         }
@@ -319,7 +321,7 @@ macro_rules! instructions {
         }
     );
 
-    (@ty MemArg<$amt:tt>) => (MemArg);
+    (@ty MemArg<$amt:tt>) => (MemArg<'a>);
     (@ty $other:ty) => ($other);
 
     (@first $first:ident $($t:tt)*) => ($first);
@@ -399,11 +401,11 @@ instructions! {
         I64Store32(MemArg<4>) : [0x3e] : "i64.store32",
 
         // Lots of bulk memory proposal here as well
-        MemorySize : [0x3f, 0x00] : "memory.size" | "current_memory",
-        MemoryGrow : [0x40, 0x00] : "memory.grow" | "grow_memory",
+        MemorySize(MemoryArg<'a>) : [0x3f] : "memory.size" | "current_memory",
+        MemoryGrow(MemoryArg<'a>) : [0x40] : "memory.grow" | "grow_memory",
         MemoryInit(MemoryInit<'a>) : [0xfc, 0x08] : "memory.init",
-        MemoryCopy : [0xfc, 0x0a, 0x00, 0x00] : "memory.copy",
-        MemoryFill : [0xfc, 0x0b, 0x00] : "memory.fill",
+        MemoryCopy(MemoryCopy<'a>) : [0xfc, 0x0a] : "memory.copy",
+        MemoryFill(MemoryArg<'a>) : [0xfc, 0x0b] : "memory.fill",
         DataDrop(ast::Index<'a>) : [0xfc, 0x09] : "data.drop",
         ElemDrop(ast::Index<'a>) : [0xfc, 0x0d] : "elem.drop",
         TableInit(TableInit<'a>) : [0xfc, 0x0c] : "table.init",
@@ -969,7 +971,7 @@ impl<'a> Parse<'a> for BrTableIndices<'a> {
 /// Payload for memory-related instructions indicating offset/alignment of
 /// memory accesses.
 #[derive(Debug)]
-pub struct MemArg {
+pub struct MemArg<'a> {
     /// The alignment of this access.
     ///
     /// This is not stored as a log, this is the actual alignment (e.g. 1, 2, 4,
@@ -977,10 +979,12 @@ pub struct MemArg {
     pub align: u32,
     /// The offset, in bytes of this access.
     pub offset: u32,
+    /// The memory index we're accessing
+    pub memory: ast::Index<'a>,
 }
 
-impl MemArg {
-    fn parse(parser: Parser<'_>, default_align: u32) -> Result<Self> {
+impl<'a> MemArg<'a> {
+    fn parse(parser: Parser<'a>, default_align: u32) -> Result<Self> {
         fn parse_field(name: &str, parser: Parser<'_>) -> Result<Option<u32>> {
             parser.step(|c| {
                 let (kw, rest) = match c.keyword() {
@@ -1010,6 +1014,9 @@ impl MemArg {
                 Ok((Some(num), rest))
             })
         }
+        let memory = parser
+            .parse::<Option<_>>()?
+            .unwrap_or(ast::Index::Num(0, parser.prev_span()));
         let offset = parse_field("offset", parser)?.unwrap_or(0);
         let align = match parse_field("align", parser)? {
             Some(n) if !n.is_power_of_two() => {
@@ -1018,7 +1025,11 @@ impl MemArg {
             n => n.unwrap_or(default_align),
         };
 
-        Ok(MemArg { offset, align })
+        Ok(MemArg {
+            offset,
+            align,
+            memory,
+        })
     }
 }
 
@@ -1109,18 +1120,62 @@ impl<'a> Parse<'a> for TableArg<'a> {
     }
 }
 
+/// Extra data associated with unary memory instructions.
+#[derive(Debug)]
+pub struct MemoryArg<'a> {
+    /// The index of the memory space.
+    pub mem: ast::Index<'a>,
+}
+
+impl<'a> Parse<'a> for MemoryArg<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let mem = if let Some(mem) = parser.parse()? {
+            mem
+        } else {
+            ast::Index::Num(0, parser.prev_span())
+        };
+        Ok(MemoryArg { mem })
+    }
+}
+
 /// Extra data associated with the `memory.init` instruction
 #[derive(Debug)]
 pub struct MemoryInit<'a> {
     /// The index of the data segment we're copying into memory.
     pub data: ast::Index<'a>,
+    /// The index of the memory we're copying into,
+    pub mem: ast::Index<'a>,
 }
 
 impl<'a> Parse<'a> for MemoryInit<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        Ok(MemoryInit {
-            data: parser.parse()?,
-        })
+        let data = parser.parse()?;
+        let mem = parser
+            .parse::<Option<_>>()?
+            .unwrap_or(ast::Index::Num(0, parser.prev_span()));
+        Ok(MemoryInit { data, mem })
+    }
+}
+
+/// Extra data associated with the `memory.copy` instruction
+#[derive(Debug)]
+pub struct MemoryCopy<'a> {
+    /// The index of the memory we're copying from.
+    pub src: ast::Index<'a>,
+    /// The index of the memory we're copying to.
+    pub dst: ast::Index<'a>,
+}
+
+impl<'a> Parse<'a> for MemoryCopy<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let (src, dst) = match parser.parse()? {
+            Some(dst) => (parser.parse()?, dst),
+            None => {
+                let idx = ast::Index::Num(0, parser.prev_span());
+                (idx, idx)
+            }
+        };
+        Ok(MemoryCopy { src, dst })
     }
 }
 
@@ -1432,7 +1487,11 @@ impl<'a> Parse<'a> for RTTSub<'a> {
         let depth = parser.parse()?;
         let input_rtt = parser.parse()?;
         let output_rtt = parser.parse()?;
-        Ok(RTTSub { depth, input_rtt, output_rtt })
+        Ok(RTTSub {
+            depth,
+            input_rtt,
+            output_rtt,
+        })
     }
 }
 

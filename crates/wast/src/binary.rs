@@ -827,10 +827,20 @@ impl Encode for LetType<'_> {
     }
 }
 
-impl Encode for MemArg {
+impl Encode for MemArg<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
-        self.align.trailing_zeros().encode(e);
-        self.offset.encode(e);
+        match self.memory {
+            Index::Num(0, _) => {
+                self.align.trailing_zeros().encode(e);
+                self.offset.encode(e);
+            }
+            Index::Num(n, _) => {
+                (self.align.trailing_zeros() | (1 << 6)).encode(e);
+                self.offset.encode(e);
+                n.encode(e);
+            }
+            Index::Id(i) => panic!("unresolved index in emission {:?}", i),
+        }
     }
 }
 
@@ -861,10 +871,23 @@ impl Encode for TableArg<'_> {
     }
 }
 
+impl Encode for MemoryArg<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.mem.encode(e);
+    }
+}
+
 impl Encode for MemoryInit<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.data.encode(e);
-        e.push(0x00);
+        self.mem.encode(e);
+    }
+}
+
+impl Encode for MemoryCopy<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.dst.encode(e);
+        self.src.encode(e);
     }
 }
 
