@@ -357,10 +357,31 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
+    fn read_first_byte_and_var_u32(&mut self) -> Result<(u8, u32)> {
+        let pos = self.position;
+        let val = self.read_var_u32()?;
+        Ok((self.buffer[pos], val))
+    }
+
     fn read_memarg(&mut self) -> Result<MemoryImmediate> {
+        let flags_pos = self.original_position();
+        let mut flags = self.read_var_u32()?;
+        let offset = self.read_var_u32()?;
+        let memory = if flags & (1 << 6) != 0 {
+            flags ^= 1 << 6;
+            self.read_var_u32()?
+        } else {
+            0
+        };
+        let align = if flags >= (1 << 6) {
+            return Err(BinaryReaderError::new("alignment too large", flags_pos));
+        } else {
+            flags as u8
+        };
         Ok(MemoryImmediate {
-            flags: self.read_var_u32()?,
-            offset: self.read_var_u32()?,
+            align,
+            offset,
+            memory,
         })
     }
 
@@ -744,12 +765,13 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    fn read_memarg_of_align(&mut self, max_align: u32) -> Result<MemoryImmediate> {
+    fn read_memarg_of_align(&mut self, max_align: u8) -> Result<MemoryImmediate> {
+        let align_pos = self.original_position();
         let imm = self.read_memarg()?;
-        if imm.flags > max_align {
+        if imm.align > max_align {
             return Err(BinaryReaderError::new(
                 "alignment must not be larger than natural",
-                self.original_position() - 1,
+                align_pos,
             ));
         }
         Ok(imm)
@@ -1131,12 +1153,14 @@ impl<'a> BinaryReader<'a> {
             0x3e => Operator::I64Store32 {
                 memarg: self.read_memarg()?,
             },
-            0x3f => Operator::MemorySize {
-                reserved: self.read_var_u1()?,
-            },
-            0x40 => Operator::MemoryGrow {
-                reserved: self.read_var_u1()?,
-            },
+            0x3f => {
+                let (mem_byte, mem) = self.read_first_byte_and_var_u32()?;
+                Operator::MemorySize { mem_byte, mem }
+            }
+            0x40 => {
+                let (mem_byte, mem) = self.read_first_byte_and_var_u32()?;
+                Operator::MemoryGrow { mem_byte, mem }
+            }
             0x41 => Operator::I32Const {
                 value: self.read_var_i32()?,
             },
@@ -1314,45 +1338,21 @@ impl<'a> BinaryReader<'a> {
 
             0x08 => {
                 let segment = self.read_var_u32()?;
-                let mem = self.read_u8()?;
-                if mem != 0 {
-                    return Err(BinaryReaderError::new(
-                        "reserved byte must be zero",
-                        self.original_position() - 1,
-                    ));
-                }
-                Operator::MemoryInit { segment }
+                let mem = self.read_var_u32()?;
+                Operator::MemoryInit { segment, mem }
             }
             0x09 => {
                 let segment = self.read_var_u32()?;
                 Operator::DataDrop { segment }
             }
             0x0a => {
-                let dst = self.read_u8()?;
-                if dst != 0 {
-                    return Err(BinaryReaderError::new(
-                        "reserved byte must be zero",
-                        self.original_position() - 1,
-                    ));
-                }
-                let src = self.read_u8()?;
-                if src != 0 {
-                    return Err(BinaryReaderError::new(
-                        "reserved byte must be zero",
-                        self.original_position() - 1,
-                    ));
-                }
-                Operator::MemoryCopy
+                let dst = self.read_var_u32()?;
+                let src = self.read_var_u32()?;
+                Operator::MemoryCopy { src, dst }
             }
             0x0b => {
-                let mem = self.read_u8()?;
-                if mem != 0 {
-                    return Err(BinaryReaderError::new(
-                        "reserved byte must be zero",
-                        self.original_position() - 1,
-                    ));
-                }
-                Operator::MemoryFill
+                let mem = self.read_var_u32()?;
+                Operator::MemoryFill { mem }
             }
             0x0c => {
                 let segment = self.read_var_u32()?;

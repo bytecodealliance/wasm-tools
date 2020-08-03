@@ -37,6 +37,11 @@ fn main() -> Result<()> {
     );
     opts.optflag(
         "",
+        "enable-multi-memory",
+        "Enable wasm multi-memory feature",
+    );
+    opts.optflag(
+        "",
         "deterministic-only",
         "Require only deterministic instructions",
     );
@@ -65,6 +70,7 @@ fn main() -> Result<()> {
         multi_value: matches.opt_present("enable-multi-value"),
         tail_call: matches.opt_present("enable-tail-call"),
         module_linking: matches.opt_present("enable-module-linking"),
+        multi_memory: matches.opt_present("enable-multi-memory"),
         deterministic_only: matches.opt_present("deterministic-only"),
     });
 
