@@ -247,6 +247,18 @@ impl Encode for i32 {
     }
 }
 
+impl Encode for u64 {
+    fn encode(&self, e: &mut Vec<u8>) {
+        leb128::write::unsigned(e, (*self).into()).unwrap();
+    }
+}
+
+impl Encode for i64 {
+    fn encode(&self, e: &mut Vec<u8>) {
+        leb128::write::signed(e, *self).unwrap();
+    }
+}
+
 impl Encode for FunctionType<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.params.len().encode(e);
@@ -524,13 +536,25 @@ impl Encode for Limits {
 
 impl Encode for MemoryType {
     fn encode(&self, e: &mut Vec<u8>) {
-        let flag_max = self.limits.max.is_some() as u8;
-        let flag_shared = self.shared as u8;
-        let flags = flag_max | (flag_shared << 1);
-        e.push(flags);
-        self.limits.min.encode(e);
-        if let Some(max) = self.limits.max {
-            max.encode(e);
+        match self {
+            MemoryType::B32 { limits, shared } => {
+                let flag_max = limits.max.is_some() as u8;
+                let flag_shared = *shared as u8;
+                let flags = flag_max | (flag_shared << 1);
+                e.push(flags);
+                limits.min.encode(e);
+                if let Some(max) = limits.max {
+                    max.encode(e);
+                }
+            }
+            MemoryType::B64 { limits } => {
+                let flags = (limits.max.is_some() as u8) | 0x04;
+                e.push(flags);
+                limits.min.encode(e);
+                if let Some(max) = limits.max {
+                    max.encode(e);
+                }
+            }
         }
     }
 }
@@ -895,12 +919,6 @@ impl Encode for BrTableIndices<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.labels.encode(e);
         self.default.encode(e);
-    }
-}
-
-impl Encode for i64 {
-    fn encode(&self, e: &mut Vec<u8>) {
-        leb128::write::signed(e, *self).unwrap();
     }
 }
 

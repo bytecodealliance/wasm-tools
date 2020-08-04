@@ -477,9 +477,19 @@ impl Printer {
         if index {
             write!(self.result, "(;{};) ", self.state.memory)?;
         }
-        self.print_limits(&ty.limits)?;
-        if ty.shared {
-            self.result.push_str(" shared");
+        match ty {
+            MemoryType::M32 { limits, shared } => {
+                self.print_limits(limits)?;
+                if *shared {
+                    self.result.push_str(" shared");
+                }
+            }
+            MemoryType::M64 { limits } => {
+                write!(self.result, "i64 {}", limits.initial)?;
+                if let Some(max) = limits.maximum {
+                    write!(self.result, " {}", max)?;
+                }
+            }
         }
         Ok(())
     }

@@ -40,6 +40,7 @@ fn main() -> Result<()> {
         "enable-multi-memory",
         "Enable wasm multi-memory feature",
     );
+    opts.optflag("", "enable-memory64", "Enable wasm memory64 feature");
     opts.optflag(
         "",
         "deterministic-only",
@@ -71,6 +72,7 @@ fn main() -> Result<()> {
         tail_call: matches.opt_present("enable-tail-call"),
         module_linking: matches.opt_present("enable-module-linking"),
         multi_memory: matches.opt_present("enable-multi-memory"),
+        memory64: matches.opt_present("enable-memory64"),
         deterministic_only: matches.opt_present("deterministic-only"),
     });
 

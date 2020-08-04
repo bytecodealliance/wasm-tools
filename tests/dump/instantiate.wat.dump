@@ -31,7 +31,7 @@
 0x003e | 70 00 01    | [table 0] TableType { element_type: FuncRef, limits: ResizableLimits { initial: 1, maximum: None } }
 0x0041 | 05 03       | memory section
 0x0043 | 01          | 1 count
-0x0044 | 00 01       | [memory 0] MemoryType { limits: ResizableLimits { initial: 1, maximum: None }, shared: false }
+0x0044 | 00 01       | [memory 0] M32 { limits: ResizableLimits { initial: 1, maximum: None }, shared: false }
 0x0046 | 06 06       | global section
 0x0048 | 01          | 1 count
 0x0049 | 7f 00       | [global 0] GlobalType { content_type: I32, mutable: false }

@@ -196,15 +196,35 @@ pub struct ResizableLimits {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct ResizableLimits64 {
+    pub initial: u64,
+    pub maximum: Option<u64>,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct TableType {
     pub element_type: Type,
     pub limits: ResizableLimits,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct MemoryType {
-    pub limits: ResizableLimits,
-    pub shared: bool,
+pub enum MemoryType {
+    M32 {
+        limits: ResizableLimits,
+        shared: bool,
+    },
+    M64 {
+        limits: ResizableLimits64,
+    },
+}
+
+impl MemoryType {
+    pub fn index_type(&self) -> Type {
+        match self {
+            MemoryType::M32 { .. } => Type::I32,
+            MemoryType::M64 { .. } => Type::I64,
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

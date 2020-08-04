@@ -52,13 +52,13 @@ impl<'a> Parse<'a> for ValType<'a> {
 
 impl<'a> Peek for ValType<'a> {
     fn peek(cursor: Cursor<'_>) -> bool {
-        kw::i32::peek(cursor) ||
-        kw::i64::peek(cursor) ||
-        kw::f32::peek(cursor) ||
-        kw::f64::peek(cursor) ||
-        kw::v128::peek(cursor) ||
-        (ast::LParen::peek(cursor) && kw::rtt::peek2(cursor)) ||
-        RefType::peek(cursor)
+        kw::i32::peek(cursor)
+            || kw::i64::peek(cursor)
+            || kw::f32::peek(cursor)
+            || kw::f64::peek(cursor)
+            || kw::v128::peek(cursor)
+            || (ast::LParen::peek(cursor) && kw::rtt::peek2(cursor))
+            || RefType::peek(cursor)
     }
     fn display() -> &'static str {
         "valtype"
@@ -149,7 +149,7 @@ impl<'a> Peek for HeapType<'a> {
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub struct RefType<'a> {
     pub nullable: bool,
-    pub heap: HeapType<'a>
+    pub heap: HeapType<'a>,
 }
 
 impl<'a> RefType<'a> {
@@ -157,7 +157,7 @@ impl<'a> RefType<'a> {
     pub fn func() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::Func
+            heap: HeapType::Func,
         }
     }
 
@@ -165,7 +165,7 @@ impl<'a> RefType<'a> {
     pub fn r#extern() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::Extern
+            heap: HeapType::Extern,
         }
     }
 
@@ -173,7 +173,7 @@ impl<'a> RefType<'a> {
     pub fn any() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::Any
+            heap: HeapType::Any,
         }
     }
 
@@ -181,7 +181,7 @@ impl<'a> RefType<'a> {
     pub fn exn() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::Exn
+            heap: HeapType::Exn,
         }
     }
 
@@ -189,7 +189,7 @@ impl<'a> RefType<'a> {
     pub fn eq() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::Eq
+            heap: HeapType::Eq,
         }
     }
 
@@ -197,7 +197,7 @@ impl<'a> RefType<'a> {
     pub fn i31() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::I31
+            heap: HeapType::I31,
         }
     }
 }
@@ -246,7 +246,7 @@ impl<'a> Parse<'a> for RefType<'a> {
                     } else {
                         Ok(RefType {
                             nullable,
-                            heap: parser.parse()?
+                            heap: parser.parse()?,
                         })
                     }
                 } else {
@@ -350,6 +350,27 @@ impl<'a> Parse<'a> for Limits {
     }
 }
 
+/// Min/max limits used for 64-bit memories
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Limits64 {
+    /// The minimum number of units for this type.
+    pub min: u64,
+    /// An optional maximum number of units for this type.
+    pub max: Option<u64>,
+}
+
+impl<'a> Parse<'a> for Limits64 {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let min = parser.parse()?;
+        let max = if parser.peek::<u64>() {
+            Some(parser.parse()?)
+        } else {
+            None
+        };
+        Ok(Limits64 { min, max })
+    }
+}
+
 /// Configuration for a table of a wasm mdoule
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TableType<'a> {
@@ -370,18 +391,33 @@ impl<'a> Parse<'a> for TableType<'a> {
 
 /// Configuration for a memory of a wasm module
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct MemoryType {
-    /// Limits on the page sizes of this memory
-    pub limits: Limits,
-    /// Whether or not this is a shared (atomic) memory type
-    pub shared: bool,
+pub enum MemoryType {
+    /// A 32-bit memory
+    B32 {
+        /// Limits on the page sizes of this memory
+        limits: Limits,
+        /// Whether or not this is a shared (atomic) memory type
+        shared: bool,
+    },
+    /// A 64-bit memory
+    B64 {
+        /// Limits on the page sizes of this memory
+        limits: Limits64,
+    },
 }
 
 impl<'a> Parse<'a> for MemoryType {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let limits: Limits = parser.parse()?;
-        let shared = parser.parse::<Option<kw::shared>>()?.is_some();
-        Ok(MemoryType { limits, shared })
+        if parser.peek::<kw::i64>() {
+            parser.parse::<kw::i64>()?;
+            let limits = parser.parse()?;
+            Ok(MemoryType::B64 { limits })
+        } else {
+            parser.parse::<Option<kw::i32>>()?;
+            let limits = parser.parse()?;
+            let shared = parser.parse::<Option<kw::shared>>()?.is_some();
+            Ok(MemoryType::B32 { limits, shared })
+        }
     }
 }
 
