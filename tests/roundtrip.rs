@@ -255,6 +255,7 @@ impl TestState {
             // not implemented in wabt
             && !test.iter().any(|t| t == "module-linking")
             && !test.ends_with("multi-memory.wast")
+            && !test.ends_with("memory64.wast")
 
             // wabt uses old instruction names for atomics
             && !test.ends_with("atomic-no-shared-memory.txt")
@@ -652,6 +653,7 @@ impl TestState {
             deterministic_only: false,
             multi_value: true,
             multi_memory: true,
+            memory64: true,
         };
         for part in test.iter().filter_map(|t| t.to_str()) {
             match part {

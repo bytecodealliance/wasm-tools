@@ -14,6 +14,7 @@
  */
 
 use crate::limits::*;
+use crate::ResizableLimits64;
 use crate::WasmModuleResources;
 use crate::{Alias, AliasedInstance, ExternalKind, Import, ImportSectionEntryType};
 use crate::{BinaryReaderError, GlobalType, MemoryType, Range, Result, TableType, Type};
@@ -158,8 +159,10 @@ pub struct WasmFeatures {
     pub bulk_memory: bool,
     /// Whether or not only deterministic instructions are allowed
     pub deterministic_only: bool,
-    /// The WebAssembly multi memory operations proposal
+    /// The WebAssembly multi memory proposal
     pub multi_memory: bool,
+    /// The WebAssembly memory64 proposal
+    pub memory64: bool,
 }
 
 impl Default for WasmFeatures {
@@ -173,6 +176,7 @@ impl Default for WasmFeatures {
             tail_call: false,
             bulk_memory: false,
             multi_memory: false,
+            memory64: false,
             deterministic_only: cfg!(feature = "deterministic"),
 
             // on-by-default features
@@ -647,21 +651,41 @@ impl Validator {
     }
 
     fn memory_type(&self, ty: &MemoryType) -> Result<()> {
-        self.limits(&ty.limits)?;
-        let initial = ty.limits.initial;
-        if initial as usize > MAX_WASM_MEMORY_PAGES {
-            return self.create_error("memory size must be at most 65536 pages (4GiB)");
-        }
-        let maximum = ty.limits.maximum;
-        if maximum.is_some() && maximum.unwrap() as usize > MAX_WASM_MEMORY_PAGES {
-            return self.create_error("memory size must be at most 65536 pages (4GiB)");
-        }
-        if ty.shared {
-            if !self.features.threads {
-                return self.create_error("threads must be enabled for shared memories");
+        match ty {
+            MemoryType::M32 { limits, shared } => {
+                self.limits(limits)?;
+                let initial = limits.initial;
+                if initial as usize > MAX_WASM_MEMORY_PAGES {
+                    return self.create_error("memory size must be at most 65536 pages (4GiB)");
+                }
+                if let Some(maximum) = limits.maximum {
+                    if maximum as usize > MAX_WASM_MEMORY_PAGES {
+                        return self.create_error("memory size must be at most 65536 pages (4GiB)");
+                    }
+                }
+                if *shared {
+                    if !self.features.threads {
+                        return self.create_error("threads must be enabled for shared memories");
+                    }
+                    if limits.maximum.is_none() {
+                        return self.create_error("shared memory must have maximum size");
+                    }
+                }
             }
-            if ty.limits.maximum.is_none() {
-                return self.create_error("shared memory must have maximum size");
+            MemoryType::M64 { limits } => {
+                if !self.features.memory64 {
+                    return self.create_error("memory64 must be enabled for 64-bit memories");
+                }
+                self.limits64(&limits)?;
+                let initial = limits.initial;
+                if initial > MAX_WASM_MEMORY64_PAGES {
+                    return self.create_error("memory initial size too large");
+                }
+                if let Some(maximum) = limits.maximum {
+                    if maximum > MAX_WASM_MEMORY64_PAGES {
+                        return self.create_error("memory initial size too large");
+                    }
+                }
             }
         }
         Ok(())
@@ -672,6 +696,15 @@ impl Validator {
     }
 
     fn limits(&self, limits: &ResizableLimits) -> Result<()> {
+        if let Some(max) = limits.maximum {
+            if limits.initial > max {
+                return self.create_error("size minimum must not be greater than maximum");
+            }
+        }
+        Ok(())
+    }
+
+    fn limits64(&self, limits: &ResizableLimits64) -> Result<()> {
         if let Some(max) = limits.maximum {
             if limits.initial > max {
                 return self.create_error("size minimum must not be greater than maximum");
@@ -946,16 +979,20 @@ impl Validator {
         expected: Def<&ImportSectionEntryType>,
         actual: Def<&ImportSectionEntryType>,
     ) -> Result<()> {
-        let limits_match = |expected: &ResizableLimits, actual: &ResizableLimits| {
-            actual.initial >= expected.initial
-                && match expected.maximum {
-                    Some(expected_max) => match actual.maximum {
-                        Some(actual_max) => actual_max <= expected_max,
-                        None => false,
-                    },
-                    None => true,
-                }
-        };
+        macro_rules! limits_match {
+            ($expected:expr, $actual:expr) => {{
+                let expected = $expected;
+                let actual = $actual;
+                actual.initial >= expected.initial
+                    && match expected.maximum {
+                        Some(expected_max) => match actual.maximum {
+                            Some(actual_max) => actual_max <= expected_max,
+                            None => false,
+                        },
+                        None => true,
+                    }
+            }};
+        }
         match (expected.item, actual.item) {
             (
                 ImportSectionEntryType::Function(expected_idx),
@@ -970,17 +1007,34 @@ impl Validator {
             }
             (ImportSectionEntryType::Table(expected), ImportSectionEntryType::Table(actual)) => {
                 if expected.element_type == actual.element_type
-                    && limits_match(&expected.limits, &actual.limits)
+                    && limits_match!(&expected.limits, &actual.limits)
                 {
                     return Ok(());
                 }
                 self.create_error("table provided for instantiation has wrong type")
             }
             (ImportSectionEntryType::Memory(expected), ImportSectionEntryType::Memory(actual)) => {
-                if limits_match(&expected.limits, &actual.limits)
-                    && expected.shared == actual.shared
-                {
-                    return Ok(());
+                match (expected, actual) {
+                    (
+                        MemoryType::M32 {
+                            limits: a,
+                            shared: ash,
+                        },
+                        MemoryType::M32 {
+                            limits: b,
+                            shared: bsh,
+                        },
+                    ) => {
+                        if limits_match!(a, b) && ash == bsh {
+                            return Ok(());
+                        }
+                    }
+                    (MemoryType::M64 { limits: a }, MemoryType::M64 { limits: b }) => {
+                        if limits_match!(a, b) {
+                            return Ok(());
+                        }
+                    }
+                    _ => {}
                 }
                 self.create_error("memory provided for instantiation has wrong type")
             }
@@ -1525,8 +1579,8 @@ impl Validator {
                     memory_index,
                     init_expr,
                 } => {
-                    me.get_memory(me.state.def(memory_index))?;
-                    me.init_expr(&init_expr, Type::I32)?;
+                    let ty = me.get_memory(me.state.def(memory_index))?.index_type();
+                    me.init_expr(&init_expr, ty)?;
                 }
             }
             Ok(())

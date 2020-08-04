@@ -63,7 +63,9 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                     MemoryKind::Inline(ref data) => {
                         let len = data.iter().map(|l| l.len()).sum::<usize>() as u32;
                         let pages = (len + page_size() - 1) / page_size();
-                        let kind = MemoryKind::Normal(MemoryType {
+                        // FIXME(WebAssembly/memory64#5) is 32-bit always here
+                        // right?
+                        let kind = MemoryKind::Normal(MemoryType::B32 {
                             limits: Limits {
                                 min: pages,
                                 max: Some(pages),

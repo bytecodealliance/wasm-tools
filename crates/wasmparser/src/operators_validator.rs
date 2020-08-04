@@ -598,16 +598,16 @@ impl OperatorValidator {
         &self,
         memory_index: u32,
         resources: impl WasmModuleResources,
-    ) -> OperatorValidatorResult<()> {
+    ) -> OperatorValidatorResult<Type> {
         if memory_index > 0 && !self.features.multi_memory {
             return Err(OperatorValidatorError::new(
                 "multi-memory support is not enabled",
             ));
         }
-        if resources.memory_at(memory_index).is_none() {
-            bail_op_err!("unknown memory {}", memory_index);
+        match resources.memory_at(memory_index) {
+            Some(mem) => Ok(mem.index_type()),
+            None => bail_op_err!("unknown memory {}", memory_index),
         }
-        Ok(())
     }
 
     fn check_memarg(
@@ -615,15 +615,15 @@ impl OperatorValidator {
         memarg: MemoryImmediate,
         max_align: u8,
         resources: impl WasmModuleResources,
-    ) -> OperatorValidatorResult<()> {
-        self.check_memory_index(memarg.memory, resources)?;
+    ) -> OperatorValidatorResult<Type> {
+        let index_ty = self.check_memory_index(memarg.memory, resources)?;
         let align = memarg.align;
         if align > max_align {
             return Err(OperatorValidatorError::new(
                 "alignment must not be larger than natural",
             ));
         }
-        Ok(())
+        Ok(index_ty)
     }
 
     #[cfg(feature = "deterministic")]
@@ -680,9 +680,8 @@ impl OperatorValidator {
         &self,
         _: MemoryImmediate,
         resources: impl WasmModuleResources,
-    ) -> OperatorValidatorResult<()> {
-        self.check_memory_index(0, resources)?;
-        Ok(())
+    ) -> OperatorValidatorResult<Type> {
+        self.check_memory_index(0, resources)
     }
 
     fn check_simd_lane_index(&self, index: SIMDLaneIndex, max: u8) -> OperatorValidatorResult<()> {
@@ -954,138 +953,138 @@ impl OperatorValidator {
                 };
             }
             Operator::I32Load { memarg } => {
-                self.check_memarg(memarg, 2, resources)?;
-                self.check_operands_1(Type::I32)?;
+                let ty = self.check_memarg(memarg, 2, resources)?;
+                self.check_operands_1(ty)?;
                 self.func_state.change_frame_with_type(1, Type::I32)?;
             }
             Operator::I64Load { memarg } => {
-                self.check_memarg(memarg, 3, resources)?;
-                self.check_operands_1(Type::I32)?;
+                let ty = self.check_memarg(memarg, 3, resources)?;
+                self.check_operands_1(ty)?;
                 self.func_state.change_frame_with_type(1, Type::I64)?;
             }
             Operator::F32Load { memarg } => {
                 self.check_non_deterministic_enabled()?;
-                self.check_memarg(memarg, 2, resources)?;
-                self.check_operands_1(Type::I32)?;
+                let ty = self.check_memarg(memarg, 2, resources)?;
+                self.check_operands_1(ty)?;
                 self.func_state.change_frame_with_type(1, Type::F32)?;
             }
             Operator::F64Load { memarg } => {
                 self.check_non_deterministic_enabled()?;
-                self.check_memarg(memarg, 3, resources)?;
-                self.check_operands_1(Type::I32)?;
+                let ty = self.check_memarg(memarg, 3, resources)?;
+                self.check_operands_1(ty)?;
                 self.func_state.change_frame_with_type(1, Type::F64)?;
             }
             Operator::I32Load8S { memarg } => {
-                self.check_memarg(memarg, 0, resources)?;
-                self.check_operands_1(Type::I32)?;
+                let ty = self.check_memarg(memarg, 0, resources)?;
+                self.check_operands_1(ty)?;
                 self.func_state.change_frame_with_type(1, Type::I32)?;
             }
             Operator::I32Load8U { memarg } => {
-                self.check_memarg(memarg, 0, resources)?;
-                self.check_operands_1(Type::I32)?;
+                let ty = self.check_memarg(memarg, 0, resources)?;
+                self.check_operands_1(ty)?;
                 self.func_state.change_frame_with_type(1, Type::I32)?;
             }
             Operator::I32Load16S { memarg } => {
-                self.check_memarg(memarg, 1, resources)?;
-                self.check_operands_1(Type::I32)?;
+                let ty = self.check_memarg(memarg, 1, resources)?;
+                self.check_operands_1(ty)?;
                 self.func_state.change_frame_with_type(1, Type::I32)?;
             }
             Operator::I32Load16U { memarg } => {
-                self.check_memarg(memarg, 1, resources)?;
-                self.check_operands_1(Type::I32)?;
+                let ty = self.check_memarg(memarg, 1, resources)?;
+                self.check_operands_1(ty)?;
                 self.func_state.change_frame_with_type(1, Type::I32)?;
             }
             Operator::I64Load8S { memarg } => {
-                self.check_memarg(memarg, 0, resources)?;
-                self.check_operands_1(Type::I32)?;
+                let ty = self.check_memarg(memarg, 0, resources)?;
+                self.check_operands_1(ty)?;
                 self.func_state.change_frame_with_type(1, Type::I64)?;
             }
             Operator::I64Load8U { memarg } => {
-                self.check_memarg(memarg, 0, resources)?;
-                self.check_operands_1(Type::I32)?;
+                let ty = self.check_memarg(memarg, 0, resources)?;
+                self.check_operands_1(ty)?;
                 self.func_state.change_frame_with_type(1, Type::I64)?;
             }
             Operator::I64Load16S { memarg } => {
-                self.check_memarg(memarg, 1, resources)?;
-                self.check_operands_1(Type::I32)?;
+                let ty = self.check_memarg(memarg, 1, resources)?;
+                self.check_operands_1(ty)?;
                 self.func_state.change_frame_with_type(1, Type::I64)?;
             }
             Operator::I64Load16U { memarg } => {
-                self.check_memarg(memarg, 1, resources)?;
-                self.check_operands_1(Type::I32)?;
+                let ty = self.check_memarg(memarg, 1, resources)?;
+                self.check_operands_1(ty)?;
                 self.func_state.change_frame_with_type(1, Type::I64)?;
             }
             Operator::I64Load32S { memarg } => {
-                self.check_memarg(memarg, 2, resources)?;
-                self.check_operands_1(Type::I32)?;
+                let ty = self.check_memarg(memarg, 2, resources)?;
+                self.check_operands_1(ty)?;
                 self.func_state.change_frame_with_type(1, Type::I64)?;
             }
             Operator::I64Load32U { memarg } => {
-                self.check_memarg(memarg, 2, resources)?;
-                self.check_operands_1(Type::I32)?;
+                let ty = self.check_memarg(memarg, 2, resources)?;
+                self.check_operands_1(ty)?;
                 self.func_state.change_frame_with_type(1, Type::I64)?;
             }
             Operator::I32Store { memarg } => {
-                self.check_memarg(memarg, 2, resources)?;
-                self.check_operands_2(Type::I32, Type::I32)?;
+                let ty = self.check_memarg(memarg, 2, resources)?;
+                self.check_operands_2(ty, Type::I32)?;
                 self.func_state.change_frame(2)?;
             }
             Operator::I64Store { memarg } => {
-                self.check_memarg(memarg, 3, resources)?;
-                self.check_operands_2(Type::I32, Type::I64)?;
+                let ty = self.check_memarg(memarg, 3, resources)?;
+                self.check_operands_2(ty, Type::I64)?;
                 self.func_state.change_frame(2)?;
             }
             Operator::F32Store { memarg } => {
                 self.check_non_deterministic_enabled()?;
-                self.check_memarg(memarg, 2, resources)?;
-                self.check_operands_2(Type::I32, Type::F32)?;
+                let ty = self.check_memarg(memarg, 2, resources)?;
+                self.check_operands_2(ty, Type::F32)?;
                 self.func_state.change_frame(2)?;
             }
             Operator::F64Store { memarg } => {
                 self.check_non_deterministic_enabled()?;
-                self.check_memarg(memarg, 3, resources)?;
-                self.check_operands_2(Type::I32, Type::F64)?;
+                let ty = self.check_memarg(memarg, 3, resources)?;
+                self.check_operands_2(ty, Type::F64)?;
                 self.func_state.change_frame(2)?;
             }
             Operator::I32Store8 { memarg } => {
-                self.check_memarg(memarg, 0, resources)?;
-                self.check_operands_2(Type::I32, Type::I32)?;
+                let ty = self.check_memarg(memarg, 0, resources)?;
+                self.check_operands_2(ty, Type::I32)?;
                 self.func_state.change_frame(2)?;
             }
             Operator::I32Store16 { memarg } => {
-                self.check_memarg(memarg, 1, resources)?;
-                self.check_operands_2(Type::I32, Type::I32)?;
+                let ty = self.check_memarg(memarg, 1, resources)?;
+                self.check_operands_2(ty, Type::I32)?;
                 self.func_state.change_frame(2)?;
             }
             Operator::I64Store8 { memarg } => {
-                self.check_memarg(memarg, 0, resources)?;
-                self.check_operands_2(Type::I32, Type::I64)?;
+                let ty = self.check_memarg(memarg, 0, resources)?;
+                self.check_operands_2(ty, Type::I64)?;
                 self.func_state.change_frame(2)?;
             }
             Operator::I64Store16 { memarg } => {
-                self.check_memarg(memarg, 1, resources)?;
-                self.check_operands_2(Type::I32, Type::I64)?;
+                let ty = self.check_memarg(memarg, 1, resources)?;
+                self.check_operands_2(ty, Type::I64)?;
                 self.func_state.change_frame(2)?;
             }
             Operator::I64Store32 { memarg } => {
-                self.check_memarg(memarg, 2, resources)?;
-                self.check_operands_2(Type::I32, Type::I64)?;
+                let ty = self.check_memarg(memarg, 2, resources)?;
+                self.check_operands_2(ty, Type::I64)?;
                 self.func_state.change_frame(2)?;
             }
             Operator::MemorySize { mem, mem_byte } => {
                 if mem_byte != 0 && !self.features.multi_memory {
                     return Err(OperatorValidatorError::new("multi-memory not enabled"));
                 }
-                self.check_memory_index(mem, resources)?;
-                self.func_state.change_frame_with_type(0, Type::I32)?;
+                let index_ty = self.check_memory_index(mem, resources)?;
+                self.func_state.change_frame_with_type(0, index_ty)?;
             }
             Operator::MemoryGrow { mem, mem_byte } => {
                 if mem_byte != 0 && !self.features.multi_memory {
                     return Err(OperatorValidatorError::new("multi-memory not enabled"));
                 }
-                self.check_memory_index(mem, resources)?;
-                self.check_operands_1(Type::I32)?;
-                self.func_state.change_frame_with_type(1, Type::I32)?;
+                let index_ty = self.check_memory_index(mem, resources)?;
+                self.check_operands_1(index_ty)?;
+                self.func_state.change_frame_with_type(1, index_ty)?;
             }
             Operator::I32Const { .. } => self.func_state.change_frame_with_type(0, Type::I32)?,
             Operator::I64Const { .. } => self.func_state.change_frame_with_type(0, Type::I64)?,
@@ -1341,8 +1340,8 @@ impl OperatorValidator {
             | Operator::I32AtomicLoad16U { memarg }
             | Operator::I32AtomicLoad8U { memarg } => {
                 self.check_threads_enabled()?;
-                self.check_shared_memarg_wo_align(memarg, resources)?;
-                self.check_operands_1(Type::I32)?;
+                let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
+                self.check_operands_1(ty)?;
                 self.func_state.change_frame_with_type(1, Type::I32)?;
             }
             Operator::I64AtomicLoad { memarg }
@@ -1350,16 +1349,16 @@ impl OperatorValidator {
             | Operator::I64AtomicLoad16U { memarg }
             | Operator::I64AtomicLoad8U { memarg } => {
                 self.check_threads_enabled()?;
-                self.check_shared_memarg_wo_align(memarg, resources)?;
-                self.check_operands_1(Type::I32)?;
+                let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
+                self.check_operands_1(ty)?;
                 self.func_state.change_frame_with_type(1, Type::I64)?;
             }
             Operator::I32AtomicStore { memarg }
             | Operator::I32AtomicStore16 { memarg }
             | Operator::I32AtomicStore8 { memarg } => {
                 self.check_threads_enabled()?;
-                self.check_shared_memarg_wo_align(memarg, resources)?;
-                self.check_operands_2(Type::I32, Type::I32)?;
+                let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
+                self.check_operands_2(ty, Type::I32)?;
                 self.func_state.change_frame(2)?;
             }
             Operator::I64AtomicStore { memarg }
@@ -1367,8 +1366,8 @@ impl OperatorValidator {
             | Operator::I64AtomicStore16 { memarg }
             | Operator::I64AtomicStore8 { memarg } => {
                 self.check_threads_enabled()?;
-                self.check_shared_memarg_wo_align(memarg, resources)?;
-                self.check_operands_2(Type::I32, Type::I64)?;
+                let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
+                self.check_operands_2(ty, Type::I64)?;
                 self.func_state.change_frame(2)?;
             }
             Operator::I32AtomicRmwAdd { memarg }
@@ -1387,8 +1386,8 @@ impl OperatorValidator {
             | Operator::I32AtomicRmw8OrU { memarg }
             | Operator::I32AtomicRmw8XorU { memarg } => {
                 self.check_threads_enabled()?;
-                self.check_shared_memarg_wo_align(memarg, resources)?;
-                self.check_operands_2(Type::I32, Type::I32)?;
+                let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
+                self.check_operands_2(ty, Type::I32)?;
                 self.func_state.change_frame_with_type(2, Type::I32)?;
             }
             Operator::I64AtomicRmwAdd { memarg }
@@ -1412,24 +1411,24 @@ impl OperatorValidator {
             | Operator::I64AtomicRmw8OrU { memarg }
             | Operator::I64AtomicRmw8XorU { memarg } => {
                 self.check_threads_enabled()?;
-                self.check_shared_memarg_wo_align(memarg, resources)?;
-                self.check_operands_2(Type::I32, Type::I64)?;
+                let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
+                self.check_operands_2(ty, Type::I64)?;
                 self.func_state.change_frame_with_type(2, Type::I64)?;
             }
             Operator::I32AtomicRmwXchg { memarg }
             | Operator::I32AtomicRmw16XchgU { memarg }
             | Operator::I32AtomicRmw8XchgU { memarg } => {
                 self.check_threads_enabled()?;
-                self.check_shared_memarg_wo_align(memarg, resources)?;
-                self.check_operands_2(Type::I32, Type::I32)?;
+                let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
+                self.check_operands_2(ty, Type::I32)?;
                 self.func_state.change_frame_with_type(2, Type::I32)?;
             }
             Operator::I32AtomicRmwCmpxchg { memarg }
             | Operator::I32AtomicRmw16CmpxchgU { memarg }
             | Operator::I32AtomicRmw8CmpxchgU { memarg } => {
                 self.check_threads_enabled()?;
-                self.check_shared_memarg_wo_align(memarg, resources)?;
-                self.check_operands_3(Type::I32, Type::I32, Type::I32)?;
+                let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
+                self.check_operands_3(ty, Type::I32, Type::I32)?;
                 self.func_state.change_frame_with_type(3, Type::I32)?;
             }
             Operator::I64AtomicRmwXchg { memarg }
@@ -1437,8 +1436,8 @@ impl OperatorValidator {
             | Operator::I64AtomicRmw16XchgU { memarg }
             | Operator::I64AtomicRmw8XchgU { memarg } => {
                 self.check_threads_enabled()?;
-                self.check_shared_memarg_wo_align(memarg, resources)?;
-                self.check_operands_2(Type::I32, Type::I64)?;
+                let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
+                self.check_operands_2(ty, Type::I64)?;
                 self.func_state.change_frame_with_type(2, Type::I64)?;
             }
             Operator::I64AtomicRmwCmpxchg { memarg }
@@ -1446,26 +1445,26 @@ impl OperatorValidator {
             | Operator::I64AtomicRmw16CmpxchgU { memarg }
             | Operator::I64AtomicRmw8CmpxchgU { memarg } => {
                 self.check_threads_enabled()?;
-                self.check_shared_memarg_wo_align(memarg, resources)?;
-                self.check_operands_3(Type::I32, Type::I64, Type::I64)?;
+                let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
+                self.check_operands_3(ty, Type::I64, Type::I64)?;
                 self.func_state.change_frame_with_type(3, Type::I64)?;
             }
             Operator::MemoryAtomicNotify { memarg } => {
                 self.check_threads_enabled()?;
-                self.check_shared_memarg_wo_align(memarg, resources)?;
-                self.check_operands_2(Type::I32, Type::I32)?;
+                let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
+                self.check_operands_2(ty, Type::I32)?;
                 self.func_state.change_frame_with_type(2, Type::I32)?;
             }
             Operator::MemoryAtomicWait32 { memarg } => {
                 self.check_threads_enabled()?;
-                self.check_shared_memarg_wo_align(memarg, resources)?;
-                self.check_operands_3(Type::I32, Type::I32, Type::I64)?;
+                let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
+                self.check_operands_3(ty, Type::I32, Type::I64)?;
                 self.func_state.change_frame_with_type(3, Type::I32)?;
             }
             Operator::MemoryAtomicWait64 { memarg } => {
                 self.check_threads_enabled()?;
-                self.check_shared_memarg_wo_align(memarg, resources)?;
-                self.check_operands_3(Type::I32, Type::I64, Type::I64)?;
+                let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
+                self.check_operands_3(ty, Type::I64, Type::I64)?;
                 self.func_state.change_frame_with_type(3, Type::I32)?;
             }
             Operator::AtomicFence { ref flags } => {
@@ -1515,14 +1514,14 @@ impl OperatorValidator {
             }
             Operator::V128Load { memarg } => {
                 self.check_simd_enabled()?;
-                self.check_memarg(memarg, 4, resources)?;
-                self.check_operands_1(Type::I32)?;
+                let ty = self.check_memarg(memarg, 4, resources)?;
+                self.check_operands_1(ty)?;
                 self.func_state.change_frame_with_type(1, Type::V128)?;
             }
             Operator::V128Store { memarg } => {
                 self.check_simd_enabled()?;
-                self.check_memarg(memarg, 4, resources)?;
-                self.check_operands_2(Type::I32, Type::V128)?;
+                let ty = self.check_memarg(memarg, 4, resources)?;
+                self.check_operands_2(ty, Type::V128)?;
                 self.func_state.change_frame(2)?;
             }
             Operator::V128Const { .. } => {
@@ -1815,20 +1814,20 @@ impl OperatorValidator {
             }
             Operator::V8x16LoadSplat { memarg } => {
                 self.check_simd_enabled()?;
-                self.check_memarg(memarg, 0, resources)?;
-                self.check_operands_1(Type::I32)?;
+                let ty = self.check_memarg(memarg, 0, resources)?;
+                self.check_operands_1(ty)?;
                 self.func_state.change_frame_with_type(1, Type::V128)?;
             }
             Operator::V16x8LoadSplat { memarg } => {
                 self.check_simd_enabled()?;
-                self.check_memarg(memarg, 1, resources)?;
-                self.check_operands_1(Type::I32)?;
+                let ty = self.check_memarg(memarg, 1, resources)?;
+                self.check_operands_1(ty)?;
                 self.func_state.change_frame_with_type(1, Type::V128)?;
             }
             Operator::V32x4LoadSplat { memarg } => {
                 self.check_simd_enabled()?;
-                self.check_memarg(memarg, 2, resources)?;
-                self.check_operands_1(Type::I32)?;
+                let ty = self.check_memarg(memarg, 2, resources)?;
+                self.check_operands_1(ty)?;
                 self.func_state.change_frame_with_type(1, Type::V128)?;
             }
             Operator::V64x2LoadSplat { memarg }
@@ -1839,18 +1838,18 @@ impl OperatorValidator {
             | Operator::I64x2Load32x2S { memarg }
             | Operator::I64x2Load32x2U { memarg } => {
                 self.check_simd_enabled()?;
-                self.check_memarg(memarg, 3, resources)?;
-                self.check_operands_1(Type::I32)?;
+                let idx = self.check_memarg(memarg, 3, resources)?;
+                self.check_operands_1(idx)?;
                 self.func_state.change_frame_with_type(1, Type::V128)?;
             }
 
             Operator::MemoryInit { mem, segment } => {
                 self.check_bulk_memory_enabled()?;
-                self.check_memory_index(mem, resources)?;
+                let ty = self.check_memory_index(mem, resources)?;
                 if segment >= resources.data_count() {
                     bail_op_err!("unknown data segment {}", segment);
                 }
-                self.check_operands_3(Type::I32, Type::I32, Type::I32)?;
+                self.check_operands_3(ty, ty, ty)?;
                 self.func_state.change_frame(3)?;
             }
             Operator::DataDrop { segment } => {
@@ -1861,17 +1860,20 @@ impl OperatorValidator {
             }
             Operator::MemoryCopy { src, dst } => {
                 self.check_bulk_memory_enabled()?;
-                self.check_memory_index(src, resources)?;
+                let ty = self.check_memory_index(src, resources)?;
                 if src != dst {
-                    self.check_memory_index(dst, resources)?;
+                    // FIXME(WebAssembly/memory64#6) - should this be allowed?
+                    if ty != self.check_memory_index(dst, resources)? {
+                        bail_op_err!("cannot copy between 32/64 bit memories");
+                    }
                 }
-                self.check_operands_3(Type::I32, Type::I32, Type::I32)?;
+                self.check_operands_3(ty, ty, ty)?;
                 self.func_state.change_frame(3)?;
             }
             Operator::MemoryFill { mem } => {
                 self.check_bulk_memory_enabled()?;
-                self.check_memory_index(mem, resources)?;
-                self.check_operands_3(Type::I32, Type::I32, Type::I32)?;
+                let ty = self.check_memory_index(mem, resources)?;
+                self.check_operands_3(ty, Type::I32, ty)?;
                 self.func_state.change_frame(3)?;
             }
             Operator::TableInit { segment, table } => {

@@ -22,7 +22,8 @@ use crate::limits::*;
 use crate::primitives::{
     BinaryReaderError, BrTable, CustomSectionKind, ExternalKind, FuncType, GlobalType, Ieee32,
     Ieee64, LinkingType, MemoryImmediate, MemoryType, NameType, Operator, RelocType,
-    ResizableLimits, Result, SIMDLaneIndex, SectionCode, TableType, Type, TypeOrFuncType, V128,
+    ResizableLimits, ResizableLimits64, Result, SIMDLaneIndex, SectionCode, TableType, Type,
+    TypeOrFuncType, V128,
 };
 use crate::{ExportType, Import, ImportSectionEntryType, InstanceType, ModuleType};
 
@@ -321,6 +322,16 @@ impl<'a> BinaryReader<'a> {
         Ok(ResizableLimits { initial, maximum })
     }
 
+    fn read_resizable_limits64(&mut self, max_present: bool) -> Result<ResizableLimits64> {
+        let initial = self.read_var_u64()?;
+        let maximum = if max_present {
+            Some(self.read_var_u64()?)
+        } else {
+            None
+        };
+        Ok(ResizableLimits64 { initial, maximum })
+    }
+
     pub(crate) fn read_table_type(&mut self) -> Result<TableType> {
         let element_type = self.read_type()?;
         let flags = self.read_var_u32()?;
@@ -338,16 +349,28 @@ impl<'a> BinaryReader<'a> {
     }
 
     pub(crate) fn read_memory_type(&mut self) -> Result<MemoryType> {
+        let pos = self.original_position();
         let flags = self.read_var_u32()?;
-        if (flags & !0x3) != 0 {
+        if (flags & !0x7) != 0 {
             return Err(BinaryReaderError::new(
                 "invalid table resizable limits flags",
-                self.original_position() - 1,
+                pos,
             ));
         }
-        let limits = self.read_resizable_limits((flags & 0x1) != 0)?;
-        let shared = (flags & 0x2) != 0;
-        Ok(MemoryType { limits, shared })
+        if flags & 0x4 == 0 {
+            let limits = self.read_resizable_limits((flags & 0x1) != 0)?;
+            let shared = (flags & 0x2) != 0;
+            Ok(MemoryType::M32 { limits, shared })
+        } else {
+            let limits = self.read_resizable_limits64((flags & 0x1) != 0)?;
+            if (flags & 0x2) != 0 {
+                return Err(BinaryReaderError::new(
+                    "64-bit memories cannot be shared",
+                    pos,
+                ));
+            }
+            Ok(MemoryType::M64 { limits })
+        }
     }
 
     pub(crate) fn read_global_type(&mut self) -> Result<GlobalType> {
@@ -501,7 +524,9 @@ impl<'a> BinaryReader<'a> {
 
     /// Advances the `BinaryReader` a single byte, and returns the data as
     /// a `u32`.
+    ///
     /// # Errors
+    ///
     /// If `BinaryReader` has no bytes remaining.
     pub fn read_u8(&mut self) -> Result<u32> {
         self.ensure_has_byte()?;
@@ -512,7 +537,9 @@ impl<'a> BinaryReader<'a> {
 
     /// Advances the `BinaryReader` up to two bytes to parse a variable
     /// length integer as a `u8`.
+    ///
     /// # Errors
+    ///
     /// If `BinaryReader` has less than one or two bytes remaining, or the
     /// integer is larger than eight bits.
     pub fn read_var_u8(&mut self) -> Result<u32> {
@@ -534,7 +561,9 @@ impl<'a> BinaryReader<'a> {
 
     /// Advances the `BinaryReader` up to four bytes to parse a variable
     /// length integer as a `u32`.
+    ///
     /// # Errors
+    ///
     /// If `BinaryReader` has less than one or up to four bytes remaining, or
     /// the integer is larger than 32 bits.
     pub fn read_var_u32(&mut self) -> Result<u32> {
@@ -553,6 +582,40 @@ impl<'a> BinaryReader<'a> {
                 // The continuation bit or unused bits are set.
                 return Err(BinaryReaderError::new(
                     "Invalid var_u32",
+                    self.original_position() - 1,
+                ));
+            }
+            shift += 7;
+            if (byte & 0x80) == 0 {
+                break;
+            }
+        }
+        Ok(result)
+    }
+
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a `u64`.
+    ///
+    /// # Errors
+    ///
+    /// If `BinaryReader` has less than one or up to eight bytes remaining, or
+    /// the integer is larger than 64 bits.
+    pub fn read_var_u64(&mut self) -> Result<u64> {
+        // Optimization for single byte u64.
+        let byte = u64::from(self.read_u8()?);
+        if (byte & 0x80) == 0 {
+            return Ok(byte);
+        }
+
+        let mut result = byte & 0x7F;
+        let mut shift = 7;
+        loop {
+            let byte = u64::from(self.read_u8()?);
+            result |= (byte & 0x7F) << shift;
+            if shift >= 57 && (byte >> (64 - shift)) != 0 {
+                // The continuation bit or unused bits are set.
+                return Err(BinaryReaderError::new(
+                    "Invalid var_u64",
                     self.original_position() - 1,
                 ));
             }

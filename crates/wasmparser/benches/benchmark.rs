@@ -215,6 +215,7 @@ fn validate_benchmark(c: &mut Criterion) {
             threads: true,
             tail_call: true,
             multi_memory: true,
+            memory64: true,
             deterministic_only: false,
         });
         return ret;
