@@ -207,3 +207,10 @@
     "(func i32.load $a)"
   )
   "failed to find memory")
+
+(module
+  (memory 1)
+  (memory $m 1)
+  (data (memory $m) (i32.const 0) "...")
+)
+

@@ -29,7 +29,12 @@ pub enum MemoryKind<'a> {
     Normal(ast::MemoryType),
 
     /// The data of this memory, starting from 0, explicitly listed
-    Inline(Vec<&'a [u8]>),
+    Inline {
+        /// Whether or not this will be creating a 32-bit memory
+        is_32: bool,
+        /// The inline data specified for this memory
+        data: Vec<&'a [u8]>,
+    },
 }
 
 impl<'a> Parse<'a> for Memory<'a> {
@@ -49,7 +54,14 @@ impl<'a> Parse<'a> for Memory<'a> {
                 import,
                 ty: parser.parse()?,
             }
-        } else if l.peek::<ast::LParen>() {
+        } else if l.peek::<ast::LParen>() || parser.peek2::<ast::LParen>() {
+            let is_32 = if parser.parse::<Option<kw::i32>>()?.is_some() {
+                true
+            } else if parser.parse::<Option<kw::i64>>()?.is_some() {
+                false
+            } else {
+                true
+            };
             let data = parser.parens(|parser| {
                 parser.parse::<kw::data>()?;
                 let mut data = Vec::new();
@@ -58,7 +70,7 @@ impl<'a> Parse<'a> for Memory<'a> {
                 }
                 Ok(data)
             })?;
-            MemoryKind::Inline(data)
+            MemoryKind::Inline { data, is_32 }
         } else if l.peek::<u32>() || l.peek::<kw::i32>() || l.peek::<kw::i64>() {
             MemoryKind::Normal(parser.parse()?)
         } else {
