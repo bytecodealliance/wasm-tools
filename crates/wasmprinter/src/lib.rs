@@ -1442,7 +1442,7 @@ impl Printer {
                     init_expr,
                 } => {
                     if *memory_index != 0 {
-                        bail!("don't know how to print active nonzero memory data");
+                        write!(self.result, " (memory {}) ", memory_index)?;
                     }
                     self.print_init_expr(&init_expr)?;
                     self.result.push_str(" ");

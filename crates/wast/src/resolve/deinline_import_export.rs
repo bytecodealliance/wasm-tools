@@ -60,20 +60,27 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                     }
                     // If data is defined inline insert an explicit `data` module
                     // field here instead, switching this to a `Normal` memory.
-                    MemoryKind::Inline(ref data) => {
+                    MemoryKind::Inline { is_32, ref data } => {
                         let len = data.iter().map(|l| l.len()).sum::<usize>() as u32;
                         let pages = (len + page_size() - 1) / page_size();
-                        // FIXME(WebAssembly/memory64#5) is 32-bit always here
-                        // right?
-                        let kind = MemoryKind::Normal(MemoryType::B32 {
-                            limits: Limits {
-                                min: pages,
-                                max: Some(pages),
-                            },
-                            shared: false,
+                        let kind = MemoryKind::Normal(if is_32 {
+                            MemoryType::B32 {
+                                limits: Limits {
+                                    min: pages,
+                                    max: Some(pages),
+                                },
+                                shared: false,
+                            }
+                        } else {
+                            MemoryType::B64 {
+                                limits: Limits64 {
+                                    min: u64::from(pages),
+                                    max: Some(u64::from(pages)),
+                                },
+                            }
                         });
                         let data = match mem::replace(&mut m.kind, kind) {
-                            MemoryKind::Inline(data) => data,
+                            MemoryKind::Inline { data, .. } => data,
                             _ => unreachable!(),
                         };
                         let id = gensym::fill(m.span, &mut m.id);
@@ -83,7 +90,11 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                             kind: DataKind::Active {
                                 memory: Index::Id(id),
                                 offset: Expression {
-                                    instrs: vec![Instruction::I32Const(0)],
+                                    instrs: vec![if is_32 {
+                                        Instruction::I32Const(0)
+                                    } else {
+                                        Instruction::I64Const(0)
+                                    }],
                                 },
                             },
                             data,

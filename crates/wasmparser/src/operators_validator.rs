@@ -1849,7 +1849,7 @@ impl OperatorValidator {
                 if segment >= resources.data_count() {
                     bail_op_err!("unknown data segment {}", segment);
                 }
-                self.check_operands_3(ty, ty, ty)?;
+                self.check_operands_3(ty, Type::I32, Type::I32)?;
                 self.func_state.change_frame(3)?;
             }
             Operator::DataDrop { segment } => {
@@ -1860,14 +1860,16 @@ impl OperatorValidator {
             }
             Operator::MemoryCopy { src, dst } => {
                 self.check_bulk_memory_enabled()?;
-                let ty = self.check_memory_index(src, resources)?;
-                if src != dst {
-                    // FIXME(WebAssembly/memory64#6) - should this be allowed?
-                    if ty != self.check_memory_index(dst, resources)? {
-                        bail_op_err!("cannot copy between 32/64 bit memories");
-                    }
-                }
-                self.check_operands_3(ty, ty, ty)?;
+                let src_ty = self.check_memory_index(src, resources)?;
+                let dst_ty = self.check_memory_index(dst, resources)?;
+                self.check_operands_3(
+                    dst_ty,
+                    src_ty,
+                    match src_ty {
+                        Type::I32 => Type::I32,
+                        _ => dst_ty,
+                    },
+                )?;
                 self.func_state.change_frame(3)?;
             }
             Operator::MemoryFill { mem } => {
