@@ -682,7 +682,11 @@ impl<'a> Parser<'a> {
         return res;
     }
 
-    pub(crate) fn depth(&self) -> usize {
+    /// Return the depth of nested parens we've parsed so far.
+    ///
+    /// This is a low-level method that is only useful for implementing
+    /// recursion limits in custom parsers.
+    pub fn parens_depth(&self) -> usize {
         self.buf.depth.get()
     }
 

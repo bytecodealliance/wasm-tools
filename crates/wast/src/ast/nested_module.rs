@@ -49,7 +49,7 @@ impl<'a> Parse<'a> for NestedModule<'a> {
         // parser goes too deep we return an error saying there's too many
         // nested modules. It would be great to not return an error here,
         // though!
-        if parser.depth() > 100 {
+        if parser.parens_depth() > 100 {
             return Err(parser.error("module nesting too deep"));
         }
 
