@@ -283,6 +283,7 @@ pub struct ParseBuffer<'a> {
     input: &'a str,
     cur: Cell<usize>,
     known_annotations: RefCell<HashMap<String, usize>>,
+    depth: Cell<usize>,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -342,6 +343,7 @@ impl ParseBuffer<'_> {
         let ret = ParseBuffer {
             tokens: tokens.into_boxed_slice(),
             cur: Cell::new(0),
+            depth: Cell::new(0),
             input,
             known_annotations: Default::default(),
         };
@@ -658,6 +660,7 @@ impl<'a> Parser<'a> {
     /// }
     /// ```
     pub fn parens<T>(self, f: impl FnOnce(Parser<'a>) -> Result<T>) -> Result<T> {
+        self.buf.depth.set(self.buf.depth.get() + 1);
         let before = self.buf.cur.get();
         let res = self.step(|cursor| {
             let mut cursor = match cursor.lparen() {
@@ -672,10 +675,15 @@ impl<'a> Parser<'a> {
                 None => Err(cursor.error("expected `)`")),
             }
         });
+        self.buf.depth.set(self.buf.depth.get() - 1);
         if res.is_err() {
             self.buf.cur.set(before);
         }
         return res;
+    }
+
+    pub(crate) fn depth(&self) -> usize {
+        self.buf.depth.get()
     }
 
     fn cursor(self) -> Cursor<'a> {

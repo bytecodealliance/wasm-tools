@@ -40,6 +40,19 @@ pub enum NestedModuleKind<'a> {
 
 impl<'a> Parse<'a> for NestedModule<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
+        // This is sort of a fundamental limitation of the way this crate is
+        // designed. Everything is done through recursive descent parsing which
+        // means, well, that we're recursively going down the stack as we parse
+        // nested data structures. While we can handle this for wasm expressions
+        // since that's a pretty local decision, handling this for nested
+        // modules which be far trickier. For now we just say that when the
+        // parser goes too deep we return an error saying there's too many
+        // nested modules. It would be great to not return an error here,
+        // though!
+        if parser.depth() > 100 {
+            return Err(parser.error("module nesting too deep"));
+        }
+
         let span = parser.parse::<kw::module>()?.0;
         let id = parser.parse()?;
         let name = parser.parse()?;
