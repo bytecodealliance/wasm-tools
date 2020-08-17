@@ -1943,7 +1943,8 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 }
             }
 
-            StructNewWithRtt(i)
+            StructNew(i)
+            | StructNewWithRtt(i)
             | StructNewDefaultWithRtt(i)
             | ArrayNewWithRtt(i)
             | ArrayNewDefaultWithRtt(i)
