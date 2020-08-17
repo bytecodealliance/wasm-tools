@@ -521,6 +521,9 @@ instructions! {
         // gc proposal: eqref
         RefEq : [0xd5] : "ref.eq",
 
+        // gc proposal (moz specific, will be removed)
+        StructNew(ast::Index<'a>) : [0xfb, 0x0] : "struct.new",
+
         // gc proposal: struct
         StructNewWithRtt(ast::Index<'a>) : [0xfb, 0x01] : "struct.new_with_rtt",
         StructNewDefaultWithRtt(ast::Index<'a>) : [0xfb, 0x02] : "struct.new_default_with_rtt",
