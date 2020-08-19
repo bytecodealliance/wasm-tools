@@ -27,8 +27,8 @@ fn main() -> Result<()> {
                     println!("  Import {}::{}", import.module, import.field.unwrap());
                 }
             }
-            _other => {
-                // println!("found payload {:?}", _other);
+            other => {
+                println!("{:?}", other);
             }
         }
     }
