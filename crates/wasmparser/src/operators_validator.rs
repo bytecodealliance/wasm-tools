@@ -238,11 +238,7 @@ impl FuncState {
         self.stack_types.extend_from_slice(&types);
         // Keep polymorphic stack.
         let polymorphic_values = last_block.polymorphic_values.as_mut().unwrap();
-        *polymorphic_values = if *polymorphic_values < polymorphic_values_used {
-            0
-        } else {
-            *polymorphic_values - polymorphic_values_used
-        };
+        *polymorphic_values = polymorphic_values.saturating_sub(polymorphic_values_used);
         Ok(())
     }
     fn change_frame_after_select(&mut self, ty: Option<Type>) -> OperatorValidatorResult<()> {
