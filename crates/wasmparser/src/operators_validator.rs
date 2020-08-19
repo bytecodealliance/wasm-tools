@@ -225,15 +225,6 @@ impl FuncState {
         self.stack_types.extend(new_items);
         Ok(())
     }
-    fn change_frame_to_exact_types_from(&mut self, depth: usize) -> OperatorValidatorResult<()> {
-        let types = self.block_at(depth).return_types.clone();
-        let last_block = self.blocks.last_mut().unwrap();
-        let keep = last_block.stack_starts_at;
-        self.stack_types.truncate(keep);
-        self.stack_types.extend_from_slice(&types);
-        last_block.polymorphic_values = None;
-        Ok(())
-    }
     fn change_frame_after_select(&mut self, ty: Option<Type>) -> OperatorValidatorResult<()> {
         self.remove_frame_stack_types(3)?;
         if ty.is_none() {
@@ -839,12 +830,7 @@ impl OperatorValidator {
             Operator::BrIf { relative_depth } => {
                 self.check_operands_1(Type::I32)?;
                 self.check_jump_from_block(relative_depth, 1)?;
-                if self.func_state.last_block().is_stack_polymorphic() {
-                    self.func_state
-                        .change_frame_to_exact_types_from(relative_depth as usize)?;
-                } else {
-                    self.func_state.change_frame(1)?;
-                }
+                self.func_state.change_frame(1)?;
             }
             Operator::BrTable { ref table } => {
                 self.check_operands_1(Type::I32)?;
