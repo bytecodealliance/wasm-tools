@@ -841,7 +841,7 @@ impl<'a> BinaryReader<'a> {
     }
 
     fn read_0xfe_operator(&mut self) -> Result<Operator<'a>> {
-        let code = self.read_u8()? as u8;
+        let code = self.read_var_u32()?;
         Ok(match code {
             0x00 => Operator::MemoryAtomicNotify {
                 memarg: self.read_memarg_of_align(2)?,
@@ -1388,7 +1388,7 @@ impl<'a> BinaryReader<'a> {
     }
 
     fn read_0xfc_operator(&mut self) -> Result<Operator<'a>> {
-        let code = self.read_u8()? as u8;
+        let code = self.read_var_u32()?;
         Ok(match code {
             0x00 => Operator::I32TruncSatF32S,
             0x01 => Operator::I32TruncSatF32U,
