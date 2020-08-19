@@ -846,11 +846,10 @@ impl OperatorValidator {
             Operator::BrIf { relative_depth } => {
                 self.check_operands_1(Type::I32)?;
                 self.check_jump_from_block(relative_depth, 1)?;
+                self.func_state.change_frame(1)?;
                 if self.func_state.last_block().is_stack_polymorphic() {
                     self.func_state
                         .change_frame_to_exact_types_from(relative_depth as usize)?;
-                } else {
-                    self.func_state.change_frame(1)?;
                 }
             }
             Operator::BrTable { ref table } => {
