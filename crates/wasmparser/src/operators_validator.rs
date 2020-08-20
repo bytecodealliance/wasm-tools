@@ -148,18 +148,17 @@ impl FuncState {
                 return Err(OperatorValidatorError::new("stack operand type mismatch"));
             }
         }
-        let (stack_starts_at, polymorphic_values) = {
-            // When stack for last block is polymorphic, ensure that
-            // the polymorphic_values matches, and next block is informed about that.
+        let stack_starts_at = {
             let last_block = self.blocks.last_mut().unwrap();
             if !last_block.is_stack_polymorphic()
                 || last_block.stack_starts_at + start_types.len() <= self.stack_types.len()
             {
-                (self.stack_types.len() - start_types.len(), None)
+                self.stack_types.len() - start_types.len()
             } else {
-                let unknown_stack_types_len =
-                    last_block.stack_starts_at + start_types.len() - self.stack_types.len();
-                (last_block.stack_starts_at, Some(unknown_stack_types_len))
+                // Infer unknown types from block's start_types.
+                self.stack_types.truncate(last_block.stack_starts_at);
+                self.stack_types.extend_from_slice(&start_types);
+                last_block.stack_starts_at
             }
         };
         self.blocks.push(BlockState {
@@ -169,7 +168,7 @@ impl FuncState {
             jump_to_top: block_type == BlockType::Loop,
             is_else_allowed: block_type == BlockType::If,
             is_dead_code: false,
-            polymorphic_values,
+            polymorphic_values: None,
         });
         Ok(())
     }
