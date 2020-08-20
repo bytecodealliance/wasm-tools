@@ -226,7 +226,18 @@ impl FuncState {
         Ok(())
     }
     fn change_frame_to_exact_types_from(&mut self, depth: usize) -> OperatorValidatorResult<()> {
-        let types = self.block_at(depth).return_types.clone();
+        let types = match self.block_at(depth) {
+            BlockState {
+                jump_to_top: false,
+                return_types,
+                ..
+            } => return_types.clone(),
+            BlockState {
+                jump_to_top: true,
+                start_types,
+                ..
+            } => start_types.clone(),
+        };
         let last_block = self.blocks.last_mut().unwrap();
         let keep = last_block.stack_starts_at;
         if keep + types.len() <= self.stack_types.len() {
