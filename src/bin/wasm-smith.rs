@@ -81,7 +81,7 @@ fn main() {
         }
     };
 
-    let mut seed = vec![0; 4096];
+    let mut seed = vec![];
     input.read_to_end(&mut seed).unwrap_or_else(|e| {
         eprintln!("error: failed to '{}': {}", input_name, e);
         process::exit(1);
@@ -99,5 +99,6 @@ fn main() {
         process::exit(1);
     });
 
+    drop(output);
     process::exit(0);
 }
