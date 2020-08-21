@@ -1,0 +1,18 @@
+[package]
+name = "wasm-smith"
+version = "0.1.0"
+authors = ["Nick Fitzgerald <fitzgen@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+arbitrary = { version = "0.4.5", features = ["derive"] }
+leb128 = "0.2.4"
+
+[workspace]
+members = ["./fuzz"]
+
+[patch.crates-io]
+arbitrary = { path = "../arbitrary" }
+wasmparser = { path = "../wasm-tools/crates/wasmparser" }
