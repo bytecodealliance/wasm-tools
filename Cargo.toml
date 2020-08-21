@@ -4,11 +4,15 @@ version = "0.1.0"
 authors = ["Nick Fitzgerald <fitzgen@gmail.com>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "wasm-smith"
+path = "src/bin/wasm-smith.rs"
+required-features = ["structopt"]
 
 [dependencies]
 arbitrary = { version = "0.4.5", features = ["derive"] }
 leb128 = "0.2.4"
+structopt = { version = "0.3.16", optional = true }
 
 [workspace]
 members = ["./fuzz"]
