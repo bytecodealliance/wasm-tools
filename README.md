@@ -18,6 +18,9 @@
   gets past your wasm parser and validator, exercising the guts of your Wasm
   compiler, runtime, or tool.
 
+* **Supports the full WebAssembly language:** Doesn't have blind spots or
+  unimplemented instructions.
+
 * **Implements the
   [`Arbitrary`](https://docs.rs/arbitrary/*/arbitrary/trait.Arbitrary.html)
   trait**: Easy to use with [`cargo
