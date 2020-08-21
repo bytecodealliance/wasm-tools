@@ -19,4 +19,3 @@ members = ["./fuzz"]
 
 [patch.crates-io]
 arbitrary = { path = "../arbitrary" }
-wasmparser = { path = "../wasm-tools/crates/wasmparser" }
