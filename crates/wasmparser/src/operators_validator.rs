@@ -39,6 +39,13 @@ impl BlockState {
     fn is_stack_polymorphic(&self) -> bool {
         self.polymorphic_values.is_some()
     }
+    fn jump_exit_types(&self) -> &Vec<Type> {
+        if self.jump_to_top {
+            &self.start_types
+        } else {
+            &self.return_types
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -225,18 +232,7 @@ impl FuncState {
         Ok(())
     }
     fn change_frame_to_exact_types_from(&mut self, depth: usize) -> OperatorValidatorResult<()> {
-        let types = match self.block_at(depth) {
-            BlockState {
-                jump_to_top: false,
-                return_types,
-                ..
-            } => return_types.clone(),
-            BlockState {
-                jump_to_top: true,
-                start_types,
-                ..
-            } => start_types.clone(),
-        };
+        let types = self.block_at(depth).jump_exit_types().clone();
         let last_block = self.blocks.last_mut().unwrap();
         let keep = last_block.stack_starts_at;
         if keep + types.len() <= self.stack_types.len() {
@@ -589,21 +585,7 @@ impl OperatorValidator {
         }
         let block1 = self.func_state.block_at(depth1 as usize);
         let block2 = self.func_state.block_at(depth2 as usize);
-        let return_types1 = &block1.return_types;
-        let return_types2 = &block2.return_types;
-        if block1.jump_to_top || block2.jump_to_top {
-            if block1.jump_to_top {
-                if !block2.jump_to_top && !return_types2.is_empty() {
-                    return Err(OperatorValidatorError::new(
-                        "type mismatch: block types do not match",
-                    ));
-                }
-            } else if !return_types1.is_empty() {
-                return Err(OperatorValidatorError::new(
-                    "type mismatch: block types do not match",
-                ));
-            }
-        } else if *return_types1 != *return_types2 {
+        if block1.jump_exit_types() != block2.jump_exit_types() {
             return Err(OperatorValidatorError::new(
                 "type mismatch: block types do not match",
             ));
