@@ -632,7 +632,7 @@ impl Module {
             let mut global_index = 0;
             for (_, _, imp) in &self.imports {
                 if let Import::Global(g) = imp {
-                    if g.val_type == ValType::I32 {
+                    if !g.mutable && g.val_type == ValType::I32 {
                         offset_global_choices.push(global_index);
                     }
                     global_index += 1;
@@ -721,7 +721,7 @@ impl Module {
                 for (_, _, imp) in &self.imports {
                     match imp {
                         Import::Global(g) => {
-                            if g.val_type == ValType::I32 {
+                            if !g.mutable && g.val_type == ValType::I32 {
                                 choices.push(Box::new(move |_| {
                                     Ok(Instruction::GlobalGet(global_idx))
                                 }));
