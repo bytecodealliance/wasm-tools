@@ -9,7 +9,7 @@
 
 * [Features](#features)
 * [Usage](#usage)
-  * [With `cargo fuzz` and `libfuzzer-sys`](#with--cargo-fuzz--and--libfuzzer-sys-)
+  * [With `cargo fuzz` and `libfuzzer-sys`](#with-cargo-fuzz-and-libfuzzer-sys)
   * [As a Command Line Tool](#as-a-command-line-tool)
 
 ## Features
