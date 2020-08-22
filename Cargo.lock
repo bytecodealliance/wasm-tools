@@ -11,7 +11,9 @@ dependencies = [
 
 [[package]]
 name = "arbitrary"
-version = "0.4.5"
+version = "0.4.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0922a3e746b5a44e111e5603feb6704e5cc959116f66737f50bb5cbd264e9d87"
 dependencies = [
  "derive_arbitrary",
 ]
@@ -56,7 +58,9 @@ dependencies = [
 
 [[package]]
 name = "derive_arbitrary"
-version = "0.4.5"
+version = "0.4.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d0f7c6c81276b6b8702074defbdb1938933ddf98c7f7e0dca8d9e9214dd6c730"
 dependencies = [
  "proc-macro2",
  "quote",

@@ -10,12 +10,9 @@ path = "src/bin/wasm-smith.rs"
 required-features = ["structopt"]
 
 [dependencies]
-arbitrary = { version = "0.4.5", features = ["derive"] }
+arbitrary = { version = "0.4.6", features = ["derive"] }
 leb128 = "0.2.4"
 structopt = { version = "0.3.16", optional = true }
 
 [workspace]
 members = ["./fuzz"]
-
-[patch.crates-io]
-arbitrary = { path = "../arbitrary" }
