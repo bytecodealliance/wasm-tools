@@ -1,8 +1,14 @@
 [package]
-name = "wasm-smith"
-version = "0.1.0"
 authors = ["Nick Fitzgerald <fitzgen@gmail.com>"]
+categories = ["command-line-utilities", "development-tools", "development-tools::testing", "wasm"]
+description = "A WebAssembly test case generator"
+documentation = "https://docs.rs/wasm-smith"
 edition = "2018"
+license = "MPL-2.0"
+name = "wasm-smith"
+readme = "./README.md"
+repository = "https://github.com/fitzgen/wasm-smith"
+version = "0.1.0"
 
 [[bin]]
 name = "wasm-smith"
