@@ -36,7 +36,7 @@ impl Arbitrary for Module {
         module.arbitrary_exports(u)?;
         module.arbitrary_start(u)?;
         module.arbitrary_elems(u)?;
-        module.arbitrary_codes(u)?;
+        module.arbitrary_code(u)?;
         module.arbitrary_data(u)?;
         Ok(module)
     }
@@ -660,18 +660,18 @@ impl Module {
         }
     }
 
-    fn arbitrary_codes(&mut self, u: &mut Unstructured) -> Result<()> {
+    fn arbitrary_code(&mut self, u: &mut Unstructured) -> Result<()> {
         self.code.reserve(self.funcs.len());
         let mut allocs = CodeBuilderAllocations::default();
         for ty in &self.funcs {
             let ty = &self.types[*ty as usize];
-            let code = self.arbitrary_code(u, ty, &mut allocs)?;
-            self.code.push(code);
+            let body = self.arbitrary_func_body(u, ty, &mut allocs)?;
+            self.code.push(body);
         }
         Ok(())
     }
 
-    fn arbitrary_code(
+    fn arbitrary_func_body(
         &self,
         u: &mut Unstructured,
         ty: &FuncType,
