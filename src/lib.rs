@@ -677,21 +677,7 @@ impl Module {
         ty: &FuncType,
         allocs: &mut CodeBuilderAllocations,
     ) -> Result<Code> {
-        #[inline(never)]
-        fn arbitrary_locals(u: &mut Unstructured) -> Result<Vec<ValType>> {
-            const MAX_LOCALS: usize = 100;
-            let mut locals = vec![];
-            loop {
-                let keep_going = locals.len() < MAX_LOCALS && u.arbitrary().unwrap_or(false);
-                if !keep_going {
-                    return Ok(locals);
-                }
-
-                locals.push(u.arbitrary()?);
-            }
-        }
-
-        let locals = arbitrary_locals(u)?;
+        let locals = self.arbitrary_locals(u)?;
         let builder = allocs.builder(ty, &locals);
         let instructions = builder.arbitrary(u, self)?;
 
@@ -699,6 +685,19 @@ impl Module {
             locals,
             instructions,
         })
+    }
+
+    fn arbitrary_locals(&self, u: &mut Unstructured) -> Result<Vec<ValType>> {
+        const MAX_LOCALS: usize = 100;
+        let mut locals = vec![];
+        loop {
+            let keep_going = locals.len() < MAX_LOCALS && u.arbitrary().unwrap_or(false);
+            if !keep_going {
+                return Ok(locals);
+            }
+
+            locals.push(u.arbitrary()?);
+        }
     }
 
     fn arbitrary_data(&mut self, u: &mut Unstructured) -> Result<()> {
