@@ -142,11 +142,14 @@ impl FuncState {
         };
         if block_type == BlockType::If {
             // Collect conditional value from the stack_types.
-            let last_block = self.blocks.last().unwrap();
+            let last_block = self.blocks.last_mut().unwrap();
             if !last_block.is_stack_polymorphic()
                 || self.stack_types.len() > last_block.stack_starts_at
             {
                 self.stack_types.pop();
+            } else {
+                let polymorphic_values = last_block.polymorphic_values.as_mut().unwrap();
+                *polymorphic_values = polymorphic_values.saturating_sub(1);
             }
             assert!(self.stack_types.len() >= last_block.stack_starts_at);
         }
