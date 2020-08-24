@@ -190,6 +190,19 @@ enum BlockType {
     FuncType(u32),
 }
 
+impl BlockType {
+    fn params_results(&self, module: &Module) -> (Vec<ValType>, Vec<ValType>) {
+        match self {
+            BlockType::Empty => (vec![], vec![]),
+            BlockType::Result(t) => (vec![], vec![*t]),
+            BlockType::FuncType(ty) => {
+                let ty = &module.types[*ty as usize];
+                (ty.params.clone(), ty.results.clone())
+            }
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 struct MemArg {
     offset: u32,
@@ -443,6 +456,19 @@ impl Module {
 
             self.imports.push((module, name, import));
         }
+    }
+
+    fn funcs<'a>(&'a self) -> impl Iterator<Item = (u32, &'a FuncType)> + 'a {
+        self.imports
+            .iter()
+            .filter_map(|(_, _, imp)| match imp {
+                Import::Func(ty) => Some(*ty),
+                _ => None,
+            })
+            .chain(self.funcs.iter().cloned())
+            .map(move |ty| &self.types[ty as usize])
+            .enumerate()
+            .map(|(f, ty)| (f as u32, ty))
     }
 
     fn func_imports(&self) -> u32 {

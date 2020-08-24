@@ -1,9 +1,9 @@
 use super::{BlockType, FuncType, Import, Instruction, MemArg, Module, ValType};
 use arbitrary::{Result, Unstructured};
 
-// The static set of choices of instruction to generate that could be valid at
+// The static set of options of instruction to generate that could be valid at
 // some given time. One entry per Wasm instruction.
-static CHOICES: &[(
+static OPTIONS: &[(
     // Predicate for whether this is a valid choice, if any. None means that the
     // choice is always applicable.
     Option<fn(&Module, &mut CodeBuilder) -> bool>,
@@ -209,9 +209,9 @@ pub(crate) struct CodeBuilderAllocations {
     // The types on the operand stack right now.
     operands: Vec<Option<ValType>>,
 
-    // Dynamic set of choices of instruction we can generate that are known to
+    // Dynamic set of options of instruction we can generate that are known to
     // be valid right now.
-    choices: Vec<fn(&mut Unstructured, &Module, &mut CodeBuilder) -> Result<Instruction>>,
+    options: Vec<fn(&mut Unstructured, &Module, &mut CodeBuilder) -> Result<Instruction>>,
 }
 
 pub(crate) struct CodeBuilder<'a> {
@@ -220,11 +220,16 @@ pub(crate) struct CodeBuilder<'a> {
     allocs: &'a mut CodeBuilderAllocations,
 }
 
+/// A control frame.
 #[derive(Debug)]
 struct Control {
     kind: ControlKind,
+    /// Value types that must be on the stack when entering this control frame.
     params: Vec<ValType>,
+    /// Value types that are left on the stack when exiting this control frame.
     results: Vec<ValType>,
+    /// How far down the operand stack instructions inside this control frame
+    /// can reach.
     height: usize,
 }
 
@@ -250,7 +255,7 @@ impl Default for CodeBuilderAllocations {
         CodeBuilderAllocations {
             controls: Vec::with_capacity(4),
             operands: Vec::with_capacity(16),
-            choices: Vec::with_capacity(CHOICES.len()),
+            options: Vec::with_capacity(OPTIONS.len()),
         }
     }
 }
@@ -270,7 +275,7 @@ impl CodeBuilderAllocations {
         });
 
         self.operands.clear();
-        self.choices.clear();
+        self.options.clear();
 
         CodeBuilder {
             func_ty,
@@ -327,18 +332,18 @@ impl<'a> CodeBuilder<'a> {
 
     #[inline(never)]
     fn arbitrary_block_type(&self, u: &mut Unstructured, module: &Module) -> Result<BlockType> {
-        let mut choices: Vec<Box<dyn Fn(&mut Unstructured) -> Result<BlockType>>> = vec![
+        let mut options: Vec<Box<dyn Fn(&mut Unstructured) -> Result<BlockType>>> = vec![
             Box::new(|_| Ok(BlockType::Empty)),
             Box::new(|u| Ok(BlockType::Result(u.arbitrary()?))),
         ];
 
         for (i, ty) in module.types.iter().enumerate() {
             if self.types_on_stack(&ty.params) {
-                choices.push(Box::new(move |_| Ok(BlockType::FuncType(i as u32))));
+                options.push(Box::new(move |_| Ok(BlockType::FuncType(i as u32))));
             }
         }
 
-        let f = u.choose(&choices)?;
+        let f = u.choose(&options)?;
         f(u)
     }
 
@@ -354,51 +359,55 @@ impl<'a> CodeBuilder<'a> {
             let keep_going =
                 instructions.len() < MAX_INSTRUCTIONS && u.arbitrary().unwrap_or(false);
             if !keep_going {
-                while !self.allocs.controls.is_empty() {
-                    let num_operands = self.operands().len();
-                    let label = self.allocs.controls.pop().unwrap();
-
-                    // If we don't have the right operands on the stack for this
-                    // control frame, add an `unreachable`.
-                    if label.results.len() != num_operands || !self.types_on_stack(&label.results) {
-                        self.allocs.operands.push(None);
-                        instructions.push(Instruction::Unreachable);
-                    }
-
-                    // If this is an `if` that is not stack neutral, then it
-                    // must have an `else`.
-                    if label.kind == ControlKind::If && label.params != label.results {
-                        instructions.push(Instruction::Else);
-                        instructions.push(Instruction::Unreachable);
-                    }
-
-                    // The last control frame for the function return does not
-                    // need an `end` instruction.
-                    if !self.allocs.controls.is_empty() {
-                        instructions.push(Instruction::End);
-                    }
-
-                    self.allocs.operands.truncate(label.height);
-                    self.allocs
-                        .operands
-                        .extend(label.results.into_iter().map(Some));
-                }
+                self.end_active_control_frames(&mut instructions);
                 break;
             }
 
-            self.allocs.choices.clear();
-            for (is_valid, choice) in CHOICES {
+            self.allocs.options.clear();
+            for (is_valid, option) in OPTIONS {
                 if is_valid.map_or(true, |f| f(module, &mut self)) {
-                    self.allocs.choices.push(*choice);
+                    self.allocs.options.push(*option);
                 }
             }
 
-            let f = u.choose(&self.allocs.choices)?;
+            let f = u.choose(&self.allocs.options)?;
             let inst = f(u, module, &mut self)?;
             instructions.push(inst);
         }
 
         Ok(instructions)
+    }
+
+    fn end_active_control_frames(&mut self, instructions: &mut Vec<Instruction>) {
+        while !self.allocs.controls.is_empty() {
+            let num_operands = self.operands().len();
+            let label = self.allocs.controls.pop().unwrap();
+
+            // If we don't have the right operands on the stack for this
+            // control frame, add an `unreachable`.
+            if label.results.len() != num_operands || !self.types_on_stack(&label.results) {
+                self.allocs.operands.push(None);
+                instructions.push(Instruction::Unreachable);
+            }
+
+            // If this is an `if` that is not stack neutral, then it
+            // must have an `else`.
+            if label.kind == ControlKind::If && label.params != label.results {
+                instructions.push(Instruction::Else);
+                instructions.push(Instruction::Unreachable);
+            }
+
+            // The last control frame for the function return does not
+            // need an `end` instruction.
+            if !self.allocs.controls.is_empty() {
+                instructions.push(Instruction::End);
+            }
+
+            self.allocs.operands.truncate(label.height);
+            self.allocs
+                .operands
+                .extend(label.results.into_iter().map(Some));
+        }
     }
 }
 
@@ -412,14 +421,7 @@ fn nop(_: &mut Unstructured, _: &Module, _: &mut CodeBuilder) -> Result<Instruct
 
 fn block(u: &mut Unstructured, module: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     let block_ty = builder.arbitrary_block_type(u, module)?;
-    let (params, results) = match block_ty {
-        BlockType::Empty => (vec![], vec![]),
-        BlockType::Result(t) => (vec![], vec![t]),
-        BlockType::FuncType(ty) => {
-            let ty = &module.types[ty as usize];
-            (ty.params.clone(), ty.results.clone())
-        }
-    };
+    let (params, results) = block_ty.params_results(module);
     let height = builder.allocs.operands.len() - params.len();
     builder.allocs.controls.push(Control {
         kind: ControlKind::Block,
@@ -432,14 +434,7 @@ fn block(u: &mut Unstructured, module: &Module, builder: &mut CodeBuilder) -> Re
 
 fn r#loop(u: &mut Unstructured, module: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     let block_ty = builder.arbitrary_block_type(u, module)?;
-    let (params, results) = match block_ty {
-        BlockType::Empty => (vec![], vec![]),
-        BlockType::Result(t) => (vec![], vec![t]),
-        BlockType::FuncType(ty) => {
-            let ty = &module.types[ty as usize];
-            (ty.params.clone(), ty.results.clone())
-        }
-    };
+    let (params, results) = block_ty.params_results(module);
     let height = builder.allocs.operands.len() - params.len();
     builder.allocs.controls.push(Control {
         kind: ControlKind::Loop,
@@ -458,14 +453,7 @@ fn r#if(u: &mut Unstructured, module: &Module, builder: &mut CodeBuilder) -> Res
     builder.pop_operands(&[ValType::I32]);
 
     let block_ty = builder.arbitrary_block_type(u, module)?;
-    let (params, results) = match block_ty {
-        BlockType::Empty => (vec![], vec![]),
-        BlockType::Result(t) => (vec![], vec![t]),
-        BlockType::FuncType(ty) => {
-            let ty = &module.types[ty as usize];
-            (ty.params.clone(), ty.results.clone())
-        }
-    };
+    let (params, results) = block_ty.params_results(module);
     let height = builder.allocs.operands.len() - params.len();
     builder.allocs.controls.push(Control {
         kind: ControlKind::If,
@@ -495,15 +483,17 @@ fn r#else(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result
 }
 
 fn end_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
-    builder.allocs.controls.len() > 1
-        && {
-            let last_control = builder.allocs.controls.last().unwrap();
-            builder.operands().len() == last_control.results.len()
-            && builder.types_on_stack(&last_control.results)
-            // `if`s that don't leave the stack as they found it must have an
-            // `else`.
-            && !(last_control.kind == ControlKind::If && last_control.params != last_control.results)
-        }
+    // Note: first control frame is the function return's control frame, which
+    // does not have an associated `end`.
+    if builder.allocs.controls.len() <= 1 {
+        return false;
+    }
+    let control = builder.allocs.controls.last().unwrap();
+    builder.operands().len() == control.results.len()
+        && builder.types_on_stack(&control.results)
+        // `if`s that don't leave the stack as they found it must have an
+        // `else`.
+        && !(control.kind == ControlKind::If && control.params != control.results)
 }
 
 fn end(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
@@ -641,42 +631,19 @@ fn r#return(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Resu
 
 fn call_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module
-        .imports
-        .iter()
-        .filter_map(|(_, _, imp)| match imp {
-            Import::Func(ty) => Some(ty),
-            _ => None,
-        })
-        .chain(&module.funcs)
-        .any(|ty| builder.types_on_stack(&module.types[*ty as usize].params))
+        .funcs()
+        .any(|(_, ty)| builder.types_on_stack(&ty.params))
 }
 
 fn call(u: &mut Unstructured, module: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     let n = module
-        .imports
-        .iter()
-        .filter_map(|(_, _, imp)| match imp {
-            Import::Func(ty) => Some(ty),
-            _ => None,
-        })
-        .chain(&module.funcs)
-        .filter(|ty| builder.types_on_stack(&module.types[**ty as usize].params))
+        .funcs()
+        .filter(|(_, ty)| builder.types_on_stack(&ty.params))
         .count();
     debug_assert!(n > 0);
     let i = u.int_in_range(0..=n - 1)?;
     let (func_idx, ty) = module
-        .imports
-        .iter()
-        .filter_map(|(_, _, imp)| match imp {
-            Import::Func(ty) => Some(ty),
-            _ => None,
-        })
-        .chain(&module.funcs)
-        .enumerate()
-        .map(|(idx, ty)| {
-            let ty = &module.types[*ty as usize];
-            (idx, ty)
-        })
+        .funcs()
         .filter(|(_, ty)| builder.types_on_stack(&ty.params))
         .nth(i)
         .unwrap();
