@@ -59,3 +59,9 @@ name = "print-valid-module"
 path = "fuzz_targets/print-valid-module.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "roundtrip-valid-module"
+path = "fuzz_targets/roundtrip-valid-module.rs"
+test = false
+doc = false
