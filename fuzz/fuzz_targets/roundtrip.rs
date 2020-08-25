@@ -8,7 +8,16 @@ fuzz_target!(|data: &[u8]| {
         Ok(s) => s,
         Err(_) => return,
     };
+    // Weed out `(module binary ...)` because when we print the bytes and
+    // convert it back to binary it's not guaranteed to be exactly the same.
+    // (think of something like an over-long LEB encoding)
     if string.contains("binary") {
+        return;
+    }
+
+    // Also weed out `@custom` custom sections since we don't print those right
+    // now.
+    if string.contains("@custom") {
         return;
     }
     let wasm = match wat::parse_str(string) {
