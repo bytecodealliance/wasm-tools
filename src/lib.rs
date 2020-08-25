@@ -7,6 +7,9 @@ use arbitrary::{Arbitrary, Result, Unstructured};
 use std::collections::HashSet;
 
 /// A pseudo-random WebAssembly module.
+///
+/// Construct instances of this type with [the `Arbitrary`
+/// trait](https://docs.rs/arbitrary/*/arbitrary/trait.Arbitrary.html).
 #[derive(Debug, Default)]
 pub struct Module {
     types: Vec<FuncType>,
