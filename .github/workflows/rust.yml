@@ -18,10 +18,19 @@ jobs:
         run: cargo build --verbose
       - name: Run tests
         run: cargo test --verbose
+
   validate_fuzz_target:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - run: cargo install cargo-fuzz
       - run: cargo fuzz build validate --sanitizer none
-      - run: cargo fuzz run validate --sanitizer none -- -max_total_time=300
+      - run: cargo fuzz run validate --sanitizer none -- -max_total_time=60
+
+  validate_ensure_terminated_fuzz_target:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: cargo install cargo-fuzz
+      - run: cargo fuzz build validate-ensure-terminated --sanitizer none
+      - run: cargo fuzz run validate-ensure-terminated --sanitizer none -- -max_total_time=60
