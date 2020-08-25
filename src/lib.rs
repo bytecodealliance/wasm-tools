@@ -1,5 +1,6 @@
 mod code_builder;
 mod encode;
+mod terminate;
 
 use crate::code_builder::CodeBuilderAllocations;
 use arbitrary::{Arbitrary, Result, Unstructured};

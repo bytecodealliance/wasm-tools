@@ -19,3 +19,9 @@ name = "validate"
 path = "fuzz_targets/validate.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "validate-ensure-termination"
+path = "fuzz_targets/validate-ensure-termination.rs"
+test = false
+doc = false
