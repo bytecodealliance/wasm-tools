@@ -32,5 +32,5 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: cargo install cargo-fuzz
-      - run: cargo fuzz build validate-ensure-terminated --sanitizer none
-      - run: cargo fuzz run validate-ensure-terminated --sanitizer none -- -max_total_time=60
+      - run: cargo fuzz build validate-ensure-termination --sanitizer none
+      - run: cargo fuzz run validate-ensure-termination --sanitizer none -- -max_total_time=60
