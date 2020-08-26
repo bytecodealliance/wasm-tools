@@ -69,7 +69,7 @@ impl Arbitrary for FuncType {
         const MAX_RESULTS: usize = 20;
         let mut results = vec![];
         loop {
-            let keep_going = params.len() < MAX_RESULTS && u.arbitrary().unwrap_or(false);
+            let keep_going = results.len() < MAX_RESULTS && u.arbitrary().unwrap_or(false);
             if !keep_going {
                 break;
             }
