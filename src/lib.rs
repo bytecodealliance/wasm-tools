@@ -5,6 +5,7 @@ mod terminate;
 use crate::code_builder::CodeBuilderAllocations;
 use arbitrary::{Arbitrary, Result, Unstructured};
 use std::collections::HashSet;
+use std::str;
 
 /// A pseudo-random WebAssembly module.
 ///
@@ -429,8 +430,8 @@ impl Module {
                 choices.push(|u, _| Ok(Import::Table(u.arbitrary()?)));
             }
 
-            let module = u.arbitrary()?;
-            let name = u.arbitrary()?;
+            let module = limited_string(1_000, u)?;
+            let name = limited_string(1_000, u)?;
 
             let f = u.choose(&choices)?;
             let import = f(u, self)?;
@@ -583,7 +584,7 @@ impl Module {
                 return Ok(());
             }
 
-            let mut name = u.arbitrary::<String>()?;
+            let mut name = limited_string(1_000, u)?;
             while export_names.contains(&name) {
                 name.push_str(&format!("{}", export_names.len()));
             }
@@ -754,4 +755,25 @@ fn limited_vec<T: Arbitrary>(max: usize, u: &mut Unstructured) -> Result<Vec<T>>
         result.push(u.arbitrary()?);
     }
     Ok(result)
+}
+
+// Mirror what happens in `Aribtrary for String`, but do so with a clamped size.
+fn limited_string(max_size: usize, u: &mut Unstructured) -> Result<String> {
+    let size = u.arbitrary_len::<u8>()?;
+    let size = std::cmp::min(size, max_size);
+    match str::from_utf8(&u.peek_bytes(size).unwrap()) {
+        Ok(s) => {
+            u.get_bytes(size).unwrap();
+            Ok(s.into())
+        }
+        Err(e) => {
+            let i = e.valid_up_to();
+            let valid = u.get_bytes(i).unwrap();
+            let s = unsafe {
+                debug_assert!(str::from_utf8(valid).is_ok());
+                str::from_utf8_unchecked(valid)
+            };
+            Ok(s.into())
+        }
+    }
 }
