@@ -647,7 +647,11 @@ impl Validator {
             }
             _ => return self.create_error("element is not reference type"),
         }
-        self.limits(&ty.limits)
+        self.limits(&ty.limits)?;
+        if ty.limits.initial > MAX_WASM_TABLE_ENTRIES as u32 {
+            return self.create_error("minimum table size is out of bounds");
+        }
+        Ok(())
     }
 
     fn memory_type(&self, ty: &MemoryType) -> Result<()> {
