@@ -55,29 +55,10 @@ struct FuncType {
 
 impl Arbitrary for FuncType {
     fn arbitrary(u: &mut Unstructured<'_>) -> Result<Self> {
-        const MAX_PARAMS: usize = 20;
-        let mut params = vec![];
-        loop {
-            let keep_going = params.len() < MAX_PARAMS && u.arbitrary().unwrap_or(false);
-            if !keep_going {
-                break;
-            }
-
-            params.push(u.arbitrary()?);
-        }
-
-        const MAX_RESULTS: usize = 20;
-        let mut results = vec![];
-        loop {
-            let keep_going = results.len() < MAX_RESULTS && u.arbitrary().unwrap_or(false);
-            if !keep_going {
-                break;
-            }
-
-            results.push(u.arbitrary()?);
-        }
-
-        Ok(FuncType { params, results })
+        Ok(FuncType {
+            params: limited_vec(20, u)?,
+            results: limited_vec(20, u)?,
+        })
     }
 }
 
@@ -719,16 +700,7 @@ impl Module {
     }
 
     fn arbitrary_locals(&self, u: &mut Unstructured) -> Result<Vec<ValType>> {
-        const MAX_LOCALS: usize = 100;
-        let mut locals = vec![];
-        loop {
-            let keep_going = locals.len() < MAX_LOCALS && u.arbitrary().unwrap_or(false);
-            if !keep_going {
-                return Ok(locals);
-            }
-
-            locals.push(u.arbitrary()?);
-        }
+        limited_vec(100, u)
     }
 
     fn arbitrary_data(&mut self, u: &mut Unstructured) -> Result<()> {
@@ -769,4 +741,17 @@ impl Module {
             self.data.push(DataSegment { offset, init });
         }
     }
+}
+
+fn limited_vec<T: Arbitrary>(max: usize, u: &mut Unstructured) -> Result<Vec<T>> {
+    let mut result = vec![];
+    loop {
+        let keep_going = result.len() < max && u.arbitrary().unwrap_or(false);
+        if !keep_going {
+            break;
+        }
+
+        result.push(u.arbitrary()?);
+    }
+    Ok(result)
 }
