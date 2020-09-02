@@ -144,6 +144,13 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         return true;
     }
 
+    if let Some(test) = test.to_str() {
+        // FIXME(WebAssembly/wabt#1532)
+        if test.ends_with("64.txt") {
+            return true;
+        }
+    }
+
     if let Ok(contents) = str::from_utf8(contents) {
         // Skip tests that are supposed to fail
         if contents.contains(";; ERROR") {
@@ -199,8 +206,8 @@ impl TestState {
         // they're invalid anyway so it's not that worrisome.
         if !test.ends_with("invalid-data-segment-offset.txt")
             && !test.ends_with("invalid-elem-segment-offset.txt")
-            // FIXME(WebAssembly/wabt#1492)
-            && !test.ends_with("desugar/locals.txt")
+            // FIXME(WebAssembly/wabt#1531)
+            && !test.ends_with("blockty.wat")
         {
             if let Some(expected) = self.wat2wasm(&test)? {
                 self.binary_compare(&binary, &expected, true)
@@ -263,11 +270,6 @@ impl TestState {
             && !test.ends_with("atomic.txt")
             && !test.ends_with("atomic-align.txt")
             && !test.ends_with("atomic.wast")
-
-            // FIXME(WebAssembly/wabt#1493)
-            && !test.ends_with("fold-reference-types.txt")
-            && !test.ends_with("table_grow.wast")
-            && !test.ends_with("ref.wat")
         {
             if let Some(expected) = self.wasm2wat(contents)? {
                 self.string_compare(&string, &expected)?;
