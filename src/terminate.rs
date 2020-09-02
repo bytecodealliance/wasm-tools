@@ -37,13 +37,20 @@ impl Module {
                 insts.push(Instruction::GlobalSet(fuel_global));
             };
 
-            let mut new_insts = Vec::with_capacity(code.instructions.len() * 2);
+            let instrs = match &mut code.instructions {
+                Instructions::Generated(list) => list,
+                // only present on modules contained within
+                // `MaybeInvalidModule`, which doesn't expose its internal
+                // `Module`.
+                Instructions::Arbitrary(_) => unreachable!(),
+            };
+            let mut new_insts = Vec::with_capacity(instrs.len() * 2);
 
             // Check fuel at the start of functions to deal with infinite
             // recursion.
             check_fuel(&mut new_insts);
 
-            for inst in mem::replace(&mut code.instructions, vec![]) {
+            for inst in mem::replace(instrs, vec![]) {
                 let is_loop = matches!(&inst, Instruction::Loop(_));
                 new_insts.push(inst);
 
@@ -53,7 +60,7 @@ impl Module {
                 }
             }
 
-            code.instructions = new_insts;
+            *instrs = new_insts;
         }
 
         fuel_global

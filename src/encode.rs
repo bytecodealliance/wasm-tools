@@ -662,10 +662,17 @@ impl Module {
                         self.encode_val_type(bytes, *l);
                     });
 
-                    for inst in &code.instructions {
-                        self.encode_instruction(bytes, inst);
+                    match &code.instructions {
+                        Instructions::Generated(instrs) => {
+                            for inst in instrs {
+                                self.encode_instruction(bytes, inst);
+                            }
+                            self.encode_instruction(bytes, &Instruction::End);
+                        }
+                        Instructions::Arbitrary(body) => {
+                            bytes.extend_from_slice(body);
+                        }
                     }
-                    self.encode_instruction(bytes, &Instruction::End);
                 });
             });
         });
