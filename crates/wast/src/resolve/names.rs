@@ -702,11 +702,11 @@ impl<'a> Resolver<'a> {
                     key.0
                         .iter()
                         .map(|ty| self.copy_valtype_from_module(span, child, *ty))
-                        .collect::<Result<Vec<_>, Error>>()?,
+                        .collect::<Result<Box<[_]>, Error>>()?,
                     key.1
                         .iter()
                         .map(|ty| self.copy_valtype_from_module(span, child, *ty))
-                        .collect::<Result<Vec<_>, Error>>()?,
+                        .collect::<Result<Box<[_]>, Error>>()?,
                 );
                 Ok(Item::Func(self.modules[self.cur].key_to_idx(span, my_key)))
             }
@@ -2137,13 +2137,13 @@ trait TypeKey<'a> {
     fn into_info(self, span: Span, cur: usize) -> TypeInfo<'a>;
 }
 
-type FuncKey<'a> = (Vec<ValType<'a>>, Vec<ValType<'a>>);
+type FuncKey<'a> = (Box<[ValType<'a>]>, Box<[ValType<'a>]>);
 
 impl<'a> TypeReference<'a> for FunctionType<'a> {
     type Key = FuncKey<'a>;
 
     fn key(&self) -> Self::Key {
-        let params = self.params.iter().map(|p| p.2).collect::<Vec<_>>();
+        let params = self.params.iter().map(|p| p.2).collect();
         let results = self.results.clone();
         (params, results)
     }
@@ -2196,10 +2196,10 @@ impl<'a> TypeReference<'a> for FunctionType<'a> {
 
     fn resolve(&mut self, cx: &Module<'a>) -> Result<(), Error> {
         // Resolve the (ref T) value types in the final function type
-        for param in &mut self.params {
+        for param in self.params.iter_mut() {
             cx.resolve_valtype(&mut param.2)?;
         }
-        for result in &mut self.results {
+        for result in self.results.iter_mut() {
             cx.resolve_valtype(result)?;
         }
         Ok(())

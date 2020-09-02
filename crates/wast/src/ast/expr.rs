@@ -10,7 +10,7 @@ use std::mem;
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct Expression<'a> {
-    pub instrs: Vec<Instruction<'a>>,
+    pub instrs: Box<[Instruction<'a>]>,
 }
 
 impl<'a> Parse<'a> for Expression<'a> {
@@ -111,7 +111,6 @@ impl<'a> ExpressionParser<'a> {
                 }
             }
 
-
             match self.paren(parser)? {
                 // No parenthesis seen? Then we just parse the next instruction
                 // and move on.
@@ -207,7 +206,7 @@ impl<'a> ExpressionParser<'a> {
         }
 
         Ok(Expression {
-            instrs: self.instrs,
+            instrs: self.instrs.into(),
         })
     }
 
