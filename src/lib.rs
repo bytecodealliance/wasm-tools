@@ -79,9 +79,16 @@ enum Import {
     Global(GlobalType),
 }
 
-#[derive(Arbitrary, Clone, Debug)]
+#[derive(Clone, Debug)]
 struct TableType {
     limits: Limits,
+}
+
+impl Arbitrary for TableType {
+    fn arbitrary(u: &mut Unstructured<'_>) -> Result<Self> {
+        let limits = Limits::limited(u, 1_000_000)?;
+        Ok(TableType { limits })
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -91,19 +98,8 @@ struct MemoryType {
 
 impl Arbitrary for MemoryType {
     fn arbitrary(u: &mut Unstructured<'_>) -> Result<Self> {
-        let min = u.int_in_range(0..=65536)?;
-        let max = if u.arbitrary().unwrap_or(false) {
-            Some(if min == 65536 {
-                65536
-            } else {
-                u.int_in_range(min..=65536)?
-            })
-        } else {
-            None
-        };
-        Ok(MemoryType {
-            limits: Limits { min, max },
-        })
+        let limits = Limits::limited(u, 65536)?;
+        Ok(MemoryType { limits })
     }
 }
 
@@ -113,27 +109,19 @@ struct Limits {
     max: Option<u32>,
 }
 
-impl Arbitrary for Limits {
-    fn arbitrary(u: &mut Unstructured) -> Result<Self> {
-        if u.arbitrary()? {
-            let (a, b) = u.arbitrary()?;
-            if a <= b {
-                Ok(Limits {
-                    min: a,
-                    max: Some(b),
-                })
+impl Limits {
+    fn limited(u: &mut Unstructured, max: u32) -> Result<Self> {
+        let min = u.int_in_range(0..=max)?;
+        let max = if u.arbitrary().unwrap_or(false) {
+            Some(if min == max {
+                max
             } else {
-                Ok(Limits {
-                    min: b,
-                    max: Some(a),
-                })
-            }
-        } else {
-            Ok(Limits {
-                min: u.arbitrary()?,
-                max: None,
+                u.int_in_range(min..=max)?
             })
-        }
+        } else {
+            None
+        };
+        Ok(Limits { min, max })
     }
 }
 
