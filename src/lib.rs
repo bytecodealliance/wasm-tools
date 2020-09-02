@@ -63,7 +63,7 @@ impl Arbitrary for FuncType {
     }
 }
 
-#[derive(Arbitrary, Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Arbitrary, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 enum ValType {
     I32,
     I64,
@@ -663,7 +663,7 @@ impl Module {
 
     fn arbitrary_code(&mut self, u: &mut Unstructured) -> Result<()> {
         self.code.reserve(self.funcs.len());
-        let mut allocs = CodeBuilderAllocations::default();
+        let mut allocs = CodeBuilderAllocations::new(self);
         for ty in &self.funcs {
             let ty = &self.types[*ty as usize];
             let body = self.arbitrary_func_body(u, ty, &mut allocs)?;
