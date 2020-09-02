@@ -29,22 +29,32 @@ pub struct Module {
 impl Arbitrary for Module {
     fn arbitrary(u: &mut Unstructured) -> Result<Self> {
         let mut module = Module::default();
-        module.types = u.arbitrary()?;
-        module.arbitrary_imports(u)?;
-        module.arbitrary_funcs(u)?;
-        if module.table_imports() == 0 {
-            module.table = u.arbitrary()?;
-        }
-        if module.memory_imports() == 0 {
-            module.memory = u.arbitrary()?;
-        }
-        module.arbitrary_globals(u)?;
-        module.arbitrary_exports(u)?;
-        module.arbitrary_start(u)?;
-        module.arbitrary_elems(u)?;
-        module.arbitrary_code(u)?;
-        module.arbitrary_data(u)?;
+        module.build(u, false)?;
         Ok(module)
+    }
+}
+
+/// Same as [`Module`], but may be invalid.
+///
+/// This module generates function bodies differnetly than `Module` to try to
+/// better explore wasm decoders and such.
+#[derive(Debug, Default)]
+pub struct MaybeInvalidModule {
+    module: Module,
+}
+
+impl MaybeInvalidModule {
+    /// Encode this Wasm module into bytes.
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.module.to_bytes()
+    }
+}
+
+impl Arbitrary for MaybeInvalidModule {
+    fn arbitrary(u: &mut Unstructured) -> Result<Self> {
+        let mut module = Module::default();
+        module.build(u, true)?;
+        Ok(MaybeInvalidModule { module })
     }
 }
 
@@ -167,7 +177,13 @@ struct ElementSegment {
 #[derive(Debug)]
 struct Code {
     locals: Vec<ValType>,
-    instructions: Vec<Instruction>,
+    instructions: Instructions,
+}
+
+#[derive(Debug)]
+enum Instructions {
+    Generated(Vec<Instruction>),
+    Arbitrary(Vec<u8>),
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -403,6 +419,25 @@ struct DataSegment {
 }
 
 impl Module {
+    fn build(&mut self, u: &mut Unstructured, allow_invalid: bool) -> Result<()> {
+        self.types = u.arbitrary()?;
+        self.arbitrary_imports(u)?;
+        self.arbitrary_funcs(u)?;
+        if self.table_imports() == 0 {
+            self.table = u.arbitrary()?;
+        }
+        if self.memory_imports() == 0 {
+            self.memory = u.arbitrary()?;
+        }
+        self.arbitrary_globals(u)?;
+        self.arbitrary_exports(u)?;
+        self.arbitrary_start(u)?;
+        self.arbitrary_elems(u)?;
+        self.arbitrary_code(u, allow_invalid)?;
+        self.arbitrary_data(u)?;
+        Ok(())
+    }
+
     fn arbitrary_imports(&mut self, u: &mut Unstructured) -> Result<()> {
         let mut choices: Vec<fn(&mut Unstructured, &mut Module) -> Result<Import>> =
             Vec::with_capacity(4);
@@ -673,12 +708,12 @@ impl Module {
         }
     }
 
-    fn arbitrary_code(&mut self, u: &mut Unstructured) -> Result<()> {
+    fn arbitrary_code(&mut self, u: &mut Unstructured, allow_invalid: bool) -> Result<()> {
         self.code.reserve(self.funcs.len());
         let mut allocs = CodeBuilderAllocations::default();
         for ty in &self.funcs {
             let ty = &self.types[*ty as usize];
-            let body = self.arbitrary_func_body(u, ty, &mut allocs)?;
+            let body = self.arbitrary_func_body(u, ty, &mut allocs, allow_invalid)?;
             self.code.push(body);
         }
         Ok(())
@@ -689,10 +724,15 @@ impl Module {
         u: &mut Unstructured,
         ty: &FuncType,
         allocs: &mut CodeBuilderAllocations,
+        allow_invalid: bool,
     ) -> Result<Code> {
         let locals = self.arbitrary_locals(u)?;
         let builder = allocs.builder(ty, &locals);
-        let instructions = builder.arbitrary(u, self)?;
+        let instructions = if allow_invalid && u.arbitrary().unwrap_or(false) {
+            Instructions::Arbitrary(arbitrary_vec_u8(u)?)
+        } else {
+            Instructions::Generated(builder.arbitrary(u, self)?)
+        };
 
         Ok(Code {
             locals,
@@ -776,4 +816,9 @@ fn limited_string(max_size: usize, u: &mut Unstructured) -> Result<String> {
             Ok(s.into())
         }
     }
+}
+
+fn arbitrary_vec_u8(u: &mut Unstructured) -> Result<Vec<u8>> {
+    let size = u.arbitrary_len::<u8>()?;
+    Ok(u.get_bytes(size)?.to_vec())
 }
