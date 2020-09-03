@@ -1,5 +1,6 @@
 use super::{BlockType, FuncType, Import, Instruction, MemArg, Module, ValType};
 use arbitrary::{Result, Unstructured};
+use std::collections::BTreeMap;
 
 // The static set of options of instruction to generate that could be valid at
 // some given time. One entry per Wasm instruction.
@@ -212,6 +213,16 @@ pub(crate) struct CodeBuilderAllocations {
     // Dynamic set of options of instruction we can generate that are known to
     // be valid right now.
     options: Vec<fn(&mut Unstructured, &Module, &mut CodeBuilder) -> Result<Instruction>>,
+
+    // Cached information about the module that we're generating functions for,
+    // used to speed up validity checks. The mutable globals map is a map of the
+    // type of global to the global indices which have that type (and they're
+    // all mutable).
+    mutable_globals: BTreeMap<ValType, Vec<u32>>,
+
+    // Like mutable globals above this is a map from function types to the list
+    // of functions that have that function type.
+    functions: BTreeMap<Vec<ValType>, Vec<u32>>,
 }
 
 pub(crate) struct CodeBuilder<'a> {
@@ -250,17 +261,43 @@ enum ControlKind {
     Loop,
 }
 
-impl Default for CodeBuilderAllocations {
-    fn default() -> Self {
+impl CodeBuilderAllocations {
+    pub(crate) fn new(module: &Module) -> Self {
+        let mut mutable_globals = BTreeMap::new();
+        for (i, global) in module
+            .imports
+            .iter()
+            .filter_map(|(_, _, imp)| match imp {
+                Import::Global(g) => Some(g),
+                _ => None,
+            })
+            .chain(module.globals.iter().map(|g| &g.ty))
+            .enumerate()
+        {
+            if global.mutable {
+                mutable_globals
+                    .entry(global.val_type)
+                    .or_insert(Vec::new())
+                    .push(i as u32);
+            }
+        }
+
+        let mut functions = BTreeMap::new();
+        for (idx, func) in module.funcs() {
+            functions
+                .entry(func.params.clone())
+                .or_insert(Vec::new())
+                .push(idx);
+        }
         CodeBuilderAllocations {
             controls: Vec::with_capacity(4),
             operands: Vec::with_capacity(16),
             options: Vec::with_capacity(OPTIONS.len()),
+            functions,
+            mutable_globals,
         }
     }
-}
 
-impl CodeBuilderAllocations {
     pub(crate) fn builder<'a>(
         &'a mut self,
         func_ty: &'a FuncType,
@@ -629,24 +666,25 @@ fn r#return(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Resu
     Ok(Instruction::Return)
 }
 
-fn call_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module
-        .funcs()
-        .any(|(_, ty)| builder.types_on_stack(&ty.params))
+fn call_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
+    builder
+        .allocs
+        .functions
+        .keys()
+        .any(|k| builder.types_on_stack(k))
 }
 
 fn call(u: &mut Unstructured, module: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
-    let n = module
-        .funcs()
-        .filter(|(_, ty)| builder.types_on_stack(&ty.params))
-        .count();
-    debug_assert!(n > 0);
-    let i = u.int_in_range(0..=n - 1)?;
-    let (func_idx, ty) = module
-        .funcs()
-        .filter(|(_, ty)| builder.types_on_stack(&ty.params))
-        .nth(i)
-        .unwrap();
+    let mut candidates = builder
+        .allocs
+        .functions
+        .iter()
+        .filter(|(k, _)| builder.types_on_stack(k))
+        .flat_map(|(_, v)| v.iter().copied())
+        .collect::<Vec<_>>();
+    assert!(candidates.len() > 0);
+    let i = u.int_in_range(0..=candidates.len() - 1)?;
+    let (func_idx, ty) = module.funcs().nth(candidates[i] as usize).unwrap();
     builder.pop_operands(&ty.params);
     builder.push_operands(&ty.results);
     Ok(Instruction::Call(func_idx as u32))
@@ -827,62 +865,25 @@ fn global_get(
     unreachable!()
 }
 
-fn global_set_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module
-        .globals
+fn global_set_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
+    builder
+        .allocs
+        .mutable_globals
         .iter()
-        .map(|g| &g.ty)
-        .chain(module.imports.iter().filter_map(|(_, _, imp)| match imp {
-            Import::Global(g) => Some(g),
-            _ => None,
-        }))
-        .any(|g| g.mutable && builder.type_on_stack(g.val_type))
+        .any(|(ty, _)| builder.type_on_stack(*ty))
 }
 
-fn global_set(
-    u: &mut Unstructured,
-    module: &Module,
-    builder: &mut CodeBuilder,
-) -> Result<Instruction> {
-    let n = module
-        .imports
+fn global_set(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
+    let candidates = builder
+        .allocs
+        .mutable_globals
         .iter()
-        .filter_map(|(_, _, imp)| match imp {
-            Import::Global(g) => Some(g),
-            _ => None,
-        })
-        .chain(module.globals.iter().map(|g| &g.ty))
-        .filter(|g| g.mutable && builder.type_on_stack(g.val_type))
-        .count();
-    debug_assert!(n > 0);
-    let mut i = u.int_in_range(0..=n - 1)?;
-    let mut global_idx = 0;
-    for (_, _, imp) in &module.imports {
-        match imp {
-            Import::Global(g) => {
-                if g.mutable && builder.type_on_stack(g.val_type) {
-                    if i == 0 {
-                        builder.allocs.operands.pop();
-                        return Ok(Instruction::GlobalSet(global_idx));
-                    }
-                    i -= 1;
-                }
-                global_idx += 1;
-            }
-            _ => continue,
-        }
-    }
-    for g in &module.globals {
-        if g.ty.mutable && builder.type_on_stack(g.ty.val_type) {
-            if i == 0 {
-                builder.allocs.operands.pop();
-                return Ok(Instruction::GlobalSet(global_idx));
-            }
-            i -= 1;
-        }
-        global_idx += 1;
-    }
-    unreachable!()
+        .find(|(ty, _)| builder.type_on_stack(**ty))
+        .unwrap()
+        .1;
+    let i = u.int_in_range(0..=candidates.len() - 1)?;
+    builder.allocs.operands.pop();
+    Ok(Instruction::GlobalSet(candidates[i]))
 }
 
 fn have_memory(module: &Module, _: &mut CodeBuilder) -> bool {
