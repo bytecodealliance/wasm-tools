@@ -675,7 +675,7 @@ fn call_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
 }
 
 fn call(u: &mut Unstructured, module: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
-    let mut candidates = builder
+    let candidates = builder
         .allocs
         .functions
         .iter()
