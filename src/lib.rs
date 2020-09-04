@@ -439,12 +439,9 @@ impl Module {
         choices.push(|u, _| Ok(Import::Global(u.arbitrary()?)));
 
         let num_stable_choices = choices.len();
-        loop {
-            let keep_going = u.arbitrary().unwrap_or(false);
-            if !keep_going {
-                return Ok(());
-            }
 
+        const MAX_IMPORTS: usize = 100;
+        arbitrary_loop(u, MAX_IMPORTS, |u| {
             choices.truncate(num_stable_choices);
             if self.memory_imports() == 0 {
                 choices.push(|u, _| Ok(Import::Memory(u.arbitrary()?)));
@@ -465,7 +462,8 @@ impl Module {
             }
 
             self.imports.push((module, name, import));
-        }
+            Ok(())
+        })
     }
 
     fn funcs<'a>(&'a self) -> impl Iterator<Item = (u32, &'a FuncType)> + 'a {
@@ -514,28 +512,21 @@ impl Module {
             return Ok(());
         }
 
-        loop {
-            let keep_going = u.arbitrary().unwrap_or(false);
-            if !keep_going {
-                return Ok(());
-            }
-
+        const MAX_FUNCS: usize = 1000;
+        arbitrary_loop(u, MAX_FUNCS, |u| {
             let max = self.types.len() as u32 - 1;
             let ty = u.int_in_range(0..=max)?;
             self.funcs.push(ty);
-        }
+            Ok(())
+        })
     }
 
     fn arbitrary_globals(&mut self, u: &mut Unstructured) -> Result<()> {
         let mut choices: Vec<Box<dyn Fn(&mut Unstructured, ValType) -> Result<Instruction>>> =
             vec![];
 
-        loop {
-            let keep_going = u.arbitrary().unwrap_or(false);
-            if !keep_going {
-                return Ok(());
-            }
-
+        const MAX_GLOBALS: usize = 100;
+        arbitrary_loop(u, MAX_GLOBALS, |u| {
             let ty = u.arbitrary::<GlobalType>()?;
 
             choices.clear();
@@ -565,7 +556,8 @@ impl Module {
             let f = u.choose(&choices)?;
             let expr = f(u, ty.val_type)?;
             self.globals.push(Global { ty, expr });
-        }
+            Ok(())
+        })
     }
 
     fn arbitrary_exports(&mut self, u: &mut Unstructured) -> Result<()> {
@@ -601,12 +593,8 @@ impl Module {
         }
 
         let mut export_names = HashSet::new();
-        loop {
-            let keep_going = u.arbitrary().unwrap_or(false);
-            if !keep_going {
-                return Ok(());
-            }
-
+        const MAX_EXPORTS: usize = 100;
+        arbitrary_loop(u, MAX_EXPORTS, |u| {
             let mut name = limited_string(1_000, u)?;
             while export_names.contains(&name) {
                 name.push_str(&format!("{}", export_names.len()));
@@ -616,7 +604,8 @@ impl Module {
             let f = u.choose(&choices)?;
             let export = f(u, self)?;
             self.exports.push((name, export));
-        }
+            Ok(())
+        })
     }
 
     fn arbitrary_start(&mut self, u: &mut Unstructured) -> Result<()> {
@@ -658,12 +647,8 @@ impl Module {
 
         let func_max = self.func_imports() + self.funcs.len() as u32 - 1;
 
-        loop {
-            let keep_going = u.arbitrary().unwrap_or(false);
-            if !keep_going {
-                return Ok(());
-            }
-
+        const MAX_ELEMS: usize = 100;
+        arbitrary_loop(u, MAX_ELEMS, |u| {
             let mut offset_global_choices = vec![];
             let mut global_index = 0;
             for (_, _, imp) in &self.imports {
@@ -682,18 +667,16 @@ impl Module {
             };
 
             let mut init = vec![];
-            loop {
-                let keep_going = u.arbitrary().unwrap_or(false);
-                if !keep_going {
-                    break;
-                }
-
+            const MAX_SEG_ELEMS: usize = 100;
+            arbitrary_loop(u, MAX_SEG_ELEMS, |u| {
                 let func_idx = u.int_in_range(0..=func_max)?;
                 init.push(func_idx);
-            }
+                Ok(())
+            })?;
 
             self.elems.push(ElementSegment { offset, init });
-        }
+            Ok(())
+        })
     }
 
     fn arbitrary_code(&mut self, u: &mut Unstructured, allow_invalid: bool) -> Result<()> {
@@ -739,12 +722,8 @@ impl Module {
 
         let mut choices: Vec<Box<dyn Fn(&mut Unstructured) -> Result<Instruction>>> = vec![];
 
-        loop {
-            let keep_going = u.arbitrary().unwrap_or(false);
-            if !keep_going {
-                return Ok(());
-            }
-
+        const MAX_DATA: usize = 100;
+        arbitrary_loop(u, MAX_DATA, |u| {
             if choices.is_empty() {
                 choices.push(Box::new(|u| Ok(Instruction::I32Const(u.arbitrary()?))));
 
@@ -768,24 +747,38 @@ impl Module {
             let offset = f(u)?;
             let init = u.arbitrary()?;
             self.data.push(DataSegment { offset, init });
-        }
+            Ok(())
+        })
     }
 }
 
-fn limited_vec<T: Arbitrary>(max: usize, u: &mut Unstructured) -> Result<Vec<T>> {
-    let mut result = vec![];
-    loop {
-        let keep_going = result.len() < max && u.arbitrary().unwrap_or(false);
+pub(crate) fn arbitrary_loop(
+    u: &mut Unstructured,
+    max: usize,
+    mut f: impl FnMut(&mut Unstructured) -> Result<()>,
+) -> Result<()> {
+    for _ in 0..max {
+        let keep_going = u.arbitrary().unwrap_or(false);
         if !keep_going {
             break;
         }
 
-        result.push(u.arbitrary()?);
+        f(u)?;
     }
+
+    Ok(())
+}
+
+fn limited_vec<T: Arbitrary>(max: usize, u: &mut Unstructured) -> Result<Vec<T>> {
+    let mut result = vec![];
+    arbitrary_loop(u, max, |u| {
+        result.push(u.arbitrary()?);
+        Ok(())
+    })?;
     Ok(result)
 }
 
-// Mirror what happens in `Aribtrary for String`, but do so with a clamped size.
+// Mirror what happens in `Arbitrary for String`, but do so with a clamped size.
 fn limited_string(max_size: usize, u: &mut Unstructured) -> Result<String> {
     let size = u.arbitrary_len::<u8>()?;
     let size = std::cmp::min(size, max_size);
