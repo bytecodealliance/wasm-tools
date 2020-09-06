@@ -15,7 +15,7 @@
             (block (param i32))
         )
     )
-    "type mismatch: stack size does not match block type"
+    "type mismatch"
 )
 
 (assert_invalid
@@ -26,5 +26,5 @@
             )
         )
     )
-    "type mismatch: not enough operands"
+    "type mismatch"
 )

@@ -21,7 +21,7 @@
             local.get 0
             br_if 0
         end))
-    "type mismatch: stack size does not match target loop type"
+    "type mismatch"
 )
 
 (assert_invalid
@@ -36,5 +36,5 @@
             br_if 0
             drop
         end))
-    "type mismatch: stack item type does not match block param type"
+    "type mismatch"
 )

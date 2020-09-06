@@ -1568,8 +1568,7 @@ impl Validator {
         let ty_index = self.state.func_type_indices[self.code_section_index];
         self.code_section_index += 1;
         let resources = ValidatorResources(self.state.arc().clone());
-        let ty = self.func_type_at(ty_index)?;
-        Ok(FuncValidator::new(ty.item, resources, &self.features))
+        Ok(FuncValidator::new(ty_index.item, 0, resources, &self.features).unwrap())
     }
 
     /// Validates [`Payload::DataSection`](crate::Payload).
