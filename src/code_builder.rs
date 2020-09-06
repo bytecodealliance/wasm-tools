@@ -223,6 +223,9 @@ pub(crate) struct CodeBuilderAllocations {
     // Like mutable globals above this is a map from function types to the list
     // of functions that have that function type.
     functions: BTreeMap<Vec<ValType>, Vec<u32>>,
+
+    // Whether or not this module has a linear memory
+    has_memory: bool,
 }
 
 pub(crate) struct CodeBuilder<'a> {
@@ -295,6 +298,7 @@ impl CodeBuilderAllocations {
             options: Vec::with_capacity(OPTIONS.len()),
             functions,
             mutable_globals,
+            has_memory: module.memory.is_some() || module.memory_imports() > 0,
         }
     }
 
@@ -886,8 +890,8 @@ fn global_set(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Re
     Ok(Instruction::GlobalSet(candidates[i]))
 }
 
-fn have_memory(module: &Module, _: &mut CodeBuilder) -> bool {
-    module.memory.is_some() || module.memory_imports() > 0
+fn have_memory(_: &Module, builder: &mut CodeBuilder) -> bool {
+    builder.allocs.has_memory
 }
 
 fn have_memory_and_offset(module: &Module, builder: &mut CodeBuilder) -> bool {
