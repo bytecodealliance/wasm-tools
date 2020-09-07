@@ -226,6 +226,9 @@ pub(crate) struct CodeBuilderAllocations {
 
     // Whether or not this module has a linear memory
     has_memory: bool,
+
+    // Whether or not this module has a function table
+    has_funcref_table: bool,
 }
 
 pub(crate) struct CodeBuilder<'a> {
@@ -299,6 +302,7 @@ impl CodeBuilderAllocations {
             functions,
             mutable_globals,
             has_memory: module.memory.is_some() || module.memory_imports() > 0,
+            has_funcref_table: module.table.is_some() || module.table_imports() == 1,
         }
     }
 
@@ -695,9 +699,7 @@ fn call(u: &mut Unstructured, module: &Module, builder: &mut CodeBuilder) -> Res
 }
 
 fn call_indirect_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
-    if !(module.table.is_some() || module.table_imports() == 1)
-        || !builder.type_on_stack(ValType::I32)
-    {
+    if !builder.allocs.has_funcref_table || !builder.type_on_stack(ValType::I32) {
         return false;
     }
     let ty = builder.allocs.operands.pop().unwrap();
