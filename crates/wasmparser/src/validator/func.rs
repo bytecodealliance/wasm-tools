@@ -1,5 +1,5 @@
-use crate::operators_validator::{FunctionEnd, OperatorValidator};
-use crate::{BinaryReader, BinaryReaderError, Result, Type};
+use crate::operators_validator::OperatorValidator;
+use crate::{BinaryReader, Result, Type};
 use crate::{FunctionBody, Operator, WasmFeatures, WasmModuleResources};
 
 /// Validation context for a WebAssembly function.
@@ -12,7 +12,6 @@ use crate::{FunctionBody, Operator, WasmFeatures, WasmModuleResources};
 pub struct FuncValidator<T> {
     validator: OperatorValidator,
     resources: T,
-    eof_found: bool,
 }
 
 impl<T: WasmModuleResources> FuncValidator<T> {
@@ -25,12 +24,16 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     ///
     /// The returned validator can be used to then parse a [`FunctionBody`], for
     /// example, to read locals and validate operators.
-    pub fn new(ty: &T::FuncType, resources: T, features: &WasmFeatures) -> FuncValidator<T> {
-        FuncValidator {
-            validator: OperatorValidator::new(ty, features),
+    pub fn new(
+        ty: u32,
+        offset: usize,
+        resources: T,
+        features: &WasmFeatures,
+    ) -> Result<FuncValidator<T>> {
+        Ok(FuncValidator {
+            validator: OperatorValidator::new(ty, offset, features, &resources)?,
             resources,
-            eof_found: false,
-        }
+        })
     }
 
     /// Convenience function to validate an entire function's body.
@@ -78,14 +81,9 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     /// the operator itself are passed to this function to provide more useful
     /// error messages.
     pub fn op(&mut self, offset: usize, operator: &Operator<'_>) -> Result<()> {
-        let end = self
-            .validator
+        self.validator
             .process_operator(operator, &self.resources)
             .map_err(|e| e.set_offset(offset))?;
-        match end {
-            FunctionEnd::Yes => self.eof_found = true,
-            FunctionEnd::No => {}
-        }
         Ok(())
     }
 
@@ -98,9 +96,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     /// The `offset` provided to this function will be used as a position for an
     /// error if validation fails.
     pub fn finish(&mut self, offset: usize) -> Result<()> {
-        if !self.eof_found {
-            return Err(BinaryReaderError::new("end of function not found", offset));
-        }
+        self.validator.finish().map_err(|e| e.set_offset(offset))?;
         Ok(())
     }
 
