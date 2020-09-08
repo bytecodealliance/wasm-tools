@@ -34,3 +34,9 @@ jobs:
       - run: cargo install cargo-fuzz
       - run: cargo fuzz build validate-ensure-termination --sanitizer none
       - run: cargo fuzz run validate-ensure-termination --sanitizer none -- -max_total_time=60
+
+  check_benchmarks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: cargo check --benches
