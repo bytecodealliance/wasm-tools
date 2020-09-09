@@ -1,3 +1,6 @@
+// Needed for the `instructions!` macro in `src/code_builder.rs`.
+#![recursion_limit = "256"]
+
 mod code_builder;
 mod encode;
 mod terminate;

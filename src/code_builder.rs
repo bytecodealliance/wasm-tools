@@ -2,15 +2,57 @@ use super::{BlockType, FuncType, Import, Instruction, MemArg, Module, ValType};
 use arbitrary::{Result, Unstructured};
 use std::collections::BTreeMap;
 
+macro_rules! instructions {
+	(
+        $(
+            ($predicate:expr, $generator_fn:ident),
+        )*
+    ) => {
+        static NUM_OPTIONS: usize = instructions!(
+            @count;
+            $( $generator_fn )*
+        );
+
+        fn gather_options(
+            module: &Module,
+            builder: &mut CodeBuilder,
+        ) {
+            builder.allocs.options.clear();
+
+            // Unroll the loop that checks whether each instruction is valid in
+            // the current context and, if it is valid, pushes it onto our
+            // options. Unrolling this loops lets us avoid dynamic calls through
+            // function pointers and, furthermore, each call site can be branch
+            // predicted and even inlined. This saved us about 30% of time in
+            // the `corpus` benchmark.
+            $(
+                let predicate: Option<fn(&Module, &mut CodeBuilder) -> bool> = $predicate;
+                if predicate.map_or(true, |f| f(module, builder)) {
+                    builder.allocs.options.push($generator_fn);
+                }
+            )*
+        }
+	};
+
+    ( @count; ) => {
+        0
+    };
+    ( @count; $x:ident $( $xs:ident )* ) => {
+        1 + instructions!( @count; $( $xs )* )
+    };
+}
+
 // The static set of options of instruction to generate that could be valid at
 // some given time. One entry per Wasm instruction.
-static OPTIONS: &[(
-    // Predicate for whether this is a valid choice, if any. None means that the
-    // choice is always applicable.
-    Option<fn(&Module, &mut CodeBuilder) -> bool>,
-    // The function to generate the instruction, given that we've made this choice.
-    fn(&mut Unstructured, &Module, &mut CodeBuilder) -> Result<Instruction>,
-)] = &[
+//
+// Each entry is made up of two parts:
+//
+// 1. A predicate for whether this is a valid choice, if any. `None` means that
+//    the choice is always applicable.
+//
+// 2. The function to generate the instruction, given that we've made this
+//    choice.
+instructions! {
     // Control instructions.
     (None, unreachable),
     (None, nop),
@@ -201,7 +243,7 @@ static OPTIONS: &[(
     (Some(f32_on_stack), i64_trunc_sat_f32_u),
     (Some(f64_on_stack), i64_trunc_sat_f64_s),
     (Some(f64_on_stack), i64_trunc_sat_f64_u),
-];
+}
 
 pub(crate) struct CodeBuilderAllocations {
     // The control labels in scope right now.
@@ -298,7 +340,7 @@ impl CodeBuilderAllocations {
         CodeBuilderAllocations {
             controls: Vec::with_capacity(4),
             operands: Vec::with_capacity(16),
-            options: Vec::with_capacity(OPTIONS.len()),
+            options: Vec::with_capacity(NUM_OPTIONS),
             functions,
             mutable_globals,
             has_memory: module.memory.is_some() || module.memory_imports() > 0,
@@ -408,12 +450,7 @@ impl<'a> CodeBuilder<'a> {
                 break;
             }
 
-            self.allocs.options.clear();
-            for (is_valid, option) in OPTIONS {
-                if is_valid.map_or(true, |f| f(module, &mut self)) {
-                    self.allocs.options.push(*option);
-                }
-            }
+            gather_options(module, &mut self);
 
             let f = u.choose(&self.allocs.options)?;
             let inst = f(u, module, &mut self)?;
@@ -490,6 +527,7 @@ fn r#loop(u: &mut Unstructured, module: &Module, builder: &mut CodeBuilder) -> R
     Ok(Instruction::Loop(block_ty))
 }
 
+#[inline]
 fn if_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder.type_on_stack(ValType::I32)
 }
@@ -509,6 +547,7 @@ fn r#if(u: &mut Unstructured, module: &Module, builder: &mut CodeBuilder) -> Res
     Ok(Instruction::If(block_ty))
 }
 
+#[inline]
 fn else_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
     let last_control = builder.allocs.controls.last().unwrap();
     last_control.kind == ControlKind::If
@@ -527,6 +566,7 @@ fn r#else(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result
     Ok(Instruction::Else)
 }
 
+#[inline]
 fn end_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
     // Note: first control frame is the function return's control frame, which
     // does not have an associated `end`.
@@ -546,6 +586,7 @@ fn end(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<In
     Ok(Instruction::End)
 }
 
+#[inline]
 fn br_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder
         .allocs
@@ -578,6 +619,7 @@ fn br(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Ins
     Ok(Instruction::Br(target as u32))
 }
 
+#[inline]
 fn br_if_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
     if !builder.type_on_stack(ValType::I32) {
         return false;
@@ -615,6 +657,7 @@ fn br_if(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<
     Ok(Instruction::BrIf(target as u32))
 }
 
+#[inline]
 fn br_table_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     if !builder.type_on_stack(ValType::I32) {
         return false;
@@ -664,6 +707,7 @@ fn br_table(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Resu
     Ok(Instruction::BrTable(targets, default_target as u32))
 }
 
+#[inline]
 fn return_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder.label_types_on_stack(&builder.allocs.controls[0])
 }
@@ -674,6 +718,7 @@ fn r#return(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Resu
     Ok(Instruction::Return)
 }
 
+#[inline]
 fn call_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder
         .allocs
@@ -698,6 +743,7 @@ fn call(u: &mut Unstructured, module: &Module, builder: &mut CodeBuilder) -> Res
     Ok(Instruction::Call(func_idx as u32))
 }
 
+#[inline]
 fn call_indirect_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     if !builder.allocs.has_funcref_table || !builder.type_on_stack(ValType::I32) {
         return false;
@@ -737,6 +783,7 @@ fn call_indirect(
     Ok(Instruction::CallIndirect(type_idx as u32))
 }
 
+#[inline]
 fn drop_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
     !builder.operands().is_empty()
 }
@@ -746,6 +793,7 @@ fn drop(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<I
     Ok(Instruction::Drop)
 }
 
+#[inline]
 fn select_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
     if !(builder.operands().len() >= 3 && builder.type_on_stack(ValType::I32)) {
         return false;
@@ -763,6 +811,7 @@ fn select(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result
     Ok(Instruction::Select)
 }
 
+#[inline]
 fn local_get_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
     !builder.func_ty.params.is_empty() || !builder.locals.is_empty()
 }
@@ -780,6 +829,7 @@ fn local_get(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Res
     Ok(Instruction::LocalGet(i as u32))
 }
 
+#[inline]
 fn local_set_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder
         .func_ty
@@ -834,6 +884,7 @@ fn local_tee(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Res
     Ok(Instruction::LocalTee(j as u32))
 }
 
+#[inline]
 fn global_get_valid(module: &Module, _: &mut CodeBuilder) -> bool {
     !module.globals.is_empty() || module.global_imports() > 0
 }
@@ -871,6 +922,7 @@ fn global_get(
     unreachable!()
 }
 
+#[inline]
 fn global_set_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder
         .allocs
@@ -892,10 +944,12 @@ fn global_set(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Re
     Ok(Instruction::GlobalSet(candidates[i]))
 }
 
+#[inline]
 fn have_memory(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder.allocs.has_memory
 }
 
+#[inline]
 fn have_memory_and_offset(module: &Module, builder: &mut CodeBuilder) -> bool {
     have_memory(module, builder) && builder.type_on_stack(ValType::I32)
 }
@@ -1052,10 +1106,12 @@ fn i64_load_32_u(
     Ok(Instruction::I64Load32_U(MemArg { offset, align }))
 }
 
+#[inline]
 fn store_valid(module: &Module, builder: &mut CodeBuilder, f: impl FnOnce() -> ValType) -> bool {
     have_memory(module, builder) && builder.types_on_stack(&[ValType::I32, f()])
 }
 
+#[inline]
 fn i32_store_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     store_valid(module, builder, || ValType::I32)
 }
@@ -1067,6 +1123,7 @@ fn i32_store(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Res
     Ok(Instruction::I32Store(MemArg { offset, align }))
 }
 
+#[inline]
 fn i64_store_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     store_valid(module, builder, || ValType::I64)
 }
@@ -1078,6 +1135,7 @@ fn i64_store(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Res
     Ok(Instruction::I64Store(MemArg { offset, align }))
 }
 
+#[inline]
 fn f32_store_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     store_valid(module, builder, || ValType::F32)
 }
@@ -1089,6 +1147,7 @@ fn f32_store(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Res
     Ok(Instruction::F32Store(MemArg { offset, align }))
 }
 
+#[inline]
 fn f64_store_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     store_valid(module, builder, || ValType::F64)
 }
@@ -1152,6 +1211,7 @@ fn memory_size(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> R
     Ok(Instruction::MemorySize)
 }
 
+#[inline]
 fn memory_grow_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     have_memory(module, builder) && builder.type_on_stack(ValType::I32)
 }
@@ -1186,6 +1246,7 @@ fn f64_const(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Res
     Ok(Instruction::F64Const(x))
 }
 
+#[inline]
 fn i32_on_stack(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder.type_on_stack(ValType::I32)
 }
@@ -1196,6 +1257,7 @@ fn i32_eqz(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Resul
     Ok(Instruction::I32Eqz)
 }
 
+#[inline]
 fn i32_i32_on_stack(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder.types_on_stack(&[ValType::I32, ValType::I32])
 }
@@ -1260,6 +1322,7 @@ fn i32_ge_u(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Resu
     Ok(Instruction::I32GeU)
 }
 
+#[inline]
 fn i64_on_stack(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder.types_on_stack(&[ValType::I64])
 }
@@ -1270,6 +1333,7 @@ fn i64_eqz(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Resul
     Ok(Instruction::I64Eqz)
 }
 
+#[inline]
 fn i64_i64_on_stack(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder.types_on_stack(&[ValType::I64, ValType::I64])
 }
@@ -1630,6 +1694,7 @@ fn i64_rotr(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Resu
     Ok(Instruction::I64Rotr)
 }
 
+#[inline]
 fn f32_on_stack(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder.types_on_stack(&[ValType::F32])
 }
@@ -1722,6 +1787,7 @@ fn f32_copysign(
     Ok(Instruction::F32Copysign)
 }
 
+#[inline]
 fn f64_on_stack(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder.types_on_stack(&[ValType::F64])
 }
