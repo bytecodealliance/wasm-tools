@@ -41,7 +41,7 @@
 First, use `cargo fuzz` to define a new fuzz target:
 
 ```shell
-$ cargo fuzz my_wasm_smith_fuzz_target
+$ cargo fuzz add my_wasm_smith_fuzz_target
 ```
 
 Next, add `wasm-smith` to your dependencies:

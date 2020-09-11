@@ -12,6 +12,24 @@ impl Module {
     /// The index of the fuel global is returned, so that you may control how
     /// much fuel the module is given.
     pub fn ensure_termination(&mut self, default_fuel: u32) -> u32 {
+        self.inner.ensure_termination(default_fuel)
+    }
+}
+
+impl<C> ConfiguredModule<C>
+where
+    C: Config,
+{
+    /// Ensure that all of this Wasm module's functions will terminate when
+    /// executed.
+    ///
+    /// This adds a new mutable, exported global to the module to keep track of
+    /// how much "fuel" is left. Fuel is decremented at the head of each loop
+    /// and function. When fuel reaches zero, a trap is raised.
+    ///
+    /// The index of the fuel global is returned, so that you may control how
+    /// much fuel the module is given.
+    pub fn ensure_termination(&mut self, default_fuel: u32) -> u32 {
         let fuel_global = self.global_imports() + self.globals.len() as u32;
         self.globals.push(Global {
             ty: GlobalType {

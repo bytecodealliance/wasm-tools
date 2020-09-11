@@ -291,9 +291,9 @@ checksum = "755456fae044e6fa1ebbbd1b3e902ae19e73097ed4ed87bb79934a867c007bc3"
 
 [[package]]
 name = "libfuzzer-sys"
-version = "0.3.3"
+version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87ccaa86e7872547575190db4f1f915bad8eb0f2ae7491ede35e53ae76abfba9"
+checksum = "ee8c42ab62f43795ed77a965ed07994c5584cdc94fd0ebf14b22ac1524077acc"
 dependencies = [
  "arbitrary",
  "cc",
@@ -702,6 +702,7 @@ dependencies = [
  "arbitrary",
  "criterion",
  "leb128",
+ "libfuzzer-sys",
  "structopt",
 ]
 
