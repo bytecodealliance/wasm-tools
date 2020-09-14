@@ -1883,7 +1883,7 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             // `End` and `Else` instructions if they have labels listed we
             // verify that they match the label at the beginning of the block.
             Else(_) | End(_) => {
-                let (matching_block, label) = match instr {
+                let (matching_block, label) = match &instr {
                     Else(label) => (self.blocks.last().cloned(), label),
                     End(label) => (self.blocks.pop(), label),
                     _ => unreachable!(),
@@ -1895,7 +1895,9 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
 
                 // Reset the local scopes to before this block was entered
                 if matching_block.pushed_scope {
-                    self.scopes.pop();
+                    if let End(_) = instr {
+                        self.scopes.pop();
+                    }
                 }
 
                 let label = match label {
