@@ -120,6 +120,26 @@ impl Peek for Id<'_> {
     }
 }
 
+/// Unique `Id` generator.
+#[derive(Default)]
+pub struct IdGenerator {
+    id: u32,
+}
+
+impl IdGenerator {
+    /// Construct an instance of `IdGenerator`.
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    /// Generates next unique `Id`.
+    pub fn next(&mut self, span: Span) -> Id<'static> {
+        self.id += 1;
+        assert!(self.id != 0);
+        Id::gensym(span, self.id)
+    }
+}
+
 /// A reference to another item in a wasm module.
 ///
 /// This type is used for items referring to other items (such as `call $foo`

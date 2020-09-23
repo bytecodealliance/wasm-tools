@@ -36,6 +36,7 @@ impl<'a> Parse<'a> for Wat<'a> {
 }
 
 /// A parsed WebAssembly module.
+#[derive(Debug)]
 pub struct Module<'a> {
     /// Where this `module` was defined
     pub span: ast::Span,
@@ -48,6 +49,7 @@ pub struct Module<'a> {
 }
 
 /// The different kinds of ways to define a module.
+#[derive(Debug)]
 pub enum ModuleKind<'a> {
     /// A module defined in the textual s-expression format.
     Text(Vec<ModuleField<'a>>),
