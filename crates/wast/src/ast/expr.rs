@@ -788,21 +788,21 @@ instructions! {
 
         // proposal: simd
         V128Load(MemArg<16>) : [0xfd, 0x00] : "v128.load",
-        I16x8Load8x8S(MemArg<8>) : [0xfd, 0x01] : "i16x8.load8x8_s",
-        I16x8Load8x8U(MemArg<8>) : [0xfd, 0x02] : "i16x8.load8x8_u",
-        I32x4Load16x4S(MemArg<8>) : [0xfd, 0x03] : "i32x4.load16x4_s",
-        I32x4Load16x4U(MemArg<8>) : [0xfd, 0x04] : "i32x4.load16x4_u",
-        I64x2Load32x2S(MemArg<8>) : [0xfd, 0x05] : "i64x2.load32x2_s",
-        I64x2Load32x2U(MemArg<8>) : [0xfd, 0x06] : "i64x2.load32x2_u",
-        V8x16LoadSplat(MemArg<1>) : [0xfd, 0x07] : "v8x16.load_splat",
-        V16x8LoadSplat(MemArg<2>) : [0xfd, 0x08] : "v16x8.load_splat",
-        V32x4LoadSplat(MemArg<4>) : [0xfd, 0x09] : "v32x4.load_splat",
-        V64x2LoadSplat(MemArg<8>) : [0xfd, 0x0a] : "v64x2.load_splat",
+        V128Load8x8S(MemArg<8>) : [0xfd, 0x01] : "v128.load8x8_s",
+        V128Load8x8U(MemArg<8>) : [0xfd, 0x02] : "v128.load8x8_u",
+        V128Load16x4S(MemArg<8>) : [0xfd, 0x03] : "v128.load16x4_s",
+        V128Load16x4U(MemArg<8>) : [0xfd, 0x04] : "v128.load16x4_u",
+        V128Load32x2S(MemArg<8>) : [0xfd, 0x05] : "v128.load32x2_s",
+        V128Load32x2U(MemArg<8>) : [0xfd, 0x06] : "v128.load32x2_u",
+        V128Load8Splat(MemArg<1>) : [0xfd, 0x07] : "v128.load8_splat",
+        V128Load16Splat(MemArg<2>) : [0xfd, 0x08] : "v128.load16_splat",
+        V128Load32Splat(MemArg<4>) : [0xfd, 0x09] : "v128.load32_splat",
+        V128Load64Splat(MemArg<8>) : [0xfd, 0x0a] : "v128.load64_splat",
         V128Store(MemArg<16>) : [0xfd, 0x0b] : "v128.store",
 
         V128Const(V128Const) : [0xfd, 0x0c] : "v128.const",
-        V8x16Shuffle(V8x16Shuffle) : [0xfd, 0x0d] : "v8x16.shuffle",
-        V8x16Swizzle : [0xfd, 0x0e] : "v8x16.swizzle",
+        I8x16Shuffle(I8x16Shuffle) : [0xfd, 0x0d] : "i8x16.shuffle",
+        I8x16Swizzle : [0xfd, 0x0e] : "i8x16.swizzle",
 
         I8x16Splat : [0xfd, 0x0f] : "i8x16.splat",
         I16x8Splat : [0xfd, 0x10] : "i16x8.splat",
@@ -888,11 +888,11 @@ instructions! {
         I8x16ShrS : [0xfd, 0x6c] : "i8x16.shr_s",
         I8x16ShrU : [0xfd, 0x6d] : "i8x16.shr_u",
         I8x16Add : [0xfd, 0x6e] : "i8x16.add",
-        I8x16AddSaturateS : [0xfd, 0x6f] : "i8x16.add_saturate_s",
-        I8x16AddSaturateU : [0xfd, 0x70] : "i8x16.add_saturate_u",
+        I8x16AddSatS : [0xfd, 0x6f] : "i8x16.add_sat_s",
+        I8x16AddSatU : [0xfd, 0x70] : "i8x16.add_sat_u",
         I8x16Sub : [0xfd, 0x71] : "i8x16.sub",
-        I8x16SubSaturateS : [0xfd, 0x72] : "i8x16.sub_saturate_s",
-        I8x16SubSaturateU : [0xfd, 0x73] : "i8x16.sub_saturate_u",
+        I8x16SubSatS : [0xfd, 0x72] : "i8x16.sub_sat_s",
+        I8x16SubSatU : [0xfd, 0x73] : "i8x16.sub_sat_u",
         I8x16MinS : [0xfd, 0x76] : "i8x16.min_s",
         I8x16MinU : [0xfd, 0x77] : "i8x16.min_u",
         I8x16MaxS : [0xfd, 0x78] : "i8x16.max_s",
@@ -914,11 +914,11 @@ instructions! {
         I16x8ShrS : [0xfd, 0x8c] : "i16x8.shr_s",
         I16x8ShrU : [0xfd, 0x8d] : "i16x8.shr_u",
         I16x8Add : [0xfd, 0x8e] : "i16x8.add",
-        I16x8AddSaturateS : [0xfd, 0x8f] : "i16x8.add_saturate_s",
-        I16x8AddSaturateU : [0xfd, 0x90] : "i16x8.add_saturate_u",
+        I16x8AddSatS : [0xfd, 0x8f] : "i16x8.add_sat_s",
+        I16x8AddSatU : [0xfd, 0x90] : "i16x8.add_sat_u",
         I16x8Sub : [0xfd, 0x91] : "i16x8.sub",
-        I16x8SubSaturateS : [0xfd, 0x92] : "i16x8.sub_saturate_s",
-        I16x8SubSaturateU : [0xfd, 0x93] : "i16x8.sub_saturate_u",
+        I16x8SubSatS : [0xfd, 0x92] : "i16x8.sub_sat_s",
+        I16x8SubSatU : [0xfd, 0x93] : "i16x8.sub_sat_u",
         I16x8Mul : [0xfd, 0x95] : "i16x8.mul",
         I16x8MinS : [0xfd, 0x96] : "i16x8.min_s",
         I16x8MinU : [0xfd, 0x97] : "i16x8.min_u",
@@ -955,6 +955,15 @@ instructions! {
         I64x2Sub : [0xfd, 0xd1] : "i64x2.sub",
         I64x2Mul : [0xfd, 0xd5] : "i64x2.mul",
 
+        F32x4Ceil : [0xfd, 0xd8] : "f32x4.ceil",
+        F32x4Floor : [0xfd, 0xd9] : "f32x4.floor",
+        F32x4Trunc : [0xfd, 0xda] : "f32x4.trunc",
+        F32x4Nearest : [0xfd, 0xdb] : "f32x4.nearest",
+        F64x2Ceil : [0xfd, 0xdc] : "f64x2.ceil",
+        F64x2Floor : [0xfd, 0xdd] : "f64x2.floor",
+        F64x2Trunc : [0xfd, 0xde] : "f64x2.trunc",
+        F64x2Nearest : [0xfd, 0xdf] : "f64x2.nearest",
+
         F32x4Abs : [0xfd, 0xe0] : "f32x4.abs",
         F32x4Neg : [0xfd, 0xe1] : "f32x4.neg",
         F32x4Sqrt : [0xfd, 0xe3] : "f32x4.sqrt",
@@ -964,6 +973,8 @@ instructions! {
         F32x4Div : [0xfd, 0xe7] : "f32x4.div",
         F32x4Min : [0xfd, 0xe8] : "f32x4.min",
         F32x4Max : [0xfd, 0xe9] : "f32x4.max",
+        F32x4PMin : [0xfd, 0xea] : "f32x4.pmin",
+        F32x4PMax : [0xfd, 0xeb] : "f32x4.pmax",
 
         F64x2Abs : [0xfd, 0xec] : "f64x2.abs",
         F64x2Neg : [0xfd, 0xed] : "f64x2.neg",
@@ -974,6 +985,8 @@ instructions! {
         F64x2Div : [0xfd, 0xf3] : "f64x2.div",
         F64x2Min : [0xfd, 0xf4] : "f64x2.min",
         F64x2Max : [0xfd, 0xf5] : "f64x2.max",
+        F64x2PMin : [0xfd, 0xf6] : "f64x2.pmin",
+        F64x2PMax : [0xfd, 0xf7] : "f64x2.pmax",
 
         I32x4TruncSatF32x4S : [0xfd, 0xf8] : "i32x4.trunc_sat_f32x4_s",
         I32x4TruncSatF32x4U : [0xfd, 0xf9] : "i32x4.trunc_sat_f32x4_u",
@@ -1506,16 +1519,16 @@ impl<'a> Parse<'a> for V128Const {
     }
 }
 
-/// Lanes being shuffled in the `v8x16.shuffle` instruction
+/// Lanes being shuffled in the `i8x16.shuffle` instruction
 #[derive(Debug)]
-pub struct V8x16Shuffle {
+pub struct I8x16Shuffle {
     #[allow(missing_docs)]
     pub lanes: [u8; 16],
 }
 
-impl<'a> Parse<'a> for V8x16Shuffle {
+impl<'a> Parse<'a> for I8x16Shuffle {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        Ok(V8x16Shuffle {
+        Ok(I8x16Shuffle {
             lanes: [
                 parser.parse()?,
                 parser.parse()?,

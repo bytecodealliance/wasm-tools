@@ -1385,12 +1385,16 @@ impl OperatorValidator {
             | Operator::F32x4Div
             | Operator::F32x4Min
             | Operator::F32x4Max
+            | Operator::F32x4PMin
+            | Operator::F32x4PMax
             | Operator::F64x2Add
             | Operator::F64x2Sub
             | Operator::F64x2Mul
             | Operator::F64x2Div
             | Operator::F64x2Min
-            | Operator::F64x2Max => {
+            | Operator::F64x2Max
+            | Operator::F64x2PMin
+            | Operator::F64x2PMax => {
                 self.check_non_deterministic_enabled()?;
                 self.check_simd_enabled()?;
                 self.pop_operand(Some(Type::V128))?;
@@ -1432,21 +1436,21 @@ impl OperatorValidator {
             | Operator::V128Or
             | Operator::V128Xor
             | Operator::I8x16Add
-            | Operator::I8x16AddSaturateS
-            | Operator::I8x16AddSaturateU
+            | Operator::I8x16AddSatS
+            | Operator::I8x16AddSatU
             | Operator::I8x16Sub
-            | Operator::I8x16SubSaturateS
-            | Operator::I8x16SubSaturateU
+            | Operator::I8x16SubSatS
+            | Operator::I8x16SubSatU
             | Operator::I8x16MinS
             | Operator::I8x16MinU
             | Operator::I8x16MaxS
             | Operator::I8x16MaxU
             | Operator::I16x8Add
-            | Operator::I16x8AddSaturateS
-            | Operator::I16x8AddSaturateU
+            | Operator::I16x8AddSatS
+            | Operator::I16x8AddSatU
             | Operator::I16x8Sub
-            | Operator::I16x8SubSaturateS
-            | Operator::I16x8SubSaturateU
+            | Operator::I16x8SubSatS
+            | Operator::I16x8SubSatU
             | Operator::I16x8Mul
             | Operator::I16x8MinS
             | Operator::I16x8MinU
@@ -1473,7 +1477,15 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;
             }
-            Operator::F32x4Abs
+            Operator::F32x4Ceil
+            | Operator::F32x4Floor
+            | Operator::F32x4Trunc
+            | Operator::F32x4Nearest
+            | Operator::F64x2Ceil
+            | Operator::F64x2Floor
+            | Operator::F64x2Trunc
+            | Operator::F64x2Nearest
+            | Operator::F32x4Abs
             | Operator::F32x4Neg
             | Operator::F32x4Sqrt
             | Operator::F64x2Abs
@@ -1545,13 +1557,13 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;
             }
-            Operator::V8x16Swizzle => {
+            Operator::I8x16Swizzle => {
                 self.check_simd_enabled()?;
                 self.pop_operand(Some(Type::V128))?;
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;
             }
-            Operator::V8x16Shuffle { ref lanes } => {
+            Operator::I8x16Shuffle { ref lanes } => {
                 self.check_simd_enabled()?;
                 self.pop_operand(Some(Type::V128))?;
                 self.pop_operand(Some(Type::V128))?;
@@ -1560,31 +1572,31 @@ impl OperatorValidator {
                 }
                 self.push_operand(Type::V128)?;
             }
-            Operator::V8x16LoadSplat { memarg } => {
+            Operator::V128Load8Splat { memarg } => {
                 self.check_simd_enabled()?;
                 let ty = self.check_memarg(memarg, 0, resources)?;
                 self.pop_operand(Some(ty))?;
                 self.push_operand(Type::V128)?;
             }
-            Operator::V16x8LoadSplat { memarg } => {
+            Operator::V128Load16Splat { memarg } => {
                 self.check_simd_enabled()?;
                 let ty = self.check_memarg(memarg, 1, resources)?;
                 self.pop_operand(Some(ty))?;
                 self.push_operand(Type::V128)?;
             }
-            Operator::V32x4LoadSplat { memarg } => {
+            Operator::V128Load32Splat { memarg } => {
                 self.check_simd_enabled()?;
                 let ty = self.check_memarg(memarg, 2, resources)?;
                 self.pop_operand(Some(ty))?;
                 self.push_operand(Type::V128)?;
             }
-            Operator::V64x2LoadSplat { memarg }
-            | Operator::I16x8Load8x8S { memarg }
-            | Operator::I16x8Load8x8U { memarg }
-            | Operator::I32x4Load16x4S { memarg }
-            | Operator::I32x4Load16x4U { memarg }
-            | Operator::I64x2Load32x2S { memarg }
-            | Operator::I64x2Load32x2U { memarg } => {
+            Operator::V128Load64Splat { memarg }
+            | Operator::V128Load8x8S { memarg }
+            | Operator::V128Load8x8U { memarg }
+            | Operator::V128Load16x4S { memarg }
+            | Operator::V128Load16x4U { memarg }
+            | Operator::V128Load32x2S { memarg }
+            | Operator::V128Load32x2U { memarg } => {
                 self.check_simd_enabled()?;
                 let idx = self.check_memarg(memarg, 3, resources)?;
                 self.pop_operand(Some(idx))?;

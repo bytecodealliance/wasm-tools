@@ -105,16 +105,16 @@
     i64.const 0 i64.const 0 i64.const 0 i64.atomic.rmw32.cmpxchg_u drop
 
     i64.const 0 v128.load drop
-    i64.const 0 i16x8.load8x8_s drop
-    i64.const 0 i16x8.load8x8_u drop
-    i64.const 0 i32x4.load16x4_s drop
-    i64.const 0 i32x4.load16x4_u drop
-    i64.const 0 i64x2.load32x2_s drop
-    i64.const 0 i64x2.load32x2_u drop
-    i64.const 0 v8x16.load_splat drop
-    i64.const 0 v16x8.load_splat drop
-    i64.const 0 v32x4.load_splat drop
-    i64.const 0 v64x2.load_splat drop
+    i64.const 0 v128.load8x8_s drop
+    i64.const 0 v128.load8x8_u drop
+    i64.const 0 v128.load16x4_s drop
+    i64.const 0 v128.load16x4_u drop
+    i64.const 0 v128.load32x2_s drop
+    i64.const 0 v128.load32x2_u drop
+    i64.const 0 v128.load8_splat drop
+    i64.const 0 v128.load16_splat drop
+    i64.const 0 v128.load32_splat drop
+    i64.const 0 v128.load64_splat drop
     i64.const 0 i32.const 0 i8x16.splat v128.store
   )
 
