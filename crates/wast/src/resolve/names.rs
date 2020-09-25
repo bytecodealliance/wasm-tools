@@ -1670,7 +1670,7 @@ impl<T> Sig<'_, T> {
 }
 
 fn resolve_error(id: Id<'_>, ns: &str) -> Error {
-    assert!(!id.is_gensym(), "--- {:?} {}", id, ns);
+    assert!(!id.is_gensym());
     Error::new(
         id.span(),
         format!("failed to find {} named `${}`", ns, id.name()),
