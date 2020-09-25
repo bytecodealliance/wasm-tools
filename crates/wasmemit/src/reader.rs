@@ -25,7 +25,8 @@ use wasmparser::{
 use wast as ast;
 
 pub fn read(bytes: &[u8]) -> Result<wast::Module> {
-    AstReader::new().read_all(bytes)
+    let (module, _) = AstReader::new().read_all(bytes)?;
+    Ok(module)
 }
 
 #[derive(Default)]
@@ -48,7 +49,14 @@ impl<'a> AstReader<'a> {
         AstReader::default()
     }
 
-    pub fn read_all(mut self, bytes: &'a [u8]) -> Result<ast::Module<'a>> {
+    pub fn new_with_id_gen(id_gen: ast::IdGenerator) -> AstReader<'a> {
+        Self {
+            id_gen,
+            ..Default::default()
+        }
+    }
+
+    pub fn read_all(mut self, bytes: &'a [u8]) -> Result<(ast::Module<'a>, ast::IdGenerator)> {
         use wasmparser::Payload::*;
         for payload in Parser::new(0).parse_all(bytes) {
             match payload? {
@@ -100,7 +108,7 @@ impl<'a> AstReader<'a> {
             name: self.module_name,
             kind: ast::ModuleKind::Text(self.fields),
         };
-        Ok(module)
+        Ok((module, self.id_gen))
     }
 
     fn type_index<'i>(&self, index: u32) -> ast::Index<'static> {

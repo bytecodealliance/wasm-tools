@@ -6,8 +6,8 @@ use wasmemit::*;
 
 fn check(bytes: Vec<u8>) -> anyhow::Result<()> {
     let expected = wasmprinter::print_bytes(&bytes)?;
-    let mut r = AstReader::new().read_all(&bytes)?;
-    let bytes = r.encode()?;
+    let mut module = AstReader::new().read_all(&bytes)?.0;
+    let bytes = module.encode()?;
     let actual = wasmprinter::print_bytes(&bytes)?;
     if actual == expected {
         return Ok(());
