@@ -14,3 +14,4 @@ anyhow = "1.0"
 tempfile = "3.1"
 diff = "0.1"
 wasmprinter = { path = '../wasmprinter' }
+wat = { path = '../wat' }
