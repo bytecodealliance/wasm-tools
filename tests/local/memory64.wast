@@ -125,9 +125,6 @@
 (assert_invalid
   (module (memory 1) (data (i64.const 0) ".."))
   "type mismatch")
-(assert_invalid
-  (module (memory i64 1) (data (i32.const 0) ".."))
-  "type mismatch")
 
 (module $copy_between_memories
   (memory $m64 i64 1)

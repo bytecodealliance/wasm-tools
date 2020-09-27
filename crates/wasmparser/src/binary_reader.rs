@@ -350,7 +350,7 @@ impl<'a> BinaryReader<'a> {
 
     pub(crate) fn read_memory_type(&mut self) -> Result<MemoryType> {
         let pos = self.original_position();
-        let flags = self.read_var_u32()?;
+        let flags = self.read_u8()?;
         if (flags & !0x7) != 0 {
             return Err(BinaryReaderError::new(
                 "invalid table resizable limits flags",
