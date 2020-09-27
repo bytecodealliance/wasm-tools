@@ -851,6 +851,12 @@ impl Encode for LetType<'_> {
     }
 }
 
+impl Encode for LaneArg {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.lane.encode(e);
+    }
+}
+
 impl Encode for MemArg<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         match self.memory {

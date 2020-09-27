@@ -811,20 +811,20 @@ instructions! {
         F32x4Splat : [0xfd, 0x13] : "f32x4.splat",
         F64x2Splat : [0xfd, 0x14] : "f64x2.splat",
 
-        I8x16ExtractLaneS(u8) : [0xfd, 0x15] : "i8x16.extract_lane_s",
-        I8x16ExtractLaneU(u8) : [0xfd, 0x16] : "i8x16.extract_lane_u",
-        I8x16ReplaceLane(u8) : [0xfd, 0x17] : "i8x16.replace_lane",
-        I16x8ExtractLaneS(u8) : [0xfd, 0x18] : "i16x8.extract_lane_s",
-        I16x8ExtractLaneU(u8) : [0xfd, 0x19] : "i16x8.extract_lane_u",
-        I16x8ReplaceLane(u8) : [0xfd, 0x1a] : "i16x8.replace_lane",
-        I32x4ExtractLane(u8) : [0xfd, 0x1b] : "i32x4.extract_lane",
-        I32x4ReplaceLane(u8) : [0xfd, 0x1c] : "i32x4.replace_lane",
-        I64x2ExtractLane(u8) : [0xfd, 0x1d] : "i64x2.extract_lane",
-        I64x2ReplaceLane(u8) : [0xfd, 0x1e] : "i64x2.replace_lane",
-        F32x4ExtractLane(u8) : [0xfd, 0x1f] : "f32x4.extract_lane",
-        F32x4ReplaceLane(u8) : [0xfd, 0x20] : "f32x4.replace_lane",
-        F64x2ExtractLane(u8) : [0xfd, 0x21] : "f64x2.extract_lane",
-        F64x2ReplaceLane(u8) : [0xfd, 0x22] : "f64x2.replace_lane",
+        I8x16ExtractLaneS(LaneArg) : [0xfd, 0x15] : "i8x16.extract_lane_s",
+        I8x16ExtractLaneU(LaneArg) : [0xfd, 0x16] : "i8x16.extract_lane_u",
+        I8x16ReplaceLane(LaneArg) : [0xfd, 0x17] : "i8x16.replace_lane",
+        I16x8ExtractLaneS(LaneArg) : [0xfd, 0x18] : "i16x8.extract_lane_s",
+        I16x8ExtractLaneU(LaneArg) : [0xfd, 0x19] : "i16x8.extract_lane_u",
+        I16x8ReplaceLane(LaneArg) : [0xfd, 0x1a] : "i16x8.replace_lane",
+        I32x4ExtractLane(LaneArg) : [0xfd, 0x1b] : "i32x4.extract_lane",
+        I32x4ReplaceLane(LaneArg) : [0xfd, 0x1c] : "i32x4.replace_lane",
+        I64x2ExtractLane(LaneArg) : [0xfd, 0x1d] : "i64x2.extract_lane",
+        I64x2ReplaceLane(LaneArg) : [0xfd, 0x1e] : "i64x2.replace_lane",
+        F32x4ExtractLane(LaneArg) : [0xfd, 0x1f] : "f32x4.extract_lane",
+        F32x4ReplaceLane(LaneArg) : [0xfd, 0x20] : "f32x4.replace_lane",
+        F64x2ExtractLane(LaneArg) : [0xfd, 0x21] : "f64x2.extract_lane",
+        F64x2ReplaceLane(LaneArg) : [0xfd, 0x22] : "f64x2.replace_lane",
 
         I8x16Eq : [0xfd, 0x23] : "i8x16.eq",
         I8x16Ne : [0xfd, 0x24] : "i8x16.ne",
@@ -1062,6 +1062,33 @@ impl<'a> Parse<'a> for BrTableIndices<'a> {
         }
         let default = labels.pop().unwrap();
         Ok(BrTableIndices { labels, default })
+    }
+}
+
+/// Payload for lane-related instructions. Unsigned with no + prefix.
+#[derive(Debug)]
+pub struct LaneArg {
+    /// The lane argument.
+    pub lane: u8,
+}
+
+impl<'a> Parse<'a> for LaneArg {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let lane = parser.step(|c| {
+            if let Some((i, rest)) = c.integer() {
+                if i.sign() == None {
+                    let (src, radix) = i.val();
+                    let val = u8::from_str_radix(src, radix)
+                        .map_err(|_| c.error("malformed lane index"))?;
+                    Ok((val, rest))
+                } else {
+                    Err(c.error("unexpected token"))
+                }
+            } else {
+                Err(c.error("expected a lane index"))
+            }
+        })?;
+        Ok(LaneArg { lane })
     }
 }
 
