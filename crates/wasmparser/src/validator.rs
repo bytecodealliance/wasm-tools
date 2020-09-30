@@ -1556,8 +1556,8 @@ impl Validator {
     /// This function will prepare a [`FuncValidator`] which can be used to
     /// validate the function. The function body provided will be parsed only
     /// enough to create the function validation context. After this the
-    /// [`OperatorsReader`] returned can be used to read the opcodes of the
-    /// function as well as feed information into the validator.
+    /// [`OperatorsReader`](crate::readers::OperatorsReader) returned can be used to read the
+    /// opcodes of the function as well as feed information into the validator.
     ///
     /// Note that the returned [`FuncValidator`] is "connected" to this
     /// [`Validator`] in that it uses the internal context of this validator for
