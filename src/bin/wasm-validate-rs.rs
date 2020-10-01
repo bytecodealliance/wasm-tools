@@ -10,37 +10,42 @@ use std::env;
 use std::time::Instant;
 use wasmparser::{Parser, ValidPayload, Validator, WasmFeatures};
 
+const FEATURES: &[(&str, &str, fn(&mut WasmFeatures) -> &mut bool)] = &[
+    ("reference-types", "wasm reference types feature", |f| {
+        &mut f.reference_types
+    }),
+    ("simd", "wasm simd feature", |f| &mut f.simd),
+    ("threads", "wasm threads feature", |f| &mut f.threads),
+    ("bulk-memory", "wasm bulk memory operations feature", |f| {
+        &mut f.bulk_memory
+    }),
+    ("multi-value", "wasm multi-value feature", |f| {
+        &mut f.multi_value
+    }),
+    ("tail-call", "wasm tail-call feature", |f| &mut f.tail_call),
+    ("module-linking", "wasm module-linking feature", |f| {
+        &mut f.module_linking
+    }),
+    ("multi-memory", "wasm multi-memory feature", |f| {
+        &mut f.multi_memory
+    }),
+    ("memory64", "wasm memory64 feature", |f| &mut f.memory64),
+];
+
 fn main() -> Result<()> {
     env_logger::init();
 
-    // Use the `getopts` crate to parse the `-o` option as well as `-h`
     let program = env::args().nth(0).unwrap();
     let mut opts = getopts::Options::new();
-    opts.optflag(
-        "",
-        "enable-reference-types",
-        "Enable wasm reference types feature",
-    );
-    opts.optflag("", "enable-threads", "Enable wasm threads feature");
-    opts.optflag("", "enable-simd", "Enable wasm simd feature");
-    opts.optflag(
-        "",
-        "enable-bulk-memory",
-        "Enable wasm bulk memory operations feature",
-    );
-    opts.optflag("", "enable-multi-value", "Enable wasm multi-value feature");
-    opts.optflag("", "enable-tail-call", "Enable wasm tail-call feature");
-    opts.optflag(
-        "",
-        "enable-module-linking",
-        "Enable wasm module-linking feature",
-    );
-    opts.optflag(
-        "",
-        "enable-multi-memory",
-        "Enable wasm multi-memory feature",
-    );
-    opts.optflag("", "enable-memory64", "Enable wasm memory64 feature");
+
+    for (name, desc, _) in FEATURES {
+        opts.optflag("", &format!("enable-{}", name), &format!("Enable {}", desc));
+        opts.optflag(
+            "",
+            &format!("disable-{}", name),
+            &format!("Disable {}", desc),
+        );
+    }
     opts.optflag(
         "",
         "deterministic-only",
@@ -60,21 +65,18 @@ fn main() -> Result<()> {
         _ => anyhow::bail!("more than one input file specified on command line"),
     };
 
-    // Create a `Validator` configured with all of the wasm features according
-    // to our CLI flags.
-    let mut validator = Validator::new();
-    validator.wasm_features(WasmFeatures {
-        threads: matches.opt_present("enable-threads"),
-        reference_types: matches.opt_present("enable-reference-types"),
-        simd: matches.opt_present("enable-simd"),
-        bulk_memory: matches.opt_present("enable-bulk-memory"),
-        multi_value: matches.opt_present("enable-multi-value"),
-        tail_call: matches.opt_present("enable-tail-call"),
-        module_linking: matches.opt_present("enable-module-linking"),
-        multi_memory: matches.opt_present("enable-multi-memory"),
-        memory64: matches.opt_present("enable-memory64"),
-        deterministic_only: matches.opt_present("deterministic-only"),
-    });
+    // Configure enabled wasm features according to the CLI arguments. Note that
+    // this isn't required for ussage of `Validator` if you're just using
+    // wasmparser's defaults.
+    let mut features = WasmFeatures::default();
+    for (name, _, get) in FEATURES {
+        if matches.opt_present(&format!("enable-{}", name)) {
+            *get(&mut features) = true;
+        }
+        if matches.opt_present(&format!("disable-{}", name)) {
+            *get(&mut features) = false;
+        }
+    }
 
     // Note that here we're copying the contents of `Validator::validate_all`,
     // but the end is followed up with a parallel iteration over the functions
@@ -84,6 +86,8 @@ fn main() -> Result<()> {
     // divvy up the input bytes into chunks. We'll maintain which `Validator`
     // we're using as we navigate nested modules (the module linking proposal)
     // and any functions found are deferred to get validated later.
+    let mut validator = Validator::new();
+    validator.wasm_features(features);
     let mut functions_to_validate = Vec::new();
     let mut stack = Vec::new();
     let wasm = std::fs::read(input).context(format!("failed to read input: {}", input))?;
