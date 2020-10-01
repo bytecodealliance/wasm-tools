@@ -1183,14 +1183,14 @@ impl Validator {
         )?;
         self.section(Order::Global, section, |me, g| {
             me.global_type(&g.ty)?;
-            me.init_expr(&g.init_expr, g.ty.content_type)?;
+            me.init_expr(&g.init_expr, g.ty.content_type, false)?;
             let def = me.state.def(g.ty);
             me.state.assert_mut().globals.push(def);
             Ok(())
         })
     }
 
-    fn init_expr(&mut self, expr: &InitExpr<'_>, expected_ty: Type) -> Result<()> {
+    fn init_expr(&mut self, expr: &InitExpr<'_>, expected_ty: Type, allow32: bool) -> Result<()> {
         let mut ops = expr.get_operators_reader().into_iter_with_offsets();
         let (op, offset) = match ops.next() {
             Some(Err(e)) => return Err(e),
@@ -1225,7 +1225,9 @@ impl Validator {
             }
         };
         if ty != expected_ty {
-            return self.create_error("type mismatch: invalid init_expr type");
+            if !allow32 || ty != Type::I32 {
+                return self.create_error("type mismatch: invalid init_expr type");
+            }
         }
 
         // Make sure the next instruction is an `end`
@@ -1442,7 +1444,7 @@ impl Validator {
                     if e.ty != table.item.element_type {
                         return me.create_error("element_type != table type");
                     }
-                    me.init_expr(&init_expr, Type::I32)?;
+                    me.init_expr(&init_expr, Type::I32, false)?;
                 }
                 ElementKind::Passive | ElementKind::Declared => {
                     if !me.features.bulk_memory {
@@ -1583,7 +1585,8 @@ impl Validator {
                     init_expr,
                 } => {
                     let ty = me.get_memory(me.state.def(memory_index))?.index_type();
-                    me.init_expr(&init_expr, ty)?;
+                    let allow32 = ty == Type::I64;
+                    me.init_expr(&init_expr, ty, allow32)?;
                 }
             }
             Ok(())

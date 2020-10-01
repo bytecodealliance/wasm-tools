@@ -144,6 +144,15 @@ pub enum LexError {
     __Nonexhaustive,
 }
 
+/// A sign token for an integer.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum SignToken {
+    /// Plus sign: "+",
+    Plus,
+    /// Minus sign: "-",
+    Minus,
+}
+
 /// A parsed integer, signed or unsigned.
 ///
 /// Methods can be use to access the value of the integer.
@@ -152,6 +161,7 @@ pub struct Integer<'a>(Box<IntegerInner<'a>>);
 
 #[derive(Debug, PartialEq)]
 struct IntegerInner<'a> {
+    sign: Option<SignToken>,
     src: &'a str,
     val: Cow<'a, str>,
     hex: bool,
@@ -296,13 +306,15 @@ impl<'a> Lexer<'a> {
     }
 
     fn number(&self, src: &'a str) -> Option<Token<'a>> {
-        let (negative, num) = if src.starts_with('+') {
-            (false, &src[1..])
+        let (sign, num) = if src.starts_with('+') {
+            (Some(SignToken::Plus), &src[1..])
         } else if src.starts_with('-') {
-            (true, &src[1..])
+            (Some(SignToken::Minus), &src[1..])
         } else {
-            (false, src)
+            (None, src)
         };
+
+        let negative = sign == Some(SignToken::Minus);
 
         // Handle `inf` and `nan` which are special numbers here
         if num == "inf" {
@@ -359,6 +371,7 @@ impl<'a> Lexer<'a> {
             // Otherwise this is a valid integer literal!
             None => {
                 return Some(Token::Integer(Integer(Box::new(IntegerInner {
+                    sign,
                     src,
                     val,
                     hex,
@@ -710,6 +723,11 @@ impl<'a> Token<'a> {
 }
 
 impl<'a> Integer<'a> {
+    /// Returns the sign token for this integer.
+    pub fn sign(&self) -> Option<SignToken> {
+        self.0.sign
+    }
+
     /// Returns the original source text for this integer.
     pub fn src(&self) -> &'a str {
         self.0.src

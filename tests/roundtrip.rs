@@ -133,6 +133,8 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         "dump/reference-types.txt",
         "interp/reference-types.txt",
         "expr/reference-types.txt",
+        // FIXME(WebAssembly/wabt#1553) wabt uses old instruction names for simd
+        "parse/all-features.txt",
     ];
     if broken.iter().any(|x| test.ends_with(x)) {
         return true;
@@ -159,6 +161,11 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         // These tests are acually ones that run with the `*.wast` files from the
         // official test suite, and we slurp those up elsewhere anyway.
         if contents.contains("STDIN_FILE") {
+            return true;
+        }
+
+        // FIXME(WebAssembly/wabt#1553) wabt uses old instruction names for simd
+        if contents.contains("--enable-simd") {
             return true;
         }
     }
@@ -270,9 +277,17 @@ impl TestState {
             && !test.ends_with("atomic.txt")
             && !test.ends_with("atomic-align.txt")
             && !test.ends_with("atomic.wast")
+
+            // FIXME(WebAssembly/wabt#1553) wabt uses old instruction names
+            && !test.iter().any(|t| t == "simd")
+
+            // FIXME wabt seems to print the `i64` in the wrong place
+            && !test.iter().any(|t| t == "memory64")
+            && !test.ends_with("local/simd.wat")
         {
             if let Some(expected) = self.wasm2wat(contents)? {
-                self.string_compare(&string, &expected)?;
+                self.string_compare(&string, &expected)
+                    .context("`wasmprinter` disagrees with `wabt`")?;
             }
         }
 
@@ -412,11 +427,11 @@ impl TestState {
                         message,
                     ),
                     Err(e) => {
-                        if error_matches(&e.to_string(), message) {
+                        if error_matches(&format!("{:?}", e), message) {
                             self.bump_ntests();
                             return Ok(());
                         }
-                        bail!("bad error: {}\nshould have failed with: {:?}", e, message);
+                        bail!("bad error: {:?}\nshould have failed with: {:?}", e, message);
                     }
                 }
             }
@@ -670,6 +685,10 @@ impl TestState {
                 }
                 "bulk-memory-operations" => features.bulk_memory = true,
                 "tail-call" => features.tail_call = true,
+                "memory64" => {
+                    features.memory64 = true;
+                    features.bulk_memory = true;
+                }
                 _ => {}
             }
         }

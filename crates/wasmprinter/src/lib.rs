@@ -1164,11 +1164,11 @@ impl Printer {
             I8x16ShrU => self.result.push_str("i8x16.shr_u"),
             I8x16ShrS => self.result.push_str("i8x16.shr_s"),
             I8x16Add => self.result.push_str("i8x16.add"),
-            I8x16AddSaturateS => self.result.push_str("i8x16.add_saturate_s"),
-            I8x16AddSaturateU => self.result.push_str("i8x16.add_saturate_u"),
+            I8x16AddSatS => self.result.push_str("i8x16.add_sat_s"),
+            I8x16AddSatU => self.result.push_str("i8x16.add_sat_u"),
             I8x16Sub => self.result.push_str("i8x16.sub"),
-            I8x16SubSaturateS => self.result.push_str("i8x16.sub_saturate_s"),
-            I8x16SubSaturateU => self.result.push_str("i8x16.sub_saturate_u"),
+            I8x16SubSatS => self.result.push_str("i8x16.sub_sat_s"),
+            I8x16SubSatU => self.result.push_str("i8x16.sub_sat_u"),
 
             I16x8Abs => self.result.push_str("i16x8.abs"),
             I16x8Neg => self.result.push_str("i16x8.neg"),
@@ -1179,11 +1179,11 @@ impl Printer {
             I16x8ShrU => self.result.push_str("i16x8.shr_u"),
             I16x8ShrS => self.result.push_str("i16x8.shr_s"),
             I16x8Add => self.result.push_str("i16x8.add"),
-            I16x8AddSaturateS => self.result.push_str("i16x8.add_saturate_s"),
-            I16x8AddSaturateU => self.result.push_str("i16x8.add_saturate_u"),
+            I16x8AddSatS => self.result.push_str("i16x8.add_sat_s"),
+            I16x8AddSatU => self.result.push_str("i16x8.add_sat_u"),
             I16x8Sub => self.result.push_str("i16x8.sub"),
-            I16x8SubSaturateS => self.result.push_str("i16x8.sub_saturate_s"),
-            I16x8SubSaturateU => self.result.push_str("i16x8.sub_saturate_u"),
+            I16x8SubSatS => self.result.push_str("i16x8.sub_sat_s"),
+            I16x8SubSatU => self.result.push_str("i16x8.sub_sat_u"),
             I16x8Mul => self.result.push_str("i16x8.mul"),
 
             I32x4Abs => self.result.push_str("i32x4.abs"),
@@ -1206,6 +1206,14 @@ impl Printer {
             I64x2Sub => self.result.push_str("i64x2.sub"),
             I64x2Mul => self.result.push_str("i64x2.mul"),
 
+            F32x4Ceil => self.result.push_str("f32x4.ceil"),
+            F32x4Floor => self.result.push_str("f32x4.floor"),
+            F32x4Trunc => self.result.push_str("f32x4.trunc"),
+            F32x4Nearest => self.result.push_str("f32x4.nearest"),
+            F64x2Ceil => self.result.push_str("f64x2.ceil"),
+            F64x2Floor => self.result.push_str("f64x2.floor"),
+            F64x2Trunc => self.result.push_str("f64x2.trunc"),
+            F64x2Nearest => self.result.push_str("f64x2.nearest"),
             F32x4Abs => self.result.push_str("f32x4.abs"),
             F32x4Neg => self.result.push_str("f32x4.neg"),
             F32x4Sqrt => self.result.push_str("f32x4.sqrt"),
@@ -1215,6 +1223,8 @@ impl Printer {
             F32x4Mul => self.result.push_str("f32x4.mul"),
             F32x4Min => self.result.push_str("f32x4.min"),
             F32x4Max => self.result.push_str("f32x4.max"),
+            F32x4PMin => self.result.push_str("f32x4.pmin"),
+            F32x4PMax => self.result.push_str("f32x4.pmax"),
 
             F64x2Abs => self.result.push_str("f64x2.abs"),
             F64x2Neg => self.result.push_str("f64x2.neg"),
@@ -1225,23 +1235,25 @@ impl Printer {
             F64x2Mul => self.result.push_str("f64x2.mul"),
             F64x2Min => self.result.push_str("f64x2.min"),
             F64x2Max => self.result.push_str("f64x2.max"),
+            F64x2PMin => self.result.push_str("f64x2.pmin"),
+            F64x2PMax => self.result.push_str("f64x2.pmax"),
 
             I32x4TruncSatF32x4S => self.result.push_str("i32x4.trunc_sat_f32x4_s"),
             I32x4TruncSatF32x4U => self.result.push_str("i32x4.trunc_sat_f32x4_u"),
             F32x4ConvertI32x4S => self.result.push_str("f32x4.convert_i32x4_s"),
             F32x4ConvertI32x4U => self.result.push_str("f32x4.convert_i32x4_u"),
 
-            V8x16Swizzle => self.result.push_str("v8x16.swizzle"),
-            V8x16Shuffle { lanes } => {
-                self.result.push_str("v8x16.shuffle");
+            I8x16Swizzle => self.result.push_str("i8x16.swizzle"),
+            I8x16Shuffle { lanes } => {
+                self.result.push_str("i8x16.shuffle");
                 for lane in lanes {
                     write!(self.result, " {}", lane)?;
                 }
             }
-            V8x16LoadSplat { memarg } => self.mem_instr("v8x16.load_splat", memarg, 1)?,
-            V16x8LoadSplat { memarg } => self.mem_instr("v16x8.load_splat", memarg, 2)?,
-            V32x4LoadSplat { memarg } => self.mem_instr("v32x4.load_splat", memarg, 4)?,
-            V64x2LoadSplat { memarg } => self.mem_instr("v64x2.load_splat", memarg, 8)?,
+            V128Load8Splat { memarg } => self.mem_instr("v128.load8_splat", memarg, 1)?,
+            V128Load16Splat { memarg } => self.mem_instr("v128.load16_splat", memarg, 2)?,
+            V128Load32Splat { memarg } => self.mem_instr("v128.load32_splat", memarg, 4)?,
+            V128Load64Splat { memarg } => self.mem_instr("v128.load64_splat", memarg, 8)?,
 
             I8x16NarrowI16x8S => self.result.push_str("i8x16.narrow_i16x8_s"),
             I8x16NarrowI16x8U => self.result.push_str("i8x16.narrow_i16x8_u"),
@@ -1257,12 +1269,12 @@ impl Printer {
             I32x4WidenLowI16x8U => self.result.push_str("i32x4.widen_low_i16x8_u"),
             I32x4WidenHighI16x8U => self.result.push_str("i32x4.widen_high_i16x8_u"),
 
-            I16x8Load8x8S { memarg } => self.mem_instr("i16x8.load8x8_s", memarg, 8)?,
-            I16x8Load8x8U { memarg } => self.mem_instr("i16x8.load8x8_u", memarg, 8)?,
-            I32x4Load16x4S { memarg } => self.mem_instr("i32x4.load16x4_s", memarg, 8)?,
-            I32x4Load16x4U { memarg } => self.mem_instr("i32x4.load16x4_u", memarg, 8)?,
-            I64x2Load32x2S { memarg } => self.mem_instr("i64x2.load32x2_s", memarg, 8)?,
-            I64x2Load32x2U { memarg } => self.mem_instr("i64x2.load32x2_u", memarg, 8)?,
+            V128Load8x8S { memarg } => self.mem_instr("v128.load8x8_s", memarg, 8)?,
+            V128Load8x8U { memarg } => self.mem_instr("v128.load8x8_u", memarg, 8)?,
+            V128Load16x4S { memarg } => self.mem_instr("v128.load16x4_s", memarg, 8)?,
+            V128Load16x4U { memarg } => self.mem_instr("v128.load16x4_u", memarg, 8)?,
+            V128Load32x2S { memarg } => self.mem_instr("v128.load32x2_s", memarg, 8)?,
+            V128Load32x2U { memarg } => self.mem_instr("v128.load32x2_u", memarg, 8)?,
 
             I8x16RoundingAverageU => self.result.push_str("i8x16.avgr_u"),
             I16x8RoundingAverageU => self.result.push_str("i16x8.avgr_u"),

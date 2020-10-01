@@ -16,12 +16,12 @@
   (func (;3;) (type 0) (result v128)
     v128.const i32x4 0xff00ff01 0xff00ff0f 0xff00ffff 0xff00ff7f
     v128.const i32x4 0x00550055 0x00550055 0x00550055 0x00550155
-    v8x16.shuffle 16 1 18 3 20 5 22 7 24 9 26 11 28 13 30 15)
+    i8x16.shuffle 16 1 18 3 20 5 22 7 24 9 26 11 28 13 30 15)
   (memory (;0;) 1)
   (export "v128_load_0" (func 0))
   (export "v128_store_0" (func 1))
   (export "func_f64x2_replace_lane_0" (func 2))
-  (export "func_v8x16_shuffle_0" (func 3))
+  (export "func_i8x16_shuffle_0" (func 3))
   (data (;0;) (i32.const 0) "\ff\ff\ff\ff")
   (data (;1;) (i32.const 4) "\00\00\ceA")
   (data (;2;) (i32.const 8) "\00\00\00\00\00\ff\8f@")
