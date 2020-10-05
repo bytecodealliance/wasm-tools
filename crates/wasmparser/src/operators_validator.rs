@@ -212,20 +212,29 @@ impl OperatorValidator {
             if control.unreachable {
                 None
             } else {
-                bail_op_err!(
-                    "type mismatch: expected {:?} but nothing on stack",
-                    expected
-                )
+                let desc = match expected {
+                    Some(ty) => ty_to_str(ty),
+                    None => "a type",
+                };
+                bail_op_err!("type mismatch: expected {} but nothing on stack", desc)
             }
         } else {
             self.operands.pop().unwrap()
         };
-        if actual.is_none() {
-            Ok(expected)
-        } else if expected.is_none() {
-            Ok(actual)
-        } else if actual != expected {
-            bail_op_err!("type mismatch: expected {:?}, found {:?}", expected, actual)
+        let actual_ty = match actual {
+            Some(ty) => ty,
+            None => return Ok(expected),
+        };
+        let expected_ty = match expected {
+            Some(ty) => ty,
+            None => return Ok(actual),
+        };
+        if actual_ty != expected_ty {
+            bail_op_err!(
+                "type mismatch: expected {}, found {}",
+                ty_to_str(expected_ty),
+                ty_to_str(actual_ty)
+            )
         } else {
             Ok(actual)
         }
@@ -1816,4 +1825,18 @@ fn label_types<'a>(
         FrameKind::Loop => Either::A(params(ty, resources)?),
         _ => Either::B(results(ty, resources)?),
     })
+}
+
+fn ty_to_str(ty: Type) -> &'static str {
+    match ty {
+        Type::I32 => "i32",
+        Type::I64 => "i64",
+        Type::F32 => "f32",
+        Type::F64 => "f64",
+        Type::V128 => "v128",
+        Type::FuncRef => "funcref",
+        Type::ExternRef => "externref",
+        Type::Func => "func",
+        Type::EmptyBlockType => "nil",
+    }
 }
