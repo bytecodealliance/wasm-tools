@@ -940,12 +940,12 @@ instructions! {
         I32x4ShrU : [0xfd, 0xad] : "i32x4.shr_u",
         I32x4Add : [0xfd, 0xae] : "i32x4.add",
         I32x4Sub : [0xfd, 0xb1] : "i32x4.sub",
-        I32x4DotI16x8S : [0xfd, 0xb4] : "i32x4.dot_i8x16_s",
         I32x4Mul : [0xfd, 0xb5] : "i32x4.mul",
         I32x4MinS : [0xfd, 0xb6] : "i32x4.min_s",
         I32x4MinU : [0xfd, 0xb7] : "i32x4.min_u",
         I32x4MaxS : [0xfd, 0xb8] : "i32x4.max_s",
         I32x4MaxU : [0xfd, 0xb9] : "i32x4.max_u",
+        I32x4DotI16x8S : [0xfd, 0xba] : "i32x4.dot_i8x16_s",
 
         I64x2Neg : [0xfd, 0xc1] : "i64x2.neg",
         I64x2Shl : [0xfd, 0xcb] : "i64x2.shl",
