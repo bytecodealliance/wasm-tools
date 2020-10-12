@@ -697,7 +697,7 @@ checksum = "93b162580e34310e5931c4b792560108b10fd14d64915d7fff8ff00180e70092"
 
 [[package]]
 name = "wasm-smith"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "arbitrary",
  "criterion",
