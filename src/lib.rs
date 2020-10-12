@@ -627,7 +627,7 @@ where
             for (_, _, imp) in &self.imports {
                 match imp {
                     Import::Global(g) => {
-                        if g.val_type == ty.val_type {
+                        if !g.mutable && g.val_type == ty.val_type {
                             choices
                                 .push(Box::new(move |_, _| Ok(Instruction::GlobalGet(global_idx))));
                         }
