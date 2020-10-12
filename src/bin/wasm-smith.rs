@@ -46,6 +46,22 @@ struct Options {
     /// `stdout` is used if this argument is not supplied.
     #[structopt(short = "o", long = "output", parse(from_os_str))]
     output: Option<PathBuf>,
+
+    /// Ensure that execution of generated Wasm modules will always terminate.
+    ///
+    /// This inserts a global "fuel" counter that is decremented at loop headers
+    /// and in function prologues. When the fuel reaches 0, a trap is raised to
+    /// terminate execution. Control the default amount of fuel with the
+    /// `--fuel` flag.
+    #[structopt(short = "t", long = "ensure-termination")]
+    ensure_termination: bool,
+
+    /// The default amount of fuel used with `--ensure-termination`.
+    ///
+    /// This is roughly the number of loop iterations and function calls that
+    /// will be executed before a trap is raised to prevent infinite loops.
+    #[structopt(short = "f", long = "fuel", default_value = "100")]
+    fuel: u32,
 }
 
 fn main() {
@@ -88,10 +104,14 @@ fn main() {
     });
 
     let mut u = arbitrary::Unstructured::new(&seed);
-    let module = Module::arbitrary(&mut u).unwrap_or_else(|e| {
+    let mut module = Module::arbitrary(&mut u).unwrap_or_else(|e| {
         eprintln!("error: failed to generate module: {}", e);
         process::exit(2);
     });
+
+    if opts.ensure_termination {
+        module.ensure_termination(opts.fuel);
+    }
 
     let wasm_bytes = module.to_bytes();
     output.write_all(&wasm_bytes).unwrap_or_else(|e| {
