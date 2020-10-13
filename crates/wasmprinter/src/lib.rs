@@ -1308,6 +1308,9 @@ impl Printer {
         if memarg.offset != 0 {
             write!(self.result, " offset={}", memarg.offset)?;
         }
+        if memarg.align >= 32 {
+            bail!("alignment in memarg too large");
+        }
         let align = 1 << memarg.align;
         if default_align != align {
             write!(self.result, " align={}", align)?;

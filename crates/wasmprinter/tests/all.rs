@@ -66,3 +66,31 @@ fn locals_overflow() {
         err
     );
 }
+
+#[test]
+fn memarg_too_big() {
+    let bytes = wat::parse_str(
+        r#"
+            (module binary
+                "\00asm" "\01\00\00\00"     ;; module header
+
+                "\0b"           ;; data section
+                "\07"           ;; size of section
+                "\01"           ;; number of segments
+                "\00"           ;; flags=active
+                "\2e"           ;; i32.load16_s
+                "\3f"           ;; alignment
+                "\00"           ;; offset
+                "\0b"           ;; end
+                "\00"           ;; data size
+            )
+        "#,
+    )
+    .unwrap();
+    let err = wasmprinter::print_bytes(&bytes).unwrap_err();
+    assert!(
+        err.to_string().contains("alignment in memarg too large"),
+        "{:?}",
+        err
+    );
+}
