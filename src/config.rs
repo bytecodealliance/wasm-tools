@@ -60,6 +60,14 @@ pub trait Config: Arbitrary + Default {
     fn max_instructions(&self) -> usize {
         100
     }
+
+    /// The maximum number of memories to use. Defaults to 1.
+    ///
+    /// Note that more than one memory is in the realm of the multi-memory wasm
+    /// proposal.
+    fn max_memories(&self) -> u32 {
+        1
+    }
 }
 
 /// The default configuration.

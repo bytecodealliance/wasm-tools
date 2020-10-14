@@ -274,8 +274,8 @@ where
     // of functions that have that function type.
     functions: BTreeMap<Vec<ValType>, Vec<u32>>,
 
-    // Whether or not this module has a linear memory
-    has_memory: bool,
+    // Number of linear memories in this module
+    num_memories: u32,
 
     // Whether or not this module has a function table
     has_funcref_table: bool,
@@ -357,7 +357,7 @@ where
             options: Vec::with_capacity(NUM_OPTIONS),
             functions,
             mutable_globals,
-            has_memory: module.memory.is_some() || module.memory_imports() > 0,
+            num_memories: module.memories.len() as u32 + module.memory_imports(),
             has_funcref_table: module.table.is_some() || module.table_imports() == 1,
         }
     }
@@ -1042,7 +1042,7 @@ fn global_set<C: Config>(
 
 #[inline]
 fn have_memory<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
-    builder.allocs.has_memory
+    builder.allocs.num_memories > 0
 }
 
 #[inline]
@@ -1058,11 +1058,9 @@ fn i32_load<C: Config>(
     _: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let offset = u.arbitrary()?;
-    let align = *u.choose(&[0, 1])?;
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::I32));
-    Ok(Instruction::I32Load(MemArg { offset, align }))
+    Ok(Instruction::I32Load(mem_arg(u, builder, &[0, 1])?))
 }
 
 fn i64_load<C: Config>(
@@ -1070,11 +1068,9 @@ fn i64_load<C: Config>(
     _: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let offset = u.arbitrary()?;
-    let align = *u.choose(&[0, 1, 2])?;
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::I64));
-    Ok(Instruction::I64Load(MemArg { offset, align }))
+    Ok(Instruction::I64Load(mem_arg(u, builder, &[0, 1, 2])?))
 }
 
 fn f32_load<C: Config>(
@@ -1082,11 +1078,9 @@ fn f32_load<C: Config>(
     _: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let offset = u.arbitrary()?;
-    let align = *u.choose(&[0, 1])?;
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::F32));
-    Ok(Instruction::F32Load(MemArg { offset, align }))
+    Ok(Instruction::F32Load(mem_arg(u, builder, &[0, 1])?))
 }
 
 fn f64_load<C: Config>(
@@ -1094,11 +1088,9 @@ fn f64_load<C: Config>(
     _: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let offset = u.arbitrary()?;
-    let align = *u.choose(&[0, 1, 2])?;
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::F64));
-    Ok(Instruction::F64Load(MemArg { offset, align }))
+    Ok(Instruction::F64Load(mem_arg(u, builder, &[0, 1, 2])?))
 }
 
 fn i32_load_8_s<C: Config>(
@@ -1106,11 +1098,9 @@ fn i32_load_8_s<C: Config>(
     _: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let offset = u.arbitrary()?;
-    let align = 0;
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::I32));
-    Ok(Instruction::I32Load8_S(MemArg { offset, align }))
+    Ok(Instruction::I32Load8_S(mem_arg(u, builder, &[0])?))
 }
 
 fn i32_load_8_u<C: Config>(
@@ -1118,11 +1108,9 @@ fn i32_load_8_u<C: Config>(
     _: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let offset = u.arbitrary()?;
-    let align = 0;
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::I32));
-    Ok(Instruction::I32Load8_U(MemArg { offset, align }))
+    Ok(Instruction::I32Load8_U(mem_arg(u, builder, &[0])?))
 }
 
 fn i32_load_16_s<C: Config>(
@@ -1130,11 +1118,9 @@ fn i32_load_16_s<C: Config>(
     _: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let offset = u.arbitrary()?;
-    let align = *u.choose(&[0, 1])?;
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::I32));
-    Ok(Instruction::I32Load16_S(MemArg { offset, align }))
+    Ok(Instruction::I32Load16_S(mem_arg(u, builder, &[0, 1])?))
 }
 
 fn i32_load_16_u<C: Config>(
@@ -1142,11 +1128,9 @@ fn i32_load_16_u<C: Config>(
     _: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let offset = u.arbitrary()?;
-    let align = *u.choose(&[0, 1])?;
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::I32));
-    Ok(Instruction::I32Load16_U(MemArg { offset, align }))
+    Ok(Instruction::I32Load16_U(mem_arg(u, builder, &[0, 1])?))
 }
 
 fn i64_load_8_s<C: Config>(
@@ -1154,11 +1138,9 @@ fn i64_load_8_s<C: Config>(
     _: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let offset = u.arbitrary()?;
-    let align = 0;
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::I64));
-    Ok(Instruction::I64Load8_S(MemArg { offset, align }))
+    Ok(Instruction::I64Load8_S(mem_arg(u, builder, &[0])?))
 }
 
 fn i64_load_16_s<C: Config>(
@@ -1166,11 +1148,9 @@ fn i64_load_16_s<C: Config>(
     _: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let offset = u.arbitrary()?;
-    let align = *u.choose(&[0, 1])?;
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::I64));
-    Ok(Instruction::I64Load16_S(MemArg { offset, align }))
+    Ok(Instruction::I64Load16_S(mem_arg(u, builder, &[0, 1])?))
 }
 
 fn i64_load_32_s<C: Config>(
@@ -1178,11 +1158,9 @@ fn i64_load_32_s<C: Config>(
     _: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let offset = u.arbitrary()?;
-    let align = *u.choose(&[0, 1, 2])?;
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::I64));
-    Ok(Instruction::I64Load32_S(MemArg { offset, align }))
+    Ok(Instruction::I64Load32_S(mem_arg(u, builder, &[0, 1, 2])?))
 }
 
 fn i64_load_8_u<C: Config>(
@@ -1190,11 +1168,9 @@ fn i64_load_8_u<C: Config>(
     _: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let offset = u.arbitrary()?;
-    let align = 0;
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::I64));
-    Ok(Instruction::I64Load8_U(MemArg { offset, align }))
+    Ok(Instruction::I64Load8_U(mem_arg(u, builder, &[0])?))
 }
 
 fn i64_load_16_u<C: Config>(
@@ -1202,11 +1178,9 @@ fn i64_load_16_u<C: Config>(
     _: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let offset = u.arbitrary()?;
-    let align = *u.choose(&[0, 1])?;
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::I64));
-    Ok(Instruction::I64Load16_U(MemArg { offset, align }))
+    Ok(Instruction::I64Load16_U(mem_arg(u, builder, &[0, 1])?))
 }
 
 fn i64_load_32_u<C: Config>(
@@ -1214,11 +1188,9 @@ fn i64_load_32_u<C: Config>(
     _: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let offset = u.arbitrary()?;
-    let align = *u.choose(&[0, 1, 2])?;
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::I64));
-    Ok(Instruction::I64Load32_U(MemArg { offset, align }))
+    Ok(Instruction::I64Load32_U(mem_arg(u, builder, &[0, 1, 2])?))
 }
 
 #[inline]
@@ -1240,10 +1212,8 @@ fn i32_store<C: Config>(
     _: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let offset = u.arbitrary()?;
-    let align = *u.choose(&[0, 1])?;
     builder.pop_operands(&[ValType::I32, ValType::I32]);
-    Ok(Instruction::I32Store(MemArg { offset, align }))
+    Ok(Instruction::I32Store(mem_arg(u, builder, &[0, 1])?))
 }
 
 #[inline]
@@ -1256,10 +1226,8 @@ fn i64_store<C: Config>(
     _: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let offset = u.arbitrary()?;
-    let align = *u.choose(&[0, 1, 2])?;
     builder.pop_operands(&[ValType::I32, ValType::I64]);
-    Ok(Instruction::I64Store(MemArg { offset, align }))
+    Ok(Instruction::I64Store(mem_arg(u, builder, &[0, 1, 2])?))
 }
 
 #[inline]
@@ -1272,10 +1240,8 @@ fn f32_store<C: Config>(
     _: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let offset = u.arbitrary()?;
-    let align = *u.choose(&[0, 1])?;
     builder.pop_operands(&[ValType::I32, ValType::F32]);
-    Ok(Instruction::F32Store(MemArg { offset, align }))
+    Ok(Instruction::F32Store(mem_arg(u, builder, &[0, 1])?))
 }
 
 #[inline]
@@ -1288,10 +1254,8 @@ fn f64_store<C: Config>(
     _: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let offset = u.arbitrary()?;
-    let align = *u.choose(&[0, 1, 2])?;
     builder.pop_operands(&[ValType::I32, ValType::F64]);
-    Ok(Instruction::F64Store(MemArg { offset, align }))
+    Ok(Instruction::F64Store(mem_arg(u, builder, &[0, 1, 2])?))
 }
 
 fn i32_store_8<C: Config>(
@@ -1299,10 +1263,8 @@ fn i32_store_8<C: Config>(
     _: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let offset = u.arbitrary()?;
-    let align = 0;
     builder.pop_operands(&[ValType::I32, ValType::I32]);
-    Ok(Instruction::I32Store8(MemArg { offset, align }))
+    Ok(Instruction::I32Store8(mem_arg(u, builder, &[0])?))
 }
 
 fn i32_store_16<C: Config>(
@@ -1310,10 +1272,8 @@ fn i32_store_16<C: Config>(
     _: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let offset = u.arbitrary()?;
-    let align = *u.choose(&[0, 1])?;
     builder.pop_operands(&[ValType::I32, ValType::I32]);
-    Ok(Instruction::I32Store16(MemArg { offset, align }))
+    Ok(Instruction::I32Store16(mem_arg(u, builder, &[0, 1])?))
 }
 
 fn i64_store_8<C: Config>(
@@ -1321,10 +1281,8 @@ fn i64_store_8<C: Config>(
     _: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let offset = u.arbitrary()?;
-    let align = 0;
     builder.pop_operands(&[ValType::I32, ValType::I64]);
-    Ok(Instruction::I64Store8(MemArg { offset, align }))
+    Ok(Instruction::I64Store8(mem_arg(u, builder, &[0])?))
 }
 
 fn i64_store_16<C: Config>(
@@ -1332,10 +1290,8 @@ fn i64_store_16<C: Config>(
     _: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let offset = u.arbitrary()?;
-    let align = *u.choose(&[0, 1])?;
     builder.pop_operands(&[ValType::I32, ValType::I64]);
-    Ok(Instruction::I64Store16(MemArg { offset, align }))
+    Ok(Instruction::I64Store16(mem_arg(u, builder, &[0, 1])?))
 }
 
 fn i64_store_32<C: Config>(
@@ -1343,19 +1299,17 @@ fn i64_store_32<C: Config>(
     _: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let offset = u.arbitrary()?;
-    let align = *u.choose(&[0, 1, 2])?;
     builder.pop_operands(&[ValType::I32, ValType::I64]);
-    Ok(Instruction::I64Store32(MemArg { offset, align }))
+    Ok(Instruction::I64Store32(mem_arg(u, builder, &[0, 1, 2])?))
 }
 
 fn memory_size<C: Config>(
-    _: &mut Unstructured,
+    u: &mut Unstructured,
     _: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
     builder.push_operands(&[ValType::I32]);
-    Ok(Instruction::MemorySize)
+    Ok(Instruction::MemorySize(memory_index(u, builder)?))
 }
 
 #[inline]
@@ -1367,13 +1321,13 @@ fn memory_grow_valid<C: Config>(
 }
 
 fn memory_grow<C: Config>(
-    _: &mut Unstructured,
+    u: &mut Unstructured,
     _: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.push_operands(&[ValType::I32]);
-    Ok(Instruction::MemoryGrow)
+    Ok(Instruction::MemoryGrow(memory_index(u, builder)?))
 }
 
 fn i32_const<C: Config>(
@@ -2812,4 +2766,27 @@ fn i64_trunc_sat_f64_u<C: Config>(
     builder.pop_operands(&[ValType::F64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64TruncSatF64U)
+}
+
+fn mem_arg<C: Config>(
+    u: &mut Unstructured,
+    builder: &mut CodeBuilder<C>,
+    alignments: &[u32],
+) -> Result<MemArg> {
+    let offset = u.arbitrary()?;
+    let align = *u.choose(alignments)?;
+    Ok(MemArg {
+        offset,
+        align,
+        memory_index: memory_index(u, builder)?,
+    })
+}
+
+fn memory_index<C: Config>(u: &mut Unstructured, builder: &mut CodeBuilder<C>) -> Result<u32> {
+    assert!(builder.allocs.num_memories > 0);
+    if builder.allocs.num_memories == 1 {
+        Ok(0)
+    } else {
+        u.int_in_range(0..=builder.allocs.num_memories - 1)
+    }
 }
