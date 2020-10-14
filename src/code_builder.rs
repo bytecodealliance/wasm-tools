@@ -1309,9 +1309,7 @@ fn memory_size<C: Config>(
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
     builder.push_operands(&[ValType::I32]);
-    Ok(Instruction::MemorySize(
-        u.int_in_range(0..=builder.allocs.num_memories - 1)?,
-    ))
+    Ok(Instruction::MemorySize(memory_index(u, builder)?))
 }
 
 #[inline]
@@ -1329,9 +1327,7 @@ fn memory_grow<C: Config>(
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.push_operands(&[ValType::I32]);
-    Ok(Instruction::MemoryGrow(
-        u.int_in_range(0..=builder.allocs.num_memories - 1)?,
-    ))
+    Ok(Instruction::MemoryGrow(memory_index(u, builder)?))
 }
 
 fn i32_const<C: Config>(
@@ -2779,10 +2775,18 @@ fn mem_arg<C: Config>(
 ) -> Result<MemArg> {
     let offset = u.arbitrary()?;
     let align = *u.choose(alignments)?;
-    let memory_index = u.int_in_range(0..=builder.allocs.num_memories - 1)?;
     Ok(MemArg {
         offset,
         align,
-        memory_index,
+        memory_index: memory_index(u, builder)?,
     })
+}
+
+fn memory_index<C: Config>(u: &mut Unstructured, builder: &mut CodeBuilder<C>) -> Result<u32> {
+    assert!(builder.allocs.num_memories > 0);
+    if builder.allocs.num_memories == 1 {
+        Ok(0)
+    } else {
+        u.int_in_range(0..=builder.allocs.num_memories - 1)
+    }
 }
