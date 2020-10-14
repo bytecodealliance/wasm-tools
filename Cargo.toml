@@ -8,7 +8,7 @@ license = "MPL-2.0"
 name = "wasm-smith"
 readme = "./README.md"
 repository = "https://github.com/fitzgen/wasm-smith"
-version = "0.1.6"
+version = "0.1.7"
 
 [[bin]]
 name = "wasm-smith"
