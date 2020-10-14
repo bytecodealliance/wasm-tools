@@ -11,7 +11,7 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.3"
-wasmparser = "0.62.0"
+wasmparser = "0.63.1"
 wasm-smith = { path = ".." }
 
 [[bin]]
