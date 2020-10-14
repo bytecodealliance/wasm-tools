@@ -564,6 +564,23 @@ where
             .map(|(f, ty)| (f as u32, ty))
     }
 
+    fn get_memory_type(&self, index: u32) -> Option<&MemoryType> {
+        let mut i = 0;
+
+        for mem in self.imports.iter().filter_map(|imp| match imp {
+            (_, _, Import::Memory(m)) => Some(m),
+            _ => None,
+        }) {
+            if i == index {
+                return Some(mem);
+            }
+            i += 1;
+        }
+
+        let index = index - i;
+        self.memories.get(index as usize)
+    }
+
     fn func_imports(&self) -> u32 {
         self.imports
             .iter()
