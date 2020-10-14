@@ -76,7 +76,7 @@ pub use config::{Config, DefaultConfig, SwarmConfig};
 /// configuration type, implement the [`Config`][crate::Config] trait for it,
 /// and use [`ConfiguredModule<YourConfigType>`][crate::ConfiguredModule]
 /// instead of plain `Module`.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Arbitrary)]
 pub struct Module {
     inner: ConfiguredModule<DefaultConfig>,
 }
@@ -97,7 +97,7 @@ where
     imports: Vec<(String, String, Import)>,
     funcs: Vec<u32>,
     table: Option<TableType>,
-    memory: Option<MemoryType>,
+    memories: Vec<MemoryType>,
     globals: Vec<Global>,
     exports: Vec<(String, Export)>,
     start: Option<u32>,
@@ -106,10 +106,10 @@ where
     data: Vec<DataSegment>,
 }
 
-impl Arbitrary for Module {
+impl<C: Config> Arbitrary for ConfiguredModule<C> {
     fn arbitrary(u: &mut Unstructured) -> Result<Self> {
-        let mut module = Module::default();
-        module.inner.build(u, false)?;
+        let mut module = ConfiguredModule::<C>::default();
+        module.build(u, false)?;
         Ok(module)
     }
 }
@@ -281,6 +281,7 @@ impl BlockType {
 struct MemArg {
     offset: u32,
     align: u32,
+    memory_index: u32,
 }
 
 #[derive(Clone, Debug)]
@@ -336,8 +337,8 @@ enum Instruction {
     I64Store8(MemArg),
     I64Store16(MemArg),
     I64Store32(MemArg),
-    MemorySize,
-    MemoryGrow,
+    MemorySize(u32),
+    MemoryGrow(u32),
 
     // Numeric instructions.
     I32Const(i32),
@@ -484,7 +485,7 @@ enum Instruction {
 
 #[derive(Debug)]
 struct DataSegment {
-    // `memory_index: u32` is currently always 0.
+    memory_index: u32,
     offset: Instruction,
     init: Vec<u8>,
 }
@@ -501,9 +502,7 @@ where
         if self.table_imports() == 0 {
             self.table = u.arbitrary()?;
         }
-        if self.memory_imports() == 0 {
-            self.memory = u.arbitrary()?;
-        }
+        self.arbitrary_memories(u)?;
         self.arbitrary_globals(u)?;
         self.arbitrary_exports(u)?;
         self.arbitrary_start(u)?;
@@ -529,7 +528,7 @@ where
 
         arbitrary_loop(u, self.config.max_imports(), |u| {
             choices.truncate(num_stable_choices);
-            if self.memory_imports() == 0 {
+            if self.memory_imports() < self.config.max_memories() {
                 choices.push(|u, _| Ok(Import::Memory(u.arbitrary()?)));
             }
             if self.table_imports() == 0 {
@@ -606,6 +605,14 @@ where
         })
     }
 
+    fn arbitrary_memories(&mut self, u: &mut Unstructured) -> Result<()> {
+        let max_mems = self.config.max_memories() - self.memory_imports();
+        arbitrary_loop(u, max_mems as usize, |u| {
+            self.memories.push(u.arbitrary()?);
+            Ok(())
+        })
+    }
+
     fn arbitrary_globals(&mut self, u: &mut Unstructured) -> Result<()> {
         let mut choices: Vec<Box<dyn Fn(&mut Unstructured, ValType) -> Result<Instruction>>> =
             vec![];
@@ -660,8 +667,12 @@ where
             choices.push(|_, _| Ok(Export::Table(0)));
         }
 
-        if self.memory.is_some() {
-            choices.push(|_, _| Ok(Export::Memory(0)));
+        if !self.memories.is_empty() {
+            choices.push(|u, m| {
+                let max = m.memory_imports() + m.memories.len() as u32 - 1;
+                let idx = u.int_in_range(0..=max)?;
+                Ok(Export::Memory(idx))
+            });
         }
 
         if !self.globals.is_empty() {
@@ -797,7 +808,8 @@ where
     }
 
     fn arbitrary_data(&mut self, u: &mut Unstructured) -> Result<()> {
-        if self.memory.is_none() && self.memory_imports() == 0 {
+        let memories = self.memories.len() as u32 + self.memory_imports();
+        if memories == 0 {
             return Ok(());
         }
 
@@ -826,7 +838,12 @@ where
             let f = u.choose(&choices)?;
             let offset = f(u)?;
             let init = u.arbitrary()?;
-            self.data.push(DataSegment { offset, init });
+            let memory_index = u.int_in_range(0..=memories - 1)?;
+            self.data.push(DataSegment {
+                memory_index,
+                offset,
+                init,
+            });
             Ok(())
         })
     }

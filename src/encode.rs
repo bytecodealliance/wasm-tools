@@ -159,8 +159,14 @@ where
     }
 
     fn encode_mem_arg(&self, bytes: &mut Vec<u8>, m: MemArg) {
-        self.encode_u32(bytes, m.align);
-        self.encode_u32(bytes, m.offset);
+        if m.memory_index == 0 {
+            self.encode_u32(bytes, m.align);
+            self.encode_u32(bytes, m.offset);
+        } else {
+            self.encode_u32(bytes, m.align | (1 << 6));
+            self.encode_u32(bytes, m.offset);
+            self.encode_u32(bytes, m.memory_index);
+        }
     }
 
     fn encode_instruction(&self, bytes: &mut Vec<u8>, inst: &Instruction) {
@@ -327,13 +333,13 @@ where
                 bytes.push(0x3E);
                 self.encode_mem_arg(bytes, *m);
             }
-            Instruction::MemorySize => {
+            Instruction::MemorySize(i) => {
                 bytes.push(0x3F);
-                bytes.push(0x00); // Reserved for memory index.
+                self.encode_u32(bytes, *i);
             }
-            Instruction::MemoryGrow => {
+            Instruction::MemoryGrow(i) => {
                 bytes.push(0x40);
-                bytes.push(0x00); // Reserved for memory index.
+                self.encode_u32(bytes, *i);
             }
 
             // Numeric instructions.
@@ -583,13 +589,14 @@ where
     }
 
     fn encode_memories(&self, bytes: &mut Vec<u8>) {
-        if let Some(m) = self.memory.as_ref() {
-            self.section(bytes, 5, |bytes| {
-                self.encode_vec(bytes, Some(m), |bytes, m| {
-                    self.encode_limits(bytes, &m.limits);
-                });
-            });
+        if self.memories.is_empty() {
+            return;
         }
+        self.section(bytes, 5, |bytes| {
+            self.encode_vec(bytes, &self.memories, |bytes, m| {
+                self.encode_limits(bytes, &m.limits);
+            });
+        });
     }
 
     fn encode_globals(&self, bytes: &mut Vec<u8>) {
@@ -691,7 +698,12 @@ where
     fn encode_data(&self, bytes: &mut Vec<u8>) {
         self.section(bytes, 11, |bytes| {
             self.encode_vec(bytes, &self.data, |bytes, data| {
-                self.encode_u32(bytes, 0); // Memory index.
+                if data.memory_index == 0 {
+                    self.encode_u32(bytes, 0);
+                } else {
+                    self.encode_u32(bytes, 2);
+                    self.encode_u32(bytes, data.memory_index);
+                }
                 self.encode_instruction(bytes, &data.offset);
                 self.encode_instruction(bytes, &Instruction::End);
                 self.encode_vec(bytes, &data.init, |bytes, b| {
