@@ -82,7 +82,7 @@ pub(crate) struct OperatorValidator {
 
     // The `operands` is the current type stack, and the `control` list is the
     // list of blocks that we're currently in.
-    operands: Vec<Option<Type>>,
+    pub(crate) operands: Vec<Option<Type>>,
     control: Vec<Frame>,
 
     // This is a list of flags for wasm features which are used to gate various
