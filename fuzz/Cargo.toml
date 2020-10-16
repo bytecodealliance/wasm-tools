@@ -12,11 +12,11 @@ env_logger = "0.7"
 libfuzzer-sys = "0.3.2"
 log = "0.4"
 tempfile = "3.0"
+wasm-smith = "0.1.8"
 wasmparser = { path = "../crates/wasmparser" }
 wasmprinter = { path = "../crates/wasmprinter" }
 wast = { path = "../crates/wast" }
 wat = { path = "../crates/wat" }
-wasm-smith = "0.1.0"
 
 [[bin]]
 name = "text-lexer"
