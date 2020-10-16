@@ -119,6 +119,12 @@ where
     fn encode_u32(&self, bytes: &mut Vec<u8>, x: u32) {
         let mut buf = [0x00; 5];
         let n = leb128::write::unsigned(&mut &mut buf[..], x as u64).unwrap();
+        let min = usize::from(self.config.min_uleb_size());
+        if buf.len() < min {
+            for _ in 0..(min - buf.len()) {
+                bytes.push(1 << 7);
+            }
+        }
         bytes.extend(buf.iter().take(n).copied());
     }
 

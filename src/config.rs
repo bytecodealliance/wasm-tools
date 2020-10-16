@@ -97,6 +97,16 @@ pub trait Config: Arbitrary + Default {
     fn memory_offset_choices(&self) -> (u32, u32, u32) {
         (75, 24, 1)
     }
+
+    /// The minimum size, in bytes, of all leb-encoded integers. Defaults to 1.
+    ///
+    /// This is useful for ensuring that all leb-encoded integers are decoded as
+    /// such rather than as simply one byte. This will forcibly extend leb
+    /// integers with an over-long encoding in some locations if the size would
+    /// otherwise be smaller than number returned here.
+    fn min_uleb_size(&self) -> u8 {
+        1
+    }
 }
 
 /// The default configuration.
@@ -122,6 +132,7 @@ pub struct SwarmConfig {
     max_data_segments: usize,
     max_instructions: usize,
     max_memories: u32,
+    min_uleb_size: u8,
 }
 
 impl Arbitrary for SwarmConfig {
@@ -137,6 +148,7 @@ impl Arbitrary for SwarmConfig {
             max_data_segments: u.int_in_range(0..=MAX_MAXIMUM)?,
             max_instructions: u.int_in_range(0..=MAX_MAXIMUM)?,
             max_memories: u.int_in_range(0..=(MAX_MAXIMUM as u32))?,
+            min_uleb_size: u.int_in_range(0..=5)?,
         })
     }
 }
@@ -176,5 +188,9 @@ impl Config for SwarmConfig {
 
     fn max_memories(&self) -> u32 {
         self.max_memories
+    }
+
+    fn min_uleb_size(&self) -> u8 {
+        self.min_uleb_size
     }
 }
