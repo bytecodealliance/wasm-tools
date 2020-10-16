@@ -27,6 +27,14 @@ jobs:
       - run: cargo fuzz build validate --sanitizer none
       - run: cargo fuzz run validate --sanitizer none -- -max_total_time=60
 
+  validate_swarm_fuzz_target:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: cargo install cargo-fuzz
+      - run: cargo fuzz build validate-swarm --sanitizer none
+      - run: cargo fuzz run validate-swarm --sanitizer none -- -max_total_time=60
+
   validate_ensure_terminated_fuzz_target:
     runs-on: ubuntu-latest
     steps:

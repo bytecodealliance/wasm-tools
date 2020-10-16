@@ -107,6 +107,12 @@ pub trait Config: Arbitrary + Default {
     fn min_uleb_size(&self) -> u8 {
         1
     }
+
+    /// Determines whether the bulk memory proposal is enabled for generating
+    /// insructions. Defaults to `false`.
+    fn bulk_memory_enabled(&self) -> bool {
+        false
+    }
 }
 
 /// The default configuration.
@@ -133,6 +139,7 @@ pub struct SwarmConfig {
     max_instructions: usize,
     max_memories: u32,
     min_uleb_size: u8,
+    bulk_memory_enabled: bool,
 }
 
 impl Arbitrary for SwarmConfig {
@@ -147,8 +154,9 @@ impl Arbitrary for SwarmConfig {
             max_elements: u.int_in_range(0..=MAX_MAXIMUM)?,
             max_data_segments: u.int_in_range(0..=MAX_MAXIMUM)?,
             max_instructions: u.int_in_range(0..=MAX_MAXIMUM)?,
-            max_memories: u.int_in_range(0..=(MAX_MAXIMUM as u32))?,
+            max_memories: u.int_in_range(0..=100)?,
             min_uleb_size: u.int_in_range(0..=5)?,
+            bulk_memory_enabled: u.arbitrary()?,
         })
     }
 }
@@ -192,5 +200,9 @@ impl Config for SwarmConfig {
 
     fn min_uleb_size(&self) -> u8 {
         self.min_uleb_size
+    }
+
+    fn bulk_memory_enabled(&self) -> bool {
+        self.bulk_memory_enabled
     }
 }

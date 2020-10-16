@@ -106,6 +106,13 @@ where
     data: Vec<DataSegment>,
 }
 
+impl<C: Config> ConfiguredModule<C> {
+    /// Returns a reference to the internal configuration.
+    pub fn config(&self) -> &C {
+        &self.config
+    }
+}
+
 impl<C: Config> Arbitrary for ConfiguredModule<C> {
     fn arbitrary(u: &mut Unstructured) -> Result<Self> {
         let mut module = ConfiguredModule::<C>::default();
@@ -339,6 +346,10 @@ enum Instruction {
     I64Store32(MemArg),
     MemorySize(u32),
     MemoryGrow(u32),
+    MemoryInit { mem: u32, data: u32 },
+    DataDrop(u32),
+    MemoryCopy { src: u32, dst: u32 },
+    MemoryFill(u32),
 
     // Numeric instructions.
     I32Const(i32),
@@ -485,9 +496,17 @@ enum Instruction {
 
 #[derive(Debug)]
 struct DataSegment {
-    memory_index: u32,
-    offset: Instruction,
+    kind: DataSegmentKind,
     init: Vec<u8>,
+}
+
+#[derive(Debug)]
+enum DataSegmentKind {
+    Passive,
+    Active {
+        memory_index: u32,
+        offset: Instruction,
+    },
 }
 
 impl<C> ConfiguredModule<C>
@@ -507,8 +526,8 @@ where
         self.arbitrary_exports(u)?;
         self.arbitrary_start(u)?;
         self.arbitrary_elems(u)?;
-        self.arbitrary_code(u, allow_invalid)?;
         self.arbitrary_data(u)?;
+        self.arbitrary_code(u, allow_invalid)?;
         Ok(())
     }
 
@@ -825,8 +844,10 @@ where
     }
 
     fn arbitrary_data(&mut self, u: &mut Unstructured) -> Result<()> {
+        // With bulk-memory we can generate passive data, otherwise if there are
+        // no memories we can't generate any data.
         let memories = self.memories.len() as u32 + self.memory_imports();
-        if memories == 0 {
+        if memories == 0 && !self.config.bulk_memory_enabled() {
             return Ok(());
         }
 
@@ -852,15 +873,23 @@ where
                 }
             }
 
-            let f = u.choose(&choices)?;
-            let offset = f(u)?;
+            // Passive data can only be generated if bulk memory is enabled.
+            // Otherwise if there are no memories we *only* generate passive
+            // data. Finally if all conditions are met we use an input byte to
+            // determine if it should be passive or active.
+            let kind = if self.config.bulk_memory_enabled() && (memories == 0 || u.arbitrary()?) {
+                DataSegmentKind::Passive
+            } else {
+                let f = u.choose(&choices)?;
+                let offset = f(u)?;
+                let memory_index = u.int_in_range(0..=memories - 1)?;
+                DataSegmentKind::Active {
+                    offset,
+                    memory_index,
+                }
+            };
             let init = u.arbitrary()?;
-            let memory_index = u.int_in_range(0..=memories - 1)?;
-            self.data.push(DataSegment {
-                memory_index,
-                offset,
-                init,
-            });
+            self.data.push(DataSegment { kind, init });
             Ok(())
         })
     }

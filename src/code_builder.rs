@@ -105,6 +105,10 @@ instructions! {
     (Some(i64_store_valid), i64_store_32),
     (Some(have_memory), memory_size),
     (Some(memory_grow_valid), memory_grow),
+    (Some(memory_init_valid), memory_init),
+    (Some(data_drop_valid), data_drop),
+    (Some(memory_copy_valid), memory_copy),
+    (Some(memory_fill_valid), memory_fill),
     // Numeric instructions.
     (None, i32_const),
     (None, i64_const),
@@ -1053,6 +1057,11 @@ fn have_memory_and_offset<C: Config>(
     have_memory(module, builder) && builder.type_on_stack(ValType::I32)
 }
 
+#[inline]
+fn have_data<C: Config>(module: &ConfiguredModule<C>, _: &mut CodeBuilder<C>) -> bool {
+    module.data.len() > 0
+}
+
 fn i32_load<C: Config>(
     u: &mut Unstructured,
     module: &ConfiguredModule<C>,
@@ -1393,6 +1402,80 @@ fn memory_grow<C: Config>(
     builder.pop_operands(&[ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::MemoryGrow(memory_index(u, builder)?))
+}
+
+#[inline]
+fn memory_init_valid<C: Config>(
+    module: &ConfiguredModule<C>,
+    builder: &mut CodeBuilder<C>,
+) -> bool {
+    have_memory(module, builder)
+        && have_data(module, builder)
+        && module.config.bulk_memory_enabled()
+        && builder.types_on_stack(&[ValType::I32, ValType::I32, ValType::I32])
+}
+
+fn memory_init<C: Config>(
+    u: &mut Unstructured,
+    module: &ConfiguredModule<C>,
+    builder: &mut CodeBuilder<C>,
+) -> Result<Instruction> {
+    let mem = memory_index(u, builder)?;
+    let data = data_index(u, module)?;
+    builder.pop_operands(&[ValType::I32, ValType::I32, ValType::I32]);
+    Ok(Instruction::MemoryInit { mem, data })
+}
+
+#[inline]
+fn memory_fill_valid<C: Config>(
+    module: &ConfiguredModule<C>,
+    builder: &mut CodeBuilder<C>,
+) -> bool {
+    have_memory(module, builder)
+        && module.config.bulk_memory_enabled()
+        && builder.types_on_stack(&[ValType::I32, ValType::I32, ValType::I32])
+}
+
+fn memory_fill<C: Config>(
+    u: &mut Unstructured,
+    _module: &ConfiguredModule<C>,
+    builder: &mut CodeBuilder<C>,
+) -> Result<Instruction> {
+    let mem = memory_index(u, builder)?;
+    builder.pop_operands(&[ValType::I32, ValType::I32, ValType::I32]);
+    Ok(Instruction::MemoryFill(mem))
+}
+
+#[inline]
+fn memory_copy_valid<C: Config>(
+    module: &ConfiguredModule<C>,
+    builder: &mut CodeBuilder<C>,
+) -> bool {
+    memory_fill_valid(module, builder)
+}
+
+fn memory_copy<C: Config>(
+    u: &mut Unstructured,
+    _module: &ConfiguredModule<C>,
+    builder: &mut CodeBuilder<C>,
+) -> Result<Instruction> {
+    let src = memory_index(u, builder)?;
+    let dst = memory_index(u, builder)?;
+    builder.pop_operands(&[ValType::I32, ValType::I32, ValType::I32]);
+    Ok(Instruction::MemoryCopy { dst, src })
+}
+
+#[inline]
+fn data_drop_valid<C: Config>(module: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+    have_data(module, builder) && module.config.bulk_memory_enabled()
+}
+
+fn data_drop<C: Config>(
+    u: &mut Unstructured,
+    module: &ConfiguredModule<C>,
+    _builder: &mut CodeBuilder<C>,
+) -> Result<Instruction> {
+    Ok(Instruction::DataDrop(data_index(u, module)?))
 }
 
 fn i32_const<C: Config>(
@@ -2883,5 +2966,15 @@ fn memory_index<C: Config>(u: &mut Unstructured, builder: &mut CodeBuilder<C>) -
         Ok(0)
     } else {
         u.int_in_range(0..=builder.allocs.num_memories - 1)
+    }
+}
+
+fn data_index<C: Config>(u: &mut Unstructured, module: &ConfiguredModule<C>) -> Result<u32> {
+    let data = module.data.len() as u32;
+    assert!(data > 0);
+    if data == 1 {
+        Ok(0)
+    } else {
+        u.int_in_range(0..=data - 1)
     }
 }

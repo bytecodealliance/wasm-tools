@@ -30,6 +30,7 @@ where
         self.encode_exports(&mut bytes);
         self.encode_start(&mut bytes);
         self.encode_elems(&mut bytes);
+        self.encode_data_count(&mut bytes);
         self.encode_code(&mut bytes);
         self.encode_data(&mut bytes);
 
@@ -346,6 +347,28 @@ where
             Instruction::MemoryGrow(i) => {
                 bytes.push(0x40);
                 self.encode_u32(bytes, *i);
+            }
+            Instruction::MemoryInit { mem, data } => {
+                bytes.push(0xfc);
+                self.encode_u32(bytes, 8);
+                self.encode_u32(bytes, *data);
+                self.encode_u32(bytes, *mem);
+            }
+            Instruction::DataDrop(data) => {
+                bytes.push(0xfc);
+                self.encode_u32(bytes, 9);
+                self.encode_u32(bytes, *data);
+            }
+            Instruction::MemoryCopy { src, dst } => {
+                bytes.push(0xfc);
+                self.encode_u32(bytes, 10);
+                self.encode_u32(bytes, *dst);
+                self.encode_u32(bytes, *src);
+            }
+            Instruction::MemoryFill(mem) => {
+                bytes.push(0xfc);
+                self.encode_u32(bytes, 11);
+                self.encode_u32(bytes, *mem);
             }
 
             // Numeric instructions.
@@ -671,6 +694,20 @@ where
         });
     }
 
+    fn encode_data_count(&self, bytes: &mut Vec<u8>) {
+        // Without bulk memory there's no need for a data count section
+        if !self.config.bulk_memory_enabled() {
+            return;
+        }
+        // ... and also if there's no data no need for a data count section
+        if self.data.is_empty() {
+            return;
+        }
+        self.section(bytes, 12, |bytes| {
+            self.encode_u32(bytes, self.data.len() as u32);
+        })
+    }
+
     fn encode_code(&self, bytes: &mut Vec<u8>) {
         if self.code.is_empty() {
             return;
@@ -704,14 +741,28 @@ where
     fn encode_data(&self, bytes: &mut Vec<u8>) {
         self.section(bytes, 11, |bytes| {
             self.encode_vec(bytes, &self.data, |bytes, data| {
-                if data.memory_index == 0 {
-                    self.encode_u32(bytes, 0);
-                } else {
-                    self.encode_u32(bytes, 2);
-                    self.encode_u32(bytes, data.memory_index);
+                match &data.kind {
+                    DataSegmentKind::Active {
+                        memory_index: 0,
+                        offset,
+                    } => {
+                        bytes.push(0x00);
+                        self.encode_instruction(bytes, offset);
+                        self.encode_instruction(bytes, &Instruction::End);
+                    }
+                    DataSegmentKind::Passive => {
+                        bytes.push(0x01);
+                    }
+                    DataSegmentKind::Active {
+                        memory_index,
+                        offset,
+                    } => {
+                        bytes.push(0x02);
+                        self.encode_u32(bytes, *memory_index);
+                        self.encode_instruction(bytes, offset);
+                        self.encode_instruction(bytes, &Instruction::End);
+                    }
                 }
-                self.encode_instruction(bytes, &data.offset);
-                self.encode_instruction(bytes, &Instruction::End);
                 self.encode_vec(bytes, &data.init, |bytes, b| {
                     bytes.push(*b);
                 });
