@@ -1593,8 +1593,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(ty))?;
                 self.push_operand(Type::V128)?;
             }
-            Operator::V128Load32Splat { memarg }
-            | Operator::V128Load32Zero { memarg } => {
+            Operator::V128Load32Splat { memarg } | Operator::V128Load32Zero { memarg } => {
                 self.check_simd_enabled()?;
                 let ty = self.check_memarg(memarg, 2, resources)?;
                 self.pop_operand(Some(ty))?;
