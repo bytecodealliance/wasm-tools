@@ -1271,6 +1271,9 @@ impl Printer {
             V128Load32Splat { memarg } => self.mem_instr("v128.load32_splat", memarg, 4)?,
             V128Load64Splat { memarg } => self.mem_instr("v128.load64_splat", memarg, 8)?,
 
+            V128Load32Zero { memarg } => self.mem_instr("v128.load32_zero", memarg, 4)?,
+            V128Load64Zero { memarg } => self.mem_instr("v128.load64_zero", memarg, 8)?,
+
             I8x16NarrowI16x8S => self.result.push_str("i8x16.narrow_i16x8_s"),
             I8x16NarrowI16x8U => self.result.push_str("i8x16.narrow_i16x8_u"),
             I16x8NarrowI32x4S => self.result.push_str("i16x8.narrow_i32x4_s"),

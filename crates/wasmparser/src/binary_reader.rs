@@ -1728,6 +1728,12 @@ impl<'a> BinaryReader<'a> {
             0xf9 => Operator::I32x4TruncSatF32x4U,
             0xfa => Operator::F32x4ConvertI32x4S,
             0xfb => Operator::F32x4ConvertI32x4U,
+            0xfc => Operator::V128Load32Zero {
+                memarg: self.read_memarg_of_align(2)?,
+            },
+            0xfd => Operator::V128Load64Zero {
+                memarg: self.read_memarg_of_align(3)?,
+            },
             _ => {
                 return Err(BinaryReaderError::new(
                     format!("Unknown 0xfd subopcode: 0x{:x}", code),
