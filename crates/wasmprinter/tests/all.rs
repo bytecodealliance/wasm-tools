@@ -94,3 +94,16 @@ fn memarg_too_big() {
         err
     );
 }
+
+#[test]
+fn no_panic_dangling_else() {
+    let bytes = wat::parse_str(
+        r#"
+            (module
+                (func else)
+            )
+        "#,
+    )
+    .unwrap();
+    wasmprinter::print_bytes(&bytes).unwrap();
+}

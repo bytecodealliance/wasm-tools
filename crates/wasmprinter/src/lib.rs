@@ -600,15 +600,42 @@ impl Printer {
             locals.finish(&mut self.result);
 
             let nesting_start = self.nesting;
-            for operator in body.get_operators_reader()? {
-                let operator = operator?;
+            let mut reader = body.get_operators_reader()?;
+            while !reader.eof() {
+                let operator = reader.read()?;
                 match operator {
-                    Operator::Else => self.nesting -= 1,
-                    Operator::End if self.nesting == nesting_start => continue,
-                    Operator::End => self.nesting -= 1,
-                    _ => {}
+                    // The final `end` in a reader is not printed, it's implied
+                    // in the text format.
+                    Operator::End if reader.eof() => break,
+
+                    // When we start a block we newline to the current
+                    // indentation, then we increase the indentation so further
+                    // instructions are tabbed over.
+                    Operator::If { .. } | Operator::Block { .. } | Operator::Loop { .. } => {
+                        self.newline();
+                        self.nesting += 1;
+                    }
+
+                    // `else` is special in that it's printed at the previous
+                    // indentation, but it doesn't actually change our nesting
+                    // level.
+                    Operator::Else => {
+                        self.nesting -= 1;
+                        self.newline();
+                        self.nesting += 1;
+                    }
+
+                    // Exiting a block prints `end` at the previous indentation
+                    // level.
+                    Operator::End => {
+                        self.nesting -= 1;
+                        self.newline();
+                    }
+
+                    // .. otherwise everything else just has a normal newline
+                    // out in front.
+                    _ => self.newline(),
                 }
-                self.newline();
                 self.print_operator(&operator, nesting_start)?;
             }
             self.end_group();
@@ -627,11 +654,8 @@ impl Printer {
 
     fn print_operator(&mut self, op: &Operator<'_>, nesting_start: u32) -> Result<()> {
         use Operator::*;
-        let cur_label = self.nesting - nesting_start + 1;
-        let label = |relative: u32| match cur_label
-            .checked_sub(relative)
-            .and_then(|i| i.checked_sub(1))
-        {
+        let cur_label = self.nesting - nesting_start;
+        let label = |relative: u32| match cur_label.checked_sub(relative) {
             Some(i) => format!("@{}", i),
             None => format!(" INVALID "),
         };
@@ -642,27 +666,19 @@ impl Printer {
                 self.result.push_str("block");
                 self.print_blockty(ty)?;
                 write!(self.result, "  ;; label = @{}", cur_label)?;
-                self.nesting += 1;
             }
             Loop { ty } => {
                 self.result.push_str("loop");
                 self.print_blockty(ty)?;
                 write!(self.result, "  ;; label = @{}", cur_label)?;
-                self.nesting += 1;
             }
             If { ty } => {
                 self.result.push_str("if");
                 self.print_blockty(ty)?;
                 write!(self.result, "  ;; label = @{}", cur_label)?;
-                self.nesting += 1;
             }
-            Else => {
-                self.result.push_str("else");
-                self.nesting += 1;
-            }
-            End => {
-                self.result.push_str("end");
-            }
+            Else => self.result.push_str("else"),
+            End => self.result.push_str("end"),
             Br { relative_depth } => {
                 write!(
                     self.result,
