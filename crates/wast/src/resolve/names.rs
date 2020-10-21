@@ -2077,6 +2077,8 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             | V128Load16Splat(m)
             | V128Load32Splat(m)
             | V128Load64Splat(m)
+            | V128Load32Zero(m)
+            | V128Load64Zero(m)
             | V128Store(m)
             | MemoryAtomicNotify(m)
             | MemoryAtomicWait32(m)

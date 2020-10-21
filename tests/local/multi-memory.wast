@@ -187,6 +187,8 @@
     i32.const 0 v128.load16_splat $b drop
     i32.const 0 v128.load32_splat $b drop
     i32.const 0 v128.load64_splat $b drop
+    i32.const 0 v128.load32_zero $b drop
+    i32.const 0 v128.load64_zero $b drop
     i32.const 0 i32.const 0 i8x16.splat v128.store $b
   )
 )
