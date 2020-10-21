@@ -28,4 +28,4 @@ structopt = { version = "0.3.16", optional = true }
 criterion = "0.3.3"
 libfuzzer-sys = "0.3.4"
 rand = { version = "0.7.3", features = ["small_rng"] }
-wasmparser = { version = "0.64.0", path = "../wasmparser" }
+wasmparser = { path = "../wasmparser" }
