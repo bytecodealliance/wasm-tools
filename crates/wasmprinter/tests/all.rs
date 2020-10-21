@@ -9,6 +9,16 @@ fn no_panic() {
     )
     .unwrap();
     wasmprinter::print_bytes(&bytes).unwrap();
+
+    let bytes = wat::parse_str(
+        r#"
+            (module
+                (func end)
+            )
+        "#,
+    )
+    .unwrap();
+    wasmprinter::print_bytes(&bytes).unwrap();
 }
 
 #[test]

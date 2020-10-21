@@ -627,7 +627,7 @@ impl Printer {
 
                     // Exiting a block prints `end` at the previous indentation
                     // level.
-                    Operator::End => {
+                    Operator::End if self.nesting > nesting_start => {
                         self.nesting -= 1;
                         self.newline();
                     }
