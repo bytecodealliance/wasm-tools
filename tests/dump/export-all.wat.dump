@@ -1,0 +1,18 @@
+0x0000 | 00 61 73 6d | version 1
+       | 01 00 00 00
+0x0008 | 01 0b       | type section
+0x000a | 02          | 2 count
+0x000b | 60 00 00    | [type 0] Func(FuncType { params: [], returns: [] })
+0x000e | 62 01 02 66 | [type 1] Instance(InstanceType { exports: [ExportType { name: "f1", ty: Function(0) }] })
+       | 31 00 00   
+0x0015 | 02 07       | import section
+0x0017 | 01          | 1 count
+0x0018 | 01 69 01 c0 | import [instance 0] Import { module: "i", field: None, ty: Instance(1) }
+       | 06 01      
+0x001e | 66 05       | alias section
+0x0020 | 01          | 1 count
+0x0021 | 00 00 00 00 | [alias] Alias { instance: Child(0), kind: Function, index: 0 }
+0x0025 | 07 06       | export section
+0x0027 | 01          | 1 count
+0x0028 | 02 66 31 00 | export Export { field: "f1", kind: Function, index: 0 }
+       | 00         

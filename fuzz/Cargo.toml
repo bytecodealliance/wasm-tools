@@ -1,0 +1,73 @@
+[package]
+name = "wasm-tools-libfuzzer"
+version = "0.0.1"
+publish = false
+edition = "2018"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+env_logger = "0.7"
+libfuzzer-sys = "0.3.2"
+log = "0.4"
+tempfile = "3.0"
+wasm-smith = { path = "../crates/wasm-smith" }
+wasmparser = { path = "../crates/wasmparser" }
+wasmprinter = { path = "../crates/wasmprinter" }
+wast = { path = "../crates/wast" }
+wat = { path = "../crates/wat" }
+
+[[bin]]
+name = "text-lexer"
+path = "fuzz_targets/text-lexer.rs"
+test = false
+
+[[bin]]
+name = "text-parser"
+path = "fuzz_targets/text-parser.rs"
+test = false
+
+[[bin]]
+name = "validate"
+path = "fuzz_targets/validate.rs"
+test = false
+
+[[bin]]
+name = "print"
+path = "fuzz_targets/print.rs"
+test = false
+
+[[bin]]
+name = "roundtrip"
+path = "fuzz_targets/roundtrip.rs"
+test = false
+
+[[bin]]
+name = "incremental-parse"
+path = "fuzz_targets/incremental-parse.rs"
+test = false
+
+[[bin]]
+name = "validate-valid-module"
+path = "fuzz_targets/validate-valid-module.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "validate-ensure-termination"
+path = "fuzz_targets/validate-ensure-termination.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "print-valid-module"
+path = "fuzz_targets/print-valid-module.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "roundtrip-valid-module"
+path = "fuzz_targets/roundtrip-valid-module.rs"
+test = false
+doc = false

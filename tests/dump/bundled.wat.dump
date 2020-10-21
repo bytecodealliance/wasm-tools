@@ -1,0 +1,152 @@
+0x0000 | 00 61 73 6d | version 1
+       | 01 00 00 00
+0x0008 | 01 54       | type section
+0x000a | 05          | 5 count
+0x000b | 60 03 7f 7f | [type 0] Func(FuncType { params: [I32, I32, I32], returns: [I32] })
+       | 7f 01 7f   
+0x0012 | 62 02 04 72 | [type 1] Instance(InstanceType { exports: [ExportType { name: "read", ty: Function(0) }, ExportType { name: "write", ty: Function(0) }] })
+       | 65 61 64 00
+       | 00 05 77 72
+       | 69 74 65 00
+       | 00         
+0x0023 | 60 00 00    | [type 2] Func(FuncType { params: [], returns: [] })
+0x0026 | 61 01 09 77 | [type 3] Module(ModuleType { imports: [Import { module: "wasi_file", field: None, ty: Instance(1) }], exports: [ExportType { name: "play", ty: Function(2) }] })
+       | 61 73 69 5f
+       | 66 69 6c 65
+       | 01 c0 06 01
+       | 01 04 70 6c
+       | 61 79 00 02
+0x003e | 61 01 09 77 | [type 4] Module(ModuleType { imports: [Import { module: "wasi_file", field: None, ty: Instance(1) }], exports: [ExportType { name: "read", ty: Function(0) }, ExportType { name: "write", ty: Function(0) }] })
+       | 61 73 69 5f
+       | 66 69 6c 65
+       | 01 c0 06 01
+       | 02 04 72 65
+       | 61 64 00 00
+       | 05 77 72 69
+       | 74 65 00 00
+0x005e | 02 0f       | import section
+0x0060 | 01          | 1 count
+0x0061 | 09 77 61 73 | import [instance 0] Import { module: "wasi_file", field: None, ty: Instance(1) }
+       | 69 5f 66 69
+       | 6c 65 01 c0
+       | 06 01      
+0x006f | 64 03       | module section
+0x0071 | 02          | 2 count
+0x0072 | 03          | [module 0] type 3
+0x0073 | 04          | [module 1] type 4
+0x0074 | 65 0b       | instance section
+0x0076 | 02          | 2 count
+0x0077 | 00 01       | [instance 1] module:1
+0x0079 | 01          | 1 count
+0x007a | 06 00       | [instantiate arg] Instance 0
+0x007c | 00 00       | [instance 2] module:0
+0x007e | 01          | 1 count
+0x007f | 06 01       | [instantiate arg] Instance 1
+0x0081 | 66 05       | alias section
+0x0083 | 01          | 1 count
+0x0084 | 00 02 00 00 | [alias] Alias { instance: Child(2), kind: Function, index: 0 }
+0x0088 | 03 02       | func section
+0x008a | 01          | 1 count
+0x008b | 02          | [func 1] type 2
+0x008c | 07 08       | export section
+0x008e | 01          | 1 count
+0x008f | 04 77 6f 72 | export Export { field: "work", kind: Function, index: 1 }
+       | 6b 00 01   
+0x0096 | 67 b5 01    | module code section
+0x0099 | 02          | 2 count
+0x009a | 51          | inline module size
+  0x009b | 00 61 73 6d | version 1
+         | 01 00 00 00
+  0x00a3 | 66 04       | alias section
+  0x00a5 | 01          | 1 count
+  0x00a6 | 01 07 01    | [alias] Alias { instance: Parent, kind: Type, index: 1 }
+  0x00a9 | 01 04       | type section
+  0x00ab | 01          | 1 count
+  0x00ac | 60 00 00    | [type 1] Func(FuncType { params: [], returns: [] })
+  0x00af | 02 0f       | import section
+  0x00b1 | 01          | 1 count
+  0x00b2 | 09 77 61 73 | import [instance 0] Import { module: "wasi_file", field: None, ty: Instance(0) }
+         | 69 5f 66 69
+         | 6c 65 01 c0
+         | 06 00      
+  0x00c0 | 03 02       | func section
+  0x00c2 | 01          | 1 count
+  0x00c3 | 01          | [func 0] type 1
+  0x00c4 | 07 08       | export section
+  0x00c6 | 01          | 1 count
+  0x00c7 | 04 70 6c 61 | export Export { field: "play", kind: Function, index: 0 }
+         | 79 00 00   
+  0x00ce | 0a 04       | code section
+  0x00d0 | 01          | 1 count
+============== func 0 ====================
+  0x00d1 | 02          | size of function
+  0x00d2 | 00          | 0 local blocks
+  0x00d3 | 0b          | End
+  0x00d4 | 00 16 04 6e | custom section: "name"
+         | 61 6d 65   
+  0x00db | 00 06       | module name
+  0x00dd | 05 43 48 49 | "CHILD"
+         | 4c 44      
+  0x00e3 | 01 07       | function names
+  0x00e5 | 01          | 1 count
+  0x00e6 | 00 04 70 6c | Naming { index: 0, name: "play" }
+         | 61 79      
+0x00ec | 61          | inline module size
+  0x00ed | 00 61 73 6d | version 1
+         | 01 00 00 00
+  0x00f5 | 66 04       | alias section
+  0x00f7 | 01          | 1 count
+  0x00f8 | 01 07 01    | [alias] Alias { instance: Parent, kind: Type, index: 1 }
+  0x00fb | 01 08       | type section
+  0x00fd | 01          | 1 count
+  0x00fe | 60 03 7f 7f | [type 1] Func(FuncType { params: [I32, I32, I32], returns: [I32] })
+         | 7f 01 7f   
+  0x0105 | 02 0f       | import section
+  0x0107 | 01          | 1 count
+  0x0108 | 09 77 61 73 | import [instance 0] Import { module: "wasi_file", field: None, ty: Instance(0) }
+         | 69 5f 66 69
+         | 6c 65 01 c0
+         | 06 00      
+  0x0116 | 03 03       | func section
+  0x0118 | 02          | 2 count
+  0x0119 | 01          | [func 0] type 1
+  0x011a | 01          | [func 1] type 1
+  0x011b | 07 10       | export section
+  0x011d | 02          | 2 count
+  0x011e | 04 72 65 61 | export Export { field: "read", kind: Function, index: 0 }
+         | 64 00 00   
+  0x0125 | 05 77 72 69 | export Export { field: "write", kind: Function, index: 1 }
+         | 74 65 00 01
+  0x012d | 0a 0b       | code section
+  0x012f | 02          | 2 count
+============== func 0 ====================
+  0x0130 | 04          | size of function
+  0x0131 | 00          | 0 local blocks
+  0x0132 | 41 00       | I32Const { value: 0 }
+  0x0134 | 0b          | End
+============== func 1 ====================
+  0x0135 | 04          | size of function
+  0x0136 | 00          | 0 local blocks
+  0x0137 | 41 00       | I32Const { value: 0 }
+  0x0139 | 0b          | End
+  0x013a | 00 12 04 6e | custom section: "name"
+         | 61 6d 65   
+  0x0141 | 00 0b       | module name
+  0x0143 | 0a 56 49 52 | "VIRTUALIZE"
+         | 54 55 41 4c
+         | 49 5a 45   
+0x014e | 0a 06       | code section
+0x0150 | 01          | 1 count
+============== func 1 ====================
+0x0151 | 04          | size of function
+0x0152 | 00          | 0 local blocks
+0x0153 | 10 00       | Call { function_index: 0 }
+0x0155 | 0b          | End
+0x0156 | 00 15 04 6e | custom section: "name"
+       | 61 6d 65   
+0x015d | 01 0e       | function names
+0x015f | 01          | 1 count
+0x0160 | 00 0b 63 68 | Naming { index: 0, name: "child.$play" }
+       | 69 6c 64 2e
+       | 24 70 6c 61
+       | 79         

@@ -1,0 +1,10 @@
+0x0000 | 00 61 73 6d | version 1
+       | 01 00 00 00
+0x0008 | 01 10       | type section
+0x000a | 04          | 4 count
+0x000b | 60 00 00    | [type 0] Func(FuncType { params: [], returns: [] })
+0x000e | 62 01 00 00 | [type 1] Instance(InstanceType { exports: [ExportType { name: "", ty: Function(0) }] })
+       | 00         
+0x0013 | 62 00       | [type 2] Instance(InstanceType { exports: [] })
+0x0015 | 62 01 00 06 | [type 3] Instance(InstanceType { exports: [ExportType { name: "", ty: Instance(2) }] })
+       | 02         
