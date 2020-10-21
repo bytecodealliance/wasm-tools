@@ -1,0 +1,31 @@
+[package]
+authors = ["Nick Fitzgerald <fitzgen@gmail.com>"]
+categories = ["command-line-utilities", "development-tools", "development-tools::testing", "wasm"]
+description = "A WebAssembly test case generator"
+documentation = "https://docs.rs/wasm-smith"
+edition = "2018"
+license = "MPL-2.0"
+name = "wasm-smith"
+readme = "./README.md"
+repository = "https://github.com/bytecodealliance/wasm-tools"
+version = "0.1.9"
+
+[[bin]]
+name = "wasm-smith"
+path = "src/bin/wasm-smith.rs"
+required-features = ["structopt"]
+
+[[bench]]
+name = "corpus"
+harness = false
+
+[dependencies]
+arbitrary = { version = "0.4.6", features = ["derive"] }
+leb128 = "0.2.4"
+structopt = { version = "0.3.16", optional = true }
+
+[dev-dependencies]
+criterion = "0.3.3"
+libfuzzer-sys = "0.3.4"
+rand = { version = "0.7.3", features = ["small_rng"] }
+wasmparser = { path = "../wasmparser" }

@@ -12,7 +12,7 @@ env_logger = "0.7"
 libfuzzer-sys = "0.3.2"
 log = "0.4"
 tempfile = "3.0"
-wasm-smith = "0.1.9"
+wasm-smith = { path = "../crates/wasm-smith" }
 wasmparser = { path = "../crates/wasmparser" }
 wasmprinter = { path = "../crates/wasmprinter" }
 wast = { path = "../crates/wast" }
@@ -51,6 +51,12 @@ test = false
 [[bin]]
 name = "validate-valid-module"
 path = "fuzz_targets/validate-valid-module.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "validate-ensure-termination"
+path = "fuzz_targets/validate-ensure-termination.rs"
 test = false
 doc = false
 
