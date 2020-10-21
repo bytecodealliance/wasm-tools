@@ -20,6 +20,7 @@ look at the sub-crates:
 * [**`wast`**](crates/wast) - like `wat`, except provides an AST
 * [**`wasmprinter`**](crates/wasmprinter) - prints WebAssembly binaries in their
   string form
+* [**`wasm-smith`**](crates/wasm-smith) - a WebAssembly test case generator
 
 # License
 
