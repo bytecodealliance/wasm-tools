@@ -16,6 +16,11 @@ use arbitrary::{Arbitrary, Result, Unstructured};
 /// need to override the methods for things you want to change away from the
 /// default.
 pub trait Config: Arbitrary + Default {
+    /// The maximum number of types to generate. Defaults to 100.
+    fn max_types(&self) -> usize {
+        100
+    }
+
     /// The maximum number of imports to generate. Defaults to 100.
     fn max_imports(&self) -> usize {
         100
@@ -69,6 +74,14 @@ pub trait Config: Arbitrary + Default {
         1
     }
 
+    /// The maximum number of tables to use. Defaults to 1.
+    ///
+    /// Note that more than one table is in the realm of the reference types
+    /// proposal.
+    fn max_tables(&self) -> u32 {
+        1
+    }
+
     /// Control the probability of generating memory offsets that are in bounds
     /// vs. potentially out of bounds.
     ///
@@ -113,6 +126,12 @@ pub trait Config: Arbitrary + Default {
     fn bulk_memory_enabled(&self) -> bool {
         false
     }
+
+    /// Determines whether the reference types proposal is enabled for
+    /// generating insructions. Defaults to `false`.
+    fn reference_types_enabled(&self) -> bool {
+        false
+    }
 }
 
 /// The default configuration.
@@ -129,6 +148,7 @@ impl Config for DefaultConfig {}
 /// [swarm testing]: https://www.cs.utah.edu/~regehr/papers/swarm12.pdf
 #[derive(Clone, Debug, Default)]
 pub struct SwarmConfig {
+    max_types: usize,
     max_imports: usize,
     max_funcs: usize,
     max_globals: usize,
@@ -139,13 +159,20 @@ pub struct SwarmConfig {
     max_instructions: usize,
     max_memories: u32,
     min_uleb_size: u8,
+    max_tables: u32,
     bulk_memory_enabled: bool,
+    reference_types_enabled: bool,
 }
 
 impl Arbitrary for SwarmConfig {
     fn arbitrary(u: &mut Unstructured<'_>) -> Result<Self> {
         const MAX_MAXIMUM: usize = 1000;
+
+        let reference_types_enabled: bool = u.arbitrary()?;
+        let max_tables = if reference_types_enabled { 100 } else { 1 };
+
         Ok(SwarmConfig {
+            max_types: u.int_in_range(0..=MAX_MAXIMUM)?,
             max_imports: u.int_in_range(0..=MAX_MAXIMUM)?,
             max_funcs: u.int_in_range(0..=MAX_MAXIMUM)?,
             max_globals: u.int_in_range(0..=MAX_MAXIMUM)?,
@@ -155,13 +182,19 @@ impl Arbitrary for SwarmConfig {
             max_data_segments: u.int_in_range(0..=MAX_MAXIMUM)?,
             max_instructions: u.int_in_range(0..=MAX_MAXIMUM)?,
             max_memories: u.int_in_range(0..=100)?,
+            max_tables,
             min_uleb_size: u.int_in_range(0..=5)?,
             bulk_memory_enabled: u.arbitrary()?,
+            reference_types_enabled,
         })
     }
 }
 
 impl Config for SwarmConfig {
+    fn max_types(&self) -> usize {
+        self.max_types
+    }
+
     fn max_imports(&self) -> usize {
         self.max_imports
     }
@@ -198,11 +231,19 @@ impl Config for SwarmConfig {
         self.max_memories
     }
 
+    fn max_tables(&self) -> u32 {
+        self.max_tables
+    }
+
     fn min_uleb_size(&self) -> u8 {
         self.min_uleb_size
     }
 
     fn bulk_memory_enabled(&self) -> bool {
         self.bulk_memory_enabled
+    }
+
+    fn reference_types_enabled(&self) -> bool {
+        self.reference_types_enabled
     }
 }

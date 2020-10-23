@@ -114,6 +114,8 @@ where
             ValType::I64 => 0x7E,
             ValType::F32 => 0x7D,
             ValType::F64 => 0x7C,
+            ValType::FuncRef => 0x70,
+            ValType::ExternRef => 0x6F,
         });
     }
 
@@ -148,7 +150,7 @@ where
     }
 
     fn encode_table_type(&self, bytes: &mut Vec<u8>, ty: &TableType) {
-        bytes.push(0x70); // `funcref`
+        self.encode_val_type(bytes, ty.elem_ty);
         self.encode_limits(bytes, &ty.limits);
     }
 
@@ -215,15 +217,20 @@ where
                 bytes.push(0x10);
                 self.encode_u32(bytes, *f);
             }
-            Instruction::CallIndirect(ty) => {
+            Instruction::CallIndirect { ty, table } => {
                 bytes.push(0x11);
                 self.encode_u32(bytes, *ty);
-                bytes.push(0x00);
+                self.encode_u32(bytes, *table);
             }
 
             // Parametric instructions.
             Instruction::Drop => bytes.push(0x1A),
             Instruction::Select => bytes.push(0x1B),
+            Instruction::TypedSelect(ty) => {
+                bytes.push(0x1c);
+                self.encode_u32(bytes, 1);
+                self.encode_val_type(bytes, *ty);
+            }
 
             // Variable instructions.
             Instruction::LocalGet(l) => {
@@ -245,6 +252,14 @@ where
             Instruction::GlobalSet(g) => {
                 bytes.push(0x24);
                 self.encode_u32(bytes, *g);
+            }
+            Instruction::TableGet { table } => {
+                bytes.push(0x25);
+                self.encode_u32(bytes, *table);
+            }
+            Instruction::TableSet { table } => {
+                bytes.push(0x26);
+                self.encode_u32(bytes, *table);
             }
 
             // Memory instructions.
@@ -518,6 +533,17 @@ where
             Instruction::I64Extend8S => bytes.push(0xC2),
             Instruction::I64Extend16S => bytes.push(0xC3),
             Instruction::I64Extend32S => bytes.push(0xC4),
+
+            Instruction::RefNull(ty) => {
+                bytes.push(0xd0);
+                self.encode_val_type(bytes, *ty);
+            }
+            Instruction::RefIsNull => bytes.push(0xd1),
+            Instruction::RefFunc(f) => {
+                bytes.push(0xd2);
+                self.encode_u32(bytes, *f);
+            }
+
             Instruction::I32TruncSatF32S => {
                 bytes.push(0xFC);
                 self.encode_u32(bytes, 0);
@@ -549,6 +575,39 @@ where
             Instruction::I64TruncSatF64U => {
                 bytes.push(0xFC);
                 self.encode_u32(bytes, 7);
+            }
+
+            Instruction::TableInit { segment, table } => {
+                bytes.push(0xfc);
+                self.encode_u32(bytes, 0x0c);
+                self.encode_u32(bytes, *segment);
+                self.encode_u32(bytes, *table);
+            }
+            Instruction::ElemDrop { segment } => {
+                bytes.push(0xfc);
+                self.encode_u32(bytes, 0x0d);
+                self.encode_u32(bytes, *segment);
+            }
+            Instruction::TableCopy { src, dst } => {
+                bytes.push(0xfc);
+                self.encode_u32(bytes, 0x0e);
+                self.encode_u32(bytes, *dst);
+                self.encode_u32(bytes, *src);
+            }
+            Instruction::TableGrow { table } => {
+                bytes.push(0xfc);
+                self.encode_u32(bytes, 0x0f);
+                self.encode_u32(bytes, *table);
+            }
+            Instruction::TableSize { table } => {
+                bytes.push(0xfc);
+                self.encode_u32(bytes, 0x10);
+                self.encode_u32(bytes, *table);
+            }
+            Instruction::TableFill { table } => {
+                bytes.push(0xfc);
+                self.encode_u32(bytes, 0x11);
+                self.encode_u32(bytes, *table);
             }
         }
     }
@@ -608,13 +667,14 @@ where
     }
 
     fn encode_tables(&self, bytes: &mut Vec<u8>) {
-        if let Some(t) = self.table.as_ref() {
-            self.section(bytes, 4, |bytes| {
-                self.encode_vec(bytes, Some(t), |bytes, t| {
-                    self.encode_table_type(bytes, t);
-                });
-            });
+        if self.tables.is_empty() {
+            return;
         }
+        self.section(bytes, 4, |bytes| {
+            self.encode_vec(bytes, &self.tables, |bytes, t| {
+                self.encode_table_type(bytes, t);
+            });
+        });
     }
 
     fn encode_memories(&self, bytes: &mut Vec<u8>) {
@@ -684,12 +744,71 @@ where
         }
         self.section(bytes, 9, |bytes| {
             self.encode_vec(bytes, &self.elems, |bytes, el| {
-                bytes.push(0x00); // Table index.
-                self.encode_instruction(bytes, &el.offset);
-                self.encode_instruction(bytes, &Instruction::End);
-                self.encode_vec(bytes, &el.init, |bytes, f| {
-                    self.encode_u32(bytes, *f);
-                });
+                let expr_bit = match el.items {
+                    Elements::Expressions(_) => 0b100,
+                    Elements::Functions(_) => 0b000,
+                };
+                match &el.kind {
+                    ElementKind::Active {
+                        table: None,
+                        offset,
+                    } => {
+                        self.encode_u32(bytes, 0x00 | expr_bit);
+                        self.encode_instruction(bytes, offset);
+                        self.encode_instruction(bytes, &Instruction::End);
+                    }
+                    ElementKind::Passive => {
+                        self.encode_u32(bytes, 0x01 | expr_bit);
+                        if expr_bit == 0 {
+                            bytes.push(0x00); // elemkind == funcref
+                        } else {
+                            self.encode_val_type(bytes, el.ty);
+                        }
+                    }
+                    ElementKind::Active {
+                        table: Some(i),
+                        offset,
+                    } => {
+                        self.encode_u32(bytes, 0x02 | expr_bit);
+                        self.encode_u32(bytes, *i);
+                        self.encode_instruction(bytes, offset);
+                        self.encode_instruction(bytes, &Instruction::End);
+                        if expr_bit == 0 {
+                            bytes.push(0x00); // elemkind == funcref
+                        } else {
+                            self.encode_val_type(bytes, el.ty);
+                        }
+                    }
+                    ElementKind::Declared => {
+                        self.encode_u32(bytes, 0x03 | expr_bit);
+                        if expr_bit == 0 {
+                            bytes.push(0x00); // elemkind == funcref
+                        } else {
+                            self.encode_val_type(bytes, el.ty);
+                        }
+                    }
+                }
+                match &el.items {
+                    Elements::Functions(f) => {
+                        self.encode_vec(bytes, f, |bytes, f| {
+                            self.encode_u32(bytes, *f);
+                        });
+                    }
+                    Elements::Expressions(e) => {
+                        self.encode_u32(bytes, e.len() as u32);
+                        for expr in e {
+                            match expr {
+                                Some(i) => {
+                                    self.encode_instruction(bytes, &Instruction::RefFunc(*i));
+                                }
+                                None => {
+                                    self.encode_instruction(bytes, &Instruction::RefNull(el.ty));
+                                }
+                            }
+                            self.encode_instruction(bytes, &Instruction::End);
+                        }
+                    }
+                }
             });
         });
     }
