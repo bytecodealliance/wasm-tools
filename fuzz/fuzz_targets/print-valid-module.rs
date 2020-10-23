@@ -1,11 +1,11 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use wasm_smith::Module;
+use wasm_smith::{ConfiguredModule, SwarmConfig};
 
 // Define a fuzz target that accepts arbitrary
 // `Module`s as input.
-fuzz_target!(|m: Module| {
+fuzz_target!(|m: ConfiguredModule<SwarmConfig>| {
     // Convert the module into Wasm bytes.
     let bytes = m.to_bytes();
 

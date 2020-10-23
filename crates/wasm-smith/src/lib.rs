@@ -93,10 +93,11 @@ where
     C: Config,
 {
     config: C,
+    valtypes: Vec<ValType>,
     types: Vec<FuncType>,
     imports: Vec<(String, String, Import)>,
     funcs: Vec<u32>,
-    table: Option<TableType>,
+    tables: Vec<TableType>,
     memories: Vec<MemoryType>,
     globals: Vec<Global>,
     exports: Vec<(String, Export)>,
@@ -151,21 +152,14 @@ struct FuncType {
     results: Vec<ValType>,
 }
 
-impl Arbitrary for FuncType {
-    fn arbitrary(u: &mut Unstructured<'_>) -> Result<Self> {
-        Ok(FuncType {
-            params: limited_vec(20, u)?,
-            results: limited_vec(20, u)?,
-        })
-    }
-}
-
-#[derive(Arbitrary, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 enum ValType {
     I32,
     I64,
     F32,
     F64,
+    FuncRef,
+    ExternRef,
 }
 
 #[derive(Clone, Debug)]
@@ -179,13 +173,7 @@ enum Import {
 #[derive(Clone, Debug)]
 struct TableType {
     limits: Limits,
-}
-
-impl Arbitrary for TableType {
-    fn arbitrary(u: &mut Unstructured<'_>) -> Result<Self> {
-        let limits = Limits::limited(u, 1_000_000)?;
-        Ok(TableType { limits })
-    }
+    elem_ty: ValType,
 }
 
 #[derive(Clone, Debug)]
@@ -228,7 +216,7 @@ struct Global {
     expr: Instruction,
 }
 
-#[derive(Arbitrary, Clone, Debug)]
+#[derive(Clone, Debug)]
 struct GlobalType {
     val_type: ValType,
     mutable: bool,
@@ -244,9 +232,25 @@ enum Export {
 
 #[derive(Debug)]
 struct ElementSegment {
-    // table_index: 0,
-    offset: Instruction,
-    init: Vec<u32>,
+    kind: ElementKind,
+    ty: ValType,
+    items: Elements,
+}
+
+#[derive(Debug)]
+enum ElementKind {
+    Passive,
+    Declared,
+    Active {
+        table: Option<u32>, // None == table 0 implicitly
+        offset: Instruction,
+    },
+}
+
+#[derive(Debug)]
+enum Elements {
+    Functions(Vec<u32>),
+    Expressions(Vec<Option<u32>>),
 }
 
 #[derive(Debug)]
@@ -307,7 +311,7 @@ enum Instruction {
     BrTable(Vec<u32>, u32),
     Return,
     Call(u32),
-    CallIndirect(u32),
+    CallIndirect { ty: u32, table: u32 },
 
     // Parametric instructions.
     Drop,
@@ -492,6 +496,18 @@ enum Instruction {
     I64TruncSatF32U,
     I64TruncSatF64S,
     I64TruncSatF64U,
+    TypedSelect(ValType),
+    RefNull(ValType),
+    RefIsNull,
+    RefFunc(u32),
+    TableInit { segment: u32, table: u32 },
+    ElemDrop { segment: u32 },
+    TableFill { table: u32 },
+    TableSet { table: u32 },
+    TableGet { table: u32 },
+    TableGrow { table: u32 },
+    TableSize { table: u32 },
+    TableCopy { src: u32, dst: u32 },
 }
 
 #[derive(Debug)]
@@ -515,12 +531,18 @@ where
 {
     fn build(&mut self, u: &mut Unstructured, allow_invalid: bool) -> Result<()> {
         self.config = C::arbitrary(u)?;
-        self.types = u.arbitrary()?;
+        self.valtypes.push(ValType::I32);
+        self.valtypes.push(ValType::I64);
+        self.valtypes.push(ValType::F32);
+        self.valtypes.push(ValType::F64);
+        if self.config.reference_types_enabled() {
+            self.valtypes.push(ValType::ExternRef);
+            self.valtypes.push(ValType::FuncRef);
+        }
+        self.arbitrary_types(u)?;
         self.arbitrary_imports(u)?;
         self.arbitrary_funcs(u)?;
-        if self.table_imports() == 0 {
-            self.table = u.arbitrary()?;
-        }
+        self.arbitrary_tables(u)?;
         self.arbitrary_memories(u)?;
         self.arbitrary_globals(u)?;
         self.arbitrary_exports(u)?;
@@ -529,6 +551,23 @@ where
         self.arbitrary_data(u)?;
         self.arbitrary_code(u, allow_invalid)?;
         Ok(())
+    }
+
+    fn arbitrary_types(&mut self, u: &mut Unstructured) -> Result<()> {
+        arbitrary_loop(u, self.config.max_types(), |u| {
+            let mut params = vec![];
+            let mut results = vec![];
+            arbitrary_loop(u, 20, |u| {
+                params.push(self.arbitrary_valtype(u)?);
+                Ok(())
+            })?;
+            arbitrary_loop(u, 20, |u| {
+                results.push(self.arbitrary_valtype(u)?);
+                Ok(())
+            })?;
+            self.types.push(FuncType { params, results });
+            Ok(())
+        })
     }
 
     fn arbitrary_imports(&mut self, u: &mut Unstructured) -> Result<()> {
@@ -541,7 +580,7 @@ where
                 Ok(Import::Func(u.int_in_range(0..=max)?))
             });
         }
-        choices.push(|u, _| Ok(Import::Global(u.arbitrary()?)));
+        choices.push(|u, m| Ok(Import::Global(m.arbitrary_global_type(u)?)));
 
         let num_stable_choices = choices.len();
 
@@ -550,8 +589,8 @@ where
             if self.memory_imports() < self.config.max_memories() {
                 choices.push(|u, _| Ok(Import::Memory(u.arbitrary()?)));
             }
-            if self.table_imports() == 0 {
-                choices.push(|u, _| Ok(Import::Table(u.arbitrary()?)));
+            if self.table_imports() < self.config.max_tables() {
+                choices.push(|u, m| Ok(Import::Table(m.arbitrary_table_type(u)?)));
             }
 
             let module = limited_string(1_000, u)?;
@@ -628,6 +667,28 @@ where
             .count() as u32
     }
 
+    fn arbitrary_valtype(&self, u: &mut Unstructured) -> Result<ValType> {
+        Ok(*u.choose(&self.valtypes)?)
+    }
+
+    fn arbitrary_global_type(&self, u: &mut Unstructured) -> Result<GlobalType> {
+        Ok(GlobalType {
+            val_type: self.arbitrary_valtype(u)?,
+            mutable: u.arbitrary()?,
+        })
+    }
+
+    fn arbitrary_table_type(&self, u: &mut Unstructured) -> Result<TableType> {
+        Ok(TableType {
+            elem_ty: if self.config.reference_types_enabled() {
+                ValType::FuncRef
+            } else {
+                *u.choose(&[ValType::FuncRef, ValType::ExternRef])?
+            },
+            limits: Limits::limited(u, 1_000_000)?,
+        })
+    }
+
     fn arbitrary_funcs(&mut self, u: &mut Unstructured) -> Result<()> {
         if self.types.is_empty() {
             return Ok(());
@@ -637,6 +698,15 @@ where
             let max = self.types.len() as u32 - 1;
             let ty = u.int_in_range(0..=max)?;
             self.funcs.push(ty);
+            Ok(())
+        })
+    }
+
+    fn arbitrary_tables(&mut self, u: &mut Unstructured) -> Result<()> {
+        let max_tables = self.config.max_tables() - self.table_imports();
+        arbitrary_loop(u, max_tables as usize, |u| {
+            let ty = self.arbitrary_table_type(u)?;
+            self.tables.push(ty);
             Ok(())
         })
     }
@@ -654,15 +724,25 @@ where
             vec![];
 
         arbitrary_loop(u, self.config.max_globals(), |u| {
-            let ty = u.arbitrary::<GlobalType>()?;
+            let ty = self.arbitrary_global_type(u)?;
 
             choices.clear();
-            choices.push(Box::new(|u, ty| {
+            let num_funcs = self.funcs.len() as u32;
+            choices.push(Box::new(move |u, ty| {
                 Ok(match ty {
                     ValType::I32 => Instruction::I32Const(u.arbitrary()?),
                     ValType::I64 => Instruction::I64Const(u.arbitrary()?),
                     ValType::F32 => Instruction::F32Const(u.arbitrary()?),
                     ValType::F64 => Instruction::F64Const(u.arbitrary()?),
+                    ValType::ExternRef => Instruction::RefNull(ValType::ExternRef),
+                    ValType::FuncRef => {
+                        if num_funcs > 0 && u.arbitrary()? {
+                            let func = u.int_in_range(0..=num_funcs - 1)?;
+                            Instruction::RefFunc(func)
+                        } else {
+                            Instruction::RefNull(ValType::FuncRef)
+                        }
+                    }
                 })
             }));
 
@@ -699,11 +779,15 @@ where
             });
         }
 
-        if self.table.is_some() {
-            choices.push(|_, _| Ok(Export::Table(0)));
+        if self.table_imports() > 0 || !self.tables.is_empty() {
+            choices.push(|u, m| {
+                let max = m.table_imports() + m.tables.len() as u32 - 1;
+                let idx = u.int_in_range(0..=max)?;
+                Ok(Export::Table(idx))
+            });
         }
 
-        if !self.memories.is_empty() {
+        if self.memory_imports() > 0 || !self.memories.is_empty() {
             choices.push(|u, m| {
                 let max = m.memory_imports() + m.memories.len() as u32 - 1;
                 let idx = u.int_in_range(0..=max)?;
@@ -769,40 +853,119 @@ where
     }
 
     fn arbitrary_elems(&mut self, u: &mut Unstructured) -> Result<()> {
-        if (self.table.is_none() && self.table_imports() == 0)
-            || (self.funcs.is_empty() && self.func_imports() == 0)
-        {
-            return Ok(());
-        }
+        let func_max = self.func_imports() + self.funcs.len() as u32;
+        let table_tys = self
+            .imports
+            .iter()
+            .filter_map(|(_, _, imp)| match imp {
+                Import::Table(t) => Some(t),
+                _ => None,
+            })
+            .chain(&self.tables)
+            .map(|t| t.elem_ty)
+            .collect::<Vec<_>>();
 
-        let func_max = self.func_imports() + self.funcs.len() as u32 - 1;
-
-        arbitrary_loop(u, self.config.max_element_segments(), |u| {
-            let mut offset_global_choices = vec![];
-            let mut global_index = 0;
-            for (_, _, imp) in &self.imports {
-                if let Import::Global(g) = imp {
-                    if !g.mutable && g.val_type == ValType::I32 {
-                        offset_global_choices.push(global_index);
-                    }
-                    global_index += 1;
+        // Create a helper closure to choose an arbitrary offset.
+        let mut offset_global_choices = vec![];
+        let mut global_index = 0;
+        for (_, _, imp) in &self.imports {
+            if let Import::Global(g) = imp {
+                if !g.mutable && g.val_type == ValType::I32 {
+                    offset_global_choices.push(global_index);
                 }
+                global_index += 1;
             }
-            let offset = if !offset_global_choices.is_empty() && u.arbitrary()? {
+        }
+        let arbitrary_offset = |u: &mut Unstructured| {
+            Ok(if !offset_global_choices.is_empty() && u.arbitrary()? {
                 let g = u.choose(&offset_global_choices)?;
                 Instruction::GlobalGet(*g)
             } else {
                 Instruction::I32Const(u.arbitrary()?)
+            })
+        };
+
+        let mut choices: Vec<Box<dyn Fn(&mut Unstructured) -> Result<(ElementKind, ValType)>>> =
+            Vec::new();
+
+        if table_tys.len() > 0 {
+            // If we have at least one table, then the MVP encoding is always
+            // available so long as it's a funcref table.
+            if table_tys[0] == ValType::FuncRef {
+                choices.push(Box::new(|u| {
+                    Ok((
+                        ElementKind::Active {
+                            table: None,
+                            offset: arbitrary_offset(u)?,
+                        },
+                        table_tys[0],
+                    ))
+                }));
+            }
+
+            // If we have reference types enabled, then we can initialize any
+            // table, and we can also use the alternate encoding to initialize
+            // the 0th table.
+            if self.config.reference_types_enabled() {
+                choices.push(Box::new(|u| {
+                    let i = u.int_in_range(0..=table_tys.len() - 1)? as u32;
+                    Ok((
+                        ElementKind::Active {
+                            table: Some(i),
+                            offset: arbitrary_offset(u)?,
+                        },
+                        table_tys[i as usize],
+                    ))
+                }));
+            }
+        }
+
+        // Reference types allows us to create passive and declared element
+        // segments.
+        if self.config.reference_types_enabled() {
+            choices.push(Box::new(|_| Ok((ElementKind::Passive, ValType::FuncRef))));
+            choices.push(Box::new(|_| Ok((ElementKind::Passive, ValType::ExternRef))));
+            choices.push(Box::new(|_| Ok((ElementKind::Declared, ValType::FuncRef))));
+            choices.push(Box::new(|_| {
+                Ok((ElementKind::Declared, ValType::ExternRef))
+            }));
+        }
+
+        if choices.is_empty() {
+            return Ok(());
+        }
+
+        arbitrary_loop(u, self.config.max_element_segments(), |u| {
+            // Choose an a
+            let (kind, ty) = u.choose(&choices)?(u)?;
+            let items = if ty == ValType::ExternRef
+                || (self.config.reference_types_enabled() && u.arbitrary()?)
+            {
+                let mut init = vec![];
+                arbitrary_loop(u, self.config.max_elements(), |u| {
+                    init.push(
+                        if ty == ValType::ExternRef || func_max == 0 || u.arbitrary()? {
+                            None
+                        } else {
+                            Some(u.int_in_range(0..=func_max - 1)?)
+                        },
+                    );
+                    Ok(())
+                })?;
+                Elements::Expressions(init)
+            } else {
+                let mut init = vec![];
+                if func_max > 0 {
+                    arbitrary_loop(u, self.config.max_elements(), |u| {
+                        let func_idx = u.int_in_range(0..=func_max - 1)?;
+                        init.push(func_idx);
+                        Ok(())
+                    })?;
+                }
+                Elements::Functions(init)
             };
 
-            let mut init = vec![];
-            arbitrary_loop(u, self.config.max_elements(), |u| {
-                let func_idx = u.int_in_range(0..=func_max)?;
-                init.push(func_idx);
-                Ok(())
-            })?;
-
-            self.elems.push(ElementSegment { offset, init });
+            self.elems.push(ElementSegment { kind, ty, items });
             Ok(())
         })
     }
@@ -840,7 +1003,12 @@ where
     }
 
     fn arbitrary_locals(&self, u: &mut Unstructured) -> Result<Vec<ValType>> {
-        limited_vec(100, u)
+        let mut ret = Vec::new();
+        arbitrary_loop(u, 100, |u| {
+            ret.push(self.arbitrary_valtype(u)?);
+            Ok(())
+        })?;
+        Ok(ret)
     }
 
     fn arbitrary_data(&mut self, u: &mut Unstructured) -> Result<()> {
@@ -910,15 +1078,6 @@ pub(crate) fn arbitrary_loop(
     }
 
     Ok(())
-}
-
-fn limited_vec<T: Arbitrary>(max: usize, u: &mut Unstructured) -> Result<Vec<T>> {
-    let mut result = vec![];
-    arbitrary_loop(u, max, |u| {
-        result.push(u.arbitrary()?);
-        Ok(())
-    })?;
-    Ok(result)
 }
 
 // Mirror what happens in `Arbitrary for String`, but do so with a clamped size.

@@ -16,6 +16,7 @@ fuzz_target!(|m: ConfiguredModule<SwarmConfig>| {
         multi_value: true,
         multi_memory: true,
         bulk_memory: true,
+        reference_types: true,
         ..wasmparser::WasmFeatures::default()
     });
     if let Err(e) = validator.validate_all(&bytes) {

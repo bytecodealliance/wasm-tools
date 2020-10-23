@@ -18,6 +18,7 @@ fn smoke_test_module() {
                 multi_value: true,
                 multi_memory: true,
                 bulk_memory: true,
+                reference_types: true,
                 ..WasmFeatures::default()
             });
 
@@ -42,6 +43,7 @@ fn smoke_test_ensure_termination() {
                 multi_value: true,
                 multi_memory: true,
                 bulk_memory: true,
+                reference_types: true,
                 ..WasmFeatures::default()
             });
 
@@ -65,6 +67,7 @@ fn smoke_test_swarm_config() {
                 multi_value: true,
                 multi_memory: true,
                 bulk_memory: true,
+                reference_types: true,
                 ..WasmFeatures::default()
             });
 
