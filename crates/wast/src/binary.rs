@@ -651,6 +651,9 @@ impl Encode for Elem<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         // Try to switch element expressions to indices if we can which uses a
         // more MVP-compatible encoding.
+        //
+        // FIXME(WebAssembly/wabt#1447) ideally we wouldn't do this so we could
+        // be faithful to the original format.
         let mut to_encode = self.payload.clone();
         if let ElemPayload::Exprs {
             ty:
