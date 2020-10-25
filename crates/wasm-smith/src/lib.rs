@@ -681,9 +681,9 @@ where
     fn arbitrary_table_type(&self, u: &mut Unstructured) -> Result<TableType> {
         Ok(TableType {
             elem_ty: if self.config.reference_types_enabled() {
-                ValType::FuncRef
-            } else {
                 *u.choose(&[ValType::FuncRef, ValType::ExternRef])?
+            } else {
+                ValType::FuncRef
             },
             limits: Limits::limited(u, 1_000_000)?,
         })
