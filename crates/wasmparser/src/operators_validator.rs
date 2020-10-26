@@ -1472,6 +1472,7 @@ impl OperatorValidator {
             | Operator::I32x4MinU
             | Operator::I32x4MaxS
             | Operator::I32x4MaxU
+            | Operator::I32x4DotI16x8S
             | Operator::I64x2Add
             | Operator::I64x2Sub
             | Operator::I64x2Mul

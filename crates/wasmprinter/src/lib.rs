@@ -1310,6 +1310,7 @@ impl Printer {
             I32x4MinU => self.result.push_str("i32x4.min_u"),
             I32x4MaxS => self.result.push_str("i32x4.max_s"),
             I32x4MaxU => self.result.push_str("i32x4.max_u"),
+            I32x4DotI16x8S => self.result.push_str("i32x4.dot_i16x8_s"),
         }
         Ok(())
     }
