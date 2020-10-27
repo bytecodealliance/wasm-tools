@@ -133,7 +133,6 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         "dump/reference-types.txt",
         "interp/reference-types.txt",
         "expr/reference-types.txt",
-        // FIXME(WebAssembly/wabt#1553) wabt uses old instruction names for simd
         "parse/all-features.txt",
     ];
     if broken.iter().any(|x| test.ends_with(x)) {
@@ -146,13 +145,6 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         return true;
     }
 
-    if let Some(test) = test.to_str() {
-        // FIXME(WebAssembly/wabt#1532)
-        if test.ends_with("64.txt") {
-            return true;
-        }
-    }
-
     if let Ok(contents) = str::from_utf8(contents) {
         // Skip tests that are supposed to fail
         if contents.contains(";; ERROR") {
@@ -161,11 +153,6 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         // These tests are acually ones that run with the `*.wast` files from the
         // official test suite, and we slurp those up elsewhere anyway.
         if contents.contains("STDIN_FILE") {
-            return true;
-        }
-
-        // FIXME(WebAssembly/wabt#1553) wabt uses old instruction names for simd
-        if contents.contains("--enable-simd") {
             return true;
         }
     }
@@ -213,8 +200,6 @@ impl TestState {
         // they're invalid anyway so it's not that worrisome.
         if !test.ends_with("invalid-data-segment-offset.txt")
             && !test.ends_with("invalid-elem-segment-offset.txt")
-            // FIXME(WebAssembly/wabt#1531)
-            && !test.ends_with("blockty.wat")
         {
             if let Some(expected) = self.wat2wasm(&test)? {
                 self.binary_compare(&binary, &expected, true)
@@ -269,20 +254,17 @@ impl TestState {
             // not implemented in wabt
             && !test.iter().any(|t| t == "module-linking")
             && !test.ends_with("multi-memory.wast")
-            && !test.ends_with("memory64.wast")
 
             // wabt uses old instruction names for atomics
             && !test.ends_with("atomic-no-shared-memory.txt")
             && !test.ends_with("fold-atomic.txt")
             && !test.ends_with("atomic.txt")
+            && !test.ends_with("atomic64.txt")
             && !test.ends_with("atomic-align.txt")
             && !test.ends_with("atomic.wast")
+            && !test.ends_with("local/memory64.wast")
 
-            // FIXME(WebAssembly/wabt#1553) wabt uses old instruction names
-            && !test.iter().any(|t| t == "simd")
-
-            // FIXME wabt seems to print the `i64` in the wrong place
-            && !test.iter().any(|t| t == "memory64")
+            // FIXME uses simd instrs not implemented in wabt yet.
             && !test.ends_with("local/simd.wat")
         {
             if let Some(expected) = self.wasm2wat(contents)? {
@@ -746,10 +728,6 @@ impl TestState {
     }
 
     fn wast2json(&self, test: &Path) -> Result<Option<Wast2Json>> {
-        // Right now wabt infinite loops on this test.
-        if test.ends_with("testsuite/proposals/annotations/annotations.wast") {
-            return Ok(None);
-        }
         let td = tempfile::TempDir::new()?;
         let result = Command::new("wast2json")
             .arg(test)

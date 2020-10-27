@@ -547,8 +547,10 @@ impl Encode for MemoryType {
                     max.encode(e);
                 }
             }
-            MemoryType::B64 { limits } => {
-                let flags = (limits.max.is_some() as u8) | 0x04;
+            MemoryType::B64 { limits, shared } => {
+                let flag_max = limits.max.is_some() as u8;
+                let flag_shared = *shared as u8;
+                let flags = flag_max | (flag_shared << 1) | 0x04;
                 e.push(flags);
                 limits.min.encode(e);
                 if let Some(max) = limits.max {

@@ -215,6 +215,7 @@ pub enum MemoryType {
     },
     M64 {
         limits: ResizableLimits64,
+        shared: bool,
     },
 }
 

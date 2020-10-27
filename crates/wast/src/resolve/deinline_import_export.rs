@@ -77,6 +77,7 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                                     min: u64::from(pages),
                                     max: Some(u64::from(pages)),
                                 },
+                                shared: false,
                             }
                         });
                         let data = match mem::replace(&mut m.kind, kind) {
