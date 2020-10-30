@@ -114,6 +114,8 @@ enum FrameKind {
     Loop,
     Try,
     Catch,
+    CatchAll,
+    Unwind,
 }
 
 impl OperatorValidator {
@@ -578,10 +580,24 @@ impl OperatorValidator {
             }
             Operator::Else => {
                 let frame = self.pop_ctrl(resources)?;
-                if frame.kind != FrameKind::If {
-                    bail_op_err!("else found outside of an `if` block");
+                // The `catch_all` instruction shares an opcode with `else`,
+                // so we check the frame to see how it's interpreted.
+                match frame.kind {
+                    FrameKind::If => {
+                        self.push_ctrl(FrameKind::Else, frame.block_type, resources)?
+                    }
+                    FrameKind::Try | FrameKind::Catch => {
+                        // We assume `self.features.exceptions` is true when
+                        // these frame kinds are present.
+                        self.control.push(Frame {
+                            kind: FrameKind::CatchAll,
+                            block_type: frame.block_type,
+                            height: self.operands.len(),
+                            unreachable: false,
+                        });
+                    }
+                    _ => bail_op_err!("else found outside of an `if` block"),
                 }
-                self.push_ctrl(FrameKind::Else, frame.block_type, resources)?;
             }
             Operator::Try { ty } => {
                 self.check_exceptions_enabled()?;
@@ -591,10 +607,10 @@ impl OperatorValidator {
                 }
                 self.push_ctrl(FrameKind::Try, ty, resources)?;
             }
-            Operator::Catch => {
+            Operator::Catch { index } => {
                 self.check_exceptions_enabled()?;
                 let frame = self.pop_ctrl(resources)?;
-                if frame.kind != FrameKind::Try {
+                if frame.kind != FrameKind::Try && frame.kind != FrameKind::Catch {
                     bail_op_err!("catch found outside of an `try` block");
                 }
                 // Start a new frame and push `exnref` value.
@@ -604,7 +620,12 @@ impl OperatorValidator {
                     height: self.operands.len(),
                     unreachable: false,
                 });
-                self.push_operand(Type::ExnRef)?;
+                // Push exception argument types.
+                let event_ty = event_at(&resources, index)?;
+                let ty = func_type_at(&resources, event_ty.type_index)?;
+                for ty in ty.inputs() {
+                    self.push_operand(ty)?;
+                }
             }
             Operator::Throw { index } => {
                 self.check_exceptions_enabled()?;
@@ -619,25 +640,30 @@ impl OperatorValidator {
                 }
                 self.unreachable();
             }
-            Operator::Rethrow => {
+            Operator::Rethrow { relative_depth } => {
                 self.check_exceptions_enabled()?;
-                self.pop_operand(Some(Type::ExnRef))?;
+                // This is not a jump, but we need to check that the `rethrow`
+                // targets an actual `catch` to get the exception.
+                let (_, kind) = self.jump(relative_depth)?;
+                if kind != FrameKind::Catch && kind != FrameKind::CatchAll {
+                    bail_op_err!("rethrow target was not a `catch` block");
+                }
                 self.unreachable();
             }
-            Operator::BrOnExn {
-                relative_depth,
-                index,
-            } => {
+            Operator::Unwind => {
                 self.check_exceptions_enabled()?;
-                let (ty, kind) = self.jump(relative_depth)?;
-                self.pop_operand(Some(Type::ExnRef))?;
-                // Check the exception's argument values with target block's.
-                let event_ty = event_at(&resources, index)?;
-                let exn_args = func_type_at(&resources, event_ty.type_index)?;
-                if Iterator::ne(exn_args.inputs(), label_types(ty, resources, kind)?) {
-                    bail_op_err!("target block types do not match");
+                // Switch from `try` to an `unwind` frame, so we can check that
+                // the result type is empty.
+                let frame = self.pop_ctrl(resources)?;
+                if frame.kind != FrameKind::Try {
+                    bail_op_err!("unwind found outside of an `try` block");
                 }
-                self.push_operand(Type::ExnRef)?;
+                self.control.push(Frame {
+                    kind: FrameKind::Unwind,
+                    block_type: TypeOrFuncType::Type(Type::EmptyBlockType),
+                    height: self.operands.len(),
+                    unreachable: false,
+                });
             }
             Operator::End => {
                 let mut frame = self.pop_ctrl(resources)?;

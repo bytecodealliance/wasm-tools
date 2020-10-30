@@ -665,7 +665,7 @@ impl Printer {
                     // `else`/`catch` are special in that it's printed at
                     // the previous indentation, but it doesn't actually change
                     // our nesting level.
-                    Operator::Else | Operator::Catch => {
+                    Operator::Else | Operator::Catch { .. } | Operator::Unwind => {
                         self.nesting -= 1;
                         self.newline();
                         self.nesting += 1;
@@ -729,24 +729,21 @@ impl Printer {
                 self.print_blockty(ty)?;
                 write!(self.result, "  ;; label = @{}", cur_label)?;
             }
-            Catch => self.result.push_str("catch"),
+            Catch { index } => {
+                write!(self.result, "catch {}", index)?;
+            }
             Throw { index } => {
                 write!(self.result, "throw {}", index)?;
             }
-            Rethrow => self.result.push_str("rethrow"),
-            BrOnExn {
-                relative_depth,
-                index,
-            } => {
+            Rethrow { relative_depth } => {
                 write!(
                     self.result,
-                    "br_on_exn {} (;{};)",
+                    "rethrow {} (;{};)",
                     relative_depth,
-                    label(*relative_depth),
+                    label(*relative_depth)
                 )?;
-                write!(self.result, " {}", index)?;
             }
-
+            Unwind => self.result.push_str("unwind"),
             End => self.result.push_str("end"),
             Br { relative_depth } => {
                 write!(
