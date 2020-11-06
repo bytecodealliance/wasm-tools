@@ -9,7 +9,7 @@
 #![deny(missing_docs)]
 
 use anyhow::{bail, Context, Result};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 use std::mem;
 use std::path::Path;
@@ -55,9 +55,14 @@ struct ModuleState {
     global: u32,
     table: u32,
     types: Vec<Option<FuncType>>,
-    names: HashMap<u32, String>,
-    local_names: HashMap<u32, HashMap<u32, String>>,
-    module_name: Option<String>,
+    names: HashMap<u32, Naming>,
+    local_names: HashMap<u32, HashMap<u32, Naming>>,
+    module_name: Option<Naming>,
+}
+
+struct Naming {
+    identifier: Option<String>,
+    name: String,
 }
 
 impl Printer {
@@ -159,8 +164,8 @@ impl Printer {
 
         // ... and here we go, time to print all the sections!
         if let Some(name) = &self.state.module_name {
-            self.result.push_str(" $");
-            self.result.push_str(name);
+            self.result.push_str(" ");
+            name.write(&mut self.result);
         }
         self.result.push_str(module_ty);
         let mut parser = Parser::new(offset);
@@ -260,23 +265,30 @@ impl Printer {
     fn register_names(&mut self, names: NameSectionReader<'_>) -> Result<()> {
         for section in names {
             match section? {
-                Name::Module(n) => self.state.module_name = Some(n.get_name()?.to_string()),
+                Name::Module(n) => {
+                    let name = Naming::new(n.get_name()?, &mut HashSet::new());
+                    self.state.module_name = Some(name);
+                }
                 Name::Function(n) => {
+                    let mut names = HashSet::new();
                     let mut map = n.get_map()?;
                     for _ in 0..map.get_count() {
                         let name = map.read()?;
-                        self.state.names.insert(name.index, name.name.to_string());
+                        self.state
+                            .names
+                            .insert(name.index, Naming::new(name.name, &mut names));
                     }
                 }
                 Name::Local(n) => {
                     let mut reader = n.get_function_local_reader()?;
                     for _ in 0..reader.get_count() {
+                        let mut names = HashSet::new();
                         let local_name = reader.read()?;
                         let mut map = local_name.get_map()?;
                         let mut local_map = HashMap::new();
                         for _ in 0..map.get_count() {
                             let name = map.read()?;
-                            local_map.insert(name.index, name.name.to_string());
+                            local_map.insert(name.index, Naming::new(name.name, &mut names));
                         }
                         self.state
                             .local_names
@@ -432,9 +444,10 @@ impl Printer {
             Function(f) => {
                 self.start_group("func");
                 if index {
+                    self.result.push_str(" ");
                     match self.state.names.get(&self.state.func) {
-                        Some(name) => write!(self.result, " ${}", name)?,
-                        None => write!(self.result, " (;{};)", self.state.func)?,
+                        Some(name) => name.write(&mut self.result),
+                        None => write!(self.result, "(;{};)", self.state.func)?,
                     }
                 }
                 write!(self.result, " (type {})", f)?;
@@ -566,7 +579,7 @@ impl Printer {
             self.newline();
             self.start_group("func ");
             match self.state.names.get(&self.state.func) {
-                Some(name) => write!(self.result, "${}", name)?,
+                Some(name) => name.write(&mut self.result),
                 None => write!(self.result, "(;{};)", self.state.func)?,
             }
             write!(self.result, " (type {})", ty)?;
@@ -1407,7 +1420,7 @@ impl Printer {
     /// This will either print `$foo` or `idx` as a raw integer.
     pub fn print_func_idx(&mut self, idx: u32) -> Result<()> {
         match self.state.names.get(&idx) {
-            Some(name) => write!(self.result, "${}", name)?,
+            Some(name) => write!(self.result, "${}", name.identifier())?,
             None => write!(self.result, "{}", idx)?,
         }
         Ok(())
@@ -1415,7 +1428,7 @@ impl Printer {
 
     fn print_local_idx(&mut self, func: u32, idx: u32) -> Result<()> {
         match self.state.local_names.get(&func).and_then(|f| f.get(&idx)) {
-            Some(name) => write!(self.result, "${}", name)?,
+            Some(name) => write!(self.result, "${}", name.identifier())?,
             None => write!(self.result, "{}", idx)?,
         }
         Ok(())
@@ -1520,7 +1533,7 @@ impl Printer {
             match alias.kind {
                 ExternalKind::Function => {
                     match self.state.names.get(&self.state.func) {
-                        Some(name) => write!(self.result, " ${}", name)?,
+                        Some(name) => write!(self.result, " ${}", name.identifier())?,
                         None => write!(self.result, " (;{};)", self.state.func)?,
                     }
                     self.state.func += 1;
@@ -1671,7 +1684,7 @@ impl NamedLocalPrinter {
         }
     }
 
-    fn start_local(&mut self, name: Option<&String>, dst: &mut String) {
+    fn start_local(&mut self, name: Option<&Naming>, dst: &mut String) {
         // Named locals must be in their own group, so if we have a name we need
         // to terminate the previous group.
         if name.is_some() && self.in_group {
@@ -1691,8 +1704,7 @@ impl NamedLocalPrinter {
 
         // Print the optional name if given...
         if let Some(name) = name {
-            dst.push_str("$");
-            dst.push_str(name);
+            name.write(dst);
             dst.push_str(" ");
         }
         self.end_group_after_local = name.is_some();
@@ -1799,4 +1811,107 @@ macro_rules! print_float {
 impl Printer {
     print_float!(print_f32 f32 u32 i32 8);
     print_float!(print_f64 f64 u64 i64 11);
+}
+
+impl Naming {
+    fn new(name: &str, used: &mut HashSet<String>) -> Naming {
+        let identifier = if name.len() > 0 && name.chars().all(is_idchar) && !used.contains(name) {
+            used.insert(name.to_string());
+            None
+        } else {
+            let identifier = name
+                .chars()
+                .map(|c| if is_idchar(c) { c } else { '_' })
+                .collect::<String>();
+            let mut count = 0;
+            loop {
+                let identifier = if count == 0 && identifier.len() > 0 {
+                    identifier.clone()
+                } else {
+                    format!("{}_{}", identifier, count)
+                };
+                if used.insert(identifier.clone()) {
+                    break Some(identifier);
+                }
+                count += 1;
+            }
+        };
+        return Naming {
+            identifier,
+            name: name.to_string(),
+        };
+
+        // See https://webassembly.github.io/spec/core/text/values.html#text-id
+        fn is_idchar(c: char) -> bool {
+            match c {
+                '0'..='9'
+                | 'a'..='z'
+                | 'A'..='Z'
+                | '!'
+                | '#'
+                | '$'
+                | '%'
+                | '&'
+                | '\''
+                | '*'
+                | '+'
+                | '-'
+                | '.'
+                | '/'
+                | ':'
+                | '<'
+                | '='
+                | '>'
+                | '?'
+                | '@'
+                | '\\'
+                | '^'
+                | '_'
+                | '`'
+                | '|'
+                | '~' => true,
+                _ => false,
+            }
+        }
+    }
+
+    fn identifier(&self) -> &str {
+        match &self.identifier {
+            Some(s) => s,
+            None => &self.name,
+        }
+    }
+
+    fn write(&self, dst: &mut String) {
+        match &self.identifier {
+            Some(alternate) => {
+                assert!(*alternate != self.name);
+                dst.push_str("$");
+                dst.push_str(&alternate);
+                dst.push_str(" (@name \"");
+                // https://webassembly.github.io/spec/core/text/values.html#text-string
+                for c in self.name.chars() {
+                    match c {
+                        '\t' => dst.push_str("\\t"),
+                        '\n' => dst.push_str("\\n"),
+                        '\r' => dst.push_str("\\r"),
+                        '"' => dst.push_str("\\\""),
+                        '\'' => dst.push_str("\\'"),
+                        '\\' => dst.push_str("\\\\"),
+                        c if (c as u32) < 0x20 || c as u32 == 0x7f => {
+                            dst.push_str("\\u{");
+                            write!(dst, "{:x}", c as u32).unwrap();
+                            dst.push_str("}");
+                        }
+                        other => dst.push(other),
+                    }
+                }
+                dst.push_str("\")");
+            }
+            None => {
+                dst.push_str("$");
+                dst.push_str(&self.name);
+            }
+        }
+    }
 }
