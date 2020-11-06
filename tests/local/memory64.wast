@@ -118,7 +118,7 @@
     i64.const 0 i32.const 0 i8x16.splat v128.store
   )
 
-  (data (i64.const 0) "..")
+  (data (i32.const 0) "..")
   (data $seg "..")
 )
 

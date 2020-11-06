@@ -363,13 +363,8 @@ impl<'a> BinaryReader<'a> {
             Ok(MemoryType::M32 { limits, shared })
         } else {
             let limits = self.read_resizable_limits64((flags & 0x1) != 0)?;
-            if (flags & 0x2) != 0 {
-                return Err(BinaryReaderError::new(
-                    "64-bit memories cannot be shared",
-                    pos,
-                ));
-            }
-            Ok(MemoryType::M64 { limits })
+            let shared = (flags & 0x2) != 0;
+            Ok(MemoryType::M64 { limits, shared })
         }
     }
 

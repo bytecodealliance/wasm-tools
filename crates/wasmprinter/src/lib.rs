@@ -484,10 +484,13 @@ impl Printer {
                     self.result.push_str(" shared");
                 }
             }
-            MemoryType::M64 { limits } => {
+            MemoryType::M64 { limits, shared } => {
                 write!(self.result, "i64 {}", limits.initial)?;
                 if let Some(max) = limits.maximum {
                     write!(self.result, " {}", max)?;
+                }
+                if *shared {
+                    self.result.push_str(" shared");
                 }
             }
         }
