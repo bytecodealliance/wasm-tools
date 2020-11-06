@@ -145,6 +145,11 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         return true;
     }
 
+    // FIXME(WebAssembly/wabt#1404) - wast2json infinite loops here on macos
+    if test.ends_with("annotations.wast") {
+        return true;
+    }
+
     if let Ok(contents) = str::from_utf8(contents) {
         // Skip tests that are supposed to fail
         if contents.contains(";; ERROR") {
@@ -266,6 +271,10 @@ impl TestState {
 
             // FIXME uses simd instrs not implemented in wabt yet.
             && !test.ends_with("local/simd.wat")
+
+            // FIXME wabt doesn't print conflict or empty names in the same way
+            // that we do.
+            && !test.ends_with("local/names.wast")
         {
             if let Some(expected) = self.wasm2wat(contents)? {
                 self.string_compare(&string, &expected)
