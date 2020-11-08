@@ -35,6 +35,8 @@
 ///     }
 /// }
 /// ```
+///
+/// Note that the keyword name can only start with a lower-case letter, i.e. 'a'..'z'.
 #[macro_export]
 macro_rules! custom_keyword {
     ($name:ident) => {
