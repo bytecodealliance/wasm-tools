@@ -879,7 +879,7 @@ checksum = "1d649a3145108d7d3fbcde896a468d1bd636791823c9921135218ad89be08307"
 
 [[package]]
 name = "wasm-smith"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "arbitrary",
  "criterion",
@@ -926,7 +926,7 @@ dependencies = [
 
 [[package]]
 name = "wasmparser"
-version = "0.65.0"
+version = "0.66.0"
 dependencies = [
  "anyhow",
  "criterion",
@@ -947,7 +947,7 @@ dependencies = [
 
 [[package]]
 name = "wasmprinter"
-version = "0.2.12"
+version = "0.2.13"
 dependencies = [
  "anyhow",
  "diff",
@@ -961,7 +961,7 @@ dependencies = [
 
 [[package]]
 name = "wast"
-version = "26.0.1"
+version = "27.0.0"
 dependencies = [
  "anyhow",
  "leb128",
@@ -972,7 +972,7 @@ dependencies = [
 
 [[package]]
 name = "wat"
-version = "1.0.27"
+version = "1.0.28"
 dependencies = [
  "wast",
 ]
