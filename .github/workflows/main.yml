@@ -101,3 +101,18 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: cargo check --benches -p wasm-smith
+
+  # Make sure running tests without wabt is supported
+  test_no_wabt:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: Install Rust (rustup)
+      run: rustup update stable --no-self-update && rustup default stable
+      shell: bash
+    - run: cargo test --all
+      env:
+        SKIP_WABT: 1
