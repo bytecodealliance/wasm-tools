@@ -25,6 +25,7 @@
 
 use anyhow::{bail, Context, Result};
 use rayon::prelude::*;
+use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -168,6 +169,7 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
 #[derive(Default)]
 struct TestState {
     ntests: AtomicUsize,
+    wabt_available: AtomicUsize,
 }
 
 struct Wast2Json {
@@ -693,6 +695,9 @@ impl TestState {
     }
 
     fn wat2wasm(&self, test: &Path) -> Result<Option<Vec<u8>>> {
+        if !self.wabt_available()? {
+            return Ok(None);
+        }
         let f = tempfile::NamedTempFile::new()?;
         let result = Command::new("wat2wasm")
             .arg(test)
@@ -711,6 +716,9 @@ impl TestState {
     }
 
     fn wasm2wat(&self, contents: &[u8]) -> Result<Option<String>> {
+        if !self.wabt_available()? {
+            return Ok(None);
+        }
         let f = tempfile::TempDir::new().unwrap();
         let wasm = f.path().join("wasm");
         let wat = f.path().join("wat");
@@ -737,6 +745,9 @@ impl TestState {
     }
 
     fn wast2json(&self, test: &Path) -> Result<Option<Wast2Json>> {
+        if !self.wabt_available()? {
+            return Ok(None);
+        }
         let td = tempfile::TempDir::new()?;
         let result = Command::new("wast2json")
             .arg(test)
@@ -764,6 +775,38 @@ impl TestState {
             })
             .collect();
         Ok(Some(Wast2Json { _td: td, modules }))
+    }
+
+    fn wabt_available(&self) -> Result<bool> {
+        // Check if we've cached whether wabt is available...
+        match self.wabt_available.load(SeqCst) {
+            1 => return Ok(false),
+            2 => return Ok(true),
+            _ => {}
+        }
+
+        // ... otherwise figure it out ourselves and try to be the singular
+        // thread which flags whether wabt is here or not.
+        let available = Command::new("wasm2wat").arg("--version").output().is_ok() as usize + 1;
+        if self
+            .wabt_available
+            .compare_exchange(0, available, SeqCst, SeqCst)
+            .is_ok()
+        {
+            // If we were the singular thread to indicate whether we know wabt
+            // is available or not, then we also return an error if it's
+            // supposed to be available and it's not.
+            if available == 1 && env::var("SKIP_WABT").is_err() {
+                bail!(
+                    "\
+                        failed to locate `wabt` tools as a reference to run tests \
+                        against; you either install wabt from the `tests/wabt` \
+                        directory or set the SKIP_WABT=1 env var to fix this
+                    "
+                )
+            }
+        }
+        Ok(available == 2)
     }
 }
 
