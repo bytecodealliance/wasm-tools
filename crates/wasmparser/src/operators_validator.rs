@@ -655,6 +655,10 @@ impl OperatorValidator {
                     | ty @ Some(Type::I64)
                     | ty @ Some(Type::F32)
                     | ty @ Some(Type::F64) => self.operands.push(ty),
+                    ty @ Some(Type::V128) => {
+                        self.check_simd_enabled()?;
+                        self.operands.push(ty)
+                    }
                     None => self.operands.push(None),
                     Some(_) => bail_op_err!("type mismatch: select only takes integral types"),
                 }
