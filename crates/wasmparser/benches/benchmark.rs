@@ -124,6 +124,11 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
                     item?;
                 }
             }
+            EventSection(s) => {
+                for item in s {
+                    item?;
+                }
+            }
             GlobalSection(s) => {
                 for item in s {
                     for op in item?.init_expr.get_operators_reader() {
@@ -210,6 +215,7 @@ fn validate_benchmark(c: &mut Criterion) {
             reference_types: true,
             multi_value: true,
             simd: true,
+            exceptions: true,
             module_linking: true,
             bulk_memory: true,
             threads: true,

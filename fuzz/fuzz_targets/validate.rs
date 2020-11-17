@@ -24,6 +24,7 @@ fuzz_target!(|data: &[u8]| {
         deterministic_only: (byte1 & 0b1000_0000) != 0,
         multi_memory: (byte2 & 0b0000_0001) != 0,
         memory64: (byte2 & 0b0000_0010) != 0,
+        exceptions: (byte2 & 0b0000_0100) != 0,
     });
 
     drop(validator.validate_all(&data[2..]));

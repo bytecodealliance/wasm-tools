@@ -17,7 +17,7 @@ use crate::limits::*;
 use crate::ResizableLimits64;
 use crate::WasmModuleResources;
 use crate::{Alias, AliasedInstance, ExternalKind, Import, ImportSectionEntryType};
-use crate::{BinaryReaderError, GlobalType, MemoryType, Range, Result, TableType, Type};
+use crate::{BinaryReaderError, EventType, GlobalType, MemoryType, Range, Result, TableType, Type};
 use crate::{DataKind, ElementItem, ElementKind, InitExpr, Instance, Operator};
 use crate::{Export, ExportType, FunctionBody, Parser, Payload};
 use crate::{FuncType, ResizableLimits, SectionReader, SectionWithLimitedItems};
@@ -130,6 +130,7 @@ struct ModuleState {
     types: Vec<ValidatedType>,
     tables: Vec<Def<TableType>>,
     memories: Vec<MemoryType>,
+    events: Vec<EventType>,
     globals: Vec<Def<GlobalType>>,
     element_types: Vec<Type>,
     data_count: Option<u32>,
@@ -161,6 +162,8 @@ pub struct WasmFeatures {
     pub deterministic_only: bool,
     /// The WebAssembly multi memory proposal
     pub multi_memory: bool,
+    /// The WebAssembly exception handling proposal
+    pub exceptions: bool,
     /// The WebAssembly memory64 proposal
     pub memory64: bool,
 }
@@ -176,6 +179,7 @@ impl Default for WasmFeatures {
             tail_call: false,
             bulk_memory: false,
             multi_memory: false,
+            exceptions: false,
             memory64: false,
             deterministic_only: cfg!(feature = "deterministic"),
 
@@ -195,6 +199,7 @@ enum Order {
     Function,
     Table,
     Memory,
+    Event,
     Global,
     Export,
     Start,
@@ -337,6 +342,7 @@ impl Validator {
             FunctionSection(s) => self.function_section(s)?,
             TableSection(s) => self.table_section(s)?,
             MemorySection(s) => self.memory_section(s)?,
+            EventSection(s) => self.event_section(s)?,
             GlobalSection(s) => self.global_section(s)?,
             ExportSection(s) => self.export_section(s)?,
             StartSection { func, range } => self.start_section(*func, range)?,
@@ -434,6 +440,13 @@ impl Validator {
         match self.state.get_memory(idx) {
             Some(t) => Ok(t),
             None => self.create_error("unknown memory: memory index out of bounds"),
+        }
+    }
+
+    fn get_event<'me>(&'me self, idx: Def<u32>) -> Result<&'me EventType> {
+        match self.state.get_event(idx) {
+            Some(t) => Ok(t),
+            None => self.create_error("unknown event: event index out of bounds"),
         }
     }
 
@@ -625,6 +638,7 @@ impl Validator {
             }
             ImportSectionEntryType::Table(t) => self.table_type(t),
             ImportSectionEntryType::Memory(t) => self.memory_type(t),
+            ImportSectionEntryType::Event(t) => self.event_type(t),
             ImportSectionEntryType::Global(t) => self.global_type(t),
             ImportSectionEntryType::Module(type_index) => {
                 self.module_type_at(self.state.def(*type_index))?;
@@ -703,6 +717,14 @@ impl Validator {
         Ok(())
     }
 
+    fn event_type(&self, ty: &EventType) -> Result<()> {
+        let def = self.func_type_at(self.state.def(ty.type_index))?;
+        if def.item.returns.len() > 0 {
+            return self.create_error("invalid result arity for exception type");
+        }
+        Ok(())
+    }
+
     fn global_type(&self, ty: &GlobalType) -> Result<()> {
         self.value_type(ty.content_type)
     }
@@ -753,6 +775,11 @@ impl Validator {
                 let state = self.state.assert_mut();
                 state.memories.push(ty);
                 (state.memories.len(), self.max_memories(), "memories")
+            }
+            ImportSectionEntryType::Event(ty) => {
+                let state = self.state.assert_mut();
+                state.events.push(ty);
+                (state.events.len(), MAX_WASM_EVENTS, "events")
             }
             ImportSectionEntryType::Global(ty) => {
                 let def = self.state.def(ty);
@@ -836,6 +863,9 @@ impl Validator {
                     }
                     (ImportSectionEntryType::Memory(ty), ExternalKind::Memory) => {
                         self.state.assert_mut().memories.push(ty);
+                    }
+                    (ImportSectionEntryType::Event(ty), ExternalKind::Event) => {
+                        self.state.assert_mut().events.push(ty);
                     }
                     (ImportSectionEntryType::Global(ty), ExternalKind::Global) => {
                         let def = exports.with(ty);
@@ -942,6 +972,9 @@ impl Validator {
                 ExternalKind::Memory => self
                     .state
                     .def(ImportSectionEntryType::Memory(*self.get_memory(index)?)),
+                ExternalKind::Event => self
+                    .state
+                    .def(ImportSectionEntryType::Event(*self.get_event(index)?)),
                 ExternalKind::Global => self.get_global(index)?.map(ImportSectionEntryType::Global),
                 ExternalKind::Module => self
                     .get_module_type_index(index)?
@@ -1058,6 +1091,14 @@ impl Validator {
                     _ => {}
                 }
                 self.create_error("memory provided for instantiation has wrong type")
+            }
+            (ImportSectionEntryType::Event(et), ImportSectionEntryType::Event(at)) => {
+                let expected = self.func_type_at(expected.map(|_| et.type_index))?;
+                let actual = self.func_type_at(actual.map(|_| at.type_index))?;
+                if actual.item == expected.item {
+                    return Ok(());
+                }
+                self.create_error("event provided for instantiation has wrong type")
             }
             (ImportSectionEntryType::Global(expected), ImportSectionEntryType::Global(actual)) => {
                 if expected == actual {
@@ -1190,6 +1231,20 @@ impl Validator {
         })
     }
 
+    pub fn event_section(&mut self, section: &crate::EventSectionReader<'_>) -> Result<()> {
+        self.check_max(
+            self.state.events.len(),
+            section.get_count(),
+            MAX_WASM_EVENTS,
+            "events",
+        )?;
+        self.section(Order::Event, section, |me, ty| {
+            me.event_type(&ty)?;
+            me.state.assert_mut().events.push(ty);
+            Ok(())
+        })
+    }
+
     /// Validates [`Payload::GlobalSection`](crate::Payload)
     pub fn global_section(&mut self, section: &crate::GlobalSectionReader<'_>) -> Result<()> {
         self.check_max(
@@ -1291,6 +1346,7 @@ impl Validator {
             ExternalKind::Function => ("function", self.state.func_type_indices.len()),
             ExternalKind::Table => ("table", self.state.tables.len()),
             ExternalKind::Memory => ("memory", self.state.memories.len()),
+            ExternalKind::Event => ("event", self.state.events.len()),
             ExternalKind::Global => ("global", self.state.globals.len()),
             ExternalKind::Module => ("module", self.state.module_type_indices.len()),
             ExternalKind::Instance => ("instance", self.state.instance_type_indices.len()),
@@ -1331,6 +1387,11 @@ impl Validator {
             ExternalKind::Memory => {
                 let mem = *self.get_memory(index)?;
                 let ty = ImportSectionEntryType::Memory(mem);
+                self.state.def(ty)
+            }
+            ExternalKind::Event => {
+                let exn = *self.get_event(index)?;
+                let ty = ImportSectionEntryType::Event(exn);
                 self.state.def(ty)
             }
             ExternalKind::Global => self.get_global(index)?.map(ImportSectionEntryType::Global),
@@ -1394,6 +1455,10 @@ impl Validator {
             }
             (ImportSectionEntryType::Table(a), ImportSectionEntryType::Table(b)) => a == b,
             (ImportSectionEntryType::Memory(a), ImportSectionEntryType::Memory(b)) => a == b,
+            (ImportSectionEntryType::Event(at), ImportSectionEntryType::Event(bt)) => {
+                self.func_type_at(a.with(at.type_index)).unwrap().item
+                    == self.func_type_at(b.with(bt.type_index)).unwrap().item
+            }
             (ImportSectionEntryType::Global(a), ImportSectionEntryType::Global(b)) => a == b,
             (ImportSectionEntryType::Instance(ai), ImportSectionEntryType::Instance(bi)) => {
                 let a = self.instance_type_at(a.with(*ai)).unwrap();
@@ -1659,6 +1724,13 @@ impl WasmFeatures {
                     Err("reference types support is not enabled")
                 }
             }
+            Type::ExnRef => {
+                if self.exceptions {
+                    Ok(())
+                } else {
+                    Err("exceptions support is not enabled")
+                }
+            }
             Type::V128 => {
                 if self.simd {
                     Ok(())
@@ -1707,6 +1779,10 @@ impl ModuleState {
 
     fn get_memory<'me>(&'me self, idx: Def<u32>) -> Option<&'me MemoryType> {
         self.get(idx, |v| &v.memories)
+    }
+
+    fn get_event<'me>(&'me self, idx: Def<u32>) -> Option<&'me EventType> {
+        self.get(idx, |v| &v.events)
     }
 
     fn get_global<'me>(&'me self, idx: Def<u32>) -> Option<&'me Def<GlobalType>> {

@@ -110,6 +110,8 @@ enum FrameKind {
     If,
     Else,
     Loop,
+    Try,
+    Catch,
 }
 
 impl OperatorValidator {
@@ -394,6 +396,15 @@ impl OperatorValidator {
         Ok(())
     }
 
+    fn check_exceptions_enabled(&self) -> OperatorValidatorResult<()> {
+        if !self.features.exceptions {
+            return Err(OperatorValidatorError::new(
+                "Exceptions support is not enabled",
+            ));
+        }
+        Ok(())
+    }
+
     fn check_bulk_memory_enabled(&self) -> OperatorValidatorResult<()> {
         if !self.features.bulk_memory {
             return Err(OperatorValidatorError::new(
@@ -561,6 +572,60 @@ impl OperatorValidator {
                 }
                 self.push_ctrl(FrameKind::Else, frame.block_type, resources)?;
             }
+            Operator::Try { ty } => {
+                self.check_exceptions_enabled()?;
+                self.check_block_type(ty, resources)?;
+                for ty in params(ty, resources)?.rev() {
+                    self.pop_operand(Some(ty))?;
+                }
+                self.push_ctrl(FrameKind::Try, ty, resources)?;
+            }
+            Operator::Catch => {
+                self.check_exceptions_enabled()?;
+                let frame = self.pop_ctrl(resources)?;
+                if frame.kind != FrameKind::Try {
+                    bail_op_err!("catch found outside of an `try` block");
+                }
+                // Start a new frame and push `exnref` value.
+                self.control.push(Frame {
+                    kind: FrameKind::Catch,
+                    block_type: frame.block_type,
+                    height: self.operands.len(),
+                    unreachable: false,
+                });
+                self.push_operand(Type::ExnRef)?;
+            }
+            Operator::Throw { index } => {
+                self.check_exceptions_enabled()?;
+                // Check values associated with the exception.
+                let ty = func_type_at(&resources, index)?;
+                for ty in ty.inputs().rev() {
+                    self.pop_operand(Some(ty))?;
+                }
+                if ty.outputs().len() > 0 {
+                    bail_op_err!("result type expected to be empty for exception");
+                }
+                self.unreachable();
+            }
+            Operator::Rethrow => {
+                self.check_exceptions_enabled()?;
+                self.pop_operand(Some(Type::ExnRef))?;
+                self.unreachable();
+            }
+            Operator::BrOnExn {
+                relative_depth,
+                index,
+            } => {
+                self.check_exceptions_enabled()?;
+                let (ty, kind) = self.jump(relative_depth)?;
+                self.pop_operand(Some(Type::ExnRef))?;
+                // Check the exception's argument values with target block's.
+                let exn_args = func_type_at(&resources, index)?;
+                if Iterator::ne(exn_args.inputs(), label_types(ty, resources, kind)?) {
+                    bail_op_err!("target block types do not match");
+                }
+                self.push_operand(Type::ExnRef)?;
+            }
             Operator::End => {
                 let mut frame = self.pop_ctrl(resources)?;
 
@@ -568,10 +633,17 @@ impl OperatorValidator {
                 // now, but it's used to allow for `if` statements that are
                 // missing an `else` block which have the same parameter/return
                 // types on the block (since that's valid).
-                if frame.kind == FrameKind::If {
-                    self.push_ctrl(FrameKind::Else, frame.block_type, resources)?;
-                    frame = self.pop_ctrl(resources)?;
+                match frame.kind {
+                    FrameKind::If => {
+                        self.push_ctrl(FrameKind::Else, frame.block_type, resources)?;
+                        frame = self.pop_ctrl(resources)?;
+                    }
+                    FrameKind::Try => {
+                        bail_op_err!("expected catch block");
+                    }
+                    _ => (),
                 }
+
                 for ty in results(frame.block_type, resources)? {
                     self.push_operand(ty)?;
                 }
@@ -1842,6 +1914,7 @@ fn ty_to_str(ty: Type) -> &'static str {
         Type::V128 => "v128",
         Type::FuncRef => "funcref",
         Type::ExternRef => "externref",
+        Type::ExnRef => "exnref",
         Type::Func => "func",
         Type::EmptyBlockType => "nil",
     }

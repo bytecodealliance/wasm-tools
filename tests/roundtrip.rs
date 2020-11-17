@@ -140,12 +140,6 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         return true;
     }
 
-    // These test suites in the upstream proposals repo have not been
-    // implemented in this tooling yet.
-    if test.iter().any(|t| t == "exception-handling") {
-        return true;
-    }
-
     // FIXME(WebAssembly/wabt#1404) - wast2json infinite loops here on macos
     if test.ends_with("annotations.wast") {
         return true;
@@ -257,6 +251,7 @@ impl TestState {
             // FIXME(WebAssembly/wabt#1447)
             && !test.ends_with("bulk-memory-operations/binary.wast")
             && !test.ends_with("reference-types/binary.wast")
+            && !test.ends_with("exception-handling/binary.wast")
 
             // not implemented in wabt
             && !test.iter().any(|t| t == "module-linking")
@@ -657,6 +652,7 @@ impl TestState {
             threads: true,
             reference_types: true,
             simd: true,
+            exceptions: true,
             bulk_memory: true,
             tail_call: true,
             module_linking: true,
@@ -675,6 +671,11 @@ impl TestState {
                 "reference-types" => {
                     features.bulk_memory = true;
                     features.reference_types = true;
+                }
+                "exception-handling" => {
+                    features.bulk_memory = true;
+                    features.reference_types = true;
+                    features.exceptions = true;
                 }
                 "bulk-memory-operations" => features.bulk_memory = true,
                 "tail-call" => features.tail_call = true,
