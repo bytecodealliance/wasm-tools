@@ -52,6 +52,7 @@ struct ModuleState {
     module: u32,
     instance: u32,
     memory: u32,
+    exception: u32,
     global: u32,
     table: u32,
     types: Vec<Option<FuncType>>,
@@ -204,6 +205,7 @@ impl Printer {
                 }
                 Payload::TableSection(s) => self.print_tables(s)?,
                 Payload::MemorySection(s) => self.print_memories(s)?,
+                Payload::ExceptionSection(s) => self.print_exceptions(s)?,
                 Payload::GlobalSection(s) => self.print_globals(s)?,
                 Payload::ExportSection(s) => self.print_exports(s)?,
                 Payload::StartSection { func, .. } => {
@@ -394,6 +396,7 @@ impl Printer {
             Type::V128 => self.result.push_str("v128"),
             Type::FuncRef => self.result.push_str("funcref"),
             Type::ExternRef => self.result.push_str("externref"),
+            Type::ExnRef => self.result.push_str("exnref"),
             _ => bail!("unimplemented {:?}", ty),
         }
         Ok(())
@@ -403,6 +406,7 @@ impl Printer {
         match ty {
             Type::FuncRef => self.result.push_str("func"),
             Type::ExternRef => self.result.push_str("extern"),
+            Type::ExnRef => self.result.push_str("exn"),
             _ => bail!("invalid reference type {:?}", ty),
         }
         Ok(())
@@ -418,6 +422,7 @@ impl Printer {
                 ImportSectionEntryType::Instance(_) => self.state.instance += 1,
                 ImportSectionEntryType::Table(_) => self.state.table += 1,
                 ImportSectionEntryType::Memory(_) => self.state.memory += 1,
+                ImportSectionEntryType::Exception(_) => self.state.exception += 1,
                 ImportSectionEntryType::Global(_) => self.state.global += 1,
             }
         }
@@ -468,6 +473,7 @@ impl Printer {
             }
             Table(f) => self.print_table_type(&f, index)?,
             Memory(f) => self.print_memory_type(&f, index)?,
+            Exception(f) => self.print_exception_type(&f, index)?,
             Global(f) => self.print_global_type(&f, index)?,
         }
         self.end_group();
@@ -507,6 +513,16 @@ impl Printer {
                 }
             }
         }
+        Ok(())
+    }
+
+    fn print_exception_type(&mut self, ty: &ExceptionType, index: bool) -> Result<()> {
+        self.start_group("event ");
+        if index {
+            write!(self.result, "(;{};)", self.state.exception)?;
+        }
+        write!(self.result, " (type {})", ty.type_index)?;
+        self.print_functype_idx(ty.type_index, None)?;
         Ok(())
     }
 
@@ -551,6 +567,17 @@ impl Printer {
             self.print_memory_type(&memory, true)?;
             self.end_group();
             self.state.memory += 1;
+        }
+        Ok(())
+    }
+
+    fn print_exceptions(&mut self, parser: ExceptionSectionReader<'_>) -> Result<()> {
+        for exn in parser {
+            let exn = exn?;
+            self.newline();
+            self.print_exception_type(&exn, true)?;
+            self.end_group();
+            self.state.exception += 1;
         }
         Ok(())
     }
@@ -627,15 +654,18 @@ impl Printer {
                     // When we start a block we newline to the current
                     // indentation, then we increase the indentation so further
                     // instructions are tabbed over.
-                    Operator::If { .. } | Operator::Block { .. } | Operator::Loop { .. } => {
+                    Operator::If { .. }
+                    | Operator::Block { .. }
+                    | Operator::Loop { .. }
+                    | Operator::Try { .. } => {
                         self.newline();
                         self.nesting += 1;
                     }
 
-                    // `else` is special in that it's printed at the previous
-                    // indentation, but it doesn't actually change our nesting
-                    // level.
-                    Operator::Else => {
+                    // `else`/`catch` are special in that it's printed at
+                    // the previous indentation, but it doesn't actually change
+                    // our nesting level.
+                    Operator::Else | Operator::Catch => {
                         self.nesting -= 1;
                         self.newline();
                         self.nesting += 1;
@@ -694,6 +724,29 @@ impl Printer {
                 write!(self.result, "  ;; label = @{}", cur_label)?;
             }
             Else => self.result.push_str("else"),
+            Try { ty } => {
+                self.result.push_str("try");
+                self.print_blockty(ty)?;
+                write!(self.result, "  ;; label = @{}", cur_label)?;
+            }
+            Catch => self.result.push_str("catch"),
+            Throw { index } => {
+                write!(self.result, "throw {}", index,)?;
+            }
+            Rethrow => self.result.push_str("rethrow"),
+            BrOnExn {
+                relative_depth,
+                index,
+            } => {
+                write!(
+                    self.result,
+                    "br_on_exn {} (;{};)",
+                    relative_depth,
+                    label(*relative_depth),
+                )?;
+                write!(self.result, " {}", index)?;
+            }
+
             End => self.result.push_str("end"),
             Br { relative_depth } => {
                 write!(
@@ -1386,6 +1439,7 @@ impl Printer {
                 ExternalKind::Table => write!(self.result, "table {}", export.index)?,
                 ExternalKind::Global => write!(self.result, "global {}", export.index)?,
                 ExternalKind::Memory => write!(self.result, "memory {}", export.index)?,
+                ExternalKind::Exception => write!(self.result, "exception {}", export.index)?,
                 ExternalKind::Module => write!(self.result, "module {}", export.index)?,
                 ExternalKind::Instance => write!(self.result, "instance {}", export.index)?,
                 ExternalKind::Type => write!(self.result, "type {}", export.index)?,
@@ -1406,6 +1460,7 @@ impl Printer {
             ExternalKind::Table => write!(self.result, "table {}", index)?,
             ExternalKind::Global => write!(self.result, "global {}", index)?,
             ExternalKind::Memory => write!(self.result, "memory {}", index)?,
+            ExternalKind::Exception => write!(self.result, "exception {}", index)?,
             ExternalKind::Module => write!(self.result, "module {}", index)?,
             ExternalKind::Instance => write!(self.result, "instance {}", index)?,
             ExternalKind::Type => write!(self.result, "type {}", index)?,
@@ -1546,6 +1601,10 @@ impl Printer {
                     write!(self.result, " (;{};)", self.state.memory)?;
                     self.state.memory += 1;
                 }
+                ExternalKind::Exception => {
+                    write!(self.result, " (;{};)", self.state.exception)?;
+                    self.state.exception += 1;
+                }
                 ExternalKind::Global => {
                     write!(self.result, " (;{};)", self.state.global)?;
                     self.state.global += 1;
@@ -1574,6 +1633,7 @@ impl Printer {
                 ExternalKind::Function => self.start_group("func"),
                 ExternalKind::Table => self.start_group("table"),
                 ExternalKind::Memory => self.start_group("memory"),
+                ExternalKind::Exception => self.start_group("exception"),
                 ExternalKind::Global => self.start_group("global"),
                 ExternalKind::Instance => self.start_group("instance"),
                 ExternalKind::Module => self.start_group("module"),

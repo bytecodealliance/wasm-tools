@@ -114,6 +114,7 @@ pub enum SectionCode<'a> {
     Code,       // Function bodies (code)
     Data,       // Data segments
     DataCount,  // Count of passive data segments
+    Exception,  // Exception declarations
 }
 
 /// Types as defined [here].
@@ -128,6 +129,7 @@ pub enum Type {
     V128,
     FuncRef,
     ExternRef,
+    ExnRef,
     Func,
     EmptyBlockType,
 }
@@ -153,6 +155,7 @@ pub enum ExternalKind {
     Function,
     Table,
     Memory,
+    Exception,
     Global,
     Type,
     Module,
@@ -219,6 +222,12 @@ pub enum MemoryType {
     },
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct ExceptionType {
+    pub attribute: u32,
+    pub type_index: u32,
+}
+
 impl MemoryType {
     pub fn index_type(&self) -> Type {
         match self {
@@ -239,6 +248,7 @@ pub enum ImportSectionEntryType {
     Function(u32),
     Table(TableType),
     Memory(MemoryType),
+    Exception(ExceptionType),
     Global(GlobalType),
     Module(u32),
     Instance(u32),
@@ -337,6 +347,11 @@ pub enum Operator<'a> {
     Loop { ty: TypeOrFuncType },
     If { ty: TypeOrFuncType },
     Else,
+    Try { ty: TypeOrFuncType },
+    Catch,
+    Throw { index: u32 },
+    Rethrow,
+    BrOnExn { relative_depth: u32, index: u32 },
     End,
     Br { relative_depth: u32 },
     BrIf { relative_depth: u32 },

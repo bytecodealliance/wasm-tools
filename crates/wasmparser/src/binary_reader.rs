@@ -25,7 +25,7 @@ use crate::primitives::{
     ResizableLimits, ResizableLimits64, Result, SIMDLaneIndex, SectionCode, TableType, Type,
     TypeOrFuncType, V128,
 };
-use crate::{ExportType, Import, ImportSectionEntryType, InstanceType, ModuleType};
+use crate::{ExceptionType, ExportType, Import, ImportSectionEntryType, InstanceType, ModuleType};
 
 const MAX_WASM_BR_TABLE_SIZE: usize = MAX_WASM_FUNCTION_SIZE;
 
@@ -186,6 +186,7 @@ impl<'a> BinaryReader<'a> {
             -0x05 => Ok(Type::V128),
             -0x10 => Ok(Type::FuncRef),
             -0x11 => Ok(Type::ExternRef),
+            -0x18 => Ok(Type::ExnRef),
             -0x20 => Ok(Type::Func),
             -0x40 => Ok(Type::EmptyBlockType),
             _ => Err(BinaryReaderError::new(
@@ -202,6 +203,7 @@ impl<'a> BinaryReader<'a> {
             1 => Ok(ExternalKind::Table),
             2 => Ok(ExternalKind::Memory),
             3 => Ok(ExternalKind::Global),
+            4 => Ok(ExternalKind::Exception),
             5 => Ok(ExternalKind::Module),
             6 => Ok(ExternalKind::Instance),
             7 => Ok(ExternalKind::Type),
@@ -300,6 +302,9 @@ impl<'a> BinaryReader<'a> {
             ExternalKind::Function => ImportSectionEntryType::Function(self.read_var_u32()?),
             ExternalKind::Table => ImportSectionEntryType::Table(self.read_table_type()?),
             ExternalKind::Memory => ImportSectionEntryType::Memory(self.read_memory_type()?),
+            ExternalKind::Exception => {
+                ImportSectionEntryType::Exception(self.read_exception_type()?)
+            }
             ExternalKind::Global => ImportSectionEntryType::Global(self.read_global_type()?),
             ExternalKind::Module => ImportSectionEntryType::Module(self.read_var_u32()?),
             ExternalKind::Instance => ImportSectionEntryType::Instance(self.read_var_u32()?),
@@ -368,6 +373,21 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
+    pub(crate) fn read_exception_type(&mut self) -> Result<ExceptionType> {
+        let attribute = self.read_var_u32()?;
+        if attribute != 0 {
+            return Err(BinaryReaderError::new(
+                "invalid exception attributes",
+                self.original_position() - 1,
+            ));
+        }
+        let type_index = self.read_var_u32()?;
+        Ok(ExceptionType {
+            attribute,
+            type_index,
+        })
+    }
+
     pub(crate) fn read_global_type(&mut self) -> Result<GlobalType> {
         Ok(GlobalType {
             content_type: self.read_type()?,
@@ -434,6 +454,7 @@ impl<'a> BinaryReader<'a> {
             10 => Ok(SectionCode::Code),
             11 => Ok(SectionCode::Data),
             12 => Ok(SectionCode::DataCount),
+            13 => Ok(SectionCode::Exception),
             100 => Ok(SectionCode::Module),
             101 => Ok(SectionCode::Instance),
             102 => Ok(SectionCode::Alias),
@@ -1082,6 +1103,18 @@ impl<'a> BinaryReader<'a> {
                 ty: self.read_blocktype()?,
             },
             0x05 => Operator::Else,
+            0x06 => Operator::Try {
+                ty: self.read_blocktype()?,
+            },
+            0x07 => Operator::Catch,
+            0x08 => Operator::Throw {
+                index: self.read_var_u32()?,
+            },
+            0x09 => Operator::Rethrow,
+            0x0a => Operator::BrOnExn {
+                relative_depth: self.read_var_u32()?,
+                index: self.read_var_u32()?,
+            },
             0x0b => Operator::End,
             0x0c => Operator::Br {
                 relative_depth: self.read_var_u32()?,
