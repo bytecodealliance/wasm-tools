@@ -1095,8 +1095,10 @@ impl Validator {
                 }
                 self.create_error("memory provided for instantiation has wrong type")
             }
-            (ImportSectionEntryType::Event(expected), ImportSectionEntryType::Event(actual)) => {
-                if expected == actual {
+            (ImportSectionEntryType::Event(et), ImportSectionEntryType::Event(at)) => {
+                let expected = self.func_type_at(expected.map(|_| et.type_index))?;
+                let actual = self.func_type_at(actual.map(|_| at.type_index))?;
+                if actual.item == expected.item {
                     return Ok(());
                 }
                 self.create_error("event provided for instantiation has wrong type")
@@ -1456,6 +1458,10 @@ impl Validator {
             }
             (ImportSectionEntryType::Table(a), ImportSectionEntryType::Table(b)) => a == b,
             (ImportSectionEntryType::Memory(a), ImportSectionEntryType::Memory(b)) => a == b,
+            (ImportSectionEntryType::Event(at), ImportSectionEntryType::Event(bt)) => {
+                self.func_type_at(a.with(at.type_index)).unwrap().item
+                    == self.func_type_at(b.with(bt.type_index)).unwrap().item
+            }
             (ImportSectionEntryType::Global(a), ImportSectionEntryType::Global(b)) => a == b,
             (ImportSectionEntryType::Instance(ai), ImportSectionEntryType::Instance(bi)) => {
                 let a = self.instance_type_at(a.with(*ai)).unwrap();
