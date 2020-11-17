@@ -53,11 +53,12 @@ jobs:
         ninja wast2json wat2wasm wasm2wat
       shell: bash
     - name: Add wabt to path (unix)
-      run: echo ::add-path::`pwd`/tests/wabt
+      run: echo `pwd`/tests/wabt >> $GITHUB_PATH
       if: matrix.os != 'windows-latest'
     - name: Add wabt to path (windows)
-      run: echo ::add-path::D:/a/wasm-tools/wasm-tools/tests/wabt
+      run: echo D:/a/wasm-tools/wasm-tools/tests/wabt >> $GITHUB_PATH
       if: matrix.os == 'windows-latest'
+      shell: bash
 
     - run: cargo test --all
     - run: cargo test --manifest-path crates/wasmparser/Cargo.toml --features deterministic
