@@ -1,4 +1,4 @@
-use crate::ExceptionSectionReader;
+use crate::EventSectionReader;
 use crate::{AliasSectionReader, InstanceSectionReader, ModuleSectionReader};
 use crate::{BinaryReader, BinaryReaderError, FunctionBody, Range, Result};
 use crate::{DataSectionReader, ElementSectionReader, ExportSectionReader};
@@ -112,9 +112,9 @@ pub enum Payload<'a> {
     /// A memory section was received, and the provided reader can be used to
     /// parse the contents of the memory section.
     MemorySection(crate::MemorySectionReader<'a>),
-    /// An exception section was received, and the provided reader can be used to
-    /// parse the contents of the exception section.
-    ExceptionSection(crate::ExceptionSectionReader<'a>),
+    /// An event section was received, and the provided reader can be used to
+    /// parse the contents of the event section.
+    EventSection(crate::EventSectionReader<'a>),
     /// A global section was received, and the provided reader can be used to
     /// parse the contents of the global section.
     GlobalSection(crate::GlobalSectionReader<'a>),
@@ -346,7 +346,7 @@ impl Parser {
     ///             FunctionSection(_) => { /* ... */ }
     ///             TableSection(_) => { /* ... */ }
     ///             MemorySection(_) => { /* ... */ }
-    ///             ExceptionSection(_) => { /* ... */ }
+    ///             EventSection(_) => { /* ... */ }
     ///             GlobalSection(_) => { /* ... */ }
     ///             ExportSection(_) => { /* ... */ }
     ///             StartSection { .. } => { /* ... */ }
@@ -531,7 +531,7 @@ impl Parser {
                         let (count, range) = single_u32(reader, len, "data count")?;
                         Ok(DataCountSection { count, range })
                     }
-                    13 => section(reader, len, ExceptionSectionReader::new, ExceptionSection),
+                    13 => section(reader, len, EventSectionReader::new, EventSection),
                     100 => section(reader, len, ModuleSectionReader::new, ModuleSection),
                     101 => section(reader, len, InstanceSectionReader::new, InstanceSection),
                     102 => section(reader, len, AliasSectionReader::new, AliasSection),
@@ -912,7 +912,7 @@ impl fmt::Debug for Payload<'_> {
             FunctionSection(_) => f.debug_tuple("FunctionSection").field(&"...").finish(),
             TableSection(_) => f.debug_tuple("TableSection").field(&"...").finish(),
             MemorySection(_) => f.debug_tuple("MemorySection").field(&"...").finish(),
-            ExceptionSection(_) => f.debug_tuple("ExceptionSection").field(&"...").finish(),
+            EventSection(_) => f.debug_tuple("EventSection").field(&"...").finish(),
             GlobalSection(_) => f.debug_tuple("GlobalSection").field(&"...").finish(),
             ExportSection(_) => f.debug_tuple("ExportSection").field(&"...").finish(),
             ElementSection(_) => f.debug_tuple("ElementSection").field(&"...").finish(),

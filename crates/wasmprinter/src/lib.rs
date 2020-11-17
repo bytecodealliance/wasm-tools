@@ -52,7 +52,7 @@ struct ModuleState {
     module: u32,
     instance: u32,
     memory: u32,
-    exception: u32,
+    event: u32,
     global: u32,
     table: u32,
     types: Vec<Option<FuncType>>,
@@ -205,7 +205,7 @@ impl Printer {
                 }
                 Payload::TableSection(s) => self.print_tables(s)?,
                 Payload::MemorySection(s) => self.print_memories(s)?,
-                Payload::ExceptionSection(s) => self.print_exceptions(s)?,
+                Payload::EventSection(s) => self.print_events(s)?,
                 Payload::GlobalSection(s) => self.print_globals(s)?,
                 Payload::ExportSection(s) => self.print_exports(s)?,
                 Payload::StartSection { func, .. } => {
@@ -422,7 +422,7 @@ impl Printer {
                 ImportSectionEntryType::Instance(_) => self.state.instance += 1,
                 ImportSectionEntryType::Table(_) => self.state.table += 1,
                 ImportSectionEntryType::Memory(_) => self.state.memory += 1,
-                ImportSectionEntryType::Exception(_) => self.state.exception += 1,
+                ImportSectionEntryType::Event(_) => self.state.event += 1,
                 ImportSectionEntryType::Global(_) => self.state.global += 1,
             }
         }
@@ -473,7 +473,7 @@ impl Printer {
             }
             Table(f) => self.print_table_type(&f, index)?,
             Memory(f) => self.print_memory_type(&f, index)?,
-            Exception(f) => self.print_exception_type(&f, index)?,
+            Event(f) => self.print_event_type(&f, index)?,
             Global(f) => self.print_global_type(&f, index)?,
         }
         self.end_group();
@@ -516,10 +516,10 @@ impl Printer {
         Ok(())
     }
 
-    fn print_exception_type(&mut self, ty: &ExceptionType, index: bool) -> Result<()> {
+    fn print_event_type(&mut self, ty: &EventType, index: bool) -> Result<()> {
         self.start_group("event ");
         if index {
-            write!(self.result, "(;{};)", self.state.exception)?;
+            write!(self.result, "(;{};)", self.state.event)?;
         }
         write!(self.result, " (type {})", ty.type_index)?;
         self.print_functype_idx(ty.type_index, None)?;
@@ -571,13 +571,13 @@ impl Printer {
         Ok(())
     }
 
-    fn print_exceptions(&mut self, parser: ExceptionSectionReader<'_>) -> Result<()> {
+    fn print_events(&mut self, parser: EventSectionReader<'_>) -> Result<()> {
         for exn in parser {
             let exn = exn?;
             self.newline();
-            self.print_exception_type(&exn, true)?;
+            self.print_event_type(&exn, true)?;
             self.end_group();
-            self.state.exception += 1;
+            self.state.event += 1;
         }
         Ok(())
     }
@@ -1439,7 +1439,7 @@ impl Printer {
                 ExternalKind::Table => write!(self.result, "table {}", export.index)?,
                 ExternalKind::Global => write!(self.result, "global {}", export.index)?,
                 ExternalKind::Memory => write!(self.result, "memory {}", export.index)?,
-                ExternalKind::Exception => write!(self.result, "exception {}", export.index)?,
+                ExternalKind::Event => write!(self.result, "event {}", export.index)?,
                 ExternalKind::Module => write!(self.result, "module {}", export.index)?,
                 ExternalKind::Instance => write!(self.result, "instance {}", export.index)?,
                 ExternalKind::Type => write!(self.result, "type {}", export.index)?,
@@ -1460,7 +1460,7 @@ impl Printer {
             ExternalKind::Table => write!(self.result, "table {}", index)?,
             ExternalKind::Global => write!(self.result, "global {}", index)?,
             ExternalKind::Memory => write!(self.result, "memory {}", index)?,
-            ExternalKind::Exception => write!(self.result, "exception {}", index)?,
+            ExternalKind::Event => write!(self.result, "event {}", index)?,
             ExternalKind::Module => write!(self.result, "module {}", index)?,
             ExternalKind::Instance => write!(self.result, "instance {}", index)?,
             ExternalKind::Type => write!(self.result, "type {}", index)?,
@@ -1601,9 +1601,9 @@ impl Printer {
                     write!(self.result, " (;{};)", self.state.memory)?;
                     self.state.memory += 1;
                 }
-                ExternalKind::Exception => {
-                    write!(self.result, " (;{};)", self.state.exception)?;
-                    self.state.exception += 1;
+                ExternalKind::Event => {
+                    write!(self.result, " (;{};)", self.state.event)?;
+                    self.state.event += 1;
                 }
                 ExternalKind::Global => {
                     write!(self.result, " (;{};)", self.state.global)?;
@@ -1633,7 +1633,7 @@ impl Printer {
                 ExternalKind::Function => self.start_group("func"),
                 ExternalKind::Table => self.start_group("table"),
                 ExternalKind::Memory => self.start_group("memory"),
-                ExternalKind::Exception => self.start_group("exception"),
+                ExternalKind::Event => self.start_group("event"),
                 ExternalKind::Global => self.start_group("global"),
                 ExternalKind::Instance => self.start_group("instance"),
                 ExternalKind::Module => self.start_group("module"),

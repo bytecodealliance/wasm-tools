@@ -124,7 +124,7 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
                     item?;
                 }
             }
-            ExceptionSection(s) => {
+            EventSection(s) => {
                 for item in s {
                     item?;
                 }

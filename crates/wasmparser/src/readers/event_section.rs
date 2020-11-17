@@ -14,21 +14,21 @@
  */
 
 use super::{
-    BinaryReader, ExceptionType, Range, Result, SectionIteratorLimited, SectionReader,
+    BinaryReader, EventType, Range, Result, SectionIteratorLimited, SectionReader,
     SectionWithLimitedItems,
 };
 
 #[derive(Clone)]
-pub struct ExceptionSectionReader<'a> {
+pub struct EventSectionReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,
 }
 
-impl<'a> ExceptionSectionReader<'a> {
-    pub fn new(data: &'a [u8], offset: usize) -> Result<ExceptionSectionReader<'a>> {
+impl<'a> EventSectionReader<'a> {
+    pub fn new(data: &'a [u8], offset: usize) -> Result<EventSectionReader<'a>> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
-        Ok(ExceptionSectionReader { reader, count })
+        Ok(EventSectionReader { reader, count })
     }
 
     pub fn original_position(&self) -> usize {
@@ -39,48 +39,48 @@ impl<'a> ExceptionSectionReader<'a> {
         self.count
     }
 
-    /// Reads content of the global section.
+    /// Reads content of the event section.
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::ExceptionSectionReader;
+    /// use wasmparser::EventSectionReader;
     /// # let data: &[u8] = &[0x01, 0x00, 0x01];
-    /// let mut exn_reader = ExceptionSectionReader::new(data, 0).unwrap();
-    /// for _ in 0..exn_reader.get_count() {
-    ///     let exn = exn_reader.read().expect("exception_type");
-    ///     println!("Exception: {:?}", exn);
+    /// let mut event_reader = EventSectionReader::new(data, 0).unwrap();
+    /// for _ in 0..event_reader.get_count() {
+    ///     let et = event_reader.read().expect("event_type");
+    ///     println!("Event: {:?}", et);
     /// }
     /// ```
-    pub fn read(&mut self) -> Result<ExceptionType> {
-        self.reader.read_exception_type()
+    pub fn read(&mut self) -> Result<EventType> {
+        self.reader.read_event_type()
     }
 }
 
-impl<'a> SectionReader for ExceptionSectionReader<'a> {
-    type Item = ExceptionType;
+impl<'a> SectionReader for EventSectionReader<'a> {
+    type Item = EventType;
     fn read(&mut self) -> Result<Self::Item> {
-        ExceptionSectionReader::read(self)
+        EventSectionReader::read(self)
     }
     fn eof(&self) -> bool {
         self.reader.eof()
     }
     fn original_position(&self) -> usize {
-        ExceptionSectionReader::original_position(self)
+        EventSectionReader::original_position(self)
     }
     fn range(&self) -> Range {
         self.reader.range()
     }
 }
 
-impl<'a> SectionWithLimitedItems for ExceptionSectionReader<'a> {
+impl<'a> SectionWithLimitedItems for EventSectionReader<'a> {
     fn get_count(&self) -> u32 {
-        ExceptionSectionReader::get_count(self)
+        EventSectionReader::get_count(self)
     }
 }
 
-impl<'a> IntoIterator for ExceptionSectionReader<'a> {
-    type Item = Result<ExceptionType>;
-    type IntoIter = SectionIteratorLimited<ExceptionSectionReader<'a>>;
+impl<'a> IntoIterator for EventSectionReader<'a> {
+    type Item = Result<EventType>;
+    type IntoIter = SectionIteratorLimited<EventSectionReader<'a>>;
 
     fn into_iter(self) -> Self::IntoIter {
         SectionIteratorLimited::new(self)

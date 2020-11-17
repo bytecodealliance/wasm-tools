@@ -22,7 +22,7 @@ struct Indices {
     globals: u32,
     tables: u32,
     memories: u32,
-    exceptions: u32,
+    events: u32,
     modules: u32,
     instances: u32,
     types: u32,
@@ -74,9 +74,9 @@ impl<'a> Dump<'a> {
                             write!(me.state, "[memory {}]", i.memories)?;
                             i.memories += 1;
                         }
-                        ImportSectionEntryType::Exception(_) => {
-                            write!(me.state, "[exception {}]", i.exceptions)?;
-                            i.exceptions += 1;
+                        ImportSectionEntryType::Event(_) => {
+                            write!(me.state, "[event {}]", i.events)?;
+                            i.events += 1;
                         }
                         ImportSectionEntryType::Table(_) => {
                             write!(me.state, "[table {}]", i.tables)?;
@@ -116,9 +116,9 @@ impl<'a> Dump<'a> {
                     i.memories += 1;
                     me.print(end)
                 })?,
-                Payload::ExceptionSection(s) => self.section(s, "exception", |me, end, m| {
-                    write!(me.state, "[exception {}] {:?}", i.exceptions, m)?;
-                    i.exceptions += 1;
+                Payload::EventSection(s) => self.section(s, "event", |me, end, m| {
+                    write!(me.state, "[event {}] {:?}", i.events, m)?;
+                    i.events += 1;
                     me.print(end)
                 })?,
                 Payload::ExportSection(s) => self.section(s, "export", |me, end, e| {
@@ -140,7 +140,7 @@ impl<'a> Dump<'a> {
                         ExternalKind::Table => i.tables += 1,
                         ExternalKind::Instance => i.instances += 1,
                         ExternalKind::Memory => i.memories += 1,
-                        ExternalKind::Exception => i.exceptions += 1,
+                        ExternalKind::Event => i.events += 1,
                         ExternalKind::Type => i.types += 1,
                     }
                     me.print(end)
