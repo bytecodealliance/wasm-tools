@@ -668,9 +668,14 @@ impl TestState {
                 }
                 "threads" => features.threads = true,
                 "simd" => features.simd = true,
-                "reference-types" | "exception-handling" => {
+                "reference-types" => {
                     features.bulk_memory = true;
                     features.reference_types = true;
+                }
+                "exception-handling" => {
+                    features.bulk_memory = true;
+                    features.reference_types = true;
+                    features.exceptions = true;
                 }
                 "bulk-memory-operations" => features.bulk_memory = true,
                 "tail-call" => features.tail_call = true,

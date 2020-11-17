@@ -731,7 +731,7 @@ impl Printer {
             }
             Catch => self.result.push_str("catch"),
             Throw { index } => {
-                write!(self.result, "throw {}", index,)?;
+                write!(self.result, "throw {}", index)?;
             }
             Rethrow => self.result.push_str("rethrow"),
             BrOnExn {

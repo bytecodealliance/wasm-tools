@@ -224,7 +224,6 @@ pub enum MemoryType {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct EventType {
-    pub attribute: u32,
     pub type_index: u32,
 }
 

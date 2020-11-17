@@ -718,9 +718,6 @@ impl Validator {
     }
 
     fn event_type(&self, ty: &EventType) -> Result<()> {
-        if ty.attribute != 0 {
-            return self.create_error("invalid event attrubute");
-        }
         let def = self.func_type_at(self.state.def(ty.type_index))?;
         if def.item.returns.len() > 0 {
             return self.create_error("invalid result arity for exception type");

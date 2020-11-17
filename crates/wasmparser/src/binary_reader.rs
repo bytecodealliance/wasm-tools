@@ -375,15 +375,12 @@ impl<'a> BinaryReader<'a> {
         let attribute = self.read_var_u32()?;
         if attribute != 0 {
             return Err(BinaryReaderError::new(
-                "invalid exception attributes",
+                "invalid event attributes",
                 self.original_position() - 1,
             ));
         }
         let type_index = self.read_var_u32()?;
-        Ok(EventType {
-            attribute,
-            type_index,
-        })
+        Ok(EventType { type_index })
     }
 
     pub(crate) fn read_global_type(&mut self) -> Result<GlobalType> {

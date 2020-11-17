@@ -278,18 +278,6 @@ impl OperatorValidator {
         Ok(())
     }
 
-    fn push_catch(&mut self, ty: TypeOrFuncType) -> OperatorValidatorResult<()> {
-        // Push a new frame which has a snapshot of the height of the current
-        // operand stack.
-        self.control.push(Frame {
-            kind: FrameKind::Catch,
-            block_type: ty,
-            height: self.operands.len(),
-            unreachable: false,
-        });
-        self.push_operand(Type::ExnRef)
-    }
-
     /// Pops a frame from the control stack.
     ///
     /// This function is used when exiting a block and leaves a block scope.
@@ -598,7 +586,14 @@ impl OperatorValidator {
                 if frame.kind != FrameKind::Try {
                     bail_op_err!("catch found outside of an `try` block");
                 }
-                self.push_catch(frame.block_type)?;
+                // Start a new frame and push `exnref` value.
+                self.control.push(Frame {
+                    kind: FrameKind::Catch,
+                    block_type: frame.block_type,
+                    height: self.operands.len(),
+                    unreachable: false,
+                });
+                self.push_operand(Type::ExnRef)?;
             }
             Operator::Throw { index } => {
                 self.check_exceptions_enabled()?;
