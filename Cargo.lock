@@ -926,7 +926,7 @@ dependencies = [
 
 [[package]]
 name = "wasmparser"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "anyhow",
  "criterion",
@@ -947,7 +947,7 @@ dependencies = [
 
 [[package]]
 name = "wasmprinter"
-version = "0.2.14"
+version = "0.2.15"
 dependencies = [
  "anyhow",
  "diff",
