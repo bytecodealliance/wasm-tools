@@ -8,15 +8,15 @@ use std::convert::TryFrom;
 /// Encode a `u32` as a ULEB128.
 pub fn u32(n: u32) -> impl ExactSizeIterator<Item = u8> {
     let mut buf = [0; 5];
-    let n = leb128::write::unsigned(&mut &mut buf[..], n as u64).unwrap();
-    Buf5Iter { buf, n, i: 0 }
+    let n = leb128::write::unsigned(&mut &mut buf[..], n.into()).unwrap();
+    Buf5Iter { buf, range: 0..n }
 }
 
 /// Encode an `i32` as a SLEB128.
 pub fn s32(x: i32) -> impl ExactSizeIterator<Item = u8> {
     let mut buf = [0; 5];
-    let n = leb128::write::signed(&mut &mut buf[..], x as i64).unwrap();
-    Buf5Iter { buf, n, i: 0 }
+    let n = leb128::write::signed(&mut &mut buf[..], x.into()).unwrap();
+    Buf5Iter { buf, range: 0..n }
 }
 
 /// Encode an `i64` that uses at most 33 bits as a SLEB128.
@@ -47,14 +47,14 @@ pub fn s33(x: i64) -> impl ExactSizeIterator<Item = u8> {
     });
     let mut buf = [0; 5];
     let n = leb128::write::signed(&mut &mut buf[..], x).unwrap();
-    Buf5Iter { buf, n, i: 0 }
+    Buf5Iter { buf, range: 0..n }
 }
 
 /// Encode an `i64` as a SLEB128.
 pub fn s64(x: i64) -> impl ExactSizeIterator<Item = u8> {
     let mut buf = [0; 9];
-    let n = leb128::write::signed(&mut &mut buf[..], x as i64).unwrap();
-    Buf9Iter { buf, n, i: 0 }
+    let n = leb128::write::signed(&mut &mut buf[..], x).unwrap();
+    Buf9Iter { buf, range: 0..n }
 }
 
 /// Encode a length-prefixed UTF-8 string.
@@ -62,12 +62,11 @@ pub fn str<'a>(s: &'a str) -> impl Iterator<Item = u8> + 'a {
     u32(u32::try_from(s.len()).unwrap()).chain(s.as_bytes().iter().copied())
 }
 
-// `[u8; 5]` doesn't have `into_iter()` so we can't do
+// Fixed size arrays don't have `into_iter()` so we can't simply do
 // `[..].into_iter().take(n)` :(
 struct Buf5Iter {
     buf: [u8; 5],
-    n: usize,
-    i: usize,
+    range: std::ops::Range<usize>,
 }
 
 impl Iterator for Buf5Iter {
@@ -75,29 +74,19 @@ impl Iterator for Buf5Iter {
 
     #[inline]
     fn next(&mut self) -> Option<u8> {
-        debug_assert!(self.i <= self.n);
-        if self.i < self.n {
-            let x = self.buf[self.i];
-            self.i += 1;
-            Some(x)
-        } else {
-            None
-        }
+        Some(self.buf[self.range.next()?])
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.n - self.i, Some(self.n - self.i))
+        self.range.size_hint()
     }
 }
 
 impl ExactSizeIterator for Buf5Iter {}
 
-// `[u8; 9]` doesn't have `into_iter()` so we can't do
-// `[..].into_iter().take(n)` :(
 struct Buf9Iter {
     buf: [u8; 9],
-    n: usize,
-    i: usize,
+    range: std::ops::Range<usize>,
 }
 
 impl Iterator for Buf9Iter {
@@ -105,18 +94,11 @@ impl Iterator for Buf9Iter {
 
     #[inline]
     fn next(&mut self) -> Option<u8> {
-        debug_assert!(self.i <= self.n);
-        if self.i < self.n {
-            let x = self.buf[self.i];
-            self.i += 1;
-            Some(x)
-        } else {
-            None
-        }
+        Some(self.buf[self.range.next()?])
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.n - self.i, Some(self.n - self.i))
+        self.range.size_hint()
     }
 }
 

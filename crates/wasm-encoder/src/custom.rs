@@ -10,7 +10,7 @@ pub struct CustomSection<'a> {
 
 impl Section for CustomSection<'_> {
     fn id(&self) -> u8 {
-        SectionId::Custom as u8
+        SectionId::Custom.into()
     }
 
     fn encode<S>(&self, sink: &mut S)

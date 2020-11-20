@@ -47,7 +47,7 @@ impl GlobalSection {
 
 impl Section for GlobalSection {
     fn id(&self) -> u8 {
-        SectionId::Global as u8
+        SectionId::Global.into()
     }
 
     fn encode<S>(&self, sink: &mut S)
@@ -74,7 +74,7 @@ pub struct GlobalType {
 
 impl GlobalType {
     pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
-        bytes.push(self.val_type as u8);
+        bytes.push(self.val_type.into());
         bytes.push(self.mutable as u8);
     }
 }

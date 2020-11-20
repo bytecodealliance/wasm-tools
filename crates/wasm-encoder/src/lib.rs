@@ -210,6 +210,13 @@ pub enum SectionId {
     Data = 11,
 }
 
+impl From<SectionId> for u8 {
+    #[inline]
+    fn from(id: SectionId) -> u8 {
+        id as u8
+    }
+}
+
 /// Limits for a table or memory.
 pub struct Limits {
     /// The minimum size.
@@ -243,4 +250,11 @@ pub enum ValType {
     F32 = 0x7D,
     /// The `f64` type.
     F64 = 0x7C,
+}
+
+impl From<ValType> for u8 {
+    #[inline]
+    fn from(t: ValType) -> u8 {
+        t as u8
+    }
 }

@@ -44,7 +44,7 @@ impl FunctionSection {
 
 impl Section for FunctionSection {
     fn id(&self) -> u8 {
-        SectionId::Function as u8
+        SectionId::Function.into()
     }
 
     fn encode<S>(&self, sink: &mut S)

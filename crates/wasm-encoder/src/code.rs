@@ -55,7 +55,7 @@ impl CodeSection {
 
 impl Section for CodeSection {
     fn id(&self) -> u8 {
-        SectionId::Code as u8
+        SectionId::Code.into()
     }
 
     fn encode<S>(&self, sink: &mut S)
@@ -111,7 +111,7 @@ impl Function {
         bytes.extend(encoders::u32(u32::try_from(locals.len()).unwrap()));
         for (count, ty) in locals {
             bytes.extend(encoders::u32(count));
-            bytes.push(ty as u8);
+            bytes.push(ty.into());
         }
         Function { bytes }
     }
@@ -170,8 +170,8 @@ impl BlockType {
     fn encode(&self, bytes: &mut Vec<u8>) {
         match *self {
             BlockType::Empty => bytes.push(0x40),
-            BlockType::Result(ty) => bytes.push(ty as u8),
-            BlockType::FunctionType(f) => bytes.extend(encoders::s33(f as i64)),
+            BlockType::Result(ty) => bytes.push(ty.into()),
+            BlockType::FunctionType(f) => bytes.extend(encoders::s33(f.into())),
         }
     }
 }
@@ -446,7 +446,7 @@ impl Instruction<'_> {
             Instruction::TypedSelect(ty) => {
                 bytes.push(0x1c);
                 bytes.extend(encoders::u32(1));
-                bytes.push(ty as u8);
+                bytes.push(ty.into());
             }
 
             // Variable instructions.
@@ -753,7 +753,7 @@ impl Instruction<'_> {
 
             Instruction::RefNull(ty) => {
                 bytes.push(0xd0);
-                bytes.push(ty as u8);
+                bytes.push(ty.into());
             }
             Instruction::RefIsNull => bytes.push(0xd1),
             Instruction::RefFunc(f) => {

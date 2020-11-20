@@ -52,7 +52,7 @@ impl ExportSection {
 
 impl Section for ExportSection {
     fn id(&self) -> u8 {
-        SectionId::Export as u8
+        SectionId::Export.into()
     }
 
     fn encode<S>(&self, sink: &mut S)

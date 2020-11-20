@@ -71,7 +71,7 @@ impl ElementSection {
 
 impl Section for ElementSection {
     fn id(&self) -> u8 {
-        SectionId::Element as u8
+        SectionId::Element.into()
     }
 
     fn encode<S>(&self, sink: &mut S)

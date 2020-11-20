@@ -47,11 +47,11 @@ impl TypeSection {
 
         self.bytes
             .extend(encoders::u32(u32::try_from(params.len()).unwrap()));
-        self.bytes.extend(params.map(|ty| ty as u8));
+        self.bytes.extend(params.map(|ty| u8::from(ty)));
 
         self.bytes
             .extend(encoders::u32(u32::try_from(results.len()).unwrap()));
-        self.bytes.extend(results.map(|ty| ty as u8));
+        self.bytes.extend(results.map(|ty| u8::from(ty)));
 
         self.num_added += 1;
         self
@@ -60,7 +60,7 @@ impl TypeSection {
 
 impl Section for TypeSection {
     fn id(&self) -> u8 {
-        SectionId::Type as u8
+        SectionId::Type.into()
     }
 
     fn encode<S>(&self, sink: &mut S)

@@ -68,7 +68,7 @@ impl DataSection {
 
 impl Section for DataSection {
     fn id(&self) -> u8 {
-        SectionId::Data as u8
+        SectionId::Data.into()
     }
 
     fn encode<S>(&self, sink: &mut S)

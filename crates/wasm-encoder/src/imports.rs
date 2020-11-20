@@ -68,7 +68,7 @@ impl ImportSection {
 
 impl Section for ImportSection {
     fn id(&self) -> u8 {
-        SectionId::Import as u8
+        SectionId::Import.into()
     }
 
     fn encode<S>(&self, sink: &mut S)
