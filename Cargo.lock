@@ -895,6 +895,7 @@ dependencies = [
  "libfuzzer-sys",
  "rand",
  "structopt",
+ "wasm-encoder",
  "wasmparser",
 ]
 
