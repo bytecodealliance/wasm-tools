@@ -1,4 +1,5 @@
 use super::*;
+use std::convert::TryFrom;
 
 impl Module {
     /// Encode this Wasm module into bytes.
@@ -13,879 +14,493 @@ where
 {
     /// Encode this Wasm module into bytes.
     pub fn to_bytes(&self) -> Vec<u8> {
-        #[rustfmt::skip]
-        let mut bytes = vec![
-            // Magic
-            0x00, 0x61, 0x73, 0x6D,
-            // Version
-            0x01, 0x00, 0x00, 0x00,
-        ];
+        let mut module = wasm_encoder::Module::new();
 
-        self.encode_types(&mut bytes);
-        self.encode_imports(&mut bytes);
-        self.encode_funcs(&mut bytes);
-        self.encode_tables(&mut bytes);
-        self.encode_memories(&mut bytes);
-        self.encode_globals(&mut bytes);
-        self.encode_exports(&mut bytes);
-        self.encode_start(&mut bytes);
-        self.encode_elems(&mut bytes);
-        self.encode_data_count(&mut bytes);
-        self.encode_code(&mut bytes);
-        self.encode_data(&mut bytes);
+        self.encode_types(&mut module);
+        self.encode_imports(&mut module);
+        self.encode_funcs(&mut module);
+        self.encode_tables(&mut module);
+        self.encode_memories(&mut module);
+        self.encode_globals(&mut module);
+        self.encode_exports(&mut module);
+        self.encode_start(&mut module);
+        self.encode_elems(&mut module);
+        self.encode_data_count(&mut module);
+        self.encode_code(&mut module);
+        self.encode_data(&mut module);
 
-        bytes
+        module.finish()
     }
 
-    fn length_placeholder(&self, bytes: &mut Vec<u8>) -> usize {
-        let idx = bytes.len();
-        // The longest a `u32` encoded as a LEB128 can be is 5 bytes.
-        bytes.extend(std::iter::repeat(0x80_u8).take(4).chain(Some(0x00)));
-        idx
-    }
-
-    fn encode_length(&self, bytes: &mut Vec<u8>, at: usize, length: u32) {
-        debug_assert!(bytes.len() >= at + 5);
-        let mut buf = [0; 5];
-        let n = leb128::write::unsigned(&mut &mut buf[..], length as u64).unwrap();
-        let start = at;
-        let end = start + n;
-        bytes[start..end].copy_from_slice(&buf[0..n]);
-        for i in 0..4 {
-            bytes[start + i] |= 1 << 7;
-        }
-    }
-
-    fn with_byte_length<T>(&self, bytes: &mut Vec<u8>, f: impl FnOnce(&mut Vec<u8>) -> T) -> T {
-        let placeholder = self.length_placeholder(bytes);
-        let start = bytes.len();
-        let result = f(bytes);
-        let end = bytes.len();
-        self.encode_length(bytes, placeholder, (end - start) as u32);
-        result
-    }
-
-    fn section(&self, bytes: &mut Vec<u8>, id: u8, f: impl FnOnce(&mut Vec<u8>)) {
-        bytes.push(id);
-        self.with_byte_length(bytes, f)
-    }
-
-    fn encode_vec<'a, T: 'a>(
-        &self,
-        bytes: &mut Vec<u8>,
-        items: impl IntoIterator<Item = &'a T> + 'a,
-        encode: impl Fn(&mut Vec<u8>, &'a T),
-    ) {
-        let placeholder = self.length_placeholder(bytes);
-        let mut len = 0;
-        for x in items {
-            encode(bytes, x);
-            len += 1;
-        }
-        self.encode_length(bytes, placeholder, len)
-    }
-
-    fn encode_result_type(&self, bytes: &mut Vec<u8>, tys: &[ValType]) {
-        self.encode_vec(bytes, tys, |bytes, ty| {
-            self.encode_val_type(bytes, *ty);
-        })
-    }
-
-    fn encode_name(&self, bytes: &mut Vec<u8>, name: &str) {
-        let placeholder = self.length_placeholder(bytes);
-        self.encode_length(bytes, placeholder, name.len() as u32);
-        bytes.extend(name.as_bytes());
-    }
-
-    fn encode_limits(&self, bytes: &mut Vec<u8>, limits: &Limits) {
-        if let Some(max) = limits.max {
-            bytes.push(0x01);
-            self.encode_u32(bytes, limits.min);
-            self.encode_u32(bytes, max);
-        } else {
-            bytes.push(0x00);
-            self.encode_u32(bytes, limits.min);
-        }
-    }
-
-    fn encode_val_type(&self, bytes: &mut Vec<u8>, ty: ValType) {
-        bytes.push(match ty {
-            ValType::I32 => 0x7F,
-            ValType::I64 => 0x7E,
-            ValType::F32 => 0x7D,
-            ValType::F64 => 0x7C,
-            ValType::FuncRef => 0x70,
-            ValType::ExternRef => 0x6F,
-        });
-    }
-
-    fn encode_u32(&self, bytes: &mut Vec<u8>, x: u32) {
-        let mut buf = [0x00; 5];
-        let n = leb128::write::unsigned(&mut &mut buf[..], x as u64).unwrap();
-        let min = usize::from(self.config.min_uleb_size());
-        if buf.len() < min {
-            for _ in 0..(min - buf.len()) {
-                bytes.push(1 << 7);
-            }
-        }
-        bytes.extend(buf.iter().take(n).copied());
-    }
-
-    fn encode_s32(&self, bytes: &mut Vec<u8>, x: i32) {
-        let mut buf = [0x00; 5];
-        let n = leb128::write::signed(&mut &mut buf[..], x as i64).unwrap();
-        bytes.extend(buf.iter().take(n).copied());
-    }
-
-    fn encode_s33(&self, bytes: &mut Vec<u8>, x: i64) {
-        let mut buf = [0x00; 5];
-        let n = leb128::write::signed(&mut &mut buf[..], x).unwrap();
-        bytes.extend(buf.iter().take(n).copied());
-    }
-
-    fn encode_s64(&self, bytes: &mut Vec<u8>, x: i64) {
-        let mut buf = [0x00; 10];
-        let n = leb128::write::signed(&mut &mut buf[..], x).unwrap();
-        bytes.extend(buf.iter().take(n).copied());
-    }
-
-    fn encode_table_type(&self, bytes: &mut Vec<u8>, ty: &TableType) {
-        self.encode_val_type(bytes, ty.elem_ty);
-        self.encode_limits(bytes, &ty.limits);
-    }
-
-    fn encode_global_type(&self, bytes: &mut Vec<u8>, g: &GlobalType) {
-        self.encode_val_type(bytes, g.val_type);
-        bytes.push(g.mutable as u8);
-    }
-
-    fn encode_block_type(&self, bytes: &mut Vec<u8>, bt: BlockType) {
-        match bt {
-            BlockType::Empty => bytes.push(0x40),
-            BlockType::Result(ty) => self.encode_val_type(bytes, ty),
-            BlockType::FuncType(f) => self.encode_s33(bytes, f as i64),
-        }
-    }
-
-    fn encode_mem_arg(&self, bytes: &mut Vec<u8>, m: MemArg) {
-        if m.memory_index == 0 {
-            self.encode_u32(bytes, m.align);
-            self.encode_u32(bytes, m.offset);
-        } else {
-            self.encode_u32(bytes, m.align | (1 << 6));
-            self.encode_u32(bytes, m.offset);
-            self.encode_u32(bytes, m.memory_index);
-        }
-    }
-
-    fn encode_instruction(&self, bytes: &mut Vec<u8>, inst: &Instruction) {
-        match inst {
-            // Control instructions.
-            Instruction::Unreachable => bytes.push(0x00),
-            Instruction::Nop => bytes.push(0x01),
-            Instruction::Block(bt) => {
-                bytes.push(0x02);
-                self.encode_block_type(bytes, *bt);
-            }
-            Instruction::Loop(bt) => {
-                bytes.push(0x03);
-                self.encode_block_type(bytes, *bt);
-            }
-            Instruction::If(bt) => {
-                bytes.push(0x04);
-                self.encode_block_type(bytes, *bt);
-            }
-            Instruction::Else => bytes.push(0x05),
-            Instruction::End => bytes.push(0x0B),
-            Instruction::Br(l) => {
-                bytes.push(0x0C);
-                self.encode_u32(bytes, *l);
-            }
-            Instruction::BrIf(l) => {
-                bytes.push(0x0D);
-                self.encode_u32(bytes, *l);
-            }
-            Instruction::BrTable(ls, l) => {
-                bytes.push(0x0E);
-                self.encode_vec(bytes, ls, |bytes, l| {
-                    self.encode_u32(bytes, *l);
-                });
-                self.encode_u32(bytes, *l);
-            }
-            Instruction::Return => bytes.push(0x0F),
-            Instruction::Call(f) => {
-                bytes.push(0x10);
-                self.encode_u32(bytes, *f);
-            }
-            Instruction::CallIndirect { ty, table } => {
-                bytes.push(0x11);
-                self.encode_u32(bytes, *ty);
-                self.encode_u32(bytes, *table);
-            }
-
-            // Parametric instructions.
-            Instruction::Drop => bytes.push(0x1A),
-            Instruction::Select => bytes.push(0x1B),
-            Instruction::TypedSelect(ty) => {
-                bytes.push(0x1c);
-                self.encode_u32(bytes, 1);
-                self.encode_val_type(bytes, *ty);
-            }
-
-            // Variable instructions.
-            Instruction::LocalGet(l) => {
-                bytes.push(0x20);
-                self.encode_u32(bytes, *l);
-            }
-            Instruction::LocalSet(l) => {
-                bytes.push(0x21);
-                self.encode_u32(bytes, *l);
-            }
-            Instruction::LocalTee(l) => {
-                bytes.push(0x22);
-                self.encode_u32(bytes, *l);
-            }
-            Instruction::GlobalGet(g) => {
-                bytes.push(0x23);
-                self.encode_u32(bytes, *g);
-            }
-            Instruction::GlobalSet(g) => {
-                bytes.push(0x24);
-                self.encode_u32(bytes, *g);
-            }
-            Instruction::TableGet { table } => {
-                bytes.push(0x25);
-                self.encode_u32(bytes, *table);
-            }
-            Instruction::TableSet { table } => {
-                bytes.push(0x26);
-                self.encode_u32(bytes, *table);
-            }
-
-            // Memory instructions.
-            Instruction::I32Load(m) => {
-                bytes.push(0x28);
-                self.encode_mem_arg(bytes, *m);
-            }
-            Instruction::I64Load(m) => {
-                bytes.push(0x29);
-                self.encode_mem_arg(bytes, *m);
-            }
-            Instruction::F32Load(m) => {
-                bytes.push(0x2A);
-                self.encode_mem_arg(bytes, *m);
-            }
-            Instruction::F64Load(m) => {
-                bytes.push(0x2B);
-                self.encode_mem_arg(bytes, *m);
-            }
-            Instruction::I32Load8_S(m) => {
-                bytes.push(0x2C);
-                self.encode_mem_arg(bytes, *m);
-            }
-            Instruction::I32Load8_U(m) => {
-                bytes.push(0x2D);
-                self.encode_mem_arg(bytes, *m);
-            }
-            Instruction::I32Load16_S(m) => {
-                bytes.push(0x2E);
-                self.encode_mem_arg(bytes, *m);
-            }
-            Instruction::I32Load16_U(m) => {
-                bytes.push(0x2F);
-                self.encode_mem_arg(bytes, *m);
-            }
-            Instruction::I64Load8_S(m) => {
-                bytes.push(0x30);
-                self.encode_mem_arg(bytes, *m);
-            }
-            Instruction::I64Load8_U(m) => {
-                bytes.push(0x31);
-                self.encode_mem_arg(bytes, *m);
-            }
-            Instruction::I64Load16_S(m) => {
-                bytes.push(0x32);
-                self.encode_mem_arg(bytes, *m);
-            }
-            Instruction::I64Load16_U(m) => {
-                bytes.push(0x33);
-                self.encode_mem_arg(bytes, *m);
-            }
-            Instruction::I64Load32_S(m) => {
-                bytes.push(0x34);
-                self.encode_mem_arg(bytes, *m);
-            }
-            Instruction::I64Load32_U(m) => {
-                bytes.push(0x35);
-                self.encode_mem_arg(bytes, *m);
-            }
-            Instruction::I32Store(m) => {
-                bytes.push(0x36);
-                self.encode_mem_arg(bytes, *m);
-            }
-            Instruction::I64Store(m) => {
-                bytes.push(0x37);
-                self.encode_mem_arg(bytes, *m);
-            }
-            Instruction::F32Store(m) => {
-                bytes.push(0x38);
-                self.encode_mem_arg(bytes, *m);
-            }
-            Instruction::F64Store(m) => {
-                bytes.push(0x39);
-                self.encode_mem_arg(bytes, *m);
-            }
-            Instruction::I32Store8(m) => {
-                bytes.push(0x3A);
-                self.encode_mem_arg(bytes, *m);
-            }
-            Instruction::I32Store16(m) => {
-                bytes.push(0x3B);
-                self.encode_mem_arg(bytes, *m);
-            }
-            Instruction::I64Store8(m) => {
-                bytes.push(0x3C);
-                self.encode_mem_arg(bytes, *m);
-            }
-            Instruction::I64Store16(m) => {
-                bytes.push(0x3D);
-                self.encode_mem_arg(bytes, *m);
-            }
-            Instruction::I64Store32(m) => {
-                bytes.push(0x3E);
-                self.encode_mem_arg(bytes, *m);
-            }
-            Instruction::MemorySize(i) => {
-                bytes.push(0x3F);
-                self.encode_u32(bytes, *i);
-            }
-            Instruction::MemoryGrow(i) => {
-                bytes.push(0x40);
-                self.encode_u32(bytes, *i);
-            }
-            Instruction::MemoryInit { mem, data } => {
-                bytes.push(0xfc);
-                self.encode_u32(bytes, 8);
-                self.encode_u32(bytes, *data);
-                self.encode_u32(bytes, *mem);
-            }
-            Instruction::DataDrop(data) => {
-                bytes.push(0xfc);
-                self.encode_u32(bytes, 9);
-                self.encode_u32(bytes, *data);
-            }
-            Instruction::MemoryCopy { src, dst } => {
-                bytes.push(0xfc);
-                self.encode_u32(bytes, 10);
-                self.encode_u32(bytes, *dst);
-                self.encode_u32(bytes, *src);
-            }
-            Instruction::MemoryFill(mem) => {
-                bytes.push(0xfc);
-                self.encode_u32(bytes, 11);
-                self.encode_u32(bytes, *mem);
-            }
-
-            // Numeric instructions.
-            Instruction::I32Const(x) => {
-                bytes.push(0x41);
-                self.encode_s32(bytes, *x);
-            }
-            Instruction::I64Const(x) => {
-                bytes.push(0x42);
-                self.encode_s64(bytes, *x);
-            }
-            Instruction::F32Const(x) => {
-                bytes.push(0x43);
-                let x: u32 = unsafe { std::mem::transmute(*x) };
-                bytes.extend(x.to_le_bytes().iter().copied());
-            }
-            Instruction::F64Const(x) => {
-                bytes.push(0x44);
-                let x: u64 = unsafe { std::mem::transmute(*x) };
-                bytes.extend(x.to_le_bytes().iter().copied());
-            }
-            Instruction::I32Eqz => bytes.push(0x45),
-            Instruction::I32Eq => bytes.push(0x46),
-            Instruction::I32Neq => bytes.push(0x47),
-            Instruction::I32LtS => bytes.push(0x48),
-            Instruction::I32LtU => bytes.push(0x49),
-            Instruction::I32GtS => bytes.push(0x4A),
-            Instruction::I32GtU => bytes.push(0x4B),
-            Instruction::I32LeS => bytes.push(0x4C),
-            Instruction::I32LeU => bytes.push(0x4D),
-            Instruction::I32GeS => bytes.push(0x4E),
-            Instruction::I32GeU => bytes.push(0x4F),
-            Instruction::I64Eqz => bytes.push(0x50),
-            Instruction::I64Eq => bytes.push(0x51),
-            Instruction::I64Neq => bytes.push(0x52),
-            Instruction::I64LtS => bytes.push(0x53),
-            Instruction::I64LtU => bytes.push(0x54),
-            Instruction::I64GtS => bytes.push(0x55),
-            Instruction::I64GtU => bytes.push(0x56),
-            Instruction::I64LeS => bytes.push(0x57),
-            Instruction::I64LeU => bytes.push(0x58),
-            Instruction::I64GeS => bytes.push(0x59),
-            Instruction::I64GeU => bytes.push(0x5A),
-            Instruction::F32Eq => bytes.push(0x5B),
-            Instruction::F32Neq => bytes.push(0x5C),
-            Instruction::F32Lt => bytes.push(0x5D),
-            Instruction::F32Gt => bytes.push(0x5E),
-            Instruction::F32Le => bytes.push(0x5F),
-            Instruction::F32Ge => bytes.push(0x60),
-            Instruction::F64Eq => bytes.push(0x61),
-            Instruction::F64Neq => bytes.push(0x62),
-            Instruction::F64Lt => bytes.push(0x63),
-            Instruction::F64Gt => bytes.push(0x64),
-            Instruction::F64Le => bytes.push(0x65),
-            Instruction::F64Ge => bytes.push(0x66),
-            Instruction::I32Clz => bytes.push(0x67),
-            Instruction::I32Ctz => bytes.push(0x68),
-            Instruction::I32Popcnt => bytes.push(0x69),
-            Instruction::I32Add => bytes.push(0x6A),
-            Instruction::I32Sub => bytes.push(0x6B),
-            Instruction::I32Mul => bytes.push(0x6C),
-            Instruction::I32DivS => bytes.push(0x6D),
-            Instruction::I32DivU => bytes.push(0x6E),
-            Instruction::I32RemS => bytes.push(0x6F),
-            Instruction::I32RemU => bytes.push(0x70),
-            Instruction::I32And => bytes.push(0x71),
-            Instruction::I32Or => bytes.push(0x72),
-            Instruction::I32Xor => bytes.push(0x73),
-            Instruction::I32Shl => bytes.push(0x74),
-            Instruction::I32ShrS => bytes.push(0x75),
-            Instruction::I32ShrU => bytes.push(0x76),
-            Instruction::I32Rotl => bytes.push(0x77),
-            Instruction::I32Rotr => bytes.push(0x78),
-            Instruction::I64Clz => bytes.push(0x79),
-            Instruction::I64Ctz => bytes.push(0x7A),
-            Instruction::I64Popcnt => bytes.push(0x7B),
-            Instruction::I64Add => bytes.push(0x7C),
-            Instruction::I64Sub => bytes.push(0x7D),
-            Instruction::I64Mul => bytes.push(0x7E),
-            Instruction::I64DivS => bytes.push(0x7F),
-            Instruction::I64DivU => bytes.push(0x80),
-            Instruction::I64RemS => bytes.push(0x81),
-            Instruction::I64RemU => bytes.push(0x82),
-            Instruction::I64And => bytes.push(0x83),
-            Instruction::I64Or => bytes.push(0x84),
-            Instruction::I64Xor => bytes.push(0x85),
-            Instruction::I64Shl => bytes.push(0x86),
-            Instruction::I64ShrS => bytes.push(0x87),
-            Instruction::I64ShrU => bytes.push(0x88),
-            Instruction::I64Rotl => bytes.push(0x89),
-            Instruction::I64Rotr => bytes.push(0x8A),
-            Instruction::F32Abs => bytes.push(0x8B),
-            Instruction::F32Neg => bytes.push(0x8C),
-            Instruction::F32Ceil => bytes.push(0x8D),
-            Instruction::F32Floor => bytes.push(0x8E),
-            Instruction::F32Trunc => bytes.push(0x8F),
-            Instruction::F32Nearest => bytes.push(0x90),
-            Instruction::F32Sqrt => bytes.push(0x91),
-            Instruction::F32Add => bytes.push(0x92),
-            Instruction::F32Sub => bytes.push(0x93),
-            Instruction::F32Mul => bytes.push(0x94),
-            Instruction::F32Div => bytes.push(0x95),
-            Instruction::F32Min => bytes.push(0x96),
-            Instruction::F32Max => bytes.push(0x97),
-            Instruction::F32Copysign => bytes.push(0x98),
-            Instruction::F64Abs => bytes.push(0x99),
-            Instruction::F64Neg => bytes.push(0x9A),
-            Instruction::F64Ceil => bytes.push(0x9B),
-            Instruction::F64Floor => bytes.push(0x9C),
-            Instruction::F64Trunc => bytes.push(0x9D),
-            Instruction::F64Nearest => bytes.push(0x9E),
-            Instruction::F64Sqrt => bytes.push(0x9F),
-            Instruction::F64Add => bytes.push(0xA0),
-            Instruction::F64Sub => bytes.push(0xA1),
-            Instruction::F64Mul => bytes.push(0xA2),
-            Instruction::F64Div => bytes.push(0xA3),
-            Instruction::F64Min => bytes.push(0xA4),
-            Instruction::F64Max => bytes.push(0xA5),
-            Instruction::F64Copysign => bytes.push(0xA6),
-            Instruction::I32WrapI64 => bytes.push(0xA7),
-            Instruction::I32TruncF32S => bytes.push(0xA8),
-            Instruction::I32TruncF32U => bytes.push(0xA9),
-            Instruction::I32TruncF64S => bytes.push(0xAA),
-            Instruction::I32TruncF64U => bytes.push(0xAB),
-            Instruction::I64ExtendI32S => bytes.push(0xAC),
-            Instruction::I64ExtendI32U => bytes.push(0xAD),
-            Instruction::I64TruncF32S => bytes.push(0xAE),
-            Instruction::I64TruncF32U => bytes.push(0xAF),
-            Instruction::I64TruncF64S => bytes.push(0xB0),
-            Instruction::I64TruncF64U => bytes.push(0xB1),
-            Instruction::F32ConvertI32S => bytes.push(0xB2),
-            Instruction::F32ConvertI32U => bytes.push(0xB3),
-            Instruction::F32ConvertI64S => bytes.push(0xB4),
-            Instruction::F32ConvertI64U => bytes.push(0xB5),
-            Instruction::F32DemoteF64 => bytes.push(0xB6),
-            Instruction::F64ConvertI32S => bytes.push(0xB7),
-            Instruction::F64ConvertI32U => bytes.push(0xB8),
-            Instruction::F64ConvertI64S => bytes.push(0xB9),
-            Instruction::F64ConvertI64U => bytes.push(0xBA),
-            Instruction::F64PromoteF32 => bytes.push(0xBB),
-            Instruction::I32ReinterpretF32 => bytes.push(0xBC),
-            Instruction::I64ReinterpretF64 => bytes.push(0xBD),
-            Instruction::F32ReinterpretI32 => bytes.push(0xBE),
-            Instruction::F64ReinterpretI64 => bytes.push(0xBF),
-            Instruction::I32Extend8S => bytes.push(0xC0),
-            Instruction::I32Extend16S => bytes.push(0xC1),
-            Instruction::I64Extend8S => bytes.push(0xC2),
-            Instruction::I64Extend16S => bytes.push(0xC3),
-            Instruction::I64Extend32S => bytes.push(0xC4),
-
-            Instruction::RefNull(ty) => {
-                bytes.push(0xd0);
-                self.encode_val_type(bytes, *ty);
-            }
-            Instruction::RefIsNull => bytes.push(0xd1),
-            Instruction::RefFunc(f) => {
-                bytes.push(0xd2);
-                self.encode_u32(bytes, *f);
-            }
-
-            Instruction::I32TruncSatF32S => {
-                bytes.push(0xFC);
-                self.encode_u32(bytes, 0);
-            }
-            Instruction::I32TruncSatF32U => {
-                bytes.push(0xFC);
-                self.encode_u32(bytes, 1);
-            }
-            Instruction::I32TruncSatF64S => {
-                bytes.push(0xFC);
-                self.encode_u32(bytes, 2);
-            }
-            Instruction::I32TruncSatF64U => {
-                bytes.push(0xFC);
-                self.encode_u32(bytes, 3);
-            }
-            Instruction::I64TruncSatF32S => {
-                bytes.push(0xFC);
-                self.encode_u32(bytes, 4);
-            }
-            Instruction::I64TruncSatF32U => {
-                bytes.push(0xFC);
-                self.encode_u32(bytes, 5);
-            }
-            Instruction::I64TruncSatF64S => {
-                bytes.push(0xFC);
-                self.encode_u32(bytes, 6);
-            }
-            Instruction::I64TruncSatF64U => {
-                bytes.push(0xFC);
-                self.encode_u32(bytes, 7);
-            }
-
-            Instruction::TableInit { segment, table } => {
-                bytes.push(0xfc);
-                self.encode_u32(bytes, 0x0c);
-                self.encode_u32(bytes, *segment);
-                self.encode_u32(bytes, *table);
-            }
-            Instruction::ElemDrop { segment } => {
-                bytes.push(0xfc);
-                self.encode_u32(bytes, 0x0d);
-                self.encode_u32(bytes, *segment);
-            }
-            Instruction::TableCopy { src, dst } => {
-                bytes.push(0xfc);
-                self.encode_u32(bytes, 0x0e);
-                self.encode_u32(bytes, *dst);
-                self.encode_u32(bytes, *src);
-            }
-            Instruction::TableGrow { table } => {
-                bytes.push(0xfc);
-                self.encode_u32(bytes, 0x0f);
-                self.encode_u32(bytes, *table);
-            }
-            Instruction::TableSize { table } => {
-                bytes.push(0xfc);
-                self.encode_u32(bytes, 0x10);
-                self.encode_u32(bytes, *table);
-            }
-            Instruction::TableFill { table } => {
-                bytes.push(0xfc);
-                self.encode_u32(bytes, 0x11);
-                self.encode_u32(bytes, *table);
-            }
-        }
-    }
-
-    fn encode_types(&self, bytes: &mut Vec<u8>) {
+    fn encode_types(&self, module: &mut wasm_encoder::Module) {
         if self.types.is_empty() {
             return;
         }
-        self.section(bytes, 1, |bytes| {
-            self.encode_vec(bytes, &self.types, |bytes, ty| {
-                bytes.push(0x60);
-                self.encode_result_type(bytes, &ty.params);
-                self.encode_result_type(bytes, &ty.results);
-            });
-        });
+        let mut types = wasm_encoder::TypeSection::new();
+        for ty in &self.types {
+            types.function(
+                ty.params.iter().map(|t| translate_val_type(*t)),
+                ty.results.iter().map(|t| translate_val_type(*t)),
+            );
+        }
+        module.section(&types);
     }
 
-    fn encode_imports(&self, bytes: &mut Vec<u8>) {
+    fn encode_imports(&self, module: &mut wasm_encoder::Module) {
         if self.imports.is_empty() {
             return;
         }
-        self.section(bytes, 2, |bytes| {
-            self.encode_vec(bytes, &self.imports, |bytes, (module, name, imp)| {
-                self.encode_name(bytes, module);
-                self.encode_name(bytes, name);
+        let mut imports = wasm_encoder::ImportSection::new();
+        for (module, name, imp) in &self.imports {
+            imports.import(
+                module,
+                name,
                 match imp {
-                    Import::Func(f) => {
-                        bytes.push(0x00);
-                        self.encode_u32(bytes, *f);
-                    }
-                    Import::Table(ty) => {
-                        bytes.push(0x01);
-                        self.encode_table_type(bytes, ty);
-                    }
-                    Import::Memory(m) => {
-                        bytes.push(0x02);
-                        self.encode_limits(bytes, &m.limits);
-                    }
-                    Import::Global(g) => {
-                        bytes.push(0x03);
-                        self.encode_global_type(bytes, g);
-                    }
-                }
-            });
-        });
+                    Import::Func(f) => wasm_encoder::ImportType::Function(*f),
+                    Import::Table(ty) => translate_table_type(ty).into(),
+                    Import::Memory(m) => translate_memory_type(m).into(),
+                    Import::Global(g) => translate_global_type(g).into(),
+                },
+            );
+        }
+        module.section(&imports);
     }
 
-    fn encode_funcs(&self, bytes: &mut Vec<u8>) {
+    fn encode_funcs(&self, module: &mut wasm_encoder::Module) {
         if self.funcs.is_empty() {
             return;
         }
-        self.section(bytes, 3, |bytes| {
-            self.encode_vec(bytes, &self.funcs, |bytes, ty| {
-                self.encode_u32(bytes, *ty);
-            });
-        });
+        let mut funcs = wasm_encoder::FunctionSection::new();
+        for ty in &self.funcs {
+            funcs.function(*ty);
+        }
+        module.section(&funcs);
     }
 
-    fn encode_tables(&self, bytes: &mut Vec<u8>) {
+    fn encode_tables(&self, module: &mut wasm_encoder::Module) {
         if self.tables.is_empty() {
             return;
         }
-        self.section(bytes, 4, |bytes| {
-            self.encode_vec(bytes, &self.tables, |bytes, t| {
-                self.encode_table_type(bytes, t);
-            });
-        });
+        let mut tables = wasm_encoder::TableSection::new();
+        for t in &self.tables {
+            tables.table(translate_table_type(t));
+        }
+        module.section(&tables);
     }
 
-    fn encode_memories(&self, bytes: &mut Vec<u8>) {
+    fn encode_memories(&self, module: &mut wasm_encoder::Module) {
         if self.memories.is_empty() {
             return;
         }
-        self.section(bytes, 5, |bytes| {
-            self.encode_vec(bytes, &self.memories, |bytes, m| {
-                self.encode_limits(bytes, &m.limits);
-            });
-        });
+        let mut mems = wasm_encoder::MemorySection::new();
+        for m in &self.memories {
+            mems.memory(translate_memory_type(m));
+        }
+        module.section(&mems);
     }
 
-    fn encode_globals(&self, bytes: &mut Vec<u8>) {
+    fn encode_globals(&self, module: &mut wasm_encoder::Module) {
         if self.globals.is_empty() {
             return;
         }
-        self.section(bytes, 6, |bytes| {
-            self.encode_vec(bytes, &self.globals, |bytes, g| {
-                self.encode_global_type(bytes, &g.ty);
-                self.encode_instruction(bytes, &g.expr);
-                self.encode_instruction(bytes, &Instruction::End);
-            });
-        });
+        let mut globals = wasm_encoder::GlobalSection::new();
+        for g in &self.globals {
+            globals.global(translate_global_type(&g.ty), translate_instruction(&g.expr));
+        }
+        module.section(&globals);
     }
 
-    fn encode_exports(&self, bytes: &mut Vec<u8>) {
+    fn encode_exports(&self, module: &mut wasm_encoder::Module) {
         if self.exports.is_empty() {
             return;
         }
-        self.section(bytes, 7, |bytes| {
-            self.encode_vec(bytes, &self.exports, |bytes, (name, exp)| {
-                self.encode_name(bytes, name);
+        let mut exports = wasm_encoder::ExportSection::new();
+        for (name, exp) in &self.exports {
+            exports.export(
+                name,
                 match exp {
-                    Export::Func(f) => {
-                        bytes.push(0x00);
-                        self.encode_u32(bytes, *f);
-                    }
-                    Export::Table(t) => {
-                        bytes.push(0x01);
-                        self.encode_u32(bytes, *t);
-                    }
-                    Export::Memory(m) => {
-                        bytes.push(0x02);
-                        self.encode_u32(bytes, *m);
-                    }
-                    Export::Global(g) => {
-                        bytes.push(0x03);
-                        self.encode_u32(bytes, *g);
-                    }
-                }
-            });
-        });
+                    Export::Func(f) => wasm_encoder::Export::Function(*f),
+                    Export::Table(t) => wasm_encoder::Export::Table(*t),
+                    Export::Memory(m) => wasm_encoder::Export::Memory(*m),
+                    Export::Global(g) => wasm_encoder::Export::Global(*g),
+                },
+            );
+        }
+        module.section(&exports);
     }
 
-    fn encode_start(&self, bytes: &mut Vec<u8>) {
+    fn encode_start(&self, module: &mut wasm_encoder::Module) {
         if let Some(f) = self.start {
-            self.section(bytes, 8, |bytes| {
-                self.encode_u32(bytes, f);
-            });
+            module.section(&wasm_encoder::StartSection { function_index: f });
         }
     }
 
-    fn encode_elems(&self, bytes: &mut Vec<u8>) {
+    fn encode_elems(&self, module: &mut wasm_encoder::Module) {
         if self.elems.is_empty() {
             return;
         }
-        self.section(bytes, 9, |bytes| {
-            self.encode_vec(bytes, &self.elems, |bytes, el| {
-                let expr_bit = match el.items {
-                    Elements::Expressions(_) => 0b100,
-                    Elements::Functions(_) => 0b000,
-                };
-                match &el.kind {
-                    ElementKind::Active {
-                        table: None,
-                        offset,
-                    } => {
-                        self.encode_u32(bytes, 0x00 | expr_bit);
-                        self.encode_instruction(bytes, offset);
-                        self.encode_instruction(bytes, &Instruction::End);
-                    }
-                    ElementKind::Passive => {
-                        self.encode_u32(bytes, 0x01 | expr_bit);
-                        if expr_bit == 0 {
-                            bytes.push(0x00); // elemkind == funcref
-                        } else {
-                            self.encode_val_type(bytes, el.ty);
-                        }
-                    }
-                    ElementKind::Active {
-                        table: Some(i),
-                        offset,
-                    } => {
-                        self.encode_u32(bytes, 0x02 | expr_bit);
-                        self.encode_u32(bytes, *i);
-                        self.encode_instruction(bytes, offset);
-                        self.encode_instruction(bytes, &Instruction::End);
-                        if expr_bit == 0 {
-                            bytes.push(0x00); // elemkind == funcref
-                        } else {
-                            self.encode_val_type(bytes, el.ty);
-                        }
-                    }
-                    ElementKind::Declared => {
-                        self.encode_u32(bytes, 0x03 | expr_bit);
-                        if expr_bit == 0 {
-                            bytes.push(0x00); // elemkind == funcref
-                        } else {
-                            self.encode_val_type(bytes, el.ty);
-                        }
-                    }
+        let mut elems = wasm_encoder::ElementSection::new();
+        let mut exps = vec![];
+        for el in &self.elems {
+            let elem_ty = translate_val_type(el.ty);
+            let elements = match &el.items {
+                Elements::Expressions(es) => {
+                    exps.clear();
+                    exps.extend(es.iter().map(|e| match e {
+                        Some(i) => wasm_encoder::Element::Func(*i),
+                        None => wasm_encoder::Element::Null,
+                    }));
+                    wasm_encoder::Elements::Expressions(&exps)
                 }
-                match &el.items {
-                    Elements::Functions(f) => {
-                        self.encode_vec(bytes, f, |bytes, f| {
-                            self.encode_u32(bytes, *f);
-                        });
-                    }
-                    Elements::Expressions(e) => {
-                        self.encode_u32(bytes, e.len() as u32);
-                        for expr in e {
-                            match expr {
-                                Some(i) => {
-                                    self.encode_instruction(bytes, &Instruction::RefFunc(*i));
-                                }
-                                None => {
-                                    self.encode_instruction(bytes, &Instruction::RefNull(el.ty));
-                                }
-                            }
-                            self.encode_instruction(bytes, &Instruction::End);
-                        }
-                    }
+                Elements::Functions(fs) => wasm_encoder::Elements::Functions(fs),
+            };
+            match &el.kind {
+                ElementKind::Active { table, offset } => {
+                    elems.active(*table, translate_instruction(offset), elem_ty, elements);
                 }
-            });
-        });
+                ElementKind::Passive => {
+                    elems.passive(elem_ty, elements);
+                }
+                ElementKind::Declared => {
+                    elems.declared(elem_ty, elements);
+                }
+            }
+        }
+        module.section(&elems);
     }
 
-    fn encode_data_count(&self, bytes: &mut Vec<u8>) {
-        // Without bulk memory there's no need for a data count section
+    fn encode_data_count(&self, module: &mut wasm_encoder::Module) {
+        // Without bulk memory there's no need for a data count section,
         if !self.config.bulk_memory_enabled() {
             return;
         }
-        // ... and also if there's no data no need for a data count section
+        // ... and also if there's no data no need for a data count section.
         if self.data.is_empty() {
             return;
         }
-        self.section(bytes, 12, |bytes| {
-            self.encode_u32(bytes, self.data.len() as u32);
-        })
+        module.section(&wasm_encoder::DataCountSection {
+            count: u32::try_from(self.data.len()).unwrap(),
+        });
     }
 
-    fn encode_code(&self, bytes: &mut Vec<u8>) {
+    fn encode_code(&self, module: &mut wasm_encoder::Module) {
         if self.code.is_empty() {
             return;
         }
-        self.section(bytes, 10, |bytes| {
-            self.encode_vec(bytes, &self.code, |bytes, code| {
-                self.with_byte_length(bytes, |bytes| {
-                    // Skip the run-length encoding because it is a little
-                    // annoying to compute; use a length of one for every local.
-                    self.encode_vec(bytes, &code.locals, |bytes, l| {
-                        bytes.push(0x01);
-                        self.encode_val_type(bytes, *l);
-                    });
-
-                    match &code.instructions {
-                        Instructions::Generated(instrs) => {
-                            for inst in instrs {
-                                self.encode_instruction(bytes, inst);
-                            }
-                            self.encode_instruction(bytes, &Instruction::End);
-                        }
-                        Instructions::Arbitrary(body) => {
-                            bytes.extend_from_slice(body);
-                        }
+        let mut code = wasm_encoder::CodeSection::new();
+        for c in &self.code {
+            // Skip the run-length encoding because it is a little
+            // annoying to compute; use a length of one for every local.
+            let mut func =
+                wasm_encoder::Function::new(c.locals.iter().map(|l| (1, translate_val_type(*l))));
+            match &c.instructions {
+                Instructions::Generated(instrs) => {
+                    for instr in instrs {
+                        func.instruction(translate_instruction(instr));
                     }
-                });
-            });
-        });
+                    func.instruction(wasm_encoder::Instruction::End);
+                }
+                Instructions::Arbitrary(body) => {
+                    func.raw(body.iter().copied());
+                }
+            }
+            code.function(&func);
+        }
+        module.section(&code);
     }
 
-    fn encode_data(&self, bytes: &mut Vec<u8>) {
-        self.section(bytes, 11, |bytes| {
-            self.encode_vec(bytes, &self.data, |bytes, data| {
-                match &data.kind {
-                    DataSegmentKind::Active {
-                        memory_index: 0,
-                        offset,
-                    } => {
-                        bytes.push(0x00);
-                        self.encode_instruction(bytes, offset);
-                        self.encode_instruction(bytes, &Instruction::End);
-                    }
-                    DataSegmentKind::Passive => {
-                        bytes.push(0x01);
-                    }
-                    DataSegmentKind::Active {
-                        memory_index,
-                        offset,
-                    } => {
-                        bytes.push(0x02);
-                        self.encode_u32(bytes, *memory_index);
-                        self.encode_instruction(bytes, offset);
-                        self.encode_instruction(bytes, &Instruction::End);
-                    }
+    fn encode_data(&self, module: &mut wasm_encoder::Module) {
+        if self.data.is_empty() {
+            return;
+        }
+        let mut data = wasm_encoder::DataSection::new();
+        for seg in &self.data {
+            match &seg.kind {
+                DataSegmentKind::Active {
+                    memory_index,
+                    offset,
+                } => {
+                    data.active(
+                        *memory_index,
+                        translate_instruction(offset),
+                        seg.init.iter().copied(),
+                    );
                 }
-                self.encode_vec(bytes, &data.init, |bytes, b| {
-                    bytes.push(*b);
-                });
-            });
-        });
+                DataSegmentKind::Passive => {
+                    data.passive(seg.init.iter().copied());
+                }
+            }
+        }
+        module.section(&data);
+    }
+}
+
+fn translate_val_type(ty: ValType) -> wasm_encoder::ValType {
+    match ty {
+        ValType::I32 => wasm_encoder::ValType::I32,
+        ValType::I64 => wasm_encoder::ValType::I64,
+        ValType::F32 => wasm_encoder::ValType::F32,
+        ValType::F64 => wasm_encoder::ValType::F64,
+        ValType::FuncRef => wasm_encoder::ValType::FuncRef,
+        ValType::ExternRef => wasm_encoder::ValType::ExternRef,
+    }
+}
+
+fn translate_limits(limits: &Limits) -> wasm_encoder::Limits {
+    wasm_encoder::Limits {
+        min: limits.min,
+        max: limits.max,
+    }
+}
+
+fn translate_table_type(ty: &TableType) -> wasm_encoder::TableType {
+    wasm_encoder::TableType {
+        element_type: translate_val_type(ty.elem_ty),
+        limits: translate_limits(&ty.limits),
+    }
+}
+
+fn translate_memory_type(ty: &MemoryType) -> wasm_encoder::MemoryType {
+    wasm_encoder::MemoryType {
+        limits: translate_limits(&ty.limits),
+    }
+}
+
+fn translate_global_type(ty: &GlobalType) -> wasm_encoder::GlobalType {
+    wasm_encoder::GlobalType {
+        val_type: translate_val_type(ty.val_type),
+        mutable: ty.mutable,
+    }
+}
+
+fn translate_block_type(ty: BlockType) -> wasm_encoder::BlockType {
+    match ty {
+        BlockType::Empty => wasm_encoder::BlockType::Empty,
+        BlockType::Result(ty) => wasm_encoder::BlockType::Result(translate_val_type(ty)),
+        BlockType::FuncType(f) => wasm_encoder::BlockType::FunctionType(f),
+    }
+}
+
+fn translate_mem_arg(m: MemArg) -> wasm_encoder::MemArg {
+    wasm_encoder::MemArg {
+        offset: m.offset,
+        align: m.align,
+        memory_index: m.memory_index,
+    }
+}
+
+fn translate_instruction(inst: &Instruction) -> wasm_encoder::Instruction {
+    use Instruction::*;
+    match *inst {
+        // Control instructions.
+        Unreachable => wasm_encoder::Instruction::Unreachable,
+        Nop => wasm_encoder::Instruction::Nop,
+        Block(bt) => wasm_encoder::Instruction::Block(translate_block_type(bt)),
+        Loop(bt) => wasm_encoder::Instruction::Loop(translate_block_type(bt)),
+        If(bt) => wasm_encoder::Instruction::If(translate_block_type(bt)),
+        Else => wasm_encoder::Instruction::Else,
+        End => wasm_encoder::Instruction::End,
+        Br(x) => wasm_encoder::Instruction::Br(x),
+        BrIf(x) => wasm_encoder::Instruction::BrIf(x),
+        BrTable(ref ls, l) => wasm_encoder::Instruction::BrTable(ls, l),
+        Return => wasm_encoder::Instruction::Return,
+        Call(x) => wasm_encoder::Instruction::Call(x),
+        CallIndirect { ty, table } => wasm_encoder::Instruction::CallIndirect { ty, table },
+
+        // Parametric instructions.
+        Drop => wasm_encoder::Instruction::Drop,
+        Select => wasm_encoder::Instruction::Select,
+
+        // Variable instructions.
+        LocalGet(x) => wasm_encoder::Instruction::LocalGet(x),
+        LocalSet(x) => wasm_encoder::Instruction::LocalSet(x),
+        LocalTee(x) => wasm_encoder::Instruction::LocalTee(x),
+        GlobalGet(x) => wasm_encoder::Instruction::GlobalGet(x),
+        GlobalSet(x) => wasm_encoder::Instruction::GlobalSet(x),
+
+        // Memory instructions.
+        I32Load(m) => wasm_encoder::Instruction::I32Load(translate_mem_arg(m)),
+        I64Load(m) => wasm_encoder::Instruction::I64Load(translate_mem_arg(m)),
+        F32Load(m) => wasm_encoder::Instruction::F32Load(translate_mem_arg(m)),
+        F64Load(m) => wasm_encoder::Instruction::F64Load(translate_mem_arg(m)),
+        I32Load8_S(m) => wasm_encoder::Instruction::I32Load8_S(translate_mem_arg(m)),
+        I32Load8_U(m) => wasm_encoder::Instruction::I32Load8_U(translate_mem_arg(m)),
+        I32Load16_S(m) => wasm_encoder::Instruction::I32Load16_S(translate_mem_arg(m)),
+        I32Load16_U(m) => wasm_encoder::Instruction::I32Load16_U(translate_mem_arg(m)),
+        I64Load8_S(m) => wasm_encoder::Instruction::I64Load8_S(translate_mem_arg(m)),
+        I64Load8_U(m) => wasm_encoder::Instruction::I64Load8_U(translate_mem_arg(m)),
+        I64Load16_S(m) => wasm_encoder::Instruction::I64Load16_S(translate_mem_arg(m)),
+        I64Load16_U(m) => wasm_encoder::Instruction::I64Load16_U(translate_mem_arg(m)),
+        I64Load32_S(m) => wasm_encoder::Instruction::I64Load32_S(translate_mem_arg(m)),
+        I64Load32_U(m) => wasm_encoder::Instruction::I64Load32_U(translate_mem_arg(m)),
+        I32Store(m) => wasm_encoder::Instruction::I32Store(translate_mem_arg(m)),
+        I64Store(m) => wasm_encoder::Instruction::I64Store(translate_mem_arg(m)),
+        F32Store(m) => wasm_encoder::Instruction::F32Store(translate_mem_arg(m)),
+        F64Store(m) => wasm_encoder::Instruction::F64Store(translate_mem_arg(m)),
+        I32Store8(m) => wasm_encoder::Instruction::I32Store8(translate_mem_arg(m)),
+        I32Store16(m) => wasm_encoder::Instruction::I32Store16(translate_mem_arg(m)),
+        I64Store8(m) => wasm_encoder::Instruction::I64Store8(translate_mem_arg(m)),
+        I64Store16(m) => wasm_encoder::Instruction::I64Store16(translate_mem_arg(m)),
+        I64Store32(m) => wasm_encoder::Instruction::I64Store32(translate_mem_arg(m)),
+        MemorySize(x) => wasm_encoder::Instruction::MemorySize(x),
+        MemoryGrow(x) => wasm_encoder::Instruction::MemoryGrow(x),
+        MemoryInit { mem, data } => wasm_encoder::Instruction::MemoryInit { mem, data },
+        DataDrop(x) => wasm_encoder::Instruction::DataDrop(x),
+        MemoryCopy { src, dst } => wasm_encoder::Instruction::MemoryCopy { src, dst },
+        MemoryFill(x) => wasm_encoder::Instruction::MemoryFill(x),
+
+        // Numeric instructions.
+        I32Const(x) => wasm_encoder::Instruction::I32Const(x),
+        I64Const(x) => wasm_encoder::Instruction::I64Const(x),
+        F32Const(x) => wasm_encoder::Instruction::F32Const(x),
+        F64Const(x) => wasm_encoder::Instruction::F64Const(x),
+        I32Eqz => wasm_encoder::Instruction::I32Eqz,
+        I32Eq => wasm_encoder::Instruction::I32Eq,
+        I32Neq => wasm_encoder::Instruction::I32Neq,
+        I32LtS => wasm_encoder::Instruction::I32LtS,
+        I32LtU => wasm_encoder::Instruction::I32LtU,
+        I32GtS => wasm_encoder::Instruction::I32GtS,
+        I32GtU => wasm_encoder::Instruction::I32GtU,
+        I32LeS => wasm_encoder::Instruction::I32LeS,
+        I32LeU => wasm_encoder::Instruction::I32LeU,
+        I32GeS => wasm_encoder::Instruction::I32GeS,
+        I32GeU => wasm_encoder::Instruction::I32GeU,
+        I64Eqz => wasm_encoder::Instruction::I64Eqz,
+        I64Eq => wasm_encoder::Instruction::I64Eq,
+        I64Neq => wasm_encoder::Instruction::I64Neq,
+        I64LtS => wasm_encoder::Instruction::I64LtS,
+        I64LtU => wasm_encoder::Instruction::I64LtU,
+        I64GtS => wasm_encoder::Instruction::I64GtS,
+        I64GtU => wasm_encoder::Instruction::I64GtU,
+        I64LeS => wasm_encoder::Instruction::I64LeS,
+        I64LeU => wasm_encoder::Instruction::I64LeU,
+        I64GeS => wasm_encoder::Instruction::I64GeS,
+        I64GeU => wasm_encoder::Instruction::I64GeU,
+        F32Eq => wasm_encoder::Instruction::F32Eq,
+        F32Neq => wasm_encoder::Instruction::F32Neq,
+        F32Lt => wasm_encoder::Instruction::F32Lt,
+        F32Gt => wasm_encoder::Instruction::F32Gt,
+        F32Le => wasm_encoder::Instruction::F32Le,
+        F32Ge => wasm_encoder::Instruction::F32Ge,
+        F64Eq => wasm_encoder::Instruction::F64Eq,
+        F64Neq => wasm_encoder::Instruction::F64Neq,
+        F64Lt => wasm_encoder::Instruction::F64Lt,
+        F64Gt => wasm_encoder::Instruction::F64Gt,
+        F64Le => wasm_encoder::Instruction::F64Le,
+        F64Ge => wasm_encoder::Instruction::F64Ge,
+        I32Clz => wasm_encoder::Instruction::I32Clz,
+        I32Ctz => wasm_encoder::Instruction::I32Ctz,
+        I32Popcnt => wasm_encoder::Instruction::I32Popcnt,
+        I32Add => wasm_encoder::Instruction::I32Add,
+        I32Sub => wasm_encoder::Instruction::I32Sub,
+        I32Mul => wasm_encoder::Instruction::I32Mul,
+        I32DivS => wasm_encoder::Instruction::I32DivS,
+        I32DivU => wasm_encoder::Instruction::I32DivU,
+        I32RemS => wasm_encoder::Instruction::I32RemS,
+        I32RemU => wasm_encoder::Instruction::I32RemU,
+        I32And => wasm_encoder::Instruction::I32And,
+        I32Or => wasm_encoder::Instruction::I32Or,
+        I32Xor => wasm_encoder::Instruction::I32Xor,
+        I32Shl => wasm_encoder::Instruction::I32Shl,
+        I32ShrS => wasm_encoder::Instruction::I32ShrS,
+        I32ShrU => wasm_encoder::Instruction::I32ShrU,
+        I32Rotl => wasm_encoder::Instruction::I32Rotl,
+        I32Rotr => wasm_encoder::Instruction::I32Rotr,
+        I64Clz => wasm_encoder::Instruction::I64Clz,
+        I64Ctz => wasm_encoder::Instruction::I64Ctz,
+        I64Popcnt => wasm_encoder::Instruction::I64Popcnt,
+        I64Add => wasm_encoder::Instruction::I64Add,
+        I64Sub => wasm_encoder::Instruction::I64Sub,
+        I64Mul => wasm_encoder::Instruction::I64Mul,
+        I64DivS => wasm_encoder::Instruction::I64DivS,
+        I64DivU => wasm_encoder::Instruction::I64DivU,
+        I64RemS => wasm_encoder::Instruction::I64RemS,
+        I64RemU => wasm_encoder::Instruction::I64RemU,
+        I64And => wasm_encoder::Instruction::I64And,
+        I64Or => wasm_encoder::Instruction::I64Or,
+        I64Xor => wasm_encoder::Instruction::I64Xor,
+        I64Shl => wasm_encoder::Instruction::I64Shl,
+        I64ShrS => wasm_encoder::Instruction::I64ShrS,
+        I64ShrU => wasm_encoder::Instruction::I64ShrU,
+        I64Rotl => wasm_encoder::Instruction::I64Rotl,
+        I64Rotr => wasm_encoder::Instruction::I64Rotr,
+        F32Abs => wasm_encoder::Instruction::F32Abs,
+        F32Neg => wasm_encoder::Instruction::F32Neg,
+        F32Ceil => wasm_encoder::Instruction::F32Ceil,
+        F32Floor => wasm_encoder::Instruction::F32Floor,
+        F32Trunc => wasm_encoder::Instruction::F32Trunc,
+        F32Nearest => wasm_encoder::Instruction::F32Nearest,
+        F32Sqrt => wasm_encoder::Instruction::F32Sqrt,
+        F32Add => wasm_encoder::Instruction::F32Add,
+        F32Sub => wasm_encoder::Instruction::F32Sub,
+        F32Mul => wasm_encoder::Instruction::F32Mul,
+        F32Div => wasm_encoder::Instruction::F32Div,
+        F32Min => wasm_encoder::Instruction::F32Min,
+        F32Max => wasm_encoder::Instruction::F32Max,
+        F32Copysign => wasm_encoder::Instruction::F32Copysign,
+        F64Abs => wasm_encoder::Instruction::F64Abs,
+        F64Neg => wasm_encoder::Instruction::F64Neg,
+        F64Ceil => wasm_encoder::Instruction::F64Ceil,
+        F64Floor => wasm_encoder::Instruction::F64Floor,
+        F64Trunc => wasm_encoder::Instruction::F64Trunc,
+        F64Nearest => wasm_encoder::Instruction::F64Nearest,
+        F64Sqrt => wasm_encoder::Instruction::F64Sqrt,
+        F64Add => wasm_encoder::Instruction::F64Add,
+        F64Sub => wasm_encoder::Instruction::F64Sub,
+        F64Mul => wasm_encoder::Instruction::F64Mul,
+        F64Div => wasm_encoder::Instruction::F64Div,
+        F64Min => wasm_encoder::Instruction::F64Min,
+        F64Max => wasm_encoder::Instruction::F64Max,
+        F64Copysign => wasm_encoder::Instruction::F64Copysign,
+        I32WrapI64 => wasm_encoder::Instruction::I32WrapI64,
+        I32TruncF32S => wasm_encoder::Instruction::I32TruncF32S,
+        I32TruncF32U => wasm_encoder::Instruction::I32TruncF32U,
+        I32TruncF64S => wasm_encoder::Instruction::I32TruncF64S,
+        I32TruncF64U => wasm_encoder::Instruction::I32TruncF64U,
+        I64ExtendI32S => wasm_encoder::Instruction::I64ExtendI32S,
+        I64ExtendI32U => wasm_encoder::Instruction::I64ExtendI32U,
+        I64TruncF32S => wasm_encoder::Instruction::I64TruncF32S,
+        I64TruncF32U => wasm_encoder::Instruction::I64TruncF32U,
+        I64TruncF64S => wasm_encoder::Instruction::I64TruncF64S,
+        I64TruncF64U => wasm_encoder::Instruction::I64TruncF64U,
+        F32ConvertI32S => wasm_encoder::Instruction::F32ConvertI32S,
+        F32ConvertI32U => wasm_encoder::Instruction::F32ConvertI32U,
+        F32ConvertI64S => wasm_encoder::Instruction::F32ConvertI64S,
+        F32ConvertI64U => wasm_encoder::Instruction::F32ConvertI64U,
+        F32DemoteF64 => wasm_encoder::Instruction::F32DemoteF64,
+        F64ConvertI32S => wasm_encoder::Instruction::F64ConvertI32S,
+        F64ConvertI32U => wasm_encoder::Instruction::F64ConvertI32U,
+        F64ConvertI64S => wasm_encoder::Instruction::F64ConvertI64S,
+        F64ConvertI64U => wasm_encoder::Instruction::F64ConvertI64U,
+        F64PromoteF32 => wasm_encoder::Instruction::F64PromoteF32,
+        I32ReinterpretF32 => wasm_encoder::Instruction::I32ReinterpretF32,
+        I64ReinterpretF64 => wasm_encoder::Instruction::I64ReinterpretF64,
+        F32ReinterpretI32 => wasm_encoder::Instruction::F32ReinterpretI32,
+        F64ReinterpretI64 => wasm_encoder::Instruction::F64ReinterpretI64,
+        I32Extend8S => wasm_encoder::Instruction::I32Extend8S,
+        I32Extend16S => wasm_encoder::Instruction::I32Extend16S,
+        I64Extend8S => wasm_encoder::Instruction::I64Extend8S,
+        I64Extend16S => wasm_encoder::Instruction::I64Extend16S,
+        I64Extend32S => wasm_encoder::Instruction::I64Extend32S,
+        I32TruncSatF32S => wasm_encoder::Instruction::I32TruncSatF32S,
+        I32TruncSatF32U => wasm_encoder::Instruction::I32TruncSatF32U,
+        I32TruncSatF64S => wasm_encoder::Instruction::I32TruncSatF64S,
+        I32TruncSatF64U => wasm_encoder::Instruction::I32TruncSatF64U,
+        I64TruncSatF32S => wasm_encoder::Instruction::I64TruncSatF32S,
+        I64TruncSatF32U => wasm_encoder::Instruction::I64TruncSatF32U,
+        I64TruncSatF64S => wasm_encoder::Instruction::I64TruncSatF64S,
+        I64TruncSatF64U => wasm_encoder::Instruction::I64TruncSatF64U,
+        TypedSelect(ty) => wasm_encoder::Instruction::TypedSelect(translate_val_type(ty)),
+        RefNull(ty) => wasm_encoder::Instruction::RefNull(translate_val_type(ty)),
+        RefIsNull => wasm_encoder::Instruction::RefIsNull,
+        RefFunc(x) => wasm_encoder::Instruction::RefFunc(x),
+        TableInit { segment, table } => wasm_encoder::Instruction::TableInit { segment, table },
+        ElemDrop { segment } => wasm_encoder::Instruction::ElemDrop { segment },
+        TableFill { table } => wasm_encoder::Instruction::TableFill { table },
+        TableSet { table } => wasm_encoder::Instruction::TableSet { table },
+        TableGet { table } => wasm_encoder::Instruction::TableGet { table },
+        TableGrow { table } => wasm_encoder::Instruction::TableGrow { table },
+        TableSize { table } => wasm_encoder::Instruction::TableSize { table },
+        TableCopy { src, dst } => wasm_encoder::Instruction::TableCopy { src, dst },
     }
 }

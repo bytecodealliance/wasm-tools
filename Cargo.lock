@@ -878,6 +878,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d649a3145108d7d3fbcde896a468d1bd636791823c9921135218ad89be08307"
 
 [[package]]
+name = "wasm-encoder"
+version = "0.1.0"
+dependencies = [
+ "leb128",
+ "wasmparser",
+]
+
+[[package]]
 name = "wasm-smith"
 version = "0.1.10"
 dependencies = [
@@ -887,6 +895,7 @@ dependencies = [
  "libfuzzer-sys",
  "rand",
  "structopt",
+ "wasm-encoder",
  "wasmparser",
 ]
 
