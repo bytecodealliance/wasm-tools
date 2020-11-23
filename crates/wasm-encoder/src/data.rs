@@ -36,6 +36,29 @@ pub struct DataSection {
     num_added: u32,
 }
 
+/// A segment in the data section.
+pub struct DataSegment<'a, D> {
+    /// This data segment's mode.
+    pub mode: DataSegmentMode<'a>,
+    /// This data segment's data.
+    pub data: D,
+}
+
+/// A data segment's mode.
+pub enum DataSegmentMode<'a> {
+    /// An active data segment.
+    Active {
+        /// The memory this segment applies to.
+        memory_index: u32,
+        /// The offset where this segment's data is initialized at.
+        offset: Instruction<'a>,
+    },
+    /// A passive data segment.
+    ///
+    /// Passive data segments are part of the bulk memory proposal.
+    Passive,
+}
+
 impl DataSection {
     /// Create a new data section encoder.
     pub fn new() -> DataSection {
@@ -46,23 +69,75 @@ impl DataSection {
     }
 
     /// Define an active data segment.
-    pub fn active<D>(&mut self, memory_index: u32, offset: Instruction, data: D) -> &mut Self
+    pub fn segment<D>(&mut self, segment: DataSegment<D>) -> &mut Self
     where
         D: IntoIterator<Item = u8>,
         D::IntoIter: ExactSizeIterator,
     {
-        self.bytes.extend(encoders::u32(memory_index));
+        match segment.mode {
+            DataSegmentMode::Passive => {
+                self.bytes.push(0x01);
+            }
+            DataSegmentMode::Active {
+                memory_index: 0,
+                offset,
+            } => {
+                self.bytes.push(0x00);
+                offset.encode(&mut self.bytes);
+                Instruction::End.encode(&mut self.bytes);
+            }
+            DataSegmentMode::Active {
+                memory_index,
+                offset,
+            } => {
+                self.bytes.push(0x02);
+                self.bytes.extend(encoders::u32(memory_index));
+                offset.encode(&mut self.bytes);
+                Instruction::End.encode(&mut self.bytes);
+            }
+        }
 
-        offset.encode(&mut self.bytes);
-        Instruction::End.encode(&mut self.bytes);
-
-        let data = data.into_iter();
+        let data = segment.data.into_iter();
         self.bytes
             .extend(encoders::u32(u32::try_from(data.len()).unwrap()));
         self.bytes.extend(data);
 
         self.num_added += 1;
         self
+    }
+
+    /// Define an active data segment.
+    pub fn active<'a, D>(
+        &mut self,
+        memory_index: u32,
+        offset: Instruction<'a>,
+        data: D,
+    ) -> &mut Self
+    where
+        D: IntoIterator<Item = u8>,
+        D::IntoIter: ExactSizeIterator,
+    {
+        self.segment(DataSegment {
+            mode: DataSegmentMode::Active {
+                memory_index,
+                offset,
+            },
+            data,
+        })
+    }
+
+    /// Define a passive data segment.
+    ///
+    /// Passive data segments are part of the bulk memory proposal.
+    pub fn passive<'a, D>(&mut self, data: D) -> &mut Self
+    where
+        D: IntoIterator<Item = u8>,
+        D::IntoIter: ExactSizeIterator,
+    {
+        self.segment(DataSegment {
+            mode: DataSegmentMode::Passive,
+            data,
+        })
     }
 }
 
@@ -82,5 +157,26 @@ impl Section for DataSection {
                 .chain(num_added)
                 .chain(self.bytes.iter().copied()),
         );
+    }
+}
+
+/// An encoder for the data count section.
+pub struct DataCountSection {
+    /// The number of segments in the data section.
+    pub count: u32,
+}
+
+impl Section for DataCountSection {
+    fn id(&self) -> u8 {
+        SectionId::DataCount.into()
+    }
+
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        let count = encoders::u32(self.count);
+        let n = count.len();
+        sink.extend(encoders::u32(u32::try_from(n).unwrap()).chain(count));
     }
 }

@@ -5,10 +5,11 @@ use super::*;
 /// # Example
 ///
 /// ```
-/// use wasm_encoder::{Module, TableSection, TableType, Limits};
+/// use wasm_encoder::{Module, TableSection, TableType, Limits, ValType};
 ///
 /// let mut tables = TableSection::new();
 /// tables.table(TableType {
+///     element_type: ValType::FuncRef,
 ///     limits: Limits {
 ///         min: 128,
 ///         max: None,
@@ -63,17 +64,15 @@ impl Section for TableSection {
 
 /// A table's type.
 pub struct TableType {
-    // Note: currently always funcref.
-    // elem_type: RefType,
+    /// The table's element type.
+    pub element_type: ValType,
     /// The table's limits.
     pub limits: Limits,
 }
 
 impl TableType {
     pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
-        // elem_type
-        bytes.push(0x70);
-
+        bytes.push(self.element_type.into());
         self.limits.encode(bytes);
     }
 }

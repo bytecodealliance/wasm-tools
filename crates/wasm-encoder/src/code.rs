@@ -122,6 +122,15 @@ impl Function {
         self
     }
 
+    /// Add raw bytes to this function's body.
+    pub fn raw<B>(&mut self, bytes: B) -> &mut Self
+    where
+        B: IntoIterator<Item = u8>,
+    {
+        self.bytes.extend(bytes);
+        self
+    }
+
     fn encode(&self, bytes: &mut Vec<u8>) {
         bytes.extend(
             encoders::u32(u32::try_from(self.bytes.len()).unwrap())

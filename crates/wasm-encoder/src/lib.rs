@@ -208,6 +208,7 @@ pub enum SectionId {
     Element = 9,
     Code = 10,
     Data = 11,
+    DataCount = 12,
 }
 
 impl From<SectionId> for u8 {
@@ -250,6 +251,15 @@ pub enum ValType {
     F32 = 0x7D,
     /// The `f64` type.
     F64 = 0x7C,
+    /// The `funcref` type.
+    ///
+    /// Part of the reference types proposal when used anywhere other than a
+    /// table's element type.
+    FuncRef = 0x70,
+    /// The `externref` type.
+    ///
+    /// Part of the reference types proposal.
+    ExternRef = 0x6F,
 }
 
 impl From<ValType> for u8 {

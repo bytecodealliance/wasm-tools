@@ -52,9 +52,9 @@ pub fn s33(x: i64) -> impl ExactSizeIterator<Item = u8> {
 
 /// Encode an `i64` as a SLEB128.
 pub fn s64(x: i64) -> impl ExactSizeIterator<Item = u8> {
-    let mut buf = [0; 9];
+    let mut buf = [0; 10];
     let n = leb128::write::signed(&mut &mut buf[..], x).unwrap();
-    Buf9Iter { buf, range: 0..n }
+    Buf10Iter { buf, range: 0..n }
 }
 
 /// Encode a length-prefixed UTF-8 string.
@@ -84,12 +84,12 @@ impl Iterator for Buf5Iter {
 
 impl ExactSizeIterator for Buf5Iter {}
 
-struct Buf9Iter {
-    buf: [u8; 9],
+struct Buf10Iter {
+    buf: [u8; 10],
     range: std::ops::Range<usize>,
 }
 
-impl Iterator for Buf9Iter {
+impl Iterator for Buf10Iter {
     type Item = u8;
 
     #[inline]
@@ -102,4 +102,4 @@ impl Iterator for Buf9Iter {
     }
 }
 
-impl ExactSizeIterator for Buf9Iter {}
+impl ExactSizeIterator for Buf10Iter {}
