@@ -774,8 +774,8 @@ impl Encode for Data<'_> {
             }
         }
         self.data.iter().map(|l| l.len()).sum::<usize>().encode(e);
-        for list in self.data.iter() {
-            e.extend_from_slice(list);
+        for val in self.data.iter() {
+            val.push_onto(e);
         }
     }
 }
