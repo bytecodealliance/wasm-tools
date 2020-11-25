@@ -646,3 +646,13 @@
   (instance $i (instantiate $m))
   (func unreachable f64.load $i.$m unreachable)
 )
+
+(module
+  (module $m
+    (module $m
+      (func (export "")))
+    (instance $a (export "") (instantiate $m))
+  )
+  (instance $i (instantiate $m))
+  (alias (instance $i.$a) (func 0))
+)
