@@ -609,3 +609,40 @@
   (func
     call $f)
 )
+
+(module
+  (module $m (memory $m (export "x") 1))
+  (instance $i (instantiate $m))
+  (func unreachable i32.load $i.$m unreachable)
+)
+(module
+  (module $m (memory $m (export "x") 1))
+  (instance $i (instantiate $m))
+  (func unreachable memory.init $data $i.$m)
+  (data $data "x")
+)
+(module
+  (module $m (memory $m (export "x") 1))
+  (instance $i (instantiate $m))
+  (func unreachable memory.copy $i.$m $i.$m)
+)
+(module
+  (module $m (memory $m (export "x") 1))
+  (instance $i (instantiate $m))
+  (func unreachable memory.fill $i.$m)
+)
+(module
+  (module $m (memory $m (export "x") 1))
+  (instance $i (instantiate $m))
+  (func unreachable memory.size $i.$m unreachable)
+)
+(module
+  (module $m (memory $m (export "x") 1))
+  (instance $i (instantiate $m))
+  (func unreachable memory.grow $i.$m unreachable)
+)
+(module
+  (module $m (memory $m (export "x") 1))
+  (instance $i (instantiate $m))
+  (func unreachable f64.load $i.$m unreachable)
+)
