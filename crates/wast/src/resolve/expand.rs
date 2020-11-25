@@ -363,6 +363,9 @@ impl<'a> Expander<'a> {
             ModuleField::Alias(a) => {
                 let (_idx, ns) = Ns::from_export(&a.kind);
                 self.record_defined(&a.id, ns);
+                if let Some(instance) = &a.instance {
+                    self.record_missing(instance, Ns::Instance);
+                }
             }
 
             ModuleField::NestedModule(m) => {
