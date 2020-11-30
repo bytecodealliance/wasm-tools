@@ -39,3 +39,16 @@
     )
   )
   "type mismatch")
+
+;; interleave module definitions with imports/aliases and ensure that we
+;; typecheck the module code section correctly
+(module
+  (module
+    (func (export "")))
+  (import "" (module))
+  (module
+    (func (export "") (result i32)
+      i32.const 5))
+  (import "" (instance (export "" (module))))
+  (alias (instance 0) (module 0))
+)

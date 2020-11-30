@@ -255,3 +255,17 @@
     (instance (instantiate 0))
   )
   "unknown module")
+
+(module
+  (module $m
+    (module $sub (export "module")
+      (func $f (export "") (result i32)
+        i32.const 5))
+  )
+  (instance $a (instantiate $m))
+  (instance $b (instantiate $a.$sub))
+  (alias $b.$f (instance $b) (func 0))
+
+  (func (export "get") (result i32)
+    call $b.$f)
+)
