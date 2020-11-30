@@ -424,7 +424,7 @@ where
             options: Vec::with_capacity(NUM_OPTIONS),
             functions,
             mutable_globals,
-            num_memories: module.memories.len() as u32 + module.memory_imports(),
+            num_memories: module.total_memories,
             funcref_tables,
             table_tys,
             referenced_functions: referenced_functions.into_iter().collect(),
@@ -1059,7 +1059,7 @@ fn local_tee<C: Config>(
 
 #[inline]
 fn global_get_valid<C: Config>(module: &ConfiguredModule<C>, _: &mut CodeBuilder<C>) -> bool {
-    !module.globals.is_empty() || module.global_imports() > 0
+    module.total_globals > 0
 }
 
 fn global_get<C: Config>(
@@ -1067,7 +1067,7 @@ fn global_get<C: Config>(
     module: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let n = module.globals.len() + module.global_imports() as usize;
+    let n = module.total_globals;
     debug_assert!(n > 0);
     let mut i = u.int_in_range(0..=n - 1)?;
     let mut global_idx = 0;

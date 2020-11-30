@@ -30,7 +30,7 @@ where
     /// The index of the fuel global is returned, so that you may control how
     /// much fuel the module is given.
     pub fn ensure_termination(&mut self, default_fuel: u32) -> u32 {
-        let fuel_global = self.global_imports() + self.globals.len() as u32;
+        let fuel_global = self.total_globals;
         self.globals.push(Global {
             ty: GlobalType {
                 val_type: ValType::I32,
