@@ -16,9 +16,31 @@ use arbitrary::{Arbitrary, Result, Unstructured};
 /// need to override the methods for things you want to change away from the
 /// default.
 pub trait Config: Arbitrary + Default {
+    /// The minimum number of types to generate. Defaults to 0.
+    fn min_types(&self) -> usize {
+        0
+    }
+
     /// The maximum number of types to generate. Defaults to 100.
     fn max_types(&self) -> usize {
         100
+    }
+
+    /// The minimum number of imports to generate. Defaults to 0.
+    ///
+    /// Note that if the sum of the maximum function[^1], table, global and
+    /// memory counts is less than the minimum number of imports, then it will
+    /// not be possible to satisfy all constraints (because imports count
+    /// against the limits for those element kinds). In that case, we strictly
+    /// follow the max-constraints, and can fail to satisfy this minimum number.
+    ///
+    /// [^1]: the maximum number of functions is also limited by the number of
+    ///       function types arbitrarily chosen; strictly speaking, then, the
+    ///       maximum number of imports that can be created due to
+    ///       max-constraints is `sum(min(num_func_types, max_funcs), max_tables,
+    ///       max_globals, max_memories)`.
+    fn min_imports(&self) -> usize {
+        0
     }
 
     /// The maximum number of imports to generate. Defaults to 100.
@@ -26,14 +48,33 @@ pub trait Config: Arbitrary + Default {
         100
     }
 
-    /// The maximum number of functions to generate. Defaults to 100.
+    /// The minimum number of functions to generate. Defaults to 0.  This
+    /// includes imported functions.
+    fn min_funcs(&self) -> usize {
+        0
+    }
+
+    /// The maximum number of functions to generate. Defaults to 100.  This
+    /// includes imported functions.
     fn max_funcs(&self) -> usize {
         100
     }
 
-    /// The maximum number of globals to generate. Defaults to 100.
+    /// The minimum number of globals to generate. Defaults to 0.  This includes
+    /// imported globals.
+    fn min_globals(&self) -> usize {
+        0
+    }
+
+    /// The maximum number of globals to generate. Defaults to 100.  This
+    /// includes imported globals.
     fn max_globals(&self) -> usize {
         100
+    }
+
+    /// The minimum number of exports to generate. Defaults to 0.
+    fn min_exports(&self) -> usize {
+        0
     }
 
     /// The maximum number of exports to generate. Defaults to 100.
@@ -41,15 +82,31 @@ pub trait Config: Arbitrary + Default {
         100
     }
 
+    /// The minimum number of element segments to generate. Defaults to 0.
+    fn min_element_segments(&self) -> usize {
+        0
+    }
+
     /// The maximum number of element segments to generate. Defaults to 100.
     fn max_element_segments(&self) -> usize {
         100
+    }
+
+    /// The minimum number of elements within a segment to generate. Defaults to
+    /// 0.
+    fn min_elements(&self) -> usize {
+        0
     }
 
     /// The maximum number of elements within a segment to generate. Defaults to
     /// 100.
     fn max_elements(&self) -> usize {
         100
+    }
+
+    /// The minimum number of data segments to generate. Defaults to 0.
+    fn min_data_segments(&self) -> usize {
+        0
     }
 
     /// The maximum number of data segments to generate. Defaults to 100.
@@ -66,7 +123,14 @@ pub trait Config: Arbitrary + Default {
         100
     }
 
-    /// The maximum number of memories to use. Defaults to 1.
+    /// The minimum number of memories to use. Defaults to 0. This includes
+    /// imported memories.
+    fn min_memories(&self) -> u32 {
+        0
+    }
+
+    /// The maximum number of memories to use. Defaults to 1. This includes
+    /// imported memories.
     ///
     /// Note that more than one memory is in the realm of the multi-memory wasm
     /// proposal.
@@ -74,12 +138,31 @@ pub trait Config: Arbitrary + Default {
         1
     }
 
-    /// The maximum number of tables to use. Defaults to 1.
+    /// The minimum number of tables to use. Defaults to 0. This includes
+    /// imported tables.
+    fn min_tables(&self) -> u32 {
+        0
+    }
+
+    /// The maximum number of tables to use. Defaults to 1. This includes
+    /// imported tables.
     ///
     /// Note that more than one table is in the realm of the reference types
     /// proposal.
     fn max_tables(&self) -> u32 {
         1
+    }
+
+    /// The maximum, in 64k Wasm pages, of any memory's initial or maximum size.
+    /// Defaults to 2^16 = 65536 (the maximum possible for 32-bit Wasm).
+    fn max_memory_pages(&self) -> u32 {
+        65536
+    }
+
+    /// Whether every Wasm memory must have a maximum size specified. Defaults
+    /// to `false`.
+    fn memory_max_size_required(&self) -> bool {
+        false
     }
 
     /// Control the probability of generating memory offsets that are in bounds
@@ -132,6 +215,11 @@ pub trait Config: Arbitrary + Default {
     fn reference_types_enabled(&self) -> bool {
         false
     }
+
+    /// Determines whether a `start` export may be included. Defaults to `true`.
+    fn allow_start_export(&self) -> bool {
+        true
+    }
 }
 
 /// The default configuration.
@@ -146,6 +234,12 @@ impl Config for DefaultConfig {}
 /// implementation -- chooses configuration options.
 ///
 /// [swarm testing]: https://www.cs.utah.edu/~regehr/papers/swarm12.pdf
+///
+/// Note that we pick only *maximums*, not minimums, here because it is more
+/// complex to describe the domain of valid configs when minima are involved
+/// (`min <= max` for each variable) and minima are mostly used to ensure
+/// certain elements are present, but do not widen the range of generated Wasm
+/// modules.
 #[derive(Clone, Debug, Default)]
 pub struct SwarmConfig {
     max_types: usize,
@@ -160,6 +254,7 @@ pub struct SwarmConfig {
     max_memories: u32,
     min_uleb_size: u8,
     max_tables: u32,
+    max_memory_pages: u32,
     bulk_memory_enabled: bool,
     reference_types_enabled: bool,
 }
@@ -183,6 +278,7 @@ impl Arbitrary for SwarmConfig {
             max_instructions: u.int_in_range(0..=MAX_MAXIMUM)?,
             max_memories: u.int_in_range(0..=100)?,
             max_tables,
+            max_memory_pages: u.int_in_range(0..=65536)?,
             min_uleb_size: u.int_in_range(0..=5)?,
             bulk_memory_enabled: u.arbitrary()?,
             reference_types_enabled,
@@ -233,6 +329,10 @@ impl Config for SwarmConfig {
 
     fn max_tables(&self) -> u32 {
         self.max_tables
+    }
+
+    fn max_memory_pages(&self) -> u32 {
+        self.max_memory_pages
     }
 
     fn min_uleb_size(&self) -> u8 {
