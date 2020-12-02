@@ -501,10 +501,19 @@ impl OperatorValidator {
         table_index: u32,
         resources: &impl WasmModuleResources,
     ) -> OperatorValidatorResult<()> {
-        if resources.table_at(table_index).is_none() {
-            return Err(OperatorValidatorError::new(
-                "unknown table: table index out of bounds",
-            ));
+        match resources.table_at(table_index) {
+            None => {
+                return Err(OperatorValidatorError::new(
+                    "unknown table: table index out of bounds",
+                ));
+            }
+            Some(tab) => {
+                if tab.element_type != Type::FuncRef {
+                    return Err(OperatorValidatorError::new(
+                        "indirect calls must go through a table of funcref",
+                    ));
+                }
+            }
         }
         let ty = func_type_at(&resources, index)?;
         self.pop_operand(Some(Type::I32))?;
