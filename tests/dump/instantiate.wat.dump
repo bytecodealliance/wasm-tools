@@ -7,11 +7,11 @@
 0x0010 | 60 00 00    | [type 2] Func(FuncType { params: [], returns: [] })
 0x0013 | 02 10       | import section
 0x0015 | 03          | 3 count
-0x0016 | 00 01 c0 05 | import [module 0] Import { module: "", field: None, ty: Module(0) }
+0x0016 | 00 00 ff 05 | import [module 0] Import { module: "", field: None, ty: Module(0) }
        | 00         
-0x001b | 00 01 c0 05 | import [module 1] Import { module: "", field: None, ty: Module(0) }
+0x001b | 00 00 ff 05 | import [module 1] Import { module: "", field: None, ty: Module(0) }
        | 00         
-0x0020 | 00 01 c0 06 | import [instance 0] Import { module: "", field: None, ty: Instance(1) }
+0x0020 | 00 00 ff 06 | import [instance 0] Import { module: "", field: None, ty: Instance(1) }
        | 01         
 0x0025 | 65 10       | instance section
 0x0027 | 01          | 1 count
