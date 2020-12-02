@@ -27,3 +27,17 @@
     end
   )
 )
+
+(assert_invalid
+  (module
+    (type (func))
+    (func throw 0))
+  "unknown event: event index out of bounds")
+
+(assert_invalid
+  (module
+    (type (func))
+    (func (param exnref)
+      local.get 0
+      br_on_exn 0 0))
+  "unknown event: event index out of bounds")

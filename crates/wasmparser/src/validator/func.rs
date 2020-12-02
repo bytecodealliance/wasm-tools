@@ -130,6 +130,9 @@ mod tests {
         fn memory_at(&self, _at: u32) -> Option<crate::MemoryType> {
             todo!()
         }
+        fn event_at(&self, _at: u32) -> Option<crate::EventType> {
+            todo!()
+        }
         fn global_at(&self, _at: u32) -> Option<crate::GlobalType> {
             todo!()
         }
