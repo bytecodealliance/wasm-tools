@@ -1838,6 +1838,10 @@ impl WasmModuleResources for ValidatorResources {
         self.0.get_memory(self.0.def(at)).copied()
     }
 
+    fn event_at(&self, at: u32) -> Option<EventType> {
+        self.0.get_event(self.0.def(at)).copied()
+    }
+
     fn global_at(&self, at: u32) -> Option<GlobalType> {
         self.0.get_global(self.0.def(at)).map(|t| t.item)
     }
