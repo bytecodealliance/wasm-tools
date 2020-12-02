@@ -656,3 +656,20 @@
   (instance $i (instantiate $m))
   (alias (instance $i.$a) (func 0))
 )
+
+(assert_invalid
+  (module
+    (module
+      (alias parent (module 0))
+    )
+  )
+  "alias to module not defined in parent")
+(assert_invalid
+  (module
+    (type (module))
+    (module (type 0)
+      (alias parent (type $f))
+    )
+    (type $f (func))
+  )
+  "alias to type not defined in parent")
