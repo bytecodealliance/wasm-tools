@@ -106,9 +106,17 @@ pub struct Validator {
     expected_code_bodies: Option<u32>,
     code_section_index: usize,
 
-    /// Similar to code bodies above, but for module bodies instead.
+    /// Similar to code bodies above, but for module bodies instead. The gotcha
+    /// here is that the module code section is not guaranteed to define only
+    /// the last part of the module index space. Consequently we have a second
+    /// map `module_code_section_definitions` here which is the same length as
+    /// `expected_modules`. This is a map from position in the module code
+    /// section to index of the module we're defining. This index can then be
+    /// used to lookup in `module_type_indices` to determine what the expected
+    /// type of the module in the module code section is.
     expected_modules: Option<u32>,
     module_code_section_index: usize,
+    module_code_section_definitions: Vec<usize>,
 
     /// If this validator is for a nested module then this keeps track of the
     /// type of the module that we're matching against. The `expected_type` is
@@ -927,7 +935,13 @@ impl Validator {
         self.section(Order::ModuleLinkingHeader, section, |me, type_index| {
             let type_index = me.state.def(type_index);
             me.module_type_at(type_index)?;
-            me.state.assert_mut().module_type_indices.push(type_index);
+
+            // Record which module index that we're defining in the module
+            // section with the `module_code_section_definitions` list, and then
+            // push the expected type onto our list of module types so far.
+            let dst = &mut me.state.assert_mut().module_type_indices;
+            me.module_code_section_definitions.push(dst.len());
+            dst.push(type_index);
             Ok(())
         })
     }
@@ -1591,7 +1605,6 @@ impl Validator {
             None if count == 0 => {}
             None => return self.create_error("module code section without module section"),
         }
-        self.module_code_section_index = self.state.module_type_indices.len() - (count as usize);
         Ok(())
     }
 
@@ -1609,7 +1622,9 @@ impl Validator {
     pub fn module_code_section_entry<'a>(&mut self) -> Validator {
         let mut ret = Validator::default();
         ret.features = self.features.clone();
-        ret.expected_type = Some(self.state.module_type_indices[self.module_code_section_index]);
+        let module_type_index =
+            self.module_code_section_definitions[self.module_code_section_index];
+        ret.expected_type = Some(self.state.module_type_indices[module_type_index]);
         self.module_code_section_index += 1;
         let state = ret.state.assert_mut();
         state.parent = Some(self.state.arc().clone());
