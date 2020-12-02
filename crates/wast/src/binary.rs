@@ -61,15 +61,6 @@ fn encode_fields(
 
     e.custom_sections(BeforeFirst);
 
-    // let moduletys = modules
-    //     .iter()
-    //     .map(|m| match &m.kind {
-    //         NestedModuleKind::Inline { ty, .. } => ty.as_ref().expect("type should be filled in"),
-    //         _ => panic!("only inline modules should be present now"),
-    //     })
-    //     .collect::<Vec<_>>();
-    // e.section_list(100, Module, &moduletys);
-
     let mut items = fields
         .iter()
         .filter(|i| match i {
@@ -450,8 +441,8 @@ impl Encode for Import<'_> {
         match self.field {
             Some(s) => s.encode(e),
             None => {
-                e.push(0x01);
-                e.push(0xc0);
+                e.push(0x00);
+                e.push(0xff);
             }
         }
         self.item.encode(e);

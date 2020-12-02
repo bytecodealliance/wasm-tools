@@ -7,5 +7,5 @@
        | 00         
 0x0013 | 02 06       | import section
 0x0015 | 01          | 1 count
-0x0016 | 00 01 c0 06 | import [instance 0] Import { module: "", field: None, ty: Instance(1) }
+0x0016 | 00 00 ff 06 | import [instance 0] Import { module: "", field: None, ty: Instance(1) }
        | 01         

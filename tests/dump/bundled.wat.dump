@@ -13,13 +13,13 @@
 0x0026 | 61 01 09 77 | [type 3] Module(ModuleType { imports: [Import { module: "wasi_file", field: None, ty: Instance(1) }], exports: [ExportType { name: "play", ty: Function(2) }] })
        | 61 73 69 5f
        | 66 69 6c 65
-       | 01 c0 06 01
+       | 00 ff 06 01
        | 01 04 70 6c
        | 61 79 00 02
 0x003e | 61 01 09 77 | [type 4] Module(ModuleType { imports: [Import { module: "wasi_file", field: None, ty: Instance(1) }], exports: [ExportType { name: "read", ty: Function(0) }, ExportType { name: "write", ty: Function(0) }] })
        | 61 73 69 5f
        | 66 69 6c 65
-       | 01 c0 06 01
+       | 00 ff 06 01
        | 02 04 72 65
        | 61 64 00 00
        | 05 77 72 69
@@ -28,7 +28,7 @@
 0x0060 | 01          | 1 count
 0x0061 | 09 77 61 73 | import [instance 0] Import { module: "wasi_file", field: None, ty: Instance(1) }
        | 69 5f 66 69
-       | 6c 65 01 c0
+       | 6c 65 00 ff
        | 06 01      
 0x006f | 64 03       | module section
 0x0071 | 02          | 2 count
@@ -67,7 +67,7 @@
   0x00b1 | 01          | 1 count
   0x00b2 | 09 77 61 73 | import [instance 0] Import { module: "wasi_file", field: None, ty: Instance(0) }
          | 69 5f 66 69
-         | 6c 65 01 c0
+         | 6c 65 00 ff
          | 06 00      
   0x00c0 | 03 02       | func section
   0x00c2 | 01          | 1 count
@@ -105,7 +105,7 @@
   0x0107 | 01          | 1 count
   0x0108 | 09 77 61 73 | import [instance 0] Import { module: "wasi_file", field: None, ty: Instance(0) }
          | 69 5f 66 69
-         | 6c 65 01 c0
+         | 6c 65 00 ff
          | 06 00      
   0x0116 | 03 03       | func section
   0x0118 | 02          | 2 count

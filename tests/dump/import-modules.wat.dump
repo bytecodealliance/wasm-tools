@@ -3,16 +3,16 @@
 0x0008 | 01 17       | type section
 0x000a | 04          | 4 count
 0x000b | 61 00 00    | [type 0] Module(ModuleType { imports: [], exports: [] })
-0x000e | 61 01 00 01 | [type 1] Module(ModuleType { imports: [Import { module: "", field: None, ty: Module(0) }], exports: [] })
-       | c0 05 00 00
+0x000e | 61 01 00 00 | [type 1] Module(ModuleType { imports: [Import { module: "", field: None, ty: Module(0) }], exports: [] })
+       | ff 05 00 00
 0x0016 | 60 00 00    | [type 2] Func(FuncType { params: [], returns: [] })
-0x0019 | 61 01 00 01 | [type 3] Module(ModuleType { imports: [Import { module: "", field: None, ty: Function(2) }], exports: [] })
-       | c0 00 02 00
+0x0019 | 61 01 00 00 | [type 3] Module(ModuleType { imports: [Import { module: "", field: None, ty: Function(2) }], exports: [] })
+       | ff 00 02 00
 0x0021 | 02 0b       | import section
 0x0023 | 02          | 2 count
-0x0024 | 00 01 c0 05 | import [module 0] Import { module: "", field: None, ty: Module(1) }
+0x0024 | 00 00 ff 05 | import [module 0] Import { module: "", field: None, ty: Module(1) }
        | 01         
-0x0029 | 00 01 c0 05 | import [module 1] Import { module: "", field: None, ty: Module(3) }
+0x0029 | 00 00 ff 05 | import [module 1] Import { module: "", field: None, ty: Module(3) }
        | 03         
 0x002e | 65 06       | instance section
 0x0030 | 01          | 1 count

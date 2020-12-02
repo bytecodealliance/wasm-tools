@@ -274,17 +274,17 @@ impl<'a> BinaryReader<'a> {
 
     pub(crate) fn read_import(&mut self) -> Result<Import<'a>> {
         let module = self.read_string()?;
+        let field = self.read_string()?;
 
         // For the `field`, figure out if we're the experimental encoding of
         // single-level imports for the module linking proposal (a single-byte
         // string which is 0xc0, which is invalid utf-8) or if we have a second
         // level of import.
-        let mut clone = self.clone();
-        let field = if clone.read_var_u32()? == 1 && clone.read_u8()? == 0xc0 {
-            *self = clone;
+        let field = if field.is_empty() && self.buffer.get(self.position) == Some(&0xff) {
+            self.position += 1;
             None
         } else {
-            Some(self.read_string()?)
+            Some(field)
         };
 
         let ty = self.read_import_desc()?;

@@ -9,7 +9,7 @@
        | 66 32 00 01
 0x001e | 02 07       | import section
 0x0020 | 01          | 1 count
-0x0021 | 01 69 01 c0 | import [instance 0] Import { module: "i", field: None, ty: Instance(2) }
+0x0021 | 01 69 00 ff | import [instance 0] Import { module: "i", field: None, ty: Instance(2) }
        | 06 02      
 0x0027 | 66 05       | alias section
 0x0029 | 01          | 1 count
