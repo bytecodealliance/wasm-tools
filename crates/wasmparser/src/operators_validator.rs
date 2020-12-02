@@ -418,10 +418,10 @@ impl OperatorValidator {
 
     fn check_shared_memarg_wo_align(
         &self,
-        _: MemoryImmediate,
+        memarg: MemoryImmediate,
         resources: impl WasmModuleResources,
     ) -> OperatorValidatorResult<Type> {
-        self.check_memory_index(0, resources)
+        self.check_memory_index(memarg.memory, resources)
     }
 
     fn check_simd_lane_index(&self, index: SIMDLaneIndex, max: u8) -> OperatorValidatorResult<()> {
