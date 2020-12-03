@@ -331,10 +331,15 @@ macro_rules! float {
         name: $parse:ident,
     })*) => ($(
         /// A parsed floating-point type
-        #[derive(Debug)]
         pub struct $name {
             /// The raw bits that this floating point number represents.
             pub bits: $int,
+        }
+
+        impl fmt::Debug for $name {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f, "{}(0x{:X})", stringify!($name), self.bits)
+            }
         }
 
         impl<'a> Parse<'a> for $name {
@@ -643,5 +648,14 @@ mod tests {
             super::strtof(&f!("1" . "00000100000000000" p "-50")),
             Some(0x26800000)
         );
+    }
+
+    #[test]
+    fn hex_debug_float() {
+        assert_eq!(
+            format!("{:?}", super::Float32 { bits: 0x00000042 }),
+            "Float32(0x42)"
+        );
+        assert_eq!(format!("{:?}", super::Float64 { bits: 0 }), "Float64(0x0)");
     }
 }
