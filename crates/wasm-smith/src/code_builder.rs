@@ -1,5 +1,6 @@
 use super::{
-    BlockType, Config, ConfiguredModule, Elements, FuncType, Import, Instruction, MemArg, ValType,
+    BlockType, Config, ConfiguredModule, Elements, EntityType, FuncType, Instruction, MemArg,
+    ValType,
 };
 use arbitrary::{Result, Unstructured};
 use std::collections::{BTreeMap, BTreeSet};
@@ -355,10 +356,9 @@ where
     pub(crate) fn new(module: &ConfiguredModule<C>) -> Self {
         let mut mutable_globals = BTreeMap::new();
         for (i, global) in module
-            .imports
-            .iter()
+            .imports()
             .filter_map(|(_, _, imp)| match imp {
-                Import::Global(g) => Some(g),
+                EntityType::Global(g) => Some(g),
                 _ => None,
             })
             .chain(module.globals.iter().map(|g| &g.ty))
@@ -383,10 +383,9 @@ where
         let mut funcref_tables = Vec::new();
         let mut table_tys = Vec::new();
         for (i, table) in module
-            .imports
-            .iter()
+            .imports()
             .filter_map(|(_, _, imp)| match imp {
-                Import::Table(t) => Some(t),
+                EntityType::Table(t) => Some(t),
                 _ => None,
             })
             .chain(&module.tables)
@@ -515,7 +514,7 @@ where
             Box::new(|u| Ok(BlockType::Result(module.arbitrary_valtype(u)?))),
         ];
 
-        for (i, ty) in module.types.iter().enumerate() {
+        for (i, ty) in module.func_types() {
             if self.types_on_stack(&ty.params) {
                 options.push(Box::new(move |_| Ok(BlockType::FuncType(i as u32))));
             }
@@ -892,9 +891,8 @@ fn call_indirect_valid<C: Config>(
     }
     let ty = builder.allocs.operands.pop().unwrap();
     let is_valid = module
-        .types
-        .iter()
-        .any(|ty| builder.types_on_stack(&ty.params));
+        .func_types()
+        .any(|(_, ty)| builder.types_on_stack(&ty.params));
     builder.allocs.operands.push(ty);
     is_valid
 }
@@ -906,25 +904,16 @@ fn call_indirect<C: Config>(
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
 
-    let n = module
-        .types
-        .iter()
-        .filter(|ty| builder.types_on_stack(&ty.params))
-        .count();
-    debug_assert!(n > 0);
-    let i = u.int_in_range(0..=n - 1)?;
-    let (type_idx, ty) = module
-        .types
-        .iter()
-        .enumerate()
+    let choices = module
+        .func_types()
         .filter(|(_, ty)| builder.types_on_stack(&ty.params))
-        .nth(i)
-        .unwrap();
+        .collect::<Vec<_>>();
+    let (type_idx, ty) = u.choose(&choices)?;
     builder.pop_operands(&ty.params);
     builder.push_operands(&ty.results);
     let table = *u.choose(&builder.allocs.funcref_tables)?;
     Ok(Instruction::CallIndirect {
-        ty: type_idx as u32,
+        ty: *type_idx as u32,
         table,
     })
 }
@@ -1071,9 +1060,9 @@ fn global_get<C: Config>(
     debug_assert!(n > 0);
     let mut i = u.int_in_range(0..=n - 1)?;
     let mut global_idx = 0;
-    for (_, _, imp) in &module.imports {
-        match imp {
-            Import::Global(g) => {
+    for (_, _, ty) in module.imports() {
+        match ty {
+            EntityType::Global(g) => {
                 if i == 0 {
                     builder.allocs.operands.push(Some(g.val_type));
                     return Ok(Instruction::GlobalGet(global_idx));

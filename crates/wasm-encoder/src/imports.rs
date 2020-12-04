@@ -11,7 +11,7 @@ use std::convert::TryFrom;
 /// let mut imports = ImportSection::new();
 /// imports.import(
 ///     "env",
-///     "memory",
+///     Some("memory"),
 ///     MemoryType {
 ///         limits: Limits {
 ///             min: 1,
@@ -40,27 +40,21 @@ impl ImportSection {
     }
 
     /// Define an import.
-    pub fn import(&mut self, module: &str, name: &str, ty: impl Into<ImportType>) -> &mut Self {
+    pub fn import(
+        &mut self,
+        module: &str,
+        name: Option<&str>,
+        ty: impl Into<EntityType>,
+    ) -> &mut Self {
         self.bytes.extend(encoders::str(module));
-        self.bytes.extend(encoders::str(name));
-        match ty.into() {
-            ImportType::Function(x) => {
+        match name {
+            Some(name) => self.bytes.extend(encoders::str(name)),
+            None => {
                 self.bytes.push(0x00);
-                self.bytes.extend(encoders::u32(x));
-            }
-            ImportType::Table(ty) => {
-                self.bytes.push(0x01);
-                ty.encode(&mut self.bytes);
-            }
-            ImportType::Memory(ty) => {
-                self.bytes.push(0x02);
-                ty.encode(&mut self.bytes);
-            }
-            ImportType::Global(ty) => {
-                self.bytes.push(0x03);
-                ty.encode(&mut self.bytes);
+                self.bytes.push(0xff);
             }
         }
+        ty.into().encode(&mut self.bytes);
         self.num_added += 1;
         self
     }
@@ -85,9 +79,9 @@ impl Section for ImportSection {
     }
 }
 
-/// The type of an import.
-pub enum ImportType {
-    /// The `n`th function type.
+/// The type of an entity.
+pub enum EntityType {
+    /// The `n`th type, which is a function.
     Function(u32),
     /// A table type.
     Table(TableType),
@@ -95,26 +89,61 @@ pub enum ImportType {
     Memory(MemoryType),
     /// A global type.
     Global(GlobalType),
+    /// The `n`th type, which is an instance.
+    Instance(u32),
+    /// The `n`th type, which is a module.
+    Module(u32),
 }
 
 // NB: no `impl From<u32> for ImportType` because instances and modules also use
 // `u32` indices in module linking, so we would have to remove that impl when
 // adding support for module linking anyways.
 
-impl From<TableType> for ImportType {
+impl From<TableType> for EntityType {
     fn from(t: TableType) -> Self {
-        ImportType::Table(t)
+        EntityType::Table(t)
     }
 }
 
-impl From<MemoryType> for ImportType {
+impl From<MemoryType> for EntityType {
     fn from(m: MemoryType) -> Self {
-        ImportType::Memory(m)
+        EntityType::Memory(m)
     }
 }
 
-impl From<GlobalType> for ImportType {
+impl From<GlobalType> for EntityType {
     fn from(g: GlobalType) -> Self {
-        ImportType::Global(g)
+        EntityType::Global(g)
+    }
+}
+
+impl EntityType {
+    pub(crate) fn encode(&self, dst: &mut Vec<u8>) {
+        match self {
+            EntityType::Function(x) => {
+                dst.push(0x00);
+                dst.extend(encoders::u32(*x));
+            }
+            EntityType::Table(ty) => {
+                dst.push(0x01);
+                ty.encode(dst);
+            }
+            EntityType::Memory(ty) => {
+                dst.push(0x02);
+                ty.encode(dst);
+            }
+            EntityType::Global(ty) => {
+                dst.push(0x03);
+                ty.encode(dst);
+            }
+            EntityType::Module(ty) => {
+                dst.push(0x05);
+                dst.extend(encoders::u32(*ty));
+            }
+            EntityType::Instance(ty) => {
+                dst.push(0x06);
+                dst.extend(encoders::u32(*ty));
+            }
+        }
     }
 }
