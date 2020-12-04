@@ -80,10 +80,14 @@ pub enum Export {
     Memory(u32),
     /// An export of the `n`th global.
     Global(u32),
+    /// An export of the `n`th instance.
+    Instance(u32),
+    /// An export of the `n`th module.
+    Module(u32),
 }
 
 impl Export {
-    fn encode(&self, bytes: &mut Vec<u8>) {
+    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
         match *self {
             Export::Function(x) => {
                 bytes.push(0x00);
@@ -99,6 +103,14 @@ impl Export {
             }
             Export::Global(x) => {
                 bytes.push(0x03);
+                bytes.extend(encoders::u32(x));
+            }
+            Export::Module(x) => {
+                bytes.push(0x05);
+                bytes.extend(encoders::u32(x));
+            }
+            Export::Instance(x) => {
+                bytes.push(0x06);
                 bytes.extend(encoders::u32(x));
             }
         }

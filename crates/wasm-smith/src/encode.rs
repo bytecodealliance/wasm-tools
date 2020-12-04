@@ -36,6 +36,7 @@ where
             match init {
                 InitialSection::Type(types) => self.encode_types(module, types),
                 InitialSection::Import(imports) => self.encode_imports(module, imports),
+                InitialSection::Alias(aliases) => self.encode_aliases(module, aliases),
             }
         }
     }
@@ -84,34 +85,52 @@ where
         module.section(&section);
     }
 
+    fn encode_aliases(&self, module: &mut wasm_encoder::Module, imports: &[Alias]) {
+        let mut section = wasm_encoder::AliasSection::new();
+        for alias in imports {
+            match alias {
+                Alias::InstanceExport { instance, export } => {
+                    section.instance_export(*instance, translate_export(export));
+                }
+                Alias::ParentType(ty) => {
+                    section.parent_type(*ty);
+                }
+                Alias::ParentModule(m) => {
+                    section.parent_module(*m);
+                }
+            }
+        }
+        module.section(&section);
+    }
+
     fn encode_funcs(&self, module: &mut wasm_encoder::Module) {
-        if self.funcs.is_empty() {
+        if self.num_defined_funcs == 0 {
             return;
         }
         let mut funcs = wasm_encoder::FunctionSection::new();
-        for ty in &self.funcs {
+        for ty in self.funcs[self.funcs.len() - self.num_defined_funcs..].iter() {
             funcs.function(*ty);
         }
         module.section(&funcs);
     }
 
     fn encode_tables(&self, module: &mut wasm_encoder::Module) {
-        if self.tables.is_empty() {
+        if self.num_defined_tables == 0 {
             return;
         }
         let mut tables = wasm_encoder::TableSection::new();
-        for t in &self.tables {
+        for t in self.tables[self.tables.len() - self.num_defined_tables..].iter() {
             tables.table(translate_table_type(t));
         }
         module.section(&tables);
     }
 
     fn encode_memories(&self, module: &mut wasm_encoder::Module) {
-        if self.memories.is_empty() {
+        if self.num_defined_memories == 0 {
             return;
         }
         let mut mems = wasm_encoder::MemorySection::new();
-        for m in &self.memories {
+        for m in self.memories[self.memories.len() - self.num_defined_memories..].iter() {
             mems.memory(translate_memory_type(m));
         }
         module.section(&mems);
@@ -122,8 +141,9 @@ where
             return;
         }
         let mut globals = wasm_encoder::GlobalSection::new();
-        for g in &self.globals {
-            globals.global(translate_global_type(&g.ty), translate_instruction(&g.expr));
+        for (idx, expr) in &self.defined_globals {
+            let ty = &self.globals[*idx as usize];
+            globals.global(translate_global_type(ty), translate_instruction(expr));
         }
         module.section(&globals);
     }
@@ -134,15 +154,7 @@ where
         }
         let mut exports = wasm_encoder::ExportSection::new();
         for (name, exp) in &self.exports {
-            exports.export(
-                name,
-                match exp {
-                    Export::Func(f) => wasm_encoder::Export::Function(*f),
-                    Export::Table(t) => wasm_encoder::Export::Table(*t),
-                    Export::Memory(m) => wasm_encoder::Export::Memory(*m),
-                    Export::Global(g) => wasm_encoder::Export::Global(*g),
-                },
-            );
+            exports.export(name, translate_export(exp));
         }
         module.section(&exports);
     }
@@ -315,6 +327,17 @@ fn translate_mem_arg(m: MemArg) -> wasm_encoder::MemArg {
         offset: m.offset,
         align: m.align,
         memory_index: m.memory_index,
+    }
+}
+
+fn translate_export(exp: &Export) -> wasm_encoder::Export {
+    match exp {
+        Export::Func(f) => wasm_encoder::Export::Function(*f),
+        Export::Table(t) => wasm_encoder::Export::Table(*t),
+        Export::Memory(m) => wasm_encoder::Export::Memory(*m),
+        Export::Global(g) => wasm_encoder::Export::Global(*g),
+        Export::Instance(i) => wasm_encoder::Export::Instance(*i),
+        Export::Module(i) => wasm_encoder::Export::Module(*i),
     }
 }
 

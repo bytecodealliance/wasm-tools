@@ -121,19 +121,51 @@ where
     module_types: Vec<u32>,
     /// Indices within `types` that are instance types.
     instance_types: Vec<u32>,
-    /// Indices into `initializers` which are imports. The pair `(i, j)` means
-    /// that `initializers[i]` is an import section, and we are referring to the
-    /// `j`th import within it.
-    imports: Vec<(usize, usize)>,
+
+    /// Number of imported items into this module.
+    num_imports: usize,
+
+    /// The number of functions defined in this module (not imported or
+    /// aliased).
+    num_defined_funcs: usize,
+
+    /// The number of tables defined in this module (not imported or
+    /// aliased).
+    num_defined_tables: usize,
+
+    /// The number of memories defined in this module (not imported or
+    /// aliased).
+    num_defined_memories: usize,
+
+    /// The indexes and initialization expressions of globals defined in this
+    /// module.
+    defined_globals: Vec<(u32, Instruction)>,
+
+    /// All functions available to this module, sorted by their index. The list
+    /// entry is the type index which points to a `Type::Func`.
     funcs: Vec<u32>,
+
+    /// All tables available to this module, sorted by their index. The list
+    /// entry is the type of each table.
     tables: Vec<TableType>,
+
+    /// All globals available to this module, sorted by their index. The list
+    /// entry is the type of each global.
+    globals: Vec<GlobalType>,
+
+    /// All memories available to this module, sorted by their index. The list
+    /// entry is the type of each memory.
     memories: Vec<MemoryType>,
-    globals: Vec<Global>,
+
+    /// All instances available to this module, sorted by their index. The list
+    /// entry is the type index which points to a `Type::Instance`.
+    instances: Vec<u32>,
+
+    /// All modules available to this module, sorted by their index. The list
+    /// entry is the type index which points to a `Type::Module`.
+    modules: Vec<u32>,
+
     exports: Vec<(String, Export)>,
-    total_funcs: u32,    // imports and locally-defined
-    total_tables: u32,   // imports and locally-defined
-    total_memories: u32, // imports and locally-defined
-    total_globals: u32,  // imports and locally-defined
     start: Option<u32>,
     elems: Vec<ElementSegment>,
     code: Vec<Code>,
@@ -183,6 +215,7 @@ impl Arbitrary for MaybeInvalidModule {
 enum InitialSection {
     Type(Vec<Type>),
     Import(Vec<(String, Option<String>, EntityType)>),
+    Alias(Vec<Alias>),
 }
 
 #[derive(Clone, Debug)]
@@ -263,15 +296,21 @@ impl Limits {
 }
 
 #[derive(Clone, Debug)]
-struct Global {
-    ty: GlobalType,
-    expr: Instruction,
-}
-
-#[derive(Clone, Debug)]
 struct GlobalType {
     val_type: ValType,
     mutable: bool,
+}
+
+#[derive(Clone, Debug)]
+enum Alias {
+    InstanceExport {
+        instance: u32,
+        export: Export,
+    },
+    #[allow(dead_code)] // TODO: not constructed yet
+    ParentType(u32),
+    #[allow(dead_code)] // TODO: not constructed yet
+    ParentModule(u32),
 }
 
 #[derive(Clone, Debug)]
@@ -280,6 +319,8 @@ enum Export {
     Table(u32),
     Memory(u32),
     Global(u32),
+    Instance(u32),
+    Module(u32),
 }
 
 #[derive(Debug)]
@@ -605,25 +646,34 @@ where
     }
 
     fn arbitrary_initial_sections(&mut self, u: &mut Unstructured) -> Result<()> {
-        if self.config.module_linking_enabled() {
-            loop {
-                match u.int_in_range(0..=2)? {
-                    0 => self.arbitrary_types(0, u)?,
-                    1 => self.arbitrary_imports(0, u)?,
-                    _ => break,
-                }
-            }
-            // If after generating a list of sections we haven't met our
-            // minimum quotas then meet them now.
-            if self.types.len() < self.config.min_types() {
-                self.arbitrary_types(self.config.min_types() - self.types.len(), u)?;
-            }
-            if self.imports.len() < self.config.min_imports() {
-                self.arbitrary_imports(self.config.min_imports() - self.imports.len(), u)?;
-            }
-        } else {
+        let mut aliases = AvailableAliases::default();
+        if !self.config.module_linking_enabled() {
             self.arbitrary_types(self.config.min_types(), u)?;
-            self.arbitrary_imports(self.config.min_imports(), u)?;
+            self.arbitrary_imports(self.config.min_imports(), &mut aliases, u)?;
+            return Ok(());
+        }
+        loop {
+            aliases.filter(self);
+
+            let max = if aliases.aliases.is_empty() { 2 } else { 3 };
+            match u.int_in_range(0..=max)? {
+                0 => break,
+                1 => self.arbitrary_types(0, u)?,
+                2 => self.arbitrary_imports(0, &mut aliases, u)?,
+                _ => self.arbitrary_aliases(&mut aliases, u)?,
+            }
+        }
+        // If after generating a list of sections we haven't met our
+        // minimum quotas then meet them now.
+        if self.types.len() < self.config.min_types() {
+            self.arbitrary_types(self.config.min_types() - self.types.len(), u)?;
+        }
+        if self.num_imports < self.config.min_imports() {
+            self.arbitrary_imports(
+                self.config.min_imports() - self.num_imports,
+                &mut aliases,
+                u,
+            )?;
         }
         Ok(())
     }
@@ -730,85 +780,186 @@ where
     }
 
     fn can_add_local_or_import_func(&self) -> bool {
-        self.func_types().next().is_some() && self.total_funcs < self.config.max_funcs() as u32
+        self.func_types.len() > 0 && self.funcs.len() < self.config.max_funcs()
+    }
+
+    fn can_add_local_or_import_instance(&self) -> bool {
+        self.instance_types.len() > 0 && self.instances.len() < self.config.max_instances()
+    }
+
+    fn can_add_local_or_import_module(&self) -> bool {
+        self.module_types.len() > 0 && self.modules.len() < self.config.max_modules()
     }
 
     fn can_add_local_or_import_table(&self) -> bool {
-        self.total_tables < self.config.max_tables()
+        self.tables.len() < self.config.max_tables()
     }
 
     fn can_add_local_or_import_global(&self) -> bool {
-        self.total_globals < self.config.max_globals() as u32
+        self.globals.len() < self.config.max_globals()
     }
 
     fn can_add_local_or_import_memory(&self) -> bool {
-        self.total_memories < self.config.max_memories()
+        self.memories.len() < self.config.max_memories()
     }
 
-    fn arbitrary_imports(&mut self, min: usize, u: &mut Unstructured) -> Result<()> {
+    fn arbitrary_imports(
+        &mut self,
+        min: usize,
+        aliases: &mut AvailableAliases,
+        u: &mut Unstructured,
+    ) -> Result<()> {
         let mut choices: Vec<
-            fn(&mut Unstructured, &mut ConfiguredModule<C>) -> Result<EntityType>,
+            fn(
+                &mut Unstructured,
+                &mut ConfiguredModule<C>,
+                &mut AvailableAliases,
+            ) -> Result<EntityType>,
         > = Vec::with_capacity(4);
 
         let mut imports = Vec::new();
-        arbitrary_loop(
-            u,
-            min,
-            self.config.max_imports() - self.imports.len(),
-            |u| {
-                choices.clear();
-                if self.can_add_local_or_import_func() {
-                    choices.push(|u, m| {
-                        m.total_funcs += 1;
-                        let max = m.func_types.len() - 1;
-                        let ty = u.int_in_range(0..=max)?;
-                        Ok(EntityType::Func(m.func_types[ty]))
-                    });
-                }
-                if self.can_add_local_or_import_global() {
-                    choices.push(|u, m| {
-                        m.total_globals += 1;
-                        Ok(EntityType::Global(m.arbitrary_global_type(u)?))
-                    });
-                }
-                if self.can_add_local_or_import_memory() {
-                    choices.push(|u, m| {
-                        m.total_memories += 1;
-                        Ok(EntityType::Memory(m.arbitrary_memtype(u)?))
-                    });
-                }
-                if self.can_add_local_or_import_table() {
-                    choices.push(|u, m| {
-                        m.total_tables += 1;
-                        Ok(EntityType::Table(m.arbitrary_table_type(u)?))
-                    });
-                }
+        arbitrary_loop(u, min, self.config.max_imports() - self.num_imports, |u| {
+            choices.clear();
+            if self.can_add_local_or_import_func() {
+                choices.push(|u, m, _| {
+                    let ty = *u.choose(&m.func_types)?;
+                    m.funcs.push(ty);
+                    Ok(EntityType::Func(ty))
+                });
+            }
+            if self.can_add_local_or_import_module() {
+                choices.push(|u, m, _| {
+                    let ty = *u.choose(&m.module_types)?;
+                    m.modules.push(ty);
+                    Ok(EntityType::Module(ty))
+                });
+            }
+            if self.can_add_local_or_import_instance() {
+                choices.push(|u, m, aliases| {
+                    let ty = *u.choose(&m.instance_types)?;
+                    aliases.push_instance(m.instances.len() as u32, m.instance_type(ty));
+                    m.instances.push(ty);
+                    Ok(EntityType::Instance(ty))
+                });
+            }
+            if self.can_add_local_or_import_global() {
+                choices.push(|u, m, _| {
+                    let ty = m.arbitrary_global_type(u)?;
+                    m.globals.push(ty.clone());
+                    Ok(EntityType::Global(ty))
+                });
+            }
+            if self.can_add_local_or_import_memory() {
+                choices.push(|u, m, _| {
+                    let ty = m.arbitrary_memtype(u)?;
+                    m.memories.push(ty.clone());
+                    Ok(EntityType::Memory(ty))
+                });
+            }
+            if self.can_add_local_or_import_table() {
+                choices.push(|u, m, _| {
+                    let ty = m.arbitrary_table_type(u)?;
+                    m.tables.push(ty.clone());
+                    Ok(EntityType::Table(ty))
+                });
+            }
 
-                if choices.is_empty() {
-                    // We are out of choices. If we have not have reached the minimum yet, then we
-                    // have no way to satisfy the constraint, but we follow max-constraints before
-                    // the min-import constraint.
-                    return Ok(false);
-                }
+            if choices.is_empty() {
+                // We are out of choices. If we have not have reached the minimum yet, then we
+                // have no way to satisfy the constraint, but we follow max-constraints before
+                // the min-import constraint.
+                return Ok(false);
+            }
 
-                let module = limited_string(1_000, u)?;
-                let name = if self.config.module_linking_enabled() && u.arbitrary()? {
-                    None
-                } else {
-                    Some(limited_string(1_000, u)?)
-                };
+            let module = limited_string(1_000, u)?;
+            let name = if self.config.module_linking_enabled() && u.arbitrary()? {
+                None
+            } else {
+                Some(limited_string(1_000, u)?)
+            };
 
-                let f = u.choose(&choices)?;
-                let ty = f(u, self)?;
+            let f = u.choose(&choices)?;
+            let ty = f(u, self, aliases)?;
 
-                self.imports
-                    .push((self.initial_sections.len(), imports.len()));
-                imports.push((module, name, ty));
-                Ok(true)
-            },
-        )?;
+            self.num_imports += 1;
+            imports.push((module, name, ty));
+            Ok(true)
+        })?;
         if !imports.is_empty() || u.arbitrary()? {
             self.initial_sections.push(InitialSection::Import(imports));
+        }
+        Ok(())
+    }
+
+    fn arbitrary_aliases(
+        &mut self,
+        available: &mut AvailableAliases,
+        u: &mut Unstructured,
+    ) -> Result<()> {
+        assert!(available.aliases.len() > 0);
+
+        let mut aliases = Vec::new();
+        arbitrary_loop(u, 0, usize::max_value(), |u| {
+            let choice = u.choose(&available.aliases)?;
+            aliases.push(choice.clone());
+            match choice {
+                Alias::InstanceExport { instance, export } => {
+                    let ty = self.instance_type(self.instances[*instance as usize]);
+                    match export {
+                        Export::Global(i) => {
+                            let ty = match &ty.exports[*i as usize].1 {
+                                EntityType::Global(t) => t.clone(),
+                                _ => unreachable!(),
+                            };
+                            self.globals.push(ty);
+                        }
+                        Export::Table(i) => {
+                            let ty = match &ty.exports[*i as usize].1 {
+                                EntityType::Table(t) => t.clone(),
+                                _ => unreachable!(),
+                            };
+                            self.tables.push(ty);
+                        }
+                        Export::Memory(i) => {
+                            let ty = match &ty.exports[*i as usize].1 {
+                                EntityType::Memory(t) => t.clone(),
+                                _ => unreachable!(),
+                            };
+                            self.memories.push(ty);
+                        }
+                        Export::Func(i) => {
+                            let ty = match &ty.exports[*i as usize].1 {
+                                EntityType::Func(t) => *t,
+                                _ => unreachable!(),
+                            };
+                            self.funcs.push(ty);
+                        }
+                        Export::Module(i) => {
+                            let ty = match &ty.exports[*i as usize].1 {
+                                EntityType::Module(t) => *t,
+                                _ => unreachable!(),
+                            };
+                            self.modules.push(ty);
+                        }
+                        Export::Instance(i) => {
+                            let ty = match &ty.exports[*i as usize].1 {
+                                EntityType::Instance(t) => *t,
+                                _ => unreachable!(),
+                            };
+                            available
+                                .push_instance(self.instances.len() as u32, self.instance_type(ty));
+                            self.instances.push(ty);
+                        }
+                    }
+                }
+                Alias::ParentType(_) => unimplemented!(),
+                Alias::ParentModule(_) => unimplemented!(),
+            }
+            available.filter(self);
+            Ok(available.aliases.len() > 0)
+        })?;
+        if !aliases.is_empty() || u.arbitrary()? {
+            self.initial_sections.push(InitialSection::Alias(aliases));
         }
         Ok(())
     }
@@ -836,47 +987,21 @@ where
         panic!("looked up a function type with the wrong index")
     }
 
-    fn imports<'a>(
-        &'a self,
-    ) -> impl Iterator<Item = (&'a str, Option<&'a str>, &'a EntityType)> + 'a {
-        self.imports
-            .iter()
-            .map(move |(i, j)| match &self.initial_sections[*i] {
-                InitialSection::Import(list) => {
-                    let (module, field, ty) = &list[*j];
-                    (module.as_str(), field.as_deref(), ty)
-                }
-                _ => unreachable!(),
-            })
+    fn instance_type(&self, idx: u32) -> &InstanceType {
+        let (i, j) = self.types[idx as usize];
+        if let InitialSection::Type(list) = &self.initial_sections[i] {
+            if let Type::Instance(f) = &list[j] {
+                return f;
+            }
+        }
+        panic!("looked up an instance type with the wrong index")
     }
 
     fn funcs<'a>(&'a self) -> impl Iterator<Item = (u32, &'a FuncType)> + 'a {
-        self.imports()
-            .filter_map(|(_, _, imp)| match imp {
-                EntityType::Func(ty) => Some(*ty),
-                _ => None,
-            })
-            .chain(self.funcs.iter().cloned())
-            .map(move |ty| self.func_type(ty))
+        self.funcs
+            .iter()
             .enumerate()
-            .map(|(f, ty)| (f as u32, ty))
-    }
-
-    fn get_memory_type(&self, index: u32) -> Option<&MemoryType> {
-        let mut i = 0;
-
-        for mem in self.imports().filter_map(|imp| match imp {
-            (_, _, EntityType::Memory(m)) => Some(m),
-            _ => None,
-        }) {
-            if i == index {
-                return Some(mem);
-            }
-            i += 1;
-        }
-
-        let index = index - i;
-        self.memories.get(index as usize)
+            .map(move |(i, ty)| (i as u32, self.func_type(*ty)))
     }
 
     fn arbitrary_valtype(&self, u: &mut Unstructured) -> Result<ValType> {
@@ -913,7 +1038,7 @@ where
             let max = self.func_types.len() - 1;
             let ty = u.int_in_range(0..=max)?;
             self.funcs.push(self.func_types[ty]);
-            self.total_funcs += 1;
+            self.num_defined_funcs += 1;
             Ok(true)
         })
     }
@@ -927,9 +1052,9 @@ where
                 if !self.can_add_local_or_import_table() {
                     return Ok(false);
                 }
+                self.num_defined_tables += 1;
                 let ty = self.arbitrary_table_type(u)?;
                 self.tables.push(ty);
-                self.total_tables += 1;
                 Ok(true)
             },
         )
@@ -953,8 +1078,8 @@ where
                 if !self.can_add_local_or_import_memory() {
                     return Ok(false);
                 }
+                self.num_defined_memories += 1;
                 self.memories.push(self.arbitrary_memtype(u)?);
-                self.total_memories += 1;
                 Ok(true)
             },
         )
@@ -995,25 +1120,17 @@ where
                     })
                 }));
 
-                let mut global_idx = 0;
-                for (_, _, imp) in self.imports() {
-                    match imp {
-                        EntityType::Global(g) => {
-                            if !g.mutable && g.val_type == ty.val_type {
-                                choices.push(Box::new(move |_, _| {
-                                    Ok(Instruction::GlobalGet(global_idx))
-                                }));
-                            }
-                            global_idx += 1;
-                        }
-                        _ => {}
+                for (i, g) in self.globals.iter().enumerate() {
+                    if !g.mutable && g.val_type == ty.val_type {
+                        choices.push(Box::new(move |_, _| Ok(Instruction::GlobalGet(i as u32))));
                     }
                 }
 
                 let f = u.choose(&choices)?;
                 let expr = f(u, ty.val_type)?;
-                self.globals.push(Global { ty, expr });
-                self.total_globals += 1;
+                let global_idx = self.globals.len() as u32;
+                self.globals.push(ty);
+                self.defined_globals.push((global_idx, expr));
                 Ok(true)
             },
         )
@@ -1023,31 +1140,31 @@ where
         let mut choices: Vec<fn(&mut Unstructured, &mut ConfiguredModule<C>) -> Result<Export>> =
             Vec::with_capacity(4);
 
-        if self.total_funcs > 0 {
+        if self.funcs.len() > 0 {
             choices.push(|u, m| {
-                let idx = u.int_in_range(0..=m.total_funcs - 1)?;
-                Ok(Export::Func(idx))
+                let idx = u.int_in_range(0..=m.funcs.len() - 1)?;
+                Ok(Export::Func(idx as u32))
             });
         }
 
-        if self.total_tables > 0 {
+        if self.tables.len() > 0 {
             choices.push(|u, m| {
-                let idx = u.int_in_range(0..=m.total_tables - 1)?;
-                Ok(Export::Table(idx))
+                let idx = u.int_in_range(0..=m.tables.len() - 1)?;
+                Ok(Export::Table(idx as u32))
             });
         }
 
-        if self.total_memories > 0 {
+        if self.memories.len() > 0 {
             choices.push(|u, m| {
-                let idx = u.int_in_range(0..=m.total_memories - 1)?;
-                Ok(Export::Memory(idx))
+                let idx = u.int_in_range(0..=m.memories.len() - 1)?;
+                Ok(Export::Memory(idx as u32))
             });
         }
 
-        if self.total_globals > 0 {
+        if self.globals.len() > 0 {
             choices.push(|u, m| {
-                let idx = u.int_in_range(0..=m.total_globals - 1)?;
-                Ok(Export::Global(idx))
+                let idx = u.int_in_range(0..=m.globals.len() - 1)?;
+                Ok(Export::Global(idx as u32))
             });
         }
 
@@ -1076,29 +1193,16 @@ where
     }
 
     fn arbitrary_start(&mut self, u: &mut Unstructured) -> Result<()> {
-        let mut choices = Vec::with_capacity(self.total_funcs as usize);
-        let mut func_index = 0;
+        let mut choices = Vec::with_capacity(self.funcs.len() as usize);
 
         if !self.config.allow_start_export() {
             return Ok(());
         }
 
-        for (_, _, imp) in self.imports() {
-            if let EntityType::Func(ty) = imp {
-                let ty = self.func_type(*ty);
-                if ty.params.is_empty() && ty.results.is_empty() {
-                    choices.push(func_index as u32);
-                }
-                func_index += 1;
-            }
-        }
-
-        for ty in &self.funcs {
-            let ty = self.func_type(*ty);
+        for (func_idx, ty) in self.funcs() {
             if ty.params.is_empty() && ty.results.is_empty() {
-                choices.push(func_index as u32);
+                choices.push(func_idx);
             }
-            func_index += 1;
         }
 
         if !choices.is_empty() && u.arbitrary().unwrap_or(false) {
@@ -1110,26 +1214,14 @@ where
     }
 
     fn arbitrary_elems(&mut self, u: &mut Unstructured) -> Result<()> {
-        let func_max = self.total_funcs;
-        let table_tys = self
-            .imports()
-            .filter_map(|(_, _, imp)| match imp {
-                EntityType::Table(t) => Some(t),
-                _ => None,
-            })
-            .chain(&self.tables)
-            .map(|t| t.elem_ty)
-            .collect::<Vec<_>>();
+        let func_max = self.funcs.len() as u32;
+        let table_tys = self.tables.iter().map(|t| t.elem_ty).collect::<Vec<_>>();
 
         // Create a helper closure to choose an arbitrary offset.
         let mut offset_global_choices = vec![];
-        let mut global_index = 0;
-        for (_, _, imp) in self.imports() {
-            if let EntityType::Global(g) = imp {
-                if !g.mutable && g.val_type == ValType::I32 {
-                    offset_global_choices.push(global_index);
-                }
-                global_index += 1;
+        for (i, g) in self.globals.iter().enumerate() {
+            if !g.mutable && g.val_type == ValType::I32 {
+                offset_global_choices.push(i as u32);
             }
         }
         let arbitrary_offset = |u: &mut Unstructured| {
@@ -1243,9 +1335,9 @@ where
     }
 
     fn arbitrary_code(&mut self, u: &mut Unstructured, allow_invalid: bool) -> Result<()> {
-        self.code.reserve(self.funcs.len());
+        self.code.reserve(self.num_defined_funcs);
         let mut allocs = CodeBuilderAllocations::new(self);
-        for ty in &self.funcs {
+        for ty in self.funcs[self.funcs.len() - self.num_defined_funcs..].iter() {
             let ty = self.func_type(*ty);
             let body = self.arbitrary_func_body(u, ty, &mut allocs, allow_invalid)?;
             self.code.push(body);
@@ -1286,7 +1378,7 @@ where
     fn arbitrary_data(&mut self, u: &mut Unstructured) -> Result<()> {
         // With bulk-memory we can generate passive data, otherwise if there are
         // no memories we can't generate any data.
-        let memories = self.total_memories;
+        let memories = self.memories.len() as u32;
         if memories == 0 && !self.config.bulk_memory_enabled() {
             return Ok(());
         }
@@ -1301,18 +1393,12 @@ where
                 if choices.is_empty() {
                     choices.push(Box::new(|u| Ok(Instruction::I32Const(u.arbitrary()?))));
 
-                    let mut global_idx = 0;
-                    for (_, _, imp) in self.imports() {
-                        match imp {
-                            EntityType::Global(g) => {
-                                if !g.mutable && g.val_type == ValType::I32 {
-                                    choices.push(Box::new(move |_| {
-                                        Ok(Instruction::GlobalGet(global_idx))
-                                    }));
-                                }
-                                global_idx += 1;
-                            }
-                            _ => {}
+                    for (i, g) in self.globals[..self.globals.len() - self.defined_globals.len()]
+                        .iter()
+                        .enumerate()
+                    {
+                        if !g.mutable && g.val_type == ValType::I32 {
+                            choices.push(Box::new(move |_| Ok(Instruction::GlobalGet(i as u32))));
                         }
                     }
                 }
@@ -1391,4 +1477,85 @@ fn limited_string(max_size: usize, u: &mut Unstructured) -> Result<String> {
 fn arbitrary_vec_u8(u: &mut Unstructured) -> Result<Vec<u8>> {
     let size = u.arbitrary_len::<u8>()?;
     Ok(u.get_bytes(size)?.to_vec())
+}
+
+#[derive(Default)]
+struct AvailableAliases {
+    aliases: Vec<Alias>,
+}
+
+impl AvailableAliases {
+    fn push_instance(&mut self, instance: u32, ty: &InstanceType) {
+        for (i, (_, ty)) in ty.exports.iter().enumerate() {
+            match ty {
+                EntityType::Global(_) => {
+                    self.aliases.push(Alias::InstanceExport {
+                        instance,
+                        export: Export::Global(i as u32),
+                    });
+                }
+                EntityType::Memory(_) => {
+                    self.aliases.push(Alias::InstanceExport {
+                        instance,
+                        export: Export::Memory(i as u32),
+                    });
+                }
+                EntityType::Func(_) => {
+                    self.aliases.push(Alias::InstanceExport {
+                        instance,
+                        export: Export::Func(i as u32),
+                    });
+                }
+                EntityType::Table(_) => {
+                    self.aliases.push(Alias::InstanceExport {
+                        instance,
+                        export: Export::Table(i as u32),
+                    });
+                }
+                EntityType::Instance(_) => {
+                    self.aliases.push(Alias::InstanceExport {
+                        instance,
+                        export: Export::Instance(i as u32),
+                    });
+                }
+                EntityType::Module(_) => {
+                    self.aliases.push(Alias::InstanceExport {
+                        instance,
+                        export: Export::Module(i as u32),
+                    });
+                }
+            }
+        }
+    }
+
+    fn filter(&mut self, module: &ConfiguredModule<impl Config>) {
+        self.aliases.retain(|alias| match alias {
+            Alias::InstanceExport {
+                export: Export::Global(_),
+                ..
+            } => module.globals.len() < module.config.max_globals(),
+            Alias::InstanceExport {
+                export: Export::Table(_),
+                ..
+            } => module.tables.len() < module.config.max_tables(),
+            Alias::InstanceExport {
+                export: Export::Func(_),
+                ..
+            } => module.funcs.len() < module.config.max_funcs(),
+            Alias::InstanceExport {
+                export: Export::Memory(_),
+                ..
+            } => module.memories.len() < module.config.max_memories(),
+            Alias::InstanceExport {
+                export: Export::Instance(_),
+                ..
+            } => module.instances.len() < module.config.max_instances(),
+            Alias::InstanceExport {
+                export: Export::Module(_),
+                ..
+            } => module.modules.len() < module.config.max_modules(),
+            Alias::ParentType(_) => module.types.len() < module.config.max_types(),
+            Alias::ParentModule(_) => module.modules.len() < module.config.max_modules(),
+        });
+    }
 }

@@ -70,6 +70,7 @@
 
 #![deny(missing_docs)]
 
+mod aliases;
 mod code;
 mod custom;
 mod data;
@@ -83,6 +84,7 @@ mod start;
 mod tables;
 mod types;
 
+pub use aliases::*;
 pub use code::*;
 pub use custom::*;
 pub use data::*;
@@ -209,6 +211,7 @@ pub enum SectionId {
     Code = 10,
     Data = 11,
     DataCount = 12,
+    Alias = 16,
 }
 
 impl From<SectionId> for u8 {
