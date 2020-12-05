@@ -447,7 +447,10 @@ impl Validator {
     fn get_memory<'me>(&'me self, idx: Def<u32>) -> Result<&'me MemoryType> {
         match self.state.get_memory(idx) {
             Some(t) => Ok(t),
-            None => self.create_error("unknown memory: memory index out of bounds"),
+            None => self.create_error(format!(
+                "unknown memory {}: memory index out of bounds",
+                idx.item
+            )),
         }
     }
 
@@ -1674,7 +1677,9 @@ impl Validator {
     pub fn data_section(&mut self, section: &crate::DataSectionReader<'_>) -> Result<()> {
         self.data_found = section.get_count();
         self.check_max(0, section.get_count(), MAX_WASM_DATA_SEGMENTS, "segments")?;
-        self.section(Order::Data, section, |me, d| {
+        let mut section = section.clone();
+        section.forbid_bulk_memory(!self.features.bulk_memory);
+        self.section(Order::Data, &section, |me, d| {
             match d.kind {
                 DataKind::Passive => {}
                 DataKind::Active {

@@ -268,6 +268,8 @@ impl TestState {
 
             // FIXME uses simd instrs not implemented in wabt yet.
             && !test.ends_with("local/simd.wat")
+            && !test.ends_with("simd/simd_load_zero.wast")
+            && !test.ends_with("simd/simd_i32x4_dot_i16x8.wast")
 
             // FIXME wabt doesn't print conflict or empty names in the same way
             // that we do.
@@ -665,6 +667,10 @@ impl TestState {
             match part {
                 "testsuite" | "wasmtime905.wast" | "missing-features" => {
                     features = WasmFeatures::default();
+                    if part == "testsuite" {
+                        features.bulk_memory = false;
+                        features.reference_types = false;
+                    }
                 }
                 "threads" => features.threads = true,
                 "simd" => features.simd = true,
