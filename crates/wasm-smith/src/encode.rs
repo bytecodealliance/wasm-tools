@@ -16,8 +16,7 @@ where
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut module = wasm_encoder::Module::new();
 
-        self.encode_types(&mut module);
-        self.encode_imports(&mut module);
+        self.encode_initializers(&mut module);
         self.encode_funcs(&mut module);
         self.encode_tables(&mut module);
         self.encode_memories(&mut module);
@@ -32,38 +31,57 @@ where
         module.finish()
     }
 
-    fn encode_types(&self, module: &mut wasm_encoder::Module) {
-        if self.types.is_empty() {
-            return;
+    fn encode_initializers(&self, module: &mut wasm_encoder::Module) {
+        for init in self.initial_sections.iter() {
+            match init {
+                InitialSection::Type(types) => self.encode_types(module, types),
+                InitialSection::Import(imports) => self.encode_imports(module, imports),
+            }
         }
-        let mut types = wasm_encoder::TypeSection::new();
-        for ty in &self.types {
-            types.function(
-                ty.params.iter().map(|t| translate_val_type(*t)),
-                ty.results.iter().map(|t| translate_val_type(*t)),
-            );
-        }
-        module.section(&types);
     }
 
-    fn encode_imports(&self, module: &mut wasm_encoder::Module) {
-        if self.imports.is_empty() {
-            return;
+    fn encode_types(&self, module: &mut wasm_encoder::Module, types: &[Type]) {
+        let mut section = wasm_encoder::TypeSection::new();
+        for ty in types {
+            match ty {
+                Type::Func(ty) => {
+                    section.function(
+                        ty.params.iter().map(|t| translate_val_type(*t)),
+                        ty.results.iter().map(|t| translate_val_type(*t)),
+                    );
+                }
+                Type::Module(ty) => {
+                    section.module(
+                        ty.imports.iter().map(|(module, name, ty)| {
+                            (module.as_str(), name.as_deref(), translate_entity_type(ty))
+                        }),
+                        ty.exports
+                            .iter()
+                            .map(|(name, ty)| (name.as_str(), translate_entity_type(ty))),
+                    );
+                }
+                Type::Instance(ty) => {
+                    section.instance(
+                        ty.exports
+                            .iter()
+                            .map(|(name, ty)| (name.as_str(), translate_entity_type(ty))),
+                    );
+                }
+            }
         }
-        let mut imports = wasm_encoder::ImportSection::new();
-        for (module, name, imp) in &self.imports {
-            imports.import(
-                module,
-                name,
-                match imp {
-                    Import::Func(f) => wasm_encoder::ImportType::Function(*f),
-                    Import::Table(ty) => translate_table_type(ty).into(),
-                    Import::Memory(m) => translate_memory_type(m).into(),
-                    Import::Global(g) => translate_global_type(g).into(),
-                },
-            );
+        module.section(&section);
+    }
+
+    fn encode_imports(
+        &self,
+        module: &mut wasm_encoder::Module,
+        imports: &[(String, Option<String>, EntityType)],
+    ) {
+        let mut section = wasm_encoder::ImportSection::new();
+        for (module, name, ty) in imports {
+            section.import(module, name.as_deref(), translate_entity_type(ty));
         }
-        module.section(&imports);
+        module.section(&section);
     }
 
     fn encode_funcs(&self, module: &mut wasm_encoder::Module) {
@@ -243,6 +261,17 @@ fn translate_val_type(ty: ValType) -> wasm_encoder::ValType {
         ValType::F64 => wasm_encoder::ValType::F64,
         ValType::FuncRef => wasm_encoder::ValType::FuncRef,
         ValType::ExternRef => wasm_encoder::ValType::ExternRef,
+    }
+}
+
+fn translate_entity_type(ty: &EntityType) -> wasm_encoder::EntityType {
+    match ty {
+        EntityType::Func(f) => wasm_encoder::EntityType::Function(*f),
+        EntityType::Instance(i) => wasm_encoder::EntityType::Instance(*i),
+        EntityType::Module(i) => wasm_encoder::EntityType::Module(*i),
+        EntityType::Table(ty) => translate_table_type(ty).into(),
+        EntityType::Memory(m) => translate_memory_type(m).into(),
+        EntityType::Global(g) => translate_global_type(g).into(),
     }
 }
 

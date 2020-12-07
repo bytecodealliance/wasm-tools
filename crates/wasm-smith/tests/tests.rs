@@ -3,6 +3,17 @@ use rand::{rngs::SmallRng, RngCore, SeedableRng};
 use wasm_smith::{ConfiguredModule, Module, SwarmConfig};
 use wasmparser::{Validator, WasmFeatures};
 
+fn wasm_features() -> WasmFeatures {
+    WasmFeatures {
+        multi_value: true,
+        multi_memory: true,
+        bulk_memory: true,
+        reference_types: true,
+        module_linking: true,
+        ..WasmFeatures::default()
+    }
+}
+
 #[test]
 fn smoke_test_module() {
     let mut rng = SmallRng::seed_from_u64(0);
@@ -14,14 +25,7 @@ fn smoke_test_module() {
             let wasm_bytes = module.to_bytes();
 
             let mut validator = Validator::new();
-            validator.wasm_features(WasmFeatures {
-                multi_value: true,
-                multi_memory: true,
-                bulk_memory: true,
-                reference_types: true,
-                ..WasmFeatures::default()
-            });
-
+            validator.wasm_features(wasm_features());
             assert!(validator.validate_all(&wasm_bytes).is_ok());
         }
     }
@@ -39,14 +43,7 @@ fn smoke_test_ensure_termination() {
             let wasm_bytes = module.to_bytes();
 
             let mut validator = Validator::new();
-            validator.wasm_features(WasmFeatures {
-                multi_value: true,
-                multi_memory: true,
-                bulk_memory: true,
-                reference_types: true,
-                ..WasmFeatures::default()
-            });
-
+            validator.wasm_features(wasm_features());
             assert!(validator.validate_all(&wasm_bytes).is_ok());
         }
     }
@@ -63,14 +60,7 @@ fn smoke_test_swarm_config() {
             let wasm_bytes = module.to_bytes();
 
             let mut validator = Validator::new();
-            validator.wasm_features(WasmFeatures {
-                multi_value: true,
-                multi_memory: true,
-                bulk_memory: true,
-                reference_types: true,
-                ..WasmFeatures::default()
-            });
-
+            validator.wasm_features(wasm_features());
             assert!(validator.validate_all(&wasm_bytes).is_ok());
         }
     }

@@ -216,6 +216,13 @@ pub trait Config: Arbitrary + Default {
         false
     }
 
+    /// Determines whether the module linking proposal is enabled.
+    ///
+    /// Defaults to `false`.
+    fn module_linking_enabled(&self) -> bool {
+        true
+    }
+
     /// Determines whether a `start` export may be included. Defaults to `true`.
     fn allow_start_export(&self) -> bool {
         true
@@ -257,6 +264,7 @@ pub struct SwarmConfig {
     max_memory_pages: u32,
     bulk_memory_enabled: bool,
     reference_types_enabled: bool,
+    module_linking_enabled: bool,
 }
 
 impl Arbitrary for SwarmConfig {
@@ -282,6 +290,7 @@ impl Arbitrary for SwarmConfig {
             min_uleb_size: u.int_in_range(0..=5)?,
             bulk_memory_enabled: u.arbitrary()?,
             reference_types_enabled,
+            module_linking_enabled: u.arbitrary()?,
         })
     }
 }
@@ -345,5 +354,9 @@ impl Config for SwarmConfig {
 
     fn reference_types_enabled(&self) -> bool {
         self.reference_types_enabled
+    }
+
+    fn module_linking_enabled(&self) -> bool {
+        self.module_linking_enabled
     }
 }
