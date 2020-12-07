@@ -450,10 +450,10 @@ impl<'a> BinaryReader<'a> {
             11 => Ok(SectionCode::Data),
             12 => Ok(SectionCode::DataCount),
             13 => Ok(SectionCode::Event),
-            100 => Ok(SectionCode::Module),
-            101 => Ok(SectionCode::Instance),
-            102 => Ok(SectionCode::Alias),
-            103 => Ok(SectionCode::ModuleCode),
+            14 => Ok(SectionCode::Module),
+            15 => Ok(SectionCode::Instance),
+            16 => Ok(SectionCode::Alias),
+            17 => Ok(SectionCode::ModuleCode),
             _ => Err(BinaryReaderError::new("Invalid section code", offset)),
         }
     }

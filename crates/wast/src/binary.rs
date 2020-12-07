@@ -97,13 +97,13 @@ fn encode_fields(
             }
             list!(1, Type);
             list!(2, Import);
-            list!(100, NestedModule, Module, |m| match &m.kind {
+            list!(14, NestedModule, Module, |m| match &m.kind {
                 NestedModuleKind::Inline { ty, .. } =>
                     ty.as_ref().expect("type should be filled in"),
                 _ => panic!("only inline modules should be present now"),
             });
-            list!(101, Instance);
-            list!(102, Alias);
+            list!(15, Instance);
+            list!(16, Alias);
         }
     }
 
@@ -123,7 +123,7 @@ fn encode_fields(
     if contains_bulk_memory(&funcs) {
         e.section(12, &data.len());
     }
-    e.section_list(103, ModuleCode, &modules);
+    e.section_list(17, ModuleCode, &modules);
     e.section_list(10, Code, &funcs);
     e.section_list(11, Data, &data);
 

@@ -532,10 +532,10 @@ impl Parser {
                         Ok(DataCountSection { count, range })
                     }
                     13 => section(reader, len, EventSectionReader::new, EventSection),
-                    100 => section(reader, len, ModuleSectionReader::new, ModuleSection),
-                    101 => section(reader, len, InstanceSectionReader::new, InstanceSection),
-                    102 => section(reader, len, AliasSectionReader::new, AliasSection),
-                    103 => {
+                    14 => section(reader, len, ModuleSectionReader::new, ModuleSection),
+                    15 => section(reader, len, InstanceSectionReader::new, InstanceSection),
+                    16 => section(reader, len, AliasSectionReader::new, AliasSection),
+                    17 => {
                         let start = reader.original_position();
                         let count = delimited(reader, &mut len, |r| r.read_var_u32())?;
                         let range = Range {
