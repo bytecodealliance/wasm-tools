@@ -14,7 +14,7 @@
        | 01         
 0x0029 | 00 00 ff 05 | import [module 1] Import { module: "", field: None, ty: Module(3) }
        | 03         
-0x002e | 65 06       | instance section
+0x002e | 0f 06       | instance section
 0x0030 | 01          | 1 count
 0x0031 | 00 00       | [instance 0] module:0
 0x0033 | 01          | 1 count

@@ -13,7 +13,7 @@
        | 00         
 0x0020 | 00 00 ff 06 | import [instance 0] Import { module: "", field: None, ty: Instance(1) }
        | 01         
-0x0025 | 65 10       | instance section
+0x0025 | 0f 10       | instance section
 0x0027 | 01          | 1 count
 0x0028 | 00 00       | [instance 1] module:0
 0x002a | 06          | 6 count

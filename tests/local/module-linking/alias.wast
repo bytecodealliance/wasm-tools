@@ -582,7 +582,7 @@
 (assert_invalid
   (module binary
     "\00asm" "\01\00\00\00"
-    "\66\05"        ;; alias section
+    "\10\05"        ;; alias section
     "\01"           ;; 1 alias
     "\00\00\00\00"  ;; (alias (instance 0) (func 0))
   )

@@ -27,7 +27,7 @@
 0x0058 | 01          | 1 count
 0x0059 | 00 00 ff 06 | import [instance 0] Import { module: "", field: None, ty: Instance(3) }
        | 03         
-0x005e | 66 19       | alias section
+0x005e | 10 19       | alias section
 0x0060 | 06          | 6 count
 0x0061 | 00 00 00 00 | [alias] Alias { instance: Child(0), kind: Function, index: 0 }
 0x0065 | 00 00 02 01 | [alias] Alias { instance: Child(0), kind: Memory, index: 1 }
@@ -35,10 +35,10 @@
 0x006d | 00 00 03 03 | [alias] Alias { instance: Child(0), kind: Global, index: 3 }
 0x0071 | 00 00 05 04 | [alias] Alias { instance: Child(0), kind: Module, index: 4 }
 0x0075 | 00 00 06 05 | [alias] Alias { instance: Child(0), kind: Instance, index: 5 }
-0x0079 | 64 02       | module section
+0x0079 | 0e 02       | module section
 0x007b | 01          | 1 count
 0x007c | 04          | [module 1] type 4
-0x007d | 65 10       | instance section
+0x007d | 0f 10       | instance section
 0x007f | 01          | 1 count
 0x0080 | 00 01       | [instance 2] module:1
 0x0082 | 06          | 6 count
@@ -48,7 +48,7 @@
 0x0089 | 01 00       | [instantiate arg] Table 0
 0x008b | 05 00       | [instantiate arg] Module 0
 0x008d | 06 01       | [instantiate arg] Instance 1
-0x008f | 67 45       | module code section
+0x008f | 11 45       | module code section
 0x0091 | 01          | 1 count
 0x0092 | 43          | inline module size
   0x0093 | 00 61 73 6d | version 1

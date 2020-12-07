@@ -30,11 +30,11 @@
        | 69 5f 66 69
        | 6c 65 00 ff
        | 06 01      
-0x006f | 64 03       | module section
+0x006f | 0e 03       | module section
 0x0071 | 02          | 2 count
 0x0072 | 03          | [module 0] type 3
 0x0073 | 04          | [module 1] type 4
-0x0074 | 65 0b       | instance section
+0x0074 | 0f 0b       | instance section
 0x0076 | 02          | 2 count
 0x0077 | 00 01       | [instance 1] module:1
 0x0079 | 01          | 1 count
@@ -42,7 +42,7 @@
 0x007c | 00 00       | [instance 2] module:0
 0x007e | 01          | 1 count
 0x007f | 06 01       | [instantiate arg] Instance 1
-0x0081 | 66 05       | alias section
+0x0081 | 10 05       | alias section
 0x0083 | 01          | 1 count
 0x0084 | 00 02 00 00 | [alias] Alias { instance: Child(2), kind: Function, index: 0 }
 0x0088 | 03 02       | func section
@@ -52,12 +52,12 @@
 0x008e | 01          | 1 count
 0x008f | 04 77 6f 72 | export Export { field: "work", kind: Function, index: 1 }
        | 6b 00 01   
-0x0096 | 67 b5 01    | module code section
+0x0096 | 11 b5 01    | module code section
 0x0099 | 02          | 2 count
 0x009a | 51          | inline module size
   0x009b | 00 61 73 6d | version 1
          | 01 00 00 00
-  0x00a3 | 66 04       | alias section
+  0x00a3 | 10 04       | alias section
   0x00a5 | 01          | 1 count
   0x00a6 | 01 07 01    | [alias] Alias { instance: Parent, kind: Type, index: 1 }
   0x00a9 | 01 04       | type section
@@ -94,7 +94,7 @@
 0x00ec | 61          | inline module size
   0x00ed | 00 61 73 6d | version 1
          | 01 00 00 00
-  0x00f5 | 66 04       | alias section
+  0x00f5 | 10 04       | alias section
   0x00f7 | 01          | 1 count
   0x00f8 | 01 07 01    | [alias] Alias { instance: Parent, kind: Type, index: 1 }
   0x00fb | 01 08       | type section

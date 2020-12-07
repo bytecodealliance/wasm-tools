@@ -11,7 +11,7 @@
 0x0020 | 01          | 1 count
 0x0021 | 01 69 00 ff | import [instance 0] Import { module: "i", field: None, ty: Instance(2) }
        | 06 02      
-0x0027 | 66 05       | alias section
+0x0027 | 10 05       | alias section
 0x0029 | 01          | 1 count
 0x002a | 00 00 00 00 | [alias] Alias { instance: Child(0), kind: Function, index: 0 }
 0x002e | 03 02       | func section
