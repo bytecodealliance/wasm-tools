@@ -32,10 +32,10 @@ where
     }
 
     fn encode_initializers(&self, module: &mut wasm_encoder::Module) {
-        for init in self.initializers.iter() {
+        for init in self.initial_sections.iter() {
             match init {
-                Initializers::Types(types) => self.encode_types(module, types),
-                Initializers::Imports(imports) => self.encode_imports(module, imports),
+                InitialSection::Type(types) => self.encode_types(module, types),
+                InitialSection::Import(imports) => self.encode_imports(module, imports),
             }
         }
     }

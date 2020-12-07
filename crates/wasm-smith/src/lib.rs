@@ -94,16 +94,36 @@ where
 {
     config: C,
     valtypes: Vec<ValType>,
-    initializers: Vec<Initializers>,
-    /// indexes into `initializers` which are types
+
+    /// The initial sections of this wasm module, including types and imports.
+    /// This is stored as a list-of-lists where each `InitialSection` represents
+    /// a whole section, so this `initial_sections` list represents a list of
+    /// sections.
+    ///
+    /// With the module linking proposal, types, imports, module, instance,
+    /// and alias sections can come in any order and occur repeatedly at the
+    /// start of a Wasm module. We want to generate interesting entities --
+    /// entities that require multiple, interspersed occurrences of these
+    /// sections -- and we don't want to always generate the "same shape" of
+    /// these initial sections. Each entry in this initializers list is one of
+    /// these initial sections, and we will directly encode each entry as a
+    /// section when we serialize this module to bytes, which allows us to
+    /// easily model the flexibility of the module linking proposal.
+    initial_sections: Vec<InitialSection>,
+
+    /// Indices into `initializers` which are types. The pair `(i, j)` means
+    /// that `initializers[i]` is a type section, and we are referring to the
+    /// `j`th type within that type section.
     types: Vec<(usize, usize)>,
-    /// Type indexes which are function types.
+    /// Indices within `types` that are function types.
     func_types: Vec<u32>,
-    /// Type indexes which are module types.
+    /// Indices within `types` that are module types.
     module_types: Vec<u32>,
-    /// Type indexes which are instance types.
+    /// Indices within `types` that are instance types.
     instance_types: Vec<u32>,
-    /// indexes into `initializers` which are imports
+    /// Indices into `initializers` which are imports. The pair `(i, j)` means
+    /// that `initializers[i]` is an import section, and we are referring to the
+    /// `j`th import within it.
     imports: Vec<(usize, usize)>,
     funcs: Vec<u32>,
     tables: Vec<TableType>,
@@ -160,9 +180,9 @@ impl Arbitrary for MaybeInvalidModule {
 }
 
 #[derive(Clone, Debug)]
-enum Initializers {
-    Types(Vec<Type>),
-    Imports(Vec<(String, Option<String>, EntityType)>),
+enum InitialSection {
+    Type(Vec<Type>),
+    Import(Vec<(String, Option<String>, EntityType)>),
 }
 
 #[derive(Clone, Debug)]
@@ -571,7 +591,7 @@ where
             self.valtypes.push(ValType::ExternRef);
             self.valtypes.push(ValType::FuncRef);
         }
-        self.arbitrary_initializers(u)?;
+        self.arbitrary_initial_sections(u)?;
         self.arbitrary_funcs(u)?;
         self.arbitrary_tables(u)?;
         self.arbitrary_memories(u)?;
@@ -584,7 +604,7 @@ where
         Ok(())
     }
 
-    fn arbitrary_initializers(&mut self, u: &mut Unstructured) -> Result<()> {
+    fn arbitrary_initial_sections(&mut self, u: &mut Unstructured) -> Result<()> {
         if self.config.module_linking_enabled() {
             loop {
                 match u.int_in_range(0..=2)? {
@@ -595,15 +615,11 @@ where
             }
             // If after generating a list of sections we haven't met our
             // minimum quotas then meet them now.
-            if let Some(min) = self.config.min_types().checked_sub(self.types.len()) {
-                if min > 0 {
-                    self.arbitrary_types(min, u)?;
-                }
+            if self.types.len() < self.config.min_types() {
+                self.arbitrary_types(self.config.min_types() - self.types.len(), u)?;
             }
-            if let Some(min) = self.config.min_imports().checked_sub(self.imports.len()) {
-                if min > 0 {
-                    self.arbitrary_imports(min, u)?;
-                }
+            if self.imports.len() < self.config.min_imports() {
+                self.arbitrary_imports(self.config.min_imports() - self.imports.len(), u)?;
             }
         } else {
             self.arbitrary_types(self.config.min_types(), u)?;
@@ -622,12 +638,12 @@ where
                 Type::Instance(_) => &mut self.instance_types,
             };
             list.push(self.types.len() as u32);
-            self.types.push((self.initializers.len(), types.len()));
+            self.types.push((self.initial_sections.len(), types.len()));
             types.push(ty);
             Ok(true)
         })?;
         if !types.is_empty() || u.arbitrary()? {
-            self.initializers.push(Initializers::Types(types));
+            self.initial_sections.push(InitialSection::Type(types));
         }
         Ok(())
     }
@@ -785,13 +801,14 @@ where
                 let f = u.choose(&choices)?;
                 let ty = f(u, self)?;
 
-                self.imports.push((self.initializers.len(), imports.len()));
+                self.imports
+                    .push((self.initial_sections.len(), imports.len()));
                 imports.push((module, name, ty));
                 Ok(true)
             },
         )?;
         if !imports.is_empty() || u.arbitrary()? {
-            self.initializers.push(Initializers::Imports(imports));
+            self.initial_sections.push(InitialSection::Import(imports));
         }
         Ok(())
     }
@@ -799,8 +816,8 @@ where
     fn func_types<'a>(&'a self) -> impl Iterator<Item = (u32, &'a FuncType)> + 'a {
         self.func_types.iter().copied().map(move |type_i| {
             let (i, j) = self.types[type_i as usize];
-            match &self.initializers[i] {
-                Initializers::Types(list) => match &list[j] {
+            match &self.initial_sections[i] {
+                InitialSection::Type(list) => match &list[j] {
                     Type::Func(t) => (type_i, t),
                     _ => unreachable!(),
                 },
@@ -811,7 +828,7 @@ where
 
     fn func_type(&self, idx: u32) -> &FuncType {
         let (i, j) = self.types[idx as usize];
-        if let Initializers::Types(list) = &self.initializers[i] {
+        if let InitialSection::Type(list) = &self.initial_sections[i] {
             if let Type::Func(f) = &list[j] {
                 return f;
             }
@@ -824,8 +841,8 @@ where
     ) -> impl Iterator<Item = (&'a str, Option<&'a str>, &'a EntityType)> + 'a {
         self.imports
             .iter()
-            .map(move |(i, j)| match &self.initializers[*i] {
-                Initializers::Imports(list) => {
+            .map(move |(i, j)| match &self.initial_sections[*i] {
+                InitialSection::Import(list) => {
                     let (module, field, ty) = &list[*j];
                     (module.as_str(), field.as_deref(), ty)
                 }
