@@ -59,7 +59,7 @@ mod terminate;
 
 use crate::code_builder::CodeBuilderAllocations;
 use arbitrary::{Arbitrary, Result, Unstructured};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::str;
 
@@ -118,6 +118,9 @@ where
     types: Vec<(usize, usize)>,
     /// Indices within `types` that are function types.
     func_types: Vec<u32>,
+    /// Map from function signature to indices that have that function
+    /// signature.
+    func_map: HashMap<Rc<FuncType>, Vec<u32>>,
     /// Indices within `types` that are module types.
     module_types: Vec<u32>,
     /// Indices within `types` that are instance types.
@@ -125,6 +128,9 @@ where
 
     /// Number of imported items into this module.
     num_imports: usize,
+
+    /// Number of items aliased into this module.
+    num_aliases: usize,
 
     /// The number of functions defined in this module (not imported or
     /// aliased).
@@ -170,6 +176,9 @@ where
     /// All modules available to this module, sorted by their index. The list
     /// entry is the type of the module.
     modules: Vec<Rc<ModuleType>>,
+
+    /// All off our nested submodules.
+    defined_modules: Vec<ConfiguredModule<C>>,
 
     exports: Vec<(String, Export)>,
     start: Option<u32>,
@@ -223,6 +232,7 @@ enum InitialSection {
     Import(Vec<(String, Option<String>, EntityType)>),
     Alias(Vec<Alias>),
     Instance(Vec<Instance>),
+    Module(Vec<u32>),
 }
 
 #[derive(Clone, Debug)]
@@ -232,7 +242,7 @@ enum Type {
     Instance(Rc<InstanceType>),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct FuncType {
     params: Vec<ValType>,
     results: Vec<ValType>,
@@ -680,10 +690,17 @@ where
         > = Vec::new();
         while u.arbitrary()? {
             choices.clear();
-            choices.push(|u, m, _, _| m.arbitrary_types(0, u));
-            choices.push(|u, m, _, _| m.arbitrary_imports(0, u));
+            if self.types.len() < self.config.max_types() {
+                choices.push(|u, m, _, _| m.arbitrary_types(0, u));
+            }
+            if self.num_imports < self.config.max_imports() {
+                choices.push(|u, m, _, _| m.arbitrary_imports(0, u));
+            }
+            if self.modules.len() < self.config.max_modules() {
+                choices.push(|u, m, _, _| m.arbitrary_modules(u));
+            }
             aliases.update(self);
-            if aliases.aliases.len() > 0 {
+            if self.num_aliases < self.config.max_aliases() && aliases.aliases.len() > 0 {
                 choices.push(|u, m, a, _| m.arbitrary_aliases(a, u));
             }
             instantiations.update(self);
@@ -716,7 +733,13 @@ where
         arbitrary_loop(u, min, self.config.max_types() - self.types.len(), |u| {
             let ty = self.arbitrary_type(u)?;
             let list = match &ty {
-                Type::Func(_) => &mut self.func_types,
+                Type::Func(f) => {
+                    self.func_map
+                        .entry(f.clone())
+                        .or_insert(Vec::new())
+                        .push(self.types.len() as u32);
+                    &mut self.func_types
+                }
                 Type::Module(_) => &mut self.module_types,
                 Type::Instance(_) => &mut self.instance_types,
             };
@@ -943,7 +966,7 @@ where
         assert!(available.aliases.len() > 0);
 
         let mut aliases = Vec::new();
-        arbitrary_loop(u, 0, self.config.max_aliases(), |u| {
+        arbitrary_loop(u, 0, self.config.max_aliases() - self.num_aliases, |u| {
             let choice = u.choose(&available.aliases)?;
             aliases.push(choice.clone());
             match choice {
@@ -999,6 +1022,7 @@ where
                 Alias::ParentModule(_) => unimplemented!(),
             }
             available.update(self);
+            self.num_aliases += 1;
             Ok(available.aliases.len() > 0)
         })?;
         if !aliases.is_empty() || u.arbitrary()? {
@@ -1040,6 +1064,166 @@ where
                 .push(InitialSection::Instance(instances));
         }
         Ok(())
+    }
+
+    fn arbitrary_modules(&mut self, u: &mut Unstructured) -> Result<()> {
+        let mut modules = Vec::new();
+        arbitrary_loop(u, 0, self.config.max_modules(), |u| {
+            let module = u.arbitrary::<ConfiguredModule<C>>()?;
+
+            // After we've generated the `module`, we create `ty` which is its
+            // own type signature of itself.
+            let mut imports = Vec::with_capacity(module.num_imports);
+            for (module, name, ty) in module
+                .initial_sections
+                .iter()
+                .filter_map(|section| match section {
+                    InitialSection::Import(list) => Some(list),
+                    _ => None,
+                })
+                .flat_map(|a| a)
+            {
+                imports.push((module.clone(), name.clone(), ty.clone()));
+            }
+            let mut exports = Vec::with_capacity(module.exports.len());
+            for (name, item) in module.exports.iter() {
+                let ty = module.type_of(item);
+                exports.push((name.clone(), ty));
+            }
+            let ty = Rc::new(ModuleType {
+                imports,
+                exports: Rc::new(InstanceType { exports }),
+            });
+
+            // And then given the type of the module we copy it over to
+            // ourselves and get a type index. This index goes into the module
+            // section and we also record the type of this module in our
+            // `modules` array.
+            let ty_idx = self.get_module_type_idx(&ty);
+            modules.push(ty_idx);
+            self.modules.push(self.module_type(ty_idx).clone());
+            self.defined_modules.push(module);
+            Ok(true)
+        })?;
+        if !modules.is_empty() || u.arbitrary()? {
+            self.initial_sections.push(InitialSection::Module(modules));
+        }
+        Ok(())
+    }
+
+    /// Copies the type `ty`, possibly from a different module, into this
+    /// module.
+    fn copy_type_to_self(&mut self, ty: &EntityType) -> EntityType {
+        match ty {
+            // Globals, tables, and memories are easy, it's just copying some
+            // bits around.
+            EntityType::Global(t) => EntityType::Global(t.clone()),
+            EntityType::Table(t) => EntityType::Table(t.clone()),
+            EntityType::Memory(t) => EntityType::Memory(t.clone()),
+
+            // Functions, instances, and modules are hairier, however, since
+            // they chases pointers. We delegate to some helper methods for
+            // each one.
+            EntityType::Func(_other_idx, sig) => {
+                EntityType::Func(self.get_func_type_idx(sig), sig.clone())
+            }
+            EntityType::Instance(_other_idx, sig) => {
+                EntityType::Instance(self.get_instance_type_idx(sig), sig.clone())
+            }
+            EntityType::Module(_other_idx, sig) => {
+                EntityType::Module(self.get_module_type_idx(sig), sig.clone())
+            }
+        }
+    }
+
+    fn get_func_type_idx(&mut self, sig: &Rc<FuncType>) -> u32 {
+        // First check to see if our module already defines this function
+        // signature. TODO should thread through `Unstructured` to here to
+        // select an entry from `list` rather than always taking the first.
+        if let Some(list) = self.func_map.get(sig) {
+            return list[0];
+        }
+        // ... and otherwises add a new function signature.
+        let type_idx = self.types.len() as u32;
+        self.func_types.push(type_idx);
+        self.func_map
+            .entry(sig.clone())
+            .or_insert(Vec::new())
+            .push(type_idx);
+        self.push_type(Type::Func(sig.clone()));
+        type_idx
+    }
+
+    fn get_instance_type_idx(&mut self, sig: &Rc<InstanceType>) -> u32 {
+        // For simplicity for now we always inject a new `instance` type in
+        // this situation instead of looking for one that's already defined.
+        let sig = Rc::new(InstanceType {
+            exports: sig
+                .exports
+                .iter()
+                .map(|(name, ty)| (name.clone(), self.copy_type_to_self(ty)))
+                .collect(),
+        });
+        let type_idx = self.types.len() as u32;
+        self.instance_types.push(type_idx);
+        self.push_type(Type::Instance(sig));
+        type_idx
+    }
+
+    fn get_module_type_idx(&mut self, sig: &Rc<ModuleType>) -> u32 {
+        // Similar to instances, we take the simple route of simply always
+        // injecting a new module type instead of trying to deduplicate.
+        let exports_idx = self.get_instance_type_idx(&sig.exports);
+        let exports = self.instance_type(exports_idx).clone();
+        let sig = Rc::new(ModuleType {
+            imports: sig
+                .imports
+                .iter()
+                .map(|(m, n, ty)| (m.clone(), n.clone(), self.copy_type_to_self(ty)))
+                .collect(),
+            exports,
+        });
+        let type_idx = self.types.len() as u32;
+        self.module_types.push(type_idx);
+        self.push_type(Type::Module(sig));
+        type_idx
+    }
+
+    fn push_type(&mut self, ty: Type) {
+        let mut i = self.initial_sections.len();
+        let j = match self.initial_sections.last_mut() {
+            // If the last section defined was a type section, add another type
+            // onto it.
+            Some(InitialSection::Type(types)) => {
+                i -= 1;
+                types.push(ty);
+                types.len() - 1
+            }
+            // ... otherwise start a new type section
+            _ => {
+                self.initial_sections.push(InitialSection::Type(vec![ty]));
+                0
+            }
+        };
+        self.types.push((i, j));
+    }
+
+    fn type_of(&self, item: &Export) -> EntityType {
+        match *item {
+            Export::Global(i) => EntityType::Global(self.globals[i as usize].clone()),
+            Export::Memory(i) => EntityType::Memory(self.memories[i as usize].clone()),
+            Export::Table(i) => EntityType::Table(self.tables[i as usize].clone()),
+            Export::Func(i) => {
+                let (_idx, ty) = &self.funcs[i as usize];
+                EntityType::Func(u32::max_value(), ty.clone())
+            }
+            Export::Module(i) => {
+                EntityType::Module(u32::max_value(), self.modules[i as usize].clone())
+            }
+            Export::Instance(i) => {
+                EntityType::Instance(u32::max_value(), self.instances[i as usize].clone())
+            }
+        }
     }
 
     fn func_types<'a>(&'a self) -> impl Iterator<Item = (u32, &'a FuncType)> + 'a {
