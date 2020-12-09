@@ -135,6 +135,21 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         "interp/reference-types.txt",
         "expr/reference-types.txt",
         "parse/all-features.txt",
+        // uses old exception handling proposal
+        // FIXME: remove when wabt starts supporting the new proposal
+        "desugar/try.txt",
+        "dump/br_on_exn.txt",
+        "dump/rethrow.txt",
+        "dump/try.txt",
+        "dump/try-multi.txt",
+        "expr/br_on_exn.txt",
+        "expr/rethrow.txt",
+        "expr/try.txt",
+        "expr/try-multi.txt",
+        "roundtrip/fold-br_on_exn.txt",
+        "roundtrip/fold-rethrow.txt",
+        "roundtrip/fold-try.txt",
+        "roundtrip/rethrow.txt",
     ];
     if broken.iter().any(|x| test.ends_with(x)) {
         return true;
@@ -252,6 +267,9 @@ impl TestState {
             && !test.ends_with("bulk-memory-operations/binary.wast")
             && !test.ends_with("reference-types/binary.wast")
             && !test.ends_with("exception-handling/binary.wast")
+
+            // wabt uses the old exceptions proposal
+            && !test.ends_with("local/exception-handling.wast")
 
             // not implemented in wabt
             && !test.iter().any(|t| t == "module-linking")

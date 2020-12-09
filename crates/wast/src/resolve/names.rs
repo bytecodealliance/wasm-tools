@@ -1965,10 +1965,13 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             Throw(i) => {
                 self.module.resolve(i, Ns::Event)?;
             }
-            BrOnExn(b) => {
-                self.resolve_label(&mut b.label)?;
-                self.module.resolve(&mut b.exn, Ns::Event)?;
+            Rethrow(i) => {
+                self.resolve_label(i)?;
             }
+            Catch(i) => {
+                self.module.resolve(i, Ns::Event)?;
+            }
+
             BrOnCast(b) => {
                 self.resolve_label(&mut b.label)?;
                 self.module.resolve_heaptype(&mut b.val)?;
