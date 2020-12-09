@@ -134,7 +134,7 @@ pub trait Config: Arbitrary + Default {
     ///
     /// Note that more than one memory is in the realm of the multi-memory wasm
     /// proposal.
-    fn max_memories(&self) -> u32 {
+    fn max_memories(&self) -> usize {
         1
     }
 
@@ -149,7 +149,7 @@ pub trait Config: Arbitrary + Default {
     ///
     /// Note that more than one table is in the realm of the reference types
     /// proposal.
-    fn max_tables(&self) -> u32 {
+    fn max_tables(&self) -> usize {
         1
     }
 
@@ -163,6 +163,22 @@ pub trait Config: Arbitrary + Default {
     /// to `false`.
     fn memory_max_size_required(&self) -> bool {
         false
+    }
+
+    /// The maximum number of instances to use. Defaults to 10. This includes
+    /// imported instances.
+    ///
+    /// Note that this is irrelevaant unless module linking is enabled.
+    fn max_instances(&self) -> usize {
+        10
+    }
+
+    /// The maximum number of modules to use. Defaults to 10. This includes
+    /// imported modules.
+    ///
+    /// Note that this is irrelevaant unless module linking is enabled.
+    fn max_modules(&self) -> usize {
+        10
     }
 
     /// Control the probability of generating memory offsets that are in bounds
@@ -220,12 +236,17 @@ pub trait Config: Arbitrary + Default {
     ///
     /// Defaults to `false`.
     fn module_linking_enabled(&self) -> bool {
-        true
+        false
     }
 
     /// Determines whether a `start` export may be included. Defaults to `true`.
     fn allow_start_export(&self) -> bool {
         true
+    }
+
+    /// Returns the maximal size of the `alias` section.
+    fn max_aliases(&self) -> usize {
+        1_000
     }
 }
 
@@ -258,13 +279,14 @@ pub struct SwarmConfig {
     max_elements: usize,
     max_data_segments: usize,
     max_instructions: usize,
-    max_memories: u32,
+    max_memories: usize,
     min_uleb_size: u8,
-    max_tables: u32,
+    max_tables: usize,
     max_memory_pages: u32,
     bulk_memory_enabled: bool,
     reference_types_enabled: bool,
     module_linking_enabled: bool,
+    max_aliases: usize,
 }
 
 impl Arbitrary for SwarmConfig {
@@ -291,6 +313,7 @@ impl Arbitrary for SwarmConfig {
             bulk_memory_enabled: u.arbitrary()?,
             reference_types_enabled,
             module_linking_enabled: u.arbitrary()?,
+            max_aliases: u.int_in_range(0..=MAX_MAXIMUM)?,
         })
     }
 }
@@ -332,11 +355,11 @@ impl Config for SwarmConfig {
         self.max_instructions
     }
 
-    fn max_memories(&self) -> u32 {
+    fn max_memories(&self) -> usize {
         self.max_memories
     }
 
-    fn max_tables(&self) -> u32 {
+    fn max_tables(&self) -> usize {
         self.max_tables
     }
 
@@ -358,5 +381,9 @@ impl Config for SwarmConfig {
 
     fn module_linking_enabled(&self) -> bool {
         self.module_linking_enabled
+    }
+
+    fn max_aliases(&self) -> usize {
+        self.max_aliases
     }
 }

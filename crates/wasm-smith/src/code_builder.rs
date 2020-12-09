@@ -1,6 +1,5 @@
 use super::{
-    BlockType, Config, ConfiguredModule, Elements, EntityType, FuncType, Instruction, MemArg,
-    ValType,
+    BlockType, Config, ConfiguredModule, Elements, FuncType, Instruction, MemArg, ValType,
 };
 use arbitrary::{Result, Unstructured};
 use std::collections::{BTreeMap, BTreeSet};
@@ -293,14 +292,8 @@ where
     // of functions that have that function type.
     functions: BTreeMap<Vec<ValType>, Vec<u32>>,
 
-    // Number of linear memories in this module
-    num_memories: u32,
-
     // Tables in this module which have a funcref element type.
     funcref_tables: Vec<u32>,
-
-    // All tables and what element type they have.
-    table_tys: Vec<ValType>,
 
     // Functions that are referenced in the module through globals and segments.
     referenced_functions: Vec<u32>,
@@ -355,15 +348,7 @@ where
 {
     pub(crate) fn new(module: &ConfiguredModule<C>) -> Self {
         let mut mutable_globals = BTreeMap::new();
-        for (i, global) in module
-            .imports()
-            .filter_map(|(_, _, imp)| match imp {
-                EntityType::Global(g) => Some(g),
-                _ => None,
-            })
-            .chain(module.globals.iter().map(|g| &g.ty))
-            .enumerate()
-        {
+        for (i, global) in module.globals.iter().enumerate() {
             if global.mutable {
                 mutable_globals
                     .entry(global.val_type)
@@ -382,15 +367,7 @@ where
 
         let mut funcref_tables = Vec::new();
         let mut table_tys = Vec::new();
-        for (i, table) in module
-            .imports()
-            .filter_map(|(_, _, imp)| match imp {
-                EntityType::Table(t) => Some(t),
-                _ => None,
-            })
-            .chain(&module.tables)
-            .enumerate()
-        {
+        for (i, table) in module.tables.iter().enumerate() {
             table_tys.push(table.elem_ty);
             if table.elem_ty == ValType::FuncRef {
                 funcref_tables.push(i as u32);
@@ -398,8 +375,8 @@ where
         }
 
         let mut referenced_functions = BTreeSet::new();
-        for g in module.globals.iter() {
-            if let Instruction::RefFunc(i) = g.expr {
+        for (_, expr) in module.defined_globals.iter() {
+            if let Instruction::RefFunc(i) = *expr {
                 referenced_functions.insert(i);
             }
         }
@@ -423,9 +400,7 @@ where
             options: Vec::with_capacity(NUM_OPTIONS),
             functions,
             mutable_globals,
-            num_memories: module.total_memories,
             funcref_tables,
-            table_tys,
             referenced_functions: referenced_functions.into_iter().collect(),
             table_init_possible,
         }
@@ -1048,7 +1023,7 @@ fn local_tee<C: Config>(
 
 #[inline]
 fn global_get_valid<C: Config>(module: &ConfiguredModule<C>, _: &mut CodeBuilder<C>) -> bool {
-    module.total_globals > 0
+    module.globals.len() > 0
 }
 
 fn global_get<C: Config>(
@@ -1056,32 +1031,13 @@ fn global_get<C: Config>(
     module: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let n = module.total_globals;
-    debug_assert!(n > 0);
-    let mut i = u.int_in_range(0..=n - 1)?;
-    let mut global_idx = 0;
-    for (_, _, ty) in module.imports() {
-        match ty {
-            EntityType::Global(g) => {
-                if i == 0 {
-                    builder.allocs.operands.push(Some(g.val_type));
-                    return Ok(Instruction::GlobalGet(global_idx));
-                }
-                i -= 1;
-                global_idx += 1;
-            }
-            _ => continue,
-        }
-    }
-    for g in &module.globals {
-        if i == 0 {
-            builder.allocs.operands.push(Some(g.ty.val_type));
-            return Ok(Instruction::GlobalGet(global_idx));
-        }
-        i -= 1;
-        global_idx += 1;
-    }
-    unreachable!()
+    debug_assert!(module.globals.len() > 0);
+    let global_idx = u.int_in_range(0..=module.globals.len() - 1)?;
+    builder
+        .allocs
+        .operands
+        .push(Some(module.globals[global_idx].val_type));
+    Ok(Instruction::GlobalGet(global_idx as u32))
 }
 
 #[inline]
@@ -1111,8 +1067,8 @@ fn global_set<C: Config>(
 }
 
 #[inline]
-fn have_memory<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
-    builder.allocs.num_memories > 0
+fn have_memory<C: Config>(module: &ConfiguredModule<C>, _: &mut CodeBuilder<C>) -> bool {
+    module.memories.len() > 0
 }
 
 #[inline]
@@ -1135,7 +1091,7 @@ fn i32_load<C: Config>(
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::I32));
-    Ok(Instruction::I32Load(mem_arg(u, module, builder, &[0, 1])?))
+    Ok(Instruction::I32Load(mem_arg(u, module, &[0, 1])?))
 }
 
 fn i64_load<C: Config>(
@@ -1145,12 +1101,7 @@ fn i64_load<C: Config>(
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::I64));
-    Ok(Instruction::I64Load(mem_arg(
-        u,
-        module,
-        builder,
-        &[0, 1, 2],
-    )?))
+    Ok(Instruction::I64Load(mem_arg(u, module, &[0, 1, 2])?))
 }
 
 fn f32_load<C: Config>(
@@ -1160,7 +1111,7 @@ fn f32_load<C: Config>(
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::F32));
-    Ok(Instruction::F32Load(mem_arg(u, module, builder, &[0, 1])?))
+    Ok(Instruction::F32Load(mem_arg(u, module, &[0, 1])?))
 }
 
 fn f64_load<C: Config>(
@@ -1170,12 +1121,7 @@ fn f64_load<C: Config>(
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::F64));
-    Ok(Instruction::F64Load(mem_arg(
-        u,
-        module,
-        builder,
-        &[0, 1, 2],
-    )?))
+    Ok(Instruction::F64Load(mem_arg(u, module, &[0, 1, 2])?))
 }
 
 fn i32_load_8_s<C: Config>(
@@ -1185,7 +1131,7 @@ fn i32_load_8_s<C: Config>(
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::I32));
-    Ok(Instruction::I32Load8_S(mem_arg(u, module, builder, &[0])?))
+    Ok(Instruction::I32Load8_S(mem_arg(u, module, &[0])?))
 }
 
 fn i32_load_8_u<C: Config>(
@@ -1195,7 +1141,7 @@ fn i32_load_8_u<C: Config>(
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::I32));
-    Ok(Instruction::I32Load8_U(mem_arg(u, module, builder, &[0])?))
+    Ok(Instruction::I32Load8_U(mem_arg(u, module, &[0])?))
 }
 
 fn i32_load_16_s<C: Config>(
@@ -1205,12 +1151,7 @@ fn i32_load_16_s<C: Config>(
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::I32));
-    Ok(Instruction::I32Load16_S(mem_arg(
-        u,
-        module,
-        builder,
-        &[0, 1],
-    )?))
+    Ok(Instruction::I32Load16_S(mem_arg(u, module, &[0, 1])?))
 }
 
 fn i32_load_16_u<C: Config>(
@@ -1220,12 +1161,7 @@ fn i32_load_16_u<C: Config>(
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::I32));
-    Ok(Instruction::I32Load16_U(mem_arg(
-        u,
-        module,
-        builder,
-        &[0, 1],
-    )?))
+    Ok(Instruction::I32Load16_U(mem_arg(u, module, &[0, 1])?))
 }
 
 fn i64_load_8_s<C: Config>(
@@ -1235,7 +1171,7 @@ fn i64_load_8_s<C: Config>(
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::I64));
-    Ok(Instruction::I64Load8_S(mem_arg(u, module, builder, &[0])?))
+    Ok(Instruction::I64Load8_S(mem_arg(u, module, &[0])?))
 }
 
 fn i64_load_16_s<C: Config>(
@@ -1245,12 +1181,7 @@ fn i64_load_16_s<C: Config>(
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::I64));
-    Ok(Instruction::I64Load16_S(mem_arg(
-        u,
-        module,
-        builder,
-        &[0, 1],
-    )?))
+    Ok(Instruction::I64Load16_S(mem_arg(u, module, &[0, 1])?))
 }
 
 fn i64_load_32_s<C: Config>(
@@ -1260,12 +1191,7 @@ fn i64_load_32_s<C: Config>(
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::I64));
-    Ok(Instruction::I64Load32_S(mem_arg(
-        u,
-        module,
-        builder,
-        &[0, 1, 2],
-    )?))
+    Ok(Instruction::I64Load32_S(mem_arg(u, module, &[0, 1, 2])?))
 }
 
 fn i64_load_8_u<C: Config>(
@@ -1275,7 +1201,7 @@ fn i64_load_8_u<C: Config>(
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::I64));
-    Ok(Instruction::I64Load8_U(mem_arg(u, module, builder, &[0])?))
+    Ok(Instruction::I64Load8_U(mem_arg(u, module, &[0])?))
 }
 
 fn i64_load_16_u<C: Config>(
@@ -1285,12 +1211,7 @@ fn i64_load_16_u<C: Config>(
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::I64));
-    Ok(Instruction::I64Load16_U(mem_arg(
-        u,
-        module,
-        builder,
-        &[0, 1],
-    )?))
+    Ok(Instruction::I64Load16_U(mem_arg(u, module, &[0, 1])?))
 }
 
 fn i64_load_32_u<C: Config>(
@@ -1300,12 +1221,7 @@ fn i64_load_32_u<C: Config>(
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.allocs.operands.push(Some(ValType::I64));
-    Ok(Instruction::I64Load32_U(mem_arg(
-        u,
-        module,
-        builder,
-        &[0, 1, 2],
-    )?))
+    Ok(Instruction::I64Load32_U(mem_arg(u, module, &[0, 1, 2])?))
 }
 
 #[inline]
@@ -1328,7 +1244,7 @@ fn i32_store<C: Config>(
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
-    Ok(Instruction::I32Store(mem_arg(u, module, builder, &[0, 1])?))
+    Ok(Instruction::I32Store(mem_arg(u, module, &[0, 1])?))
 }
 
 #[inline]
@@ -1342,12 +1258,7 @@ fn i64_store<C: Config>(
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I64]);
-    Ok(Instruction::I64Store(mem_arg(
-        u,
-        module,
-        builder,
-        &[0, 1, 2],
-    )?))
+    Ok(Instruction::I64Store(mem_arg(u, module, &[0, 1, 2])?))
 }
 
 #[inline]
@@ -1361,7 +1272,7 @@ fn f32_store<C: Config>(
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::F32]);
-    Ok(Instruction::F32Store(mem_arg(u, module, builder, &[0, 1])?))
+    Ok(Instruction::F32Store(mem_arg(u, module, &[0, 1])?))
 }
 
 #[inline]
@@ -1375,12 +1286,7 @@ fn f64_store<C: Config>(
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::F64]);
-    Ok(Instruction::F64Store(mem_arg(
-        u,
-        module,
-        builder,
-        &[0, 1, 2],
-    )?))
+    Ok(Instruction::F64Store(mem_arg(u, module, &[0, 1, 2])?))
 }
 
 fn i32_store_8<C: Config>(
@@ -1389,7 +1295,7 @@ fn i32_store_8<C: Config>(
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
-    Ok(Instruction::I32Store8(mem_arg(u, module, builder, &[0])?))
+    Ok(Instruction::I32Store8(mem_arg(u, module, &[0])?))
 }
 
 fn i32_store_16<C: Config>(
@@ -1398,12 +1304,7 @@ fn i32_store_16<C: Config>(
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
-    Ok(Instruction::I32Store16(mem_arg(
-        u,
-        module,
-        builder,
-        &[0, 1],
-    )?))
+    Ok(Instruction::I32Store16(mem_arg(u, module, &[0, 1])?))
 }
 
 fn i64_store_8<C: Config>(
@@ -1412,7 +1313,7 @@ fn i64_store_8<C: Config>(
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I64]);
-    Ok(Instruction::I64Store8(mem_arg(u, module, builder, &[0])?))
+    Ok(Instruction::I64Store8(mem_arg(u, module, &[0])?))
 }
 
 fn i64_store_16<C: Config>(
@@ -1421,12 +1322,7 @@ fn i64_store_16<C: Config>(
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I64]);
-    Ok(Instruction::I64Store16(mem_arg(
-        u,
-        module,
-        builder,
-        &[0, 1],
-    )?))
+    Ok(Instruction::I64Store16(mem_arg(u, module, &[0, 1])?))
 }
 
 fn i64_store_32<C: Config>(
@@ -1435,21 +1331,16 @@ fn i64_store_32<C: Config>(
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I64]);
-    Ok(Instruction::I64Store32(mem_arg(
-        u,
-        module,
-        builder,
-        &[0, 1, 2],
-    )?))
+    Ok(Instruction::I64Store32(mem_arg(u, module, &[0, 1, 2])?))
 }
 
 fn memory_size<C: Config>(
     u: &mut Unstructured,
-    _: &ConfiguredModule<C>,
+    module: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
     builder.push_operands(&[ValType::I32]);
-    Ok(Instruction::MemorySize(memory_index(u, builder)?))
+    Ok(Instruction::MemorySize(memory_index(u, module)?))
 }
 
 #[inline]
@@ -1462,12 +1353,12 @@ fn memory_grow_valid<C: Config>(
 
 fn memory_grow<C: Config>(
     u: &mut Unstructured,
-    _: &ConfiguredModule<C>,
+    module: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.push_operands(&[ValType::I32]);
-    Ok(Instruction::MemoryGrow(memory_index(u, builder)?))
+    Ok(Instruction::MemoryGrow(memory_index(u, module)?))
 }
 
 #[inline]
@@ -1486,7 +1377,7 @@ fn memory_init<C: Config>(
     module: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let mem = memory_index(u, builder)?;
+    let mem = memory_index(u, module)?;
     let data = data_index(u, module)?;
     builder.pop_operands(&[ValType::I32, ValType::I32, ValType::I32]);
     Ok(Instruction::MemoryInit { mem, data })
@@ -1504,10 +1395,10 @@ fn memory_fill_valid<C: Config>(
 
 fn memory_fill<C: Config>(
     u: &mut Unstructured,
-    _module: &ConfiguredModule<C>,
+    module: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let mem = memory_index(u, builder)?;
+    let mem = memory_index(u, module)?;
     builder.pop_operands(&[ValType::I32, ValType::I32, ValType::I32]);
     Ok(Instruction::MemoryFill(mem))
 }
@@ -1522,11 +1413,11 @@ fn memory_copy_valid<C: Config>(
 
 fn memory_copy<C: Config>(
     u: &mut Unstructured,
-    _module: &ConfiguredModule<C>,
+    module: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let src = memory_index(u, builder)?;
-    let dst = memory_index(u, builder)?;
+    let src = memory_index(u, module)?;
+    let dst = memory_index(u, module)?;
     builder.pop_operands(&[ValType::I32, ValType::I32, ValType::I32]);
     Ok(Instruction::MemoryCopy { dst, src })
 }
@@ -2985,15 +2876,12 @@ fn i64_trunc_sat_f64_u<C: Config>(
 fn memory_offset<C: Config>(
     u: &mut Unstructured,
     module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
     memory_index: u32,
 ) -> Result<u32> {
-    assert!(builder.allocs.num_memories > 0);
-
     let (a, b, c) = module.config.memory_offset_choices();
     assert!(a + b + c != 0);
 
-    let memory_type = module.get_memory_type(memory_index).unwrap();
+    let memory_type = &module.memories[memory_index as usize];
     let min = memory_type.limits.min.saturating_mul(65536);
     let max = memory_type
         .limits
@@ -3013,11 +2901,10 @@ fn memory_offset<C: Config>(
 fn mem_arg<C: Config>(
     u: &mut Unstructured,
     module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
     alignments: &[u32],
 ) -> Result<MemArg> {
-    let memory_index = memory_index(u, builder)?;
-    let offset = memory_offset(u, module, builder, memory_index)?;
+    let memory_index = memory_index(u, module)?;
+    let offset = memory_offset(u, module, memory_index)?;
     let align = *u.choose(alignments)?;
     Ok(MemArg {
         memory_index,
@@ -3026,13 +2913,8 @@ fn mem_arg<C: Config>(
     })
 }
 
-fn memory_index<C: Config>(u: &mut Unstructured, builder: &mut CodeBuilder<C>) -> Result<u32> {
-    assert!(builder.allocs.num_memories > 0);
-    if builder.allocs.num_memories == 1 {
-        Ok(0)
-    } else {
-        u.int_in_range(0..=builder.allocs.num_memories - 1)
-    }
+fn memory_index<C: Config>(u: &mut Unstructured, module: &ConfiguredModule<C>) -> Result<u32> {
+    u.int_in_range(0..=module.memories.len() as u32 - 1)
 }
 
 fn data_index<C: Config>(u: &mut Unstructured, module: &ConfiguredModule<C>) -> Result<u32> {
@@ -3100,19 +2982,19 @@ fn table_fill_valid<C: Config>(module: &ConfiguredModule<C>, builder: &mut CodeB
         && module.config.bulk_memory_enabled()
         && [ValType::ExternRef, ValType::FuncRef].iter().any(|ty| {
             builder.types_on_stack(&[ValType::I32, *ty, ValType::I32])
-                && builder.allocs.table_tys.contains(ty)
+                && module.tables.iter().any(|t| t.elem_ty == *ty)
         })
 }
 
 fn table_fill<C: Config>(
     u: &mut Unstructured,
-    _: &ConfiguredModule<C>,
+    module: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     let ty = pop_reference_type(builder);
     builder.pop_operands(&[ValType::I32]);
-    let table = table_index(ty, u, builder)?;
+    let table = table_index(ty, u, module)?;
     Ok(Instruction::TableFill { table })
 }
 
@@ -3120,18 +3002,19 @@ fn table_fill<C: Config>(
 fn table_set_valid<C: Config>(module: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
     module.config.reference_types_enabled()
         && [ValType::ExternRef, ValType::FuncRef].iter().any(|ty| {
-            builder.types_on_stack(&[ValType::I32, *ty]) && builder.allocs.table_tys.contains(ty)
+            builder.types_on_stack(&[ValType::I32, *ty])
+                && module.tables.iter().any(|t| t.elem_ty == *ty)
         })
 }
 
 fn table_set<C: Config>(
     u: &mut Unstructured,
-    _: &ConfiguredModule<C>,
+    module: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
     let ty = pop_reference_type(builder);
     builder.pop_operands(&[ValType::I32]);
-    let table = table_index(ty, u, builder)?;
+    let table = table_index(ty, u, module)?;
     Ok(Instruction::TableSet { table })
 }
 
@@ -3139,32 +3022,32 @@ fn table_set<C: Config>(
 fn table_get_valid<C: Config>(module: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
     module.config.reference_types_enabled()
         && builder.type_on_stack(ValType::I32)
-        && builder.allocs.table_tys.len() > 0
+        && module.tables.len() > 0
 }
 
 fn table_get<C: Config>(
     u: &mut Unstructured,
-    _: &ConfiguredModule<C>,
+    module: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
-    let idx = u.int_in_range(0..=builder.allocs.table_tys.len() - 1)?;
-    let ty = builder.allocs.table_tys[idx];
+    let idx = u.int_in_range(0..=module.tables.len() - 1)?;
+    let ty = module.tables[idx].elem_ty;
     builder.push_operands(&[ty]);
     Ok(Instruction::TableGet { table: idx as u32 })
 }
 
 #[inline]
-fn table_size_valid<C: Config>(module: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
-    module.config.reference_types_enabled() && builder.allocs.table_tys.len() > 0
+fn table_size_valid<C: Config>(module: &ConfiguredModule<C>, _: &mut CodeBuilder<C>) -> bool {
+    module.config.reference_types_enabled() && module.tables.len() > 0
 }
 
 fn table_size<C: Config>(
     u: &mut Unstructured,
-    _: &ConfiguredModule<C>,
+    module: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
-    let table = u.int_in_range(0..=builder.allocs.table_tys.len() - 1)? as u32;
+    let table = u.int_in_range(0..=module.tables.len() - 1)? as u32;
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::TableSize { table })
 }
@@ -3173,18 +3056,19 @@ fn table_size<C: Config>(
 fn table_grow_valid<C: Config>(module: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
     module.config.reference_types_enabled()
         && [ValType::ExternRef, ValType::FuncRef].iter().any(|ty| {
-            builder.types_on_stack(&[*ty, ValType::I32]) && builder.allocs.table_tys.contains(ty)
+            builder.types_on_stack(&[*ty, ValType::I32])
+                && module.tables.iter().any(|t| t.elem_ty == *ty)
         })
 }
 
 fn table_grow<C: Config>(
     u: &mut Unstructured,
-    _: &ConfiguredModule<C>,
+    module: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     let ty = pop_reference_type(builder);
-    let table = table_index(ty, u, builder)?;
+    let table = table_index(ty, u, module)?;
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::TableGrow { table })
 }
@@ -3192,18 +3076,18 @@ fn table_grow<C: Config>(
 #[inline]
 fn table_copy_valid<C: Config>(module: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
     module.config.reference_types_enabled()
-        && builder.allocs.table_tys.len() > 0
+        && module.tables.len() > 0
         && builder.types_on_stack(&[ValType::I32, ValType::I32, ValType::I32])
 }
 
 fn table_copy<C: Config>(
     u: &mut Unstructured,
-    _: &ConfiguredModule<C>,
+    module: &ConfiguredModule<C>,
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32, ValType::I32]);
-    let src = u.int_in_range(0..=builder.allocs.table_tys.len() - 1)? as u32;
-    let dst = table_index(builder.allocs.table_tys[src as usize], u, builder)?;
+    let src = u.int_in_range(0..=module.tables.len() - 1)? as u32;
+    let dst = table_index(module.tables[src as usize].elem_ty, u, module)?;
     Ok(Instruction::TableCopy { src, dst })
 }
 
@@ -3224,11 +3108,11 @@ fn table_init<C: Config>(
         .elems
         .iter()
         .enumerate()
-        .filter(|(_, e)| builder.allocs.table_tys.contains(&e.ty))
+        .filter(|(_, e)| module.tables.iter().any(|t| t.elem_ty == e.ty))
         .map(|(i, _)| i)
         .collect::<Vec<_>>();
     let segment = *u.choose(&segments)?;
-    let table = table_index(module.elems[segment].ty, u, builder)?;
+    let table = table_index(module.elems[segment].ty, u, module)?;
     Ok(Instruction::TableInit {
         segment: segment as u32,
         table,
@@ -3262,15 +3146,14 @@ fn pop_reference_type<C: Config>(builder: &mut CodeBuilder<C>) -> ValType {
 fn table_index<C: Config>(
     ty: ValType,
     u: &mut Unstructured,
-    builder: &mut CodeBuilder<C>,
+    module: &ConfiguredModule<C>,
 ) -> Result<u32> {
-    let tables = builder
-        .allocs
-        .table_tys
+    let tables = module
+        .tables
         .iter()
         .enumerate()
-        .filter(|(_, t)| **t == ty)
-        .map(|t| t.0)
+        .filter(|(_, t)| t.elem_ty == ty)
+        .map(|t| t.0 as u32)
         .collect::<Vec<_>>();
-    Ok(*u.choose(&tables)? as u32)
+    Ok(*u.choose(&tables)?)
 }

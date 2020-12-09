@@ -30,14 +30,13 @@ where
     /// The index of the fuel global is returned, so that you may control how
     /// much fuel the module is given.
     pub fn ensure_termination(&mut self, default_fuel: u32) -> u32 {
-        let fuel_global = self.total_globals;
-        self.globals.push(Global {
-            ty: GlobalType {
-                val_type: ValType::I32,
-                mutable: true,
-            },
-            expr: Instruction::I32Const(default_fuel as i32),
+        let fuel_global = self.globals.len() as u32;
+        self.globals.push(GlobalType {
+            val_type: ValType::I32,
+            mutable: true,
         });
+        self.defined_globals
+            .push((fuel_global, Instruction::I32Const(default_fuel as i32)));
 
         for code in &mut self.code {
             let check_fuel = |insts: &mut Vec<Instruction>| {
