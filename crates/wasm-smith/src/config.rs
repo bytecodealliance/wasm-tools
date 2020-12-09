@@ -243,6 +243,11 @@ pub trait Config: Arbitrary + Default {
     fn allow_start_export(&self) -> bool {
         true
     }
+
+    /// Returns the maximal size of the `alias` section.
+    fn max_aliases(&self) -> usize {
+        1_000
+    }
 }
 
 /// The default configuration.
@@ -281,6 +286,7 @@ pub struct SwarmConfig {
     bulk_memory_enabled: bool,
     reference_types_enabled: bool,
     module_linking_enabled: bool,
+    max_aliases: usize,
 }
 
 impl Arbitrary for SwarmConfig {
@@ -307,6 +313,7 @@ impl Arbitrary for SwarmConfig {
             bulk_memory_enabled: u.arbitrary()?,
             reference_types_enabled,
             module_linking_enabled: u.arbitrary()?,
+            max_aliases: u.int_in_range(0..=MAX_MAXIMUM)?,
         })
     }
 }
@@ -374,5 +381,9 @@ impl Config for SwarmConfig {
 
     fn module_linking_enabled(&self) -> bool {
         self.module_linking_enabled
+    }
+
+    fn max_aliases(&self) -> usize {
+        self.max_aliases
     }
 }

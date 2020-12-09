@@ -81,8 +81,18 @@ pub enum Export {
     /// An export of the `n`th global.
     Global(u32),
     /// An export of the `n`th instance.
+    ///
+    /// Note that this is part of the [module linking proposal][proposal] and is
+    /// not currently part of stable WebAssembly.
+    ///
+    /// [proposal]: https://github.com/webassembly/module-linking
     Instance(u32),
     /// An export of the `n`th module.
+    ///
+    /// Note that this is part of the [module linking proposal][proposal] and is
+    /// not currently part of stable WebAssembly.
+    ///
+    /// [proposal]: https://github.com/webassembly/module-linking
     Module(u32),
 }
 

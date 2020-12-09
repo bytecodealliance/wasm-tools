@@ -899,7 +899,7 @@ where
         assert!(available.aliases.len() > 0);
 
         let mut aliases = Vec::new();
-        arbitrary_loop(u, 0, usize::max_value(), |u| {
+        arbitrary_loop(u, 0, self.config.max_aliases(), |u| {
             let choice = u.choose(&available.aliases)?;
             aliases.push(choice.clone());
             match choice {
@@ -1193,11 +1193,11 @@ where
     }
 
     fn arbitrary_start(&mut self, u: &mut Unstructured) -> Result<()> {
-        let mut choices = Vec::with_capacity(self.funcs.len() as usize);
-
         if !self.config.allow_start_export() {
             return Ok(());
         }
+
+        let mut choices = Vec::with_capacity(self.funcs.len() as usize);
 
         for (func_idx, ty) in self.funcs() {
             if ty.params.is_empty() && ty.results.is_empty() {
@@ -1479,6 +1479,17 @@ fn arbitrary_vec_u8(u: &mut Unstructured) -> Result<Vec<u8>> {
     Ok(u.get_bytes(size)?.to_vec())
 }
 
+/// This is a helper structure used during the `arbitrary_initial_sections`
+/// phase of generating a module to generate the alias section.
+///
+/// This structure is dynamically updated with new instances that are available,
+/// keeping track of all posssible `Alias` directives we could add to a module.
+/// Whenever an instance is defined all of its exports are then candidates for
+/// aliasing.
+///
+/// This then also takes care of filtering where once we reach the maximal size
+/// for an entity type all those alias candidates are removed from the pool of
+/// choices.
 #[derive(Default)]
 struct AvailableAliases {
     aliases: Vec<Alias>,

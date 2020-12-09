@@ -1,6 +1,26 @@
 use super::*;
 
 /// An encoder for the alias section.
+///
+/// Note that this is part of the [module linking proposal][proposal] and is not
+/// currently part of stable WebAssembly.
+///
+/// [proposal]: https://github.com/webassembly/module-linking
+///
+/// # Example
+///
+/// ```
+/// use wasm_encoder::{Module, AliasSection, Export};
+///
+/// let mut aliases = AliasSection::new();
+/// aliases.parent_type(2);
+/// aliases.instance_export(0, Export::Function(1));
+///
+/// let mut module = Module::new();
+/// module.section(&aliases);
+///
+/// let wasm_bytes = module.finish();
+/// ```
 pub struct AliasSection {
     bytes: Vec<u8>,
     num_added: u32,
