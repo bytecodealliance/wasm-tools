@@ -111,12 +111,12 @@ pub struct Validator {
     /// the last part of the module index space. Consequently we have a second
     /// map `module_code_section_definitions` here which is the same length as
     /// `expected_modules`. This is a map from position in the module code
-    /// section to index of the module we're defining. This index can then be
-    /// used to lookup in `module_type_indices` to determine what the expected
-    /// type of the module in the module code section is.
+    /// section to the size of the index/module spaces at the point of when the
+    /// corresponding module was declared. This enables us to validate the
+    /// submodule with a proper subset of the parent's index spaces.
     expected_modules: Option<u32>,
     module_code_section_index: usize,
-    module_code_section_definitions: Vec<usize>,
+    module_code_section_definitions: Vec<ModuleCodeDefinition>,
 
     /// If this validator is for a nested module then this keeps track of the
     /// type of the module that we're matching against. The `expected_type` is
@@ -146,7 +146,18 @@ struct ModuleState {
     module_type_indices: Vec<Def<u32>>,
     instance_type_indices: Vec<Def<InstanceDef>>,
     function_references: HashSet<u32>,
-    parent: Option<Arc<ModuleState>>,
+    parent: Option<Parent>,
+}
+
+struct Parent {
+    state: Arc<ModuleState>,
+    num_types: u32,
+    num_modules: u32,
+}
+
+struct ModuleCodeDefinition {
+    num_types: u32,
+    num_modules: u32,
 }
 
 /// Flags for features that are enabled for validation.
@@ -894,19 +905,28 @@ impl Validator {
                 }
             }
             AliasedInstance::Parent => {
-                let idx = match self.state.depth.checked_sub(1) {
-                    None => return self.create_error("no parent module to alias from"),
-                    Some(depth) => Def {
-                        depth,
-                        item: alias.index,
-                    },
+                let parent = match &self.state.parent {
+                    Some(parent) => parent,
+                    None => {
+                        return self.create_error("no parent module to alias from");
+                    }
+                };
+                let idx = Def {
+                    depth: self.state.depth - 1,
+                    item: alias.index,
                 };
                 match alias.kind {
                     ExternalKind::Module => {
+                        if alias.index >= parent.num_modules {
+                            return self.create_error("alias to module not defined in parent yet");
+                        }
                         let ty = self.get_module_type_index(idx)?;
                         self.state.assert_mut().module_type_indices.push(ty);
                     }
                     ExternalKind::Type => {
+                        if alias.index >= parent.num_types {
+                            return self.create_error("alias to type not defined in parent yet");
+                        }
                         // make sure this type actually exists, then push it as
                         // ourselve aliasing that type.
                         self.get_type(idx)?;
@@ -942,8 +962,13 @@ impl Validator {
             // Record which module index that we're defining in the module
             // section with the `module_code_section_definitions` list, and then
             // push the expected type onto our list of module types so far.
+            let num_types = me.state.types.len() as u32;
             let dst = &mut me.state.assert_mut().module_type_indices;
-            me.module_code_section_definitions.push(dst.len());
+            me.module_code_section_definitions
+                .push(ModuleCodeDefinition {
+                    num_types,
+                    num_modules: dst.len() as u32,
+                });
             dst.push(type_index);
             Ok(())
         })
@@ -1625,12 +1650,15 @@ impl Validator {
     pub fn module_code_section_entry<'a>(&mut self) -> Validator {
         let mut ret = Validator::default();
         ret.features = self.features.clone();
-        let module_type_index =
-            self.module_code_section_definitions[self.module_code_section_index];
-        ret.expected_type = Some(self.state.module_type_indices[module_type_index]);
+        let definition = &self.module_code_section_definitions[self.module_code_section_index];
+        ret.expected_type = Some(self.state.module_type_indices[definition.num_modules as usize]);
         self.module_code_section_index += 1;
         let state = ret.state.assert_mut();
-        state.parent = Some(self.state.arc().clone());
+        state.parent = Some(Parent {
+            state: self.state.arc().clone(),
+            num_modules: definition.num_modules,
+            num_types: definition.num_types,
+        });
         state.depth = self.state.depth + 1;
         return ret;
     }
@@ -1778,7 +1806,7 @@ impl ModuleState {
     ) -> Option<&'me T> {
         let mut cur = self;
         for _ in 0..(self.depth - idx.depth) {
-            cur = cur.parent.as_ref().unwrap();
+            cur = &cur.parent.as_ref().unwrap().state;
         }
         get_list(cur).get(idx.item as usize)
     }

@@ -60,15 +60,15 @@
   0x00a3 | 10 04       | alias section
   0x00a5 | 01          | 1 count
   0x00a6 | 01 07 01    | [alias] Alias { instance: Parent, kind: Type, index: 1 }
-  0x00a9 | 01 04       | type section
+  0x00a9 | 02 0f       | import section
   0x00ab | 01          | 1 count
-  0x00ac | 60 00 00    | [type 1] Func(FuncType { params: [], returns: [] })
-  0x00af | 02 0f       | import section
-  0x00b1 | 01          | 1 count
-  0x00b2 | 09 77 61 73 | import [instance 0] Import { module: "wasi_file", field: None, ty: Instance(0) }
+  0x00ac | 09 77 61 73 | import [instance 0] Import { module: "wasi_file", field: None, ty: Instance(0) }
          | 69 5f 66 69
          | 6c 65 00 ff
          | 06 00      
+  0x00ba | 01 04       | type section
+  0x00bc | 01          | 1 count
+  0x00bd | 60 00 00    | [type 1] Func(FuncType { params: [], returns: [] })
   0x00c0 | 03 02       | func section
   0x00c2 | 01          | 1 count
   0x00c3 | 01          | [func 0] type 1
@@ -97,16 +97,16 @@
   0x00f5 | 10 04       | alias section
   0x00f7 | 01          | 1 count
   0x00f8 | 01 07 01    | [alias] Alias { instance: Parent, kind: Type, index: 1 }
-  0x00fb | 01 08       | type section
+  0x00fb | 02 0f       | import section
   0x00fd | 01          | 1 count
-  0x00fe | 60 03 7f 7f | [type 1] Func(FuncType { params: [I32, I32, I32], returns: [I32] })
-         | 7f 01 7f   
-  0x0105 | 02 0f       | import section
-  0x0107 | 01          | 1 count
-  0x0108 | 09 77 61 73 | import [instance 0] Import { module: "wasi_file", field: None, ty: Instance(0) }
+  0x00fe | 09 77 61 73 | import [instance 0] Import { module: "wasi_file", field: None, ty: Instance(0) }
          | 69 5f 66 69
          | 6c 65 00 ff
          | 06 00      
+  0x010c | 01 08       | type section
+  0x010e | 01          | 1 count
+  0x010f | 60 03 7f 7f | [type 1] Func(FuncType { params: [I32, I32, I32], returns: [I32] })
+         | 7f 01 7f   
   0x0116 | 03 03       | func section
   0x0118 | 02          | 2 count
   0x0119 | 01          | [func 0] type 1

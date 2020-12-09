@@ -153,21 +153,34 @@ impl<'a> Resolver<'a> {
         //
         // Practically there is no purpose to interleaving the type and module
         // section today. As a result we can safely sort all types to the front.
-        // This, however, can break the roundtrip binary-text-binary for
-        // strictly-speaking compliant modules with the module linking spec.
-        // Anyway, this is a bummer, should figure out a better thing in the
-        // future.
-        //
         // I've tried to open discussion about this at
         // WebAssembly/module-linking#8
-        fields.sort_by_key(|field| match field {
-            ModuleField::Type(_)
-            | ModuleField::Alias(Alias {
-                kind: ExportKind::Type(_),
-                ..
-            }) => 0,
-            _ => 1,
+        //
+        // Note that to avoid breaking round-tripping and as a convenience for
+        // writing tests, we don't reorder any fields if we don't have to fill
+        // in the type for any modules.
+        let sort_types_first = fields.iter().any(|f| match f {
+            ModuleField::NestedModule(m) => match &m.kind {
+                NestedModuleKind::Inline { ty, .. } => ty.is_none(),
+                _ => false,
+            },
+            ModuleField::Import(i) => match &i.item.kind {
+                ItemKind::Module(ty) => ty.index.is_none(),
+                _ => false,
+            },
+            _ => false,
         });
+
+        if sort_types_first {
+            fields.sort_by_key(|field| match field {
+                ModuleField::Type(_)
+                | ModuleField::Alias(Alias {
+                    kind: ExportKind::Type(_),
+                    ..
+                }) => 0,
+                _ => 1,
+            });
+        }
 
         // Number everything in the module, recording what names correspond to
         // what indices.
@@ -190,14 +203,16 @@ impl<'a> Resolver<'a> {
         // This is the same as the comment above, only we're doing it now after
         // the full expansion process since all types should now be present in
         // the module.
-        fields.sort_by_key(|field| match field {
-            ModuleField::Type(_)
-            | ModuleField::Alias(Alias {
-                kind: ExportKind::Type(_),
-                ..
-            }) => 0,
-            _ => 1,
-        });
+        if sort_types_first {
+            fields.sort_by_key(|field| match field {
+                ModuleField::Type(_)
+                | ModuleField::Alias(Alias {
+                    kind: ExportKind::Type(_),
+                    ..
+                }) => 0,
+                _ => 1,
+            });
+        }
 
         // And finally the last step is to replace all our `Index::Id` instances
         // with `Index::Num` in the AST. This does not recurse into nested
