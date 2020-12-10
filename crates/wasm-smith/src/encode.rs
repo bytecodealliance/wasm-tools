@@ -37,6 +37,7 @@ where
                 InitialSection::Type(types) => self.encode_types(module, types),
                 InitialSection::Import(imports) => self.encode_imports(module, imports),
                 InitialSection::Alias(aliases) => self.encode_aliases(module, aliases),
+                InitialSection::Instance(list) => self.encode_instances(module, list),
             }
         }
     }
@@ -57,6 +58,7 @@ where
                             (module.as_str(), name.as_deref(), translate_entity_type(ty))
                         }),
                         ty.exports
+                            .exports
                             .iter()
                             .map(|(name, ty)| (name.as_str(), translate_entity_type(ty))),
                     );
@@ -103,13 +105,21 @@ where
         module.section(&section);
     }
 
+    fn encode_instances(&self, module: &mut wasm_encoder::Module, list: &[Instance]) {
+        let mut section = wasm_encoder::InstanceSection::new();
+        for instance in list {
+            section.instantiate(instance.module, instance.args.iter().map(translate_export));
+        }
+        module.section(&section);
+    }
+
     fn encode_funcs(&self, module: &mut wasm_encoder::Module) {
         if self.num_defined_funcs == 0 {
             return;
         }
         let mut funcs = wasm_encoder::FunctionSection::new();
-        for ty in self.funcs[self.funcs.len() - self.num_defined_funcs..].iter() {
-            funcs.function(*ty);
+        for (ty, _) in self.funcs[self.funcs.len() - self.num_defined_funcs..].iter() {
+            funcs.function(ty.unwrap());
         }
         module.section(&funcs);
     }
@@ -278,9 +288,9 @@ fn translate_val_type(ty: ValType) -> wasm_encoder::ValType {
 
 fn translate_entity_type(ty: &EntityType) -> wasm_encoder::EntityType {
     match ty {
-        EntityType::Func(f) => wasm_encoder::EntityType::Function(*f),
-        EntityType::Instance(i) => wasm_encoder::EntityType::Instance(*i),
-        EntityType::Module(i) => wasm_encoder::EntityType::Module(*i),
+        EntityType::Func(f, _) => wasm_encoder::EntityType::Function(*f),
+        EntityType::Instance(i, _) => wasm_encoder::EntityType::Instance(*i),
+        EntityType::Module(i, _) => wasm_encoder::EntityType::Module(*i),
         EntityType::Table(ty) => translate_table_type(ty).into(),
         EntityType::Memory(m) => translate_memory_type(m).into(),
         EntityType::Global(g) => translate_global_type(g).into(),

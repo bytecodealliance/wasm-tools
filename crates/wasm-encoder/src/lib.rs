@@ -79,6 +79,7 @@ mod exports;
 mod functions;
 mod globals;
 mod imports;
+mod instances;
 mod memories;
 mod start;
 mod tables;
@@ -93,6 +94,7 @@ pub use exports::*;
 pub use functions::*;
 pub use globals::*;
 pub use imports::*;
+pub use instances::*;
 pub use memories::*;
 pub use start::*;
 pub use tables::*;
@@ -211,6 +213,7 @@ pub enum SectionId {
     Code = 10,
     Data = 11,
     DataCount = 12,
+    Instance = 15,
     Alias = 16,
 }
 
