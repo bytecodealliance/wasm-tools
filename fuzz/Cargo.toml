@@ -8,7 +8,7 @@ edition = "2018"
 cargo-fuzz = true
 
 [dependencies]
-env_logger = "0.7"
+env_logger = "0.8"
 libfuzzer-sys = "0.3.2"
 log = "0.4"
 tempfile = "3.0"
