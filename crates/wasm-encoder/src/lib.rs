@@ -81,6 +81,8 @@ mod globals;
 mod imports;
 mod instances;
 mod memories;
+mod module_code;
+mod modules;
 mod start;
 mod tables;
 mod types;
@@ -96,6 +98,8 @@ pub use globals::*;
 pub use imports::*;
 pub use instances::*;
 pub use memories::*;
+pub use module_code::*;
+pub use modules::*;
 pub use start::*;
 pub use tables::*;
 pub use types::*;
@@ -213,8 +217,10 @@ pub enum SectionId {
     Code = 10,
     Data = 11,
     DataCount = 12,
+    Module = 14,
     Instance = 15,
     Alias = 16,
+    ModuleCode = 17,
 }
 
 impl From<SectionId> for u8 {

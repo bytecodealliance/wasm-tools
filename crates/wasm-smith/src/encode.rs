@@ -14,6 +14,10 @@ where
 {
     /// Encode this Wasm module into bytes.
     pub fn to_bytes(&self) -> Vec<u8> {
+        self.encoded().finish()
+    }
+
+    fn encoded(&self) -> wasm_encoder::Module {
         let mut module = wasm_encoder::Module::new();
 
         self.encode_initializers(&mut module);
@@ -25,10 +29,11 @@ where
         self.encode_start(&mut module);
         self.encode_elems(&mut module);
         self.encode_data_count(&mut module);
+        self.encode_module_code(&mut module);
         self.encode_code(&mut module);
         self.encode_data(&mut module);
 
-        module.finish()
+        module
     }
 
     fn encode_initializers(&self, module: &mut wasm_encoder::Module) {
@@ -38,6 +43,7 @@ where
                 InitialSection::Import(imports) => self.encode_imports(module, imports),
                 InitialSection::Alias(aliases) => self.encode_aliases(module, aliases),
                 InitialSection::Instance(list) => self.encode_instances(module, list),
+                InitialSection::Module(list) => self.encode_modules(module, list),
             }
         }
     }
@@ -109,6 +115,14 @@ where
         let mut section = wasm_encoder::InstanceSection::new();
         for instance in list {
             section.instantiate(instance.module, instance.args.iter().map(translate_export));
+        }
+        module.section(&section);
+    }
+
+    fn encode_modules(&self, module: &mut wasm_encoder::Module, list: &[u32]) {
+        let mut section = wasm_encoder::ModuleSection::new();
+        for ty in list {
+            section.module(*ty);
         }
         module.section(&section);
     }
@@ -221,6 +235,17 @@ where
         module.section(&wasm_encoder::DataCountSection {
             count: u32::try_from(self.data.len()).unwrap(),
         });
+    }
+
+    fn encode_module_code(&self, module: &mut wasm_encoder::Module) {
+        if self.defined_modules.is_empty() {
+            return;
+        }
+        let mut code = wasm_encoder::ModuleCodeSection::new();
+        for module in &self.defined_modules {
+            code.module(&module.encoded());
+        }
+        module.section(&code);
     }
 
     fn encode_code(&self, module: &mut wasm_encoder::Module) {
