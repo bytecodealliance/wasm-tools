@@ -15,7 +15,7 @@ use arbitrary::{Arbitrary, Result, Unstructured};
 /// Every trait method has a provided default implementation, so that you only
 /// need to override the methods for things you want to change away from the
 /// default.
-pub trait Config: Arbitrary + Default {
+pub trait Config: Arbitrary + Default + Clone {
     /// The minimum number of types to generate. Defaults to 0.
     fn min_types(&self) -> usize {
         0
@@ -248,6 +248,12 @@ pub trait Config: Arbitrary + Default {
     fn max_aliases(&self) -> usize {
         1_000
     }
+
+    /// Returns the maximal nesting depth of modules with the module linking
+    /// proposal.
+    fn max_nesting_depth(&self) -> usize {
+        10
+    }
 }
 
 /// The default configuration.
@@ -287,6 +293,7 @@ pub struct SwarmConfig {
     reference_types_enabled: bool,
     module_linking_enabled: bool,
     max_aliases: usize,
+    max_nesting_depth: usize,
 }
 
 impl Arbitrary for SwarmConfig {
@@ -314,6 +321,7 @@ impl Arbitrary for SwarmConfig {
             reference_types_enabled,
             module_linking_enabled: u.arbitrary()?,
             max_aliases: u.int_in_range(0..=MAX_MAXIMUM)?,
+            max_nesting_depth: u.int_in_range(0..=10)?,
         })
     }
 }
@@ -385,5 +393,9 @@ impl Config for SwarmConfig {
 
     fn max_aliases(&self) -> usize {
         self.max_aliases
+    }
+
+    fn max_nesting_depth(&self) -> usize {
+        self.max_nesting_depth
     }
 }

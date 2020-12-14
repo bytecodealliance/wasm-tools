@@ -94,6 +94,7 @@ where
     C: Config,
 {
     config: C,
+    depth: usize,
     valtypes: Vec<ValType>,
 
     /// The initial sections of this wasm module, including types and imports.
@@ -696,7 +697,9 @@ where
             if self.num_imports < self.config.max_imports() {
                 choices.push(|u, m, _, _| m.arbitrary_imports(0, u));
             }
-            if self.modules.len() < self.config.max_modules() {
+            if self.modules.len() < self.config.max_modules()
+                && self.depth < self.config.max_nesting_depth()
+            {
                 choices.push(|u, m, _, _| m.arbitrary_modules(u));
             }
             aliases.update(self);
@@ -1072,7 +1075,10 @@ where
     fn arbitrary_modules(&mut self, u: &mut Unstructured) -> Result<()> {
         let mut modules = Vec::new();
         arbitrary_loop(u, 0, self.config.max_modules(), |u| {
-            let module = u.arbitrary::<ConfiguredModule<C>>()?;
+            let mut module = ConfiguredModule::<C>::default();
+            module.depth = self.depth + 1;
+            module.config = self.config.clone();
+            module.build(u, false)?;
 
             // After we've generated the `module`, we create `ty` which is its
             // own type signature of itself.
