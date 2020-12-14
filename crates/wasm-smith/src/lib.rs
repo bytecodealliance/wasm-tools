@@ -688,7 +688,7 @@ where
                 &mut AvailableInstantiations,
             ) -> Result<()>,
         > = Vec::new();
-        while u.arbitrary()? {
+        loop {
             choices.clear();
             if self.types.len() < self.config.max_types() {
                 choices.push(|u, m, _, _| m.arbitrary_types(0, u));
@@ -708,6 +708,9 @@ where
                 && instantiations.choices.len() > 0
             {
                 choices.push(|u, m, _, i| m.arbitrary_instances(i, u));
+            }
+            if choices.is_empty() || !u.arbitrary()? {
+                break;
             }
             u.choose(&choices)?(u, self, &mut aliases, &mut instantiations)?;
         }
