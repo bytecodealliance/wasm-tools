@@ -20,7 +20,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-wasm-encoder = "0.1"
+wasm-encoder = "0.2"
 ```
 
 And then you can encode WebAssembly binaries via:
