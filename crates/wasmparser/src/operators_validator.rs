@@ -1596,7 +1596,19 @@ impl OperatorValidator {
             | Operator::I8x16NarrowI16x8S
             | Operator::I8x16NarrowI16x8U
             | Operator::I16x8NarrowI32x4S
-            | Operator::I16x8NarrowI32x4U => {
+            | Operator::I16x8NarrowI32x4U
+            | Operator::I16x8ExtMulLowI8x16S
+            | Operator::I16x8ExtMulHighI8x16S
+            | Operator::I16x8ExtMulLowI8x16U
+            | Operator::I16x8ExtMulHighI8x16U
+            | Operator::I32x4ExtMulLowI16x8S
+            | Operator::I32x4ExtMulHighI16x8S
+            | Operator::I32x4ExtMulLowI16x8U
+            | Operator::I32x4ExtMulHighI16x8U
+            | Operator::I64x2ExtMulLowI32x4S
+            | Operator::I64x2ExtMulHighI32x4S
+            | Operator::I64x2ExtMulLowI32x4U
+            | Operator::I64x2ExtMulHighI32x4U => {
                 self.check_simd_enabled()?;
                 self.pop_operand(Some(Type::V128))?;
                 self.pop_operand(Some(Type::V128))?;
