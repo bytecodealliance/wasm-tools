@@ -22,6 +22,70 @@
     i32.const 0 v128.load32_zero drop
     i32.const 0 v128.load64_zero drop)
 
+  (func
+
+    v128.const i32x4 0 0 0 0
+    v128.const i32x4 0 0 0 0
+    i16x8.extmul_low_i8x16_s
+    drop
+
+    v128.const i32x4 0 0 0 0
+    v128.const i32x4 0 0 0 0
+    i16x8.extmul_high_i8x16_s
+    drop
+
+    v128.const i32x4 0 0 0 0
+    v128.const i32x4 0 0 0 0
+    i16x8.extmul_low_i8x16_u
+    drop
+
+    v128.const i32x4 0 0 0 0
+    v128.const i32x4 0 0 0 0
+    i16x8.extmul_high_i8x16_u
+    drop
+
+    v128.const i32x4 0 0 0 0
+    v128.const i32x4 0 0 0 0
+    i32x4.extmul_low_i16x8_s
+    drop
+
+    v128.const i32x4 0 0 0 0
+    v128.const i32x4 0 0 0 0
+    i32x4.extmul_low_i16x8_u
+    drop
+
+    v128.const i32x4 0 0 0 0
+    v128.const i32x4 0 0 0 0
+    i32x4.extmul_high_i16x8_s
+    drop
+
+    v128.const i32x4 0 0 0 0
+    v128.const i32x4 0 0 0 0
+    i32x4.extmul_high_i16x8_u
+    drop
+
+    v128.const i32x4 0 0 0 0
+    v128.const i32x4 0 0 0 0
+    i64x2.extmul_low_i32x4_s
+    drop
+
+    v128.const i32x4 0 0 0 0
+    v128.const i32x4 0 0 0 0
+    i64x2.extmul_low_i32x4_u
+    drop
+
+    v128.const i32x4 0 0 0 0
+    v128.const i32x4 0 0 0 0
+    i64x2.extmul_high_i32x4_s
+    drop
+
+    v128.const i32x4 0 0 0 0
+    v128.const i32x4 0 0 0 0
+    i64x2.extmul_high_i32x4_u
+    drop
+
+    )
+
   (memory (;0;) 1)
   (export "v128_load_0" (func 0))
   (export "v128_store_0" (func 1))
