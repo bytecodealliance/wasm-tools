@@ -5,9 +5,6 @@
   (module)
   (module)
 
-  (type $f (module))
-  (module (type $f))
-
   (module (export "x"))
 
   (module

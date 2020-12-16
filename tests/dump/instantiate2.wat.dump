@@ -11,5 +11,5 @@
        | 01         
 0x001e | 0f 04       | instance section
 0x0020 | 01          | 1 count
-0x0021 | 00 00       | [instance 0] module:0
+0x0021 | 00 00       | [instance 0] instantiate module:0
 0x0023 | 00          | 0 count

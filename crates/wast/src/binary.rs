@@ -39,7 +39,6 @@ fn encode_fields(
             ModuleField::Memory(i) => memories.push(i),
             ModuleField::Global(i) => globals.push(i),
             ModuleField::Export(i) => exports.push(i),
-            ModuleField::ExportAll(..) => panic!("should not be present for encoding"),
             ModuleField::Start(i) => start.push(i),
             ModuleField::Elem(i) => elem.push(i),
             ModuleField::Data(i) => data.push(i),
@@ -82,13 +81,13 @@ fn encode_fields(
         while let Some(field) = items.next() {
             macro_rules! list {
                 ($code:expr, $name:ident) => {
-                    list!($code, $name, $name, |f| f)
+                    list!($code, $name, $name)
                 };
-                ($code:expr, $field:ident, $custom:ident, |$f:ident| $e:expr) => {
-                    if let ModuleField::$field($f) = field {
-                        let mut list = vec![$e];
-                        while let Some(ModuleField::$field($f)) = items.peek() {
-                            list.push($e);
+                ($code:expr, $field:ident, $custom:ident) => {
+                    if let ModuleField::$field(f) = field {
+                        let mut list = vec![f];
+                        while let Some(ModuleField::$field(f)) = items.peek() {
+                            list.push(f);
                             items.next();
                         }
                         e.section_list($code, $custom, &list);
@@ -97,11 +96,7 @@ fn encode_fields(
             }
             list!(1, Type);
             list!(2, Import);
-            list!(14, NestedModule, Module, |m| match &m.kind {
-                NestedModuleKind::Inline { ty, .. } =>
-                    ty.as_ref().expect("type should be filled in"),
-                _ => panic!("only inline modules should be present now"),
-            });
+            list!(14, NestedModule, Module);
             list!(15, Instance);
             list!(16, Alias);
         }
@@ -123,7 +118,6 @@ fn encode_fields(
     if contains_bulk_memory(&funcs) {
         e.section(12, &data.len());
     }
-    e.section_list(17, ModuleCode, &modules);
     e.section_list(10, Code, &funcs);
     e.section_list(11, Data, &data);
 
@@ -281,7 +275,6 @@ impl Encode for ModuleType<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.imports.encode(e);
         self.exports.encode(e);
-        assert!(self.instance_exports.is_empty());
     }
 }
 
@@ -598,44 +591,21 @@ impl Encode for Export<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.name.encode(e);
         self.kind.encode(e);
+        self.index.encode(e);
     }
 }
 
-impl Encode for ExportKind<'_> {
+impl Encode for ExportKind {
     fn encode(&self, e: &mut Vec<u8>) {
         match self {
-            ExportKind::Func(f) => {
-                e.push(0x00);
-                f.encode(e);
-            }
-            ExportKind::Table(f) => {
-                e.push(0x01);
-                f.encode(e);
-            }
-            ExportKind::Memory(f) => {
-                e.push(0x02);
-                f.encode(e);
-            }
-            ExportKind::Global(f) => {
-                e.push(0x03);
-                f.encode(e);
-            }
-            ExportKind::Event(f) => {
-                e.push(0x04);
-                f.encode(e);
-            }
-            ExportKind::Module(f) => {
-                e.push(0x05);
-                f.encode(e);
-            }
-            ExportKind::Instance(f) => {
-                e.push(0x06);
-                f.encode(e);
-            }
-            ExportKind::Type(f) => {
-                e.push(0x07);
-                f.encode(e);
-            }
+            ExportKind::Func => e.push(0x00),
+            ExportKind::Table => e.push(0x01),
+            ExportKind::Memory => e.push(0x02),
+            ExportKind::Global => e.push(0x03),
+            ExportKind::Event => e.push(0x04),
+            ExportKind::Module => e.push(0x05),
+            ExportKind::Instance => e.push(0x06),
+            ExportKind::Type => e.push(0x07),
         }
     }
 }
@@ -1009,7 +979,11 @@ fn find_names<'a>(
             ModuleField::Alias(Alias {
                 id,
                 name,
-                kind: ExportKind::Func(_),
+                kind:
+                    AliasKind::InstanceExport {
+                        kind: ExportKind::Func,
+                        ..
+                    },
                 ..
             }) => {
                 if let Some(name) = get_name(id, name) {
@@ -1173,25 +1147,51 @@ impl Encode for NestedModule<'_> {
 impl Encode for Instance<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         assert!(self.exports.names.is_empty());
-        let (module, items) = match &self.kind {
-            InstanceKind::Inline { module, items } => (module, items),
+        let (module, args) = match &self.kind {
+            InstanceKind::Inline { module, args } => (module, args),
             _ => panic!("should only have inline instances in emission"),
         };
         e.push(0x00);
         module.encode(e);
-        items.encode(e);
+        args.encode(e);
+    }
+}
+
+impl Encode for InstanceArg<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.name.encode(e);
+        match self.field {
+            Some(s) => {
+                e.push(1);
+                s.encode(e);
+            }
+            None => {
+                e.push(0);
+            }
+        }
+        self.kind.encode(e);
+        self.index.encode(e);
     }
 }
 
 impl Encode for Alias<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
-        match self.instance {
-            Some(instance) => {
+        match &self.kind {
+            AliasKind::InstanceExport {
+                instance,
+                export,
+                kind,
+            } => {
                 e.push(0x00);
                 instance.encode(e);
+                kind.encode(e);
+                export.encode(e);
             }
-            None => e.push(0x01),
+            AliasKind::Parent { parent_index, kind } => {
+                e.push(0x01);
+                kind.encode(e);
+                parent_index.encode(e);
+            }
         }
-        self.kind.encode(e);
     }
 }

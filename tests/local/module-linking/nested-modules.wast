@@ -4,9 +4,6 @@
   (module)
   (module)
 
-  (type $f (module))
-  (module (type $f))
-
   (module (export "x"))
 
   (module
@@ -18,7 +15,7 @@
     (import "" (func (param i32)))
     (export "a" (module $m))
 
-    (instance (export "b") (import "")
+    (instance (export "b") (import "b")
       (export "b" (func))
     )
   )
@@ -49,6 +46,6 @@
   (module
     (func (export "") (result i32)
       i32.const 5))
-  (import "" (instance (export "" (module))))
-  (alias (instance 0) (module 0))
+  (import "b" (instance (export "" (module))))
+  (alias 0 "" (module))
 )

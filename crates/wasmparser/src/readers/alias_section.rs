@@ -10,16 +10,14 @@ pub struct AliasSectionReader<'a> {
 }
 
 #[derive(Debug)]
-pub struct Alias {
-    pub instance: AliasedInstance,
-    pub kind: ExternalKind,
-    pub index: u32,
-}
-
-#[derive(Debug)]
-pub enum AliasedInstance {
-    Parent,
-    Child(u32),
+pub enum Alias<'a> {
+    ParentType(u32),
+    ParentModule(u32),
+    InstanceExport {
+        instance: u32,
+        kind: ExternalKind,
+        export: &'a str,
+    },
 }
 
 impl<'a> AliasSectionReader<'a> {
@@ -37,26 +35,35 @@ impl<'a> AliasSectionReader<'a> {
         self.count
     }
 
-    pub fn read(&mut self) -> Result<Alias> {
-        Ok(Alias {
-            instance: match self.reader.read_u8()? {
-                0x00 => AliasedInstance::Child(self.reader.read_var_u32()?),
-                0x01 => AliasedInstance::Parent,
+    pub fn read(&mut self) -> Result<Alias<'a>> {
+        Ok(match self.reader.read_u8()? {
+            0x00 => Alias::InstanceExport {
+                instance: self.reader.read_var_u32()?,
+                kind: self.reader.read_external_kind()?,
+                export: self.reader.read_string()?,
+            },
+            0x01 => match self.reader.read_external_kind()? {
+                ExternalKind::Type => Alias::ParentType(self.reader.read_var_u32()?),
+                ExternalKind::Module => Alias::ParentModule(self.reader.read_var_u32()?),
                 _ => {
                     return Err(BinaryReaderError::new(
-                        "invalid byte in alias",
+                        "invalid external kind in alias",
                         self.original_position() - 1,
                     ))
                 }
             },
-            kind: self.reader.read_external_kind()?,
-            index: self.reader.read_var_u32()?,
+            _ => {
+                return Err(BinaryReaderError::new(
+                    "invalid byte in alias",
+                    self.original_position() - 1,
+                ))
+            }
         })
     }
 }
 
 impl<'a> SectionReader for AliasSectionReader<'a> {
-    type Item = Alias;
+    type Item = Alias<'a>;
 
     fn read(&mut self) -> Result<Self::Item> {
         AliasSectionReader::read(self)
@@ -79,7 +86,7 @@ impl<'a> SectionWithLimitedItems for AliasSectionReader<'a> {
 }
 
 impl<'a> IntoIterator for AliasSectionReader<'a> {
-    type Item = Result<Alias>;
+    type Item = Result<Alias<'a>>;
     type IntoIter = SectionIteratorLimited<AliasSectionReader<'a>>;
 
     fn into_iter(self) -> Self::IntoIter {
