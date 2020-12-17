@@ -6,7 +6,7 @@ use super::*;
 ///
 /// ```
 /// use wasm_encoder::{
-///     Export, ExportSection, TableSection, TableType, Limits, Module, ValType,
+///     ItemKind, ExportSection, TableSection, TableType, Limits, Module, ValType,
 /// };
 ///
 /// let mut tables = TableSection::new();
@@ -19,7 +19,7 @@ use super::*;
 /// });
 ///
 /// let mut exports = ExportSection::new();
-/// exports.export("my-table", Export::Table(0));
+/// exports.export("my-table", ItemKind::Table, 0);
 ///
 /// let mut module = Module::new();
 /// module
@@ -43,9 +43,10 @@ impl ExportSection {
     }
 
     /// Define an export.
-    pub fn export(&mut self, name: &str, export: Export) -> &mut Self {
+    pub fn export(&mut self, name: &str, kind: ItemKind, index: u32) -> &mut Self {
         self.bytes.extend(encoders::str(name));
-        export.encode(&mut self.bytes);
+        self.bytes.push(kind as u8);
+        self.bytes.extend(encoders::u32(index));
         self.num_added += 1;
         self
     }
@@ -70,59 +71,14 @@ impl Section for ExportSection {
     }
 }
 
-/// A WebAssembly export.
-pub enum Export {
-    /// An export of the `n`th function.
-    Function(u32),
-    /// An export of the `n`th table.
-    Table(u32),
-    /// An export of the `n`th memory.
-    Memory(u32),
-    /// An export of the `n`th global.
-    Global(u32),
-    /// An export of the `n`th instance.
-    ///
-    /// Note that this is part of the [module linking proposal][proposal] and is
-    /// not currently part of stable WebAssembly.
-    ///
-    /// [proposal]: https://github.com/webassembly/module-linking
-    Instance(u32),
-    /// An export of the `n`th module.
-    ///
-    /// Note that this is part of the [module linking proposal][proposal] and is
-    /// not currently part of stable WebAssembly.
-    ///
-    /// [proposal]: https://github.com/webassembly/module-linking
-    Module(u32),
-}
-
-impl Export {
-    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
-        match *self {
-            Export::Function(x) => {
-                bytes.push(0x00);
-                bytes.extend(encoders::u32(x));
-            }
-            Export::Table(x) => {
-                bytes.push(0x01);
-                bytes.extend(encoders::u32(x));
-            }
-            Export::Memory(x) => {
-                bytes.push(0x02);
-                bytes.extend(encoders::u32(x));
-            }
-            Export::Global(x) => {
-                bytes.push(0x03);
-                bytes.extend(encoders::u32(x));
-            }
-            Export::Module(x) => {
-                bytes.push(0x05);
-                bytes.extend(encoders::u32(x));
-            }
-            Export::Instance(x) => {
-                bytes.push(0x06);
-                bytes.extend(encoders::u32(x));
-            }
-        }
-    }
+/// Kinds of WebAssembly items
+#[allow(missing_docs)]
+#[repr(u8)]
+pub enum ItemKind {
+    Function = 0x00,
+    Table = 0x01,
+    Memory = 0x02,
+    Global = 0x03,
+    Module = 0x05,
+    Instance = 0x06,
 }

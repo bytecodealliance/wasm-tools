@@ -29,7 +29,6 @@ where
         self.encode_start(&mut module);
         self.encode_elems(&mut module);
         self.encode_data_count(&mut module);
-        self.encode_module_code(&mut module);
         self.encode_code(&mut module);
         self.encode_data(&mut module);
 
@@ -97,8 +96,12 @@ where
         let mut section = wasm_encoder::AliasSection::new();
         for alias in imports {
             match alias {
-                Alias::InstanceExport { instance, export } => {
-                    section.instance_export(*instance, translate_export(export));
+                Alias::InstanceExport {
+                    instance,
+                    kind,
+                    name,
+                } => {
+                    section.instance_export(*instance, kind, name);
                 }
                 Alias::ParentType(ty) => {
                     section.parent_type(*ty);
@@ -119,10 +122,11 @@ where
         module.section(&section);
     }
 
-    fn encode_modules(&self, module: &mut wasm_encoder::Module, list: &[u32]) {
+    fn encode_modules(&self, module: &mut wasm_encoder::Module, list: &[Self]) {
         let mut section = wasm_encoder::ModuleSection::new();
-        for ty in list {
-            section.module(*ty);
+        for module in list {
+            let encoded = module.encoded();
+            section.module(&encoded);
         }
         module.section(&section);
     }
@@ -178,7 +182,8 @@ where
         }
         let mut exports = wasm_encoder::ExportSection::new();
         for (name, exp) in &self.exports {
-            exports.export(name, translate_export(exp));
+            let (kind, index) = translate_export(exp);
+            exports.export(name, kind, index);
         }
         module.section(&exports);
     }
@@ -235,17 +240,6 @@ where
         module.section(&wasm_encoder::DataCountSection {
             count: u32::try_from(self.data.len()).unwrap(),
         });
-    }
-
-    fn encode_module_code(&self, module: &mut wasm_encoder::Module) {
-        if self.defined_modules.is_empty() {
-            return;
-        }
-        let mut code = wasm_encoder::ModuleCodeSection::new();
-        for module in &self.defined_modules {
-            code.module(&module.encoded());
-        }
-        module.section(&code);
     }
 
     fn encode_code(&self, module: &mut wasm_encoder::Module) {
@@ -365,14 +359,14 @@ fn translate_mem_arg(m: MemArg) -> wasm_encoder::MemArg {
     }
 }
 
-fn translate_export(exp: &Export) -> wasm_encoder::Export {
+fn translate_export(exp: &Export) -> (wasm_encoder::ItemKind, u32) {
     match exp {
-        Export::Func(f) => wasm_encoder::Export::Function(*f),
-        Export::Table(t) => wasm_encoder::Export::Table(*t),
-        Export::Memory(m) => wasm_encoder::Export::Memory(*m),
-        Export::Global(g) => wasm_encoder::Export::Global(*g),
-        Export::Instance(i) => wasm_encoder::Export::Instance(*i),
-        Export::Module(i) => wasm_encoder::Export::Module(*i),
+        Export::Func(f) => (wasm_encoder::ItemKind::Function, *f),
+        Export::Table(t) => (wasm_encoder::ItemKind::Table, *t),
+        Export::Memory(m) => (wasm_encoder::ItemKind::Memory, *m),
+        Export::Global(g) => (wasm_encoder::ItemKind::Global, *g),
+        Export::Instance(i) => (wasm_encoder::ItemKind::Instance, *i),
+        Export::Module(i) => (wasm_encoder::ItemKind::Module, *i),
     }
 }
 

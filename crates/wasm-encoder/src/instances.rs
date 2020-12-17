@@ -40,9 +40,9 @@ impl InstanceSection {
 
     /// Define an instantiation of the given module with the given items as
     /// arguments to the instantiation.
-    pub fn instantiate<I>(&mut self, module: u32, args: I) -> &mut Self
+    pub fn instantiate<'a, I>(&mut self, module: u32, args: I) -> &mut Self
     where
-        I: IntoIterator<Item = Export>,
+        I: IntoIterator<Item = (&'a str, Option<&'a str>, ItemKind, u32)>,
         I::IntoIter: ExactSizeIterator,
     {
         let args = args.into_iter();
@@ -51,8 +51,19 @@ impl InstanceSection {
         self.bytes.extend(encoders::u32(module));
         self.bytes
             .extend(encoders::u32(u32::try_from(args.len()).unwrap()));
-        for arg in args {
-            arg.encode(&mut self.bytes);
+        for (name, field, kind, index) in args {
+            self.bytes.extend(encoders::str(name));
+            match field {
+                Some(field) => {
+                    self.bytes.push(0x01);
+                    self.bytes.extend(encoders::str(field));
+                }
+                None => {
+                    self.bytes.push(0x00);
+                }
+            }
+            self.bytes.push(kind as u8);
+            self.bytes.extend(encoders::u32(index));
         }
         self.num_added += 1;
         self

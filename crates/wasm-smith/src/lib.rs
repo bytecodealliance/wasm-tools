@@ -111,7 +111,7 @@ where
     /// these initial sections, and we will directly encode each entry as a
     /// section when we serialize this module to bytes, which allows us to
     /// easily model the flexibility of the module linking proposal.
-    initial_sections: Vec<InitialSection>,
+    initial_sections: Vec<InitialSection<C>>,
 
     /// Indices into `initializers` which are types. The pair `(i, j)` means
     /// that `initializers[i]` is a type section, and we are referring to the
@@ -178,9 +178,6 @@ where
     /// entry is the type of the module.
     modules: Vec<Rc<ModuleType>>,
 
-    /// All off our nested submodules.
-    defined_modules: Vec<ConfiguredModule<C>>,
-
     exports: Vec<(String, Export)>,
     start: Option<u32>,
     elems: Vec<ElementSegment>,
@@ -227,13 +224,13 @@ impl Arbitrary for MaybeInvalidModule {
     }
 }
 
-#[derive(Clone, Debug)]
-enum InitialSection {
+#[derive(Debug)]
+enum InitialSection<C: Config> {
     Type(Vec<Type>),
     Import(Vec<(String, Option<String>, EntityType)>),
     Alias(Vec<Alias>),
     Instance(Vec<Instance>),
-    Module(Vec<u32>),
+    Module(Vec<ConfiguredModule<C>>),
 }
 
 #[derive(Clone, Debug)]
@@ -1143,9 +1140,8 @@ where
             // section and we also record the type of this module in our
             // `modules` array.
             let ty_idx = self.get_module_type_idx(&ty);
-            modules.push(ty_idx);
-            self.modules.push(self.module_type(ty_idx).clone());
-            self.defined_modules.push(module);
+            modules.push(module);
+            self.modules.push(ty.clone());
             Ok(true)
         })?;
         if !modules.is_empty() || u.arbitrary()? {

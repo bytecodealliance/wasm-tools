@@ -1,27 +1,35 @@
 use super::*;
 
-/// An encoder for the module section.
+/// An encoder for the module code section.
 ///
-/// Note that this is part of the [module linking proposal][proposal] and is not
-/// currently part of stable WebAssembly.
+/// Note that this is part of the [module linking proposal][proposal] and is
+/// not currently part of stable WebAssembly.
 ///
 /// [proposal]: https://github.com/webassembly/module-linking
 ///
 /// # Example
 ///
 /// ```
-/// use wasm_encoder::{Module, ModuleSection, ValType};
+/// use wasm_encoder::{
+///     ModuleSection, Function, ModuleSection, Instruction, Module,
+///     TypeSection, ValType
+/// };
 ///
-/// let mut submodules = ModuleSection::new();
+/// let mut types = TypeSection::new();
+/// types.module(vec![], vec![]);
+///
+/// let mut modules = ModuleSection::new();
 /// let type_index = 0;
-/// submodules.module(type_index);
+/// modules.module(type_index);
+///
+/// let mut module_code = ModuleSection::new();
+/// module_code.module(&Module::new());
 ///
 /// let mut module = Module::new();
-/// module.section(&submodules);
-///
-/// // Note: this will generate an invalid module because we didn't generate a
-/// // module code section containing the function body. See the documentation
-/// // for `ModuleCodeSection` for details.
+/// module
+///     .section(&types)
+///     .section(&modules)
+///     .section(&module_code);
 ///
 /// let wasm_bytes = module.finish();
 /// ```
@@ -31,7 +39,7 @@ pub struct ModuleSection {
 }
 
 impl ModuleSection {
-    /// Construct a new module section encoder.
+    /// Create a new code section encoder.
     pub fn new() -> ModuleSection {
         ModuleSection {
             bytes: vec![],
@@ -39,9 +47,12 @@ impl ModuleSection {
         }
     }
 
-    /// Define a module that uses the given type.
-    pub fn module(&mut self, type_index: u32) -> &mut Self {
-        self.bytes.extend(encoders::u32(type_index));
+    /// Write a function body into this code section.
+    pub fn module(&mut self, module: &Module) -> &mut Self {
+        self.bytes.extend(
+            encoders::u32(u32::try_from(module.bytes.len()).unwrap())
+                .chain(module.bytes.iter().copied()),
+        );
         self.num_added += 1;
         self
     }
