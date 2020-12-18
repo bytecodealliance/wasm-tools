@@ -251,7 +251,7 @@ struct FuncType {
 
 #[derive(Clone, Debug)]
 struct InstanceType {
-    exports: Vec<(String, EntityType)>,
+    exports: indexmap::IndexMap<String, EntityType>,
 }
 
 #[derive(Clone, Debug)]
@@ -822,7 +822,7 @@ where
         entities: &mut Entities,
     ) -> Result<Rc<InstanceType>> {
         let mut export_names = HashSet::new();
-        let mut exports = Vec::new();
+        let mut exports = indexmap::IndexMap::new();
         if !entities.max_reached(&self.config) {
             arbitrary_loop(u, 0, self.config.max_exports(), |u| {
                 let mut name = limited_string(1_000, u)?;
@@ -832,7 +832,7 @@ where
                 export_names.insert(name.clone());
 
                 let ty = self.arbitrary_entity_type(u, entities)?;
-                exports.push((name, ty));
+                exports.insert(name, ty);
                 Ok(!entities.max_reached(&self.config))
             })?;
         }
@@ -1014,42 +1014,42 @@ where
                     let ty = &self.instances[*instance as usize];
                     match export {
                         Export::Global(i) => {
-                            let ty = match &ty.exports[*i as usize].1 {
+                            let ty = match &ty.exports[*i as usize] {
                                 EntityType::Global(t) => t.clone(),
                                 _ => unreachable!(),
                             };
                             self.globals.push(ty);
                         }
                         Export::Table(i) => {
-                            let ty = match &ty.exports[*i as usize].1 {
+                            let ty = match &ty.exports[*i as usize] {
                                 EntityType::Table(t) => t.clone(),
                                 _ => unreachable!(),
                             };
                             self.tables.push(ty);
                         }
                         Export::Memory(i) => {
-                            let ty = match &ty.exports[*i as usize].1 {
+                            let ty = match &ty.exports[*i as usize] {
                                 EntityType::Memory(t) => t.clone(),
                                 _ => unreachable!(),
                             };
                             self.memories.push(ty);
                         }
                         Export::Func(i) => {
-                            let (i, ty) = match &ty.exports[*i as usize].1 {
+                            let (i, ty) = match &ty.exports[*i as usize] {
                                 EntityType::Func(i, t) => (*i, t),
                                 _ => unreachable!(),
                             };
                             self.funcs.push((Some(i), ty.clone()));
                         }
                         Export::Module(i) => {
-                            let ty = match &ty.exports[*i as usize].1 {
+                            let ty = match &ty.exports[*i as usize] {
                                 EntityType::Module(_, t) => t,
                                 _ => unreachable!(),
                             };
                             self.modules.push(ty.clone());
                         }
                         Export::Instance(i) => {
-                            let ty = match &ty.exports[*i as usize].1 {
+                            let ty = match &ty.exports[*i as usize] {
                                 EntityType::Instance(_, t) => t,
                                 _ => unreachable!(),
                             };
@@ -1128,10 +1128,10 @@ where
             {
                 imports.push((module.clone(), name.clone(), ty.clone()));
             }
-            let mut exports = Vec::with_capacity(module.exports.len());
+            let mut exports = indexmap::IndexMap::with_capacity(module.exports.len());
             for (name, item) in module.exports.iter() {
                 let ty = module.type_of(item);
-                exports.push((name.clone(), ty));
+                exports.insert(name.clone(), ty);
             }
             let ty = Rc::new(ModuleType {
                 imports,
@@ -1854,11 +1854,12 @@ where
 
     // https://github.com/WebAssembly/module-linking/blob/master/proposals/module-linking/Subtyping.md
     fn is_subtype_instance(&self, a: &InstanceType, b: &InstanceType) -> bool {
-        b.exports.iter().all(|(b_name, b_ty)| {
-            a.exports
-                .iter()
-                .any(|(a_name, a_ty)| a_name == b_name && self.is_subtype(a_ty, b_ty))
-        })
+        b.exports
+            .iter()
+            .all(|(b_name, b_ty)| match a.exports.get(b_name) {
+                Some(a_ty) => self.is_subtype(a_ty, b_ty),
+                None => false,
+            })
     }
 
     // https://github.com/WebAssembly/module-linking/blob/master/proposals/module-linking/Subtyping.md
