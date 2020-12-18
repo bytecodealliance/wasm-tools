@@ -774,8 +774,8 @@ where
         }
         Ok(match u.int_in_range(0..=2)? {
             0 => Type::Func(self.arbitrary_func_type(u)?),
-            1 => Type::Module(self.arbitrary_module_type(u)?),
-            _ => Type::Instance(self.arbitrary_instance_type(u)?),
+            1 => Type::Module(self.arbitrary_module_type(u, &mut Entities::default())?),
+            _ => Type::Instance(self.arbitrary_instance_type(u, &mut Entities::default())?),
         })
     }
 
@@ -793,70 +793,104 @@ where
         Ok(Rc::new(FuncType { params, results }))
     }
 
-    fn arbitrary_module_type(&mut self, u: &mut Unstructured) -> Result<Rc<ModuleType>> {
-        let exports = self.arbitrary_instance_type(u)?;
+    fn arbitrary_module_type(
+        &mut self,
+        u: &mut Unstructured,
+        entities: &mut Entities,
+    ) -> Result<Rc<ModuleType>> {
+        let exports = self.arbitrary_instance_type(u, entities)?;
         let mut imports = Vec::new();
-        arbitrary_loop(u, 0, self.config.max_imports(), |u| {
-            let module = limited_string(1_000, u)?;
-            let name = if self.config.module_linking_enabled() && u.arbitrary()? {
-                None
-            } else {
-                Some(limited_string(1_000, u)?)
-            };
-            let ty = self.arbitrary_entity_type(u)?;
-            imports.push((module, name, ty));
-            Ok(true)
-        })?;
+        if !entities.max_reached(&self.config) {
+            arbitrary_loop(u, 0, self.config.max_imports(), |u| {
+                let module = limited_string(1_000, u)?;
+                let name = if self.config.module_linking_enabled() && u.arbitrary()? {
+                    None
+                } else {
+                    Some(limited_string(1_000, u)?)
+                };
+                let ty = self.arbitrary_entity_type(u, entities)?;
+                imports.push((module, name, ty));
+                Ok(!entities.max_reached(&self.config))
+            })?;
+        }
         Ok(Rc::new(ModuleType { imports, exports }))
     }
 
-    fn arbitrary_instance_type(&mut self, u: &mut Unstructured) -> Result<Rc<InstanceType>> {
+    fn arbitrary_instance_type(
+        &mut self,
+        u: &mut Unstructured,
+        entities: &mut Entities,
+    ) -> Result<Rc<InstanceType>> {
         let mut export_names = HashSet::new();
         let mut exports = Vec::new();
-        arbitrary_loop(u, 0, self.config.max_exports(), |u| {
-            let mut name = limited_string(1_000, u)?;
-            while export_names.contains(&name) {
-                name.push_str(&format!("{}", export_names.len()));
-            }
-            export_names.insert(name.clone());
+        if !entities.max_reached(&self.config) {
+            arbitrary_loop(u, 0, self.config.max_exports(), |u| {
+                let mut name = limited_string(1_000, u)?;
+                while export_names.contains(&name) {
+                    name.push_str(&format!("{}", export_names.len()));
+                }
+                export_names.insert(name.clone());
 
-            let ty = self.arbitrary_entity_type(u)?;
-            exports.push((name, ty));
-            Ok(true)
-        })?;
+                let ty = self.arbitrary_entity_type(u, entities)?;
+                exports.push((name, ty));
+                Ok(!entities.max_reached(&self.config))
+            })?;
+        }
         Ok(Rc::new(InstanceType { exports }))
     }
 
-    fn arbitrary_entity_type(&mut self, u: &mut Unstructured) -> Result<EntityType> {
+    fn arbitrary_entity_type(
+        &mut self,
+        u: &mut Unstructured,
+        entities: &mut Entities,
+    ) -> Result<EntityType> {
         let mut choices: Vec<
-            fn(&mut Unstructured, &mut ConfiguredModule<C>) -> Result<EntityType>,
+            fn(&mut Unstructured, &mut ConfiguredModule<C>, &mut Entities) -> Result<EntityType>,
         > = Vec::with_capacity(6);
 
-        choices.push(|u, m| Ok(EntityType::Global(m.arbitrary_global_type(u)?)));
-        choices.push(|u, m| Ok(EntityType::Memory(m.arbitrary_memtype(u)?)));
-        choices.push(|u, m| Ok(EntityType::Table(m.arbitrary_table_type(u)?)));
-        if self.func_types.len() > 0 {
-            choices.push(|u, m| {
+        if entities.globals < self.config.max_globals() {
+            choices.push(|u, m, e| {
+                e.globals += 1;
+                Ok(EntityType::Global(m.arbitrary_global_type(u)?))
+            });
+        }
+        if entities.memories < self.config.max_memories() {
+            choices.push(|u, m, e| {
+                e.memories += 1;
+                Ok(EntityType::Memory(m.arbitrary_memtype(u)?))
+            });
+        }
+        if entities.tables < self.config.max_tables() {
+            choices.push(|u, m, e| {
+                e.tables += 1;
+                Ok(EntityType::Table(m.arbitrary_table_type(u)?))
+            });
+        }
+        if entities.funcs < self.config.max_funcs() && self.func_types.len() > 0 {
+            choices.push(|u, m, e| {
+                e.funcs += 1;
                 let idx = *u.choose(&m.func_types)?;
                 let ty = m.func_type(idx);
                 Ok(EntityType::Func(idx, ty.clone()))
             });
         }
-        if self.instance_types.len() > 0 {
-            choices.push(|u, m| {
+        if entities.instances < self.config.max_instances() && self.instance_types.len() > 0 {
+            choices.push(|u, m, e| {
+                e.instances += 1;
                 let idx = *u.choose(&m.instance_types)?;
                 let ty = m.instance_type(idx);
                 Ok(EntityType::Instance(idx, ty.clone()))
             });
         }
-        if self.module_types.len() > 0 {
-            choices.push(|u, m| {
+        if entities.modules < self.config.max_modules() && self.module_types.len() > 0 {
+            choices.push(|u, m, e| {
+                e.modules += 1;
                 let idx = *u.choose(&m.module_types)?;
                 let ty = m.module_type(idx);
                 Ok(EntityType::Module(idx, ty.clone()))
             });
         }
-        u.choose(&choices)?(u, self)
+        u.choose(&choices)?(u, self, entities)
     }
 
     fn can_add_local_or_import_func(&self) -> bool {
@@ -2058,5 +2092,28 @@ impl AvailableInstantiations {
                 args,
             });
         }
+    }
+}
+
+// A helper structure used when generating module/instance types to limit the
+// amount of each kind of import created.
+#[derive(Default)]
+struct Entities {
+    globals: usize,
+    memories: usize,
+    tables: usize,
+    funcs: usize,
+    modules: usize,
+    instances: usize,
+}
+
+impl Entities {
+    fn max_reached(&self, config: &impl Config) -> bool {
+        self.globals >= config.max_globals()
+            || self.memories >= config.max_memories()
+            || self.tables >= config.max_tables()
+            || self.funcs >= config.max_funcs()
+            || self.modules >= config.max_modules()
+            || self.instances >= config.max_instances()
     }
 }
