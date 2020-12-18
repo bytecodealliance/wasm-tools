@@ -1502,7 +1502,9 @@ impl Printer {
     fn print_elems(&mut self, data: ElementSectionReader) -> Result<()> {
         for (i, elem) in data.into_iter().enumerate() {
             let mut elem = elem?;
-            write!(self.result, "\n  (elem (;{};)", i)?;
+            self.newline();
+            self.start_group("elem");
+            write!(self.result, " (;{};)", i)?;
             match &mut elem.kind {
                 ElementKind::Passive => {}
                 ElementKind::Declared => write!(self.result, " declare")?,
@@ -1542,7 +1544,7 @@ impl Printer {
                     }
                 }
             }
-            self.result.push_str(")");
+            self.end_group();
         }
         Ok(())
     }
@@ -1550,7 +1552,9 @@ impl Printer {
     fn print_data(&mut self, data: DataSectionReader) -> Result<()> {
         for (i, data) in data.into_iter().enumerate() {
             let data = data?;
-            write!(self.result, "\n  (data (;{};) ", i)?;
+            self.newline();
+            self.start_group("data");
+            write!(self.result, " (;{};) ", i)?;
             match &data.kind {
                 DataKind::Passive => {}
                 DataKind::Active {
@@ -1565,7 +1569,7 @@ impl Printer {
                 }
             }
             self.print_bytes(data.data)?;
-            self.result.push_str(")");
+            self.end_group();
         }
         Ok(())
     }
