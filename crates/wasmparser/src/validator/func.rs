@@ -88,7 +88,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     /// WebAssembly function. Each operator's offset in the original binary and
     /// the operator itself are passed to this function to provide more useful
     /// error messages.
-    pub fn op(&mut self, offset: usize, operator: &Operator<'_>) -> Result<()> {
+    pub fn op(&mut self, offset: usize, operator: &Operator) -> Result<()> {
         self.validator
             .process_operator(operator, &self.resources)
             .map_err(|e| e.set_offset(offset))?;

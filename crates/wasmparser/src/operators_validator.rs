@@ -90,6 +90,11 @@ pub(crate) struct OperatorValidator {
     // This is a list of flags for wasm features which are used to gate various
     // instructions.
     features: WasmFeatures,
+
+    /// This is only `Some` if a `br_table` start operator has been encountered.
+    /// It is used to validate the remaining target operator entries for the
+    /// `br_table`.
+    active_br_table: Option<ActiveBrTable>,
 }
 
 // This structure corresponds to `ctrl_frame` as specified at in the validation
@@ -118,6 +123,11 @@ enum FrameKind {
     Unwind,
 }
 
+pub struct ActiveBrTable {
+    remaining_targets: u32,
+    label: Option<(TypeOrFuncType, FrameKind)>,
+}
+
 impl OperatorValidator {
     pub fn new(
         ty: u32,
@@ -142,6 +152,7 @@ impl OperatorValidator {
                 unreachable: false,
             }],
             features: *features,
+            active_br_table: None,
         })
     }
 
@@ -541,6 +552,51 @@ impl OperatorValidator {
         Ok(())
     }
 
+    fn process_br_table_target(
+        &mut self,
+        resources: &impl WasmModuleResources,
+        relative_depth: u32,
+        is_default: bool,
+    ) -> OperatorValidatorResult<()> {
+        let active_br_table = self
+            .active_br_table
+            .as_mut()
+            .expect("only called if `active_br_table` is some");
+        active_br_table.remaining_targets -= 1;
+        if is_default && active_br_table.remaining_targets > 0 {
+            bail_op_err!(
+                "found default `br_table` target too early. expected {} further non-default targets before.",
+                active_br_table.remaining_targets,
+            )
+        } else if active_br_table.remaining_targets == 0 {
+            bail_op_err!(
+                "expected default `br_table` target but found yet another non-default targets.",
+            )
+        }
+        let block = self.jump(relative_depth)?;
+        let label = &mut self.active_br_table.as_mut().unwrap().label;
+        match label {
+            None => *label = Some(block),
+            Some(prev) => {
+                let a = label_types(block.0, resources, block.1)?;
+                let b = label_types(prev.0, resources, prev.1)?;
+                if a.ne(b) {
+                    bail_op_err!(
+                        "type mismatch: br_table target labels have different types"
+                    );
+                }
+            }
+        }
+        if is_default {
+            let (ty, kind) = label.unwrap();
+            for ty in label_types(ty, resources, kind)?.rev() {
+                self.pop_operand(Some(ty))?;
+            }
+            self.unreachable();
+        }
+        Ok(())
+    }
+
     pub fn process_operator(
         &mut self,
         operator: &Operator,
@@ -548,6 +604,18 @@ impl OperatorValidator {
     ) -> OperatorValidatorResult<()> {
         if self.control.len() == 0 {
             bail_op_err!("operators remaining after end of function");
+        }
+        if let Some(active_br_table) = &self.active_br_table {
+            match operator {
+                Operator::BrTableTarget { relative_depth, is_default } => {
+                    return self.process_br_table_target(resources, *relative_depth, *is_default)
+                }
+                unexpected => bail_op_err!(
+                    "expected further {} `br_table` target(s). found {:?} operator",
+                    active_br_table.remaining_targets,
+                    unexpected,
+                ),
+            }
         }
         match *operator {
             Operator::Nop => {}
@@ -704,33 +772,18 @@ impl OperatorValidator {
                     self.push_operand(ty)?;
                 }
             }
-            Operator::BrTable { ref table } => {
+            Operator::BrTableStart { targets_len } => {
                 self.pop_operand(Some(Type::I32))?;
-                let mut label = None;
-                for element in table.targets() {
-                    let (relative_depth, _is_default) = element.map_err(|mut e| {
-                        e.inner.offset = usize::max_value();
-                        OperatorValidatorError(e)
-                    })?;
-                    let block = self.jump(relative_depth)?;
-                    match label {
-                        None => label = Some(block),
-                        Some(prev) => {
-                            let a = label_types(block.0, resources, block.1)?;
-                            let b = label_types(prev.0, resources, prev.1)?;
-                            if a.ne(b) {
-                                bail_op_err!(
-                                    "type mismatch: br_table target labels have different types"
-                                );
-                            }
-                        }
-                    }
-                }
-                let (ty, kind) = label.unwrap();
-                for ty in label_types(ty, resources, kind)?.rev() {
-                    self.pop_operand(Some(ty))?;
-                }
-                self.unreachable();
+                self.active_br_table = Some(ActiveBrTable {
+                    remaining_targets: targets_len + 1,
+                    label: None,
+                });
+            }
+            Operator::BrTableTarget {
+                relative_depth: _,
+                is_default: _,
+            } => {
+                unreachable!("bug: `br_table` targets are handled elsewhere");
             }
             Operator::Return => self.check_return(resources)?,
             Operator::Call { function_index } => self.check_call(function_index, resources)?,
