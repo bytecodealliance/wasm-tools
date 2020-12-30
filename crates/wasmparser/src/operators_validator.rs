@@ -22,9 +22,12 @@
 // confusing it's recomended to read over that section to see how it maps to
 // the various methods here.
 
+#[cfg(feature = "simd-proposal")]
+use crate::primitives::SIMDLaneIndex;
+
 use crate::limits::MAX_WASM_FUNCTION_LOCALS;
 use crate::primitives::{
-    EventType, MemoryImmediate, Operator, SIMDLaneIndex, Type, TypeOrFuncType,
+    EventType, MemoryImmediate, Operator, Type, TypeOrFuncType,
 };
 use crate::{BinaryReaderError, Result, WasmFeatures, WasmFuncType, WasmModuleResources};
 
@@ -393,6 +396,7 @@ impl OperatorValidator {
         Ok(())
     }
 
+    #[cfg(feature = "simd-proposal")]
     fn check_simd_enabled(&self) -> OperatorValidatorResult<()> {
         if !self.features.simd {
             return Err(OperatorValidatorError::new("SIMD support is not enabled"));
@@ -426,6 +430,7 @@ impl OperatorValidator {
         self.check_memory_index(memarg.memory, resources)
     }
 
+    #[cfg(feature = "simd-proposal")]
     fn check_simd_lane_index(&self, index: SIMDLaneIndex, max: u8) -> OperatorValidatorResult<()> {
         if index >= max {
             return Err(OperatorValidatorError::new("SIMD index out of bounds"));
@@ -448,6 +453,7 @@ impl OperatorValidator {
             TypeOrFuncType::Type(Type::ExternRef) | TypeOrFuncType::Type(Type::FuncRef) => {
                 self.check_reference_types_enabled()
             }
+            #[cfg(feature = "simd-proposal")]
             TypeOrFuncType::Type(Type::V128) => self.check_simd_enabled(),
             TypeOrFuncType::FuncType(idx) => {
                 let ty = func_type_at(&resources, idx)?;
@@ -766,6 +772,7 @@ impl OperatorValidator {
                     | ty @ Some(Type::I64)
                     | ty @ Some(Type::F32)
                     | ty @ Some(Type::F64) => self.operands.push(ty),
+                    #[cfg(feature = "simd-proposal")]
                     ty @ Some(Type::V128) => {
                         self.check_simd_enabled()?;
                         self.operands.push(ty)
@@ -1371,62 +1378,73 @@ impl OperatorValidator {
                 }
                 self.push_operand(Type::FuncRef)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::V128Load { memarg } => {
                 self.check_simd_enabled()?;
                 let ty = self.check_memarg(memarg, 4, resources)?;
                 self.pop_operand(Some(ty))?;
                 self.push_operand(Type::V128)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::V128Store { memarg } => {
                 self.check_simd_enabled()?;
                 let ty = self.check_memarg(memarg, 4, resources)?;
                 self.pop_operand(Some(Type::V128))?;
                 self.pop_operand(Some(ty))?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::V128Const { .. } => {
                 self.check_simd_enabled()?;
                 self.push_operand(Type::V128)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::I8x16Splat | Operator::I16x8Splat | Operator::I32x4Splat => {
                 self.check_simd_enabled()?;
                 self.pop_operand(Some(Type::I32))?;
                 self.push_operand(Type::V128)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::I64x2Splat => {
                 self.check_simd_enabled()?;
                 self.pop_operand(Some(Type::I64))?;
                 self.push_operand(Type::V128)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::F32x4Splat => {
                 self.check_non_deterministic_enabled()?;
                 self.check_simd_enabled()?;
                 self.pop_operand(Some(Type::F32))?;
                 self.push_operand(Type::V128)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::F64x2Splat => {
                 self.check_non_deterministic_enabled()?;
                 self.check_simd_enabled()?;
                 self.pop_operand(Some(Type::F64))?;
                 self.push_operand(Type::V128)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::I8x16ExtractLaneS { lane } | Operator::I8x16ExtractLaneU { lane } => {
                 self.check_simd_enabled()?;
                 self.check_simd_lane_index(lane, 16)?;
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::I32)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::I16x8ExtractLaneS { lane } | Operator::I16x8ExtractLaneU { lane } => {
                 self.check_simd_enabled()?;
                 self.check_simd_lane_index(lane, 8)?;
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::I32)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::I32x4ExtractLane { lane } => {
                 self.check_simd_enabled()?;
                 self.check_simd_lane_index(lane, 4)?;
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::I32)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::I8x16ReplaceLane { lane } => {
                 self.check_simd_enabled()?;
                 self.check_simd_lane_index(lane, 16)?;
@@ -1434,6 +1452,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::I16x8ReplaceLane { lane } => {
                 self.check_simd_enabled()?;
                 self.check_simd_lane_index(lane, 8)?;
@@ -1441,6 +1460,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::I32x4ReplaceLane { lane } => {
                 self.check_simd_enabled()?;
                 self.check_simd_lane_index(lane, 4)?;
@@ -1448,12 +1468,14 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::I64x2ExtractLane { lane } => {
                 self.check_simd_enabled()?;
                 self.check_simd_lane_index(lane, 2)?;
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::I64)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::I64x2ReplaceLane { lane } => {
                 self.check_simd_enabled()?;
                 self.check_simd_lane_index(lane, 2)?;
@@ -1461,6 +1483,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::F32x4ExtractLane { lane } => {
                 self.check_non_deterministic_enabled()?;
                 self.check_simd_enabled()?;
@@ -1468,6 +1491,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::F32)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::F32x4ReplaceLane { lane } => {
                 self.check_non_deterministic_enabled()?;
                 self.check_simd_enabled()?;
@@ -1476,6 +1500,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::F64x2ExtractLane { lane } => {
                 self.check_non_deterministic_enabled()?;
                 self.check_simd_enabled()?;
@@ -1483,6 +1508,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::F64)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::F64x2ReplaceLane { lane } => {
                 self.check_non_deterministic_enabled()?;
                 self.check_simd_enabled()?;
@@ -1491,6 +1517,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::F32x4Eq
             | Operator::F32x4Ne
             | Operator::F32x4Lt
@@ -1525,6 +1552,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::I8x16Eq
             | Operator::I8x16Ne
             | Operator::I8x16LtS
@@ -1614,6 +1642,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::F32x4Ceil
             | Operator::F32x4Floor
             | Operator::F32x4Trunc
@@ -1635,6 +1664,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::V128Not
             | Operator::I8x16Abs
             | Operator::I8x16Neg
@@ -1657,6 +1687,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::V128Bitselect => {
                 self.check_simd_enabled()?;
                 self.pop_operand(Some(Type::V128))?;
@@ -1664,6 +1695,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::I8x16AnyTrue
             | Operator::I8x16AllTrue
             | Operator::I8x16Bitmask
@@ -1677,6 +1709,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::I32)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::I8x16Shl
             | Operator::I8x16ShrS
             | Operator::I8x16ShrU
@@ -1694,12 +1727,14 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::I8x16Swizzle => {
                 self.check_simd_enabled()?;
                 self.pop_operand(Some(Type::V128))?;
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::I8x16Shuffle { ref lanes } => {
                 self.check_simd_enabled()?;
                 self.pop_operand(Some(Type::V128))?;
@@ -1709,24 +1744,28 @@ impl OperatorValidator {
                 }
                 self.push_operand(Type::V128)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::V128Load8Splat { memarg } => {
                 self.check_simd_enabled()?;
                 let ty = self.check_memarg(memarg, 0, resources)?;
                 self.pop_operand(Some(ty))?;
                 self.push_operand(Type::V128)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::V128Load16Splat { memarg } => {
                 self.check_simd_enabled()?;
                 let ty = self.check_memarg(memarg, 1, resources)?;
                 self.pop_operand(Some(ty))?;
                 self.push_operand(Type::V128)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::V128Load32Splat { memarg } | Operator::V128Load32Zero { memarg } => {
                 self.check_simd_enabled()?;
                 let ty = self.check_memarg(memarg, 2, resources)?;
                 self.pop_operand(Some(ty))?;
                 self.push_operand(Type::V128)?;
             }
+            #[cfg(feature = "simd-proposal")]
             Operator::V128Load64Splat { memarg }
             | Operator::V128Load64Zero { memarg }
             | Operator::V128Load8x8S { memarg }
@@ -1968,6 +2007,7 @@ fn ty_to_str(ty: Type) -> &'static str {
         Type::I64 => "i64",
         Type::F32 => "f32",
         Type::F64 => "f64",
+        #[cfg(feature = "simd-proposal")]
         Type::V128 => "v128",
         Type::FuncRef => "funcref",
         Type::ExternRef => "externref",

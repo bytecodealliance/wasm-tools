@@ -19,11 +19,14 @@ use std::str;
 
 use crate::limits::*;
 
+#[cfg(feature = "simd-proposal")]
+use crate::primitives::{V128, SIMDLaneIndex};
+
 use crate::primitives::{
     BinaryReaderError, BrTable, CustomSectionKind, ExternalKind, FuncType, GlobalType, Ieee32,
     Ieee64, LinkingType, MemoryImmediate, MemoryType, NameType, Operator, RelocType,
-    ResizableLimits, ResizableLimits64, Result, SIMDLaneIndex, SectionCode, TableType, Type,
-    TypeOrFuncType, V128,
+    ResizableLimits, ResizableLimits64, Result, SectionCode, TableType, Type,
+    TypeOrFuncType,
 };
 use crate::{EventType, ExportType, Import, ImportSectionEntryType, InstanceType, ModuleType};
 
@@ -183,6 +186,7 @@ impl<'a> BinaryReader<'a> {
             -0x02 => Ok(Type::I64),
             -0x03 => Ok(Type::F32),
             -0x04 => Ok(Type::F64),
+            #[cfg(feature = "simd-proposal")]
             -0x05 => Ok(Type::V128),
             -0x10 => Ok(Type::FuncRef),
             -0x11 => Ok(Type::ExternRef),
@@ -1399,7 +1403,7 @@ impl<'a> BinaryReader<'a> {
             },
 
             0xfc => self.read_0xfc_operator()?,
-            0xfd => self.read_0xfd_operator()?,
+            #[cfg(feature = "simd-proposal")] 0xfd => self.read_0xfd_operator()?,
             0xfe => self.read_0xfe_operator()?,
 
             _ => {
@@ -1482,6 +1486,7 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
+    #[cfg(feature = "simd-proposal")]
     fn read_lane_index(&mut self, max: u32) -> Result<SIMDLaneIndex> {
         let index = self.read_u8()?;
         if index >= max {
@@ -1493,12 +1498,14 @@ impl<'a> BinaryReader<'a> {
         Ok(index as SIMDLaneIndex)
     }
 
+    #[cfg(feature = "simd-proposal")]
     fn read_v128(&mut self) -> Result<V128> {
         let mut bytes = [0; 16];
         bytes.clone_from_slice(self.read_bytes(16)?);
         Ok(V128(bytes))
     }
 
+    #[cfg(feature = "simd-proposal")]
     fn read_0xfd_operator(&mut self) -> Result<Operator<'a>> {
         let code = self.read_var_u32()?;
         Ok(match code {
