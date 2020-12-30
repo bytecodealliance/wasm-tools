@@ -20,13 +20,12 @@ use std::str;
 use crate::limits::*;
 
 #[cfg(feature = "simd-proposal")]
-use crate::primitives::{V128, SIMDLaneIndex};
+use crate::primitives::{SIMDLaneIndex, V128};
 
 use crate::primitives::{
     BinaryReaderError, BrTable, CustomSectionKind, ExternalKind, FuncType, GlobalType, Ieee32,
     Ieee64, LinkingType, MemoryImmediate, MemoryType, NameType, Operator, RelocType,
-    ResizableLimits, ResizableLimits64, Result, SectionCode, TableType, Type,
-    TypeOrFuncType,
+    ResizableLimits, ResizableLimits64, Result, SectionCode, TableType, Type, TypeOrFuncType,
 };
 use crate::{EventType, ExportType, Import, ImportSectionEntryType, InstanceType, ModuleType};
 
@@ -1403,7 +1402,8 @@ impl<'a> BinaryReader<'a> {
             },
 
             0xfc => self.read_0xfc_operator()?,
-            #[cfg(feature = "simd-proposal")] 0xfd => self.read_0xfd_operator()?,
+            #[cfg(feature = "simd-proposal")]
+            0xfd => self.read_0xfd_operator()?,
             0xfe => self.read_0xfe_operator()?,
 
             _ => {

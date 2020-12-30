@@ -26,9 +26,7 @@
 use crate::primitives::SIMDLaneIndex;
 
 use crate::limits::MAX_WASM_FUNCTION_LOCALS;
-use crate::primitives::{
-    EventType, MemoryImmediate, Operator, Type, TypeOrFuncType,
-};
+use crate::primitives::{EventType, MemoryImmediate, Operator, Type, TypeOrFuncType};
 use crate::{BinaryReaderError, Result, WasmFeatures, WasmFuncType, WasmModuleResources};
 
 /// A wrapper around a `BinaryReaderError` where the inner error's offset is a
