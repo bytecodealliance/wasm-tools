@@ -851,6 +851,7 @@ impl<'a> BinaryReader<'a> {
         Ok(imm)
     }
 
+    #[cfg(feature = "threads-proposal")]
     fn read_0xfe_operator(&mut self) -> Result<Operator<'a>> {
         let code = self.read_var_u32()?;
         Ok(match code {
@@ -1400,6 +1401,7 @@ impl<'a> BinaryReader<'a> {
 
             0xfc => self.read_0xfc_operator()?,
             0xfd => self.read_0xfd_operator()?,
+            #[cfg(feature = "threads-proposal")]
             0xfe => self.read_0xfe_operator()?,
 
             _ => {

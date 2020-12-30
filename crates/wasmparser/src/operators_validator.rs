@@ -375,6 +375,7 @@ impl OperatorValidator {
         Ok(())
     }
 
+    #[cfg(feature = "threads-proposal")]
     fn check_threads_enabled(&self) -> OperatorValidatorResult<()> {
         if !self.features.threads {
             return Err(OperatorValidatorError::new(
@@ -418,6 +419,7 @@ impl OperatorValidator {
         Ok(())
     }
 
+    #[cfg(feature = "threads-proposal")]
     fn check_shared_memarg_wo_align(
         &self,
         memarg: MemoryImmediate,
@@ -1183,6 +1185,7 @@ impl OperatorValidator {
                 self.push_operand(Type::I64)?;
             }
 
+            #[cfg(feature = "threads-proposal")]
             Operator::I32AtomicLoad { memarg }
             | Operator::I32AtomicLoad16U { memarg }
             | Operator::I32AtomicLoad8U { memarg } => {
@@ -1191,6 +1194,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(ty))?;
                 self.push_operand(Type::I32)?;
             }
+            #[cfg(feature = "threads-proposal")]
             Operator::I64AtomicLoad { memarg }
             | Operator::I64AtomicLoad32U { memarg }
             | Operator::I64AtomicLoad16U { memarg }
@@ -1200,6 +1204,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(ty))?;
                 self.push_operand(Type::I64)?;
             }
+            #[cfg(feature = "threads-proposal")]
             Operator::I32AtomicStore { memarg }
             | Operator::I32AtomicStore16 { memarg }
             | Operator::I32AtomicStore8 { memarg } => {
@@ -1208,6 +1213,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::I32))?;
                 self.pop_operand(Some(ty))?;
             }
+            #[cfg(feature = "threads-proposal")]
             Operator::I64AtomicStore { memarg }
             | Operator::I64AtomicStore32 { memarg }
             | Operator::I64AtomicStore16 { memarg }
@@ -1217,6 +1223,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::I64))?;
                 self.pop_operand(Some(ty))?;
             }
+            #[cfg(feature = "threads-proposal")]
             Operator::I32AtomicRmwAdd { memarg }
             | Operator::I32AtomicRmwSub { memarg }
             | Operator::I32AtomicRmwAnd { memarg }
@@ -1238,6 +1245,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(ty))?;
                 self.push_operand(Type::I32)?;
             }
+            #[cfg(feature = "threads-proposal")]
             Operator::I64AtomicRmwAdd { memarg }
             | Operator::I64AtomicRmwSub { memarg }
             | Operator::I64AtomicRmwAnd { memarg }
@@ -1264,6 +1272,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(ty))?;
                 self.push_operand(Type::I64)?;
             }
+            #[cfg(feature = "threads-proposal")]
             Operator::I32AtomicRmwXchg { memarg }
             | Operator::I32AtomicRmw16XchgU { memarg }
             | Operator::I32AtomicRmw8XchgU { memarg } => {
@@ -1273,6 +1282,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(ty))?;
                 self.push_operand(Type::I32)?;
             }
+            #[cfg(feature = "threads-proposal")]
             Operator::I32AtomicRmwCmpxchg { memarg }
             | Operator::I32AtomicRmw16CmpxchgU { memarg }
             | Operator::I32AtomicRmw8CmpxchgU { memarg } => {
@@ -1283,6 +1293,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(ty))?;
                 self.push_operand(Type::I32)?;
             }
+            #[cfg(feature = "threads-proposal")]
             Operator::I64AtomicRmwXchg { memarg }
             | Operator::I64AtomicRmw32XchgU { memarg }
             | Operator::I64AtomicRmw16XchgU { memarg }
@@ -1293,6 +1304,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(ty))?;
                 self.push_operand(Type::I64)?;
             }
+            #[cfg(feature = "threads-proposal")]
             Operator::I64AtomicRmwCmpxchg { memarg }
             | Operator::I64AtomicRmw32CmpxchgU { memarg }
             | Operator::I64AtomicRmw16CmpxchgU { memarg }
@@ -1304,6 +1316,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(ty))?;
                 self.push_operand(Type::I64)?;
             }
+            #[cfg(feature = "threads-proposal")]
             Operator::MemoryAtomicNotify { memarg } => {
                 self.check_threads_enabled()?;
                 let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
@@ -1311,6 +1324,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(ty))?;
                 self.push_operand(Type::I32)?;
             }
+            #[cfg(feature = "threads-proposal")]
             Operator::MemoryAtomicWait32 { memarg } => {
                 self.check_threads_enabled()?;
                 let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
@@ -1319,6 +1333,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(ty))?;
                 self.push_operand(Type::I32)?;
             }
+            #[cfg(feature = "threads-proposal")]
             Operator::MemoryAtomicWait64 { memarg } => {
                 self.check_threads_enabled()?;
                 let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
@@ -1327,6 +1342,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(ty))?;
                 self.push_operand(Type::I32)?;
             }
+            #[cfg(feature = "threads-proposal")]
             Operator::AtomicFence { ref flags } => {
                 self.check_threads_enabled()?;
                 if *flags != 0 {
