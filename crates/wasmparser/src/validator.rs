@@ -21,7 +21,12 @@ use crate::{BinaryReaderError, EventType, GlobalType, MemoryType, Range, Result,
 use crate::{DataKind, ElementItem, ElementKind, InitExpr, Instance, Operator};
 use crate::{Export, ExportType, FunctionBody, Parser, Payload};
 use crate::{FuncType, ResizableLimits, SectionReader, SectionWithLimitedItems};
-use alloc::{format, string::{String, ToString}, sync::Arc, vec::Vec};
+use alloc::{
+    format,
+    string::{String, ToString},
+    sync::Arc,
+    vec::Vec,
+};
 use core::mem;
 use hashbrown::{HashMap, HashSet};
 

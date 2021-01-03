@@ -13,7 +13,10 @@
  * limitations under the License.
  */
 
-use alloc::{boxed::Box, string::{String, ToString}};
+use alloc::{
+    boxed::Box,
+    string::{String, ToString},
+};
 use core::fmt;
 use core::result;
 
