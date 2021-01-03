@@ -28,6 +28,7 @@ name = "benchmark"
 harness = false
 
 [features]
+default = ["std"]
 std = []
 
 # The "deterministic" feature supports only Wasm code with "deterministic" execution
