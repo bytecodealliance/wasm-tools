@@ -14,7 +14,7 @@
  */
 
 use crate::{EventType, FuncType, GlobalType, MemoryType, TableType, Type};
-use std::ops::Range;
+use core::ops::Range;
 
 /// Types that qualify as Wasm function types for validation purposes.
 pub trait WasmFuncType {

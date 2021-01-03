@@ -21,9 +21,9 @@ use crate::{BinaryReaderError, EventType, GlobalType, MemoryType, Range, Result,
 use crate::{DataKind, ElementItem, ElementKind, InitExpr, Instance, Operator};
 use crate::{Export, ExportType, FunctionBody, Parser, Payload};
 use crate::{FuncType, ResizableLimits, SectionReader, SectionWithLimitedItems};
-use std::collections::{HashMap, HashSet};
-use std::mem;
-use std::sync::Arc;
+use alloc::{format, string::{String, ToString}, sync::Arc, vec::Vec};
+use core::mem;
+use hashbrown::{HashMap, HashSet};
 
 /// Test whether the given buffer contains a valid WebAssembly module,
 /// analogous to [`WebAssembly.validate`][js] in the JS API.
@@ -1927,8 +1927,8 @@ impl WasmModuleResources for ValidatorResources {
 }
 
 mod arc {
-    use std::ops::Deref;
-    use std::sync::Arc;
+    use alloc::sync::Arc;
+    use core::ops::Deref;
 
     pub struct MaybeOwned<T> {
         owned: bool,
