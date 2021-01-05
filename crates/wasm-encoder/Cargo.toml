@@ -1,6 +1,6 @@
 [package]
 name = "wasm-encoder"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Nick Fitzgerald <fitzgen@gmail.com>"]
 edition = "2018"
 license = "Apache-2.0 WITH LLVM-exception"
@@ -9,7 +9,7 @@ repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wa
 homepage = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-encoder"
 documentation = "https://docs.rs/wasm-encoder"
 description = """
-A WebAssembly encoder.
+A low-level WebAssembly encoder.
 """
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
