@@ -388,10 +388,17 @@ pub enum Instruction<'a> {
     I64TruncSatF32U,
     I64TruncSatF64S,
     I64TruncSatF64U,
+
+    // SIMD instructions.
+    V128Const(i128),
+
+    // Reference types instructions.
     TypedSelect(ValType),
     RefNull(ValType),
     RefIsNull,
     RefFunc(u32),
+
+    // Bulk memory instructions.
     TableInit { segment: u32, table: u32 },
     ElemDrop { segment: u32 },
     TableFill { table: u32 },
@@ -760,16 +767,6 @@ impl Instruction<'_> {
             Instruction::I64Extend16S => bytes.push(0xC3),
             Instruction::I64Extend32S => bytes.push(0xC4),
 
-            Instruction::RefNull(ty) => {
-                bytes.push(0xd0);
-                bytes.push(ty.into());
-            }
-            Instruction::RefIsNull => bytes.push(0xd1),
-            Instruction::RefFunc(f) => {
-                bytes.push(0xd2);
-                bytes.extend(encoders::u32(f));
-            }
-
             Instruction::I32TruncSatF32S => {
                 bytes.push(0xFC);
                 bytes.extend(encoders::u32(0));
@@ -803,6 +800,18 @@ impl Instruction<'_> {
                 bytes.extend(encoders::u32(7));
             }
 
+            // Reference types instructions.
+            Instruction::RefNull(ty) => {
+                bytes.push(0xd0);
+                bytes.push(ty.into());
+            }
+            Instruction::RefIsNull => bytes.push(0xd1),
+            Instruction::RefFunc(f) => {
+                bytes.push(0xd2);
+                bytes.extend(encoders::u32(f));
+            }
+
+            // Bulk memory instructions.
             Instruction::TableInit { segment, table } => {
                 bytes.push(0xfc);
                 bytes.extend(encoders::u32(0x0c));
@@ -834,6 +843,13 @@ impl Instruction<'_> {
                 bytes.push(0xfc);
                 bytes.extend(encoders::u32(0x11));
                 bytes.extend(encoders::u32(table));
+            }
+
+            // SIMD instructions.
+            Instruction::V128Const(x) => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(12));
+                bytes.extend(x.to_le_bytes().iter().copied());
             }
         }
     }
