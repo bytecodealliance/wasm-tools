@@ -1,6 +1,6 @@
 use arbitrary::{Arbitrary, Unstructured};
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
-use wasm_smith::{ConfiguredModule, Module, SwarmConfig};
+use wasm_smith::{Config, ConfiguredModule, Module, SwarmConfig};
 use wasmparser::{Validator, WasmFeatures};
 
 fn wasm_features() -> WasmFeatures {
@@ -9,7 +9,6 @@ fn wasm_features() -> WasmFeatures {
         multi_memory: true,
         bulk_memory: true,
         reference_types: true,
-        module_linking: true,
         ..WasmFeatures::default()
     }
 }
@@ -60,7 +59,9 @@ fn smoke_test_swarm_config() {
             let wasm_bytes = module.to_bytes();
 
             let mut validator = Validator::new();
-            validator.wasm_features(wasm_features());
+            let mut features = wasm_features();
+            features.module_linking = module.config().module_linking_enabled();
+            validator.wasm_features(features);
             assert!(validator.validate_all(&wasm_bytes).is_ok());
         }
     }
