@@ -339,7 +339,6 @@ impl Parser {
     ///             ImportSection(_) => { /* ... */ }
     ///             AliasSection(_) => { /* ... */ }
     ///             InstanceSection(_) => { /* ... */ }
-    ///             ModuleSection(_) => { /* ... */ }
     ///             FunctionSection(_) => { /* ... */ }
     ///             TableSection(_) => { /* ... */ }
     ///             MemorySection(_) => { /* ... */ }
@@ -1230,21 +1229,21 @@ mod tests {
     #[test]
     fn module_code_errors() {
         // no bytes to say size of section
-        assert!(parser_after_header().parse(&[17], true).is_err());
+        assert!(parser_after_header().parse(&[14], true).is_err());
         // section must start with a u32
-        assert!(parser_after_header().parse(&[17, 0], true).is_err());
+        assert!(parser_after_header().parse(&[14, 0], true).is_err());
         // EOF before we finish reading the section
-        assert!(parser_after_header().parse(&[17, 1], true).is_err());
+        assert!(parser_after_header().parse(&[14, 1], true).is_err());
     }
 
     #[test]
     fn module_code_one() {
         let mut p = parser_after_header();
-        assert_matches!(p.parse(&[17], false), Ok(Chunk::NeedMoreData(1)));
-        assert_matches!(p.parse(&[17, 9], false), Ok(Chunk::NeedMoreData(1)));
+        assert_matches!(p.parse(&[14], false), Ok(Chunk::NeedMoreData(1)));
+        assert_matches!(p.parse(&[14, 9], false), Ok(Chunk::NeedMoreData(1)));
         // Module code section, 10 bytes large, one module.
         assert_matches!(
-            p.parse(&[17, 10, 1], false),
+            p.parse(&[14, 10, 1], false),
             Ok(Chunk::Parsed {
                 consumed: 3,
                 payload: Payload::ModuleSectionStart { count: 1, .. },
@@ -1300,7 +1299,7 @@ mod tests {
         // Module code section, 12 bytes large, one module. This leaves 11 bytes
         // of payload for the module definition itself.
         assert_matches!(
-            p.parse(&[17, 12, 1], false),
+            p.parse(&[14, 12, 1], false),
             Ok(Chunk::Parsed {
                 consumed: 3,
                 payload: Payload::ModuleSectionStart { count: 1, .. },
