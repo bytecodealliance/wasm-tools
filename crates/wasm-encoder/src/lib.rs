@@ -263,6 +263,10 @@ pub enum ValType {
     F32 = 0x7D,
     /// The `f64` type.
     F64 = 0x7C,
+    /// The `v128` type.
+    ///
+    /// Part of the SIMD proposal.
+    V128 = 0x7B,
     /// The `funcref` type.
     ///
     /// Part of the reference types proposal when used anywhere other than a
