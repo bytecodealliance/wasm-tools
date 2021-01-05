@@ -10,13 +10,13 @@ use super::*;
 /// # Example
 ///
 /// ```
-/// use wasm_encoder::{Module, InstanceSection, Export};
+/// use wasm_encoder::{Module, InstanceSection, ItemKind};
 ///
 /// let mut instances = InstanceSection::new();
 /// instances.instantiate(0, vec![
-///     Export::Function(0),
-///     Export::Module(2),
-///     Export::Global(0),
+///     ("x", None, ItemKind::Function, 0),
+///     ("", Some("y"), ItemKind::Module, 2),
+///     ("foo", None, ItemKind::Global, 0),
 /// ]);
 ///
 /// let mut module = Module::new();

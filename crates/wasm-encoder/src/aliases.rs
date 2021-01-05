@@ -10,11 +10,11 @@ use super::*;
 /// # Example
 ///
 /// ```
-/// use wasm_encoder::{Module, AliasSection, Export};
+/// use wasm_encoder::{Module, AliasSection, ItemKind};
 ///
 /// let mut aliases = AliasSection::new();
 /// aliases.parent_type(2);
-/// aliases.instance_export(0, Export::Function(1));
+/// aliases.instance_export(0, ItemKind::Function, "foo");
 ///
 /// let mut module = Module::new();
 /// module.section(&aliases);

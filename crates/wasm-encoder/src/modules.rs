@@ -10,26 +10,14 @@ use super::*;
 /// # Example
 ///
 /// ```
-/// use wasm_encoder::{
-///     ModuleSection, Function, ModuleSection, Instruction, Module,
-///     TypeSection, ValType
-/// };
-///
-/// let mut types = TypeSection::new();
-/// types.module(vec![], vec![]);
+/// use wasm_encoder::{ModuleSection, Module};
 ///
 /// let mut modules = ModuleSection::new();
-/// let type_index = 0;
-/// modules.module(type_index);
-///
-/// let mut module_code = ModuleSection::new();
-/// module_code.module(&Module::new());
+/// modules.module(&Module::new());
+/// modules.module(&Module::new());
 ///
 /// let mut module = Module::new();
-/// module
-///     .section(&types)
-///     .section(&modules)
-///     .section(&module_code);
+/// module.section(&modules);
 ///
 /// let wasm_bytes = module.finish();
 /// ```
@@ -47,7 +35,7 @@ impl ModuleSection {
         }
     }
 
-    /// Write a function body into this code section.
+    /// Writes a dmodule into this module code section.
     pub fn module(&mut self, module: &Module) -> &mut Self {
         self.bytes.extend(
             encoders::u32(u32::try_from(module.bytes.len()).unwrap())
