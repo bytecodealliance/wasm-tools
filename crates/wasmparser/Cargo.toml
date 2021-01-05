@@ -25,7 +25,10 @@ name = "benchmark"
 harness = false
 
 [features]
+default = ["simd-proposal"]
+
 # The "deterministic" feature supports only Wasm code with "deterministic" execution
 # across any hardware. This feature is very critical for many Blockchain infrastructures
 # that rely on deterministic executions of smart contracts across different hardwares.
 deterministic = []
+simd-proposal = []

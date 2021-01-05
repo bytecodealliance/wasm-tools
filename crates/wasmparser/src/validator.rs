@@ -167,6 +167,7 @@ pub struct WasmFeatures {
     pub reference_types: bool,
     /// The WebAssembly module linking proposal
     pub module_linking: bool,
+    #[cfg(feature = "simd-proposal")]
     /// The WebAssembly SIMD proposal
     pub simd: bool,
     /// The WebAssembly multi-value proposal (enabled by default)
@@ -193,6 +194,7 @@ impl Default for WasmFeatures {
             // off-by-default features
             reference_types: false,
             module_linking: false,
+            #[cfg(feature = "simd-proposal")]
             simd: false,
             threads: false,
             tail_call: false,
@@ -1318,6 +1320,7 @@ impl Validator {
             Operator::F32Const { .. } => Type::F32,
             Operator::F64Const { .. } => Type::F64,
             Operator::RefNull { ty } => ty,
+            #[cfg(feature = "simd-proposal")]
             Operator::V128Const { .. } => Type::V128,
             Operator::GlobalGet { global_index } => {
                 self.get_global(self.state.def(global_index))?
@@ -1779,6 +1782,7 @@ impl WasmFeatures {
                     Err("exceptions support is not enabled")
                 }
             }
+            #[cfg(feature = "simd-proposal")]
             Type::V128 => {
                 if self.simd {
                     Ok(())
