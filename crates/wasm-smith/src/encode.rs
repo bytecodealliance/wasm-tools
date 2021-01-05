@@ -101,7 +101,7 @@ where
                     kind,
                     name,
                 } => {
-                    section.instance_export(*instance, kind, name);
+                    section.instance_export(*instance, translate_item_kind(kind), name);
                 }
                 Alias::ParentType(ty) => {
                     section.parent_type(*ty);
@@ -117,7 +117,17 @@ where
     fn encode_instances(&self, module: &mut wasm_encoder::Module, list: &[Instance]) {
         let mut section = wasm_encoder::InstanceSection::new();
         for instance in list {
-            section.instantiate(instance.module, instance.args.iter().map(translate_export));
+            section.instantiate(
+                instance.module,
+                instance.args.iter().map(|(name, field, kind, idx)| {
+                    (
+                        name.as_str(),
+                        field.as_deref(),
+                        translate_item_kind(kind),
+                        *idx,
+                    )
+                }),
+            );
         }
         module.section(&section);
     }
@@ -181,9 +191,8 @@ where
             return;
         }
         let mut exports = wasm_encoder::ExportSection::new();
-        for (name, exp) in &self.exports {
-            let (kind, index) = translate_export(exp);
-            exports.export(name, kind, index);
+        for (name, kind, index) in &self.exports {
+            exports.export(name, translate_item_kind(kind), *index);
         }
         module.section(&exports);
     }
@@ -359,14 +368,14 @@ fn translate_mem_arg(m: MemArg) -> wasm_encoder::MemArg {
     }
 }
 
-fn translate_export(exp: &Export) -> (wasm_encoder::ItemKind, u32) {
-    match exp {
-        Export::Func(f) => (wasm_encoder::ItemKind::Function, *f),
-        Export::Table(t) => (wasm_encoder::ItemKind::Table, *t),
-        Export::Memory(m) => (wasm_encoder::ItemKind::Memory, *m),
-        Export::Global(g) => (wasm_encoder::ItemKind::Global, *g),
-        Export::Instance(i) => (wasm_encoder::ItemKind::Instance, *i),
-        Export::Module(i) => (wasm_encoder::ItemKind::Module, *i),
+fn translate_item_kind(kind: &ItemKind) -> wasm_encoder::ItemKind {
+    match kind {
+        ItemKind::Func => wasm_encoder::ItemKind::Function,
+        ItemKind::Table => wasm_encoder::ItemKind::Table,
+        ItemKind::Memory => wasm_encoder::ItemKind::Memory,
+        ItemKind::Global => wasm_encoder::ItemKind::Global,
+        ItemKind::Instance => wasm_encoder::ItemKind::Instance,
+        ItemKind::Module => wasm_encoder::ItemKind::Module,
     }
 }
 
