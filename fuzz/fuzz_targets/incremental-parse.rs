@@ -83,7 +83,6 @@ fuzz_target!(|data: Vec<Vec<u8>>| {
             (ImportSection(a), ImportSection(b)) => assert_eq!(a.range(), b.range()),
             (AliasSection(a), AliasSection(b)) => assert_eq!(a.range(), b.range()),
             (InstanceSection(a), InstanceSection(b)) => assert_eq!(a.range(), b.range()),
-            (ModuleSection(a), ModuleSection(b)) => assert_eq!(a.range(), b.range()),
             (FunctionSection(a), FunctionSection(b)) => assert_eq!(a.range(), b.range()),
             (TableSection(a), TableSection(b)) => assert_eq!(a.range(), b.range()),
             (MemorySection(a), MemorySection(b)) => assert_eq!(a.range(), b.range()),
@@ -138,12 +137,12 @@ fuzz_target!(|data: Vec<Vec<u8>>| {
                 },
             )
             | (
-                ModuleCodeSectionStart {
+                ModuleSectionStart {
                     count: a,
                     range: ar,
                     size: asz,
                 },
-                ModuleCodeSectionStart {
+                ModuleSectionStart {
                     count: b,
                     range: br,
                     size: bsz,
@@ -158,11 +157,11 @@ fuzz_target!(|data: Vec<Vec<u8>>| {
                 assert_eq!(a.get_binary_reader().range(), b.get_binary_reader().range());
             }
             (
-                ModuleCodeSectionEntry {
+                ModuleSectionEntry {
                     range: ar,
                     parser: ap,
                 },
-                ModuleCodeSectionEntry { range: br, .. },
+                ModuleSectionEntry { range: br, .. },
             ) => {
                 assert_eq!(ar, br);
                 stack.push(parser);
