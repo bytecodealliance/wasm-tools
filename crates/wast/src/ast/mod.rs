@@ -45,7 +45,7 @@ macro_rules! custom_keyword {
     ($name:ident = $kw:expr) => {
         #[allow(non_camel_case_types)]
         #[allow(missing_docs)]
-        #[derive(Debug)]
+        #[derive(Debug, Copy, Clone)]
         pub struct $name(pub $crate::Span);
 
         impl<'a> $crate::parser::Parse<'a> for $name {
@@ -397,6 +397,7 @@ pub mod kw {
     custom_keyword!(null);
     custom_keyword!(nullref);
     custom_keyword!(offset);
+    custom_keyword!(outer);
     custom_keyword!(param);
     custom_keyword!(parent);
     custom_keyword!(passive);

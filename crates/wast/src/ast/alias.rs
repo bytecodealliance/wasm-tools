@@ -19,7 +19,7 @@ pub struct Alias<'a> {
 #[allow(missing_docs)]
 pub enum AliasKind<'a> {
     InstanceExport {
-        instance: ast::Index<'a>,
+        instance: ast::ItemRef<'a, kw::instance>,
         export: &'a str,
         kind: ast::ExportKind,
     },
@@ -49,7 +49,7 @@ impl<'a> Parse<'a> for Alias<'a> {
             (id, None, AliasKind::Parent { parent_index, kind })
         } else {
             // (alias $instance "export" (type $my_name))
-            let instance = parser.parse()?;
+            let instance = parser.parse::<ast::IndexOrRef<_>>()?.0;
             let export = parser.parse()?;
             let (kind, id, name) = parser.parens(|p| Ok((p.parse()?, p.parse()?, p.parse()?)))?;
             (

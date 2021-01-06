@@ -1,6 +1,7 @@
 use crate::ast::*;
 use crate::Error;
 
+mod aliases;
 mod deinline_import_export;
 mod gensym;
 mod names;
@@ -49,6 +50,8 @@ pub fn resolve<'a>(module: &mut Module<'a>) -> Result<Names<'a>, Error> {
     // calculate exports we only have to look for a particular kind of module
     // field.
     deinline_import_export::run(fields);
+
+    aliases::run(fields);
 
     // With a canonical form of imports make sure that imports are all listed
     // first.

@@ -260,13 +260,8 @@
         i32.const 5))
   )
   (instance $a (instantiate $m))
-  ;; TODO alias sugar
-  (alias $a "module" (module $a.$sub))
-  (instance $b (instantiate $a.$sub))
-
-  ;; TODO alias sugar
-  (alias $b "" (func $b.$f))
+  (instance $b (instantiate (module $a "module")))
 
   (func (export "get") (result i32)
-    call $b.$f)
+    call (func $b ""))
 )

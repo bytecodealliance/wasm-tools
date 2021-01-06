@@ -3,10 +3,8 @@
     (export "f1" (func $f1))
     (export "f2" (func $f2 (param i32)))
   ))
-  ;; TODO: alias sugar
-  (alias $i "f1" (func $i.$f1))
   (func (export "run")
-    call $i.$f1
+    call (func $i "f1")
   )
 )
 (assert_malformed
@@ -27,10 +25,8 @@
     (export "f2" (func $f2 (param i32)))
   ))
   (instance $i (instantiate $m))
-  ;; TODO: alias sugar
-  (alias $i "f1" (func $i.$f1))
   (func (export "run")
-    call $i.$f1
+    call (func $i "f1")
   )
 )
 (assert_malformed
@@ -52,10 +48,8 @@
     (func $f2 (export "f2") (param i32))
   )
   (instance $i (instantiate $m))
-  ;; TODO: alias sugar
-  (alias $i "f1" (func $i.$f1))
   (func (export "run")
-    call $i.$f1
+    call (func $i "f1")
   )
 )
 
@@ -76,88 +70,15 @@
     (export "global" (global $glbl i32))
   ))
 
-  ;; TODO: alias sugar
-  (alias $libc "table" (table $libc.$tbl))
-  (alias $libc "global" (global $libc.$glbl))
   (func $table_get
     i32.const 0
-    table.get $libc.$tbl
+    table.get (table $libc "table")
     drop)
 
   (func $global_get
-    global.get $libc.$glbl
+    global.get (global $libc "global")
     drop)
 )
-
-;; make sure auto-expanded aliases can't shadow already-defined names
-;; TODO: reenable with alias sugar
-(; (module ;)
-(;   (import "a" (instance $i ;)
-(;     (export "1" (func $func (param i32))) ;)
-(;     (export "2" (func $memory)) ;)
-(;     (export "3" (func $table)) ;)
-(;     (export "4" (func $global)) ;)
-(;     (export "5" (func $module)) ;)
-(;     (export "6" (func $instance)) ;)
-(;   )) ;)
-(;   (import "b" (instance $i2 ;)
-(;     (export "1" (func $func (param i32))) ;)
-(;     (export "2" (func $memory)) ;)
-(;     (export "3" (func $table)) ;)
-(;     (export "4" (func $global)) ;)
-(;     (export "5" (func $module)) ;)
-(;     (export "6" (func $instance)) ;)
-(;   )) ;)
-
-(;   (import "c" (instance $other ;)
-(;     (export "1" (func $func)) ;)
-(;     (export "2" (memory $memory 1)) ;)
-(;     (export "3" (global $global i32)) ;)
-(;     (export "4" (table $table 1 funcref)) ;)
-(;     (export "5" (module $module)) ;)
-(;     (export "6" (instance $instance)) ;)
-(;   )) ;)
-
-(;   (func $i.$func (import "d")) ;)
-(;   (memory $i.$memory (import "e") 1) ;)
-(;   (global $i.$global (import "f") i32) ;)
-(;   (table $i.$table (import "g") 1 funcref) ;)
-(;   (module $i.$module (import "h")) ;)
-(;   (instance $i.$instance (import "i")) ;)
-
-(;   (alias $i2.$func (instance $other) (func $func)) ;)
-(;   (alias $i2.$global (instance $other) (global $global)) ;)
-(;   (alias $i2.$table (instance $other) (table $table)) ;)
-(;   (alias $i2.$memory (instance $other) (memory $memory)) ;)
-(;   (alias $i2.$instance (instance $other) (instance $instance)) ;)
-(;   (alias $i2.$module (instance $other) (module $module)) ;)
-
-(;   (module $m ;)
-(;     (import "" (func)) ;)
-(;     (import "" (memory 1)) ;)
-(;     (import "" (global i32)) ;)
-(;     (import "" (table 1 funcref)) ;)
-(;     (import "" (module)) ;)
-(;     (import "" (instance)) ;)
-(;   ) ;)
-
-(;   (instance (instantiate $m ;)
-(;     (func $i.$func) ;)
-(;     (memory $i.$memory) ;)
-(;     (global $i.$global) ;)
-(;     (table $i.$table) ;)
-(;     (module $i.$module) ;)
-(;     (instance $i.$instance) ;)
-(;   )) ;)
-(;   (instance (instantiate $m ;)
-(;     (func $i2.$func) ;)
-(;     (memory $i2.$memory) ;)
-(;     (global $i2.$global) ;)
-(;     (table $i2.$table) ;)
-(;     (module $i2.$module) ;)
-(;     (instance $i2.$instance) ;)
-(;   )) ;)
-(; ) ;)
 
 ;; auto-expansion should visit everywhere
 (module
@@ -165,10 +86,8 @@
     (export "" (global $global i32))
   ))
 
-  ;; TODO: alias sugar
-  (alias $i "" (global $i.$global))
   (func
-    global.get $i.$global
+    global.get (global $i "")
     drop)
 )
 (module
@@ -176,22 +95,18 @@
     (export "" (global $global (mut i32)))
   ))
 
-  ;; TODO: alias sugar
-  (alias $i "" (global $i.$global))
   (func
     i32.const 0
-    global.set $i.$global)
+    global.set (global $i ""))
 )
 (module
   (import "" (instance $i
     (export "" (table $table 1 funcref))
   ))
 
-  ;; TODO: alias sugar
-  (alias $i "" (table $i.$table))
   (func
     i32.const 0
-    table.get $i.$table
+    table.get (table $i "")
     drop)
 )
 (module
@@ -199,33 +114,27 @@
     (export "" (table $table 1 funcref))
   ))
 
-  ;; TODO: alias sugar
-  (alias $i "" (table $i.$table))
   (func
     i32.const 0
     ref.null func
-    table.set $i.$table)
+    table.set (table $i ""))
 )
 (module
   (import "" (instance $i
     (export "" (table $table 1 funcref))
   ))
 
-  ;; TODO: alias sugar
-  (alias $i "" (table $i.$table))
   (func
     i32.const 0
-    call_indirect $i.$table)
+    call_indirect (table $i ""))
 )
 (module
   (import "" (instance $i
     (export "" (table $table 1 funcref))
   ))
 
-  ;; TODO: alias sugar
-  (alias $i "" (table $i.$table))
   (func
-    table.size $i.$table
+    table.size (table $i "")
     drop)
 )
 (module
@@ -233,12 +142,10 @@
     (export "" (table $table 1 funcref))
   ))
 
-  ;; TODO: alias sugar
-  (alias $i "" (table $i.$table))
   (func
     ref.null func
     i32.const 0
-    table.grow $i.$table
+    table.grow (table $i "")
     drop)
 )
 (module
@@ -246,26 +153,22 @@
     (export "" (table $table 1 funcref))
   ))
 
-  ;; TODO: alias sugar
-  (alias $i "" (table $i.$table))
   (func
     i32.const 0
     ref.null func
     i32.const 0
-    table.fill $i.$table)
+    table.fill (table $i ""))
 )
 (module
   (import "" (instance $i
     (export "" (table $table 1 funcref))
   ))
 
-  ;; TODO: alias sugar
-  (alias $i "" (table $i.$table))
   (func
     i32.const 0
     i32.const 0
     i32.const 0
-    table.init $i.$table 0)
+    table.init (table $i "") 0)
   (elem func 0)
 )
 (module
@@ -273,140 +176,119 @@
     (export "" (table $table 1 funcref))
   ))
 
-  ;; TODO: alias sugar
-  (alias $i "" (table $i.$table))
   (func
     i32.const 0
     i32.const 0
     i32.const 0
-    table.copy $i.$table $i.$table)
+    table.copy (table $i "") (table $i ""))
 )
 
 (module
   (import "" (instance $i
     (export "" (func $func))
   ))
-  ;; TODO: alias sugar
-  (alias $i "" (func $i.$func))
   (func
-    return_call $i.$func)
+    return_call (func $i ""))
 )
 
 (module
   (import "" (instance $i
     (export "" (table $table 1 funcref))
   ))
-  ;; TODO: alias sugar
-  (alias $i "" (table $i.$table))
   (func
     i32.const 0
-    return_call_indirect $i.$table)
+    return_call_indirect (table $i ""))
 )
 
 (module
   (import "" (instance $i
     (export "" (func $func))
   ))
-  ;; TODO: alias sugar
-  (alias $i "" (func $i.$func))
-  (global funcref (ref.func $i.$func))
+  (global funcref (ref.func (func $i "")))
 )
 (module
   (import "" (instance $i
     (export "" (func $func))
   ))
-  ;; TODO: alias sugar
-  (alias $i "" (func $i.$func))
-  (start $i.$func)
+  (start (func $i ""))
 )
 (module
   (import "" (instance $i
     (export "a" (table $table 1 funcref))
     (export "b" (func $func))
   ))
-  ;; TODO: alias sugar
-  (alias $i "a" (table $i.$table))
-  (alias $i "b" (func $i.$func))
-  (elem (table $i.$table) (i32.const 0) funcref (ref.func $i.$func))
+  (elem (table $i "a") (i32.const 0) funcref (ref.func (func $i "b")))
 )
 (module
   (import "" (instance $i
     (export "a" (table $table 1 funcref))
     (export "b" (func $func))
   ))
-  ;; TODO: alias sugar
-  (alias $i "a" (table $i.$table))
-  (alias $i "b" (func $i.$func))
-  (elem (table $i.$table) (i32.const 0) func $i.$func)
+  (elem (table $i "a") (i32.const 0) func (func $i "b"))
 )
 (module
   (import "" (instance $i
     (export "" (memory $memory 1))
   ))
-  ;; TODO: alias sugar
-  (alias $i "" (memory $i.$memory))
-  (data (memory $i.$memory) (i32.const 0) "")
+  (data (memory $i "") (i32.const 0) "")
 )
 
-;; TODO: reenable with alias sugar
-(; (module ;)
-(;   (import "" (instance $i ;)
-(;     (export "1" (func $func)) ;)
-(;     (export "2" (memory $memory 1)) ;)
-(;     (export "3" (table $table 1 funcref)) ;)
-(;     (export "4" (global $global i32)) ;)
-(;     (export "5" (module $module)) ;)
-(;     (export "6" (instance $instance)) ;)
-(;   )) ;)
-(;   (export "1" (func $i.$func)) ;)
-(;   (export "2" (memory $i.$memory)) ;)
-(;   (export "3" (table $i.$table)) ;)
-(;   (export "4" (global $i.$global)) ;)
-(;   (export "5" (module $i.$module)) ;)
-(;   (export "6" (instance $i.$instance)) ;)
-(; ) ;)
+(module
+  (import "" (instance $i
+    (export "1" (func $func))
+    (export "2" (memory $memory 1))
+    (export "3" (table $table 1 funcref))
+    (export "4" (global $global i32))
+    (export "5" (module $module))
+    (export "6" (instance $instance))
+  ))
+  (export "1" (func $i "1"))
+  (export "2" (memory $i "2"))
+  (export "3" (table $i "3"))
+  (export "4" (global $i "4"))
+  (export "5" (module $i "5"))
+  (export "6" (instance $i "6"))
+)
 
-;; TODO: reenable with alias sugar
-(; (module ;)
-(;   (import "" (instance $i ;)
-(;     (export "1" (func $func)) ;)
-(;     (export "2" (memory $memory 1)) ;)
-(;     (export "3" (table $table 1 funcref)) ;)
-(;     (export "4" (global $global i32)) ;)
-(;     (export "5" (module $module)) ;)
-(;     (export "6" (instance $instance)) ;)
-(;   )) ;)
+(module
+  (import "" (instance $i
+    (export "1" (func $func))
+    (export "2" (memory $memory 1))
+    (export "3" (table $table 1 funcref))
+    (export "4" (global $global i32))
+    (export "5" (module $module))
+    (export "6" (instance $instance))
+  ))
 
-(;   (module $m ;)
-(;     (import "" (func)) ;)
-(;     (import "" (memory 1)) ;)
-(;     (import "" (global i32)) ;)
-(;     (import "" (table 1 funcref)) ;)
-(;     (import "" (module)) ;)
-(;     (import "" (instance)) ;)
-(;   ) ;)
+  (module $m
+    (import "1" (func))
+    (import "2" (memory 1))
+    (import "3" (global i32))
+    (import "4" (table 1 funcref))
+    (import "5" (module))
+    (import "6" (instance))
+  )
 
-(;   (instance (instantiate $m ;)
-(;     (func $i.$func) ;)
-(;     (memory $i.$memory) ;)
-(;     (global $i.$global) ;)
-(;     (table $i.$table) ;)
-(;     (module $i.$module) ;)
-(;     (instance $i.$instance) ;)
-(;   )) ;)
-(; ) ;)
+  (instance (instantiate $m
+    (arg "1" (func $i "1"))
+    (arg "2" (memory $i "2"))
+    (arg "3" (global $i "4"))
+    (arg "4" (table $i "3"))
+    (arg "5" (module $i "5"))
+    (arg "6" (instance $i "6"))
+  ))
+)
 
-;; TODO: reenable with alias sugar
-(; (module ;)
-(;   (module $m ;)
-(;     (func $f (export "")) ;)
-(;   ) ;)
+(module
+  (module $m
+    (func $f (export ""))
+  )
 
-(;   (instance $i (instantiate $m)) ;)
+  (instance $i (instantiate $m))
 
-(;   (func ;)
-(;     call $i.$f) ;)
-(; ) ;)
+  (func
+    call (func $i ""))
+)
 
 (assert_invalid
   (module
@@ -663,52 +545,38 @@
 (module
   (module $m (memory $m (export "x") 1))
   (instance $i (instantiate $m))
-  ;; TODO: alias sugar
-  (alias $i "x" (memory $i.$m))
-  (func unreachable i32.load $i.$m unreachable)
+  (func unreachable i32.load (memory $i "x") unreachable)
 )
 (module
   (module $m (memory $m (export "x") 1))
   (instance $i (instantiate $m))
-  ;; TODO: alias sugar
-  (alias $i "x" (memory $i.$m))
-  (func unreachable memory.init $data $i.$m)
+  (func unreachable memory.init $data (memory $i "x"))
   (data $data "x")
 )
 (module
   (module $m (memory $m (export "x") 1))
   (instance $i (instantiate $m))
-  ;; TODO: alias sugar
-  (alias $i "x" (memory $i.$m))
-  (func unreachable memory.copy $i.$m $i.$m)
+  (func unreachable memory.copy (memory $i "x") (memory $i "x"))
 )
 (module
   (module $m (memory $m (export "x") 1))
   (instance $i (instantiate $m))
-  ;; TODO: alias sugar
-  (alias $i "x" (memory $i.$m))
-  (func unreachable memory.fill $i.$m)
+  (func unreachable memory.fill (memory $i "x"))
 )
 (module
   (module $m (memory $m (export "x") 1))
   (instance $i (instantiate $m))
-  ;; TODO: alias sugar
-  (alias $i "x" (memory $i.$m))
-  (func unreachable memory.size $i.$m unreachable)
+  (func unreachable memory.size (memory $i "x") unreachable)
 )
 (module
   (module $m (memory $m (export "x") 1))
   (instance $i (instantiate $m))
-  ;; TODO: alias sugar
-  (alias $i "x" (memory $i.$m))
-  (func unreachable memory.grow $i.$m unreachable)
+  (func unreachable memory.grow (memory $i "x") unreachable)
 )
 (module
   (module $m (memory $m (export "x") 1))
   (instance $i (instantiate $m))
-  ;; TODO: alias sugar
-  (alias $i "x" (memory $i.$m))
-  (func unreachable f64.load $i.$m unreachable)
+  (func unreachable f64.load (memory $i "x") unreachable)
 )
 
 (module
@@ -718,9 +586,7 @@
     (instance $a (export "") (instantiate $m))
   )
   (instance $i (instantiate $m))
-  ;; TODO: remove with alias sugar
-  (alias $i "" (instance $i.$a))
-  (alias $i.$a "" (func))
+  (alias (instance $i "") "" (func))
 )
 
 (assert_invalid

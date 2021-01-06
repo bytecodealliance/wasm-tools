@@ -2,12 +2,8 @@
   (type $Wasi (instance))
   (module $B)
   (module $B_wrap
-    ;; TODO: alias sugar
-    (alias parent $Wasi (type $Wasi))
-    (import "wasi" (instance $wasi (type $Wasi)))
-    ;; TODO: alias sugar
-    (alias parent $B (module $B))
-    (instance $b (instantiate $B))
+    (import "wasi" (instance $wasi (type outer 0 $Wasi)))
+    (instance $b (instantiate (module outer 0 $B)))
   )
 )
 (module
@@ -33,16 +29,11 @@
   (module $B_wrap
     (type $Wasi (instance))
     (import "wasi" (instance $wasi (type $Wasi)))
-    ;; TODO: alias sugar
-    (alias parent $B (module $B))
-    (alias parent $A (module $A))
-    (instance $b (instantiate $B
+    (instance $b (instantiate (module outer 0 $B)
       (arg "wasi" (instance $wasi))
-      (arg "A:1.x" (module $A)))
+      (arg "A:1.x" (module outer 0 $A)))
     )
-    ;; TODO: alias sugar
-    (alias $b "b" (func $b))
-    (export "b" (func $b))
+    (export "b" (func $b "b"))
   )
 
   (module $C
@@ -58,16 +49,11 @@
   (module $C_wrap
     (type $Wasi (instance))
     (import "wasi" (instance $wasi (type $Wasi)))
-    ;; TODO: alias sugar
-    (alias parent $C (module $C))
-    (alias parent $B_wrap (module $B_wrap))
-    (instance $c (instantiate $C
+    (instance $c (instantiate (module outer 0 $C)
       (arg "wasi" (instance $wasi))
-      (arg "B:1.x" (module $B_wrap))
+      (arg "B:1.x" (module outer 0 $B_wrap))
     ))
-    ;; TODO: alias sugar
-    (alias $c "c" (func $c))
-    (export "c" (func $c))
+    (export "c" (func $c "c"))
   )
 
   (module $D
@@ -86,7 +72,5 @@
     (arg "C:1.x" (module $C_wrap))
   ))
 
-  ;; TODO: alias sugar
-  (alias $d "d" (func $d))
-  (export "d" (func $d))
+  (export "d" (func $d "d"))
 )

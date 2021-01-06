@@ -495,6 +495,24 @@ impl Encode for Index<'_> {
     }
 }
 
+impl<T> Encode for IndexOrRef<'_, T> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.0.encode(e);
+    }
+}
+
+impl<T> Encode for ItemRef<'_, T> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        match self {
+            ItemRef::Outer { .. } => panic!("should be expanded previously"),
+            ItemRef::Item { idx, exports, .. } => {
+                assert!(exports.is_empty());
+                idx.encode(e);
+            }
+        }
+    }
+}
+
 impl<'a> Encode for TableType<'a> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.elem.encode(e);
@@ -590,7 +608,9 @@ impl Encode for Global<'_> {
 impl Encode for Export<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.name.encode(e);
-        self.kind.encode(e);
+        if let ItemRef::Item { kind, .. } = &self.index {
+            kind.encode(e);
+        }
         self.index.encode(e);
     }
 }
@@ -635,7 +655,11 @@ impl Encode for Elem<'_> {
         match (&self.kind, &to_encode) {
             (
                 ElemKind::Active {
-                    table: Index::Num(0, _),
+                    table:
+                        ItemRef::Item {
+                            idx: Index::Num(0, _),
+                            ..
+                        },
                     offset,
                 },
                 ElemPayload::Indices(_),
@@ -655,7 +679,11 @@ impl Encode for Elem<'_> {
             }
             (
                 ElemKind::Active {
-                    table: Index::Num(0, _),
+                    table:
+                        ItemRef::Item {
+                            idx: Index::Num(0, _),
+                            ..
+                        },
                     offset,
                 },
                 ElemPayload::Exprs {
@@ -692,7 +720,9 @@ impl Encode for Elem<'_> {
 
         to_encode.encode(e);
 
-        fn extract_indices<'a>(indices: &[Option<Index<'a>>]) -> Option<Vec<Index<'a>>> {
+        fn extract_indices<'a>(
+            indices: &[Option<ItemRef<'a, kw::func>>],
+        ) -> Option<Vec<ItemRef<'a, kw::func>>> {
             indices.iter().cloned().collect()
         }
     }
@@ -707,7 +737,7 @@ impl Encode for ElemPayload<'_> {
                 for idx in exprs {
                     match idx {
                         Some(idx) => {
-                            Instruction::RefFunc(*idx).encode(e);
+                            Instruction::RefFunc(IndexOrRef(idx.clone())).encode(e);
                         }
                         None => {
                             Instruction::RefNull(ty.heap).encode(e);
@@ -725,7 +755,11 @@ impl Encode for Data<'_> {
         match &self.kind {
             DataKind::Passive => e.push(0x01),
             DataKind::Active { memory, offset } => {
-                if let Index::Num(0, _) = memory {
+                if let ItemRef::Item {
+                    idx: Index::Num(0, _),
+                    ..
+                } = memory
+                {
                     e.push(0x00);
                 } else {
                     e.push(0x02);
@@ -786,7 +820,11 @@ impl Encode for Expression<'_> {
 impl Encode for BlockType<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         // block types using an index are encoded as an sleb, not a uleb
-        if let Some(Index::Num(n, _)) = &self.ty.index {
+        if let Some(ItemRef::Item {
+            idx: Index::Num(n, _),
+            ..
+        }) = &self.ty.index
+        {
             return i64::from(*n).encode(e);
         }
         let ty = self
@@ -825,17 +863,19 @@ impl Encode for LaneArg {
 
 impl Encode for MemArg<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
-        match self.memory {
-            Index::Num(0, _) => {
+        match &self.memory {
+            ItemRef::Item {
+                idx: Index::Num(0, _),
+                ..
+            } => {
                 self.align.trailing_zeros().encode(e);
                 self.offset.encode(e);
             }
-            Index::Num(n, _) => {
+            n => {
                 (self.align.trailing_zeros() | (1 << 6)).encode(e);
                 self.offset.encode(e);
                 n.encode(e);
             }
-            Index::Id(i) => panic!("unresolved index in emission {:?}", i),
         }
     }
 }
@@ -1169,7 +1209,9 @@ impl Encode for InstanceArg<'_> {
                 e.push(0);
             }
         }
-        self.kind.encode(e);
+        if let ItemRef::Item { kind, .. } = &self.index {
+            kind.encode(e);
+        }
         self.index.encode(e);
     }
 }

@@ -222,7 +222,7 @@ impl<'a> Expander<'a> {
     where
         T: TypeReference<'a>,
     {
-        if let Some(idx) = &item.index {
+        if let Some(ItemRef::Item { idx, .. }) = &item.index {
             return idx.clone();
         }
         let key = match item.inline.as_mut() {
@@ -234,7 +234,11 @@ impl<'a> Expander<'a> {
         };
         let span = Span::from_offset(0); // FIXME: don't manufacture
         let idx = self.key_to_idx(span, key);
-        item.index = Some(idx);
+        item.index = Some(ItemRef::Item {
+            idx,
+            kind: kw::r#type(span),
+            exports: Vec::new(),
+        });
         return idx;
     }
 
@@ -427,11 +431,11 @@ enum Item<'a> {
 impl<'a> Item<'a> {
     fn new(item: &ItemSig<'a>) -> Item<'a> {
         match &item.kind {
-            ItemKind::Func(f) => Item::Func(f.index.expect("should have index")),
-            ItemKind::Instance(f) => Item::Instance(f.index.expect("should have index")),
-            ItemKind::Module(f) => Item::Module(f.index.expect("should have index")),
+            ItemKind::Func(f) => Item::Func(*f.index.as_ref().unwrap().unwrap_index()),
+            ItemKind::Instance(f) => Item::Instance(*f.index.as_ref().unwrap().unwrap_index()),
+            ItemKind::Module(f) => Item::Module(*f.index.as_ref().unwrap().unwrap_index()),
             ItemKind::Event(EventType::Exception(f)) => {
-                Item::Event(f.index.expect("should have index"))
+                Item::Event(*f.index.as_ref().unwrap().unwrap_index())
             }
             ItemKind::Table(t) => Item::Table(t.clone()),
             ItemKind::Memory(t) => Item::Memory(t.clone()),

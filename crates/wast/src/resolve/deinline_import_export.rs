@@ -79,7 +79,7 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                             span: m.span,
                             id: None,
                             kind: DataKind::Active {
-                                memory: Index::Id(id),
+                                memory: item_ref(kw::memory(m.span), id),
                                 offset: Expression {
                                     instrs: Box::new([Instruction::I32Const(0)]),
                                 },
@@ -133,7 +133,7 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                             span: t.span,
                             id: None,
                             kind: ElemKind::Active {
-                                table: Index::Id(id),
+                                table: item_ref(kw::table(t.span), id),
                                 offset: Expression {
                                     instrs: Box::new([Instruction::I32Const(0)]),
                                 },
@@ -257,7 +257,14 @@ fn export<'a>(
     ModuleField::Export(Export {
         span,
         name,
-        kind,
-        index: Index::Id(id),
+        index: item_ref(kind, id),
     })
+}
+
+fn item_ref<'a, K>(kind: K, id: impl Into<Index<'a>>) -> ItemRef<'a, K> {
+    ItemRef::Item {
+        kind,
+        idx: id.into(),
+        exports: Vec::new(),
+    }
 }

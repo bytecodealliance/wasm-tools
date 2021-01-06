@@ -205,7 +205,7 @@ impl<'a> Resolver<'a> {
             ModuleField::Elem(e) => {
                 match &mut e.kind {
                     ElemKind::Active { table, offset } => {
-                        self.resolve(table, Ns::Table)?;
+                        self.resolve_item_ref(table)?;
                         self.resolve_expr(offset)?;
                     }
                     ElemKind::Passive { .. } | ElemKind::Declared { .. } => {}
@@ -213,13 +213,13 @@ impl<'a> Resolver<'a> {
                 match &mut e.payload {
                     ElemPayload::Indices(elems) => {
                         for idx in elems {
-                            self.resolve(idx, Ns::Func)?;
+                            self.resolve_item_ref(idx)?;
                         }
                     }
                     ElemPayload::Exprs { exprs, ty } => {
                         for funcref in exprs {
                             if let Some(idx) = funcref {
-                                self.resolve(idx, Ns::Func)?;
+                                self.resolve_item_ref(idx)?;
                             }
                         }
                         self.resolve_heaptype(&mut ty.heap)?;
@@ -230,20 +230,19 @@ impl<'a> Resolver<'a> {
 
             ModuleField::Data(d) => {
                 if let DataKind::Active { memory, offset } = &mut d.kind {
-                    self.resolve(memory, Ns::Memory)?;
+                    self.resolve_item_ref(memory)?;
                     self.resolve_expr(offset)?;
                 }
                 Ok(())
             }
 
             ModuleField::Start(i) => {
-                self.resolve(i, Ns::Func)?;
+                self.resolve_item_ref(i)?;
                 Ok(())
             }
 
             ModuleField::Export(e) => {
-                let ns = Ns::from_export(&e.kind);
-                self.resolve(&mut e.index, ns)?;
+                self.resolve_item_ref(&mut e.index)?;
                 Ok(())
             }
 
@@ -266,10 +265,9 @@ impl<'a> Resolver<'a> {
 
             ModuleField::Instance(i) => {
                 if let InstanceKind::Inline { module, args } = &mut i.kind {
-                    self.resolve(module, Ns::Module)?;
+                    self.resolve_item_ref(module)?;
                     for arg in args {
-                        let ns = Ns::from_export(&arg.kind);
-                        self.resolve(&mut arg.index, ns)?;
+                        self.resolve_item_ref(&mut arg.index)?;
                     }
                 }
                 Ok(())
@@ -293,7 +291,7 @@ impl<'a> Resolver<'a> {
             ModuleField::Alias(a) => {
                 match &mut a.kind {
                     AliasKind::InstanceExport { instance, .. } => {
-                        self.resolve(instance, Ns::Instance)?;
+                        self.resolve_item_ref(instance)?;
                     }
                     AliasKind::Parent { parent_index, kind } => {
                         let parent = match parent {
@@ -372,7 +370,7 @@ impl<'a> Resolver<'a> {
         T: TypeReference<'a>,
     {
         let idx = ty.index.as_mut().unwrap();
-        self.resolve(idx, Ns::Type)?;
+        let idx = self.resolve_item_ref(idx)?;
 
         // If the type was listed inline *and* it was specified via a type index
         // we need to assert they're the same.
@@ -401,6 +399,32 @@ impl<'a> Resolver<'a> {
             Ns::Module => self.modules.resolve(idx, "module"),
             Ns::Event => self.events.resolve(idx, "event"),
             Ns::Type => self.types.resolve(idx, "type"),
+        }
+    }
+
+    fn resolve_item_ref<'b, K>(&self, item: &'b mut ItemRef<'a, K>) -> Result<&'b Index<'a>, Error>
+    where
+        K: Into<ExportKind> + Copy,
+    {
+        match item {
+            ItemRef::Item { idx, kind, .. } => {
+                self.resolve(
+                    idx,
+                    match (*kind).into() {
+                        ExportKind::Func => Ns::Func,
+                        ExportKind::Table => Ns::Table,
+                        ExportKind::Global => Ns::Global,
+                        ExportKind::Memory => Ns::Memory,
+                        ExportKind::Instance => Ns::Instance,
+                        ExportKind::Module => Ns::Module,
+                        ExportKind::Event => Ns::Event,
+                        ExportKind::Type => Ns::Type,
+                    },
+                )?;
+                Ok(idx)
+            }
+            // should be expanded by now
+            ItemRef::Outer { .. } => unreachable!(),
         }
     }
 }
@@ -571,17 +595,21 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
     fn resolve_instr(&mut self, instr: &mut Instruction<'a>) -> Result<(), Error> {
         use crate::ast::Instruction::*;
 
+        if let Some(m) = instr.memarg_mut() {
+            self.resolver.resolve_item_ref(&mut m.memory)?;
+        }
+
         match instr {
             MemorySize(i) | MemoryGrow(i) | MemoryFill(i) => {
-                self.resolver.resolve(&mut i.mem, Ns::Memory)?;
+                self.resolver.resolve_item_ref(&mut i.mem)?;
             }
             MemoryInit(i) => {
                 self.resolver.datas.resolve(&mut i.data, "data")?;
-                self.resolver.resolve(&mut i.mem, Ns::Memory)?;
+                self.resolver.resolve_item_ref(&mut i.mem)?;
             }
             MemoryCopy(i) => {
-                self.resolver.resolve(&mut i.src, Ns::Memory)?;
-                self.resolver.resolve(&mut i.dst, Ns::Memory)?;
+                self.resolver.resolve_item_ref(&mut i.src)?;
+                self.resolver.resolve_item_ref(&mut i.dst)?;
             }
             DataDrop(i) => {
                 self.resolver.datas.resolve(i, "data")?;
@@ -589,23 +617,23 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
 
             TableInit(i) => {
                 self.resolver.elems.resolve(&mut i.elem, "elem")?;
-                self.resolver.resolve(&mut i.table, Ns::Table)?;
+                self.resolver.resolve_item_ref(&mut i.table)?;
             }
             ElemDrop(i) => {
                 self.resolver.elems.resolve(i, "elem")?;
             }
 
             TableCopy(i) => {
-                self.resolver.resolve(&mut i.dst, Ns::Table)?;
-                self.resolver.resolve(&mut i.src, Ns::Table)?;
+                self.resolver.resolve_item_ref(&mut i.dst)?;
+                self.resolver.resolve_item_ref(&mut i.src)?;
             }
 
             TableFill(i) | TableSet(i) | TableGet(i) | TableSize(i) | TableGrow(i) => {
-                self.resolver.resolve(&mut i.dst, Ns::Table)?;
+                self.resolver.resolve_item_ref(&mut i.dst)?;
             }
 
             GlobalSet(i) | GlobalGet(i) => {
-                self.resolver.resolve(i, Ns::Global)?;
+                self.resolver.resolve_item_ref(&mut i.0)?;
             }
 
             LocalSet(i) | LocalGet(i) | LocalTee(i) => {
@@ -629,11 +657,11 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             }
 
             Call(i) | RefFunc(i) | ReturnCall(i) => {
-                self.resolver.resolve(i, Ns::Func)?;
+                self.resolver.resolve_item_ref(&mut i.0)?;
             }
 
             CallIndirect(c) | ReturnCallIndirect(c) => {
-                self.resolver.resolve(&mut c.table, Ns::Table)?;
+                self.resolver.resolve_item_ref(&mut c.table)?;
                 self.resolver.resolve_type_use(&mut c.ty)?;
             }
 
@@ -772,112 +800,6 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             }
 
             RefNull(ty) => self.resolver.resolve_heaptype(ty)?,
-
-            I32Load(m)
-            | I64Load(m)
-            | F32Load(m)
-            | F64Load(m)
-            | I32Load8s(m)
-            | I32Load8u(m)
-            | I32Load16s(m)
-            | I32Load16u(m)
-            | I64Load8s(m)
-            | I64Load8u(m)
-            | I64Load16s(m)
-            | I64Load16u(m)
-            | I64Load32s(m)
-            | I64Load32u(m)
-            | I32Store(m)
-            | I64Store(m)
-            | F32Store(m)
-            | F64Store(m)
-            | I32Store8(m)
-            | I32Store16(m)
-            | I64Store8(m)
-            | I64Store16(m)
-            | I64Store32(m)
-            | I32AtomicLoad(m)
-            | I64AtomicLoad(m)
-            | I32AtomicLoad8u(m)
-            | I32AtomicLoad16u(m)
-            | I64AtomicLoad8u(m)
-            | I64AtomicLoad16u(m)
-            | I64AtomicLoad32u(m)
-            | I32AtomicStore(m)
-            | I64AtomicStore(m)
-            | I32AtomicStore8(m)
-            | I32AtomicStore16(m)
-            | I64AtomicStore8(m)
-            | I64AtomicStore16(m)
-            | I64AtomicStore32(m)
-            | I32AtomicRmwAdd(m)
-            | I64AtomicRmwAdd(m)
-            | I32AtomicRmw8AddU(m)
-            | I32AtomicRmw16AddU(m)
-            | I64AtomicRmw8AddU(m)
-            | I64AtomicRmw16AddU(m)
-            | I64AtomicRmw32AddU(m)
-            | I32AtomicRmwSub(m)
-            | I64AtomicRmwSub(m)
-            | I32AtomicRmw8SubU(m)
-            | I32AtomicRmw16SubU(m)
-            | I64AtomicRmw8SubU(m)
-            | I64AtomicRmw16SubU(m)
-            | I64AtomicRmw32SubU(m)
-            | I32AtomicRmwAnd(m)
-            | I64AtomicRmwAnd(m)
-            | I32AtomicRmw8AndU(m)
-            | I32AtomicRmw16AndU(m)
-            | I64AtomicRmw8AndU(m)
-            | I64AtomicRmw16AndU(m)
-            | I64AtomicRmw32AndU(m)
-            | I32AtomicRmwOr(m)
-            | I64AtomicRmwOr(m)
-            | I32AtomicRmw8OrU(m)
-            | I32AtomicRmw16OrU(m)
-            | I64AtomicRmw8OrU(m)
-            | I64AtomicRmw16OrU(m)
-            | I64AtomicRmw32OrU(m)
-            | I32AtomicRmwXor(m)
-            | I64AtomicRmwXor(m)
-            | I32AtomicRmw8XorU(m)
-            | I32AtomicRmw16XorU(m)
-            | I64AtomicRmw8XorU(m)
-            | I64AtomicRmw16XorU(m)
-            | I64AtomicRmw32XorU(m)
-            | I32AtomicRmwXchg(m)
-            | I64AtomicRmwXchg(m)
-            | I32AtomicRmw8XchgU(m)
-            | I32AtomicRmw16XchgU(m)
-            | I64AtomicRmw8XchgU(m)
-            | I64AtomicRmw16XchgU(m)
-            | I64AtomicRmw32XchgU(m)
-            | I32AtomicRmwCmpxchg(m)
-            | I64AtomicRmwCmpxchg(m)
-            | I32AtomicRmw8CmpxchgU(m)
-            | I32AtomicRmw16CmpxchgU(m)
-            | I64AtomicRmw8CmpxchgU(m)
-            | I64AtomicRmw16CmpxchgU(m)
-            | I64AtomicRmw32CmpxchgU(m)
-            | V128Load(m)
-            | V128Load8x8S(m)
-            | V128Load8x8U(m)
-            | V128Load16x4S(m)
-            | V128Load16x4U(m)
-            | V128Load32x2S(m)
-            | V128Load32x2U(m)
-            | V128Load8Splat(m)
-            | V128Load16Splat(m)
-            | V128Load32Splat(m)
-            | V128Load64Splat(m)
-            | V128Load32Zero(m)
-            | V128Load64Zero(m)
-            | V128Store(m)
-            | MemoryAtomicNotify(m)
-            | MemoryAtomicWait32(m)
-            | MemoryAtomicWait64(m) => {
-                self.resolver.resolve(&mut m.memory, Ns::Memory)?;
-            }
 
             _ => {}
         }
