@@ -989,6 +989,13 @@ where
         if !imports.is_empty() || u.arbitrary()? {
             self.initial_sections.push(InitialSection::Import(imports));
         }
+
+        // After an import section we can no longer update previously-defined
+        // pseudo-instance imports, so set them all to `None` indicating that
+        // the bare name is imported and finalized.
+        for val in self.import_names.values_mut() {
+            *val = None;
+        }
         Ok(())
     }
 

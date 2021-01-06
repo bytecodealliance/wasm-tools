@@ -762,7 +762,13 @@ impl Validator {
     /// Validates [`Payload::ImportSection`](crate::Payload)
     pub fn import_section(&mut self, section: &crate::ImportSectionReader<'_>) -> Result<()> {
         let order = self.header_order(Order::Import);
-        self.section(order, section, |me, item| me.import(item))
+        self.section(order, section, |me, item| me.import(item))?;
+
+        // Clear the list of implicit imports after the import section is
+        // finished since later import sections cannot append further to the
+        // pseudo-instances defined in this import section.
+        self.cur.state.assert_mut().imports.implicit.drain();
+        Ok(())
     }
 
     fn import(&mut self, entry: Import<'_>) -> Result<()> {

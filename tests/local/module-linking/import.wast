@@ -47,3 +47,10 @@
     (import "" "a" (func))
   )
   "duplicate import name `::a`")
+(assert_invalid
+  (module
+    (import "" "" (func))
+    (module (func))
+    (import "" "a" (func))
+  )
+  "cannot define the import `` twice")
