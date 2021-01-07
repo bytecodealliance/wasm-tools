@@ -120,12 +120,7 @@ where
             section.instantiate(
                 instance.module,
                 instance.args.iter().map(|(name, field, kind, idx)| {
-                    (
-                        name.as_str(),
-                        field.as_deref(),
-                        translate_item_kind(kind),
-                        *idx,
-                    )
+                    (name.as_str(), field.as_deref(), translate_export(kind, idx))
                 }),
             );
         }
@@ -192,7 +187,7 @@ where
         }
         let mut exports = wasm_encoder::ExportSection::new();
         for (name, kind, index) in &self.exports {
-            exports.export(name, translate_item_kind(kind), *index);
+            exports.export(name, translate_export(kind, index));
         }
         module.section(&exports);
     }
@@ -376,6 +371,17 @@ fn translate_item_kind(kind: &ItemKind) -> wasm_encoder::ItemKind {
         ItemKind::Global => wasm_encoder::ItemKind::Global,
         ItemKind::Instance => wasm_encoder::ItemKind::Instance,
         ItemKind::Module => wasm_encoder::ItemKind::Module,
+    }
+}
+
+fn translate_export(kind: &ItemKind, idx: &u32) -> wasm_encoder::Export {
+    match kind {
+        ItemKind::Func => wasm_encoder::Export::Function(*idx),
+        ItemKind::Table => wasm_encoder::Export::Table(*idx),
+        ItemKind::Memory => wasm_encoder::Export::Memory(*idx),
+        ItemKind::Global => wasm_encoder::Export::Global(*idx),
+        ItemKind::Instance => wasm_encoder::Export::Instance(*idx),
+        ItemKind::Module => wasm_encoder::Export::Module(*idx),
     }
 }
 

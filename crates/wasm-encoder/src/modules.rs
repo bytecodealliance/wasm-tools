@@ -1,6 +1,6 @@
 use super::*;
 
-/// An encoder for the module code section.
+/// An encoder for the module section.
 ///
 /// Note that this is part of the [module linking proposal][proposal] and is
 /// not currently part of stable WebAssembly.

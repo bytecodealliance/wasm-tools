@@ -6,7 +6,7 @@ use super::*;
 ///
 /// ```
 /// use wasm_encoder::{
-///     ItemKind, ExportSection, TableSection, TableType, Limits, Module, ValType,
+///     Export, ExportSection, TableSection, TableType, Limits, Module, ValType,
 /// };
 ///
 /// let mut tables = TableSection::new();
@@ -19,7 +19,7 @@ use super::*;
 /// });
 ///
 /// let mut exports = ExportSection::new();
-/// exports.export("my-table", ItemKind::Table, 0);
+/// exports.export("my-table", Export::Table(0));
 ///
 /// let mut module = Module::new();
 /// module
@@ -43,10 +43,9 @@ impl ExportSection {
     }
 
     /// Define an export.
-    pub fn export(&mut self, name: &str, kind: ItemKind, index: u32) -> &mut Self {
+    pub fn export(&mut self, name: &str, export: Export) -> &mut Self {
         self.bytes.extend(encoders::str(name));
-        self.bytes.push(kind as u8);
-        self.bytes.extend(encoders::u32(index));
+        export.encode(&mut self.bytes);
         self.num_added += 1;
         self
     }
@@ -68,6 +67,64 @@ impl Section for ExportSection {
                 .chain(num_added)
                 .chain(self.bytes.iter().copied()),
         );
+    }
+}
+
+/// A WebAssembly export.
+pub enum Export {
+    /// An export of the `n`th function.
+    Function(u32),
+    /// An export of the `n`th table.
+    Table(u32),
+    /// An export of the `n`th memory.
+    Memory(u32),
+    /// An export of the `n`th global.
+    Global(u32),
+    /// An export of the `n`th instance.
+    ///
+    /// Note that this is part of the [module linking proposal][proposal] and is
+    /// not currently part of stable WebAssembly.
+    ///
+    /// [proposal]: https://github.com/webassembly/module-linking
+    Instance(u32),
+    /// An export of the `n`th module.
+    ///
+    /// Note that this is part of the [module linking proposal][proposal] and is
+    /// not currently part of stable WebAssembly.
+    ///
+    /// [proposal]: https://github.com/webassembly/module-linking
+    Module(u32),
+}
+
+impl Export {
+    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
+        let idx = match *self {
+            Export::Function(x) => {
+                bytes.push(ItemKind::Function as u8);
+                x
+            }
+            Export::Table(x) => {
+                bytes.push(ItemKind::Table as u8);
+                x
+            }
+            Export::Memory(x) => {
+                bytes.push(ItemKind::Memory as u8);
+                x
+            }
+            Export::Global(x) => {
+                bytes.push(ItemKind::Global as u8);
+                x
+            }
+            Export::Instance(x) => {
+                bytes.push(ItemKind::Instance as u8);
+                x
+            }
+            Export::Module(x) => {
+                bytes.push(ItemKind::Module as u8);
+                x
+            }
+        };
+        bytes.extend(encoders::u32(idx));
     }
 }
 

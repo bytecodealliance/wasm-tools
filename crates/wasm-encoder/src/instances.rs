@@ -10,13 +10,13 @@ use super::*;
 /// # Example
 ///
 /// ```
-/// use wasm_encoder::{Module, InstanceSection, ItemKind};
+/// use wasm_encoder::{Module, InstanceSection, Export};
 ///
 /// let mut instances = InstanceSection::new();
 /// instances.instantiate(0, vec![
-///     ("x", None, ItemKind::Function, 0),
-///     ("", Some("y"), ItemKind::Module, 2),
-///     ("foo", None, ItemKind::Global, 0),
+///     ("x", None, Export::Function(0)),
+///     ("", Some("y"), Export::Module(2)),
+///     ("foo", None, Export::Global(0)),
 /// ]);
 ///
 /// let mut module = Module::new();
@@ -42,7 +42,7 @@ impl InstanceSection {
     /// arguments to the instantiation.
     pub fn instantiate<'a, I>(&mut self, module: u32, args: I) -> &mut Self
     where
-        I: IntoIterator<Item = (&'a str, Option<&'a str>, ItemKind, u32)>,
+        I: IntoIterator<Item = (&'a str, Option<&'a str>, Export)>,
         I::IntoIter: ExactSizeIterator,
     {
         let args = args.into_iter();
@@ -51,7 +51,7 @@ impl InstanceSection {
         self.bytes.extend(encoders::u32(module));
         self.bytes
             .extend(encoders::u32(u32::try_from(args.len()).unwrap()));
-        for (name, field, kind, index) in args {
+        for (name, field, export) in args {
             self.bytes.extend(encoders::str(name));
             match field {
                 Some(field) => {
@@ -62,8 +62,7 @@ impl InstanceSection {
                     self.bytes.push(0x00);
                 }
             }
-            self.bytes.push(kind as u8);
-            self.bytes.extend(encoders::u32(index));
+            export.encode(&mut self.bytes);
         }
         self.num_added += 1;
         self
