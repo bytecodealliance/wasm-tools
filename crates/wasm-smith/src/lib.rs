@@ -184,7 +184,7 @@ where
     /// entry is the type of the module.
     modules: Vec<Rc<ModuleType>>,
 
-    exports: Vec<(String, ItemKind, u32)>,
+    exports: Vec<(String, Export)>,
     start: Option<u32>,
     elems: Vec<ElementSegment>,
     code: Vec<Code>,
@@ -341,7 +341,7 @@ enum Alias {
 #[derive(Clone, Debug)]
 struct Instance {
     module: u32,
-    args: Vec<(String, Option<String>, ItemKind, u32)>,
+    args: Vec<(String, Option<String>, Export)>,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -352,6 +352,16 @@ enum ItemKind {
     Global,
     Instance,
     Module,
+}
+
+#[derive(Copy, Clone, Debug)]
+enum Export {
+    Func(u32),
+    Table(u32),
+    Memory(u32),
+    Global(u32),
+    Instance(u32),
+    Module(u32),
 }
 
 #[derive(Debug)]
@@ -1097,7 +1107,7 @@ where
                         .iter()
                         .map(|(name, field, candidates)| {
                             u.choose(candidates)
-                                .map(|(k, i)| (name.clone(), field.clone(), *k, *i))
+                                .map(|e| (name.clone(), field.clone(), e.clone()))
                         })
                         .collect::<Result<Vec<_>>>()?,
                 });
@@ -1137,8 +1147,8 @@ where
                 imports.push((module.clone(), name.clone(), ty.clone()));
             }
             let mut exports = indexmap::IndexMap::with_capacity(module.exports.len());
-            for (name, kind, idx) in module.exports.iter() {
-                let ty = module.type_of(*kind, *idx);
+            for (name, export) in module.exports.iter() {
+                let ty = module.type_of(export);
                 exports.insert(name.clone(), ty);
             }
             let ty = Rc::new(ModuleType {
@@ -1160,19 +1170,19 @@ where
         Ok(())
     }
 
-    fn type_of(&self, kind: ItemKind, idx: u32) -> EntityType {
-        match kind {
-            ItemKind::Global => EntityType::Global(self.globals[idx as usize].clone()),
-            ItemKind::Memory => EntityType::Memory(self.memories[idx as usize].clone()),
-            ItemKind::Table => EntityType::Table(self.tables[idx as usize].clone()),
-            ItemKind::Func => {
+    fn type_of(&self, item: &Export) -> EntityType {
+        match *item {
+            Export::Global(idx) => EntityType::Global(self.globals[idx as usize].clone()),
+            Export::Memory(idx) => EntityType::Memory(self.memories[idx as usize].clone()),
+            Export::Table(idx) => EntityType::Table(self.tables[idx as usize].clone()),
+            Export::Func(idx) => {
                 let (_idx, ty) = &self.funcs[idx as usize];
                 EntityType::Func(u32::max_value(), ty.clone())
             }
-            ItemKind::Module => {
+            Export::Module(idx) => {
                 EntityType::Module(u32::max_value(), self.modules[idx as usize].clone())
             }
-            ItemKind::Instance => {
+            Export::Instance(idx) => {
                 EntityType::Instance(u32::max_value(), self.instances[idx as usize].clone())
             }
         }
@@ -1361,28 +1371,28 @@ where
         if self.funcs.len() > 0 {
             choices.push(|u, m| {
                 let idx = u.int_in_range(0..=m.funcs.len() - 1)?;
-                Ok((ItemKind::Func, idx as u32))
+                Ok(Export::Func(idx as u32))
             });
         }
 
         if self.tables.len() > 0 {
             choices.push(|u, m| {
                 let idx = u.int_in_range(0..=m.tables.len() - 1)?;
-                Ok((ItemKind::Table, idx as u32))
+                Ok(Export::Table(idx as u32))
             });
         }
 
         if self.memories.len() > 0 {
             choices.push(|u, m| {
                 let idx = u.int_in_range(0..=m.memories.len() - 1)?;
-                Ok((ItemKind::Memory, idx as u32))
+                Ok(Export::Memory(idx as u32))
             });
         }
 
         if self.globals.len() > 0 {
             choices.push(|u, m| {
                 let idx = u.int_in_range(0..=m.globals.len() - 1)?;
-                Ok((ItemKind::Global, idx as u32))
+                Ok(Export::Global(idx as u32))
             });
         }
 
@@ -1398,8 +1408,8 @@ where
             |u| {
                 let name = unique_string(1_000, &mut export_names, u)?;
                 let f = u.choose(&choices)?;
-                let (kind, idx) = f(u, self)?;
-                self.exports.push((name, kind, idx));
+                let export = f(u, self)?;
+                self.exports.push((name, export));
                 Ok(true)
             },
         )
@@ -1645,48 +1655,48 @@ where
     /// The module's imported type is provided with `expected` and this function
     /// will walk over all up-to-this-point defined items in the module and
     /// return if any are candidates for supplying to that requested import.
-    fn subtypes(&self, expected: &EntityType) -> Vec<(ItemKind, u32)> {
+    fn subtypes(&self, expected: &EntityType) -> Vec<Export> {
         let mut ret = Vec::new();
         match expected {
             EntityType::Global(expected) => {
                 for (i, actual) in self.globals.iter().enumerate() {
                     if self.is_subtype_global(actual, expected) {
-                        ret.push((ItemKind::Global, i as u32));
+                        ret.push(Export::Global(i as u32));
                     }
                 }
             }
             EntityType::Memory(expected) => {
                 for (i, actual) in self.memories.iter().enumerate() {
                     if self.is_subtype_memory(actual, expected) {
-                        ret.push((ItemKind::Memory, i as u32));
+                        ret.push(Export::Memory(i as u32));
                     }
                 }
             }
             EntityType::Table(expected) => {
                 for (i, actual) in self.tables.iter().enumerate() {
                     if self.is_subtype_table(actual, expected) {
-                        ret.push((ItemKind::Table, i as u32));
+                        ret.push(Export::Table(i as u32));
                     }
                 }
             }
             EntityType::Func(_, expected) => {
                 for (i, (_, actual)) in self.funcs.iter().enumerate() {
                     if self.is_subtype_func(actual, expected) {
-                        ret.push((ItemKind::Func, i as u32));
+                        ret.push(Export::Func(i as u32));
                     }
                 }
             }
             EntityType::Instance(_, expected) => {
                 for (i, actual) in self.instances.iter().enumerate() {
                     if self.is_subtype_instance(actual, expected) {
-                        ret.push((ItemKind::Instance, i as u32));
+                        ret.push(Export::Instance(i as u32));
                     }
                 }
             }
             EntityType::Module(_, expected) => {
                 for (i, actual) in self.modules.iter().enumerate() {
                     if self.is_subtype_module(actual, expected) {
-                        ret.push((ItemKind::Module, i as u32));
+                        ret.push(Export::Module(i as u32));
                     }
                 }
             }
@@ -2037,7 +2047,7 @@ struct Instantiation {
     ///   (global $g2 (mut i32) (i32.const 42))
     /// )
     /// ```
-    args: Vec<(String, Option<String>, Vec<(ItemKind, u32)>)>,
+    args: Vec<(String, Option<String>, Vec<Export>)>,
 }
 
 impl AvailableInstantiations {

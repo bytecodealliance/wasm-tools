@@ -119,8 +119,8 @@ where
         for instance in list {
             section.instantiate(
                 instance.module,
-                instance.args.iter().map(|(name, field, kind, idx)| {
-                    (name.as_str(), field.as_deref(), translate_export(kind, idx))
+                instance.args.iter().map(|(name, field, export)| {
+                    (name.as_str(), field.as_deref(), translate_export(export))
                 }),
             );
         }
@@ -186,8 +186,8 @@ where
             return;
         }
         let mut exports = wasm_encoder::ExportSection::new();
-        for (name, kind, index) in &self.exports {
-            exports.export(name, translate_export(kind, index));
+        for (name, export) in &self.exports {
+            exports.export(name, translate_export(export));
         }
         module.section(&exports);
     }
@@ -374,14 +374,14 @@ fn translate_item_kind(kind: &ItemKind) -> wasm_encoder::ItemKind {
     }
 }
 
-fn translate_export(kind: &ItemKind, idx: &u32) -> wasm_encoder::Export {
-    match kind {
-        ItemKind::Func => wasm_encoder::Export::Function(*idx),
-        ItemKind::Table => wasm_encoder::Export::Table(*idx),
-        ItemKind::Memory => wasm_encoder::Export::Memory(*idx),
-        ItemKind::Global => wasm_encoder::Export::Global(*idx),
-        ItemKind::Instance => wasm_encoder::Export::Instance(*idx),
-        ItemKind::Module => wasm_encoder::Export::Module(*idx),
+fn translate_export(export: &Export) -> wasm_encoder::Export {
+    match export {
+        Export::Func(idx) => wasm_encoder::Export::Function(*idx),
+        Export::Table(idx) => wasm_encoder::Export::Table(*idx),
+        Export::Memory(idx) => wasm_encoder::Export::Memory(*idx),
+        Export::Global(idx) => wasm_encoder::Export::Global(*idx),
+        Export::Instance(idx) => wasm_encoder::Export::Instance(*idx),
+        Export::Module(idx) => wasm_encoder::Export::Module(*idx),
     }
 }
 
