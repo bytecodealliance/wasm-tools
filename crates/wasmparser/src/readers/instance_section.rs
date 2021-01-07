@@ -30,8 +30,9 @@ impl<'a> InstanceSectionReader<'a> {
             self.original_position(),
         )?;
 
-        // TODO: should probably figure out a different API for wasmparser such
-        // that we don't have to read instances to skip them here.
+        // FIXME(#188): should probably figure out a different API for
+        // wasmparser such that we don't have to read instances to skip them
+        // here.
         let mut args = instance.args()?;
         for _ in 0..args.get_count() {
             args.read()?;
