@@ -10,11 +10,11 @@ use super::*;
 /// # Example
 ///
 /// ```
-/// use wasm_encoder::{Module, AliasSection, Export};
+/// use wasm_encoder::{Module, AliasSection, ItemKind};
 ///
 /// let mut aliases = AliasSection::new();
 /// aliases.parent_type(2);
-/// aliases.instance_export(0, Export::Function(1));
+/// aliases.instance_export(0, ItemKind::Function, "foo");
 ///
 /// let mut module = Module::new();
 /// module.section(&aliases);
@@ -36,10 +36,16 @@ impl AliasSection {
     }
 
     /// Define an alias that references the export of a defined instance.
-    pub fn instance_export(&mut self, instance: u32, export: crate::Export) -> &mut Self {
+    pub fn instance_export(
+        &mut self,
+        instance: u32,
+        kind: crate::ItemKind,
+        name: &str,
+    ) -> &mut Self {
         self.bytes.push(0x00);
         self.bytes.extend(encoders::u32(instance));
-        export.encode(&mut self.bytes);
+        self.bytes.push(kind as u8);
+        self.bytes.extend(encoders::str(name));
         self.num_added += 1;
         self
     }
@@ -56,7 +62,7 @@ impl AliasSection {
     /// Define an alias that references a parent's module.
     pub fn parent_module(&mut self, module: u32) -> &mut Self {
         self.bytes.push(0x01);
-        self.bytes.push(0x05);
+        self.bytes.push(ItemKind::Module as u8);
         self.bytes.extend(encoders::u32(module));
         self.num_added += 1;
         self

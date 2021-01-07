@@ -1,11 +1,11 @@
 (module
-  (import "" (func))
-  (import "" (instance))
+  (import "a" (func))
+  (import "b" (instance))
 
-  (import "" (instance
+  (import "c" (instance
     (export "" (func))
   ))
-  (import "" (module
+  (import "d" (module
     (import "" (module))
     (export "" (func))
   ))
@@ -29,3 +29,28 @@
     (import "" (func (type 0)))
   )
   "type index is not a function")
+(assert_invalid
+  (module
+    (import "" (func))
+    (import "" (func))
+  )
+  "duplicate import name ``")
+(assert_invalid
+  (module
+    (import "" (func))
+    (import "" "" (func))
+  )
+  "cannot define the import `` twice")
+(assert_invalid
+  (module
+    (import "" "a" (func))
+    (import "" "a" (func))
+  )
+  "duplicate import name `::a`")
+(assert_invalid
+  (module
+    (import "" "" (func))
+    (module (func))
+    (import "" "a" (func))
+  )
+  "cannot define the import `` twice")

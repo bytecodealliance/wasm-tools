@@ -4,7 +4,7 @@
 //! Use `BLESS=1` in the environment to auto-update `*.err` files. Be sure to
 //! look at the diff!
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use rayon::prelude::*;
 use std::env;
 use std::path::{Path, PathBuf};
@@ -50,7 +50,8 @@ fn main() {
 fn run_test(test: &Path, bless: bool) -> Result<()> {
     let wasm = wat::parse_file(test)?;
     let assert = test.with_extension("wat.dump");
-    let dump = wasmparser_dump::dump_wasm(&wasm)?;
+    let dump =
+        wasmparser_dump::dump_wasm(&wasm).with_context(|| format!("failed to dump {:?}", test))?;
     if bless {
         std::fs::write(assert, &dump)?;
         return Ok(());

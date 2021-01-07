@@ -98,31 +98,44 @@ pub enum Export {
 
 impl Export {
     pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
-        match *self {
+        let idx = match *self {
             Export::Function(x) => {
-                bytes.push(0x00);
-                bytes.extend(encoders::u32(x));
+                bytes.push(ItemKind::Function as u8);
+                x
             }
             Export::Table(x) => {
-                bytes.push(0x01);
-                bytes.extend(encoders::u32(x));
+                bytes.push(ItemKind::Table as u8);
+                x
             }
             Export::Memory(x) => {
-                bytes.push(0x02);
-                bytes.extend(encoders::u32(x));
+                bytes.push(ItemKind::Memory as u8);
+                x
             }
             Export::Global(x) => {
-                bytes.push(0x03);
-                bytes.extend(encoders::u32(x));
-            }
-            Export::Module(x) => {
-                bytes.push(0x05);
-                bytes.extend(encoders::u32(x));
+                bytes.push(ItemKind::Global as u8);
+                x
             }
             Export::Instance(x) => {
-                bytes.push(0x06);
-                bytes.extend(encoders::u32(x));
+                bytes.push(ItemKind::Instance as u8);
+                x
             }
-        }
+            Export::Module(x) => {
+                bytes.push(ItemKind::Module as u8);
+                x
+            }
+        };
+        bytes.extend(encoders::u32(idx));
     }
+}
+
+/// Kinds of WebAssembly items
+#[allow(missing_docs)]
+#[repr(u8)]
+pub enum ItemKind {
+    Function = 0x00,
+    Table = 0x01,
+    Memory = 0x02,
+    Global = 0x03,
+    Module = 0x05,
+    Instance = 0x06,
 }

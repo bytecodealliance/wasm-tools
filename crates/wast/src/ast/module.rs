@@ -166,7 +166,6 @@ pub enum ModuleField<'a> {
     Memory(ast::Memory<'a>),
     Global(ast::Global<'a>),
     Export(ast::Export<'a>),
-    ExportAll(ast::Span, ast::Id<'a>),
     Start(ast::Index<'a>),
     Elem(ast::Elem<'a>),
     Data(ast::Data<'a>),
@@ -208,10 +207,6 @@ impl<'a> Parse<'a> for ModuleField<'a> {
             return Ok(ModuleField::Global(parser.parse()?));
         }
         if parser.peek::<kw::export>() {
-            if parser.peek2::<ast::Id>() {
-                let span = parser.parse::<kw::export>()?.0;
-                return Ok(ModuleField::ExportAll(span, parser.parse()?));
-            }
             return Ok(ModuleField::Export(parser.parse()?));
         }
         if parser.peek::<kw::start>() {

@@ -10,12 +10,7 @@ pub fn run(fields: &mut Vec<ModuleField>) {
         match item {
             ModuleField::Func(f) => {
                 for name in f.exports.names.drain(..) {
-                    let id = gensym::fill(f.span, &mut f.id);
-                    to_append.push(ModuleField::Export(Export {
-                        span: f.span,
-                        name,
-                        kind: ExportKind::Func(Index::Id(id)),
-                    }));
+                    to_append.push(export(f.span, name, ExportKind::Func, &mut f.id));
                 }
                 match f.kind {
                     FuncKind::Import(import) => {
@@ -37,12 +32,7 @@ pub fn run(fields: &mut Vec<ModuleField>) {
 
             ModuleField::Memory(m) => {
                 for name in m.exports.names.drain(..) {
-                    let id = gensym::fill(m.span, &mut m.id);
-                    to_append.push(ModuleField::Export(Export {
-                        span: m.span,
-                        name,
-                        kind: ExportKind::Memory(Index::Id(id)),
-                    }));
+                    to_append.push(export(m.span, name, ExportKind::Memory, &mut m.id));
                 }
                 match m.kind {
                     MemoryKind::Import { import, ty } => {
@@ -104,12 +94,7 @@ pub fn run(fields: &mut Vec<ModuleField>) {
 
             ModuleField::Table(t) => {
                 for name in t.exports.names.drain(..) {
-                    let id = gensym::fill(t.span, &mut t.id);
-                    to_append.push(ModuleField::Export(Export {
-                        span: t.span,
-                        name,
-                        kind: ExportKind::Table(Index::Id(id)),
-                    }));
+                    to_append.push(export(t.span, name, ExportKind::Table, &mut t.id));
                 }
                 match &mut t.kind {
                     TableKind::Import { import, ty } => {
@@ -163,12 +148,7 @@ pub fn run(fields: &mut Vec<ModuleField>) {
 
             ModuleField::Global(g) => {
                 for name in g.exports.names.drain(..) {
-                    let id = gensym::fill(g.span, &mut g.id);
-                    to_append.push(ModuleField::Export(Export {
-                        span: g.span,
-                        name,
-                        kind: ExportKind::Global(Index::Id(id)),
-                    }));
+                    to_append.push(export(g.span, name, ExportKind::Global, &mut g.id));
                 }
                 match g.kind {
                     GlobalKind::Import(import) => {
@@ -190,23 +170,13 @@ pub fn run(fields: &mut Vec<ModuleField>) {
 
             ModuleField::Event(e) => {
                 for name in e.exports.names.drain(..) {
-                    let id = gensym::fill(e.span, &mut e.id);
-                    to_append.push(ModuleField::Export(Export {
-                        span: e.span,
-                        name,
-                        kind: ExportKind::Event(Index::Id(id)),
-                    }));
+                    to_append.push(export(e.span, name, ExportKind::Event, &mut e.id));
                 }
             }
 
             ModuleField::Instance(i) => {
                 for name in i.exports.names.drain(..) {
-                    let id = gensym::fill(i.span, &mut i.id);
-                    to_append.push(ModuleField::Export(Export {
-                        span: i.span,
-                        name,
-                        kind: ExportKind::Instance(Index::Id(id)),
-                    }));
+                    to_append.push(export(i.span, name, ExportKind::Instance, &mut i.id));
                 }
                 match &mut i.kind {
                     InstanceKind::Import { import, ty } => {
@@ -231,12 +201,7 @@ pub fn run(fields: &mut Vec<ModuleField>) {
 
             ModuleField::NestedModule(m) => {
                 for name in m.exports.names.drain(..) {
-                    let id = gensym::fill(m.span, &mut m.id);
-                    to_append.push(ModuleField::Export(Export {
-                        span: m.span,
-                        name,
-                        kind: ExportKind::Module(Index::Id(id)),
-                    }));
+                    to_append.push(export(m.span, name, ExportKind::Module, &mut m.id));
                 }
                 match &mut m.kind {
                     NestedModuleKind::Import { import, ty } => {
@@ -261,8 +226,7 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                 };
             }
 
-            ModuleField::ExportAll(..)
-            | ModuleField::Import(_)
+            ModuleField::Import(_)
             | ModuleField::Type(_)
             | ModuleField::Export(_)
             | ModuleField::Alias(_)
@@ -281,4 +245,19 @@ pub fn run(fields: &mut Vec<ModuleField>) {
     fn page_size() -> u32 {
         1 << 16
     }
+}
+
+fn export<'a>(
+    span: Span,
+    name: &'a str,
+    kind: ExportKind,
+    id: &mut Option<Id<'a>>,
+) -> ModuleField<'a> {
+    let id = gensym::fill(span, id);
+    ModuleField::Export(Export {
+        span,
+        name,
+        kind,
+        index: Index::Id(id),
+    })
 }

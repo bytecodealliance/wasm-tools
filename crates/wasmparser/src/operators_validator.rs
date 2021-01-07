@@ -23,9 +23,7 @@
 // the various methods here.
 
 use crate::limits::MAX_WASM_FUNCTION_LOCALS;
-use crate::primitives::{
-    EventType, MemoryImmediate, Operator, SIMDLaneIndex, Type, TypeOrFuncType,
-};
+use crate::primitives::{MemoryImmediate, Operator, SIMDLaneIndex, Type, TypeOrFuncType};
 use crate::{BinaryReaderError, Result, WasmFeatures, WasmFuncType, WasmModuleResources};
 
 /// A wrapper around a `BinaryReaderError` where the inner error's offset is a
@@ -621,8 +619,7 @@ impl OperatorValidator {
                     unreachable: false,
                 });
                 // Push exception argument types.
-                let event_ty = event_at(&resources, index)?;
-                let ty = func_type_at(&resources, event_ty.type_index)?;
+                let ty = event_at(&resources, index)?;
                 for ty in ty.inputs() {
                     self.push_operand(ty)?;
                 }
@@ -630,8 +627,7 @@ impl OperatorValidator {
             Operator::Throw { index } => {
                 self.check_exceptions_enabled()?;
                 // Check values associated with the exception.
-                let event_ty = event_at(&resources, index)?;
-                let ty = func_type_at(&resources, event_ty.type_index)?;
+                let ty = event_at(&resources, index)?;
                 for ty in ty.inputs().rev() {
                     self.pop_operand(Some(ty))?;
                 }
@@ -1893,7 +1889,10 @@ fn func_type_at<T: WasmModuleResources>(
         .ok_or_else(|| OperatorValidatorError::new("unknown type: type index out of bounds"))
 }
 
-fn event_at<T: WasmModuleResources>(resources: &T, at: u32) -> OperatorValidatorResult<EventType> {
+fn event_at<T: WasmModuleResources>(
+    resources: &T,
+    at: u32,
+) -> OperatorValidatorResult<&T::FuncType> {
     resources
         .event_at(at)
         .ok_or_else(|| OperatorValidatorError::new("unknown event: event index out of bounds"))

@@ -614,8 +614,6 @@ pub struct ModuleType<'a> {
     pub imports: Vec<ast::Import<'a>>,
     /// The exports that this module type is expected to have.
     pub exports: Vec<ExportType<'a>>,
-    /// Instances within this module which are entirely exported.
-    pub instance_exports: Vec<(ast::Span, ast::Id<'a>)>,
 }
 
 impl<'a> Parse<'a> for ModuleType<'a> {
@@ -625,23 +623,13 @@ impl<'a> Parse<'a> for ModuleType<'a> {
             imports.push(parser.parens(|p| p.parse())?);
         }
         let mut exports = Vec::new();
-        let mut instance_exports = Vec::new();
         while parser.peek2::<kw::export>() {
             parser.parens(|p| {
-                if p.peek2::<ast::Index>() {
-                    let span = p.parse::<kw::export>()?.0;
-                    instance_exports.push((span, p.parse()?));
-                } else {
-                    exports.push(p.parse()?);
-                }
+                exports.push(p.parse()?);
                 Ok(())
             })?;
         }
-        Ok(ModuleType {
-            imports,
-            exports,
-            instance_exports,
-        })
+        Ok(ModuleType { imports, exports })
     }
 }
 

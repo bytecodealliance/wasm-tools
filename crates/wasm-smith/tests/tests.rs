@@ -1,6 +1,6 @@
 use arbitrary::{Arbitrary, Unstructured};
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
-use wasm_smith::{ConfiguredModule, Module, SwarmConfig};
+use wasm_smith::{Config, ConfiguredModule, Module, SwarmConfig};
 use wasmparser::{Validator, WasmFeatures};
 
 fn wasm_features() -> WasmFeatures {
@@ -9,7 +9,6 @@ fn wasm_features() -> WasmFeatures {
         multi_memory: true,
         bulk_memory: true,
         reference_types: true,
-        module_linking: true,
         ..WasmFeatures::default()
     }
 }
@@ -26,7 +25,7 @@ fn smoke_test_module() {
 
             let mut validator = Validator::new();
             validator.wasm_features(wasm_features());
-            assert!(validator.validate_all(&wasm_bytes).is_ok());
+            validate(&mut validator, &wasm_bytes);
         }
     }
 }
@@ -44,7 +43,7 @@ fn smoke_test_ensure_termination() {
 
             let mut validator = Validator::new();
             validator.wasm_features(wasm_features());
-            assert!(validator.validate_all(&wasm_bytes).is_ok());
+            validate(&mut validator, &wasm_bytes);
         }
     }
 }
@@ -60,8 +59,22 @@ fn smoke_test_swarm_config() {
             let wasm_bytes = module.to_bytes();
 
             let mut validator = Validator::new();
-            validator.wasm_features(wasm_features());
-            assert!(validator.validate_all(&wasm_bytes).is_ok());
+            let mut features = wasm_features();
+            features.module_linking = module.config().module_linking_enabled();
+            validator.wasm_features(features);
+            validate(&mut validator, &wasm_bytes);
         }
     }
+}
+
+fn validate(validator: &mut Validator, bytes: &[u8]) {
+    let err = match validator.validate_all(bytes) {
+        Ok(()) => return,
+        Err(e) => e,
+    };
+    drop(std::fs::write("test.wasm", &bytes));
+    if let Ok(text) = wasmprinter::print_bytes(bytes) {
+        drop(std::fs::write("test.wat", &text));
+    }
+    panic!("wasm failed to validate {:?}", err);
 }

@@ -1,7 +1,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use wasm_smith::{ConfiguredModule, SwarmConfig};
+use wasm_smith::{Config, ConfiguredModule, SwarmConfig};
 
 // Define a fuzz target that accepts arbitrary
 // `Module`s as input.
@@ -17,7 +17,7 @@ fuzz_target!(|m: ConfiguredModule<SwarmConfig>| {
         multi_memory: true,
         bulk_memory: true,
         reference_types: true,
-        module_linking: true,
+        module_linking: m.config().module_linking_enabled(),
         ..wasmparser::WasmFeatures::default()
     });
     if let Err(e) = validator.validate_all(&bytes) {

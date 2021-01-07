@@ -84,27 +84,27 @@
   (type $i (instance))
 
   (type (module
-    (import "" "" (func))
-    (import "" "" (func (type $empty)))
-    (import "" "" (func (param i32)))
-    (import "" "" (func (param i32) (result i32)))
+    (import "" "a" (func))
+    (import "" "b" (func (type $empty)))
+    (import "" "c" (func (param i32)))
+    (import "" "d" (func (param i32) (result i32)))
 
-    (import "" "" (global i32))
-    (import "" "" (memory 1))
-    (import "" "" (table 1 funcref))
+    (import "" "e" (global i32))
+    (import "" "f" (memory 1))
+    (import "" "g" (table 1 funcref))
 
-    (import "" "" (instance))
-    (import "" "" (instance (type $i)))
-    (import "" "" (instance
+    (import "" "h" (instance))
+    (import "" "i" (instance (type $i)))
+    (import "" "j" (instance
       (export "a" (func))
       (export "b" (func (type $empty)))
       (export "c" (func (param i32)))
     ))
 
-    (import "" "" (module))
-    (import "" "" (module
-      (import "" "" (func (type $empty)))
-      (import "" "" (func (param i32)))
+    (import "" "k" (module))
+    (import "" "l" (module
+      (import "" "a" (func (type $empty)))
+      (import "" "b" (func (param i32)))
       (export "a" (func (type $empty)))
       (export "b" (func (param i32)))
       (export "c" (module))
@@ -125,8 +125,8 @@
     ))
 
     (export "h" (module
-      (import "" "" (func (type $empty)))
-      (import "" "" (func (param i32)))
+      (import "" "a" (func (type $empty)))
+      (import "" "b" (func (param i32)))
       (export "a" (func (type $empty)))
       (export "b" (func (param i32)))
       (export "c" (module))

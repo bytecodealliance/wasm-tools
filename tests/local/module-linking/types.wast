@@ -15,13 +15,6 @@
 (assert_invalid
   (module
     (type (instance))
-    (module (type 0))
-  )
-  "type index is not a module")
-
-(assert_invalid
-  (module
-    (type (instance))
     (import "" (module (type 0)))
   )
   "type index is not a module")

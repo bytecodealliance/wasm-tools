@@ -105,24 +105,28 @@ impl Printer {
     ///
     /// This function takes an entire `wasm` binary blob and will print it to
     /// the WebAssembly Text Format and return the result as a `String`.
-    pub fn print(&mut self, wasm: &[u8]) -> Result<String> {
+    pub fn print(&mut self, mut wasm: &[u8]) -> Result<String> {
         self.start_group("module");
-        self.print_contents(0, wasm, "")?;
+        self.print_contents(Parser::new(0), &mut wasm, "")?;
         self.end_group();
         Ok(mem::take(&mut self.result))
     }
 
-    fn print_contents(&mut self, offset: u64, wasm: &[u8], module_ty: &str) -> Result<()> {
+    fn print_contents(
+        &mut self,
+        mut parser: Parser,
+        wasm: &mut &[u8],
+        module_ty: &str,
+    ) -> Result<()> {
         // First up try to find the `name` subsection which we'll use to print
         // pretty names everywhere. Also look for the `code` section so we can
         // print out functions as soon as we hit the function section.
-        let mut code = None;
-        let mut module_code = None;
-        let mut parser = Parser::new(offset);
+        let mut code = Vec::new();
+        let mut pre_parser = parser.clone();
         let prev = mem::take(&mut self.state);
-        let mut bytes = wasm;
+        let mut bytes = *wasm;
         loop {
-            let payload = match parser.parse(bytes, true)? {
+            let payload = match pre_parser.parse(bytes, true)? {
                 Chunk::NeedMoreData(_) => unreachable!(),
                 Chunk::Parsed { payload, consumed } => {
                     bytes = &bytes[consumed..];
@@ -130,24 +134,9 @@ impl Printer {
                 }
             };
             match payload {
-                Payload::CodeSectionStart { size, range, .. } => {
-                    let offset = offset as usize;
-                    let section = match wasm.get(range.start - offset..range.end - offset) {
-                        Some(slice) => slice,
-                        None => bail!("invalid code section"),
-                    };
-                    code = Some(CodeSectionReader::new(section, range.start)?);
-                    parser.skip_section();
-                    bytes = &bytes[size as usize..];
-                }
-                Payload::ModuleCodeSectionStart { size, range, .. } => {
-                    let offset = offset as usize;
-                    let section = match wasm.get(range.start - offset..range.end - offset) {
-                        Some(slice) => slice,
-                        None => bail!("invalid module code section"),
-                    };
-                    module_code = Some(ModuleCodeSectionReader::new(section, range.start)?);
-                    parser.skip_section();
+                Payload::CodeSectionEntry(f) => code.push(f),
+                Payload::ModuleSectionStart { size, .. } => {
+                    pre_parser.skip_section();
                     bytes = &bytes[size as usize..];
                 }
                 Payload::CustomSection {
@@ -169,13 +158,11 @@ impl Printer {
             name.write(&mut self.result);
         }
         self.result.push_str(module_ty);
-        let mut parser = Parser::new(offset);
-        let mut bytes = wasm;
         loop {
-            let payload = match parser.parse(bytes, true)? {
+            let payload = match parser.parse(*wasm, true)? {
                 Chunk::NeedMoreData(_) => unreachable!(),
                 Chunk::Parsed { payload, consumed } => {
-                    bytes = &bytes[consumed..];
+                    *wasm = &wasm[consumed..];
                     payload
                 }
             };
@@ -197,11 +184,7 @@ impl Printer {
                     if reader.get_count() == 0 {
                         continue;
                     }
-                    let code = match code.take() {
-                        Some(f) => f,
-                        None => bail!("found function section without code section"),
-                    };
-                    self.print_code(code, reader)?;
+                    self.print_code(&code, reader)?;
                 }
                 Payload::TableSection(s) => self.print_tables(s)?,
                 Payload::MemorySection(s) => self.print_memories(s)?,
@@ -215,34 +198,32 @@ impl Printer {
                     self.end_group();
                 }
                 Payload::ElementSection(s) => self.print_elems(s)?,
-                Payload::CodeSectionStart { size, .. }
-                | Payload::ModuleCodeSectionStart { size, .. } => {
-                    // printed with the `Function` or `Module` section, so we
-                    // skip these
-                    bytes = &bytes[size as usize..];
+
+                // printed with the `Function` or `Module` section, so we
+                // skip this section
+                Payload::CodeSectionStart { size, .. } => {
+                    *wasm = &wasm[size as usize..];
                     parser.skip_section();
+                }
+                Payload::CodeSectionEntry(_) => {
+                    unreachable!()
                 }
 
                 Payload::DataSection(s) => self.print_data(s)?,
                 Payload::AliasSection(s) => self.print_aliases(s)?,
-                Payload::ModuleSection(reader) => {
-                    if reader.get_count() == 0 {
-                        continue;
-                    }
-                    let module_code = match module_code.as_mut() {
-                        Some(f) => f,
-                        None => bail!("found function section without code section"),
-                    };
-                    self.print_module_code(module_code, reader)?;
-                }
                 Payload::InstanceSection(s) => self.print_instances(s)?,
+
+                Payload::ModuleSectionStart { .. } => {}
+                Payload::ModuleSectionEntry { parser, .. } => {
+                    self.newline();
+                    self.start_group("module");
+                    self.print_contents(parser, wasm, &format!(" (;{};)", self.state.module))?;
+                    self.end_group();
+                    self.state.module += 1;
+                }
 
                 // not part of the text format
                 Payload::Version { .. } | Payload::DataCountSection { .. } => {}
-                // we skip these sections
-                Payload::CodeSectionEntry(_) | Payload::ModuleCodeSectionEntry { .. } => {
-                    unreachable!()
-                }
 
                 Payload::End => break,
 
@@ -597,11 +578,10 @@ impl Printer {
 
     fn print_code(
         &mut self,
-        code: CodeSectionReader<'_>,
+        code: &[FunctionBody<'_>],
         mut funcs: FunctionSectionReader<'_>,
     ) -> Result<()> {
         for body in code {
-            let body = body?;
             let ty = funcs.read()?;
             self.newline();
             self.start_group("func ");
@@ -1583,10 +1563,20 @@ impl Printer {
             self.newline();
             self.start_group("instantiate");
             write!(self.result, " {}", instance.module())?;
-            for export in instance.args()? {
-                let (kind, index) = export?;
+            for arg in instance.args()? {
+                let arg = arg?;
                 self.newline();
-                self.print_external(kind, index)?;
+                self.start_group("arg");
+                self.result.push_str(" ");
+                self.print_str(arg.name)?;
+                self.result.push_str(" ");
+                if let Some(name) = arg.field {
+                    self.print_str(name)?;
+                    self.result.push_str(" ");
+                }
+
+                self.print_external(arg.kind, arg.index)?;
+                self.end_group();
             }
             self.end_group(); // instantiate
             self.end_group(); // instance
@@ -1598,86 +1588,81 @@ impl Printer {
         for alias in aliases {
             let alias = alias?;
             self.newline();
-            self.start_group("alias");
-            match alias.kind {
-                ExternalKind::Function => {
-                    match self.state.names.get(&self.state.func) {
-                        Some(name) => write!(self.result, " ${}", name.identifier())?,
-                        None => write!(self.result, " (;{};)", self.state.func)?,
+            self.start_group("alias ");
+            match alias {
+                Alias::InstanceExport {
+                    instance,
+                    kind,
+                    export,
+                } => {
+                    write!(self.result, "{} ", instance)?;
+                    self.print_str(export)?;
+                    self.result.push_str(" ");
+                    match kind {
+                        ExternalKind::Function => self.start_group("func"),
+                        ExternalKind::Table => self.start_group("table"),
+                        ExternalKind::Memory => self.start_group("memory"),
+                        ExternalKind::Event => self.start_group("event"),
+                        ExternalKind::Global => self.start_group("global"),
+                        ExternalKind::Instance => self.start_group("instance"),
+                        ExternalKind::Module => self.start_group("module"),
+                        ExternalKind::Type => self.start_group("type"),
                     }
-                    self.state.func += 1;
-                }
-                ExternalKind::Table => {
-                    write!(self.result, " (;{};)", self.state.table)?;
-                    self.state.table += 1;
-                }
-                ExternalKind::Memory => {
-                    write!(self.result, " (;{};)", self.state.memory)?;
-                    self.state.memory += 1;
-                }
-                ExternalKind::Event => {
-                    write!(self.result, " (;{};)", self.state.event)?;
-                    self.state.event += 1;
-                }
-                ExternalKind::Global => {
-                    write!(self.result, " (;{};)", self.state.global)?;
-                    self.state.global += 1;
-                }
-                ExternalKind::Instance => {
-                    write!(self.result, " (;{};)", self.state.instance)?;
-                    self.state.instance += 1;
-                }
-                ExternalKind::Module => {
-                    write!(self.result, " (;{};)", self.state.module)?;
-                    self.state.module += 1;
-                }
-                ExternalKind::Type => self.state.types.push(None),
-            }
-            self.result.push_str(" ");
-            match alias.instance {
-                AliasedInstance::Parent => self.result.push_str("parent"),
-                AliasedInstance::Child(i) => {
-                    self.start_group("instance");
-                    write!(self.result, " {}", i)?;
+                    match kind {
+                        ExternalKind::Function => {
+                            match self.state.names.get(&self.state.func) {
+                                Some(name) => write!(self.result, " ${}", name.identifier())?,
+                                None => write!(self.result, " (;{};)", self.state.func)?,
+                            }
+                            self.state.func += 1;
+                        }
+                        ExternalKind::Table => {
+                            write!(self.result, " (;{};)", self.state.table)?;
+                            self.state.table += 1;
+                        }
+                        ExternalKind::Memory => {
+                            write!(self.result, " (;{};)", self.state.memory)?;
+                            self.state.memory += 1;
+                        }
+                        ExternalKind::Event => {
+                            write!(self.result, " (;{};)", self.state.event)?;
+                            self.state.event += 1;
+                        }
+                        ExternalKind::Global => {
+                            write!(self.result, " (;{};)", self.state.global)?;
+                            self.state.global += 1;
+                        }
+                        ExternalKind::Instance => {
+                            write!(self.result, " (;{};)", self.state.instance)?;
+                            self.state.instance += 1;
+                        }
+                        ExternalKind::Module => {
+                            write!(self.result, " (;{};)", self.state.module)?;
+                            self.state.module += 1;
+                        }
+                        ExternalKind::Type => self.state.types.push(None),
+                    }
                     self.end_group();
                 }
+                Alias::ParentType(i) => {
+                    write!(
+                        self.result,
+                        "parent (;{};) {} (type)",
+                        self.state.types.len(),
+                        i,
+                    )?;
+                    self.state.types.push(None);
+                }
+                Alias::ParentModule(i) => {
+                    write!(
+                        self.result,
+                        "parent (;{};) {} (module)",
+                        self.state.module, i
+                    )?;
+                    self.state.module += 1;
+                }
             }
-            self.result.push_str(" ");
-            match alias.kind {
-                ExternalKind::Function => self.start_group("func"),
-                ExternalKind::Table => self.start_group("table"),
-                ExternalKind::Memory => self.start_group("memory"),
-                ExternalKind::Event => self.start_group("event"),
-                ExternalKind::Global => self.start_group("global"),
-                ExternalKind::Instance => self.start_group("instance"),
-                ExternalKind::Module => self.start_group("module"),
-                ExternalKind::Type => self.start_group("type"),
-            }
-            write!(self.result, " {}", alias.index)?;
             self.end_group();
-            self.end_group();
-        }
-        Ok(())
-    }
-
-    fn print_module_code(
-        &mut self,
-        module_code: &mut ModuleCodeSectionReader<'_>,
-        tys: ModuleSectionReader<'_>,
-    ) -> Result<()> {
-        for ty in tys {
-            let ty = ty?;
-            let module = module_code.read()?;
-            let (offset, wasm) = module.raw_bytes();
-            self.newline();
-            self.start_group("module");
-            self.print_contents(
-                offset as u64,
-                wasm,
-                &format!(" (;{};) (type {})", self.state.module, ty),
-            )?;
-            self.end_group();
-            self.state.module += 1;
         }
         Ok(())
     }

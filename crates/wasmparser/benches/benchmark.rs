@@ -104,11 +104,6 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
                     }
                 }
             }
-            ModuleSection(s) => {
-                for item in s {
-                    item?;
-                }
-            }
             FunctionSection(s) => {
                 for item in s {
                     item?;
@@ -179,8 +174,8 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
             | UnknownSection { .. }
             | CustomSection { .. }
             | CodeSectionStart { .. }
-            | ModuleCodeSectionStart { .. }
-            | ModuleCodeSectionEntry { .. }
+            | ModuleSectionStart { .. }
+            | ModuleSectionEntry { .. }
             | End => {}
         }
     }

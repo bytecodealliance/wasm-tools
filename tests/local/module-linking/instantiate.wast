@@ -4,65 +4,65 @@
 )
 
 (module
-  (import "" (func))
-  (import "" (global i32))
-  (import "" (table 1 funcref))
-  (import "" (instance))
-  (import "" (memory 1))
-  (import "" (module $empty))
+  (import "a" (func))
+  (import "b" (global i32))
+  (import "c" (table 1 funcref))
+  (import "d" (instance))
+  (import "e" (memory 1))
+  (import "f" (module $empty))
 
   (import "" (module $m
-    (import "" (module))
-    (import "" (func))
-    (import "" (global i32))
-    (import "" (table 1 funcref))
-    (import "" (instance))
-    (import "" (memory 1))
+    (import "a" (module))
+    (import "b" (func))
+    (import "c" (global i32))
+    (import "d" (table 1 funcref))
+    (import "e" (instance))
+    (import "f" (memory 1))
   ))
 
   (instance $a (instantiate $m
-    (module $empty)
-    (func 0)
-    (global 0)
-    (table 0)
-    (instance 0)
-    (memory 0)
+    (arg "a" (module $empty))
+    (arg "b" (func 0))
+    (arg "c" (global 0))
+    (arg "d" (table 0))
+    (arg "e" (instance 0))
+    (arg "f" (memory 0))
   ))
 )
 
 (module
-  (import "" (module $m
-    (import "" (module))
-    (import "" (func))
-    (import "" (global i32))
-    (import "" (table 1 funcref))
-    (import "" (instance))
-    (import "" (memory 1))
+  (import "a" (module $m
+    (import "a" (module))
+    (import "b" (func))
+    (import "c" (global i32))
+    (import "d" (table 1 funcref))
+    (import "e" (instance))
+    (import "f" (memory 1))
   ))
-  (import "" (module $m2))
-  (import "" (instance $b))
-  (func $f (import ""))
-  (global $g (import "") i32)
-  (memory $mem (import "") 1)
-  (table $table (import "") 1 funcref)
+  (import "b" (module $m2))
+  (import "c" (instance $b))
+  (func $f (import "d"))
+  (global $g (import "e") i32)
+  (memory $mem (import "f") 1)
+  (table $table (import "g") 1 funcref)
 
   (instance $a
     (instantiate $m
-      (module $m2)
-      (func $f)
-      (global $g)
-      (table $table)
-      (instance $b)
-      (memory $mem)
+      (arg "a" (module $m2))
+      (arg "b" (func $f))
+      (arg "c" (global $g))
+      (arg "d" (table $table))
+      (arg "e" (instance $b))
+      (arg "f" (memory $mem))
     )
   )
 
   ;; inline exports/imports
   (instance $c (export "i") (instantiate $m2))
   (type $empty (instance))
-  (instance $d (import "i") (type $empty))
-  (instance (import "i"))
-  (instance (import "i")
+  (instance $d (import "i1") (type $empty))
+  (instance (import "i2"))
+  (instance (import "i3")
     (export "x" (func)))
   (instance (export "a") (export "b") (instantiate $m2))
   (instance (export "c") (export "d") (import "x"))
@@ -80,111 +80,108 @@
   )
   "unknown module")
 
-(assert_invalid
-  (module
-    (import "" (func $f))
-    (import "" (module $m))
-    (instance (instantiate $m (func $f)))
-  )
-  "wrong number of imports provided")
+(module
+  (import "a" (func $f))
+  (import "b" (module $m))
+  (instance (instantiate $m (arg "a" (func $f))))
+)
 (assert_invalid
   (module
     (import "" (module $m (import "" (func))))
     (instance (instantiate $m))
   )
-  "wrong number of imports provided")
+  "no import named ``")
 
-
 (assert_invalid
   (module
     (import "" (module $m
       (import "" (func))
     ))
-    (import "" (global i32))
-    (instance $i (instantiate $m (global 0)))
+    (import "i" (global i32))
+    (instance $i (instantiate $m (arg "" (global 0))))
   )
-  "wrong kind of item used for instantiate")
+  "item type mismatch")
 (assert_invalid
   (module
     (import "" (module $m
       (import "" (func))
     ))
-    (import "" (func (result i32)))
-    (instance $i (instantiate $m (func 0)))
+    (import "i" (func (result i32)))
+    (instance $i (instantiate $m (arg "" (func 0))))
   )
-  "function provided for instantiation has wrong type")
+  "func type mismatch")
 (assert_invalid
   (module
     (import "" (module $m
       (import "" (func))
     ))
-    (import "" (func (param i32)))
-    (instance $i (instantiate $m (func 0)))
+    (import "i" (func (param i32)))
+    (instance $i (instantiate $m (arg "" (func 0))))
   )
-  "function provided for instantiation has wrong type")
+  "func type mismatch")
 (assert_invalid
   (module
     (import "" (module $m
       (import "" (global i32))
     ))
-    (import "" (global i64))
-    (instance $i (instantiate $m (global 0)))
+    (import "i" (global i64))
+    (instance $i (instantiate $m (arg "" (global 0))))
   )
-  "global provided for instantiation has wrong type")
+  "global type mismatch")
 (assert_invalid
   (module
     (import "" (module $m
       (import "" (table 1 externref))
     ))
-    (import "" (table 2 funcref))
-    (instance $i (instantiate $m (table 0)))
+    (import "i" (table 2 funcref))
+    (instance $i (instantiate $m (arg "" (table 0))))
   )
-  "table provided for instantiation has wrong type")
+  "table type mismatch")
 (assert_invalid
   (module
     (import "" (module $m
       (import "" (table 1 2 funcref))
     ))
-    (import "" (table 2 funcref))
-    (instance $i (instantiate $m (table 0)))
+    (import "i" (table 2 funcref))
+    (instance $i (instantiate $m (arg "" (table 0))))
   )
-  "table provided for instantiation has wrong type")
+  "table type mismatch")
 (assert_invalid
   (module
     (import "" (module $m
       (import "" (table 2 2 funcref))
     ))
-    (import "" (table 1 funcref))
-    (instance $i (instantiate $m (table 0)))
+    (import "i" (table 1 funcref))
+    (instance $i (instantiate $m (arg "" (table 0))))
   )
-  "table provided for instantiation has wrong type")
+  "table type mismatch")
 (assert_invalid
   (module
     (import "" (module $m
       (import "" (table 2 2 funcref))
     ))
-    (import "" (table 2 3 funcref))
-    (instance $i (instantiate $m (table 0)))
+    (import "i" (table 2 3 funcref))
+    (instance $i (instantiate $m (arg "" (table 0))))
   )
-  "table provided for instantiation has wrong type")
+  "table type mismatch")
 (assert_invalid
   (module
     (import "" (module $m
       (import "" (memory 1 2 shared))
     ))
-    (import "" (memory 1))
-    (instance $i (instantiate $m (memory 0)))
+    (import "i" (memory 1))
+    (instance $i (instantiate $m (arg "" (memory 0))))
   )
-  "memory provided for instantiation has wrong type")
+  "memory type mismatch")
 (assert_invalid
   (module
     (import "" (module $m
       (import "" (memory 1))
     ))
-    (import "" (memory 0))
-    (instance $i (instantiate $m (memory 0)))
+    (import "i" (memory 0))
+    (instance $i (instantiate $m (arg "" (memory 0))))
   )
-  "memory provided for instantiation has wrong type")
+  "memory type mismatch")
 (assert_invalid
   (module
     (import "" (module $m
@@ -192,37 +189,37 @@
         (import "" (func))
       ))
     ))
-    (import "" (module $i
+    (import "i" (module $i
       (import "" (global i32))
     ))
-    (instance $i (instantiate $m (module $i)))
+    (instance $i (instantiate $m (arg "" (module $i))))
   )
-  "wrong kind of item used for instantiate")
+  "item type mismatch")
 (assert_invalid
   (module
     (import "" (module $m
       (import "" (module))
     ))
-    (import "" (module $i
-      (import "" (global i32))
+    (import "i" (module $i
+      (import "foobar" (global i32))
     ))
-    (instance $i (instantiate $m (module $i)))
+    (instance $i (instantiate $m (arg "" (module $i))))
   )
-  "mismatched number of module imports")
-(assert_invalid
-  (module
-    (import "" (module $m
-      (import "" (module
-        (import "" (global i32))
-        (import "" (func))
-      ))
-    ))
-    (import "" (module $i
+  "no import named `foobar`")
+
+;; it's ok to give a module with fewer imports
+(module
+  (import "" (module $m
+    (import "" (module
       (import "" (global i32))
+      (import "f" (func))
     ))
-    (instance $i (instantiate $m (module $i)))
-  )
-  "mismatched number of module imports")
+  ))
+  (import "i" (module $i
+    (import "" (global i32))
+  ))
+  (instance $i (instantiate $m (arg "" (module $i))))
+)
 
 ;; export subsets
 (module
@@ -231,11 +228,11 @@
       (export "" (func))
     ))
   ))
-  (import "" (module $i
+  (import "i" (module $i
     (export "" (func))
     (export "a" (func))
   ))
-  (instance $i (instantiate $m (module $i)))
+  (instance $i (instantiate $m (arg "" (module $i))))
 )
 (module
   (import "" (module $m
@@ -243,11 +240,11 @@
       (export "" (func))
     ))
   ))
-  (import "" (instance $i
+  (import "a" (instance $i
     (export "" (func))
     (export "a" (func))
   ))
-  (instance (instantiate $m (instance $i)))
+  (instance (instantiate $m (arg "" (instance $i))))
 )
 
 (assert_invalid
@@ -263,8 +260,12 @@
         i32.const 5))
   )
   (instance $a (instantiate $m))
+  ;; TODO alias sugar
+  (alias $a "module" (module $a.$sub))
   (instance $b (instantiate $a.$sub))
-  (alias $b.$f (instance $b) (func 0))
+
+  ;; TODO alias sugar
+  (alias $b "" (func $b.$f))
 
   (func (export "get") (result i32)
     call $b.$f)

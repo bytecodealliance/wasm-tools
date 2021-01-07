@@ -483,8 +483,7 @@ impl TestState {
     }
 
     fn test_wasm_valid(&self, test: &Path, contents: &[u8]) -> Result<()> {
-        let validator = self.wasmparser_validator_for(test);
-        validator.validate_all(contents)?;
+        self.wasmparser_validator_for(test).validate_all(contents)?;
         self.bump_ntests();
         Ok(())
     }
@@ -675,7 +674,7 @@ impl TestState {
             exceptions: true,
             bulk_memory: true,
             tail_call: true,
-            module_linking: true,
+            module_linking: false,
             deterministic_only: false,
             multi_value: true,
             multi_memory: true,
@@ -707,6 +706,7 @@ impl TestState {
                     features.memory64 = true;
                     features.bulk_memory = true;
                 }
+                "module-linking" => features.module_linking = true,
                 _ => {}
             }
         }

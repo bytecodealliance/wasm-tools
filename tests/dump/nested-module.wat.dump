@@ -1,90 +1,63 @@
 0x0000 | 00 61 73 6d | version 1
        | 01 00 00 00
-0x0008 | 01 26       | type section
-0x000a | 05          | 5 count
+0x0008 | 01 04       | type section
+0x000a | 01          | 1 count
 0x000b | 61 00 00    | [type 0] Module(ModuleType { imports: [], exports: [] })
-0x000e | 60 01 7f 00 | [type 1] Func(FuncType { params: [I32], returns: [] })
-0x0012 | 60 00 00    | [type 2] Func(FuncType { params: [], returns: [] })
-0x0015 | 62 01 01 62 | [type 3] Instance(InstanceType { exports: [ExportType { name: "b", ty: Function(2) }] })
-       | 00 02      
-0x001b | 61 02 00 00 | [type 4] Module(ModuleType { imports: [Import { module: "", field: None, ty: Function(1) }, Import { module: "", field: None, ty: Instance(3) }], exports: [ExportType { name: "a", ty: Module(0) }, ExportType { name: "b", ty: Instance(3) }] })
-       | ff 00 01 00
-       | 00 ff 06 03
-       | 02 01 61 05
-       | 00 01 62 06
-       | 03         
-0x0030 | 02 06       | import section
-0x0032 | 01          | 1 count
-0x0033 | 00 00 ff 05 | import [module 0] Import { module: "", field: None, ty: Module(0) }
+0x000e | 02 06       | import section
+0x0010 | 01          | 1 count
+0x0011 | 00 00 ff 05 | import [module 0] Import { module: "", field: None, ty: Module(0) }
        | 00         
-0x0038 | 0e 07       | module section
-0x003a | 06          | 6 count
-0x003b | 00          | [module 1] type 0
-0x003c | 00          | [module 2] type 0
-0x003d | 00          | [module 3] type 0
-0x003e | 00          | [module 4] type 0
-0x003f | 00          | [module 5] type 0
-0x0040 | 04          | [module 6] type 4
-0x0041 | 07 05       | export section
-0x0043 | 01          | 1 count
-0x0044 | 01 78 05 04 | export Export { field: "x", kind: Module, index: 4 }
-0x0048 | 11 93 01    | module code section
-0x004b | 06          | 6 count
-0x004c | 08          | inline module size
-  0x004d | 00 61 73 6d | version 1
+0x0016 | 0e 7f       | module section
+0x0018 | 05          | 5 count
+0x0019 | 08          | inline module size
+  0x001a | 00 61 73 6d | version 1
          | 01 00 00 00
-0x0055 | 08          | inline module size
-  0x0056 | 00 61 73 6d | version 1
+0x0022 | 08          | inline module size
+  0x0023 | 00 61 73 6d | version 1
          | 01 00 00 00
-0x005e | 08          | inline module size
-  0x005f | 00 61 73 6d | version 1
+0x002b | 08          | inline module size
+  0x002c | 00 61 73 6d | version 1
          | 01 00 00 00
-0x0067 | 08          | inline module size
-  0x0068 | 00 61 73 6d | version 1
+0x0034 | 14          | inline module size
+  0x0035 | 00 61 73 6d | version 1
          | 01 00 00 00
-0x0070 | 1e          | inline module size
-  0x0071 | 00 61 73 6d | version 1
-         | 01 00 00 00
-  0x0079 | 01 04       | type section
-  0x007b | 01          | 1 count
-  0x007c | 61 00 00    | [type 0] Module(ModuleType { imports: [], exports: [] })
-  0x007f | 0e 02       | module section
-  0x0081 | 01          | 1 count
-  0x0082 | 00          | [module 0] type 0
-  0x0083 | 11 0a       | module code section
-  0x0085 | 01          | 1 count
-  0x0086 | 08          | inline module size
-    0x0087 | 00 61 73 6d | version 1
+  0x003d | 0e 0a       | module section
+  0x003f | 01          | 1 count
+  0x0040 | 08          | inline module size
+    0x0041 | 00 61 73 6d | version 1
            | 01 00 00 00
-0x008f | 4e          | inline module size
-  0x0090 | 00 61 73 6d | version 1
+0x0049 | 4d          | inline module size
+  0x004a | 00 61 73 6d | version 1
          | 01 00 00 00
-  0x0098 | 01 11       | type section
-  0x009a | 04          | 4 count
-  0x009b | 61 00 00    | [type 0] Module(ModuleType { imports: [], exports: [] })
-  0x009e | 60 01 7f 00 | [type 1] Func(FuncType { params: [I32], returns: [] })
-  0x00a2 | 60 00 00    | [type 2] Func(FuncType { params: [], returns: [] })
-  0x00a5 | 62 01 01 62 | [type 3] Instance(InstanceType { exports: [ExportType { name: "b", ty: Function(2) }] })
-         | 00 02      
-  0x00ab | 0e 02       | module section
-  0x00ad | 01          | 1 count
-  0x00ae | 00          | [module 0] type 0
-  0x00af | 02 0b       | import section
-  0x00b1 | 02          | 2 count
-  0x00b2 | 00 00 ff 00 | import [func 0] Import { module: "", field: None, ty: Function(1) }
-         | 01         
-  0x00b7 | 00 00 ff 06 | import [instance 0] Import { module: "", field: None, ty: Instance(3) }
-         | 03         
-  0x00bc | 07 09       | export section
-  0x00be | 02          | 2 count
-  0x00bf | 01 61 05 00 | export Export { field: "a", kind: Module, index: 0 }
-  0x00c3 | 01 62 06 00 | export Export { field: "b", kind: Instance, index: 0 }
-  0x00c7 | 11 15       | module code section
-  0x00c9 | 01          | 1 count
-  0x00ca | 13          | inline module size
-    0x00cb | 00 61 73 6d | version 1
+  0x0052 | 0e 15       | module section
+  0x0054 | 01          | 1 count
+  0x0055 | 13          | inline module size
+    0x0056 | 00 61 73 6d | version 1
            | 01 00 00 00
-    0x00d3 | 00 09 04 6e | custom section: "name"
+    0x005e | 00 09 04 6e | custom section: "name"
            | 61 6d 65   
-    0x00da | 00 02       | module name
-    0x00dc | 01 6d       | "m"
+    0x0065 | 00 02       | module name
+    0x0067 | 01 6d       | "m"
+  0x0069 | 01 05       | type section
+  0x006b | 01          | 1 count
+  0x006c | 60 01 7f 00 | [type 0] Func(FuncType { params: [I32], returns: [] })
+  0x0070 | 02 06       | import section
+  0x0072 | 01          | 1 count
+  0x0073 | 00 00 ff 00 | import [func 0] Import { module: "", field: None, ty: Function(0) }
+         | 00         
+  0x0078 | 01 0a       | type section
+  0x007a | 02          | 2 count
+  0x007b | 60 00 00    | [type 1] Func(FuncType { params: [], returns: [] })
+  0x007e | 62 01 01 62 | [type 2] Instance(InstanceType { exports: [ExportType { name: "b", ty: Function(1) }] })
+         | 00 01      
+  0x0084 | 02 06       | import section
+  0x0086 | 01          | 1 count
+  0x0087 | 00 00 ff 06 | import [instance 0] Import { module: "", field: None, ty: Instance(2) }
+         | 02         
+  0x008c | 07 09       | export section
+  0x008e | 02          | 2 count
+  0x008f | 01 61 05 00 | export Export { field: "a", kind: Module, index: 0 }
+  0x0093 | 01 62 06 00 | export Export { field: "b", kind: Instance, index: 0 }
+0x0097 | 07 05       | export section
+0x0099 | 01          | 1 count
+0x009a | 01 78 05 03 | export Export { field: "x", kind: Module, index: 3 }
