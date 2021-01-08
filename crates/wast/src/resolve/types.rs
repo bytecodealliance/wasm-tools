@@ -222,8 +222,14 @@ impl<'a> Expander<'a> {
     where
         T: TypeReference<'a>,
     {
-        if let Some(ItemRef::Item { idx, .. }) = &item.index {
-            return idx.clone();
+        if let Some(idx) = &item.index {
+            match idx {
+                ItemRef::Item { idx, exports, .. } => {
+                    debug_assert!(exports.len() == 0);
+                    return idx.clone();
+                }
+                ItemRef::Outer { .. } => unreachable!(),
+            }
         }
         let key = match item.inline.as_mut() {
             Some(ty) => {

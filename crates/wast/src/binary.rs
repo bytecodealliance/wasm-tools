@@ -1229,10 +1229,15 @@ impl Encode for Alias<'_> {
                 kind.encode(e);
                 export.encode(e);
             }
-            AliasKind::Parent { parent_index, kind } => {
+            AliasKind::Outer {
+                module,
+                index,
+                kind,
+            } => {
                 e.push(0x01);
+                module.encode(e);
                 kind.encode(e);
-                parent_index.encode(e);
+                index.encode(e);
             }
         }
     }

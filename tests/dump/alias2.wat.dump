@@ -51,10 +51,10 @@
        | 31         
 0x008e | 00 00 02 01 | [alias] InstanceExport { instance: 0, kind: Memory, export: "2" }
        | 32         
-0x0093 | 00 00 01 01 | [alias] InstanceExport { instance: 0, kind: Table, export: "3" }
-       | 33         
-0x0098 | 00 00 03 01 | [alias] InstanceExport { instance: 0, kind: Global, export: "4" }
+0x0093 | 00 00 03 01 | [alias] InstanceExport { instance: 0, kind: Global, export: "4" }
        | 34         
+0x0098 | 00 00 01 01 | [alias] InstanceExport { instance: 0, kind: Table, export: "3" }
+       | 33         
 0x009d | 00 00 05 01 | [alias] InstanceExport { instance: 0, kind: Module, export: "5" }
        | 35         
 0x00a2 | 00 00 06 01 | [alias] InstanceExport { instance: 0, kind: Instance, export: "6" }
@@ -75,10 +75,3 @@
        | 01         
 0x00c6 | 01 36 00 06 | [instantiate arg] InstanceArg { name: "6", field: None, kind: Instance, index: 1 }
        | 01         
-0x00cb | 00 11 04 6e | custom section: "name"
-       | 61 6d 65   
-0x00d2 | 01 0a       | function names
-0x00d4 | 01          | 1 count
-0x00d5 | 00 07 69 2e | Naming { index: 0, name: "i.$func" }
-       | 24 66 75 6e
-       | 63         

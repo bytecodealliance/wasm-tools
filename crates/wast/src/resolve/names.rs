@@ -3,9 +3,19 @@ use crate::resolve::Ns;
 use crate::Error;
 use std::collections::HashMap;
 
-pub fn resolve<'a>(fields: &mut Vec<ModuleField<'a>>) -> Result<Resolver<'a>, Error> {
+pub fn resolve<'a>(
+    id: Option<Id<'a>>,
+    fields: &mut Vec<ModuleField<'a>>,
+) -> Result<Resolver<'a>, Error> {
+    let mut names = HashMap::new();
+    let mut parents = Parents {
+        prev: None,
+        cur_id: id,
+        depth: 0,
+        names: &mut names,
+    };
     let mut resolver = Resolver::default();
-    resolver.process(None, fields)?;
+    resolver.process(&mut parents, fields)?;
     Ok(resolver)
 }
 
@@ -33,7 +43,7 @@ pub struct Resolver<'a> {
 impl<'a> Resolver<'a> {
     fn process(
         &mut self,
-        parent: Option<&Resolver<'a>>,
+        parents: &mut Parents<'a, '_>,
         fields: &mut Vec<ModuleField<'a>>,
     ) -> Result<(), Error> {
         // Number everything in the module, recording what names correspond to
@@ -45,7 +55,7 @@ impl<'a> Resolver<'a> {
         // Then we can replace all our `Index::Id` instances with `Index::Num`
         // in the AST. Note that this also recurses into nested modules.
         for field in fields.iter_mut() {
-            self.resolve_field(field, parent)?;
+            self.resolve_field(field, parents)?;
         }
         Ok(())
     }
@@ -132,7 +142,7 @@ impl<'a> Resolver<'a> {
     fn resolve_field(
         &self,
         field: &mut ModuleField<'a>,
-        parent: Option<&Resolver<'a>>,
+        parents: &mut Parents<'a, '_>,
     ) -> Result<(), Error> {
         match field {
             ModuleField::Import(i) => {
@@ -278,7 +288,8 @@ impl<'a> Resolver<'a> {
                     NestedModuleKind::Inline { fields } => fields,
                     NestedModuleKind::Import { .. } => panic!("should only be inline"),
                 };
-                Resolver::default().process(Some(self), fields)
+                Resolver::default().process(&mut parents.push(self, m.id), fields)?;
+                Ok(())
             }
 
             ModuleField::Table(t) => {
@@ -293,17 +304,23 @@ impl<'a> Resolver<'a> {
                     AliasKind::InstanceExport { instance, .. } => {
                         self.resolve_item_ref(instance)?;
                     }
-                    AliasKind::Parent { parent_index, kind } => {
-                        let parent = match parent {
-                            Some(p) => p,
-                            None => {
-                                return Err(Error::new(
-                                    a.span,
-                                    "cannot use alias parent directives in root module".to_string(),
-                                ))
+                    AliasKind::Outer {
+                        module,
+                        index,
+                        kind,
+                    } => {
+                        match (index, module) {
+                            // If both indices are numeric then don't try to
+                            // resolve anything since we could fail to walk up
+                            // the parent chain, producing a wat2wasm error that
+                            // should probably be a wasm validation error.
+                            (Index::Num(..), Index::Num(..)) => {}
+                            (index, module) => {
+                                parents
+                                    .resolve(module)?
+                                    .resolve(index, Ns::from_export(kind))?;
                             }
-                        };
-                        parent.resolve(parent_index, Ns::from_export(kind))?;
+                        }
                     }
                 }
                 Ok(())
@@ -407,7 +424,8 @@ impl<'a> Resolver<'a> {
         K: Into<ExportKind> + Copy,
     {
         match item {
-            ItemRef::Item { idx, kind, .. } => {
+            ItemRef::Item { idx, kind, exports } => {
+                debug_assert!(exports.len() == 0);
                 self.resolve(
                     idx,
                     match (*kind).into() {
@@ -824,6 +842,96 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 Ok(())
             }
             None => Err(resolve_error(id, "label")),
+        }
+    }
+}
+
+struct Parents<'a, 'b> {
+    prev: Option<ParentNode<'a, 'b>>,
+    cur_id: Option<Id<'a>>,
+    depth: usize,
+    names: &'b mut HashMap<Id<'a>, usize>,
+}
+
+struct ParentNode<'a, 'b> {
+    resolver: &'b Resolver<'a>,
+    id: Option<Id<'a>>,
+    prev: Option<&'b ParentNode<'a, 'b>>,
+    prev_depth: Option<usize>,
+}
+
+impl<'a, 'b> Parents<'a, 'b> {
+    fn push<'c>(&'c mut self, resolver: &'c Resolver<'a>, id: Option<Id<'a>>) -> Parents<'a, 'c>
+    where
+        'b: 'c,
+    {
+        let prev_depth = if let Some(id) = self.cur_id {
+            self.names.insert(id, self.depth)
+        } else {
+            None
+        };
+        Parents {
+            prev: Some(ParentNode {
+                prev: self.prev.as_ref(),
+                resolver,
+                id: self.cur_id,
+                prev_depth,
+            }),
+            cur_id: id,
+            depth: self.depth + 1,
+            names: &mut *self.names,
+        }
+    }
+
+    fn resolve(&self, index: &mut Index<'a>) -> Result<&'b Resolver<'a>, Error> {
+        let mut i = match *index {
+            Index::Num(n, _) => n,
+            Index::Id(id) => match self.names.get(&id) {
+                Some(idx) => (self.depth - *idx - 1) as u32,
+                None => return Err(resolve_error(id, "parent module")),
+            },
+        };
+        *index = Index::Num(i, index.span());
+        let mut cur = match self.prev.as_ref() {
+            Some(n) => n,
+            None => {
+                return Err(Error::new(
+                    index.span(),
+                    "cannot use `outer` alias in root module".to_string(),
+                ))
+            }
+        };
+        while i > 0 {
+            cur = match cur.prev {
+                Some(n) => n,
+                None => {
+                    return Err(Error::new(
+                        index.span(),
+                        "alias to `outer` module index too large".to_string(),
+                    ))
+                }
+            };
+            i -= 1;
+        }
+        Ok(cur.resolver)
+    }
+}
+
+impl<'a, 'b> Drop for Parents<'a, 'b> {
+    fn drop(&mut self) {
+        let (id, prev_depth) = match &self.prev {
+            Some(n) => (n.id, n.prev_depth),
+            None => return,
+        };
+        if let Some(id) = id {
+            match prev_depth {
+                Some(i) => {
+                    self.names.insert(id, i);
+                }
+                None => {
+                    self.names.remove(&id);
+                }
+            }
         }
     }
 }

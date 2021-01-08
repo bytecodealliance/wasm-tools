@@ -20,7 +20,7 @@ pub fn run(fields: &mut Vec<ModuleField>) {
 struct Expander<'a> {
     to_prepend: Vec<ModuleField<'a>>,
     instances: HashMap<(Index<'a>, &'a str, ExportKind), Index<'a>>,
-    parents: HashMap<(Index<'a>, ExportKind), Index<'a>>,
+    parents: HashMap<(Index<'a>, Index<'a>, ExportKind), Index<'a>>,
 }
 
 impl<'a> Expander<'a> {
@@ -39,8 +39,12 @@ impl<'a> Expander<'a> {
                         self.instances
                             .insert((*instance.unwrap_index(), export, *kind), id.into());
                     }
-                    AliasKind::Parent { parent_index, kind } => {
-                        self.parents.insert((*parent_index, *kind), id.into());
+                    AliasKind::Outer {
+                        module,
+                        index,
+                        kind,
+                    } => {
+                        self.parents.insert((*module, *index, *kind), id.into());
                     }
                 }
             }
@@ -83,6 +87,7 @@ impl<'a> Expander<'a> {
             ModuleField::Export(e) => self.expand(&mut e.index),
 
             ModuleField::Func(f) => {
+                self.expand_type_use(&mut f.ty);
                 if let FuncKind::Inline { expression, .. } = &mut f.kind {
                     self.expand_expr(expression);
                 }
@@ -178,7 +183,7 @@ impl<'a> Expander<'a> {
     {
         match item {
             ItemRef::Outer { kind, module, idx } => {
-                let key = (*idx, (*kind).into());
+                let key = (*module, *idx, (*kind).into());
                 let idx = match self.parents.entry(key) {
                     Entry::Occupied(e) => *e.get(),
                     Entry::Vacant(v) => {
@@ -188,8 +193,9 @@ impl<'a> Expander<'a> {
                             span,
                             id: Some(id),
                             name: None,
-                            kind: AliasKind::Parent {
-                                parent_index: *idx,
+                            kind: AliasKind::Outer {
+                                module: *module,
+                                index: *idx,
                                 kind: (*kind).into(),
                             },
                         }));

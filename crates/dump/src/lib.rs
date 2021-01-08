@@ -144,8 +144,8 @@ impl<'a> Dump<'a> {
                             ExternalKind::Event => i.events += 1,
                             ExternalKind::Type => i.types += 1,
                         },
-                        Alias::ParentType(_) => i.types += 1,
-                        Alias::ParentModule(_) => i.modules += 1,
+                        Alias::ParentType { .. } => i.types += 1,
+                        Alias::ParentModule { .. } => i.modules += 1,
                     }
                     me.print(end)
                 })?,

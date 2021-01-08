@@ -6,6 +6,7 @@
     (instance $b (instantiate (module outer 0 $B)))
   )
 )
+
 (module
   (type $Wasi (instance))
   (import "wasi" (instance $wasi (type $Wasi)))
