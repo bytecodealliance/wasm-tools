@@ -331,13 +331,26 @@ impl Printer {
         Ok(())
     }
 
-    fn print_functype_idx(&mut self, idx: u32, names_for: Option<u32>) -> Result<u32> {
+    fn print_functype_idx(
+        &mut self,
+        idx: u32,
+        always_print_type: bool,
+        names_for: Option<u32>,
+    ) -> Result<Option<u32>> {
+        if always_print_type {
+            write!(self.result, " (type {})", idx)?;
+        }
         let ty = match self.state.types.get(idx as usize) {
             Some(Some(ty)) => ty.clone(),
-            Some(None) => bail!("function type index `{}` is not a function", idx),
+            Some(None) => {
+                if !always_print_type {
+                    write!(self.result, " (type {})", idx)?;
+                }
+                return Ok(None);
+            }
             None => bail!("function type index `{}` out of bounds", idx),
         };
-        self.print_functype(&ty, names_for)
+        self.print_functype(&ty, names_for).map(Some)
     }
 
     /// Returns the number of parameters, useful for local index calculations
@@ -502,8 +515,7 @@ impl Printer {
         if index {
             write!(self.result, "(;{};)", self.state.event)?;
         }
-        write!(self.result, " (type {})", ty.type_index)?;
-        self.print_functype_idx(ty.type_index, None)?;
+        self.print_functype_idx(ty.type_index, true, None)?;
         Ok(())
     }
 
@@ -589,8 +601,9 @@ impl Printer {
                 Some(name) => name.write(&mut self.result),
                 None => write!(self.result, "(;{};)", self.state.func)?,
             }
-            write!(self.result, " (type {})", ty)?;
-            let params = self.print_functype_idx(ty, Some(self.state.func))?;
+            let params = self
+                .print_functype_idx(ty, true, Some(self.state.func))?
+                .unwrap_or(0);
 
             let mut first = true;
             let mut local_idx = 0;
@@ -1407,7 +1420,7 @@ impl Printer {
                 Ok(())
             }
             TypeOrFuncType::FuncType(idx) => {
-                self.print_functype_idx(*idx, None)?;
+                self.print_functype_idx(*idx, false, None)?;
                 Ok(())
             }
         }
@@ -1595,9 +1608,6 @@ impl Printer {
                     kind,
                     export,
                 } => {
-                    write!(self.result, "{} ", instance)?;
-                    self.print_str(export)?;
-                    self.result.push_str(" ");
                     match kind {
                         ExternalKind::Function => self.start_group("func"),
                         ExternalKind::Table => self.start_group("table"),
@@ -1642,22 +1652,29 @@ impl Printer {
                         }
                         ExternalKind::Type => self.state.types.push(None),
                     }
+                    write!(self.result, " {} ", instance)?;
+                    self.print_str(export)?;
                     self.end_group();
                 }
-                Alias::ParentType(i) => {
+                Alias::OuterType {
+                    relative_depth,
+                    index,
+                } => {
                     write!(
                         self.result,
-                        "parent (;{};) {} (type)",
-                        self.state.types.len(),
-                        i,
+                        "(type (;{};) outer {} {})",
+                        self.state.module, relative_depth, index
                     )?;
                     self.state.types.push(None);
                 }
-                Alias::ParentModule(i) => {
+                Alias::OuterModule {
+                    relative_depth,
+                    index,
+                } => {
                     write!(
                         self.result,
-                        "parent (;{};) {} (module)",
-                        self.state.module, i
+                        "(module (;{};) outer {} {})",
+                        self.state.module, relative_depth, index
                     )?;
                     self.state.module += 1;
                 }

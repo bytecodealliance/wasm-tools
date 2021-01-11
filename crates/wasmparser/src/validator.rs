@@ -923,27 +923,37 @@ impl Validator {
                     _ => return self.create_error("alias kind mismatch with export kind"),
                 }
             }
-            Alias::ParentType(i) => {
-                let parent = match self.parents.last() {
-                    Some(parent) => parent,
-                    None => {
-                        return self.create_error("no parent module to alias from");
-                    }
-                };
-                let ty = match parent.state.types.get(i as usize) {
+            Alias::OuterType {
+                relative_depth,
+                index,
+            } => {
+                let i = self
+                    .parents
+                    .len()
+                    .checked_sub(relative_depth as usize)
+                    .and_then(|i| i.checked_sub(1))
+                    .ok_or_else(|| {
+                        BinaryReaderError::new("relative depth too large", self.offset)
+                    })?;
+                let ty = match self.parents[i].state.types.get(index as usize) {
                     Some(m) => *m,
                     None => return self.create_error("alias to type not defined in parent yet"),
                 };
                 self.cur.state.assert_mut().types.push(ty);
             }
-            Alias::ParentModule(i) => {
-                let parent = match self.parents.last() {
-                    Some(parent) => parent,
-                    None => {
-                        return self.create_error("no parent module to alias from");
-                    }
-                };
-                let module = match parent.state.submodules.get(i as usize) {
+            Alias::OuterModule {
+                relative_depth,
+                index,
+            } => {
+                let i = self
+                    .parents
+                    .len()
+                    .checked_sub(relative_depth as usize)
+                    .and_then(|i| i.checked_sub(1))
+                    .ok_or_else(|| {
+                        BinaryReaderError::new("relative depth too large", self.offset)
+                    })?;
+                let module = match self.parents[i].state.submodules.get(index as usize) {
                     Some(m) => *m,
                     None => return self.create_error("alias to module not defined in parent yet"),
                 };

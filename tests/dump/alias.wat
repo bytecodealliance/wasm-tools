@@ -4,10 +4,7 @@
     (export "f2" (func $f2 (param i32)))
   ))
 
-  ;; TODO figure out syntactic sugar here
-  (alias $i "f1" (func $i.$f1))
-
   (func (export "run")
-    call $i.$f1
+    call (func $i "f1")
   )
 )
