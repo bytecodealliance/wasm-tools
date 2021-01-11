@@ -1358,6 +1358,40 @@ impl Printer {
             V128Load32x2S { memarg } => self.mem_instr("v128.load32x2_s", memarg, 8)?,
             V128Load32x2U { memarg } => self.mem_instr("v128.load32x2_u", memarg, 8)?,
 
+            V128Load8Lane { memarg, lane } => {
+                self.mem_instr("v128.load8_lane", memarg, 1)?;
+                write!(self.result, " {}", lane)?;
+            }
+            V128Load16Lane { memarg, lane } => {
+                self.mem_instr("v128.load16_lane", memarg, 2)?;
+                write!(self.result, " {}", lane)?;
+            }
+            V128Load32Lane { memarg, lane } => {
+                self.mem_instr("v128.load32_lane", memarg, 4)?;
+                write!(self.result, " {}", lane)?;
+            }
+            V128Load64Lane { memarg, lane } => {
+                self.mem_instr("v128.load64_lane", memarg, 8)?;
+                write!(self.result, " {}", lane)?;
+            }
+
+            V128Store8Lane { memarg, lane } => {
+                self.mem_instr("v128.store8_lane", memarg, 1)?;
+                write!(self.result, " {}", lane)?;
+            }
+            V128Store16Lane { memarg, lane } => {
+                self.mem_instr("v128.store16_lane", memarg, 2)?;
+                write!(self.result, " {}", lane)?;
+            }
+            V128Store32Lane { memarg, lane } => {
+                self.mem_instr("v128.store32_lane", memarg, 4)?;
+                write!(self.result, " {}", lane)?;
+            }
+            V128Store64Lane { memarg, lane } => {
+                self.mem_instr("v128.store64_lane", memarg, 8)?;
+                write!(self.result, " {}", lane)?;
+            }
+
             I8x16RoundingAverageU => self.result.push_str("i8x16.avgr_u"),
             I16x8RoundingAverageU => self.result.push_str("i16x8.avgr_u"),
 

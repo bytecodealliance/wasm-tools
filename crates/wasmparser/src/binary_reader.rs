@@ -1645,6 +1645,38 @@ impl<'a> BinaryReader<'a> {
             0x50 => Operator::V128Or,
             0x51 => Operator::V128Xor,
             0x52 => Operator::V128Bitselect,
+            0x58 => Operator::V128Load8Lane {
+                memarg: self.read_memarg()?,
+                lane: self.read_lane_index(16)?,
+            },
+            0x59 => Operator::V128Load16Lane {
+                memarg: self.read_memarg()?,
+                lane: self.read_lane_index(8)?,
+            },
+            0x5a => Operator::V128Load32Lane {
+                memarg: self.read_memarg()?,
+                lane: self.read_lane_index(4)?,
+            },
+            0x5b => Operator::V128Load64Lane {
+                memarg: self.read_memarg()?,
+                lane: self.read_lane_index(2)?,
+            },
+            0x5c => Operator::V128Store8Lane {
+                memarg: self.read_memarg()?,
+                lane: self.read_lane_index(16)?,
+            },
+            0x5d => Operator::V128Store16Lane {
+                memarg: self.read_memarg()?,
+                lane: self.read_lane_index(8)?,
+            },
+            0x5e => Operator::V128Store32Lane {
+                memarg: self.read_memarg()?,
+                lane: self.read_lane_index(4)?,
+            },
+            0x5f => Operator::V128Store64Lane {
+                memarg: self.read_memarg()?,
+                lane: self.read_lane_index(2)?,
+            },
             0x60 => Operator::I8x16Abs,
             0x61 => Operator::I8x16Neg,
             0x62 => Operator::I8x16AnyTrue,
