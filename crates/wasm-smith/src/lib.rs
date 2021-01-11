@@ -94,8 +94,10 @@ where
     C: Config,
 {
     config: C,
-    depth: usize,
     valtypes: Vec<ValType>,
+
+    /// Parent modules, if any (used for module linking)
+    parents: Vec<Parent>,
 
     /// The initial sections of this wasm module, including types and imports.
     /// This is stored as a list-of-lists where each `InitialSection` represents
@@ -126,12 +128,9 @@ where
     /// Indices into `initializers` which are types. The pair `(i, j)` means
     /// that `initializers[i]` is a type section, and we are referring to the
     /// `j`th type within that type section.
-    types: Vec<(usize, usize)>,
+    types: Vec<LocalType>,
     /// Indices within `types` that are function types.
     func_types: Vec<u32>,
-    /// Map from function signature to indices that have that function
-    /// signature.
-    func_map: HashMap<Rc<FuncType>, Vec<u32>>,
     /// Indices within `types` that are module types.
     module_types: Vec<u32>,
     /// Indices within `types` that are instance types.
@@ -337,10 +336,14 @@ enum Alias {
         kind: ItemKind,
         name: String,
     },
-    #[allow(dead_code)] // TODO: not constructed yet
-    ParentType(u32),
-    #[allow(dead_code)] // TODO: not constructed yet
-    ParentModule(u32),
+    OuterType {
+        depth: u32,
+        index: u32,
+    },
+    OuterModule {
+        depth: u32,
+        index: u32,
+    },
 }
 
 #[derive(Clone, Debug)]
@@ -717,7 +720,7 @@ where
                 choices.push(|u, m, _, _| m.arbitrary_imports(0, u));
             }
             if self.modules.len() < self.config.max_modules()
-                && self.depth < self.config.max_nesting_depth()
+                && self.parents.len() < self.config.max_nesting_depth()
             {
                 choices.push(|u, m, _, _| m.arbitrary_modules(u));
             }
@@ -757,23 +760,15 @@ where
         self.initial_sections.push(InitialSection::Type(Vec::new()));
         arbitrary_loop(u, min, self.config.max_types() - self.types.len(), |u| {
             let ty = self.arbitrary_type(u)?;
-            let list = match &ty {
-                Type::Func(f) => {
-                    self.func_map
-                        .entry(f.clone())
-                        .or_insert(Vec::new())
-                        .push(self.types.len() as u32);
-                    &mut self.func_types
-                }
-                Type::Module(_) => &mut self.module_types,
-                Type::Instance(_) => &mut self.instance_types,
-            };
-            list.push(self.types.len() as u32);
+            self.record_type(&ty);
             let types = match self.initial_sections.last_mut().unwrap() {
                 InitialSection::Type(list) => list,
                 _ => unreachable!(),
             };
-            self.types.push((section_idx, types.len()));
+            self.types.push(LocalType::Defined {
+                section: section_idx,
+                nth: types.len(),
+            });
             types.push(ty);
             Ok(true)
         })?;
@@ -785,6 +780,15 @@ where
             self.initial_sections.pop();
         }
         Ok(())
+    }
+
+    fn record_type(&mut self, ty: &Type) {
+        let list = match &ty {
+            Type::Func(_) => &mut self.func_types,
+            Type::Module(_) => &mut self.module_types,
+            Type::Instance(_) => &mut self.instance_types,
+        };
+        list.push(self.types.len() as u32);
     }
 
     fn arbitrary_type(&mut self, u: &mut Unstructured) -> Result<Type> {
@@ -1009,7 +1013,7 @@ where
             // that if module-linking is enabled and `name` is present, then we
             // might be implicitly generating an instance. If that's the case
             // then we need to record the type of this instance.
-            let module_linking = self.config.module_linking_enabled() || self.depth > 0;
+            let module_linking = self.config.module_linking_enabled() || self.parents.len() > 0;
             let (module, name) =
                 unique_import_strings(1_000, &mut self.import_names, module_linking, u)?;
             if module_linking
@@ -1116,8 +1120,15 @@ where
                         }
                     }
                 }
-                Alias::ParentType(_) => unimplemented!(),
-                Alias::ParentModule(_) => unimplemented!(),
+                Alias::OuterType { depth, index } => {
+                    let ty = self.parents[*depth as usize].types[*index as usize].clone();
+                    self.record_type(&ty);
+                    self.types.push(LocalType::Aliased(ty));
+                }
+                Alias::OuterModule { depth, index } => {
+                    let ty = self.parents[*depth as usize].modules[*index as usize].clone();
+                    self.modules.push(ty);
+                }
             }
             available.update(self);
             self.num_aliases += 1;
@@ -1170,7 +1181,14 @@ where
         let mut modules = Vec::new();
         arbitrary_loop(u, 0, self.config.max_modules(), |u| {
             let mut module = ConfiguredModule::<C>::default();
-            module.depth = self.depth + 1;
+            module.parents = self.parents.clone();
+            let parent = Parent {
+                types: (0..self.types.len())
+                    .map(|i| self.ty(i as u32).clone())
+                    .collect(),
+                modules: self.modules.clone(),
+            };
+            module.parents.insert(0, parent);
             module.config = self.config.clone();
             module.build(u, false)?;
 
@@ -1242,6 +1260,18 @@ where
         }
     }
 
+    fn ty(&self, idx: u32) -> &Type {
+        match &self.types[idx as usize] {
+            LocalType::Defined { section, nth } => {
+                if let InitialSection::Type(list) = &self.initial_sections[*section] {
+                    return &list[*nth];
+                }
+                panic!("looked up a type with the wrong index")
+            }
+            LocalType::Aliased(ty) => ty,
+        }
+    }
+
     fn func_types<'a>(&'a self) -> impl Iterator<Item = (u32, &'a FuncType)> + 'a {
         self.func_types
             .iter()
@@ -1250,31 +1280,22 @@ where
     }
 
     fn func_type(&self, idx: u32) -> &Rc<FuncType> {
-        let (i, j) = self.types[idx as usize];
-        if let InitialSection::Type(list) = &self.initial_sections[i] {
-            if let Type::Func(f) = &list[j] {
-                return f;
-            }
+        if let Type::Func(f) = self.ty(idx) {
+            return f;
         }
         panic!("looked up a function type with the wrong index")
     }
 
     fn instance_type(&self, idx: u32) -> &Rc<InstanceType> {
-        let (i, j) = self.types[idx as usize];
-        if let InitialSection::Type(list) = &self.initial_sections[i] {
-            if let Type::Instance(f) = &list[j] {
-                return f;
-            }
+        if let Type::Instance(f) = self.ty(idx) {
+            return f;
         }
         panic!("looked up an instance type with the wrong index")
     }
 
     fn module_type(&self, idx: u32) -> &Rc<ModuleType> {
-        let (i, j) = self.types[idx as usize];
-        if let InitialSection::Type(list) = &self.initial_sections[i] {
-            if let Type::Module(f) = &list[j] {
-                return f;
-            }
+        if let Type::Module(f) = self.ty(idx) {
+            return f;
         }
         panic!("looked up an instance type with the wrong index")
     }
@@ -1980,6 +2001,7 @@ fn arbitrary_vec_u8(u: &mut Unstructured) -> Result<Vec<u8>> {
 struct AvailableAliases {
     aliases: Vec<Alias>,
     instances_added: usize,
+    parents_processed: bool,
 }
 
 impl AvailableAliases {
@@ -2041,6 +2063,26 @@ impl AvailableAliases {
             }
         }
 
+        // Then add in our all parent's alias candidates, if there are any
+        // parents.
+        if !self.parents_processed {
+            for (i, parent) in module.parents.iter().enumerate() {
+                for j in 0..parent.types.len() {
+                    self.aliases.push(Alias::OuterType {
+                        depth: i as u32,
+                        index: j as u32,
+                    });
+                }
+                for j in 0..parent.modules.len() {
+                    self.aliases.push(Alias::OuterModule {
+                        depth: i as u32,
+                        index: j as u32,
+                    });
+                }
+            }
+            self.parents_processed = true;
+        }
+
         // And afterwards we need to discard alias candidates that create items
         // which, if created, would exceed our maximum limits.
         self.aliases.retain(|alias| match alias {
@@ -2068,8 +2110,8 @@ impl AvailableAliases {
                 kind: ItemKind::Module,
                 ..
             } => module.modules.len() < module.config.max_modules(),
-            Alias::ParentType(_) => module.types.len() < module.config.max_types(),
-            Alias::ParentModule(_) => module.modules.len() < module.config.max_modules(),
+            Alias::OuterType { .. } => module.types.len() < module.config.max_types(),
+            Alias::OuterModule { .. } => module.modules.len() < module.config.max_modules(),
         });
     }
 }
@@ -2163,4 +2205,16 @@ impl Entities {
             || self.modules >= config.max_modules()
             || self.instances >= config.max_instances()
     }
+}
+
+#[derive(Clone, Debug)]
+enum LocalType {
+    Defined { section: usize, nth: usize },
+    Aliased(Type),
+}
+
+#[derive(Debug, Clone)]
+struct Parent {
+    types: Vec<Type>,
+    modules: Vec<Rc<ModuleType>>,
 }

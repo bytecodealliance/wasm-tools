@@ -103,11 +103,11 @@ where
                 } => {
                     section.instance_export(*instance, translate_item_kind(kind), name);
                 }
-                Alias::ParentType(ty) => {
-                    section.parent_type(*ty);
+                Alias::OuterType { depth, index } => {
+                    section.outer_type(*depth, *index);
                 }
-                Alias::ParentModule(m) => {
-                    section.parent_module(*m);
+                Alias::OuterModule { depth, index } => {
+                    section.outer_module(*depth, *index);
                 }
             }
         }

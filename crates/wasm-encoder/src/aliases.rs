@@ -50,18 +50,20 @@ impl AliasSection {
         self
     }
 
-    /// Define an alias that references a parent's type.
-    pub fn parent_type(&mut self, ty: u32) -> &mut Self {
+    /// Define an alias that references an outer module's type.
+    pub fn outer_type(&mut self, depth: u32, ty: u32) -> &mut Self {
         self.bytes.push(0x01);
+        self.bytes.extend(encoders::u32(depth));
         self.bytes.push(0x07);
         self.bytes.extend(encoders::u32(ty));
         self.num_added += 1;
         self
     }
 
-    /// Define an alias that references a parent's module.
-    pub fn parent_module(&mut self, module: u32) -> &mut Self {
+    /// Define an alias that references an outer module's module.
+    pub fn outer_module(&mut self, depth: u32, module: u32) -> &mut Self {
         self.bytes.push(0x01);
+        self.bytes.extend(encoders::u32(depth));
         self.bytes.push(ItemKind::Module as u8);
         self.bytes.extend(encoders::u32(module));
         self.num_added += 1;
