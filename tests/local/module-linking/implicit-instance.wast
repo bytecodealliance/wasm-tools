@@ -10,7 +10,7 @@
   (import "" "" (func))
   (module $m
     (import "" (instance (export "" (func)))))
-  (instance (instantiate $m (arg "" (instance 0))))
+  (instance (instantiate $m "" (instance 0)))
 )
 
 (module
