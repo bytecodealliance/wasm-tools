@@ -1396,6 +1396,20 @@ where
             });
         }
 
+        if self.instances.len() > 0 {
+            choices.push(|u, m| {
+                let idx = u.int_in_range(0..=m.instances.len() - 1)?;
+                Ok(Export::Instance(idx as u32))
+            });
+        }
+
+        if self.modules.len() > 0 {
+            choices.push(|u, m| {
+                let idx = u.int_in_range(0..=m.modules.len() - 1)?;
+                Ok(Export::Module(idx as u32))
+            });
+        }
+
         if choices.is_empty() {
             return Ok(());
         }
