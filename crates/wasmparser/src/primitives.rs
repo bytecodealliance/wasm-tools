@@ -752,6 +752,7 @@ pub enum Operator<'a> {
     I32x4MaxU,
     I32x4DotI16x8S,
     I64x2Neg,
+    I64x2Bitmask,
     I64x2Shl,
     I64x2ShrS,
     I64x2ShrU,

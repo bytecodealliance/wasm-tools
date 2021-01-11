@@ -1754,6 +1754,7 @@ impl<'a> BinaryReader<'a> {
             0xbe => Operator::I32x4ExtMulLowI16x8U,
             0xbf => Operator::I32x4ExtMulHighI16x8U,
             0xc1 => Operator::I64x2Neg,
+            0xc4 => Operator::I64x2Bitmask,
             0xc7 => Operator::I64x2WidenLowI32x4S,
             0xc8 => Operator::I64x2WidenHighI32x4S,
             0xc9 => Operator::I64x2WidenLowI32x4U,

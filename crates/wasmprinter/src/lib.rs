@@ -1261,6 +1261,7 @@ impl Printer {
             I32x4Mul => self.result.push_str("i32x4.mul"),
 
             I64x2Neg => self.result.push_str("i64x2.neg"),
+            I64x2Bitmask => self.result.push_str("i64x2.bitmask"),
             I64x2Shl => self.result.push_str("i64x2.shl"),
             I64x2ShrU => self.result.push_str("i64x2.shr_u"),
             I64x2ShrS => self.result.push_str("i64x2.shr_s"),

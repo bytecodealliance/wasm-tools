@@ -1001,6 +1001,7 @@ instructions! {
 
         I64x2Neg : [0xfd, 0xc1] : "i64x2.neg",
         I64x2Shl : [0xfd, 0xcb] : "i64x2.shl",
+        I64x2Bitmask : [0xfd, 0xc4] : "i64x2.bitmask",
         I64x2WidenLowI32x4S : [0xfd, 0xc7] : "i64x2.widen_low_i32x4_s",
         I64x2WidenHighI32x4S : [0xfd, 0xc8] : "i64x2.widen_high_i32x4_s",
         I64x2WidenLowI32x4U : [0xfd, 0xc9] : "i64x2.widen_low_i32x4_u",

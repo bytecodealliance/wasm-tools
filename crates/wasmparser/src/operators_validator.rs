@@ -1673,7 +1673,8 @@ impl OperatorValidator {
             | Operator::I16x8Bitmask
             | Operator::I32x4AnyTrue
             | Operator::I32x4AllTrue
-            | Operator::I32x4Bitmask => {
+            | Operator::I32x4Bitmask
+            | Operator::I64x2Bitmask => {
                 self.check_simd_enabled()?;
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::I32)?;
