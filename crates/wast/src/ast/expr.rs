@@ -969,6 +969,7 @@ instructions! {
         I16x8MaxU : [0xfd, 0x99] : "i16x8.max_u",
         I16x8ExtMulLowI8x16S : [0xfd, 0x9a] : "i16x8.extmul_low_i8x16_s",
         I16x8AvgrU : [0xfd, 0x9b] : "i16x8.avgr_u",
+        I16x8Q15MulrSatS : [0xfd, 0x9c] : "i16x8.q15mulr_sat_s",
         I16x8ExtMulHighI8x16S : [0xfd, 0x9d] : "i16x8.extmul_high_i8x16_s",
         I16x8ExtMulLowI8x16U : [0xfd, 0x9e] : "i16x8.extmul_low_i8x16_u",
         I16x8ExtMulHighI8x16U : [0xfd, 0x9f] : "i16x8.extmul_high_i8x16_u",

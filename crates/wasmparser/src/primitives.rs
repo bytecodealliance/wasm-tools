@@ -844,4 +844,5 @@ pub enum Operator<'a> {
     V128Store64Lane { memarg: MemoryImmediate, lane: SIMDLaneIndex },
     I8x16RoundingAverageU,
     I16x8RoundingAverageU,
+    I16x8Q15MulrSatS,
 }

@@ -1351,6 +1351,8 @@ impl Printer {
             I64x2ExtMulLowI32x4U => self.result.push_str("i64x2.extmul_low_i32x4_u"),
             I64x2ExtMulHighI32x4U => self.result.push_str("i64x2.extmul_high_i32x4_u"),
 
+            I16x8Q15MulrSatS => self.result.push_str("i16x8.q15mulr_sat_s"),
+
             V128Load8x8S { memarg } => self.mem_instr("v128.load8x8_s", memarg, 8)?,
             V128Load8x8U { memarg } => self.mem_instr("v128.load8x8_u", memarg, 8)?,
             V128Load16x4S { memarg } => self.mem_instr("v128.load16x4_s", memarg, 8)?,
