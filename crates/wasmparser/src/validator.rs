@@ -923,7 +923,7 @@ impl Validator {
                     _ => return self.create_error("alias kind mismatch with export kind"),
                 }
             }
-            Alias::ParentType {
+            Alias::OuterType {
                 relative_depth,
                 index,
             } => {
@@ -941,7 +941,7 @@ impl Validator {
                 };
                 self.cur.state.assert_mut().types.push(ty);
             }
-            Alias::ParentModule {
+            Alias::OuterModule {
                 relative_depth,
                 index,
             } => {

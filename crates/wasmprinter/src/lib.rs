@@ -1656,7 +1656,7 @@ impl Printer {
                     self.print_str(export)?;
                     self.end_group();
                 }
-                Alias::ParentType {
+                Alias::OuterType {
                     relative_depth,
                     index,
                 } => {
@@ -1667,7 +1667,7 @@ impl Printer {
                     )?;
                     self.state.types.push(None);
                 }
-                Alias::ParentModule {
+                Alias::OuterModule {
                     relative_depth,
                     index,
                 } => {

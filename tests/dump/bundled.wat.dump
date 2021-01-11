@@ -22,7 +22,7 @@
          | 01 00 00 00
   0x0041 | 10 05       | alias section
   0x0043 | 01          | 1 count
-  0x0044 | 01 00 07 01 | [alias] ParentType { relative_depth: 0, index: 1 }
+  0x0044 | 01 00 07 01 | [alias] OuterType { relative_depth: 0, index: 1 }
   0x0048 | 02 0f       | import section
   0x004a | 01          | 1 count
   0x004b | 09 77 61 73 | import [instance 0] Import { module: "wasi_file", field: None, ty: Instance(0) }
@@ -64,7 +64,7 @@
          | 01 00 00 00
   0x00a1 | 10 05       | alias section
   0x00a3 | 01          | 1 count
-  0x00a4 | 01 00 07 01 | [alias] ParentType { relative_depth: 0, index: 1 }
+  0x00a4 | 01 00 07 01 | [alias] OuterType { relative_depth: 0, index: 1 }
   0x00a8 | 02 0f       | import section
   0x00aa | 01          | 1 count
   0x00ab | 09 77 61 73 | import [instance 0] Import { module: "wasi_file", field: None, ty: Instance(0) }

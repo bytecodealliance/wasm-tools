@@ -11,11 +11,11 @@ pub struct AliasSectionReader<'a> {
 
 #[derive(Debug)]
 pub enum Alias<'a> {
-    ParentType {
+    OuterType {
         relative_depth: u32,
         index: u32,
     },
-    ParentModule {
+    OuterModule {
         relative_depth: u32,
         index: u32,
     },
@@ -51,11 +51,11 @@ impl<'a> AliasSectionReader<'a> {
             0x01 => {
                 let relative_depth = self.reader.read_var_u32()?;
                 match self.reader.read_external_kind()? {
-                    ExternalKind::Type => Alias::ParentType {
+                    ExternalKind::Type => Alias::OuterType {
                         relative_depth,
                         index: self.reader.read_var_u32()?,
                     },
-                    ExternalKind::Module => Alias::ParentModule {
+                    ExternalKind::Module => Alias::OuterModule {
                         relative_depth,
                         index: self.reader.read_var_u32()?,
                     },
