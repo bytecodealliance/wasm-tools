@@ -14,9 +14,9 @@ use super::*;
 ///
 /// let mut instances = InstanceSection::new();
 /// instances.instantiate(0, vec![
-///     ("x", None, Export::Function(0)),
-///     ("", Some("y"), Export::Module(2)),
-///     ("foo", None, Export::Global(0)),
+///     ("x", Export::Function(0)),
+///     ("", Export::Module(2)),
+///     ("foo", Export::Global(0)),
 /// ]);
 ///
 /// let mut module = Module::new();

@@ -13,7 +13,7 @@ use super::*;
 /// use wasm_encoder::{Module, AliasSection, ItemKind};
 ///
 /// let mut aliases = AliasSection::new();
-/// aliases.parent_type(2);
+/// aliases.outer_type(0, 2);
 /// aliases.instance_export(0, ItemKind::Function, "foo");
 ///
 /// let mut module = Module::new();
