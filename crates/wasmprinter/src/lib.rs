@@ -1333,6 +1333,10 @@ impl Printer {
             I32x4WidenHighI16x8S => self.result.push_str("i32x4.widen_high_i16x8_s"),
             I32x4WidenLowI16x8U => self.result.push_str("i32x4.widen_low_i16x8_u"),
             I32x4WidenHighI16x8U => self.result.push_str("i32x4.widen_high_i16x8_u"),
+            I64x2WidenLowI32x4S => self.result.push_str("i64x2.widen_low_i32x4_s"),
+            I64x2WidenHighI32x4S => self.result.push_str("i64x2.widen_high_i32x4_s"),
+            I64x2WidenLowI32x4U => self.result.push_str("i64x2.widen_low_i32x4_u"),
+            I64x2WidenHighI32x4U => self.result.push_str("i64x2.widen_high_i32x4_u"),
 
             I16x8ExtMulLowI8x16S => self.result.push_str("i16x8.extmul_low_i8x16_s"),
             I16x8ExtMulHighI8x16S => self.result.push_str("i16x8.extmul_high_i8x16_s"),
