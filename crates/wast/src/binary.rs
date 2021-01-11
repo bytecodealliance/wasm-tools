@@ -1200,15 +1200,6 @@ impl Encode for Instance<'_> {
 impl Encode for InstanceArg<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.name.encode(e);
-        match self.field {
-            Some(s) => {
-                e.push(1);
-                s.encode(e);
-            }
-            None => {
-                e.push(0);
-            }
-        }
         if let ItemRef::Item { kind, .. } = &self.index {
             kind.encode(e);
         }

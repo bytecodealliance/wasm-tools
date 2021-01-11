@@ -59,19 +59,13 @@
        | 35         
 0x00a2 | 00 00 06 01 | [alias] InstanceExport { instance: 0, kind: Instance, export: "6" }
        | 36         
-0x00a7 | 0f 22       | instance section
+0x00a7 | 0f 1c       | instance section
 0x00a9 | 01          | 1 count
 0x00aa | 00 00       | [instance 2] instantiate module:0
 0x00ac | 06          | 6 count
-0x00ad | 01 31 00 00 | [instantiate arg] InstanceArg { name: "1", field: None, kind: Function, index: 0 }
-       | 00         
-0x00b2 | 01 32 00 02 | [instantiate arg] InstanceArg { name: "2", field: None, kind: Memory, index: 0 }
-       | 00         
-0x00b7 | 01 33 00 03 | [instantiate arg] InstanceArg { name: "3", field: None, kind: Global, index: 0 }
-       | 00         
-0x00bc | 01 34 00 01 | [instantiate arg] InstanceArg { name: "4", field: None, kind: Table, index: 0 }
-       | 00         
-0x00c1 | 01 35 00 05 | [instantiate arg] InstanceArg { name: "5", field: None, kind: Module, index: 1 }
-       | 01         
-0x00c6 | 01 36 00 06 | [instantiate arg] InstanceArg { name: "6", field: None, kind: Instance, index: 1 }
-       | 01         
+0x00ad | 01 31 00 00 | [instantiate arg] InstanceArg { name: "1", kind: Function, index: 0 }
+0x00b1 | 01 32 02 00 | [instantiate arg] InstanceArg { name: "2", kind: Memory, index: 0 }
+0x00b5 | 01 33 03 00 | [instantiate arg] InstanceArg { name: "3", kind: Global, index: 0 }
+0x00b9 | 01 34 01 00 | [instantiate arg] InstanceArg { name: "4", kind: Table, index: 0 }
+0x00bd | 01 35 05 01 | [instantiate arg] InstanceArg { name: "5", kind: Module, index: 1 }
+0x00c1 | 01 36 06 01 | [instantiate arg] InstanceArg { name: "6", kind: Instance, index: 1 }

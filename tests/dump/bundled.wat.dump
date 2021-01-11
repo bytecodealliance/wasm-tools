@@ -103,38 +103,36 @@
   0x00f0 | 0a 56 49 52 | "VIRTUALIZE"
          | 54 55 41 4c
          | 49 5a 45   
-0x00fb | 0f 21       | instance section
+0x00fb | 0f 1f       | instance section
 0x00fd | 02          | 2 count
 0x00fe | 00 01       | [instance 1] instantiate module:1
 0x0100 | 01          | 1 count
-0x0101 | 09 77 61 73 | [instantiate arg] InstanceArg { name: "wasi_file", field: None, kind: Instance, index: 0 }
+0x0101 | 09 77 61 73 | [instantiate arg] InstanceArg { name: "wasi_file", kind: Instance, index: 0 }
        | 69 5f 66 69
-       | 6c 65 00 06
-       | 00         
-0x010e | 00 00       | [instance 2] instantiate module:0
-0x0110 | 01          | 1 count
-0x0111 | 09 77 61 73 | [instantiate arg] InstanceArg { name: "wasi_file", field: None, kind: Instance, index: 1 }
+       | 6c 65 06 00
+0x010d | 00 00       | [instance 2] instantiate module:0
+0x010f | 01          | 1 count
+0x0110 | 09 77 61 73 | [instantiate arg] InstanceArg { name: "wasi_file", kind: Instance, index: 1 }
        | 69 5f 66 69
-       | 6c 65 00 06
-       | 01         
-0x011e | 10 09       | alias section
-0x0120 | 01          | 1 count
-0x0121 | 00 02 00 04 | [alias] InstanceExport { instance: 2, kind: Function, export: "play" }
+       | 6c 65 06 01
+0x011c | 10 09       | alias section
+0x011e | 01          | 1 count
+0x011f | 00 02 00 04 | [alias] InstanceExport { instance: 2, kind: Function, export: "play" }
        | 70 6c 61 79
-0x0129 | 01 04       | type section
-0x012b | 01          | 1 count
-0x012c | 60 00 00    | [type 2] Func(FuncType { params: [], returns: [] })
-0x012f | 03 02       | func section
-0x0131 | 01          | 1 count
-0x0132 | 02          | [func 1] type 2
-0x0133 | 07 08       | export section
-0x0135 | 01          | 1 count
-0x0136 | 04 77 6f 72 | export Export { field: "work", kind: Function, index: 1 }
+0x0127 | 01 04       | type section
+0x0129 | 01          | 1 count
+0x012a | 60 00 00    | [type 2] Func(FuncType { params: [], returns: [] })
+0x012d | 03 02       | func section
+0x012f | 01          | 1 count
+0x0130 | 02          | [func 1] type 2
+0x0131 | 07 08       | export section
+0x0133 | 01          | 1 count
+0x0134 | 04 77 6f 72 | export Export { field: "work", kind: Function, index: 1 }
        | 6b 00 01   
-0x013d | 0a 06       | code section
-0x013f | 01          | 1 count
+0x013b | 0a 06       | code section
+0x013d | 01          | 1 count
 ============== func 1 ====================
-0x0140 | 04          | size of function
-0x0141 | 00          | 0 local blocks
-0x0142 | 10 00       | Call { function_index: 0 }
-0x0144 | 0b          | End
+0x013e | 04          | size of function
+0x013f | 00          | 0 local blocks
+0x0140 | 10 00       | Call { function_index: 0 }
+0x0142 | 0b          | End
