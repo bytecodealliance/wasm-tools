@@ -96,8 +96,8 @@ where
     config: C,
     valtypes: Vec<ValType>,
 
-    /// Parent modules, if any (used for module linking)
-    parents: Vec<Parent>,
+    /// Outer modules, if any (used for module linking)
+    outers: Vec<Outer>,
 
     /// The initial sections of this wasm module, including types and imports.
     /// This is stored as a list-of-lists where each `InitialSection` represents
@@ -125,9 +125,8 @@ where
     /// defined.
     implicit_instance_types: HashMap<String, usize>,
 
-    /// Indices into `initializers` which are types. The pair `(i, j)` means
-    /// that `initializers[i]` is a type section, and we are referring to the
-    /// `j`th type within that type section.
+    /// All types locally defined in this module (available in the type index
+    /// space).
     types: Vec<LocalType>,
     /// Indices within `types` that are function types.
     func_types: Vec<u32>,
@@ -720,7 +719,7 @@ where
                 choices.push(|u, m, _, _| m.arbitrary_imports(0, u));
             }
             if self.modules.len() < self.config.max_modules()
-                && self.parents.len() < self.config.max_nesting_depth()
+                && self.outers.len() < self.config.max_nesting_depth()
             {
                 choices.push(|u, m, _, _| m.arbitrary_modules(u));
             }
@@ -1013,14 +1012,15 @@ where
             // that if module-linking is enabled and `name` is present, then we
             // might be implicitly generating an instance. If that's the case
             // then we need to record the type of this instance.
-            let module_linking = self.config.module_linking_enabled() || self.parents.len() > 0;
+            let module_linking = self.config.module_linking_enabled() || self.outers.len() > 0;
             let (module, name) =
                 unique_import_strings(1_000, &mut self.import_names, module_linking, u)?;
             if module_linking
                 && name.is_some()
                 && self.import_names[&module].as_ref().unwrap().len() == 1
             {
-                // first time this is imported, generate a new type
+                // This is the first time this module name is imported from, so
+                // generate a new instance type.
                 self.implicit_instance_types
                     .insert(module.clone(), self.instances.len());
                 self.instances.push(Rc::new(InstanceType::default()));
@@ -1033,7 +1033,7 @@ where
                     let idx = self.implicit_instance_types[&module];
                     let instance_ty = &mut self.instances[idx];
                     Rc::get_mut(instance_ty)
-                        .unwrap() // shouldn't be aliased yet
+                        .expect("shouldn't be aliased yet")
                         .exports
                         .insert(name.clone(), ty.clone());
                 }
@@ -1121,12 +1121,12 @@ where
                     }
                 }
                 Alias::OuterType { depth, index } => {
-                    let ty = self.parents[*depth as usize].types[*index as usize].clone();
+                    let ty = self.outers[*depth as usize].types[*index as usize].clone();
                     self.record_type(&ty);
                     self.types.push(LocalType::Aliased(ty));
                 }
                 Alias::OuterModule { depth, index } => {
-                    let ty = self.parents[*depth as usize].modules[*index as usize].clone();
+                    let ty = self.outers[*depth as usize].modules[*index as usize].clone();
                     self.modules.push(ty);
                 }
             }
@@ -1181,14 +1181,14 @@ where
         let mut modules = Vec::new();
         arbitrary_loop(u, 0, self.config.max_modules(), |u| {
             let mut module = ConfiguredModule::<C>::default();
-            module.parents = self.parents.clone();
-            let parent = Parent {
+            module.outers = self.outers.clone();
+            let parent = Outer {
                 types: (0..self.types.len())
                     .map(|i| self.ty(i as u32).clone())
                     .collect(),
                 modules: self.modules.clone(),
             };
-            module.parents.insert(0, parent);
+            module.outers.insert(0, parent);
             module.config = self.config.clone();
             module.build(u, false)?;
 
@@ -1207,11 +1207,11 @@ where
             {
                 if field.is_none() {
                     // If the field is none then `ty` matches the import type
-                    // exactly
+                    // exactly.
                     import_types.insert(name.clone(), ty.clone());
                 } else if import_types.get(name).is_none() {
-                    // otherwise if we haven't already recorded the implicit
-                    // type of `name` then we do so here
+                    // Otherwise if we haven't already recorded the implicit
+                    // type of `name` then we do so here.
                     let ty = module.instances[module.implicit_instance_types[name]].clone();
                     import_types.insert(name.clone(), EntityType::Instance(u32::max_value(), ty));
                 }
@@ -2001,7 +2001,7 @@ fn arbitrary_vec_u8(u: &mut Unstructured) -> Result<Vec<u8>> {
 struct AvailableAliases {
     aliases: Vec<Alias>,
     instances_added: usize,
-    parents_processed: bool,
+    outers_processed: bool,
 }
 
 impl AvailableAliases {
@@ -2064,9 +2064,9 @@ impl AvailableAliases {
         }
 
         // Then add in our all parent's alias candidates, if there are any
-        // parents.
-        if !self.parents_processed {
-            for (i, parent) in module.parents.iter().enumerate() {
+        // outers.
+        if !self.outers_processed {
+            for (i, parent) in module.outers.iter().enumerate() {
                 for j in 0..parent.types.len() {
                     self.aliases.push(Alias::OuterType {
                         depth: i as u32,
@@ -2080,7 +2080,7 @@ impl AvailableAliases {
                     });
                 }
             }
-            self.parents_processed = true;
+            self.outers_processed = true;
         }
 
         // And afterwards we need to discard alias candidates that create items
@@ -2209,12 +2209,23 @@ impl Entities {
 
 #[derive(Clone, Debug)]
 enum LocalType {
-    Defined { section: usize, nth: usize },
+    /// A type that's locally defined in a module via a type section.
+    Defined {
+        /// The section (index within `ConfiguredModule::initializers` that this
+        /// type is defined.
+        section: usize,
+        /// Which element within the section definition this type corresponds
+        /// to.
+        nth: usize,
+    },
+
+    /// A type that's aliased from another outer module to be defined in a
+    /// module. The type's definition is copied inline here.
     Aliased(Type),
 }
 
 #[derive(Debug, Clone)]
-struct Parent {
+struct Outer {
     types: Vec<Type>,
     modules: Vec<Rc<ModuleType>>,
 }
