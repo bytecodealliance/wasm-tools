@@ -1665,13 +1665,11 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;
             }
-            Operator::I8x16AnyTrue
+            Operator::V128AnyTrue
             | Operator::I8x16AllTrue
             | Operator::I8x16Bitmask
-            | Operator::I16x8AnyTrue
             | Operator::I16x8AllTrue
             | Operator::I16x8Bitmask
-            | Operator::I32x4AnyTrue
             | Operator::I32x4AllTrue
             | Operator::I32x4Bitmask
             | Operator::I64x2Bitmask => {

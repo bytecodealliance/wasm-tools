@@ -1216,10 +1216,10 @@ impl Printer {
             V128Or => self.result.push_str("v128.or"),
             V128Xor => self.result.push_str("v128.xor"),
             V128Bitselect => self.result.push_str("v128.bitselect"),
+            V128AnyTrue => self.result.push_str("v128.any_true"),
 
             I8x16Abs => self.result.push_str("i8x16.abs"),
             I8x16Neg => self.result.push_str("i8x16.neg"),
-            I8x16AnyTrue => self.result.push_str("i8x16.any_true"),
             I8x16AllTrue => self.result.push_str("i8x16.all_true"),
             I8x16Bitmask => self.result.push_str("i8x16.bitmask"),
             I8x16Shl => self.result.push_str("i8x16.shl"),
@@ -1234,7 +1234,6 @@ impl Printer {
 
             I16x8Abs => self.result.push_str("i16x8.abs"),
             I16x8Neg => self.result.push_str("i16x8.neg"),
-            I16x8AnyTrue => self.result.push_str("i16x8.any_true"),
             I16x8AllTrue => self.result.push_str("i16x8.all_true"),
             I16x8Bitmask => self.result.push_str("i16x8.bitmask"),
             I16x8Shl => self.result.push_str("i16x8.shl"),
@@ -1250,7 +1249,6 @@ impl Printer {
 
             I32x4Abs => self.result.push_str("i32x4.abs"),
             I32x4Neg => self.result.push_str("i32x4.neg"),
-            I32x4AnyTrue => self.result.push_str("i32x4.any_true"),
             I32x4AllTrue => self.result.push_str("i32x4.all_true"),
             I32x4Bitmask => self.result.push_str("i32x4.bitmask"),
             I32x4Shl => self.result.push_str("i32x4.shl"),
