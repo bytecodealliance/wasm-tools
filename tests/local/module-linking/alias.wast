@@ -59,8 +59,8 @@
     (export "memory" (memory $mem 1))
     (export "table" (table $tbl 0 funcref))
   ))
-  (alias (memory $mem $libc "memory"))
-  (alias (table $tbl $libc "table"))
+  (alias $mem (memory $libc "memory"))
+  (alias $tbl (table $libc "table"))
 )
 
 (module
@@ -443,7 +443,7 @@
   (import "" (instance $i
     (export "" (global $g (mut i32)))
   ))
-  (alias (global $g $i ""))
+  (alias $g (global $i ""))
 
   (func
     global.get $g
@@ -454,7 +454,7 @@
   (import "" (instance $i
     (export "" (table $t 1 funcref))
   ))
-  (alias (table $t $i ""))
+  (alias $t (table $i ""))
 
   (func
     i32.const 0
@@ -466,7 +466,7 @@
   (import "" (instance $i
     (export "" (memory $m 1))
   ))
-  (alias (memory $m $i ""))
+  (alias $m (memory $i ""))
 
   (func
     i32.const 0
@@ -478,7 +478,7 @@
   (import "" (instance $i
     (export "" (func $f))
   ))
-  (alias (func $f $i ""))
+  (alias $f (func $i ""))
 
   (func
     call $f)
@@ -490,8 +490,8 @@
       (export "" (func))
     ))
   ))
-  (alias (instance $i2 $i ""))
-  (alias (func $f $i2 ""))
+  (alias $i2 (instance $i ""))
+  (alias $f (func $i2 ""))
 
   (func
     call $f)
@@ -501,7 +501,7 @@
   (import "" (instance $i
     (export "" (module $m))
   ))
-  (alias (module $m $i ""))
+  (alias $m (module $i ""))
   (instance (instantiate $m))
 )
 
@@ -525,7 +525,7 @@
     (export "" (func $f))
   ))
   (instance $i (instantiate $m))
-  (alias (func $f $i ""))
+  (alias $f (func $i ""))
 
   (func
     call $f)
@@ -536,7 +536,7 @@
     (func $f (export ""))
   )
   (instance $i (instantiate $m))
-  (alias (func $f $i ""))
+  (alias $f (func $i ""))
 
   (func
     call $f)

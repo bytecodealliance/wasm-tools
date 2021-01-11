@@ -1609,6 +1609,41 @@ impl Printer {
                     export,
                 } => {
                     match kind {
+                        ExternalKind::Function => {
+                            match self.state.names.get(&self.state.func) {
+                                Some(name) => write!(self.result, "${}", name.identifier())?,
+                                None => write!(self.result, "(;{};)", self.state.func)?,
+                            }
+                            self.state.func += 1;
+                        }
+                        ExternalKind::Table => {
+                            write!(self.result, "(;{};)", self.state.table)?;
+                            self.state.table += 1;
+                        }
+                        ExternalKind::Memory => {
+                            write!(self.result, "(;{};)", self.state.memory)?;
+                            self.state.memory += 1;
+                        }
+                        ExternalKind::Event => {
+                            write!(self.result, "(;{};)", self.state.event)?;
+                            self.state.event += 1;
+                        }
+                        ExternalKind::Global => {
+                            write!(self.result, "(;{};)", self.state.global)?;
+                            self.state.global += 1;
+                        }
+                        ExternalKind::Instance => {
+                            write!(self.result, "(;{};)", self.state.instance)?;
+                            self.state.instance += 1;
+                        }
+                        ExternalKind::Module => {
+                            write!(self.result, "(;{};)", self.state.module)?;
+                            self.state.module += 1;
+                        }
+                        ExternalKind::Type => self.state.types.push(None),
+                    }
+                    self.result.push_str(" ");
+                    match kind {
                         ExternalKind::Function => self.start_group("func"),
                         ExternalKind::Table => self.start_group("table"),
                         ExternalKind::Memory => self.start_group("memory"),
@@ -1617,40 +1652,6 @@ impl Printer {
                         ExternalKind::Instance => self.start_group("instance"),
                         ExternalKind::Module => self.start_group("module"),
                         ExternalKind::Type => self.start_group("type"),
-                    }
-                    match kind {
-                        ExternalKind::Function => {
-                            match self.state.names.get(&self.state.func) {
-                                Some(name) => write!(self.result, " ${}", name.identifier())?,
-                                None => write!(self.result, " (;{};)", self.state.func)?,
-                            }
-                            self.state.func += 1;
-                        }
-                        ExternalKind::Table => {
-                            write!(self.result, " (;{};)", self.state.table)?;
-                            self.state.table += 1;
-                        }
-                        ExternalKind::Memory => {
-                            write!(self.result, " (;{};)", self.state.memory)?;
-                            self.state.memory += 1;
-                        }
-                        ExternalKind::Event => {
-                            write!(self.result, " (;{};)", self.state.event)?;
-                            self.state.event += 1;
-                        }
-                        ExternalKind::Global => {
-                            write!(self.result, " (;{};)", self.state.global)?;
-                            self.state.global += 1;
-                        }
-                        ExternalKind::Instance => {
-                            write!(self.result, " (;{};)", self.state.instance)?;
-                            self.state.instance += 1;
-                        }
-                        ExternalKind::Module => {
-                            write!(self.result, " (;{};)", self.state.module)?;
-                            self.state.module += 1;
-                        }
-                        ExternalKind::Type => self.state.types.push(None),
                     }
                     write!(self.result, " {} ", instance)?;
                     self.print_str(export)?;
@@ -1662,7 +1663,7 @@ impl Printer {
                 } => {
                     write!(
                         self.result,
-                        "(type (;{};) outer {} {})",
+                        "(;{};) (type outer {} {})",
                         self.state.module, relative_depth, index
                     )?;
                     self.state.types.push(None);
@@ -1673,7 +1674,7 @@ impl Printer {
                 } => {
                     write!(
                         self.result,
-                        "(module (;{};) outer {} {})",
+                        "(;{};) (module outer {} {})",
                         self.state.module, relative_depth, index
                     )?;
                     self.state.module += 1;
