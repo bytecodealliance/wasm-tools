@@ -119,6 +119,10 @@ where
     /// second-level import names that have been generated so far.
     import_names: HashMap<String, Option<HashSet<String>>>,
 
+    /// Where within the `instances` array each implicit instance's type is
+    /// defined.
+    implicit_instance_types: HashMap<String, usize>,
+
     /// Indices into `initializers` which are types. The pair `(i, j)` means
     /// that `initializers[i]` is a type section, and we are referring to the
     /// `j`th type within that type section.
@@ -252,7 +256,7 @@ struct FuncType {
     results: Vec<ValType>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 struct InstanceType {
     exports: indexmap::IndexMap<String, EntityType>,
 }
@@ -260,6 +264,7 @@ struct InstanceType {
 #[derive(Clone, Debug)]
 struct ModuleType {
     imports: Vec<(String, Option<String>, EntityType)>,
+    import_types: indexmap::IndexMap<String, EntityType>,
     /// The list of exports can be found in the `InstanceType` indirection here,
     /// and this struct layout is used to ease the instantiation process where
     /// we record an instance's signature.
@@ -341,7 +346,7 @@ enum Alias {
 #[derive(Clone, Debug)]
 struct Instance {
     module: u32,
-    args: Vec<(String, Option<String>, Export)>,
+    args: Vec<(String, Export)>,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -814,16 +819,33 @@ where
     ) -> Result<Rc<ModuleType>> {
         let exports = self.arbitrary_instance_type(u, entities)?;
         let mut imports = Vec::new();
+        let mut import_types = indexmap::IndexMap::new();
         let mut names = HashMap::new();
         if !entities.max_reached(&self.config) {
             arbitrary_loop(u, 0, self.config.max_imports(), |u| {
                 let (module, name) = unique_import_strings(1_000, &mut names, true, u)?;
                 let ty = self.arbitrary_entity_type(u, entities)?;
+                if let Some(name) = &name {
+                    let ity = import_types.entry(module.clone()).or_insert_with(|| {
+                        EntityType::Instance(u32::max_value(), Default::default())
+                    });
+                    let ity = match ity {
+                        EntityType::Instance(_, ty) => Rc::get_mut(ty).unwrap(),
+                        _ => unreachable!(),
+                    };
+                    ity.exports.insert(name.clone(), ty.clone());
+                } else {
+                    import_types.insert(module.clone(), ty.clone());
+                }
                 imports.push((module, name, ty));
                 Ok(!entities.max_reached(&self.config))
             })?;
         }
-        Ok(Rc::new(ModuleType { imports, exports }))
+        Ok(Rc::new(ModuleType {
+            imports,
+            import_types,
+            exports,
+        }))
     }
 
     fn arbitrary_instance_type(
@@ -983,14 +1005,35 @@ where
                 return Ok(false);
             }
 
-            let (module, name) = unique_import_strings(
-                1_000,
-                &mut self.import_names,
-                self.config.module_linking_enabled() || self.depth > 0,
-                u,
-            )?;
+            // Generate an arbitrary module/name pair to name this import. Note
+            // that if module-linking is enabled and `name` is present, then we
+            // might be implicitly generating an instance. If that's the case
+            // then we need to record the type of this instance.
+            let module_linking = self.config.module_linking_enabled() || self.depth > 0;
+            let (module, name) =
+                unique_import_strings(1_000, &mut self.import_names, module_linking, u)?;
+            if module_linking
+                && name.is_some()
+                && self.import_names[&module].as_ref().unwrap().len() == 1
+            {
+                // first time this is imported, generate a new type
+                self.implicit_instance_types
+                    .insert(module.clone(), self.instances.len());
+                self.instances.push(Rc::new(InstanceType::default()));
+            }
             let f = u.choose(&choices)?;
             let ty = f(u, self)?;
+
+            if let Some(name) = &name {
+                if module_linking {
+                    let idx = self.implicit_instance_types[&module];
+                    let instance_ty = &mut self.instances[idx];
+                    Rc::get_mut(instance_ty)
+                        .unwrap() // shouldn't be aliased yet
+                        .exports
+                        .insert(name.clone(), ty.clone());
+                }
+            }
 
             self.num_imports += 1;
             imports.push((module, name, ty));
@@ -1105,9 +1148,8 @@ where
                     args: choice
                         .args
                         .iter()
-                        .map(|(name, field, candidates)| {
-                            u.choose(candidates)
-                                .map(|e| (name.clone(), field.clone(), e.clone()))
+                        .map(|(name, candidates)| {
+                            u.choose(candidates).map(|e| (name.clone(), e.clone()))
                         })
                         .collect::<Result<Vec<_>>>()?,
                 });
@@ -1135,7 +1177,8 @@ where
             // After we've generated the `module`, we create `ty` which is its
             // own type signature of itself.
             let mut imports = Vec::with_capacity(module.num_imports);
-            for (module, name, ty) in module
+            let mut import_types = indexmap::IndexMap::with_capacity(module.num_imports);
+            for (name, field, ty) in module
                 .initial_sections
                 .iter()
                 .filter_map(|section| match section {
@@ -1144,7 +1187,17 @@ where
                 })
                 .flat_map(|a| a)
             {
-                imports.push((module.clone(), name.clone(), ty.clone()));
+                if field.is_none() {
+                    // If the field is none then `ty` matches the import type
+                    // exactly
+                    import_types.insert(name.clone(), ty.clone());
+                } else if import_types.get(name).is_none() {
+                    // otherwise if we haven't already recorded the implicit
+                    // type of `name` then we do so here
+                    let ty = module.instances[module.implicit_instance_types[name]].clone();
+                    import_types.insert(name.clone(), EntityType::Instance(u32::max_value(), ty));
+                }
+                imports.push((name.clone(), field.clone(), ty.clone()));
             }
             let mut exports = indexmap::IndexMap::with_capacity(module.exports.len());
             for (name, export) in module.exports.iter() {
@@ -1153,6 +1206,7 @@ where
             }
             let ty = Rc::new(ModuleType {
                 imports,
+                import_types,
                 exports: Rc::new(InstanceType { exports }),
             });
 
@@ -2061,7 +2115,7 @@ struct Instantiation {
     ///   (global $g2 (mut i32) (i32.const 42))
     /// )
     /// ```
-    args: Vec<(String, Option<String>, Vec<Export>)>,
+    args: Vec<(String, Vec<Export>)>,
 }
 
 impl AvailableInstantiations {
@@ -2069,7 +2123,7 @@ impl AvailableInstantiations {
         self.choices.clear();
         'outer: for (i, ty) in module.modules.iter().enumerate() {
             let mut args = Vec::new();
-            for (name, field, import) in ty.imports.iter() {
+            for (name, import) in ty.import_types.iter() {
                 let candidates = module.subtypes(import);
                 // If nothing in our module up to this point can satisfy this
                 // import then we can't instantiate this module. That means we
@@ -2077,7 +2131,7 @@ impl AvailableInstantiations {
                 if candidates.is_empty() {
                     continue 'outer;
                 }
-                args.push((name.clone(), field.clone(), candidates));
+                args.push((name.clone(), candidates));
             }
 
             self.choices.push(Instantiation {

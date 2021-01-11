@@ -119,9 +119,10 @@ where
         for instance in list {
             section.instantiate(
                 instance.module,
-                instance.args.iter().map(|(name, field, export)| {
-                    (name.as_str(), field.as_deref(), translate_export(export))
-                }),
+                instance
+                    .args
+                    .iter()
+                    .map(|(name, export)| (name.as_str(), translate_export(export))),
             );
         }
         module.section(&section);
