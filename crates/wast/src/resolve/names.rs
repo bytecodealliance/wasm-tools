@@ -1,7 +1,7 @@
 use crate::ast::*;
 use crate::resolve::Ns;
 use crate::Error;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub fn resolve<'a>(
     id: Option<Id<'a>>,
@@ -38,6 +38,7 @@ pub struct Resolver<'a> {
     elems: Namespace<'a>,
     fields: Namespace<'a>,
     type_info: Vec<TypeInfo<'a>>,
+    implicit_instances: HashSet<&'a str>,
 }
 
 impl<'a> Resolver<'a> {
@@ -62,15 +63,24 @@ impl<'a> Resolver<'a> {
 
     fn register(&mut self, item: &ModuleField<'a>) -> Result<(), Error> {
         match item {
-            ModuleField::Import(i) => match &i.item.kind {
-                ItemKind::Func(_) => self.funcs.register(i.item.id, "func")?,
-                ItemKind::Memory(_) => self.memories.register(i.item.id, "memory")?,
-                ItemKind::Table(_) => self.tables.register(i.item.id, "table")?,
-                ItemKind::Global(_) => self.globals.register(i.item.id, "global")?,
-                ItemKind::Event(_) => self.events.register(i.item.id, "event")?,
-                ItemKind::Module(_) => self.modules.register(i.item.id, "module")?,
-                ItemKind::Instance(_) => self.instances.register(i.item.id, "instance")?,
-            },
+            ModuleField::Import(i) => {
+                // Account for implicit instances created by two-level imports
+                // first. At this time they never have a name.
+                if i.field.is_some() {
+                    if self.implicit_instances.insert(i.module) {
+                        self.instances.register(None, "instance")?;
+                    }
+                }
+                match &i.item.kind {
+                    ItemKind::Func(_) => self.funcs.register(i.item.id, "func")?,
+                    ItemKind::Memory(_) => self.memories.register(i.item.id, "memory")?,
+                    ItemKind::Table(_) => self.tables.register(i.item.id, "table")?,
+                    ItemKind::Global(_) => self.globals.register(i.item.id, "global")?,
+                    ItemKind::Event(_) => self.events.register(i.item.id, "event")?,
+                    ItemKind::Module(_) => self.modules.register(i.item.id, "module")?,
+                    ItemKind::Instance(_) => self.instances.register(i.item.id, "instance")?,
+                }
+            }
             ModuleField::Global(i) => self.globals.register(i.id, "global")?,
             ModuleField::Memory(i) => self.memories.register(i.id, "memory")?,
             ModuleField::Func(i) => self.funcs.register(i.id, "func")?,
