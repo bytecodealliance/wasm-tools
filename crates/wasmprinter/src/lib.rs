@@ -59,6 +59,7 @@ struct ModuleState {
     names: HashMap<u32, Naming>,
     local_names: HashMap<u32, HashMap<u32, Naming>>,
     module_name: Option<Naming>,
+    implicit_instances_seen: HashSet<String>,
 }
 
 struct Naming {
@@ -409,6 +410,19 @@ impl Printer {
     fn print_imports(&mut self, parser: ImportSectionReader<'_>) -> Result<()> {
         for import in parser {
             let import = import?;
+
+            // Handle the module linking proposal here where the first time we
+            // see the module-name of a two-level import that translates to an
+            // implicit instance we need to account for in our numbering.
+            if import.field.is_some() {
+                if self
+                    .state
+                    .implicit_instances_seen
+                    .insert(import.module.to_string())
+                {
+                    self.state.instance += 1;
+                }
+            }
             self.print_import(&import, true)?;
             match import.ty {
                 ImportSectionEntryType::Function(_) => self.state.func += 1,
@@ -1568,11 +1582,11 @@ impl Printer {
     }
 
     fn print_instances(&mut self, instances: InstanceSectionReader) -> Result<()> {
-        for (i, instance) in instances.into_iter().enumerate() {
+        for instance in instances.into_iter() {
             let instance = instance?;
             self.newline();
             self.start_group("instance");
-            write!(self.result, " (;{};)", i)?;
+            write!(self.result, " (;{};)", self.state.instance)?;
             self.newline();
             self.start_group("instantiate");
             write!(self.result, " {}", instance.module())?;
@@ -1585,6 +1599,7 @@ impl Printer {
             }
             self.end_group(); // instantiate
             self.end_group(); // instance
+            self.state.instance += 1;
         }
         Ok(())
     }

@@ -789,7 +789,7 @@ impl Validator {
         // want to backwards-compatibly parse older modules still. Unclear how
         // to do this.
         if self.features.module_linking {
-            state.imports.push(
+            let implicit_instance_type = state.imports.push(
                 self.offset,
                 entry.module,
                 entry.field,
@@ -797,6 +797,9 @@ impl Validator {
                 &mut self.types,
                 "import",
             )?;
+            if let Some(idx) = implicit_instance_type {
+                state.instances.push(idx);
+            }
         }
         let (len, max, desc) = match entry.ty {
             ImportSectionEntryType::Function(type_index) => {
@@ -1696,6 +1699,21 @@ struct NameSet {
 }
 
 impl NameSet {
+    /// Pushes a new name into this typed set off names, internally handling the
+    /// mapping of two-level namespaces into a single-level namespace.
+    ///
+    /// * `offset` - the binary offset in the original wasm file of where to
+    ///   report errors about.
+    /// * `module` - the first-level name in the namespace
+    /// * `name` - the optional second-level namespace
+    /// * `ty` - the type of the item being pushed
+    /// * `types` - our global list of types
+    /// * `desc` - a human-readable description of the item being pushed, used
+    ///   for generating errors.
+    ///
+    /// Returns an error if the name was a duplicate. Returns `Ok(Some(idx))` if
+    /// this push was the first push to define an implicit instance with the
+    /// type `idx` into the global list of types. Returns `Ok(None)` otherwise.
     fn push(
         &mut self,
         offset: usize,
@@ -1704,7 +1722,7 @@ impl NameSet {
         ty: EntityType,
         types: &mut SnapshotList<TypeDef>,
         desc: &str,
-    ) -> Result<()> {
+    ) -> Result<Option<usize>> {
         let name = match name {
             Some(name) => name,
             // If the `name` is not provided then this is a module-linking style
@@ -1719,7 +1737,7 @@ impl NameSet {
                         offset,
                     ))
                 } else {
-                    Ok(())
+                    Ok(None)
                 };
             }
         };
@@ -1748,6 +1766,7 @@ impl NameSet {
                         offset,
                     ));
                 }
+                Ok(None)
             }
 
             // Otherwise `module` was previously defined, but it *wasn't*
@@ -1772,9 +1791,9 @@ impl NameSet {
                 assert!(self.implicit.insert(module.to_string()));
                 self.set
                     .insert(module.to_string(), EntityType::Instance(idx));
+                Ok(Some(idx))
             }
         }
-        Ok(())
     }
 }
 
