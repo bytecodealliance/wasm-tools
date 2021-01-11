@@ -1579,17 +1579,9 @@ impl Printer {
             for arg in instance.args()? {
                 let arg = arg?;
                 self.newline();
-                self.start_group("arg");
-                self.result.push_str(" ");
                 self.print_str(arg.name)?;
                 self.result.push_str(" ");
-                if let Some(name) = arg.field {
-                    self.print_str(name)?;
-                    self.result.push_str(" ");
-                }
-
                 self.print_external(arg.kind, arg.index)?;
-                self.end_group();
             }
             self.end_group(); // instantiate
             self.end_group(); // instance

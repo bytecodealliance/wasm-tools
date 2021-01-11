@@ -988,7 +988,7 @@ impl Validator {
         for arg in instance.args()? {
             let arg = arg?;
             let ty = self.check_external_kind("instance argument", arg.kind, arg.index)?;
-            set.push(self.offset, arg.name, arg.field, ty, &mut self.types, "arg")?;
+            set.push(self.offset, arg.name, None, ty, &mut self.types, "arg")?;
         }
 
         // Check our provided `set` to ensure it's a subtype of the expected set

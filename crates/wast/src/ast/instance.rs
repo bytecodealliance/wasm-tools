@@ -41,7 +41,6 @@ pub enum InstanceKind<'a> {
 #[allow(missing_docs)]
 pub struct InstanceArg<'a> {
     pub name: &'a str,
-    pub field: Option<&'a str>,
     pub index: ast::ItemRef<'a, ast::ExportKind>,
 }
 
@@ -62,7 +61,7 @@ impl<'a> Parse<'a> for Instance<'a> {
                 let module = p.parse::<ast::IndexOrRef<_>>()?.0;
                 let mut args = Vec::new();
                 while !p.is_empty() {
-                    args.push(p.parens(|p| p.parse())?);
+                    args.push(p.parse()?);
                 }
                 Ok(InstanceKind::Inline { module, args })
             })?
@@ -79,10 +78,8 @@ impl<'a> Parse<'a> for Instance<'a> {
 
 impl<'a> Parse<'a> for InstanceArg<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::arg>()?;
         Ok(InstanceArg {
             name: parser.parse()?,
-            field: parser.parse()?,
             index: parser.parse()?,
         })
     }

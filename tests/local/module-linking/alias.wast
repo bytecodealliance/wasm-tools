@@ -270,12 +270,12 @@
   )
 
   (instance (instantiate $m
-    (arg "1" (func $i "1"))
-    (arg "2" (memory $i "2"))
-    (arg "3" (global $i "4"))
-    (arg "4" (table $i "3"))
-    (arg "5" (module $i "5"))
-    (arg "6" (instance $i "6"))
+    "1" (func $i "1")
+    "2" (memory $i "2")
+    "3" (global $i "4")
+    "4" (table $i "3")
+    "5" (module $i "5")
+    "6" (instance $i "6")
   ))
 )
 
@@ -302,7 +302,7 @@
       (alias (instance outer 0 $i))
     )
 
-    (instance (instantiate $m (arg "" (module $local))))
+    (instance (instantiate $m "" (module $local)))
   )
   "invalid external kind in alias")
 

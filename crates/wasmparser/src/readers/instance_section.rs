@@ -122,7 +122,6 @@ pub struct InstanceArgsReader<'a> {
 #[derive(Debug)]
 pub struct InstanceArg<'a> {
     pub name: &'a str,
-    pub field: Option<&'a str>,
     pub kind: ExternalKind,
     pub index: u32,
 }
@@ -136,16 +135,6 @@ impl<'a> InstanceArgsReader<'a> {
         self.remaining -= 1;
         Ok(InstanceArg {
             name: self.reader.read_string()?,
-            field: match self.reader.read_u8()? {
-                0 => None,
-                1 => Some(self.reader.read_string()?),
-                _ => {
-                    return Err(BinaryReaderError::new(
-                        "instantiate instruction not found",
-                        self.reader.original_position(),
-                    ))
-                }
-            },
             kind: self.reader.read_external_kind()?,
             index: self.reader.read_var_u32()?,
         })
