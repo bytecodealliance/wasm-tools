@@ -14,9 +14,9 @@ use super::*;
 ///
 /// let mut instances = InstanceSection::new();
 /// instances.instantiate(0, vec![
-///     ("x", None, Export::Function(0)),
-///     ("", Some("y"), Export::Module(2)),
-///     ("foo", None, Export::Global(0)),
+///     ("x", Export::Function(0)),
+///     ("", Export::Module(2)),
+///     ("foo", Export::Global(0)),
 /// ]);
 ///
 /// let mut module = Module::new();
@@ -42,7 +42,7 @@ impl InstanceSection {
     /// arguments to the instantiation.
     pub fn instantiate<'a, I>(&mut self, module: u32, args: I) -> &mut Self
     where
-        I: IntoIterator<Item = (&'a str, Option<&'a str>, Export)>,
+        I: IntoIterator<Item = (&'a str, Export)>,
         I::IntoIter: ExactSizeIterator,
     {
         let args = args.into_iter();
@@ -51,17 +51,8 @@ impl InstanceSection {
         self.bytes.extend(encoders::u32(module));
         self.bytes
             .extend(encoders::u32(u32::try_from(args.len()).unwrap()));
-        for (name, field, export) in args {
+        for (name, export) in args {
             self.bytes.extend(encoders::str(name));
-            match field {
-                Some(field) => {
-                    self.bytes.push(0x01);
-                    self.bytes.extend(encoders::str(field));
-                }
-                None => {
-                    self.bytes.push(0x00);
-                }
-            }
             export.encode(&mut self.bytes);
         }
         self.num_added += 1;
