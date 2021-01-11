@@ -47,17 +47,11 @@ impl Alias<'_> {
 impl<'a> Parse<'a> for Alias<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::alias>()?.0;
-        let (id, kind) = parser.parens(|p| {
+        let id = parser.parse()?;
+        let name = parser.parse()?;
+        let kind = parser.parens(|p| {
             let kind = p.parse()?;
-            // Don't consume $i in an alias that looks like `(alias (func $i
-            // "foo"))`
-            let id =
-                if parser.peek2::<ast::IndexOrRef<kw::instance>>() || parser.peek2::<kw::outer>() {
-                    p.parse()?
-                } else {
-                    None
-                };
-            let kind = if parser.parse::<Option<kw::outer>>()?.is_some() {
+            Ok(if parser.parse::<Option<kw::outer>>()?.is_some() {
                 AliasKind::Outer {
                     module: parser.parse()?,
                     index: parser.parse()?,
@@ -69,14 +63,13 @@ impl<'a> Parse<'a> for Alias<'a> {
                     export: parser.parse()?,
                     kind,
                 }
-            };
-            Ok((id, kind))
+            })
         })?;
 
         Ok(Alias {
             span,
             id,
-            name: None, // TODO: what syntax to implement for this?
+            name,
             kind,
         })
     }
