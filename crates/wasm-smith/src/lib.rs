@@ -1857,22 +1857,25 @@ where
 
     // https://github.com/WebAssembly/module-linking/blob/master/proposals/module-linking/Subtyping.md
     fn is_subtype_instance(&self, a: &InstanceType, b: &InstanceType) -> bool {
-        b.exports
-            .iter()
-            .all(|(b_name, b_ty)| match a.exports.get(b_name) {
-                Some(a_ty) => self.is_subtype(a_ty, b_ty),
-                None => false,
-            })
+        self.is_set_subtypes(&a.exports, &b.exports)
     }
 
     // https://github.com/WebAssembly/module-linking/blob/master/proposals/module-linking/Subtyping.md
-    //
-    // FIXME currently we require both modules have zero imports, but that's not
-    // what we actually want. Waiting for module-linking#17 to settle first.
     fn is_subtype_module(&self, a: &ModuleType, b: &ModuleType) -> bool {
-        self.is_subtype_instance(&a.exports, &b.exports)
-            && a.imports.len() == 0
-            && b.imports.len() == 0
+        self.is_set_subtypes(&a.exports.exports, &b.exports.exports)
+            && self.is_set_subtypes(&b.import_types, &a.import_types)
+    }
+
+    // https://github.com/WebAssembly/module-linking/blob/master/proposals/module-linking/Subtyping.md
+    fn is_set_subtypes(
+        &self,
+        a: &indexmap::IndexMap<String, EntityType>,
+        b: &indexmap::IndexMap<String, EntityType>,
+    ) -> bool {
+        b.iter().all(|(b_name, b_ty)| match a.get(b_name) {
+            Some(a_ty) => self.is_subtype(a_ty, b_ty),
+            None => false,
+        })
     }
 }
 
