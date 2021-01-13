@@ -106,7 +106,11 @@ impl<'a> Parse<'a> for Id<'a> {
 
 impl fmt::Debug for Id<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.name.fmt(f)
+        if self.gen != 0 {
+            f.debug_struct("Id").field("gen", &self.gen).finish()
+        } else {
+            self.name.fmt(f)
+        }
     }
 }
 
