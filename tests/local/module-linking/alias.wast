@@ -678,3 +678,17 @@
   (func
     call (func $a "b" "c" "d" "f"))
 )
+
+(module
+  (import "b" "i" (instance $i
+    ;; notice that this order is swapped
+    (export "g" (func (param i32) (result i32)))
+    (export "f" (func (result i32)))
+  ))
+
+  (func (export "f") (result i32)
+    call (func $i "f"))
+  (func (export "g") (param i32) (result i32)
+    local.get 0
+    call (func $i "g"))
+)
