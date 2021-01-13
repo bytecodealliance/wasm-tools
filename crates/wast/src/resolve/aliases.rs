@@ -210,8 +210,14 @@ impl<'a> Expander<'a> {
             }
             ItemRef::Item { kind, idx, exports } => {
                 let mut cur = *idx;
-                for export in exports.drain(..) {
-                    let key = (cur, export, (*kind).into());
+                let len = exports.len();
+                for (i, export) in exports.drain(..).enumerate() {
+                    let kind = if i < len - 1 {
+                        ExportKind::Instance
+                    } else {
+                        (*kind).into()
+                    };
+                    let key = (cur, export, kind);
                     cur = match self.instances.entry(key) {
                         Entry::Occupied(e) => *e.get(),
                         Entry::Vacant(v) => {
@@ -222,7 +228,7 @@ impl<'a> Expander<'a> {
                                 id: Some(id),
                                 name: None,
                                 kind: AliasKind::InstanceExport {
-                                    kind: (*kind).into(),
+                                    kind,
                                     instance: ItemRef::Item {
                                         kind: kw::instance(span),
                                         idx: cur,

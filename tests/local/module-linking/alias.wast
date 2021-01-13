@@ -663,3 +663,18 @@
       i32.const 0)
   )
 )
+
+;; multiple projections in alias sugar
+(module $a
+  (import "" (instance $a
+    (export "b" (instance
+      (export "c" (instance
+        (export "d" (instance
+          (export "f" (func))
+        ))
+      ))
+    ))
+  ))
+  (func
+    call (func $a "b" "c" "d" "f"))
+)
