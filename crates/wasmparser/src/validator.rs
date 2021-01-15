@@ -164,6 +164,7 @@ pub struct WasmFeatures {
     pub simd: bool,
     /// The WebAssembly multi-value proposal (enabled by default)
     pub multi_value: bool,
+    #[cfg(feature = "threads-proposal")]
     /// The WebAssembly threads proposal
     pub threads: bool,
     /// The WebAssembly tail-call proposal
@@ -187,6 +188,7 @@ impl Default for WasmFeatures {
             reference_types: false,
             module_linking: false,
             simd: false,
+            #[cfg(feature = "threads-proposal")]
             threads: false,
             tail_call: false,
             bulk_memory: false,
@@ -694,6 +696,7 @@ impl Validator {
                     }
                 }
                 if *shared {
+                    #[cfg(feature = "threads-proposal")]
                     if !self.features.threads {
                         return self.create_error("threads must be enabled for shared memories");
                     }
@@ -717,6 +720,7 @@ impl Validator {
                     }
                 }
                 if *shared {
+                    #[cfg(feature = "threads-proposal")]
                     if !self.features.threads {
                         return self.create_error("threads must be enabled for shared memories");
                     }
