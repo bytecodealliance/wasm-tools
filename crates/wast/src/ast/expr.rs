@@ -198,7 +198,9 @@ impl<'a> ExpressionParser<'a> {
                         return Err(parser.error("previous `try` had no `do`"));
                     }
                     Level::Try(Try::CatchOrUnwind) => {
-                        return Err(parser.error("previous `try` had no `catch`, `catch_all`, or `unwind`"));
+                        return Err(
+                            parser.error("previous `try` had no `catch`, `catch_all`, or `unwind`")
+                        );
                     }
                     Level::Try(_) => {
                         self.instrs.push(Instruction::End(None));
@@ -405,7 +407,6 @@ macro_rules! instructions {
                 $(#[$doc])*
                 $name $(( instructions!(@ty $($arg)*) ))?,
             )*
-
         }
 
         #[allow(non_snake_case)]
@@ -448,6 +449,21 @@ macro_rules! instructions {
                 }
             }
         }
+
+        impl<'a> Instruction<'a> {
+            /// Returns the associated [`MemArg`] if one is available for this
+            /// instruction.
+            #[allow(unused_variables, non_snake_case)]
+            pub fn memarg_mut(&mut self) -> Option<&mut MemArg<'a>> {
+                match self {
+                    $(
+                        Instruction::$name $((instructions!(@memarg_binding a $($arg)*)))? => {
+                            instructions!(@get_memarg a $($($arg)*)?)
+                        }
+                    )*
+                }
+            }
+        }
     );
 
     (@ty MemArg<$amt:tt>) => (MemArg<'a>);
@@ -465,6 +481,12 @@ macro_rules! instructions {
         <u32 as crate::binary::Encode>::encode(&$simd, $dst);
     });
     (@encode $dst:ident $($bytes:tt)*) => ($dst.extend_from_slice(&[$($bytes)*]););
+
+    (@get_memarg $name:ident MemArg<$amt:tt>) => (Some($name));
+    (@get_memarg $($other:tt)*) => (None);
+
+    (@memarg_binding $name:ident MemArg<$amt:tt>) => ($name);
+    (@memarg_binding $name:ident $other:ty) => (_);
 }
 
 instructions! {
@@ -481,11 +503,11 @@ instructions! {
         BrIf(ast::Index<'a>) : [0x0d] : "br_if",
         BrTable(BrTableIndices<'a>) : [0x0e] : "br_table",
         Return : [0x0f] : "return",
-        Call(ast::Index<'a>) : [0x10] : "call",
+        Call(ast::IndexOrRef<'a, kw::func>) : [0x10] : "call",
         CallIndirect(CallIndirect<'a>) : [0x11] : "call_indirect",
 
         // tail-call proposal
-        ReturnCall(ast::Index<'a>) : [0x12] : "return_call",
+        ReturnCall(ast::IndexOrRef<'a, kw::func>) : [0x12] : "return_call",
         ReturnCallIndirect(CallIndirect<'a>) : [0x13] : "return_call_indirect",
 
         // function-references proposal
@@ -499,8 +521,8 @@ instructions! {
         LocalGet(ast::Index<'a>) : [0x20] : "local.get" | "get_local",
         LocalSet(ast::Index<'a>) : [0x21] : "local.set" | "set_local",
         LocalTee(ast::Index<'a>) : [0x22] : "local.tee" | "tee_local",
-        GlobalGet(ast::Index<'a>) : [0x23] : "global.get" | "get_global",
-        GlobalSet(ast::Index<'a>) : [0x24] : "global.set" | "set_global",
+        GlobalGet(ast::IndexOrRef<'a, kw::global>) : [0x23] : "global.get" | "get_global",
+        GlobalSet(ast::IndexOrRef<'a, kw::global>) : [0x24] : "global.set" | "set_global",
 
         TableGet(TableArg<'a>) : [0x25] : "table.get",
         TableSet(TableArg<'a>) : [0x26] : "table.set",
@@ -546,7 +568,7 @@ instructions! {
         RefNull(HeapType<'a>) : [0xd0] : "ref.null",
         RefIsNull : [0xd1] : "ref.is_null",
         RefExtern(u32) : [0xff] : "ref.extern", // only used in test harness
-        RefFunc(ast::Index<'a>) : [0xd2] : "ref.func",
+        RefFunc(ast::IndexOrRef<'a, kw::func>) : [0xd2] : "ref.func",
 
         // function-references proposal
         RefAsNonNull : [0xd3] : "ref.as_non_null",
@@ -1180,7 +1202,7 @@ pub struct MemArg<'a> {
     /// The offset, in bytes of this access.
     pub offset: u32,
     /// The memory index we're accessing
-    pub memory: ast::Index<'a>,
+    pub memory: ast::ItemRef<'a, kw::memory>,
 }
 
 impl<'a> MemArg<'a> {
@@ -1215,8 +1237,9 @@ impl<'a> MemArg<'a> {
             })
         }
         let memory = parser
-            .parse::<Option<_>>()?
-            .unwrap_or(ast::Index::Num(0, parser.prev_span()));
+            .parse::<Option<ast::IndexOrRef<_>>>()?
+            .map(|i| i.0)
+            .unwrap_or(idx_zero(parser.prev_span(), kw::memory));
         let offset = parse_field("offset", parser)?.unwrap_or(0);
         let align = match parse_field("align", parser)? {
             Some(n) if !n.is_power_of_two() => {
@@ -1233,11 +1256,19 @@ impl<'a> MemArg<'a> {
     }
 }
 
+fn idx_zero<T>(span: ast::Span, mk_kind: fn(ast::Span) -> T) -> ast::ItemRef<'static, T> {
+    ast::ItemRef::Item {
+        kind: mk_kind(span),
+        idx: ast::Index::Num(0, span),
+        exports: Vec::new(),
+    }
+}
+
 /// Extra data associated with the `call_indirect` instruction.
 #[derive(Debug)]
 pub struct CallIndirect<'a> {
     /// The table that this call is going to be indexing.
-    pub table: ast::Index<'a>,
+    pub table: ast::ItemRef<'a, kw::table>,
     /// Type type signature that this `call_indirect` instruction is using.
     pub ty: ast::TypeUse<'a, ast::FunctionType<'a>>,
 }
@@ -1245,7 +1276,7 @@ pub struct CallIndirect<'a> {
 impl<'a> Parse<'a> for CallIndirect<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let prev_span = parser.prev_span();
-        let mut table: Option<_> = parser.parse()?;
+        let mut table: Option<ast::IndexOrRef<_>> = parser.parse()?;
         let ty = parser.parse::<ast::TypeUse<'a, ast::FunctionTypeNoNames<'a>>>()?;
         // Turns out the official test suite at this time thinks table
         // identifiers comes first but wabt's test suites asserts differently
@@ -1254,7 +1285,7 @@ impl<'a> Parse<'a> for CallIndirect<'a> {
             table = parser.parse()?;
         }
         Ok(CallIndirect {
-            table: table.unwrap_or(ast::Index::Num(0, prev_span)),
+            table: table.map(|i| i.0).unwrap_or(idx_zero(prev_span, kw::table)),
             ty: ty.into(),
         })
     }
@@ -1264,7 +1295,7 @@ impl<'a> Parse<'a> for CallIndirect<'a> {
 #[derive(Debug)]
 pub struct TableInit<'a> {
     /// The index of the table we're copying into.
-    pub table: ast::Index<'a>,
+    pub table: ast::ItemRef<'a, kw::table>,
     /// The index of the element segment we're copying into a table.
     pub elem: ast::Index<'a>,
 }
@@ -1272,11 +1303,13 @@ pub struct TableInit<'a> {
 impl<'a> Parse<'a> for TableInit<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let prev_span = parser.prev_span();
-        let table_or_elem = parser.parse()?;
-        let (table, elem) = match parser.parse()? {
-            Some(elem) => (table_or_elem, elem),
-            None => (ast::Index::Num(0, prev_span), table_or_elem),
-        };
+        let (elem, table) =
+            if parser.peek::<ast::ItemRef<kw::table>>() || parser.peek2::<ast::Index>() {
+                let table = parser.parse::<ast::IndexOrRef<_>>()?.0;
+                (parser.parse()?, table)
+            } else {
+                (parser.parse()?, idx_zero(prev_span, kw::table))
+            };
         Ok(TableInit { table, elem })
     }
 }
@@ -1285,18 +1318,19 @@ impl<'a> Parse<'a> for TableInit<'a> {
 #[derive(Debug)]
 pub struct TableCopy<'a> {
     /// The index of the destination table to copy into.
-    pub dst: ast::Index<'a>,
+    pub dst: ast::ItemRef<'a, kw::table>,
     /// The index of the source table to copy from.
-    pub src: ast::Index<'a>,
+    pub src: ast::ItemRef<'a, kw::table>,
 }
 
 impl<'a> Parse<'a> for TableCopy<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let (dst, src) = if let Some(dst) = parser.parse()? {
-            (dst, parser.parse()?)
-        } else {
-            let span = parser.prev_span();
-            (ast::Index::Num(0, span), ast::Index::Num(0, span))
+        let (dst, src) = match parser.parse::<Option<ast::IndexOrRef<_>>>()? {
+            Some(dst) => (dst.0, parser.parse::<ast::IndexOrRef<_>>()?.0),
+            None => (
+                idx_zero(parser.prev_span(), kw::table),
+                idx_zero(parser.prev_span(), kw::table),
+            ),
         };
         Ok(TableCopy { dst, src })
     }
@@ -1306,15 +1340,15 @@ impl<'a> Parse<'a> for TableCopy<'a> {
 #[derive(Debug)]
 pub struct TableArg<'a> {
     /// The index of the table argument.
-    pub dst: ast::Index<'a>,
+    pub dst: ast::ItemRef<'a, kw::table>,
 }
 
 impl<'a> Parse<'a> for TableArg<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let dst = if let Some(dst) = parser.parse()? {
-            dst
+        let dst = if let Some(dst) = parser.parse::<Option<ast::IndexOrRef<_>>>()? {
+            dst.0
         } else {
-            ast::Index::Num(0, parser.prev_span())
+            idx_zero(parser.prev_span(), kw::table)
         };
         Ok(TableArg { dst })
     }
@@ -1324,15 +1358,15 @@ impl<'a> Parse<'a> for TableArg<'a> {
 #[derive(Debug)]
 pub struct MemoryArg<'a> {
     /// The index of the memory space.
-    pub mem: ast::Index<'a>,
+    pub mem: ast::ItemRef<'a, kw::memory>,
 }
 
 impl<'a> Parse<'a> for MemoryArg<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let mem = if let Some(mem) = parser.parse()? {
-            mem
+        let mem = if let Some(mem) = parser.parse::<Option<ast::IndexOrRef<_>>>()? {
+            mem.0
         } else {
-            ast::Index::Num(0, parser.prev_span())
+            idx_zero(parser.prev_span(), kw::memory)
         };
         Ok(MemoryArg { mem })
     }
@@ -1344,15 +1378,16 @@ pub struct MemoryInit<'a> {
     /// The index of the data segment we're copying into memory.
     pub data: ast::Index<'a>,
     /// The index of the memory we're copying into,
-    pub mem: ast::Index<'a>,
+    pub mem: ast::ItemRef<'a, kw::memory>,
 }
 
 impl<'a> Parse<'a> for MemoryInit<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let data = parser.parse()?;
         let mem = parser
-            .parse::<Option<_>>()?
-            .unwrap_or(ast::Index::Num(0, parser.prev_span()));
+            .parse::<Option<ast::IndexOrRef<_>>>()?
+            .map(|i| i.0)
+            .unwrap_or(idx_zero(parser.prev_span(), kw::memory));
         Ok(MemoryInit { data, mem })
     }
 }
@@ -1361,19 +1396,19 @@ impl<'a> Parse<'a> for MemoryInit<'a> {
 #[derive(Debug)]
 pub struct MemoryCopy<'a> {
     /// The index of the memory we're copying from.
-    pub src: ast::Index<'a>,
+    pub src: ast::ItemRef<'a, kw::memory>,
     /// The index of the memory we're copying to.
-    pub dst: ast::Index<'a>,
+    pub dst: ast::ItemRef<'a, kw::memory>,
 }
 
 impl<'a> Parse<'a> for MemoryCopy<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let (src, dst) = match parser.parse()? {
-            Some(dst) => (parser.parse()?, dst),
-            None => {
-                let idx = ast::Index::Num(0, parser.prev_span());
-                (idx, idx)
-            }
+        let (src, dst) = match parser.parse::<Option<ast::IndexOrRef<_>>>()? {
+            Some(dst) => (parser.parse::<ast::IndexOrRef<_>>()?.0, dst.0),
+            None => (
+                idx_zero(parser.prev_span(), kw::memory),
+                idx_zero(parser.prev_span(), kw::memory),
+            ),
         };
         Ok(MemoryCopy { src, dst })
     }

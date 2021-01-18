@@ -8,15 +8,13 @@ pub struct Export<'a> {
     pub span: ast::Span,
     /// The name of this export from the module.
     pub name: &'a str,
-    /// What's kind of export
-    pub kind: ExportKind,
     /// What's being exported from the module.
-    pub index: ast::Index<'a>,
+    pub index: ast::ItemRef<'a, ExportKind>,
 }
 
 /// Different kinds of elements that can be exported from a WebAssembly module,
 /// contained in an [`Export`].
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 #[allow(missing_docs)]
 pub enum ExportKind {
     Func,
@@ -31,14 +29,10 @@ pub enum ExportKind {
 
 impl<'a> Parse<'a> for Export<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let span = parser.parse::<kw::export>()?.0;
-        let name = parser.parse()?;
-        let (kind, index) = parser.parens(|p| Ok((p.parse()?, p.parse()?)))?;
         Ok(Export {
-            span,
-            name,
-            kind,
-            index,
+            span: parser.parse::<kw::export>()?.0,
+            name: parser.parse()?,
+            index: parser.parse()?,
         })
     }
 }
@@ -74,6 +68,33 @@ impl<'a> Parse<'a> for ExportKind {
             Err(l.error())
         }
     }
+}
+
+macro_rules! kw_conversions {
+    ($($kw:ident => $kind:ident)*) => ($(
+        impl From<kw::$kw> for ExportKind {
+            fn from(_: kw::$kw) -> ExportKind {
+                ExportKind::$kind
+            }
+        }
+
+        impl Default for kw::$kw {
+            fn default() -> kw::$kw {
+                kw::$kw(ast::Span::from_offset(0))
+            }
+        }
+    )*);
+}
+
+kw_conversions! {
+    instance => Instance
+    module => Module
+    func => Func
+    table => Table
+    global => Global
+    event => Event
+    memory => Memory
+    r#type => Type
 }
 
 /// A listing of inline `(export "foo")` statements on a WebAssembly item in

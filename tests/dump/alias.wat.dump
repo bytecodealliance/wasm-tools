@@ -29,9 +29,3 @@
 0x0041 | 00          | 0 local blocks
 0x0042 | 10 00       | Call { function_index: 0 }
 0x0044 | 0b          | End
-0x0045 | 00 0f 04 6e | custom section: "name"
-       | 61 6d 65   
-0x004c | 01 08       | function names
-0x004e | 01          | 1 count
-0x004f | 00 05 69 2e | Naming { index: 0, name: "i.$f1" }
-       | 24 66 31   

@@ -17,20 +17,12 @@
     (import "6" (instance))
   )
 
-  ;; TODO figure out syntactic sugar here
-  (alias $i "1" (func $i.$func))
-  (alias $i "2" (memory $i.$memory))
-  (alias $i "3" (table $i.$table))
-  (alias $i "4" (global $i.$global))
-  (alias $i "5" (module $i.$module))
-  (alias $i "6" (instance $i.$instance))
-
   (instance (instantiate $m
-    (arg "1" (func $i.$func))
-    (arg "2" (memory $i.$memory))
-    (arg "3" (global $i.$global))
-    (arg "4" (table $i.$table))
-    (arg "5" (module $i.$module))
-    (arg "6" (instance $i.$instance))
+    "1" (func $i "1")
+    "2" (memory $i "2")
+    "3" (global $i "4")
+    "4" (table $i "3")
+    "5" (module $i "5")
+    "6" (instance $i "6")
   ))
 )

@@ -6,20 +6,15 @@
   (import "wasi_file" (instance $real-wasi (type $WasiFile)))
 
   (module $CHILD
-    ;; TODO implement implicit parent aliases
-    (alias parent $WasiFile (type $WasiFile))
-    (import "wasi_file" (instance $wasi-file (type $WasiFile)))
+    (import "wasi_file" (instance $wasi-file (type outer 0 $WasiFile)))
     (func $play (export "play")
-      ;; TODO: implement this
-      ;;call $wasi-file.$read
+      call (func $wasi-file "read")
     )
   )
 
 
   (module $VIRTUALIZE
-    ;; TODO implement implicit parent aliases
-    (alias parent $WasiFile (type $WasiFile))
-    (import "wasi_file" (instance $wasi-file (type $WasiFile)))
+    (import "wasi_file" (instance $wasi-file (type outer 0 $WasiFile)))
     (func (export "read") (param i32 i32 i32) (result i32)
       i32.const 0
     )
@@ -28,13 +23,10 @@
     )
   )
 
-  (instance $virt-wasi (instantiate $VIRTUALIZE (arg "wasi_file" (instance $real-wasi))))
-  (instance $child (instantiate $CHILD (arg "wasi_file" (instance $virt-wasi))))
-
-  ;; TODO implement implicit child aliases
-  (alias $child "play" (func $child.$play))
+  (instance $virt-wasi (instantiate $VIRTUALIZE "wasi_file" (instance $real-wasi)))
+  (instance $child (instantiate $CHILD "wasi_file" (instance $virt-wasi)))
 
   (func (export "work")
-    call $child.$play
+    call (func $child "play")
   )
 )

@@ -789,7 +789,7 @@ impl Validator {
         // want to backwards-compatibly parse older modules still. Unclear how
         // to do this.
         if self.features.module_linking {
-            state.imports.push(
+            let implicit_instance_type = state.imports.push(
                 self.offset,
                 entry.module,
                 entry.field,
@@ -797,6 +797,9 @@ impl Validator {
                 &mut self.types,
                 "import",
             )?;
+            if let Some(idx) = implicit_instance_type {
+                state.instances.push(idx);
+            }
         }
         let (len, max, desc) = match entry.ty {
             ImportSectionEntryType::Function(type_index) => {
@@ -923,27 +926,37 @@ impl Validator {
                     _ => return self.create_error("alias kind mismatch with export kind"),
                 }
             }
-            Alias::ParentType(i) => {
-                let parent = match self.parents.last() {
-                    Some(parent) => parent,
-                    None => {
-                        return self.create_error("no parent module to alias from");
-                    }
-                };
-                let ty = match parent.state.types.get(i as usize) {
+            Alias::OuterType {
+                relative_depth,
+                index,
+            } => {
+                let i = self
+                    .parents
+                    .len()
+                    .checked_sub(relative_depth as usize)
+                    .and_then(|i| i.checked_sub(1))
+                    .ok_or_else(|| {
+                        BinaryReaderError::new("relative depth too large", self.offset)
+                    })?;
+                let ty = match self.parents[i].state.types.get(index as usize) {
                     Some(m) => *m,
                     None => return self.create_error("alias to type not defined in parent yet"),
                 };
                 self.cur.state.assert_mut().types.push(ty);
             }
-            Alias::ParentModule(i) => {
-                let parent = match self.parents.last() {
-                    Some(parent) => parent,
-                    None => {
-                        return self.create_error("no parent module to alias from");
-                    }
-                };
-                let module = match parent.state.submodules.get(i as usize) {
+            Alias::OuterModule {
+                relative_depth,
+                index,
+            } => {
+                let i = self
+                    .parents
+                    .len()
+                    .checked_sub(relative_depth as usize)
+                    .and_then(|i| i.checked_sub(1))
+                    .ok_or_else(|| {
+                        BinaryReaderError::new("relative depth too large", self.offset)
+                    })?;
+                let module = match self.parents[i].state.submodules.get(index as usize) {
                     Some(m) => *m,
                     None => return self.create_error("alias to module not defined in parent yet"),
                 };
@@ -978,7 +991,7 @@ impl Validator {
         for arg in instance.args()? {
             let arg = arg?;
             let ty = self.check_external_kind("instance argument", arg.kind, arg.index)?;
-            set.push(self.offset, arg.name, arg.field, ty, &mut self.types, "arg")?;
+            set.push(self.offset, arg.name, None, ty, &mut self.types, "arg")?;
         }
 
         // Check our provided `set` to ensure it's a subtype of the expected set
@@ -1686,6 +1699,21 @@ struct NameSet {
 }
 
 impl NameSet {
+    /// Pushes a new name into this typed set off names, internally handling the
+    /// mapping of two-level namespaces into a single-level namespace.
+    ///
+    /// * `offset` - the binary offset in the original wasm file of where to
+    ///   report errors about.
+    /// * `module` - the first-level name in the namespace
+    /// * `name` - the optional second-level namespace
+    /// * `ty` - the type of the item being pushed
+    /// * `types` - our global list of types
+    /// * `desc` - a human-readable description of the item being pushed, used
+    ///   for generating errors.
+    ///
+    /// Returns an error if the name was a duplicate. Returns `Ok(Some(idx))` if
+    /// this push was the first push to define an implicit instance with the
+    /// type `idx` into the global list of types. Returns `Ok(None)` otherwise.
     fn push(
         &mut self,
         offset: usize,
@@ -1694,7 +1722,7 @@ impl NameSet {
         ty: EntityType,
         types: &mut SnapshotList<TypeDef>,
         desc: &str,
-    ) -> Result<()> {
+    ) -> Result<Option<usize>> {
         let name = match name {
             Some(name) => name,
             // If the `name` is not provided then this is a module-linking style
@@ -1709,7 +1737,7 @@ impl NameSet {
                         offset,
                     ))
                 } else {
-                    Ok(())
+                    Ok(None)
                 };
             }
         };
@@ -1738,6 +1766,7 @@ impl NameSet {
                         offset,
                     ));
                 }
+                Ok(None)
             }
 
             // Otherwise `module` was previously defined, but it *wasn't*
@@ -1762,9 +1791,9 @@ impl NameSet {
                 assert!(self.implicit.insert(module.to_string()));
                 self.set
                     .insert(module.to_string(), EntityType::Instance(idx));
+                Ok(Some(idx))
             }
         }
-        Ok(())
     }
 }
 

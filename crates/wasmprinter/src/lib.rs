@@ -59,6 +59,7 @@ struct ModuleState {
     names: HashMap<u32, Naming>,
     local_names: HashMap<u32, HashMap<u32, Naming>>,
     module_name: Option<Naming>,
+    implicit_instances_seen: HashSet<String>,
 }
 
 struct Naming {
@@ -331,13 +332,26 @@ impl Printer {
         Ok(())
     }
 
-    fn print_functype_idx(&mut self, idx: u32, names_for: Option<u32>) -> Result<u32> {
+    fn print_functype_idx(
+        &mut self,
+        idx: u32,
+        always_print_type: bool,
+        names_for: Option<u32>,
+    ) -> Result<Option<u32>> {
+        if always_print_type {
+            write!(self.result, " (type {})", idx)?;
+        }
         let ty = match self.state.types.get(idx as usize) {
             Some(Some(ty)) => ty.clone(),
-            Some(None) => bail!("function type index `{}` is not a function", idx),
+            Some(None) => {
+                if !always_print_type {
+                    write!(self.result, " (type {})", idx)?;
+                }
+                return Ok(None);
+            }
             None => bail!("function type index `{}` out of bounds", idx),
         };
-        self.print_functype(&ty, names_for)
+        self.print_functype(&ty, names_for).map(Some)
     }
 
     /// Returns the number of parameters, useful for local index calculations
@@ -396,6 +410,19 @@ impl Printer {
     fn print_imports(&mut self, parser: ImportSectionReader<'_>) -> Result<()> {
         for import in parser {
             let import = import?;
+
+            // Handle the module linking proposal here where the first time we
+            // see the module-name of a two-level import that translates to an
+            // implicit instance we need to account for in our numbering.
+            if import.field.is_some() {
+                if self
+                    .state
+                    .implicit_instances_seen
+                    .insert(import.module.to_string())
+                {
+                    self.state.instance += 1;
+                }
+            }
             self.print_import(&import, true)?;
             match import.ty {
                 ImportSectionEntryType::Function(_) => self.state.func += 1,
@@ -502,8 +529,7 @@ impl Printer {
         if index {
             write!(self.result, "(;{};)", self.state.event)?;
         }
-        write!(self.result, " (type {})", ty.type_index)?;
-        self.print_functype_idx(ty.type_index, None)?;
+        self.print_functype_idx(ty.type_index, true, None)?;
         Ok(())
     }
 
@@ -589,8 +615,9 @@ impl Printer {
                 Some(name) => name.write(&mut self.result),
                 None => write!(self.result, "(;{};)", self.state.func)?,
             }
-            write!(self.result, " (type {})", ty)?;
-            let params = self.print_functype_idx(ty, Some(self.state.func))?;
+            let params = self
+                .print_functype_idx(ty, true, Some(self.state.func))?
+                .unwrap_or(0);
 
             let mut first = true;
             let mut local_idx = 0;
@@ -1446,7 +1473,7 @@ impl Printer {
                 Ok(())
             }
             TypeOrFuncType::FuncType(idx) => {
-                self.print_functype_idx(*idx, None)?;
+                self.print_functype_idx(*idx, false, None)?;
                 Ok(())
             }
         }
@@ -1594,31 +1621,24 @@ impl Printer {
     }
 
     fn print_instances(&mut self, instances: InstanceSectionReader) -> Result<()> {
-        for (i, instance) in instances.into_iter().enumerate() {
+        for instance in instances.into_iter() {
             let instance = instance?;
             self.newline();
             self.start_group("instance");
-            write!(self.result, " (;{};)", i)?;
+            write!(self.result, " (;{};)", self.state.instance)?;
             self.newline();
             self.start_group("instantiate");
             write!(self.result, " {}", instance.module())?;
             for arg in instance.args()? {
                 let arg = arg?;
                 self.newline();
-                self.start_group("arg");
-                self.result.push_str(" ");
                 self.print_str(arg.name)?;
                 self.result.push_str(" ");
-                if let Some(name) = arg.field {
-                    self.print_str(name)?;
-                    self.result.push_str(" ");
-                }
-
                 self.print_external(arg.kind, arg.index)?;
-                self.end_group();
             }
             self.end_group(); // instantiate
             self.end_group(); // instance
+            self.state.instance += 1;
         }
         Ok(())
     }
@@ -1634,8 +1654,40 @@ impl Printer {
                     kind,
                     export,
                 } => {
-                    write!(self.result, "{} ", instance)?;
-                    self.print_str(export)?;
+                    match kind {
+                        ExternalKind::Function => {
+                            match self.state.names.get(&self.state.func) {
+                                Some(name) => write!(self.result, "${}", name.identifier())?,
+                                None => write!(self.result, "(;{};)", self.state.func)?,
+                            }
+                            self.state.func += 1;
+                        }
+                        ExternalKind::Table => {
+                            write!(self.result, "(;{};)", self.state.table)?;
+                            self.state.table += 1;
+                        }
+                        ExternalKind::Memory => {
+                            write!(self.result, "(;{};)", self.state.memory)?;
+                            self.state.memory += 1;
+                        }
+                        ExternalKind::Event => {
+                            write!(self.result, "(;{};)", self.state.event)?;
+                            self.state.event += 1;
+                        }
+                        ExternalKind::Global => {
+                            write!(self.result, "(;{};)", self.state.global)?;
+                            self.state.global += 1;
+                        }
+                        ExternalKind::Instance => {
+                            write!(self.result, "(;{};)", self.state.instance)?;
+                            self.state.instance += 1;
+                        }
+                        ExternalKind::Module => {
+                            write!(self.result, "(;{};)", self.state.module)?;
+                            self.state.module += 1;
+                        }
+                        ExternalKind::Type => self.state.types.push(None),
+                    }
                     self.result.push_str(" ");
                     match kind {
                         ExternalKind::Function => self.start_group("func"),
@@ -1647,56 +1699,29 @@ impl Printer {
                         ExternalKind::Module => self.start_group("module"),
                         ExternalKind::Type => self.start_group("type"),
                     }
-                    match kind {
-                        ExternalKind::Function => {
-                            match self.state.names.get(&self.state.func) {
-                                Some(name) => write!(self.result, " ${}", name.identifier())?,
-                                None => write!(self.result, " (;{};)", self.state.func)?,
-                            }
-                            self.state.func += 1;
-                        }
-                        ExternalKind::Table => {
-                            write!(self.result, " (;{};)", self.state.table)?;
-                            self.state.table += 1;
-                        }
-                        ExternalKind::Memory => {
-                            write!(self.result, " (;{};)", self.state.memory)?;
-                            self.state.memory += 1;
-                        }
-                        ExternalKind::Event => {
-                            write!(self.result, " (;{};)", self.state.event)?;
-                            self.state.event += 1;
-                        }
-                        ExternalKind::Global => {
-                            write!(self.result, " (;{};)", self.state.global)?;
-                            self.state.global += 1;
-                        }
-                        ExternalKind::Instance => {
-                            write!(self.result, " (;{};)", self.state.instance)?;
-                            self.state.instance += 1;
-                        }
-                        ExternalKind::Module => {
-                            write!(self.result, " (;{};)", self.state.module)?;
-                            self.state.module += 1;
-                        }
-                        ExternalKind::Type => self.state.types.push(None),
-                    }
+                    write!(self.result, " {} ", instance)?;
+                    self.print_str(export)?;
                     self.end_group();
                 }
-                Alias::ParentType(i) => {
+                Alias::OuterType {
+                    relative_depth,
+                    index,
+                } => {
                     write!(
                         self.result,
-                        "parent (;{};) {} (type)",
-                        self.state.types.len(),
-                        i,
+                        "(;{};) (type outer {} {})",
+                        self.state.module, relative_depth, index
                     )?;
                     self.state.types.push(None);
                 }
-                Alias::ParentModule(i) => {
+                Alias::OuterModule {
+                    relative_depth,
+                    index,
+                } => {
                     write!(
                         self.result,
-                        "parent (;{};) {} (module)",
-                        self.state.module, i
+                        "(;{};) (module outer {} {})",
+                        self.state.module, relative_depth, index
                     )?;
                     self.state.module += 1;
                 }

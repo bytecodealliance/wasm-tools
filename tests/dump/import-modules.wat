@@ -5,5 +5,5 @@
   (import "" (module $i
     (import "" (func))
   ))
-  (instance $i (instantiate $m (arg "" (module $i))))
+  (instance $i (instantiate $m "" (module $i)))
 )

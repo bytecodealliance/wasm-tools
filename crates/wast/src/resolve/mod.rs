@@ -1,6 +1,7 @@
 use crate::ast::*;
 use crate::Error;
 
+mod aliases;
 mod deinline_import_export;
 mod gensym;
 mod names;
@@ -50,6 +51,8 @@ pub fn resolve<'a>(module: &mut Module<'a>) -> Result<Names<'a>, Error> {
     // field.
     deinline_import_export::run(fields);
 
+    aliases::run(fields);
+
     // With a canonical form of imports make sure that imports are all listed
     // first.
     for i in 1..fields.len() {
@@ -73,7 +76,7 @@ pub fn resolve<'a>(module: &mut Module<'a>) -> Result<Names<'a>, Error> {
 
     // Perform name resolution over all `Index` items to resolve them all to
     // indices instead of symbolic names.
-    let resolver = names::resolve(fields)?;
+    let resolver = names::resolve(module.id, fields)?;
     Ok(Names { resolver })
 }
 

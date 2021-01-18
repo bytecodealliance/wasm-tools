@@ -10,12 +10,12 @@
 
   (instance $a
     (instantiate $m
-      (arg "a" (module $m2))
-      (arg "b" (func $f))
-      (arg "c" (global $g))
-      (arg "d" (instance $b))
-      (arg "e" (memory $mem))
-      (arg "f" (table $table))
+      "a" (module $m2)
+      "b" (func $f)
+      "c" (global $g)
+      "d" (instance $b)
+      "e" (memory $mem)
+      "f" (table $table)
     )
   )
 )

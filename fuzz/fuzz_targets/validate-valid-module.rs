@@ -21,7 +21,10 @@ fuzz_target!(|m: ConfiguredModule<SwarmConfig>| {
         ..wasmparser::WasmFeatures::default()
     });
     if let Err(e) = validator.validate_all(&bytes) {
-        std::fs::write("test.wasm", bytes).unwrap();
+        std::fs::write("test.wasm", &bytes).unwrap();
+        if let Ok(wat) = wasmprinter::print_bytes(&bytes) {
+            std::fs::write("test.wat", wat).unwrap();
+        }
         panic!("Invalid module: {}", e);
     }
 });

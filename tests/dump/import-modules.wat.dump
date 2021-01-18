@@ -18,8 +18,8 @@
 0x002e | 01          | 1 count
 0x002f | 00 00 ff 05 | import [module 1] Import { module: "", field: None, ty: Module(3) }
        | 03         
-0x0034 | 0f 08       | instance section
+0x0034 | 0f 07       | instance section
 0x0036 | 01          | 1 count
 0x0037 | 00 00       | [instance 0] instantiate module:0
 0x0039 | 01          | 1 count
-0x003a | 00 00 05 01 | [instantiate arg] InstanceArg { name: "", field: None, kind: Module, index: 1 }
+0x003a | 00 05 01    | [instantiate arg] InstanceArg { name: "", kind: Module, index: 1 }

@@ -19,12 +19,17 @@ pub struct Alias<'a> {
 #[allow(missing_docs)]
 pub enum AliasKind<'a> {
     InstanceExport {
-        instance: ast::Index<'a>,
+        instance: ast::ItemRef<'a, kw::instance>,
         export: &'a str,
         kind: ast::ExportKind,
     },
-    Parent {
-        parent_index: ast::Index<'a>,
+    Outer {
+        /// The index of the module that this reference is referring to.
+        module: ast::Index<'a>,
+        /// The index of the item within `module` that this alias is referering
+        /// to.
+        index: ast::Index<'a>,
+        /// The kind of item that's being aliased.
         kind: ast::ExportKind,
     },
 }
@@ -34,7 +39,7 @@ impl Alias<'_> {
     pub fn item_kind(&self) -> ast::ExportKind {
         match self.kind {
             AliasKind::InstanceExport { kind, .. } => kind,
-            AliasKind::Parent { kind, .. } => kind,
+            AliasKind::Outer { kind, .. } => kind,
         }
     }
 }
@@ -42,26 +47,24 @@ impl Alias<'_> {
 impl<'a> Parse<'a> for Alias<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::alias>()?.0;
-        let (id, name, kind) = if parser.parse::<Option<kw::parent>>()?.is_some() {
-            // (alias parent $parent_idx (type $my_name))
-            let parent_index = parser.parse()?;
-            let (kind, id) = parser.parens(|p| Ok((p.parse()?, p.parse()?)))?;
-            (id, None, AliasKind::Parent { parent_index, kind })
-        } else {
-            // (alias $instance "export" (type $my_name))
-            let instance = parser.parse()?;
-            let export = parser.parse()?;
-            let (kind, id, name) = parser.parens(|p| Ok((p.parse()?, p.parse()?, p.parse()?)))?;
-            (
-                id,
-                name,
-                AliasKind::InstanceExport {
-                    instance,
-                    export,
+        let id = parser.parse()?;
+        let name = parser.parse()?;
+        let kind = parser.parens(|p| {
+            let kind = p.parse()?;
+            Ok(if parser.parse::<Option<kw::outer>>()?.is_some() {
+                AliasKind::Outer {
+                    module: parser.parse()?,
+                    index: parser.parse()?,
                     kind,
-                },
-            )
-        };
+                }
+            } else {
+                AliasKind::InstanceExport {
+                    instance: parser.parse::<ast::IndexOrRef<_>>()?.0,
+                    export: parser.parse()?,
+                    kind,
+                }
+            })
+        })?;
 
         Ok(Alias {
             span,

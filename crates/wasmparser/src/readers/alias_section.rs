@@ -11,8 +11,14 @@ pub struct AliasSectionReader<'a> {
 
 #[derive(Debug)]
 pub enum Alias<'a> {
-    ParentType(u32),
-    ParentModule(u32),
+    OuterType {
+        relative_depth: u32,
+        index: u32,
+    },
+    OuterModule {
+        relative_depth: u32,
+        index: u32,
+    },
     InstanceExport {
         instance: u32,
         kind: ExternalKind,
@@ -42,16 +48,25 @@ impl<'a> AliasSectionReader<'a> {
                 kind: self.reader.read_external_kind()?,
                 export: self.reader.read_string()?,
             },
-            0x01 => match self.reader.read_external_kind()? {
-                ExternalKind::Type => Alias::ParentType(self.reader.read_var_u32()?),
-                ExternalKind::Module => Alias::ParentModule(self.reader.read_var_u32()?),
-                _ => {
-                    return Err(BinaryReaderError::new(
-                        "invalid external kind in alias",
-                        self.original_position() - 1,
-                    ))
+            0x01 => {
+                let relative_depth = self.reader.read_var_u32()?;
+                match self.reader.read_external_kind()? {
+                    ExternalKind::Type => Alias::OuterType {
+                        relative_depth,
+                        index: self.reader.read_var_u32()?,
+                    },
+                    ExternalKind::Module => Alias::OuterModule {
+                        relative_depth,
+                        index: self.reader.read_var_u32()?,
+                    },
+                    _ => {
+                        return Err(BinaryReaderError::new(
+                            "invalid external kind in alias",
+                            self.original_position() - 1,
+                        ))
+                    }
                 }
-            },
+            }
             _ => {
                 return Err(BinaryReaderError::new(
                     "invalid byte in alias",
