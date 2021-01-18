@@ -140,12 +140,23 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         "desugar/try.txt",
         "dump/br_on_exn.txt",
         "dump/rethrow.txt",
+        // */simd-unary.txt are skipped to deal with the removal of
+        // iNxM.any_true and the introduction of v128.any_true.
+        "dump/simd-unary.txt",
+        "interp/simd-unary.txt",
         "dump/try.txt",
         "dump/try-multi.txt",
         "expr/br_on_exn.txt",
         "expr/rethrow.txt",
         "expr/try.txt",
         "expr/try-multi.txt",
+        // simd_*.wast are skipped to deal with the removal of
+        // iNxM.any_true and the introduction of v128.any_true.
+        "proposals/simd/simd_boolean.wast",
+        "proposals/simd/simd_lane.wast",
+        // roundtrip/fold-simd.txt is skipped to deal with the removal of
+        // iNxM.any_true and the introduction of v128.any_true.
+        "roundtrip/fold-simd.txt",
         "roundtrip/fold-br_on_exn.txt",
         "roundtrip/fold-rethrow.txt",
         "roundtrip/fold-try.txt",
