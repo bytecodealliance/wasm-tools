@@ -467,12 +467,15 @@ macro_rules! instructions {
     );
 
     (@ty MemArg<$amt:tt>) => (MemArg<'a>);
+    (@ty LoadOrStoreLane<$amt:tt>) => (LoadOrStoreLane<'a>);
     (@ty $other:ty) => ($other);
 
     (@first $first:ident $($t:tt)*) => ($first);
 
     (@parse $parser:ident MemArg<$amt:tt>) => (MemArg::parse($parser, $amt));
     (@parse $parser:ident MemArg) => (compile_error!("must specify `MemArg` default"));
+    (@parse $parser:ident LoadOrStoreLane<$amt:tt>) => (LoadOrStoreLane::parse($parser, $amt));
+    (@parse $parser:ident LoadOrStoreLane) => (compile_error!("must specify `LoadOrStoreLane` default"));
     (@parse $parser:ident $other:ty) => ($parser.parse::<$other>());
 
     // simd opcodes prefixed with `0xfd` get a varuint32 encoding for their payload
@@ -933,14 +936,14 @@ instructions! {
         V128Or : [0xfd, 0x50] : "v128.or",
         V128Xor : [0xfd, 0x51] : "v128.xor",
         V128Bitselect : [0xfd, 0x52] : "v128.bitselect",
-        V128Load8Lane : [0xfd, 0x58] : "v128.load8_lane",
-        V128Load16Lane : [0xfd, 0x59] : "v128.load16_lane",
-        V128Load32Lane : [0xfd, 0x5a] : "v128.load32_lane",
-        V128Load64Lane : [0xfd, 0x5b] : "v128.load64_lane",
-        V128Store8Lane : [0xfd, 0x5c] : "v128.store8_lane",
-        V128Store16Lane : [0xfd, 0x5d] : "v128.store16_lane",
-        V128Store32Lane : [0xfd, 0x5e] : "v128.store32_lane",
-        V128Store64Lane : [0xfd, 0x5f] : "v128.store64_lane",
+        V128Load8Lane(LoadOrStoreLane<1>) : [0xfd, 0x58] : "v128.load8_lane",
+        V128Load16Lane(LoadOrStoreLane<2>) : [0xfd, 0x59] : "v128.load16_lane",
+        V128Load32Lane(LoadOrStoreLane<4>) : [0xfd, 0x5a] : "v128.load32_lane",
+        V128Load64Lane(LoadOrStoreLane<8>): [0xfd, 0x5b] : "v128.load64_lane",
+        V128Store8Lane(LoadOrStoreLane<1>) : [0xfd, 0x5c] : "v128.store8_lane",
+        V128Store16Lane(LoadOrStoreLane<2>) : [0xfd, 0x5d] : "v128.store16_lane",
+        V128Store32Lane(LoadOrStoreLane<4>) : [0xfd, 0x5e] : "v128.store32_lane",
+        V128Store64Lane(LoadOrStoreLane<8>) : [0xfd, 0x5f] : "v128.store64_lane",
 
         I8x16Abs : [0xfd, 0x60] : "i8x16.abs",
         I8x16Neg : [0xfd, 0x61] : "i8x16.neg",
@@ -1236,10 +1239,9 @@ impl<'a> MemArg<'a> {
                 Ok((Some(num), rest))
             })
         }
-        let memory = parser
-            .parse::<Option<ast::IndexOrRef<_>>>()?
-            .map(|i| i.0)
-            .unwrap_or(idx_zero(parser.prev_span(), kw::memory));
+        // https://github.com/WebAssembly/multi-memory/issues/17: hardwire the memory field to zero
+        // for now to avoid ambiguity with lane index for v128.(load|store)N_lane.
+        let memory = idx_zero(parser.prev_span(), kw::memory);
         let offset = parse_field("offset", parser)?.unwrap_or(0);
         let align = match parse_field("align", parser)? {
             Some(n) if !n.is_power_of_two() => {
@@ -1261,6 +1263,24 @@ fn idx_zero<T>(span: ast::Span, mk_kind: fn(ast::Span) -> T) -> ast::ItemRef<'st
         kind: mk_kind(span),
         idx: ast::Index::Num(0, span),
         exports: Vec::new(),
+    }
+}
+
+/// Extra data associated with the `loadN_lane` and `storeN_lane` instructions.
+#[derive(Debug)]
+pub struct LoadOrStoreLane<'a> {
+    /// The memory argument for this instruction.
+    pub memarg: MemArg<'a>,
+    /// The lane argument for this instruction.
+    pub lane: LaneArg
+}
+
+impl<'a> LoadOrStoreLane<'a> {
+    fn parse(parser: Parser<'a>, default_align: u32) -> Result<Self> {
+        Ok(LoadOrStoreLane {
+            memarg: MemArg::parse(parser, default_align)?,
+            lane: LaneArg::parse(parser)?
+        })
     }
 }
 
