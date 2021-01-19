@@ -21,6 +21,8 @@ look at the sub-crates:
 * [**`wasmprinter`**](crates/wasmprinter) - prints WebAssembly binaries in their
   string form
 * [**`wasm-smith`**](crates/wasm-smith) - a WebAssembly test case generator
+* [**`wasm-encoder`**](crates/wasm-encoder) - a crate to generate a binary
+  WebAssembly module
 
 # License
 
