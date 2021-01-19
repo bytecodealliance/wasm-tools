@@ -542,44 +542,42 @@
     call $f)
 )
 
-;; Disabled because memory indices are not currently supported
-
-;; (module
-;;   (module $m (memory $m (export "x") 1))
-;;   (instance $i (instantiate $m))
-;;   (func unreachable i32.load (memory $i "x") unreachable)
-;; )
-;; (module
-;;   (module $m (memory $m (export "x") 1))
-;;   (instance $i (instantiate $m))
-;;   (func unreachable memory.init $data (memory $i "x"))
-;;   (data $data "x")
-;; )
-;; (module
-;;   (module $m (memory $m (export "x") 1))
-;;   (instance $i (instantiate $m))
-;;   (func unreachable memory.copy (memory $i "x") (memory $i "x"))
-;; )
-;; (module
-;;   (module $m (memory $m (export "x") 1))
-;;   (instance $i (instantiate $m))
-;;   (func unreachable memory.fill (memory $i "x"))
-;; )
-;; (module
-;;   (module $m (memory $m (export "x") 1))
-;;   (instance $i (instantiate $m))
-;;   (func unreachable memory.size (memory $i "x") unreachable)
-;; )
-;; (module
-;;   (module $m (memory $m (export "x") 1))
-;;   (instance $i (instantiate $m))
-;;   (func unreachable memory.grow (memory $i "x") unreachable)
-;; )
-;; (module
-;;   (module $m (memory $m (export "x") 1))
-;;   (instance $i (instantiate $m))
-;;   (func unreachable f64.load (memory $i "x") unreachable)
-;; )
+(module
+  (module $m (memory $m (export "x") 1))
+  (instance $i (instantiate $m))
+  (func unreachable i32.load (memory $i "x") unreachable)
+)
+(module
+  (module $m (memory $m (export "x") 1))
+  (instance $i (instantiate $m))
+  (func unreachable memory.init $data (memory $i "x"))
+  (data $data "x")
+)
+(module
+  (module $m (memory $m (export "x") 1))
+  (instance $i (instantiate $m))
+  (func unreachable memory.copy (memory $i "x") (memory $i "x"))
+)
+(module
+  (module $m (memory $m (export "x") 1))
+  (instance $i (instantiate $m))
+  (func unreachable memory.fill (memory $i "x"))
+)
+(module
+  (module $m (memory $m (export "x") 1))
+  (instance $i (instantiate $m))
+  (func unreachable memory.size (memory $i "x") unreachable)
+)
+(module
+  (module $m (memory $m (export "x") 1))
+  (instance $i (instantiate $m))
+  (func unreachable memory.grow (memory $i "x") unreachable)
+)
+(module
+  (module $m (memory $m (export "x") 1))
+  (instance $i (instantiate $m))
+  (func unreachable f64.load (memory $i "x") unreachable)
+)
 
 (module
   (module $m
