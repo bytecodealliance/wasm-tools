@@ -1448,7 +1448,7 @@ impl Printer {
     ) -> Result<()> {
         self.result.push_str(name);
         if memarg.memory != 0 {
-            write!(self.result, " {}", memarg.memory)?;
+            write!(self.result, " (memory {})", memarg.memory)?;
         }
         if memarg.offset != 0 {
             write!(self.result, " offset={}", memarg.offset)?;

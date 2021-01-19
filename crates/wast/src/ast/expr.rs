@@ -1239,9 +1239,9 @@ impl<'a> MemArg<'a> {
                 Ok((Some(num), rest))
             })
         }
-        // https://github.com/WebAssembly/multi-memory/issues/17: hardwire the memory field to zero
-        // for now to avoid ambiguity with lane index for v128.(load|store)N_lane.
-        let memory = idx_zero(parser.prev_span(), kw::memory);
+        let memory = parser
+            .parse::<Option<ast::ItemRef<'a, kw::memory>>>()?
+            .unwrap_or(idx_zero(parser.prev_span(), kw::memory));
         let offset = parse_field("offset", parser)?.unwrap_or(0);
         let align = match parse_field("align", parser)? {
             Some(n) if !n.is_power_of_two() => {
