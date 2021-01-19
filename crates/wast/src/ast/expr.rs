@@ -467,12 +467,15 @@ macro_rules! instructions {
     );
 
     (@ty MemArg<$amt:tt>) => (MemArg<'a>);
+    (@ty LoadOrStoreLane<$amt:tt>) => (LoadOrStoreLane<'a>);
     (@ty $other:ty) => ($other);
 
     (@first $first:ident $($t:tt)*) => ($first);
 
     (@parse $parser:ident MemArg<$amt:tt>) => (MemArg::parse($parser, $amt));
     (@parse $parser:ident MemArg) => (compile_error!("must specify `MemArg` default"));
+    (@parse $parser:ident LoadOrStoreLane<$amt:tt>) => (LoadOrStoreLane::parse($parser, $amt));
+    (@parse $parser:ident LoadOrStoreLane) => (compile_error!("must specify `LoadOrStoreLane` default"));
     (@parse $parser:ident $other:ty) => ($parser.parse::<$other>());
 
     // simd opcodes prefixed with `0xfd` get a varuint32 encoding for their payload
@@ -933,10 +936,18 @@ instructions! {
         V128Or : [0xfd, 0x50] : "v128.or",
         V128Xor : [0xfd, 0x51] : "v128.xor",
         V128Bitselect : [0xfd, 0x52] : "v128.bitselect",
+        V128Load8Lane(LoadOrStoreLane<1>) : [0xfd, 0x58] : "v128.load8_lane",
+        V128Load16Lane(LoadOrStoreLane<2>) : [0xfd, 0x59] : "v128.load16_lane",
+        V128Load32Lane(LoadOrStoreLane<4>) : [0xfd, 0x5a] : "v128.load32_lane",
+        V128Load64Lane(LoadOrStoreLane<8>): [0xfd, 0x5b] : "v128.load64_lane",
+        V128Store8Lane(LoadOrStoreLane<1>) : [0xfd, 0x5c] : "v128.store8_lane",
+        V128Store16Lane(LoadOrStoreLane<2>) : [0xfd, 0x5d] : "v128.store16_lane",
+        V128Store32Lane(LoadOrStoreLane<4>) : [0xfd, 0x5e] : "v128.store32_lane",
+        V128Store64Lane(LoadOrStoreLane<8>) : [0xfd, 0x5f] : "v128.store64_lane",
 
         I8x16Abs : [0xfd, 0x60] : "i8x16.abs",
         I8x16Neg : [0xfd, 0x61] : "i8x16.neg",
-        I8x16AnyTrue : [0xfd, 0x62] : "i8x16.any_true",
+        V128AnyTrue : [0xfd, 0x62] : "v128.any_true",
         I8x16AllTrue : [0xfd, 0x63] : "i8x16.all_true",
         I8x16Bitmask : [0xfd, 0x64] : "i8x16.bitmask",
         I8x16NarrowI16x8S : [0xfd, 0x65] : "i8x16.narrow_i16x8_s",
@@ -958,7 +969,6 @@ instructions! {
 
         I16x8Abs : [0xfd, 0x80] : "i16x8.abs",
         I16x8Neg : [0xfd, 0x81] : "i16x8.neg",
-        I16x8AnyTrue : [0xfd, 0x82] : "i16x8.any_true",
         I16x8AllTrue : [0xfd, 0x83] : "i16x8.all_true",
         I16x8Bitmask : [0xfd, 0x84] : "i16x8.bitmask",
         I16x8NarrowI32x4S : [0xfd, 0x85] : "i16x8.narrow_i32x4_s",
@@ -983,13 +993,13 @@ instructions! {
         I16x8MaxU : [0xfd, 0x99] : "i16x8.max_u",
         I16x8ExtMulLowI8x16S : [0xfd, 0x9a] : "i16x8.extmul_low_i8x16_s",
         I16x8AvgrU : [0xfd, 0x9b] : "i16x8.avgr_u",
+        I16x8Q15MulrSatS : [0xfd, 0x9c] : "i16x8.q15mulr_sat_s",
         I16x8ExtMulHighI8x16S : [0xfd, 0x9d] : "i16x8.extmul_high_i8x16_s",
         I16x8ExtMulLowI8x16U : [0xfd, 0x9e] : "i16x8.extmul_low_i8x16_u",
         I16x8ExtMulHighI8x16U : [0xfd, 0x9f] : "i16x8.extmul_high_i8x16_u",
 
         I32x4Abs : [0xfd, 0xa0] : "i32x4.abs",
         I32x4Neg : [0xfd, 0xa1] : "i32x4.neg",
-        I32x4AnyTrue : [0xfd, 0xa2] : "i32x4.any_true",
         I32x4AllTrue : [0xfd, 0xa3] : "i32x4.all_true",
         I32x4Bitmask : [0xfd, 0xa4] : "i32x4.bitmask",
         I32x4WidenLowI16x8S : [0xfd, 0xa7] : "i32x4.widen_low_i16x8_s",
@@ -1014,6 +1024,11 @@ instructions! {
 
         I64x2Neg : [0xfd, 0xc1] : "i64x2.neg",
         I64x2Shl : [0xfd, 0xcb] : "i64x2.shl",
+        I64x2Bitmask : [0xfd, 0xc4] : "i64x2.bitmask",
+        I64x2WidenLowI32x4S : [0xfd, 0xc7] : "i64x2.widen_low_i32x4_s",
+        I64x2WidenHighI32x4S : [0xfd, 0xc8] : "i64x2.widen_high_i32x4_s",
+        I64x2WidenLowI32x4U : [0xfd, 0xc9] : "i64x2.widen_low_i32x4_u",
+        I64x2WidenHighI32x4U : [0xfd, 0xca] : "i64x2.widen_high_i32x4_u",
         I64x2ShrS : [0xfd, 0xcc] : "i64x2.shr_s",
         I64x2ShrU : [0xfd, 0xcd] : "i64x2.shr_u",
         I64x2Add : [0xfd, 0xce] : "i64x2.add",
@@ -1225,8 +1240,7 @@ impl<'a> MemArg<'a> {
             })
         }
         let memory = parser
-            .parse::<Option<ast::IndexOrRef<_>>>()?
-            .map(|i| i.0)
+            .parse::<Option<ast::ItemRef<'a, kw::memory>>>()?
             .unwrap_or(idx_zero(parser.prev_span(), kw::memory));
         let offset = parse_field("offset", parser)?.unwrap_or(0);
         let align = match parse_field("align", parser)? {
@@ -1249,6 +1263,24 @@ fn idx_zero<T>(span: ast::Span, mk_kind: fn(ast::Span) -> T) -> ast::ItemRef<'st
         kind: mk_kind(span),
         idx: ast::Index::Num(0, span),
         exports: Vec::new(),
+    }
+}
+
+/// Extra data associated with the `loadN_lane` and `storeN_lane` instructions.
+#[derive(Debug)]
+pub struct LoadOrStoreLane<'a> {
+    /// The memory argument for this instruction.
+    pub memarg: MemArg<'a>,
+    /// The lane argument for this instruction.
+    pub lane: LaneArg
+}
+
+impl<'a> LoadOrStoreLane<'a> {
+    fn parse(parser: Parser<'a>, default_align: u32) -> Result<Self> {
+        Ok(LoadOrStoreLane {
+            memarg: MemArg::parse(parser, default_align)?,
+            lane: LaneArg::parse(parser)?
+        })
     }
 }
 

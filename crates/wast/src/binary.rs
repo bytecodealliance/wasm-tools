@@ -880,6 +880,13 @@ impl Encode for MemArg<'_> {
     }
 }
 
+impl Encode for LoadOrStoreLane<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.memarg.encode(e);
+        self.lane.encode(e);
+    }
+}
+
 impl Encode for CallIndirect<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.ty.encode(e);

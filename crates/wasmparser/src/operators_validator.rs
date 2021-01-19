@@ -1604,7 +1604,8 @@ impl OperatorValidator {
             | Operator::I64x2ExtMulLowI32x4S
             | Operator::I64x2ExtMulHighI32x4S
             | Operator::I64x2ExtMulLowI32x4U
-            | Operator::I64x2ExtMulHighI32x4U => {
+            | Operator::I64x2ExtMulHighI32x4U
+            | Operator::I16x8Q15MulrSatS => {
                 self.check_simd_enabled()?;
                 self.pop_operand(Some(Type::V128))?;
                 self.pop_operand(Some(Type::V128))?;
@@ -1648,7 +1649,11 @@ impl OperatorValidator {
             | Operator::I32x4WidenLowI16x8S
             | Operator::I32x4WidenHighI16x8S
             | Operator::I32x4WidenLowI16x8U
-            | Operator::I32x4WidenHighI16x8U => {
+            | Operator::I32x4WidenHighI16x8U
+            | Operator::I64x2WidenLowI32x4S
+            | Operator::I64x2WidenHighI32x4S
+            | Operator::I64x2WidenLowI32x4U
+            | Operator::I64x2WidenHighI32x4U => {
                 self.check_simd_enabled()?;
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;
@@ -1660,15 +1665,14 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;
             }
-            Operator::I8x16AnyTrue
+            Operator::V128AnyTrue
             | Operator::I8x16AllTrue
             | Operator::I8x16Bitmask
-            | Operator::I16x8AnyTrue
             | Operator::I16x8AllTrue
             | Operator::I16x8Bitmask
-            | Operator::I32x4AnyTrue
             | Operator::I32x4AllTrue
-            | Operator::I32x4Bitmask => {
+            | Operator::I32x4Bitmask
+            | Operator::I64x2Bitmask => {
                 self.check_simd_enabled()?;
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::I32)?;
@@ -1736,7 +1740,66 @@ impl OperatorValidator {
                 self.pop_operand(Some(idx))?;
                 self.push_operand(Type::V128)?;
             }
-
+            Operator::V128Load8Lane { memarg, lane } => {
+                self.check_simd_enabled()?;
+                let idx = self.check_memarg(memarg, 0, resources)?;
+                self.check_simd_lane_index(lane, 16)?;
+                self.pop_operand(Some(Type::V128))?;
+                self.pop_operand(Some(idx))?;
+                self.push_operand(Type::V128)?;
+            }
+            Operator::V128Load16Lane { memarg, lane } => {
+                self.check_simd_enabled()?;
+                let idx = self.check_memarg(memarg, 1, resources)?;
+                self.check_simd_lane_index(lane, 8)?;
+                self.pop_operand(Some(Type::V128))?;
+                self.pop_operand(Some(idx))?;
+                self.push_operand(Type::V128)?;
+            }
+            Operator::V128Load32Lane { memarg, lane } => {
+                self.check_simd_enabled()?;
+                let idx = self.check_memarg(memarg, 2, resources)?;
+                self.check_simd_lane_index(lane, 4)?;
+                self.pop_operand(Some(Type::V128))?;
+                self.pop_operand(Some(idx))?;
+                self.push_operand(Type::V128)?;
+            }
+            Operator::V128Load64Lane { memarg, lane } => {
+                self.check_simd_enabled()?;
+                let idx = self.check_memarg(memarg, 3, resources)?;
+                self.check_simd_lane_index(lane, 2)?;
+                self.pop_operand(Some(Type::V128))?;
+                self.pop_operand(Some(idx))?;
+                self.push_operand(Type::V128)?;
+            }
+            Operator::V128Store8Lane { memarg, lane } => {
+                self.check_simd_enabled()?;
+                let idx = self.check_memarg(memarg, 0, resources)?;
+                self.check_simd_lane_index(lane, 16)?;
+                self.pop_operand(Some(Type::V128))?;
+                self.pop_operand(Some(idx))?;
+            }
+            Operator::V128Store16Lane { memarg, lane } => {
+                self.check_simd_enabled()?;
+                let idx = self.check_memarg(memarg, 1, resources)?;
+                self.check_simd_lane_index(lane, 8)?;
+                self.pop_operand(Some(Type::V128))?;
+                self.pop_operand(Some(idx))?;
+            }
+            Operator::V128Store32Lane { memarg, lane } => {
+                self.check_simd_enabled()?;
+                let idx = self.check_memarg(memarg, 2, resources)?;
+                self.check_simd_lane_index(lane, 4)?;
+                self.pop_operand(Some(Type::V128))?;
+                self.pop_operand(Some(idx))?;
+            }
+            Operator::V128Store64Lane { memarg, lane } => {
+                self.check_simd_enabled()?;
+                let idx = self.check_memarg(memarg, 3, resources)?;
+                self.check_simd_lane_index(lane, 2)?;
+                self.pop_operand(Some(Type::V128))?;
+                self.pop_operand(Some(idx))?;
+            }
             Operator::MemoryInit { mem, segment } => {
                 self.check_bulk_memory_enabled()?;
                 let ty = self.check_memory_index(mem, resources)?;
