@@ -695,10 +695,8 @@ impl TestState {
             match part {
                 "testsuite" | "wasmtime905.wast" | "missing-features" => {
                     features = WasmFeatures::default();
-                    if part == "testsuite" {
-                        features.bulk_memory = false;
-                        features.reference_types = false;
-                    }
+                    features.bulk_memory = false;
+                    features.reference_types = false;
                 }
                 "threads" => features.threads = true,
                 "simd" => features.simd = true,

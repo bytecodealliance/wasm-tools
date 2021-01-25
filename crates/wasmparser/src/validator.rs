@@ -156,20 +156,20 @@ struct ModuleState {
 /// Flags for features that are enabled for validation.
 #[derive(Hash, Debug, Copy, Clone)]
 pub struct WasmFeatures {
-    /// The WebAssembly reference types proposal
+    /// The WebAssembly reference types proposal (enabled by default)
     pub reference_types: bool,
+    /// The WebAssembly multi-value proposal (enabled by default)
+    pub multi_value: bool,
+    /// The WebAssembly bulk memory operations proposal (enabled by default)
+    pub bulk_memory: bool,
     /// The WebAssembly module linking proposal
     pub module_linking: bool,
     /// The WebAssembly SIMD proposal
     pub simd: bool,
-    /// The WebAssembly multi-value proposal (enabled by default)
-    pub multi_value: bool,
     /// The WebAssembly threads proposal
     pub threads: bool,
     /// The WebAssembly tail-call proposal
     pub tail_call: bool,
-    /// The WebAssembly bulk memory operations proposal
-    pub bulk_memory: bool,
     /// Whether or not only deterministic instructions are allowed
     pub deterministic_only: bool,
     /// The WebAssembly multi memory proposal
@@ -184,19 +184,19 @@ impl Default for WasmFeatures {
     fn default() -> WasmFeatures {
         WasmFeatures {
             // off-by-default features
-            reference_types: false,
             module_linking: false,
             simd: false,
             threads: false,
             tail_call: false,
-            bulk_memory: false,
             multi_memory: false,
             exceptions: false,
             memory64: false,
             deterministic_only: cfg!(feature = "deterministic"),
 
             // on-by-default features
+            bulk_memory: true,
             multi_value: true,
+            reference_types: true,
         }
     }
 }
