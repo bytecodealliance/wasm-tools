@@ -146,7 +146,8 @@ impl Printer {
                     data,
                 } => {
                     let reader = NameSectionReader::new(data, data_offset)?;
-                    self.register_names(reader)?;
+                    // Ignore any error associated with the name section.
+                    drop(self.register_names(reader));
                 }
                 Payload::End => break,
                 _ => {}
