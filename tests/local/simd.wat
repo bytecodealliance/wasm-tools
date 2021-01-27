@@ -158,6 +158,11 @@
     i32.eqz
     drop
 
+    v128.const i32x4 1 2 3 4
+    i64x2.all_true
+    i32.eqz
+    drop
+
     v128.const i64x2 1 2
     i64x2.bitmask
     i32.eqz
@@ -180,6 +185,18 @@
 
     v128.const i32x4 0 0 0 0
     i64x2.widen_high_i32x4_u
+    i8x16.neg
+    drop
+
+    v128.const i32x4 0 0 0 0
+    v128.const i32x4 0 0 0 0
+    i64x2.eq
+    i8x16.neg
+    drop
+
+    v128.const i32x4 0 0 0 0
+    v128.const i32x4 0 0 0 0
+    i64x2.ne
     i8x16.neg
     drop
 
