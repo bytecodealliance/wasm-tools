@@ -1151,7 +1151,7 @@ where
             |u| {
                 // We can only instantiate a choice if all of its arguments
                 // have at least one possibility, so filter for those candidates
-                // and break out if there are 0, otherwise selectt one of them.
+                // and break out if there are 0, otherwise select one of them.
                 let choices = available
                     .choices
                     .iter()
