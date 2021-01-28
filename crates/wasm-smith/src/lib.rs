@@ -728,9 +728,7 @@ where
                 choices.push(|u, m, a, _| m.arbitrary_aliases(a, u));
             }
             instantiations.update(self);
-            if self.instances.len() < self.config.max_instances()
-                && instantiations.choices.len() > 0
-            {
+            if self.instances.len() < self.config.max_instances() {
                 choices.push(|u, m, _, i| m.arbitrary_instances(i, u));
             }
             if choices.is_empty() || !u.arbitrary()? {
@@ -1145,15 +1143,24 @@ where
         available: &mut AvailableInstantiations,
         u: &mut Unstructured,
     ) -> Result<()> {
-        assert!(available.choices.len() > 0);
-
         let mut instances = Vec::new();
         arbitrary_loop(
             u,
             0,
             self.config.max_instances() - self.instances.len(),
             |u| {
-                let choice = u.choose(&available.choices)?;
+                // We can only instantiate a choice if all of its arguments
+                // have at least one possibility, so filter for those candidates
+                // and break out if there are 0, otherwise select one of them.
+                let choices = available
+                    .choices
+                    .iter()
+                    .filter(|i| i.args.iter().all(|i| !i.1.is_empty()))
+                    .collect::<Vec<_>>();
+                if choices.len() == 0 {
+                    return Ok(false);
+                }
+                let choice = u.choose(&choices)?;
                 instances.push(Instance {
                     module: choice.module,
                     args: choice
@@ -1744,46 +1751,46 @@ where
     /// The module's imported type is provided with `expected` and this function
     /// will walk over all up-to-this-point defined items in the module and
     /// return if any are candidates for supplying to that requested import.
-    fn subtypes(&self, expected: &EntityType) -> Vec<Export> {
+    fn subtypes(&self, skip: &Entities, expected: &EntityType) -> Vec<Export> {
         let mut ret = Vec::new();
         match expected {
             EntityType::Global(expected) => {
-                for (i, actual) in self.globals.iter().enumerate() {
+                for (i, actual) in self.globals.iter().enumerate().skip(skip.globals) {
                     if self.is_subtype_global(actual, expected) {
                         ret.push(Export::Global(i as u32));
                     }
                 }
             }
             EntityType::Memory(expected) => {
-                for (i, actual) in self.memories.iter().enumerate() {
+                for (i, actual) in self.memories.iter().enumerate().skip(skip.memories) {
                     if self.is_subtype_memory(actual, expected) {
                         ret.push(Export::Memory(i as u32));
                     }
                 }
             }
             EntityType::Table(expected) => {
-                for (i, actual) in self.tables.iter().enumerate() {
+                for (i, actual) in self.tables.iter().enumerate().skip(skip.tables) {
                     if self.is_subtype_table(actual, expected) {
                         ret.push(Export::Table(i as u32));
                     }
                 }
             }
             EntityType::Func(_, expected) => {
-                for (i, (_, actual)) in self.funcs.iter().enumerate() {
+                for (i, (_, actual)) in self.funcs.iter().enumerate().skip(skip.funcs) {
                     if self.is_subtype_func(actual, expected) {
                         ret.push(Export::Func(i as u32));
                     }
                 }
             }
             EntityType::Instance(_, expected) => {
-                for (i, actual) in self.instances.iter().enumerate() {
+                for (i, actual) in self.instances.iter().enumerate().skip(skip.instances) {
                     if self.is_subtype_instance(actual, expected) {
                         ret.push(Export::Instance(i as u32));
                     }
                 }
             }
             EntityType::Module(_, expected) => {
-                for (i, actual) in self.modules.iter().enumerate() {
+                for (i, actual) in self.modules.iter().enumerate().skip(skip.modules) {
                     if self.is_subtype_module(actual, expected) {
                         ret.push(Export::Module(i as u32));
                     }
@@ -2133,6 +2140,9 @@ impl AvailableAliases {
 #[derive(Default)]
 struct AvailableInstantiations {
     choices: Vec<Instantiation>,
+    // Entities that we've visited so far when generating `choices` and
+    // populated the uninstantiable list.
+    entities: Entities,
 }
 
 struct Instantiation {
@@ -2143,9 +2153,7 @@ struct Instantiation {
     /// instantiation.
     ///
     /// Each sub-vector `args[i]` contains all the valid options for the named
-    /// instantiation argument of the `module`. The entry is never empty,
-    /// because that would mean that the module cannot be instantiated, in which
-    /// case we do not construct this structure.
+    /// instantiation argument of the `module`.
     ///
     /// In this example, both `$g1` and `$g2` are possible arguments
     /// for `$nested.imported-global`, so the associated `args[i]` would be
@@ -2165,17 +2173,27 @@ struct Instantiation {
 
 impl AvailableInstantiations {
     fn update(&mut self, module: &ConfiguredModule<impl Config>) {
-        self.choices.clear();
-        'outer: for (i, ty) in module.modules.iter().enumerate() {
-            let mut args = Vec::new();
+        // First up we need to update the list of candidates for all our
+        // previously possible instantiations. For this we only need to consider
+        // items after `self.entities` since the choices already take into
+        // account everything prior to that.
+        for choice in self.choices.iter_mut() {
+            let ty = &module.modules[choice.module as usize];
+            for (name, candidates) in choice.args.iter_mut() {
+                let ty = &ty.import_types[name.as_str()];
+                candidates.extend(module.subtypes(&self.entities, ty));
+            }
+        }
+
+        // Afterwards we need to consider instantiating any new modules added to
+        // the module. For this, however, we need to consider all entities in
+        // the module since we haven't checked anything prior.
+        let empty = Entities::default();
+        for i in self.entities.modules..module.modules.len() {
+            let ty = &module.modules[i];
+            let mut args = Vec::with_capacity(ty.import_types.len());
             for (name, import) in ty.import_types.iter() {
-                let candidates = module.subtypes(import);
-                // If nothing in our module up to this point can satisfy this
-                // import then we can't instantiate this module. That means we
-                // skip to the next module that may be instantiable.
-                if candidates.is_empty() {
-                    continue 'outer;
-                }
+                let candidates = module.subtypes(&empty, import);
                 args.push((name.clone(), candidates));
             }
 
@@ -2184,12 +2202,23 @@ impl AvailableInstantiations {
                 args,
             });
         }
+
+        // Update the count of all entities we've considered when generating the
+        // choices array.
+        self.entities = Entities {
+            globals: module.globals.len(),
+            memories: module.memories.len(),
+            tables: module.tables.len(),
+            funcs: module.funcs.len(),
+            modules: module.modules.len(),
+            instances: module.instances.len(),
+        };
     }
 }
 
 // A helper structure used when generating module/instance types to limit the
 // amount of each kind of import created.
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 struct Entities {
     globals: usize,
     memories: usize,
