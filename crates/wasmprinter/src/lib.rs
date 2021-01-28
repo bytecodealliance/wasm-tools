@@ -358,6 +358,10 @@ impl Printer {
     /// Returns the number of parameters, useful for local index calculations
     /// later.
     fn print_functype(&mut self, ty: &FuncType, names_for: Option<u32>) -> Result<u32> {
+        if ty.params.len() > 0 {
+            self.result.push_str(" ");
+        }
+
         let mut params = NamedLocalPrinter::new("param");
         // Note that named parameters must be alone in a `param` block, so
         // we need to be careful to terminate previous param blocks and open
@@ -634,7 +638,7 @@ impl Printer {
                 }
                 for _ in 0..cnt {
                     if first {
-                        self.result.push_str("\n   ");
+                        self.newline();
                         first = false;
                     }
                     let name = self
@@ -1797,6 +1801,7 @@ struct NamedLocalPrinter {
     group_name: &'static str,
     in_group: bool,
     end_group_after_local: bool,
+    first: bool,
 }
 
 impl NamedLocalPrinter {
@@ -1805,6 +1810,7 @@ impl NamedLocalPrinter {
             group_name,
             in_group: false,
             end_group_after_local: false,
+            first: true,
         }
     }
 
@@ -1816,9 +1822,14 @@ impl NamedLocalPrinter {
             self.in_group = false;
         }
 
+        if self.first {
+            self.first = false;
+        } else {
+            dst.push_str(" ");
+        }
+
         // Next we either need a separator if we're already in a group or we
         // need to open a group for our new local.
-        dst.push_str(" ");
         if !self.in_group {
             dst.push_str("(");
             dst.push_str(self.group_name);
