@@ -191,6 +191,10 @@ where
     elems: Vec<ElementSegment>,
     code: Vec<Code>,
     data: Vec<DataSegment>,
+
+    /// The predicted size of the effective type of this module, based on this
+    /// module's size of the types of imports/exports.
+    type_size: u32,
 }
 
 impl<C: Config> ConfiguredModule<C> {
@@ -256,11 +260,13 @@ struct FuncType {
 
 #[derive(Clone, Debug, Default)]
 struct InstanceType {
+    type_size: u32,
     exports: indexmap::IndexMap<String, EntityType>,
 }
 
 #[derive(Clone, Debug)]
 struct ModuleType {
+    type_size: u32,
     imports: Vec<(String, Option<String>, EntityType)>,
     import_types: indexmap::IndexMap<String, EntityType>,
     /// The list of exports can be found in the `InstanceType` indirection here,
@@ -822,10 +828,15 @@ where
         let mut imports = Vec::new();
         let mut import_types = indexmap::IndexMap::new();
         let mut names = HashMap::new();
+        let mut type_size = exports.type_size;
         if !entities.max_reached(&self.config) {
             arbitrary_loop(u, 0, self.config.max_imports(), |u| {
                 let (module, name) = unique_import_strings(1_000, &mut names, true, u)?;
                 let ty = self.arbitrary_entity_type(u, entities)?;
+                match type_size.checked_add(ty.size()) {
+                    Some(s) if s < self.config.max_type_size() => type_size = s,
+                    _ => return Ok(false),
+                }
                 if let Some(name) = &name {
                     let ity = import_types.entry(module.clone()).or_insert_with(|| {
                         EntityType::Instance(u32::max_value(), Default::default())
@@ -843,6 +854,7 @@ where
             })?;
         }
         Ok(Rc::new(ModuleType {
+            type_size,
             imports,
             import_types,
             exports,
@@ -856,15 +868,20 @@ where
     ) -> Result<Rc<InstanceType>> {
         let mut export_names = HashSet::new();
         let mut exports = indexmap::IndexMap::new();
+        let mut type_size = 0u32;
         if !entities.max_reached(&self.config) {
             arbitrary_loop(u, 0, self.config.max_exports(), |u| {
                 let name = unique_string(1_000, &mut export_names, u)?;
                 let ty = self.arbitrary_entity_type(u, entities)?;
+                match type_size.checked_add(ty.size()) {
+                    Some(s) if s < self.config.max_type_size() => type_size = s,
+                    _ => return Ok(false),
+                }
                 exports.insert(name, ty);
                 Ok(!entities.max_reached(&self.config))
             })?;
         }
-        Ok(Rc::new(InstanceType { exports }))
+        Ok(Rc::new(InstanceType { type_size, exports }))
     }
 
     fn arbitrary_entity_type(
@@ -1038,8 +1055,9 @@ where
             }
 
             self.num_imports += 1;
+            self.type_size += ty.size();
             imports.push((module, name, ty));
-            Ok(true)
+            Ok(self.type_size < self.config.max_type_size())
         })?;
         if !imports.is_empty() || u.arbitrary()? {
             self.initial_sections.push(InitialSection::Import(imports));
@@ -1230,9 +1248,16 @@ where
                 exports.insert(name.clone(), ty);
             }
             let ty = Rc::new(ModuleType {
+                type_size: module.type_size,
                 imports,
                 import_types,
-                exports: Rc::new(InstanceType { exports }),
+                exports: Rc::new(InstanceType {
+                    // This type size isn't quite right since it takes into
+                    // account imports, but that's ok for now since it's just a
+                    // predictor about how big things should get.
+                    type_size: module.type_size,
+                    exports,
+                }),
             });
 
             // And then given the type of the module we copy it over to
@@ -1447,12 +1472,18 @@ where
     }
 
     fn arbitrary_exports(&mut self, u: &mut Unstructured) -> Result<()> {
+        if self.type_size < self.config.max_type_size() {
+            return Ok(());
+        }
+
         let mut choices: Vec<fn(&mut Unstructured, &mut ConfiguredModule<C>) -> Result<_>> =
             Vec::with_capacity(4);
 
         if self.funcs.len() > 0 {
             choices.push(|u, m| {
                 let idx = u.int_in_range(0..=m.funcs.len() - 1)?;
+                let sig = &m.funcs[idx].1;
+                m.type_size += (sig.params.len() + sig.results.len()) as u32;
                 Ok(Export::Func(idx as u32))
             });
         }
@@ -1460,6 +1491,7 @@ where
         if self.tables.len() > 0 {
             choices.push(|u, m| {
                 let idx = u.int_in_range(0..=m.tables.len() - 1)?;
+                m.type_size += 1;
                 Ok(Export::Table(idx as u32))
             });
         }
@@ -1467,6 +1499,7 @@ where
         if self.memories.len() > 0 {
             choices.push(|u, m| {
                 let idx = u.int_in_range(0..=m.memories.len() - 1)?;
+                m.type_size += 1;
                 Ok(Export::Memory(idx as u32))
             });
         }
@@ -1474,6 +1507,7 @@ where
         if self.globals.len() > 0 {
             choices.push(|u, m| {
                 let idx = u.int_in_range(0..=m.globals.len() - 1)?;
+                m.type_size += 1;
                 Ok(Export::Global(idx as u32))
             });
         }
@@ -1481,6 +1515,7 @@ where
         if self.instances.len() > 0 {
             choices.push(|u, m| {
                 let idx = u.int_in_range(0..=m.instances.len() - 1)?;
+                m.type_size += m.instances[idx].type_size;
                 Ok(Export::Instance(idx as u32))
             });
         }
@@ -1488,6 +1523,7 @@ where
         if self.modules.len() > 0 {
             choices.push(|u, m| {
                 let idx = u.int_in_range(0..=m.modules.len() - 1)?;
+                m.type_size += m.modules[idx].type_size;
                 Ok(Export::Module(idx as u32))
             });
         }
@@ -1506,7 +1542,7 @@ where
                 let f = u.choose(&choices)?;
                 let export = f(u, self)?;
                 self.exports.push((name, export));
-                Ok(true)
+                Ok(self.type_size < self.config.max_type_size())
             },
         )
     }
@@ -1994,6 +2030,18 @@ fn unique_import_strings(
 fn arbitrary_vec_u8(u: &mut Unstructured) -> Result<Vec<u8>> {
     let size = u.arbitrary_len::<u8>()?;
     Ok(u.get_bytes(size)?.to_vec())
+}
+
+impl EntityType {
+    fn size(&self) -> u32 {
+        let base = match self {
+            EntityType::Global(_) | EntityType::Table(_) | EntityType::Memory(_) => 1,
+            EntityType::Func(_, ty) => (ty.params.len() + ty.results.len()) as u32,
+            EntityType::Instance(_, ty) => ty.type_size,
+            EntityType::Module(_, ty) => ty.type_size,
+        };
+        base + 1
+    }
 }
 
 /// This is a helper structure used during the `arbitrary_initial_sections`
