@@ -1245,7 +1245,7 @@ where
                 imports,
                 import_types,
                 exports: Rc::new(InstanceType {
-                    // this type size isn't quite right since it takes into
+                    // This type size isn't quite right since it takes into
                     // account imports, but that's ok for now since it's just a
                     // predictor about how big things should get.
                     type_size: module.type_size,
