@@ -1807,6 +1807,12 @@ impl<'a> BinaryReader<'a> {
             0xfd => Operator::V128Load64Zero {
                 memarg: self.read_memarg_of_align(3)?,
             },
+            0x501 => Operator::F32x4DemoteF64x2Zero,
+            0x502 => Operator::F64x2PromoteLowF32x4,
+            0x503 => Operator::F64x2ConvertLowI32x4S,
+            0x504 => Operator::F64x2ConvertLowI32x4U,
+            0x505 => Operator::I32x4TruncSatF64x2SZero,
+            0x506 => Operator::I32x4TruncSatF64x2UZero,
             _ => {
                 return Err(BinaryReaderError::new(
                     format!("Unknown 0xfd subopcode: 0x{:x}", code),

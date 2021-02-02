@@ -1196,4 +1196,10 @@ pub enum Operator<'a> {
     I8x16RoundingAverageU,
     I16x8RoundingAverageU,
     I16x8Q15MulrSatS,
+    F32x4DemoteF64x2Zero,
+    F64x2PromoteLowF32x4,
+    F64x2ConvertLowI32x4S,
+    F64x2ConvertLowI32x4U,
+    I32x4TruncSatF64x2SZero,
+    I32x4TruncSatF64x2UZero,
 }

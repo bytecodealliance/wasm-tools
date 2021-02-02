@@ -189,6 +189,36 @@
     i8x16.neg
     drop
 
+    v128.const i32x4 0 0 0 0
+    f32x4.demote_f64x2_zero
+    i8x16.neg
+    drop
+
+    v128.const i32x4 0 0 0 0
+    f64x2.promote_low_f32x4
+    i8x16.neg
+    drop
+
+    v128.const i32x4 0 0 0 0
+    f64x2.convert_low_i32x4_s
+    i8x16.neg
+    drop
+
+    v128.const i32x4 0 0 0 0
+    f64x2.convert_low_i32x4_u
+    i8x16.neg
+    drop
+
+    v128.const i32x4 0 0 0 0
+    i32x4.trunc_sat_f64x2_s_zero
+    i8x16.neg
+    drop
+
+    v128.const i32x4 0 0 0 0
+    i32x4.trunc_sat_f64x2_u_zero
+    i8x16.neg
+    drop
+
     )
 
   (memory (;0;) 1)

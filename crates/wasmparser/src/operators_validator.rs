@@ -1625,6 +1625,12 @@ impl OperatorValidator {
             | Operator::F64x2Abs
             | Operator::F64x2Neg
             | Operator::F64x2Sqrt
+            | Operator::F32x4DemoteF64x2Zero
+            | Operator::F64x2PromoteLowF32x4
+            | Operator::F64x2ConvertLowI32x4S
+            | Operator::F64x2ConvertLowI32x4U
+            | Operator::I32x4TruncSatF64x2SZero
+            | Operator::I32x4TruncSatF64x2UZero
             | Operator::F32x4ConvertI32x4S
             | Operator::F32x4ConvertI32x4U => {
                 self.check_non_deterministic_enabled()?;

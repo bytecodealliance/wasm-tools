@@ -1080,6 +1080,13 @@ instructions! {
         V128Load32Zero(MemArg<4>) : [0xfd, 0xfc] : "v128.load32_zero",
         V128Load64Zero(MemArg<8>) : [0xfd, 0xfd] : "v128.load64_zero",
 
+        F32x4DemoteF64x2Zero : [0xfd, 0x501] : "f32x4.demote_f64x2_zero",
+        F64x2PromoteLowF32x4 : [0xfd, 0x502] : "f64x2.promote_low_f32x4",
+        F64x2ConvertLowI32x4S : [0xfd, 0x503] : "f64x2.convert_low_i32x4_s",
+        F64x2ConvertLowI32x4U : [0xfd, 0x504] : "f64x2.convert_low_i32x4_u",
+        I32x4TruncSatF64x2SZero : [0xfd, 0x505] : "i32x4.trunc_sat_f64x2_s_zero",
+        I32x4TruncSatF64x2UZero : [0xfd, 0x506] : "i32x4.trunc_sat_f64x2_u_zero",
+
         // Exception handling proposal
         CatchAll : [0x05] : "catch_all", // Reuses the else opcode.
         Try(BlockType<'a>) : [0x06] : "try",
