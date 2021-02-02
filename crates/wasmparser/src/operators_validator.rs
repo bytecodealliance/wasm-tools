@@ -661,6 +661,25 @@ impl OperatorValidator {
                     unreachable: false,
                 });
             }
+            Operator::Delegate { relative_depth } => {
+                self.check_exceptions_enabled()?;
+                let frame = self.pop_ctrl(resources)?;
+                if frame.kind != FrameKind::Try {
+                    bail_op_err!("delegate found outside of an `try` block");
+                }
+                // This operation is not a jump, but we need to check the
+                // depth for validity and that it targets a `try`.
+                let (_, kind) = self.jump(relative_depth)?;
+                if kind != FrameKind::Try
+                    && (kind != FrameKind::Block
+                        || self.control.len() != relative_depth as usize + 1)
+                {
+                    bail_op_err!("must delegate to a try block or caller");
+                }
+                for ty in results(frame.block_type, resources)? {
+                    self.push_operand(ty)?;
+                }
+            }
             Operator::End => {
                 let mut frame = self.pop_ctrl(resources)?;
 

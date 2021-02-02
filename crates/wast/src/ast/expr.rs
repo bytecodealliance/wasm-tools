@@ -84,10 +84,12 @@ enum If<'a> {
 enum Try<'a> {
     /// Next thing to parse is the `do` block.
     Do(Instruction<'a>),
-    /// Next thing to parse is `catch`/`catch_all`, or `unwind`.
-    CatchOrUnwind,
+    /// Next thing to parse is `catch`/`catch_all`, `unwind`, or `delegate`.
+    CatchUnwindOrDelegate,
     /// Next thing to parse is a `catch` block or `catch_all`.
     Catch,
+    /// Finished parsing like the `End` case, but does not push `end` opcode.
+    Delegate,
     /// This `try` statement has finished parsing and if anything remains it's a
     /// syntax error.
     End,
@@ -193,15 +195,16 @@ impl<'a> ExpressionParser<'a> {
 
                     // Both `do` and `catch` are required in a `try` statement, so
                     // we will signal those errors here. Otherwise, terminate with
-                    // an `end` instruction.
+                    // an `end` or `delegate` instruction.
                     Level::Try(Try::Do(_)) => {
                         return Err(parser.error("previous `try` had no `do`"));
                     }
-                    Level::Try(Try::CatchOrUnwind) => {
+                    Level::Try(Try::CatchUnwindOrDelegate) => {
                         return Err(
-                            parser.error("previous `try` had no `catch`, `catch_all`, or `unwind`")
+                            parser.error("previous `try` had no `catch`, `catch_all`, `unwind`, or `delegate`")
                         );
                     }
+                    Level::Try(Try::Delegate) => {}
                     Level::Try(_) => {
                         self.instrs.push(Instruction::End(None));
                     }
@@ -332,7 +335,7 @@ impl<'a> ExpressionParser<'a> {
             if parser.parse::<Option<kw::r#do>>()?.is_some() {
                 // The state is advanced here only if the parse succeeds in
                 // order to strictly require the keyword.
-                *i = Try::CatchOrUnwind;
+                *i = Try::CatchUnwindOrDelegate;
                 self.stack.push(Level::TryArm);
                 return Ok(true);
             }
@@ -343,7 +346,7 @@ impl<'a> ExpressionParser<'a> {
         }
 
         // After a try's `do`, there are several possible kinds of handlers.
-        if let Try::CatchOrUnwind = i {
+        if let Try::CatchUnwindOrDelegate = i {
             // `catch` may be followed by more `catch`s or `catch_all`.
             if parser.parse::<Option<kw::catch>>()?.is_some() {
                 let evt = parser.parse::<ast::Index<'a>>()?;
@@ -365,6 +368,16 @@ impl<'a> ExpressionParser<'a> {
                 *i = Try::End;
                 self.stack.push(Level::TryArm);
                 return Ok(true);
+            }
+            // `delegate` has an index, and also ends the block like `end`.
+            if parser.parse::<Option<kw::delegate>>()?.is_some() {
+                let depth = parser.parse::<ast::Index<'a>>()?;
+                self.instrs.push(Instruction::Delegate(depth));
+                *i = Try::Delegate;
+                match self.paren(parser)? {
+                    Paren::Left | Paren::None => { return Ok(false) }
+                    Paren::Right => { return Ok(true) }
+                }
             }
             return Ok(false);
         }
@@ -1106,6 +1119,7 @@ instructions! {
         Throw(ast::Index<'a>) : [0x08] : "throw",
         Rethrow(ast::Index<'a>) : [0x09] : "rethrow",
         Unwind : [0x0a] : "unwind",
+        Delegate(ast::Index<'a>) : [0x18] : "delegate",
     }
 }
 

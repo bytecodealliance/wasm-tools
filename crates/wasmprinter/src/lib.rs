@@ -684,8 +684,8 @@ impl Printer {
                     }
 
                     // Exiting a block prints `end` at the previous indentation
-                    // level.
-                    Operator::End if self.nesting > nesting_start => {
+                    // level. `delegate` also ends a block like `end` for `try`.
+                    Operator::End | Operator::Delegate { .. } if self.nesting > nesting_start => {
                         self.nesting -= 1;
                         self.newline();
                     }
@@ -803,6 +803,10 @@ impl Printer {
                     write!(self.result, " {}", table_index)?;
                 }
                 write!(self.result, " (type {})", index)?;
+            }
+
+            Delegate { relative_depth } => {
+                write!(self.result, "delegate {}", relative_depth)?;
             }
 
             Drop => self.result.push_str("drop"),
