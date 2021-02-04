@@ -18,4 +18,6 @@ A low-level WebAssembly encoder.
 leb128 = "0.2.4"
 
 [dev-dependencies]
+anyhow = "1.0.38"
+tempfile = "3.2.0"
 wasmparser = { path = "../wasmparser" }
