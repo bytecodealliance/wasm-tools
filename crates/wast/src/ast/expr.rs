@@ -1024,8 +1024,6 @@ instructions! {
 
         I64x2Eq : [0xfd, 0xc0] : "i64x2.eq",
         I64x2Neg : [0xfd, 0xc1] : "i64x2.neg",
-        I64x2Ne : [0xfd, 0xc2] : "i64x2.ne",
-        I64x2AllTrue : [0xfd, 0xc3] : "i64x2.all_true",
         I64x2Shl : [0xfd, 0xcb] : "i64x2.shl",
         I64x2Bitmask : [0xfd, 0xc4] : "i64x2.bitmask",
         I64x2WidenLowI32x4S : [0xfd, 0xc7] : "i64x2.widen_low_i32x4_s",
@@ -1035,6 +1033,8 @@ instructions! {
         I64x2ShrS : [0xfd, 0xcc] : "i64x2.shr_s",
         I64x2ShrU : [0xfd, 0xcd] : "i64x2.shr_u",
         I64x2Add : [0xfd, 0xce] : "i64x2.add",
+        I64x2AllTrue : [0xfd, 0xcf] : "i64x2.all_true",
+        I64x2Ne : [0xfd, 0xd0] : "i64x2.ne",
         I64x2Sub : [0xfd, 0xd1] : "i64x2.sub",
         I64x2ExtMulLowI32x4S : [0xfd, 0xd2] : "i64x2.extmul_low_i32x4_s",
         I64x2ExtMulHighI32x4S : [0xfd, 0xd3] : "i64x2.extmul_high_i32x4_s",
