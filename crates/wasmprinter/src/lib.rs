@@ -1228,6 +1228,9 @@ impl Printer {
             I32x4GeS => self.result.push_str("i32x4.ge_s"),
             I32x4GeU => self.result.push_str("i32x4.ge_u"),
 
+            I64x2Eq => self.result.push_str("i64x2.eq"),
+            I64x2Ne => self.result.push_str("i64x2.ne"),
+
             F32x4Eq => self.result.push_str("f32x4.eq"),
             F32x4Ne => self.result.push_str("f32x4.ne"),
             F32x4Lt => self.result.push_str("f32x4.lt"),
@@ -1291,6 +1294,7 @@ impl Printer {
             I32x4Mul => self.result.push_str("i32x4.mul"),
 
             I64x2Neg => self.result.push_str("i64x2.neg"),
+            I64x2AllTrue => self.result.push_str("i64x2.all_true"),
             I64x2Bitmask => self.result.push_str("i64x2.bitmask"),
             I64x2Shl => self.result.push_str("i64x2.shl"),
             I64x2ShrU => self.result.push_str("i64x2.shr_u"),
