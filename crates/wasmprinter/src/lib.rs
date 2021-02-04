@@ -1441,6 +1441,13 @@ impl Printer {
             I32x4MaxS => self.result.push_str("i32x4.max_s"),
             I32x4MaxU => self.result.push_str("i32x4.max_u"),
             I32x4DotI16x8S => self.result.push_str("i32x4.dot_i16x8_s"),
+
+            F32x4DemoteF64x2Zero => self.result.push_str("f32x4.demote_f64x2_zero"),
+            F64x2PromoteLowF32x4 => self.result.push_str("f64x2.promote_low_f32x4"),
+            F64x2ConvertLowI32x4S => self.result.push_str("f64x2.convert_low_i32x4_s"),
+            F64x2ConvertLowI32x4U => self.result.push_str("f64x2.convert_low_i32x4_u"),
+            I32x4TruncSatF64x2SZero => self.result.push_str("i32x4.trunc_sat_f64x2_s_zero"),
+            I32x4TruncSatF64x2UZero => self.result.push_str("i32x4.trunc_sat_f64x2_u_zero"),
         }
         Ok(())
     }
