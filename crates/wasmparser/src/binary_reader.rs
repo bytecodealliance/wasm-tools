@@ -1645,6 +1645,11 @@ impl<'a> BinaryReader<'a> {
             0x50 => Operator::V128Or,
             0x51 => Operator::V128Xor,
             0x52 => Operator::V128Bitselect,
+            0x53 => Operator::F64x2ConvertLowI32x4S,
+            0x54 => Operator::F64x2ConvertLowI32x4U,
+            0x55 => Operator::I32x4TruncSatF64x2SZero,
+            0x56 => Operator::I32x4TruncSatF64x2UZero,
+            0x57 => Operator::F32x4DemoteF64x2Zero,
             0x58 => Operator::V128Load8Lane {
                 memarg: self.read_memarg()?,
                 lane: self.read_lane_index(16)?,
@@ -1684,6 +1689,7 @@ impl<'a> BinaryReader<'a> {
             0x64 => Operator::I8x16Bitmask,
             0x65 => Operator::I8x16NarrowI16x8S,
             0x66 => Operator::I8x16NarrowI16x8U,
+            0x69 => Operator::F64x2PromoteLowF32x4,
             0x6b => Operator::I8x16Shl,
             0x6c => Operator::I8x16ShrS,
             0x6d => Operator::I8x16ShrU,
@@ -1807,12 +1813,6 @@ impl<'a> BinaryReader<'a> {
             0xfd => Operator::V128Load64Zero {
                 memarg: self.read_memarg_of_align(3)?,
             },
-            0x501 => Operator::F32x4DemoteF64x2Zero,
-            0x502 => Operator::F64x2PromoteLowF32x4,
-            0x503 => Operator::F64x2ConvertLowI32x4S,
-            0x504 => Operator::F64x2ConvertLowI32x4U,
-            0x505 => Operator::I32x4TruncSatF64x2SZero,
-            0x506 => Operator::I32x4TruncSatF64x2UZero,
             _ => {
                 return Err(BinaryReaderError::new(
                     format!("Unknown 0xfd subopcode: 0x{:x}", code),

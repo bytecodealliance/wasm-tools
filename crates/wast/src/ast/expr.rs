@@ -936,6 +936,13 @@ instructions! {
         V128Or : [0xfd, 0x50] : "v128.or",
         V128Xor : [0xfd, 0x51] : "v128.xor",
         V128Bitselect : [0xfd, 0x52] : "v128.bitselect",
+
+        F64x2ConvertLowI32x4S : [0xfd, 0x53] : "f64x2.convert_low_i32x4_s",
+        F64x2ConvertLowI32x4U : [0xfd, 0x54] : "f64x2.convert_low_i32x4_u",
+        I32x4TruncSatF64x2SZero : [0xfd, 0x55] : "i32x4.trunc_sat_f64x2_s_zero",
+        I32x4TruncSatF64x2UZero : [0xfd, 0x56] : "i32x4.trunc_sat_f64x2_u_zero",
+        F32x4DemoteF64x2Zero : [0xfd, 0x57] : "f32x4.demote_f64x2_zero",
+
         V128Load8Lane(LoadOrStoreLane<1>) : [0xfd, 0x58] : "v128.load8_lane",
         V128Load16Lane(LoadOrStoreLane<2>) : [0xfd, 0x59] : "v128.load16_lane",
         V128Load32Lane(LoadOrStoreLane<4>) : [0xfd, 0x5a] : "v128.load32_lane",
@@ -952,6 +959,7 @@ instructions! {
         I8x16Bitmask : [0xfd, 0x64] : "i8x16.bitmask",
         I8x16NarrowI16x8S : [0xfd, 0x65] : "i8x16.narrow_i16x8_s",
         I8x16NarrowI16x8U : [0xfd, 0x66] : "i8x16.narrow_i16x8_u",
+        F64x2PromoteLowF32x4 : [0xfd, 0x69] : "f64x2.promote_low_f32x4",
         I8x16Shl : [0xfd, 0x6b] : "i8x16.shl",
         I8x16ShrS : [0xfd, 0x6c] : "i8x16.shr_s",
         I8x16ShrU : [0xfd, 0x6d] : "i8x16.shr_u",
@@ -1079,13 +1087,6 @@ instructions! {
 
         V128Load32Zero(MemArg<4>) : [0xfd, 0xfc] : "v128.load32_zero",
         V128Load64Zero(MemArg<8>) : [0xfd, 0xfd] : "v128.load64_zero",
-
-        F32x4DemoteF64x2Zero : [0xfd, 0x501] : "f32x4.demote_f64x2_zero",
-        F64x2PromoteLowF32x4 : [0xfd, 0x502] : "f64x2.promote_low_f32x4",
-        F64x2ConvertLowI32x4S : [0xfd, 0x503] : "f64x2.convert_low_i32x4_s",
-        F64x2ConvertLowI32x4U : [0xfd, 0x504] : "f64x2.convert_low_i32x4_u",
-        I32x4TruncSatF64x2SZero : [0xfd, 0x505] : "i32x4.trunc_sat_f64x2_s_zero",
-        I32x4TruncSatF64x2UZero : [0xfd, 0x506] : "i32x4.trunc_sat_f64x2_u_zero",
 
         // Exception handling proposal
         CatchAll : [0x05] : "catch_all", // Reuses the else opcode.
