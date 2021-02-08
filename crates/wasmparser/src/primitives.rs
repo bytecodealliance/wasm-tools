@@ -984,6 +984,10 @@ pub enum Operator<'a> {
     I32x4GeU,
     I64x2Eq,
     I64x2Ne,
+    I64x2LtS,
+    I64x2GtS,
+    I64x2LeS,
+    I64x2GeS,
     F32x4Eq,
     F32x4Ne,
     F32x4Lt,
@@ -1146,6 +1150,10 @@ pub enum Operator<'a> {
     I64x2ExtMulHighI32x4S,
     I64x2ExtMulLowI32x4U,
     I64x2ExtMulHighI32x4U,
+    I16x8ExtAddPairwiseI8x16S,
+    I16x8ExtAddPairwiseI8x16U,
+    I32x4ExtAddPairwise16x8S,
+    I32x4ExtAddPairwise16x8U,
     V128Load8x8S {
         memarg: MemoryImmediate,
     },
@@ -1205,4 +1213,5 @@ pub enum Operator<'a> {
     F64x2ConvertLowI32x4U,
     I32x4TruncSatF64x2SZero,
     I32x4TruncSatF64x2UZero,
+    I8x16Popcnt,
 }

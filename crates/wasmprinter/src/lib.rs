@@ -1230,6 +1230,10 @@ impl Printer {
 
             I64x2Eq => self.result.push_str("i64x2.eq"),
             I64x2Ne => self.result.push_str("i64x2.ne"),
+            I64x2LtS => self.result.push_str("i64x2.lt_s"),
+            I64x2GtS => self.result.push_str("i64x2.gt_s"),
+            I64x2LeS => self.result.push_str("i64x2.le_s"),
+            I64x2GeS => self.result.push_str("i64x2.ge_s"),
 
             F32x4Eq => self.result.push_str("f32x4.eq"),
             F32x4Ne => self.result.push_str("f32x4.ne"),
@@ -1452,6 +1456,13 @@ impl Printer {
             F64x2ConvertLowI32x4U => self.result.push_str("f64x2.convert_low_i32x4_u"),
             I32x4TruncSatF64x2SZero => self.result.push_str("i32x4.trunc_sat_f64x2_s_zero"),
             I32x4TruncSatF64x2UZero => self.result.push_str("i32x4.trunc_sat_f64x2_u_zero"),
+
+            I8x16Popcnt => self.result.push_str("i8x16.popcnt"),
+
+            I16x8ExtAddPairwiseI8x16S => self.result.push_str("i16x8.extadd_pairwise_i8x16_s"),
+            I16x8ExtAddPairwiseI8x16U => self.result.push_str("i16x8.extadd_pairwise_i8x16_u"),
+            I32x4ExtAddPairwise16x8S => self.result.push_str("i32x4.extadd_pairwise_i16x8_s"),
+            I32x4ExtAddPairwise16x8U => self.result.push_str("i32x4.extadd_pairwise_i16x8_u"),
         }
         Ok(())
     }

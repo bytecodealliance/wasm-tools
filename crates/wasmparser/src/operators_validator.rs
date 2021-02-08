@@ -1553,6 +1553,10 @@ impl OperatorValidator {
             | Operator::I32x4GeU
             | Operator::I64x2Eq
             | Operator::I64x2Ne
+            | Operator::I64x2LtS
+            | Operator::I64x2GtS
+            | Operator::I64x2LeS
+            | Operator::I64x2GeS
             | Operator::V128And
             | Operator::V128AndNot
             | Operator::V128Or
@@ -1607,6 +1611,10 @@ impl OperatorValidator {
             | Operator::I64x2ExtMulHighI32x4S
             | Operator::I64x2ExtMulLowI32x4U
             | Operator::I64x2ExtMulHighI32x4U
+            | Operator::I16x8ExtAddPairwiseI8x16S
+            | Operator::I16x8ExtAddPairwiseI8x16U
+            | Operator::I32x4ExtAddPairwise16x8S
+            | Operator::I32x4ExtAddPairwise16x8U
             | Operator::I16x8Q15MulrSatS => {
                 self.check_simd_enabled()?;
                 self.pop_operand(Some(Type::V128))?;
@@ -1643,6 +1651,7 @@ impl OperatorValidator {
             Operator::V128Not
             | Operator::I8x16Abs
             | Operator::I8x16Neg
+            | Operator::I8x16Popcnt
             | Operator::I16x8Abs
             | Operator::I16x8Neg
             | Operator::I32x4Abs
