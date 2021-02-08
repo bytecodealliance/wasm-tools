@@ -591,9 +591,6 @@ instructions! {
         StructGetU(StructAccess<'a>) : [0xfb, 0x05] : "struct.get_u",
         StructSet(StructAccess<'a>) : [0xfb, 0x06] : "struct.set",
 
-        // gc proposal (moz specific, will be removed)
-        StructNarrow(StructNarrow<'a>) : [0xfb, 0x07] : "struct.narrow",
-
         // gc proposal: array
         ArrayNewWithRtt(ast::Index<'a>) : [0xfb, 0x11] : "array.new_with_rtt",
         ArrayNewDefaultWithRtt(ast::Index<'a>) : [0xfb, 0x12] : "array.new_default_with_rtt",
@@ -608,12 +605,23 @@ instructions! {
         I31GetS : [0xfb, 0x21] : "i31.get_s",
         I31GetU : [0xfb, 0x22] : "i31.get_u",
 
-        // gc proposal, rtt/casting
-        RTTCanon(HeapType<'a>) : [0xfb, 0x30] : "rtt.canon",
-        RTTSub(RTTSub<'a>) : [0xfb, 0x31] : "rtt.sub",
-        RefTest(RefTest<'a>) : [0xfb, 0x40] : "ref.test",
-        RefCast(RefTest<'a>) : [0xfb, 0x41] : "ref.cast",
-        BrOnCast(BrOnCast<'a>) : [0xfb, 0x42] : "br_on_cast",
+        // gc proposal, rtt casting
+        RTTCanon(ast::Index<'a>) : [0xfb, 0x30] : "rtt.canon",
+        RTTSub(ast::Index<'a>) : [0xfb, 0x31] : "rtt.sub",
+        RefTest : [0xfb, 0x40] : "ref.test",
+        RefCast : [0xfb, 0x41] : "ref.cast",
+        BrOnCast(ast::Index<'a>) : [0xfb, 0x42] : "br_on_cast",
+
+        // gc proposal, heap casting
+        RefIsFunc : [0xfb, 0x50] : "ref.is_func",
+        RefIsData : [0xfb, 0x51] : "ref.is_data",
+        RefIsI31 : [0xfb, 0x52] : "ref.is_i31",
+        RefAsFunc : [0xfb, 0x58] : "ref.as_func",
+        RefAsData : [0xfb, 0x59] : "ref.as_data",
+        RefAsI31 : [0xfb, 0x5a] : "ref.as_i31",
+        BrOnFunc(ast::Index<'a>) : [0xfb, 0x60] : "br_on_func",
+        BrOnData(ast::Index<'a>) : [0xfb, 0x61] : "br_on_data",
+        BrOnI31(ast::Index<'a>) : [0xfb, 0x62] : "br_on_i31",
 
         I32Const(i32) : [0x41] : "i32.const",
         I64Const(i64) : [0x42] : "i64.const",
@@ -1463,24 +1471,6 @@ impl<'a> Parse<'a> for StructAccess<'a> {
     }
 }
 
-/// Extra data associated with the `struct.narrow` instruction
-#[derive(Debug)]
-pub struct StructNarrow<'a> {
-    /// The type of the struct we're casting from
-    pub from: ast::ValType<'a>,
-    /// The type of the struct we're casting to
-    pub to: ast::ValType<'a>,
-}
-
-impl<'a> Parse<'a> for StructNarrow<'a> {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        Ok(StructNarrow {
-            from: parser.parse()?,
-            to: parser.parse()?,
-        })
-    }
-}
-
 /// Different ways to specify a `v128.const` instruction
 #[derive(Debug)]
 #[rustfmt::skip]
@@ -1702,77 +1692,5 @@ impl<'a> Parse<'a> for SelectTypes<'a> {
             tys = Some(list);
         }
         Ok(SelectTypes { tys })
-    }
-}
-
-/// Payload of the `br_on_exn` instruction
-#[derive(Debug)]
-#[allow(missing_docs)]
-pub struct BrOnExn<'a> {
-    pub label: ast::Index<'a>,
-    pub exn: ast::Index<'a>,
-}
-
-impl<'a> Parse<'a> for BrOnExn<'a> {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        let label = parser.parse()?;
-        let exn = parser.parse()?;
-        Ok(BrOnExn { label, exn })
-    }
-}
-
-/// Payload of the `br_on_cast` instruction
-#[derive(Debug)]
-#[allow(missing_docs)]
-pub struct BrOnCast<'a> {
-    pub label: ast::Index<'a>,
-    pub val: HeapType<'a>,
-    pub rtt: HeapType<'a>,
-}
-
-impl<'a> Parse<'a> for BrOnCast<'a> {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        let label = parser.parse()?;
-        let val = parser.parse()?;
-        let rtt = parser.parse()?;
-        Ok(BrOnCast { label, val, rtt })
-    }
-}
-
-/// Payload of the `rtt.sub` instruction
-#[derive(Debug)]
-#[allow(missing_docs)]
-pub struct RTTSub<'a> {
-    pub depth: u32,
-    pub input_rtt: HeapType<'a>,
-    pub output_rtt: HeapType<'a>,
-}
-
-impl<'a> Parse<'a> for RTTSub<'a> {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        let depth = parser.parse()?;
-        let input_rtt = parser.parse()?;
-        let output_rtt = parser.parse()?;
-        Ok(RTTSub {
-            depth,
-            input_rtt,
-            output_rtt,
-        })
-    }
-}
-
-/// Payload of the `ref.test/cast` instruction
-#[derive(Debug)]
-#[allow(missing_docs)]
-pub struct RefTest<'a> {
-    pub val: HeapType<'a>,
-    pub rtt: HeapType<'a>,
-}
-
-impl<'a> Parse<'a> for RefTest<'a> {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        let val = parser.parse()?;
-        let rtt = parser.parse()?;
-        Ok(RefTest { val, rtt })
     }
 }

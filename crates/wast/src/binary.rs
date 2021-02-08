@@ -339,9 +339,13 @@ impl<'a> Encode for ValType<'a> {
             ValType::F32 => e.push(0x7d),
             ValType::F64 => e.push(0x7c),
             ValType::V128 => e.push(0x7b),
-            ValType::Rtt(depth, index) => {
+            ValType::Rtt(Some(depth), index) => {
                 e.push(0x69);
                 depth.encode(e);
+                index.encode(e);
+            }
+            ValType::Rtt(None, index) => {
+                e.push(0x68);
                 index.encode(e);
             }
             ValType::Ref(ty) => {
@@ -358,8 +362,8 @@ impl<'a> Encode for HeapType<'a> {
             HeapType::Extern => e.push(0x6f),
             HeapType::Any => e.push(0x6e),
             HeapType::Eq => e.push(0x6d),
+            HeapType::Data => e.push(0x67),
             HeapType::I31 => e.push(0x6a),
-            HeapType::Exn => e.push(0x68),
             HeapType::Index(index) => {
                 index.encode(e);
             }
@@ -385,16 +389,16 @@ impl<'a> Encode for RefType<'a> {
                 nullable: true,
                 heap: HeapType::Eq,
             } => e.push(0x6d),
+            // The 'dataref' binary abbreviation
+            RefType {
+                nullable: true,
+                heap: HeapType::Data,
+            } => e.push(0x67),
             // The 'i31ref' binary abbreviation
             RefType {
                 nullable: true,
                 heap: HeapType::I31,
             } => e.push(0x6a),
-            // The 'exnref' binary abbreviation
-            RefType {
-                nullable: true,
-                heap: HeapType::Exn,
-            } => e.push(0x68),
 
             // Generic 'ref opt <heaptype>' encoding
             RefType {
@@ -1136,47 +1140,10 @@ impl Encode for EventType<'_> {
     }
 }
 
-impl Encode for BrOnExn<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.label.encode(e);
-        self.exn.encode(e);
-    }
-}
-
-impl Encode for BrOnCast<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.label.encode(e);
-        self.val.encode(e);
-        self.rtt.encode(e);
-    }
-}
-
-impl Encode for RTTSub<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.depth.encode(e);
-        self.input_rtt.encode(e);
-        self.output_rtt.encode(e);
-    }
-}
-
-impl Encode for RefTest<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.val.encode(e);
-        self.rtt.encode(e);
-    }
-}
-
 impl Encode for StructAccess<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.r#struct.encode(e);
         self.field.encode(e);
-    }
-}
-
-impl Encode for StructNarrow<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.from.encode(e);
-        self.to.encode(e);
     }
 }
 
