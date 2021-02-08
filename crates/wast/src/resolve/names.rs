@@ -784,10 +784,8 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 self.resolver.resolve(i, Ns::Event)?;
             }
 
-            BrOnCast(b) => {
-                self.resolve_label(&mut b.label)?;
-                self.resolver.resolve_heaptype(&mut b.val)?;
-                self.resolver.resolve_heaptype(&mut b.rtt)?;
+            BrOnCast(l) | BrOnFunc(l) | BrOnData(l) | BrOnI31(l) => {
+                self.resolve_label(l)?;
             }
 
             Select(s) => {
@@ -810,25 +808,16 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             | ArrayLen(i) => {
                 self.resolver.resolve(i, Ns::Type)?;
             }
-            RTTCanon(t) => {
-                self.resolver.resolve_heaptype(t)?;
+            RTTCanon(i) => {
+                self.resolver.resolve(i, Ns::Type)?;
             }
-            RTTSub(s) => {
-                self.resolver.resolve_heaptype(&mut s.input_rtt)?;
-                self.resolver.resolve_heaptype(&mut s.output_rtt)?;
-            }
-            RefTest(t) | RefCast(t) => {
-                self.resolver.resolve_heaptype(&mut t.val)?;
-                self.resolver.resolve_heaptype(&mut t.rtt)?;
+            RTTSub(i) => {
+                self.resolver.resolve(i, Ns::Type)?;
             }
 
             StructSet(s) | StructGet(s) | StructGetS(s) | StructGetU(s) => {
                 self.resolver.resolve(&mut s.r#struct, Ns::Type)?;
                 self.resolver.fields.resolve(&mut s.field, "field")?;
-            }
-            StructNarrow(s) => {
-                self.resolver.resolve_valtype(&mut s.from)?;
-                self.resolver.resolve_valtype(&mut s.to)?;
             }
 
             RefNull(ty) => self.resolver.resolve_heaptype(ty)?,

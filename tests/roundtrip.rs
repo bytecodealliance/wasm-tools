@@ -140,6 +140,10 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         "desugar/try.txt",
         "dump/br_on_exn.txt",
         "dump/rethrow.txt",
+        "test/parse/func/local-exnref.txt",
+        "test/parse/func/param-exnref.txt",
+        "test/parse/func/result-exnref.txt",
+        "test/parse/module/global-exnref.txt",
         // */simd-unary.txt are skipped to deal with the removal of
         // iNxM.any_true and the introduction of v128.any_true.
         "dump/simd-unary.txt",

@@ -20,9 +20,4 @@
     struct.get $a $field_a
     struct.set $b $field_c
   )
-
-  (func
-    struct.narrow i32 f32
-    struct.narrow externref funcref
-  )
 )

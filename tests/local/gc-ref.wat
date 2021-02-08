@@ -18,7 +18,6 @@
   (func (local (ref $a)))
 
   (func
-    struct.narrow (ref $a) (ref $b)
     select (result (ref $a))
 
     (block (param (ref $a)))
