@@ -10,12 +10,12 @@
 
   (instance $a
     (instantiate $m
-      "a" (module $m2)
-      "b" (func $f)
-      "c" (global $g)
-      "d" (instance $b)
-      "e" (memory $mem)
-      "f" (table $table)
+      (import "a" (module $m2))
+      (import "b" (func $f))
+      (import "c" (global $g))
+      (import "d" (instance $b))
+      (import "e" (memory $mem))
+      (import "f" (table $table))
     )
   )
 )

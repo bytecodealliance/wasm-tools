@@ -1030,11 +1030,7 @@ fn find_names<'a>(
             ModuleField::Alias(Alias {
                 id,
                 name,
-                kind:
-                    AliasKind::InstanceExport {
-                        kind: ExportKind::Func,
-                        ..
-                    },
+                kind: ExportKind::Func,
                 ..
             }) => {
                 if let Some(name) = get_name(id, name) {
@@ -1183,25 +1179,17 @@ impl Encode for InstanceArg<'_> {
 
 impl Encode for Alias<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
-        match &self.kind {
-            AliasKind::InstanceExport {
-                instance,
-                export,
-                kind,
-            } => {
+        match &self.source {
+            AliasSource::InstanceExport { instance, export } => {
                 e.push(0x00);
                 instance.encode(e);
-                kind.encode(e);
+                self.kind.encode(e);
                 export.encode(e);
             }
-            AliasKind::Outer {
-                module,
-                index,
-                kind,
-            } => {
+            AliasSource::Outer { module, index } => {
                 e.push(0x01);
                 module.encode(e);
-                kind.encode(e);
+                self.kind.encode(e);
                 index.encode(e);
             }
         }

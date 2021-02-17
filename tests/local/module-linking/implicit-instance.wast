@@ -1,6 +1,6 @@
 (module
   (import "" "" (func (param i32)))
-  (alias (func 0 ""))
+  (alias 0 "" (func))
   (func
     i32.const 0
     call 1)
@@ -10,7 +10,7 @@
   (import "" "" (func))
   (module $m
     (import "" (instance (export "" (func)))))
-  (instance (instantiate $m "" (instance 0)))
+  (instance (instantiate $m (import "" (instance 0))))
 )
 
 (module
@@ -23,7 +23,7 @@
     (import "" (instance (export "a" (func)))))
 
   ;; implicit instance should satisfy m1
-  (instance (instantiate $m1 "" (instance 0)))
+  (instance (instantiate $m1 (import "" (instance 0))))
   ;; explicit instance should also still work
-  (instance (instantiate $m2 "" (instance $i)))
+  (instance (instantiate $m2 (import "" (instance $i))))
 )

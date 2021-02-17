@@ -23,8 +23,8 @@
     )
   )
 
-  (instance $virt-wasi (instantiate $VIRTUALIZE "wasi_file" (instance $real-wasi)))
-  (instance $child (instantiate $CHILD "wasi_file" (instance $virt-wasi)))
+  (instance $virt-wasi (instantiate $VIRTUALIZE (import "wasi_file" (instance $real-wasi))))
+  (instance $child (instantiate $CHILD (import "wasi_file" (instance $virt-wasi))))
 
   (func (export "work")
     call (func $child "play")

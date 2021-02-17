@@ -47,5 +47,5 @@
     (func (export "") (result i32)
       i32.const 5))
   (import "b" (instance (export "" (module))))
-  (alias (module 0 ""))
+  (alias 0 "" (module))
 )
