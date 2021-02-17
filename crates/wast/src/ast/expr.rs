@@ -1113,13 +1113,13 @@ instructions! {
         V128Load64Zero(MemArg<8>) : [0xfd, 0xfd] : "v128.load64_zero",
 
         // Exception handling proposal
-        CatchAll : [0x05] : "catch_all", // Reuses the else opcode.
         Try(BlockType<'a>) : [0x06] : "try",
         Catch(ast::Index<'a>) : [0x07] : "catch",
         Throw(ast::Index<'a>) : [0x08] : "throw",
         Rethrow(ast::Index<'a>) : [0x09] : "rethrow",
         Unwind : [0x0a] : "unwind",
         Delegate(ast::Index<'a>) : [0x18] : "delegate",
+        CatchAll : [0x19] : "catch_all",
     }
 }
 

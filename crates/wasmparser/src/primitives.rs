@@ -393,6 +393,7 @@ pub enum Operator<'a> {
     Delegate {
         relative_depth: u32,
     },
+    CatchAll,
     Drop,
     Select,
     TypedSelect {

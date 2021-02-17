@@ -578,24 +578,10 @@ impl OperatorValidator {
             }
             Operator::Else => {
                 let frame = self.pop_ctrl(resources)?;
-                // The `catch_all` instruction shares an opcode with `else`,
-                // so we check the frame to see how it's interpreted.
-                match frame.kind {
-                    FrameKind::If => {
-                        self.push_ctrl(FrameKind::Else, frame.block_type, resources)?
-                    }
-                    FrameKind::Try | FrameKind::Catch => {
-                        // We assume `self.features.exceptions` is true when
-                        // these frame kinds are present.
-                        self.control.push(Frame {
-                            kind: FrameKind::CatchAll,
-                            block_type: frame.block_type,
-                            height: self.operands.len(),
-                            unreachable: false,
-                        });
-                    }
-                    _ => bail_op_err!("else found outside of an `if` block"),
+                if frame.kind != FrameKind::If {
+                    bail_op_err!("else found outside of an `if` block");
                 }
+                self.push_ctrl(FrameKind::Else, frame.block_type, resources)?
             }
             Operator::Try { ty } => {
                 self.check_exceptions_enabled()?;
@@ -679,6 +665,21 @@ impl OperatorValidator {
                 for ty in results(frame.block_type, resources)? {
                     self.push_operand(ty)?;
                 }
+            }
+            Operator::CatchAll => {
+                self.check_exceptions_enabled()?;
+                let frame = self.pop_ctrl(resources)?;
+                if frame.kind == FrameKind::CatchAll {
+                    bail_op_err!("only one catch_all allowed per `try` block");
+                } else if frame.kind != FrameKind::Try && frame.kind != FrameKind::Catch {
+                    bail_op_err!("catch_all found outside of a `try` block");
+                }
+                self.control.push(Frame {
+                    kind: FrameKind::CatchAll,
+                    block_type: frame.block_type,
+                    height: self.operands.len(),
+                    unreachable: false,
+                });
             }
             Operator::End => {
                 let mut frame = self.pop_ctrl(resources)?;

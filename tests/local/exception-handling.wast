@@ -44,8 +44,7 @@
 (assert_invalid
   (module
     (func try catch_all catch_all end))
-  ;; we can't distinguish between `catch_all` and `else` in error cases
-  "else found outside of an `if` block")
+  "only one catch_all allowed per `try` block")
 
 (assert_invalid
   (module
