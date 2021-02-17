@@ -352,6 +352,7 @@ pub mod kw {
     custom_keyword!(data);
     custom_keyword!(dataref);
     custom_keyword!(declare);
+    custom_keyword!(delegate);
     custom_keyword!(r#do = "do");
     custom_keyword!(elem);
     custom_keyword!(end);

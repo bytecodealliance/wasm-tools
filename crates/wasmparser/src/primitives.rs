@@ -390,6 +390,10 @@ pub enum Operator<'a> {
         index: u32,
         table_index: u32,
     },
+    Delegate {
+        relative_depth: u32,
+    },
+    CatchAll,
     Drop,
     Select,
     TypedSelect {

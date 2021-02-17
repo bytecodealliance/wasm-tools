@@ -288,7 +288,12 @@ impl OperatorValidator {
         // Read the expected type and expected height of the operand stack the
         // end of the frame.
         let frame = self.control.last().unwrap();
-        let ty = frame.block_type;
+        // The end of an `unwind` should check against the empty block type.
+        let ty = if frame.kind == FrameKind::Unwind {
+            TypeOrFuncType::Type(Type::EmptyBlockType)
+        } else {
+            frame.block_type
+        };
         let height = frame.height;
 
         // Pop all the result types, in reverse order, from the operand stack.
@@ -578,24 +583,10 @@ impl OperatorValidator {
             }
             Operator::Else => {
                 let frame = self.pop_ctrl(resources)?;
-                // The `catch_all` instruction shares an opcode with `else`,
-                // so we check the frame to see how it's interpreted.
-                match frame.kind {
-                    FrameKind::If => {
-                        self.push_ctrl(FrameKind::Else, frame.block_type, resources)?
-                    }
-                    FrameKind::Try | FrameKind::Catch => {
-                        // We assume `self.features.exceptions` is true when
-                        // these frame kinds are present.
-                        self.control.push(Frame {
-                            kind: FrameKind::CatchAll,
-                            block_type: frame.block_type,
-                            height: self.operands.len(),
-                            unreachable: false,
-                        });
-                    }
-                    _ => bail_op_err!("else found outside of an `if` block"),
+                if frame.kind != FrameKind::If {
+                    bail_op_err!("else found outside of an `if` block");
                 }
+                self.push_ctrl(FrameKind::Else, frame.block_type, resources)?
             }
             Operator::Try { ty } => {
                 self.check_exceptions_enabled()?;
@@ -648,15 +639,48 @@ impl OperatorValidator {
             }
             Operator::Unwind => {
                 self.check_exceptions_enabled()?;
-                // Switch from `try` to an `unwind` frame, so we can check that
-                // the result type is empty.
+                // Switch from `try` to an `unwind` frame.
                 let frame = self.pop_ctrl(resources)?;
                 if frame.kind != FrameKind::Try {
                     bail_op_err!("unwind found outside of an `try` block");
                 }
                 self.control.push(Frame {
                     kind: FrameKind::Unwind,
-                    block_type: TypeOrFuncType::Type(Type::EmptyBlockType),
+                    block_type: frame.block_type,
+                    height: self.operands.len(),
+                    unreachable: false,
+                });
+            }
+            Operator::Delegate { relative_depth } => {
+                self.check_exceptions_enabled()?;
+                let frame = self.pop_ctrl(resources)?;
+                if frame.kind != FrameKind::Try {
+                    bail_op_err!("delegate found outside of an `try` block");
+                }
+                // This operation is not a jump, but we need to check the
+                // depth for validity and that it targets a `try`.
+                let (_, kind) = self.jump(relative_depth)?;
+                if kind != FrameKind::Try
+                    && (kind != FrameKind::Block
+                        || self.control.len() != relative_depth as usize + 1)
+                {
+                    bail_op_err!("must delegate to a try block or caller");
+                }
+                for ty in results(frame.block_type, resources)? {
+                    self.push_operand(ty)?;
+                }
+            }
+            Operator::CatchAll => {
+                self.check_exceptions_enabled()?;
+                let frame = self.pop_ctrl(resources)?;
+                if frame.kind == FrameKind::CatchAll {
+                    bail_op_err!("only one catch_all allowed per `try` block");
+                } else if frame.kind != FrameKind::Try && frame.kind != FrameKind::Catch {
+                    bail_op_err!("catch_all found outside of a `try` block");
+                }
+                self.control.push(Frame {
+                    kind: FrameKind::CatchAll,
+                    block_type: frame.block_type,
                     height: self.operands.len(),
                     unreachable: false,
                 });

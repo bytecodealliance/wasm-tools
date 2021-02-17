@@ -1136,6 +1136,10 @@ impl<'a> BinaryReader<'a> {
                 index: self.read_var_u32()?,
                 table_index: self.read_var_u32()?,
             },
+            0x18 => Operator::Delegate {
+                relative_depth: self.read_var_u32()?,
+            },
+            0x19 => Operator::CatchAll,
             0x1a => Operator::Drop,
             0x1b => Operator::Select,
             0x1c => {

@@ -677,15 +677,18 @@ impl Printer {
                     // `else`/`catch` are special in that it's printed at
                     // the previous indentation, but it doesn't actually change
                     // our nesting level.
-                    Operator::Else | Operator::Catch { .. } | Operator::Unwind => {
+                    Operator::Else
+                    | Operator::Catch { .. }
+                    | Operator::CatchAll
+                    | Operator::Unwind => {
                         self.nesting -= 1;
                         self.newline();
                         self.nesting += 1;
                     }
 
                     // Exiting a block prints `end` at the previous indentation
-                    // level.
-                    Operator::End if self.nesting > nesting_start => {
+                    // level. `delegate` also ends a block like `end` for `try`.
+                    Operator::End | Operator::Delegate { .. } if self.nesting > nesting_start => {
                         self.nesting -= 1;
                         self.newline();
                     }
@@ -804,6 +807,11 @@ impl Printer {
                 }
                 write!(self.result, " (type {})", index)?;
             }
+
+            Delegate { relative_depth } => {
+                write!(self.result, "delegate {}", relative_depth)?;
+            }
+            CatchAll => self.result.push_str("catch_all"),
 
             Drop => self.result.push_str("drop"),
             Select => self.result.push_str("select"),
