@@ -34,6 +34,10 @@ pub enum NestedModuleKind<'a> {
         /// Fields in the nested module.
         fields: Vec<ast::ModuleField<'a>>,
     },
+    // TODO: there should be an inline `Alias` kind here, but that has weird
+    // lookahead requirements which are sort of uncomfortable to implement right
+    // now:
+    // https://github.com/WebAssembly/module-linking/pull/26#issuecomment-780828000
 }
 
 impl<'a> Parse<'a> for NestedModule<'a> {

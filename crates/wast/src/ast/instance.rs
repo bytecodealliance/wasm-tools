@@ -19,13 +19,16 @@ pub struct Instance<'a> {
 /// Possible ways to define a instance in the text format.
 #[derive(Debug)]
 pub enum InstanceKind<'a> {
-    /// An instance which is actually defined as an import, such as:
+    /// An instance which is actually defined as an import
     Import {
         /// Where we're importing from
         import: ast::InlineImport<'a>,
         /// The type that this instance will have.
         ty: ast::TypeUse<'a, ast::InstanceType<'a>>,
     },
+
+    /// An instance which is actually defined as an alias
+    Alias(ast::InlineAlias<'a>),
 
     /// Instances whose instantiation is defined inline.
     Inline {
@@ -55,6 +58,8 @@ impl<'a> Parse<'a> for Instance<'a> {
                 import,
                 ty: parser.parse()?,
             }
+        } else if let Some(alias) = parser.parse()? {
+            InstanceKind::Alias(alias)
         } else {
             parser.parens(|p| {
                 p.parse::<kw::instantiate>()?;

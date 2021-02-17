@@ -12,8 +12,8 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                 for name in f.exports.names.drain(..) {
                     to_append.push(export(f.span, name, ExportKind::Func, &mut f.id));
                 }
-                match f.kind {
-                    FuncKind::Import(import) => {
+                match &f.kind {
+                    FuncKind::Import { import, ty } => {
                         *item = ModuleField::Import(Import {
                             span: f.span,
                             module: import.module,
@@ -22,8 +22,17 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                                 span: f.span,
                                 id: f.id,
                                 name: f.name,
-                                kind: ItemKind::Func(f.ty.clone()),
+                                kind: ItemKind::Func(ty.clone()),
                             },
+                        });
+                    }
+                    FuncKind::Alias(alias) => {
+                        *item = ModuleField::Alias(Alias {
+                            span: f.span,
+                            source: alias.source.clone(),
+                            kind: ExportKind::Func,
+                            id: f.id,
+                            name: f.name,
                         });
                     }
                     FuncKind::Inline { .. } => {}
@@ -34,7 +43,7 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                 for name in m.exports.names.drain(..) {
                     to_append.push(export(m.span, name, ExportKind::Memory, &mut m.id));
                 }
-                match m.kind {
+                match &m.kind {
                     MemoryKind::Import { import, ty } => {
                         *item = ModuleField::Import(Import {
                             span: m.span,
@@ -44,16 +53,25 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                                 span: m.span,
                                 id: m.id,
                                 name: None,
-                                kind: ItemKind::Memory(ty),
+                                kind: ItemKind::Memory(ty.clone()),
                             },
+                        });
+                    }
+                    MemoryKind::Alias(alias) => {
+                        *item = ModuleField::Alias(Alias {
+                            span: m.span,
+                            source: alias.source.clone(),
+                            kind: ExportKind::Memory,
+                            id: m.id,
+                            name: None,
                         });
                     }
                     // If data is defined inline insert an explicit `data` module
                     // field here instead, switching this to a `Normal` memory.
-                    MemoryKind::Inline { is_32, ref data } => {
+                    MemoryKind::Inline { is_32, data } => {
                         let len = data.iter().map(|l| l.len()).sum::<usize>() as u32;
                         let pages = (len + page_size() - 1) / page_size();
-                        let kind = MemoryKind::Normal(if is_32 {
+                        let kind = MemoryKind::Normal(if *is_32 {
                             MemoryType::B32 {
                                 limits: Limits {
                                     min: pages,
@@ -110,6 +128,15 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                             },
                         });
                     }
+                    TableKind::Alias(alias) => {
+                        *item = ModuleField::Alias(Alias {
+                            span: t.span,
+                            source: alias.source.clone(),
+                            kind: ExportKind::Table,
+                            id: t.id,
+                            name: None,
+                        });
+                    }
                     // If data is defined inline insert an explicit `data` module
                     // field here instead, switching this to a `Normal` memory.
                     TableKind::Inline { payload, elem } => {
@@ -150,8 +177,8 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                 for name in g.exports.names.drain(..) {
                     to_append.push(export(g.span, name, ExportKind::Global, &mut g.id));
                 }
-                match g.kind {
-                    GlobalKind::Import(import) => {
+                match &g.kind {
+                    GlobalKind::Import { import, ty } => {
                         *item = ModuleField::Import(Import {
                             span: g.span,
                             module: import.module,
@@ -160,8 +187,17 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                                 span: g.span,
                                 id: g.id,
                                 name: None,
-                                kind: ItemKind::Global(g.ty),
+                                kind: ItemKind::Global(ty.clone()),
                             },
+                        });
+                    }
+                    GlobalKind::Alias(alias) => {
+                        *item = ModuleField::Alias(Alias {
+                            span: g.span,
+                            source: alias.source.clone(),
+                            kind: ExportKind::Global,
+                            id: g.id,
+                            name: None,
                         });
                     }
                     GlobalKind::Inline { .. } => {}
@@ -193,6 +229,15 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                                     TypeUse::new_with_index(Index::Num(0, Span::from_offset(0))),
                                 )),
                             },
+                        });
+                    }
+                    InstanceKind::Alias(alias) => {
+                        *item = ModuleField::Alias(Alias {
+                            span: i.span,
+                            source: alias.source.clone(),
+                            kind: ExportKind::Instance,
+                            id: i.id,
+                            name: None,
                         });
                     }
                     InstanceKind::Inline { .. } => {}

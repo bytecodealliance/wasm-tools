@@ -19,8 +19,6 @@ pub struct Func<'a> {
     /// What kind of function this is, be it an inline-defined or imported
     /// function.
     pub kind: FuncKind<'a>,
-    /// The type that this function will have.
-    pub ty: ast::TypeUse<'a, ast::FunctionType<'a>>,
 }
 
 /// Possible ways to define a function in the text format.
@@ -31,7 +29,14 @@ pub enum FuncKind<'a> {
     /// ```text
     /// (func (type 3) (import "foo" "bar"))
     /// ```
-    Import(ast::InlineImport<'a>),
+    #[allow(missing_docs)]
+    Import {
+        import: ast::InlineImport<'a>,
+        ty: ast::TypeUse<'a, ast::FunctionType<'a>>,
+    },
+
+    /// A function which is actually defined as an alias
+    Alias(ast::InlineAlias<'a>),
 
     /// Almost all functions, those defined inline in a wasm module.
     Inline {
@@ -40,6 +45,9 @@ pub enum FuncKind<'a> {
 
         /// The instructions of the function.
         expression: ast::Expression<'a>,
+
+        /// The type that this function will have.
+        ty: ast::TypeUse<'a, ast::FunctionType<'a>>,
     },
 }
 
@@ -50,18 +58,21 @@ impl<'a> Parse<'a> for Func<'a> {
         let name = parser.parse()?;
         let exports = parser.parse()?;
 
-        let (ty, kind) = if let Some(import) = parser.parse()? {
-            (parser.parse()?, FuncKind::Import(import))
+        let kind = if let Some(import) = parser.parse()? {
+            FuncKind::Import {
+                import,
+                ty: parser.parse()?,
+            }
+        } else if let Some(alias) = parser.parse()? {
+            FuncKind::Alias(alias)
         } else {
             let ty = parser.parse()?;
             let locals = Local::parse_remainder(parser)?;
-            (
+            FuncKind::Inline {
                 ty,
-                FuncKind::Inline {
-                    locals,
-                    expression: parser.parse()?,
-                },
-            )
+                locals,
+                expression: parser.parse()?,
+            }
         };
 
         Ok(Func {
@@ -69,7 +80,6 @@ impl<'a> Parse<'a> for Func<'a> {
             id,
             name,
             exports,
-            ty,
             kind,
         })
     }
@@ -105,7 +115,11 @@ impl<'a> Local<'a> {
                 let parse_more = id.is_none() && name.is_none();
                 locals.push(Local { id, name, ty });
                 while parse_more && !p.is_empty() {
-                    locals.push(Local { id: None, name: None, ty: p.parse()? });
+                    locals.push(Local {
+                        id: None,
+                        name: None,
+                        ty: p.parse()?,
+                    });
                 }
                 Ok(())
             })?;

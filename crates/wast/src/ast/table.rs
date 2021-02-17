@@ -25,6 +25,9 @@ pub enum TableKind<'a> {
         ty: ast::TableType<'a>,
     },
 
+    /// This table is actually an inlined alias definition.
+    Alias(ast::InlineAlias<'a>),
+
     /// A typical memory definition which simply says the limits of the table
     Normal(ast::TableType<'a>),
 
@@ -69,6 +72,8 @@ impl<'a> Parse<'a> for Table<'a> {
                 import,
                 ty: parser.parse()?,
             }
+        } else if let Some(alias) = parser.parse()? {
+            TableKind::Alias(alias)
         } else {
             return Err(l.error());
         };

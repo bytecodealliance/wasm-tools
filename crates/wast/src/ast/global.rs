@@ -11,8 +11,6 @@ pub struct Global<'a> {
     /// If present, inline export annotations which indicate names this
     /// definition should be exported under.
     pub exports: ast::InlineExport<'a>,
-    /// The type of this global, both its value type and whether it's mutable.
-    pub ty: ast::GlobalType<'a>,
     /// What kind of global this defined as.
     pub kind: GlobalKind<'a>,
 }
@@ -25,10 +23,21 @@ pub enum GlobalKind<'a> {
     /// ```text
     /// (global i32 (import "foo" "bar"))
     /// ```
-    Import(ast::InlineImport<'a>),
+    #[allow(missing_docs)]
+    Import {
+        import: ast::InlineImport<'a>,
+        ty: ast::GlobalType<'a>,
+    },
+
+    /// A global which is actually defined as an inline alias.
+    Alias(ast::InlineAlias<'a>),
 
     /// A global defined inline in the module itself
-    Inline(ast::Expression<'a>),
+    #[allow(missing_docs)]
+    Inline {
+        init: ast::Expression<'a>,
+        ty: ast::GlobalType<'a>,
+    },
 }
 
 impl<'a> Parse<'a> for Global<'a> {
@@ -37,16 +46,23 @@ impl<'a> Parse<'a> for Global<'a> {
         let id = parser.parse()?;
         let exports = parser.parse()?;
 
-        let (ty, kind) = if let Some(import) = parser.parse()? {
-            (parser.parse()?, GlobalKind::Import(import))
+        let kind = if let Some(import) = parser.parse()? {
+            GlobalKind::Import {
+                import,
+                ty: parser.parse()?,
+            }
+        } else if let Some(alias) = parser.parse()? {
+            GlobalKind::Alias(alias)
         } else {
-            (parser.parse()?, GlobalKind::Inline(parser.parse()?))
+            GlobalKind::Inline {
+                ty: parser.parse()?,
+                init: parser.parse()?,
+            }
         };
         Ok(Global {
             span,
             id,
             exports,
-            ty,
             kind,
         })
     }
