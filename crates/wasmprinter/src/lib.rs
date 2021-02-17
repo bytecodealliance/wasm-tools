@@ -1656,9 +1656,11 @@ impl Printer {
             for arg in instance.args()? {
                 let arg = arg?;
                 self.newline();
+                self.start_group("import");
                 self.print_str(arg.name)?;
                 self.result.push_str(" ");
                 self.print_external(arg.kind, arg.index)?;
+                self.end_group();
             }
             self.end_group(); // instantiate
             self.end_group(); // instance
@@ -1678,6 +1680,20 @@ impl Printer {
                     kind,
                     export,
                 } => {
+                    write!(self.result, "{} ", instance)?;
+                    self.print_str(export)?;
+                    self.result.push_str(" ");
+                    match kind {
+                        ExternalKind::Function => self.start_group("func"),
+                        ExternalKind::Table => self.start_group("table"),
+                        ExternalKind::Memory => self.start_group("memory"),
+                        ExternalKind::Event => self.start_group("event"),
+                        ExternalKind::Global => self.start_group("global"),
+                        ExternalKind::Instance => self.start_group("instance"),
+                        ExternalKind::Module => self.start_group("module"),
+                        ExternalKind::Type => self.start_group("type"),
+                    }
+                    self.result.push_str(" ");
                     match kind {
                         ExternalKind::Function => {
                             match self.state.names.get(&self.state.func) {
@@ -1710,21 +1726,11 @@ impl Printer {
                             write!(self.result, "(;{};)", self.state.module)?;
                             self.state.module += 1;
                         }
-                        ExternalKind::Type => self.state.types.push(None),
+                        ExternalKind::Type => {
+                            write!(self.result, "(;{};)", self.state.types.len())?;
+                            self.state.types.push(None);
+                        }
                     }
-                    self.result.push_str(" ");
-                    match kind {
-                        ExternalKind::Function => self.start_group("func"),
-                        ExternalKind::Table => self.start_group("table"),
-                        ExternalKind::Memory => self.start_group("memory"),
-                        ExternalKind::Event => self.start_group("event"),
-                        ExternalKind::Global => self.start_group("global"),
-                        ExternalKind::Instance => self.start_group("instance"),
-                        ExternalKind::Module => self.start_group("module"),
-                        ExternalKind::Type => self.start_group("type"),
-                    }
-                    write!(self.result, " {} ", instance)?;
-                    self.print_str(export)?;
                     self.end_group();
                 }
                 Alias::OuterType {
@@ -1733,8 +1739,10 @@ impl Printer {
                 } => {
                     write!(
                         self.result,
-                        "(;{};) (type outer {} {})",
-                        self.state.module, relative_depth, index
+                        "outer {} {} (type (;{};))",
+                        relative_depth,
+                        index,
+                        self.state.types.len(),
                     )?;
                     self.state.types.push(None);
                 }
@@ -1744,8 +1752,8 @@ impl Printer {
                 } => {
                     write!(
                         self.result,
-                        "(;{};) (module outer {} {})",
-                        self.state.module, relative_depth, index
+                        "outer {} {} (module (;{};))",
+                        relative_depth, index, self.state.module,
                     )?;
                     self.state.module += 1;
                 }

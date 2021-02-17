@@ -59,8 +59,8 @@
     (export "memory" (memory $mem 1))
     (export "table" (table $tbl 0 funcref))
   ))
-  (alias $mem (memory $libc "memory"))
-  (alias $tbl (table $libc "table"))
+  (alias $libc "memory" (memory $mem))
+  (alias $libc "table" (table $tbl))
 )
 
 (module
@@ -270,12 +270,12 @@
   )
 
   (instance (instantiate $m
-    "1" (func $i "1")
-    "2" (memory $i "2")
-    "3" (global $i "4")
-    "4" (table $i "3")
-    "5" (module $i "5")
-    "6" (instance $i "6")
+    (import "1" (func $i "1"))
+    (import "2" (memory $i "2"))
+    (import "3" (global $i "4"))
+    (import "4" (table $i "3"))
+    (import "5" (module $i "5"))
+    (import "6" (instance $i "6"))
   ))
 )
 
@@ -299,10 +299,10 @@
     ))
 
     (module $local
-      (alias (instance outer 0 $i))
+      (alias outer 0 $i (instance))
     )
 
-    (instance (instantiate $m "" (module $local)))
+    (instance (instantiate $m (import "" (module $local))))
   )
   "invalid external kind in alias")
 
@@ -321,7 +321,7 @@
     (func)
     (module
       (import "" (instance))
-      (alias (func 0 ""))
+      (alias 0 "" (func))
       (export "" (func 0))
     )
   )
@@ -332,7 +332,7 @@
     (func)
     (module
       (import "" (instance (export "" (global i32))))
-      (alias (func 0 ""))
+      (alias 0 "" (func))
       (export "" (func 0))
     )
   )
@@ -344,7 +344,7 @@
     (module
       (import "" (module))
       (instance (instantiate 0))
-      (alias (func 0 ""))
+      (alias 0 "" (func))
       (export "" (func 0))
     )
   )
@@ -356,7 +356,7 @@
     (module
       (import "" (module (export "" (global i32))))
       (instance (instantiate 0))
-      (alias (func 0 ""))
+      (alias 0 "" (func))
       (export "" (func 0))
     )
   )
@@ -368,7 +368,7 @@
     (module
       (module)
       (instance (instantiate 0))
-      (alias (func 0 ""))
+      (alias 0 "" (func))
       (export "" (func 0))
     )
   )
@@ -380,7 +380,7 @@
     (module
       (module (global (export "") i32 (i32.const 0)))
       (instance (instantiate 0))
-      (alias (func 0 ""))
+      (alias 0 "" (func))
       (export "" (func 0))
     )
   )
@@ -392,7 +392,7 @@
     "(module"
     "  (type (func))"
     "  (import \"\" (instance (type 0)))"
-    "  (alias (func 0 \"\"))"
+    "  (alias 0 \"\" (func))"
     "  (export \"\" (func 0))"
     ")"
   )
@@ -403,7 +403,7 @@
     "(func)"
     "(module"
     "  (instance (instantiate 100))"
-    "  (alias (func 0 \"\"))"
+    "  (alias 0 \"\" (func))"
     "  (export \"\" (func 0))"
     ")"
   )
@@ -412,7 +412,7 @@
 (assert_invalid
   (module
     (import "" (instance $i))
-    (alias (func $i "foo"))
+    (alias $i "foo" (func))
   )
   "aliased name `foo` does not exist in instance")
 
@@ -421,7 +421,7 @@
     (import "" (instance $i
       (export "" (memory 1))
     ))
-    (alias (func $i ""))
+    (alias $i "" (func))
   )
   "alias kind mismatch with export kind")
 
@@ -430,7 +430,7 @@
     (import "" (instance $i
       (export "" (func))
     ))
-    (alias (func $i ""))
+    (alias $i "" (func))
 
     (func
       i32.const 0
@@ -443,7 +443,7 @@
   (import "" (instance $i
     (export "" (global $g (mut i32)))
   ))
-  (alias $g (global $i ""))
+  (alias $i "" (global $g))
 
   (func
     global.get $g
@@ -454,7 +454,7 @@
   (import "" (instance $i
     (export "" (table $t 1 funcref))
   ))
-  (alias $t (table $i ""))
+  (alias $i "" (table $t))
 
   (func
     i32.const 0
@@ -466,7 +466,7 @@
   (import "" (instance $i
     (export "" (memory $m 1))
   ))
-  (alias $m (memory $i ""))
+  (alias $i "" (memory $m))
 
   (func
     i32.const 0
@@ -478,7 +478,7 @@
   (import "" (instance $i
     (export "" (func $f))
   ))
-  (alias $f (func $i ""))
+  (alias $i "" (func $f))
 
   (func
     call $f)
@@ -490,8 +490,8 @@
       (export "" (func))
     ))
   ))
-  (alias $i2 (instance $i ""))
-  (alias $f (func $i2 ""))
+  (alias $i "" (instance $i2))
+  (alias $i2 "" (func $f))
 
   (func
     call $f)
@@ -501,13 +501,13 @@
   (import "" (instance $i
     (export "" (module $m))
   ))
-  (alias $m (module $i ""))
+  (alias $i "" (module $m))
   (instance (instantiate $m))
 )
 
 (assert_malformed
   (module quote
-    "(alias (module 0 \"\"))"
+    "(alias 0 \"\" (module))"
   )
   "instance index out of bounds")
 
@@ -525,7 +525,7 @@
     (export "" (func $f))
   ))
   (instance $i (instantiate $m))
-  (alias $f (func $i ""))
+  (alias $i "" (func $f))
 
   (func
     call $f)
@@ -536,7 +536,7 @@
     (func $f (export ""))
   )
   (instance $i (instantiate $m))
-  (alias $f (func $i ""))
+  (alias $i "" (func $f))
 
   (func
     call $f)
@@ -586,13 +586,13 @@
     (instance $a (export "") (instantiate $m))
   )
   (instance $i (instantiate $m))
-  (alias (func (instance $i "") ""))
+  (alias (instance $i "") "" (func))
 )
 
 (assert_invalid
   (module
     (module
-      (alias (module outer 0 0))
+      (alias outer 0 0 (module))
     )
   )
   "alias to module not defined in parent")
@@ -600,14 +600,14 @@
   (module quote
   "  (type (func))"
   "  (module"
-  "    (alias (module outer 1 $x))"
+  "    (alias outer 1 $x (module))"
   "  )"
   )
   "module index too large")
 (assert_invalid
   (module
     (module
-      (alias (module outer 1 0))
+      (alias outer 1 0 (module))
     )
   )
   "relative depth too large")
@@ -615,7 +615,7 @@
   (module
     (type (module))
     (module
-      (alias (type outer 0 $f))
+      (alias outer 0 $f (type))
     )
     (type $f (func))
   )

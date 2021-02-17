@@ -11,7 +11,7 @@
   (module
     (func $f)
     (module
-      (alias $f (func outer 0 $f))
+      (alias outer 0 $f (func $f))
       (func
         call $f)
     )

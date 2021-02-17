@@ -1681,6 +1681,6 @@
     ))
     (import "a" (module $a (type $m9)))
     (import "b" (module $b (type $m)))
-    (instance (instantiate $b "" (module $a)))
+    (instance (instantiate $b (import "" (module $a))))
   )
   "effective type size too large")

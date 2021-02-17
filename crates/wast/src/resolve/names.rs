@@ -126,7 +126,7 @@ impl<'a> Resolver<'a> {
             ModuleField::Elem(e) => self.elems.register(e.id, "elem")?,
             ModuleField::Data(d) => self.datas.register(d.id, "data")?,
             ModuleField::Event(e) => self.events.register(e.id, "event")?,
-            ModuleField::Alias(a) => match a.item_kind() {
+            ModuleField::Alias(a) => match a.kind {
                 ExportKind::Func => self.funcs.register(a.id, "func")?,
                 ExportKind::Table => self.tables.register(a.id, "table")?,
                 ExportKind::Memory => self.memories.register(a.id, "memory")?,
@@ -310,15 +310,11 @@ impl<'a> Resolver<'a> {
             }
 
             ModuleField::Alias(a) => {
-                match &mut a.kind {
-                    AliasKind::InstanceExport { instance, .. } => {
+                match &mut a.source {
+                    AliasSource::InstanceExport { instance, .. } => {
                         self.resolve_item_ref(instance)?;
                     }
-                    AliasKind::Outer {
-                        module,
-                        index,
-                        kind,
-                    } => {
+                    AliasSource::Outer { module, index } => {
                         match (index, module) {
                             // If both indices are numeric then don't try to
                             // resolve anything since we could fail to walk up
@@ -328,7 +324,7 @@ impl<'a> Resolver<'a> {
                             (index, module) => {
                                 parents
                                     .resolve(module)?
-                                    .resolve(index, Ns::from_export(kind))?;
+                                    .resolve(index, Ns::from_export(&a.kind))?;
                             }
                         }
                     }
