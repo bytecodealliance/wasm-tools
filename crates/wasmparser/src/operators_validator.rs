@@ -288,7 +288,12 @@ impl OperatorValidator {
         // Read the expected type and expected height of the operand stack the
         // end of the frame.
         let frame = self.control.last().unwrap();
-        let ty = frame.block_type;
+        // The end of an `unwind` should check against the empty block type.
+        let ty = if frame.kind == FrameKind::Unwind {
+            TypeOrFuncType::Type(Type::EmptyBlockType)
+        } else {
+            frame.block_type
+        };
         let height = frame.height;
 
         // Pop all the result types, in reverse order, from the operand stack.
@@ -634,15 +639,14 @@ impl OperatorValidator {
             }
             Operator::Unwind => {
                 self.check_exceptions_enabled()?;
-                // Switch from `try` to an `unwind` frame, so we can check that
-                // the result type is empty.
+                // Switch from `try` to an `unwind` frame.
                 let frame = self.pop_ctrl(resources)?;
                 if frame.kind != FrameKind::Try {
                     bail_op_err!("unwind found outside of an `try` block");
                 }
                 self.control.push(Frame {
                     kind: FrameKind::Unwind,
-                    block_type: TypeOrFuncType::Type(Type::EmptyBlockType),
+                    block_type: frame.block_type,
                     height: self.operands.len(),
                     unreachable: false,
                 });
