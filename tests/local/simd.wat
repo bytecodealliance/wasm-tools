@@ -261,6 +261,11 @@
     drop
 
     v128.const i32x4 0 0 0 0
+    i64x2.abs
+    i8x16.neg
+    drop
+
+    v128.const i32x4 0 0 0 0
     i8x16.popcnt
     i8x16.neg
     drop

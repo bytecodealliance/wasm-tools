@@ -1057,6 +1057,7 @@ pub enum Operator<'a> {
     I32x4MaxS,
     I32x4MaxU,
     I32x4DotI16x8S,
+    I64x2Abs,
     I64x2Neg,
     I64x2AllTrue,
     I64x2Bitmask,
@@ -1152,8 +1153,8 @@ pub enum Operator<'a> {
     I64x2ExtMulHighI32x4U,
     I16x8ExtAddPairwiseI8x16S,
     I16x8ExtAddPairwiseI8x16U,
-    I32x4ExtAddPairwise16x8S,
-    I32x4ExtAddPairwise16x8U,
+    I32x4ExtAddPairwiseI16x8S,
+    I32x4ExtAddPairwiseI16x8U,
     V128Load8x8S {
         memarg: MemoryImmediate,
     },

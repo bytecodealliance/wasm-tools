@@ -1297,6 +1297,7 @@ impl Printer {
             I32x4Sub => self.result.push_str("i32x4.sub"),
             I32x4Mul => self.result.push_str("i32x4.mul"),
 
+            I64x2Abs => self.result.push_str("i64x2.abs"),
             I64x2Neg => self.result.push_str("i64x2.neg"),
             I64x2AllTrue => self.result.push_str("i64x2.all_true"),
             I64x2Bitmask => self.result.push_str("i64x2.bitmask"),
@@ -1461,8 +1462,8 @@ impl Printer {
 
             I16x8ExtAddPairwiseI8x16S => self.result.push_str("i16x8.extadd_pairwise_i8x16_s"),
             I16x8ExtAddPairwiseI8x16U => self.result.push_str("i16x8.extadd_pairwise_i8x16_u"),
-            I32x4ExtAddPairwise16x8S => self.result.push_str("i32x4.extadd_pairwise_i16x8_s"),
-            I32x4ExtAddPairwise16x8U => self.result.push_str("i32x4.extadd_pairwise_i16x8_u"),
+            I32x4ExtAddPairwiseI16x8S => self.result.push_str("i32x4.extadd_pairwise_i16x8_s"),
+            I32x4ExtAddPairwiseI16x8U => self.result.push_str("i32x4.extadd_pairwise_i16x8_u"),
         }
         Ok(())
     }

@@ -983,8 +983,8 @@ instructions! {
         I8x16AvgrU : [0xfd, 0x7b] : "i8x16.avgr_u",
         I16x8ExtAddPairwiseI8x16S : [0xfd, 0x7c] : "i16x8.extadd_pairwise_i8x16_s",
         I16x8ExtAddPairwiseI8x16U : [0xfd, 0x7d] : "i16x8.extadd_pairwise_i8x16_u",
-        I32x4ExtAddPairwise16x8S : [0xfd, 0x7e] : "i32x4.extadd_pairwise_i16x8_s",
-        I32x4ExtAddPairwise16x8U : [0xfd, 0x7f] : "i32x4.extadd_pairwise_i16x8_u",
+        I32x4ExtAddPairwiseI16x8S : [0xfd, 0x7e] : "i32x4.extadd_pairwise_i16x8_s",
+        I32x4ExtAddPairwiseI16x8U : [0xfd, 0x7f] : "i32x4.extadd_pairwise_i16x8_u",
 
         I16x8Abs : [0xfd, 0x80] : "i16x8.abs",
         I16x8Neg : [0xfd, 0x81] : "i16x8.neg",
@@ -1037,11 +1037,12 @@ instructions! {
         I32x4MaxS : [0xfd, 0xb8] : "i32x4.max_s",
         I32x4MaxU : [0xfd, 0xb9] : "i32x4.max_u",
         I32x4DotI16x8S : [0xfd, 0xba] : "i32x4.dot_i16x8_s",
-        I32x4ExtMulLowI16x8S : [0xfd, 0xbb] : "i32x4.extmul_low_i16x8_s",
+        I32x4ExtMulLowI16x8S : [0xfd, 0xbc] : "i32x4.extmul_low_i16x8_s",
         I32x4ExtMulHighI16x8S : [0xfd, 0xbd] : "i32x4.extmul_high_i16x8_s",
         I32x4ExtMulLowI16x8U : [0xfd, 0xbe] : "i32x4.extmul_low_i16x8_u",
         I32x4ExtMulHighI16x8U : [0xfd, 0xbf] : "i32x4.extmul_high_i16x8_u",
 
+        I64x2Abs : [0xfd, 0xc0] : "i64x2.abs",
         I64x2Neg : [0xfd, 0xc1] : "i64x2.neg",
         I64x2AllTrue : [0xfd, 0xc3] : "i64x2.all_true",
         I64x2Bitmask : [0xfd, 0xc4] : "i64x2.bitmask",
@@ -1095,10 +1096,10 @@ instructions! {
         F32x4ConvertI32x4S : [0xfd, 0xfa] : "f32x4.convert_i32x4_s",
         F32x4ConvertI32x4U : [0xfd, 0xfb] : "f32x4.convert_i32x4_u",
 
-        F64x2ConvertLowI32x4S : [0xfd, 0xfc] : "f64x2.convert_low_i32x4_s",
-        F64x2ConvertLowI32x4U : [0xfd, 0xfd] : "f64x2.convert_low_i32x4_u",
-        I32x4TruncSatF64x2SZero : [0xfd, 0xfe] : "i32x4.trunc_sat_f64x2_s_zero",
-        I32x4TruncSatF64x2UZero : [0xfd, 0xff] : "i32x4.trunc_sat_f64x2_u_zero",
+        I32x4TruncSatF64x2SZero : [0xfd, 0xfc] : "i32x4.trunc_sat_f64x2_s_zero",
+        I32x4TruncSatF64x2UZero : [0xfd, 0xfd] : "i32x4.trunc_sat_f64x2_u_zero",
+        F64x2ConvertLowI32x4S : [0xfd, 0xfe] : "f64x2.convert_low_i32x4_s",
+        F64x2ConvertLowI32x4U : [0xfd, 0xff] : "f64x2.convert_low_i32x4_u",
 
         // Exception handling proposal
         CatchAll : [0x05] : "catch_all", // Reuses the else opcode.
