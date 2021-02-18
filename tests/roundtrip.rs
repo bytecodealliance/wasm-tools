@@ -134,26 +134,14 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         "dump/reference-types.txt",
         "interp/reference-types.txt",
         "expr/reference-types.txt",
-        "parse/all-features.txt",
-        // uses old exception handling proposal
-        // FIXME: remove when wabt starts supporting the new proposal
-        "desugar/try.txt",
-        "dump/br_on_exn.txt",
-        "dump/rethrow.txt",
-        "test/parse/func/local-exnref.txt",
-        "test/parse/func/param-exnref.txt",
-        "test/parse/func/result-exnref.txt",
-        "test/parse/module/global-exnref.txt",
+        // This test is skipped for now due to a delegate printing bug in wabt.
+        "parse/expr/try-delegate.txt",
+        // Skipped until (WebAssembly/wabt#1605) is merged.
+        "typecheck/delegate.txt",
         // */simd-unary.txt are skipped to deal with the removal of
         // iNxM.any_true and the introduction of v128.any_true.
         "dump/simd-unary.txt",
         "interp/simd-unary.txt",
-        "dump/try.txt",
-        "dump/try-multi.txt",
-        "expr/br_on_exn.txt",
-        "expr/rethrow.txt",
-        "expr/try.txt",
-        "expr/try-multi.txt",
         // simd_*.wast are skipped to deal with the removal of
         // iNxM.any_true and the introduction of v128.any_true.
         "proposals/simd/simd_boolean.wast",
@@ -161,10 +149,6 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         // roundtrip/fold-simd.txt is skipped to deal with the removal of
         // iNxM.any_true and the introduction of v128.any_true.
         "roundtrip/fold-simd.txt",
-        "roundtrip/fold-br_on_exn.txt",
-        "roundtrip/fold-rethrow.txt",
-        "roundtrip/fold-try.txt",
-        "roundtrip/rethrow.txt",
     ];
     if broken.iter().any(|x| test.ends_with(x)) {
         return true;
@@ -246,17 +230,12 @@ impl TestState {
         //
         // TODO: implement function-references in wasmparser
         // TODO: implement gc types in wasmparser
-        // TODO: implement exceptions in wasmparser
-        if !contents.contains("--enable-exceptions")
-            && !contents.contains("--enable-function-references")
+        if !contents.contains("--enable-function-references")
             && !contents.contains("--enable-gc")
             && !contents.contains("--no-check")
             // intentionally invalid wasm files
             && !contents.contains(";; TOOL: wat-desugar")
-            && !test.ends_with("dump/event.txt")
             && !test.ends_with("dump/import.txt")
-            // uses exceptions
-            && !test.ends_with("parse/all-features.txt")
         {
             self.test_wasm(test, &binary, true)
                 .context("failed testing the binary output of `wat`")?;
@@ -282,9 +261,6 @@ impl TestState {
             && !test.ends_with("bulk-memory-operations/binary.wast")
             && !test.ends_with("reference-types/binary.wast")
             && !test.ends_with("exception-handling/binary.wast")
-
-            // wabt uses the old exceptions proposal
-            && !test.ends_with("local/exception-handling.wast")
 
             // not implemented in wabt
             && !test.iter().any(|t| t == "module-linking")
