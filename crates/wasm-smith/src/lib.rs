@@ -2221,14 +2221,27 @@ struct Instantiation {
 
 impl AvailableInstantiations {
     fn update(&mut self, module: &ConfiguredModule<impl Config>) {
+        let cur_entities = Entities {
+            globals: module.globals.len(),
+            memories: module.memories.len(),
+            tables: module.tables.len(),
+            funcs: module.funcs.len(),
+            modules: module.modules.len(),
+            instances: module.instances.len(),
+        };
+
+        // If nothing was added since we last checked, there's nothing to check
+        if cur_entities == self.entities {
+            return;
+        }
+
         // First up we need to update the list of candidates for all our
         // previously possible instantiations. For this we only need to consider
         // items after `self.entities` since the choices already take into
         // account everything prior to that.
         for choice in self.choices.iter_mut() {
             let ty = &module.modules[choice.module as usize];
-            for (name, candidates) in choice.args.iter_mut() {
-                let ty = &ty.import_types[name.as_str()];
+            for ((_, candidates), ty) in choice.args.iter_mut().zip(ty.import_types.values()) {
                 candidates.extend(module.subtypes(&self.entities, ty));
             }
         }
@@ -2253,20 +2266,13 @@ impl AvailableInstantiations {
 
         // Update the count of all entities we've considered when generating the
         // choices array.
-        self.entities = Entities {
-            globals: module.globals.len(),
-            memories: module.memories.len(),
-            tables: module.tables.len(),
-            funcs: module.funcs.len(),
-            modules: module.modules.len(),
-            instances: module.instances.len(),
-        };
+        self.entities = cur_entities;
     }
 }
 
 // A helper structure used when generating module/instance types to limit the
 // amount of each kind of import created.
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, PartialEq)]
 struct Entities {
     globals: usize,
     memories: usize,
