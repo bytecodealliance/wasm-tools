@@ -202,6 +202,30 @@
 
     v128.const i32x4 0 0 0 0
     v128.const i32x4 0 0 0 0
+    i64x2.lt_s
+    i8x16.neg
+    drop
+
+    v128.const i32x4 0 0 0 0
+    v128.const i32x4 0 0 0 0
+    i64x2.gt_s
+    i8x16.neg
+    drop
+
+    v128.const i32x4 0 0 0 0
+    v128.const i32x4 0 0 0 0
+    i64x2.le_s
+    i8x16.neg
+    drop
+
+    v128.const i32x4 0 0 0 0
+    v128.const i32x4 0 0 0 0
+    i64x2.ge_s
+    i8x16.neg
+    drop
+
+    v128.const i32x4 0 0 0 0
+    v128.const i32x4 0 0 0 0
     i16x8.q15mulr_sat_s
     i8x16.neg
     drop
@@ -233,6 +257,40 @@
 
     v128.const i32x4 0 0 0 0
     i32x4.trunc_sat_f64x2_u_zero
+    i8x16.neg
+    drop
+
+    v128.const i32x4 0 0 0 0
+    i64x2.abs
+    i8x16.neg
+    drop
+
+    v128.const i32x4 0 0 0 0
+    i8x16.popcnt
+    i8x16.neg
+    drop
+
+    v128.const i32x4 0 0 0 0
+    v128.const i32x4 0 0 0 0
+    i16x8.extadd_pairwise_i8x16_s
+    i8x16.neg
+    drop
+
+    v128.const i32x4 0 0 0 0
+    v128.const i32x4 0 0 0 0
+    i16x8.extadd_pairwise_i8x16_u
+    i8x16.neg
+    drop
+
+    v128.const i32x4 0 0 0 0
+    v128.const i32x4 0 0 0 0
+    i32x4.extadd_pairwise_i16x8_s
+    i8x16.neg
+    drop
+
+    v128.const i32x4 0 0 0 0
+    v128.const i32x4 0 0 0 0
+    i32x4.extadd_pairwise_i16x8_u
     i8x16.neg
     drop
 

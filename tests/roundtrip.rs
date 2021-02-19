@@ -146,6 +146,11 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         // iNxM.any_true and the introduction of v128.any_true.
         "proposals/simd/simd_boolean.wast",
         "proposals/simd/simd_lane.wast",
+        // WebAssembly/simd#452 caused instructions renumbering,
+        // temporary disable some wabt tests.
+        "proposals/simd/simd_i16x8_arith2.wast",
+        "proposals/simd/simd_f64x2_rounding.wast",
+        "proposals/simd/simd_f32x4_rounding.wast",
         // roundtrip/fold-simd.txt is skipped to deal with the removal of
         // iNxM.any_true and the introduction of v128.any_true.
         "roundtrip/fold-simd.txt",
