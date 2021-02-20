@@ -113,3 +113,27 @@ fn no_panic_dangling_else() {
     .unwrap();
     wasmprinter::print_bytes(&bytes).unwrap();
 }
+
+#[test]
+fn module_section_too_large() {
+    let bytes = wat::parse_str(
+        r#"
+            (module binary
+                "\00asm" "\01\00\00\00"     ;; module header
+
+                "\0e"           ;; module section
+                "\08"           ;; size of section
+                "\00"           ;; 0 modules
+                ;; intentionally missing the rest of the section
+            )
+        "#,
+    )
+    .unwrap();
+    let err = wasmprinter::print_bytes(&bytes).unwrap_err();
+    assert!(
+        err.to_string()
+            .contains("unexpected eof reading module section"),
+        "{:?}",
+        err
+    );
+}

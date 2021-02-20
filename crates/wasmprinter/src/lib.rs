@@ -138,7 +138,10 @@ impl Printer {
                 Payload::CodeSectionEntry(f) => code.push(f),
                 Payload::ModuleSectionStart { size, .. } => {
                     pre_parser.skip_section();
-                    bytes = &bytes[size as usize..];
+                    bytes = match bytes.get(size as usize..) {
+                        Some(rest) => rest,
+                        None => bail!("unexpected eof reading module section"),
+                    };
                 }
                 Payload::CustomSection {
                     name: "name",
