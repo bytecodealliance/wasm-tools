@@ -117,8 +117,8 @@ impl<'a> Expander<'a> {
             ModuleField::Export(e) => self.expand(&mut e.index),
 
             ModuleField::Func(f) => {
-                self.expand_type_use(&mut f.ty);
-                if let FuncKind::Inline { expression, .. } = &mut f.kind {
+                if let FuncKind::Inline { expression, ty, .. } = &mut f.kind {
+                    self.expand_type_use(ty);
                     self.expand_expr(expression);
                 }
             }
@@ -126,8 +126,8 @@ impl<'a> Expander<'a> {
             ModuleField::Import(i) => self.expand_item_sig(&mut i.item),
 
             ModuleField::Global(g) => {
-                if let GlobalKind::Inline(expr) = &mut g.kind {
-                    self.expand_expr(expr);
+                if let GlobalKind::Inline { init, .. } = &mut g.kind {
+                    self.expand_expr(init);
                 }
             }
 

@@ -102,7 +102,13 @@ fn encode_fields(
         }
     }
 
-    let functys = funcs.iter().map(|f| &f.ty).collect::<Vec<_>>();
+    let functys = funcs
+        .iter()
+        .filter_map(|f| match &f.kind {
+            FuncKind::Inline { ty, .. } => Some(ty),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
     e.section_list(3, Func, &functys);
     e.section_list(4, Table, &tables);
     e.section_list(5, Memory, &memories);
@@ -601,9 +607,11 @@ impl Encode for Memory<'_> {
 impl Encode for Global<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         assert!(self.exports.names.is_empty());
-        self.ty.encode(e);
         match &self.kind {
-            GlobalKind::Inline(expr) => expr.encode(e),
+            GlobalKind::Inline { init, ty } => {
+                ty.encode(e);
+                init.encode(e);
+            }
             _ => panic!("GlobalKind should be inline during encoding"),
         }
     }
@@ -784,7 +792,9 @@ impl Encode for Func<'_> {
         assert!(self.exports.names.is_empty());
         let mut tmp = Vec::new();
         let (expr, locals) = match &self.kind {
-            FuncKind::Inline { expression, locals } => (expression, locals),
+            FuncKind::Inline {
+                expression, locals, ..
+            } => (expression, locals),
             _ => panic!("should only have inline functions in emission"),
         };
 
@@ -1002,19 +1012,19 @@ fn find_names<'a>(
                 let mut local_names = Vec::new();
                 let mut local_idx = 0;
 
-                // Consult the inline type listed for local names of parameters.
-                // This is specifically preserved during the name resolution
-                // pass, but only for functions, so here we can look at the
-                // original source's names.
-                if let Some(ty) = &f.ty.inline {
-                    for (id, name, _) in ty.params.iter() {
-                        if let Some(name) = get_name(id, name) {
-                            local_names.push((local_idx, name));
+                if let FuncKind::Inline { ty, locals, .. } = &f.kind {
+                    // Consult the inline type listed for local names of parameters.
+                    // This is specifically preserved during the name resolution
+                    // pass, but only for functions, so here we can look at the
+                    // original source's names.
+                    if let Some(ty) = &ty.inline {
+                        for (id, name, _) in ty.params.iter() {
+                            if let Some(name) = get_name(id, name) {
+                                local_names.push((local_idx, name));
+                            }
+                            local_idx += 1;
                         }
-                        local_idx += 1;
                     }
-                }
-                if let FuncKind::Inline { locals, .. } = &f.kind {
                     for local in locals {
                         if let Some(name) = get_name(&local.id, &local.name) {
                             local_names.push((local_idx, name));

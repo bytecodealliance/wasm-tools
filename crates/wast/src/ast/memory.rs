@@ -25,6 +25,9 @@ pub enum MemoryKind<'a> {
         ty: ast::MemoryType,
     },
 
+    /// This memory is actually an inlined alias definition.
+    Alias(ast::InlineAlias<'a>),
+
     /// A typical memory definition which simply says the limits of the memory
     Normal(ast::MemoryType),
 
@@ -54,6 +57,8 @@ impl<'a> Parse<'a> for Memory<'a> {
                 import,
                 ty: parser.parse()?,
             }
+        } else if let Some(alias) = parser.parse()? {
+            MemoryKind::Alias(alias)
         } else if l.peek::<ast::LParen>() || parser.peek2::<ast::LParen>() {
             let is_32 = if parser.parse::<Option<kw::i32>>()?.is_some() {
                 true

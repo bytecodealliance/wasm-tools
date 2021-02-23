@@ -176,12 +176,17 @@ impl<'a> Resolver<'a> {
             }
 
             ModuleField::Func(f) => {
-                let (idx, inline) = self.resolve_type_use(&mut f.ty)?;
-                let n = match idx {
-                    Index::Num(n, _) => *n,
-                    Index::Id(_) => panic!("expected `Num`"),
-                };
-                if let FuncKind::Inline { locals, expression } = &mut f.kind {
+                if let FuncKind::Inline {
+                    locals,
+                    expression,
+                    ty,
+                } = &mut f.kind
+                {
+                    let (idx, inline) = self.resolve_type_use(ty)?;
+                    let n = match idx {
+                        Index::Num(n, _) => *n,
+                        Index::Id(_) => panic!("expected `Num`"),
+                    };
                     // Resolve (ref T) in locals
                     for local in locals.iter_mut() {
                         self.resolve_valtype(&mut local.ty)?;
@@ -217,7 +222,7 @@ impl<'a> Resolver<'a> {
 
                     // specifically save the original `sig`, if it was present,
                     // because that's what we're using for local names.
-                    f.ty.inline = inline;
+                    ty.inline = inline;
                 }
                 Ok(())
             }
@@ -267,9 +272,9 @@ impl<'a> Resolver<'a> {
             }
 
             ModuleField::Global(g) => {
-                self.resolve_valtype(&mut g.ty.ty)?;
-                if let GlobalKind::Inline(expr) = &mut g.kind {
-                    self.resolve_expr(expr)?;
+                if let GlobalKind::Inline { init, ty } = &mut g.kind {
+                    self.resolve_valtype(&mut ty.ty)?;
+                    self.resolve_expr(init)?;
                 }
                 Ok(())
             }

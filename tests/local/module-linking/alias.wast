@@ -692,3 +692,38 @@
     local.get 0
     call (func $i "g"))
 )
+
+;; inline alias annotations
+(module
+  (import "" (instance $i (export "f" (func))))
+  (func $f (alias $i "f"))
+  (func call $f)
+)
+(module
+  (import "" (instance $i (export "f" (memory 1))))
+  (memory (alias $i "f"))
+  (func
+    i32.const 0
+    i32.load
+    drop)
+)
+(module
+  (import "" (instance $i (export "f" (table 1 funcref))))
+  (table (alias $i "f"))
+  (func
+    i32.const 0
+    call_indirect)
+)
+(module
+  (import "" (instance $i (export "f" (global (mut i32)))))
+  (global (alias $i "f"))
+  (func
+    i32.const 0
+    global.set 0)
+)
+(module
+  (import "" (instance $i (export "f" (instance (export "f" (func))))))
+  (instance $i2 (alias $i "f"))
+  (func (alias $i2 "f"))
+  (func call 0)
+)
