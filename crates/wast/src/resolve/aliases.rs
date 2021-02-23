@@ -203,6 +203,10 @@ impl<'a> Expander<'a> {
 
             MemorySize(m) | MemoryGrow(m) | MemoryFill(m) => self.expand(&mut m.mem),
 
+            Let(t) => self.expand_type_use(&mut t.block.ty),
+
+            Block(bt) | If(bt) | Loop(bt) | Try(bt) => self.expand_type_use(&mut bt.ty),
+
             _ => {}
         }
     }

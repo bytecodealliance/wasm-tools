@@ -692,3 +692,24 @@
     local.get 0
     call (func $i "g"))
 )
+
+(module $PARENT
+  (type $empty (func))
+  (module
+    (event $x)
+
+    (func
+      i32.const 0
+      if (type outer $PARENT $empty)
+      end
+      loop (type outer $PARENT $empty)
+      end
+      block (type outer $PARENT $empty)
+      end
+
+      try (type outer $PARENT $empty)
+      catch $x
+      end
+    )
+  )
+)
