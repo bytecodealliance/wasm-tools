@@ -1671,7 +1671,7 @@ impl Printer {
             for arg in instance.args()? {
                 let arg = arg?;
                 self.newline();
-                self.start_group("import");
+                self.start_group("import ");
                 self.print_str(arg.name)?;
                 self.result.push_str(" ");
                 self.print_external(arg.kind, arg.index)?;
