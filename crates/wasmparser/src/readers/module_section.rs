@@ -86,7 +86,7 @@ impl<'a> IntoIterator for ModuleSectionReader<'a> {
 }
 
 impl<'a> NestedModule<'a> {
-    pub fn raw_bytes(&self) -> (usize, &[u8]) {
+    pub fn raw_bytes(&self) -> (usize, &'a [u8]) {
         (self.reader.original_position(), self.reader.buffer)
     }
 
