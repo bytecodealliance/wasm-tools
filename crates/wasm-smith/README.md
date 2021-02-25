@@ -50,7 +50,7 @@ Next, add `wasm-smith` to your dependencies:
 # fuzz/Cargo.toml
 
 [dependencies]
-wasm-smith = "0.1.0"
+wasm-smith = "0.4.0"
 ```
 
 Then, define your fuzz target so that it takes arbitrary `wasm_smith::Module`s
