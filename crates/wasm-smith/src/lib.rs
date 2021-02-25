@@ -15,7 +15,7 @@
 //! # fuzz/Cargo.toml
 //!
 //! [dependencies]
-//! wasm-smith = "0.1.5"
+//! wasm-smith = "0.4.0"
 //! ```
 //!
 //! Then, define your fuzz target so that it takes arbitrary
@@ -204,8 +204,8 @@ impl<C: Config> ConfiguredModule<C> {
     }
 }
 
-impl<C: Config> Arbitrary for ConfiguredModule<C> {
-    fn arbitrary(u: &mut Unstructured) -> Result<Self> {
+impl<'a, C: Config> Arbitrary<'a> for ConfiguredModule<C> {
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         let mut module = ConfiguredModule::<C>::default();
         module.build(u, false)?;
         Ok(module)
@@ -228,8 +228,8 @@ impl MaybeInvalidModule {
     }
 }
 
-impl Arbitrary for MaybeInvalidModule {
-    fn arbitrary(u: &mut Unstructured) -> Result<Self> {
+impl<'a> Arbitrary<'a> for MaybeInvalidModule {
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         let mut module = Module::default();
         module.inner.build(u, true)?;
         Ok(MaybeInvalidModule { module })
@@ -1954,12 +1954,12 @@ fn limited_string(max_size: usize, u: &mut Unstructured) -> Result<String> {
     let size = std::cmp::min(size, max_size);
     match str::from_utf8(&u.peek_bytes(size).unwrap()) {
         Ok(s) => {
-            u.get_bytes(size).unwrap();
+            u.bytes(size).unwrap();
             Ok(s.into())
         }
         Err(e) => {
             let i = e.valid_up_to();
-            let valid = u.get_bytes(i).unwrap();
+            let valid = u.bytes(i).unwrap();
             let s = unsafe {
                 debug_assert!(str::from_utf8(valid).is_ok());
                 str::from_utf8_unchecked(valid)
@@ -2029,7 +2029,7 @@ fn unique_import_strings(
 
 fn arbitrary_vec_u8(u: &mut Unstructured) -> Result<Vec<u8>> {
     let size = u.arbitrary_len::<u8>()?;
-    Ok(u.get_bytes(size)?.to_vec())
+    Ok(u.bytes(size)?.to_vec())
 }
 
 impl EntityType {

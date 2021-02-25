@@ -15,7 +15,7 @@ use arbitrary::{Arbitrary, Result, Unstructured};
 /// Every trait method has a provided default implementation, so that you only
 /// need to override the methods for things you want to change away from the
 /// default.
-pub trait Config: Arbitrary + Default + Clone {
+pub trait Config: for<'a> Arbitrary<'a> + Default + Clone {
     /// The minimum number of types to generate. Defaults to 0.
     fn min_types(&self) -> usize {
         0
@@ -309,8 +309,8 @@ pub struct SwarmConfig {
     max_nesting_depth: usize,
 }
 
-impl Arbitrary for SwarmConfig {
-    fn arbitrary(u: &mut Unstructured<'_>) -> Result<Self> {
+impl<'a> Arbitrary<'a> for SwarmConfig {
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         const MAX_MAXIMUM: usize = 1000;
 
         let reference_types_enabled: bool = u.arbitrary()?;
