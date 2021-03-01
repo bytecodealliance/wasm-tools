@@ -1265,8 +1265,9 @@ impl Validator {
             Operator::GlobalGet { global_index } => {
                 let global = self.get_global(global_index)?;
                 if global.mutable {
-                    return self
-                        .create_error("constant expression required: global.get of mutable global");
+                    return self.create_error(
+                        "constant expression required: global.get of mutable global",
+                    );
                 }
                 global.content_type
             }
