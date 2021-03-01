@@ -138,22 +138,14 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         "parse/expr/try-delegate.txt",
         // Skipped until (WebAssembly/wabt#1605) is merged.
         "typecheck/delegate.txt",
-        // */simd-unary.txt are skipped to deal with the removal of
-        // iNxM.any_true and the introduction of v128.any_true.
-        "dump/simd-unary.txt",
-        "interp/simd-unary.txt",
-        // simd_*.wast are skipped to deal with the removal of
-        // iNxM.any_true and the introduction of v128.any_true.
-        "proposals/simd/simd_boolean.wast",
-        "proposals/simd/simd_lane.wast",
-        // WebAssembly/simd#452 caused instructions renumbering,
-        // temporary disable some wabt tests.
-        "proposals/simd/simd_i16x8_arith2.wast",
-        "proposals/simd/simd_f64x2_rounding.wast",
-        "proposals/simd/simd_f32x4_rounding.wast",
-        // roundtrip/fold-simd.txt is skipped to deal with the removal of
-        // iNxM.any_true and the introduction of v128.any_true.
+        // waiting on wabt to sync with simd spec
         "roundtrip/fold-simd.txt",
+        "dump/simd-unary.txt",
+        "dump/simd-binary.txt",
+        "interp/simd-unary.txt",
+        // Usage of `assert_invalid` which should be `assert_malformed`
+        "testsuite/proposals/memory64/memory.wast",
+        "testsuite/proposals/memory64/address.wast",
     ];
     if broken.iter().any(|x| test.ends_with(x)) {
         return true;
@@ -282,8 +274,7 @@ impl TestState {
 
             // FIXME uses simd instrs not implemented in wabt yet.
             && !test.ends_with("local/simd.wat")
-            && !test.ends_with("simd/simd_load_zero.wast")
-            && !test.ends_with("simd/simd_i32x4_dot_i16x8.wast")
+            && !test.iter().any(|t| t == "simd")
 
             // FIXME wabt doesn't print conflict or empty names in the same way
             // that we do.
@@ -389,9 +380,13 @@ impl TestState {
                 let test_roundtrip = match module.kind {
                     ModuleKind::Text(_) => {
                         if let Some(expected) = &expected {
-                            let expected = fs::read(expected)?;
-                            self.binary_compare(&actual, &expected, true)
-                                .context("`wat` doesn't match output of wabt")?;
+                            // TODO: waiting on wabt to sync with the upstream
+                            // simd spec to agree on encodings.
+                            if !test.iter().any(|t| t == "simd") {
+                                let expected = fs::read(expected)?;
+                                self.binary_compare(&actual, &expected, true)
+                                    .context("`wat` doesn't match output of wabt")?;
+                            }
                         }
                         true
                     }
