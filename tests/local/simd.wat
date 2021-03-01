@@ -169,22 +169,22 @@
     drop
 
     v128.const i32x4 0 0 0 0
-    i64x2.widen_low_i32x4_s
+    i64x2.extend_low_i32x4_s
     i8x16.neg
     drop
 
     v128.const i32x4 0 0 0 0
-    i64x2.widen_high_i32x4_s
+    i64x2.extend_high_i32x4_s
     i8x16.neg
     drop
 
     v128.const i32x4 0 0 0 0
-    i64x2.widen_low_i32x4_u
+    i64x2.extend_low_i32x4_u
     i8x16.neg
     drop
 
     v128.const i32x4 0 0 0 0
-    i64x2.widen_high_i32x4_u
+    i64x2.extend_high_i32x4_u
     i8x16.neg
     drop
 
@@ -271,24 +271,20 @@
     drop
 
     v128.const i32x4 0 0 0 0
-    v128.const i32x4 0 0 0 0
     i16x8.extadd_pairwise_i8x16_s
     i8x16.neg
     drop
 
-    v128.const i32x4 0 0 0 0
     v128.const i32x4 0 0 0 0
     i16x8.extadd_pairwise_i8x16_u
     i8x16.neg
     drop
 
     v128.const i32x4 0 0 0 0
-    v128.const i32x4 0 0 0 0
     i32x4.extadd_pairwise_i16x8_s
     i8x16.neg
     drop
 
-    v128.const i32x4 0 0 0 0
     v128.const i32x4 0 0 0 0
     i32x4.extadd_pairwise_i16x8_u
     i8x16.neg

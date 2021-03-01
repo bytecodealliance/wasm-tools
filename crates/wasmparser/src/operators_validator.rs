@@ -1635,10 +1635,6 @@ impl OperatorValidator {
             | Operator::I64x2ExtMulHighI32x4S
             | Operator::I64x2ExtMulLowI32x4U
             | Operator::I64x2ExtMulHighI32x4U
-            | Operator::I16x8ExtAddPairwiseI8x16S
-            | Operator::I16x8ExtAddPairwiseI8x16U
-            | Operator::I32x4ExtAddPairwiseI16x8S
-            | Operator::I32x4ExtAddPairwiseI16x8U
             | Operator::I16x8Q15MulrSatS => {
                 self.check_simd_enabled()?;
                 self.pop_operand(Some(Type::V128))?;
@@ -1684,18 +1680,22 @@ impl OperatorValidator {
             | Operator::I64x2Neg
             | Operator::I32x4TruncSatF32x4S
             | Operator::I32x4TruncSatF32x4U
-            | Operator::I16x8WidenLowI8x16S
-            | Operator::I16x8WidenHighI8x16S
-            | Operator::I16x8WidenLowI8x16U
-            | Operator::I16x8WidenHighI8x16U
-            | Operator::I32x4WidenLowI16x8S
-            | Operator::I32x4WidenHighI16x8S
-            | Operator::I32x4WidenLowI16x8U
-            | Operator::I32x4WidenHighI16x8U
-            | Operator::I64x2WidenLowI32x4S
-            | Operator::I64x2WidenHighI32x4S
-            | Operator::I64x2WidenLowI32x4U
-            | Operator::I64x2WidenHighI32x4U => {
+            | Operator::I16x8ExtendLowI8x16S
+            | Operator::I16x8ExtendHighI8x16S
+            | Operator::I16x8ExtendLowI8x16U
+            | Operator::I16x8ExtendHighI8x16U
+            | Operator::I32x4ExtendLowI16x8S
+            | Operator::I32x4ExtendHighI16x8S
+            | Operator::I32x4ExtendLowI16x8U
+            | Operator::I32x4ExtendHighI16x8U
+            | Operator::I64x2ExtendLowI32x4S
+            | Operator::I64x2ExtendHighI32x4S
+            | Operator::I64x2ExtendLowI32x4U
+            | Operator::I64x2ExtendHighI32x4U
+            | Operator::I16x8ExtAddPairwiseI8x16S
+            | Operator::I16x8ExtAddPairwiseI8x16U
+            | Operator::I32x4ExtAddPairwiseI16x8S
+            | Operator::I32x4ExtAddPairwiseI16x8U => {
                 self.check_simd_enabled()?;
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;

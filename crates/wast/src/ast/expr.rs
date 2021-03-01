@@ -200,9 +200,9 @@ impl<'a> ExpressionParser<'a> {
                         return Err(parser.error("previous `try` had no `do`"));
                     }
                     Level::Try(Try::CatchUnwindOrDelegate) => {
-                        return Err(
-                            parser.error("previous `try` had no `catch`, `catch_all`, `unwind`, or `delegate`")
-                        );
+                        return Err(parser.error(
+                            "previous `try` had no `catch`, `catch_all`, `unwind`, or `delegate`",
+                        ));
                     }
                     Level::Try(Try::Delegate) => {}
                     Level::Try(_) => {
@@ -375,8 +375,8 @@ impl<'a> ExpressionParser<'a> {
                 self.instrs.push(Instruction::Delegate(depth));
                 *i = Try::Delegate;
                 match self.paren(parser)? {
-                    Paren::Left | Paren::None => { return Ok(false) }
-                    Paren::Right => { return Ok(true) }
+                    Paren::Left | Paren::None => return Ok(false),
+                    Paren::Right => return Ok(true),
                 }
             }
             return Ok(false);
@@ -1014,10 +1014,10 @@ instructions! {
         I16x8Bitmask : [0xfd, 0x84] : "i16x8.bitmask",
         I16x8NarrowI32x4S : [0xfd, 0x85] : "i16x8.narrow_i32x4_s",
         I16x8NarrowI32x4U : [0xfd, 0x86] : "i16x8.narrow_i32x4_u",
-        I16x8WidenLowI8x16S : [0xfd, 0x87] : "i16x8.widen_low_i8x16_s",
-        I16x8WidenHighI8x16S : [0xfd, 0x88] : "i16x8.widen_high_i8x16_s",
-        I16x8WidenLowI8x16U : [0xfd, 0x89] : "i16x8.widen_low_i8x16_u",
-        I16x8WidenHighI8x16u : [0xfd, 0x8a] : "i16x8.widen_high_i8x16_u",
+        I16x8ExtendLowI8x16S : [0xfd, 0x87] : "i16x8.extend_low_i8x16_s",
+        I16x8ExtendHighI8x16S : [0xfd, 0x88] : "i16x8.extend_high_i8x16_s",
+        I16x8ExtendLowI8x16U : [0xfd, 0x89] : "i16x8.extend_low_i8x16_u",
+        I16x8ExtendHighI8x16u : [0xfd, 0x8a] : "i16x8.extend_high_i8x16_u",
         I16x8Shl : [0xfd, 0x8b] : "i16x8.shl",
         I16x8ShrS : [0xfd, 0x8c] : "i16x8.shr_s",
         I16x8ShrU : [0xfd, 0x8d] : "i16x8.shr_u",
@@ -1043,10 +1043,10 @@ instructions! {
         I32x4Neg : [0xfd, 0xa1] : "i32x4.neg",
         I32x4AllTrue : [0xfd, 0xa3] : "i32x4.all_true",
         I32x4Bitmask : [0xfd, 0xa4] : "i32x4.bitmask",
-        I32x4WidenLowI16x8S : [0xfd, 0xa7] : "i32x4.widen_low_i16x8_s",
-        I32x4WidenHighI16x8S : [0xfd, 0xa8] : "i32x4.widen_high_i16x8_s",
-        I32x4WidenLowI16x8U : [0xfd, 0xa9] : "i32x4.widen_low_i16x8_u",
-        I32x4WidenHighI16x8U : [0xfd, 0xaa] : "i32x4.widen_high_i16x8_u",
+        I32x4ExtendLowI16x8S : [0xfd, 0xa7] : "i32x4.extend_low_i16x8_s",
+        I32x4ExtendHighI16x8S : [0xfd, 0xa8] : "i32x4.extend_high_i16x8_s",
+        I32x4ExtendLowI16x8U : [0xfd, 0xa9] : "i32x4.extend_low_i16x8_u",
+        I32x4ExtendHighI16x8U : [0xfd, 0xaa] : "i32x4.extend_high_i16x8_u",
         I32x4Shl : [0xfd, 0xab] : "i32x4.shl",
         I32x4ShrS : [0xfd, 0xac] : "i32x4.shr_s",
         I32x4ShrU : [0xfd, 0xad] : "i32x4.shr_u",
@@ -1067,10 +1067,10 @@ instructions! {
         I64x2Neg : [0xfd, 0xc1] : "i64x2.neg",
         I64x2AllTrue : [0xfd, 0xc3] : "i64x2.all_true",
         I64x2Bitmask : [0xfd, 0xc4] : "i64x2.bitmask",
-        I64x2WidenLowI32x4S : [0xfd, 0xc7] : "i64x2.widen_low_i32x4_s",
-        I64x2WidenHighI32x4S : [0xfd, 0xc8] : "i64x2.widen_high_i32x4_s",
-        I64x2WidenLowI32x4U : [0xfd, 0xc9] : "i64x2.widen_low_i32x4_u",
-        I64x2WidenHighI32x4U : [0xfd, 0xca] : "i64x2.widen_high_i32x4_u",
+        I64x2ExtendLowI32x4S : [0xfd, 0xc7] : "i64x2.extend_low_i32x4_s",
+        I64x2ExtendHighI32x4S : [0xfd, 0xc8] : "i64x2.extend_high_i32x4_s",
+        I64x2ExtendLowI32x4U : [0xfd, 0xc9] : "i64x2.extend_low_i32x4_u",
+        I64x2ExtendHighI32x4U : [0xfd, 0xca] : "i64x2.extend_high_i32x4_u",
         I64x2Shl : [0xfd, 0xcb] : "i64x2.shl",
         I64x2ShrS : [0xfd, 0xcc] : "i64x2.shr_s",
         I64x2ShrU : [0xfd, 0xcd] : "i64x2.shr_u",
@@ -1315,14 +1315,14 @@ pub struct LoadOrStoreLane<'a> {
     /// The memory argument for this instruction.
     pub memarg: MemArg<'a>,
     /// The lane argument for this instruction.
-    pub lane: LaneArg
+    pub lane: LaneArg,
 }
 
 impl<'a> LoadOrStoreLane<'a> {
     fn parse(parser: Parser<'a>, default_align: u32) -> Result<Self> {
         Ok(LoadOrStoreLane {
             memarg: MemArg::parse(parser, default_align)?,
-            lane: LaneArg::parse(parser)?
+            lane: LaneArg::parse(parser)?,
         })
     }
 }

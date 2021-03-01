@@ -429,14 +429,14 @@ impl Validator {
     fn get_type(&self, idx: u32) -> Result<&TypeDef> {
         match self.cur.state.types.get(idx as usize) {
             Some(t) => Ok(&self.types[*t]),
-            None => self.create_error("unknown type: type index out of bounds"),
+            None => self.create_error(format!("unknown type {}: type index out of bounds", idx)),
         }
     }
 
     fn get_table(&self, idx: u32) -> Result<&TableType> {
         match self.cur.state.tables.get(idx as usize) {
             Some(t) => Ok(t),
-            None => self.create_error("unknown table: table index out of bounds"),
+            None => self.create_error(format!("unknown table {}: table index out of bounds", idx)),
         }
     }
 
@@ -453,7 +453,10 @@ impl Validator {
     fn get_global(&self, idx: u32) -> Result<&GlobalType> {
         match self.cur.state.globals.get(idx as usize) {
             Some(t) => Ok(t),
-            None => self.create_error("unknown global: global index out of bounds"),
+            None => self.create_error(format!(
+                "unknown global {}: global index out of bounds",
+                idx,
+            )),
         }
     }
 
@@ -1259,7 +1262,14 @@ impl Validator {
             Operator::F64Const { .. } => Type::F64,
             Operator::RefNull { ty } => ty,
             Operator::V128Const { .. } => Type::V128,
-            Operator::GlobalGet { global_index } => self.get_global(global_index)?.content_type,
+            Operator::GlobalGet { global_index } => {
+                let global = self.get_global(global_index)?;
+                if global.mutable {
+                    return self
+                        .create_error("constant expression required: global.get of mutable global");
+                }
+                global.content_type
+            }
             Operator::RefFunc { function_index } => {
                 self.get_func_type(function_index)?;
                 self.cur
