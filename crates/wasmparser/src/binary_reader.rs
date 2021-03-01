@@ -680,7 +680,7 @@ impl<'a> BinaryReader<'a> {
         let len = self.read_var_u32()? as usize;
         if len > MAX_WASM_STRING_SIZE {
             return Err(BinaryReaderError::new(
-                "string size in out of bounds",
+                "string size out of bounds",
                 self.original_position() - 1,
             ));
         }
@@ -829,7 +829,7 @@ impl<'a> BinaryReader<'a> {
         let len = self.read_var_u32()? as usize;
         if len > MAX_WASM_STRING_SIZE {
             return Err(BinaryReaderError::new(
-                "string size in out of bounds",
+                "string size out of bounds",
                 self.original_position() - 1,
             ));
         }
