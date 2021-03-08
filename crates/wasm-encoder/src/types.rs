@@ -18,6 +18,7 @@ use std::convert::TryFrom;
 ///
 /// let wasm_bytes = module.finish();
 /// ```
+#[derive(Clone, Debug)]
 pub struct TypeSection {
     bytes: Vec<u8>,
     num_added: u32,

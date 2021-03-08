@@ -21,6 +21,7 @@ use super::*;
 ///
 /// let wasm_bytes = module.finish();
 /// ```
+#[derive(Clone, Debug)]
 pub struct TableSection {
     bytes: Vec<u8>,
     num_added: u32,
@@ -63,6 +64,7 @@ impl Section for TableSection {
 }
 
 /// A table's type.
+#[derive(Clone, Copy, Debug)]
 pub struct TableType {
     /// The table's element type.
     pub element_type: ValType,

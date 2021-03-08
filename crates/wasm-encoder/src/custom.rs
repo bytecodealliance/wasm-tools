@@ -1,6 +1,7 @@
 use super::*;
 
 /// A custom section holding arbitrary data.
+#[derive(Clone, Debug)]
 pub struct CustomSection<'a> {
     /// The name of this custom section.
     pub name: &'a str,

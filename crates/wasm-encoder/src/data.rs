@@ -31,12 +31,14 @@ use super::*;
 ///
 /// let wasm_bytes = module.finish();
 /// ```
+#[derive(Clone, Debug)]
 pub struct DataSection {
     bytes: Vec<u8>,
     num_added: u32,
 }
 
 /// A segment in the data section.
+#[derive(Clone, Copy, Debug)]
 pub struct DataSegment<'a, D> {
     /// This data segment's mode.
     pub mode: DataSegmentMode<'a>,
@@ -45,6 +47,7 @@ pub struct DataSegment<'a, D> {
 }
 
 /// A data segment's mode.
+#[derive(Clone, Copy, Debug)]
 pub enum DataSegmentMode<'a> {
     /// An active data segment.
     Active {
@@ -161,6 +164,7 @@ impl Section for DataSection {
 }
 
 /// An encoder for the data count section.
+#[derive(Clone, Copy, Debug)]
 pub struct DataCountSection {
     /// The number of segments in the data section.
     pub count: u32,

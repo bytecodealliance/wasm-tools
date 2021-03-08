@@ -20,6 +20,7 @@ use super::*;
 ///
 /// let wasm_bytes = module.finish();
 /// ```
+#[derive(Clone, Debug)]
 pub struct MemorySection {
     bytes: Vec<u8>,
     num_added: u32,
@@ -62,6 +63,7 @@ impl Section for MemorySection {
 }
 
 /// A memory's type.
+#[derive(Clone, Copy, Debug)]
 pub struct MemoryType {
     /// This memory's limits (in units of pages).
     pub limits: Limits,

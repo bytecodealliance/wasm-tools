@@ -68,7 +68,7 @@
 //! assert!(wasmparser::validate(&wasm_bytes).is_ok());
 //! ```
 
-#![deny(missing_docs)]
+#![deny(missing_docs, missing_debug_implementations)]
 
 mod aliases;
 mod code;
@@ -134,6 +134,7 @@ pub trait Section {
 /// A section made up of uninterpreted, raw bytes.
 ///
 /// Allows you to splat any data into a Wasm section.
+#[derive(Clone, Copy, Debug)]
 pub struct RawSection<'a> {
     /// The id for this section.
     pub id: u8,
@@ -230,6 +231,7 @@ impl From<SectionId> for u8 {
 }
 
 /// Limits for a table or memory.
+#[derive(Clone, Copy, Debug)]
 pub struct Limits {
     /// The minimum size.
     pub min: u32,

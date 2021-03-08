@@ -31,6 +31,7 @@ use super::*;
 ///
 /// let wasm_bytes = module.finish();
 /// ```
+#[derive(Clone, Debug)]
 pub struct CodeSection {
     bytes: Vec<u8>,
     num_added: u32,
@@ -95,6 +96,7 @@ impl Section for CodeSection {
 /// let mut code = CodeSection::new();
 /// code.function(&func);
 /// ```
+#[derive(Clone, Debug)]
 pub struct Function {
     bytes: Vec<u8>,
 }
@@ -186,7 +188,7 @@ impl BlockType {
 }
 
 /// WebAssembly instructions.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 #[non_exhaustive]
 #[allow(missing_docs, non_camel_case_types)]
 pub enum Instruction<'a> {

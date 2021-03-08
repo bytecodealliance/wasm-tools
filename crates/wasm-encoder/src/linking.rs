@@ -36,6 +36,7 @@ use std::convert::TryInto;
 /// module.section(&linking);
 /// let wasm_bytes = module.finish();
 /// ```
+#[derive(Clone, Debug)]
 pub struct LinkingSection {
     bytes: Vec<u8>,
 }
@@ -96,6 +97,7 @@ const WASM_SYMBOL_TABLE: u8 = 8;
 /// A subsection of the [linking custom section][crate::LinkingSection] that
 /// provides extra information about the symbols present in this Wasm object
 /// file.
+#[derive(Clone, Debug)]
 pub struct SymbolTable {
     bytes: Vec<u8>,
     num_added: u32,
@@ -274,6 +276,7 @@ impl SymbolTable {
 }
 
 /// The definition of a data symbol within a symbol table.
+#[derive(Clone, Debug)]
 pub struct DataSymbolDefinition {
     /// The index of the data segment that this symbol is in.
     pub index: u32,
