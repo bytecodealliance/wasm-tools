@@ -19,6 +19,7 @@ use super::*;
 ///
 /// let wasm_bytes = module.finish();
 /// ```
+#[derive(Clone, Copy, Debug)]
 pub struct StartSection {
     /// The index of the start function.
     pub function_index: u32,

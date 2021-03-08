@@ -25,6 +25,7 @@ use std::convert::TryFrom;
 ///
 /// let wasm_bytes = module.finish();
 /// ```
+#[derive(Clone, Debug)]
 pub struct ImportSection {
     bytes: Vec<u8>,
     num_added: u32,
@@ -80,6 +81,7 @@ impl Section for ImportSection {
 }
 
 /// The type of an entity.
+#[derive(Clone, Copy, Debug)]
 pub enum EntityType {
     /// The `n`th type, which is a function.
     Function(u32),

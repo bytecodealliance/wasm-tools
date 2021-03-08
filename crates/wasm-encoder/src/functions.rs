@@ -20,6 +20,7 @@ use super::*;
 ///
 /// let wasm_bytes = module.finish();
 /// ```
+#[derive(Clone, Debug)]
 pub struct FunctionSection {
     bytes: Vec<u8>,
     num_added: u32,

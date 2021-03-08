@@ -28,6 +28,7 @@ use super::*;
 ///
 /// let wasm_bytes = module.finish();
 /// ```
+#[derive(Clone, Debug)]
 pub struct ExportSection {
     bytes: Vec<u8>,
     num_added: u32,
@@ -71,6 +72,7 @@ impl Section for ExportSection {
 }
 
 /// A WebAssembly export.
+#[derive(Clone, Copy, Debug)]
 pub enum Export {
     /// An export of the `n`th function.
     Function(u32),
@@ -131,6 +133,7 @@ impl Export {
 /// Kinds of WebAssembly items
 #[allow(missing_docs)]
 #[repr(u8)]
+#[derive(Clone, Copy, Debug)]
 pub enum ItemKind {
     Function = 0x00,
     Table = 0x01,
