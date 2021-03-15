@@ -168,7 +168,7 @@ pub trait Config: for<'a> Arbitrary<'a> + Default + Clone {
     /// The maximum number of instances to use. Defaults to 10. This includes
     /// imported instances.
     ///
-    /// Note that this is irrelevaant unless module linking is enabled.
+    /// Note that this is irrelevant unless module linking is enabled.
     fn max_instances(&self) -> usize {
         10
     }
@@ -176,7 +176,7 @@ pub trait Config: for<'a> Arbitrary<'a> + Default + Clone {
     /// The maximum number of modules to use. Defaults to 10. This includes
     /// imported modules.
     ///
-    /// Note that this is irrelevaant unless module linking is enabled.
+    /// Note that this is irrelevant unless module linking is enabled.
     fn max_modules(&self) -> usize {
         10
     }
