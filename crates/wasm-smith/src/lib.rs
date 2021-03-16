@@ -1472,7 +1472,7 @@ where
     }
 
     fn arbitrary_exports(&mut self, u: &mut Unstructured) -> Result<()> {
-        if self.type_size < self.config.max_type_size() {
+        if self.config.max_type_size() < self.type_size {
             return Ok(());
         }
 
