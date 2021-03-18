@@ -113,16 +113,19 @@ fuzz_target!(|data: Vec<Vec<u8>>| {
                     name: a,
                     data_offset: ado,
                     data: ad,
+                    range: ar,
                 },
                 CustomSection {
                     name: b,
                     data_offset: bdo,
                     data: bd,
+                    range: br,
                 },
             ) => {
                 assert_eq!(a, b);
                 assert_eq!(ad, bd);
                 assert_eq!(ado, bdo);
+                assert_eq!(ar, br);
             }
             (
                 CodeSectionStart {

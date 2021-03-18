@@ -55,6 +55,7 @@ fn main() -> Result<()> {
                 name,
                 data_offset,
                 data,
+                range: _,
             } => printer.section_raw(
                 wasmparser::Range {
                     start: data_offset,

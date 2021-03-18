@@ -13,8 +13,9 @@
 0x0017 | 01          | 1 local blocks
 0x0018 | 01 7c       | 1 locals of type F64
 0x001a | 0b          | End
-0x001b | 00 1c 04 6e | custom section: "name"
-       | 61 6d 65   
+0x001b | 00 1c       | custom section
+0x001d | 04 6e 61 6d | name: "name"
+       | 65         
 0x0022 | 00 04       | module name
 0x0024 | 03 66 6f 6f | "foo"
 0x0028 | 01 04       | function names

@@ -49,8 +49,9 @@
 0x0069 | 02          | size of function
 0x006a | 00          | 0 local blocks
 0x006b | 0b          | End
-0x006c | 00 0b 04 6e | custom section: "name"
-       | 61 6d 65   
+0x006c | 00 0b       | custom section
+0x006e | 04 6e 61 6d | name: "name"
+       | 65         
 0x0073 | 01 04       | function names
 0x0075 | 01          | 1 count
 0x0076 | 00 01 66    | Naming { index: 0, name: "f" }

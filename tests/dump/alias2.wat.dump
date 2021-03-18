@@ -41,8 +41,9 @@
          | 05 01      
   0x0075 | 01 36 00 ff | import [instance 0] Import { module: "6", field: None, ty: Instance(2) }
          | 06 02      
-  0x007b | 00 09 04 6e | custom section: "name"
-         | 61 6d 65   
+  0x007b | 00 09       | custom section
+  0x007d | 04 6e 61 6d | name: "name"
+         | 65         
   0x0082 | 00 02       | module name
   0x0084 | 01 6d       | "m"
 0x0086 | 10 1f       | alias section

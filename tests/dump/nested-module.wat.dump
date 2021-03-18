@@ -34,8 +34,9 @@
   0x0055 | 13          | inline module size
     0x0056 | 00 61 73 6d | version 1
            | 01 00 00 00
-    0x005e | 00 09 04 6e | custom section: "name"
-           | 61 6d 65   
+    0x005e | 00 09       | custom section
+    0x0060 | 04 6e 61 6d | name: "name"
+           | 65         
     0x0065 | 00 02       | module name
     0x0067 | 01 6d       | "m"
   0x0069 | 01 05       | type section
