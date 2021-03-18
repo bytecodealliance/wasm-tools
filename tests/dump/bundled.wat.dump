@@ -50,8 +50,9 @@
   0x007c | 00          | 0 local blocks
   0x007d | 10 00       | Call { function_index: 0 }
   0x007f | 0b          | End
-  0x0080 | 00 16 04 6e | custom section: "name"
-         | 61 6d 65   
+  0x0080 | 00 16       | custom section
+  0x0082 | 04 6e 61 6d | name: "name"
+         | 65         
   0x0087 | 00 06       | module name
   0x0089 | 05 43 48 49 | "CHILD"
          | 4c 44      
@@ -97,8 +98,9 @@
   0x00e3 | 00          | 0 local blocks
   0x00e4 | 41 00       | I32Const { value: 0 }
   0x00e6 | 0b          | End
-  0x00e7 | 00 12 04 6e | custom section: "name"
-         | 61 6d 65   
+  0x00e7 | 00 12       | custom section
+  0x00e9 | 04 6e 61 6d | name: "name"
+         | 65         
   0x00ee | 00 0b       | module name
   0x00f0 | 0a 56 49 52 | "VIRTUALIZE"
          | 54 55 41 4c

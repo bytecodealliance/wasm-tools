@@ -273,10 +273,13 @@ impl<'a> Dump<'a> {
 
                 Payload::CustomSection {
                     name,
-                    data,
                     data_offset,
+                    data,
+                    range,
                 } => {
-                    write!(self.state, "custom section: {:?}", name)?;
+                    write!(self.state, "custom section")?;
+                    self.print(range.start)?;
+                    write!(self.state, "name: {:?}", name)?;
                     self.print(data_offset)?;
                     if name == "name" {
                         let mut iter = NameSectionReader::new(data, data_offset)?;

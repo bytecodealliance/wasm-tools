@@ -147,6 +147,7 @@ impl Printer {
                     name: "name",
                     data_offset,
                     data,
+                    range: _,
                 } => {
                     let reader = NameSectionReader::new(data, data_offset)?;
                     // Ignore any error associated with the name section.
@@ -176,6 +177,7 @@ impl Printer {
                     name,
                     data,
                     data_offset,
+                    range: _,
                 } => {
                     let mut printers = mem::replace(&mut self.printers, HashMap::new());
                     if let Some(printer) = printers.get_mut(name) {

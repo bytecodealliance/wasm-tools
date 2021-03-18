@@ -65,6 +65,7 @@ fn validate_name_section(wasm: &[u8]) -> wasmparser::Result<()> {
                 name: "name",
                 data_offset,
                 data,
+                range: _,
             } => NameSectionReader::new(data, data_offset)?,
             _ => continue,
         };

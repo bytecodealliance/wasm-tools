@@ -65,9 +65,9 @@
 0x0068 |-------------| ... 1 bytes of data
 0x006a | 01 01       | data passive
 0x006c |-------------| ... 1 bytes of data
-0x006d | 00 17 0f 6e | custom section: "name-of-section"
-       | 61 6d 65 2d
-       | 6f 66 2d 73
-       | 65 63 74 69
-       | 6f 6e      
+0x006d | 00 17       | custom section
+0x006f | 0f 6e 61 6d | name: "name-of-section"
+       | 65 2d 6f 66
+       | 2d 73 65 63
+       | 74 69 6f 6e
 0x007f |-------------| ... 7 bytes of data

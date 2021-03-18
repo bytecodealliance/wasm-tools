@@ -147,10 +147,14 @@ pub enum Payload<'a> {
         /// The name of the custom section.
         name: &'a str,
         /// The offset, relative to the start of the original module, that the
-        /// payload for this custom section starts at.
+        /// `data` payload for this custom section starts at.
         data_offset: usize,
         /// The actual contents of the custom section.
         data: &'a [u8],
+        /// The range of bytes that specify this whole custom section (including
+        /// both the name of this custom section and its data) specified in
+        /// offsets relative to the start of the byte stream.
+        range: Range,
     },
 
     /// Indicator of the start of the code section.
@@ -482,6 +486,11 @@ impl Parser {
 
                 match id {
                     0 => {
+                        let start = reader.original_position();
+                        let range = Range {
+                            start,
+                            end: reader.original_position() + len as usize,
+                        };
                         let mut content = subreader(reader, len)?;
                         // Note that if this fails we can't read any more bytes,
                         // so clear the "we'd succeed if we got this many more
@@ -491,6 +500,7 @@ impl Parser {
                             name,
                             data_offset: content.original_position(),
                             data: content.remaining_buffer(),
+                            range,
                         })
                     }
                     1 => section(reader, len, TypeSectionReader::new, TypeSection),
@@ -886,10 +896,12 @@ impl fmt::Debug for Payload<'_> {
                 name,
                 data_offset,
                 data: _,
+                range,
             } => f
                 .debug_struct("CustomSection")
                 .field("name", name)
                 .field("data_offset", data_offset)
+                .field("range", range)
                 .field("data", &"...")
                 .finish(),
             Version { num, range } => f
@@ -1089,6 +1101,7 @@ mod tests {
                     name: "",
                     data_offset: 11,
                     data: b"",
+                    range: Range { start: 10, end: 11 },
                 },
             }),
         );
@@ -1100,6 +1113,7 @@ mod tests {
                     name: "a",
                     data_offset: 12,
                     data: b"",
+                    range: Range { start: 10, end: 12 },
                 },
             }),
         );
@@ -1111,6 +1125,7 @@ mod tests {
                     name: "",
                     data_offset: 11,
                     data: b"a",
+                    range: Range { start: 10, end: 12 },
                 },
             }),
         );
