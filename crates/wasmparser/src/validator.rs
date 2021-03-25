@@ -1255,6 +1255,7 @@ impl Validator {
             None => return self.create_error("type mismatch: init_expr is empty"),
         };
         self.offset = offset;
+        let mut function_reference = None;
         let ty = match op {
             Operator::I32Const { .. } => Type::I32,
             Operator::I64Const { .. } => Type::I64,
@@ -1272,12 +1273,8 @@ impl Validator {
                 global.content_type
             }
             Operator::RefFunc { function_index } => {
+                function_reference = Some(function_index);
                 self.get_func_type(function_index)?;
-                self.cur
-                    .state
-                    .assert_mut()
-                    .function_references
-                    .insert(function_index);
                 Type::FuncRef
             }
             Operator::End => return self.create_error("type mismatch: init_expr is empty"),
@@ -1290,6 +1287,14 @@ impl Validator {
             if !allow32 || ty != Type::I32 {
                 return self.create_error("type mismatch: invalid init_expr type");
             }
+        }
+
+        if let Some(index) = function_reference {
+            self.cur
+                .state
+                .assert_mut()
+                .function_references
+                .insert(index);
         }
 
         // Make sure the next instruction is an `end`
