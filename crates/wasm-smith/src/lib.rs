@@ -1483,7 +1483,7 @@ where
             choices.push(|u, m| {
                 let idx = u.int_in_range(0..=m.funcs.len() - 1)?;
                 let sig = &m.funcs[idx].1;
-                m.type_size += (sig.params.len() + sig.results.len()) as u32;
+                m.type_size += 1 + (sig.params.len() + sig.results.len()) as u32;
                 Ok(Export::Func(idx as u32))
             });
         }
@@ -1515,7 +1515,7 @@ where
         if self.instances.len() > 0 {
             choices.push(|u, m| {
                 let idx = u.int_in_range(0..=m.instances.len() - 1)?;
-                m.type_size += m.instances[idx].type_size;
+                m.type_size += 1 + m.instances[idx].type_size;
                 Ok(Export::Instance(idx as u32))
             });
         }
@@ -1523,7 +1523,7 @@ where
         if self.modules.len() > 0 {
             choices.push(|u, m| {
                 let idx = u.int_in_range(0..=m.modules.len() - 1)?;
-                m.type_size += m.modules[idx].type_size;
+                m.type_size += 1 + m.modules[idx].type_size;
                 Ok(Export::Module(idx as u32))
             });
         }
