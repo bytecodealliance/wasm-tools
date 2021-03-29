@@ -718,3 +718,8 @@
   (module
     (elem (f32.load (memory 2 ""))))
   "unknown instance")
+
+(assert_invalid
+  (module
+    (data (i32.load (memory 2 ""))))
+  "unknown instance")
