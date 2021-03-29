@@ -833,7 +833,7 @@ where
             arbitrary_loop(u, 0, self.config.max_imports(), |u| {
                 let (module, name) = unique_import_strings(1_000, &mut names, true, u)?;
                 let ty = self.arbitrary_entity_type(u, entities)?;
-                match type_size.checked_add(ty.size()) {
+                match type_size.checked_add(ty.size() + 1) {
                     Some(s) if s < self.config.max_type_size() => type_size = s,
                     _ => return Ok(false),
                 }
@@ -873,7 +873,7 @@ where
             arbitrary_loop(u, 0, self.config.max_exports(), |u| {
                 let name = unique_string(1_000, &mut export_names, u)?;
                 let ty = self.arbitrary_entity_type(u, entities)?;
-                match type_size.checked_add(ty.size()) {
+                match type_size.checked_add(ty.size() + 1) {
                     Some(s) if s < self.config.max_type_size() => type_size = s,
                     _ => return Ok(false),
                 }
@@ -1055,7 +1055,7 @@ where
             }
 
             self.num_imports += 1;
-            self.type_size += ty.size();
+            self.type_size += ty.size() + 1;
             imports.push((module, name, ty));
             Ok(self.type_size < self.config.max_type_size())
         })?;
@@ -1476,61 +1476,38 @@ where
             return Ok(());
         }
 
-        let mut choices: Vec<fn(&mut Unstructured, &mut ConfiguredModule<C>) -> Result<_>> =
-            Vec::with_capacity(4);
-
-        if self.funcs.len() > 0 {
-            choices.push(|u, m| {
-                let idx = u.int_in_range(0..=m.funcs.len() - 1)?;
-                let sig = &m.funcs[idx].1;
-                m.type_size += 1 + (sig.params.len() + sig.results.len()) as u32;
-                Ok(Export::Func(idx as u32))
-            });
-        }
-
-        if self.tables.len() > 0 {
-            choices.push(|u, m| {
-                let idx = u.int_in_range(0..=m.tables.len() - 1)?;
-                m.type_size += 1;
-                Ok(Export::Table(idx as u32))
-            });
-        }
-
-        if self.memories.len() > 0 {
-            choices.push(|u, m| {
-                let idx = u.int_in_range(0..=m.memories.len() - 1)?;
-                m.type_size += 1;
-                Ok(Export::Memory(idx as u32))
-            });
-        }
-
-        if self.globals.len() > 0 {
-            choices.push(|u, m| {
-                let idx = u.int_in_range(0..=m.globals.len() - 1)?;
-                m.type_size += 1;
-                Ok(Export::Global(idx as u32))
-            });
-        }
-
-        if self.instances.len() > 0 {
-            choices.push(|u, m| {
-                let idx = u.int_in_range(0..=m.instances.len() - 1)?;
-                m.type_size += 1 + m.instances[idx].type_size;
-                Ok(Export::Instance(idx as u32))
-            });
-        }
-
-        if self.modules.len() > 0 {
-            choices.push(|u, m| {
-                let idx = u.int_in_range(0..=m.modules.len() - 1)?;
-                m.type_size += 1 + m.modules[idx].type_size;
-                Ok(Export::Module(idx as u32))
-            });
-        }
-
-        if choices.is_empty() {
-            return Ok(());
-        }
+        // Build up a list of candidates for each class of import
+        let mut choices: Vec<Vec<Export>> = Vec::with_capacity(6);
+        choices.push(
+            (0..self.funcs.len())
+                .map(|i| Export::Func(i as u32))
+                .collect(),
+        );
+        choices.push(
+            (0..self.tables.len())
+                .map(|i| Export::Table(i as u32))
+                .collect(),
+        );
+        choices.push(
+            (0..self.memories.len())
+                .map(|i| Export::Memory(i as u32))
+                .collect(),
+        );
+        choices.push(
+            (0..self.globals.len())
+                .map(|i| Export::Global(i as u32))
+                .collect(),
+        );
+        choices.push(
+            (0..self.instances.len())
+                .map(|i| Export::Instance(i as u32))
+                .collect(),
+        );
+        choices.push(
+            (0..self.modules.len())
+                .map(|i| Export::Module(i as u32))
+                .collect(),
+        );
 
         let mut export_names = HashSet::new();
         arbitrary_loop(
@@ -1538,11 +1515,29 @@ where
             self.config.min_exports(),
             self.config.max_exports(),
             |u| {
+                // Remove all candidates for export whose type size exceeds our
+                // remaining budget for type size. Then also remove any classes
+                // of exports which no longer have any candidates.
+                //
+                // If there's nothing remaining after this, then we're done.
+                let max_size = self.config.max_type_size() - self.type_size;
+                for list in choices.iter_mut() {
+                    list.retain(|c| self.type_of(c).size() + 1 < max_size);
+                }
+                choices.retain(|list| list.len() > 0);
+                if choices.len() == 0 {
+                    return Ok(false);
+                }
+
+                // Pick a name, then pick the export, and then we can record
+                // information about the chosen export.
                 let name = unique_string(1_000, &mut export_names, u)?;
-                let f = u.choose(&choices)?;
-                let export = f(u, self)?;
-                self.exports.push((name, export));
-                Ok(self.type_size < self.config.max_type_size())
+                let list = u.choose(&choices)?;
+                let export = u.choose(list)?;
+                let ty = self.type_of(export);
+                self.type_size += 1 + ty.size();
+                self.exports.push((name, *export));
+                Ok(true)
             },
         )
     }
@@ -2034,13 +2029,12 @@ fn arbitrary_vec_u8(u: &mut Unstructured) -> Result<Vec<u8>> {
 
 impl EntityType {
     fn size(&self) -> u32 {
-        let base = match self {
+        match self {
             EntityType::Global(_) | EntityType::Table(_) | EntityType::Memory(_) => 1,
-            EntityType::Func(_, ty) => (ty.params.len() + ty.results.len()) as u32,
+            EntityType::Func(_, ty) => 1 + (ty.params.len() + ty.results.len()) as u32,
             EntityType::Instance(_, ty) => ty.type_size,
             EntityType::Module(_, ty) => ty.type_size,
-        };
-        base + 1
+        }
     }
 }
 
