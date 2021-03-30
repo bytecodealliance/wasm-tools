@@ -189,6 +189,14 @@
     i32.const 0 v128.load64_splat (memory $b) drop
     i32.const 0 v128.load32_zero (memory $b) drop
     i32.const 0 v128.load64_zero (memory $b) drop
+    i32.const 0 v128.const i64x2 0 0 v128.load8_lane (memory $b) 0 drop
+    i32.const 0 v128.const i64x2 0 0 v128.load16_lane (memory $b) 0 drop
+    i32.const 0 v128.const i64x2 0 0 v128.load32_lane (memory $b) 0 drop
+    i32.const 0 v128.const i64x2 0 0 v128.load64_lane (memory $b) 0 drop
+    i32.const 0 v128.const i64x2 0 0 v128.store8_lane (memory $b) 0
+    i32.const 0 v128.const i64x2 0 0 v128.store16_lane (memory $b) 0
+    i32.const 0 v128.const i64x2 0 0 v128.store32_lane (memory $b) 0
+    i32.const 0 v128.const i64x2 0 0 v128.store64_lane (memory $b) 0
     i32.const 0 i32.const 0 i8x16.splat v128.store (memory $b)
   )
 )
