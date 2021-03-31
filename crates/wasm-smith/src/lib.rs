@@ -963,6 +963,10 @@ where
     }
 
     fn arbitrary_imports(&mut self, min: usize, u: &mut Unstructured) -> Result<()> {
+        if self.config.max_type_size() < self.type_size {
+            return Ok(());
+        }
+
         let mut choices: Vec<
             fn(&mut Unstructured, &mut ConfiguredModule<C>) -> Result<EntityType>,
         > = Vec::with_capacity(4);
@@ -974,7 +978,6 @@ where
                 choices.push(|u, m| {
                     let idx = *u.choose(&m.func_types)?;
                     let ty = m.func_type(idx).clone();
-                    m.funcs.push((Some(idx), ty.clone()));
                     Ok(EntityType::Func(idx, ty))
                 });
             }
@@ -982,7 +985,6 @@ where
                 choices.push(|u, m| {
                     let idx = *u.choose(&m.module_types)?;
                     let ty = m.module_type(idx).clone();
-                    m.modules.push(ty.clone());
                     Ok(EntityType::Module(idx, ty.clone()))
                 });
             }
@@ -990,28 +992,24 @@ where
                 choices.push(|u, m| {
                     let idx = *u.choose(&m.instance_types)?;
                     let ty = m.instance_type(idx).clone();
-                    m.instances.push(ty.clone());
                     Ok(EntityType::Instance(idx, ty))
                 });
             }
             if self.can_add_local_or_import_global() {
                 choices.push(|u, m| {
                     let ty = m.arbitrary_global_type(u)?;
-                    m.globals.push(ty.clone());
                     Ok(EntityType::Global(ty))
                 });
             }
             if self.can_add_local_or_import_memory() {
                 choices.push(|u, m| {
                     let ty = m.arbitrary_memtype(u)?;
-                    m.memories.push(ty.clone());
                     Ok(EntityType::Memory(ty))
                 });
             }
             if self.can_add_local_or_import_table() {
                 choices.push(|u, m| {
                     let ty = m.arbitrary_table_type(u)?;
-                    m.tables.push(ty.clone());
                     Ok(EntityType::Table(ty))
                 });
             }
@@ -1022,6 +1020,24 @@ where
                 // the min-import constraint.
                 return Ok(false);
             }
+
+            // Generate a type to import, but only actually add the item if the
+            // type size budget allows us to.
+            let f = u.choose(&choices)?;
+            let ty = f(u, self)?;
+            let budget = self.config.max_type_size() - self.type_size;
+            if ty.size() + 1 > budget {
+                return Ok(false);
+            }
+            match &ty {
+                EntityType::Func(idx, ty) => self.funcs.push((Some(*idx), ty.clone())),
+                EntityType::Global(ty) => self.globals.push(ty.clone()),
+                EntityType::Table(ty) => self.tables.push(ty.clone()),
+                EntityType::Memory(ty) => self.memories.push(ty.clone()),
+                EntityType::Module(_idx, ty) => self.modules.push(ty.clone()),
+                EntityType::Instance(_idx, ty) => self.instances.push(ty.clone()),
+            }
+            self.type_size += ty.size() + 1;
 
             // Generate an arbitrary module/name pair to name this import. Note
             // that if module-linking is enabled and `name` is present, then we
@@ -1040,8 +1056,6 @@ where
                     .insert(module.clone(), self.instances.len());
                 self.instances.push(Rc::new(InstanceType::default()));
             }
-            let f = u.choose(&choices)?;
-            let ty = f(u, self)?;
 
             if let Some(name) = &name {
                 if module_linking {
@@ -1055,9 +1069,8 @@ where
             }
 
             self.num_imports += 1;
-            self.type_size += ty.size() + 1;
             imports.push((module, name, ty));
-            Ok(self.type_size < self.config.max_type_size())
+            Ok(true)
         })?;
         if !imports.is_empty() || u.arbitrary()? {
             self.initial_sections.push(InitialSection::Import(imports));
