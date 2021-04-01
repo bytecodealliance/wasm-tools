@@ -1029,14 +1029,6 @@ where
             if ty.size() + 1 > budget {
                 return Ok(false);
             }
-            match &ty {
-                EntityType::Func(idx, ty) => self.funcs.push((Some(*idx), ty.clone())),
-                EntityType::Global(ty) => self.globals.push(ty.clone()),
-                EntityType::Table(ty) => self.tables.push(ty.clone()),
-                EntityType::Memory(ty) => self.memories.push(ty.clone()),
-                EntityType::Module(_idx, ty) => self.modules.push(ty.clone()),
-                EntityType::Instance(_idx, ty) => self.instances.push(ty.clone()),
-            }
             self.type_size += ty.size() + 1;
 
             // Generate an arbitrary module/name pair to name this import. Note
@@ -1055,6 +1047,18 @@ where
                 self.implicit_instance_types
                     .insert(module.clone(), self.instances.len());
                 self.instances.push(Rc::new(InstanceType::default()));
+            }
+
+            // Once our name is determined, and if module linking is enabled
+            // we've inserted the implicit instance, then we push the typed item
+            // into the appropriate namespace.
+            match &ty {
+                EntityType::Func(idx, ty) => self.funcs.push((Some(*idx), ty.clone())),
+                EntityType::Global(ty) => self.globals.push(ty.clone()),
+                EntityType::Table(ty) => self.tables.push(ty.clone()),
+                EntityType::Memory(ty) => self.memories.push(ty.clone()),
+                EntityType::Module(_idx, ty) => self.modules.push(ty.clone()),
+                EntityType::Instance(_idx, ty) => self.instances.push(ty.clone()),
             }
 
             if let Some(name) = &name {
