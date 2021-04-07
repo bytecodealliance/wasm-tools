@@ -61,6 +61,9 @@ jobs:
       shell: bash
 
     - run: cargo test --all
+    - run: cargo test --all
+      env:
+        RUSTFLAGS: --cfg=wast_check_exhaustive
     - run: cargo test --manifest-path crates/wasmparser/Cargo.toml --features deterministic
     - run: cargo build --manifest-path crates/wast/Cargo.toml --no-default-features
     - run: cargo build --manifest-path crates/wast/Cargo.toml --no-default-features --features wasm-module
