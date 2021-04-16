@@ -266,5 +266,7 @@ fn item_ref<'a, K>(kind: K, id: impl Into<Index<'a>>) -> ItemRef<'a, K> {
         kind,
         idx: id.into(),
         exports: Vec::new(),
+        #[cfg(wast_check_exhaustive)]
+        visited: false,
     }
 }
