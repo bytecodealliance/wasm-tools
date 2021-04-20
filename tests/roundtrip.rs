@@ -138,11 +138,6 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         "parse/expr/try-delegate.txt",
         // Skipped until (WebAssembly/wabt#1605) is merged.
         "typecheck/delegate.txt",
-        // waiting on wabt to sync with simd spec
-        "roundtrip/fold-simd.txt",
-        "dump/simd-unary.txt",
-        "dump/simd-binary.txt",
-        "interp/simd-unary.txt",
         // Usage of `assert_invalid` which should be `assert_malformed`
         "testsuite/proposals/memory64/memory.wast",
         "testsuite/proposals/memory64/address.wast",
@@ -262,19 +257,20 @@ impl TestState {
             // not implemented in wabt
             && !test.iter().any(|t| t == "module-linking")
             && !test.ends_with("multi-memory.wast")
+            && !test.ends_with("multi-memory64.wast")
 
-            // wabt uses old instruction names for atomics
-            && !test.ends_with("atomic-no-shared-memory.txt")
-            && !test.ends_with("fold-atomic.txt")
-            && !test.ends_with("atomic.txt")
-            && !test.ends_with("atomic64.txt")
-            && !test.ends_with("atomic-align.txt")
-            && !test.ends_with("atomic.wast")
-            && !test.ends_with("local/memory64.wast")
-
-            // FIXME uses simd instrs not implemented in wabt yet.
+            // FIXME(WebAssembly/wabt#1649)
             && !test.ends_with("local/simd.wat")
-            && !test.iter().any(|t| t == "simd")
+            && !test.ends_with("dump/simd-store-lane.txt")
+            && !test.ends_with("dump/simd-load-lane.txt")
+            && !test.ends_with("simd_load8_lane.wast")
+            && !test.ends_with("simd_load16_lane.wast")
+            && !test.ends_with("simd_load32_lane.wast")
+            && !test.ends_with("simd_load64_lane.wast")
+            && !test.ends_with("simd_store8_lane.wast")
+            && !test.ends_with("simd_store16_lane.wast")
+            && !test.ends_with("simd_store32_lane.wast")
+            && !test.ends_with("simd_store64_lane.wast")
 
             // FIXME wabt doesn't print conflict or empty names in the same way
             // that we do.
