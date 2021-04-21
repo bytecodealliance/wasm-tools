@@ -212,9 +212,7 @@ impl Printer {
                     *wasm = &wasm[size as usize..];
                     parser.skip_section();
                 }
-                Payload::CodeSectionEntry(_) => {
-                    unreachable!()
-                }
+                Payload::CodeSectionEntry(_) => unreachable!(),
 
                 Payload::DataSection(s) => self.print_data(s)?,
                 Payload::AliasSection(s) => self.print_aliases(s)?,
@@ -285,6 +283,7 @@ impl Printer {
                             .insert(local_name.func_index, local_map);
                     }
                 }
+                Name::Unknown { .. } => (),
             }
         }
         Ok(())

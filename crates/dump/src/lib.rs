@@ -359,6 +359,11 @@ impl<'a> Dump<'a> {
                     }
                 }
             }
+            Name::Unknown { ty, range, .. } => {
+                write!(self.state, "unknown names: {}", ty)?;
+                self.print(range.start)?;
+                self.print(end)?;
+            }
         }
         Ok(())
     }
