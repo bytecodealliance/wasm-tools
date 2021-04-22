@@ -19,12 +19,12 @@ use super::{
 };
 
 #[derive(Debug, Copy, Clone)]
-pub struct ModuleName<'a> {
+pub struct SingleName<'a> {
     data: &'a [u8],
     offset: usize,
 }
 
-impl<'a> ModuleName<'a> {
+impl<'a> SingleName<'a> {
     pub fn get_name<'b>(&self) -> Result<&'b str>
     where
         'a: 'b,
@@ -78,12 +78,12 @@ impl<'a> NamingReader<'a> {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct FunctionName<'a> {
+pub struct NameMap<'a> {
     data: &'a [u8],
     offset: usize,
 }
 
-impl<'a> FunctionName<'a> {
+impl<'a> NameMap<'a> {
     pub fn get_map<'b>(&self) -> Result<NamingReader<'b>>
     where
         'a: 'b,
@@ -97,13 +97,13 @@ impl<'a> FunctionName<'a> {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct FunctionLocalName<'a> {
-    pub func_index: u32,
+pub struct IndirectNaming<'a> {
+    pub indirect_index: u32,
     data: &'a [u8],
     offset: usize,
 }
 
-impl<'a> FunctionLocalName<'a> {
+impl<'a> IndirectNaming<'a> {
     pub fn get_map<'b>(&self) -> Result<NamingReader<'b>>
     where
         'a: 'b,
@@ -116,19 +116,19 @@ impl<'a> FunctionLocalName<'a> {
     }
 }
 
-pub struct FunctionLocalReader<'a> {
+pub struct IndirectNamingReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,
 }
 
-impl<'a> FunctionLocalReader<'a> {
-    fn new(data: &'a [u8], offset: usize) -> Result<FunctionLocalReader<'a>> {
+impl<'a> IndirectNamingReader<'a> {
+    fn new(data: &'a [u8], offset: usize) -> Result<IndirectNamingReader<'a>> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
-        Ok(FunctionLocalReader { reader, count })
+        Ok(IndirectNamingReader { reader, count })
     }
 
-    pub fn get_count(&self) -> u32 {
+    pub fn get_indirect_count(&self) -> u32 {
         self.count
     }
 
@@ -136,16 +136,16 @@ impl<'a> FunctionLocalReader<'a> {
         self.reader.original_position()
     }
 
-    pub fn read<'b>(&mut self) -> Result<FunctionLocalName<'b>>
+    pub fn read<'b>(&mut self) -> Result<IndirectNaming<'b>>
     where
         'a: 'b,
     {
-        let func_index = self.reader.read_var_u32()?;
+        let index = self.reader.read_var_u32()?;
         let start = self.reader.position;
         NamingReader::skip(&mut self.reader)?;
         let end = self.reader.position;
-        Ok(FunctionLocalName {
-            func_index,
+        Ok(IndirectNaming {
+            indirect_index: index,
             data: &self.reader.buffer[start..end],
             offset: self.reader.original_offset + start,
         })
@@ -153,17 +153,17 @@ impl<'a> FunctionLocalReader<'a> {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct LocalName<'a> {
+pub struct IndirectNameMap<'a> {
     data: &'a [u8],
     offset: usize,
 }
 
-impl<'a> LocalName<'a> {
-    pub fn get_function_local_reader<'b>(&self) -> Result<FunctionLocalReader<'b>>
+impl<'a> IndirectNameMap<'a> {
+    pub fn get_indirect_map<'b>(&self) -> Result<IndirectNamingReader<'b>>
     where
         'a: 'b,
     {
-        FunctionLocalReader::new(self.data, self.offset)
+        IndirectNamingReader::new(self.data, self.offset)
     }
 
     pub fn original_position(&self) -> usize {
@@ -173,9 +173,14 @@ impl<'a> LocalName<'a> {
 
 #[derive(Debug, Copy, Clone)]
 pub enum Name<'a> {
-    Module(ModuleName<'a>),
-    Function(FunctionName<'a>),
-    Local(LocalName<'a>),
+    Module(SingleName<'a>),
+    Function(NameMap<'a>),
+    Local(IndirectNameMap<'a>),
+    Label(IndirectNameMap<'a>),
+    Type(NameMap<'a>),
+    Table(NameMap<'a>),
+    Memory(NameMap<'a>),
+    Global(NameMap<'a>),
 }
 
 pub struct NameSectionReader<'a> {
@@ -220,9 +225,14 @@ impl<'a> NameSectionReader<'a> {
         let data = &self.reader.buffer[payload_start..payload_end];
         self.reader.skip_to(payload_end);
         Ok(match ty {
-            NameType::Module => Name::Module(ModuleName { data, offset }),
-            NameType::Function => Name::Function(FunctionName { data, offset }),
-            NameType::Local => Name::Local(LocalName { data, offset }),
+            NameType::Module => Name::Module(SingleName { data, offset }),
+            NameType::Function => Name::Function(NameMap { data, offset }),
+            NameType::Local => Name::Local(IndirectNameMap { data, offset }),
+            NameType::Label => Name::Label(IndirectNameMap { data, offset }),
+            NameType::Type => Name::Type(NameMap { data, offset }),
+            NameType::Table => Name::Table(NameMap { data, offset }),
+            NameType::Memory => Name::Memory(NameMap { data, offset }),
+            NameType::Global => Name::Global(NameMap { data, offset }),
         })
     }
 }

@@ -272,6 +272,11 @@ pub enum NameType {
     Module,
     Function,
     Local,
+    Label,
+    Type,
+    Table,
+    Memory,
+    Global,
 }
 
 #[derive(Debug, Copy, Clone)]

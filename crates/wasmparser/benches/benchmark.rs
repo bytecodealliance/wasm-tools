@@ -218,6 +218,7 @@ fn validate_benchmark(c: &mut Criterion) {
             multi_memory: true,
             memory64: true,
             deterministic_only: false,
+            extended_name_section: false,
         });
         return ret;
     }

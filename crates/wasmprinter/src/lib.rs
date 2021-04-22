@@ -56,8 +56,13 @@ struct ModuleState {
     global: u32,
     table: u32,
     types: Vec<Option<FuncType>>,
-    names: HashMap<u32, Naming>,
-    local_names: HashMap<u32, HashMap<u32, Naming>>,
+    function_names: HashMap<u32, Naming>,
+    local_names: HashMap<(u32, u32), Naming>,
+    label_names: HashMap<(u32, u32), Naming>,
+    type_names: HashMap<u32, Naming>,
+    table_names: HashMap<u32, Naming>,
+    memory_names: HashMap<u32, Naming>,
+    global_names: HashMap<u32, Naming>,
     module_name: Option<Naming>,
     implicit_instances_seen: HashSet<String>,
 }
@@ -212,9 +217,7 @@ impl Printer {
                     *wasm = &wasm[size as usize..];
                     parser.skip_section();
                 }
-                Payload::CodeSectionEntry(_) => {
-                    unreachable!()
-                }
+                Payload::CodeSectionEntry(_) => unreachable!(),
 
                 Payload::DataSection(s) => self.print_data(s)?,
                 Payload::AliasSection(s) => self.print_aliases(s)?,
@@ -253,38 +256,49 @@ impl Printer {
     }
 
     fn register_names(&mut self, names: NameSectionReader<'_>) -> Result<()> {
+        fn name_map(into: &mut HashMap<u32, Naming>, names: NameMap<'_>) -> Result<()> {
+            let mut used = HashSet::new();
+            let mut map = names.get_map()?;
+            for _ in 0..map.get_count() {
+                let naming = map.read()?;
+                into.insert(naming.index, Naming::new(naming.name, &mut used));
+            }
+            Ok(())
+        }
+
+        fn indirect_name_map(
+            into: &mut HashMap<(u32, u32), Naming>,
+            names: IndirectNameMap<'_>,
+        ) -> Result<()> {
+            let mut outer_map = names.get_indirect_map()?;
+            for _ in 0..outer_map.get_indirect_count() {
+                let mut used = HashSet::new();
+                let outer = outer_map.read()?;
+                let mut inner_map = outer.get_map()?;
+                for _ in 0..inner_map.get_count() {
+                    let inner = inner_map.read()?;
+                    into.insert(
+                        (outer.indirect_index, inner.index),
+                        Naming::new(inner.name, &mut used),
+                    );
+                }
+            }
+            Ok(())
+        }
+
         for section in names {
             match section? {
                 Name::Module(n) => {
                     let name = Naming::new(n.get_name()?, &mut HashSet::new());
                     self.state.module_name = Some(name);
                 }
-                Name::Function(n) => {
-                    let mut names = HashSet::new();
-                    let mut map = n.get_map()?;
-                    for _ in 0..map.get_count() {
-                        let name = map.read()?;
-                        self.state
-                            .names
-                            .insert(name.index, Naming::new(name.name, &mut names));
-                    }
-                }
-                Name::Local(n) => {
-                    let mut reader = n.get_function_local_reader()?;
-                    for _ in 0..reader.get_count() {
-                        let mut names = HashSet::new();
-                        let local_name = reader.read()?;
-                        let mut map = local_name.get_map()?;
-                        let mut local_map = HashMap::new();
-                        for _ in 0..map.get_count() {
-                            let name = map.read()?;
-                            local_map.insert(name.index, Naming::new(name.name, &mut names));
-                        }
-                        self.state
-                            .local_names
-                            .insert(local_name.func_index, local_map);
-                    }
-                }
+                Name::Function(n) => name_map(&mut self.state.function_names, n)?,
+                Name::Local(n) => indirect_name_map(&mut self.state.local_names, n)?,
+                Name::Label(n) => indirect_name_map(&mut self.state.label_names, n)?,
+                Name::Type(n) => name_map(&mut self.state.type_names, n)?,
+                Name::Table(n) => name_map(&mut self.state.table_names, n)?,
+                Name::Memory(n) => name_map(&mut self.state.memory_names, n)?,
+                Name::Global(n) => name_map(&mut self.state.global_names, n)?,
             }
         }
         Ok(())
@@ -373,9 +387,7 @@ impl Printer {
         // a new one if that's the case with a named parameter.
         for (i, param) in ty.params.iter().enumerate() {
             let local_names = &self.state.local_names;
-            let name = names_for
-                .and_then(|n| local_names.get(&n))
-                .and_then(|n| n.get(&(i as u32)));
+            let name = names_for.and_then(|n| local_names.get(&(n, i as u32)));
             params.start_local(name, &mut self.result);
             self.print_valtype(*param)?;
             params.end_local(&mut self.result);
@@ -468,7 +480,7 @@ impl Printer {
                 self.start_group("func");
                 if index {
                     self.result.push_str(" ");
-                    match self.state.names.get(&self.state.func) {
+                    match self.state.function_names.get(&self.state.func) {
                         Some(name) => name.write(&mut self.result),
                         None => write!(self.result, "(;{};)", self.state.func)?,
                     }
@@ -621,7 +633,7 @@ impl Printer {
             let ty = funcs.read()?;
             self.newline();
             self.start_group("func ");
-            match self.state.names.get(&self.state.func) {
+            match self.state.function_names.get(&self.state.func) {
                 Some(name) => name.write(&mut self.result),
                 None => write!(self.result, "(;{};)", self.state.func)?,
             }
@@ -649,8 +661,7 @@ impl Printer {
                     let name = self
                         .state
                         .local_names
-                        .get(&self.state.func)
-                        .and_then(|m| m.get(&(params + local_idx)));
+                        .get(&(self.state.func, params + local_idx));
                     locals.start_local(name, &mut self.result);
                     self.print_valtype(ty)?;
                     locals.end_local(&mut self.result);
@@ -1571,7 +1582,7 @@ impl Printer {
     ///
     /// This will either print `$foo` or `idx` as a raw integer.
     pub fn print_func_idx(&mut self, idx: u32) -> Result<()> {
-        match self.state.names.get(&idx) {
+        match self.state.function_names.get(&idx) {
             Some(name) => write!(self.result, "${}", name.identifier())?,
             None => write!(self.result, "{}", idx)?,
         }
@@ -1579,7 +1590,7 @@ impl Printer {
     }
 
     fn print_local_idx(&mut self, func: u32, idx: u32) -> Result<()> {
-        match self.state.local_names.get(&func).and_then(|f| f.get(&idx)) {
+        match self.state.local_names.get(&(func, idx)) {
             Some(name) => write!(self.result, "${}", name.identifier())?,
             None => write!(self.result, "{}", idx)?,
         }
@@ -1713,7 +1724,7 @@ impl Printer {
                     self.result.push_str(" ");
                     match kind {
                         ExternalKind::Function => {
-                            match self.state.names.get(&self.state.func) {
+                            match self.state.function_names.get(&self.state.func) {
                                 Some(name) => write!(self.result, "${}", name.identifier())?,
                                 None => write!(self.result, "(;{};)", self.state.func)?,
                             }

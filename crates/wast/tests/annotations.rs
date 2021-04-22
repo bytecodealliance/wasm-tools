@@ -78,7 +78,7 @@ fn assert_local_name(name: &str, wat: &str) -> anyhow::Result<()> {
     for s in get_name_section(&wasm)? {
         match s? {
             Name::Local(n) => {
-                let mut reader = n.get_function_local_reader()?;
+                let mut reader = n.get_indirect_map()?;
                 let section = reader.read()?;
                 let mut map = section.get_map()?;
                 let naming = map.read()?;

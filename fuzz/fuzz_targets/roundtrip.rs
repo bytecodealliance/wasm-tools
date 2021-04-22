@@ -81,7 +81,7 @@ fn validate_name_section(wasm: &[u8]) -> wasmparser::Result<()> {
                     }
                 }
                 Name::Local(n) => {
-                    let mut reader = n.get_function_local_reader()?;
+                    let mut reader = n.get_indirect_map()?;
                     for _ in 0..reader.get_count() {
                         let local_name = reader.read()?;
                         let mut map = local_name.get_map()?;
@@ -90,6 +90,7 @@ fn validate_name_section(wasm: &[u8]) -> wasmparser::Result<()> {
                         }
                     }
                 }
+                _ => todo!(),
             }
         }
     }

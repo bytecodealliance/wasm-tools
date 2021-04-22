@@ -666,6 +666,7 @@ impl TestState {
             multi_value: true,
             multi_memory: true,
             memory64: true,
+            extended_name_section: true,
         };
         for part in test.iter().filter_map(|t| t.to_str()) {
             match part {
