@@ -277,6 +277,8 @@ pub enum NameType {
     Table,
     Memory,
     Global,
+    Element,
+    Data,
 }
 
 #[derive(Debug, Copy, Clone)]

@@ -181,6 +181,8 @@ pub enum Name<'a> {
     Table(NameMap<'a>),
     Memory(NameMap<'a>),
     Global(NameMap<'a>),
+    Element(NameMap<'a>),
+    Data(NameMap<'a>),
 }
 
 pub struct NameSectionReader<'a> {
@@ -233,6 +235,8 @@ impl<'a> NameSectionReader<'a> {
             NameType::Table => Name::Table(NameMap { data, offset }),
             NameType::Memory => Name::Memory(NameMap { data, offset }),
             NameType::Global => Name::Global(NameMap { data, offset }),
+            NameType::Element => Name::Element(NameMap { data, offset }),
+            NameType::Data => Name::Data(NameMap { data, offset }),
         })
     }
 }

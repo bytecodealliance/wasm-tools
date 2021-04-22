@@ -63,6 +63,8 @@ struct ModuleState {
     table_names: HashMap<u32, Naming>,
     memory_names: HashMap<u32, Naming>,
     global_names: HashMap<u32, Naming>,
+    element_names: HashMap<u32, Naming>,
+    data_names: HashMap<u32, Naming>,
     module_name: Option<Naming>,
     implicit_instances_seen: HashSet<String>,
 }
@@ -299,6 +301,8 @@ impl Printer {
                 Name::Table(n) => name_map(&mut self.state.table_names, n)?,
                 Name::Memory(n) => name_map(&mut self.state.memory_names, n)?,
                 Name::Global(n) => name_map(&mut self.state.global_names, n)?,
+                Name::Element(n) => name_map(&mut self.state.element_names, n)?,
+                Name::Data(n) => name_map(&mut self.state.data_names, n)?,
             }
         }
         Ok(())

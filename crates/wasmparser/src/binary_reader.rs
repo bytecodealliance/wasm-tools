@@ -1869,6 +1869,8 @@ impl<'a> BinaryReader<'a> {
             5 => Ok(NameType::Table),
             6 => Ok(NameType::Memory),
             7 => Ok(NameType::Global),
+            8 => Ok(NameType::Element),
+            9 => Ok(NameType::Data),
             _ => Err(BinaryReaderError::new(
                 "Invalid name type",
                 self.original_position() - 1,

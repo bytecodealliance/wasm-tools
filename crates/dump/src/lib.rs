@@ -379,6 +379,8 @@ impl<'a> Dump<'a> {
             Name::Table(n) => self.print_name_map("table", n)?,
             Name::Memory(n) => self.print_name_map("memory", n)?,
             Name::Global(n) => self.print_name_map("global", n)?,
+            Name::Element(n) => self.print_name_map("element", n)?,
+            Name::Data(n) => self.print_name_map("data", n)?,
         }
         Ok(())
     }
