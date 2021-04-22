@@ -272,6 +272,7 @@ pub enum NameType {
     Module,
     Function,
     Local,
+    Unknown(u32),
 }
 
 #[derive(Debug, Copy, Clone)]

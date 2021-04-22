@@ -90,6 +90,7 @@ fn validate_name_section(wasm: &[u8]) -> wasmparser::Result<()> {
                         }
                     }
                 }
+                Name::Unknown { .. } => (),
             }
         }
     }
