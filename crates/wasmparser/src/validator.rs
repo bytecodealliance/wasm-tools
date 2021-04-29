@@ -1587,6 +1587,50 @@ impl Validator {
     }
 }
 
+impl WasmModuleResources for Validator {
+    type FuncType = crate::FuncType;
+
+    fn table_at(&self, at: u32) -> Option<TableType> {
+        self.cur.state.table_at(at)
+    }
+
+    fn memory_at(&self, at: u32) -> Option<MemoryType> {
+        self.cur.state.memory_at(at)
+    }
+
+    fn event_at(&self, at: u32) -> Option<&Self::FuncType> {
+        self.cur.state.event_at(at)
+    }
+
+    fn global_at(&self, at: u32) -> Option<GlobalType> {
+        self.cur.state.global_at(at)
+    }
+
+    fn func_type_at(&self, type_idx: u32) -> Option<&Self::FuncType> {
+        self.cur.state.func_type_at(type_idx)
+    }
+
+    fn type_of_function(&self, func_idx: u32) -> Option<&Self::FuncType> {
+        self.cur.state.type_of_function(func_idx)
+    }
+
+    fn element_type_at(&self, at: u32) -> Option<Type> {
+        self.cur.state.element_type_at(at)
+    }
+
+    fn element_count(&self) -> u32 {
+        self.cur.state.element_count()
+    }
+
+    fn data_count(&self) -> u32 {
+        self.cur.state.data_count()
+    }
+
+    fn is_function_referenced(&self, idx: u32) -> bool {
+        self.cur.state.is_function_referenced(idx)
+    }
+}
+
 fn combine_type_sizes(offset: usize, a: u32, b: u32) -> Result<u32> {
     match a.checked_add(b) {
         Some(sum) if sum < MAX_TYPE_SIZE => Ok(sum),
@@ -1627,23 +1671,20 @@ impl WasmFeatures {
     }
 }
 
-/// The implementation of [`WasmModuleResources`] used by [`Validator`].
-pub struct ValidatorResources(Arc<ModuleState>);
-
-impl WasmModuleResources for ValidatorResources {
+impl WasmModuleResources for ModuleState {
     type FuncType = crate::FuncType;
 
     fn table_at(&self, at: u32) -> Option<TableType> {
-        self.0.tables.get(at as usize).cloned()
+        self.tables.get(at as usize).cloned()
     }
 
     fn memory_at(&self, at: u32) -> Option<MemoryType> {
-        self.0.memories.get(at as usize).cloned()
+        self.memories.get(at as usize).cloned()
     }
 
     fn event_at(&self, at: u32) -> Option<&Self::FuncType> {
-        let types = self.0.all_types.as_ref().unwrap();
-        let i = *self.0.events.get(at as usize)?;
+        let types = self.all_types.as_ref().unwrap();
+        let i = *self.events.get(at as usize)?;
         match &types[i] {
             TypeDef::Func(f) => Some(f),
             _ => None,
@@ -1651,12 +1692,12 @@ impl WasmModuleResources for ValidatorResources {
     }
 
     fn global_at(&self, at: u32) -> Option<GlobalType> {
-        self.0.globals.get(at as usize).cloned()
+        self.globals.get(at as usize).cloned()
     }
 
     fn func_type_at(&self, at: u32) -> Option<&Self::FuncType> {
-        let types = self.0.all_types.as_ref().unwrap();
-        let i = *self.0.types.get(at as usize)?;
+        let types = self.all_types.as_ref().unwrap();
+        let i = *self.types.get(at as usize)?;
         match &types[i] {
             TypeDef::Func(f) => Some(f),
             _ => None,
@@ -1664,8 +1705,8 @@ impl WasmModuleResources for ValidatorResources {
     }
 
     fn type_of_function(&self, at: u32) -> Option<&Self::FuncType> {
-        let types = self.0.all_types.as_ref().unwrap();
-        let i = *self.0.func_types.get(at as usize)?;
+        let types = self.all_types.as_ref().unwrap();
+        let i = *self.func_types.get(at as usize)?;
         match &types[i] {
             TypeDef::Func(f) => Some(f),
             _ => None,
@@ -1673,19 +1714,66 @@ impl WasmModuleResources for ValidatorResources {
     }
 
     fn element_type_at(&self, at: u32) -> Option<Type> {
-        self.0.element_types.get(at as usize).cloned()
+        self.element_types.get(at as usize).cloned()
     }
 
     fn element_count(&self) -> u32 {
-        self.0.element_types.len() as u32
+        self.element_types.len() as u32
     }
 
     fn data_count(&self) -> u32 {
-        self.0.data_count.unwrap_or(0)
+        self.data_count.unwrap_or(0)
     }
 
     fn is_function_referenced(&self, idx: u32) -> bool {
-        self.0.function_references.contains(&idx)
+        self.function_references.contains(&idx)
+    }
+}
+
+/// The implementation of [`WasmModuleResources`] used by [`Validator`].
+pub struct ValidatorResources(Arc<ModuleState>);
+
+impl WasmModuleResources for ValidatorResources {
+    type FuncType = crate::FuncType;
+
+    fn table_at(&self, at: u32) -> Option<TableType> {
+        self.0.table_at(at)
+    }
+
+    fn memory_at(&self, at: u32) -> Option<MemoryType> {
+        self.0.memory_at(at)
+    }
+
+    fn event_at(&self, at: u32) -> Option<&Self::FuncType> {
+        self.0.event_at(at)
+    }
+
+    fn global_at(&self, at: u32) -> Option<GlobalType> {
+        self.0.global_at(at)
+    }
+
+    fn func_type_at(&self, at: u32) -> Option<&Self::FuncType> {
+        self.0.func_type_at(at)
+    }
+
+    fn type_of_function(&self, at: u32) -> Option<&Self::FuncType> {
+        self.0.type_of_function(at)
+    }
+
+    fn element_type_at(&self, at: u32) -> Option<Type> {
+        self.0.element_type_at(at)
+    }
+
+    fn element_count(&self) -> u32 {
+        self.0.element_count()
+    }
+
+    fn data_count(&self) -> u32 {
+        self.0.data_count()
+    }
+
+    fn is_function_referenced(&self, idx: u32) -> bool {
+        self.0.is_function_referenced(idx)
     }
 }
 
