@@ -162,7 +162,7 @@ pub enum ExternalKind {
     Instance,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum TypeDef<'a> {
     Func(FuncType),
     Instance(InstanceType<'a>),
@@ -175,42 +175,42 @@ pub struct FuncType {
     pub returns: Box<[Type]>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct InstanceType<'a> {
     pub exports: Box<[ExportType<'a>]>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct ModuleType<'a> {
     pub imports: Box<[crate::Import<'a>]>,
     pub exports: Box<[ExportType<'a>]>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct ExportType<'a> {
     pub name: &'a str,
     pub ty: ImportSectionEntryType,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct ResizableLimits {
     pub initial: u32,
     pub maximum: Option<u32>,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct ResizableLimits64 {
     pub initial: u64,
     pub maximum: Option<u64>,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct TableType {
     pub element_type: Type,
     pub limits: ResizableLimits,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum MemoryType {
     M32 {
         limits: ResizableLimits,
@@ -222,7 +222,7 @@ pub enum MemoryType {
     },
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct EventType {
     pub type_index: u32,
 }
@@ -236,13 +236,13 @@ impl MemoryType {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct GlobalType {
     pub content_type: Type,
     pub mutable: bool,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum ImportSectionEntryType {
     Function(u32),
     Table(TableType),

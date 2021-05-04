@@ -18,7 +18,7 @@ use crate::{
     SectionWithLimitedItems,
 };
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct Import<'a> {
     pub module: &'a str,
     pub field: Option<&'a str>,
