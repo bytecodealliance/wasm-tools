@@ -257,7 +257,8 @@ impl TypeDef {
 }
 
 struct ModuleType {
-    type_size: u32,
+    imports_size: u32,
+    exports_size: u32,
     imports: HashMap<String, EntityType>,
     exports: HashMap<String, EntityType>,
 }
@@ -598,12 +599,10 @@ impl Validator {
                     let ty = self.import_entry_type(&e.ty)?;
                     exports.push(self.offset, e.name, None, ty, &mut self.types, "export")?;
                 }
+                combine_type_sizes(self.offset, imports.type_size, exports.type_size)?;
                 TypeDef::Module(ModuleType {
-                    type_size: combine_type_sizes(
-                        self.offset,
-                        imports.type_size,
-                        exports.type_size,
-                    )?,
+                    imports_size: imports.type_size,
+                    exports_size: exports.type_size,
                     imports: imports.set,
                     exports: exports.set,
                 })
@@ -1018,7 +1017,7 @@ impl Validator {
         // accounting for the imports on the original module, but that should be
         // ok for now since it's only used to limit the size of larger types.
         let instance_ty = InstanceType {
-            type_size: ty.type_size,
+            type_size: ty.exports_size,
             exports: ty.exports.clone(),
         };
         self.cur.state.assert_mut().instances.push(self.types.len());
@@ -1563,7 +1562,7 @@ impl Validator {
         // size. This is primarily here for the module linking proposal, and
         // we'll record this in the module type below if we're part of a nested
         // module.
-        let type_size = combine_type_sizes(
+        combine_type_sizes(
             self.offset,
             self.cur.state.imports.type_size,
             self.cur.state.exports.type_size,
@@ -1576,7 +1575,8 @@ impl Validator {
         if let Some(mut parent) = self.parents.pop() {
             let module_type = self.types.len();
             self.types.push(TypeDef::Module(ModuleType {
-                type_size,
+                imports_size: self.cur.state.imports.type_size,
+                exports_size: self.cur.state.exports.type_size,
                 imports: self.cur.state.imports.set.clone(),
                 exports: self.cur.state.exports.set.clone(),
             }));
@@ -1860,7 +1860,8 @@ impl NameSet {
         types: &mut SnapshotList<TypeDef>,
         desc: &str,
     ) -> Result<Option<usize>> {
-        self.type_size = combine_type_sizes(offset, self.type_size, ty.size(types))?;
+        self.type_size =
+            combine_type_sizes(offset, self.type_size, ty.size(types).saturating_add(1))?;
         let name = match name {
             Some(name) => name,
             // If the `name` is not provided then this is a module-linking style
@@ -1937,7 +1938,7 @@ impl NameSet {
 
 impl EntityType {
     fn size(&self, list: &SnapshotList<TypeDef>) -> u32 {
-        let recursive_size = match self {
+        match self {
             // Note that this function computes the size of the *type*, not the
             // size of the value, so these "leaves" all count as 1
             EntityType::Global(_) | EntityType::Memory(_) | EntityType::Table(_) => 1,
@@ -1948,12 +1949,11 @@ impl EntityType {
             | EntityType::Module(i)
             | EntityType::Instance(i)
             | EntityType::Event(i) => match &list[*i] {
-                TypeDef::Func(f) => (f.params.len() + f.returns.len()) as u32,
-                TypeDef::Module(m) => m.type_size,
+                TypeDef::Func(f) => 1 + (f.params.len() + f.returns.len()) as u32,
+                TypeDef::Module(m) => m.imports_size + m.exports_size,
                 TypeDef::Instance(i) => i.type_size,
             },
-        };
-        recursive_size.saturating_add(1)
+        }
     }
 }
 
