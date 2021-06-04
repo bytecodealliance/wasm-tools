@@ -508,18 +508,32 @@ where
         let mut instructions = vec![];
 
         while !self.allocs.controls.is_empty() {
-            let keep_going =
-                instructions.len() < max_instructions && u.arbitrary().unwrap_or(false);
+            let keep_going = instructions.len() < max_instructions
+                && u.arbitrary().map_or(false, |b: u8| b != 0);
             if !keep_going {
                 self.end_active_control_frames(&mut instructions);
                 break;
             }
 
             gather_options(module, &mut self);
+            debug_assert!(self.allocs.options.len() > 0);
 
-            let f = u.choose(&self.allocs.options)?;
-            let inst = f(u, module, &mut self)?;
-            instructions.push(inst);
+            // `u.choose(...)` can fail for two reasons and in both we swallow the error and close
+            // the function:
+            // - it can fail when no options were provided, but this should be impossible since we
+            //   can always emit a `nop`, e.g. (see `assert` above).
+            // - or it can fail because there is not enough underlying data, so we really cannot
+            //   generate any more instructions.
+            match u.choose(&self.allocs.options) {
+                Ok(f) => {
+                    let inst = f(u, module, &mut self)?;
+                    instructions.push(inst);
+                }
+                Err(_) => {
+                    self.end_active_control_frames(&mut instructions);
+                    break;
+                }
+            }
         }
 
         Ok(instructions)
