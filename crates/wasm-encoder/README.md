@@ -68,7 +68,6 @@ let wasm_bytes = module.finish();
 // We generated a valid Wasm module!
 assert!(wasmparser::validate(&wasm_bytes).is_ok());
 ```
-```
 
 # License
 
