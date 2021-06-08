@@ -232,6 +232,12 @@ pub trait Config: for<'a> Arbitrary<'a> + Default + Clone {
         false
     }
 
+    /// Determines whether the SIMD proposal is enabled for
+    /// generating insructions. Defaults to `true`.
+    fn simd_enabled(&self) -> bool {
+        false
+    }
+
     /// Determines whether the module linking proposal is enabled.
     ///
     /// Defaults to `false`.

@@ -1696,7 +1696,7 @@ impl Instruction<'_> {
             }
             Instruction::I32x4AllTrue => {
                 bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xA2));
+                bytes.extend(encoders::u32(0xA3));
             }
             Instruction::I32x4Bitmask => {
                 bytes.push(0xFD);

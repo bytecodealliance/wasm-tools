@@ -264,6 +264,244 @@ instructions! {
     (Some(table_copy_valid), table_copy),
     (Some(table_init_valid), table_init),
     (Some(elem_drop_valid), elem_drop),
+    // SIMD instructions.
+    (Some(simd_have_memory_and_offset), v128_load),
+    (Some(simd_have_memory_and_offset), v128_load8x8s),
+    (Some(simd_have_memory_and_offset), v128_load8x8u),
+    (Some(simd_have_memory_and_offset), v128_load16x4s),
+    (Some(simd_have_memory_and_offset), v128_load16x4u),
+    (Some(simd_have_memory_and_offset), v128_load32x2s),
+    (Some(simd_have_memory_and_offset), v128_load32x2u),
+    (Some(simd_have_memory_and_offset), v128_load8_splat),
+    (Some(simd_have_memory_and_offset), v128_load16_splat),
+    (Some(simd_have_memory_and_offset), v128_load32_splat),
+    (Some(simd_have_memory_and_offset), v128_load64_splat),
+    (Some(simd_have_memory_and_offset), v128_load32_zero),
+    (Some(simd_have_memory_and_offset), v128_load64_zero),
+    (Some(simd_v128_store_valid), v128_store),
+    (Some(simd_have_memory_and_offset_and_v128), v128_load8_lane),
+    (Some(simd_have_memory_and_offset_and_v128), v128_load16_lane),
+    (Some(simd_have_memory_and_offset_and_v128), v128_load32_lane),
+    (Some(simd_have_memory_and_offset_and_v128), v128_load64_lane),
+    (Some(simd_v128_store_valid), v128_store8_lane),
+    (Some(simd_v128_store_valid), v128_store16_lane),
+    (Some(simd_v128_store_valid), v128_store32_lane),
+    (Some(simd_v128_store_valid), v128_store64_lane),
+    (Some(simd_enabled), v128_const),
+    (Some(simd_v128_v128_on_stack), i8x16_shuffle),
+    (Some(simd_v128_on_stack), i8x16_extract_lane_s),
+    (Some(simd_v128_on_stack), i8x16_extract_lane_u),
+    (Some(simd_v128_i32_on_stack), i8x16_replace_lane),
+    (Some(simd_v128_on_stack), i16x8_extract_lane_s),
+    (Some(simd_v128_on_stack), i16x8_extract_lane_u),
+    (Some(simd_v128_i32_on_stack), i16x8_replace_lane),
+    (Some(simd_v128_on_stack), i32x4_extract_lane),
+    (Some(simd_v128_i32_on_stack), i32x4_replace_lane),
+    (Some(simd_v128_on_stack), i64x2_extract_lane),
+    (Some(simd_v128_i64_on_stack), i64x2_replace_lane),
+    (Some(simd_v128_on_stack), f32x4_extract_lane),
+    (Some(simd_v128_f32_on_stack), f32x4_replace_lane),
+    (Some(simd_v128_on_stack), f64x2_extract_lane),
+    (Some(simd_v128_f64_on_stack), f64x2_replace_lane),
+    (Some(simd_v128_v128_on_stack), i8x16_swizzle),
+    (Some(simd_i32_on_stack), i8x16_splat),
+    (Some(simd_i32_on_stack), i16x8_splat),
+    (Some(simd_i32_on_stack), i32x4_splat),
+    (Some(simd_i64_on_stack), i64x2_splat),
+    (Some(simd_f32_on_stack), f32x4_splat),
+    (Some(simd_f64_on_stack), f64x2_splat),
+    (Some(simd_v128_v128_on_stack), i8x16_swizzle),
+    (Some(simd_v128_v128_v128_on_stack), v128_bitselect),
+    (Some(simd_v128_v128_on_stack), i8x16_eq),
+    (Some(simd_v128_v128_on_stack), i8x16_ne),
+    (Some(simd_v128_v128_on_stack), i8x16_lt_s),
+    (Some(simd_v128_v128_on_stack), i8x16_lt_u),
+    (Some(simd_v128_v128_on_stack), i8x16_gt_s),
+    (Some(simd_v128_v128_on_stack), i8x16_gt_u),
+    (Some(simd_v128_v128_on_stack), i8x16_le_s),
+    (Some(simd_v128_v128_on_stack), i8x16_le_u),
+    (Some(simd_v128_v128_on_stack), i8x16_ge_s),
+    (Some(simd_v128_v128_on_stack), i8x16_ge_u),
+    (Some(simd_v128_v128_on_stack), i16x8_eq),
+    (Some(simd_v128_v128_on_stack), i16x8_ne),
+    (Some(simd_v128_v128_on_stack), i16x8_lt_s),
+    (Some(simd_v128_v128_on_stack), i16x8_lt_u),
+    (Some(simd_v128_v128_on_stack), i16x8_gt_s),
+    (Some(simd_v128_v128_on_stack), i16x8_gt_u),
+    (Some(simd_v128_v128_on_stack), i16x8_le_s),
+    (Some(simd_v128_v128_on_stack), i16x8_le_u),
+    (Some(simd_v128_v128_on_stack), i16x8_ge_s),
+    (Some(simd_v128_v128_on_stack), i16x8_ge_u),
+    (Some(simd_v128_v128_on_stack), i32x4_eq),
+    (Some(simd_v128_v128_on_stack), i32x4_ne),
+    (Some(simd_v128_v128_on_stack), i32x4_lt_s),
+    (Some(simd_v128_v128_on_stack), i32x4_lt_u),
+    (Some(simd_v128_v128_on_stack), i32x4_gt_s),
+    (Some(simd_v128_v128_on_stack), i32x4_gt_u),
+    (Some(simd_v128_v128_on_stack), i32x4_le_s),
+    (Some(simd_v128_v128_on_stack), i32x4_le_u),
+    (Some(simd_v128_v128_on_stack), i32x4_ge_s),
+    (Some(simd_v128_v128_on_stack), i32x4_ge_u),
+    (Some(simd_v128_v128_on_stack), i64x2_eq),
+    (Some(simd_v128_v128_on_stack), i64x2_ne),
+    (Some(simd_v128_v128_on_stack), i64x2_lt_s),
+    (Some(simd_v128_v128_on_stack), i64x2_gt_s),
+    (Some(simd_v128_v128_on_stack), i64x2_le_s),
+    (Some(simd_v128_v128_on_stack), i64x2_ge_s),
+    (Some(simd_v128_v128_on_stack), f32x4_eq),
+    (Some(simd_v128_v128_on_stack), f32x4_ne),
+    (Some(simd_v128_v128_on_stack), f32x4_lt),
+    (Some(simd_v128_v128_on_stack), f32x4_gt),
+    (Some(simd_v128_v128_on_stack), f32x4_le),
+    (Some(simd_v128_v128_on_stack), f32x4_ge),
+    (Some(simd_v128_v128_on_stack), f64x2_eq),
+    (Some(simd_v128_v128_on_stack), f64x2_ne),
+    (Some(simd_v128_v128_on_stack), f64x2_lt),
+    (Some(simd_v128_v128_on_stack), f64x2_gt),
+    (Some(simd_v128_v128_on_stack), f64x2_le),
+    (Some(simd_v128_v128_on_stack), f64x2_ge),
+    (Some(simd_v128_on_stack), v128_not),
+    (Some(simd_v128_v128_on_stack), v128_and),
+    (Some(simd_v128_v128_on_stack), v128_and_not),
+    (Some(simd_v128_v128_on_stack), v128_or),
+    (Some(simd_v128_v128_on_stack), v128_xor),
+    (Some(simd_v128_v128_on_stack), v128_any_true),
+    (Some(simd_v128_on_stack), i8x16_abs),
+    (Some(simd_v128_on_stack), i8x16_neg),
+    (Some(simd_v128_on_stack), i8x16_popcnt),
+    (Some(simd_v128_on_stack), i8x16_all_true),
+    (Some(simd_v128_on_stack), i8x16_bitmask),
+    (Some(simd_v128_v128_on_stack), i8x16_narrow_i16x8s),
+    (Some(simd_v128_v128_on_stack), i8x16_narrow_i16x8u),
+    (Some(simd_v128_i32_on_stack), i8x16_shl),
+    (Some(simd_v128_i32_on_stack), i8x16_shr_s),
+    (Some(simd_v128_i32_on_stack), i8x16_shr_u),
+    (Some(simd_v128_v128_on_stack), i8x16_add),
+    (Some(simd_v128_v128_on_stack), i8x16_add_sat_s),
+    (Some(simd_v128_v128_on_stack), i8x16_add_sat_u),
+    (Some(simd_v128_v128_on_stack), i8x16_sub),
+    (Some(simd_v128_v128_on_stack), i8x16_sub_sat_s),
+    (Some(simd_v128_v128_on_stack), i8x16_sub_sat_u),
+    (Some(simd_v128_v128_on_stack), i8x16_min_s),
+    (Some(simd_v128_v128_on_stack), i8x16_min_u),
+    (Some(simd_v128_v128_on_stack), i8x16_max_s),
+    (Some(simd_v128_v128_on_stack), i8x16_max_u),
+    (Some(simd_v128_v128_on_stack), i8x16_rounding_average_u),
+    (Some(simd_v128_on_stack), i16x8_ext_add_pairwise_i8x16s),
+    (Some(simd_v128_on_stack), i16x8_ext_add_pairwise_i8x16u),
+    (Some(simd_v128_on_stack), i16x8_abs),
+    (Some(simd_v128_on_stack), i16x8_neg),
+    (Some(simd_v128_v128_on_stack), i16x8q15_mulr_sat_s),
+    (Some(simd_v128_on_stack), i16x8_all_true),
+    (Some(simd_v128_on_stack), i16x8_bitmask),
+    (Some(simd_v128_v128_on_stack), i16x8_narrow_i32x4s),
+    (Some(simd_v128_v128_on_stack), i16x8_narrow_i32x4u),
+    (Some(simd_v128_on_stack), i16x8_extend_low_i8x16s),
+    (Some(simd_v128_on_stack), i16x8_extend_high_i8x16s),
+    (Some(simd_v128_on_stack), i16x8_extend_low_i8x16u),
+    (Some(simd_v128_on_stack), i16x8_extend_high_i8x16u),
+    (Some(simd_v128_i32_on_stack), i16x8_shl),
+    (Some(simd_v128_i32_on_stack), i16x8_shr_s),
+    (Some(simd_v128_i32_on_stack), i16x8_shr_u),
+    (Some(simd_v128_v128_on_stack), i16x8_add),
+    (Some(simd_v128_v128_on_stack), i16x8_add_sat_s),
+    (Some(simd_v128_v128_on_stack), i16x8_add_sat_u),
+    (Some(simd_v128_v128_on_stack), i16x8_sub),
+    (Some(simd_v128_v128_on_stack), i16x8_sub_sat_s),
+    (Some(simd_v128_v128_on_stack), i16x8_sub_sat_u),
+    (Some(simd_v128_v128_on_stack), i16x8_mul),
+    (Some(simd_v128_v128_on_stack), i16x8_min_s),
+    (Some(simd_v128_v128_on_stack), i16x8_min_u),
+    (Some(simd_v128_v128_on_stack), i16x8_max_s),
+    (Some(simd_v128_v128_on_stack), i16x8_max_u),
+    (Some(simd_v128_v128_on_stack), i16x8_rounding_average_u),
+    (Some(simd_v128_v128_on_stack), i16x8_ext_mul_low_i8x16s),
+    (Some(simd_v128_v128_on_stack), i16x8_ext_mul_high_i8x16s),
+    (Some(simd_v128_v128_on_stack), i16x8_ext_mul_low_i8x16u),
+    (Some(simd_v128_v128_on_stack), i16x8_ext_mul_high_i8x16u),
+    (Some(simd_v128_on_stack), i32x4_ext_add_pairwise_i16x8s),
+    (Some(simd_v128_on_stack), i32x4_ext_add_pairwise_i16x8u),
+    (Some(simd_v128_on_stack), i32x4_abs),
+    (Some(simd_v128_on_stack), i32x4_neg),
+    (Some(simd_v128_on_stack), i32x4_all_true),
+    (Some(simd_v128_on_stack), i32x4_bitmask),
+    (Some(simd_v128_on_stack), i32x4_extend_low_i16x8s),
+    (Some(simd_v128_on_stack), i32x4_extend_high_i16x8s),
+    (Some(simd_v128_on_stack), i32x4_extend_low_i16x8u),
+    (Some(simd_v128_on_stack), i32x4_extend_high_i16x8u),
+    (Some(simd_v128_i32_on_stack), i32x4_shl),
+    (Some(simd_v128_i32_on_stack), i32x4_shr_s),
+    (Some(simd_v128_i32_on_stack), i32x4_shr_u),
+    (Some(simd_v128_v128_on_stack), i32x4_add),
+    (Some(simd_v128_v128_on_stack), i32x4_sub),
+    (Some(simd_v128_v128_on_stack), i32x4_mul),
+    (Some(simd_v128_v128_on_stack), i32x4_min_s),
+    (Some(simd_v128_v128_on_stack), i32x4_min_u),
+    (Some(simd_v128_v128_on_stack), i32x4_max_s),
+    (Some(simd_v128_v128_on_stack), i32x4_max_u),
+    (Some(simd_v128_v128_on_stack), i32x4_dot_i16x8s),
+    (Some(simd_v128_v128_on_stack), i32x4_ext_mul_low_i16x8s),
+    (Some(simd_v128_v128_on_stack), i32x4_ext_mul_high_i16x8s),
+    (Some(simd_v128_v128_on_stack), i32x4_ext_mul_low_i16x8u),
+    (Some(simd_v128_v128_on_stack), i32x4_ext_mul_high_i16x8u),
+    (Some(simd_v128_on_stack), i64x2_abs),
+    (Some(simd_v128_on_stack), i64x2_neg),
+    (Some(simd_v128_on_stack), i64x2_all_true),
+    (Some(simd_v128_on_stack), i64x2_bitmask),
+    (Some(simd_v128_on_stack), i64x2_extend_low_i32x4s),
+    (Some(simd_v128_on_stack), i64x2_extend_high_i32x4s),
+    (Some(simd_v128_on_stack), i64x2_extend_low_i32x4u),
+    (Some(simd_v128_on_stack), i64x2_extend_high_i32x4u),
+    (Some(simd_v128_i32_on_stack), i64x2_shl),
+    (Some(simd_v128_i32_on_stack), i64x2_shr_s),
+    (Some(simd_v128_i32_on_stack), i64x2_shr_u),
+    (Some(simd_v128_v128_on_stack), i64x2_add),
+    (Some(simd_v128_v128_on_stack), i64x2_sub),
+    (Some(simd_v128_v128_on_stack), i64x2_mul),
+    (Some(simd_v128_v128_on_stack), i64x2_ext_mul_low_i32x4s),
+    (Some(simd_v128_v128_on_stack), i64x2_ext_mul_high_i32x4s),
+    (Some(simd_v128_v128_on_stack), i64x2_ext_mul_low_i32x4u),
+    (Some(simd_v128_v128_on_stack), i64x2_ext_mul_high_i32x4u),
+    (Some(simd_v128_on_stack), f32x4_ceil),
+    (Some(simd_v128_on_stack), f32x4_floor),
+    (Some(simd_v128_on_stack), f32x4_trunc),
+    (Some(simd_v128_on_stack), f32x4_nearest),
+    (Some(simd_v128_on_stack), f32x4_abs),
+    (Some(simd_v128_on_stack), f32x4_neg),
+    (Some(simd_v128_on_stack), f32x4_sqrt),
+    (Some(simd_v128_v128_on_stack), f32x4_add),
+    (Some(simd_v128_v128_on_stack), f32x4_sub),
+    (Some(simd_v128_v128_on_stack), f32x4_mul),
+    (Some(simd_v128_v128_on_stack), f32x4_div),
+    (Some(simd_v128_v128_on_stack), f32x4_min),
+    (Some(simd_v128_v128_on_stack), f32x4_max),
+    (Some(simd_v128_v128_on_stack), f32x4p_min),
+    (Some(simd_v128_v128_on_stack), f32x4p_max),
+    (Some(simd_v128_on_stack), f64x2_ceil),
+    (Some(simd_v128_on_stack), f64x2_floor),
+    (Some(simd_v128_on_stack), f64x2_trunc),
+    (Some(simd_v128_on_stack), f64x2_nearest),
+    (Some(simd_v128_on_stack), f64x2_abs),
+    (Some(simd_v128_on_stack), f64x2_neg),
+    (Some(simd_v128_on_stack), f64x2_sqrt),
+    (Some(simd_v128_v128_on_stack), f64x2_add),
+    (Some(simd_v128_v128_on_stack), f64x2_sub),
+    (Some(simd_v128_v128_on_stack), f64x2_mul),
+    (Some(simd_v128_v128_on_stack), f64x2_div),
+    (Some(simd_v128_v128_on_stack), f64x2_min),
+    (Some(simd_v128_v128_on_stack), f64x2_max),
+    (Some(simd_v128_v128_on_stack), f64x2p_min),
+    (Some(simd_v128_v128_on_stack), f64x2p_max),
+    (Some(simd_v128_on_stack), i32x4_trunc_sat_f32x4s),
+    (Some(simd_v128_on_stack), i32x4_trunc_sat_f32x4u),
+    (Some(simd_v128_on_stack), f32x4_convert_i32x4s),
+    (Some(simd_v128_on_stack), f32x4_convert_i32x4u),
+    (Some(simd_v128_on_stack), i32x4_trunc_sat_f64x2s_zero),
+    (Some(simd_v128_on_stack), i32x4_trunc_sat_f64x2u_zero),
+    (Some(simd_v128_on_stack), f64x2_convert_low_i32x4s),
+    (Some(simd_v128_on_stack), f64x2_convert_low_i32x4u),
+    (Some(simd_v128_on_stack), f32x4_demote_f64x2_zero),
+    (Some(simd_v128_on_stack), f64x2_promote_low_f32x4),
 }
 
 pub(crate) struct CodeBuilderAllocations<C>
@@ -946,7 +1184,7 @@ fn select<C: Config>(
             Ok(Instruction::TypedSelect(ty))
         }
         Some(ValType::I32) | Some(ValType::I64) | Some(ValType::F32) | Some(ValType::F64)
-        | None => Ok(Instruction::Select),
+        | Some(ValType::V128) | None => Ok(Instruction::Select),
     }
 }
 
@@ -3170,4 +3408,529 @@ fn table_index<C: Config>(
         .map(|t| t.0 as u32)
         .collect::<Vec<_>>();
     Ok(*u.choose(&tables)?)
+}
+
+fn lane_index(u: &mut Unstructured, number_of_lanes: u8) -> Result<u8> {
+    u.int_in_range(0..=(number_of_lanes - 1))
+}
+
+fn arbitrary_v128(u: &mut Unstructured) -> Result<[u8; 16]> {
+    let mut buffer = [0; 16];
+    u.fill_buffer(&mut buffer)?;
+    Ok(buffer)
+}
+
+#[inline]
+fn simd_v128_on_stack<C: Config>(
+    module: &ConfiguredModule<C>,
+    builder: &mut CodeBuilder<C>,
+) -> bool {
+    module.config.simd_enabled() && builder.types_on_stack(&[ValType::V128])
+}
+
+#[inline]
+fn simd_v128_v128_on_stack<C: Config>(
+    module: &ConfiguredModule<C>,
+    builder: &mut CodeBuilder<C>,
+) -> bool {
+    module.config.simd_enabled() && builder.types_on_stack(&[ValType::V128, ValType::V128])
+}
+
+#[inline]
+fn simd_v128_v128_v128_on_stack<C: Config>(
+    module: &ConfiguredModule<C>,
+    builder: &mut CodeBuilder<C>,
+) -> bool {
+    module.config.simd_enabled()
+        && builder.types_on_stack(&[ValType::V128, ValType::V128, ValType::V128])
+}
+
+#[inline]
+fn simd_v128_i32_on_stack<C: Config>(
+    module: &ConfiguredModule<C>,
+    builder: &mut CodeBuilder<C>,
+) -> bool {
+    module.config.simd_enabled() && builder.types_on_stack(&[ValType::V128, ValType::I32])
+}
+
+#[inline]
+fn simd_v128_i64_on_stack<C: Config>(
+    module: &ConfiguredModule<C>,
+    builder: &mut CodeBuilder<C>,
+) -> bool {
+    module.config.simd_enabled() && builder.types_on_stack(&[ValType::V128, ValType::I64])
+}
+
+#[inline]
+fn simd_v128_f32_on_stack<C: Config>(
+    module: &ConfiguredModule<C>,
+    builder: &mut CodeBuilder<C>,
+) -> bool {
+    module.config.simd_enabled() && builder.types_on_stack(&[ValType::V128, ValType::F32])
+}
+
+#[inline]
+fn simd_v128_f64_on_stack<C: Config>(
+    module: &ConfiguredModule<C>,
+    builder: &mut CodeBuilder<C>,
+) -> bool {
+    module.config.simd_enabled() && builder.types_on_stack(&[ValType::V128, ValType::F64])
+}
+
+#[inline]
+fn simd_i32_on_stack<C: Config>(
+    module: &ConfiguredModule<C>,
+    builder: &mut CodeBuilder<C>,
+) -> bool {
+    module.config.simd_enabled() && builder.type_on_stack(ValType::I32)
+}
+
+#[inline]
+fn simd_i64_on_stack<C: Config>(
+    module: &ConfiguredModule<C>,
+    builder: &mut CodeBuilder<C>,
+) -> bool {
+    module.config.simd_enabled() && builder.type_on_stack(ValType::I64)
+}
+
+#[inline]
+fn simd_f32_on_stack<C: Config>(
+    module: &ConfiguredModule<C>,
+    builder: &mut CodeBuilder<C>,
+) -> bool {
+    module.config.simd_enabled() && builder.type_on_stack(ValType::F32)
+}
+
+#[inline]
+fn simd_f64_on_stack<C: Config>(
+    module: &ConfiguredModule<C>,
+    builder: &mut CodeBuilder<C>,
+) -> bool {
+    module.config.simd_enabled() && builder.type_on_stack(ValType::F64)
+}
+
+#[inline]
+fn simd_have_memory_and_offset<C: Config>(
+    module: &ConfiguredModule<C>,
+    builder: &mut CodeBuilder<C>,
+) -> bool {
+    module.config.simd_enabled()
+        && have_memory(module, builder)
+        && builder.type_on_stack(ValType::I32)
+}
+
+#[inline]
+fn simd_have_memory_and_offset_and_v128<C: Config>(
+    module: &ConfiguredModule<C>,
+    builder: &mut CodeBuilder<C>,
+) -> bool {
+    module.config.simd_enabled()
+        && have_memory(module, builder)
+        && builder.types_on_stack(&[ValType::I32, ValType::V128])
+}
+
+#[inline]
+fn simd_v128_store_valid<C: Config>(
+    module: &ConfiguredModule<C>,
+    builder: &mut CodeBuilder<C>,
+) -> bool {
+    module.config.simd_enabled() && store_valid(module, builder, || ValType::V128)
+}
+
+#[inline]
+fn simd_enabled<C: Config>(module: &ConfiguredModule<C>, _: &mut CodeBuilder<C>) -> bool {
+    module.config.simd_enabled()
+}
+
+macro_rules! simd_load {
+    ($instruction:ident, $generator_fn_name:ident, $alignments:expr) => {
+        fn $generator_fn_name<C: Config>(
+            u: &mut Unstructured,
+            module: &ConfiguredModule<C>,
+            builder: &mut CodeBuilder<C>,
+        ) -> Result<Instruction> {
+            builder.pop_operands(&[ValType::I32]);
+            builder.push_operands(&[ValType::V128]);
+            Ok(Instruction::$instruction {
+                memarg: mem_arg(u, module, $alignments)?,
+            })
+        }
+    };
+}
+
+simd_load!(V128Load, v128_load, &[0, 1, 2, 3, 4]);
+simd_load!(V128Load8x8S, v128_load8x8s, &[0, 1, 2, 3]);
+simd_load!(V128Load8x8U, v128_load8x8u, &[0, 1, 2, 3]);
+simd_load!(V128Load16x4S, v128_load16x4s, &[0, 1, 2, 3]);
+simd_load!(V128Load16x4U, v128_load16x4u, &[0, 1, 2, 3]);
+simd_load!(V128Load32x2S, v128_load32x2s, &[0, 1, 2, 3]);
+simd_load!(V128Load32x2U, v128_load32x2u, &[0, 1, 2, 3]);
+simd_load!(V128Load8Splat, v128_load8_splat, &[0]);
+simd_load!(V128Load16Splat, v128_load16_splat, &[0, 1]);
+simd_load!(V128Load32Splat, v128_load32_splat, &[0, 1, 2]);
+simd_load!(V128Load64Splat, v128_load64_splat, &[0, 1, 2, 3]);
+simd_load!(V128Load32Zero, v128_load32_zero, &[0, 1, 2]);
+simd_load!(V128Load64Zero, v128_load64_zero, &[0, 1, 2, 3]);
+
+fn v128_store<C: Config>(
+    u: &mut Unstructured,
+    module: &ConfiguredModule<C>,
+    builder: &mut CodeBuilder<C>,
+) -> Result<Instruction> {
+    builder.pop_operands(&[ValType::I32, ValType::V128]);
+    Ok(Instruction::V128Store {
+        memarg: mem_arg(u, module, &[0, 1, 2, 3, 4])?,
+    })
+}
+
+macro_rules! simd_load_lane {
+    ($instruction:ident, $generator_fn_name:ident, $alignments:expr, $number_of_lanes:expr) => {
+        fn $generator_fn_name<C: Config>(
+            u: &mut Unstructured,
+            module: &ConfiguredModule<C>,
+            builder: &mut CodeBuilder<C>,
+        ) -> Result<Instruction> {
+            builder.pop_operands(&[ValType::I32, ValType::V128]);
+            builder.push_operands(&[ValType::V128]);
+            Ok(Instruction::$instruction {
+                memarg: mem_arg(u, module, $alignments)?,
+                lane: lane_index(u, $number_of_lanes)?,
+            })
+        }
+    };
+}
+
+simd_load_lane!(V128Load8Lane, v128_load8_lane, &[0], 16);
+simd_load_lane!(V128Load16Lane, v128_load16_lane, &[0, 1], 8);
+simd_load_lane!(V128Load32Lane, v128_load32_lane, &[0, 1, 2], 4);
+simd_load_lane!(V128Load64Lane, v128_load64_lane, &[0, 1, 2, 3], 2);
+
+macro_rules! simd_store_lane {
+    ($instruction:ident, $generator_fn_name:ident, $alignments:expr, $number_of_lanes:expr) => {
+        fn $generator_fn_name<C: Config>(
+            u: &mut Unstructured,
+            module: &ConfiguredModule<C>,
+            builder: &mut CodeBuilder<C>,
+        ) -> Result<Instruction> {
+            builder.pop_operands(&[ValType::I32, ValType::V128]);
+            Ok(Instruction::$instruction {
+                memarg: mem_arg(u, module, $alignments)?,
+                lane: lane_index(u, $number_of_lanes)?,
+            })
+        }
+    };
+}
+
+simd_store_lane!(V128Store8Lane, v128_store8_lane, &[0], 16);
+simd_store_lane!(V128Store16Lane, v128_store16_lane, &[0, 1], 8);
+simd_store_lane!(V128Store32Lane, v128_store32_lane, &[0, 1, 2], 4);
+simd_store_lane!(V128Store64Lane, v128_store64_lane, &[0, 1, 2, 3], 2);
+
+fn v128_const<C: Config>(
+    u: &mut Unstructured,
+    _: &ConfiguredModule<C>,
+    builder: &mut CodeBuilder<C>,
+) -> Result<Instruction> {
+    builder.push_operands(&[ValType::V128]);
+    let c = i128::from_le_bytes(arbitrary_v128(u)?);
+    Ok(Instruction::V128Const(c))
+}
+
+fn i8x16_shuffle<C: Config>(
+    u: &mut Unstructured,
+    _: &ConfiguredModule<C>,
+    builder: &mut CodeBuilder<C>,
+) -> Result<Instruction> {
+    builder.pop_operands(&[ValType::V128, ValType::V128]);
+    builder.push_operands(&[ValType::V128]);
+    let mut lanes = [0; 16];
+    for i in 0..16 {
+        lanes[i] = u.int_in_range(0..=31)?;
+    }
+    Ok(Instruction::I8x16Shuffle { lanes: lanes })
+}
+
+macro_rules! simd_lane_access {
+    ($instruction:ident, $generator_fn_name:ident, $in_types:expr => $out_types:expr, $number_of_lanes:expr) => {
+        fn $generator_fn_name<C: Config>(
+            u: &mut Unstructured,
+            _: &ConfiguredModule<C>,
+            builder: &mut CodeBuilder<C>,
+        ) -> Result<Instruction> {
+            builder.pop_operands($in_types);
+            builder.push_operands($out_types);
+            Ok(Instruction::$instruction {
+                lane: lane_index(u, $number_of_lanes)?,
+            })
+        }
+    };
+}
+
+simd_lane_access!(I8x16ExtractLaneS, i8x16_extract_lane_s, &[ValType::V128] => &[ValType::I32], 16);
+simd_lane_access!(I8x16ExtractLaneU, i8x16_extract_lane_u, &[ValType::V128] => &[ValType::I32], 16);
+simd_lane_access!(I8x16ReplaceLane, i8x16_replace_lane, &[ValType::V128, ValType::I32] => &[ValType::V128], 16);
+simd_lane_access!(I16x8ExtractLaneS, i16x8_extract_lane_s, &[ValType::V128] => &[ValType::I32], 8);
+simd_lane_access!(I16x8ExtractLaneU, i16x8_extract_lane_u, &[ValType::V128] => &[ValType::I32], 8);
+simd_lane_access!(I16x8ReplaceLane, i16x8_replace_lane, &[ValType::V128, ValType::I32] => &[ValType::V128], 8);
+simd_lane_access!(I32x4ExtractLane, i32x4_extract_lane, &[ValType::V128] => &[ValType::I32], 4);
+simd_lane_access!(I32x4ReplaceLane, i32x4_replace_lane, &[ValType::V128, ValType::I32] => &[ValType::V128], 4);
+simd_lane_access!(I64x2ExtractLane, i64x2_extract_lane, &[ValType::V128] => &[ValType::I64], 2);
+simd_lane_access!(I64x2ReplaceLane, i64x2_replace_lane, &[ValType::V128, ValType::I64] => &[ValType::V128], 2);
+simd_lane_access!(F32x4ExtractLane, f32x4_extract_lane, &[ValType::V128] => &[ValType::F32], 4);
+simd_lane_access!(F32x4ReplaceLane, f32x4_replace_lane, &[ValType::V128, ValType::F32] => &[ValType::V128], 4);
+simd_lane_access!(F64x2ExtractLane, f64x2_extract_lane, &[ValType::V128] => &[ValType::F64], 2);
+simd_lane_access!(F64x2ReplaceLane, f64x2_replace_lane, &[ValType::V128, ValType::F64] => &[ValType::V128], 2);
+
+macro_rules! simd_binop {
+    ($instruction:ident, $generator_fn_name:ident) => {
+        fn $generator_fn_name<C: Config>(
+            _: &mut Unstructured,
+            _: &ConfiguredModule<C>,
+            builder: &mut CodeBuilder<C>,
+        ) -> Result<Instruction> {
+            builder.pop_operands(&[ValType::V128, ValType::V128]);
+            builder.push_operands(&[ValType::V128]);
+            Ok(Instruction::$instruction)
+        }
+    };
+}
+
+macro_rules! simd_unop {
+    ($instruction:ident, $generator_fn_name:ident) => {
+        simd_unop!($instruction, $generator_fn_name, V128 -> V128);
+    };
+
+    ($instruction:ident, $generator_fn_name:ident, $in_type:ident -> $out_type:ident) => {
+        fn $generator_fn_name<C: Config>(
+            _: &mut Unstructured,
+            _: &ConfiguredModule<C>,
+            builder: &mut CodeBuilder<C>,
+        ) -> Result<Instruction> {
+            builder.pop_operands(&[ValType::$in_type]);
+            builder.push_operands(&[ValType::$out_type]);
+            Ok(Instruction::$instruction)
+        }
+    };
+}
+
+macro_rules! simd_shift {
+    ($instruction:ident, $generator_fn_name:ident) => {
+        fn $generator_fn_name<C: Config>(
+            _: &mut Unstructured,
+            _: &ConfiguredModule<C>,
+            builder: &mut CodeBuilder<C>,
+        ) -> Result<Instruction> {
+            builder.pop_operands(&[ValType::V128, ValType::I32]);
+            builder.push_operands(&[ValType::V128]);
+            Ok(Instruction::$instruction)
+        }
+    };
+}
+
+simd_unop!(I8x16Splat, i8x16_splat, I32 -> V128);
+simd_unop!(I16x8Splat, i16x8_splat, I32 -> V128);
+simd_unop!(I32x4Splat, i32x4_splat, I32 -> V128);
+simd_unop!(I64x2Splat, i64x2_splat, I64 -> V128);
+simd_unop!(F32x4Splat, f32x4_splat, F32 -> V128);
+simd_unop!(F64x2Splat, f64x2_splat, F64 -> V128);
+simd_binop!(I8x16Swizzle, i8x16_swizzle);
+simd_binop!(I8x16Eq, i8x16_eq);
+simd_binop!(I8x16Ne, i8x16_ne);
+simd_binop!(I8x16LtS, i8x16_lt_s);
+simd_binop!(I8x16LtU, i8x16_lt_u);
+simd_binop!(I8x16GtS, i8x16_gt_s);
+simd_binop!(I8x16GtU, i8x16_gt_u);
+simd_binop!(I8x16LeS, i8x16_le_s);
+simd_binop!(I8x16LeU, i8x16_le_u);
+simd_binop!(I8x16GeS, i8x16_ge_s);
+simd_binop!(I8x16GeU, i8x16_ge_u);
+simd_binop!(I16x8Eq, i16x8_eq);
+simd_binop!(I16x8Ne, i16x8_ne);
+simd_binop!(I16x8LtS, i16x8_lt_s);
+simd_binop!(I16x8LtU, i16x8_lt_u);
+simd_binop!(I16x8GtS, i16x8_gt_s);
+simd_binop!(I16x8GtU, i16x8_gt_u);
+simd_binop!(I16x8LeS, i16x8_le_s);
+simd_binop!(I16x8LeU, i16x8_le_u);
+simd_binop!(I16x8GeS, i16x8_ge_s);
+simd_binop!(I16x8GeU, i16x8_ge_u);
+simd_binop!(I32x4Eq, i32x4_eq);
+simd_binop!(I32x4Ne, i32x4_ne);
+simd_binop!(I32x4LtS, i32x4_lt_s);
+simd_binop!(I32x4LtU, i32x4_lt_u);
+simd_binop!(I32x4GtS, i32x4_gt_s);
+simd_binop!(I32x4GtU, i32x4_gt_u);
+simd_binop!(I32x4LeS, i32x4_le_s);
+simd_binop!(I32x4LeU, i32x4_le_u);
+simd_binop!(I32x4GeS, i32x4_ge_s);
+simd_binop!(I32x4GeU, i32x4_ge_u);
+simd_binop!(I64x2Eq, i64x2_eq);
+simd_binop!(I64x2Ne, i64x2_ne);
+simd_binop!(I64x2LtS, i64x2_lt_s);
+simd_binop!(I64x2GtS, i64x2_gt_s);
+simd_binop!(I64x2LeS, i64x2_le_s);
+simd_binop!(I64x2GeS, i64x2_ge_s);
+simd_binop!(F32x4Eq, f32x4_eq);
+simd_binop!(F32x4Ne, f32x4_ne);
+simd_binop!(F32x4Lt, f32x4_lt);
+simd_binop!(F32x4Gt, f32x4_gt);
+simd_binop!(F32x4Le, f32x4_le);
+simd_binop!(F32x4Ge, f32x4_ge);
+simd_binop!(F64x2Eq, f64x2_eq);
+simd_binop!(F64x2Ne, f64x2_ne);
+simd_binop!(F64x2Lt, f64x2_lt);
+simd_binop!(F64x2Gt, f64x2_gt);
+simd_binop!(F64x2Le, f64x2_le);
+simd_binop!(F64x2Ge, f64x2_ge);
+simd_unop!(V128Not, v128_not);
+simd_binop!(V128And, v128_and);
+simd_binop!(V128AndNot, v128_and_not);
+simd_binop!(V128Or, v128_or);
+simd_binop!(V128Xor, v128_xor);
+simd_unop!(V128AnyTrue, v128_any_true, V128 -> I32);
+simd_unop!(I8x16Abs, i8x16_abs);
+simd_unop!(I8x16Neg, i8x16_neg);
+simd_unop!(I8x16Popcnt, i8x16_popcnt);
+simd_unop!(I8x16AllTrue, i8x16_all_true, V128 -> I32);
+simd_unop!(I8x16Bitmask, i8x16_bitmask, V128 -> I32);
+simd_binop!(I8x16NarrowI16x8S, i8x16_narrow_i16x8s);
+simd_binop!(I8x16NarrowI16x8U, i8x16_narrow_i16x8u);
+simd_shift!(I8x16Shl, i8x16_shl);
+simd_shift!(I8x16ShrS, i8x16_shr_s);
+simd_shift!(I8x16ShrU, i8x16_shr_u);
+simd_binop!(I8x16Add, i8x16_add);
+simd_binop!(I8x16AddSatS, i8x16_add_sat_s);
+simd_binop!(I8x16AddSatU, i8x16_add_sat_u);
+simd_binop!(I8x16Sub, i8x16_sub);
+simd_binop!(I8x16SubSatS, i8x16_sub_sat_s);
+simd_binop!(I8x16SubSatU, i8x16_sub_sat_u);
+simd_binop!(I8x16MinS, i8x16_min_s);
+simd_binop!(I8x16MinU, i8x16_min_u);
+simd_binop!(I8x16MaxS, i8x16_max_s);
+simd_binop!(I8x16MaxU, i8x16_max_u);
+simd_binop!(I8x16RoundingAverageU, i8x16_rounding_average_u);
+simd_unop!(I16x8ExtAddPairwiseI8x16S, i16x8_ext_add_pairwise_i8x16s);
+simd_unop!(I16x8ExtAddPairwiseI8x16U, i16x8_ext_add_pairwise_i8x16u);
+simd_unop!(I16x8Abs, i16x8_abs);
+simd_unop!(I16x8Neg, i16x8_neg);
+simd_binop!(I16x8Q15MulrSatS, i16x8q15_mulr_sat_s);
+simd_unop!(I16x8AllTrue, i16x8_all_true, V128 -> I32);
+simd_unop!(I16x8Bitmask, i16x8_bitmask, V128 -> I32);
+simd_binop!(I16x8NarrowI32x4S, i16x8_narrow_i32x4s);
+simd_binop!(I16x8NarrowI32x4U, i16x8_narrow_i32x4u);
+simd_unop!(I16x8ExtendLowI8x16S, i16x8_extend_low_i8x16s);
+simd_unop!(I16x8ExtendHighI8x16S, i16x8_extend_high_i8x16s);
+simd_unop!(I16x8ExtendLowI8x16U, i16x8_extend_low_i8x16u);
+simd_unop!(I16x8ExtendHighI8x16U, i16x8_extend_high_i8x16u);
+simd_shift!(I16x8Shl, i16x8_shl);
+simd_shift!(I16x8ShrS, i16x8_shr_s);
+simd_shift!(I16x8ShrU, i16x8_shr_u);
+simd_binop!(I16x8Add, i16x8_add);
+simd_binop!(I16x8AddSatS, i16x8_add_sat_s);
+simd_binop!(I16x8AddSatU, i16x8_add_sat_u);
+simd_binop!(I16x8Sub, i16x8_sub);
+simd_binop!(I16x8SubSatS, i16x8_sub_sat_s);
+simd_binop!(I16x8SubSatU, i16x8_sub_sat_u);
+simd_binop!(I16x8Mul, i16x8_mul);
+simd_binop!(I16x8MinS, i16x8_min_s);
+simd_binop!(I16x8MinU, i16x8_min_u);
+simd_binop!(I16x8MaxS, i16x8_max_s);
+simd_binop!(I16x8MaxU, i16x8_max_u);
+simd_binop!(I16x8RoundingAverageU, i16x8_rounding_average_u);
+simd_binop!(I16x8ExtMulLowI8x16S, i16x8_ext_mul_low_i8x16s);
+simd_binop!(I16x8ExtMulHighI8x16S, i16x8_ext_mul_high_i8x16s);
+simd_binop!(I16x8ExtMulLowI8x16U, i16x8_ext_mul_low_i8x16u);
+simd_binop!(I16x8ExtMulHighI8x16U, i16x8_ext_mul_high_i8x16u);
+simd_unop!(I32x4ExtAddPairwiseI16x8S, i32x4_ext_add_pairwise_i16x8s);
+simd_unop!(I32x4ExtAddPairwiseI16x8U, i32x4_ext_add_pairwise_i16x8u);
+simd_unop!(I32x4Abs, i32x4_abs);
+simd_unop!(I32x4Neg, i32x4_neg);
+simd_unop!(I32x4AllTrue, i32x4_all_true, V128 -> I32);
+simd_unop!(I32x4Bitmask, i32x4_bitmask, V128 -> I32);
+simd_unop!(I32x4ExtendLowI16x8S, i32x4_extend_low_i16x8s);
+simd_unop!(I32x4ExtendHighI16x8S, i32x4_extend_high_i16x8s);
+simd_unop!(I32x4ExtendLowI16x8U, i32x4_extend_low_i16x8u);
+simd_unop!(I32x4ExtendHighI16x8U, i32x4_extend_high_i16x8u);
+simd_shift!(I32x4Shl, i32x4_shl);
+simd_shift!(I32x4ShrS, i32x4_shr_s);
+simd_shift!(I32x4ShrU, i32x4_shr_u);
+simd_binop!(I32x4Add, i32x4_add);
+simd_binop!(I32x4Sub, i32x4_sub);
+simd_binop!(I32x4Mul, i32x4_mul);
+simd_binop!(I32x4MinS, i32x4_min_s);
+simd_binop!(I32x4MinU, i32x4_min_u);
+simd_binop!(I32x4MaxS, i32x4_max_s);
+simd_binop!(I32x4MaxU, i32x4_max_u);
+simd_binop!(I32x4DotI16x8S, i32x4_dot_i16x8s);
+simd_binop!(I32x4ExtMulLowI16x8S, i32x4_ext_mul_low_i16x8s);
+simd_binop!(I32x4ExtMulHighI16x8S, i32x4_ext_mul_high_i16x8s);
+simd_binop!(I32x4ExtMulLowI16x8U, i32x4_ext_mul_low_i16x8u);
+simd_binop!(I32x4ExtMulHighI16x8U, i32x4_ext_mul_high_i16x8u);
+simd_unop!(I64x2Abs, i64x2_abs);
+simd_unop!(I64x2Neg, i64x2_neg);
+simd_unop!(I64x2AllTrue, i64x2_all_true, V128 -> I32);
+simd_unop!(I64x2Bitmask, i64x2_bitmask, V128 -> I32);
+simd_unop!(I64x2ExtendLowI32x4S, i64x2_extend_low_i32x4s);
+simd_unop!(I64x2ExtendHighI32x4S, i64x2_extend_high_i32x4s);
+simd_unop!(I64x2ExtendLowI32x4U, i64x2_extend_low_i32x4u);
+simd_unop!(I64x2ExtendHighI32x4U, i64x2_extend_high_i32x4u);
+simd_shift!(I64x2Shl, i64x2_shl);
+simd_shift!(I64x2ShrS, i64x2_shr_s);
+simd_shift!(I64x2ShrU, i64x2_shr_u);
+simd_binop!(I64x2Add, i64x2_add);
+simd_binop!(I64x2Sub, i64x2_sub);
+simd_binop!(I64x2Mul, i64x2_mul);
+simd_binop!(I64x2ExtMulLowI32x4S, i64x2_ext_mul_low_i32x4s);
+simd_binop!(I64x2ExtMulHighI32x4S, i64x2_ext_mul_high_i32x4s);
+simd_binop!(I64x2ExtMulLowI32x4U, i64x2_ext_mul_low_i32x4u);
+simd_binop!(I64x2ExtMulHighI32x4U, i64x2_ext_mul_high_i32x4u);
+simd_unop!(F32x4Ceil, f32x4_ceil);
+simd_unop!(F32x4Floor, f32x4_floor);
+simd_unop!(F32x4Trunc, f32x4_trunc);
+simd_unop!(F32x4Nearest, f32x4_nearest);
+simd_unop!(F32x4Abs, f32x4_abs);
+simd_unop!(F32x4Neg, f32x4_neg);
+simd_unop!(F32x4Sqrt, f32x4_sqrt);
+simd_binop!(F32x4Add, f32x4_add);
+simd_binop!(F32x4Sub, f32x4_sub);
+simd_binop!(F32x4Mul, f32x4_mul);
+simd_binop!(F32x4Div, f32x4_div);
+simd_binop!(F32x4Min, f32x4_min);
+simd_binop!(F32x4Max, f32x4_max);
+simd_binop!(F32x4PMin, f32x4p_min);
+simd_binop!(F32x4PMax, f32x4p_max);
+simd_unop!(F64x2Ceil, f64x2_ceil);
+simd_unop!(F64x2Floor, f64x2_floor);
+simd_unop!(F64x2Trunc, f64x2_trunc);
+simd_unop!(F64x2Nearest, f64x2_nearest);
+simd_unop!(F64x2Abs, f64x2_abs);
+simd_unop!(F64x2Neg, f64x2_neg);
+simd_unop!(F64x2Sqrt, f64x2_sqrt);
+simd_binop!(F64x2Add, f64x2_add);
+simd_binop!(F64x2Sub, f64x2_sub);
+simd_binop!(F64x2Mul, f64x2_mul);
+simd_binop!(F64x2Div, f64x2_div);
+simd_binop!(F64x2Min, f64x2_min);
+simd_binop!(F64x2Max, f64x2_max);
+simd_binop!(F64x2PMin, f64x2p_min);
+simd_binop!(F64x2PMax, f64x2p_max);
+simd_unop!(I32x4TruncSatF32x4S, i32x4_trunc_sat_f32x4s);
+simd_unop!(I32x4TruncSatF32x4U, i32x4_trunc_sat_f32x4u);
+simd_unop!(F32x4ConvertI32x4S, f32x4_convert_i32x4s);
+simd_unop!(F32x4ConvertI32x4U, f32x4_convert_i32x4u);
+simd_unop!(I32x4TruncSatF64x2SZero, i32x4_trunc_sat_f64x2s_zero);
+simd_unop!(I32x4TruncSatF64x2UZero, i32x4_trunc_sat_f64x2u_zero);
+simd_unop!(F64x2ConvertLowI32x4S, f64x2_convert_low_i32x4s);
+simd_unop!(F64x2ConvertLowI32x4U, f64x2_convert_low_i32x4u);
+simd_unop!(F32x4DemoteF64x2Zero, f32x4_demote_f64x2_zero);
+simd_unop!(F64x2PromoteLowF32x4, f64x2_promote_low_f32x4);
+
+fn v128_bitselect<C: Config>(
+    _: &mut Unstructured,
+    _: &ConfiguredModule<C>,
+    builder: &mut CodeBuilder<C>,
+) -> Result<Instruction> {
+    builder.pop_operands(&[ValType::V128, ValType::V128, ValType::V128]);
+    builder.push_operands(&[ValType::V128]);
+    Ok(Instruction::V128Bitselect)
 }
