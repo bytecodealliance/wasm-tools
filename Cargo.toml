@@ -10,15 +10,20 @@ members = ['fuzz', 'crates/wasm-encoder']
 
 [dependencies]
 anyhow = "1.0"
+arbitrary = "1.0.0"
 env_logger = "0.8"
 getopts = "0.2"
 log = "0.4"
 rayon = "1.0"
+structopt = "0.3.16"
+wasm-smith = { path = "crates/wasm-smith" }
 wasmparser = { path = "crates/wasmparser" }
+wasmparser-dump = { path = "crates/dump" }
 wasmprinter = { path = "crates/wasmprinter" }
 wast = { path = "crates/wast" }
 wat = { path = "crates/wat" }
-wasmparser-dump = { path = "crates/dump" }
+serde_json = "1"
+serde = { version = "1", features = ['derive'] }
 
 [dev-dependencies]
 anyhow = "1.0"
