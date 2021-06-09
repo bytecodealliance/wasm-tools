@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, BTreeSet};
 macro_rules! instructions {
 	(
         $(
-            ($predicate:expr, $generator_fn:ident),
+            ($predicate:expr, $generator_fn:ident $(, $cost:tt)?),
         )*
     ) => {
         static NUM_OPTIONS: usize = instructions!(
@@ -15,15 +15,18 @@ macro_rules! instructions {
             $( $generator_fn )*
         );
 
-        fn gather_options<C>(
+        fn choose_instruction<C>(
+            u: &mut Unstructured<'_>,
             module: &ConfiguredModule<C>,
             builder: &mut CodeBuilder<C>,
-        )
+        ) -> Option<
+            fn(&mut Unstructured<'_>, &ConfiguredModule<C>, &mut CodeBuilder<C>) -> Result<Instruction>
+        >
         where
             C: Config
         {
             builder.allocs.options.clear();
-
+            let mut cost = 0;
             // Unroll the loop that checks whether each instruction is valid in
             // the current context and, if it is valid, pushes it onto our
             // options. Unrolling this loops lets us avoid dynamic calls through
@@ -33,9 +36,21 @@ macro_rules! instructions {
             $(
                 let predicate: Option<fn(&ConfiguredModule<C>, &mut CodeBuilder<C>) -> bool> = $predicate;
                 if predicate.map_or(true, |f| f(module, builder)) {
-                    builder.allocs.options.push($generator_fn);
+
+                    builder.allocs.options.push(($generator_fn, cost));
+                    cost += 1000 $(- $cost)?;
                 }
             )*
+
+            debug_assert!(cost > 0);
+
+            let i = u.int_in_range(0..=cost).ok()?;
+            let idx = builder
+                .allocs
+                .options
+                .binary_search_by_key(&i,|p| p.1)
+                .unwrap_or_else(|i| i - 1);
+            Some(builder.allocs.options[idx].0)
         }
 	};
 
@@ -50,17 +65,21 @@ macro_rules! instructions {
 // The static set of options of instruction to generate that could be valid at
 // some given time. One entry per Wasm instruction.
 //
-// Each entry is made up of two parts:
+// Each entry is made up of up to three parts:
 //
 // 1. A predicate for whether this is a valid choice, if any. `None` means that
 //    the choice is always applicable.
 //
 // 2. The function to generate the instruction, given that we've made this
 //    choice.
+//
+// 3. An optional number used to weight how often this instruction is chosen.
+//    Higher numbers are less likely to be chosen, and number specified must be
+//    less than 1000.
 instructions! {
     // Control instructions.
-    (None, unreachable),
-    (None, nop),
+    (None, unreachable, 990),
+    (None, nop, 800),
     (None, block),
     (None, r#loop),
     (Some(if_valid), r#if),
@@ -69,7 +88,7 @@ instructions! {
     (Some(br_valid), br),
     (Some(br_if_valid), br_if),
     (Some(br_table_valid), br_table),
-    (Some(return_valid), r#return),
+    (Some(return_valid), r#return, 900),
     (Some(call_valid), call),
     (Some(call_indirect_valid), call_indirect),
     // Parametric instructions.
@@ -516,9 +535,10 @@ where
 
     // Dynamic set of options of instruction we can generate that are known to
     // be valid right now.
-    options: Vec<
+    options: Vec<(
         fn(&mut Unstructured, &ConfiguredModule<C>, &mut CodeBuilder<C>) -> Result<Instruction>,
-    >,
+        u32,
+    )>,
 
     // Cached information about the module that we're generating functions for,
     // used to speed up validity checks. The mutable globals map is a map of the
@@ -551,7 +571,7 @@ where
 }
 
 /// A control frame.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Control {
     kind: ControlKind,
     /// Value types that must be on the stack when entering this control frame.
@@ -749,26 +769,21 @@ where
             let keep_going = instructions.len() < max_instructions
                 && u.arbitrary().map_or(false, |b: u8| b != 0);
             if !keep_going {
-                self.end_active_control_frames(&mut instructions);
+                self.end_active_control_frames(u, &mut instructions);
                 break;
             }
 
-            gather_options(module, &mut self);
-            debug_assert!(self.allocs.options.len() > 0);
-
-            // `u.choose(...)` can fail for two reasons and in both we swallow the error and close
-            // the function:
-            // - it can fail when no options were provided, but this should be impossible since we
-            //   can always emit a `nop`, e.g. (see `assert` above).
-            // - or it can fail because there is not enough underlying data, so we really cannot
-            //   generate any more instructions.
-            match u.choose(&self.allocs.options) {
-                Ok(f) => {
+            match choose_instruction(u, module, &mut self) {
+                Some(f) => {
                     let inst = f(u, module, &mut self)?;
                     instructions.push(inst);
                 }
-                Err(_) => {
-                    self.end_active_control_frames(&mut instructions);
+                // Choosing an instruction can fail because there is not enough
+                // underlying data, so we really cannot generate any more
+                // instructions. In this case we swallow that error and instead
+                // just terminate our wasm function's frames.
+                None => {
+                    self.end_active_control_frames(u, &mut instructions);
                     break;
                 }
             }
@@ -777,23 +792,33 @@ where
         Ok(instructions)
     }
 
-    fn end_active_control_frames(&mut self, instructions: &mut Vec<Instruction>) {
+    fn end_active_control_frames(
+        &mut self,
+        u: &mut Unstructured<'_>,
+        instructions: &mut Vec<Instruction>,
+    ) {
         while !self.allocs.controls.is_empty() {
-            let num_operands = self.operands().len();
-            let label = self.allocs.controls.pop().unwrap();
+            // Ensure that this label is valid by placing the right types onto
+            // the operand stack for the end of the label.
+            self.guarantee_label_results(u, instructions);
 
-            // If we don't have the right operands on the stack for this
-            // control frame, add an `unreachable`.
-            if label.results.len() != num_operands || !self.types_on_stack(&label.results) {
-                self.allocs.operands.push(None);
-                instructions.push(Instruction::Unreachable);
-            }
+            // Remove the label and clear the operand stack since the label has
+            // been removed.
+            let label = self.allocs.controls.pop().unwrap();
+            self.allocs.operands.truncate(label.height);
 
             // If this is an `if` that is not stack neutral, then it
-            // must have an `else`.
+            // must have an `else`. Generate synthetic results here in the same
+            // manner we did above.
             if label.kind == ControlKind::If && label.params != label.results {
                 instructions.push(Instruction::Else);
-                instructions.push(Instruction::Unreachable);
+                self.allocs.controls.push(label.clone());
+                self.allocs
+                    .operands
+                    .extend(label.params.into_iter().map(Some));
+                self.guarantee_label_results(u, instructions);
+                self.allocs.controls.pop();
+                self.allocs.operands.truncate(label.height);
             }
 
             // The last control frame for the function return does not
@@ -802,11 +827,71 @@ where
                 instructions.push(Instruction::End);
             }
 
-            self.allocs.operands.truncate(label.height);
+            // Place the results of the label onto the operand stack for use
+            // after the label.
             self.allocs
                 .operands
                 .extend(label.results.into_iter().map(Some));
         }
+    }
+
+    /// Modifies the instruction stream to guarantee that the current control
+    /// label's results are on the stack and ready for the control label to return.
+    fn guarantee_label_results(
+        &mut self,
+        u: &mut Unstructured<'_>,
+        instructions: &mut Vec<Instruction>,
+    ) {
+        let mut operands = self.operands();
+        let label = self.allocs.controls.last().unwrap();
+
+        // Already done, yay!
+        if label.results.len() == operands.len() && self.types_on_stack(&label.results) {
+            return;
+        }
+
+        // Generating an unreachable instruction is always a valid way to
+        // generate any types for a label, but it's not too interesting, so
+        // don't favor it.
+        if u.arbitrary::<u16>().unwrap_or(0) == 1 {
+            instructions.push(Instruction::Unreachable);
+            return;
+        }
+
+        // Arbitrarily massage the stack to get the expected results. First we
+        // drop all extraneous results to we're only dealing with those we want
+        // to deal with. Afterwards we start at the bottom of the stack and move
+        // up, figuring out what matches and what doesn't. As soon as something
+        // doesn't match we throw out that and everything else remaining,
+        // filling in results with dummy values.
+        while operands.len() > label.results.len() {
+            instructions.push(Instruction::Drop);
+            operands = &operands[..operands.len() - 1];
+        }
+        for (i, expected) in label.results.iter().enumerate() {
+            if let Some(actual) = operands.get(i) {
+                if Some(*expected) == *actual {
+                    continue;
+                }
+                for _ in operands[i..].iter() {
+                    instructions.push(Instruction::Drop);
+                }
+                operands = &[];
+            }
+            instructions.push(arbitrary_val(*expected, u));
+        }
+    }
+}
+
+fn arbitrary_val(ty: ValType, u: &mut Unstructured<'_>) -> Instruction {
+    match ty {
+        ValType::I32 => Instruction::I32Const(u.arbitrary().unwrap_or(0)),
+        ValType::I64 => Instruction::I64Const(u.arbitrary().unwrap_or(0)),
+        ValType::F32 => Instruction::F32Const(u.arbitrary().unwrap_or(0.0)),
+        ValType::F64 => Instruction::F64Const(u.arbitrary().unwrap_or(0.0)),
+        ValType::V128 => Instruction::V128Const(u.arbitrary().unwrap_or(0)),
+        ValType::ExternRef => Instruction::RefNull(ValType::ExternRef),
+        ValType::FuncRef => Instruction::RefNull(ValType::FuncRef),
     }
 }
 
