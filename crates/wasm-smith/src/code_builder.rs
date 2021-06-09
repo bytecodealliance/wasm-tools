@@ -3414,12 +3414,6 @@ fn lane_index(u: &mut Unstructured, number_of_lanes: u8) -> Result<u8> {
     u.int_in_range(0..=(number_of_lanes - 1))
 }
 
-fn arbitrary_v128(u: &mut Unstructured) -> Result<[u8; 16]> {
-    let mut buffer = [0; 16];
-    u.fill_buffer(&mut buffer)?;
-    Ok(buffer)
-}
-
 #[inline]
 fn simd_v128_on_stack<C: Config>(
     module: &ConfiguredModule<C>,
@@ -3632,7 +3626,7 @@ fn v128_const<C: Config>(
     builder: &mut CodeBuilder<C>,
 ) -> Result<Instruction> {
     builder.push_operands(&[ValType::V128]);
-    let c = i128::from_le_bytes(arbitrary_v128(u)?);
+    let c = i128::from_le_bytes(u.arbitrary()?);
     Ok(Instruction::V128Const(c))
 }
 
