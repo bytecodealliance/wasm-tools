@@ -9,6 +9,7 @@ fn wasm_features() -> WasmFeatures {
         multi_memory: true,
         bulk_memory: true,
         reference_types: true,
+        simd: true,
         ..WasmFeatures::default()
     }
 }
