@@ -136,6 +136,7 @@ struct ModuleState {
     tables: Vec<TableType>,
     memories: Vec<MemoryType>,
     globals: Vec<GlobalType>,
+    num_imported_globals: u32,
     element_types: Vec<Type>,
     data_count: Option<u32>,
     code_type_indexes: Vec<u32>, // pointer into `types` above
@@ -832,6 +833,7 @@ impl Validator {
             }
             ImportSectionEntryType::Global(ty) => {
                 state.globals.push(ty);
+                state.num_imported_globals += 1;
                 (state.globals.len(), MAX_WASM_GLOBALS, "globals")
             }
             ImportSectionEntryType::Instance(type_idx) => {
@@ -923,7 +925,9 @@ impl Validator {
                     }
                     (EntityType::Global(ty), ExternalKind::Global) => {
                         let ty = ty.clone();
-                        self.cur.state.assert_mut().globals.push(ty);
+                        let state = self.cur.state.assert_mut();
+                        state.num_imported_globals += 1;
+                        state.globals.push(ty);
                     }
                     (EntityType::Instance(ty), ExternalKind::Instance) => {
                         let ty = *ty;
@@ -1264,6 +1268,11 @@ impl Validator {
             Operator::V128Const { .. } => Type::V128,
             Operator::GlobalGet { global_index } => {
                 let global = self.get_global(global_index)?;
+                if global_index >= self.cur.state.num_imported_globals {
+                    return self.create_error(
+                        "constant expression required: global.get of locally defined global",
+                    );
+                }
                 if global.mutable {
                     return self.create_error(
                         "constant expression required: global.get of mutable global",

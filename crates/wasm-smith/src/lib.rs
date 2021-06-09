@@ -1440,6 +1440,7 @@ where
     fn arbitrary_globals(&mut self, u: &mut Unstructured) -> Result<()> {
         let mut choices: Vec<Box<dyn Fn(&mut Unstructured, ValType) -> Result<Instruction>>> =
             vec![];
+        let num_imported_globals = self.globals.len();
 
         arbitrary_loop(
             u,
@@ -1472,7 +1473,7 @@ where
                     })
                 }));
 
-                for (i, g) in self.globals.iter().enumerate() {
+                for (i, g) in self.globals[..num_imported_globals].iter().enumerate() {
                     if !g.mutable && g.val_type == ty.val_type {
                         choices.push(Box::new(move |_, _| Ok(Instruction::GlobalGet(i as u32))));
                     }
@@ -1586,7 +1587,10 @@ where
 
         // Create a helper closure to choose an arbitrary offset.
         let mut offset_global_choices = vec![];
-        for (i, g) in self.globals.iter().enumerate() {
+        for (i, g) in self.globals[..self.globals.len() - self.defined_globals.len()]
+            .iter()
+            .enumerate()
+        {
             if !g.mutable && g.val_type == ValType::I32 {
                 offset_global_choices.push(i as u32);
             }
