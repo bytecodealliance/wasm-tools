@@ -77,7 +77,7 @@ pub use config::{Config, DefaultConfig, SwarmConfig};
 /// configuration type, implement the [`Config`][crate::Config] trait for it,
 /// and use [`ConfiguredModule<YourConfigType>`][crate::ConfiguredModule]
 /// instead of plain `Module`.
-#[derive(Debug, Default, Arbitrary)]
+#[derive(Debug, Arbitrary)]
 pub struct Module {
     inner: ConfiguredModule<DefaultConfig>,
 }
@@ -88,7 +88,7 @@ pub struct Module {
 /// instead.
 ///
 /// For details on configuring, see the [`Config`][crate::Config] trait.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ConfiguredModule<C>
 where
     C: Config,
@@ -202,13 +202,52 @@ impl<C: Config> ConfiguredModule<C> {
     pub fn config(&self) -> &C {
         &self.config
     }
-}
 
-impl<'a, C: Config> Arbitrary<'a> for ConfiguredModule<C> {
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        let mut module = ConfiguredModule::<C>::default();
+    /// Creates a new `ConfiguredModule` with the specified `config` for
+    /// configuration and `Unstructured` for the DNA of this module.
+    pub fn new(config: C, u: &mut Unstructured<'_>) -> Result<Self> {
+        let mut module = ConfiguredModule::empty(config);
         module.build(u, false)?;
         Ok(module)
+    }
+
+    fn empty(config: C) -> Self {
+        ConfiguredModule {
+            config,
+            valtypes: Vec::new(),
+            outers: Vec::new(),
+            initial_sections: Vec::new(),
+            import_names: HashMap::new(),
+            implicit_instance_types: HashMap::new(),
+            types: Vec::new(),
+            func_types: Vec::new(),
+            module_types: Vec::new(),
+            instance_types: Vec::new(),
+            num_imports: 0,
+            num_aliases: 0,
+            num_defined_funcs: 0,
+            num_defined_tables: 0,
+            num_defined_memories: 0,
+            defined_globals: Vec::new(),
+            funcs: Vec::new(),
+            tables: Vec::new(),
+            globals: Vec::new(),
+            memories: Vec::new(),
+            instances: Vec::new(),
+            modules: Vec::new(),
+            exports: Vec::new(),
+            start: None,
+            elems: Vec::new(),
+            code: Vec::new(),
+            data: Vec::new(),
+            type_size: 0,
+        }
+    }
+}
+
+impl<'a, C: Config + Arbitrary<'a>> Arbitrary<'a> for ConfiguredModule<C> {
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+        ConfiguredModule::new(C::arbitrary(u)?, u)
     }
 }
 
@@ -216,7 +255,7 @@ impl<'a, C: Config> Arbitrary<'a> for ConfiguredModule<C> {
 ///
 /// This module generates function bodies differnetly than `Module` to try to
 /// better explore wasm decoders and such.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct MaybeInvalidModule {
     module: Module,
 }
@@ -230,7 +269,9 @@ impl MaybeInvalidModule {
 
 impl<'a> Arbitrary<'a> for MaybeInvalidModule {
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        let mut module = Module::default();
+        let mut module = Module {
+            inner: ConfiguredModule::empty(DefaultConfig),
+        };
         module.inner.build(u, true)?;
         Ok(MaybeInvalidModule { module })
     }
@@ -918,7 +959,6 @@ where
     C: Config,
 {
     fn build(&mut self, u: &mut Unstructured, allow_invalid: bool) -> Result<()> {
-        self.config = C::arbitrary(u)?;
         self.valtypes.push(ValType::I32);
         self.valtypes.push(ValType::I64);
         self.valtypes.push(ValType::F32);
@@ -1466,7 +1506,7 @@ where
     fn arbitrary_modules(&mut self, u: &mut Unstructured) -> Result<()> {
         let mut modules = Vec::new();
         arbitrary_loop(u, 0, self.config.max_modules(), |u| {
-            let mut module = ConfiguredModule::<C>::default();
+            let mut module = ConfiguredModule::empty(self.config.clone());
             module.outers = self.outers.clone();
             let parent = Outer {
                 types: (0..self.types.len())
@@ -1475,7 +1515,6 @@ where
                 modules: self.modules.clone(),
             };
             module.outers.insert(0, parent);
-            module.config = self.config.clone();
             module.build(u, false)?;
 
             // After we've generated the `module`, we create `ty` which is its
