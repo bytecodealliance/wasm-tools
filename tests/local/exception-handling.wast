@@ -2,7 +2,7 @@
 (module 
   (type (func (param i32 i64)))
   (type (func (param i32)))
-  (event (type 0))
+  (event (import "m" "t") (type 0))
   (event (type 1))
   (func $check-throw
     i32.const 1

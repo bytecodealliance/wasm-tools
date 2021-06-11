@@ -1130,6 +1130,10 @@ impl Encode for Custom<'_> {
 impl Encode for Event<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.ty.encode(e);
+        match &self.kind {
+            EventKind::Inline() => {}
+            _ => panic!("EventKind should be inline during encoding"),
+        }
     }
 }
 
