@@ -677,9 +677,6 @@ impl OperatorValidator {
                         self.push_ctrl(FrameKind::Else, frame.block_type, resources)?;
                         frame = self.pop_ctrl(resources)?;
                     }
-                    FrameKind::Try => {
-                        bail_op_err!("expected catch block");
-                    }
                     _ => (),
                 }
 
