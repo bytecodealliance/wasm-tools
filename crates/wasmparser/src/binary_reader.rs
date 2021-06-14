@@ -1110,7 +1110,6 @@ impl<'a> BinaryReader<'a> {
             0x09 => Operator::Rethrow {
                 relative_depth: self.read_var_u32()?,
             },
-            0x0a => Operator::Unwind,
             0x0b => Operator::End,
             0x0c => Operator::Br {
                 relative_depth: self.read_var_u32()?,

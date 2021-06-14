@@ -141,6 +141,11 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         // Usage of `assert_invalid` which should be `assert_malformed`
         "testsuite/proposals/memory64/memory.wast",
         "testsuite/proposals/memory64/address.wast",
+        // Unwind is being removed from the exceptions proposal.
+        "dump/try-unwind.txt",
+        "parse/expr/try-unwind.txt",
+        "roundtrip/try-unwind.txt",
+        "roundtrip/fold-try-unwind.txt",
     ];
     if broken.iter().any(|x| test.ends_with(x)) {
         return true;

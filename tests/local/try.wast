@@ -38,12 +38,6 @@
 
 (assert_malformed
   (module quote
-    "(func (try (do) (unwind) (drop)))"
-  )
-  "too many payloads inside of `(try)`")
-
-(assert_malformed
-  (module quote
     "(func (try (do) (delegate 0) (drop)))"
   )
   "too many payloads inside of `(try)`")
