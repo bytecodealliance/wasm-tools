@@ -113,7 +113,6 @@ enum FrameKind {
     Try,
     Catch,
     CatchAll,
-    Unwind,
 }
 
 impl OperatorValidator {
@@ -288,12 +287,7 @@ impl OperatorValidator {
         // Read the expected type and expected height of the operand stack the
         // end of the frame.
         let frame = self.control.last().unwrap();
-        // The end of an `unwind` should check against the empty block type.
-        let ty = if frame.kind == FrameKind::Unwind {
-            TypeOrFuncType::Type(Type::EmptyBlockType)
-        } else {
-            frame.block_type
-        };
+        let ty = frame.block_type;
         let height = frame.height;
 
         // Pop all the result types, in reverse order, from the operand stack.
@@ -636,20 +630,6 @@ impl OperatorValidator {
                     bail_op_err!("rethrow target was not a `catch` block");
                 }
                 self.unreachable();
-            }
-            Operator::Unwind => {
-                self.check_exceptions_enabled()?;
-                // Switch from `try` to an `unwind` frame.
-                let frame = self.pop_ctrl(resources)?;
-                if frame.kind != FrameKind::Try {
-                    bail_op_err!("unwind found outside of an `try` block");
-                }
-                self.control.push(Frame {
-                    kind: FrameKind::Unwind,
-                    block_type: frame.block_type,
-                    height: self.operands.len(),
-                    unreachable: false,
-                });
             }
             Operator::Delegate { relative_depth } => {
                 self.check_exceptions_enabled()?;

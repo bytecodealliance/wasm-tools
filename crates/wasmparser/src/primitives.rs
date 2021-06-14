@@ -365,7 +365,6 @@ pub enum Operator<'a> {
     Rethrow {
         relative_depth: u32,
     },
-    Unwind,
     End,
     Br {
         relative_depth: u32,

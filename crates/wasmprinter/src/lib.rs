@@ -681,10 +681,7 @@ impl Printer {
                     // `else`/`catch` are special in that it's printed at
                     // the previous indentation, but it doesn't actually change
                     // our nesting level.
-                    Operator::Else
-                    | Operator::Catch { .. }
-                    | Operator::CatchAll
-                    | Operator::Unwind => {
+                    Operator::Else | Operator::Catch { .. } | Operator::CatchAll => {
                         self.nesting -= 1;
                         self.newline();
                         self.nesting += 1;
@@ -762,7 +759,6 @@ impl Printer {
                     label(*relative_depth)
                 )?;
             }
-            Unwind => self.result.push_str("unwind"),
             End => self.result.push_str("end"),
             Br { relative_depth } => {
                 write!(
