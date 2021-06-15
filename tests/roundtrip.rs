@@ -280,6 +280,9 @@ impl TestState {
             // FIXME wabt doesn't print conflict or empty names in the same way
             // that we do.
             && !test.ends_with("local/names.wast")
+
+            // FIXME this can be removed once wabt support for catch-less try is merged
+            && !test.ends_with("local/try.wat")
         {
             if let Some(expected) = self.wasm2wat(contents)? {
                 self.string_compare(&string, &expected)

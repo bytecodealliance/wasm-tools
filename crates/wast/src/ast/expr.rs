@@ -193,16 +193,11 @@ impl<'a> ExpressionParser<'a> {
                         self.instrs.push(Instruction::End(None));
                     }
 
-                    // Both `do` and `catch` are required in a `try` statement, so
-                    // we will signal those errors here. Otherwise, terminate with
+                    // The `do` clause is required in a `try` statement, so
+                    // we will signal that error here. Otherwise, terminate with
                     // an `end` or `delegate` instruction.
                     Level::Try(Try::Do(_)) => {
                         return Err(parser.error("previous `try` had no `do`"));
-                    }
-                    Level::Try(Try::CatchOrDelegate) => {
-                        return Err(parser.error(
-                            "previous `try` had no `catch`, `catch_all`, or `delegate`",
-                        ));
                     }
                     Level::Try(Try::Delegate) => {}
                     Level::Try(_) => {
@@ -372,7 +367,7 @@ impl<'a> ExpressionParser<'a> {
                     Paren::Right => return Ok(true),
                 }
             }
-            return Ok(false);
+            return Err(parser.error("expected a `catch`, `catch_all`, or `delegate`"));
         }
 
         if let Try::Catch = i {
