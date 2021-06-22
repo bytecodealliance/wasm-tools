@@ -36,7 +36,7 @@ fn main() -> Result<()> {
             FunctionSection(s) => printer.section(s, "functions"),
             TableSection(s) => printer.section(s, "tables"),
             MemorySection(s) => printer.section(s, "memories"),
-            EventSection(s) => printer.section(s, "events"),
+            TagSection(s) => printer.section(s, "tags"),
             GlobalSection(s) => printer.section(s, "globals"),
             ExportSection(s) => printer.section(s, "exports"),
             StartSection { range, .. } => printer.section_raw(range, 1, "start"),

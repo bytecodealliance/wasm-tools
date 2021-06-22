@@ -307,7 +307,7 @@ impl<'a> ExpressionParser<'a> {
     /// than an `if` as the syntactic form is:
     ///
     /// ```wat
-    /// (try (do $do) (catch $event $catch))
+    /// (try (do $do) (catch $tag $catch))
     /// ```
     ///
     /// where the `do` and `catch` keywords are mandatory, even for an empty

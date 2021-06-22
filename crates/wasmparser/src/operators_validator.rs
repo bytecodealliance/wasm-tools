@@ -604,7 +604,7 @@ impl OperatorValidator {
                     unreachable: false,
                 });
                 // Push exception argument types.
-                let ty = event_at(&resources, index)?;
+                let ty = tag_at(&resources, index)?;
                 for ty in ty.inputs() {
                     self.push_operand(ty)?;
                 }
@@ -612,7 +612,7 @@ impl OperatorValidator {
             Operator::Throw { index } => {
                 self.check_exceptions_enabled()?;
                 // Check values associated with the exception.
-                let ty = event_at(&resources, index)?;
+                let ty = tag_at(&resources, index)?;
                 for ty in ty.inputs().rev() {
                     self.pop_operand(Some(ty))?;
                 }
@@ -1972,13 +1972,10 @@ fn func_type_at<T: WasmModuleResources>(
         .ok_or_else(|| OperatorValidatorError::new("unknown type: type index out of bounds"))
 }
 
-fn event_at<T: WasmModuleResources>(
-    resources: &T,
-    at: u32,
-) -> OperatorValidatorResult<&T::FuncType> {
+fn tag_at<T: WasmModuleResources>(resources: &T, at: u32) -> OperatorValidatorResult<&T::FuncType> {
     resources
-        .event_at(at)
-        .ok_or_else(|| OperatorValidatorError::new("unknown event: event index out of bounds"))
+        .tag_at(at)
+        .ok_or_else(|| OperatorValidatorError::new("unknown tag: tag index out of bounds"))
 }
 
 enum Either<A, B> {

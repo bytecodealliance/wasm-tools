@@ -25,7 +25,7 @@ fn encode_fields(
     let mut start = Vec::new();
     let mut elem = Vec::new();
     let mut data = Vec::new();
-    let mut events = Vec::new();
+    let mut tags = Vec::new();
     let mut customs = Vec::new();
     let mut instances = Vec::new();
     let mut modules = Vec::new();
@@ -42,7 +42,7 @@ fn encode_fields(
             ModuleField::Start(i) => start.push(i),
             ModuleField::Elem(i) => elem.push(i),
             ModuleField::Data(i) => data.push(i),
-            ModuleField::Event(i) => events.push(i),
+            ModuleField::Tag(i) => tags.push(i),
             ModuleField::Custom(i) => customs.push(i),
             ModuleField::Instance(i) => instances.push(i),
             ModuleField::NestedModule(i) => modules.push(i),
@@ -106,7 +106,7 @@ fn encode_fields(
     e.section_list(3, Func, &functys);
     e.section_list(4, Table, &tables);
     e.section_list(5, Memory, &memories);
-    e.section_list(13, Event, &events);
+    e.section_list(13, Tag, &tags);
     e.section_list(6, Global, &globals);
     e.section_list(7, Export, &exports);
     e.custom_sections(Before(Start));
@@ -465,7 +465,7 @@ impl Encode for ItemSig<'_> {
                 e.push(0x03);
                 f.encode(e);
             }
-            ItemKind::Event(f) => {
+            ItemKind::Tag(f) => {
                 e.push(0x04);
                 f.encode(e);
             }
@@ -634,7 +634,7 @@ impl Encode for ExportKind {
             ExportKind::Table => e.push(0x01),
             ExportKind::Memory => e.push(0x02),
             ExportKind::Global => e.push(0x03),
-            ExportKind::Event => e.push(0x04),
+            ExportKind::Tag => e.push(0x04),
             ExportKind::Module => e.push(0x05),
             ExportKind::Instance => e.push(0x06),
             ExportKind::Type => e.push(0x07),
@@ -1127,20 +1127,20 @@ impl Encode for Custom<'_> {
     }
 }
 
-impl Encode for Event<'_> {
+impl Encode for Tag<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.ty.encode(e);
         match &self.kind {
-            EventKind::Inline() => {}
-            _ => panic!("EventKind should be inline during encoding"),
+            TagKind::Inline() => {}
+            _ => panic!("TagKind should be inline during encoding"),
         }
     }
 }
 
-impl Encode for EventType<'_> {
+impl Encode for TagType<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         match self {
-            EventType::Exception(ty) => {
+            TagType::Exception(ty) => {
                 e.push(0x00);
                 ty.encode(e);
             }

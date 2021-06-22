@@ -88,7 +88,7 @@ fuzz_target!(|data: Vec<Vec<u8>>| {
             (MemorySection(a), MemorySection(b)) => assert_eq!(a.range(), b.range()),
             (GlobalSection(a), GlobalSection(b)) => assert_eq!(a.range(), b.range()),
             (ExportSection(a), ExportSection(b)) => assert_eq!(a.range(), b.range()),
-            (EventSection(a), EventSection(b)) => assert_eq!(a.range(), b.range()),
+            (TagSection(a), TagSection(b)) => assert_eq!(a.range(), b.range()),
             (StartSection { func: a, range: ar }, StartSection { func: b, range: br }) => {
                 assert_eq!(a, b);
                 assert_eq!(ar, br);

@@ -109,7 +109,7 @@ const SYMTAB_GLOBAL: u32 = 2;
 #[allow(unused)]
 const SYMTAB_SECTION: u32 = 3;
 #[allow(unused)]
-const SYMTAB_EVENT: u32 = 4;
+const SYMTAB_TAG: u32 = 4;
 const SYMTAB_TABLE: u32 = 5;
 
 impl SymbolTable {
@@ -161,7 +161,7 @@ impl SymbolTable {
         self
     }
 
-    // TODO: events
+    // TODO: tags
 
     /// Define a table symbol in this symbol table.
     ///

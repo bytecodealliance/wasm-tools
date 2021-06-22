@@ -14,15 +14,14 @@
  */
 
 use super::{
-    BinaryReader, BinaryReaderError, EventType, ExternalKind, GlobalType, LinkingType, MemoryType,
-    NameType, Naming, Operator, Range, RelocType, Result, SectionCode, TableType, Type,
+    BinaryReader, BinaryReaderError, ExternalKind, GlobalType, LinkingType, MemoryType, NameType,
+    Naming, Operator, Range, RelocType, Result, SectionCode, TableType, TagType, Type,
 };
 
 pub use self::alias_section::*;
 pub use self::code_section::*;
 pub use self::data_section::*;
 pub use self::element_section::*;
-pub use self::event_section::*;
 pub use self::export_section::*;
 pub use self::function_section::*;
 pub use self::global_section::*;
@@ -38,13 +37,13 @@ pub use self::producers_section::*;
 pub use self::reloc_section::*;
 pub use self::section_reader::*;
 pub use self::table_section::*;
+pub use self::tag_section::*;
 pub use self::type_section::*;
 
 mod alias_section;
 mod code_section;
 mod data_section;
 mod element_section;
-mod event_section;
 mod export_section;
 mod function_section;
 mod global_section;
@@ -60,4 +59,5 @@ mod producers_section;
 mod reloc_section;
 mod section_reader;
 mod table_section;
+mod tag_section;
 mod type_section;

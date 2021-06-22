@@ -1,4 +1,4 @@
-use crate::EventSectionReader;
+use crate::TagSectionReader;
 use crate::{AliasSectionReader, InstanceSectionReader};
 use crate::{BinaryReader, BinaryReaderError, FunctionBody, Range, Result};
 use crate::{DataSectionReader, ElementSectionReader, ExportSectionReader};
@@ -109,9 +109,9 @@ pub enum Payload<'a> {
     /// A memory section was received, and the provided reader can be used to
     /// parse the contents of the memory section.
     MemorySection(crate::MemorySectionReader<'a>),
-    /// An event section was received, and the provided reader can be used to
-    /// parse the contents of the event section.
-    EventSection(crate::EventSectionReader<'a>),
+    /// An tag section was received, and the provided reader can be used to
+    /// parse the contents of the tag section.
+    TagSection(crate::TagSectionReader<'a>),
     /// A global section was received, and the provided reader can be used to
     /// parse the contents of the global section.
     GlobalSection(crate::GlobalSectionReader<'a>),
@@ -346,7 +346,7 @@ impl Parser {
     ///             FunctionSection(_) => { /* ... */ }
     ///             TableSection(_) => { /* ... */ }
     ///             MemorySection(_) => { /* ... */ }
-    ///             EventSection(_) => { /* ... */ }
+    ///             TagSection(_) => { /* ... */ }
     ///             GlobalSection(_) => { /* ... */ }
     ///             ExportSection(_) => { /* ... */ }
     ///             StartSection { .. } => { /* ... */ }
@@ -537,7 +537,7 @@ impl Parser {
                         let (count, range) = single_u32(reader, len, "data count")?;
                         Ok(DataCountSection { count, range })
                     }
-                    13 => section(reader, len, EventSectionReader::new, EventSection),
+                    13 => section(reader, len, TagSectionReader::new, TagSection),
                     14 => {
                         let start = reader.original_position();
                         let count = delimited(reader, &mut len, |r| r.read_var_u32())?;
@@ -916,7 +916,7 @@ impl fmt::Debug for Payload<'_> {
             FunctionSection(_) => f.debug_tuple("FunctionSection").field(&"...").finish(),
             TableSection(_) => f.debug_tuple("TableSection").field(&"...").finish(),
             MemorySection(_) => f.debug_tuple("MemorySection").field(&"...").finish(),
-            EventSection(_) => f.debug_tuple("EventSection").field(&"...").finish(),
+            TagSection(_) => f.debug_tuple("TagSection").field(&"...").finish(),
             GlobalSection(_) => f.debug_tuple("GlobalSection").field(&"...").finish(),
             ExportSection(_) => f.debug_tuple("ExportSection").field(&"...").finish(),
             ElementSection(_) => f.debug_tuple("ElementSection").field(&"...").finish(),
