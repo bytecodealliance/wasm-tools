@@ -41,7 +41,7 @@ impl ModuleSection {
         self.num_added
     }
 
-    /// Writes a dmodule into this module code section.
+    /// Writes a module into this module code section.
     pub fn module(&mut self, module: &Module) -> &mut Self {
         self.bytes.extend(
             encoders::u32(u32::try_from(module.bytes.len()).unwrap())
