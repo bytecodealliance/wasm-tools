@@ -696,7 +696,7 @@
 (module $PARENT
   (type $empty (func))
   (module
-    (event $x)
+    (tag $x)
 
     (func
       i32.const 0

@@ -25,7 +25,7 @@ use crate::primitives::{
     ResizableLimits, ResizableLimits64, Result, SIMDLaneIndex, SectionCode, TableType, Type,
     TypeOrFuncType, V128,
 };
-use crate::{EventType, ExportType, Import, ImportSectionEntryType, InstanceType, ModuleType};
+use crate::{ExportType, Import, ImportSectionEntryType, InstanceType, ModuleType, TagType};
 
 const MAX_WASM_BR_TABLE_SIZE: usize = MAX_WASM_FUNCTION_SIZE;
 
@@ -203,7 +203,7 @@ impl<'a> BinaryReader<'a> {
             1 => Ok(ExternalKind::Table),
             2 => Ok(ExternalKind::Memory),
             3 => Ok(ExternalKind::Global),
-            4 => Ok(ExternalKind::Event),
+            4 => Ok(ExternalKind::Tag),
             5 => Ok(ExternalKind::Module),
             6 => Ok(ExternalKind::Instance),
             7 => Ok(ExternalKind::Type),
@@ -302,7 +302,7 @@ impl<'a> BinaryReader<'a> {
             ExternalKind::Function => ImportSectionEntryType::Function(self.read_var_u32()?),
             ExternalKind::Table => ImportSectionEntryType::Table(self.read_table_type()?),
             ExternalKind::Memory => ImportSectionEntryType::Memory(self.read_memory_type()?),
-            ExternalKind::Event => ImportSectionEntryType::Event(self.read_event_type()?),
+            ExternalKind::Tag => ImportSectionEntryType::Tag(self.read_tag_type()?),
             ExternalKind::Global => ImportSectionEntryType::Global(self.read_global_type()?),
             ExternalKind::Module => ImportSectionEntryType::Module(self.read_var_u32()?),
             ExternalKind::Instance => ImportSectionEntryType::Instance(self.read_var_u32()?),
@@ -371,16 +371,16 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
-    pub(crate) fn read_event_type(&mut self) -> Result<EventType> {
+    pub(crate) fn read_tag_type(&mut self) -> Result<TagType> {
         let attribute = self.read_var_u32()?;
         if attribute != 0 {
             return Err(BinaryReaderError::new(
-                "invalid event attributes",
+                "invalid tag attributes",
                 self.original_position() - 1,
             ));
         }
         let type_index = self.read_var_u32()?;
-        Ok(EventType { type_index })
+        Ok(TagType { type_index })
     }
 
     pub(crate) fn read_global_type(&mut self) -> Result<GlobalType> {
@@ -449,7 +449,7 @@ impl<'a> BinaryReader<'a> {
             10 => Ok(SectionCode::Code),
             11 => Ok(SectionCode::Data),
             12 => Ok(SectionCode::DataCount),
-            13 => Ok(SectionCode::Event),
+            13 => Ok(SectionCode::Tag),
             14 => Ok(SectionCode::Module),
             15 => Ok(SectionCode::Instance),
             16 => Ok(SectionCode::Alias),

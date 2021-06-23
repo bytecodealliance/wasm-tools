@@ -14,21 +14,21 @@
  */
 
 use super::{
-    BinaryReader, EventType, Range, Result, SectionIteratorLimited, SectionReader,
-    SectionWithLimitedItems,
+    BinaryReader, Range, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
+    TagType,
 };
 
 #[derive(Clone)]
-pub struct EventSectionReader<'a> {
+pub struct TagSectionReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,
 }
 
-impl<'a> EventSectionReader<'a> {
-    pub fn new(data: &'a [u8], offset: usize) -> Result<EventSectionReader<'a>> {
+impl<'a> TagSectionReader<'a> {
+    pub fn new(data: &'a [u8], offset: usize) -> Result<TagSectionReader<'a>> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
-        Ok(EventSectionReader { reader, count })
+        Ok(TagSectionReader { reader, count })
     }
 
     pub fn original_position(&self) -> usize {
@@ -39,48 +39,48 @@ impl<'a> EventSectionReader<'a> {
         self.count
     }
 
-    /// Reads content of the event section.
+    /// Reads content of the tag section.
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::EventSectionReader;
+    /// use wasmparser::TagSectionReader;
     /// # let data: &[u8] = &[0x01, 0x00, 0x01];
-    /// let mut event_reader = EventSectionReader::new(data, 0).unwrap();
-    /// for _ in 0..event_reader.get_count() {
-    ///     let et = event_reader.read().expect("event_type");
-    ///     println!("Event: {:?}", et);
+    /// let mut tag_reader = TagSectionReader::new(data, 0).unwrap();
+    /// for _ in 0..tag_reader.get_count() {
+    ///     let et = tag_reader.read().expect("tag_type");
+    ///     println!("Tag: {:?}", et);
     /// }
     /// ```
-    pub fn read(&mut self) -> Result<EventType> {
-        self.reader.read_event_type()
+    pub fn read(&mut self) -> Result<TagType> {
+        self.reader.read_tag_type()
     }
 }
 
-impl<'a> SectionReader for EventSectionReader<'a> {
-    type Item = EventType;
+impl<'a> SectionReader for TagSectionReader<'a> {
+    type Item = TagType;
     fn read(&mut self) -> Result<Self::Item> {
-        EventSectionReader::read(self)
+        TagSectionReader::read(self)
     }
     fn eof(&self) -> bool {
         self.reader.eof()
     }
     fn original_position(&self) -> usize {
-        EventSectionReader::original_position(self)
+        TagSectionReader::original_position(self)
     }
     fn range(&self) -> Range {
         self.reader.range()
     }
 }
 
-impl<'a> SectionWithLimitedItems for EventSectionReader<'a> {
+impl<'a> SectionWithLimitedItems for TagSectionReader<'a> {
     fn get_count(&self) -> u32 {
-        EventSectionReader::get_count(self)
+        TagSectionReader::get_count(self)
     }
 }
 
-impl<'a> IntoIterator for EventSectionReader<'a> {
-    type Item = Result<EventType>;
-    type IntoIter = SectionIteratorLimited<EventSectionReader<'a>>;
+impl<'a> IntoIterator for TagSectionReader<'a> {
+    type Item = Result<TagType>;
+    type IntoIter = SectionIteratorLimited<TagSectionReader<'a>>;
 
     fn into_iter(self) -> Self::IntoIter {
         SectionIteratorLimited::new(self)

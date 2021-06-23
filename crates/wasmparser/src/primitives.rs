@@ -114,7 +114,7 @@ pub enum SectionCode<'a> {
     Code,       // Function bodies (code)
     Data,       // Data segments
     DataCount,  // Count of passive data segments
-    Event,      // Event declarations
+    Tag,        // Tag declarations
 }
 
 /// Types as defined [here].
@@ -155,7 +155,7 @@ pub enum ExternalKind {
     Function,
     Table,
     Memory,
-    Event,
+    Tag,
     Global,
     Type,
     Module,
@@ -223,7 +223,7 @@ pub enum MemoryType {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct EventType {
+pub struct TagType {
     pub type_index: u32,
 }
 
@@ -247,7 +247,7 @@ pub enum ImportSectionEntryType {
     Function(u32),
     Table(TableType),
     Memory(MemoryType),
-    Event(EventType),
+    Tag(TagType),
     Global(GlobalType),
     Module(u32),
     Instance(u32),

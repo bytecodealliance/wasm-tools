@@ -2,8 +2,8 @@
 (module 
   (type (func (param i32 i64)))
   (type (func (param i32)))
-  (event (import "m" "t") (type 0))
-  (event (type 1))
+  (tag (import "m" "t") (type 0))
+  (tag (type 1))
   (func $check-throw
     i32.const 1
     i64.const 2
@@ -29,7 +29,7 @@
   (module
     (type (func))
     (func throw 0))
-  "unknown event: event index out of bounds")
+  "unknown tag: tag index out of bounds")
 
 (assert_invalid
   (module

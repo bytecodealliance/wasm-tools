@@ -2,7 +2,7 @@
 
 (module $m
   (type (func))
-  (event $exn (type 0))
+  (tag $exn (type 0))
   (func (try (do)))
   (func (try (do) (catch $exn)))
   (func (try (do) (catch $exn rethrow 0)))

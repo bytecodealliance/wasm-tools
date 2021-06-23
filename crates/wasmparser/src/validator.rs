@@ -17,7 +17,7 @@ use crate::limits::*;
 use crate::ResizableLimits64;
 use crate::WasmModuleResources;
 use crate::{Alias, ExternalKind, Import, ImportSectionEntryType};
-use crate::{BinaryReaderError, EventType, GlobalType, MemoryType, Range, Result, TableType, Type};
+use crate::{BinaryReaderError, GlobalType, MemoryType, Range, Result, TableType, TagType, Type};
 use crate::{DataKind, ElementItem, ElementKind, InitExpr, Instance, Operator};
 use crate::{FuncType, ResizableLimits, SectionReader, SectionWithLimitedItems};
 use crate::{FunctionBody, Parser, Payload};
@@ -141,7 +141,7 @@ struct ModuleState {
     data_count: Option<u32>,
     code_type_indexes: Vec<u32>, // pointer into `types` above
     func_types: Vec<usize>,      // pointer into `validator.types`
-    events: Vec<usize>,          // pointer into `validator.types`
+    tags: Vec<usize>,            // pointer into `validator.types`
     submodules: Vec<usize>,      // pointer into `validator.types`
     instances: Vec<usize>,       // pointer into `validator.types`
     function_references: HashSet<u32>,
@@ -212,7 +212,7 @@ enum Order {
     Function,
     Table,
     Memory,
-    Event,
+    Tag,
     Global,
     Export,
     Start,
@@ -278,7 +278,7 @@ enum EntityType {
     Func(usize),     // pointer into `validator.types`
     Module(usize),   // pointer into `validator.types`
     Instance(usize), // pointer into `validator.types`
-    Event(usize),    // pointer into `validator.types`
+    Tag(usize),      // pointer into `validator.types`
 }
 
 /// Possible return values from [`Validator::payload`].
@@ -355,7 +355,7 @@ impl Validator {
             FunctionSection(s) => self.function_section(s)?,
             TableSection(s) => self.table_section(s)?,
             MemorySection(s) => self.memory_section(s)?,
-            EventSection(s) => self.event_section(s)?,
+            TagSection(s) => self.tag_section(s)?,
             GlobalSection(s) => self.global_section(s)?,
             ExportSection(s) => self.export_section(s)?,
             StartSection { func, range } => self.start_section(*func, range)?,
@@ -649,11 +649,9 @@ impl Validator {
                 self.memory_type(t)?;
                 Ok(EntityType::Memory(t.clone()))
             }
-            ImportSectionEntryType::Event(t) => {
-                self.event_type(t)?;
-                Ok(EntityType::Event(
-                    self.cur.state.types[t.type_index as usize],
-                ))
+            ImportSectionEntryType::Tag(t) => {
+                self.tag_type(t)?;
+                Ok(EntityType::Tag(self.cur.state.types[t.type_index as usize]))
             }
             ImportSectionEntryType::Global(t) => {
                 self.global_type(t)?;
@@ -740,7 +738,7 @@ impl Validator {
         Ok(())
     }
 
-    fn event_type(&self, ty: &EventType) -> Result<()> {
+    fn tag_type(&self, ty: &TagType) -> Result<()> {
         let ty = self.func_type_at(ty.type_index)?;
         if ty.returns.len() > 0 {
             return self.create_error("invalid result arity for exception type");
@@ -826,10 +824,10 @@ impl Validator {
                 state.memories.push(ty);
                 (state.memories.len(), self.max_memories(), "memories")
             }
-            ImportSectionEntryType::Event(ty) => {
+            ImportSectionEntryType::Tag(ty) => {
                 let ty = state.types[ty.type_index as usize];
-                state.events.push(ty);
-                (state.events.len(), MAX_WASM_EVENTS, "events")
+                state.tags.push(ty);
+                (state.tags.len(), MAX_WASM_TAGS, "tags")
             }
             ImportSectionEntryType::Global(ty) => {
                 state.globals.push(ty);
@@ -919,9 +917,9 @@ impl Validator {
                         let ty = ty.clone();
                         self.cur.state.assert_mut().memories.push(ty);
                     }
-                    (EntityType::Event(ty), ExternalKind::Event) => {
+                    (EntityType::Tag(ty), ExternalKind::Tag) => {
                         let ty = *ty;
-                        self.cur.state.assert_mut().events.push(ty);
+                        self.cur.state.assert_mut().tags.push(ty);
                     }
                     (EntityType::Global(ty), ExternalKind::Global) => {
                         let ty = ty.clone();
@@ -1080,15 +1078,15 @@ impl Validator {
                     self.create_error("func type mismatch")
                 }
             }
-            EntityType::Event(a) => {
+            EntityType::Tag(a) => {
                 let b = match b {
-                    EntityType::Event(b) => b,
+                    EntityType::Tag(b) => b,
                     _ => return self.create_error("item type mismatch"),
                 };
                 if self.types[*a].unwrap_func() == self.types[*b].unwrap_func() {
                     Ok(())
                 } else {
-                    self.create_error("event type mismatch")
+                    self.create_error("tag type mismatch")
                 }
             }
             EntityType::Memory(MemoryType::M32 { limits, shared }) => {
@@ -1219,17 +1217,17 @@ impl Validator {
         })
     }
 
-    pub fn event_section(&mut self, section: &crate::EventSectionReader<'_>) -> Result<()> {
+    pub fn tag_section(&mut self, section: &crate::TagSectionReader<'_>) -> Result<()> {
         self.check_max(
-            self.cur.state.events.len(),
+            self.cur.state.tags.len(),
             section.get_count(),
-            MAX_WASM_EVENTS,
-            "events",
+            MAX_WASM_TAGS,
+            "tags",
         )?;
-        self.section(Order::Event, section, |me, ty| {
-            me.event_type(&ty)?;
+        self.section(Order::Tag, section, |me, ty| {
+            me.tag_type(&ty)?;
             let state = me.cur.state.assert_mut();
-            state.events.push(state.types[ty.type_index as usize]);
+            state.tags.push(state.types[ty.type_index as usize]);
             Ok(())
         })
     }
@@ -1379,9 +1377,9 @@ impl Validator {
                 check("global", self.cur.state.globals.len())?;
                 EntityType::Global(self.cur.state.globals[index as usize].clone())
             }
-            ExternalKind::Event => {
-                check("event", self.cur.state.events.len())?;
-                EntityType::Event(self.cur.state.events[index as usize])
+            ExternalKind::Tag => {
+                check("tag", self.cur.state.tags.len())?;
+                EntityType::Tag(self.cur.state.tags[index as usize])
             }
             ExternalKind::Module => {
                 check("module", self.cur.state.submodules.len())?;
@@ -1607,8 +1605,8 @@ impl WasmModuleResources for Validator {
         self.cur.state.memory_at(at)
     }
 
-    fn event_at(&self, at: u32) -> Option<&Self::FuncType> {
-        self.cur.state.event_at(at)
+    fn tag_at(&self, at: u32) -> Option<&Self::FuncType> {
+        self.cur.state.tag_at(at)
     }
 
     fn global_at(&self, at: u32) -> Option<GlobalType> {
@@ -1691,9 +1689,9 @@ impl WasmModuleResources for ModuleState {
         self.memories.get(at as usize).cloned()
     }
 
-    fn event_at(&self, at: u32) -> Option<&Self::FuncType> {
+    fn tag_at(&self, at: u32) -> Option<&Self::FuncType> {
         let types = self.all_types.as_ref().unwrap();
-        let i = *self.events.get(at as usize)?;
+        let i = *self.tags.get(at as usize)?;
         match &types[i] {
             TypeDef::Func(f) => Some(f),
             _ => None,
@@ -1753,8 +1751,8 @@ impl WasmModuleResources for ValidatorResources {
         self.0.memory_at(at)
     }
 
-    fn event_at(&self, at: u32) -> Option<&Self::FuncType> {
-        self.0.event_at(at)
+    fn tag_at(&self, at: u32) -> Option<&Self::FuncType> {
+        self.0.tag_at(at)
     }
 
     fn global_at(&self, at: u32) -> Option<GlobalType> {
@@ -1957,7 +1955,7 @@ impl EntityType {
             EntityType::Func(i)
             | EntityType::Module(i)
             | EntityType::Instance(i)
-            | EntityType::Event(i) => match &list[*i] {
+            | EntityType::Tag(i) => match &list[*i] {
                 TypeDef::Func(f) => 1 + (f.params.len() + f.returns.len()) as u32,
                 TypeDef::Module(m) => m.imports_size + m.exports_size,
                 TypeDef::Instance(i) => i.type_size,

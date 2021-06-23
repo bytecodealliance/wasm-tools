@@ -92,7 +92,7 @@ fn sym_tab_function() -> Result<()> {
         "
  - name: \"linking\"
   - symbol table [count=1]
-   - 0: F <func> func=42 binding=global vis=default
+   - 0: F <func> func=42 [ binding=global vis=default ]
 ",
     )
 }
@@ -114,7 +114,7 @@ fn sym_tab_flags() -> Result<()> {
         "
  - name: \"linking\"
   - symbol table [count=1]
-   - 0: F <func> func=1337 binding=weak vis=hidden
+   - 0: F <func> func=1337 [ binding=weak vis=hidden ]
 ",
     )
 }
@@ -132,7 +132,7 @@ fn sym_tab_global() -> Result<()> {
         "
  - name: \"linking\"
   - symbol table [count=1]
-   - 0: G <my_global> global=42 binding=global vis=default",
+   - 0: G <my_global> global=42 [ binding=global vis=default ]",
     )
 }
 
@@ -149,7 +149,7 @@ fn sym_tab_table() -> Result<()> {
         "
  - name: \"linking\"
   - symbol table [count=1]
-   - 0: T <my_table> table=42 binding=global vis=default",
+   - 0: T <my_table> table=42 [ binding=global vis=default ]",
     )
 }
 
@@ -174,7 +174,7 @@ fn sym_tab_data_defined() -> Result<()> {
         "
  - name: \"linking\"
   - symbol table [count=1]
-   - 0: D <my_data> segment=42 offset=1337 size=1234 binding=global vis=default
+   - 0: D <my_data> segment=42 offset=1337 size=1234 [ binding=global vis=default ]
 ",
     )
 }
@@ -192,7 +192,7 @@ fn sym_tab_data_undefined() -> Result<()> {
         "
  - name: \"linking\"
   - symbol table [count=1]
-   - 0: D <my_data> undefined binding=global vis=default
+   - 0: D <my_data> [ undefined binding=global vis=default ]
 ",
     )
 }
