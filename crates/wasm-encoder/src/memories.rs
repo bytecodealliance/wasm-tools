@@ -35,6 +35,11 @@ impl MemorySection {
         }
     }
 
+    /// How many memories have been defined inside this section so far?
+    pub fn len(&self) -> u32 {
+        self.num_added
+    }
+
     /// Define a memory.
     pub fn memory(&mut self, memory_type: MemoryType) -> &mut Self {
         memory_type.encode(&mut self.bytes);

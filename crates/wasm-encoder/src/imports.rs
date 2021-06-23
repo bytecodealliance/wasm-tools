@@ -40,6 +40,11 @@ impl ImportSection {
         }
     }
 
+    /// How many imports have been defined inside this section so far?
+    pub fn len(&self) -> u32 {
+        self.num_added
+    }
+
     /// Define an import.
     pub fn import(
         &mut self,

@@ -36,6 +36,11 @@ impl TableSection {
         }
     }
 
+    /// How many tables have been defined inside this section so far?
+    pub fn len(&self) -> u32 {
+        self.num_added
+    }
+
     /// Define a table.
     pub fn table(&mut self, table_type: TableType) -> &mut Self {
         table_type.encode(&mut self.bytes);

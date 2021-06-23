@@ -39,6 +39,11 @@ impl InstanceSection {
         }
     }
 
+    /// How many instances have been defined inside this section so far?
+    pub fn len(&self) -> u32 {
+        self.num_added
+    }
+
     /// Define an instantiation of the given module with the given items as
     /// arguments to the instantiation.
     pub fn instantiate<'a, I>(&mut self, module: u32, args: I) -> &mut Self
