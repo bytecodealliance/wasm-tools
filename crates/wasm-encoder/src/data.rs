@@ -71,6 +71,11 @@ impl DataSection {
         }
     }
 
+    /// How many segments have been defined inside this section so far?
+    pub fn len(&self) -> u32 {
+        self.num_added
+    }
+
     /// Define an active data segment.
     pub fn segment<D>(&mut self, segment: DataSegment<D>) -> &mut Self
     where

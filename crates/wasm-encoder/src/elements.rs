@@ -102,6 +102,11 @@ impl ElementSection {
         }
     }
 
+    /// How many segments have been defined inside this section so far?
+    pub fn len(&self) -> u32 {
+        self.num_added
+    }
+
     /// Define an element segment.
     pub fn segment<'a>(&mut self, segment: ElementSegment<'a>) -> &mut Self {
         let expr_bit = match segment.elements {

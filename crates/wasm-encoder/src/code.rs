@@ -46,6 +46,11 @@ impl CodeSection {
         }
     }
 
+    /// How many function bodies have been defined inside this section so far?
+    pub fn len(&self) -> u32 {
+        self.num_added
+    }
+
     /// Write a function body into this code section.
     pub fn function(&mut self, func: &Function) -> &mut Self {
         func.encode(&mut self.bytes);

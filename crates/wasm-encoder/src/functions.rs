@@ -35,6 +35,11 @@ impl FunctionSection {
         }
     }
 
+    /// How many functions have been defined inside this section so far?
+    pub fn len(&self) -> u32 {
+        self.num_added
+    }
+
     /// Define a function that uses the given type.
     pub fn function(&mut self, type_index: u32) -> &mut Self {
         self.bytes.extend(encoders::u32(type_index));

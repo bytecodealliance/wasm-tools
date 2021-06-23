@@ -33,6 +33,11 @@ impl TypeSection {
         }
     }
 
+    /// How many types have been defined inside this section so far?
+    pub fn len(&self) -> u32 {
+        self.num_added
+    }
+
     /// Define a function type.
     pub fn function<P, R>(&mut self, params: P, results: R) -> &mut Self
     where
