@@ -47,3 +47,9 @@
     "(func (try (do) (delegate 0) (drop)))"
   )
   "too many payloads inside of `(try)`")
+
+(assert_malformed
+  (module quote
+    "(func (try $l (do) (delegate $l)))"
+  )
+  "failed to find label")
