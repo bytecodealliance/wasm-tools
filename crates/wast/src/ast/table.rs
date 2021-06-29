@@ -115,7 +115,7 @@ pub enum ElemKind<'a> {
 }
 
 /// Different ways to define the element segment payload in a module.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum ElemPayload<'a> {
     /// This element segment has a contiguous list of function indices
     Indices(Vec<ast::ItemRef<'a, kw::func>>),
@@ -125,9 +125,8 @@ pub enum ElemPayload<'a> {
     Exprs {
         /// The desired type of each expression below.
         ty: ast::RefType<'a>,
-        /// The expressions, currently optional function indices, in this
-        /// segment.
-        exprs: Vec<Option<ast::ItemRef<'a, kw::func>>>,
+        /// The expressions in this segment.
+        exprs: Vec<ast::Expression<'a>>,
     },
 }
 
@@ -199,38 +198,12 @@ impl<'a> ElemPayload<'a> {
         }
         let mut exprs = Vec::new();
         while !parser.is_empty() {
-            let func = parser.parens(|p| match p.parse::<Option<kw::item>>()? {
-                Some(_) => {
-                    if parser.peek::<ast::LParen>() {
-                        parser.parens(|p| parse_ref_func(p, ty))
-                    } else {
-                        parse_ref_func(parser, ty)
-                    }
-                }
-                None => parse_ref_func(parser, ty),
+            let expr = parser.parens(|p| {
+                p.parse::<Option<kw::item>>()?;
+                p.parse()
             })?;
-            exprs.push(func);
+            exprs.push(expr);
         }
         Ok(ElemPayload::Exprs { exprs, ty })
-    }
-}
-
-fn parse_ref_func<'a>(
-    parser: Parser<'a>,
-    ty: ast::RefType<'a>,
-) -> Result<Option<ast::ItemRef<'a, kw::func>>> {
-    let mut l = parser.lookahead1();
-    if l.peek::<kw::ref_null>() {
-        parser.parse::<kw::ref_null>()?;
-        let null_ty: ast::HeapType = parser.parse()?;
-        if ty.heap != null_ty {
-            return Err(parser.error("elem segment item doesn't match elem segment type"));
-        }
-        Ok(None)
-    } else if l.peek::<kw::ref_func>() {
-        parser.parse::<kw::ref_func>()?;
-        Ok(Some(parser.parse::<ast::IndexOrRef<_>>()?.0))
-    } else {
-        Err(l.error())
     }
 }

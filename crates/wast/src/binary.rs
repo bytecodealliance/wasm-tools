@@ -649,7 +649,8 @@ impl Encode for Elem<'_> {
         //
         // FIXME(WebAssembly/wabt#1447) ideally we wouldn't do this so we could
         // be faithful to the original format.
-        let mut to_encode = self.payload.clone();
+        let indices;
+        let mut to_encode = &self.payload;
         if let ElemPayload::Exprs {
             ty:
                 RefType {
@@ -659,8 +660,9 @@ impl Encode for Elem<'_> {
             exprs,
         } = &to_encode
         {
-            if let Some(indices) = extract_indices(exprs) {
-                to_encode = ElemPayload::Indices(indices);
+            if let Some(list) = extract_indices(exprs) {
+                indices = ElemPayload::Indices(list);
+                to_encode = &indices;
             }
         }
 
@@ -732,10 +734,19 @@ impl Encode for Elem<'_> {
 
         to_encode.encode(e);
 
-        fn extract_indices<'a>(
-            indices: &[Option<ItemRef<'a, kw::func>>],
-        ) -> Option<Vec<ItemRef<'a, kw::func>>> {
-            indices.iter().cloned().collect()
+        fn extract_indices<'a>(indices: &[Expression<'a>]) -> Option<Vec<ItemRef<'a, kw::func>>> {
+            indices
+                .iter()
+                .map(|expr| {
+                    if expr.instrs.len() != 1 {
+                        return None;
+                    }
+                    match &expr.instrs[0] {
+                        Instruction::RefFunc(f) => Some(f.0.clone()),
+                        _ => None,
+                    }
+                })
+                .collect()
         }
     }
 }
@@ -744,18 +755,10 @@ impl Encode for ElemPayload<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         match self {
             ElemPayload::Indices(v) => v.encode(e),
-            ElemPayload::Exprs { exprs, ty } => {
+            ElemPayload::Exprs { exprs, ty: _ } => {
                 exprs.len().encode(e);
-                for idx in exprs {
-                    match idx {
-                        Some(idx) => {
-                            Instruction::RefFunc(IndexOrRef(idx.clone())).encode(e);
-                        }
-                        None => {
-                            Instruction::RefNull(ty.heap).encode(e);
-                        }
-                    }
-                    Instruction::End(None).encode(e);
+                for expr in exprs {
+                    expr.encode(e);
                 }
             }
         }
