@@ -100,10 +100,8 @@ impl<'a> Expander<'a> {
                         }
                     }
                     ElemPayload::Exprs { exprs, .. } => {
-                        for func in exprs {
-                            if let Some(func) = func {
-                                self.expand(func);
-                            }
+                        for expr in exprs {
+                            self.expand_expr(expr);
                         }
                     }
                 }

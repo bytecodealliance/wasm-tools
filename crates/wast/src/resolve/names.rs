@@ -237,10 +237,8 @@ impl<'a> Resolver<'a> {
                         }
                     }
                     ElemPayload::Exprs { exprs, ty } => {
-                        for funcref in exprs {
-                            if let Some(idx) = funcref {
-                                self.resolve_item_ref(idx)?;
-                            }
+                        for expr in exprs {
+                            self.resolve_expr(expr)?;
                         }
                         self.resolve_heaptype(&mut ty.heap)?;
                     }
