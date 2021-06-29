@@ -772,7 +772,7 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 ));
             }
 
-            Br(i) | BrIf(i) | BrOnNull(i) | Delegate(i) => {
+            Br(i) | BrIf(i) | BrOnNull(i) => {
                 self.resolve_label(i)?;
             }
 
@@ -791,6 +791,12 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             }
             Catch(i) => {
                 self.resolver.resolve(i, Ns::Tag)?;
+            }
+            Delegate(i) => {
+                // Since a delegate starts counting one layer out from the
+                // current try-delegate block, we pop before we resolve labels.
+                self.blocks.pop();
+                self.resolve_label(i)?;
             }
 
             BrOnCast(l) | BrOnFunc(l) | BrOnData(l) | BrOnI31(l) => {

@@ -134,18 +134,9 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         "dump/reference-types.txt",
         "interp/reference-types.txt",
         "expr/reference-types.txt",
-        // This test is skipped for now due to a delegate printing bug in wabt.
-        "parse/expr/try-delegate.txt",
-        // Skipped until (WebAssembly/wabt#1605) is merged.
-        "typecheck/delegate.txt",
         // Usage of `assert_invalid` which should be `assert_malformed`
         "testsuite/proposals/memory64/memory.wast",
         "testsuite/proposals/memory64/address.wast",
-        // Unwind is being removed from the exceptions proposal.
-        "dump/try-unwind.txt",
-        "parse/expr/try-unwind.txt",
-        "roundtrip/try-unwind.txt",
-        "roundtrip/fold-try-unwind.txt",
     ];
     if broken.iter().any(|x| test.ends_with(x)) {
         return true;

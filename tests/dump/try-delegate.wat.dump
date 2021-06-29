@@ -1,0 +1,18 @@
+0x0000 | 00 61 73 6d | version 1
+       | 01 00 00 00
+0x0008 | 01 04       | type section
+0x000a | 01          | 1 count
+0x000b | 60 00 00    | [type 0] Func(FuncType { params: [], returns: [] })
+0x000e | 03 02       | func section
+0x0010 | 01          | 1 count
+0x0011 | 00          | [func 0] type 0
+0x0012 | 0a 0b       | code section
+0x0014 | 01          | 1 count
+============== func 0 ====================
+0x0015 | 09          | size of function
+0x0016 | 00          | 0 local blocks
+0x0017 | 06 40       | Try { ty: Type(EmptyBlockType) }
+0x0019 | 06 40       | Try { ty: Type(EmptyBlockType) }
+0x001b | 18 00       | Delegate { relative_depth: 0 }
+0x001d | 0b          | End
+0x001e | 0b          | End
