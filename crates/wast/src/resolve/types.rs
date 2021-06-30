@@ -267,6 +267,7 @@ impl<'a> Expander<'a> {
         self.to_prepend.push(ModuleField::Type(Type {
             span,
             id: Some(id),
+            name: None,
             def: key.to_def(span),
         }));
         let idx = Index::Id(id);

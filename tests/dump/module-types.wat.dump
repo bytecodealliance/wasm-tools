@@ -19,3 +19,10 @@
 0x003a | 01          | 1 count
 0x003b | 00 00 ff 05 | import [module 0] Import { module: "", field: None, ty: Module(3) }
        | 03         
+0x0040 | 00 0f       | custom section
+0x0042 | 04 6e 61 6d | name: "name"
+       | 65         
+0x0047 | 04 08       | type names
+0x0049 | 01          | 1 count
+0x004a | 00 05 65 6d | Naming { index: 0, name: "empty" }
+       | 70 74 79   

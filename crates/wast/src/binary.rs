@@ -968,10 +968,30 @@ impl Encode for Float64 {
     }
 }
 
+#[derive(Default)]
 struct Names<'a> {
     module: Option<&'a str>,
     funcs: Vec<(u32, &'a str)>,
+    func_idx: u32,
     locals: Vec<(u32, Vec<(u32, &'a str)>)>,
+    globals: Vec<(u32, &'a str)>,
+    global_idx: u32,
+    memories: Vec<(u32, &'a str)>,
+    memory_idx: u32,
+    tables: Vec<(u32, &'a str)>,
+    table_idx: u32,
+    tags: Vec<(u32, &'a str)>,
+    tag_idx: u32,
+    modules: Vec<(u32, &'a str)>,
+    module_idx: u32,
+    instances: Vec<(u32, &'a str)>,
+    instance_idx: u32,
+    types: Vec<(u32, &'a str)>,
+    type_idx: u32,
+    data: Vec<(u32, &'a str)>,
+    data_idx: u32,
+    elems: Vec<(u32, &'a str)>,
+    elem_idx: u32,
 }
 
 fn find_names<'a>(
@@ -989,80 +1009,130 @@ fn find_names<'a>(
         }))
     }
 
-    let mut funcs = Vec::new();
-    let mut locals = Vec::new();
-    let mut idx = 0;
+    enum Name {
+        Type,
+        Global,
+        Func,
+        Module,
+        Instance,
+        Memory,
+        Table,
+        Tag,
+        Elem,
+        Data,
+    }
+
+    let mut ret = Names::default();
+    ret.module = get_name(module_id, module_name);
     for field in fields {
-        match field {
-            ModuleField::Import(i) => {
+        // Extract the kind/id/name from whatever kind of field this is...
+        let (kind, id, name) = match field {
+            ModuleField::Import(i) => (
                 match i.item.kind {
-                    ItemKind::Func(_) => {}
-                    _ => continue,
-                }
+                    ItemKind::Func(_) => Name::Func,
+                    ItemKind::Table(_) => Name::Table,
+                    ItemKind::Memory(_) => Name::Memory,
+                    ItemKind::Global(_) => Name::Global,
+                    ItemKind::Tag(_) => Name::Tag,
+                    ItemKind::Instance(_) => Name::Instance,
+                    ItemKind::Module(_) => Name::Module,
+                },
+                &i.item.id,
+                &i.item.name,
+            ),
+            ModuleField::Global(g) => (Name::Global, &g.id, &g.name),
+            ModuleField::Table(t) => (Name::Table, &t.id, &t.name),
+            ModuleField::Memory(m) => (Name::Memory, &m.id, &m.name),
+            ModuleField::Tag(t) => (Name::Tag, &t.id, &t.name),
+            ModuleField::NestedModule(m) => (Name::Module, &m.id, &m.name),
+            ModuleField::Instance(i) => (Name::Instance, &i.id, &i.name),
+            ModuleField::Type(t) => (Name::Type, &t.id, &t.name),
+            ModuleField::Elem(e) => (Name::Elem, &e.id, &e.name),
+            ModuleField::Data(d) => (Name::Data, &d.id, &d.name),
+            ModuleField::Func(f) => (Name::Func, &f.id, &f.name),
+            ModuleField::Alias(a) => (
+                match a.kind {
+                    ExportKind::Func => Name::Func,
+                    ExportKind::Table => Name::Table,
+                    ExportKind::Memory => Name::Memory,
+                    ExportKind::Global => Name::Global,
+                    ExportKind::Module => Name::Module,
+                    ExportKind::Instance => Name::Instance,
+                    ExportKind::Tag => Name::Tag,
+                    ExportKind::Type => Name::Type,
+                },
+                &a.id,
+                &a.name,
+            ),
+            ModuleField::Export(_) | ModuleField::Start(_) | ModuleField::Custom(_) => continue,
+        };
 
-                if let Some(name) = get_name(&i.item.id, &i.item.name) {
-                    funcs.push((idx, name));
-                }
-
-                idx += 1;
-            }
-            ModuleField::Func(f) => {
-                if let Some(name) = get_name(&f.id, &f.name) {
-                    funcs.push((idx, name));
-                }
-                let mut local_names = Vec::new();
-                let mut local_idx = 0;
-
-                // Consult the inline type listed for local names of parameters.
-                // This is specifically preserved during the name resolution
-                // pass, but only for functions, so here we can look at the
-                // original source's names.
-                if let Some(ty) = &f.ty.inline {
-                    for (id, name, _) in ty.params.iter() {
-                        if let Some(name) = get_name(id, name) {
-                            local_names.push((local_idx, name));
-                        }
-                        local_idx += 1;
-                    }
-                }
-                if let FuncKind::Inline { locals, .. } = &f.kind {
-                    for local in locals {
-                        if let Some(name) = get_name(&local.id, &local.name) {
-                            local_names.push((local_idx, name));
-                        }
-                        local_idx += 1;
-                    }
-                }
-                if local_names.len() > 0 {
-                    locals.push((idx, local_names));
-                }
-                idx += 1;
-            }
-            ModuleField::Alias(Alias {
-                id,
-                name,
-                kind: ExportKind::Func,
-                ..
-            }) => {
-                if let Some(name) = get_name(id, name) {
-                    funcs.push((idx, name));
-                }
-                idx += 1;
-            }
-            _ => {}
+        // .. and using the kind we can figure out where to place this name
+        let (list, idx) = match kind {
+            Name::Func => (&mut ret.funcs, &mut ret.func_idx),
+            Name::Table => (&mut ret.tables, &mut ret.table_idx),
+            Name::Memory => (&mut ret.memories, &mut ret.memory_idx),
+            Name::Global => (&mut ret.globals, &mut ret.global_idx),
+            Name::Module => (&mut ret.modules, &mut ret.module_idx),
+            Name::Instance => (&mut ret.instances, &mut ret.instance_idx),
+            Name::Tag => (&mut ret.tags, &mut ret.tag_idx),
+            Name::Type => (&mut ret.types, &mut ret.type_idx),
+            Name::Elem => (&mut ret.elems, &mut ret.elem_idx),
+            Name::Data => (&mut ret.data, &mut ret.data_idx),
+        };
+        if let Some(name) = get_name(id, name) {
+            list.push((*idx, name));
         }
+
+        // Handle module locals separately from above
+        if let ModuleField::Func(f) = field {
+            let mut local_names = Vec::new();
+            let mut local_idx = 0;
+
+            // Consult the inline type listed for local names of parameters.
+            // This is specifically preserved during the name resolution
+            // pass, but only for functions, so here we can look at the
+            // original source's names.
+            if let Some(ty) = &f.ty.inline {
+                for (id, name, _) in ty.params.iter() {
+                    if let Some(name) = get_name(id, name) {
+                        local_names.push((local_idx, name));
+                    }
+                    local_idx += 1;
+                }
+            }
+            if let FuncKind::Inline { locals, .. } = &f.kind {
+                for local in locals {
+                    if let Some(name) = get_name(&local.id, &local.name) {
+                        local_names.push((local_idx, name));
+                    }
+                    local_idx += 1;
+                }
+            }
+            if local_names.len() > 0 {
+                ret.locals.push((*idx, local_names));
+            }
+        }
+
+        *idx += 1;
     }
 
-    Names {
-        module: get_name(module_id, module_name),
-        funcs,
-        locals,
-    }
+    return ret;
 }
 
 impl Names<'_> {
     fn is_empty(&self) -> bool {
-        self.module.is_none() && self.funcs.is_empty() && self.locals.is_empty()
+        self.module.is_none()
+            && self.funcs.is_empty()
+            && self.locals.is_empty()
+            && self.globals.is_empty()
+            && self.memories.is_empty()
+            && self.tables.is_empty()
+            && self.types.is_empty()
+            && self.data.is_empty()
+            && self.elems.is_empty()
+        // NB: specifically don't check tags/modules/instances since they're
+        // not encoded for now.
     }
 }
 
@@ -1087,6 +1157,30 @@ impl Encode for Names<'_> {
         if self.locals.len() > 0 {
             self.locals.encode(&mut tmp);
             subsec(2, &mut tmp);
+        }
+        if self.types.len() > 0 {
+            self.types.encode(&mut tmp);
+            subsec(4, &mut tmp);
+        }
+        if self.tables.len() > 0 {
+            self.tables.encode(&mut tmp);
+            subsec(5, &mut tmp);
+        }
+        if self.memories.len() > 0 {
+            self.memories.encode(&mut tmp);
+            subsec(6, &mut tmp);
+        }
+        if self.globals.len() > 0 {
+            self.globals.encode(&mut tmp);
+            subsec(7, &mut tmp);
+        }
+        if self.elems.len() > 0 {
+            self.elems.encode(&mut tmp);
+            subsec(8, &mut tmp);
+        }
+        if self.data.len() > 0 {
+            self.data.encode(&mut tmp);
+            subsec(9, &mut tmp);
         }
     }
 }

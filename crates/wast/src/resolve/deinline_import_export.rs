@@ -78,6 +78,7 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                         to_append.push(ModuleField::Data(Data {
                             span: m.span,
                             id: None,
+                            name: None,
                             kind: DataKind::Active {
                                 memory: item_ref(kw::memory(m.span), id),
                                 offset: Expression {
@@ -136,6 +137,7 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                         to_append.push(ModuleField::Elem(Elem {
                             span: t.span,
                             id: None,
+                            name: None,
                             kind: ElemKind::Active {
                                 table: item_ref(kw::table(t.span), id),
                                 offset: Expression {
