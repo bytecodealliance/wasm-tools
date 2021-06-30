@@ -124,6 +124,11 @@ impl<'a> Expander<'a> {
                 if let ElemKind::Active { offset, .. } = &mut e.kind {
                     self.expand_expression(offset);
                 }
+                if let ElemPayload::Exprs { exprs, .. } = &mut e.payload {
+                    for expr in exprs {
+                        self.expand_expression(expr);
+                    }
+                }
             }
             ModuleField::Tag(t) => match &mut t.ty {
                 TagType::Exception(ty) => {

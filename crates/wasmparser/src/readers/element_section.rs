@@ -93,11 +93,11 @@ impl<'a> ElementItemsReader<'a> {
             let ret = match self.reader.read_operator()? {
                 Operator::RefNull { ty } => ElementItem::Null(ty),
                 Operator::RefFunc { function_index } => ElementItem::Func(function_index),
-                _ => return Err(BinaryReaderError::new("invalid passive segment", offset)),
+                _ => return Err(BinaryReaderError::new("invalid element segment", offset)),
             };
             match self.reader.read_operator()? {
                 Operator::End => {}
-                _ => return Err(BinaryReaderError::new("invalid passive segment", offset)),
+                _ => return Err(BinaryReaderError::new("invalid element segment", offset)),
             }
             Ok(ret)
         } else {
