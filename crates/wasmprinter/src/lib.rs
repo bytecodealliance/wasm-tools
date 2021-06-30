@@ -312,8 +312,9 @@ impl Printer {
     fn print_types(&mut self, parser: TypeSectionReader<'_>) -> Result<()> {
         for ty in parser {
             self.newline();
-            self.start_group("type");
-            write!(self.result, " (;{};) ", self.state.types.len())?;
+            self.start_group("type ");
+            self.print_cur_type_name()?;
+            self.result.push_str(" ");
             let ty = match ty? {
                 TypeDef::Func(ty) => {
                     self.start_group("func");
@@ -364,13 +365,13 @@ impl Printer {
         names_for: Option<u32>,
     ) -> Result<Option<u32>> {
         if always_print_type {
-            write!(self.result, " (type {})", idx)?;
+            self.print_type_ref(idx)?;
         }
         let ty = match self.state.types.get(idx as usize) {
             Some(Some(ty)) => ty.clone(),
             Some(None) => {
                 if !always_print_type {
-                    write!(self.result, " (type {})", idx)?;
+                    self.print_type_ref(idx)?;
                 }
                 return Ok(None);
             }
@@ -485,26 +486,23 @@ impl Printer {
                 self.start_group("func");
                 if index {
                     self.result.push_str(" ");
-                    match self.state.function_names.get(&self.state.func) {
-                        Some(name) => name.write(&mut self.result),
-                        None => write!(self.result, "(;{};)", self.state.func)?,
-                    }
+                    self.print_cur_func_name()?;
                 }
-                write!(self.result, " (type {})", f)?;
+                self.print_type_ref(*f)?;
             }
             Module(f) => {
-                self.start_group("module ");
+                self.start_group("module");
                 if index {
-                    write!(self.result, "(;{};) ", self.state.module)?;
+                    write!(self.result, " (;{};)", self.state.module)?;
                 }
-                write!(self.result, "(type {})", f)?;
+                self.print_type_ref(*f)?;
             }
             Instance(f) => {
-                self.start_group("instance ");
+                self.start_group("instance");
                 if index {
-                    write!(self.result, "(;{};) ", self.state.instance)?;
+                    write!(self.result, " (;{};)", self.state.instance)?;
                 }
-                write!(self.result, "(type {})", f)?;
+                self.print_type_ref(*f)?;
             }
             Table(f) => self.print_table_type(&f, index)?,
             Memory(f) => self.print_memory_type(&f, index)?,
@@ -518,7 +516,8 @@ impl Printer {
     fn print_table_type(&mut self, ty: &TableType, index: bool) -> Result<()> {
         self.start_group("table ");
         if index {
-            write!(self.result, "(;{};) ", self.state.table)?;
+            self.print_cur_table_name()?;
+            self.result.push_str(" ");
         }
         self.print_limits(&ty.limits)?;
         self.result.push_str(" ");
@@ -529,7 +528,8 @@ impl Printer {
     fn print_memory_type(&mut self, ty: &MemoryType, index: bool) -> Result<()> {
         self.start_group("memory ");
         if index {
-            write!(self.result, "(;{};) ", self.state.memory)?;
+            self.print_cur_memory_name()?;
+            self.result.push_str(" ");
         }
         match ty {
             MemoryType::M32 { limits, shared } => {
@@ -571,7 +571,8 @@ impl Printer {
     fn print_global_type(&mut self, ty: &GlobalType, index: bool) -> Result<()> {
         self.start_group("global ");
         if index {
-            write!(self.result, "(;{};) ", self.state.global)?;
+            self.print_cur_global_name()?;
+            self.result.push_str(" ");
         }
         if ty.mutable {
             self.result.push_str("(mut ");
@@ -638,10 +639,7 @@ impl Printer {
             let ty = funcs.read()?;
             self.newline();
             self.start_group("func ");
-            match self.state.function_names.get(&self.state.func) {
-                Some(name) => name.write(&mut self.result),
-                None => write!(self.result, "(;{};)", self.state.func)?,
-            }
+            self.print_cur_func_name()?;
             let params = self
                 .print_functype_idx(ty, true, Some(self.state.func))?
                 .unwrap_or(0);
@@ -809,9 +807,10 @@ impl Printer {
             CallIndirect { table_index, index } => {
                 self.result.push_str("call_indirect");
                 if *table_index != 0 {
-                    write!(self.result, " {}", table_index)?;
+                    self.result.push_str(" ");
+                    self.print_table_idx(*table_index)?;
                 }
-                write!(self.result, " (type {})", index)?;
+                self.print_type_ref(*index)?;
             }
             ReturnCall { function_index } => {
                 self.result.push_str("return_call ");
@@ -820,9 +819,10 @@ impl Printer {
             ReturnCallIndirect { table_index, index } => {
                 self.result.push_str("return_call_indirect");
                 if *table_index != 0 {
-                    write!(self.result, " {}", table_index)?;
+                    self.result.push_str(" ");
+                    self.print_table_idx(*table_index)?;
                 }
-                write!(self.result, " (type {})", index)?;
+                self.print_type_ref(*index)?;
             }
 
             Delegate { relative_depth } => {
@@ -851,10 +851,12 @@ impl Printer {
             }
 
             GlobalGet { global_index } => {
-                write!(self.result, "global.get {}", global_index)?;
+                self.result.push_str("global.get ");
+                self.print_global_idx(*global_index)?;
             }
             GlobalSet { global_index } => {
-                write!(self.result, "global.set {}", global_index)?;
+                self.result.push_str("global.set ");
+                self.print_global_idx(*global_index)?;
             }
 
             I32Load { memarg } => self.mem_instr("i32.load", memarg, 4)?,
@@ -883,9 +885,15 @@ impl Printer {
             I64Store32 { memarg } => self.mem_instr("i64.store32", memarg, 4)?,
 
             MemorySize { mem: 0, .. } => self.result.push_str("memory.size"),
-            MemorySize { mem, .. } => write!(self.result, "memory.size {}", mem)?,
+            MemorySize { mem, .. } => {
+                self.result.push_str("memory.size ");
+                self.print_memory_idx(*mem)?;
+            }
             MemoryGrow { mem: 0, .. } => self.result.push_str("memory.grow"),
-            MemoryGrow { mem, .. } => write!(self.result, "memory.grow {}", mem)?,
+            MemoryGrow { mem, .. } => {
+                self.result.push_str("memory.grow ");
+                self.print_memory_idx(*mem)?;
+            }
 
             I32Const { value } => write!(self.result, "i32.const {}", value)?,
             I64Const { value } => write!(self.result, "i64.const {}", value)?,
@@ -1057,37 +1065,75 @@ impl Printer {
             I64TruncSatF64S => self.result.push_str("i64.trunc_sat_f64_s"),
             I64TruncSatF64U => self.result.push_str("i64.trunc_sat_f64_u"),
 
-            MemoryInit { segment, mem: 0 } => write!(self.result, "memory.init {}", segment)?,
-            MemoryInit { segment, mem } => write!(self.result, "memory.init {} {}", segment, mem)?,
-            DataDrop { segment } => write!(self.result, "data.drop {}", segment)?,
-            MemoryCopy { src: 0, dst: 0 } => self.result.push_str("memory.copy"),
-            MemoryCopy { src, dst } => write!(self.result, "memory.copy {} {}", dst, src)?,
-            MemoryFill { mem: 0 } => self.result.push_str("memory.fill"),
-            MemoryFill { mem } => write!(self.result, "memory.fill {}", mem)?,
-
-            TableInit { table, segment } => {
-                if *table == 0 {
-                    write!(self.result, "table.init {}", segment)?
-                } else {
-                    write!(self.result, "table.init {} {}", table, segment)?
+            MemoryInit { segment, mem } => {
+                self.result.push_str("memory.init ");
+                self.print_data_idx(*segment)?;
+                if *mem != 0 {
+                    self.result.push_str(" ");
+                    self.print_memory_idx(*mem)?;
                 }
             }
-            ElemDrop { segment } => write!(self.result, "elem.drop {}", segment)?,
+            DataDrop { segment } => {
+                self.result.push_str("data.drop ");
+                self.print_data_idx(*segment)?;
+            }
+            MemoryCopy { src: 0, dst: 0 } => self.result.push_str("memory.copy"),
+            MemoryCopy { src, dst } => {
+                self.result.push_str("memory.copy ");
+                self.print_memory_idx(*dst)?;
+                self.result.push_str(" ");
+                self.print_memory_idx(*src)?;
+            }
+            MemoryFill { mem: 0 } => self.result.push_str("memory.fill"),
+            MemoryFill { mem } => {
+                self.result.push_str("memory.fill ");
+                self.print_memory_idx(*mem)?;
+            }
+
+            TableInit { table, segment } => {
+                self.result.push_str("table.init ");
+                if *table != 0 {
+                    self.print_table_idx(*table)?;
+                    self.result.push_str(" ");
+                }
+                self.print_elem_idx(*segment)?;
+            }
+            ElemDrop { segment } => {
+                self.result.push_str("elem.drop ");
+                self.print_elem_idx(*segment)?;
+            }
             TableCopy {
                 dst_table,
                 src_table,
             } => {
-                if *dst_table == *src_table && *src_table == 0 {
-                    self.result.push_str("table.copy");
-                } else {
-                    write!(self.result, "table.copy {} {}", dst_table, src_table)?
+                self.result.push_str("table.copy");
+                if *dst_table != *src_table || *src_table != 0 {
+                    self.result.push_str(" ");
+                    self.print_table_idx(*dst_table)?;
+                    self.result.push_str(" ");
+                    self.print_table_idx(*src_table)?;
                 }
             }
-            TableGet { table } => write!(self.result, "table.get {}", table)?,
-            TableSet { table } => write!(self.result, "table.set {}", table)?,
-            TableGrow { table } => write!(self.result, "table.grow {}", table)?,
-            TableSize { table } => write!(self.result, "table.size {}", table)?,
-            TableFill { table } => write!(self.result, "table.fill {}", table)?,
+            TableGet { table } => {
+                self.result.push_str("table.get ");
+                self.print_table_idx(*table)?;
+            }
+            TableSet { table } => {
+                self.result.push_str("table.set ");
+                self.print_table_idx(*table)?;
+            }
+            TableGrow { table } => {
+                self.result.push_str("table.grow ");
+                self.print_table_idx(*table)?;
+            }
+            TableSize { table } => {
+                self.result.push_str("table.size ");
+                self.print_table_idx(*table)?;
+            }
+            TableFill { table } => {
+                self.result.push_str("table.fill ");
+                self.print_table_idx(*table)?;
+            }
 
             MemoryAtomicNotify { memarg } => self.mem_instr("memory.atomic.notify", memarg, 4)?,
             MemoryAtomicWait32 { memarg } => self.mem_instr("memory.atomic.wait32", memarg, 4)?,
@@ -1501,7 +1547,9 @@ impl Printer {
     ) -> Result<()> {
         self.result.push_str(name);
         if memarg.memory != 0 {
-            write!(self.result, " (memory {})", memarg.memory)?;
+            self.result.push_str(" (memory ");
+            self.print_memory_idx(memarg.memory)?;
+            self.result.push_str(")");
         }
         if memarg.offset != 0 {
             write!(self.result, " offset={}", memarg.offset)?;
@@ -1539,21 +1587,7 @@ impl Printer {
             self.start_group("export ");
             self.print_str(export.field)?;
             self.result.push_str(" ");
-            self.start_group("");
-            match export.kind {
-                ExternalKind::Function => {
-                    self.result.push_str("func ");
-                    self.print_func_idx(export.index)?;
-                }
-                ExternalKind::Table => write!(self.result, "table {}", export.index)?,
-                ExternalKind::Global => write!(self.result, "global {}", export.index)?,
-                ExternalKind::Memory => write!(self.result, "memory {}", export.index)?,
-                ExternalKind::Tag => write!(self.result, "tag {}", export.index)?,
-                ExternalKind::Module => write!(self.result, "module {}", export.index)?,
-                ExternalKind::Instance => write!(self.result, "instance {}", export.index)?,
-                ExternalKind::Type => write!(self.result, "type {}", export.index)?,
-            }
-            self.end_group(); // field
+            self.print_external(export.kind, export.index)?;
             self.end_group(); // export
         }
         return Ok(());
@@ -1566,13 +1600,25 @@ impl Printer {
                 self.result.push_str("func ");
                 self.print_func_idx(index)?;
             }
-            ExternalKind::Table => write!(self.result, "table {}", index)?,
-            ExternalKind::Global => write!(self.result, "global {}", index)?,
-            ExternalKind::Memory => write!(self.result, "memory {}", index)?,
+            ExternalKind::Table => {
+                self.result.push_str("table ");
+                self.print_table_idx(index)?;
+            }
+            ExternalKind::Global => {
+                self.result.push_str("global ");
+                self.print_global_idx(index)?;
+            }
+            ExternalKind::Memory => {
+                self.result.push_str("memory ");
+                self.print_memory_idx(index)?;
+            }
             ExternalKind::Tag => write!(self.result, "tag {}", index)?,
             ExternalKind::Module => write!(self.result, "module {}", index)?,
             ExternalKind::Instance => write!(self.result, "instance {}", index)?,
-            ExternalKind::Type => write!(self.result, "type {}", index)?,
+            ExternalKind::Type => {
+                self.result.push_str("type ");
+                self.print_type_idx(index)?;
+            }
         }
         self.result.push_str(")");
         Ok(())
@@ -1590,6 +1636,118 @@ impl Printer {
         Ok(())
     }
 
+    fn print_cur_func_name(&mut self) -> Result<()> {
+        match self.state.function_names.get(&self.state.func) {
+            Some(name) => name.write(&mut self.result),
+            None => write!(self.result, "(;{};)", self.state.func)?,
+        }
+        Ok(())
+    }
+
+    fn print_global_idx(&mut self, idx: u32) -> Result<()> {
+        match self.state.global_names.get(&idx) {
+            Some(name) => write!(self.result, "${}", name.identifier())?,
+            None => write!(self.result, "{}", idx)?,
+        }
+        Ok(())
+    }
+
+    fn print_cur_global_name(&mut self) -> Result<()> {
+        match self.state.global_names.get(&self.state.global) {
+            Some(name) => name.write(&mut self.result),
+            None => write!(self.result, "(;{};)", self.state.global)?,
+        }
+        Ok(())
+    }
+
+    fn print_table_idx(&mut self, idx: u32) -> Result<()> {
+        match self.state.table_names.get(&idx) {
+            Some(name) => write!(self.result, "${}", name.identifier())?,
+            None => write!(self.result, "{}", idx)?,
+        }
+        Ok(())
+    }
+
+    fn print_cur_table_name(&mut self) -> Result<()> {
+        match self.state.table_names.get(&self.state.table) {
+            Some(name) => name.write(&mut self.result),
+            None => write!(self.result, "(;{};)", self.state.table)?,
+        }
+        Ok(())
+    }
+
+    fn print_memory_idx(&mut self, idx: u32) -> Result<()> {
+        match self.state.memory_names.get(&idx) {
+            Some(name) => write!(self.result, "${}", name.identifier())?,
+            None => write!(self.result, "{}", idx)?,
+        }
+        Ok(())
+    }
+
+    fn print_cur_memory_name(&mut self) -> Result<()> {
+        match self.state.memory_names.get(&self.state.memory) {
+            Some(name) => name.write(&mut self.result),
+            None => write!(self.result, "(;{};)", self.state.memory)?,
+        }
+        Ok(())
+    }
+
+    fn print_type_ref(&mut self, idx: u32) -> Result<()> {
+        self.result.push_str(" (type ");
+        self.print_type_idx(idx)?;
+        self.result.push_str(")");
+        Ok(())
+    }
+
+    fn print_type_idx(&mut self, idx: u32) -> Result<()> {
+        match self.state.type_names.get(&idx) {
+            Some(name) => write!(self.result, "${}", name.identifier())?,
+            None => write!(self.result, "{}", idx)?,
+        }
+        Ok(())
+    }
+
+    fn print_cur_type_name(&mut self) -> Result<()> {
+        let cur_idx = self.state.types.len() as u32;
+        match self.state.type_names.get(&cur_idx) {
+            Some(name) => name.write(&mut self.result),
+            None => write!(self.result, "(;{};)", cur_idx)?,
+        }
+        Ok(())
+    }
+
+    fn print_data_idx(&mut self, idx: u32) -> Result<()> {
+        match self.state.data_names.get(&idx) {
+            Some(name) => write!(self.result, "${}", name.identifier())?,
+            None => write!(self.result, "{}", idx)?,
+        }
+        Ok(())
+    }
+
+    fn print_data_name(&mut self, idx: u32) -> Result<()> {
+        match self.state.data_names.get(&idx) {
+            Some(name) => name.write(&mut self.result),
+            None => write!(self.result, "(;{};)", idx)?,
+        }
+        Ok(())
+    }
+
+    fn print_elem_idx(&mut self, idx: u32) -> Result<()> {
+        match self.state.element_names.get(&idx) {
+            Some(name) => write!(self.result, "${}", name.identifier())?,
+            None => write!(self.result, "{}", idx)?,
+        }
+        Ok(())
+    }
+
+    fn print_elem_name(&mut self, idx: u32) -> Result<()> {
+        match self.state.element_names.get(&idx) {
+            Some(name) => name.write(&mut self.result),
+            None => write!(self.result, "(;{};)", idx)?,
+        }
+        Ok(())
+    }
+
     fn print_local_idx(&mut self, func: u32, idx: u32) -> Result<()> {
         match self.state.local_names.get(&(func, idx)) {
             Some(name) => write!(self.result, "${}", name.identifier())?,
@@ -1602,8 +1760,8 @@ impl Printer {
         for (i, elem) in data.into_iter().enumerate() {
             let mut elem = elem?;
             self.newline();
-            self.start_group("elem");
-            write!(self.result, " (;{};)", i)?;
+            self.start_group("elem ");
+            self.print_elem_name(i as u32)?;
             match &mut elem.kind {
                 ElementKind::Passive => {}
                 ElementKind::Declared => write!(self.result, " declare")?,
@@ -1612,7 +1770,9 @@ impl Printer {
                     init_expr,
                 } => {
                     if *table_index != 0 {
-                        write!(self.result, " (table {})", table_index)?;
+                        self.result.push_str(" (table ");
+                        self.print_table_idx(*table_index)?;
+                        self.result.push_str(")");
                     }
                     self.result.push_str(" ");
                     self.print_init_expr(&init_expr)?;
@@ -1652,8 +1812,9 @@ impl Printer {
         for (i, data) in data.into_iter().enumerate() {
             let data = data?;
             self.newline();
-            self.start_group("data");
-            write!(self.result, " (;{};) ", i)?;
+            self.start_group("data ");
+            self.print_data_name(i as u32)?;
+            self.result.push_str(" ");
             match &data.kind {
                 DataKind::Passive => {}
                 DataKind::Active {
@@ -1661,7 +1822,9 @@ impl Printer {
                     init_expr,
                 } => {
                     if *memory_index != 0 {
-                        write!(self.result, " (memory {}) ", memory_index)?;
+                        self.result.push_str(" (memory ");
+                        self.print_memory_idx(*memory_index)?;
+                        self.result.push_str(")");
                     }
                     self.print_init_expr(&init_expr)?;
                     self.result.push_str(" ");
@@ -1725,18 +1888,15 @@ impl Printer {
                     self.result.push_str(" ");
                     match kind {
                         ExternalKind::Function => {
-                            match self.state.function_names.get(&self.state.func) {
-                                Some(name) => write!(self.result, "${}", name.identifier())?,
-                                None => write!(self.result, "(;{};)", self.state.func)?,
-                            }
+                            self.print_cur_func_name()?;
                             self.state.func += 1;
                         }
                         ExternalKind::Table => {
-                            write!(self.result, "(;{};)", self.state.table)?;
+                            self.print_cur_table_name()?;
                             self.state.table += 1;
                         }
                         ExternalKind::Memory => {
-                            write!(self.result, "(;{};)", self.state.memory)?;
+                            self.print_cur_memory_name()?;
                             self.state.memory += 1;
                         }
                         ExternalKind::Tag => {
@@ -1744,7 +1904,7 @@ impl Printer {
                             self.state.tag += 1;
                         }
                         ExternalKind::Global => {
-                            write!(self.result, "(;{};)", self.state.global)?;
+                            self.print_cur_global_name()?;
                             self.state.global += 1;
                         }
                         ExternalKind::Instance => {
@@ -1756,7 +1916,7 @@ impl Printer {
                             self.state.module += 1;
                         }
                         ExternalKind::Type => {
-                            write!(self.result, "(;{};)", self.state.types.len())?;
+                            self.print_cur_type_name()?;
                             self.state.types.push(None);
                         }
                     }
@@ -1766,13 +1926,9 @@ impl Printer {
                     relative_depth,
                     index,
                 } => {
-                    write!(
-                        self.result,
-                        "outer {} {} (type (;{};))",
-                        relative_depth,
-                        index,
-                        self.state.types.len(),
-                    )?;
+                    write!(self.result, "outer {} {} (type ", relative_depth, index)?;
+                    self.print_cur_type_name()?;
+                    self.result.push_str(")");
                     self.state.types.push(None);
                 }
                 Alias::OuterModule {
