@@ -55,6 +55,7 @@ struct ModuleState {
     tag: u32,
     global: u32,
     table: u32,
+    label: u32,
     types: Vec<Option<FuncType>>,
     function_names: HashMap<u32, Naming>,
     local_names: HashMap<(u32, u32), Naming>,
@@ -673,6 +674,7 @@ impl Printer {
             }
             locals.finish(&mut self.result);
 
+            self.state.label = 0;
             let nesting_start = self.nesting;
             let mut reader = body.get_operators_reader()?;
             while !reader.eof() {
@@ -731,8 +733,8 @@ impl Printer {
 
     fn print_operator(&mut self, op: &Operator<'_>, nesting_start: u32) -> Result<()> {
         use Operator::*;
-        let cur_label = self.nesting - nesting_start;
-        let label = |relative: u32| match cur_label.checked_sub(relative) {
+        let cur_depth = self.nesting - nesting_start;
+        let label = |relative: u32| match cur_depth.checked_sub(relative) {
             Some(i) => format!("@{}", i),
             None => format!(" INVALID "),
         };
@@ -741,24 +743,20 @@ impl Printer {
             Unreachable => self.result.push_str("unreachable"),
             Block { ty } => {
                 self.result.push_str("block");
-                self.print_blockty(ty)?;
-                write!(self.result, "  ;; label = @{}", cur_label)?;
+                self.print_blockty(ty, cur_depth)?;
             }
             Loop { ty } => {
                 self.result.push_str("loop");
-                self.print_blockty(ty)?;
-                write!(self.result, "  ;; label = @{}", cur_label)?;
+                self.print_blockty(ty, cur_depth)?;
             }
             If { ty } => {
                 self.result.push_str("if");
-                self.print_blockty(ty)?;
-                write!(self.result, "  ;; label = @{}", cur_label)?;
+                self.print_blockty(ty, cur_depth)?;
             }
             Else => self.result.push_str("else"),
             Try { ty } => {
                 self.result.push_str("try");
-                self.print_blockty(ty)?;
-                write!(self.result, "  ;; label = @{}", cur_label)?;
+                self.print_blockty(ty, cur_depth)?;
             }
             Catch { index } => {
                 write!(self.result, "catch {}", index)?;
@@ -1564,20 +1562,29 @@ impl Printer {
         Ok(())
     }
 
-    fn print_blockty(&mut self, ty: &TypeOrFuncType) -> Result<()> {
+    fn print_blockty(&mut self, ty: &TypeOrFuncType, cur_depth: u32) -> Result<()> {
+        if let Some(name) = self
+            .state
+            .label_names
+            .get(&(self.state.func, self.state.label))
+        {
+            self.result.push_str(" ");
+            name.write(&mut self.result);
+        }
         match ty {
-            TypeOrFuncType::Type(Type::EmptyBlockType) => Ok(()),
+            TypeOrFuncType::Type(Type::EmptyBlockType) => {}
             TypeOrFuncType::Type(t) => {
                 self.result.push_str(" (result ");
                 self.print_valtype(*t)?;
                 self.result.push_str(")");
-                Ok(())
             }
             TypeOrFuncType::FuncType(idx) => {
                 self.print_functype_idx(*idx, false, None)?;
-                Ok(())
             }
         }
+        write!(self.result, "  ;; label = @{}", cur_depth)?;
+        self.state.label += 1;
+        Ok(())
     }
 
     fn print_exports(&mut self, data: ExportSectionReader) -> Result<()> {

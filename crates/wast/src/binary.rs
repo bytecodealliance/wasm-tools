@@ -974,6 +974,7 @@ struct Names<'a> {
     funcs: Vec<(u32, &'a str)>,
     func_idx: u32,
     locals: Vec<(u32, Vec<(u32, &'a str)>)>,
+    labels: Vec<(u32, Vec<(u32, &'a str)>)>,
     globals: Vec<(u32, &'a str)>,
     global_idx: u32,
     memories: Vec<(u32, &'a str)>,
@@ -1087,7 +1088,9 @@ fn find_names<'a>(
         // Handle module locals separately from above
         if let ModuleField::Func(f) = field {
             let mut local_names = Vec::new();
+            let mut label_names = Vec::new();
             let mut local_idx = 0;
+            let mut label_idx = 0;
 
             // Consult the inline type listed for local names of parameters.
             // This is specifically preserved during the name resolution
@@ -1101,16 +1104,38 @@ fn find_names<'a>(
                     local_idx += 1;
                 }
             }
-            if let FuncKind::Inline { locals, .. } = &f.kind {
+            if let FuncKind::Inline {
+                locals, expression, ..
+            } = &f.kind
+            {
                 for local in locals {
                     if let Some(name) = get_name(&local.id, &local.name) {
                         local_names.push((local_idx, name));
                     }
                     local_idx += 1;
                 }
+
+                for i in expression.instrs.iter() {
+                    match i {
+                        Instruction::If(block)
+                        | Instruction::Block(block)
+                        | Instruction::Loop(block)
+                        | Instruction::Try(block)
+                        | Instruction::Let(LetType { block, .. }) => {
+                            if let Some(name) = get_name(&block.label, &block.label_name) {
+                                label_names.push((label_idx, name));
+                            }
+                            label_idx += 1;
+                        }
+                        _ => {}
+                    }
+                }
             }
             if local_names.len() > 0 {
                 ret.locals.push((*idx, local_names));
+            }
+            if label_names.len() > 0 {
+                ret.labels.push((*idx, label_names));
             }
         }
 
@@ -1125,6 +1150,7 @@ impl Names<'_> {
         self.module.is_none()
             && self.funcs.is_empty()
             && self.locals.is_empty()
+            && self.labels.is_empty()
             && self.globals.is_empty()
             && self.memories.is_empty()
             && self.tables.is_empty()
@@ -1157,6 +1183,10 @@ impl Encode for Names<'_> {
         if self.locals.len() > 0 {
             self.locals.encode(&mut tmp);
             subsec(2, &mut tmp);
+        }
+        if self.labels.len() > 0 {
+            self.labels.encode(&mut tmp);
+            subsec(3, &mut tmp);
         }
         if self.types.len() > 0 {
             self.types.encode(&mut tmp);

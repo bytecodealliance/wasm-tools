@@ -16,3 +16,11 @@
 0x001b | 18 00       | Delegate { relative_depth: 0 }
 0x001d | 0b          | End
 0x001e | 0b          | End
+0x001f | 00 0d       | custom section
+0x0021 | 04 6e 61 6d | name: "name"
+       | 65         
+0x0026 | 03 06       | label names
+0x0028 | 01          | 1 count
+0x0029 | 00          | function 0 labels
+0x002a | 01          | 1 count
+0x002b | 00 01 6c    | Naming { index: 0, name: "l" }
