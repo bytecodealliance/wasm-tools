@@ -179,8 +179,6 @@ pub struct WasmFeatures {
     pub exceptions: bool,
     /// The WebAssembly memory64 proposal
     pub memory64: bool,
-    /// The WebAssembly extended name section proposal
-    pub extended_name_section: bool,
 }
 
 impl Default for WasmFeatures {
@@ -195,7 +193,6 @@ impl Default for WasmFeatures {
             exceptions: false,
             memory64: false,
             deterministic_only: cfg!(feature = "deterministic"),
-            extended_name_section: false,
 
             // on-by-default features
             bulk_memory: true,
