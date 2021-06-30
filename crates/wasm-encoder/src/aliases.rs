@@ -36,6 +36,11 @@ impl AliasSection {
         }
     }
 
+    /// How many aliases have been defined inside this section so far?
+    pub fn len(&self) -> u32 {
+        self.num_added
+    }
+
     /// Define an alias that references the export of a defined instance.
     pub fn instance_export(
         &mut self,

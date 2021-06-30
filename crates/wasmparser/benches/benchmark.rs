@@ -119,7 +119,7 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
                     item?;
                 }
             }
-            EventSection(s) => {
+            TagSection(s) => {
                 for item in s {
                     item?;
                 }

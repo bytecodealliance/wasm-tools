@@ -68,12 +68,11 @@ let wasm_bytes = module.finish();
 // We generated a valid Wasm module!
 assert!(wasmparser::validate(&wasm_bytes).is_ok());
 ```
-```
 
 # License
 
 This project is licensed under the Apache 2.0 license with the LLVM exception.
-See [LICENSE](../../LICENSE) for more details.
+See [LICENSE](LICENSE) for more details.
 
 ### Contribution
 

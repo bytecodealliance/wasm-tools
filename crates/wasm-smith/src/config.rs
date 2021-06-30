@@ -15,7 +15,7 @@ use arbitrary::{Arbitrary, Result, Unstructured};
 /// Every trait method has a provided default implementation, so that you only
 /// need to override the methods for things you want to change away from the
 /// default.
-pub trait Config: for<'a> Arbitrary<'a> + Default + Clone {
+pub trait Config: Clone {
     /// The minimum number of types to generate. Defaults to 0.
     fn min_types(&self) -> usize {
         0
@@ -229,6 +229,12 @@ pub trait Config: for<'a> Arbitrary<'a> + Default + Clone {
     /// Determines whether the reference types proposal is enabled for
     /// generating insructions. Defaults to `false`.
     fn reference_types_enabled(&self) -> bool {
+        false
+    }
+
+    /// Determines whether the SIMD proposal is enabled for
+    /// generating insructions. Defaults to `true`.
+    fn simd_enabled(&self) -> bool {
         false
     }
 

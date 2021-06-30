@@ -183,6 +183,16 @@ pub enum Name<'a> {
     Global(NameMap<'a>),
     Element(NameMap<'a>),
     Data(NameMap<'a>),
+    /// An unknown [name subsection](https://webassembly.github.io/spec/core/appendix/custom.html#subsections).
+    Unknown {
+        /// The identifier for this subsection.
+        ty: u32,
+        /// The contents of this subsection.
+        data: &'a [u8],
+        /// The range of bytes, relative to the start of the original data
+        /// stream, that the contents of this subsection reside in.
+        range: Range,
+    },
 }
 
 pub struct NameSectionReader<'a> {
@@ -237,6 +247,11 @@ impl<'a> NameSectionReader<'a> {
             NameType::Global => Name::Global(NameMap { data, offset }),
             NameType::Element => Name::Element(NameMap { data, offset }),
             NameType::Data => Name::Data(NameMap { data, offset }),
+            NameType::Unknown(ty) => Name::Unknown {
+                ty,
+                data,
+                range: Range::new(offset, offset + payload_len),
+            },
         })
     }
 }

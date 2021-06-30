@@ -36,6 +36,11 @@ impl GlobalSection {
         }
     }
 
+    /// How many globals have been defined inside this section so far?
+    pub fn len(&self) -> u32 {
+        self.num_added
+    }
+
     /// Define a global.
     pub fn global(&mut self, global_type: GlobalType, init_expr: Instruction) -> &mut Self {
         global_type.encode(&mut self.bytes);

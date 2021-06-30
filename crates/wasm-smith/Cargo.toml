@@ -8,12 +8,7 @@ license = "Apache-2.0 WITH LLVM-exception"
 name = "wasm-smith"
 readme = "./README.md"
 repository = "https://github.com/bytecodealliance/wasm-tools"
-version = "0.4.4"
-
-[[bin]]
-name = "wasm-smith"
-path = "src/bin/wasm-smith.rs"
-required-features = ["structopt"]
+version = "0.5.0"
 
 [[bench]]
 name = "corpus"
@@ -22,8 +17,7 @@ harness = false
 [dependencies]
 arbitrary = { version = "1.0.0", features = ["derive"] }
 leb128 = "0.2.4"
-structopt = { version = "0.3.16", optional = true }
-wasm-encoder = { version = "0.4.1", path = "../wasm-encoder" }
+wasm-encoder = { version = "0.5.0", path = "../wasm-encoder" }
 indexmap = "1.6"
 
 [dev-dependencies]

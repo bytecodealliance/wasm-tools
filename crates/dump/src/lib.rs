@@ -22,7 +22,7 @@ struct Indices {
     globals: u32,
     tables: u32,
     memories: u32,
-    events: u32,
+    tags: u32,
     modules: u32,
     instances: u32,
     types: u32,
@@ -74,9 +74,9 @@ impl<'a> Dump<'a> {
                             write!(me.state, "[memory {}]", i.memories)?;
                             i.memories += 1;
                         }
-                        ImportSectionEntryType::Event(_) => {
-                            write!(me.state, "[event {}]", i.events)?;
-                            i.events += 1;
+                        ImportSectionEntryType::Tag(_) => {
+                            write!(me.state, "[tag {}]", i.tags)?;
+                            i.tags += 1;
                         }
                         ImportSectionEntryType::Table(_) => {
                             write!(me.state, "[table {}]", i.tables)?;
@@ -116,9 +116,9 @@ impl<'a> Dump<'a> {
                     i.memories += 1;
                     me.print(end)
                 })?,
-                Payload::EventSection(s) => self.section(s, "event", |me, end, m| {
-                    write!(me.state, "[event {}] {:?}", i.events, m)?;
-                    i.events += 1;
+                Payload::TagSection(s) => self.section(s, "tag", |me, end, m| {
+                    write!(me.state, "[tag {}] {:?}", i.tags, m)?;
+                    i.tags += 1;
                     me.print(end)
                 })?,
                 Payload::ExportSection(s) => self.section(s, "export", |me, end, e| {
@@ -141,7 +141,7 @@ impl<'a> Dump<'a> {
                             ExternalKind::Table => i.tables += 1,
                             ExternalKind::Instance => i.instances += 1,
                             ExternalKind::Memory => i.memories += 1,
-                            ExternalKind::Event => i.events += 1,
+                            ExternalKind::Tag => i.tags += 1,
                             ExternalKind::Type => i.types += 1,
                         },
                         Alias::OuterType { .. } => i.types += 1,
@@ -381,6 +381,11 @@ impl<'a> Dump<'a> {
             Name::Global(n) => self.print_name_map("global", n)?,
             Name::Element(n) => self.print_name_map("element", n)?,
             Name::Data(n) => self.print_name_map("data", n)?,
+            Name::Unknown { ty, range, .. } => {
+                write!(self.state, "unknown names: {}", ty)?;
+                self.print(range.start)?;
+                self.print(end)?;
+            }
         }
         Ok(())
     }

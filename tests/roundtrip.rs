@@ -134,10 +134,6 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         "dump/reference-types.txt",
         "interp/reference-types.txt",
         "expr/reference-types.txt",
-        // This test is skipped for now due to a delegate printing bug in wabt.
-        "parse/expr/try-delegate.txt",
-        // Skipped until (WebAssembly/wabt#1605) is merged.
-        "typecheck/delegate.txt",
         // Usage of `assert_invalid` which should be `assert_malformed`
         "testsuite/proposals/memory64/memory.wast",
         "testsuite/proposals/memory64/address.wast",
@@ -275,6 +271,9 @@ impl TestState {
             // FIXME wabt doesn't print conflict or empty names in the same way
             // that we do.
             && !test.ends_with("local/names.wast")
+
+            // FIXME this can be removed once wabt support for catch-less try is merged
+            && !test.ends_with("local/try.wat")
         {
             if let Some(expected) = self.wasm2wat(contents)? {
                 self.string_compare(&string, &expected)

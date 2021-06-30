@@ -36,7 +36,12 @@ impl ModuleSection {
         }
     }
 
-    /// Writes a dmodule into this module code section.
+    /// How many modules have been defined inside this section so far?
+    pub fn len(&self) -> u32 {
+        self.num_added
+    }
+
+    /// Writes a module into this module code section.
     pub fn module(&mut self, module: &Module) -> &mut Self {
         self.bytes.extend(
             encoders::u32(u32::try_from(module.bytes.len()).unwrap())

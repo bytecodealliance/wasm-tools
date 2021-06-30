@@ -202,8 +202,8 @@ pub trait WasmModuleResources {
     fn table_at(&self, at: u32) -> Option<TableType>;
     /// Returns the linear memory at given index.
     fn memory_at(&self, at: u32) -> Option<MemoryType>;
-    /// Returns the event at given index.
-    fn event_at(&self, at: u32) -> Option<&Self::FuncType>;
+    /// Returns the tag at given index.
+    fn tag_at(&self, at: u32) -> Option<&Self::FuncType>;
     /// Returns the global variable at given index.
     fn global_at(&self, at: u32) -> Option<GlobalType>;
     /// Returns the `FuncType` associated with the given type index.
@@ -234,8 +234,8 @@ where
     fn memory_at(&self, at: u32) -> Option<MemoryType> {
         T::memory_at(self, at)
     }
-    fn event_at(&self, at: u32) -> Option<&Self::FuncType> {
-        T::event_at(self, at)
+    fn tag_at(&self, at: u32) -> Option<&Self::FuncType> {
+        T::tag_at(self, at)
     }
     fn global_at(&self, at: u32) -> Option<GlobalType> {
         T::global_at(self, at)
@@ -256,6 +256,53 @@ where
     fn data_count(&self) -> u32 {
         T::data_count(self)
     }
+    fn is_function_referenced(&self, idx: u32) -> bool {
+        T::is_function_referenced(self, idx)
+    }
+}
+
+impl<T> WasmModuleResources for std::sync::Arc<T>
+where
+    T: WasmModuleResources,
+{
+    type FuncType = T::FuncType;
+
+    fn table_at(&self, at: u32) -> Option<TableType> {
+        T::table_at(self, at)
+    }
+
+    fn memory_at(&self, at: u32) -> Option<MemoryType> {
+        T::memory_at(self, at)
+    }
+
+    fn tag_at(&self, at: u32) -> Option<&Self::FuncType> {
+        T::tag_at(self, at)
+    }
+
+    fn global_at(&self, at: u32) -> Option<GlobalType> {
+        T::global_at(self, at)
+    }
+
+    fn func_type_at(&self, type_idx: u32) -> Option<&Self::FuncType> {
+        T::func_type_at(self, type_idx)
+    }
+
+    fn type_of_function(&self, func_idx: u32) -> Option<&Self::FuncType> {
+        T::type_of_function(self, func_idx)
+    }
+
+    fn element_type_at(&self, at: u32) -> Option<Type> {
+        T::element_type_at(self, at)
+    }
+
+    fn element_count(&self) -> u32 {
+        T::element_count(self)
+    }
+
+    fn data_count(&self) -> u32 {
+        T::data_count(self)
+    }
+
     fn is_function_referenced(&self, idx: u32) -> bool {
         T::is_function_referenced(self, idx)
     }

@@ -8,6 +8,7 @@ pub use crate::resolve::Names;
 /// This is the top-level type which you'll frequently parse when working with
 /// this crate. A `*.wat` file is either one `module` s-expression or a sequence
 /// of s-expressions that are module fields.
+#[derive(Debug)]
 pub struct Wat<'a> {
     #[allow(missing_docs)]
     pub module: Module<'a>,
@@ -36,6 +37,7 @@ impl<'a> Parse<'a> for Wat<'a> {
 }
 
 /// A parsed WebAssembly module.
+#[derive(Debug)]
 pub struct Module<'a> {
     /// Where this `module` was defined
     pub span: ast::Span,
@@ -48,6 +50,7 @@ pub struct Module<'a> {
 }
 
 /// The different kinds of ways to define a module.
+#[derive(Debug)]
 pub enum ModuleKind<'a> {
     /// A module defined in the textual s-expression format.
     Text(Vec<ModuleField<'a>>),
@@ -169,7 +172,7 @@ pub enum ModuleField<'a> {
     Start(ast::ItemRef<'a, kw::func>),
     Elem(ast::Elem<'a>),
     Data(ast::Data<'a>),
-    Event(ast::Event<'a>),
+    Tag(ast::Tag<'a>),
     Custom(ast::Custom<'a>),
     Instance(ast::Instance<'a>),
     NestedModule(ast::NestedModule<'a>),
@@ -219,8 +222,8 @@ impl<'a> Parse<'a> for ModuleField<'a> {
         if parser.peek::<kw::data>() {
             return Ok(ModuleField::Data(parser.parse()?));
         }
-        if parser.peek::<kw::event>() {
-            return Ok(ModuleField::Event(parser.parse()?));
+        if parser.peek::<kw::tag>() {
+            return Ok(ModuleField::Tag(parser.parse()?));
         }
         if parser.peek::<annotation::custom>() {
             return Ok(ModuleField::Custom(parser.parse()?));

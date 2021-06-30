@@ -114,7 +114,7 @@ pub enum SectionCode<'a> {
     Code,       // Function bodies (code)
     Data,       // Data segments
     DataCount,  // Count of passive data segments
-    Event,      // Event declarations
+    Tag,        // Tag declarations
 }
 
 /// Types as defined [here].
@@ -155,7 +155,7 @@ pub enum ExternalKind {
     Function,
     Table,
     Memory,
-    Event,
+    Tag,
     Global,
     Type,
     Module,
@@ -192,25 +192,25 @@ pub struct ExportType<'a> {
     pub ty: ImportSectionEntryType,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct ResizableLimits {
     pub initial: u32,
     pub maximum: Option<u32>,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct ResizableLimits64 {
     pub initial: u64,
     pub maximum: Option<u64>,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct TableType {
     pub element_type: Type,
     pub limits: ResizableLimits,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum MemoryType {
     M32 {
         limits: ResizableLimits,
@@ -223,7 +223,7 @@ pub enum MemoryType {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct EventType {
+pub struct TagType {
     pub type_index: u32,
 }
 
@@ -236,7 +236,7 @@ impl MemoryType {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct GlobalType {
     pub content_type: Type,
     pub mutable: bool,
@@ -247,7 +247,7 @@ pub enum ImportSectionEntryType {
     Function(u32),
     Table(TableType),
     Memory(MemoryType),
-    Event(EventType),
+    Tag(TagType),
     Global(GlobalType),
     Module(u32),
     Instance(u32),
@@ -279,6 +279,7 @@ pub enum NameType {
     Global,
     Element,
     Data,
+    Unknown(u32),
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -371,7 +372,6 @@ pub enum Operator<'a> {
     Rethrow {
         relative_depth: u32,
     },
-    Unwind,
     End,
     Br {
         relative_depth: u32,

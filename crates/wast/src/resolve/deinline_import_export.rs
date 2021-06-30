@@ -172,9 +172,25 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                 }
             }
 
-            ModuleField::Event(e) => {
+            ModuleField::Tag(e) => {
                 for name in e.exports.names.drain(..) {
-                    to_append.push(export(e.span, name, ExportKind::Event, &mut e.id));
+                    to_append.push(export(e.span, name, ExportKind::Tag, &mut e.id));
+                }
+                match e.kind {
+                    TagKind::Import(import) => {
+                        *item = ModuleField::Import(Import {
+                            span: e.span,
+                            module: import.module,
+                            field: import.field,
+                            item: ItemSig {
+                                span: e.span,
+                                id: e.id,
+                                name: None,
+                                kind: ItemKind::Tag(e.ty.clone()),
+                            },
+                        });
+                    }
+                    TagKind::Inline { .. } => {}
                 }
             }
 

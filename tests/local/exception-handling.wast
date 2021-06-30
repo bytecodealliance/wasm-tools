@@ -2,8 +2,8 @@
 (module 
   (type (func (param i32 i64)))
   (type (func (param i32)))
-  (event (type 0))
-  (event (type 1))
+  (tag (import "m" "t") (type 0))
+  (tag (type 1))
   (func $check-throw
     i32.const 1
     i64.const 2
@@ -23,23 +23,13 @@
     drop
     drop
   )
-  (func $check-unwind (local i32)
-    try
-      i32.const 1
-      local.set 0
-      call $check-throw
-    unwind
-      i32.const 0
-      local.set 0
-    end
-  )
 )
 
 (assert_invalid
   (module
     (type (func))
     (func throw 0))
-  "unknown event: event index out of bounds")
+  "unknown tag: tag index out of bounds")
 
 (assert_invalid
   (module
@@ -50,11 +40,6 @@
   (module
     (func try catch_all catch 0 end))
   "catch found outside of an `try` block")
-
-(assert_invalid
-  (module
-    (func try unwind i32.const 1 end))
-  "type mismatch: values remaining on stack at end of block")
 
 (assert_invalid
   (module

@@ -88,7 +88,7 @@ $ cargo fuzz run my_wasm_smith_fuzz_target
 Install the CLI tool via `cargo`:
 
 ```shell
-$ cargo install --all-features wasm-smith
+$ cargo install --git https://github.com/bytecodealliance/wasm-tools
 ```
 
 Convert some arbitrary input into a valid Wasm module:

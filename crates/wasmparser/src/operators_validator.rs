@@ -113,7 +113,6 @@ enum FrameKind {
     Try,
     Catch,
     CatchAll,
-    Unwind,
 }
 
 impl OperatorValidator {
@@ -288,12 +287,7 @@ impl OperatorValidator {
         // Read the expected type and expected height of the operand stack the
         // end of the frame.
         let frame = self.control.last().unwrap();
-        // The end of an `unwind` should check against the empty block type.
-        let ty = if frame.kind == FrameKind::Unwind {
-            TypeOrFuncType::Type(Type::EmptyBlockType)
-        } else {
-            frame.block_type
-        };
+        let ty = frame.block_type;
         let height = frame.height;
 
         // Pop all the result types, in reverse order, from the operand stack.
@@ -610,7 +604,7 @@ impl OperatorValidator {
                     unreachable: false,
                 });
                 // Push exception argument types.
-                let ty = event_at(&resources, index)?;
+                let ty = tag_at(&resources, index)?;
                 for ty in ty.inputs() {
                     self.push_operand(ty)?;
                 }
@@ -618,7 +612,7 @@ impl OperatorValidator {
             Operator::Throw { index } => {
                 self.check_exceptions_enabled()?;
                 // Check values associated with the exception.
-                let ty = event_at(&resources, index)?;
+                let ty = tag_at(&resources, index)?;
                 for ty in ty.inputs().rev() {
                     self.pop_operand(Some(ty))?;
                 }
@@ -636,20 +630,6 @@ impl OperatorValidator {
                     bail_op_err!("rethrow target was not a `catch` block");
                 }
                 self.unreachable();
-            }
-            Operator::Unwind => {
-                self.check_exceptions_enabled()?;
-                // Switch from `try` to an `unwind` frame.
-                let frame = self.pop_ctrl(resources)?;
-                if frame.kind != FrameKind::Try {
-                    bail_op_err!("unwind found outside of an `try` block");
-                }
-                self.control.push(Frame {
-                    kind: FrameKind::Unwind,
-                    block_type: frame.block_type,
-                    height: self.operands.len(),
-                    unreachable: false,
-                });
             }
             Operator::Delegate { relative_depth } => {
                 self.check_exceptions_enabled()?;
@@ -696,9 +676,6 @@ impl OperatorValidator {
                     FrameKind::If => {
                         self.push_ctrl(FrameKind::Else, frame.block_type, resources)?;
                         frame = self.pop_ctrl(resources)?;
-                    }
-                    FrameKind::Try => {
-                        bail_op_err!("expected catch block");
                     }
                     _ => (),
                 }
@@ -1995,13 +1972,10 @@ fn func_type_at<T: WasmModuleResources>(
         .ok_or_else(|| OperatorValidatorError::new("unknown type: type index out of bounds"))
 }
 
-fn event_at<T: WasmModuleResources>(
-    resources: &T,
-    at: u32,
-) -> OperatorValidatorResult<&T::FuncType> {
+fn tag_at<T: WasmModuleResources>(resources: &T, at: u32) -> OperatorValidatorResult<&T::FuncType> {
     resources
-        .event_at(at)
-        .ok_or_else(|| OperatorValidatorError::new("unknown event: event index out of bounds"))
+        .tag_at(at)
+        .ok_or_else(|| OperatorValidatorError::new("unknown tag: tag index out of bounds"))
 }
 
 enum Either<A, B> {

@@ -52,7 +52,7 @@ struct ModuleState {
     module: u32,
     instance: u32,
     memory: u32,
-    event: u32,
+    tag: u32,
     global: u32,
     table: u32,
     types: Vec<Option<FuncType>>,
@@ -202,7 +202,7 @@ impl Printer {
                 }
                 Payload::TableSection(s) => self.print_tables(s)?,
                 Payload::MemorySection(s) => self.print_memories(s)?,
-                Payload::EventSection(s) => self.print_events(s)?,
+                Payload::TagSection(s) => self.print_tags(s)?,
                 Payload::GlobalSection(s) => self.print_globals(s)?,
                 Payload::ExportSection(s) => self.print_exports(s)?,
                 Payload::StartSection { func, .. } => {
@@ -303,6 +303,7 @@ impl Printer {
                 Name::Global(n) => name_map(&mut self.state.global_names, n)?,
                 Name::Element(n) => name_map(&mut self.state.element_names, n)?,
                 Name::Data(n) => name_map(&mut self.state.data_names, n)?,
+                Name::Unknown { .. } => (),
             }
         }
         Ok(())
@@ -456,7 +457,7 @@ impl Printer {
                 ImportSectionEntryType::Instance(_) => self.state.instance += 1,
                 ImportSectionEntryType::Table(_) => self.state.table += 1,
                 ImportSectionEntryType::Memory(_) => self.state.memory += 1,
-                ImportSectionEntryType::Event(_) => self.state.event += 1,
+                ImportSectionEntryType::Tag(_) => self.state.tag += 1,
                 ImportSectionEntryType::Global(_) => self.state.global += 1,
             }
         }
@@ -507,7 +508,7 @@ impl Printer {
             }
             Table(f) => self.print_table_type(&f, index)?,
             Memory(f) => self.print_memory_type(&f, index)?,
-            Event(f) => self.print_event_type(&f, index)?,
+            Tag(f) => self.print_tag_type(&f, index)?,
             Global(f) => self.print_global_type(&f, index)?,
         }
         self.end_group();
@@ -550,10 +551,10 @@ impl Printer {
         Ok(())
     }
 
-    fn print_event_type(&mut self, ty: &EventType, index: bool) -> Result<()> {
-        self.start_group("event ");
+    fn print_tag_type(&mut self, ty: &TagType, index: bool) -> Result<()> {
+        self.start_group("tag ");
         if index {
-            write!(self.result, "(;{};)", self.state.event)?;
+            write!(self.result, "(;{};)", self.state.tag)?;
         }
         self.print_functype_idx(ty.type_index, true, None)?;
         Ok(())
@@ -604,13 +605,13 @@ impl Printer {
         Ok(())
     }
 
-    fn print_events(&mut self, parser: EventSectionReader<'_>) -> Result<()> {
-        for exn in parser {
-            let exn = exn?;
+    fn print_tags(&mut self, parser: TagSectionReader<'_>) -> Result<()> {
+        for tag in parser {
+            let tag = tag?;
             self.newline();
-            self.print_event_type(&exn, true)?;
+            self.print_tag_type(&tag, true)?;
             self.end_group();
-            self.state.event += 1;
+            self.state.tag += 1;
         }
         Ok(())
     }
@@ -697,10 +698,7 @@ impl Printer {
                     // `else`/`catch` are special in that it's printed at
                     // the previous indentation, but it doesn't actually change
                     // our nesting level.
-                    Operator::Else
-                    | Operator::Catch { .. }
-                    | Operator::CatchAll
-                    | Operator::Unwind => {
+                    Operator::Else | Operator::Catch { .. } | Operator::CatchAll => {
                         self.nesting -= 1;
                         self.newline();
                         self.nesting += 1;
@@ -778,7 +776,6 @@ impl Printer {
                     label(*relative_depth)
                 )?;
             }
-            Unwind => self.result.push_str("unwind"),
             End => self.result.push_str("end"),
             Br { relative_depth } => {
                 write!(
@@ -1551,7 +1548,7 @@ impl Printer {
                 ExternalKind::Table => write!(self.result, "table {}", export.index)?,
                 ExternalKind::Global => write!(self.result, "global {}", export.index)?,
                 ExternalKind::Memory => write!(self.result, "memory {}", export.index)?,
-                ExternalKind::Event => write!(self.result, "event {}", export.index)?,
+                ExternalKind::Tag => write!(self.result, "tag {}", export.index)?,
                 ExternalKind::Module => write!(self.result, "module {}", export.index)?,
                 ExternalKind::Instance => write!(self.result, "instance {}", export.index)?,
                 ExternalKind::Type => write!(self.result, "type {}", export.index)?,
@@ -1572,7 +1569,7 @@ impl Printer {
             ExternalKind::Table => write!(self.result, "table {}", index)?,
             ExternalKind::Global => write!(self.result, "global {}", index)?,
             ExternalKind::Memory => write!(self.result, "memory {}", index)?,
-            ExternalKind::Event => write!(self.result, "event {}", index)?,
+            ExternalKind::Tag => write!(self.result, "tag {}", index)?,
             ExternalKind::Module => write!(self.result, "module {}", index)?,
             ExternalKind::Instance => write!(self.result, "instance {}", index)?,
             ExternalKind::Type => write!(self.result, "type {}", index)?,
@@ -1719,7 +1716,7 @@ impl Printer {
                         ExternalKind::Function => self.start_group("func"),
                         ExternalKind::Table => self.start_group("table"),
                         ExternalKind::Memory => self.start_group("memory"),
-                        ExternalKind::Event => self.start_group("event"),
+                        ExternalKind::Tag => self.start_group("tag"),
                         ExternalKind::Global => self.start_group("global"),
                         ExternalKind::Instance => self.start_group("instance"),
                         ExternalKind::Module => self.start_group("module"),
@@ -1742,9 +1739,9 @@ impl Printer {
                             write!(self.result, "(;{};)", self.state.memory)?;
                             self.state.memory += 1;
                         }
-                        ExternalKind::Event => {
-                            write!(self.result, "(;{};)", self.state.event)?;
-                            self.state.event += 1;
+                        ExternalKind::Tag => {
+                            write!(self.result, "(;{};)", self.state.tag)?;
+                            self.state.tag += 1;
                         }
                         ExternalKind::Global => {
                             write!(self.result, "(;{};)", self.state.global)?;

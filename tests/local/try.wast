@@ -2,6 +2,12 @@
 
 (assert_malformed
   (module quote
+    "(func (try))"
+  )
+  "previous `try` had no `do`")
+
+(assert_malformed
+  (module quote
     "(func (try (catch $exn)))"
   )
   "previous `try` had no `do`")
@@ -14,15 +20,15 @@
 
 (assert_malformed
   (module quote
-    "(func (try (do)))"
+    "(func (try (do) (unreachable)))"
   )
-  "previous `try` had no `catch`")
+  "expected a `catch`, `catch_all`, or `delegate`")
 
 (assert_malformed
   (module quote
-    "(func (try (do) (unreachable)))"
+    "(func (try (do) (catch_all) (unreachable)))"
   )
-  "previous `try` had no `catch`")
+  "too many payloads inside of `(try)`")
 
 (assert_malformed
   (module quote
@@ -38,12 +44,12 @@
 
 (assert_malformed
   (module quote
-    "(func (try (do) (unwind) (drop)))"
+    "(func (try (do) (delegate 0) (drop)))"
   )
   "too many payloads inside of `(try)`")
 
 (assert_malformed
   (module quote
-    "(func (try (do) (delegate 0) (drop)))"
+    "(func (try $l (do) (delegate $l)))"
   )
-  "too many payloads inside of `(try)`")
+  "failed to find label")

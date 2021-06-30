@@ -46,6 +46,11 @@ impl CodeSection {
         }
     }
 
+    /// How many function bodies have been defined inside this section so far?
+    pub fn len(&self) -> u32 {
+        self.num_added
+    }
+
     /// Write a function body into this code section.
     pub fn function(&mut self, func: &Function) -> &mut Self {
         func.encode(&mut self.bytes);
@@ -165,6 +170,9 @@ impl MemArg {
         }
     }
 }
+
+/// Describe an unchecked SIMD lane index.
+pub type Lane = u8;
 
 /// The type for a `block`/`if`/`loop`.
 #[derive(Clone, Copy, Debug)]
@@ -391,9 +399,6 @@ pub enum Instruction<'a> {
     I64TruncSatF64S,
     I64TruncSatF64U,
 
-    // SIMD instructions.
-    V128Const(i128),
-
     // Reference types instructions.
     TypedSelect(ValType),
     RefNull(ValType),
@@ -409,6 +414,244 @@ pub enum Instruction<'a> {
     TableGrow { table: u32 },
     TableSize { table: u32 },
     TableCopy { src: u32, dst: u32 },
+
+    // SIMD instructions.
+    V128Load { memarg: MemArg },
+    V128Load8x8S { memarg: MemArg },
+    V128Load8x8U { memarg: MemArg },
+    V128Load16x4S { memarg: MemArg },
+    V128Load16x4U { memarg: MemArg },
+    V128Load32x2S { memarg: MemArg },
+    V128Load32x2U { memarg: MemArg },
+    V128Load8Splat { memarg: MemArg },
+    V128Load16Splat { memarg: MemArg },
+    V128Load32Splat { memarg: MemArg },
+    V128Load64Splat { memarg: MemArg },
+    V128Load32Zero { memarg: MemArg },
+    V128Load64Zero { memarg: MemArg },
+    V128Store { memarg: MemArg },
+    V128Load8Lane { memarg: MemArg, lane: Lane },
+    V128Load16Lane { memarg: MemArg, lane: Lane },
+    V128Load32Lane { memarg: MemArg, lane: Lane },
+    V128Load64Lane { memarg: MemArg, lane: Lane },
+    V128Store8Lane { memarg: MemArg, lane: Lane },
+    V128Store16Lane { memarg: MemArg, lane: Lane },
+    V128Store32Lane { memarg: MemArg, lane: Lane },
+    V128Store64Lane { memarg: MemArg, lane: Lane },
+    V128Const(i128),
+    I8x16Shuffle { lanes: [Lane; 16] },
+    I8x16ExtractLaneS { lane: Lane },
+    I8x16ExtractLaneU { lane: Lane },
+    I8x16ReplaceLane { lane: Lane },
+    I16x8ExtractLaneS { lane: Lane },
+    I16x8ExtractLaneU { lane: Lane },
+    I16x8ReplaceLane { lane: Lane },
+    I32x4ExtractLane { lane: Lane },
+    I32x4ReplaceLane { lane: Lane },
+    I64x2ExtractLane { lane: Lane },
+    I64x2ReplaceLane { lane: Lane },
+    F32x4ExtractLane { lane: Lane },
+    F32x4ReplaceLane { lane: Lane },
+    F64x2ExtractLane { lane: Lane },
+    F64x2ReplaceLane { lane: Lane },
+    I8x16Swizzle,
+    I8x16Splat,
+    I16x8Splat,
+    I32x4Splat,
+    I64x2Splat,
+    F32x4Splat,
+    F64x2Splat,
+    I8x16Eq,
+    I8x16Ne,
+    I8x16LtS,
+    I8x16LtU,
+    I8x16GtS,
+    I8x16GtU,
+    I8x16LeS,
+    I8x16LeU,
+    I8x16GeS,
+    I8x16GeU,
+    I16x8Eq,
+    I16x8Ne,
+    I16x8LtS,
+    I16x8LtU,
+    I16x8GtS,
+    I16x8GtU,
+    I16x8LeS,
+    I16x8LeU,
+    I16x8GeS,
+    I16x8GeU,
+    I32x4Eq,
+    I32x4Ne,
+    I32x4LtS,
+    I32x4LtU,
+    I32x4GtS,
+    I32x4GtU,
+    I32x4LeS,
+    I32x4LeU,
+    I32x4GeS,
+    I32x4GeU,
+    I64x2Eq,
+    I64x2Ne,
+    I64x2LtS,
+    I64x2GtS,
+    I64x2LeS,
+    I64x2GeS,
+    F32x4Eq,
+    F32x4Ne,
+    F32x4Lt,
+    F32x4Gt,
+    F32x4Le,
+    F32x4Ge,
+    F64x2Eq,
+    F64x2Ne,
+    F64x2Lt,
+    F64x2Gt,
+    F64x2Le,
+    F64x2Ge,
+    V128Not,
+    V128And,
+    V128AndNot,
+    V128Or,
+    V128Xor,
+    V128Bitselect,
+    V128AnyTrue,
+    I8x16Abs,
+    I8x16Neg,
+    I8x16Popcnt,
+    I8x16AllTrue,
+    I8x16Bitmask,
+    I8x16NarrowI16x8S,
+    I8x16NarrowI16x8U,
+    I8x16Shl,
+    I8x16ShrS,
+    I8x16ShrU,
+    I8x16Add,
+    I8x16AddSatS,
+    I8x16AddSatU,
+    I8x16Sub,
+    I8x16SubSatS,
+    I8x16SubSatU,
+    I8x16MinS,
+    I8x16MinU,
+    I8x16MaxS,
+    I8x16MaxU,
+    I8x16RoundingAverageU,
+    I16x8ExtAddPairwiseI8x16S,
+    I16x8ExtAddPairwiseI8x16U,
+    I16x8Abs,
+    I16x8Neg,
+    I16x8Q15MulrSatS,
+    I16x8AllTrue,
+    I16x8Bitmask,
+    I16x8NarrowI32x4S,
+    I16x8NarrowI32x4U,
+    I16x8ExtendLowI8x16S,
+    I16x8ExtendHighI8x16S,
+    I16x8ExtendLowI8x16U,
+    I16x8ExtendHighI8x16U,
+    I16x8Shl,
+    I16x8ShrS,
+    I16x8ShrU,
+    I16x8Add,
+    I16x8AddSatS,
+    I16x8AddSatU,
+    I16x8Sub,
+    I16x8SubSatS,
+    I16x8SubSatU,
+    I16x8Mul,
+    I16x8MinS,
+    I16x8MinU,
+    I16x8MaxS,
+    I16x8MaxU,
+    I16x8RoundingAverageU,
+    I16x8ExtMulLowI8x16S,
+    I16x8ExtMulHighI8x16S,
+    I16x8ExtMulLowI8x16U,
+    I16x8ExtMulHighI8x16U,
+    I32x4ExtAddPairwiseI16x8S,
+    I32x4ExtAddPairwiseI16x8U,
+    I32x4Abs,
+    I32x4Neg,
+    I32x4AllTrue,
+    I32x4Bitmask,
+    I32x4ExtendLowI16x8S,
+    I32x4ExtendHighI16x8S,
+    I32x4ExtendLowI16x8U,
+    I32x4ExtendHighI16x8U,
+    I32x4Shl,
+    I32x4ShrS,
+    I32x4ShrU,
+    I32x4Add,
+    I32x4Sub,
+    I32x4Mul,
+    I32x4MinS,
+    I32x4MinU,
+    I32x4MaxS,
+    I32x4MaxU,
+    I32x4DotI16x8S,
+    I32x4ExtMulLowI16x8S,
+    I32x4ExtMulHighI16x8S,
+    I32x4ExtMulLowI16x8U,
+    I32x4ExtMulHighI16x8U,
+    I64x2Abs,
+    I64x2Neg,
+    I64x2AllTrue,
+    I64x2Bitmask,
+    I64x2ExtendLowI32x4S,
+    I64x2ExtendHighI32x4S,
+    I64x2ExtendLowI32x4U,
+    I64x2ExtendHighI32x4U,
+    I64x2Shl,
+    I64x2ShrS,
+    I64x2ShrU,
+    I64x2Add,
+    I64x2Sub,
+    I64x2Mul,
+    I64x2ExtMulLowI32x4S,
+    I64x2ExtMulHighI32x4S,
+    I64x2ExtMulLowI32x4U,
+    I64x2ExtMulHighI32x4U,
+    F32x4Ceil,
+    F32x4Floor,
+    F32x4Trunc,
+    F32x4Nearest,
+    F32x4Abs,
+    F32x4Neg,
+    F32x4Sqrt,
+    F32x4Add,
+    F32x4Sub,
+    F32x4Mul,
+    F32x4Div,
+    F32x4Min,
+    F32x4Max,
+    F32x4PMin,
+    F32x4PMax,
+    F64x2Ceil,
+    F64x2Floor,
+    F64x2Trunc,
+    F64x2Nearest,
+    F64x2Abs,
+    F64x2Neg,
+    F64x2Sqrt,
+    F64x2Add,
+    F64x2Sub,
+    F64x2Mul,
+    F64x2Div,
+    F64x2Min,
+    F64x2Max,
+    F64x2PMin,
+    F64x2PMax,
+    I32x4TruncSatF32x4S,
+    I32x4TruncSatF32x4U,
+    F32x4ConvertI32x4S,
+    F32x4ConvertI32x4U,
+    I32x4TruncSatF64x2SZero,
+    I32x4TruncSatF64x2UZero,
+    F64x2ConvertLowI32x4S,
+    F64x2ConvertLowI32x4U,
+    F32x4DemoteF64x2Zero,
+    F64x2PromoteLowF32x4,
 }
 
 impl Instruction<'_> {
@@ -848,10 +1091,1019 @@ impl Instruction<'_> {
             }
 
             // SIMD instructions.
+            Instruction::V128Load { memarg } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x00));
+                memarg.encode(bytes);
+            }
+            Instruction::V128Load8x8S { memarg } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x01));
+                memarg.encode(bytes);
+            }
+            Instruction::V128Load8x8U { memarg } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x02));
+                memarg.encode(bytes);
+            }
+            Instruction::V128Load16x4S { memarg } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x03));
+                memarg.encode(bytes);
+            }
+            Instruction::V128Load16x4U { memarg } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x04));
+                memarg.encode(bytes);
+            }
+            Instruction::V128Load32x2S { memarg } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x05));
+                memarg.encode(bytes);
+            }
+            Instruction::V128Load32x2U { memarg } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x06));
+                memarg.encode(bytes);
+            }
+            Instruction::V128Load8Splat { memarg } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x07));
+                memarg.encode(bytes);
+            }
+            Instruction::V128Load16Splat { memarg } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x08));
+                memarg.encode(bytes);
+            }
+            Instruction::V128Load32Splat { memarg } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x09));
+                memarg.encode(bytes);
+            }
+            Instruction::V128Load64Splat { memarg } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x0A));
+                memarg.encode(bytes);
+            }
+            Instruction::V128Store { memarg } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x0B));
+                memarg.encode(bytes);
+            }
             Instruction::V128Const(x) => {
                 bytes.push(0xFD);
-                bytes.extend(encoders::u32(12));
+                bytes.extend(encoders::u32(0x0C));
                 bytes.extend(x.to_le_bytes().iter().copied());
+            }
+            Instruction::I8x16Shuffle { lanes } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x0D));
+                assert!(lanes.iter().all(|l: &u8| *l < 32));
+                bytes.extend(lanes.iter().copied());
+            }
+            Instruction::I8x16Swizzle => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x0E));
+            }
+            Instruction::I8x16Splat => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x0F));
+            }
+            Instruction::I16x8Splat => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x10));
+            }
+            Instruction::I32x4Splat => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x11));
+            }
+            Instruction::I64x2Splat => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x12));
+            }
+            Instruction::F32x4Splat => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x13));
+            }
+            Instruction::F64x2Splat => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x14));
+            }
+            Instruction::I8x16ExtractLaneS { lane } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x15));
+                assert!(lane < 16);
+                bytes.push(lane);
+            }
+            Instruction::I8x16ExtractLaneU { lane } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x16));
+                assert!(lane < 16);
+                bytes.push(lane);
+            }
+            Instruction::I8x16ReplaceLane { lane } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x17));
+                assert!(lane < 16);
+                bytes.push(lane);
+            }
+            Instruction::I16x8ExtractLaneS { lane } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x18));
+                assert!(lane < 8);
+                bytes.push(lane);
+            }
+            Instruction::I16x8ExtractLaneU { lane } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x19));
+                assert!(lane < 8);
+                bytes.push(lane);
+            }
+            Instruction::I16x8ReplaceLane { lane } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x1A));
+                assert!(lane < 8);
+                bytes.push(lane);
+            }
+            Instruction::I32x4ExtractLane { lane } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x1B));
+                assert!(lane < 4);
+                bytes.push(lane);
+            }
+            Instruction::I32x4ReplaceLane { lane } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x1C));
+                assert!(lane < 4);
+                bytes.push(lane);
+            }
+            Instruction::I64x2ExtractLane { lane } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x1D));
+                assert!(lane < 2);
+                bytes.push(lane);
+            }
+            Instruction::I64x2ReplaceLane { lane } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x1E));
+                assert!(lane < 2);
+                bytes.push(lane);
+            }
+            Instruction::F32x4ExtractLane { lane } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x1F));
+                assert!(lane < 4);
+                bytes.push(lane);
+            }
+            Instruction::F32x4ReplaceLane { lane } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x20));
+                assert!(lane < 4);
+                bytes.push(lane);
+            }
+            Instruction::F64x2ExtractLane { lane } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x21));
+                assert!(lane < 2);
+                bytes.push(lane);
+            }
+            Instruction::F64x2ReplaceLane { lane } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x22));
+                assert!(lane < 2);
+                bytes.push(lane);
+            }
+
+            Instruction::I8x16Eq => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x23));
+            }
+            Instruction::I8x16Ne => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x24));
+            }
+            Instruction::I8x16LtS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x25));
+            }
+            Instruction::I8x16LtU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x26));
+            }
+            Instruction::I8x16GtS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x27));
+            }
+            Instruction::I8x16GtU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x28));
+            }
+            Instruction::I8x16LeS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x29));
+            }
+            Instruction::I8x16LeU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x2A));
+            }
+            Instruction::I8x16GeS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x2B));
+            }
+            Instruction::I8x16GeU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x2C));
+            }
+            Instruction::I16x8Eq => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x2D));
+            }
+            Instruction::I16x8Ne => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x2E));
+            }
+            Instruction::I16x8LtS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x2F));
+            }
+            Instruction::I16x8LtU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x30));
+            }
+            Instruction::I16x8GtS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x31));
+            }
+            Instruction::I16x8GtU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x32));
+            }
+            Instruction::I16x8LeS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x33));
+            }
+            Instruction::I16x8LeU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x34));
+            }
+            Instruction::I16x8GeS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x35));
+            }
+            Instruction::I16x8GeU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x36));
+            }
+            Instruction::I32x4Eq => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x37));
+            }
+            Instruction::I32x4Ne => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x38));
+            }
+            Instruction::I32x4LtS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x39));
+            }
+            Instruction::I32x4LtU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x3A));
+            }
+            Instruction::I32x4GtS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x3B));
+            }
+            Instruction::I32x4GtU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x3C));
+            }
+            Instruction::I32x4LeS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x3D));
+            }
+            Instruction::I32x4LeU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x3E));
+            }
+            Instruction::I32x4GeS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x3F));
+            }
+            Instruction::I32x4GeU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x40));
+            }
+            Instruction::F32x4Eq => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x41));
+            }
+            Instruction::F32x4Ne => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x42));
+            }
+            Instruction::F32x4Lt => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x43));
+            }
+            Instruction::F32x4Gt => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x44));
+            }
+            Instruction::F32x4Le => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x45));
+            }
+            Instruction::F32x4Ge => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x46));
+            }
+            Instruction::F64x2Eq => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x47));
+            }
+            Instruction::F64x2Ne => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x48));
+            }
+            Instruction::F64x2Lt => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x49));
+            }
+            Instruction::F64x2Gt => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x4A));
+            }
+            Instruction::F64x2Le => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x4B));
+            }
+            Instruction::F64x2Ge => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x4C));
+            }
+            Instruction::V128Not => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x4D));
+            }
+            Instruction::V128And => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x4E));
+            }
+            Instruction::V128AndNot => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x4F));
+            }
+            Instruction::V128Or => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x50));
+            }
+            Instruction::V128Xor => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x51));
+            }
+            Instruction::V128Bitselect => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x52));
+            }
+            Instruction::V128AnyTrue => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x53));
+            }
+            Instruction::I8x16Abs => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x60));
+            }
+            Instruction::I8x16Neg => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x61));
+            }
+            Instruction::I8x16Popcnt => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x62));
+            }
+            Instruction::I8x16AllTrue => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x63));
+            }
+            Instruction::I8x16Bitmask => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x64));
+            }
+            Instruction::I8x16NarrowI16x8S => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x65));
+            }
+            Instruction::I8x16NarrowI16x8U => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x66));
+            }
+            Instruction::I8x16Shl => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x6b));
+            }
+            Instruction::I8x16ShrS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x6c));
+            }
+            Instruction::I8x16ShrU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x6d));
+            }
+            Instruction::I8x16Add => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x6e));
+            }
+            Instruction::I8x16AddSatS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x6f));
+            }
+            Instruction::I8x16AddSatU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x70));
+            }
+            Instruction::I8x16Sub => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x71));
+            }
+            Instruction::I8x16SubSatS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x72));
+            }
+            Instruction::I8x16SubSatU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x73));
+            }
+            Instruction::I8x16MinS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x76));
+            }
+            Instruction::I8x16MinU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x77));
+            }
+            Instruction::I8x16MaxS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x78));
+            }
+            Instruction::I8x16MaxU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x79));
+            }
+            Instruction::I8x16RoundingAverageU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x7B));
+            }
+            Instruction::I16x8ExtAddPairwiseI8x16S => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x7C));
+            }
+            Instruction::I16x8ExtAddPairwiseI8x16U => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x7D));
+            }
+            Instruction::I32x4ExtAddPairwiseI16x8S => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x7E));
+            }
+            Instruction::I32x4ExtAddPairwiseI16x8U => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x7F));
+            }
+            Instruction::I16x8Abs => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x80));
+            }
+            Instruction::I16x8Neg => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x81));
+            }
+            Instruction::I16x8Q15MulrSatS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x82));
+            }
+            Instruction::I16x8AllTrue => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x83));
+            }
+            Instruction::I16x8Bitmask => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x84));
+            }
+            Instruction::I16x8NarrowI32x4S => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x85));
+            }
+            Instruction::I16x8NarrowI32x4U => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x86));
+            }
+            Instruction::I16x8ExtendLowI8x16S => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x87));
+            }
+            Instruction::I16x8ExtendHighI8x16S => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x88));
+            }
+            Instruction::I16x8ExtendLowI8x16U => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x89));
+            }
+            Instruction::I16x8ExtendHighI8x16U => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x8A));
+            }
+            Instruction::I16x8Shl => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x8B));
+            }
+            Instruction::I16x8ShrS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x8C));
+            }
+            Instruction::I16x8ShrU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x8D));
+            }
+            Instruction::I16x8Add => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x8E));
+            }
+            Instruction::I16x8AddSatS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x8F));
+            }
+            Instruction::I16x8AddSatU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x90));
+            }
+            Instruction::I16x8Sub => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x91));
+            }
+            Instruction::I16x8SubSatS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x92));
+            }
+            Instruction::I16x8SubSatU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x93));
+            }
+            Instruction::I16x8Mul => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x95));
+            }
+            Instruction::I16x8MinS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x96));
+            }
+            Instruction::I16x8MinU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x97));
+            }
+            Instruction::I16x8MaxS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x98));
+            }
+            Instruction::I16x8MaxU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x99));
+            }
+            Instruction::I16x8RoundingAverageU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x9B));
+            }
+            Instruction::I16x8ExtMulLowI8x16S => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x9C));
+            }
+            Instruction::I16x8ExtMulHighI8x16S => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x9D));
+            }
+            Instruction::I16x8ExtMulLowI8x16U => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x9E));
+            }
+            Instruction::I16x8ExtMulHighI8x16U => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x9F));
+            }
+            Instruction::I32x4Abs => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xA0));
+            }
+            Instruction::I32x4Neg => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xA1));
+            }
+            Instruction::I32x4AllTrue => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xA3));
+            }
+            Instruction::I32x4Bitmask => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xA4));
+            }
+            Instruction::I32x4ExtendLowI16x8S => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xA7));
+            }
+            Instruction::I32x4ExtendHighI16x8S => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xA8));
+            }
+            Instruction::I32x4ExtendLowI16x8U => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xA9));
+            }
+            Instruction::I32x4ExtendHighI16x8U => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xAA));
+            }
+            Instruction::I32x4Shl => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xAB));
+            }
+            Instruction::I32x4ShrS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xAC));
+            }
+            Instruction::I32x4ShrU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xAD));
+            }
+            Instruction::I32x4Add => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xAE));
+            }
+            Instruction::I32x4Sub => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xB1));
+            }
+            Instruction::I32x4Mul => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xB5));
+            }
+            Instruction::I32x4MinS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xB6));
+            }
+            Instruction::I32x4MinU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xB7));
+            }
+            Instruction::I32x4MaxS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xB8));
+            }
+            Instruction::I32x4MaxU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xB9));
+            }
+            Instruction::I32x4DotI16x8S => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xBA));
+            }
+            Instruction::I32x4ExtMulLowI16x8S => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xBC));
+            }
+            Instruction::I32x4ExtMulHighI16x8S => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xBD));
+            }
+            Instruction::I32x4ExtMulLowI16x8U => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xBE));
+            }
+            Instruction::I32x4ExtMulHighI16x8U => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xBF));
+            }
+            Instruction::I64x2Abs => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xC0));
+            }
+            Instruction::I64x2Neg => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xC1));
+            }
+            Instruction::I64x2AllTrue => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xC3));
+            }
+            Instruction::I64x2Bitmask => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xC4));
+            }
+            Instruction::I64x2ExtendLowI32x4S => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xC7));
+            }
+            Instruction::I64x2ExtendHighI32x4S => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xC8));
+            }
+            Instruction::I64x2ExtendLowI32x4U => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xC9));
+            }
+            Instruction::I64x2ExtendHighI32x4U => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xCA));
+            }
+            Instruction::I64x2Shl => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xCB));
+            }
+            Instruction::I64x2ShrS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xCC));
+            }
+            Instruction::I64x2ShrU => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xCD));
+            }
+            Instruction::I64x2Add => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xCE));
+            }
+            Instruction::I64x2Sub => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xD1));
+            }
+            Instruction::I64x2Mul => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xD5));
+            }
+            Instruction::I64x2ExtMulLowI32x4S => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xDC));
+            }
+            Instruction::I64x2ExtMulHighI32x4S => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xDD));
+            }
+            Instruction::I64x2ExtMulLowI32x4U => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xDE));
+            }
+            Instruction::I64x2ExtMulHighI32x4U => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xDF));
+            }
+            Instruction::F32x4Ceil => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x67));
+            }
+            Instruction::F32x4Floor => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x68));
+            }
+            Instruction::F32x4Trunc => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x69));
+            }
+            Instruction::F32x4Nearest => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x6A));
+            }
+            Instruction::F32x4Abs => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xE0));
+            }
+            Instruction::F32x4Neg => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xE1));
+            }
+            Instruction::F32x4Sqrt => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xE3));
+            }
+            Instruction::F32x4Add => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xE4));
+            }
+            Instruction::F32x4Sub => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xE5));
+            }
+            Instruction::F32x4Mul => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xE6));
+            }
+            Instruction::F32x4Div => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xE7));
+            }
+            Instruction::F32x4Min => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xE8));
+            }
+            Instruction::F32x4Max => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xE9));
+            }
+            Instruction::F32x4PMin => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xEA));
+            }
+            Instruction::F32x4PMax => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xEB));
+            }
+            Instruction::F64x2Ceil => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x74));
+            }
+            Instruction::F64x2Floor => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x75));
+            }
+            Instruction::F64x2Trunc => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x7A));
+            }
+            Instruction::F64x2Nearest => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x94));
+            }
+            Instruction::F64x2Abs => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xEC));
+            }
+            Instruction::F64x2Neg => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xED));
+            }
+            Instruction::F64x2Sqrt => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xEF));
+            }
+            Instruction::F64x2Add => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xF0));
+            }
+            Instruction::F64x2Sub => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xF1));
+            }
+            Instruction::F64x2Mul => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xF2));
+            }
+            Instruction::F64x2Div => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xF3));
+            }
+            Instruction::F64x2Min => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xF4));
+            }
+            Instruction::F64x2Max => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xF5));
+            }
+            Instruction::F64x2PMin => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xF6));
+            }
+            Instruction::F64x2PMax => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xF7));
+            }
+            Instruction::I32x4TruncSatF32x4S => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xF8));
+            }
+            Instruction::I32x4TruncSatF32x4U => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xF9));
+            }
+            Instruction::F32x4ConvertI32x4S => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xFA));
+            }
+            Instruction::F32x4ConvertI32x4U => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xFB));
+            }
+            Instruction::I32x4TruncSatF64x2SZero => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xFC));
+            }
+            Instruction::I32x4TruncSatF64x2UZero => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xFD));
+            }
+            Instruction::F64x2ConvertLowI32x4S => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xFE));
+            }
+            Instruction::F64x2ConvertLowI32x4U => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xFF));
+            }
+            Instruction::F32x4DemoteF64x2Zero => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x5E));
+            }
+            Instruction::F64x2PromoteLowF32x4 => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x5F));
+            }
+            Instruction::V128Load32Zero { memarg } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x5C));
+                memarg.encode(bytes);
+            }
+            Instruction::V128Load64Zero { memarg } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x5D));
+                memarg.encode(bytes);
+            }
+            Instruction::V128Load8Lane { memarg, lane } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x54));
+                memarg.encode(bytes);
+                assert!(lane < 16);
+                bytes.push(lane);
+            }
+            Instruction::V128Load16Lane { memarg, lane } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x55));
+                memarg.encode(bytes);
+                assert!(lane < 8);
+                bytes.push(lane);
+            }
+            Instruction::V128Load32Lane { memarg, lane } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x56));
+                memarg.encode(bytes);
+                assert!(lane < 4);
+                bytes.push(lane);
+            }
+            Instruction::V128Load64Lane { memarg, lane } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x57));
+                memarg.encode(bytes);
+                assert!(lane < 2);
+                bytes.push(lane);
+            }
+            Instruction::V128Store8Lane { memarg, lane } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x58));
+                memarg.encode(bytes);
+                assert!(lane < 16);
+                bytes.push(lane);
+            }
+            Instruction::V128Store16Lane { memarg, lane } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x59));
+                memarg.encode(bytes);
+                assert!(lane < 8);
+                bytes.push(lane);
+            }
+            Instruction::V128Store32Lane { memarg, lane } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x5A));
+                memarg.encode(bytes);
+                assert!(lane < 4);
+                bytes.push(lane);
+            }
+            Instruction::V128Store64Lane { memarg, lane } => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0x5B));
+                memarg.encode(bytes);
+                assert!(lane < 2);
+                bytes.push(lane);
+            }
+            Instruction::I64x2Eq => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xD6));
+            }
+            Instruction::I64x2Ne => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xD7));
+            }
+            Instruction::I64x2LtS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xD8));
+            }
+            Instruction::I64x2GtS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xD9));
+            }
+            Instruction::I64x2LeS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xDD));
+            }
+            Instruction::I64x2GeS => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xDB));
             }
         }
     }
