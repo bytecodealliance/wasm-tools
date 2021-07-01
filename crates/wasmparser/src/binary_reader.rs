@@ -1863,6 +1863,13 @@ impl<'a> BinaryReader<'a> {
             0 => Ok(NameType::Module),
             1 => Ok(NameType::Function),
             2 => Ok(NameType::Local),
+            3 => Ok(NameType::Label),
+            4 => Ok(NameType::Type),
+            5 => Ok(NameType::Table),
+            6 => Ok(NameType::Memory),
+            7 => Ok(NameType::Global),
+            8 => Ok(NameType::Element),
+            9 => Ok(NameType::Data),
             _ => Ok(NameType::Unknown(code)),
         }
     }

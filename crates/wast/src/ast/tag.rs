@@ -8,6 +8,8 @@ pub struct Tag<'a> {
     pub span: ast::Span,
     /// An optional name by which to refer to this tag in name resolution.
     pub id: Option<ast::Id<'a>>,
+    /// An optional name for this function stored in the custom `name` section.
+    pub name: Option<ast::NameAnnotation<'a>>,
     /// Optional export directives for this tag.
     pub exports: ast::InlineExport<'a>,
     /// The type of tag that is defined.
@@ -42,6 +44,7 @@ impl<'a> Parse<'a> for Tag<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::tag>()?.0;
         let id = parser.parse()?;
+        let name = parser.parse()?;
         let exports = parser.parse()?;
         let (ty, kind) = if let Some(import) = parser.parse()? {
             (parser.parse()?, TagKind::Import(import))
@@ -51,6 +54,7 @@ impl<'a> Parse<'a> for Tag<'a> {
         Ok(Tag {
             span,
             id,
+            name,
             exports,
             ty,
             kind,

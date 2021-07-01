@@ -1133,6 +1133,7 @@ instructions! {
 #[allow(missing_docs)]
 pub struct BlockType<'a> {
     pub label: Option<ast::Id<'a>>,
+    pub label_name: Option<ast::NameAnnotation<'a>>,
     pub ty: ast::TypeUse<'a, ast::FunctionType<'a>>,
 }
 
@@ -1140,6 +1141,7 @@ impl<'a> Parse<'a> for BlockType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         Ok(BlockType {
             label: parser.parse()?,
+            label_name: parser.parse()?,
             ty: parser
                 .parse::<ast::TypeUse<'a, ast::FunctionTypeNoNames<'a>>>()?
                 .into(),

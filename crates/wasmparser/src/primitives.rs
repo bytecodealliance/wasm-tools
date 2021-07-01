@@ -272,6 +272,13 @@ pub enum NameType {
     Module,
     Function,
     Local,
+    Label,
+    Type,
+    Table,
+    Memory,
+    Global,
+    Element,
+    Data,
     Unknown(u32),
 }
 

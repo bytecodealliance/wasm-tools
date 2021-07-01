@@ -49,9 +49,20 @@
 0x0069 | 02          | size of function
 0x006a | 00          | 0 local blocks
 0x006b | 0b          | End
-0x006c | 00 0b       | custom section
+0x006c | 00 23       | custom section
 0x006e | 04 6e 61 6d | name: "name"
        | 65         
 0x0073 | 01 04       | function names
 0x0075 | 01          | 1 count
 0x0076 | 00 01 66    | Naming { index: 0, name: "f" }
+0x0079 | 05 08       | table names
+0x007b | 01          | 1 count
+0x007c | 00 05 74 61 | Naming { index: 0, name: "table" }
+       | 62 6c 65   
+0x0083 | 06 06       | memory names
+0x0085 | 01          | 1 count
+0x0086 | 00 03 6d 65 | Naming { index: 0, name: "mem" }
+       | 6d         
+0x008b | 07 04       | global names
+0x008d | 01          | 1 count
+0x008e | 00 01 67    | Naming { index: 0, name: "g" }

@@ -9,3 +9,9 @@
 0x0015 | 01          | 1 count
 0x0016 | 00 00 ff 06 | import [instance 0] Import { module: "", field: None, ty: Instance(1) }
        | 01         
+0x001b | 00 0b       | custom section
+0x001d | 04 6e 61 6d | name: "name"
+       | 65         
+0x0022 | 04 04       | type names
+0x0024 | 01          | 1 count
+0x0025 | 01 01 69    | Naming { index: 1, name: "i" }

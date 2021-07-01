@@ -138,3 +138,11 @@
 0x013f | 00          | 0 local blocks
 0x0140 | 10 00       | Call { function_index: 0 }
 0x0142 | 0b          | End
+0x0143 | 00 12       | custom section
+0x0145 | 04 6e 61 6d | name: "name"
+       | 65         
+0x014a | 04 0b       | type names
+0x014c | 01          | 1 count
+0x014d | 01 08 57 61 | Naming { index: 1, name: "WasiFile" }
+       | 73 69 46 69
+       | 6c 65      

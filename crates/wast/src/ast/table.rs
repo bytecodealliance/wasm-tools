@@ -8,6 +8,8 @@ pub struct Table<'a> {
     pub span: ast::Span,
     /// An optional name to refer to this table by.
     pub id: Option<ast::Id<'a>>,
+    /// An optional name for this function stored in the custom `name` section.
+    pub name: Option<ast::NameAnnotation<'a>>,
     /// If present, inline export annotations which indicate names this
     /// definition should be exported under.
     pub exports: ast::InlineExport<'a>,
@@ -42,6 +44,7 @@ impl<'a> Parse<'a> for Table<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::table>()?.0;
         let id = parser.parse()?;
+        let name = parser.parse()?;
         let exports = parser.parse()?;
 
         // Afterwards figure out which style this is, either:
@@ -75,6 +78,7 @@ impl<'a> Parse<'a> for Table<'a> {
         Ok(Table {
             span,
             id,
+            name,
             exports,
             kind,
         })
@@ -88,6 +92,8 @@ pub struct Elem<'a> {
     pub span: ast::Span,
     /// An optional name by which to refer to this segment.
     pub id: Option<ast::Id<'a>>,
+    /// An optional name for this element stored in the custom `name` section.
+    pub name: Option<ast::NameAnnotation<'a>>,
     /// The way this segment was defined in the module.
     pub kind: ElemKind<'a>,
     /// The payload of this element segment, typically a list of functions.
@@ -134,6 +140,7 @@ impl<'a> Parse<'a> for Elem<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::elem>()?.0;
         let id = parser.parse()?;
+        let name = parser.parse()?;
 
         let kind = if parser.peek::<u32>()
             || (parser.peek::<ast::LParen>() && !parser.peek::<ast::RefType>())
@@ -166,6 +173,7 @@ impl<'a> Parse<'a> for Elem<'a> {
         Ok(Elem {
             span,
             id,
+            name,
             kind,
             payload,
         })

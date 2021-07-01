@@ -321,6 +321,49 @@ impl<'a> Dump<'a> {
         Ok(())
     }
 
+    fn print_name_map(&mut self, thing: &str, n: NameMap<'_>) -> Result<()> {
+        write!(self.state, "{} names", thing)?;
+        self.print(n.original_position())?;
+        let mut map = n.get_map()?;
+        write!(self.state, "{} count", map.get_count())?;
+        self.print(map.original_position())?;
+        for _ in 0..map.get_count() {
+            write!(self.state, "{:?}", map.read()?)?;
+            self.print(map.original_position())?;
+        }
+        Ok(())
+    }
+
+    fn print_indirect_name_map(
+        &mut self,
+        thing_a: &str,
+        thing_b: &str,
+        n: IndirectNameMap<'_>,
+    ) -> Result<()> {
+        write!(self.state, "{} names", thing_b)?;
+        self.print(n.original_position())?;
+        let mut outer_map = n.get_indirect_map()?;
+        write!(self.state, "{} count", outer_map.get_indirect_count())?;
+        self.print(outer_map.original_position())?;
+        for _ in 0..outer_map.get_indirect_count() {
+            let inner = outer_map.read()?;
+            write!(
+                self.state,
+                "{} {} {}s",
+                thing_a, inner.indirect_index, thing_b,
+            )?;
+            self.print(inner.original_position())?;
+            let mut map = inner.get_map()?;
+            write!(self.state, "{} count", map.get_count())?;
+            self.print(map.original_position())?;
+            for _ in 0..map.get_count() {
+                write!(self.state, "{:?}", map.read()?)?;
+                self.print(map.original_position())?;
+            }
+        }
+        Ok(())
+    }
+
     fn print_custom_name_section(&mut self, name: Name<'_>, end: usize) -> Result<()> {
         match name {
             Name::Module(n) => {
@@ -329,36 +372,15 @@ impl<'a> Dump<'a> {
                 write!(self.state, "{:?}", n.get_name()?)?;
                 self.print(end)?;
             }
-            Name::Function(n) => {
-                write!(self.state, "function names")?;
-                self.print(n.original_position())?;
-                let mut map = n.get_map()?;
-                write!(self.state, "{} count", map.get_count())?;
-                self.print(map.original_position())?;
-                for _ in 0..map.get_count() {
-                    write!(self.state, "{:?}", map.read()?)?;
-                    self.print(map.original_position())?;
-                }
-            }
-            Name::Local(n) => {
-                write!(self.state, "local names")?;
-                self.print(n.original_position())?;
-                let mut function_map = n.get_function_local_reader()?;
-                write!(self.state, "{} count", function_map.get_count())?;
-                self.print(function_map.original_position())?;
-                for _ in 0..function_map.get_count() {
-                    let function_names = function_map.read()?;
-                    write!(self.state, "function {} locals", function_names.func_index)?;
-                    self.print(function_names.original_position())?;
-                    let mut map = function_names.get_map()?;
-                    write!(self.state, "{} count", map.get_count())?;
-                    self.print(map.original_position())?;
-                    for _ in 0..map.get_count() {
-                        write!(self.state, "{:?}", map.read()?)?;
-                        self.print(map.original_position())?;
-                    }
-                }
-            }
+            Name::Function(n) => self.print_name_map("function", n)?,
+            Name::Local(n) => self.print_indirect_name_map("function", "local", n)?,
+            Name::Label(n) => self.print_indirect_name_map("function", "label", n)?,
+            Name::Type(n) => self.print_name_map("type", n)?,
+            Name::Table(n) => self.print_name_map("table", n)?,
+            Name::Memory(n) => self.print_name_map("memory", n)?,
+            Name::Global(n) => self.print_name_map("global", n)?,
+            Name::Element(n) => self.print_name_map("element", n)?,
+            Name::Data(n) => self.print_name_map("data", n)?,
             Name::Unknown { ty, range, .. } => {
                 write!(self.state, "unknown names: {}", ty)?;
                 self.print(range.start)?;
