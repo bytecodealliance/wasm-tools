@@ -74,13 +74,19 @@ fn validate_name_section(wasm: &[u8]) -> wasmparser::Result<()> {
                 Name::Module(n) => {
                     n.get_name()?;
                 }
-                Name::Function(n) => {
+                Name::Function(n)
+                | Name::Type(n)
+                | Name::Table(n)
+                | Name::Memory(n)
+                | Name::Global(n)
+                | Name::Element(n)
+                | Name::Data(n) => {
                     let mut map = n.get_map()?;
                     for _ in 0..map.get_count() {
                         map.read()?;
                     }
                 }
-                Name::Local(n) => {
+                Name::Local(n) | Name::Label(n) => {
                     let mut reader = n.get_indirect_map()?;
                     for _ in 0..reader.get_indirect_count() {
                         let local_name = reader.read()?;
@@ -90,7 +96,7 @@ fn validate_name_section(wasm: &[u8]) -> wasmparser::Result<()> {
                         }
                     }
                 }
-                _ => (),
+                Name::Unknown { .. } => {}
             }
         }
     }
