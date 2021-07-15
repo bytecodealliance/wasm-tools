@@ -57,6 +57,7 @@
 // Needed for the `instructions!` macro in `src/code_builder.rs`.
 #![recursion_limit = "512"]
 
+mod ast;
 mod code_builder;
 mod config;
 mod encode;
@@ -64,10 +65,12 @@ mod terminate;
 
 use crate::code_builder::CodeBuilderAllocations;
 use arbitrary::{Arbitrary, Result, Unstructured};
-use std::collections::{HashMap, HashSet};
+use std::collections::{hash_map, HashMap, HashSet};
+use std::marker::PhantomData;
 use std::rc::Rc;
-use std::str;
+use std::{iter, str};
 
+pub use ast::{EntityDesc, FuncType, GlobalType, Import, Limits, MemoryType, TableType, ValType};
 pub use config::{Config, DefaultConfig, SwarmConfig};
 
 /// A pseudo-random WebAssembly module.
@@ -298,12 +301,6 @@ enum Type {
     Instance(Rc<InstanceType>),
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-struct FuncType {
-    params: Vec<ValType>,
-    results: Vec<ValType>,
-}
-
 #[derive(Clone, Debug, Default)]
 struct InstanceType {
     type_size: u32,
@@ -331,34 +328,6 @@ enum EntityType {
     Module(u32, Rc<ModuleType>),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-enum ValType {
-    I32,
-    I64,
-    F32,
-    F64,
-    V128,
-    FuncRef,
-    ExternRef,
-}
-
-#[derive(Clone, Debug)]
-struct TableType {
-    limits: Limits,
-    elem_ty: ValType,
-}
-
-#[derive(Clone, Debug)]
-struct MemoryType {
-    limits: Limits,
-}
-
-#[derive(Clone, Debug)]
-struct Limits {
-    min: u32,
-    max: Option<u32>,
-}
-
 impl Limits {
     fn limited(u: &mut Unstructured, max_minimum: u32, max_required: bool) -> Result<Self> {
         let min = u.int_in_range(0..=max_minimum)?;
@@ -373,12 +342,6 @@ impl Limits {
         };
         Ok(Limits { min, max })
     }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-struct GlobalType {
-    val_type: ValType,
-    mutable: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -1256,6 +1219,12 @@ where
             return Ok(());
         }
 
+        if self.outers.is_empty() {
+            if let Some(imports) = self.config.available_imports() {
+                return self.arbitrary_available_imports(imports, min, u);
+            }
+        }
+
         let mut choices: Vec<
             fn(&mut Unstructured, &mut ConfiguredModule<C>) -> Result<EntityType>,
         > = Vec::with_capacity(4);
@@ -1375,6 +1344,152 @@ where
         for val in self.import_names.values_mut() {
             *val = None;
         }
+        Ok(())
+    }
+
+    fn arbitrary_available_imports(
+        &mut self,
+        available_imports: Vec<Import>,
+        min: usize,
+        u: &mut Unstructured,
+    ) -> Result<()> {
+        let mut by_kind: [Vec<&Import>; 5] = Default::default();
+        for import in &available_imports {
+            let kind = match import.desc {
+                EntityDesc::Instance(_) if !self.config.module_linking_enabled() => continue,
+                EntityDesc::Func(_) => 0,
+                EntityDesc::Global(_) => 1,
+                EntityDesc::Table(_) => 2,
+                EntityDesc::Memory(_) => 3,
+                EntityDesc::Instance(_) => 4,
+            };
+            by_kind[kind].push(import);
+        }
+
+        let mut choices: Vec<usize> = Vec::with_capacity(by_kind.len());
+
+        let mut imports = Vec::new();
+        let mut ty_cache = TyCache::default();
+
+        arbitrary_loop(u, min, self.config.max_imports() - self.num_imports, |u| {
+            choices.clear();
+            let preds = &[
+                Self::can_add_local_or_import_func,
+                Self::can_add_local_or_import_global,
+                Self::can_add_local_or_import_table,
+                Self::can_add_local_or_import_memory,
+                Self::can_add_local_or_import_instance,
+            ];
+            assert_eq!(preds.len(), by_kind.len());
+            for (kind, pred) in preds.iter().enumerate() {
+                if pred(self) && !by_kind[kind].is_empty() {
+                    choices.push(kind)
+                }
+            }
+
+            if choices.is_empty() {
+                return Ok(false);
+            }
+
+            let kind = *u.choose(&choices)?;
+            let choice_idx = u.int_in_range(0..=by_kind[kind].len() - 1)?;
+
+            let import = by_kind[kind][choice_idx];
+            let module = import.module.clone();
+            let name = import.name.clone();
+
+            let ty = match ty_cache.get(self, &import.desc) {
+                Some(ty) => ty,
+                None => return Ok(false),
+            };
+            if self.config.module_linking_enabled() {
+                by_kind[kind].swap_remove(choice_idx);
+            }
+
+            let budget = self.config.max_type_size() - self.type_size;
+            if ty.size() + 1 > budget {
+                return Ok(false);
+            }
+            self.type_size += ty.size() + 1;
+
+            match self.import_names.entry(module.clone()) {
+                hash_map::Entry::Occupied(mut entry) => match &name {
+                    Some(name) => match entry.get_mut() {
+                        Some(it) => {
+                            if !it.insert(name.clone()) {
+                                return Ok(false);
+                            } else {
+                                ()
+                            }
+                        }
+                        None => return Ok(false),
+                    },
+                    None => return Ok(false),
+                },
+                hash_map::Entry::Vacant(entry) => {
+                    entry.insert(match &name {
+                        Some(name) => Some(iter::once(name.clone()).collect()),
+                        None => None,
+                    });
+                }
+            }
+
+            let module_linking = self.config.module_linking_enabled();
+            if module_linking
+                && name.is_some()
+                && self.import_names[&module].as_ref().unwrap().len() == 1
+            {
+                // This is the first time this module name is imported from, so
+                // generate a new instance type.
+                self.implicit_instance_types
+                    .insert(module.clone(), self.instances.len());
+                self.instances.push(Rc::new(InstanceType::default()));
+            }
+
+            match &ty {
+                EntityType::Func(idx, ty) => self.funcs.push((Some(*idx), ty.clone())),
+                EntityType::Global(ty) => self.globals.push(ty.clone()),
+                EntityType::Table(ty) => self.tables.push(ty.clone()),
+                EntityType::Memory(ty) => self.memories.push(ty.clone()),
+                EntityType::Module(_idx, ty) => self.modules.push(ty.clone()),
+                EntityType::Instance(_idx, ty) => self.instances.push(ty.clone()),
+            }
+
+            if let Some(name) = &name {
+                if module_linking {
+                    let idx = self.implicit_instance_types[&module];
+                    let instance_ty = &mut self.instances[idx];
+                    Rc::get_mut(instance_ty)
+                        .expect("shouldn't be aliased yet")
+                        .exports
+                        .insert(name.clone(), ty.clone());
+                }
+            }
+
+            self.num_imports += 1;
+            imports.push((module, name, ty));
+            Ok(true)
+        })?;
+
+        if !imports.is_empty() || u.arbitrary()? {
+            if self.config.module_linking_enabled() {
+                let mut seen = indexmap::IndexSet::new();
+                for im in &imports {
+                    seen.insert(im.0.clone());
+                }
+                imports.sort_by_key(|im| seen.get_full(&im.0).unwrap().0);
+            }
+
+            self.initial_sections.push(InitialSection::Import(imports));
+        }
+
+        // After an import section we can no longer update previously-defined
+        // pseudo-instance imports, so set them all to `None` indicating that
+        // the bare name is imported and finalized.
+        for val in self.import_names.values_mut() {
+            *val = None;
+        }
+
         Ok(())
     }
 
@@ -2359,7 +2474,7 @@ impl EntityType {
 /// This then also takes care of filtering where once we reach the maximal size
 /// for an entity type all those alias candidates are removed from the pool of
 /// choices.
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct AvailableAliases {
     aliases: Vec<Alias>,
     instances_added: usize,
@@ -2618,4 +2733,95 @@ enum LocalType {
 struct Outer {
     types: Vec<Type>,
     modules: Vec<Rc<ModuleType>>,
+}
+
+/// A helper to lower [`EntityDesc`] from [`Config`] into [`EntityType`]. This
+/// is basically just a recursive assignment of indices.
+#[derive(Default)]
+struct TyCache<'a> {
+    cache: HashMap<*const EntityDesc, EntityType>,
+    _ghost: PhantomData<&'a EntityDesc>,
+}
+
+impl<'a> TyCache<'a> {
+    fn get<C: Config>(
+        &mut self,
+        module: &mut ConfiguredModule<C>,
+        entity: &'a EntityDesc,
+    ) -> Option<EntityType> {
+        match entity {
+            EntityDesc::Global(global) => return Some(EntityType::Global(global.clone())),
+            EntityDesc::Table(table) => return Some(EntityType::Table(table.clone())),
+            EntityDesc::Memory(memory) => return Some(EntityType::Memory(memory.clone())),
+            _ => (),
+        }
+        if let Some(ty) = self.cache.get(&(entity as *const _)) {
+            return Some(ty.clone());
+        }
+
+        let section = module
+            .initial_sections
+            .iter()
+            .rposition(|sect| matches!(sect, InitialSection::Type(_)))
+            .unwrap_or_else(|| {
+                module
+                    .initial_sections
+                    .push(InitialSection::Type(Vec::new()));
+                module.initial_sections.len() - 1
+            });
+
+        let ty = match entity {
+            EntityDesc::Func(func) => {
+                let idx = module.types.len() as u32;
+                module.func_types.push(module.types.len() as u32);
+
+                match &mut module.initial_sections[section] {
+                    InitialSection::Type(types) => {
+                        module.types.push(LocalType::Defined {
+                            section,
+                            nth: types.len(),
+                        });
+                        types.push(Type::Func(Rc::new(func.clone())));
+                    }
+                    _ => unreachable!(),
+                }
+
+                let ty = module.func_type(idx).clone();
+                EntityType::Func(idx, ty)
+            }
+            EntityDesc::Instance(instance) => {
+                let mut ty = InstanceType {
+                    type_size: 0,
+                    exports: indexmap::IndexMap::with_capacity(instance.exports.len()),
+                };
+                for (export_name, export_entity) in &instance.exports {
+                    ty.type_size += 1; // ?
+                    ty.exports
+                        .insert(export_name.clone(), self.get(module, export_entity)?);
+                }
+
+                let idx = module.types.len() as u32;
+                module.instance_types.push(module.types.len() as u32);
+
+                match &mut module.initial_sections[section] {
+                    InitialSection::Type(types) => {
+                        module.types.push(LocalType::Defined {
+                            section,
+                            nth: types.len(),
+                        });
+                        types.push(Type::Instance(Rc::new(ty)));
+                    }
+                    _ => unreachable!(),
+                }
+
+                let ty = module.instance_type(idx).clone();
+                EntityType::Instance(idx, ty)
+            }
+            EntityDesc::Global(_) | EntityDesc::Table(_) | EntityDesc::Memory(_) => {
+                unreachable!()
+            }
+        };
+        self.cache.insert(entity as *const _, ty.clone());
+        Some(ty)
+    }
 }
