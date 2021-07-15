@@ -3,6 +3,8 @@
 use crate::InstructionKinds;
 use arbitrary::{Arbitrary, Result, Unstructured};
 
+use crate::Import;
+
 /// Configuration for a generated module.
 ///
 /// Don't care to configure your generated modules? Just use
@@ -57,6 +59,16 @@ pub trait Config: 'static + std::fmt::Debug {
     /// The maximum number of tags to generate. Defaults to 100.
     fn max_tags(&self) -> usize {
         100
+    }
+
+    /// The imports that may be used when generating the module.
+    ///
+    /// Defaults to `None` which means that any arbitrary import can be generated.
+    ///
+    /// To only allow imports from a specific set, override this method to return a vec of each
+    /// available import.
+    fn available_imports(&self) -> Option<Vec<Import>> {
+        None
     }
 
     /// The minimum number of functions to generate. Defaults to 0.  This
