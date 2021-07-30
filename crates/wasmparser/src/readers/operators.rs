@@ -38,6 +38,10 @@ impl<'a> OperatorsReader<'a> {
         self.reader.original_position()
     }
 
+    pub fn allow_memarg64(&mut self, allow: bool) {
+        self.reader.allow_memarg64(allow);
+    }
+
     pub fn ensure_end(&self) -> Result<()> {
         if self.eof() {
             return Ok(());

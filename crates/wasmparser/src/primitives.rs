@@ -257,7 +257,7 @@ pub enum ImportSectionEntryType {
 pub struct MemoryImmediate {
     /// Alignment, stored as `n` where the actual alignment is `2^n`
     pub align: u8,
-    pub offset: u32,
+    pub offset: u64,
     pub memory: u32,
 }
 

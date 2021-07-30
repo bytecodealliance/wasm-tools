@@ -677,6 +677,7 @@ impl Printer {
             self.state.label = 0;
             let nesting_start = self.nesting;
             let mut reader = body.get_operators_reader()?;
+            reader.allow_memarg64(true);
             while !reader.eof() {
                 let operator = reader.read()?;
                 match operator {

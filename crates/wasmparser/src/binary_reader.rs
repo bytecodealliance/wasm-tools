@@ -79,6 +79,7 @@ pub struct BinaryReader<'a> {
     pub(crate) buffer: &'a [u8],
     pub(crate) position: usize,
     pub(crate) original_offset: usize,
+    allow_memarg64: bool,
 }
 
 impl<'a> BinaryReader<'a> {
@@ -98,6 +99,7 @@ impl<'a> BinaryReader<'a> {
             buffer: data,
             position: 0,
             original_offset: 0,
+            allow_memarg64: false,
         }
     }
 
@@ -107,11 +109,16 @@ impl<'a> BinaryReader<'a> {
             buffer: data,
             position: 0,
             original_offset,
+            allow_memarg64: false,
         }
     }
 
     pub fn original_position(&self) -> usize {
         self.original_offset + self.position
+    }
+
+    pub fn allow_memarg64(&mut self, allow: bool) {
+        self.allow_memarg64 = allow;
     }
 
     /// Returns a range from the starting offset to the end of the buffer.
@@ -354,20 +361,26 @@ impl<'a> BinaryReader<'a> {
     pub(crate) fn read_memory_type(&mut self) -> Result<MemoryType> {
         let pos = self.original_position();
         let flags = self.read_u8()?;
-        if (flags & !0x7) != 0 {
-            return Err(BinaryReaderError::new(
-                "invalid table resizable limits flags",
-                pos,
-            ));
+        if (flags & !0b111) != 0 {
+            return Err(BinaryReaderError::new("invalid memory limits flags", pos));
         }
-        if flags & 0x4 == 0 {
-            let limits = self.read_resizable_limits((flags & 0x1) != 0)?;
-            let shared = (flags & 0x2) != 0;
-            Ok(MemoryType::M32 { limits, shared })
-        } else {
-            let limits = self.read_resizable_limits64((flags & 0x1) != 0)?;
-            let shared = (flags & 0x2) != 0;
+
+        let b64 = flags & 0b100 != 0;
+        let shared = flags & 0b010 != 0;
+        let has_max = flags & 0b001 != 0;
+        if b64 {
+            // FIXME(WebAssembly/memory64#21) as currently specified if the
+            // `shared` flag is set we should be reading a 32-bit limits field
+            // here. That seems a bit odd to me at the time of this writing so
+            // I've taken the liberty of reading a 64-bit limits field in those
+            // situations. I suspect that this is a typo in the spec, but if not
+            // we'll need to update this to read a 32-bit limits field when the
+            // shared flag is set.
+            let limits = self.read_resizable_limits64(has_max)?;
             Ok(MemoryType::M64 { limits, shared })
+        } else {
+            let limits = self.read_resizable_limits(has_max)?;
+            Ok(MemoryType::M32 { limits, shared })
         }
     }
 
@@ -399,7 +412,11 @@ impl<'a> BinaryReader<'a> {
     fn read_memarg(&mut self) -> Result<MemoryImmediate> {
         let flags_pos = self.original_position();
         let mut flags = self.read_var_u32()?;
-        let offset = self.read_var_u32()?;
+        let offset = if self.allow_memarg64 {
+            self.read_var_u64()?
+        } else {
+            u64::from(self.read_var_u32()?)
+        };
         let memory = if flags & (1 << 6) != 0 {
             flags ^= 1 << 6;
             self.read_var_u32()?
