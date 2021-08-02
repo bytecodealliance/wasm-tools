@@ -266,7 +266,20 @@ pub enum ImportSectionEntryType {
 pub struct MemoryImmediate {
     /// Alignment, stored as `n` where the actual alignment is `2^n`
     pub align: u8,
+
+    /// A fixed byte-offset that this memory immediate specifies.
+    ///
+    /// Note that the memory64 proposal can specify a full 64-bit byte offset
+    /// while otherwise only 32-bit offsets are allowed. Once validated
+    /// memory immediates for 32-bit memories are guaranteed to be at most
+    /// `u32::MAX` whereas 64-bit memories can use the full 64-bits.
     pub offset: u64,
+
+    /// The index of the memory this immediate points to.
+    ///
+    /// Note that this points within the module's own memory index space, and
+    /// is always zero unless the multi-memory proposal of WebAssembly is
+    /// enabled.
     pub memory: u32,
 }
 
