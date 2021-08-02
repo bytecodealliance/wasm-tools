@@ -5,7 +5,7 @@
 0x000b | 60 00 00    | [type 0] Func(FuncType { params: [], returns: [] })
 0x000e | 61 00 00    | [type 1] Module(ModuleType { imports: [], exports: [] })
 0x0011 | 62 00       | [type 2] Instance(InstanceType { exports: [] })
-0x0013 | 62 06 01 31 | [type 3] Instance(InstanceType { exports: [ExportType { name: "1", ty: Function(0) }, ExportType { name: "2", ty: Memory(M32 { limits: ResizableLimits { initial: 1, maximum: None }, shared: false }) }, ExportType { name: "3", ty: Table(TableType { element_type: FuncRef, limits: ResizableLimits { initial: 1, maximum: None } }) }, ExportType { name: "4", ty: Global(GlobalType { content_type: I32, mutable: false }) }, ExportType { name: "5", ty: Module(1) }, ExportType { name: "6", ty: Instance(2) }] })
+0x0013 | 62 06 01 31 | [type 3] Instance(InstanceType { exports: [ExportType { name: "1", ty: Function(0) }, ExportType { name: "2", ty: Memory(MemoryType { memory64: false, shared: false, initial: 1, maximum: None }) }, ExportType { name: "3", ty: Table(TableType { element_type: FuncRef, initial: 1, maximum: None }) }, ExportType { name: "4", ty: Global(GlobalType { content_type: I32, mutable: false }) }, ExportType { name: "5", ty: Module(1) }, ExportType { name: "6", ty: Instance(2) }] })
        | 00 00 01 32
        | 02 00 01 01
        | 33 01 70 00
@@ -31,11 +31,11 @@
   0x0052 | 06          | 6 count
   0x0053 | 01 31 00 ff | import [func 0] Import { module: "1", field: None, ty: Function(0) }
          | 00 00      
-  0x0059 | 01 32 00 ff | import [memory 0] Import { module: "2", field: None, ty: Memory(M32 { limits: ResizableLimits { initial: 1, maximum: None }, shared: false }) }
+  0x0059 | 01 32 00 ff | import [memory 0] Import { module: "2", field: None, ty: Memory(MemoryType { memory64: false, shared: false, initial: 1, maximum: None }) }
          | 02 00 01   
   0x0060 | 01 33 00 ff | import [global 0] Import { module: "3", field: None, ty: Global(GlobalType { content_type: I32, mutable: false }) }
          | 03 7f 00   
-  0x0067 | 01 34 00 ff | import [table 0] Import { module: "4", field: None, ty: Table(TableType { element_type: FuncRef, limits: ResizableLimits { initial: 1, maximum: None } }) }
+  0x0067 | 01 34 00 ff | import [table 0] Import { module: "4", field: None, ty: Table(TableType { element_type: FuncRef, initial: 1, maximum: None }) }
          | 01 70 00 01
   0x006f | 01 35 00 ff | import [module 0] Import { module: "5", field: None, ty: Module(1) }
          | 05 01      

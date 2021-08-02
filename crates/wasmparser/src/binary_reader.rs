@@ -21,9 +21,8 @@ use crate::limits::*;
 
 use crate::primitives::{
     BinaryReaderError, BrTable, CustomSectionKind, ExternalKind, FuncType, GlobalType, Ieee32,
-    Ieee64, LinkingType, MemoryImmediate, MemoryType, NameType, Operator, RelocType,
-    ResizableLimits, ResizableLimits64, Result, SIMDLaneIndex, SectionCode, TableType, Type,
-    TypeOrFuncType, V128,
+    Ieee64, LinkingType, MemoryImmediate, MemoryType, NameType, Operator, RelocType, Result,
+    SIMDLaneIndex, SectionCode, TableType, Type, TypeOrFuncType, V128,
 };
 use crate::{ExportType, Import, ImportSectionEntryType, InstanceType, ModuleType, TagType};
 
@@ -322,26 +321,6 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    fn read_resizable_limits(&mut self, max_present: bool) -> Result<ResizableLimits> {
-        let initial = self.read_var_u32()?;
-        let maximum = if max_present {
-            Some(self.read_var_u32()?)
-        } else {
-            None
-        };
-        Ok(ResizableLimits { initial, maximum })
-    }
-
-    fn read_resizable_limits64(&mut self, max_present: bool) -> Result<ResizableLimits64> {
-        let initial = self.read_var_u64()?;
-        let maximum = if max_present {
-            Some(self.read_var_u64()?)
-        } else {
-            None
-        };
-        Ok(ResizableLimits64 { initial, maximum })
-    }
-
     pub(crate) fn read_table_type(&mut self) -> Result<TableType> {
         let element_type = self.read_type()?;
         let flags = self.read_var_u32()?;
@@ -351,10 +330,17 @@ impl<'a> BinaryReader<'a> {
                 self.original_position() - 1,
             ));
         }
-        let limits = self.read_resizable_limits((flags & 0x1) != 0)?;
+        let has_max = (flags & 0b1) != 0;
+        let initial = self.read_var_u32()?;
+        let maximum = if has_max {
+            Some(self.read_var_u32()?)
+        } else {
+            None
+        };
         Ok(TableType {
             element_type,
-            limits,
+            initial,
+            maximum,
         })
     }
 
@@ -365,10 +351,12 @@ impl<'a> BinaryReader<'a> {
             return Err(BinaryReaderError::new("invalid memory limits flags", pos));
         }
 
-        let b64 = flags & 0b100 != 0;
+        let memory64 = flags & 0b100 != 0;
         let shared = flags & 0b010 != 0;
         let has_max = flags & 0b001 != 0;
-        if b64 {
+        Ok(MemoryType {
+            memory64,
+            shared,
             // FIXME(WebAssembly/memory64#21) as currently specified if the
             // `shared` flag is set we should be reading a 32-bit limits field
             // here. That seems a bit odd to me at the time of this writing so
@@ -376,12 +364,19 @@ impl<'a> BinaryReader<'a> {
             // situations. I suspect that this is a typo in the spec, but if not
             // we'll need to update this to read a 32-bit limits field when the
             // shared flag is set.
-            let limits = self.read_resizable_limits64(has_max)?;
-            Ok(MemoryType::M64 { limits, shared })
-        } else {
-            let limits = self.read_resizable_limits(has_max)?;
-            Ok(MemoryType::M32 { limits, shared })
-        }
+            initial: if memory64 {
+                self.read_var_u64()?
+            } else {
+                self.read_var_u32()?.into()
+            },
+            maximum: if !has_max {
+                None
+            } else if memory64 {
+                Some(self.read_var_u64()?)
+            } else {
+                Some(self.read_var_u32()?.into())
+            },
+        })
     }
 
     pub(crate) fn read_tag_type(&mut self) -> Result<TagType> {

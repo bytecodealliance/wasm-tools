@@ -5,7 +5,7 @@
 0x000b | 62 00       | [type 0] Instance(InstanceType { exports: [] })
 0x000d | 61 00 00    | [type 1] Module(ModuleType { imports: [], exports: [] })
 0x0010 | 60 00 00    | [type 2] Func(FuncType { params: [], returns: [] })
-0x0013 | 61 06 00 00 | [type 3] Module(ModuleType { imports: [Import { module: "", field: None, ty: Module(1) }, Import { module: "", field: None, ty: Function(2) }, Import { module: "", field: None, ty: Global(GlobalType { content_type: I32, mutable: false }) }, Import { module: "", field: None, ty: Table(TableType { element_type: FuncRef, limits: ResizableLimits { initial: 1, maximum: None } }) }, Import { module: "", field: None, ty: Instance(0) }, Import { module: "", field: None, ty: Memory(M32 { limits: ResizableLimits { initial: 1, maximum: None }, shared: false }) }], exports: [] })
+0x0013 | 61 06 00 00 | [type 3] Module(ModuleType { imports: [Import { module: "", field: None, ty: Module(1) }, Import { module: "", field: None, ty: Function(2) }, Import { module: "", field: None, ty: Global(GlobalType { content_type: I32, mutable: false }) }, Import { module: "", field: None, ty: Table(TableType { element_type: FuncRef, initial: 1, maximum: None }) }, Import { module: "", field: None, ty: Instance(0) }, Import { module: "", field: None, ty: Memory(MemoryType { memory64: false, shared: false, initial: 1, maximum: None }) }], exports: [] })
        | ff 05 01 00
        | 00 ff 00 02
        | 00 00 ff 03

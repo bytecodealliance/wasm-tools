@@ -10,7 +10,7 @@
 
 use anyhow::{bail, Context, Result};
 use std::collections::{HashMap, HashSet};
-use std::fmt::Write;
+use std::fmt::{self, Write};
 use std::mem;
 use std::path::Path;
 use wasmparser::*;
@@ -520,7 +520,7 @@ impl Printer {
             self.print_cur_table_name()?;
             self.result.push_str(" ");
         }
-        self.print_limits(&ty.limits)?;
+        self.print_limits(ty.initial, ty.maximum)?;
         self.result.push_str(" ");
         self.print_valtype(ty.element_type)?;
         Ok(())
@@ -532,22 +532,12 @@ impl Printer {
             self.print_cur_memory_name()?;
             self.result.push_str(" ");
         }
-        match ty {
-            MemoryType::M32 { limits, shared } => {
-                self.print_limits(limits)?;
-                if *shared {
-                    self.result.push_str(" shared");
-                }
-            }
-            MemoryType::M64 { limits, shared } => {
-                write!(self.result, "i64 {}", limits.initial)?;
-                if let Some(max) = limits.maximum {
-                    write!(self.result, " {}", max)?;
-                }
-                if *shared {
-                    self.result.push_str(" shared");
-                }
-            }
+        if ty.memory64 {
+            self.result.push_str("i64 ");
+        }
+        self.print_limits(ty.initial, ty.maximum)?;
+        if ty.shared {
+            self.result.push_str(" shared");
         }
         Ok(())
     }
@@ -561,9 +551,12 @@ impl Printer {
         Ok(())
     }
 
-    fn print_limits(&mut self, limits: &ResizableLimits) -> Result<()> {
-        write!(self.result, "{}", limits.initial)?;
-        if let Some(max) = limits.maximum {
+    fn print_limits<T>(&mut self, initial: T, maximum: Option<T>) -> Result<()>
+    where
+        T: fmt::Display,
+    {
+        write!(self.result, "{}", initial)?;
+        if let Some(max) = maximum {
             write!(self.result, " {}", max)?;
         }
         Ok(())

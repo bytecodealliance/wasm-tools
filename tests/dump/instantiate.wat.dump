@@ -34,10 +34,10 @@
 0x0052 | 02          | [func 0] type 2
 0x0053 | 04 04       | table section
 0x0055 | 01          | 1 count
-0x0056 | 70 00 01    | [table 0] TableType { element_type: FuncRef, limits: ResizableLimits { initial: 1, maximum: None } }
+0x0056 | 70 00 01    | [table 0] TableType { element_type: FuncRef, initial: 1, maximum: None }
 0x0059 | 05 03       | memory section
 0x005b | 01          | 1 count
-0x005c | 00 01       | [memory 0] M32 { limits: ResizableLimits { initial: 1, maximum: None }, shared: false }
+0x005c | 00 01       | [memory 0] MemoryType { memory64: false, shared: false, initial: 1, maximum: None }
 0x005e | 06 06       | global section
 0x0060 | 01          | 1 count
 0x0061 | 7f 00       | [global 0] GlobalType { content_type: I32, mutable: false }
