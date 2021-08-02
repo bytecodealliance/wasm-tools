@@ -347,6 +347,7 @@ pub type SIMDLaneIndex = u8;
 ///
 /// [here]: https://webassembly.github.io/spec/core/binary/instructions.html
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum Operator<'a> {
     Unreachable,
     Nop,
