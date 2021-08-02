@@ -193,33 +193,41 @@ pub struct ExportType<'a> {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct ResizableLimits {
+pub struct TableType {
+    pub element_type: Type,
+    /// Initial size of this table, in elements.
     pub initial: u32,
+    /// Optional maximum size of the table, in elements.
     pub maximum: Option<u32>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct ResizableLimits64 {
+pub struct MemoryType {
+    /// Whether or not this is a 64-bit memory, using i64 as an index. If this
+    /// is false it's a 32-bit memory using i32 as an index.
+    ///
+    /// This is part of the memory64 proposal in WebAssembly.
+    pub memory64: bool,
+
+    /// Whether or not this is a "shared" memory, indicating that it should be
+    /// send-able across threads and the `maximum` field is always present for
+    /// valid types.
+    ///
+    /// This is part of the threads proposal in WebAssembly.
+    pub shared: bool,
+
+    /// Initial size of this memory, in wasm pages.
+    ///
+    /// For 32-bit memories (when `memory64` is `false`) this is guaranteed to
+    /// be at most `u32::MAX` for valid types.
     pub initial: u64,
+
+    /// Optional maximum size of this memory, in wasm pages.
+    ///
+    /// For 32-bit memories (when `memory64` is `false`) this is guaranteed to
+    /// be at most `u32::MAX` for valid types. This field is always present for
+    /// valid wasm memories when `shared` is `true`.
     pub maximum: Option<u64>,
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct TableType {
-    pub element_type: Type,
-    pub limits: ResizableLimits,
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum MemoryType {
-    M32 {
-        limits: ResizableLimits,
-        shared: bool,
-    },
-    M64 {
-        limits: ResizableLimits64,
-        shared: bool,
-    },
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -229,9 +237,10 @@ pub struct TagType {
 
 impl MemoryType {
     pub fn index_type(&self) -> Type {
-        match self {
-            MemoryType::M32 { .. } => Type::I32,
-            MemoryType::M64 { .. } => Type::I64,
+        if self.memory64 {
+            Type::I64
+        } else {
+            Type::I32
         }
     }
 }
@@ -257,7 +266,20 @@ pub enum ImportSectionEntryType {
 pub struct MemoryImmediate {
     /// Alignment, stored as `n` where the actual alignment is `2^n`
     pub align: u8,
-    pub offset: u32,
+
+    /// A fixed byte-offset that this memory immediate specifies.
+    ///
+    /// Note that the memory64 proposal can specify a full 64-bit byte offset
+    /// while otherwise only 32-bit offsets are allowed. Once validated
+    /// memory immediates for 32-bit memories are guaranteed to be at most
+    /// `u32::MAX` whereas 64-bit memories can use the full 64-bits.
+    pub offset: u64,
+
+    /// The index of the memory this immediate points to.
+    ///
+    /// Note that this points within the module's own memory index space, and
+    /// is always zero unless the multi-memory proposal of WebAssembly is
+    /// enabled.
     pub memory: u32,
 }
 

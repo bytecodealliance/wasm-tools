@@ -64,7 +64,7 @@ pub enum WastDirective<'a> {
     },
     AssertInvalid {
         span: ast::Span,
-        module: ast::Module<'a>,
+        module: QuoteModule<'a>,
         message: &'a str,
     },
     Register {
@@ -106,7 +106,7 @@ impl WastDirective<'_> {
             WastDirective::Module(m) => m.span,
             WastDirective::AssertMalformed { span, .. }
             | WastDirective::Register { span, .. }
-            | WastDirective::QuoteModule{ span, .. }
+            | WastDirective::QuoteModule { span, .. }
             | WastDirective::AssertTrap { span, .. }
             | WastDirective::AssertReturn { span, .. }
             | WastDirective::AssertExhaustion { span, .. }
@@ -359,9 +359,21 @@ mod tests {
 
     #[test]
     fn assert_nan() {
-        assert_parses_to_directive!("assert_return_canonical_nan_f32x4 (invoke \"foo\" (f32.const 0))", WastDirective::AssertReturn { .. });
-        assert_parses_to_directive!("assert_return_canonical_nan_f64x2 (invoke \"foo\" (f32.const 0))", WastDirective::AssertReturn { .. });
-        assert_parses_to_directive!("assert_return_arithmetic_nan_f32x4 (invoke \"foo\" (f32.const 0))", WastDirective::AssertReturn { .. });
-        assert_parses_to_directive!("assert_return_arithmetic_nan_f64x2 (invoke \"foo\" (f32.const 0))", WastDirective::AssertReturn { .. });
+        assert_parses_to_directive!(
+            "assert_return_canonical_nan_f32x4 (invoke \"foo\" (f32.const 0))",
+            WastDirective::AssertReturn { .. }
+        );
+        assert_parses_to_directive!(
+            "assert_return_canonical_nan_f64x2 (invoke \"foo\" (f32.const 0))",
+            WastDirective::AssertReturn { .. }
+        );
+        assert_parses_to_directive!(
+            "assert_return_arithmetic_nan_f32x4 (invoke \"foo\" (f32.const 0))",
+            WastDirective::AssertReturn { .. }
+        );
+        assert_parses_to_directive!(
+            "assert_return_arithmetic_nan_f64x2 (invoke \"foo\" (f32.const 0))",
+            WastDirective::AssertReturn { .. }
+        );
     }
 }

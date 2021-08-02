@@ -14,12 +14,11 @@
  */
 
 use crate::limits::*;
-use crate::ResizableLimits64;
 use crate::WasmModuleResources;
 use crate::{Alias, ExternalKind, Import, ImportSectionEntryType};
 use crate::{BinaryReaderError, GlobalType, MemoryType, Range, Result, TableType, TagType, Type};
 use crate::{DataKind, ElementItem, ElementKind, InitExpr, Instance, Operator};
-use crate::{FuncType, ResizableLimits, SectionReader, SectionWithLimitedItems};
+use crate::{FuncType, SectionReader, SectionWithLimitedItems};
 use crate::{FunctionBody, Parser, Payload};
 use std::collections::{HashMap, HashSet};
 use std::mem;
@@ -682,57 +681,43 @@ impl Validator {
             }
             _ => return self.create_error("element is not reference type"),
         }
-        self.limits(&ty.limits)?;
-        if ty.limits.initial > MAX_WASM_TABLE_ENTRIES as u32 {
+        self.limits(ty.initial, ty.maximum)?;
+        if ty.initial > MAX_WASM_TABLE_ENTRIES as u32 {
             return self.create_error("minimum table size is out of bounds");
         }
         Ok(())
     }
 
     fn memory_type(&self, ty: &MemoryType) -> Result<()> {
-        match ty {
-            MemoryType::M32 { limits, shared } => {
-                self.limits(limits)?;
-                let initial = limits.initial;
-                if initial as usize > MAX_WASM_MEMORY_PAGES {
-                    return self.create_error("memory size must be at most 65536 pages (4GiB)");
-                }
-                if let Some(maximum) = limits.maximum {
-                    if maximum as usize > MAX_WASM_MEMORY_PAGES {
-                        return self.create_error("memory size must be at most 65536 pages (4GiB)");
-                    }
-                }
-                if *shared {
-                    if !self.features.threads {
-                        return self.create_error("threads must be enabled for shared memories");
-                    }
-                    if limits.maximum.is_none() {
-                        return self.create_error("shared memory must have maximum size");
-                    }
-                }
+        self.limits(ty.initial, ty.maximum)?;
+        let (true_maximum, err) = if ty.memory64 {
+            if !self.features.memory64 {
+                return self.create_error("memory64 must be enabled for 64-bit memories");
             }
-            MemoryType::M64 { limits, shared } => {
-                if !self.features.memory64 {
-                    return self.create_error("memory64 must be enabled for 64-bit memories");
-                }
-                self.limits64(&limits)?;
-                let initial = limits.initial;
-                if initial > MAX_WASM_MEMORY64_PAGES {
-                    return self.create_error("memory initial size too large");
-                }
-                if let Some(maximum) = limits.maximum {
-                    if maximum > MAX_WASM_MEMORY64_PAGES {
-                        return self.create_error("memory initial size too large");
-                    }
-                }
-                if *shared {
-                    if !self.features.threads {
-                        return self.create_error("threads must be enabled for shared memories");
-                    }
-                    if limits.maximum.is_none() {
-                        return self.create_error("shared memory must have maximum size");
-                    }
-                }
+            (
+                MAX_WASM_MEMORY64_PAGES,
+                "memory size must be at most 2**48 pages",
+            )
+        } else {
+            (
+                MAX_WASM_MEMORY32_PAGES,
+                "memory size must be at most 65536 pages (4GiB)",
+            )
+        };
+        if ty.initial > true_maximum {
+            return self.create_error(err);
+        }
+        if let Some(maximum) = ty.maximum {
+            if maximum > true_maximum {
+                return self.create_error(err);
+            }
+        }
+        if ty.shared {
+            if !self.features.threads {
+                return self.create_error("threads must be enabled for shared memories");
+            }
+            if ty.maximum.is_none() {
+                return self.create_error("shared memory must have maximum size");
             }
         }
         Ok(())
@@ -750,18 +735,12 @@ impl Validator {
         self.value_type(ty.content_type)
     }
 
-    fn limits(&self, limits: &ResizableLimits) -> Result<()> {
-        if let Some(max) = limits.maximum {
-            if limits.initial > max {
-                return self.create_error("size minimum must not be greater than maximum");
-            }
-        }
-        Ok(())
-    }
-
-    fn limits64(&self, limits: &ResizableLimits64) -> Result<()> {
-        if let Some(max) = limits.maximum {
-            if limits.initial > max {
+    fn limits<T>(&self, initial: T, maximum: Option<T>) -> Result<()>
+    where
+        T: Into<u64>,
+    {
+        if let Some(max) = maximum {
+            if initial.into() > max.into() {
                 return self.create_error("size minimum must not be greater than maximum");
             }
         }
@@ -1061,7 +1040,7 @@ impl Validator {
                     EntityType::Table(b) => b,
                     _ => return self.create_error("item type mismatch"),
                 };
-                if a.element_type == b.element_type && limits_match!(&a.limits, &b.limits) {
+                if a.element_type == b.element_type && limits_match!(a, b) {
                     Ok(())
                 } else {
                     self.create_error("table type mismatch")
@@ -1089,23 +1068,12 @@ impl Validator {
                     self.create_error("tag type mismatch")
                 }
             }
-            EntityType::Memory(MemoryType::M32 { limits, shared }) => {
-                let (b_limits, b_shared) = match b {
-                    EntityType::Memory(MemoryType::M32 { limits, shared }) => (limits, shared),
+            EntityType::Memory(a) => {
+                let b = match b {
+                    EntityType::Memory(b) => b,
                     _ => return self.create_error("item type mismatch"),
                 };
-                if limits_match!(limits, b_limits) && shared == b_shared {
-                    Ok(())
-                } else {
-                    self.create_error("memory type mismatch")
-                }
-            }
-            EntityType::Memory(MemoryType::M64 { limits, shared }) => {
-                let (b_limits, b_shared) = match b {
-                    EntityType::Memory(MemoryType::M64 { limits, shared }) => (limits, shared),
-                    _ => return self.create_error("item type mismatch"),
-                };
-                if limits_match!(limits, b_limits) && shared == b_shared {
+                if limits_match!(a, b) && a.shared == b.shared && a.memory64 == b.memory64 {
                     Ok(())
                 } else {
                     self.create_error("memory type mismatch")

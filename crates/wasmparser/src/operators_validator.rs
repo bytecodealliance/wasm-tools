@@ -87,7 +87,7 @@ pub(crate) struct OperatorValidator {
 
     // This is a list of flags for wasm features which are used to gate various
     // instructions.
-    features: WasmFeatures,
+    pub(crate) features: WasmFeatures,
 }
 
 // This structure corresponds to `ctrl_frame` as specified at in the validation
@@ -351,6 +351,11 @@ impl OperatorValidator {
         if align > max_align {
             return Err(OperatorValidatorError::new(
                 "alignment must not be larger than natural",
+            ));
+        }
+        if index_ty == Type::I32 && memarg.offset > u64::from(u32::MAX) {
+            return Err(OperatorValidatorError::new(
+                "offset out of range: must be <= 2**32",
             ));
         }
         Ok(index_ty)
@@ -1840,10 +1845,16 @@ impl OperatorValidator {
                 self.check_bulk_memory_enabled()?;
                 let dst_ty = self.check_memory_index(dst, resources)?;
                 let src_ty = self.check_memory_index(src, resources)?;
+
+                // The length operand here is the smaller of src/dst, which is
+                // i32 if one is i32
                 self.pop_operand(Some(match src_ty {
                     Type::I32 => Type::I32,
                     _ => dst_ty,
                 }))?;
+
+                // ... and the offset into each memory is required to be
+                // whatever the indexing type is for that memory
                 self.pop_operand(Some(src_ty))?;
                 self.pop_operand(Some(dst_ty))?;
             }

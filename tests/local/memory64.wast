@@ -12,6 +12,8 @@
     memory.size i32.load drop
     i64.const 0 memory.grow i64.load drop
 
+    i64.const 0 i32.load offset=0xffffffffffff drop
+
     i64.const 0 i32.load drop
     i64.const 0 i64.load drop
     i64.const 0 f32.load drop

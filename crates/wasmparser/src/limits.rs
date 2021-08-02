@@ -21,7 +21,7 @@ pub const MAX_WASM_IMPORTS: usize = 100_000;
 pub const MAX_WASM_EXPORTS: usize = 100_000;
 pub const MAX_WASM_GLOBALS: usize = 1_000_000;
 pub const MAX_WASM_DATA_SEGMENTS: usize = 100_000;
-pub const MAX_WASM_MEMORY_PAGES: usize = 65536;
+pub const MAX_WASM_MEMORY32_PAGES: u64 = 65536;
 pub const MAX_WASM_MEMORY64_PAGES: u64 = 1 << 48;
 pub const MAX_WASM_STRING_SIZE: usize = 100_000;
 pub const _MAX_WASM_MODULE_SIZE: usize = 1024 * 1024 * 1024; //= 1 GiB
