@@ -22,18 +22,29 @@ use super::{
 pub struct FunctionBody<'a> {
     offset: usize,
     data: &'a [u8],
+    allow_memarg64: bool,
 }
 
 impl<'a> FunctionBody<'a> {
     pub fn new(offset: usize, data: &'a [u8]) -> Self {
-        Self { offset, data }
+        Self {
+            offset,
+            data,
+            allow_memarg64: false,
+        }
+    }
+
+    pub fn allow_memarg64(&mut self, allow: bool) {
+        self.allow_memarg64 = allow;
     }
 
     pub fn get_binary_reader<'b>(&self) -> BinaryReader<'b>
     where
         'a: 'b,
     {
-        BinaryReader::new_with_offset(self.data, self.offset)
+        let mut reader = BinaryReader::new_with_offset(self.data, self.offset);
+        reader.allow_memarg64(self.allow_memarg64);
+        reader
     }
 
     fn skip_locals(reader: &mut BinaryReader) -> Result<()> {
@@ -61,7 +72,9 @@ impl<'a> FunctionBody<'a> {
         let mut reader = BinaryReader::new_with_offset(self.data, self.offset);
         Self::skip_locals(&mut reader)?;
         let pos = reader.position;
-        Ok(OperatorsReader::new(&self.data[pos..], self.offset + pos))
+        let mut reader = OperatorsReader::new(&self.data[pos..], self.offset + pos);
+        reader.allow_memarg64(self.allow_memarg64);
+        Ok(reader)
     }
 
     pub fn range(&self) -> Range {
@@ -187,6 +200,7 @@ impl<'a> CodeSectionReader<'a> {
         Ok(FunctionBody {
             offset: self.reader.original_offset + body_start,
             data: &self.reader.buffer[body_start..body_end],
+            allow_memarg64: false,
         })
     }
 }
