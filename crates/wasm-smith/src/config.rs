@@ -156,11 +156,11 @@ pub trait Config: Clone {
     /// The maximum, in 64k Wasm pages, of any memory's initial or maximum size.
     ///
     /// Defaults to 2^16 = 65536 for 32-bit Wasm and 2^48 for 64-bit wasm.
-    fn max_memory_pages(&self, is_32: bool) -> u64 {
-        if is_32 {
-            1 << 16
-        } else {
+    fn max_memory_pages(&self, is_64: bool) -> u64 {
+        if is_64 {
             1 << 48
+        } else {
+            1 << 16
         }
     }
 
