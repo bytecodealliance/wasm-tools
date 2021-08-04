@@ -23,9 +23,11 @@ pub fn generate_valid_module(input: &[u8]) -> Result<(Vec<u8>, SwarmConfig)> {
     // fuzzing, but this is expected to be enabled when debugging a failing
     // fuzzer.
     if log::log_enabled!(log::Level::Debug) {
+        log::debug!("writing test case to `test.wasm` ...");
         std::fs::write("test.wasm", &bytes).unwrap();
         std::fs::write("test.config", format!("{:#?}", config)).unwrap();
         if let Ok(wat) = wasmprinter::print_bytes(&bytes) {
+            log::debug!("writing text format to `test.wat` ...");
             std::fs::write("test.wat", wat).unwrap();
         }
     }
