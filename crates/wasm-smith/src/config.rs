@@ -376,7 +376,7 @@ impl<'a> Arbitrary<'a> for SwarmConfig {
             max_aliases: u.int_in_range(0..=MAX_MAXIMUM)?,
             max_nesting_depth: u.int_in_range(0..=10)?,
 
-            // These fields, unliek the ones above, are less useful to set.
+            // These fields, unlike the ones above, are less useful to set.
             // They either make weird inputs or are for features not widely
             // implemented yet so they're turned off by default.
             min_types: 0,
