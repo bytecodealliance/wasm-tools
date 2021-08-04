@@ -560,8 +560,10 @@ where
     // table
     table_init_possible: bool,
 
-    // Flags indicating whether there are any of a particular kind of memory in
-    // a module.
+    // Lists of memory indices which are either 32-bit or 64-bit. This is used
+    // for faster lookup in validating instructions to know which memories have
+    // which types. For example if there are no 64-bit memories then we
+    // shouldn't ever look for i64 on the stack for `i32.load`.
     memory32: Vec<u32>,
     memory64: Vec<u32>,
 }
