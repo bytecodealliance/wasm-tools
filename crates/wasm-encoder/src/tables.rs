@@ -73,13 +73,23 @@ impl Section for TableSection {
 pub struct TableType {
     /// The table's element type.
     pub element_type: ValType,
-    /// The table's limits.
-    pub limits: Limits,
+    /// Minimum size, in elements, of this table
+    pub minimum: u32,
+    /// Maximum size, in elements, of this table
+    pub maximum: Option<u32>,
 }
 
 impl TableType {
     pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
         bytes.push(self.element_type.into());
-        self.limits.encode(bytes);
+        let mut flags = 0;
+        if self.maximum.is_some() {
+            flags |= 0b001;
+        }
+        bytes.push(flags);
+        bytes.extend(encoders::u32(self.minimum));
+        if let Some(max) = self.maximum {
+            bytes.extend(encoders::u32(max));
+        }
     }
 }

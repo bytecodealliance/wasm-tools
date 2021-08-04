@@ -150,7 +150,7 @@ impl Function {
 #[derive(Clone, Copy, Debug)]
 pub struct MemArg {
     /// A static offset to add to the instruction's dynamic address operand.
-    pub offset: u32,
+    pub offset: u64,
     /// The expected alignment of the instruction's dynamic address operand
     /// (expressed the exponent of a power of two).
     pub align: u32,
@@ -162,10 +162,10 @@ impl MemArg {
     fn encode(&self, bytes: &mut Vec<u8>) {
         if self.memory_index == 0 {
             bytes.extend(encoders::u32(self.align));
-            bytes.extend(encoders::u32(self.offset));
+            bytes.extend(encoders::u64(self.offset));
         } else {
             bytes.extend(encoders::u32(self.align | (1 << 6)));
-            bytes.extend(encoders::u32(self.offset));
+            bytes.extend(encoders::u64(self.offset));
             bytes.extend(encoders::u32(self.memory_index));
         }
     }
