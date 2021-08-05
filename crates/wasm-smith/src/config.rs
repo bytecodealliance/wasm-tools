@@ -489,9 +489,9 @@ impl Config for SwarmConfig {
 
     fn max_memory_pages(&self, is_64: bool) -> u64 {
         if is_64 {
-            self.max_memory_pages & ((1 << 48) - 1)
+            self.max_memory_pages.min(1 << 48)
         } else {
-            self.max_memory_pages & ((1 << 16) - 1)
+            self.max_memory_pages.min(1 << 16)
         }
     }
 
