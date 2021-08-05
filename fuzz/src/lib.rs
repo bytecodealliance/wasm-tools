@@ -1,9 +1,8 @@
 use libfuzzer_sys::arbitrary::{Result, Unstructured};
+use std::fmt::Debug;
 use wasm_smith::{ConfiguredModule, SwarmConfig};
 
 pub fn generate_valid_module(input: &[u8]) -> Result<(Vec<u8>, SwarmConfig)> {
-    drop(env_logger::try_init());
-
     let mut u = Unstructured::new(input);
     let mut config: SwarmConfig = u.arbitrary()?;
 
@@ -18,19 +17,27 @@ pub fn generate_valid_module(input: &[u8]) -> Result<(Vec<u8>, SwarmConfig)> {
     let module = ConfiguredModule::new(config.clone(), &mut u)?;
     let bytes = module.to_bytes();
 
-    // Optionally log the module and its configuration if we've gotten this
-    // far. Note that we don't do this unconditionally to avoid slowing down
-    // fuzzing, but this is expected to be enabled when debugging a failing
-    // fuzzer.
+    log_wasm(&bytes, &config);
+
+    Ok((bytes, config))
+}
+
+// Optionally log the module and its configuration if we've gotten this
+// far. Note that we don't do this unconditionally to avoid slowing down
+// fuzzing, but this is expected to be enabled when debugging a failing
+// fuzzer.
+pub fn log_wasm(wasm: &[u8], config: impl Debug) {
+    drop(env_logger::try_init());
+
     if log::log_enabled!(log::Level::Debug) {
         log::debug!("writing test case to `test.wasm` ...");
-        std::fs::write("test.wasm", &bytes).unwrap();
+        std::fs::write("test.wasm", wasm).unwrap();
         std::fs::write("test.config", format!("{:#?}", config)).unwrap();
-        if let Ok(wat) = wasmprinter::print_bytes(&bytes) {
+        if let Ok(wat) = wasmprinter::print_bytes(wasm) {
             log::debug!("writing text format to `test.wat` ...");
             std::fs::write("test.wat", wat).unwrap();
+        } else {
+            drop(std::fs::remove_file("test.wat"));
         }
     }
-
-    Ok((module.to_bytes(), config))
 }
