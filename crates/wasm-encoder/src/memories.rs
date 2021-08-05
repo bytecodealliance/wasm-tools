@@ -5,14 +5,13 @@ use super::*;
 /// # Example
 ///
 /// ```
-/// use wasm_encoder::{Module, MemorySection, MemoryType, Limits};
+/// use wasm_encoder::{Module, MemorySection, MemoryType};
 ///
 /// let mut memories = MemorySection::new();
 /// memories.memory(MemoryType {
-///     limits: Limits {
-///         min: 1,
-///         max: None,
-///     },
+///     minimum: 1,
+///     maximum: None,
+///     memory64: false,
 /// });
 ///
 /// let mut module = Module::new();

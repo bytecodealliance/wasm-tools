@@ -7,16 +7,14 @@ use super::*;
 /// ```
 /// use wasm_encoder::{
 ///     Elements, ElementSection, Instruction, Module, TableSection, TableType,
-///     Limits, ValType,
+///     ValType,
 /// };
 ///
 /// let mut tables = TableSection::new();
 /// tables.table(TableType {
 ///     element_type: ValType::FuncRef,
-///     limits: Limits {
-///         min: 128,
-///         max: None,
-///     },
+///     minimum: 128,
+///     maximum: None,
 /// });
 ///
 /// let mut elements = ElementSection::new();

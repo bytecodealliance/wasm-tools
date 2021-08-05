@@ -6,17 +6,16 @@ use std::convert::TryFrom;
 /// # Example
 ///
 /// ```
-/// use wasm_encoder::{Module, ImportSection, MemoryType, Limits};
+/// use wasm_encoder::{Module, ImportSection, MemoryType};
 ///
 /// let mut imports = ImportSection::new();
 /// imports.import(
 ///     "env",
 ///     Some("memory"),
 ///     MemoryType {
-///         limits: Limits {
-///             min: 1,
-///             max: None,
-///         }
+///         minimum: 1,
+///         maximum: None,
+///         memory64: false,
 ///     }
 /// );
 ///

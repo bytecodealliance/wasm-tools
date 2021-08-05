@@ -5,15 +5,13 @@ use super::*;
 /// # Example
 ///
 /// ```
-/// use wasm_encoder::{Module, TableSection, TableType, Limits, ValType};
+/// use wasm_encoder::{Module, TableSection, TableType, ValType};
 ///
 /// let mut tables = TableSection::new();
 /// tables.table(TableType {
 ///     element_type: ValType::FuncRef,
-///     limits: Limits {
-///         min: 128,
-///         max: None,
-///     },
+///     minimum: 128,
+///     maximum: None,
 /// });
 ///
 /// let mut module = Module::new();
