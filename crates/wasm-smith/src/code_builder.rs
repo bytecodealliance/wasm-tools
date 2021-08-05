@@ -3,6 +3,7 @@ use super::{
 };
 use arbitrary::{Result, Unstructured};
 use std::collections::{BTreeMap, BTreeSet};
+use std::convert::TryFrom;
 
 macro_rules! instructions {
 	(
@@ -3328,14 +3329,22 @@ fn memory_offset<C: Config>(
 
     let memory_type = &module.memories[memory_index as usize];
     let min = memory_type.minimum.saturating_mul(65536);
-    let true_max = if memory_type.memory64 {
-        u64::MAX
-    } else {
-        u64::from(u32::MAX)
-    };
     let max = memory_type
         .maximum
-        .map_or(true_max, |max| max.saturating_mul(65536));
+        .map(|max| max.saturating_mul(65536))
+        .unwrap_or(u64::MAX);
+    let (min, max, true_max) = if memory_type.memory64 {
+        // 64-bit memories can use the limits calculated above as-is
+        (min, max, u64::MAX)
+    } else {
+        // 32-bit memories can't represent a full 4gb offset, so if that's the
+        // min/max sizes then we need to switch the m to `u32::MAX`.
+        (
+            u64::from(u32::try_from(min).unwrap_or(u32::MAX)),
+            u64::from(u32::try_from(max).unwrap_or(u32::MAX)),
+            u64::from(u32::MAX),
+        )
+    };
 
     let choice = u.int_in_range(0..=a + b + c - 1)?;
     if choice < a {
