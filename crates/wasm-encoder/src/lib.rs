@@ -230,28 +230,6 @@ impl From<SectionId> for u8 {
     }
 }
 
-/// Limits for a table or memory.
-#[derive(Clone, Copy, Debug)]
-pub struct Limits {
-    /// The minimum size.
-    pub min: u32,
-    /// The (optional) maximum size.
-    pub max: Option<u32>,
-}
-
-impl Limits {
-    fn encode(&self, bytes: &mut Vec<u8>) {
-        if let Some(max) = self.max {
-            bytes.push(0x01);
-            bytes.extend(encoders::u32(self.min));
-            bytes.extend(encoders::u32(max));
-        } else {
-            bytes.push(0x00);
-            bytes.extend(encoders::u32(self.min));
-        }
-    }
-}
-
 /// The type of a value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]

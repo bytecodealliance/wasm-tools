@@ -344,35 +344,16 @@ enum ValType {
 
 #[derive(Clone, Debug)]
 struct TableType {
-    limits: Limits,
+    minimum: u32,
+    maximum: Option<u32>,
     elem_ty: ValType,
 }
 
 #[derive(Clone, Debug)]
 struct MemoryType {
-    limits: Limits,
-}
-
-#[derive(Clone, Debug)]
-struct Limits {
-    min: u32,
-    max: Option<u32>,
-}
-
-impl Limits {
-    fn limited(u: &mut Unstructured, max_minimum: u32, max_required: bool) -> Result<Self> {
-        let min = u.int_in_range(0..=max_minimum)?;
-        let max = if max_required || u.arbitrary().unwrap_or(false) {
-            Some(if min == max_minimum {
-                max_minimum
-            } else {
-                u.int_in_range(min..=max_minimum)?
-            })
-        } else {
-            None
-        };
-        Ok(Limits { min, max })
-    }
+    minimum: u64,
+    maximum: Option<u64>,
+    memory64: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -484,7 +465,7 @@ impl BlockType {
 
 #[derive(Clone, Copy, Debug)]
 struct MemArg {
-    offset: u32,
+    offset: u64,
     align: u32,
     memory_index: u32,
 }
@@ -1656,13 +1637,15 @@ where
     }
 
     fn arbitrary_table_type(&self, u: &mut Unstructured) -> Result<TableType> {
+        let (minimum, maximum) = self.arbitrary_limits32(u, 1_000_000, false)?;
         Ok(TableType {
             elem_ty: if self.config.reference_types_enabled() {
                 *u.choose(&[ValType::FuncRef, ValType::ExternRef])?
             } else {
                 ValType::FuncRef
             },
-            limits: Limits::limited(u, 1_000_000, false)?,
+            minimum,
+            maximum,
         })
     }
 
@@ -1701,12 +1684,17 @@ where
     }
 
     fn arbitrary_memtype(&self, u: &mut Unstructured) -> Result<MemoryType> {
-        let limits = Limits::limited(
+        let memory64 = self.config.memory64_enabled() && u.arbitrary()?;
+        let (minimum, maximum) = self.arbitrary_limits64(
             u,
-            self.config.max_memory_pages(),
+            self.config.max_memory_pages(memory64),
             self.config.memory_max_size_required(),
         )?;
-        Ok(MemoryType { limits })
+        Ok(MemoryType {
+            minimum,
+            maximum,
+            memory64,
+        })
     }
 
     fn arbitrary_memories(&mut self, u: &mut Unstructured) -> Result<()> {
@@ -2042,26 +2030,30 @@ where
             return Ok(());
         }
 
-        let mut choices: Vec<Box<dyn Fn(&mut Unstructured) -> Result<Instruction>>> = vec![];
+        let mut choices32: Vec<Box<dyn Fn(&mut Unstructured) -> Result<Instruction>>> = vec![];
+        choices32.push(Box::new(|u| Ok(Instruction::I32Const(u.arbitrary()?))));
+        let mut choices64: Vec<Box<dyn Fn(&mut Unstructured) -> Result<Instruction>>> = vec![];
+        choices64.push(Box::new(|u| Ok(Instruction::I64Const(u.arbitrary()?))));
+
+        for (i, g) in self.globals[..self.globals.len() - self.defined_globals.len()]
+            .iter()
+            .enumerate()
+        {
+            if g.mutable {
+                continue;
+            }
+            if g.val_type == ValType::I32 {
+                choices32.push(Box::new(move |_| Ok(Instruction::GlobalGet(i as u32))));
+            } else if g.val_type == ValType::I64 {
+                choices64.push(Box::new(move |_| Ok(Instruction::GlobalGet(i as u32))));
+            }
+        }
 
         arbitrary_loop(
             u,
             self.config.min_data_segments(),
             self.config.max_data_segments(),
             |u| {
-                if choices.is_empty() {
-                    choices.push(Box::new(|u| Ok(Instruction::I32Const(u.arbitrary()?))));
-
-                    for (i, g) in self.globals[..self.globals.len() - self.defined_globals.len()]
-                        .iter()
-                        .enumerate()
-                    {
-                        if !g.mutable && g.val_type == ValType::I32 {
-                            choices.push(Box::new(move |_| Ok(Instruction::GlobalGet(i as u32))));
-                        }
-                    }
-                }
-
                 // Passive data can only be generated if bulk memory is enabled.
                 // Otherwise if there are no memories we *only* generate passive
                 // data. Finally if all conditions are met we use an input byte to
@@ -2070,9 +2062,13 @@ where
                     if self.config.bulk_memory_enabled() && (memories == 0 || u.arbitrary()?) {
                         DataSegmentKind::Passive
                     } else {
-                        let f = u.choose(&choices)?;
-                        let offset = f(u)?;
                         let memory_index = u.int_in_range(0..=memories - 1)?;
+                        let f = if self.memories[memory_index as usize].memory64 {
+                            u.choose(&choices64)?
+                        } else {
+                            u.choose(&choices32)?
+                        };
+                        let offset = f(u)?;
                         DataSegmentKind::Active {
                             offset,
                             memory_index,
@@ -2178,20 +2174,27 @@ where
 
     // https://webassembly.github.io/spec/core/exec/modules.html#memories
     fn is_subtype_memory(&self, a: &MemoryType, b: &MemoryType) -> bool {
-        self.is_subtype_limits(&a.limits, &b.limits)
+        self.is_subtype_limits(a.minimum, a.maximum, b.minimum, b.maximum)
+            && a.memory64 == b.memory64
     }
 
     // https://webassembly.github.io/spec/core/exec/modules.html#tables
     fn is_subtype_table(&self, a: &TableType, b: &TableType) -> bool {
-        a.elem_ty == b.elem_ty && self.is_subtype_limits(&a.limits, &b.limits)
+        a.elem_ty == b.elem_ty && self.is_subtype_limits(a.minimum, a.maximum, b.minimum, b.maximum)
     }
 
     // https://webassembly.github.io/spec/core/exec/modules.html#limits
-    fn is_subtype_limits(&self, a: &Limits, b: &Limits) -> bool {
-        a.min >= b.min
-            && match b.max {
-                Some(b_max) => match a.max {
-                    Some(a_max) => a_max <= b_max,
+    fn is_subtype_limits<T: Into<u64>>(
+        &self,
+        a_min: T,
+        a_max: Option<T>,
+        b_min: T,
+        b_max: Option<T>,
+    ) -> bool {
+        a_min.into() >= b_min.into()
+            && match b_max {
+                Some(b_max) => match a_max {
+                    Some(a_max) => a_max.into() <= b_max.into(),
                     None => false,
                 },
                 None => true,
@@ -2224,6 +2227,44 @@ where
             Some(a_ty) => self.is_subtype(a_ty, b_ty),
             None => false,
         })
+    }
+
+    fn arbitrary_limits32(
+        &self,
+        u: &mut Unstructured,
+        max_minimum: u32,
+        max_required: bool,
+    ) -> Result<(u32, Option<u32>)> {
+        let min = u.int_in_range(0..=max_minimum)?;
+        let max = if max_required || u.arbitrary().unwrap_or(false) {
+            Some(if min == max_minimum {
+                max_minimum
+            } else {
+                u.int_in_range(min..=max_minimum)?
+            })
+        } else {
+            None
+        };
+        Ok((min, max))
+    }
+
+    fn arbitrary_limits64(
+        &self,
+        u: &mut Unstructured,
+        max_minimum: u64,
+        max_required: bool,
+    ) -> Result<(u64, Option<u64>)> {
+        let min = u.int_in_range(0..=max_minimum)?;
+        let max = if max_required || u.arbitrary().unwrap_or(false) {
+            Some(if min == max_minimum {
+                max_minimum
+            } else {
+                u.int_in_range(min..=max_minimum)?
+            })
+        } else {
+            None
+        };
+        Ok((min, max))
     }
 }
 

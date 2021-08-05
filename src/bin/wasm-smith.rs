@@ -119,7 +119,7 @@ struct Config {
     #[structopt(long = "max-tables")]
     max_tables: Option<usize>,
     #[structopt(long = "max-memory-pages")]
-    max_memory_pages: Option<u32>,
+    max_memory_pages: Option<u64>,
     #[structopt(long = "memory-max-size-required")]
     memory_max_size_required: Option<bool>,
     #[structopt(long = "max-instances")]
@@ -149,6 +149,8 @@ struct Config {
     max_nesting_depth: Option<usize>,
     #[structopt(long = "max-type-size")]
     max_type_size: Option<u32>,
+    #[structopt(long = "memory64")]
+    memory64_enabled: Option<bool>,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -265,18 +267,25 @@ impl wasm_smith::Config for CliAndJsonConfig {
         (max_memories, usize, 1),
         (min_tables, u32, 0),
         (max_tables, usize, 1),
-        (max_memory_pages, u32, 65536),
         (memory_max_size_required, bool, false),
         (max_instances, usize, 10),
         (max_modules, usize, 10),
         (min_uleb_size, u8, 1),
         (bulk_memory_enabled, bool, false),
         (reference_types_enabled, bool, false),
+        (memory64_enabled, bool, false),
         (simd_enabled, bool, false),
         (module_linking_enabled, bool, false),
         (allow_start_export, bool, true),
         (max_aliases, usize, 1000),
         (max_nesting_depth, usize, 1000),
         (max_type_size, u32, 1000),
+    }
+
+    fn max_memory_pages(&self, _is_64: bool) -> u64 {
+        self.cli
+            .max_memory_pages
+            .or(self.json.max_memory_pages)
+            .unwrap_or(65536)
     }
 }

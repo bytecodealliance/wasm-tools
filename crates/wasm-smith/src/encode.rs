@@ -322,23 +322,19 @@ fn translate_entity_type(ty: &EntityType) -> wasm_encoder::EntityType {
     }
 }
 
-fn translate_limits(limits: &Limits) -> wasm_encoder::Limits {
-    wasm_encoder::Limits {
-        min: limits.min,
-        max: limits.max,
-    }
-}
-
 fn translate_table_type(ty: &TableType) -> wasm_encoder::TableType {
     wasm_encoder::TableType {
         element_type: translate_val_type(ty.elem_ty),
-        limits: translate_limits(&ty.limits),
+        minimum: ty.minimum,
+        maximum: ty.maximum,
     }
 }
 
 fn translate_memory_type(ty: &MemoryType) -> wasm_encoder::MemoryType {
     wasm_encoder::MemoryType {
-        limits: translate_limits(&ty.limits),
+        minimum: ty.minimum,
+        maximum: ty.maximum,
+        memory64: ty.memory64,
     }
 }
 

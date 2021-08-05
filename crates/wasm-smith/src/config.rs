@@ -154,9 +154,14 @@ pub trait Config: Clone {
     }
 
     /// The maximum, in 64k Wasm pages, of any memory's initial or maximum size.
-    /// Defaults to 2^16 = 65536 (the maximum possible for 32-bit Wasm).
-    fn max_memory_pages(&self) -> u32 {
-        65536
+    ///
+    /// Defaults to 2^16 = 65536 for 32-bit Wasm and 2^48 for 64-bit wasm.
+    fn max_memory_pages(&self, is_64: bool) -> u64 {
+        if is_64 {
+            1 << 48
+        } else {
+            1 << 16
+        }
     }
 
     /// Whether every Wasm memory must have a maximum size specified. Defaults
@@ -273,6 +278,13 @@ pub trait Config: Clone {
     fn max_type_size(&self) -> u32 {
         1_000
     }
+
+    /// Returns whether 64-bit memories are allowed.
+    ///
+    /// Note that this is the gate for the memory64 proposal to WebAssembly.
+    fn memory64_enabled(&self) -> bool {
+        false
+    }
 }
 
 /// The default configuration.
@@ -293,26 +305,49 @@ impl Config for DefaultConfig {}
 /// (`min <= max` for each variable) and minima are mostly used to ensure
 /// certain elements are present, but do not widen the range of generated Wasm
 /// modules.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
+#[allow(missing_docs)]
 pub struct SwarmConfig {
-    max_types: usize,
-    max_imports: usize,
-    max_funcs: usize,
-    max_globals: usize,
-    max_exports: usize,
-    max_element_segments: usize,
-    max_elements: usize,
-    max_data_segments: usize,
-    max_instructions: usize,
-    max_memories: usize,
-    min_uleb_size: u8,
-    max_tables: usize,
-    max_memory_pages: u32,
-    bulk_memory_enabled: bool,
-    reference_types_enabled: bool,
-    module_linking_enabled: bool,
-    max_aliases: usize,
-    max_nesting_depth: usize,
+    // These fields are configured via `Arbitrary`
+    pub max_types: usize,
+    pub max_imports: usize,
+    pub max_funcs: usize,
+    pub max_globals: usize,
+    pub max_exports: usize,
+    pub max_element_segments: usize,
+    pub max_elements: usize,
+    pub max_data_segments: usize,
+    pub max_instructions: usize,
+    pub max_memories: usize,
+    pub min_uleb_size: u8,
+    pub max_tables: usize,
+    pub max_memory_pages: u64,
+    pub bulk_memory_enabled: bool,
+    pub reference_types_enabled: bool,
+    pub module_linking_enabled: bool,
+    pub max_aliases: usize,
+    pub max_nesting_depth: usize,
+
+    // These fields are always set to their default value as specified in the
+    // default trait implementation.
+    pub memory64_enabled: bool,
+    pub min_types: usize,
+    pub min_imports: usize,
+    pub min_funcs: usize,
+    pub min_globals: usize,
+    pub min_exports: usize,
+    pub min_data_segments: usize,
+    pub min_element_segments: usize,
+    pub min_elements: usize,
+    pub min_memories: u32,
+    pub min_tables: u32,
+    pub max_instances: usize,
+    pub max_modules: usize,
+    pub memory_offset_choices: (u32, u32, u32),
+    pub memory_max_size_required: bool,
+    pub simd_enabled: bool,
+    pub allow_start_export: bool,
+    pub max_type_size: u32,
 }
 
 impl<'a> Arbitrary<'a> for SwarmConfig {
@@ -334,44 +369,98 @@ impl<'a> Arbitrary<'a> for SwarmConfig {
             max_instructions: u.int_in_range(0..=MAX_MAXIMUM)?,
             max_memories: u.int_in_range(0..=100)?,
             max_tables,
-            max_memory_pages: u.int_in_range(0..=65536)?,
+            max_memory_pages: u.arbitrary()?,
             min_uleb_size: u.int_in_range(0..=5)?,
             bulk_memory_enabled: u.arbitrary()?,
             reference_types_enabled,
-            module_linking_enabled: u.arbitrary()?,
             max_aliases: u.int_in_range(0..=MAX_MAXIMUM)?,
             max_nesting_depth: u.int_in_range(0..=10)?,
+
+            // These fields, unlike the ones above, are less useful to set.
+            // They either make weird inputs or are for features not widely
+            // implemented yet so they're turned off by default.
+            min_types: 0,
+            min_imports: 0,
+            min_funcs: 0,
+            min_globals: 0,
+            min_exports: 0,
+            min_element_segments: 0,
+            min_elements: 0,
+            min_data_segments: 0,
+            min_memories: 0,
+            min_tables: 0,
+            memory_max_size_required: false,
+            max_instances: 0,
+            max_modules: 0,
+            memory_offset_choices: (75, 24, 1),
+            allow_start_export: true,
+            simd_enabled: false,
+            memory64_enabled: false,
+            max_type_size: 1000,
+            module_linking_enabled: false,
         })
     }
 }
 
 impl Config for SwarmConfig {
+    fn min_types(&self) -> usize {
+        self.min_types
+    }
+
     fn max_types(&self) -> usize {
         self.max_types
+    }
+
+    fn min_imports(&self) -> usize {
+        self.min_imports
     }
 
     fn max_imports(&self) -> usize {
         self.max_imports
     }
 
+    fn min_funcs(&self) -> usize {
+        self.min_funcs
+    }
+
     fn max_funcs(&self) -> usize {
         self.max_funcs
+    }
+
+    fn min_globals(&self) -> usize {
+        self.min_globals
     }
 
     fn max_globals(&self) -> usize {
         self.max_globals
     }
 
+    fn min_exports(&self) -> usize {
+        self.min_exports
+    }
+
     fn max_exports(&self) -> usize {
         self.max_exports
+    }
+
+    fn min_element_segments(&self) -> usize {
+        self.min_element_segments
     }
 
     fn max_element_segments(&self) -> usize {
         self.max_element_segments
     }
 
+    fn min_elements(&self) -> usize {
+        self.min_elements
+    }
+
     fn max_elements(&self) -> usize {
         self.max_elements
+    }
+
+    fn min_data_segments(&self) -> usize {
+        self.min_data_segments
     }
 
     fn max_data_segments(&self) -> usize {
@@ -382,16 +471,44 @@ impl Config for SwarmConfig {
         self.max_instructions
     }
 
+    fn min_memories(&self) -> u32 {
+        self.min_memories
+    }
+
     fn max_memories(&self) -> usize {
         self.max_memories
+    }
+
+    fn min_tables(&self) -> u32 {
+        self.min_tables
     }
 
     fn max_tables(&self) -> usize {
         self.max_tables
     }
 
-    fn max_memory_pages(&self) -> u32 {
-        self.max_memory_pages
+    fn max_memory_pages(&self, is_64: bool) -> u64 {
+        if is_64 {
+            self.max_memory_pages & ((1 << 48) - 1)
+        } else {
+            self.max_memory_pages & ((1 << 16) - 1)
+        }
+    }
+
+    fn memory_max_size_required(&self) -> bool {
+        self.memory_max_size_required
+    }
+
+    fn max_instances(&self) -> usize {
+        self.max_instances
+    }
+
+    fn max_modules(&self) -> usize {
+        self.max_modules
+    }
+
+    fn memory_offset_choices(&self) -> (u32, u32, u32) {
+        self.memory_offset_choices
     }
 
     fn min_uleb_size(&self) -> u8 {
@@ -410,11 +527,19 @@ impl Config for SwarmConfig {
         self.module_linking_enabled
     }
 
+    fn simd_enabled(&self) -> bool {
+        self.simd_enabled
+    }
+
     fn max_aliases(&self) -> usize {
         self.max_aliases
     }
 
     fn max_nesting_depth(&self) -> usize {
         self.max_nesting_depth
+    }
+
+    fn memory64_enabled(&self) -> bool {
+        self.memory64_enabled
     }
 }

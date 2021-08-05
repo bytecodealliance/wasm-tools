@@ -6,16 +6,15 @@ use super::*;
 ///
 /// ```
 /// use wasm_encoder::{
-///     DataSection, Instruction, Limits, MemorySection, MemoryType,
+///     DataSection, Instruction, MemorySection, MemoryType,
 ///     Module,
 /// };
 ///
 /// let mut memory = MemorySection::new();
 /// memory.memory(MemoryType {
-///     limits: Limits {
-///         min: 1,
-///         max: None,
-///     },
+///     minimum: 1,
+///     maximum: None,
+///     memory64: false,
 /// });
 ///
 /// let mut data = DataSection::new();

@@ -6,16 +6,14 @@ use super::*;
 ///
 /// ```
 /// use wasm_encoder::{
-///     Export, ExportSection, TableSection, TableType, Limits, Module, ValType,
+///     Export, ExportSection, TableSection, TableType, Module, ValType,
 /// };
 ///
 /// let mut tables = TableSection::new();
 /// tables.table(TableType {
 ///     element_type: ValType::FuncRef,
-///     limits: Limits {
-///         min: 128,
-///         max: None,
-///     },
+///     minimum: 128,
+///     maximum: None,
 /// });
 ///
 /// let mut exports = ExportSection::new();
