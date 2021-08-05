@@ -2,7 +2,10 @@ use libfuzzer_sys::arbitrary::{Result, Unstructured};
 use std::fmt::Debug;
 use wasm_smith::{ConfiguredModule, SwarmConfig};
 
-pub fn generate_valid_module(input: &[u8]) -> Result<(Vec<u8>, SwarmConfig)> {
+pub fn generate_valid_module(
+    input: &[u8],
+    configure: impl FnOnce(&mut SwarmConfig, &mut Unstructured<'_>) -> Result<()>,
+) -> Result<(Vec<u8>, SwarmConfig)> {
     let mut u = Unstructured::new(input);
     let mut config: SwarmConfig = u.arbitrary()?;
 
@@ -11,6 +14,8 @@ pub fn generate_valid_module(input: &[u8]) -> Result<(Vec<u8>, SwarmConfig)> {
     config.simd_enabled = u.arbitrary()?;
     config.module_linking_enabled = u.arbitrary()?;
     config.memory64_enabled = u.arbitrary()?;
+
+    configure(&mut config, &mut u)?;
 
     // Use wasm-smith to generate an arbitrary module and convert it to wasm
     // bytes.
