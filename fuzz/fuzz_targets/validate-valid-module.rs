@@ -5,7 +5,7 @@ use libfuzzer_sys::fuzz_target;
 // Define a fuzz target that accepts arbitrary
 // `Module`s as input.
 fuzz_target!(|m: &[u8]| {
-    let (bytes, config) = match wasm_tools_fuzz::generate_valid_module(m) {
+    let (bytes, config) = match wasm_tools_fuzz::generate_valid_module(m, |_, _| Ok(())) {
         Ok(m) => m,
         Err(_) => return,
     };
