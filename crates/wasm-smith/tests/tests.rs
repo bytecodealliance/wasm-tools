@@ -1,6 +1,6 @@
 use arbitrary::{Arbitrary, Unstructured};
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
-use wasm_smith::{Config, ConfiguredModule, Module, SwarmConfig};
+use wasm_smith::{ConfiguredModule, Module, SwarmConfig};
 use wasmparser::{Validator, WasmFeatures};
 
 fn wasm_features() -> WasmFeatures {
@@ -58,6 +58,7 @@ fn smoke_test_swarm_config() {
         rng.fill_bytes(&mut buf);
         let u = Unstructured::new(&buf);
         if let Ok(module) = ConfiguredModule::<SwarmConfig>::arbitrary_take_rest(u) {
+            let module = module.module;
             let wasm_bytes = module.to_bytes();
 
             let mut validator = Validator::new();

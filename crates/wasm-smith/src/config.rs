@@ -15,7 +15,7 @@ use arbitrary::{Arbitrary, Result, Unstructured};
 /// Every trait method has a provided default implementation, so that you only
 /// need to override the methods for things you want to change away from the
 /// default.
-pub trait Config: Clone {
+pub trait Config: 'static + std::fmt::Debug {
     /// The minimum number of types to generate. Defaults to 0.
     fn min_types(&self) -> usize {
         0

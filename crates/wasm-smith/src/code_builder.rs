@@ -1,6 +1,4 @@
-use super::{
-    BlockType, Config, ConfiguredModule, Elements, FuncType, Instruction, MemArg, ValType,
-};
+use super::{BlockType, Elements, FuncType, Instruction, MemArg, Module, ValType};
 use arbitrary::{Result, Unstructured};
 use std::collections::{BTreeMap, BTreeSet};
 use std::convert::TryFrom;
@@ -16,16 +14,13 @@ macro_rules! instructions {
             $( $generator_fn )*
         );
 
-        fn choose_instruction<C>(
+        fn choose_instruction(
             u: &mut Unstructured<'_>,
-            module: &ConfiguredModule<C>,
-            builder: &mut CodeBuilder<C>,
+            module: &Module,
+            builder: &mut CodeBuilder,
         ) -> Option<
-            fn(&mut Unstructured<'_>, &ConfiguredModule<C>, &mut CodeBuilder<C>) -> Result<Instruction>
-        >
-        where
-            C: Config
-        {
+            fn(&mut Unstructured<'_>, &Module, &mut CodeBuilder) -> Result<Instruction>
+        > {
             builder.allocs.options.clear();
             let mut cost = 0;
             // Unroll the loop that checks whether each instruction is valid in
@@ -35,7 +30,7 @@ macro_rules! instructions {
             // predicted and even inlined. This saved us about 30% of time in
             // the `corpus` benchmark.
             $(
-                let predicate: Option<fn(&ConfiguredModule<C>, &mut CodeBuilder<C>) -> bool> = $predicate;
+                let predicate: Option<fn(&Module, &mut CodeBuilder) -> bool> = $predicate;
                 if predicate.map_or(true, |f| f(module, builder)) {
 
                     builder.allocs.options.push(($generator_fn, cost));
@@ -524,10 +519,7 @@ instructions! {
     (Some(simd_v128_on_stack), f64x2_promote_low_f32x4),
 }
 
-pub(crate) struct CodeBuilderAllocations<C>
-where
-    C: Config,
-{
+pub(crate) struct CodeBuilderAllocations {
     // The control labels in scope right now.
     controls: Vec<Control>,
 
@@ -537,7 +529,7 @@ where
     // Dynamic set of options of instruction we can generate that are known to
     // be valid right now.
     options: Vec<(
-        fn(&mut Unstructured, &ConfiguredModule<C>, &mut CodeBuilder<C>) -> Result<Instruction>,
+        fn(&mut Unstructured, &Module, &mut CodeBuilder) -> Result<Instruction>,
         u32,
     )>,
 
@@ -569,13 +561,10 @@ where
     memory64: Vec<u32>,
 }
 
-pub(crate) struct CodeBuilder<'a, C>
-where
-    C: Config,
-{
+pub(crate) struct CodeBuilder<'a> {
     func_ty: &'a FuncType,
     locals: &'a Vec<ValType>,
-    allocs: &'a mut CodeBuilderAllocations<C>,
+    allocs: &'a mut CodeBuilderAllocations,
 }
 
 /// A control frame.
@@ -608,11 +597,8 @@ enum ControlKind {
     Loop,
 }
 
-impl<C> CodeBuilderAllocations<C>
-where
-    C: Config,
-{
-    pub(crate) fn new(module: &ConfiguredModule<C>) -> Self {
+impl CodeBuilderAllocations {
+    pub(crate) fn new(module: &Module) -> Self {
         let mut mutable_globals = BTreeMap::new();
         for (i, global) in module.globals.iter().enumerate() {
             if global.mutable {
@@ -688,7 +674,7 @@ where
         &'a mut self,
         func_ty: &'a FuncType,
         locals: &'a Vec<ValType>,
-    ) -> CodeBuilder<'a, C> {
+    ) -> CodeBuilder<'a> {
         self.controls.clear();
         self.controls.push(Control {
             kind: ControlKind::Block,
@@ -708,10 +694,7 @@ where
     }
 }
 
-impl<'a, C> CodeBuilder<'a, C>
-where
-    C: Config,
-{
+impl CodeBuilder<'_> {
     /// Get the operands that are in-scope within the current control frame.
     fn operands(&self) -> &[Option<ValType>] {
         let height = self.allocs.controls.last().map_or(0, |c| c.height);
@@ -757,11 +740,7 @@ where
     }
 
     #[inline(never)]
-    fn arbitrary_block_type(
-        &self,
-        u: &mut Unstructured,
-        module: &ConfiguredModule<C>,
-    ) -> Result<BlockType> {
+    fn arbitrary_block_type(&self, u: &mut Unstructured, module: &Module) -> Result<BlockType> {
         let mut options: Vec<Box<dyn Fn(&mut Unstructured) -> Result<BlockType>>> = vec![
             Box::new(|_| Ok(BlockType::Empty)),
             Box::new(|u| Ok(BlockType::Result(module.arbitrary_valtype(u)?))),
@@ -780,7 +759,7 @@ where
     pub(crate) fn arbitrary(
         mut self,
         u: &mut Unstructured,
-        module: &ConfiguredModule<C>,
+        module: &Module,
     ) -> Result<Vec<Instruction>> {
         let max_instructions = module.config.max_instructions();
         let mut instructions = vec![];
@@ -915,27 +894,15 @@ fn arbitrary_val(ty: ValType, u: &mut Unstructured<'_>) -> Instruction {
     }
 }
 
-fn unreachable<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    _: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn unreachable(_: &mut Unstructured, _: &Module, _: &mut CodeBuilder) -> Result<Instruction> {
     Ok(Instruction::Unreachable)
 }
 
-fn nop<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    _: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn nop(_: &mut Unstructured, _: &Module, _: &mut CodeBuilder) -> Result<Instruction> {
     Ok(Instruction::Nop)
 }
 
-fn block<C: Config>(
-    u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn block(u: &mut Unstructured, module: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     let block_ty = builder.arbitrary_block_type(u, module)?;
     let (params, results) = block_ty.params_results(module);
     let height = builder.allocs.operands.len() - params.len();
@@ -948,11 +915,7 @@ fn block<C: Config>(
     Ok(Instruction::Block(block_ty))
 }
 
-fn r#loop<C: Config>(
-    u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn r#loop(u: &mut Unstructured, module: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     let block_ty = builder.arbitrary_block_type(u, module)?;
     let (params, results) = block_ty.params_results(module);
     let height = builder.allocs.operands.len() - params.len();
@@ -966,15 +929,11 @@ fn r#loop<C: Config>(
 }
 
 #[inline]
-fn if_valid<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn if_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder.type_on_stack(ValType::I32)
 }
 
-fn r#if<C: Config>(
-    u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn r#if(u: &mut Unstructured, module: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
 
     let block_ty = builder.arbitrary_block_type(u, module)?;
@@ -990,18 +949,14 @@ fn r#if<C: Config>(
 }
 
 #[inline]
-fn else_valid<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn else_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
     let last_control = builder.allocs.controls.last().unwrap();
     last_control.kind == ControlKind::If
         && builder.operands().len() == last_control.results.len()
         && builder.types_on_stack(&last_control.results)
 }
 
-fn r#else<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn r#else(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     let control = builder.allocs.controls.pop().unwrap();
     builder.pop_operands(&control.results);
     builder.push_operands(&control.params);
@@ -1013,7 +968,7 @@ fn r#else<C: Config>(
 }
 
 #[inline]
-fn end_valid<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn end_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
     // Note: first control frame is the function return's control frame, which
     // does not have an associated `end`.
     if builder.allocs.controls.len() <= 1 {
@@ -1027,17 +982,13 @@ fn end_valid<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -
         && !(control.kind == ControlKind::If && control.params != control.results)
 }
 
-fn end<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn end(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.allocs.controls.pop();
     Ok(Instruction::End)
 }
 
 #[inline]
-fn br_valid<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn br_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder
         .allocs
         .controls
@@ -1045,11 +996,7 @@ fn br_valid<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) ->
         .any(|l| builder.label_types_on_stack(l))
 }
 
-fn br<C: Config>(
-    u: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn br(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     let n = builder
         .allocs
         .controls
@@ -1074,7 +1021,7 @@ fn br<C: Config>(
 }
 
 #[inline]
-fn br_if_valid<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn br_if_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
     if !builder.type_on_stack(ValType::I32) {
         return false;
     }
@@ -1088,11 +1035,7 @@ fn br_if_valid<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>)
     is_valid
 }
 
-fn br_if<C: Config>(
-    u: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn br_if(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
 
     let n = builder
@@ -1116,7 +1059,7 @@ fn br_if<C: Config>(
 }
 
 #[inline]
-fn br_table_valid<C: Config>(module: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn br_table_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     if !builder.type_on_stack(ValType::I32) {
         return false;
     }
@@ -1126,11 +1069,7 @@ fn br_table_valid<C: Config>(module: &ConfiguredModule<C>, builder: &mut CodeBui
     is_valid
 }
 
-fn br_table<C: Config>(
-    u: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn br_table(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
 
     let n = builder
@@ -1170,22 +1109,18 @@ fn br_table<C: Config>(
 }
 
 #[inline]
-fn return_valid<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn return_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder.label_types_on_stack(&builder.allocs.controls[0])
 }
 
-fn r#return<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn r#return(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     let results = builder.allocs.controls[0].results.clone();
     builder.pop_operands(&results);
     Ok(Instruction::Return)
 }
 
 #[inline]
-fn call_valid<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn call_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder
         .allocs
         .functions
@@ -1193,11 +1128,7 @@ fn call_valid<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) 
         .any(|k| builder.types_on_stack(k))
 }
 
-fn call<C: Config>(
-    u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn call(u: &mut Unstructured, module: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     let candidates = builder
         .allocs
         .functions
@@ -1214,10 +1145,7 @@ fn call<C: Config>(
 }
 
 #[inline]
-fn call_indirect_valid<C: Config>(
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> bool {
+fn call_indirect_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     if builder.allocs.funcref_tables.is_empty() || !builder.type_on_stack(ValType::I32) {
         return false;
     }
@@ -1229,10 +1157,10 @@ fn call_indirect_valid<C: Config>(
     is_valid
 }
 
-fn call_indirect<C: Config>(
+fn call_indirect(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
 
@@ -1251,21 +1179,17 @@ fn call_indirect<C: Config>(
 }
 
 #[inline]
-fn drop_valid<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn drop_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
     !builder.operands().is_empty()
 }
 
-fn drop<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn drop(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.allocs.operands.pop();
     Ok(Instruction::Drop)
 }
 
 #[inline]
-fn select_valid<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn select_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
     if !(builder.operands().len() >= 3 && builder.type_on_stack(ValType::I32)) {
         return false;
     }
@@ -1274,11 +1198,7 @@ fn select_valid<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>
     t.is_none() || u.is_none() || t == u
 }
 
-fn select<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn select(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.allocs.operands.pop();
     let t = builder.allocs.operands.pop().unwrap();
     let u = builder.allocs.operands.pop().unwrap();
@@ -1294,15 +1214,11 @@ fn select<C: Config>(
 }
 
 #[inline]
-fn local_get_valid<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn local_get_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
     !builder.func_ty.params.is_empty() || !builder.locals.is_empty()
 }
 
-fn local_get<C: Config>(
-    u: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn local_get(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     let num_params = builder.func_ty.params.len();
     let n = num_params + builder.locals.len();
     debug_assert!(n > 0);
@@ -1316,7 +1232,7 @@ fn local_get<C: Config>(
 }
 
 #[inline]
-fn local_set_valid<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn local_set_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder
         .func_ty
         .params
@@ -1325,11 +1241,7 @@ fn local_set_valid<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder
         .any(|ty| builder.type_on_stack(*ty))
 }
 
-fn local_set<C: Config>(
-    u: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn local_set(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     let n = builder
         .func_ty
         .params
@@ -1352,11 +1264,7 @@ fn local_set<C: Config>(
     Ok(Instruction::LocalSet(j as u32))
 }
 
-fn local_tee<C: Config>(
-    u: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn local_tee(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     let n = builder
         .func_ty
         .params
@@ -1379,14 +1287,14 @@ fn local_tee<C: Config>(
 }
 
 #[inline]
-fn global_get_valid<C: Config>(module: &ConfiguredModule<C>, _: &mut CodeBuilder<C>) -> bool {
+fn global_get_valid(module: &Module, _: &mut CodeBuilder) -> bool {
     module.globals.len() > 0
 }
 
-fn global_get<C: Config>(
+fn global_get(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     debug_assert!(module.globals.len() > 0);
     let global_idx = u.int_in_range(0..=module.globals.len() - 1)?;
@@ -1398,7 +1306,7 @@ fn global_get<C: Config>(
 }
 
 #[inline]
-fn global_set_valid<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn global_set_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder
         .allocs
         .mutable_globals
@@ -1406,11 +1314,7 @@ fn global_set_valid<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilde
         .any(|(ty, _)| builder.type_on_stack(*ty))
 }
 
-fn global_set<C: Config>(
-    u: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn global_set(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     let candidates = builder
         .allocs
         .mutable_globals
@@ -1424,158 +1328,155 @@ fn global_set<C: Config>(
 }
 
 #[inline]
-fn have_memory<C: Config>(module: &ConfiguredModule<C>, _: &mut CodeBuilder<C>) -> bool {
+fn have_memory(module: &Module, _: &mut CodeBuilder) -> bool {
     module.memories.len() > 0
 }
 
 #[inline]
-fn have_memory_and_offset<C: Config>(
-    _module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> bool {
+fn have_memory_and_offset(_module: &Module, builder: &mut CodeBuilder) -> bool {
     (builder.allocs.memory32.len() > 0 && builder.type_on_stack(ValType::I32))
         || (builder.allocs.memory64.len() > 0 && builder.type_on_stack(ValType::I64))
 }
 
 #[inline]
-fn have_data<C: Config>(module: &ConfiguredModule<C>, _: &mut CodeBuilder<C>) -> bool {
+fn have_data(module: &Module, _: &mut CodeBuilder) -> bool {
     module.data.len() > 0
 }
 
-fn i32_load<C: Config>(
+fn i32_load(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     let memarg = mem_arg(u, module, builder, &[0, 1])?;
     builder.allocs.operands.push(Some(ValType::I32));
     Ok(Instruction::I32Load(memarg))
 }
 
-fn i64_load<C: Config>(
+fn i64_load(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
     builder.allocs.operands.push(Some(ValType::I64));
     Ok(Instruction::I64Load(memarg))
 }
 
-fn f32_load<C: Config>(
+fn f32_load(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     let memarg = mem_arg(u, module, builder, &[0, 1])?;
     builder.allocs.operands.push(Some(ValType::F32));
     Ok(Instruction::F32Load(memarg))
 }
 
-fn f64_load<C: Config>(
+fn f64_load(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
     builder.allocs.operands.push(Some(ValType::F64));
     Ok(Instruction::F64Load(memarg))
 }
 
-fn i32_load_8_s<C: Config>(
+fn i32_load_8_s(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     let memarg = mem_arg(u, module, builder, &[0])?;
     builder.allocs.operands.push(Some(ValType::I32));
     Ok(Instruction::I32Load8_S(memarg))
 }
 
-fn i32_load_8_u<C: Config>(
+fn i32_load_8_u(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     let memarg = mem_arg(u, module, builder, &[0])?;
     builder.allocs.operands.push(Some(ValType::I32));
     Ok(Instruction::I32Load8_U(memarg))
 }
 
-fn i32_load_16_s<C: Config>(
+fn i32_load_16_s(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     let memarg = mem_arg(u, module, builder, &[0, 1])?;
     builder.allocs.operands.push(Some(ValType::I32));
     Ok(Instruction::I32Load16_S(memarg))
 }
 
-fn i32_load_16_u<C: Config>(
+fn i32_load_16_u(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     let memarg = mem_arg(u, module, builder, &[0, 1])?;
     builder.allocs.operands.push(Some(ValType::I32));
     Ok(Instruction::I32Load16_U(memarg))
 }
 
-fn i64_load_8_s<C: Config>(
+fn i64_load_8_s(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     let memarg = mem_arg(u, module, builder, &[0])?;
     builder.allocs.operands.push(Some(ValType::I64));
     Ok(Instruction::I64Load8_S(memarg))
 }
 
-fn i64_load_16_s<C: Config>(
+fn i64_load_16_s(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     let memarg = mem_arg(u, module, builder, &[0, 1])?;
     builder.allocs.operands.push(Some(ValType::I64));
     Ok(Instruction::I64Load16_S(memarg))
 }
 
-fn i64_load_32_s<C: Config>(
+fn i64_load_32_s(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
     builder.allocs.operands.push(Some(ValType::I64));
     Ok(Instruction::I64Load32_S(memarg))
 }
 
-fn i64_load_8_u<C: Config>(
+fn i64_load_8_u(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     let memarg = mem_arg(u, module, builder, &[0])?;
     builder.allocs.operands.push(Some(ValType::I64));
     Ok(Instruction::I64Load8_U(memarg))
 }
 
-fn i64_load_16_u<C: Config>(
+fn i64_load_16_u(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     let memarg = mem_arg(u, module, builder, &[0, 1])?;
     builder.allocs.operands.push(Some(ValType::I64));
     Ok(Instruction::I64Load16_U(memarg))
 }
 
-fn i64_load_32_u<C: Config>(
+fn i64_load_32_u(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
     builder.allocs.operands.push(Some(ValType::I64));
@@ -1583,24 +1484,20 @@ fn i64_load_32_u<C: Config>(
 }
 
 #[inline]
-fn store_valid<C: Config>(
-    _module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-    f: impl Fn() -> ValType,
-) -> bool {
+fn store_valid(_module: &Module, builder: &mut CodeBuilder, f: impl Fn() -> ValType) -> bool {
     (builder.allocs.memory32.len() > 0 && builder.types_on_stack(&[ValType::I32, f()]))
         || (builder.allocs.memory64.len() > 0 && builder.types_on_stack(&[ValType::I64, f()]))
 }
 
 #[inline]
-fn i32_store_valid<C: Config>(module: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn i32_store_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     store_valid(module, builder, || ValType::I32)
 }
 
-fn i32_store<C: Config>(
+fn i32_store(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     let memarg = mem_arg(u, module, builder, &[0, 1])?;
@@ -1608,14 +1505,14 @@ fn i32_store<C: Config>(
 }
 
 #[inline]
-fn i64_store_valid<C: Config>(module: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn i64_store_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     store_valid(module, builder, || ValType::I64)
 }
 
-fn i64_store<C: Config>(
+fn i64_store(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64]);
     let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
@@ -1623,14 +1520,14 @@ fn i64_store<C: Config>(
 }
 
 #[inline]
-fn f32_store_valid<C: Config>(module: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn f32_store_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     store_valid(module, builder, || ValType::F32)
 }
 
-fn f32_store<C: Config>(
+fn f32_store(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32]);
     let memarg = mem_arg(u, module, builder, &[0, 1])?;
@@ -1638,74 +1535,74 @@ fn f32_store<C: Config>(
 }
 
 #[inline]
-fn f64_store_valid<C: Config>(module: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn f64_store_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     store_valid(module, builder, || ValType::F64)
 }
 
-fn f64_store<C: Config>(
+fn f64_store(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64]);
     let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
     Ok(Instruction::F64Store(memarg))
 }
 
-fn i32_store_8<C: Config>(
+fn i32_store_8(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     let memarg = mem_arg(u, module, builder, &[0])?;
     Ok(Instruction::I32Store8(memarg))
 }
 
-fn i32_store_16<C: Config>(
+fn i32_store_16(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     let memarg = mem_arg(u, module, builder, &[0, 1])?;
     Ok(Instruction::I32Store16(memarg))
 }
 
-fn i64_store_8<C: Config>(
+fn i64_store_8(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64]);
     let memarg = mem_arg(u, module, builder, &[0])?;
     Ok(Instruction::I64Store8(memarg))
 }
 
-fn i64_store_16<C: Config>(
+fn i64_store_16(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64]);
     let memarg = mem_arg(u, module, builder, &[0, 1])?;
     Ok(Instruction::I64Store16(memarg))
 }
 
-fn i64_store_32<C: Config>(
+fn i64_store_32(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64]);
     let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
     Ok(Instruction::I64Store32(memarg))
 }
 
-fn memory_size<C: Config>(
+fn memory_size(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     let i = u.int_in_range(0..=module.memories.len() - 1)?;
     let ty = if module.memories[i].memory64 {
@@ -1718,18 +1615,15 @@ fn memory_size<C: Config>(
 }
 
 #[inline]
-fn memory_grow_valid<C: Config>(
-    _module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> bool {
+fn memory_grow_valid(_module: &Module, builder: &mut CodeBuilder) -> bool {
     (builder.allocs.memory32.len() > 0 && builder.type_on_stack(ValType::I32))
         || (builder.allocs.memory64.len() > 0 && builder.type_on_stack(ValType::I64))
 }
 
-fn memory_grow<C: Config>(
+fn memory_grow(
     u: &mut Unstructured,
-    _module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     let ty = if builder.type_on_stack(ValType::I32) {
         ValType::I32
@@ -1743,10 +1637,7 @@ fn memory_grow<C: Config>(
 }
 
 #[inline]
-fn memory_init_valid<C: Config>(
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> bool {
+fn memory_init_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.bulk_memory_enabled()
         && have_data(module, builder)
         && (builder.allocs.memory32.len() > 0
@@ -1755,10 +1646,10 @@ fn memory_init_valid<C: Config>(
                 && builder.types_on_stack(&[ValType::I64, ValType::I32, ValType::I32])))
 }
 
-fn memory_init<C: Config>(
+fn memory_init(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     let ty = if builder.type_on_stack(ValType::I32) {
@@ -1773,10 +1664,7 @@ fn memory_init<C: Config>(
 }
 
 #[inline]
-fn memory_fill_valid<C: Config>(
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> bool {
+fn memory_fill_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.bulk_memory_enabled()
         && (builder.allocs.memory32.len() > 0
             && builder.types_on_stack(&[ValType::I32, ValType::I32, ValType::I32])
@@ -1784,10 +1672,10 @@ fn memory_fill_valid<C: Config>(
                 && builder.types_on_stack(&[ValType::I64, ValType::I32, ValType::I64])))
 }
 
-fn memory_fill<C: Config>(
+fn memory_fill(
     u: &mut Unstructured,
-    _module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     let ty = if builder.type_on_stack(ValType::I32) {
         ValType::I32
@@ -1800,10 +1688,7 @@ fn memory_fill<C: Config>(
 }
 
 #[inline]
-fn memory_copy_valid<C: Config>(
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> bool {
+fn memory_copy_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     if !module.config.bulk_memory_enabled() {
         return false;
     }
@@ -1833,10 +1718,10 @@ fn memory_copy_valid<C: Config>(
     false
 }
 
-fn memory_copy<C: Config>(
+fn memory_copy(
     u: &mut Unstructured,
-    _module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     let (src, dst) = if builder.types_on_stack(&[ValType::I64, ValType::I64, ValType::I64]) {
         builder.pop_operands(&[ValType::I64, ValType::I64, ValType::I64]);
@@ -1869,925 +1754,577 @@ fn memory_copy<C: Config>(
 }
 
 #[inline]
-fn data_drop_valid<C: Config>(module: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn data_drop_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     have_data(module, builder) && module.config.bulk_memory_enabled()
 }
 
-fn data_drop<C: Config>(
+fn data_drop(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    _builder: &mut CodeBuilder<C>,
+    module: &Module,
+    _builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     Ok(Instruction::DataDrop(data_index(u, module)?))
 }
 
-fn i32_const<C: Config>(
-    u: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_const(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     let x = u.arbitrary()?;
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32Const(x))
 }
 
-fn i64_const<C: Config>(
-    u: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_const(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     let x = u.arbitrary()?;
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64Const(x))
 }
 
-fn f32_const<C: Config>(
-    u: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f32_const(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     let x = u.arbitrary()?;
     builder.push_operands(&[ValType::F32]);
     Ok(Instruction::F32Const(x))
 }
 
-fn f64_const<C: Config>(
-    u: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f64_const(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     let x = u.arbitrary()?;
     builder.push_operands(&[ValType::F64]);
     Ok(Instruction::F64Const(x))
 }
 
 #[inline]
-fn i32_on_stack<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn i32_on_stack(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder.type_on_stack(ValType::I32)
 }
 
-fn i32_eqz<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_eqz(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32Eqz)
 }
 
 #[inline]
-fn i32_i32_on_stack<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn i32_i32_on_stack(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder.types_on_stack(&[ValType::I32, ValType::I32])
 }
 
-fn i32_eq<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_eq(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32Eq)
 }
 
-fn i32_neq<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_neq(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32Neq)
 }
 
-fn i32_lt_s<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_lt_s(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32LtS)
 }
 
-fn i32_lt_u<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_lt_u(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32LtU)
 }
 
-fn i32_gt_s<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_gt_s(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32GtS)
 }
 
-fn i32_gt_u<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_gt_u(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32GtU)
 }
 
-fn i32_le_s<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_le_s(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32LeS)
 }
 
-fn i32_le_u<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_le_u(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32LeU)
 }
 
-fn i32_ge_s<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_ge_s(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32GeS)
 }
 
-fn i32_ge_u<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_ge_u(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32GeU)
 }
 
 #[inline]
-fn i64_on_stack<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn i64_on_stack(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder.types_on_stack(&[ValType::I64])
 }
 
-fn i64_eqz<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_eqz(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I64Eqz)
 }
 
 #[inline]
-fn i64_i64_on_stack<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn i64_i64_on_stack(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder.types_on_stack(&[ValType::I64, ValType::I64])
 }
 
-fn i64_eq<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_eq(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I64Eq)
 }
 
-fn i64_neq<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_neq(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I64Neq)
 }
 
-fn i64_lt_s<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_lt_s(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I64LtS)
 }
 
-fn i64_lt_u<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_lt_u(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I64LtU)
 }
 
-fn i64_gt_s<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_gt_s(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I64GtS)
 }
 
-fn i64_gt_u<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_gt_u(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I64GtU)
 }
 
-fn i64_le_s<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_le_s(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I64LeS)
 }
 
-fn i64_le_u<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_le_u(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I64LeU)
 }
 
-fn i64_ge_s<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_ge_s(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I64GeS)
 }
 
-fn i64_ge_u<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_ge_u(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I64GeU)
 }
 
-fn f32_f32_on_stack<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn f32_f32_on_stack(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder.types_on_stack(&[ValType::F32, ValType::F32])
 }
 
-fn f32_eq<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f32_eq(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::F32Eq)
 }
 
-fn f32_neq<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f32_neq(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::F32Neq)
 }
 
-fn f32_lt<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f32_lt(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::F32Lt)
 }
 
-fn f32_gt<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f32_gt(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::F32Gt)
 }
 
-fn f32_le<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f32_le(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::F32Le)
 }
 
-fn f32_ge<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f32_ge(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::F32Ge)
 }
 
-fn f64_f64_on_stack<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn f64_f64_on_stack(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder.types_on_stack(&[ValType::F64, ValType::F64])
 }
 
-fn f64_eq<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f64_eq(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::F64Eq)
 }
 
-fn f64_neq<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f64_neq(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::F64Neq)
 }
 
-fn f64_lt<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f64_lt(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::F64Lt)
 }
 
-fn f64_gt<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f64_gt(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::F64Gt)
 }
 
-fn f64_le<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f64_le(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::F64Le)
 }
 
-fn f64_ge<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f64_ge(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::F64Ge)
 }
 
-fn i32_clz<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_clz(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32Clz)
 }
 
-fn i32_ctz<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_ctz(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32Ctz)
 }
 
-fn i32_popcnt<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_popcnt(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32Popcnt)
 }
 
-fn i32_add<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_add(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32Add)
 }
 
-fn i32_sub<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_sub(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32Sub)
 }
 
-fn i32_mul<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_mul(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32Mul)
 }
 
-fn i32_div_s<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_div_s(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32DivS)
 }
 
-fn i32_div_u<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_div_u(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32DivU)
 }
 
-fn i32_rem_s<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_rem_s(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32RemS)
 }
 
-fn i32_rem_u<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_rem_u(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32RemU)
 }
 
-fn i32_and<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_and(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32And)
 }
 
-fn i32_or<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_or(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32Or)
 }
 
-fn i32_xor<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_xor(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32Xor)
 }
 
-fn i32_shl<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_shl(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32Shl)
 }
 
-fn i32_shr_s<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_shr_s(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32ShrS)
 }
 
-fn i32_shr_u<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_shr_u(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32ShrU)
 }
 
-fn i32_rotl<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_rotl(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32Rotl)
 }
 
-fn i32_rotr<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i32_rotr(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32Rotr)
 }
 
-fn i64_clz<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_clz(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64Clz)
 }
 
-fn i64_ctz<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_ctz(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64Ctz)
 }
 
-fn i64_popcnt<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_popcnt(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64Popcnt)
 }
 
-fn i64_add<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_add(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64Add)
 }
 
-fn i64_sub<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_sub(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64Sub)
 }
 
-fn i64_mul<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_mul(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64Mul)
 }
 
-fn i64_div_s<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_div_s(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64DivS)
 }
 
-fn i64_div_u<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_div_u(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64DivU)
 }
 
-fn i64_rem_s<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_rem_s(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64RemS)
 }
 
-fn i64_rem_u<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_rem_u(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64RemU)
 }
 
-fn i64_and<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_and(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64And)
 }
 
-fn i64_or<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_or(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64Or)
 }
 
-fn i64_xor<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_xor(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64Xor)
 }
 
-fn i64_shl<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_shl(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64Shl)
 }
 
-fn i64_shr_s<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_shr_s(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64ShrS)
 }
 
-fn i64_shr_u<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_shr_u(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64ShrU)
 }
 
-fn i64_rotl<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_rotl(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64Rotl)
 }
 
-fn i64_rotr<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn i64_rotr(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64Rotr)
 }
 
 #[inline]
-fn f32_on_stack<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn f32_on_stack(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder.types_on_stack(&[ValType::F32])
 }
 
-fn f32_abs<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f32_abs(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     Ok(Instruction::F32Abs)
 }
 
-fn f32_neg<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f32_neg(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     Ok(Instruction::F32Neg)
 }
 
-fn f32_ceil<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f32_ceil(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     Ok(Instruction::F32Ceil)
 }
 
-fn f32_floor<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f32_floor(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     Ok(Instruction::F32Floor)
 }
 
-fn f32_trunc<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f32_trunc(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     Ok(Instruction::F32Trunc)
 }
 
-fn f32_nearest<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f32_nearest(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     Ok(Instruction::F32Nearest)
 }
 
-fn f32_sqrt<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f32_sqrt(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     Ok(Instruction::F32Sqrt)
 }
 
-fn f32_add<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f32_add(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     Ok(Instruction::F32Add)
 }
 
-fn f32_sub<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f32_sub(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     Ok(Instruction::F32Sub)
 }
 
-fn f32_mul<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f32_mul(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     Ok(Instruction::F32Mul)
 }
 
-fn f32_div<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f32_div(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     Ok(Instruction::F32Div)
 }
 
-fn f32_min<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f32_min(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     Ok(Instruction::F32Min)
 }
 
-fn f32_max<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f32_max(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     Ok(Instruction::F32Max)
 }
 
-fn f32_copysign<C: Config>(
+fn f32_copysign(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::F32]);
@@ -2795,535 +2332,479 @@ fn f32_copysign<C: Config>(
 }
 
 #[inline]
-fn f64_on_stack<C: Config>(_: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn f64_on_stack(_: &Module, builder: &mut CodeBuilder) -> bool {
     builder.types_on_stack(&[ValType::F64])
 }
 
-fn f64_abs<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f64_abs(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     Ok(Instruction::F64Abs)
 }
 
-fn f64_neg<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f64_neg(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     Ok(Instruction::F64Neg)
 }
 
-fn f64_ceil<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f64_ceil(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     Ok(Instruction::F64Ceil)
 }
 
-fn f64_floor<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f64_floor(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     Ok(Instruction::F64Floor)
 }
 
-fn f64_trunc<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f64_trunc(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     Ok(Instruction::F64Trunc)
 }
 
-fn f64_nearest<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f64_nearest(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     Ok(Instruction::F64Nearest)
 }
 
-fn f64_sqrt<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f64_sqrt(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     Ok(Instruction::F64Sqrt)
 }
 
-fn f64_add<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f64_add(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     Ok(Instruction::F64Add)
 }
 
-fn f64_sub<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f64_sub(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     Ok(Instruction::F64Sub)
 }
 
-fn f64_mul<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f64_mul(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     Ok(Instruction::F64Mul)
 }
 
-fn f64_div<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f64_div(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     Ok(Instruction::F64Div)
 }
 
-fn f64_min<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f64_min(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     Ok(Instruction::F64Min)
 }
 
-fn f64_max<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn f64_max(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     Ok(Instruction::F64Max)
 }
 
-fn f64_copysign<C: Config>(
+fn f64_copysign(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     Ok(Instruction::F64Copysign)
 }
 
-fn i32_wrap_i64<C: Config>(
+fn i32_wrap_i64(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32WrapI64)
 }
 
-fn i32_trunc_f32_s<C: Config>(
+fn i32_trunc_f32_s(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32TruncF32S)
 }
 
-fn i32_trunc_f32_u<C: Config>(
+fn i32_trunc_f32_u(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32TruncF32U)
 }
 
-fn i32_trunc_f64_s<C: Config>(
+fn i32_trunc_f64_s(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32TruncF64S)
 }
 
-fn i32_trunc_f64_u<C: Config>(
+fn i32_trunc_f64_u(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32TruncF64U)
 }
 
-fn i64_extend_i32_s<C: Config>(
+fn i64_extend_i32_s(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64ExtendI32S)
 }
 
-fn i64_extend_i32_u<C: Config>(
+fn i64_extend_i32_u(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64ExtendI32U)
 }
 
-fn i64_trunc_f32_s<C: Config>(
+fn i64_trunc_f32_s(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64TruncF32S)
 }
 
-fn i64_trunc_f32_u<C: Config>(
+fn i64_trunc_f32_u(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64TruncF32U)
 }
 
-fn i64_trunc_f64_s<C: Config>(
+fn i64_trunc_f64_s(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64TruncF64S)
 }
 
-fn i64_trunc_f64_u<C: Config>(
+fn i64_trunc_f64_u(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64TruncF64U)
 }
 
-fn f32_convert_i32_s<C: Config>(
+fn f32_convert_i32_s(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.push_operands(&[ValType::F32]);
     Ok(Instruction::F32ConvertI32S)
 }
 
-fn f32_convert_i32_u<C: Config>(
+fn f32_convert_i32_u(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.push_operands(&[ValType::F32]);
     Ok(Instruction::F32ConvertI32U)
 }
 
-fn f32_convert_i64_s<C: Config>(
+fn f32_convert_i64_s(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64]);
     builder.push_operands(&[ValType::F32]);
     Ok(Instruction::F32ConvertI64S)
 }
 
-fn f32_convert_i64_u<C: Config>(
+fn f32_convert_i64_u(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64]);
     builder.push_operands(&[ValType::F32]);
     Ok(Instruction::F32ConvertI64U)
 }
 
-fn f32_demote_f64<C: Config>(
+fn f32_demote_f64(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64]);
     builder.push_operands(&[ValType::F32]);
     Ok(Instruction::F32DemoteF64)
 }
 
-fn f64_convert_i32_s<C: Config>(
+fn f64_convert_i32_s(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.push_operands(&[ValType::F64]);
     Ok(Instruction::F64ConvertI32S)
 }
 
-fn f64_convert_i32_u<C: Config>(
+fn f64_convert_i32_u(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.push_operands(&[ValType::F64]);
     Ok(Instruction::F64ConvertI32U)
 }
 
-fn f64_convert_i64_s<C: Config>(
+fn f64_convert_i64_s(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64]);
     builder.push_operands(&[ValType::F64]);
     Ok(Instruction::F64ConvertI64S)
 }
 
-fn f64_convert_i64_u<C: Config>(
+fn f64_convert_i64_u(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64]);
     builder.push_operands(&[ValType::F64]);
     Ok(Instruction::F64ConvertI64U)
 }
 
-fn f64_promote_f32<C: Config>(
+fn f64_promote_f32(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32]);
     builder.push_operands(&[ValType::F64]);
     Ok(Instruction::F64PromoteF32)
 }
 
-fn i32_reinterpret_f32<C: Config>(
+fn i32_reinterpret_f32(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32ReinterpretF32)
 }
 
-fn i64_reinterpret_f64<C: Config>(
+fn i64_reinterpret_f64(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64ReinterpretF64)
 }
 
-fn f32_reinterpret_i32<C: Config>(
+fn f32_reinterpret_i32(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.push_operands(&[ValType::F32]);
     Ok(Instruction::F32ReinterpretI32)
 }
 
-fn f64_reinterpret_i64<C: Config>(
+fn f64_reinterpret_i64(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64]);
     builder.push_operands(&[ValType::F64]);
     Ok(Instruction::F64ReinterpretI64)
 }
 
-fn i32_extend_8_s<C: Config>(
+fn i32_extend_8_s(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32Extend8S)
 }
 
-fn i32_extend_16_s<C: Config>(
+fn i32_extend_16_s(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32Extend16S)
 }
 
-fn i64_extend_8_s<C: Config>(
+fn i64_extend_8_s(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64Extend8S)
 }
 
-fn i64_extend_16_s<C: Config>(
+fn i64_extend_16_s(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64Extend16S)
 }
 
-fn i64_extend_32_s<C: Config>(
+fn i64_extend_32_s(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64Extend32S)
 }
 
-fn i32_trunc_sat_f32_s<C: Config>(
+fn i32_trunc_sat_f32_s(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32TruncSatF32S)
 }
 
-fn i32_trunc_sat_f32_u<C: Config>(
+fn i32_trunc_sat_f32_u(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32TruncSatF32U)
 }
 
-fn i32_trunc_sat_f64_s<C: Config>(
+fn i32_trunc_sat_f64_s(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32TruncSatF64S)
 }
 
-fn i32_trunc_sat_f64_u<C: Config>(
+fn i32_trunc_sat_f64_u(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32TruncSatF64U)
 }
 
-fn i64_trunc_sat_f32_s<C: Config>(
+fn i64_trunc_sat_f32_s(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64TruncSatF32S)
 }
 
-fn i64_trunc_sat_f32_u<C: Config>(
+fn i64_trunc_sat_f32_u(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64TruncSatF32U)
 }
 
-fn i64_trunc_sat_f64_s<C: Config>(
+fn i64_trunc_sat_f64_s(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64TruncSatF64S)
 }
 
-fn i64_trunc_sat_f64_u<C: Config>(
+fn i64_trunc_sat_f64_u(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64]);
     builder.push_operands(&[ValType::I64]);
     Ok(Instruction::I64TruncSatF64U)
 }
 
-fn memory_offset<C: Config>(
-    u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    memory_index: u32,
-) -> Result<u64> {
+fn memory_offset(u: &mut Unstructured, module: &Module, memory_index: u32) -> Result<u64> {
     let (a, b, c) = module.config.memory_offset_choices();
     assert!(a + b + c != 0);
 
@@ -3356,10 +2837,10 @@ fn memory_offset<C: Config>(
     }
 }
 
-fn mem_arg<C: Config>(
+fn mem_arg(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
     alignments: &[u32],
 ) -> Result<MemArg> {
     let memory_index = if builder.type_on_stack(ValType::I32) {
@@ -3378,11 +2859,7 @@ fn mem_arg<C: Config>(
     })
 }
 
-fn memory_index<C: Config>(
-    u: &mut Unstructured,
-    builder: &CodeBuilder<C>,
-    ty: ValType,
-) -> Result<u32> {
+fn memory_index(u: &mut Unstructured, builder: &CodeBuilder, ty: ValType) -> Result<u32> {
     if ty == ValType::I32 {
         Ok(*u.choose(&builder.allocs.memory32)?)
     } else {
@@ -3390,7 +2867,7 @@ fn memory_index<C: Config>(
     }
 }
 
-fn data_index<C: Config>(u: &mut Unstructured, module: &ConfiguredModule<C>) -> Result<u32> {
+fn data_index(u: &mut Unstructured, module: &Module) -> Result<u32> {
     let data = module.data.len() as u32;
     assert!(data > 0);
     if data == 1 {
@@ -3401,56 +2878,41 @@ fn data_index<C: Config>(u: &mut Unstructured, module: &ConfiguredModule<C>) -> 
 }
 
 #[inline]
-fn ref_null_valid<C: Config>(module: &ConfiguredModule<C>, _: &mut CodeBuilder<C>) -> bool {
+fn ref_null_valid(module: &Module, _: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled()
 }
 
-fn ref_null<C: Config>(
-    u: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn ref_null(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     let ty = *u.choose(&[ValType::ExternRef, ValType::FuncRef])?;
     builder.push_operands(&[ty]);
     Ok(Instruction::RefNull(ty))
 }
 
 #[inline]
-fn ref_func_valid<C: Config>(module: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn ref_func_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled() && builder.allocs.referenced_functions.len() > 0
 }
 
-fn ref_func<C: Config>(
-    u: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn ref_func(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     let i = *u.choose(&builder.allocs.referenced_functions)?;
     builder.push_operands(&[ValType::FuncRef]);
     Ok(Instruction::RefFunc(i))
 }
 
 #[inline]
-fn ref_is_null_valid<C: Config>(
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> bool {
+fn ref_is_null_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled()
         && (builder.type_on_stack(ValType::ExternRef) || builder.type_on_stack(ValType::FuncRef))
 }
 
-fn ref_is_null<C: Config>(
-    _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn ref_is_null(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     pop_reference_type(builder);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::RefIsNull)
 }
 
 #[inline]
-fn table_fill_valid<C: Config>(module: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn table_fill_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled()
         && module.config.bulk_memory_enabled()
         && [ValType::ExternRef, ValType::FuncRef].iter().any(|ty| {
@@ -3459,10 +2921,10 @@ fn table_fill_valid<C: Config>(module: &ConfiguredModule<C>, builder: &mut CodeB
         })
 }
 
-fn table_fill<C: Config>(
+fn table_fill(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     let ty = pop_reference_type(builder);
@@ -3472,7 +2934,7 @@ fn table_fill<C: Config>(
 }
 
 #[inline]
-fn table_set_valid<C: Config>(module: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn table_set_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled()
         && [ValType::ExternRef, ValType::FuncRef].iter().any(|ty| {
             builder.types_on_stack(&[ValType::I32, *ty])
@@ -3480,10 +2942,10 @@ fn table_set_valid<C: Config>(module: &ConfiguredModule<C>, builder: &mut CodeBu
         })
 }
 
-fn table_set<C: Config>(
+fn table_set(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     let ty = pop_reference_type(builder);
     builder.pop_operands(&[ValType::I32]);
@@ -3492,16 +2954,16 @@ fn table_set<C: Config>(
 }
 
 #[inline]
-fn table_get_valid<C: Config>(module: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn table_get_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled()
         && builder.type_on_stack(ValType::I32)
         && module.tables.len() > 0
 }
 
-fn table_get<C: Config>(
+fn table_get(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     let idx = u.int_in_range(0..=module.tables.len() - 1)?;
@@ -3511,14 +2973,14 @@ fn table_get<C: Config>(
 }
 
 #[inline]
-fn table_size_valid<C: Config>(module: &ConfiguredModule<C>, _: &mut CodeBuilder<C>) -> bool {
+fn table_size_valid(module: &Module, _: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled() && module.tables.len() > 0
 }
 
-fn table_size<C: Config>(
+fn table_size(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     let table = u.int_in_range(0..=module.tables.len() - 1)? as u32;
     builder.push_operands(&[ValType::I32]);
@@ -3526,7 +2988,7 @@ fn table_size<C: Config>(
 }
 
 #[inline]
-fn table_grow_valid<C: Config>(module: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn table_grow_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled()
         && [ValType::ExternRef, ValType::FuncRef].iter().any(|ty| {
             builder.types_on_stack(&[*ty, ValType::I32])
@@ -3534,10 +2996,10 @@ fn table_grow_valid<C: Config>(module: &ConfiguredModule<C>, builder: &mut CodeB
         })
 }
 
-fn table_grow<C: Config>(
+fn table_grow(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     let ty = pop_reference_type(builder);
@@ -3547,16 +3009,16 @@ fn table_grow<C: Config>(
 }
 
 #[inline]
-fn table_copy_valid<C: Config>(module: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn table_copy_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled()
         && module.tables.len() > 0
         && builder.types_on_stack(&[ValType::I32, ValType::I32, ValType::I32])
 }
 
-fn table_copy<C: Config>(
+fn table_copy(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32, ValType::I32]);
     let src = u.int_in_range(0..=module.tables.len() - 1)? as u32;
@@ -3565,16 +3027,16 @@ fn table_copy<C: Config>(
 }
 
 #[inline]
-fn table_init_valid<C: Config>(module: &ConfiguredModule<C>, builder: &mut CodeBuilder<C>) -> bool {
+fn table_init_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled()
         && builder.allocs.table_init_possible
         && builder.types_on_stack(&[ValType::I32, ValType::I32, ValType::I32])
 }
 
-fn table_init<C: Config>(
+fn table_init(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32, ValType::I32]);
     let segments = module
@@ -3593,20 +3055,20 @@ fn table_init<C: Config>(
 }
 
 #[inline]
-fn elem_drop_valid<C: Config>(module: &ConfiguredModule<C>, _builder: &mut CodeBuilder<C>) -> bool {
+fn elem_drop_valid(module: &Module, _builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled() && module.elems.len() > 0
 }
 
-fn elem_drop<C: Config>(
+fn elem_drop(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    _builder: &mut CodeBuilder<C>,
+    module: &Module,
+    _builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     let segment = u.int_in_range(0..=module.elems.len() - 1)? as u32;
     Ok(Instruction::ElemDrop { segment })
 }
 
-fn pop_reference_type<C: Config>(builder: &mut CodeBuilder<C>) -> ValType {
+fn pop_reference_type(builder: &mut CodeBuilder) -> ValType {
     if builder.type_on_stack(ValType::ExternRef) {
         builder.pop_operands(&[ValType::ExternRef]);
         ValType::ExternRef
@@ -3616,11 +3078,7 @@ fn pop_reference_type<C: Config>(builder: &mut CodeBuilder<C>) -> ValType {
     }
 }
 
-fn table_index<C: Config>(
-    ty: ValType,
-    u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-) -> Result<u32> {
+fn table_index(ty: ValType, u: &mut Unstructured, module: &Module) -> Result<u32> {
     let tables = module
         .tables
         .iter()
@@ -3636,129 +3094,87 @@ fn lane_index(u: &mut Unstructured, number_of_lanes: u8) -> Result<u8> {
 }
 
 #[inline]
-fn simd_v128_on_stack<C: Config>(
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> bool {
+fn simd_v128_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.simd_enabled() && builder.types_on_stack(&[ValType::V128])
 }
 
 #[inline]
-fn simd_v128_v128_on_stack<C: Config>(
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> bool {
+fn simd_v128_v128_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.simd_enabled() && builder.types_on_stack(&[ValType::V128, ValType::V128])
 }
 
 #[inline]
-fn simd_v128_v128_v128_on_stack<C: Config>(
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> bool {
+fn simd_v128_v128_v128_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.simd_enabled()
         && builder.types_on_stack(&[ValType::V128, ValType::V128, ValType::V128])
 }
 
 #[inline]
-fn simd_v128_i32_on_stack<C: Config>(
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> bool {
+fn simd_v128_i32_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.simd_enabled() && builder.types_on_stack(&[ValType::V128, ValType::I32])
 }
 
 #[inline]
-fn simd_v128_i64_on_stack<C: Config>(
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> bool {
+fn simd_v128_i64_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.simd_enabled() && builder.types_on_stack(&[ValType::V128, ValType::I64])
 }
 
 #[inline]
-fn simd_v128_f32_on_stack<C: Config>(
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> bool {
+fn simd_v128_f32_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.simd_enabled() && builder.types_on_stack(&[ValType::V128, ValType::F32])
 }
 
 #[inline]
-fn simd_v128_f64_on_stack<C: Config>(
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> bool {
+fn simd_v128_f64_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.simd_enabled() && builder.types_on_stack(&[ValType::V128, ValType::F64])
 }
 
 #[inline]
-fn simd_i32_on_stack<C: Config>(
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> bool {
+fn simd_i32_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.simd_enabled() && builder.type_on_stack(ValType::I32)
 }
 
 #[inline]
-fn simd_i64_on_stack<C: Config>(
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> bool {
+fn simd_i64_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.simd_enabled() && builder.type_on_stack(ValType::I64)
 }
 
 #[inline]
-fn simd_f32_on_stack<C: Config>(
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> bool {
+fn simd_f32_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.simd_enabled() && builder.type_on_stack(ValType::F32)
 }
 
 #[inline]
-fn simd_f64_on_stack<C: Config>(
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> bool {
+fn simd_f64_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.simd_enabled() && builder.type_on_stack(ValType::F64)
 }
 
 #[inline]
-fn simd_have_memory_and_offset<C: Config>(
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> bool {
+fn simd_have_memory_and_offset(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.simd_enabled() && have_memory_and_offset(module, builder)
 }
 
 #[inline]
-fn simd_have_memory_and_offset_and_v128<C: Config>(
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> bool {
+fn simd_have_memory_and_offset_and_v128(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.simd_enabled() && store_valid(module, builder, || ValType::V128)
 }
 
 #[inline]
-fn simd_v128_store_valid<C: Config>(
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> bool {
+fn simd_v128_store_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.simd_enabled() && store_valid(module, builder, || ValType::V128)
 }
 
 #[inline]
-fn simd_enabled<C: Config>(module: &ConfiguredModule<C>, _: &mut CodeBuilder<C>) -> bool {
+fn simd_enabled(module: &Module, _: &mut CodeBuilder) -> bool {
     module.config.simd_enabled()
 }
 
 macro_rules! simd_load {
     ($instruction:ident, $generator_fn_name:ident, $alignments:expr) => {
-        fn $generator_fn_name<C: Config>(
+        fn $generator_fn_name(
             u: &mut Unstructured,
-            module: &ConfiguredModule<C>,
-            builder: &mut CodeBuilder<C>,
+            module: &Module,
+            builder: &mut CodeBuilder,
         ) -> Result<Instruction> {
             let memarg = mem_arg(u, module, builder, $alignments)?;
             builder.push_operands(&[ValType::V128]);
@@ -3781,10 +3197,10 @@ simd_load!(V128Load64Splat, v128_load64_splat, &[0, 1, 2, 3]);
 simd_load!(V128Load32Zero, v128_load32_zero, &[0, 1, 2]);
 simd_load!(V128Load64Zero, v128_load64_zero, &[0, 1, 2, 3]);
 
-fn v128_store<C: Config>(
+fn v128_store(
     u: &mut Unstructured,
-    module: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    module: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::V128]);
     let memarg = mem_arg(u, module, builder, &[0, 1, 2, 3, 4])?;
@@ -3793,10 +3209,10 @@ fn v128_store<C: Config>(
 
 macro_rules! simd_load_lane {
     ($instruction:ident, $generator_fn_name:ident, $alignments:expr, $number_of_lanes:expr) => {
-        fn $generator_fn_name<C: Config>(
+        fn $generator_fn_name(
             u: &mut Unstructured,
-            module: &ConfiguredModule<C>,
-            builder: &mut CodeBuilder<C>,
+            module: &Module,
+            builder: &mut CodeBuilder,
         ) -> Result<Instruction> {
             builder.pop_operands(&[ValType::V128]);
             let memarg = mem_arg(u, module, builder, $alignments)?;
@@ -3816,10 +3232,10 @@ simd_load_lane!(V128Load64Lane, v128_load64_lane, &[0, 1, 2, 3], 2);
 
 macro_rules! simd_store_lane {
     ($instruction:ident, $generator_fn_name:ident, $alignments:expr, $number_of_lanes:expr) => {
-        fn $generator_fn_name<C: Config>(
+        fn $generator_fn_name(
             u: &mut Unstructured,
-            module: &ConfiguredModule<C>,
-            builder: &mut CodeBuilder<C>,
+            module: &Module,
+            builder: &mut CodeBuilder,
         ) -> Result<Instruction> {
             builder.pop_operands(&[ValType::V128]);
             let memarg = mem_arg(u, module, builder, $alignments)?;
@@ -3836,20 +3252,16 @@ simd_store_lane!(V128Store16Lane, v128_store16_lane, &[0, 1], 8);
 simd_store_lane!(V128Store32Lane, v128_store32_lane, &[0, 1, 2], 4);
 simd_store_lane!(V128Store64Lane, v128_store64_lane, &[0, 1, 2, 3], 2);
 
-fn v128_const<C: Config>(
-    u: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
-) -> Result<Instruction> {
+fn v128_const(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.push_operands(&[ValType::V128]);
     let c = i128::from_le_bytes(u.arbitrary()?);
     Ok(Instruction::V128Const(c))
 }
 
-fn i8x16_shuffle<C: Config>(
+fn i8x16_shuffle(
     u: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::V128, ValType::V128]);
     builder.push_operands(&[ValType::V128]);
@@ -3862,10 +3274,10 @@ fn i8x16_shuffle<C: Config>(
 
 macro_rules! simd_lane_access {
     ($instruction:ident, $generator_fn_name:ident, $in_types:expr => $out_types:expr, $number_of_lanes:expr) => {
-        fn $generator_fn_name<C: Config>(
+        fn $generator_fn_name(
             u: &mut Unstructured,
-            _: &ConfiguredModule<C>,
-            builder: &mut CodeBuilder<C>,
+            _: &Module,
+            builder: &mut CodeBuilder,
         ) -> Result<Instruction> {
             builder.pop_operands($in_types);
             builder.push_operands($out_types);
@@ -3893,10 +3305,10 @@ simd_lane_access!(F64x2ReplaceLane, f64x2_replace_lane, &[ValType::V128, ValType
 
 macro_rules! simd_binop {
     ($instruction:ident, $generator_fn_name:ident) => {
-        fn $generator_fn_name<C: Config>(
+        fn $generator_fn_name(
             _: &mut Unstructured,
-            _: &ConfiguredModule<C>,
-            builder: &mut CodeBuilder<C>,
+            _: &Module,
+            builder: &mut CodeBuilder,
         ) -> Result<Instruction> {
             builder.pop_operands(&[ValType::V128, ValType::V128]);
             builder.push_operands(&[ValType::V128]);
@@ -3911,10 +3323,10 @@ macro_rules! simd_unop {
     };
 
     ($instruction:ident, $generator_fn_name:ident, $in_type:ident -> $out_type:ident) => {
-        fn $generator_fn_name<C: Config>(
+        fn $generator_fn_name(
             _: &mut Unstructured,
-            _: &ConfiguredModule<C>,
-            builder: &mut CodeBuilder<C>,
+            _: &Module,
+            builder: &mut CodeBuilder,
         ) -> Result<Instruction> {
             builder.pop_operands(&[ValType::$in_type]);
             builder.push_operands(&[ValType::$out_type]);
@@ -3925,10 +3337,10 @@ macro_rules! simd_unop {
 
 macro_rules! simd_shift {
     ($instruction:ident, $generator_fn_name:ident) => {
-        fn $generator_fn_name<C: Config>(
+        fn $generator_fn_name(
             _: &mut Unstructured,
-            _: &ConfiguredModule<C>,
-            builder: &mut CodeBuilder<C>,
+            _: &Module,
+            builder: &mut CodeBuilder,
         ) -> Result<Instruction> {
             builder.pop_operands(&[ValType::V128, ValType::I32]);
             builder.push_operands(&[ValType::V128]);
@@ -4135,10 +3547,10 @@ simd_unop!(F64x2ConvertLowI32x4U, f64x2_convert_low_i32x4u);
 simd_unop!(F32x4DemoteF64x2Zero, f32x4_demote_f64x2_zero);
 simd_unop!(F64x2PromoteLowF32x4, f64x2_promote_low_f32x4);
 
-fn v128_bitselect<C: Config>(
+fn v128_bitselect(
     _: &mut Unstructured,
-    _: &ConfiguredModule<C>,
-    builder: &mut CodeBuilder<C>,
+    _: &Module,
+    builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::V128, ValType::V128, ValType::V128]);
     builder.push_operands(&[ValType::V128]);

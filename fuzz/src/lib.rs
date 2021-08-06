@@ -1,6 +1,6 @@
 use libfuzzer_sys::arbitrary::{Result, Unstructured};
 use std::fmt::Debug;
-use wasm_smith::{ConfiguredModule, SwarmConfig};
+use wasm_smith::{Module, SwarmConfig};
 
 pub fn generate_valid_module(
     input: &[u8],
@@ -19,7 +19,7 @@ pub fn generate_valid_module(
 
     // Use wasm-smith to generate an arbitrary module and convert it to wasm
     // bytes.
-    let module = ConfiguredModule::new(config.clone(), &mut u)?;
+    let module = Module::new(config.clone(), &mut u)?;
     let bytes = module.to_bytes();
 
     log_wasm(&bytes, &config);
