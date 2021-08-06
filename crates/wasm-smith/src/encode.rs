@@ -4,16 +4,6 @@ use std::convert::TryFrom;
 impl Module {
     /// Encode this Wasm module into bytes.
     pub fn to_bytes(&self) -> Vec<u8> {
-        self.inner.to_bytes()
-    }
-}
-
-impl<C> ConfiguredModule<C>
-where
-    C: Config,
-{
-    /// Encode this Wasm module into bytes.
-    pub fn to_bytes(&self) -> Vec<u8> {
         self.encoded().finish()
     }
 

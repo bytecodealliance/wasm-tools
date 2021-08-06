@@ -65,6 +65,7 @@ mod terminate;
 use crate::code_builder::CodeBuilderAllocations;
 use arbitrary::{Arbitrary, Result, Unstructured};
 use std::collections::{HashMap, HashSet};
+use std::marker;
 use std::rc::Rc;
 use std::str;
 
@@ -82,23 +83,9 @@ pub use config::{Config, DefaultConfig, SwarmConfig};
 /// configuration type, implement the [`Config`][crate::Config] trait for it,
 /// and use [`ConfiguredModule<YourConfigType>`][crate::ConfiguredModule]
 /// instead of plain `Module`.
-#[derive(Debug, Arbitrary)]
-pub struct Module {
-    inner: ConfiguredModule<DefaultConfig>,
-}
-
-/// A pseudo-random generated WebAssembly file with custom configuration.
-///
-/// If you don't care about custom configuration, use [`Module`][crate::Module]
-/// instead.
-///
-/// For details on configuring, see the [`Config`][crate::Config] trait.
 #[derive(Debug)]
-pub struct ConfiguredModule<C>
-where
-    C: Config,
-{
-    config: C,
+pub struct Module {
+    config: Rc<dyn Config>,
     valtypes: Vec<ValType>,
 
     /// Outer modules, if any (used for module linking)
@@ -118,7 +105,7 @@ where
     /// these initial sections, and we will directly encode each entry as a
     /// section when we serialize this module to bytes, which allows us to
     /// easily model the flexibility of the module linking proposal.
-    initial_sections: Vec<InitialSection<C>>,
+    initial_sections: Vec<InitialSection>,
 
     /// A map of what import names have been generated. The key here is the
     /// name of the import and the value is `None` if it's a single-level
@@ -202,22 +189,42 @@ where
     type_size: u32,
 }
 
-impl<C: Config> ConfiguredModule<C> {
+impl<'a> Arbitrary<'a> for Module {
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+        Ok(ConfiguredModule::<DefaultConfig>::arbitrary(u)?.module)
+    }
+}
+
+/// A pseudo-random generated WebAssembly file with custom configuration.
+///
+/// If you don't care about custom configuration, use [`Module`][crate::Module]
+/// instead.
+///
+/// For details on configuring, see the [`Config`][crate::Config] trait.
+#[derive(Debug)]
+pub struct ConfiguredModule<C> {
+    /// The generated module, controlled by the configuration of `C` in the
+    /// `Arbitrary` implementation.
+    pub module: Module,
+    _marker: marker::PhantomData<C>,
+}
+
+impl Module {
     /// Returns a reference to the internal configuration.
-    pub fn config(&self) -> &C {
-        &self.config
+    pub fn config(&self) -> &dyn Config {
+        &*self.config
     }
 
-    /// Creates a new `ConfiguredModule` with the specified `config` for
+    /// Creates a new `Module` with the specified `config` for
     /// configuration and `Unstructured` for the DNA of this module.
-    pub fn new(config: C, u: &mut Unstructured<'_>) -> Result<Self> {
-        let mut module = ConfiguredModule::empty(config);
+    pub fn new(config: impl Config, u: &mut Unstructured<'_>) -> Result<Self> {
+        let mut module = Module::empty(Rc::new(config));
         module.build(u, false)?;
         Ok(module)
     }
 
-    fn empty(config: C) -> Self {
-        ConfiguredModule {
+    fn empty(config: Rc<dyn Config>) -> Self {
+        Module {
             config,
             valtypes: Vec::new(),
             outers: Vec::new(),
@@ -252,7 +259,10 @@ impl<C: Config> ConfiguredModule<C> {
 
 impl<'a, C: Config + Arbitrary<'a>> Arbitrary<'a> for ConfiguredModule<C> {
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        ConfiguredModule::new(C::arbitrary(u)?, u)
+        Ok(ConfiguredModule {
+            module: Module::new(C::arbitrary(u)?, u)?,
+            _marker: marker::PhantomData,
+        })
     }
 }
 
@@ -274,21 +284,19 @@ impl MaybeInvalidModule {
 
 impl<'a> Arbitrary<'a> for MaybeInvalidModule {
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        let mut module = Module {
-            inner: ConfiguredModule::empty(DefaultConfig),
-        };
-        module.inner.build(u, true)?;
+        let mut module = Module::empty(Rc::new(DefaultConfig));
+        module.build(u, true)?;
         Ok(MaybeInvalidModule { module })
     }
 }
 
 #[derive(Debug)]
-enum InitialSection<C: Config> {
+enum InitialSection {
     Type(Vec<Type>),
     Import(Vec<(String, Option<String>, EntityType)>),
     Alias(Vec<Alias>),
     Instance(Vec<Instance>),
-    Module(Vec<ConfiguredModule<C>>),
+    Module(Vec<Module>),
 }
 
 #[derive(Clone, Debug)]
@@ -448,10 +456,7 @@ enum BlockType {
 }
 
 impl BlockType {
-    fn params_results<C>(&self, module: &ConfiguredModule<C>) -> (Vec<ValType>, Vec<ValType>)
-    where
-        C: Config,
-    {
+    fn params_results(&self, module: &Module) -> (Vec<ValType>, Vec<ValType>) {
         match self {
             BlockType::Empty => (vec![], vec![]),
             BlockType::Result(t) => (vec![], vec![*t]),
@@ -940,10 +945,7 @@ enum DataSegmentKind {
     },
 }
 
-impl<C> ConfiguredModule<C>
-where
-    C: Config,
-{
+impl Module {
     fn build(&mut self, u: &mut Unstructured, allow_invalid: bool) -> Result<()> {
         self.valtypes.push(ValType::I32);
         self.valtypes.push(ValType::I64);
@@ -981,7 +983,7 @@ where
         let mut choices: Vec<
             fn(
                 &mut Unstructured,
-                &mut ConfiguredModule<C>,
+                &mut Module,
                 &mut AvailableAliases,
                 &mut AvailableInstantiations,
             ) -> Result<()>,
@@ -1099,7 +1101,7 @@ where
         let mut import_types = indexmap::IndexMap::new();
         let mut names = HashMap::new();
         let mut type_size = exports.type_size;
-        if !entities.max_reached(&self.config) {
+        if !entities.max_reached(self.config()) {
             arbitrary_loop(u, 0, self.config.max_imports(), |u| {
                 let (module, name) = unique_import_strings(1_000, &mut names, true, u)?;
                 let ty = self.arbitrary_entity_type(u, entities)?;
@@ -1120,7 +1122,7 @@ where
                     import_types.insert(module.clone(), ty.clone());
                 }
                 imports.push((module, name, ty));
-                Ok(!entities.max_reached(&self.config))
+                Ok(!entities.max_reached(self.config()))
             })?;
         }
         Ok(Rc::new(ModuleType {
@@ -1139,7 +1141,7 @@ where
         let mut export_names = HashSet::new();
         let mut exports = indexmap::IndexMap::new();
         let mut type_size = 0u32;
-        if !entities.max_reached(&self.config) {
+        if !entities.max_reached(self.config()) {
             arbitrary_loop(u, 0, self.config.max_exports(), |u| {
                 let name = unique_string(1_000, &mut export_names, u)?;
                 let ty = self.arbitrary_entity_type(u, entities)?;
@@ -1148,7 +1150,7 @@ where
                     _ => return Ok(false),
                 }
                 exports.insert(name, ty);
-                Ok(!entities.max_reached(&self.config))
+                Ok(!entities.max_reached(self.config()))
             })?;
         }
         Ok(Rc::new(InstanceType { type_size, exports }))
@@ -1160,7 +1162,7 @@ where
         entities: &mut Entities,
     ) -> Result<EntityType> {
         let mut choices: Vec<
-            fn(&mut Unstructured, &mut ConfiguredModule<C>, &mut Entities) -> Result<EntityType>,
+            fn(&mut Unstructured, &mut Module, &mut Entities) -> Result<EntityType>,
         > = Vec::with_capacity(6);
 
         if entities.globals < self.config.max_globals() {
@@ -1237,9 +1239,8 @@ where
             return Ok(());
         }
 
-        let mut choices: Vec<
-            fn(&mut Unstructured, &mut ConfiguredModule<C>) -> Result<EntityType>,
-        > = Vec::with_capacity(4);
+        let mut choices: Vec<fn(&mut Unstructured, &mut Module) -> Result<EntityType>> =
+            Vec::with_capacity(4);
 
         let mut imports = Vec::new();
         arbitrary_loop(u, min, self.config.max_imports() - self.num_imports, |u| {
@@ -1492,7 +1493,7 @@ where
     fn arbitrary_modules(&mut self, u: &mut Unstructured) -> Result<()> {
         let mut modules = Vec::new();
         arbitrary_loop(u, 0, self.config.max_modules(), |u| {
-            let mut module = ConfiguredModule::empty(self.config.clone());
+            let mut module = Module::empty(self.config.clone());
             module.outers = self.outers.clone();
             let parent = Outer {
                 types: (0..self.types.len())
@@ -1996,7 +1997,7 @@ where
         &self,
         u: &mut Unstructured,
         ty: &FuncType,
-        allocs: &mut CodeBuilderAllocations<C>,
+        allocs: &mut CodeBuilderAllocations,
         allow_invalid: bool,
     ) -> Result<Code> {
         let locals = self.arbitrary_locals(u)?;
@@ -2408,7 +2409,7 @@ struct AvailableAliases {
 }
 
 impl AvailableAliases {
-    fn update(&mut self, module: &ConfiguredModule<impl Config>) {
+    fn update(&mut self, module: &Module) {
         // First add in any instances that were created since last time...
         for (instance, ty) in module
             .instances
@@ -2565,7 +2566,7 @@ struct Instantiation {
 }
 
 impl AvailableInstantiations {
-    fn update(&mut self, module: &ConfiguredModule<impl Config>) {
+    fn update(&mut self, module: &Module) {
         let cur_entities = Entities {
             globals: module.globals.len(),
             memories: module.memories.len(),
@@ -2628,7 +2629,7 @@ struct Entities {
 }
 
 impl Entities {
-    fn max_reached(&self, config: &impl Config) -> bool {
+    fn max_reached(&self, config: &dyn Config) -> bool {
         self.globals >= config.max_globals()
             || self.memories >= config.max_memories()
             || self.tables >= config.max_tables()
@@ -2642,7 +2643,7 @@ impl Entities {
 enum LocalType {
     /// A type that's locally defined in a module via a type section.
     Defined {
-        /// The section (index within `ConfiguredModule::initializers` that this
+        /// The section (index within `Module::initializers` that this
         /// type is defined.
         section: usize,
         /// Which element within the section definition this type corresponds

@@ -5,7 +5,7 @@ use std::io::{stdin, stdout, Read, Write};
 use std::path::PathBuf;
 use std::process;
 use structopt::StructOpt;
-use wasm_smith::{ConfiguredModule, MaybeInvalidModule};
+use wasm_smith::{MaybeInvalidModule, Module};
 
 /// A WebAssembly test case generator.
 ///
@@ -77,7 +77,7 @@ struct Options {
     module_config: Config,
 }
 
-#[derive(Default, StructOpt, Clone, serde::Deserialize)]
+#[derive(Default, Debug, StructOpt, Clone, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
 struct Config {
     #[structopt(long = "min-types")]
@@ -212,7 +212,7 @@ fn main() -> anyhow::Result<()> {
             json,
             cli: opts.module_config.clone(),
         };
-        let mut module = ConfiguredModule::new(config, &mut u).unwrap_or_else(|e| {
+        let mut module = Module::new(config, &mut u).unwrap_or_else(|e| {
             eprintln!("error: failed to generate module: {}", e);
             process::exit(2);
         });
@@ -240,7 +240,7 @@ macro_rules! fields {
     )*)
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct CliAndJsonConfig {
     json: Config,
     cli: Config,
