@@ -2236,17 +2236,11 @@ impl Module {
         max_minimum: u32,
         max_required: bool,
     ) -> Result<(u32, Option<u32>)> {
-        let min = u.int_in_range(0..=max_minimum)?;
-        let max = if max_required || u.arbitrary().unwrap_or(false) {
-            Some(if min == max_minimum {
-                max_minimum
-            } else {
-                u.int_in_range(min..=max_minimum)?
-            })
-        } else {
-            None
-        };
-        Ok((min, max))
+        let (min, max) = self.arbitrary_limits64(u, max_minimum.into(), max_required)?;
+        Ok((
+            u32::try_from(min).unwrap(),
+            max.map(|i| u32::try_from(i).unwrap()),
+        ))
     }
 
     fn arbitrary_limits64(
@@ -2255,17 +2249,43 @@ impl Module {
         max_minimum: u64,
         max_required: bool,
     ) -> Result<(u64, Option<u64>)> {
-        let min = u.int_in_range(0..=max_minimum)?;
+        let min = gradually_grow(u, 0, max_minimum)?;
         let max = if max_required || u.arbitrary().unwrap_or(false) {
-            Some(if min == max_minimum {
-                max_minimum
-            } else {
-                u.int_in_range(min..=max_minimum)?
-            })
+            Some(u.int_in_range(min..=max_minimum)?)
         } else {
             None
         };
         Ok((min, max))
+    }
+}
+
+/// This function generates a number between `min` and `max`, favoring values
+/// closer to `min`.
+///
+/// The thinking behind this function is that it's used for things like offsets
+/// and minimum sizes which, when very large, can trivially make the wasm oom or
+/// abort with a trap. This isn't the most interesting thing to do so it tries
+/// to favor numbers closer to `min` if possible.
+fn gradually_grow(u: &mut Unstructured, min: u64, max: u64) -> Result<u64> {
+    // The idea behind how this works is that we use the input `u` to determin
+    // the ceiling, ideally between min/max, and then generate a number between
+    // min and our ceiling.
+    //
+    // The actual numbers here may need some tuning over time, but at least
+    // locally when I threw a bunch of random data at this it would generate
+    // instances that would oom on instantiation 1% of the time. If this
+    // function changed to simply use `int_in_range(min, max)` it would oom 50%
+    // of the time.
+    assert!(min <= max);
+    let mut cur_max = min.saturating_add(10);
+    loop {
+        if cur_max >= max {
+            break u.int_in_range(min..=max);
+        }
+        if u.int_in_range(0..=4)? == 0 {
+            break u.int_in_range(min..=cur_max);
+        }
+        cur_max += cur_max / 2;
     }
 }
 
