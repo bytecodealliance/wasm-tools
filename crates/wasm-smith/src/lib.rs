@@ -63,9 +63,9 @@
 // or anything like that, I just threw a bunch of random data at wasm-smith and
 // measured various rates of ooms/traps/etc and adjusted these so abnormal
 // events were ~1% of the time.
-const GRADUAL_FACTOR_OF_GROWTH: usize = 4; // bigger = more trap
 const CHANCE_OFFSET_INBOUNDS: usize = 10; // bigger = less traps
 const CHANCE_SEGMENT_ON_EMPTY: usize = 10; // bigger = less traps
+const PCT_INBOUNDS: f64 = 0.995; // bigger = less traps
 
 mod code_builder;
 mod config;
@@ -77,6 +77,7 @@ use arbitrary::{Arbitrary, Result, Unstructured};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::marker;
+use std::ops::Range;
 use std::rc::Rc;
 use std::str;
 
@@ -1649,7 +1650,10 @@ impl Module {
     }
 
     fn arbitrary_table_type(&self, u: &mut Unstructured) -> Result<TableType> {
-        let (minimum, maximum) = self.arbitrary_limits32(u, 1_000_000, false)?;
+        // We don't want to generate tables that are too large on average, so
+        // keep the "inbounds" limit here a bit smaller.
+        let max_inbounds = 10_000;
+        let (minimum, maximum) = self.arbitrary_limits32(u, 1_000_000, false, max_inbounds)?;
         Ok(TableType {
             elem_ty: if self.config.reference_types_enabled() {
                 *u.choose(&[ValType::FuncRef, ValType::ExternRef])?
@@ -1697,10 +1701,14 @@ impl Module {
 
     fn arbitrary_memtype(&self, u: &mut Unstructured) -> Result<MemoryType> {
         let memory64 = self.config.memory64_enabled() && u.arbitrary()?;
+        // We want to favor memories <= 1gb in size, allocate at most 16k pages,
+        // depending on the maximum number of memories.
+        let max_inbounds = 16 * 1024 / u64::try_from(self.config.max_memories()).unwrap();
         let (minimum, maximum) = self.arbitrary_limits64(
             u,
             self.config.max_memory_pages(memory64),
             self.config.memory_max_size_required(),
+            max_inbounds,
         )?;
         Ok(MemoryType {
             minimum,
@@ -2296,8 +2304,10 @@ impl Module {
         u: &mut Unstructured,
         max_minimum: u32,
         max_required: bool,
+        max_inbounds: u32,
     ) -> Result<(u32, Option<u32>)> {
-        let (min, max) = self.arbitrary_limits64(u, max_minimum.into(), max_required)?;
+        let (min, max) =
+            self.arbitrary_limits64(u, max_minimum.into(), max_required, max_inbounds.into())?;
         Ok((
             u32::try_from(min).unwrap(),
             max.map(|i| u32::try_from(i).unwrap()),
@@ -2309,8 +2319,9 @@ impl Module {
         u: &mut Unstructured,
         max_minimum: u64,
         max_required: bool,
+        max_inbounds: u64,
     ) -> Result<(u64, Option<u64>)> {
-        let min = gradually_grow(u, 0, max_minimum)?;
+        let min = gradually_grow(u, 0, max_inbounds, max_minimum)?;
         let max = if max_required || u.arbitrary().unwrap_or(false) {
             Some(u.int_in_range(min..=max_minimum)?)
         } else {
@@ -2321,26 +2332,100 @@ impl Module {
 }
 
 /// This function generates a number between `min` and `max`, favoring values
-/// closer to `min`.
+/// between `min` and `max_inbounds`.
 ///
 /// The thinking behind this function is that it's used for things like offsets
 /// and minimum sizes which, when very large, can trivially make the wasm oom or
 /// abort with a trap. This isn't the most interesting thing to do so it tries
-/// to favor numbers closer to `min` if possible.
-fn gradually_grow(u: &mut Unstructured, min: u64, max: u64) -> Result<u64> {
-    // The idea behind how this works is that we use the input `u` to determin
-    // the ceiling, ideally between min/max, and then generate a number between
-    // min and our ceiling.
-    assert!(min <= max);
-    let mut cur_max = min.saturating_add(10);
-    loop {
-        if cur_max >= max {
-            break u.int_in_range(min..=max);
-        }
-        if u.int_in_range(0..=GRADUAL_FACTOR_OF_GROWTH)? == 0 {
-            break u.int_in_range(min..=cur_max);
-        }
-        cur_max += cur_max / 2;
+/// to favor numbers in the `min..max_inbounds` range to avoid immediate ooms.
+fn gradually_grow(u: &mut Unstructured, min: u64, max_inbounds: u64, max: u64) -> Result<u64> {
+    if min == max {
+        return Ok(min);
+    }
+    let min = min as f64;
+    let max = max as f64;
+    let max_inbounds = max_inbounds as f64;
+    let x = u.arbitrary::<u32>()?;
+    let x = f64::from(x);
+    let x = map_custom(
+        x,
+        f64::from(u32::MIN)..f64::from(u32::MAX),
+        min..max_inbounds,
+        min..max,
+    );
+    return Ok(x.round() as u64);
+
+    /// Map a value from within the input range to the output range(s).
+    ///
+    /// This will first map the input range into the `0..1` input range, and
+    /// then depending on the value it will either map it exponentially
+    /// (favoring small values) into the `output_inbounds` range or it will map
+    /// it into the `output` range.
+    fn map_custom(
+        value: f64,
+        input: Range<f64>,
+        output_inbounds: Range<f64>,
+        output: Range<f64>,
+    ) -> f64 {
+        assert!(!value.is_nan(), "{}", value);
+        assert!(value.is_finite(), "{}", value);
+        assert!(input.start < input.end, "{} < {}", input.start, input.end);
+        assert!(
+            output.start < output.end,
+            "{} < {}",
+            output.start,
+            output.end
+        );
+        assert!(value >= input.start, "{} >= {}", value, input.start);
+        assert!(value <= input.end, "{} <= {}", value, input.end);
+
+        let x = map_linear(value, input.clone(), 0.0..1.0);
+        let result = if x < PCT_INBOUNDS {
+            if output_inbounds.start == output_inbounds.end {
+                output_inbounds.start
+            } else {
+                let unscaled = x * x * x * x * x * x;
+                map_linear(unscaled, 0.0..1.0, output_inbounds.clone())
+            }
+        } else {
+            map_linear(x, 0.0..1.0, output.clone())
+        };
+
+        assert!(result >= output.start, "{} >= {}", result, output.start);
+        assert!(result <= output.end, "{} <= {}", result, output.end);
+        result
+    }
+
+    /// Map a value from within the input range linearly to the output range.
+    ///
+    /// For example, mapping `0.5` from the input range `0.0..1.0` to the output
+    /// range `1.0..3.0` produces `2.0`.
+    fn map_linear(
+        value: f64,
+        Range {
+            start: in_low,
+            end: in_high,
+        }: Range<f64>,
+        Range {
+            start: out_low,
+            end: out_high,
+        }: Range<f64>,
+    ) -> f64 {
+        assert!(!value.is_nan(), "{}", value);
+        assert!(value.is_finite(), "{}", value);
+        assert!(in_low < in_high, "{} < {}", in_low, in_high);
+        assert!(out_low < out_high, "{} < {}", out_low, out_high);
+        assert!(value >= in_low, "{} >= {}", value, in_low);
+        assert!(value <= in_high, "{} <= {}", value, in_high);
+
+        let dividend = out_high - out_low;
+        let divisor = in_high - in_low;
+        let slope = dividend / divisor;
+        let result = out_low + (slope * (value - in_low));
+
+        assert!(result >= out_low, "{} >= {}", result, out_low);
+        assert!(result <= out_high, "{} <= {}", result, out_high);
+        result
     }
 }
 
@@ -2353,21 +2438,10 @@ fn arbitrary_offset(u: &mut Unstructured, min: u64, max: u64, size: usize) -> Re
     // If the segment is too big for the whole memory, just give it any
     // offset.
     if size > min {
-        return u.int_in_range(0..=max);
+        u.int_in_range(0..=max)
+    } else {
+        gradually_grow(u, 0, min - size, max)
     }
-
-    // Afterwards give it a chance to be guaranteed to be in-bounds
-    if u.int_in_range(0..=CHANCE_OFFSET_INBOUNDS)? != 0 {
-        return u.int_in_range(0..=min - size);
-    }
-
-    // Afterwards give it a "pretty good" chance of being in bounds
-    if u.int_in_range(0..=CHANCE_OFFSET_INBOUNDS)? != 0 {
-        return gradually_grow(u, 0, min);
-    }
-
-    // or just let it be completely arbitrary
-    u.int_in_range(0..=max)
 }
 
 pub(crate) fn arbitrary_loop(

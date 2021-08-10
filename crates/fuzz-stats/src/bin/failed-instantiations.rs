@@ -134,12 +134,13 @@ impl State {
                 // Traps are ok if they happen during instantiation. This is an
                 // expected occurrence we want to account for.
                 if e.downcast_ref::<Trap>().is_some() {
-                    // std::fs::write("trap.wasm", &wasm).unwrap();
+                    std::fs::write("trap.wasm", &wasm).unwrap();
                     self.instantiate_trap.fetch_add(1, SeqCst);
 
                 // Ooms, like traps, are normal during instantiations. This
                 // can happen, for example, if a defined memory is very large.
                 } else if store.data().oom {
+                    std::fs::write("oom.wasm", &wasm).unwrap();
                     self.instantiate_oom.fetch_add(1, SeqCst);
 
                 // In theory nothing else fails to instantiate. If it does, then
