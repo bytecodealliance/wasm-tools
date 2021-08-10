@@ -1823,9 +1823,9 @@ impl Printer {
                     init_expr,
                 } => {
                     if *memory_index != 0 {
-                        self.result.push_str(" (memory ");
+                        self.result.push_str("(memory ");
                         self.print_memory_idx(*memory_index)?;
-                        self.result.push_str(")");
+                        self.result.push_str(") ");
                     }
                     self.print_init_expr(&init_expr)?;
                     self.result.push_str(" ");
