@@ -2063,7 +2063,9 @@ impl Module {
         choices32.push(Box::new(|u, min_size, data_len| {
             Ok(Instruction::I32Const(arbitrary_offset(
                 u,
-                min_size.saturating_mul(64 * 1024),
+                u32::try_from(min_size.saturating_mul(64 * 1024))
+                    .unwrap_or(u32::MAX)
+                    .into(),
                 u32::MAX.into(),
                 data_len,
             )? as i32))
