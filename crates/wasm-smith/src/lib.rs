@@ -2378,6 +2378,18 @@ fn gradually_grow(u: &mut Unstructured, min: u64, max_inbounds: u64, max: u64) -
         );
         assert!(value >= input.start, "{} >= {}", value, input.start);
         assert!(value <= input.end, "{} <= {}", value, input.end);
+        assert!(
+            output.start <= output_inbounds.start,
+            "{} <= {}",
+            output.start,
+            output_inbounds.start
+        );
+        assert!(
+            output_inbounds.end <= output.end,
+            "{} <= {}",
+            output_inbounds.end,
+            output.end
+        );
 
         let x = map_linear(value, input.clone(), 0.0..1.0);
         let result = if x < PCT_INBOUNDS {
