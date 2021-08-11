@@ -6,7 +6,7 @@ edition = "2018"
 publish = false
 
 [workspace]
-members = ['fuzz', 'crates/wasm-encoder']
+members = ['fuzz', 'crates/wasm-encoder', 'crates/fuzz-stats']
 
 [dependencies]
 anyhow = "1.0"

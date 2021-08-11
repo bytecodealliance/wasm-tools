@@ -531,6 +531,10 @@ impl Config for SwarmConfig {
         self.simd_enabled
     }
 
+    fn allow_start_export(&self) -> bool {
+        self.allow_start_export
+    }
+
     fn max_aliases(&self) -> usize {
         self.max_aliases
     }

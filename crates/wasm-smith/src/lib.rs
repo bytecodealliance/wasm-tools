@@ -57,6 +57,16 @@
 // Needed for the `instructions!` macro in `src/code_builder.rs`.
 #![recursion_limit = "512"]
 
+// NB: these constants are used to control the rate at which various events
+// occur. For more information see where these constants are used. Their values
+// are somewhat random in the sense that they're not scientifically determined
+// or anything like that, I just threw a bunch of random data at wasm-smith and
+// measured various rates of ooms/traps/etc and adjusted these so abnormal
+// events were ~1% of the time.
+const CHANCE_OFFSET_INBOUNDS: usize = 10; // bigger = less traps
+const CHANCE_SEGMENT_ON_EMPTY: usize = 10; // bigger = less traps
+const PCT_INBOUNDS: f64 = 0.995; // bigger = less traps
+
 mod code_builder;
 mod config;
 mod encode;
@@ -65,7 +75,9 @@ mod terminate;
 use crate::code_builder::CodeBuilderAllocations;
 use arbitrary::{Arbitrary, Result, Unstructured};
 use std::collections::{HashMap, HashSet};
+use std::convert::TryFrom;
 use std::marker;
+use std::ops::Range;
 use std::rc::Rc;
 use std::str;
 
@@ -1638,7 +1650,10 @@ impl Module {
     }
 
     fn arbitrary_table_type(&self, u: &mut Unstructured) -> Result<TableType> {
-        let (minimum, maximum) = self.arbitrary_limits32(u, 1_000_000, false)?;
+        // We don't want to generate tables that are too large on average, so
+        // keep the "inbounds" limit here a bit smaller.
+        let max_inbounds = 10_000;
+        let (minimum, maximum) = self.arbitrary_limits32(u, 1_000_000, false, max_inbounds)?;
         Ok(TableType {
             elem_ty: if self.config.reference_types_enabled() {
                 *u.choose(&[ValType::FuncRef, ValType::ExternRef])?
@@ -1686,10 +1701,14 @@ impl Module {
 
     fn arbitrary_memtype(&self, u: &mut Unstructured) -> Result<MemoryType> {
         let memory64 = self.config.memory64_enabled() && u.arbitrary()?;
+        // We want to favor memories <= 1gb in size, allocate at most 16k pages,
+        // depending on the maximum number of memories.
+        let max_inbounds = 16 * 1024 / u64::try_from(self.config.max_memories()).unwrap();
         let (minimum, maximum) = self.arbitrary_limits64(
             u,
             self.config.max_memory_pages(memory64),
             self.config.memory_max_size_required(),
+            max_inbounds,
         )?;
         Ok(MemoryType {
             minimum,
@@ -1861,7 +1880,6 @@ impl Module {
 
     fn arbitrary_elems(&mut self, u: &mut Unstructured) -> Result<()> {
         let func_max = self.funcs.len() as u32;
-        let table_tys = self.tables.iter().map(|t| t.elem_ty).collect::<Vec<_>>();
 
         // Create a helper closure to choose an arbitrary offset.
         let mut offset_global_choices = vec![];
@@ -1873,65 +1891,73 @@ impl Module {
                 offset_global_choices.push(i as u32);
             }
         }
-        let arbitrary_offset = |u: &mut Unstructured| {
-            Ok(if !offset_global_choices.is_empty() && u.arbitrary()? {
+        let arbitrary_active_elem = |u: &mut Unstructured, min: u32, table: Option<u32>| {
+            let (offset, max_size_hint) = if !offset_global_choices.is_empty() && u.arbitrary()? {
                 let g = u.choose(&offset_global_choices)?;
-                Instruction::GlobalGet(*g)
+                (Instruction::GlobalGet(*g), None)
             } else {
-                Instruction::I32Const(u.arbitrary()?)
-            })
+                let offset = arbitrary_offset(u, min.into(), u32::MAX.into(), 0)? as u32;
+                let max_size_hint =
+                    if offset <= min && u.int_in_range(0..=CHANCE_OFFSET_INBOUNDS)? != 0 {
+                        Some(min - offset)
+                    } else {
+                        None
+                    };
+                (Instruction::I32Const(offset as i32), max_size_hint)
+            };
+            Ok((ElementKind::Active { table, offset }, max_size_hint))
         };
 
-        let mut choices: Vec<Box<dyn Fn(&mut Unstructured) -> Result<(ElementKind, ValType)>>> =
-            Vec::new();
+        type GenElemSegment<'a> =
+            dyn Fn(&mut Unstructured) -> Result<(ElementKind, Option<u32>)> + 'a;
+        let mut funcrefs: Vec<Box<GenElemSegment>> = Vec::new();
+        let mut externrefs: Vec<Box<GenElemSegment>> = Vec::new();
 
-        if table_tys.len() > 0 {
-            // If we have at least one table, then the MVP encoding is always
-            // available so long as it's a funcref table.
-            if table_tys[0] == ValType::FuncRef {
-                choices.push(Box::new(|u| {
-                    Ok((
-                        ElementKind::Active {
-                            table: None,
-                            offset: arbitrary_offset(u)?,
-                        },
-                        table_tys[0],
-                    ))
-                }));
+        for (i, ty) in self.tables.iter().enumerate() {
+            // If this table starts with no capacity then any non-empty element
+            // segment placed onto it will immediately trap, which isn't too
+            // too interesting. If that's the case give it an unlikely chance
+            // of proceeding.
+            if ty.minimum == 0 && u.int_in_range(0..=CHANCE_SEGMENT_ON_EMPTY)? != 0 {
+                continue;
             }
 
-            // If we have reference types enabled, then we can initialize any
-            // table, and we can also use the alternate encoding to initialize
-            // the 0th table.
-            if self.config.reference_types_enabled() {
-                choices.push(Box::new(|u| {
-                    let i = u.int_in_range(0..=table_tys.len() - 1)? as u32;
-                    Ok((
-                        ElementKind::Active {
-                            table: Some(i),
-                            offset: arbitrary_offset(u)?,
-                        },
-                        table_tys[i as usize],
-                    ))
-                }));
+            let dst = if ty.elem_ty == ValType::FuncRef {
+                &mut funcrefs
+            } else {
+                &mut externrefs
+            };
+            let minimum = ty.minimum;
+            // If the first table is a funcref table then it's a candidate for
+            // the MVP encoding of element segments.
+            if i == 0 && ty.elem_ty == ValType::FuncRef {
+                dst.push(Box::new(move |u| arbitrary_active_elem(u, minimum, None)));
             }
+            dst.push(Box::new(move |u| {
+                arbitrary_active_elem(u, minimum, Some(i as u32))
+            }));
         }
 
         // Reference types allows us to create passive and declared element
         // segments.
         if self.config.reference_types_enabled() {
-            choices.push(Box::new(|_| Ok((ElementKind::Passive, ValType::FuncRef))));
-            choices.push(Box::new(|_| Ok((ElementKind::Passive, ValType::ExternRef))));
-            choices.push(Box::new(|_| Ok((ElementKind::Declared, ValType::FuncRef))));
-            choices.push(Box::new(|_| {
-                Ok((ElementKind::Declared, ValType::ExternRef))
-            }));
+            funcrefs.push(Box::new(|_| Ok((ElementKind::Passive, None))));
+            externrefs.push(Box::new(|_| Ok((ElementKind::Passive, None))));
+            funcrefs.push(Box::new(|_| Ok((ElementKind::Declared, None))));
+            externrefs.push(Box::new(|_| Ok((ElementKind::Declared, None))));
+        }
+
+        let mut choices = Vec::new();
+        if !funcrefs.is_empty() {
+            choices.push((&funcrefs, ValType::FuncRef));
+        }
+        if !externrefs.is_empty() {
+            choices.push((&externrefs, ValType::ExternRef));
         }
 
         if choices.is_empty() {
             return Ok(());
         }
-
         arbitrary_loop(
             u,
             self.config.min_element_segments(),
@@ -1939,40 +1965,41 @@ impl Module {
             |u| {
                 // Choose whether to generate a segment whose elements are initialized via
                 // expressions, or one whose elements are initialized via function indices.
-                let (kind, ty) = u.choose(&choices)?(u)?;
+                let (kind_candidates, ty) = *u.choose(&choices)?;
+
+                // Select a kind for this segment now that we know the number of
+                // items the segment will hold.
+                let (kind, max_size_hint) = u.choose(&kind_candidates)?(u)?;
+                let max = max_size_hint
+                    .map(|i| usize::try_from(i).unwrap())
+                    .unwrap_or(self.config.max_elements());
+
+                // Pick whether we're going to use expression elements or
+                // indices. Note that externrefs must use expressions,
+                // and functions without reference types must use indices.
                 let items = if ty == ValType::ExternRef
                     || (self.config.reference_types_enabled() && u.arbitrary()?)
                 {
                     let mut init = vec![];
-                    arbitrary_loop(
-                        u,
-                        self.config.min_elements(),
-                        self.config.max_elements(),
-                        |u| {
-                            init.push(
-                                if ty == ValType::ExternRef || func_max == 0 || u.arbitrary()? {
-                                    None
-                                } else {
-                                    Some(u.int_in_range(0..=func_max - 1)?)
-                                },
-                            );
-                            Ok(true)
-                        },
-                    )?;
+                    arbitrary_loop(u, self.config.min_elements(), max, |u| {
+                        init.push(
+                            if ty == ValType::ExternRef || func_max == 0 || u.arbitrary()? {
+                                None
+                            } else {
+                                Some(u.int_in_range(0..=func_max - 1)?)
+                            },
+                        );
+                        Ok(true)
+                    })?;
                     Elements::Expressions(init)
                 } else {
                     let mut init = vec![];
                     if func_max > 0 {
-                        arbitrary_loop(
-                            u,
-                            self.config.min_elements(),
-                            self.config.max_elements(),
-                            |u| {
-                                let func_idx = u.int_in_range(0..=func_max - 1)?;
-                                init.push(func_idx);
-                                Ok(true)
-                            },
-                        )?;
+                        arbitrary_loop(u, self.config.min_elements(), max, |u| {
+                            let func_idx = u.int_in_range(0..=func_max - 1)?;
+                            init.push(func_idx);
+                            Ok(true)
+                        })?;
                     }
                     Elements::Functions(init)
                 };
@@ -2031,10 +2058,26 @@ impl Module {
             return Ok(());
         }
 
-        let mut choices32: Vec<Box<dyn Fn(&mut Unstructured) -> Result<Instruction>>> = vec![];
-        choices32.push(Box::new(|u| Ok(Instruction::I32Const(u.arbitrary()?))));
-        let mut choices64: Vec<Box<dyn Fn(&mut Unstructured) -> Result<Instruction>>> = vec![];
-        choices64.push(Box::new(|u| Ok(Instruction::I64Const(u.arbitrary()?))));
+        let mut choices32: Vec<Box<dyn Fn(&mut Unstructured, u64, usize) -> Result<Instruction>>> =
+            vec![];
+        choices32.push(Box::new(|u, min_size, data_len| {
+            Ok(Instruction::I32Const(arbitrary_offset(
+                u,
+                min_size.saturating_mul(64 * 1024),
+                u32::MAX.into(),
+                data_len,
+            )? as i32))
+        }));
+        let mut choices64: Vec<Box<dyn Fn(&mut Unstructured, u64, usize) -> Result<Instruction>>> =
+            vec![];
+        choices64.push(Box::new(|u, min_size, data_len| {
+            Ok(Instruction::I64Const(arbitrary_offset(
+                u,
+                min_size.saturating_mul(64 * 1024),
+                u64::MAX,
+                data_len,
+            )? as i64))
+        }));
 
         for (i, g) in self.globals[..self.globals.len() - self.defined_globals.len()]
             .iter()
@@ -2044,10 +2087,33 @@ impl Module {
                 continue;
             }
             if g.val_type == ValType::I32 {
-                choices32.push(Box::new(move |_| Ok(Instruction::GlobalGet(i as u32))));
+                choices32.push(Box::new(move |_, _, _| {
+                    Ok(Instruction::GlobalGet(i as u32))
+                }));
             } else if g.val_type == ValType::I64 {
-                choices64.push(Box::new(move |_| Ok(Instruction::GlobalGet(i as u32))));
+                choices64.push(Box::new(move |_, _, _| {
+                    Ok(Instruction::GlobalGet(i as u32))
+                }));
             }
+        }
+
+        // Build a list of candidate memories that we'll add data initializers
+        // for. If a memory doesn't have an initial size then any initializers
+        // for that memory will trap instantiation, which isn't too
+        // interesting. Try to make this happen less often by making it less
+        // likely that a memory with 0 size will have a data segment.
+        let mut memories = Vec::new();
+        for (i, mem) in self.memories.iter().enumerate() {
+            if mem.minimum > 0 || u.int_in_range(0..=CHANCE_SEGMENT_ON_EMPTY)? == 0 {
+                memories.push(i as u32);
+            }
+        }
+
+        // With memories we can generate data segments, and with bulk memory we
+        // can generate passive segments. Without these though we can't create
+        // a valid module with data segments.
+        if memories.len() == 0 && !self.config.bulk_memory_enabled() {
+            return Ok(());
         }
 
         arbitrary_loop(
@@ -2055,27 +2121,30 @@ impl Module {
             self.config.min_data_segments(),
             self.config.max_data_segments(),
             |u| {
+                let init: Vec<u8> = u.arbitrary()?;
+
                 // Passive data can only be generated if bulk memory is enabled.
                 // Otherwise if there are no memories we *only* generate passive
                 // data. Finally if all conditions are met we use an input byte to
                 // determine if it should be passive or active.
-                let kind =
-                    if self.config.bulk_memory_enabled() && (memories == 0 || u.arbitrary()?) {
-                        DataSegmentKind::Passive
+                let kind = if self.config.bulk_memory_enabled()
+                    && (memories.is_empty() || u.arbitrary()?)
+                {
+                    DataSegmentKind::Passive
+                } else {
+                    let memory_index = *u.choose(&memories)?;
+                    let mem = &self.memories[memory_index as usize];
+                    let f = if mem.memory64 {
+                        u.choose(&choices64)?
                     } else {
-                        let memory_index = u.int_in_range(0..=memories - 1)?;
-                        let f = if self.memories[memory_index as usize].memory64 {
-                            u.choose(&choices64)?
-                        } else {
-                            u.choose(&choices32)?
-                        };
-                        let offset = f(u)?;
-                        DataSegmentKind::Active {
-                            offset,
-                            memory_index,
-                        }
+                        u.choose(&choices32)?
                     };
-                let init = u.arbitrary()?;
+                    let offset = f(u, mem.minimum, init.len())?;
+                    DataSegmentKind::Active {
+                        offset,
+                        memory_index,
+                    }
+                };
                 self.data.push(DataSegment { kind, init });
                 Ok(true)
             },
@@ -2235,18 +2304,14 @@ impl Module {
         u: &mut Unstructured,
         max_minimum: u32,
         max_required: bool,
+        max_inbounds: u32,
     ) -> Result<(u32, Option<u32>)> {
-        let min = u.int_in_range(0..=max_minimum)?;
-        let max = if max_required || u.arbitrary().unwrap_or(false) {
-            Some(if min == max_minimum {
-                max_minimum
-            } else {
-                u.int_in_range(min..=max_minimum)?
-            })
-        } else {
-            None
-        };
-        Ok((min, max))
+        let (min, max) =
+            self.arbitrary_limits64(u, max_minimum.into(), max_required, max_inbounds.into())?;
+        Ok((
+            u32::try_from(min).unwrap(),
+            max.map(|i| u32::try_from(i).unwrap()),
+        ))
     }
 
     fn arbitrary_limits64(
@@ -2254,18 +2319,140 @@ impl Module {
         u: &mut Unstructured,
         max_minimum: u64,
         max_required: bool,
+        max_inbounds: u64,
     ) -> Result<(u64, Option<u64>)> {
-        let min = u.int_in_range(0..=max_minimum)?;
+        let min = gradually_grow(u, 0, max_inbounds, max_minimum)?;
         let max = if max_required || u.arbitrary().unwrap_or(false) {
-            Some(if min == max_minimum {
-                max_minimum
-            } else {
-                u.int_in_range(min..=max_minimum)?
-            })
+            Some(u.int_in_range(min..=max_minimum)?)
         } else {
             None
         };
         Ok((min, max))
+    }
+}
+
+/// This function generates a number between `min` and `max`, favoring values
+/// between `min` and `max_inbounds`.
+///
+/// The thinking behind this function is that it's used for things like offsets
+/// and minimum sizes which, when very large, can trivially make the wasm oom or
+/// abort with a trap. This isn't the most interesting thing to do so it tries
+/// to favor numbers in the `min..max_inbounds` range to avoid immediate ooms.
+fn gradually_grow(u: &mut Unstructured, min: u64, max_inbounds: u64, max: u64) -> Result<u64> {
+    if min == max {
+        return Ok(min);
+    }
+    let min = min as f64;
+    let max = max as f64;
+    let max_inbounds = max_inbounds as f64;
+    let x = u.arbitrary::<u32>()?;
+    let x = f64::from(x);
+    let x = map_custom(
+        x,
+        f64::from(u32::MIN)..f64::from(u32::MAX),
+        min..max_inbounds,
+        min..max,
+    );
+    return Ok(x.round() as u64);
+
+    /// Map a value from within the input range to the output range(s).
+    ///
+    /// This will first map the input range into the `0..1` input range, and
+    /// then depending on the value it will either map it exponentially
+    /// (favoring small values) into the `output_inbounds` range or it will map
+    /// it into the `output` range.
+    fn map_custom(
+        value: f64,
+        input: Range<f64>,
+        output_inbounds: Range<f64>,
+        output: Range<f64>,
+    ) -> f64 {
+        assert!(!value.is_nan(), "{}", value);
+        assert!(value.is_finite(), "{}", value);
+        assert!(input.start < input.end, "{} < {}", input.start, input.end);
+        assert!(
+            output.start < output.end,
+            "{} < {}",
+            output.start,
+            output.end
+        );
+        assert!(value >= input.start, "{} >= {}", value, input.start);
+        assert!(value <= input.end, "{} <= {}", value, input.end);
+        assert!(
+            output.start <= output_inbounds.start,
+            "{} <= {}",
+            output.start,
+            output_inbounds.start
+        );
+        assert!(
+            output_inbounds.end <= output.end,
+            "{} <= {}",
+            output_inbounds.end,
+            output.end
+        );
+
+        let x = map_linear(value, input.clone(), 0.0..1.0);
+        let result = if x < PCT_INBOUNDS {
+            if output_inbounds.start == output_inbounds.end {
+                output_inbounds.start
+            } else {
+                let unscaled = x * x * x * x * x * x;
+                map_linear(unscaled, 0.0..1.0, output_inbounds.clone())
+            }
+        } else {
+            map_linear(x, 0.0..1.0, output.clone())
+        };
+
+        assert!(result >= output.start, "{} >= {}", result, output.start);
+        assert!(result <= output.end, "{} <= {}", result, output.end);
+        result
+    }
+
+    /// Map a value from within the input range linearly to the output range.
+    ///
+    /// For example, mapping `0.5` from the input range `0.0..1.0` to the output
+    /// range `1.0..3.0` produces `2.0`.
+    fn map_linear(
+        value: f64,
+        Range {
+            start: in_low,
+            end: in_high,
+        }: Range<f64>,
+        Range {
+            start: out_low,
+            end: out_high,
+        }: Range<f64>,
+    ) -> f64 {
+        assert!(!value.is_nan(), "{}", value);
+        assert!(value.is_finite(), "{}", value);
+        assert!(in_low < in_high, "{} < {}", in_low, in_high);
+        assert!(out_low < out_high, "{} < {}", out_low, out_high);
+        assert!(value >= in_low, "{} >= {}", value, in_low);
+        assert!(value <= in_high, "{} <= {}", value, in_high);
+
+        let dividend = out_high - out_low;
+        let divisor = in_high - in_low;
+        let slope = dividend / divisor;
+        let result = out_low + (slope * (value - in_low));
+
+        assert!(result >= out_low, "{} >= {}", result, out_low);
+        assert!(result <= out_high, "{} <= {}", result, out_high);
+        result
+    }
+}
+
+/// Selects a reasonable offset for an element or data segment. This favors
+/// having the segment being in-bounds, but it may still generate
+/// any offset.
+fn arbitrary_offset(u: &mut Unstructured, min: u64, max: u64, size: usize) -> Result<u64> {
+    let size = u64::try_from(size).unwrap();
+
+    // If the segment is too big for the whole memory, just give it any
+    // offset.
+    if size > min {
+        u.int_in_range(0..=max)
+    } else {
+        gradually_grow(u, 0, min - size, max)
     }
 }
 

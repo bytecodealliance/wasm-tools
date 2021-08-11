@@ -1,0 +1,17 @@
+[package]
+name = "fuzz-stats"
+version = "0.1.0"
+edition = "2018"
+publish = false
+
+[dependencies]
+anyhow = "1.0"
+arbitrary = "1.0"
+num_cpus = "1.13"
+rand = "0.8"
+wasm-smith = { path = '../wasm-smith' }
+wasmtime = "0.29"
+
+[lib]
+doctest = false
+test = false
