@@ -285,6 +285,18 @@ pub trait Config: 'static + std::fmt::Debug {
     fn memory64_enabled(&self) -> bool {
         false
     }
+
+    /// Returns whether NaN values are canonicalized after all f32/f64
+    /// operation.
+    ///
+    /// This can be useful when a generated wasm module is executed in multiple
+    /// runtimes which may produce different NaN values. This ensures that the
+    /// generated module will always use the same NaN representation for all
+    /// instructions which have visible side effects, for example writing floats
+    /// to memory or float-to-int bitcast instructions.
+    fn canonicalize_nans(&self) -> bool {
+        false
+    }
 }
 
 /// The default configuration.
@@ -348,6 +360,7 @@ pub struct SwarmConfig {
     pub simd_enabled: bool,
     pub allow_start_export: bool,
     pub max_type_size: u32,
+    pub canonicalize_nans: bool,
 }
 
 impl<'a> Arbitrary<'a> for SwarmConfig {
@@ -398,6 +411,7 @@ impl<'a> Arbitrary<'a> for SwarmConfig {
             memory64_enabled: false,
             max_type_size: 1000,
             module_linking_enabled: false,
+            canonicalize_nans: false,
         })
     }
 }
@@ -545,5 +559,9 @@ impl Config for SwarmConfig {
 
     fn memory64_enabled(&self) -> bool {
         self.memory64_enabled
+    }
+
+    fn canonicalize_nans(&self) -> bool {
+        self.canonicalize_nans
     }
 }

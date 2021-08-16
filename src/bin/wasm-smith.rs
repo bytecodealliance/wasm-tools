@@ -151,6 +151,8 @@ struct Config {
     max_type_size: Option<u32>,
     #[structopt(long = "memory64")]
     memory64_enabled: Option<bool>,
+    #[structopt(long = "canonicalize-nans")]
+    canonicalize_nans: Option<bool>,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -280,6 +282,7 @@ impl wasm_smith::Config for CliAndJsonConfig {
         (max_aliases, usize, 1000),
         (max_nesting_depth, usize, 1000),
         (max_type_size, u32, 1000),
+        (canonicalize_nans, bool, false),
     }
 
     fn max_memory_pages(&self, _is_64: bool) -> u64 {

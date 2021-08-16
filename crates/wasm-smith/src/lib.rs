@@ -2028,8 +2028,8 @@ impl Module {
         allocs: &mut CodeBuilderAllocations,
         allow_invalid: bool,
     ) -> Result<Code> {
-        let locals = self.arbitrary_locals(u)?;
-        let builder = allocs.builder(ty, &locals);
+        let mut locals = self.arbitrary_locals(u)?;
+        let builder = allocs.builder(ty, &mut locals);
         let instructions = if allow_invalid && u.arbitrary().unwrap_or(false) {
             Instructions::Arbitrary(arbitrary_vec_u8(u)?)
         } else {
