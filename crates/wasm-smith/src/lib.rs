@@ -1704,11 +1704,12 @@ impl Module {
         // We want to favor memories <= 1gb in size, allocate at most 16k pages,
         // depending on the maximum number of memories.
         let max_inbounds = 16 * 1024 / u64::try_from(self.config.max_memories()).unwrap();
+        let max_pages = self.config.max_memory_pages(memory64);
         let (minimum, maximum) = self.arbitrary_limits64(
             u,
-            self.config.max_memory_pages(memory64),
+            max_pages,
             self.config.memory_max_size_required(),
-            max_inbounds,
+            max_inbounds.min(max_pages),
         )?;
         Ok(MemoryType {
             minimum,
