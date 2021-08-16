@@ -563,8 +563,13 @@ pub(crate) struct CodeBuilderAllocations {
 
 pub(crate) struct CodeBuilder<'a> {
     func_ty: &'a FuncType,
-    locals: &'a Vec<ValType>,
+    locals: &'a mut Vec<ValType>,
     allocs: &'a mut CodeBuilderAllocations,
+
+    // Temporary locals injected and used by nan canonicalization.
+    f32_scratch: Option<usize>,
+    f64_scratch: Option<usize>,
+    v128_scratch: Option<usize>,
 }
 
 /// A control frame.
@@ -595,6 +600,13 @@ enum ControlKind {
     Block,
     If,
     Loop,
+}
+
+enum Float {
+    F32,
+    F64,
+    F32x4,
+    F64x2,
 }
 
 impl CodeBuilderAllocations {
@@ -673,7 +685,7 @@ impl CodeBuilderAllocations {
     pub(crate) fn builder<'a>(
         &'a mut self,
         func_ty: &'a FuncType,
-        locals: &'a Vec<ValType>,
+        locals: &'a mut Vec<ValType>,
     ) -> CodeBuilder<'a> {
         self.controls.clear();
         self.controls.push(Control {
@@ -690,6 +702,9 @@ impl CodeBuilderAllocations {
             func_ty,
             locals,
             allocs: self,
+            f32_scratch: None,
+            f64_scratch: None,
+            v128_scratch: None,
         }
     }
 }
@@ -786,9 +801,141 @@ impl CodeBuilder<'_> {
                     break;
                 }
             }
+
+            // If the configuration for this module requests nan
+            // canonicalization then perform that here based on whether or not
+            // the previous instruction needs canonicalization. Note that this
+            // is based off Cranelift's pass for nan canonicalization for which
+            // instructions to canonicalize, but the general idea is most
+            // floating-point operations.
+            if module.config.canonicalize_nans() {
+                match instructions.last().unwrap() {
+                    Instruction::F32Ceil
+                    | Instruction::F32Floor
+                    | Instruction::F32Nearest
+                    | Instruction::F32Sqrt
+                    | Instruction::F32Trunc
+                    | Instruction::F32Div
+                    | Instruction::F32Max
+                    | Instruction::F32Min
+                    | Instruction::F32Mul
+                    | Instruction::F32Sub
+                    | Instruction::F32Add => self.canonicalize_nan(Float::F32, &mut instructions),
+                    Instruction::F64Ceil
+                    | Instruction::F64Floor
+                    | Instruction::F64Nearest
+                    | Instruction::F64Sqrt
+                    | Instruction::F64Trunc
+                    | Instruction::F64Div
+                    | Instruction::F64Max
+                    | Instruction::F64Min
+                    | Instruction::F64Mul
+                    | Instruction::F64Sub
+                    | Instruction::F64Add => self.canonicalize_nan(Float::F64, &mut instructions),
+                    Instruction::F32x4Ceil
+                    | Instruction::F32x4Floor
+                    | Instruction::F32x4Nearest
+                    | Instruction::F32x4Sqrt
+                    | Instruction::F32x4Trunc
+                    | Instruction::F32x4Div
+                    | Instruction::F32x4Max
+                    | Instruction::F32x4Min
+                    | Instruction::F32x4Mul
+                    | Instruction::F32x4Sub
+                    | Instruction::F32x4Add => {
+                        self.canonicalize_nan(Float::F32x4, &mut instructions)
+                    }
+                    Instruction::F64x2Ceil
+                    | Instruction::F64x2Floor
+                    | Instruction::F64x2Nearest
+                    | Instruction::F64x2Sqrt
+                    | Instruction::F64x2Trunc
+                    | Instruction::F64x2Div
+                    | Instruction::F64x2Max
+                    | Instruction::F64x2Min
+                    | Instruction::F64x2Mul
+                    | Instruction::F64x2Sub
+                    | Instruction::F64x2Add => {
+                        self.canonicalize_nan(Float::F64x2, &mut instructions)
+                    }
+                    _ => {}
+                }
+            }
         }
 
         Ok(instructions)
+    }
+
+    fn canonicalize_nan(&mut self, ty: Float, ins: &mut Vec<Instruction>) {
+        // We'll need to temporarily save the top of the stack into a local, so
+        // figure out that local here. Note that this tries to use the same
+        // local if canonicalization happens more than once in a function.
+        let local = match ty {
+            Float::F32 => &mut self.f32_scratch,
+            Float::F64 => &mut self.f64_scratch,
+            Float::F32x4 | Float::F64x2 => &mut self.v128_scratch,
+        };
+        let local = match *local {
+            Some(i) => i,
+            None => {
+                let val = self.locals.len() + self.func_ty.params.len();
+                *local = Some(val);
+                self.locals.push(match ty {
+                    Float::F32 => ValType::F32,
+                    Float::F64 => ValType::F64,
+                    Float::F32x4 | Float::F64x2 => ValType::V128,
+                });
+                val
+            }
+        };
+        let local = local as u32;
+
+        // Save the previous instruction's result into a local. This also leaves
+        // a value on the stack as `val1` for the `select` instruction.
+        ins.push(Instruction::LocalTee(local));
+
+        // The `val2` value input to the `select` below, our nan pattern.
+        //
+        // The nan patterns here are chosen to be a canonical representation
+        // which is still NaN but the wasm will always produce the same bits of
+        // a nan so if the wasm takes a look at the nan inside it'll always see
+        // the same representation.
+        const CANON_32BIT_NAN: u32 = 0b01111111110000000000000000000000;
+        const CANON_64BIT_NAN: u64 =
+            0b0111111111111000000000000000000000000000000000000000000000000000;
+        ins.push(match ty {
+            Float::F32 => Instruction::F32Const(f32::from_bits(CANON_32BIT_NAN)),
+            Float::F64 => Instruction::F64Const(f64::from_bits(CANON_64BIT_NAN)),
+            Float::F32x4 => {
+                let nan = CANON_32BIT_NAN as i128;
+                let nan = nan | (nan << 32) | (nan << 64) | (nan << 96);
+                Instruction::V128Const(nan)
+            }
+            Float::F64x2 => {
+                let nan = CANON_64BIT_NAN as i128;
+                let nan = nan | (nan << 64);
+                Instruction::V128Const(nan)
+            }
+        });
+
+        // the condition of the `select`, which is the float's equality test
+        // with itself.
+        ins.push(Instruction::LocalGet(local));
+        ins.push(Instruction::LocalGet(local));
+        ins.push(match ty {
+            Float::F32 => Instruction::F32Eq,
+            Float::F64 => Instruction::F64Eq,
+            Float::F32x4 => Instruction::F32x4Eq,
+            Float::F64x2 => Instruction::F64x2Eq,
+        });
+
+        // Select the result. If the condition is nonzero (aka the float is
+        // equal to itself) it picks `val1`, otherwise if zero (aka the float
+        // is nan) it picks `val2`.
+        ins.push(match ty {
+            Float::F32 | Float::F64 => Instruction::Select,
+            Float::F32x4 | Float::F64x2 => Instruction::V128Bitselect,
+        });
     }
 
     fn end_active_control_frames(
@@ -1237,7 +1384,7 @@ fn local_set_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
         .func_ty
         .params
         .iter()
-        .chain(builder.locals)
+        .chain(builder.locals.iter())
         .any(|ty| builder.type_on_stack(*ty))
 }
 
@@ -1246,7 +1393,7 @@ fn local_set(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Res
         .func_ty
         .params
         .iter()
-        .chain(builder.locals)
+        .chain(builder.locals.iter())
         .filter(|ty| builder.type_on_stack(**ty))
         .count();
     debug_assert!(n > 0);
@@ -1255,7 +1402,7 @@ fn local_set(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Res
         .func_ty
         .params
         .iter()
-        .chain(builder.locals)
+        .chain(builder.locals.iter())
         .enumerate()
         .filter(|(_, ty)| builder.type_on_stack(**ty))
         .nth(i)
@@ -1269,7 +1416,7 @@ fn local_tee(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Res
         .func_ty
         .params
         .iter()
-        .chain(builder.locals)
+        .chain(builder.locals.iter())
         .filter(|ty| builder.type_on_stack(**ty))
         .count();
     debug_assert!(n > 0);
@@ -1278,7 +1425,7 @@ fn local_tee(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Res
         .func_ty
         .params
         .iter()
-        .chain(builder.locals)
+        .chain(builder.locals.iter())
         .enumerate()
         .filter(|(_, ty)| builder.type_on_stack(**ty))
         .nth(i)
