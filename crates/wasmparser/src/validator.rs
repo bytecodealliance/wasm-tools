@@ -724,6 +724,9 @@ impl Validator {
     }
 
     fn tag_type(&self, ty: &TagType) -> Result<()> {
+        if !self.features.exceptions {
+            return self.create_error("exceptions proposal not enabled");
+        }
         let ty = self.func_type_at(ty.type_index)?;
         if ty.returns.len() > 0 {
             return self.create_error("invalid result arity for exception type");
@@ -1186,6 +1189,9 @@ impl Validator {
     }
 
     pub fn tag_section(&mut self, section: &crate::TagSectionReader<'_>) -> Result<()> {
+        if !self.features.exceptions {
+            return self.create_error("exceptions proposal not enabled");
+        }
         self.check_max(
             self.cur.state.tags.len(),
             section.get_count(),
