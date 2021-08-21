@@ -380,7 +380,7 @@ impl<'a> BinaryReader<'a> {
     }
 
     pub(crate) fn read_tag_type(&mut self) -> Result<TagType> {
-        let attribute = self.read_var_u32()?;
+        let attribute = self.read_u8()?;
         if attribute != 0 {
             return Err(BinaryReaderError::new(
                 "invalid tag attributes",
