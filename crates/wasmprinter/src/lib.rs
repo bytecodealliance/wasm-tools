@@ -259,12 +259,15 @@ impl Printer {
     }
 
     fn register_names(&mut self, names: NameSectionReader<'_>) -> Result<()> {
-        fn name_map(into: &mut HashMap<u32, Naming>, names: NameMap<'_>) -> Result<()> {
+        fn name_map(into: &mut HashMap<u32, Naming>, names: NameMap<'_>, name: &str) -> Result<()> {
             let mut used = HashSet::new();
             let mut map = names.get_map()?;
             for _ in 0..map.get_count() {
                 let naming = map.read()?;
-                into.insert(naming.index, Naming::new(naming.name, &mut used));
+                into.insert(
+                    naming.index,
+                    Naming::new(naming.name, naming.index, name, &mut used),
+                );
             }
             Ok(())
         }
@@ -272,6 +275,7 @@ impl Printer {
         fn indirect_name_map(
             into: &mut HashMap<(u32, u32), Naming>,
             names: IndirectNameMap<'_>,
+            name: &str,
         ) -> Result<()> {
             let mut outer_map = names.get_indirect_map()?;
             for _ in 0..outer_map.get_indirect_count() {
@@ -282,7 +286,7 @@ impl Printer {
                     let inner = inner_map.read()?;
                     into.insert(
                         (outer.indirect_index, inner.index),
-                        Naming::new(inner.name, &mut used),
+                        Naming::new(inner.name, inner.index, name, &mut used),
                     );
                 }
             }
@@ -292,18 +296,18 @@ impl Printer {
         for section in names {
             match section? {
                 Name::Module(n) => {
-                    let name = Naming::new(n.get_name()?, &mut HashSet::new());
+                    let name = Naming::new(n.get_name()?, 0, "module", &mut HashSet::new());
                     self.state.module_name = Some(name);
                 }
-                Name::Function(n) => name_map(&mut self.state.function_names, n)?,
-                Name::Local(n) => indirect_name_map(&mut self.state.local_names, n)?,
-                Name::Label(n) => indirect_name_map(&mut self.state.label_names, n)?,
-                Name::Type(n) => name_map(&mut self.state.type_names, n)?,
-                Name::Table(n) => name_map(&mut self.state.table_names, n)?,
-                Name::Memory(n) => name_map(&mut self.state.memory_names, n)?,
-                Name::Global(n) => name_map(&mut self.state.global_names, n)?,
-                Name::Element(n) => name_map(&mut self.state.element_names, n)?,
-                Name::Data(n) => name_map(&mut self.state.data_names, n)?,
+                Name::Function(n) => name_map(&mut self.state.function_names, n, "func")?,
+                Name::Local(n) => indirect_name_map(&mut self.state.local_names, n, "local")?,
+                Name::Label(n) => indirect_name_map(&mut self.state.label_names, n, "label")?,
+                Name::Type(n) => name_map(&mut self.state.type_names, n, "type")?,
+                Name::Table(n) => name_map(&mut self.state.table_names, n, "table")?,
+                Name::Memory(n) => name_map(&mut self.state.memory_names, n, "memory")?,
+                Name::Global(n) => name_map(&mut self.state.global_names, n, "global")?,
+                Name::Element(n) => name_map(&mut self.state.element_names, n, "elem")?,
+                Name::Data(n) => name_map(&mut self.state.data_names, n, "data")?,
                 Name::Unknown { .. } => (),
             }
         }
@@ -2162,28 +2166,41 @@ impl Printer {
 }
 
 impl Naming {
-    fn new(name: &str, used: &mut HashSet<String>) -> Naming {
-        let identifier = if name.len() > 0 && name.chars().all(is_idchar) && !used.contains(name) {
-            used.insert(name.to_string());
-            None
-        } else {
-            let identifier = name
-                .chars()
-                .map(|c| if is_idchar(c) { c } else { '_' })
-                .collect::<String>();
-            let mut count = 0;
-            loop {
-                let identifier = if count == 0 && identifier.len() > 0 {
-                    identifier.clone()
-                } else {
-                    format!("{}_{}", identifier, count)
-                };
-                if used.insert(identifier.clone()) {
-                    break Some(identifier);
-                }
-                count += 1;
-            }
-        };
+    fn new<'a>(name: &'a str, index: u32, group: &str, used: &mut HashSet<&'a str>) -> Naming {
+        let mut identifier = None;
+
+        // If the `name` provided can't be used as the raw identifier for the
+        // item that it's describing then a synthetic name must be made. The
+        // rules here which generate a name are:
+        //
+        // * Empty identifiers are not allowed
+        // * Identifiers have a fixed set of valid characters
+        // * For wasmprinter's purposes we "reserve" identifiers with the `#`
+        //   prefix, which is in theory rare to encounter in practice.
+        // * If the name has already been used for some other item then it can't
+        //   be reused.
+        //
+        // If any of these conditions match then we generate a unique identifier
+        // based on `name` but not it exactly. By factoring in the `group`,
+        // `index`, and `name` we get a guaranteed unique identifier (due to the
+        // leading `#` prefix that we reserve and factoring in of the item
+        // index) while preserving human readability at least somewhat (the
+        // valid identifier characters of `name` still appear in the returned
+        // name).
+        if name.is_empty()
+            || name.chars().any(|c| !is_idchar(c))
+            || name.starts_with("#")
+            || !used.insert(name)
+        {
+            let mut id = String::new();
+            id.push_str("#");
+            id.push_str(group);
+            write!(id, "{}", index).unwrap();
+            id.push_str("<");
+            id.extend(name.chars().map(|c| if is_idchar(c) { c } else { '_' }));
+            id.push_str(">");
+            identifier = Some(id);
+        }
         return Naming {
             identifier,
             name: name.to_string(),
