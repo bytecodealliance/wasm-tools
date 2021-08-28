@@ -567,6 +567,7 @@ pub(crate) struct CodeBuilder<'a> {
     allocs: &'a mut CodeBuilderAllocations,
 
     // Temporary locals injected and used by nan canonicalization.
+    extra_locals: Vec<ValType>,
     f32_scratch: Option<usize>,
     f64_scratch: Option<usize>,
     v128_scratch: Option<usize>,
@@ -702,6 +703,7 @@ impl CodeBuilderAllocations {
             func_ty,
             locals,
             allocs: self,
+            extra_locals: Vec::new(),
             f32_scratch: None,
             f64_scratch: None,
             v128_scratch: None,
@@ -863,6 +865,8 @@ impl CodeBuilder<'_> {
             }
         }
 
+        self.locals.extend(self.extra_locals.drain(..));
+
         Ok(instructions)
     }
 
@@ -878,9 +882,9 @@ impl CodeBuilder<'_> {
         let local = match *local {
             Some(i) => i,
             None => {
-                let val = self.locals.len() + self.func_ty.params.len();
+                let val = self.locals.len() + self.func_ty.params.len() + self.extra_locals.len();
                 *local = Some(val);
-                self.locals.push(match ty {
+                self.extra_locals.push(match ty {
                     Float::F32 => ValType::F32,
                     Float::F64 => ValType::F64,
                     Float::F32x4 | Float::F64x2 => ValType::V128,
