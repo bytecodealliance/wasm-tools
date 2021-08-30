@@ -566,7 +566,10 @@ pub(crate) struct CodeBuilder<'a> {
     locals: &'a mut Vec<ValType>,
     allocs: &'a mut CodeBuilderAllocations,
 
-    // Temporary locals injected and used by nan canonicalization.
+    // Temporary locals injected and used by nan canonicalization. Note that
+    // this list of extra locals is appended to `self.locals` at the end of code
+    // generation, and it's kept separate here to avoid using these locals in
+    // `local.get` and similar instructions.
     extra_locals: Vec<ValType>,
     f32_scratch: Option<usize>,
     f64_scratch: Option<usize>,
