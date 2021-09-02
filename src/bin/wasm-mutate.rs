@@ -1,0 +1,93 @@
+use anyhow::Context;
+use std::fs;
+use std::io::{stdin, stdout, Read, Write};
+use std::path::PathBuf;
+use structopt::StructOpt;
+
+/// A WebAssembly test case mutator.
+///
+/// `wasm-mutate` takes in an existing Wasm module and then applies a
+/// pseudo-random transformation to it, producing a new, mutated Wasm
+/// module. This new, mutated Wasm module can be fed as a test input to your
+/// Wasm parser, validator, compiler, or any other Wasm-consuming
+/// tool. `wasm-mutate` can serve as a custom mutator for mutation-based
+/// fuzzing.
+///
+/// ## Example
+///
+/// Perform a random mutation on an existing Wasm module:
+///
+/// $ wasm-mutate ./input.wasm --seed 1234 -o output.wasm
+///
+/// ## Exit Codes
+///
+/// * 0: Success
+///
+/// * 1: An unexpected failure occurred.
+///
+/// * 2: Failed to mutate the Wasm module with the given seed and mutation
+///      constraints. (Happens rarely; try again with a new seed.)
+#[derive(StructOpt)]
+struct Options {
+    /// The input WebAssembly binary that will be mutated.
+    ///
+    /// `stdin` is used if this argument is not supplied.
+    #[structopt(parse(from_os_str))]
+    input: Option<PathBuf>,
+
+    /// The output file path, where the new, mutated WebAssembly module is
+    /// placed.
+    ///
+    /// `stdout` is used if this argument is not supplied.
+    #[structopt(short, long, parse(from_os_str))]
+    output: Option<PathBuf>,
+
+    #[structopt(flatten)]
+    wasm_mutate: wasm_mutate::WasmMutate,
+}
+
+fn main() -> anyhow::Result<()> {
+    let opts = Options::from_args();
+
+    let stdin = stdin();
+    let (mut input, input_name): (Box<dyn Read>, _) = match &opts.input {
+        Some(f) => {
+            let input = Box::new(
+                fs::File::open(f).with_context(|| format!("failed to open '{}'", f.display()))?,
+            );
+            (input, f.display().to_string())
+        }
+        None => {
+            let input = Box::new(stdin.lock());
+            (input, "<stdin>".to_string())
+        }
+    };
+
+    let stdout = stdout();
+    let (mut output, output_name): (Box<dyn Write>, _) = match &opts.output {
+        Some(f) => {
+            let output = Box::new(
+                fs::File::create(f)
+                    .with_context(|| format!("failed to create '{}'", f.display()))?,
+            );
+            (output, f.display().to_string())
+        }
+        None => {
+            let output = Box::new(stdout.lock());
+            (output, "<stdout>".to_string())
+        }
+    };
+
+    let mut input_wasm = vec![];
+    input
+        .read_to_end(&mut input_wasm)
+        .with_context(|| format!("failed to read '{}'", input_name))?;
+
+    let output_wasm = opts.wasm_mutate.run(&input_wasm)?;
+
+    output
+        .write_all(&output_wasm)
+        .with_context(|| format!("failed to write to '{}'", output_name))?;
+
+    Ok(())
+}
