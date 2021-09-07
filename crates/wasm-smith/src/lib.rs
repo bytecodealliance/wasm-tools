@@ -2493,8 +2493,12 @@ impl Module {
 
         match initial_exports {
             Some(exports) => {
+                
+                for (_, export) in exports.iter() {
+                    let ty = self.type_of(&export);
+                    self.type_size += 1 + ty.size();
+                }
                 self.exports = exports;
-                // TODO
                 return Ok(())
             },
             None => {
