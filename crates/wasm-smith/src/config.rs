@@ -18,7 +18,7 @@ use crate::{Code, DataSegment, ElementSegment, EntityType, Export, FuncType, Glo
 /// If you want to provide default structures for the generated Modules, define a `MyConfig` type and then
 /// provide an implementation for the `initial_<(exports|elements|memories|data|code|globals|types|tables)>` methods. 
 /// Each implementation should a collection of payloads. For example:
-/// ```
+/// ```no-test
 ///    pub struct InitialValuesConfig{
 ///       tpes: Vec<Type>
 ///    }
