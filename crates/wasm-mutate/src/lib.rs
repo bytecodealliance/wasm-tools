@@ -183,7 +183,6 @@ impl WasmMutate {
         let mut second_half =  &mut Vec::new();
         let mut code_entries = &mut Vec::new();
 
-        // From the parsing example
         loop {
             let (mut payload, chunksize) = match parser.parse(&input_wasm[consumed..], true).unwrap() {
                 Chunk::NeedMoreData(__) => {
@@ -253,6 +252,7 @@ impl WasmMutate {
 mod tests{
     use std::io::Write;
 
+    use wasm_encoder::{Function, Instruction};
     use wasmparser::{Chunk, Operator, Parser, Payload, Type};
 
     use crate::{MutationContext, WasmMutate, examples::{self}, mutators::Mutator};
@@ -274,43 +274,24 @@ mod tests{
     pub struct FunctionSnipMutator {
     }
     
+    
+    
     impl Mutator<Payload<'_>> for FunctionSnipMutator{
-        fn mutate<'a>(&mut self, _:&'a crate::WasmMutate, chunk: &'a [u8], out_buffer:&'a mut dyn Write, payload: &mut Payload<'_>, mutation_context: &mut crate::MutationContext) -> () {
+        fn mutate<'a>(&mut self, context:&'a crate::WasmMutate, chunk: &'a [u8], out_buffer:&'a mut dyn Write, payload: &mut Payload<'_>, mutation_context: &mut crate::MutationContext) -> () {
             match payload {
                 
-                Payload::CodeSectionEntry(reader) => {
-                    let mut local_reader = reader.get_locals_reader().unwrap();
-                    
+                Payload::CodeSectionEntry(_) => {
+                    let locals = vec![];                    
                     let mut tmpbuff: Vec<u8> = Vec::new();
-                    // number of locals
-                    leb128::write::unsigned(&mut tmpbuff, local_reader.get_count() as u64);
-                    // write the locals
-                    (0..local_reader.get_count()).for_each(|j|{
-                        let (i, localtpe) = local_reader.read().unwrap();
-                        leb128::write::unsigned(&mut tmpbuff, i as u64);
-                        match localtpe {
-                            // Only one returning for now
-                            Type::I32 => {tmpbuff.write(&[0x7fu8]);},
-                            Type::I64 => {tmpbuff.write(&[0x7eu8]);},
-                            Type::F32 => {tmpbuff.write(&[0x7du8]);},
-                            Type::F64 => {tmpbuff.write(&[0x7cu8]);},
-                            _ => panic!("Unrecognized paramt tytpe")
-                        }
-    
-                    });
-                    // Write the default return zero, i32.const 0
-
-                    
-                    tmpbuff.write(&[0x41u8]); // i32.const op code
-                    tmpbuff.write(&[0]);
-
-                    // Write the size of tmpbuff
-                    let l = tmpbuff.len() as u64;
-                    leb128::write::unsigned(out_buffer, l);
-                    // Write the function payload
-                    out_buffer.write(&tmpbuff);
+                    let mut f = Function::new(locals);
+                    f.instruction(Instruction::I32Const(0));
+                    f.encode(&mut tmpbuff);
+                    out_buffer.write(&tmpbuff).expect("Could not write code body");
                 },
-                _ => panic!("Only code entries are allowed"),
+                _ => {
+                    // bypass
+                    out_buffer.write(&chunk).expect("Could not write to out buffer");
+                },
             }
         }
     }
