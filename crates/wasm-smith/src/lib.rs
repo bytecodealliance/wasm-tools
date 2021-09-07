@@ -1679,40 +1679,45 @@ impl Module {
         // can mention any previous types, so we need to ensure that after each
         // type is generated it's listed in the module's types so indexing will
         // succeed.
-        let (hasinit, tpes) = self.config.initial_types();
+        let initial_tpes = self.config.initial_types();
+
+
         let section_idx = self.initial_sections.len();
         self.initial_sections.push(InitialSection::Type(Vec::new()));
-        if hasinit {
-            for (idx, tpe) in tpes.iter().enumerate() {
-                self.record_type(tpe);
-                let types = match self.initial_sections.last_mut().unwrap() {
-                    InitialSection::Type(list) => list,
-                    _ => unreachable!(),
-                };
-                self.types.push(LocalType::Defined {
-                    section: section_idx,
-                    nth: types.len(),
-                });
-                types.push(tpe.clone());
-            }
-            return Ok(())
-        } else {
-            arbitrary_loop(u, min, self.config.max_types() - self.types.len(), |u| {
-                let ty = self.arbitrary_type(u)?;
-                self.record_type(&ty);
-                let types = match self.initial_sections.last_mut().unwrap() {
-                    InitialSection::Type(list) => list,
-                    _ => unreachable!(),
-                };
-                self.types.push(LocalType::Defined {
-                    section: section_idx,
-                    nth: types.len(),
-                });
-                types.push(ty);
-                Ok(true)
-            })?;
-        }
 
+        match initial_tpes {
+            Some(tpes) =>  {
+                for (idx, tpe) in tpes.iter().enumerate() {
+                    self.record_type(tpe);
+                    let types = match self.initial_sections.last_mut().unwrap() {
+                        InitialSection::Type(list) => list,
+                        _ => unreachable!(),
+                    };
+                    self.types.push(LocalType::Defined {
+                        section: section_idx,
+                        nth: types.len(),
+                    });
+                    types.push(tpe.clone());
+                }
+                return Ok(())
+            },
+            None => {
+                arbitrary_loop(u, min, self.config.max_types() - self.types.len(), |u| {
+                    let ty = self.arbitrary_type(u)?;
+                    self.record_type(&ty);
+                    let types = match self.initial_sections.last_mut().unwrap() {
+                        InitialSection::Type(list) => list,
+                        _ => unreachable!(),
+                    };
+                    self.types.push(LocalType::Defined {
+                        section: section_idx,
+                        nth: types.len(),
+                    });
+                    types.push(ty);
+                    Ok(true)
+                })?;
+            }
+        }
 
         let types = match self.initial_sections.last_mut().unwrap() {
             InitialSection::Type(list) => list,
@@ -2342,28 +2347,33 @@ impl Module {
 
     fn arbitrary_tables(&mut self, u: &mut Unstructured) -> Result<()> {
         
-        let (hasinit, tables) = self.config.initial_tables();
 
-        if hasinit {
-            self.num_defined_tables = tables.len();
-            self.tables = tables;
-            return Ok(())
-        }
-        
-        arbitrary_loop(
-            u,
-            self.config.min_tables() as usize,
-            self.config.max_tables() as usize,
-            |u| {
-                if !self.can_add_local_or_import_table() {
-                    return Ok(false);
-                }
-                self.num_defined_tables += 1;
-                let ty = self.arbitrary_table_type(u)?;
-                self.tables.push(ty);
-                Ok(true)
+
+        let initial_tables = self.config.initial_tables();
+
+        match initial_tables {
+            Some(tables) => {
+                self.num_defined_tables = tables.len();
+                self.tables = tables;
+                return Ok(())
             },
-        )
+            None => {
+                arbitrary_loop(
+                    u,
+                    self.config.min_tables() as usize,
+                    self.config.max_tables() as usize,
+                    |u| {
+                        if !self.can_add_local_or_import_table() {
+                            return Ok(false);
+                        }
+                        self.num_defined_tables += 1;
+                        let ty = self.arbitrary_table_type(u)?;
+                        self.tables.push(ty);
+                        Ok(true)
+                    },
+                )
+            }
+        }
     }
 
     fn arbitrary_memtype(&self, u: &mut Unstructured) -> Result<MemoryType> {
@@ -2387,27 +2397,32 @@ impl Module {
 
     fn arbitrary_memories(&mut self, u: &mut Unstructured) -> Result<()> {
        
-        let (hasmems, memorytps) = self.config.initial_memories();
+        let initial_memories = self.config.initial_memories();
 
-        if hasmems {
-            self.num_defined_memories = memorytps.len();
-            self.memories = memorytps;
-            return Ok(())
-        }
-       
-        arbitrary_loop(
-            u,
-            self.config.min_memories() as usize,
-            self.config.max_memories() as usize,
-            |u| {
-                if !self.can_add_local_or_import_memory() {
-                    return Ok(false);
-                }
-                self.num_defined_memories += 1;
-                self.memories.push(self.arbitrary_memtype(u)?);
-                Ok(true)
+        match initial_memories {
+            Some(memorytps) => {
+
+                self.num_defined_memories = memorytps.len();
+                self.memories = memorytps;
+                return Ok(())
             },
-        )
+            None => {
+       
+                arbitrary_loop(
+                    u,
+                    self.config.min_memories() as usize,
+                    self.config.max_memories() as usize,
+                    |u| {
+                        if !self.can_add_local_or_import_memory() {
+                            return Ok(false);
+                        }
+                        self.num_defined_memories += 1;
+                        self.memories.push(self.arbitrary_memtype(u)?);
+                        Ok(true)
+                    },
+                )
+            }
+        }
     }
 
     fn arbitrary_globals(&mut self, u: &mut Unstructured) -> Result<()> {
@@ -2474,268 +2489,290 @@ impl Module {
 
     fn arbitrary_exports(&mut self, u: &mut Unstructured) -> Result<()> {
         
-        let (hasinit, exports) = self.config.initial_exports();
+        let initial_exports = self.config.initial_exports();
 
-        if hasinit {
-            self.exports = exports;
-            // TODO
-            return Ok(())
-        }
-        
-        if self.config.max_type_size() < self.type_size {
-            return Ok(());
-        }
-
-        // Build up a list of candidates for each class of import
-        let mut choices: Vec<Vec<Export>> = Vec::with_capacity(6);
-        choices.push(
-            (0..self.funcs.len())
-                .map(|i| Export::Func(i as u32))
-                .collect(),
-        );
-        choices.push(
-            (0..self.tables.len())
-                .map(|i| Export::Table(i as u32))
-                .collect(),
-        );
-        choices.push(
-            (0..self.memories.len())
-                .map(|i| Export::Memory(i as u32))
-                .collect(),
-        );
-        choices.push(
-            (0..self.globals.len())
-                .map(|i| Export::Global(i as u32))
-                .collect(),
-        );
-        choices.push(
-            (0..self.instances.len())
-                .map(|i| Export::Instance(i as u32))
-                .collect(),
-        );
-        choices.push(
-            (0..self.modules.len())
-                .map(|i| Export::Module(i as u32))
-                .collect(),
-        );
-
-        let mut export_names = HashSet::new();
-        arbitrary_loop(
-            u,
-            self.config.min_exports(),
-            self.config.max_exports(),
-            |u| {
-                // Remove all candidates for export whose type size exceeds our
-                // remaining budget for type size. Then also remove any classes
-                // of exports which no longer have any candidates.
-                //
-                // If there's nothing remaining after this, then we're done.
-                let max_size = self.config.max_type_size() - self.type_size;
-                for list in choices.iter_mut() {
-                    list.retain(|c| self.type_of(c).size() + 1 < max_size);
-                }
-                choices.retain(|list| list.len() > 0);
-                if choices.len() == 0 {
-                    return Ok(false);
-                }
-
-                // Pick a name, then pick the export, and then we can record
-                // information about the chosen export.
-                let name = unique_string(1_000, &mut export_names, u)?;
-                let list = u.choose(&choices)?;
-                let export = u.choose(list)?;
-                let ty = self.type_of(export);
-                self.type_size += 1 + ty.size();
-                self.exports.push((name, *export));
-                Ok(true)
+        match initial_exports {
+            Some(exports) => {
+                self.exports = exports;
+                // TODO
+                return Ok(())
             },
-        )
+            None => {
+
+        
+                if self.config.max_type_size() < self.type_size {
+                    return Ok(());
+                }
+        
+                // Build up a list of candidates for each class of import
+                let mut choices: Vec<Vec<Export>> = Vec::with_capacity(6);
+                choices.push(
+                    (0..self.funcs.len())
+                        .map(|i| Export::Func(i as u32))
+                        .collect(),
+                );
+                choices.push(
+                    (0..self.tables.len())
+                        .map(|i| Export::Table(i as u32))
+                        .collect(),
+                );
+                choices.push(
+                    (0..self.memories.len())
+                        .map(|i| Export::Memory(i as u32))
+                        .collect(),
+                );
+                choices.push(
+                    (0..self.globals.len())
+                        .map(|i| Export::Global(i as u32))
+                        .collect(),
+                );
+                choices.push(
+                    (0..self.instances.len())
+                        .map(|i| Export::Instance(i as u32))
+                        .collect(),
+                );
+                choices.push(
+                    (0..self.modules.len())
+                        .map(|i| Export::Module(i as u32))
+                        .collect(),
+                );
+        
+                let mut export_names = HashSet::new();
+                arbitrary_loop(
+                    u,
+                    self.config.min_exports(),
+                    self.config.max_exports(),
+                    |u| {
+                        // Remove all candidates for export whose type size exceeds our
+                        // remaining budget for type size. Then also remove any classes
+                        // of exports which no longer have any candidates.
+                        //
+                        // If there's nothing remaining after this, then we're done.
+                        let max_size = self.config.max_type_size() - self.type_size;
+                        for list in choices.iter_mut() {
+                            list.retain(|c| self.type_of(c).size() + 1 < max_size);
+                        }
+                        choices.retain(|list| list.len() > 0);
+                        if choices.len() == 0 {
+                            return Ok(false);
+                        }
+        
+                        // Pick a name, then pick the export, and then we can record
+                        // information about the chosen export.
+                        let name = unique_string(1_000, &mut export_names, u)?;
+                        let list = u.choose(&choices)?;
+                        let export = u.choose(list)?;
+                        let ty = self.type_of(export);
+                        self.type_size += 1 + ty.size();
+                        self.exports.push((name, *export));
+                        Ok(true)
+                    },
+                )
+            }
+        }
+
     }
 
     fn arbitrary_start(&mut self, u: &mut Unstructured) -> Result<()> {
         
-        let (hasinit, startidx) = self.config.initial_start();
+        let initial_start = self.config.initial_start();
 
-        if hasinit {
-            self.start = Some(startidx);
-            return Ok(())
-        }
+        match initial_start {
+            Some(start) => {
+
+                self.start = Some(start);
+                return Ok(())
+            },
+            None => {
         
-        if !self.config.allow_start_export() {
-            return Ok(());
-        }
-
-        let mut choices = Vec::with_capacity(self.funcs.len() as usize);
-
-        for (func_idx, ty) in self.funcs() {
-            if ty.params.is_empty() && ty.results.is_empty() {
-                choices.push(func_idx);
+                if !self.config.allow_start_export() {
+                    return Ok(());
+                }
+        
+                let mut choices = Vec::with_capacity(self.funcs.len() as usize);
+        
+                for (func_idx, ty) in self.funcs() {
+                    if ty.params.is_empty() && ty.results.is_empty() {
+                        choices.push(func_idx);
+                    }
+                }
+        
+                if !choices.is_empty() && u.arbitrary().unwrap_or(false) {
+                    let f = *u.choose(&choices)?;
+                    self.start = Some(f);
+                }
+        
+                Ok(())
             }
         }
 
-        if !choices.is_empty() && u.arbitrary().unwrap_or(false) {
-            let f = *u.choose(&choices)?;
-            self.start = Some(f);
-        }
-
-        Ok(())
     }
 
     fn arbitrary_elems(&mut self, u: &mut Unstructured) -> Result<()> {
         
-        let (hasinit, elements) = self.config.initial_elements();
+        let elems = self.config.initial_elements();
         
-        if hasinit {
-            self.elems = elements;
-            return Ok(())
-        }
-        let func_max = self.funcs.len() as u32;
+        match elems {
+            Some(elements) => {
 
-        // Create a helper closure to choose an arbitrary offset.
-        let mut offset_global_choices = vec![];
-        for (i, g) in self.globals[..self.globals.len() - self.defined_globals.len()]
-            .iter()
-            .enumerate()
-        {
-            if !g.mutable && g.val_type == ValType::I32 {
-                offset_global_choices.push(i as u32);
-            }
-        }
-        let arbitrary_active_elem = |u: &mut Unstructured, min: u32, table: Option<u32>| {
-            let (offset, max_size_hint) = if !offset_global_choices.is_empty() && u.arbitrary()? {
-                let g = u.choose(&offset_global_choices)?;
-                (Instruction::GlobalGet(*g), None)
-            } else {
-                let offset = arbitrary_offset(u, min.into(), u32::MAX.into(), 0)? as u32;
-                let max_size_hint =
-                    if offset <= min && u.int_in_range(0..=CHANCE_OFFSET_INBOUNDS)? != 0 {
-                        Some(min - offset)
-                    } else {
-                        None
-                    };
-                (Instruction::I32Const(offset as i32), max_size_hint)
-            };
-            Ok((ElementKind::Active { table, offset }, max_size_hint))
-        };
-
-        type GenElemSegment<'a> =
-            dyn Fn(&mut Unstructured) -> Result<(ElementKind, Option<u32>)> + 'a;
-        let mut funcrefs: Vec<Box<GenElemSegment>> = Vec::new();
-        let mut externrefs: Vec<Box<GenElemSegment>> = Vec::new();
-
-        for (i, ty) in self.tables.iter().enumerate() {
-            // If this table starts with no capacity then any non-empty element
-            // segment placed onto it will immediately trap, which isn't too
-            // too interesting. If that's the case give it an unlikely chance
-            // of proceeding.
-            if ty.minimum == 0 && u.int_in_range(0..=CHANCE_SEGMENT_ON_EMPTY)? != 0 {
-                continue;
-            }
-
-            let dst = if ty.elem_ty == ValType::FuncRef {
-                &mut funcrefs
-            } else {
-                &mut externrefs
-            };
-            let minimum = ty.minimum;
-            // If the first table is a funcref table then it's a candidate for
-            // the MVP encoding of element segments.
-            if i == 0 && ty.elem_ty == ValType::FuncRef {
-                dst.push(Box::new(move |u| arbitrary_active_elem(u, minimum, None)));
-            }
-            dst.push(Box::new(move |u| {
-                arbitrary_active_elem(u, minimum, Some(i as u32))
-            }));
-        }
-
-        // Reference types allows us to create passive and declared element
-        // segments.
-        if self.config.reference_types_enabled() {
-            funcrefs.push(Box::new(|_| Ok((ElementKind::Passive, None))));
-            externrefs.push(Box::new(|_| Ok((ElementKind::Passive, None))));
-            funcrefs.push(Box::new(|_| Ok((ElementKind::Declared, None))));
-            externrefs.push(Box::new(|_| Ok((ElementKind::Declared, None))));
-        }
-
-        let mut choices = Vec::new();
-        if !funcrefs.is_empty() {
-            choices.push((&funcrefs, ValType::FuncRef));
-        }
-        if !externrefs.is_empty() {
-            choices.push((&externrefs, ValType::ExternRef));
-        }
-
-        if choices.is_empty() {
-            return Ok(());
-        }
-        arbitrary_loop(
-            u,
-            self.config.min_element_segments(),
-            self.config.max_element_segments(),
-            |u| {
-                // Choose whether to generate a segment whose elements are initialized via
-                // expressions, or one whose elements are initialized via function indices.
-                let (kind_candidates, ty) = *u.choose(&choices)?;
-
-                // Select a kind for this segment now that we know the number of
-                // items the segment will hold.
-                let (kind, max_size_hint) = u.choose(&kind_candidates)?(u)?;
-                let max = max_size_hint
-                    .map(|i| usize::try_from(i).unwrap())
-                    .unwrap_or(self.config.max_elements());
-
-                // Pick whether we're going to use expression elements or
-                // indices. Note that externrefs must use expressions,
-                // and functions without reference types must use indices.
-                let items = if ty == ValType::ExternRef
-                    || (self.config.reference_types_enabled() && u.arbitrary()?)
-                {
-                    let mut init = vec![];
-                    arbitrary_loop(u, self.config.min_elements(), max, |u| {
-                        init.push(
-                            if ty == ValType::ExternRef || func_max == 0 || u.arbitrary()? {
-                                None
-                            } else {
-                                Some(u.int_in_range(0..=func_max - 1)?)
-                            },
-                        );
-                        Ok(true)
-                    })?;
-                    Elements::Expressions(init)
-                } else {
-                    let mut init = vec![];
-                    if func_max > 0 {
-                        arbitrary_loop(u, self.config.min_elements(), max, |u| {
-                            let func_idx = u.int_in_range(0..=func_max - 1)?;
-                            init.push(func_idx);
-                            Ok(true)
-                        })?;
-                    }
-                    Elements::Functions(init)
-                };
-
-                self.elems.push(ElementSegment { kind, ty, items });
-                Ok(true)
+                self.elems = elements;
+                return Ok(())
             },
-        )
+            None => {
+
+                let func_max = self.funcs.len() as u32;
+
+                // Create a helper closure to choose an arbitrary offset.
+                let mut offset_global_choices = vec![];
+                for (i, g) in self.globals[..self.globals.len() - self.defined_globals.len()]
+                    .iter()
+                    .enumerate()
+                {
+                    if !g.mutable && g.val_type == ValType::I32 {
+                        offset_global_choices.push(i as u32);
+                    }
+                }
+                let arbitrary_active_elem = |u: &mut Unstructured, min: u32, table: Option<u32>| {
+                    let (offset, max_size_hint) = if !offset_global_choices.is_empty() && u.arbitrary()? {
+                        let g = u.choose(&offset_global_choices)?;
+                        (Instruction::GlobalGet(*g), None)
+                    } else {
+                        let offset = arbitrary_offset(u, min.into(), u32::MAX.into(), 0)? as u32;
+                        let max_size_hint =
+                            if offset <= min && u.int_in_range(0..=CHANCE_OFFSET_INBOUNDS)? != 0 {
+                                Some(min - offset)
+                            } else {
+                                None
+                            };
+                        (Instruction::I32Const(offset as i32), max_size_hint)
+                    };
+                    Ok((ElementKind::Active { table, offset }, max_size_hint))
+                };
+        
+                type GenElemSegment<'a> =
+                    dyn Fn(&mut Unstructured) -> Result<(ElementKind, Option<u32>)> + 'a;
+                let mut funcrefs: Vec<Box<GenElemSegment>> = Vec::new();
+                let mut externrefs: Vec<Box<GenElemSegment>> = Vec::new();
+        
+                for (i, ty) in self.tables.iter().enumerate() {
+                    // If this table starts with no capacity then any non-empty element
+                    // segment placed onto it will immediately trap, which isn't too
+                    // too interesting. If that's the case give it an unlikely chance
+                    // of proceeding.
+                    if ty.minimum == 0 && u.int_in_range(0..=CHANCE_SEGMENT_ON_EMPTY)? != 0 {
+                        continue;
+                    }
+        
+                    let dst = if ty.elem_ty == ValType::FuncRef {
+                        &mut funcrefs
+                    } else {
+                        &mut externrefs
+                    };
+                    let minimum = ty.minimum;
+                    // If the first table is a funcref table then it's a candidate for
+                    // the MVP encoding of element segments.
+                    if i == 0 && ty.elem_ty == ValType::FuncRef {
+                        dst.push(Box::new(move |u| arbitrary_active_elem(u, minimum, None)));
+                    }
+                    dst.push(Box::new(move |u| {
+                        arbitrary_active_elem(u, minimum, Some(i as u32))
+                    }));
+                }
+        
+                // Reference types allows us to create passive and declared element
+                // segments.
+                if self.config.reference_types_enabled() {
+                    funcrefs.push(Box::new(|_| Ok((ElementKind::Passive, None))));
+                    externrefs.push(Box::new(|_| Ok((ElementKind::Passive, None))));
+                    funcrefs.push(Box::new(|_| Ok((ElementKind::Declared, None))));
+                    externrefs.push(Box::new(|_| Ok((ElementKind::Declared, None))));
+                }
+        
+                let mut choices = Vec::new();
+                if !funcrefs.is_empty() {
+                    choices.push((&funcrefs, ValType::FuncRef));
+                }
+                if !externrefs.is_empty() {
+                    choices.push((&externrefs, ValType::ExternRef));
+                }
+        
+                if choices.is_empty() {
+                    return Ok(());
+                }
+                arbitrary_loop(
+                    u,
+                    self.config.min_element_segments(),
+                    self.config.max_element_segments(),
+                    |u| {
+                        // Choose whether to generate a segment whose elements are initialized via
+                        // expressions, or one whose elements are initialized via function indices.
+                        let (kind_candidates, ty) = *u.choose(&choices)?;
+        
+                        // Select a kind for this segment now that we know the number of
+                        // items the segment will hold.
+                        let (kind, max_size_hint) = u.choose(&kind_candidates)?(u)?;
+                        let max = max_size_hint
+                            .map(|i| usize::try_from(i).unwrap())
+                            .unwrap_or(self.config.max_elements());
+        
+                        // Pick whether we're going to use expression elements or
+                        // indices. Note that externrefs must use expressions,
+                        // and functions without reference types must use indices.
+                        let items = if ty == ValType::ExternRef
+                            || (self.config.reference_types_enabled() && u.arbitrary()?)
+                        {
+                            let mut init = vec![];
+                            arbitrary_loop(u, self.config.min_elements(), max, |u| {
+                                init.push(
+                                    if ty == ValType::ExternRef || func_max == 0 || u.arbitrary()? {
+                                        None
+                                    } else {
+                                        Some(u.int_in_range(0..=func_max - 1)?)
+                                    },
+                                );
+                                Ok(true)
+                            })?;
+                            Elements::Expressions(init)
+                        } else {
+                            let mut init = vec![];
+                            if func_max > 0 {
+                                arbitrary_loop(u, self.config.min_elements(), max, |u| {
+                                    let func_idx = u.int_in_range(0..=func_max - 1)?;
+                                    init.push(func_idx);
+                                    Ok(true)
+                                })?;
+                            }
+                            Elements::Functions(init)
+                        };
+        
+                        self.elems.push(ElementSegment { kind, ty, items });
+                        Ok(true)
+                    },
+                )
+            }
+        }
     }
 
     fn arbitrary_code(&mut self, u: &mut Unstructured, allow_invalid: bool) -> Result<()> {
         
-        let (hasinit, codes) = self.config.initial_code();
+        let initial_codes = self.config.initial_code();
 
-        if hasinit {
-            self.code = codes;
-            return Ok(())
+        match  initial_codes {
+            Some(codes) => {
+                self.code = codes;
+                return Ok(())
+            },
+            None => {
+                self.code.reserve(self.num_defined_funcs);
+                let mut allocs = CodeBuilderAllocations::new(self);
+                for (_, ty) in self.funcs[self.funcs.len() - self.num_defined_funcs..].iter() {
+                    let body = self.arbitrary_func_body(u, ty, &mut allocs, allow_invalid)?;
+                    self.code.push(body);
+                }
+                Ok(())
+            }
         }
         
-        self.code.reserve(self.num_defined_funcs);
-        let mut allocs = CodeBuilderAllocations::new(self);
-        for (_, ty) in self.funcs[self.funcs.len() - self.num_defined_funcs..].iter() {
-            let body = self.arbitrary_func_body(u, ty, &mut allocs, allow_invalid)?;
-            self.code.push(body);
-        }
-        Ok(())
     }
 
     fn arbitrary_func_body(
@@ -2772,111 +2809,115 @@ impl Module {
         // With bulk-memory we can generate passive data, otherwise if there are
         // no memories we can't generate any data.
         
-        let (hasinit, segments) = self.config.initial_data();
+        let initial_segments = self.config.initial_data();
 
-        if hasinit {
-            self.data = segments;
-            return Ok(())
+        match initial_segments {
+            Some(segments) => {
+                self.data = segments;
+                return Ok(())
+            },
+            None => {
+                let memories = self.memories.len() as u32;
+                if memories == 0 && !self.config.bulk_memory_enabled() {
+                    return Ok(());
+                }
+        
+                let mut choices32: Vec<Box<dyn Fn(&mut Unstructured, u64, usize) -> Result<Instruction>>> =
+                    vec![];
+                choices32.push(Box::new(|u, min_size, data_len| {
+                    Ok(Instruction::I32Const(arbitrary_offset(
+                        u,
+                        u32::try_from(min_size.saturating_mul(64 * 1024))
+                            .unwrap_or(u32::MAX)
+                            .into(),
+                        u32::MAX.into(),
+                        data_len,
+                    )? as i32))
+                }));
+                let mut choices64: Vec<Box<dyn Fn(&mut Unstructured, u64, usize) -> Result<Instruction>>> =
+                    vec![];
+                choices64.push(Box::new(|u, min_size, data_len| {
+                    Ok(Instruction::I64Const(arbitrary_offset(
+                        u,
+                        min_size.saturating_mul(64 * 1024),
+                        u64::MAX,
+                        data_len,
+                    )? as i64))
+                }));
+        
+                for (i, g) in self.globals[..self.globals.len() - self.defined_globals.len()]
+                    .iter()
+                    .enumerate()
+                {
+                    if g.mutable {
+                        continue;
+                    }
+                    if g.val_type == ValType::I32 {
+                        choices32.push(Box::new(move |_, _, _| {
+                            Ok(Instruction::GlobalGet(i as u32))
+                        }));
+                    } else if g.val_type == ValType::I64 {
+                        choices64.push(Box::new(move |_, _, _| {
+                            Ok(Instruction::GlobalGet(i as u32))
+                        }));
+                    }
+                }
+        
+                // Build a list of candidate memories that we'll add data initializers
+                // for. If a memory doesn't have an initial size then any initializers
+                // for that memory will trap instantiation, which isn't too
+                // interesting. Try to make this happen less often by making it less
+                // likely that a memory with 0 size will have a data segment.
+                let mut memories = Vec::new();
+                for (i, mem) in self.memories.iter().enumerate() {
+                    if mem.minimum > 0 || u.int_in_range(0..=CHANCE_SEGMENT_ON_EMPTY)? == 0 {
+                        memories.push(i as u32);
+                    }
+                }
+        
+                // With memories we can generate data segments, and with bulk memory we
+                // can generate passive segments. Without these though we can't create
+                // a valid module with data segments.
+                if memories.len() == 0 && !self.config.bulk_memory_enabled() {
+                    return Ok(());
+                }
+        
+                arbitrary_loop(
+                    u,
+                    self.config.min_data_segments(),
+                    self.config.max_data_segments(),
+                    |u| {
+                        let init: Vec<u8> = u.arbitrary()?;
+        
+                        // Passive data can only be generated if bulk memory is enabled.
+                        // Otherwise if there are no memories we *only* generate passive
+                        // data. Finally if all conditions are met we use an input byte to
+                        // determine if it should be passive or active.
+                        let kind = if self.config.bulk_memory_enabled()
+                            && (memories.is_empty() || u.arbitrary()?)
+                        {
+                            DataSegmentKind::Passive
+                        } else {
+                            let memory_index = *u.choose(&memories)?;
+                            let mem = &self.memories[memory_index as usize];
+                            let f = if mem.memory64 {
+                                u.choose(&choices64)?
+                            } else {
+                                u.choose(&choices32)?
+                            };
+                            let offset = f(u, mem.minimum, init.len())?;
+                            DataSegmentKind::Active {
+                                offset,
+                                memory_index,
+                            }
+                        };
+                        self.data.push(DataSegment { kind, init });
+                        Ok(true)
+                    },
+                )
+            }
         }
         
-        let memories = self.memories.len() as u32;
-        if memories == 0 && !self.config.bulk_memory_enabled() {
-            return Ok(());
-        }
-
-        let mut choices32: Vec<Box<dyn Fn(&mut Unstructured, u64, usize) -> Result<Instruction>>> =
-            vec![];
-        choices32.push(Box::new(|u, min_size, data_len| {
-            Ok(Instruction::I32Const(arbitrary_offset(
-                u,
-                u32::try_from(min_size.saturating_mul(64 * 1024))
-                    .unwrap_or(u32::MAX)
-                    .into(),
-                u32::MAX.into(),
-                data_len,
-            )? as i32))
-        }));
-        let mut choices64: Vec<Box<dyn Fn(&mut Unstructured, u64, usize) -> Result<Instruction>>> =
-            vec![];
-        choices64.push(Box::new(|u, min_size, data_len| {
-            Ok(Instruction::I64Const(arbitrary_offset(
-                u,
-                min_size.saturating_mul(64 * 1024),
-                u64::MAX,
-                data_len,
-            )? as i64))
-        }));
-
-        for (i, g) in self.globals[..self.globals.len() - self.defined_globals.len()]
-            .iter()
-            .enumerate()
-        {
-            if g.mutable {
-                continue;
-            }
-            if g.val_type == ValType::I32 {
-                choices32.push(Box::new(move |_, _, _| {
-                    Ok(Instruction::GlobalGet(i as u32))
-                }));
-            } else if g.val_type == ValType::I64 {
-                choices64.push(Box::new(move |_, _, _| {
-                    Ok(Instruction::GlobalGet(i as u32))
-                }));
-            }
-        }
-
-        // Build a list of candidate memories that we'll add data initializers
-        // for. If a memory doesn't have an initial size then any initializers
-        // for that memory will trap instantiation, which isn't too
-        // interesting. Try to make this happen less often by making it less
-        // likely that a memory with 0 size will have a data segment.
-        let mut memories = Vec::new();
-        for (i, mem) in self.memories.iter().enumerate() {
-            if mem.minimum > 0 || u.int_in_range(0..=CHANCE_SEGMENT_ON_EMPTY)? == 0 {
-                memories.push(i as u32);
-            }
-        }
-
-        // With memories we can generate data segments, and with bulk memory we
-        // can generate passive segments. Without these though we can't create
-        // a valid module with data segments.
-        if memories.len() == 0 && !self.config.bulk_memory_enabled() {
-            return Ok(());
-        }
-
-        arbitrary_loop(
-            u,
-            self.config.min_data_segments(),
-            self.config.max_data_segments(),
-            |u| {
-                let init: Vec<u8> = u.arbitrary()?;
-
-                // Passive data can only be generated if bulk memory is enabled.
-                // Otherwise if there are no memories we *only* generate passive
-                // data. Finally if all conditions are met we use an input byte to
-                // determine if it should be passive or active.
-                let kind = if self.config.bulk_memory_enabled()
-                    && (memories.is_empty() || u.arbitrary()?)
-                {
-                    DataSegmentKind::Passive
-                } else {
-                    let memory_index = *u.choose(&memories)?;
-                    let mem = &self.memories[memory_index as usize];
-                    let f = if mem.memory64 {
-                        u.choose(&choices64)?
-                    } else {
-                        u.choose(&choices32)?
-                    };
-                    let offset = f(u, mem.minimum, init.len())?;
-                    DataSegmentKind::Active {
-                        offset,
-                        memory_index,
-                    }
-                };
-                self.data.push(DataSegment { kind, init });
-                Ok(true)
-            },
-        )
     }
 
     /// Returns a candidate list of `Export` entities which are items in this

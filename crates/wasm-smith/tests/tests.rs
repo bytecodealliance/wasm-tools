@@ -51,8 +51,8 @@ impl InitialValuesConfig {
 }
 
 impl Config for InitialValuesConfig {
-    fn initial_types(&self) -> (bool, Vec<Type>) {
-        (true, self.tpes.clone())
+    fn initial_types(&self) -> Option<Vec<Type>> {
+        Some(self.tpes.clone())
     }
 
     fn min_funcs(&self) -> usize {

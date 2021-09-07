@@ -17,14 +17,14 @@ use crate::{Code, DataSegment, ElementSegment, Export, FuncType, GlobalType, Ins
 ///
 /// If you want to provide default structures for the generated Modules, define a `MyConfig` type and then
 /// provide an implementation for the `initial_<(exports|elements|memories|data|code|globals|types|tables)>` methods. 
-/// Each implementation should return a boolean value indicating if the module should have a preset collection of payloads and the corresponding payloads. For example:
+/// Each implementation should a collection of payloads. For example:
 /// ```
 ///    pub struct InitialValuesConfig{
 ///       tpes: Vec<Type>
 ///    }
 ///    impl Config for InitialValuesConfig {
-///        fn initial_types(&self) -> (bool, Vec<Type>) {
-///            (true, vec![
+///        fn initial_types(&self) -> Option<Vec<Type>> {
+///            Some(vec![
 ///                wasm_smith::Type::Func(Rc::new(
 ///                   FuncType::new(
 ///                      vec![], // params
@@ -323,38 +323,38 @@ pub trait Config: 'static + std::fmt::Debug {
     }
 
     /// Provides the initial tables for the module
-    fn initial_tables(&self) -> (bool, Vec<TableType>) {
-        (false, vec![])
+    fn initial_tables(&self) -> Option<Vec<TableType>> {
+        None
     }
 
     /// Provides the initial memory types for the module
-    fn initial_memories(&self) -> (bool, Vec<MemoryType>) {
-        (false, vec![])
+    fn initial_memories(&self) -> Option<Vec<MemoryType>> {
+        None
     }
 
     /// Provides the initial tables for the module
-    fn initial_exports(&self) -> (bool, Vec<(String, Export)>) {
-        (false, vec![])
+    fn initial_exports(&self) -> Option<Vec<(String, Export)>> {
+        None
     }
 
     /// Provides the initial start function
-    fn initial_start(&self) -> (bool, u32) {
-        (false, 0)
+    fn initial_start(&self) -> Option<u32> {
+        None
     }
 
     /// Provides the initial elements
-    fn initial_elements(&self) -> (bool, Vec<ElementSegment>) {
-        (false, vec![])
+    fn initial_elements(&self) -> Option<Vec<ElementSegment>> {
+        None
     }
 
     /// Provides the initial elements
-    fn initial_data(&self) -> (bool, Vec<DataSegment>) {
-        (false, vec![])
+    fn initial_data(&self) -> Option<Vec<DataSegment>> {
+        None
     }
 
     /// Provides the initial function bodies
-    fn initial_code(&self) -> (bool, Vec<Code>) {
-        (false, vec![])
+    fn initial_code(&self) -> Option<Vec<Code>> {
+        None
     }
 
     /// Provides the initial function bodies
@@ -363,8 +363,8 @@ pub trait Config: 'static + std::fmt::Debug {
     }
 
     /// Provides the initial function definitions
-    fn initial_types(&self) -> (bool, Vec<Type>) {
-        (false, vec![])
+    fn initial_types(&self) -> Option<Vec<Type>> {
+        None
     }
 
     /// Set writing of initial sections
