@@ -3,7 +3,7 @@
 
 use arbitrary::{Arbitrary, Result, Unstructured};
 
-use crate::{Code, DataSegment, ElementSegment, Export, FuncType, GlobalType, Instruction, MemoryType, TableType, Type};
+use crate::{Code, DataSegment, ElementSegment, EntityType, Export, FuncType, GlobalType, Instruction, MemoryType, TableType, Type};
 
 /// Configuration for a generated module.
 ///
@@ -362,8 +362,14 @@ pub trait Config: 'static + std::fmt::Debug {
         (false, vec![], vec![])
     }
 
-    /// Provides the initial function definitions
+    /// Provides the initial types
     fn initial_types(&self) -> Option<Vec<Type>> {
+        None
+    }
+
+
+    /// Provides the initial imports
+    fn initial_imports(&self) -> Option<Vec<(String, Option<String>, EntityType)>> {
         None
     }
 

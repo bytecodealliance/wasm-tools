@@ -359,13 +359,20 @@ pub struct ModuleType {
     exports: Rc<InstanceType>,
 }
 
+/// Entity type
 #[derive(Clone, Debug)]
-enum EntityType {
+pub enum EntityType {
+    /// Global
     Global(GlobalType),
+    /// Table
     Table(TableType),
+    /// Memory
     Memory(MemoryType),
+    /// Func
     Func(u32, Rc<FuncType>),
+    /// Instance
     Instance(u32, Rc<InstanceType>),
+    /// Module
     Module(u32, Rc<ModuleType>),
 }
 
@@ -1907,129 +1914,151 @@ impl Module {
     }
 
     fn arbitrary_imports(&mut self, min: usize, u: &mut Unstructured) -> Result<()> {
-        if self.config.max_type_size() < self.type_size {
-            return Ok(());
-        }
 
-        let mut choices: Vec<fn(&mut Unstructured, &mut Module) -> Result<EntityType>> =
-            Vec::with_capacity(4);
+        let initial_imports = self.config.initial_imports();
 
-        let mut imports = Vec::new();
-        arbitrary_loop(u, min, self.config.max_imports() - self.num_imports, |u| {
-            choices.clear();
-            if self.can_add_local_or_import_func() {
-                choices.push(|u, m| {
-                    let idx = *u.choose(&m.func_types)?;
-                    let ty = m.func_type(idx).clone();
-                    Ok(EntityType::Func(idx, ty))
-                });
-            }
-            if self.can_add_local_or_import_module() {
-                choices.push(|u, m| {
-                    let idx = *u.choose(&m.module_types)?;
-                    let ty = m.module_type(idx).clone();
-                    Ok(EntityType::Module(idx, ty.clone()))
-                });
-            }
-            if self.can_add_local_or_import_instance() {
-                choices.push(|u, m| {
-                    let idx = *u.choose(&m.instance_types)?;
-                    let ty = m.instance_type(idx).clone();
-                    Ok(EntityType::Instance(idx, ty))
-                });
-            }
-            if self.can_add_local_or_import_global() {
-                choices.push(|u, m| {
-                    let ty = m.arbitrary_global_type(u)?;
-                    Ok(EntityType::Global(ty))
-                });
-            }
-            if self.can_add_local_or_import_memory() {
-                choices.push(|u, m| {
-                    let ty = m.arbitrary_memtype(u)?;
-                    Ok(EntityType::Memory(ty))
-                });
-            }
-            if self.can_add_local_or_import_table() {
-                choices.push(|u, m| {
-                    let ty = m.arbitrary_table_type(u)?;
-                    Ok(EntityType::Table(ty))
-                });
-            }
+        match initial_imports {
+            Some(imports) => {
 
-            if choices.is_empty() {
-                // We are out of choices. If we have not have reached the minimum yet, then we
-                // have no way to satisfy the constraint, but we follow max-constraints before
-                // the min-import constraint.
-                return Ok(false);
-            }
+                if !imports.is_empty(){
 
-            // Generate a type to import, but only actually add the item if the
-            // type size budget allows us to.
-            let f = u.choose(&choices)?;
-            let ty = f(u, self)?;
-            let budget = self.config.max_type_size() - self.type_size;
-            if ty.size() + 1 > budget {
-                return Ok(false);
-            }
-            self.type_size += ty.size() + 1;
-
-            // Generate an arbitrary module/name pair to name this import. Note
-            // that if module-linking is enabled and `name` is present, then we
-            // might be implicitly generating an instance. If that's the case
-            // then we need to record the type of this instance.
-            let module_linking = self.config.module_linking_enabled() || self.outers.len() > 0;
-            let (module, name) =
-                unique_import_strings(1_000, &mut self.import_names, module_linking, u)?;
-            if module_linking
-                && name.is_some()
-                && self.import_names[&module].as_ref().unwrap().len() == 1
-            {
-                // This is the first time this module name is imported from, so
-                // generate a new instance type.
-                self.implicit_instance_types
-                    .insert(module.clone(), self.instances.len());
-                self.instances.push(Rc::new(InstanceType::default()));
-            }
-
-            // Once our name is determined, and if module linking is enabled
-            // we've inserted the implicit instance, then we push the typed item
-            // into the appropriate namespace.
-            match &ty {
-                EntityType::Func(idx, ty) => self.funcs.push((Some(*idx), ty.clone())),
-                EntityType::Global(ty) => self.globals.push(ty.clone()),
-                EntityType::Table(ty) => self.tables.push(ty.clone()),
-                EntityType::Memory(ty) => self.memories.push(ty.clone()),
-                EntityType::Module(_idx, ty) => self.modules.push(ty.clone()),
-                EntityType::Instance(_idx, ty) => self.instances.push(ty.clone()),
-            }
-
-            if let Some(name) = &name {
-                if module_linking {
-                    let idx = self.implicit_instance_types[&module];
-                    let instance_ty = &mut self.instances[idx];
-                    Rc::get_mut(instance_ty)
-                        .expect("shouldn't be aliased yet")
-                        .exports
-                        .insert(name.clone(), ty.clone());
+                    let mut size = 0;
+                    for (_,_,ty) in imports.iter() {
+                        size += ty.size() + 1;
+                    }
+                    self.type_size += size;
+                    self.initial_sections.push(InitialSection::Import(imports));
                 }
+                return Ok(())
+            },
+            None => {
+                if self.config.max_type_size() < self.type_size {
+                    return Ok(());
+                }
+        
+                let mut choices: Vec<fn(&mut Unstructured, &mut Module) -> Result<EntityType>> =
+                    Vec::with_capacity(4);
+        
+                let mut imports = Vec::new();
+                arbitrary_loop(u, min, self.config.max_imports() - self.num_imports, |u| {
+                    choices.clear();
+                    if self.can_add_local_or_import_func() {
+                        choices.push(|u, m| {
+                            let idx = *u.choose(&m.func_types)?;
+                            let ty = m.func_type(idx).clone();
+                            Ok(EntityType::Func(idx, ty))
+                        });
+                    }
+                    if self.can_add_local_or_import_module() {
+                        choices.push(|u, m| {
+                            let idx = *u.choose(&m.module_types)?;
+                            let ty = m.module_type(idx).clone();
+                            Ok(EntityType::Module(idx, ty.clone()))
+                        });
+                    }
+                    if self.can_add_local_or_import_instance() {
+                        choices.push(|u, m| {
+                            let idx = *u.choose(&m.instance_types)?;
+                            let ty = m.instance_type(idx).clone();
+                            Ok(EntityType::Instance(idx, ty))
+                        });
+                    }
+                    if self.can_add_local_or_import_global() {
+                        choices.push(|u, m| {
+                            let ty = m.arbitrary_global_type(u)?;
+                            Ok(EntityType::Global(ty))
+                        });
+                    }
+                    if self.can_add_local_or_import_memory() {
+                        choices.push(|u, m| {
+                            let ty = m.arbitrary_memtype(u)?;
+                            Ok(EntityType::Memory(ty))
+                        });
+                    }
+                    if self.can_add_local_or_import_table() {
+                        choices.push(|u, m| {
+                            let ty = m.arbitrary_table_type(u)?;
+                            Ok(EntityType::Table(ty))
+                        });
+                    }
+        
+                    if choices.is_empty() {
+                        // We are out of choices. If we have not have reached the minimum yet, then we
+                        // have no way to satisfy the constraint, but we follow max-constraints before
+                        // the min-import constraint.
+                        return Ok(false);
+                    }
+        
+                    // Generate a type to import, but only actually add the item if the
+                    // type size budget allows us to.
+                    let f = u.choose(&choices)?;
+                    let ty = f(u, self)?;
+                    let budget = self.config.max_type_size() - self.type_size;
+                    if ty.size() + 1 > budget {
+                        return Ok(false);
+                    }
+                    self.type_size += ty.size() + 1;
+        
+                    // Generate an arbitrary module/name pair to name this import. Note
+                    // that if module-linking is enabled and `name` is present, then we
+                    // might be implicitly generating an instance. If that's the case
+                    // then we need to record the type of this instance.
+                    let module_linking = self.config.module_linking_enabled() || self.outers.len() > 0;
+                    let (module, name) =
+                        unique_import_strings(1_000, &mut self.import_names, module_linking, u)?;
+                    if module_linking
+                        && name.is_some()
+                        && self.import_names[&module].as_ref().unwrap().len() == 1
+                    {
+                        // This is the first time this module name is imported from, so
+                        // generate a new instance type.
+                        self.implicit_instance_types
+                            .insert(module.clone(), self.instances.len());
+                        self.instances.push(Rc::new(InstanceType::default()));
+                    }
+        
+                    // Once our name is determined, and if module linking is enabled
+                    // we've inserted the implicit instance, then we push the typed item
+                    // into the appropriate namespace.
+                    match &ty {
+                        EntityType::Func(idx, ty) => self.funcs.push((Some(*idx), ty.clone())),
+                        EntityType::Global(ty) => self.globals.push(ty.clone()),
+                        EntityType::Table(ty) => self.tables.push(ty.clone()),
+                        EntityType::Memory(ty) => self.memories.push(ty.clone()),
+                        EntityType::Module(_idx, ty) => self.modules.push(ty.clone()),
+                        EntityType::Instance(_idx, ty) => self.instances.push(ty.clone()),
+                    }
+        
+                    if let Some(name) = &name {
+                        if module_linking {
+                            let idx = self.implicit_instance_types[&module];
+                            let instance_ty = &mut self.instances[idx];
+                            Rc::get_mut(instance_ty)
+                                .expect("shouldn't be aliased yet")
+                                .exports
+                                .insert(name.clone(), ty.clone());
+                        }
+                    }
+        
+                    self.num_imports += 1;
+                    imports.push((module, name, ty));
+                    Ok(true)
+                })?;
+                if !imports.is_empty() || u.arbitrary()? {
+                    self.initial_sections.push(InitialSection::Import(imports));
+                }
+        
+                // After an import section we can no longer update previously-defined
+                // pseudo-instance imports, so set them all to `None` indicating that
+                // the bare name is imported and finalized.
+                for val in self.import_names.values_mut() {
+                    *val = None;
+                }
+                Ok(())
             }
-
-            self.num_imports += 1;
-            imports.push((module, name, ty));
-            Ok(true)
-        })?;
-        if !imports.is_empty() || u.arbitrary()? {
-            self.initial_sections.push(InitialSection::Import(imports));
         }
 
-        // After an import section we can no longer update previously-defined
-        // pseudo-instance imports, so set them all to `None` indicating that
-        // the bare name is imported and finalized.
-        for val in self.import_names.values_mut() {
-            *val = None;
-        }
-        Ok(())
+
     }
 
     fn arbitrary_aliases(
