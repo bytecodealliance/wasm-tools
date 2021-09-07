@@ -138,7 +138,8 @@ impl Function {
         self
     }
 
-    fn encode(&self, bytes: &mut Vec<u8>) {
+    /// Encode function to bytes
+    pub fn encode(&self, bytes: &mut Vec<u8>) {
         bytes.extend(
             encoders::u32(u32::try_from(self.bytes.len()).unwrap())
                 .chain(self.bytes.iter().copied()),

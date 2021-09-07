@@ -32,6 +32,7 @@ use crate::{MutationContext, WasmMutate};
 "###]
 pub trait Mutator<T>: Sized
 {
+    
     /// Method where the mutation happpens
     ///
     /// * `context` instance of WasmMutate
@@ -40,7 +41,7 @@ pub trait Mutator<T>: Sized
     /// * `mutable` mutable object
     fn mutate<'a>(&mut self, _:&'a WasmMutate, chunk: &'a [u8], out_buffer:&'a mut dyn Write, _: &mut T, mutation_context: &mut MutationContext) -> () {
         // The default behavior for a mutator is to pass the same input
-        out_buffer.write(chunk).expect("Could not write to out buffer");
+        out_buffer.write(&chunk).expect("Could not write to out buffer");
     }
 }
 
