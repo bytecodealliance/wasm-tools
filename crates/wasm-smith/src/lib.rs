@@ -302,6 +302,7 @@ impl<'a> Arbitrary<'a> for MaybeInvalidModule {
     }
 }
 
+
 #[derive(Debug)]
 enum InitialSection {
     Type(Vec<Type>),
@@ -311,27 +312,44 @@ enum InitialSection {
     Module(Vec<Module>),
 }
 
+/// Type definition
 #[derive(Clone, Debug)]
-enum Type {
+pub enum Type {
+    /// Function type
     Func(Rc<FuncType>),
+    /// Module type
     Module(Rc<ModuleType>),
+    /// Instance type
     Instance(Rc<InstanceType>),
 }
 
+/// Function type definition
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-struct FuncType {
+pub struct FuncType {
     params: Vec<ValType>,
     results: Vec<ValType>,
 }
 
+impl FuncType {
+    /// Creates a new function type with passed parameters and results
+    pub fn new(params: Vec<ValType>,results: Vec<ValType>) -> Self {
+        FuncType {
+            params: params,
+            results: results
+        }
+    }
+}
+
+/// Instance type
 #[derive(Clone, Debug, Default)]
-struct InstanceType {
+pub struct InstanceType {
     type_size: u32,
     exports: indexmap::IndexMap<String, EntityType>,
 }
 
+/// Module type
 #[derive(Clone, Debug)]
-struct ModuleType {
+pub struct ModuleType {
     type_size: u32,
     imports: Vec<(String, Option<String>, EntityType)>,
     import_types: indexmap::IndexMap<String, EntityType>,
@@ -351,33 +369,44 @@ enum EntityType {
     Module(u32, Rc<ModuleType>),
 }
 
+/// Value type
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-enum ValType {
+pub enum ValType {
+    /// I32
     I32,
+    /// I64
     I64,
+    /// F32
     F32,
+    /// F64
     F64,
+    /// V128
     V128,
+    /// Function ref
     FuncRef,
+    /// External ref
     ExternRef,
 }
 
+/// Table type
 #[derive(Clone, Debug)]
-struct TableType {
+pub struct TableType {
     minimum: u32,
     maximum: Option<u32>,
     elem_ty: ValType,
 }
 
+/// Memory type
 #[derive(Clone, Debug)]
-struct MemoryType {
+pub struct MemoryType {
     minimum: u64,
     maximum: Option<u64>,
     memory64: bool,
 }
 
+/// Global type
 #[derive(Clone, Debug, PartialEq)]
-struct GlobalType {
+pub struct GlobalType {
     val_type: ValType,
     mutable: bool,
 }
@@ -415,23 +444,32 @@ enum ItemKind {
     Module,
 }
 
+/// Export
 #[derive(Copy, Clone, Debug)]
-enum Export {
+pub enum Export {
+    /// Function export
     Func(u32),
+    /// Table export
     Table(u32),
+    /// Memory export
     Memory(u32),
+    /// Global export
     Global(u32),
+    /// Instance export
     Instance(u32),
+    /// Module export
     Module(u32),
 }
 
+/// Element segment
 #[derive(Debug)]
-struct ElementSegment {
+pub struct ElementSegment {
     kind: ElementKind,
     ty: ValType,
     items: Elements,
 }
 
+/// Element kind
 #[derive(Debug)]
 enum ElementKind {
     Passive,
@@ -442,28 +480,37 @@ enum ElementKind {
     },
 }
 
+/// Elements
 #[derive(Debug)]
 enum Elements {
+    /// Function elements
     Functions(Vec<u32>),
+    /// Expression elements
     Expressions(Vec<Option<u32>>),
 }
 
+/// Code
 #[derive(Debug)]
-struct Code {
+pub struct Code {
     locals: Vec<ValType>,
     instructions: Instructions,
 }
 
+/// Code instructions
 #[derive(Debug)]
 enum Instructions {
     Generated(Vec<Instruction>),
     Arbitrary(Vec<u8>),
 }
 
+/// Block type
 #[derive(Clone, Copy, Debug)]
-enum BlockType {
+pub enum BlockType {
+    /// Empty
     Empty,
+    /// Result
     Result(ValType),
+    /// Function type
     FuncType(u32),
 }
 
@@ -480,8 +527,9 @@ impl BlockType {
     }
 }
 
+/// Memory argument
 #[derive(Clone, Copy, Debug)]
-struct MemArg {
+pub struct MemArg {
     offset: u64,
     align: u32,
     memory_index: u32,
@@ -489,462 +537,1045 @@ struct MemArg {
 
 type Lane = u8;
 
+/// Instruction
 #[derive(Clone, Debug)]
 #[allow(non_camel_case_types)]
-enum Instruction {
-    // Control instructions.
+pub enum Instruction {
+    
+    /// Unreachable
     Unreachable,
+    /// Nop
     Nop,
+    /// Block
     Block(BlockType),
+    /// Loop
     Loop(BlockType),
+    /// If
     If(BlockType),
+    /// Else
     Else,
+    /// End
     End,
+    /// Br
     Br(u32),
+    /// BrIf
     BrIf(u32),
+    /// BrTable
     BrTable(Vec<u32>, u32),
+    /// Return
     Return,
+    /// Call
     Call(u32),
-    CallIndirect { ty: u32, table: u32 },
-
+    /// CallIndirect
+    CallIndirect { 
+        /// type index
+        ty: u32, 
+        /// table index
+        table: u32 
+    },
     // Parametric instructions.
+    /// Drop
     Drop,
+    /// Select
     Select,
 
     // Variable instructions.
+    /// LocalGet
     LocalGet(u32),
+    /// LocalSet
     LocalSet(u32),
+    /// LocalTee
     LocalTee(u32),
+    /// GlobalGet
     GlobalGet(u32),
+    /// GlobalSet
     GlobalSet(u32),
 
     // Memory instructions.
+    /// I32Load
     I32Load(MemArg),
+    /// I64Load
     I64Load(MemArg),
+    /// F32Load
     F32Load(MemArg),
+    /// F64Load
     F64Load(MemArg),
+    /// I32Load8
     I32Load8_S(MemArg),
+    /// I32Load8
     I32Load8_U(MemArg),
+    /// I32Load16
     I32Load16_S(MemArg),
+    /// I32Load16
     I32Load16_U(MemArg),
+    /// I64Load8
     I64Load8_S(MemArg),
+    /// I64Load8
     I64Load8_U(MemArg),
+    /// I64Load16
     I64Load16_S(MemArg),
+    /// I64Load16
     I64Load16_U(MemArg),
+    /// I64Load32
     I64Load32_S(MemArg),
+    /// I64Load32
     I64Load32_U(MemArg),
+    /// I32Store
     I32Store(MemArg),
+    /// I64Store
     I64Store(MemArg),
+    /// F32Store
     F32Store(MemArg),
+    /// F64Store
     F64Store(MemArg),
+    /// I32Store8
     I32Store8(MemArg),
+    /// I32Store16
     I32Store16(MemArg),
+    /// I64Store8
     I64Store8(MemArg),
+    /// I64Store16
     I64Store16(MemArg),
+    /// I64Store32
     I64Store32(MemArg),
+    /// MemorySize
     MemorySize(u32),
+    /// MemoryGrow
     MemoryGrow(u32),
-    MemoryInit { mem: u32, data: u32 },
+    /// MemoryInit
+    MemoryInit { 
+        /// Memory index
+        mem: u32, 
+        /// Initial data index
+        data: u32 },
+    /// DataDrop
     DataDrop(u32),
-    MemoryCopy { src: u32, dst: u32 },
+    /// MemoryCopy
+    MemoryCopy { 
+        /// Source memory index
+        src: u32, 
+        /// Destiny memory index
+        dst: u32 },
+    /// MemoryFill
     MemoryFill(u32),
 
     // Numeric instructions.
+    /// I32Const
     I32Const(i32),
+    /// I64Const
     I64Const(i64),
+    /// F32Const
     F32Const(f32),
+    /// F64Const
     F64Const(f64),
+    /// I32Eqz
     I32Eqz,
+    /// I32Eq
     I32Eq,
+    /// I32Neq
     I32Neq,
+    /// I32LtS
     I32LtS,
+    /// I32LtU
     I32LtU,
+    /// I32GtS
     I32GtS,
+    /// I32GtU
     I32GtU,
+    /// I32LeS
     I32LeS,
+    /// I32LeU
     I32LeU,
+    /// I32GeS
     I32GeS,
+    /// I32GeU
     I32GeU,
+    /// I64Eqz
     I64Eqz,
+    /// I64Eq
     I64Eq,
+    /// I64Neq
     I64Neq,
+    /// I64LtS
     I64LtS,
+    /// I64LtU
     I64LtU,
+    /// I64GtS
     I64GtS,
+    /// I64GtU
     I64GtU,
+    /// I64LeS
     I64LeS,
+    /// I64LeU
     I64LeU,
+    /// I64GeS
     I64GeS,
+    /// I64GeU
     I64GeU,
+    /// F32Eq
     F32Eq,
+    /// F32Neq
     F32Neq,
+    /// F32Lt
     F32Lt,
+    /// F32Gt
     F32Gt,
+    /// F32Le
     F32Le,
+    /// F32Ge
     F32Ge,
+    /// F64Eq
     F64Eq,
+    /// F64Neq
     F64Neq,
+    /// F64Lt
     F64Lt,
+    /// F64Gt
     F64Gt,
+    /// F64Le
     F64Le,
+    /// F64Ge
     F64Ge,
+    /// I32Clz
     I32Clz,
+    /// I32Ctz
     I32Ctz,
+    /// I32Popcnt
     I32Popcnt,
+    /// I32Add
     I32Add,
+    /// I32Sub
     I32Sub,
+    /// I32Mul
     I32Mul,
+    /// I32DivS
     I32DivS,
+    /// I32DivU
     I32DivU,
+    /// I32RemS
     I32RemS,
+    /// I32RemU
     I32RemU,
+    /// I32And
     I32And,
+    /// I32Or
     I32Or,
+    /// I32Xor
     I32Xor,
+    /// I32Shl
     I32Shl,
+    /// I32ShrS
     I32ShrS,
+    /// I32ShrU
     I32ShrU,
+    /// I32Rotl
     I32Rotl,
+    /// I32Rotr
     I32Rotr,
+    /// I64Clz
     I64Clz,
+    /// I64Ctz
     I64Ctz,
+    /// I64Popcnt
     I64Popcnt,
+    /// I64Add
     I64Add,
+    /// I64Sub
     I64Sub,
+    /// I64Mul
     I64Mul,
+    /// I64DivS
     I64DivS,
+    /// I64DivU
     I64DivU,
+    /// I64RemS
     I64RemS,
+    /// I64RemU
     I64RemU,
+    /// I64And
     I64And,
+    /// I64Or
     I64Or,
+    /// I64Xor
     I64Xor,
+    /// I64Shl
     I64Shl,
+    /// I64ShrS
     I64ShrS,
+    /// I64ShrU
     I64ShrU,
+    /// I64Rotl
     I64Rotl,
+    /// I64Rotr
     I64Rotr,
+    /// F32Abs
     F32Abs,
+    /// F32Neg
     F32Neg,
+    /// F32Ceil
     F32Ceil,
+    /// F32Floor
     F32Floor,
+    /// F32Trunc
     F32Trunc,
+    /// F32Nearest
     F32Nearest,
+    /// F32Sqrt
     F32Sqrt,
+    /// F32Add
     F32Add,
+    /// F32Sub
     F32Sub,
+    /// F32Mul
     F32Mul,
+    /// F32Div
     F32Div,
+    /// F32Min
     F32Min,
+    /// F32Max
     F32Max,
+    /// F32Copysign
     F32Copysign,
+    /// F64Abs
     F64Abs,
+    /// F64Neg
     F64Neg,
+    /// F64Ceil
     F64Ceil,
+    /// F64Floor
     F64Floor,
+    /// F64Trunc
     F64Trunc,
+    /// F64Nearest
     F64Nearest,
+    /// F64Sqrt
     F64Sqrt,
+    /// F64Add
     F64Add,
+    /// F64Sub
     F64Sub,
+    /// F64Mul
     F64Mul,
+    /// F64Div
     F64Div,
+    /// F64Min
     F64Min,
+    /// F64Max
     F64Max,
+    /// F64Copysign
     F64Copysign,
+    /// I32WrapI64
     I32WrapI64,
+    /// I32TruncF32S
     I32TruncF32S,
+    /// I32TruncF32U
     I32TruncF32U,
+    /// I32TruncF64S
     I32TruncF64S,
+    /// I32TruncF64U
     I32TruncF64U,
+    /// I64ExtendI32S
     I64ExtendI32S,
+    /// I64ExtendI32U
     I64ExtendI32U,
+    /// I64TruncF32S
     I64TruncF32S,
+    /// I64TruncF32U
     I64TruncF32U,
+    /// I64TruncF64S
     I64TruncF64S,
+    /// I64TruncF64U
     I64TruncF64U,
+    /// F32ConvertI32S
     F32ConvertI32S,
+    /// F32ConvertI32U
     F32ConvertI32U,
+    /// F32ConvertI64S
     F32ConvertI64S,
+    /// F32ConvertI64U
     F32ConvertI64U,
+    /// F32DemoteF64
     F32DemoteF64,
+    /// F64ConvertI32S
     F64ConvertI32S,
+    /// F64ConvertI32U
     F64ConvertI32U,
+    /// F64ConvertI64S
     F64ConvertI64S,
+    /// F64ConvertI64U
     F64ConvertI64U,
+    /// F64PromoteF32
     F64PromoteF32,
+    /// I32ReinterpretF32
     I32ReinterpretF32,
+    /// I64ReinterpretF64
     I64ReinterpretF64,
+    /// F32ReinterpretI32
     F32ReinterpretI32,
+    /// F64ReinterpretI64
     F64ReinterpretI64,
+    /// I32Extend8S
     I32Extend8S,
+    /// I32Extend16S
     I32Extend16S,
+    /// I64Extend8S
     I64Extend8S,
+    /// I64Extend16S
     I64Extend16S,
+    /// I64Extend32S
     I64Extend32S,
+    /// I32TruncSatF32S
     I32TruncSatF32S,
+    /// I32TruncSatF32U
     I32TruncSatF32U,
+    /// I32TruncSatF64S
     I32TruncSatF64S,
+    /// I32TruncSatF64U
     I32TruncSatF64U,
+    /// I64TruncSatF32S
     I64TruncSatF32S,
+    /// I64TruncSatF32U
     I64TruncSatF32U,
+    /// I64TruncSatF64S
     I64TruncSatF64S,
+    /// I64TruncSatF64U
     I64TruncSatF64U,
+    /// TypedSelect
     TypedSelect(ValType),
+    /// RefNull
     RefNull(ValType),
+    /// RefIsNull
     RefIsNull,
+    /// RefFunc
     RefFunc(u32),
-    TableInit { segment: u32, table: u32 },
-    ElemDrop { segment: u32 },
-    TableFill { table: u32 },
-    TableSet { table: u32 },
-    TableGet { table: u32 },
-    TableGrow { table: u32 },
-    TableSize { table: u32 },
-    TableCopy { src: u32, dst: u32 },
+    /// TableInit
+    TableInit { 
+        /// segment index
+        segment: u32, 
+        /// table index
+        table: u32 },
+    /// ElemDrop
+    ElemDrop { 
+        /// segment
+        segment: u32 
+    },
+    /// TableFill
+    TableFill { 
+        /// table index
+        table: u32 
+    },
+    /// TableSet
+    TableSet { 
+        /// table index
+        table: u32 
+    },
+    /// TableGet
+    TableGet { 
+        /// table index
+        table: u32 
+    },
+    /// TableGrow
+    TableGrow { 
+        /// table index
+        table: u32 
+    },
+    /// TableSize
+    TableSize { 
+        /// table index
+        table: u32 
+    },
+    /// TableCopy
+    TableCopy { 
+        /// Src index
+        src: u32, 
+        /// Dst index
+        dst: u32 
+    },
 
     // SIMD instructions.
-    V128Load { memarg: MemArg },
-    V128Load8x8S { memarg: MemArg },
-    V128Load8x8U { memarg: MemArg },
-    V128Load16x4S { memarg: MemArg },
-    V128Load16x4U { memarg: MemArg },
-    V128Load32x2S { memarg: MemArg },
-    V128Load32x2U { memarg: MemArg },
-    V128Load8Splat { memarg: MemArg },
-    V128Load16Splat { memarg: MemArg },
-    V128Load32Splat { memarg: MemArg },
-    V128Load64Splat { memarg: MemArg },
-    V128Load32Zero { memarg: MemArg },
-    V128Load64Zero { memarg: MemArg },
-    V128Store { memarg: MemArg },
-    V128Load8Lane { memarg: MemArg, lane: Lane },
-    V128Load16Lane { memarg: MemArg, lane: Lane },
-    V128Load32Lane { memarg: MemArg, lane: Lane },
-    V128Load64Lane { memarg: MemArg, lane: Lane },
-    V128Store8Lane { memarg: MemArg, lane: Lane },
-    V128Store16Lane { memarg: MemArg, lane: Lane },
-    V128Store32Lane { memarg: MemArg, lane: Lane },
-    V128Store64Lane { memarg: MemArg, lane: Lane },
+    /// V128Load
+    V128Load { 
+        /// mem argument
+        memarg: MemArg
+    },
+    /// V128Load8x8S
+    V128Load8x8S { 
+        /// mem argument
+        memarg: MemArg
+    },
+    /// V128Load8x8U
+    V128Load8x8U { 
+        /// mem argument
+        memarg: MemArg
+    },
+    /// V128Load16x4S
+    V128Load16x4S { 
+        /// mem argument
+        memarg: MemArg
+    },
+    /// V128Load16x4U
+    V128Load16x4U { 
+        /// mem argument
+        memarg: MemArg
+    },
+    /// V128Load32x2S
+    V128Load32x2S { 
+        /// mem argument
+        memarg: MemArg
+    },
+    /// V128Load32x2U
+    V128Load32x2U { 
+        /// mem argument
+        memarg: MemArg
+    },
+    /// V128Load8Splat
+    V128Load8Splat { 
+        /// mem argument
+        memarg: MemArg
+    },
+    /// V128Load16Splat
+    V128Load16Splat { 
+        /// mem argument
+        memarg: MemArg
+    },
+    /// V128Load32Splat
+    V128Load32Splat { 
+        /// mem argument
+        memarg: MemArg
+    },
+    /// V128Load64Splat
+    V128Load64Splat { 
+        /// mem argument
+        memarg: MemArg
+    },
+    /// V128Load32Zero
+    V128Load32Zero { 
+        /// mem argument
+        memarg: MemArg
+    },
+    /// V128Load64Zero
+    V128Load64Zero { 
+        /// mem argument
+        memarg: MemArg
+    },
+    /// V128Store
+    V128Store { 
+        /// mem argument
+        memarg: MemArg
+    },
+    /// V128Load8Lane
+    V128Load8Lane { 
+        /// mem argument
+        memarg: MemArg,
+        /// lane
+        /// lane 
+ lane: Lane 
+    },
+    /// V128Load16Lane
+    V128Load16Lane { 
+    /// mem argument
+    memarg: MemArg,
+    /// lane
+    /// lane 
+ lane: Lane 
+    },
+    /// V128Load32Lane
+    V128Load32Lane { 
+        /// mem argument
+        memarg: MemArg,
+        /// lane
+        /// lane 
+ lane: Lane 
+    },
+    /// V128Load64Lane
+    V128Load64Lane { 
+        /// mem argument
+        memarg: MemArg,
+        /// lane
+        /// lane 
+ lane: Lane 
+    },
+    /// V128Store8Lane
+    V128Store8Lane { 
+        /// mem argument
+        memarg: MemArg,
+        /// lane
+        /// lane 
+ lane: Lane 
+    },
+    /// V128Store16Lane
+    V128Store16Lane { 
+        /// mem argument
+        memarg: MemArg,
+        /// lane 
+        /// lane 
+ lane: Lane },
+    /// V128Store32Lane
+    V128Store32Lane { 
+        /// mem argument
+        memarg: MemArg,
+        /// lane 
+        /// lane 
+ lane: Lane },
+    /// V128Store64Lane
+    V128Store64Lane { 
+        /// mem argument
+        memarg: MemArg,
+        /// lane 
+        /// lane 
+ lane: Lane },
+    /// V128Const
     V128Const(i128),
-    I8x16Shuffle { lanes: [Lane; 16] },
-    I8x16ExtractLaneS { lane: Lane },
-    I8x16ExtractLaneU { lane: Lane },
-    I8x16ReplaceLane { lane: Lane },
-    I16x8ExtractLaneS { lane: Lane },
-    I16x8ExtractLaneU { lane: Lane },
-    I16x8ReplaceLane { lane: Lane },
-    I32x4ExtractLane { lane: Lane },
-    I32x4ReplaceLane { lane: Lane },
-    I64x2ExtractLane { lane: Lane },
-    I64x2ReplaceLane { lane: Lane },
-    F32x4ExtractLane { lane: Lane },
-    F32x4ReplaceLane { lane: Lane },
-    F64x2ExtractLane { lane: Lane },
-    F64x2ReplaceLane { lane: Lane },
+    /// I8x16Shuffle
+    I8x16Shuffle { 
+        /// lanes
+        lanes: [Lane; 16] },
+    /// I8x16ExtractLaneS
+    I8x16ExtractLaneS { /// lane 
+ lane: Lane },
+    /// I8x16ExtractLaneU
+    I8x16ExtractLaneU { /// lane 
+ lane: Lane },
+    /// I8x16ReplaceLane
+    I8x16ReplaceLane { /// lane 
+ lane: Lane },
+    /// I16x8ExtractLaneS
+    I16x8ExtractLaneS { /// lane 
+ lane: Lane },
+    /// I16x8ExtractLaneU
+    I16x8ExtractLaneU { /// lane 
+ lane: Lane },
+    /// I16x8ReplaceLane
+    I16x8ReplaceLane { /// lane 
+ lane: Lane },
+    /// I32x4ExtractLane
+    I32x4ExtractLane { /// lane 
+ lane: Lane },
+    /// I32x4ReplaceLane
+    I32x4ReplaceLane { /// lane 
+ lane: Lane },
+    /// I64x2ExtractLane
+    I64x2ExtractLane { /// lane 
+ lane: Lane },
+    /// I64x2ReplaceLane
+    I64x2ReplaceLane { /// lane 
+ lane: Lane },
+    /// F32x4ExtractLane
+    F32x4ExtractLane { /// lane 
+ lane: Lane },
+    /// F32x4ReplaceLane
+    F32x4ReplaceLane { /// lane 
+ lane: Lane },
+    /// F64x2ExtractLane
+    F64x2ExtractLane { /// lane 
+ lane: Lane },
+    /// F64x2ReplaceLane
+    F64x2ReplaceLane { /// lane 
+ lane: Lane },
+    /// I8x16Swizzle
     I8x16Swizzle,
+    /// I8x16Splat
     I8x16Splat,
+    /// I16x8Splat
     I16x8Splat,
+    /// I32x4Splat
     I32x4Splat,
+    /// I64x2Splat
     I64x2Splat,
+    /// F32x4Splat
     F32x4Splat,
+    /// F64x2Splat
     F64x2Splat,
+    /// I8x16Eq
     I8x16Eq,
+    /// I8x16Ne
     I8x16Ne,
+    /// I8x16LtS
     I8x16LtS,
+    /// I8x16LtU
     I8x16LtU,
+    /// I8x16GtS
     I8x16GtS,
+    /// I8x16GtU
     I8x16GtU,
+    /// I8x16LeS
     I8x16LeS,
+    /// I8x16LeU
     I8x16LeU,
+    /// I8x16GeS
     I8x16GeS,
+    /// I8x16GeU
     I8x16GeU,
+    /// I16x8Eq
     I16x8Eq,
+    /// I16x8Ne
     I16x8Ne,
+    /// I16x8LtS
     I16x8LtS,
+    /// I16x8LtU
     I16x8LtU,
+    /// I16x8GtS
     I16x8GtS,
+    /// I16x8GtU
     I16x8GtU,
+    /// I16x8LeS
     I16x8LeS,
+    /// I16x8LeU
     I16x8LeU,
+    /// I16x8GeS
     I16x8GeS,
+    /// I16x8GeU
     I16x8GeU,
+    /// I32x4Eq
     I32x4Eq,
+    /// I32x4Ne
     I32x4Ne,
+    /// I32x4LtS
     I32x4LtS,
+    /// I32x4LtU
     I32x4LtU,
+    /// I32x4GtS
     I32x4GtS,
+    /// I32x4GtU
     I32x4GtU,
+    /// I32x4LeS
     I32x4LeS,
+    /// I32x4LeU
     I32x4LeU,
+    /// I32x4GeS
     I32x4GeS,
+    /// I32x4GeU
     I32x4GeU,
+    /// I64x2Eq
     I64x2Eq,
+    /// I64x2Ne
     I64x2Ne,
+    /// I64x2LtS
     I64x2LtS,
+    /// I64x2GtS
     I64x2GtS,
+    /// I64x2LeS
     I64x2LeS,
+    /// I64x2GeS
     I64x2GeS,
+    /// F32x4Eq
     F32x4Eq,
+    /// F32x4Ne
     F32x4Ne,
+    /// F32x4Lt
     F32x4Lt,
+    /// F32x4Gt
     F32x4Gt,
+    /// F32x4Le
     F32x4Le,
+    /// F32x4Ge
     F32x4Ge,
+    /// F64x2Eq
     F64x2Eq,
+    /// F64x2Ne
     F64x2Ne,
+    /// F64x2Lt
     F64x2Lt,
+    /// F64x2Gt
     F64x2Gt,
+    /// F64x2Le
     F64x2Le,
+    /// F64x2Ge
     F64x2Ge,
+    /// V128Not
     V128Not,
+    /// V128And
     V128And,
+    /// V128AndNot
     V128AndNot,
+    /// V128Or
     V128Or,
+    /// V128Xor
     V128Xor,
+    /// V128Bitselect
     V128Bitselect,
+    /// V128AnyTrue
     V128AnyTrue,
+    /// I8x16Abs
     I8x16Abs,
+    /// I8x16Neg
     I8x16Neg,
+    /// I8x16Popcnt
     I8x16Popcnt,
+    /// I8x16AllTrue
     I8x16AllTrue,
+    /// I8x16Bitmask
     I8x16Bitmask,
+    /// I8x16NarrowI16x8S
     I8x16NarrowI16x8S,
+    /// I8x16NarrowI16x8U
     I8x16NarrowI16x8U,
+    /// I8x16Shl
     I8x16Shl,
+    /// I8x16ShrS
     I8x16ShrS,
+    /// I8x16ShrU
     I8x16ShrU,
+    /// I8x16Add
     I8x16Add,
+    /// I8x16AddSatS
     I8x16AddSatS,
+    /// I8x16AddSatU
     I8x16AddSatU,
+    /// I8x16Sub
     I8x16Sub,
+    /// I8x16SubSatS
     I8x16SubSatS,
+    /// I8x16SubSatU
     I8x16SubSatU,
+    /// I8x16MinS
     I8x16MinS,
+    /// I8x16MinU
     I8x16MinU,
+    /// I8x16MaxS
     I8x16MaxS,
+    /// I8x16MaxU
     I8x16MaxU,
+    /// I8x16RoundingAverageU
     I8x16RoundingAverageU,
+    /// I16x8ExtAddPairwiseI8x16S
     I16x8ExtAddPairwiseI8x16S,
+    /// I16x8ExtAddPairwiseI8x16U
     I16x8ExtAddPairwiseI8x16U,
+    /// I16x8Abs
     I16x8Abs,
+    /// I16x8Neg
     I16x8Neg,
+    /// I16x8Q15MulrSatS
     I16x8Q15MulrSatS,
+    /// I16x8AllTrue
     I16x8AllTrue,
+    /// I16x8Bitmask
     I16x8Bitmask,
+    /// I16x8NarrowI32x4S
     I16x8NarrowI32x4S,
+    /// I16x8NarrowI32x4U
     I16x8NarrowI32x4U,
+    /// I16x8ExtendLowI8x16S
     I16x8ExtendLowI8x16S,
+    /// I16x8ExtendHighI8x16S
     I16x8ExtendHighI8x16S,
+    /// I16x8ExtendLowI8x16U
     I16x8ExtendLowI8x16U,
+    /// I16x8ExtendHighI8x16U
     I16x8ExtendHighI8x16U,
+    /// I16x8Shl
     I16x8Shl,
+    /// I16x8ShrS
     I16x8ShrS,
+    /// I16x8ShrU
     I16x8ShrU,
+    /// I16x8Add
     I16x8Add,
+    /// I16x8AddSatS
     I16x8AddSatS,
+    /// I16x8AddSatU
     I16x8AddSatU,
+    /// I16x8Sub
     I16x8Sub,
+    /// I16x8SubSatS
     I16x8SubSatS,
+    /// I16x8SubSatU
     I16x8SubSatU,
+    /// I16x8Mul
     I16x8Mul,
+    /// I16x8MinS
     I16x8MinS,
+    /// I16x8MinU
     I16x8MinU,
+    /// I16x8MaxS
     I16x8MaxS,
+    /// I16x8MaxU
     I16x8MaxU,
+    /// I16x8RoundingAverageU
     I16x8RoundingAverageU,
+    /// I16x8ExtMulLowI8x16S
     I16x8ExtMulLowI8x16S,
+    /// I16x8ExtMulHighI8x16S
     I16x8ExtMulHighI8x16S,
+    /// I16x8ExtMulLowI8x16U
     I16x8ExtMulLowI8x16U,
+    /// I16x8ExtMulHighI8x16U
     I16x8ExtMulHighI8x16U,
+    /// I32x4ExtAddPairwiseI16x8S
     I32x4ExtAddPairwiseI16x8S,
+    /// I32x4ExtAddPairwiseI16x8U
     I32x4ExtAddPairwiseI16x8U,
+    /// I32x4Abs
     I32x4Abs,
+    /// I32x4Neg
     I32x4Neg,
+    /// I32x4AllTrue
     I32x4AllTrue,
+    /// I32x4Bitmask
     I32x4Bitmask,
+    /// I32x4ExtendLowI16x8S
     I32x4ExtendLowI16x8S,
+    /// I32x4ExtendHighI16x8S
     I32x4ExtendHighI16x8S,
+    /// I32x4ExtendLowI16x8U
     I32x4ExtendLowI16x8U,
+    /// I32x4ExtendHighI16x8U
     I32x4ExtendHighI16x8U,
+    /// I32x4Shl
     I32x4Shl,
+    /// I32x4ShrS
     I32x4ShrS,
+    /// I32x4ShrU
     I32x4ShrU,
+    /// I32x4Add
     I32x4Add,
+    /// I32x4Sub
     I32x4Sub,
+    /// I32x4Mul
     I32x4Mul,
+    /// I32x4MinS
     I32x4MinS,
+    /// I32x4MinU
     I32x4MinU,
+    /// I32x4MaxS
     I32x4MaxS,
+    /// I32x4MaxU
     I32x4MaxU,
+    /// I32x4DotI16x8S
     I32x4DotI16x8S,
+    /// I32x4ExtMulLowI16x8S
     I32x4ExtMulLowI16x8S,
+    /// I32x4ExtMulHighI16x8S
     I32x4ExtMulHighI16x8S,
+    /// I32x4ExtMulLowI16x8U
     I32x4ExtMulLowI16x8U,
+    /// I32x4ExtMulHighI16x8U
     I32x4ExtMulHighI16x8U,
+    /// I64x2Abs
     I64x2Abs,
+    /// I64x2Neg
     I64x2Neg,
+    /// I64x2AllTrue
     I64x2AllTrue,
+    /// I64x2Bitmask
     I64x2Bitmask,
+    /// I64x2ExtendLowI32x4S
     I64x2ExtendLowI32x4S,
+    /// I64x2ExtendHighI32x4S
     I64x2ExtendHighI32x4S,
+    /// I64x2ExtendLowI32x4U
     I64x2ExtendLowI32x4U,
+    /// I64x2ExtendHighI32x4U
     I64x2ExtendHighI32x4U,
+    /// I64x2Shl
     I64x2Shl,
+    /// I64x2ShrS
     I64x2ShrS,
+    /// I64x2ShrU
     I64x2ShrU,
+    /// I64x2Add
     I64x2Add,
+    /// I64x2Sub
     I64x2Sub,
+    /// I64x2Mul
     I64x2Mul,
+    /// I64x2ExtMulLowI32x4S
     I64x2ExtMulLowI32x4S,
+    /// I64x2ExtMulHighI32x4S
     I64x2ExtMulHighI32x4S,
+    /// I64x2ExtMulLowI32x4U
     I64x2ExtMulLowI32x4U,
+    /// I64x2ExtMulHighI32x4U
     I64x2ExtMulHighI32x4U,
+    /// F32x4Ceil
     F32x4Ceil,
+    /// F32x4Floor
     F32x4Floor,
+    /// F32x4Trunc
     F32x4Trunc,
+    /// F32x4Nearest
     F32x4Nearest,
+    /// F32x4Abs
     F32x4Abs,
+    /// F32x4Neg
     F32x4Neg,
+    /// F32x4Sqrt
     F32x4Sqrt,
+    /// F32x4Add
     F32x4Add,
+    /// F32x4Sub
     F32x4Sub,
+    /// F32x4Mul
     F32x4Mul,
+    /// F32x4Div
     F32x4Div,
+    /// F32x4Min
     F32x4Min,
+    /// F32x4Max
     F32x4Max,
+    /// F32x4PMin
     F32x4PMin,
+    /// F32x4PMax
     F32x4PMax,
+    /// F64x2Ceil
     F64x2Ceil,
+    /// F64x2Floor
     F64x2Floor,
+    /// F64x2Trunc
     F64x2Trunc,
+    /// F64x2Nearest
     F64x2Nearest,
+    /// F64x2Abs
     F64x2Abs,
+    /// F64x2Neg
     F64x2Neg,
+    /// F64x2Sqrt
     F64x2Sqrt,
+    /// F64x2Add
     F64x2Add,
+    /// F64x2Sub
     F64x2Sub,
+    /// F64x2Mul
     F64x2Mul,
+    /// F64x2Div
     F64x2Div,
+    /// F64x2Min
     F64x2Min,
+    /// F64x2Max
     F64x2Max,
+    /// F64x2PMin
     F64x2PMin,
+    /// F64x2PMax
     F64x2PMax,
+    /// I32x4TruncSatF32x4S
     I32x4TruncSatF32x4S,
+    /// I32x4TruncSatF32x4U
     I32x4TruncSatF32x4U,
+    /// F32x4ConvertI32x4S
     F32x4ConvertI32x4S,
+    /// F32x4ConvertI32x4U
     F32x4ConvertI32x4U,
+    /// I32x4TruncSatF64x2SZero
     I32x4TruncSatF64x2SZero,
+    /// I32x4TruncSatF64x2UZero
     I32x4TruncSatF64x2UZero,
+    /// F64x2ConvertLowI32x4S
     F64x2ConvertLowI32x4S,
+    /// F64x2ConvertLowI32x4U
     F64x2ConvertLowI32x4U,
+    /// F32x4DemoteF64x2Zero
     F32x4DemoteF64x2Zero,
+    /// F64x2PromoteLowF32x4
     F64x2PromoteLowF32x4,
 }
 
+/// Daata Segment
 #[derive(Debug)]
-struct DataSegment {
+pub struct DataSegment {
+    /// Kind
     kind: DataSegmentKind,
+    /// Initial value
     init: Vec<u8>,
 }
 
@@ -971,8 +1602,8 @@ impl Module {
             self.valtypes.push(ValType::FuncRef);
         }
         self.arbitrary_initial_sections(u)?;
-        self.arbitrary_funcs(u)?;
-        self.arbitrary_tables(u)?;
+        self.arbitrary_funcs(u)?; 
+        self.arbitrary_tables(u)?; 
         self.arbitrary_memories(u)?;
         self.arbitrary_globals(u)?;
         self.arbitrary_exports(u)?;
@@ -984,6 +1615,11 @@ impl Module {
     }
 
     fn arbitrary_initial_sections(&mut self, u: &mut Unstructured) -> Result<()> {
+        
+        if !self.config.write_initial_sections() {
+            return Ok(())
+        }
+        
         let mut aliases = AvailableAliases::default();
         let mut instantiations = AvailableInstantiations::default();
         if !self.config.module_linking_enabled() {
@@ -1043,22 +1679,41 @@ impl Module {
         // can mention any previous types, so we need to ensure that after each
         // type is generated it's listed in the module's types so indexing will
         // succeed.
+        let (hasinit, tpes) = self.config.initial_types();
         let section_idx = self.initial_sections.len();
         self.initial_sections.push(InitialSection::Type(Vec::new()));
-        arbitrary_loop(u, min, self.config.max_types() - self.types.len(), |u| {
-            let ty = self.arbitrary_type(u)?;
-            self.record_type(&ty);
-            let types = match self.initial_sections.last_mut().unwrap() {
-                InitialSection::Type(list) => list,
-                _ => unreachable!(),
-            };
-            self.types.push(LocalType::Defined {
-                section: section_idx,
-                nth: types.len(),
-            });
-            types.push(ty);
-            Ok(true)
-        })?;
+        if hasinit {
+            for (idx, tpe) in tpes.iter().enumerate() {
+                self.record_type(tpe);
+                let types = match self.initial_sections.last_mut().unwrap() {
+                    InitialSection::Type(list) => list,
+                    _ => unreachable!(),
+                };
+                self.types.push(LocalType::Defined {
+                    section: section_idx,
+                    nth: types.len(),
+                });
+                types.push(tpe.clone());
+            }
+            return Ok(())
+        } else {
+            arbitrary_loop(u, min, self.config.max_types() - self.types.len(), |u| {
+                let ty = self.arbitrary_type(u)?;
+                self.record_type(&ty);
+                let types = match self.initial_sections.last_mut().unwrap() {
+                    InitialSection::Type(list) => list,
+                    _ => unreachable!(),
+                };
+                self.types.push(LocalType::Defined {
+                    section: section_idx,
+                    nth: types.len(),
+                });
+                types.push(ty);
+                Ok(true)
+            })?;
+        }
+
+
         let types = match self.initial_sections.last_mut().unwrap() {
             InitialSection::Type(list) => list,
             _ => unreachable!(),
@@ -1666,6 +2321,9 @@ impl Module {
     }
 
     fn arbitrary_funcs(&mut self, u: &mut Unstructured) -> Result<()> {
+        
+       
+        
         if self.func_types.is_empty() {
             return Ok(());
         }
@@ -1683,6 +2341,15 @@ impl Module {
     }
 
     fn arbitrary_tables(&mut self, u: &mut Unstructured) -> Result<()> {
+        
+        let (hasinit, tables) = self.config.initial_tables();
+
+        if hasinit {
+            self.num_defined_tables = tables.len();
+            self.tables = tables;
+            return Ok(())
+        }
+        
         arbitrary_loop(
             u,
             self.config.min_tables() as usize,
@@ -1719,6 +2386,15 @@ impl Module {
     }
 
     fn arbitrary_memories(&mut self, u: &mut Unstructured) -> Result<()> {
+       
+        let (hasmems, memorytps) = self.config.initial_memories();
+
+        if hasmems {
+            self.num_defined_memories = memorytps.len();
+            self.memories = memorytps;
+            return Ok(())
+        }
+       
         arbitrary_loop(
             u,
             self.config.min_memories() as usize,
@@ -1735,6 +2411,15 @@ impl Module {
     }
 
     fn arbitrary_globals(&mut self, u: &mut Unstructured) -> Result<()> {
+        
+        let (hasinit, globaltpes, globalinit) = self.config.initial_globals();
+
+        if hasinit {
+            self.globals = globaltpes;
+            self.defined_globals = globalinit;
+            return Ok(())
+        }
+        
         let mut choices: Vec<Box<dyn Fn(&mut Unstructured, ValType) -> Result<Instruction>>> =
             vec![];
         let num_imported_globals = self.globals.len();
@@ -1788,6 +2473,15 @@ impl Module {
     }
 
     fn arbitrary_exports(&mut self, u: &mut Unstructured) -> Result<()> {
+        
+        let (hasinit, exports) = self.config.initial_exports();
+
+        if hasinit {
+            self.exports = exports;
+            // TODO
+            return Ok(())
+        }
+        
         if self.config.max_type_size() < self.type_size {
             return Ok(());
         }
@@ -1859,6 +2553,14 @@ impl Module {
     }
 
     fn arbitrary_start(&mut self, u: &mut Unstructured) -> Result<()> {
+        
+        let (hasinit, startidx) = self.config.initial_start();
+
+        if hasinit {
+            self.start = Some(startidx);
+            return Ok(())
+        }
+        
         if !self.config.allow_start_export() {
             return Ok(());
         }
@@ -1880,6 +2582,13 @@ impl Module {
     }
 
     fn arbitrary_elems(&mut self, u: &mut Unstructured) -> Result<()> {
+        
+        let (hasinit, elements) = self.config.initial_elements();
+        
+        if hasinit {
+            self.elems = elements;
+            return Ok(())
+        }
         let func_max = self.funcs.len() as u32;
 
         // Create a helper closure to choose an arbitrary offset.
@@ -2012,6 +2721,14 @@ impl Module {
     }
 
     fn arbitrary_code(&mut self, u: &mut Unstructured, allow_invalid: bool) -> Result<()> {
+        
+        let (hasinit, codes) = self.config.initial_code();
+
+        if hasinit {
+            self.code = codes;
+            return Ok(())
+        }
+        
         self.code.reserve(self.num_defined_funcs);
         let mut allocs = CodeBuilderAllocations::new(self);
         for (_, ty) in self.funcs[self.funcs.len() - self.num_defined_funcs..].iter() {
@@ -2054,6 +2771,14 @@ impl Module {
     fn arbitrary_data(&mut self, u: &mut Unstructured) -> Result<()> {
         // With bulk-memory we can generate passive data, otherwise if there are
         // no memories we can't generate any data.
+        
+        let (hasinit, segments) = self.config.initial_data();
+
+        if hasinit {
+            self.data = segments;
+            return Ok(())
+        }
+        
         let memories = self.memories.len() as u32;
         if memories == 0 && !self.config.bulk_memory_enabled() {
             return Ok(());

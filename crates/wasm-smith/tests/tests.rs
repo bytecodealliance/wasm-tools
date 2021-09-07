@@ -1,6 +1,8 @@
+use std::rc::Rc;
+
 use arbitrary::{Arbitrary, Unstructured};
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
-use wasm_smith::{ConfiguredModule, Module, SwarmConfig};
+use wasm_smith::{Config, ConfiguredModule, FuncType, Module, SwarmConfig, Type, ValType};
 use wasmparser::{Validator, WasmFeatures};
 
 fn wasm_features() -> WasmFeatures {
@@ -30,6 +32,69 @@ fn smoke_test_module() {
             validate(&mut validator, &wasm_bytes);
         }
     }
+}
+
+
+/// Provides configuration for wasm-smith generation. It uses preset values as the seed for the generated Wasm module
+#[derive(Clone, Debug)]
+pub struct InitialValuesConfig{
+    tpes: Vec<Type>
+}
+
+impl InitialValuesConfig {
+    /// Creates a new InitialValuesConfig with preset types
+    pub fn new(tpes: Vec<Type>) -> Self {
+        InitialValuesConfig {
+            tpes: tpes
+        }
+    }
+}
+
+impl Config for InitialValuesConfig {
+    fn initial_types(&self) -> (bool, Vec<Type>) {
+        (true, self.tpes.clone())
+    }
+
+    fn min_funcs(&self) -> usize {
+        self.tpes.len()
+    }
+
+    fn max_funcs(&self) -> usize {
+        self.tpes.len()
+    }
+
+    fn min_types(&self) -> usize {
+        0
+    }
+    fn max_type_size(&self) -> u32 {
+        0
+    }
+
+}
+
+#[test]
+fn smoke_test_module_with_initial() {
+    let mut rng = SmallRng::seed_from_u64(0);
+    let mut buf = vec![0; 1024];
+
+    rng.fill_bytes(&mut buf);
+    let mut u = Unstructured::new(&buf);
+
+    let initial_config = InitialValuesConfig::new(vec![
+        wasm_smith::Type::Func(Rc::new(
+            FuncType::new(
+                vec![],
+                vec![ValType::I32]
+            )
+        ))
+    ]); // no functio defs
+    let module = Module::new(initial_config, &mut u).unwrap();
+
+    let with_initial  = module.to_bytes();
+
+    let mut validator = Validator::new();
+    validator.wasm_features(wasm_features());
+    validate(&mut validator, &with_initial);
 }
 
 #[test]

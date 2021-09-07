@@ -1,6 +1,9 @@
 //! Configuring the shape of generated Wasm modules.
 
+
 use arbitrary::{Arbitrary, Result, Unstructured};
+
+use crate::{Code, DataSegment, ElementSegment, Export, FuncType, GlobalType, Instruction, MemoryType, TableType, Type};
 
 /// Configuration for a generated module.
 ///
@@ -11,6 +14,27 @@ use arbitrary::{Arbitrary, Result, Unstructured};
 /// If you want to configure generated modules, then define a `MyConfig` type,
 /// implement this trait for it, and use
 /// [`ConfiguredModule<MyConfig>`][crate::ConfiguredModule] instead of `Module`.
+///
+/// If you want to provide default structures for the generated Modules, define a `MyConfig` type and then
+/// provide an implementation for the `initial_<(exports|elements|memories|data|code|globals|types|tables)>` methods. 
+/// Each implementation should return a boolean value indicating if the module should have a preset collection of payloads and the corresponding payloads. For example:
+/// ```
+///    pub struct InitialValuesConfig{
+///       tpes: Vec<Type>
+///    }
+///    impl Config for InitialValuesConfig {
+///        fn initial_types(&self) -> (bool, Vec<Type>) {
+///            (true, vec![
+///                wasm_smith::Type::Func(Rc::new(
+///                   FuncType::new(
+///                      vec![], // params
+///                      vec![ValType::I32] // result
+///                )
+///             )])
+///        }
+///    }
+/// ```
+/// The previous example will preset the generated module to have only only function type that receives non inputs and provides an integer of 32 bits as a result
 ///
 /// Every trait method has a provided default implementation, so that you only
 /// need to override the methods for things you want to change away from the
@@ -297,6 +321,57 @@ pub trait Config: 'static + std::fmt::Debug {
     fn canonicalize_nans(&self) -> bool {
         false
     }
+
+    /// Provides the initial tables for the module
+    fn initial_tables(&self) -> (bool, Vec<TableType>) {
+        (false, vec![])
+    }
+
+    /// Provides the initial memory types for the module
+    fn initial_memories(&self) -> (bool, Vec<MemoryType>) {
+        (false, vec![])
+    }
+
+    /// Provides the initial tables for the module
+    fn initial_exports(&self) -> (bool, Vec<(String, Export)>) {
+        (false, vec![])
+    }
+
+    /// Provides the initial start function
+    fn initial_start(&self) -> (bool, u32) {
+        (false, 0)
+    }
+
+    /// Provides the initial elements
+    fn initial_elements(&self) -> (bool, Vec<ElementSegment>) {
+        (false, vec![])
+    }
+
+    /// Provides the initial elements
+    fn initial_data(&self) -> (bool, Vec<DataSegment>) {
+        (false, vec![])
+    }
+
+    /// Provides the initial function bodies
+    fn initial_code(&self) -> (bool, Vec<Code>) {
+        (false, vec![])
+    }
+
+    /// Provides the initial function bodies
+    fn initial_globals(&self) -> (bool, Vec<GlobalType>, Vec<(u32, Instruction)>) {
+        (false, vec![], vec![])
+    }
+
+    /// Provides the initial function definitions
+    fn initial_types(&self) -> (bool, Vec<Type>) {
+        (false, vec![])
+    }
+
+    /// Set writing of initial sections
+    fn write_initial_sections(&self) -> bool {
+        true
+    }
+
 }
 
 /// The default configuration.
