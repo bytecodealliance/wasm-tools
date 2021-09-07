@@ -3,12 +3,15 @@ name = "wasm-mutate"
 version = "0.1.0"
 edition = "2018"
 
+[lib]
+doctest = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 structopt = { optional = true, version = "0.3" }
 thiserror = "1.0.28"
 wasmparser = { version = "0.80", path = "../wasmparser" }
+leb128 = "0.2.4"
 
 [dev-dependencies]
 anyhow = "1"
