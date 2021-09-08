@@ -21,6 +21,7 @@ mod error;
 pub mod mutators;
 
 pub use error::{Error, Result};
+use wasm_encoder::{CodeSection, Module, SectionId};
 use wasmparser::{Chunk, Parser, Payload};
 
 
@@ -182,10 +183,10 @@ impl WasmMutate {
 
     /// This type of construction allows to map payloads with specific mutators
     mutators! {
-        /*(Payload::CodeSectionEntry(_) 
+        (Payload::CodeSectionEntry(_) 
             ,ReturnI32SnipMutator{}
             ,SetFunction2Unreachable{}
-        ),*/
+        ),
         (
             Payload::ExportSection(_)
                ,RemoveExportMutator{}
@@ -211,7 +212,7 @@ impl WasmMutate {
         let mut code_parsing_started= false;
         let mut first_half = &mut Vec::new();
         let mut second_half =  &mut Vec::new();
-        let mut code_entries = &mut Vec::new();
+        let mut code = CodeSection::new();
 
         loop {
             let (mut payload, chunksize) = match parser.parse(&input_wasm[consumed..], true).unwrap() {
@@ -242,8 +243,13 @@ impl WasmMutate {
                 Payload::CodeSectionEntry(_) => {
                     // In theory the code section entries come inmediatly after the code section start, if another payload is parsed after, all code sections have been parsed
                     function_count += 1;
+                    let mut func = Vec::new();
+
                     WasmMutate::mutate(
-                        &mut payload, &mut rnd, &self, byteschunk, code_entries);
+                        &mut payload, &mut rnd, &self, byteschunk, &mut func);
+
+                    code.function_raw(&func);
+
         
                 },
                 _ => {
@@ -263,22 +269,13 @@ impl WasmMutate {
 
         // Write all to result buffer before the code section started
         result.write(first_half);
-
         // Recreate the code section
         if code_parsing_started  {
-            let mut code_section = Vec::new();
-            leb128::write::unsigned(&mut code_section, function_count as u64).expect(
-                "Error writing code entries count");
-            code_section.write(&code_entries).expect(
-                "Error writing code entries"
-            );
-            result.write(&[10u8]).expect("Error writing code section tag");
-            leb128::write::unsigned(&mut result, code_section.len() as u64).expect(
-                "Code section size could not be written");    
-            result.write(&code_section);
+            let mut module = Module::new();
+            module.section(&code);
+            result.write(&module.finish()).expect("Code section could not be written");
         }
-        
-        // Then write the second half, payloads processed after code section is finised
+        // Then write the second half, payloads processed after code entries finised
         result.write(second_half);
         
         Ok(result)
