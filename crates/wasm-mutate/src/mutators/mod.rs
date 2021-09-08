@@ -69,3 +69,25 @@ impl Mutator<Payload<'_>> for ReturnI32SnipMutator{
         }
     }
 }
+
+pub struct SetFunction2Unreachable {
+
+}
+
+impl Mutator<Payload<'_>> for SetFunction2Unreachable{
+    fn mutate<'a>(&mut self, _:&'a crate::WasmMutate, chunk: &'a [u8], out_buffer:&'a mut dyn Write, payload: &mut Payload<'_>) -> () {
+        match payload {
+            
+            Payload::CodeSectionEntry(reader) => {
+                let locals = vec![];                    
+                let mut tmpbuff: Vec<u8> = Vec::new();
+                let mut f = Function::new(locals);
+                f.instruction(Instruction::Unreachable);
+                f.encode(&mut tmpbuff);
+                out_buffer.write(&tmpbuff).expect("Could not write code body");
+
+            },
+            _ => panic!("Only code entries are allowed"),
+        }
+    }
+}

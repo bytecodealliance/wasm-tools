@@ -11,7 +11,7 @@
 
 use std::{io::Write, sync::Arc};
 
-use mutators::{Mutable, Mutator, ReturnI32SnipMutator};
+use mutators::{Mutable, Mutator, ReturnI32SnipMutator, SetFunction2Unreachable};
 #[cfg(feature = "structopt")]
 use structopt::StructOpt;
 
@@ -26,7 +26,7 @@ use wasmparser::{Chunk, Parser, Payload};
 macro_rules! mutators {
     (
         $(
-            ($tpe: pat$(, $expr: expr)*),
+            ($tpe: pat$(, $mutation:expr)*),
         )*
     ) => {
         // TODO validate
@@ -38,11 +38,11 @@ macro_rules! mutators {
                     $tpe => {
                         let options = [
                             $(  
-                                || $expr , // The instantiation of the mutator can be expensive, instantiate after select
+                                move | a,b, c,d  | $mutation.mutate(a, b, c, d), // The instantiation of the mutator can be expensive, instantiate after select
                             )*
                         ];
-                        let option = options.get(seed as usize % options.len()).unwrap();
-                        option().mutate(context, chunk, out_buffer, p);
+                        let mutation = options.get(seed as usize % options.len()).unwrap();
+                        mutation(context, chunk, out_buffer, p);
                     } ,
                 )
                 *
@@ -54,11 +54,11 @@ macro_rules! mutators {
         }
     };
 }
-
 // Declare available mutators here
 mutators! {
     (Payload::CodeSectionEntry(_), 
-        ReturnI32SnipMutator {}
+        ReturnI32SnipMutator{},
+        SetFunction2Unreachable{}
     ),
 }
 
@@ -277,6 +277,7 @@ impl WasmMutate {
 #[cfg(test)]
 mod tests{
 
+    use wasm_encoder::Instruction;
     use wasmparser::{Chunk, Operator, Parser, Payload};
 
     use crate::{WasmMutate};
@@ -306,6 +307,7 @@ mod tests{
             "#;
             let original = &wat::parse_str(wat).unwrap();
             let mutator = WasmMutate::default();
+            // seed is zero, which means first mutator
             
             let mutated = mutator.run(original).unwrap();
             
@@ -340,6 +342,74 @@ mod tests{
                        for i in ops_reader.into_iter() {
                            match i.unwrap() {
                                Operator::I32Const{value} => assert_eq!(value, 0),
+                               _ => {
+    
+                                    panic!("Only one default instruction should be")
+    
+                                }
+                           }
+                       }
+                    },
+                    _ => {
+                       // pass
+                    }
+                }
+    
+                consumed += chunksize
+            }
+            // Parse mutated and check that in fact the version is changed
+    
+    }
+
+    #[test]
+    fn test_unreachable_mutator() {
+                // From https://developer.mozilla.org/en-US/docs/WebAssembly/Text_format_to_wasm
+                let wat = r#"
+                (module
+                    (func (export "exported_func")
+                        i32.const 42
+                    )
+                )
+            "#;
+            let original = &wat::parse_str(wat).unwrap();
+            let mut mutator = WasmMutate::default();
+            mutator.seed = 1;
+            // seed is zero, which means first mutator
+            
+            let mutated = mutator.run(original).unwrap();
+            
+            println!("{:?}", mutated);
+                
+            // Down here is the validation for the correct mutation
+
+            let mut parser = Parser::new(0);
+            let mut consumed = 0;
+            
+            loop {
+                let (payload, chunksize) = match parser.parse(&mutated[consumed..], true).unwrap() {
+                    Chunk::NeedMoreData(__) => {
+                        // In theory the passed buffer is a complete Wasm module, it should not be need for more data
+                        continue;
+                    },
+                    Chunk::Parsed { consumed, payload } => (payload, consumed),
+                };
+                
+                if let Payload::End = payload {
+                    // Break the loop and return
+                    break;
+                }
+    
+                // Pass the payload and bytes chunk to the real mutator
+                match payload {
+                    Payload::CodeSectionEntry(reader) => {
+                       let ops_reader = reader.get_operators_reader()
+                       .unwrap();
+                       
+                       // Check now that it is the default value, 0
+                       for i in ops_reader.into_iter() {
+
+                           match i.unwrap() {
+                               Operator::Unreachable => assert_eq!(0, 0),
                                _ => {
     
                                     panic!("Only one default instruction should be")
