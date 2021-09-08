@@ -21,4 +21,3 @@ arbitrary = { version = "1.0.0", features = ["derive"] }
 [dev-dependencies]
 anyhow = "1"
 wat = { version = "1", path = "../wat" }
-rand = { version = "0.7.3", features = ["small_rng"] }
