@@ -9,7 +9,7 @@ name = "wasm-smith"
 readme = "./README.md"
 repository = "https://github.com/bytecodealliance/wasm-tools"
 version = "0.7.2"
-exclude = ["/benches"]
+exclude = ["/benches/corpus"]
 
 [[bench]]
 name = "corpus"
