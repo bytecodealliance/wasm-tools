@@ -38,7 +38,7 @@ macro_rules! mutators {
                     $tpe => {
                         let options = [
                             $(  
-                                move | a,b, c,d  | $mutation.mutate(a, b, c, d), // The instantiation of the mutator can be expensive, instantiate after select
+                                move | config, chunk, out, payload  | $mutation.mutate(config, chunk, out, payload), // The instantiation of the mutator can be expensive, instantiate after select
                             )*
                         ];
                         let mutation = options.get(seed as usize % options.len()).unwrap();
