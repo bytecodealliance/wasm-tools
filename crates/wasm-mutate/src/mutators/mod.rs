@@ -5,6 +5,7 @@
 "###]
 
 use std::io::Write;
+use wasm_encoder::{Function, Instruction};
 use wasmparser::Payload;
 use crate::{WasmMutate};
 
@@ -46,3 +47,25 @@ impl Mutable for Payload<'_> {
     // Custom validation could be implemented here, for example if the mutator can by applied to this payload
 }
 
+// Concrete implementations
+pub struct ReturnI32SnipMutator {
+
+}
+
+impl Mutator<Payload<'_>> for ReturnI32SnipMutator{
+    fn mutate<'a>(&mut self, _:&'a crate::WasmMutate, chunk: &'a [u8], out_buffer:&'a mut dyn Write, payload: &mut Payload<'_>) -> () {
+        match payload {
+            
+            Payload::CodeSectionEntry(reader) => {
+                let locals = vec![];                    
+                let mut tmpbuff: Vec<u8> = Vec::new();
+                let mut f = Function::new(locals);
+                f.instruction(Instruction::I32Const(0));
+                f.encode(&mut tmpbuff);
+                out_buffer.write(&tmpbuff).expect("Could not write code body");
+
+            },
+            _ => panic!("Only code entries are allowed"),
+        }
+    }
+}

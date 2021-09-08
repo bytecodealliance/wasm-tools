@@ -11,14 +11,12 @@
 
 use std::{io::Write, sync::Arc};
 
-use examples::no_mutator::{NoMutator};
-use mutators::{Mutable, Mutator};
+use mutators::{Mutable, Mutator, ReturnI32SnipMutator};
 #[cfg(feature = "structopt")]
 use structopt::StructOpt;
 
 mod error;
 
-mod examples;
 pub mod mutators;
 
 pub use error::{Error, Result};
@@ -60,10 +58,7 @@ macro_rules! mutators {
 // Declare available mutators here
 mutators! {
     (Payload::CodeSectionEntry(_), 
-        NoMutator::new()
-    ),
-    (Payload::Version{num, range},
-        NoMutator::new()
+        ReturnI32SnipMutator {}
     ),
 }
 
@@ -281,14 +276,12 @@ impl WasmMutate {
 
 #[cfg(test)]
 mod tests{
-    use std::io::Write;
 
-    use wasm_encoder::{Function, Instruction};
-    use wasmparser::{Chunk, Operator, Parser, Payload, Type};
+    use wasmparser::{Chunk, Operator, Parser, Payload};
 
-    use crate::{WasmMutate, examples::{self}, mutators::Mutator};
-    use super::*;
+    use crate::{WasmMutate};
 
+    /// Since there is no code section, any mutator registered under that pattern wont affect the module
     #[test]
     fn idempotent_header() {
         let original = b"\0asm\x01\0\0\0";
@@ -297,5 +290,72 @@ mod tests{
         let mutated = mutator.run(original).unwrap();
 
         assert_eq!(original.to_vec(), mutated)
+    }
+
+
+    /// Since there is no code section, any mutator registered under that pattern wont affect the module
+    #[test]
+    fn test_snip_mutator() {
+                // From https://developer.mozilla.org/en-US/docs/WebAssembly/Text_format_to_wasm
+                let wat = r#"
+                (module
+                    (func (export "exported_func")
+                        i32.const 42
+                    )
+                )
+            "#;
+            let original = &wat::parse_str(wat).unwrap();
+            let mutator = WasmMutate::default();
+            
+            let mutated = mutator.run(original).unwrap();
+            
+            println!("{:?}", mutated);
+                
+            // Down here is the validation for the correct mutation
+
+            let mut parser = Parser::new(0);
+            let mut consumed = 0;
+            
+            loop {
+                let (payload, chunksize) = match parser.parse(&mutated[consumed..], true).unwrap() {
+                    Chunk::NeedMoreData(__) => {
+                        // In theory the passed buffer is a complete Wasm module, it should not be need for more data
+                        continue;
+                    },
+                    Chunk::Parsed { consumed, payload } => (payload, consumed),
+                };
+                
+                if let Payload::End = payload {
+                    // Break the loop and return
+                    break;
+                }
+    
+                // Pass the payload and bytes chunk to the real mutator
+                match payload {
+                    Payload::CodeSectionEntry(reader) => {
+                       let ops_reader = reader.get_operators_reader()
+                       .unwrap();
+                       
+                       // Check now that it is the default value, 0
+                       for i in ops_reader.into_iter() {
+                           match i.unwrap() {
+                               Operator::I32Const{value} => assert_eq!(value, 0),
+                               _ => {
+    
+                                    panic!("Only one default instruction should be")
+    
+                                }
+                           }
+                       }
+                    },
+                    _ => {
+                       // pass
+                    }
+                }
+    
+                consumed += chunksize
+            }
+            // Parse mutated and check that in fact the version is changed
+    
     }
 }
