@@ -11,7 +11,7 @@
 
 use std::{io::Write, sync::Arc};
 
-use examples::no_mutator::NoMutator;
+use examples::no_mutator::{NoMutator};
 use mutators::{Mutable, Mutator};
 #[cfg(feature = "structopt")]
 use structopt::StructOpt;
@@ -23,6 +23,49 @@ pub mod mutators;
 
 pub use error::{Error, Result};
 use wasmparser::{Chunk, Parser, Payload};
+
+
+macro_rules! mutators {
+    (
+        $(
+            ($tpe: pat$(, $expr: expr)*),
+        )*
+    ) => {
+        // TODO validate
+        // Only one payload type in the list
+        fn mutate<'a>(p:&'a mut Payload<'a>, seed: u64, context: &'a WasmMutate, chunk:&'a [u8], out_buffer: &'a mut dyn Write) -> ()
+        {
+            match  p {
+                $(
+                    $tpe => {
+                        let options = [
+                            $(  
+                                || $expr , // The instantiation of the mutator can be expensive, instantiate after select
+                            )*
+                        ];
+                        let option = options.get(seed as usize % options.len()).unwrap();
+                        option().mutate(context, chunk, out_buffer, p);
+                    } ,
+                )
+                *
+                _ => {
+                    // default behavior, bypass payload
+                    out_buffer.write(&chunk).expect("Chunk cannot be written !");
+                }
+            }
+        }
+    };
+}
+
+// Declare available mutators here
+mutators! {
+    (Payload::CodeSectionEntry(_), 
+        NoMutator::new()
+    ),
+    (Payload::Version{num, range},
+        NoMutator::new()
+    ),
+}
 
 // NB: only add this doc comment if we are not building the CLI, since otherwise
 // it will override the main CLI's about text.
@@ -87,13 +130,6 @@ pub struct WasmMutate {
 
 }
 
-#[derive(Clone, Copy)]
-pub struct MutationContext {
-    // TODO add here information needed for mutators, e.g. function types information
-
-}
-
-
 
 impl Default for WasmMutate {
     fn default() -> Self {
@@ -148,11 +184,6 @@ impl WasmMutate {
         self
     }
 
-    fn get_mutator(&self) -> NoMutator
-    {
-        // Init the mutator
-        examples::no_mutator::NoMutator{}
-    }
 
     /// Run this configured `WasmMutate` on the given input Wasm.
     pub fn run(&self, input_wasm: &[u8]) -> Result<Vec<u8>> {
@@ -160,17 +191,6 @@ impl WasmMutate {
         
         // no mutator as the default?
 
-        let mut mutation_context: &mut MutationContext = &mut MutationContext{
-        };
-
-        self.mutate_wasm(input_wasm, &mut self.get_mutator(), mutation_context)
-    }
-
-    
-    /// Parsing the Wasm module and iterate over it
-    fn mutate_wasm<'a, T>(&self, input_wasm: &'a [u8], mutator: &'a mut T, mutation_context: &'a mut MutationContext) -> Result<Vec<u8>>
-        where T: Mutator<Payload<'a>>
-    {
         let mut parser = Parser::new(0);
         let mut result: Vec<u8> = Vec::new();
         let mut consumed = 0;
@@ -199,31 +219,41 @@ impl WasmMutate {
 
             // Pass the payload and bytes chunk to the real mutator
             let byteschunk = &input_wasm[consumed..(consumed + chunksize)];
+
+            // This code is a patch, the code section need to be updated if some changes are made to code entries
+            // If the code section start, the previous buffer is saved for later writting
+            // This pattern match returns the Write in which the data will be written
             match payload {
                 Payload::CodeSectionStart { count, range, size } => {
                     code_parsing_started = true;
+                    // The code section will be parsed after
+
                 },
                 Payload::CodeSectionEntry(_) => {
+                    // In theory the code section entries come inmediatly after the code section start, if another payload is parsed after, all code sections have been parsed
                     function_count += 1;
-                    payload.run_mutator(self, byteschunk, 
-                        &mut code_entries, mutator, mutation_context);
+                    mutate(
+                        &mut payload, self.seed, &self, byteschunk, code_entries);
+        
                 },
                 _ => {
-                    payload.run_mutator(self, byteschunk, 
+                    mutate(
+                        &mut payload, self.seed, &self, byteschunk,     
                         if !code_parsing_started {
                             &mut first_half
                         } else {
                             &mut second_half
-                        } /* first or second half*/, mutator, mutation_context);
+                        });
                 }
             }
 
+
             consumed += chunksize
         }
-        // Write all to result buffer
+
+        // Write all to result buffer before the code section started
         result.write(first_half);
 
-        // TODO this could be replaced with wasm-encoder
         // Recreate the code section
         if function_count > 0 {
 
@@ -240,11 +270,12 @@ impl WasmMutate {
             result.write(&code_section);
         }
         
-        // Then write the second half
+        // Then write the second half, payloads processed after code section is finised
         result.write(second_half);
         
         Ok(result)
     }
+
 }
 
 
@@ -255,112 +286,16 @@ mod tests{
     use wasm_encoder::{Function, Instruction};
     use wasmparser::{Chunk, Operator, Parser, Payload, Type};
 
-    use crate::{MutationContext, WasmMutate, examples::{self}, mutators::Mutator};
+    use crate::{WasmMutate, examples::{self}, mutators::Mutator};
+    use super::*;
 
     #[test]
     fn idempotent_header() {
         let original = b"\0asm\x01\0\0\0";
         let mutator = WasmMutate::default();
-        let mut operator = examples::no_mutator::NoMutator{};
-        let mut context = MutationContext{
-
-        };
-        let mutated = mutator.mutate_wasm(original, &mut operator, &mut context).unwrap();
+        
+        let mutated = mutator.run(original).unwrap();
 
         assert_eq!(original.to_vec(), mutated)
-    }
-    
-
-    pub struct FunctionSnipMutator {
-    }
-    
-    
-    
-    impl Mutator<Payload<'_>> for FunctionSnipMutator{
-        fn mutate<'a>(&mut self, context:&'a crate::WasmMutate, chunk: &'a [u8], out_buffer:&'a mut dyn Write, payload: &mut Payload<'_>, mutation_context: &mut crate::MutationContext) -> () {
-            match payload {
-                
-                Payload::CodeSectionEntry(_) => {
-                    let locals = vec![];                    
-                    let mut tmpbuff: Vec<u8> = Vec::new();
-                    let mut f = Function::new(locals);
-                    f.instruction(Instruction::I32Const(0));
-                    f.encode(&mut tmpbuff);
-                    out_buffer.write(&tmpbuff).expect("Could not write code body");
-                },
-                _ => {
-                    // bypass
-                    out_buffer.write(&chunk).expect("Could not write to out buffer");
-                },
-            }
-        }
-    }
-    
-    
-    #[test]
-    fn snip_mutator() {
-        // From https://developer.mozilla.org/en-US/docs/WebAssembly/Text_format_to_wasm
-        let wat = r#"
-            (module
-                (func (export "exported_func")
-                    i32.const 42
-                )
-            )
-        "#;
-        let original = &wat::parse_str(wat).unwrap();
-        let mutator = WasmMutate::default();
-        let mut context = MutationContext{
-
-        };
-        let mut operator = FunctionSnipMutator{};
-        
-        let mutated = mutator.mutate_wasm(original, &mut operator, &mut context).unwrap();
-        
-        println!("{:?}", mutated);
-
-        let mut parser = Parser::new(0);
-        let mut consumed = 0;
-
-        loop {
-            let (mut payload, chunksize) = match parser.parse(&mutated[consumed..], true).unwrap() {
-                Chunk::NeedMoreData(__) => {
-                    // In theory the passed buffer is a complete Wasm module, it should not be need for more data
-                    continue;
-                },
-                Chunk::Parsed { consumed, payload } => (payload, consumed),
-            };
-            
-            if let Payload::End = payload {
-                // Break the loop and return
-                break;
-            }
-
-            // Pass the payload and bytes chunk to the real mutator
-            match payload {
-                Payload::CodeSectionEntry(reader) => {
-                   let ops_reader = reader.get_operators_reader()
-                   .unwrap();
-                   
-                   // Check now that it is the default value, 0
-                   for i in ops_reader.into_iter() {
-                       match i.unwrap() {
-                           Operator::I32Const{value} => assert_eq!(value, 0),
-                           _ => {
-
-                                panic!("Only one default instruction should be")
-
-                            }
-                       }
-                   }
-                },
-                _ => {
-                   // pass
-                }
-            }
-
-            consumed += chunksize
-        }
-        // Parse mutated and check that in fact the version is changed
-
     }
 }
