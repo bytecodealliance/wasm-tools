@@ -49,7 +49,6 @@ impl Mutable for Payload<'_> {
 
 // Concrete implementations
 pub struct ReturnI32SnipMutator {
-
 }
 
 impl Mutator<Payload<'_>> for ReturnI32SnipMutator{
@@ -61,6 +60,7 @@ impl Mutator<Payload<'_>> for ReturnI32SnipMutator{
                 let mut tmpbuff: Vec<u8> = Vec::new();
                 let mut f = Function::new(locals);
                 f.instruction(Instruction::I32Const(0));
+                f.instruction(Instruction::End);
                 f.encode(&mut tmpbuff);
                 out_buffer.write(&tmpbuff).expect("Could not write code body");
 
@@ -83,6 +83,7 @@ impl Mutator<Payload<'_>> for SetFunction2Unreachable{
                 let mut tmpbuff: Vec<u8> = Vec::new();
                 let mut f = Function::new(locals);
                 f.instruction(Instruction::Unreachable);
+                f.instruction(Instruction::End);
                 f.encode(&mut tmpbuff);
                 out_buffer.write(&tmpbuff).expect("Could not write code body");
 
