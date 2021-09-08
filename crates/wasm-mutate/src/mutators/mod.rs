@@ -35,6 +35,11 @@ pub trait Mutator<T>: Sized + 'static
 }
 
 
+/// Default behavior of NoMutator is to be idempotent
+pub struct NoMutator;
+
+impl Mutator<Payload<'_>> for NoMutator {
+}
 
 // Concrete implementations
 pub struct ReturnI32SnipMutator {
@@ -96,11 +101,11 @@ impl Mutator<Payload<'_>> for RemoveExportMutator{
                 let mut exports = ExportSection::new();
                 let mut i = 0;
                 let max_exports = reader.get_count() as u64;
-                let break_at = config.seed % max_exports;
+                let skip_at = config.seed % max_exports;
 
                 (0..max_exports).for_each(|i|{ 
                     let export = reader.read().unwrap();
-                    if break_at != i { // otherwise bypass
+                    if skip_at != i { // otherwise bypass
                         match export.kind {
                             wasmparser::ExternalKind::Function => { exports.export(export.field, Export::Function(export.index)); },
                             wasmparser::ExternalKind::Table => todo!(),

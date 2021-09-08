@@ -11,7 +11,8 @@
 
 use std::{io::Write, sync::Arc};
 
-use mutators::{Mutator, ReturnI32SnipMutator, SetFunction2Unreachable, RemoveExportMutator};
+use mutators::{Mutator, ReturnI32SnipMutator, SetFunction2Unreachable, RemoveExportMutator, NoMutator};
+use rand::{rngs::StdRng, Rng, SeedableRng};
 #[cfg(feature = "structopt")]
 use structopt::StructOpt;
 
@@ -29,29 +30,27 @@ macro_rules! mutators {
             ($tpe: pat$(, $mutation:expr)*),
         )*
     ) => {
-        // TODO validate
-        // Only one payload type in the list
-        fn mutate<'a>(p:&'a mut Payload<'a>, seed: u64, context: &'a WasmMutate, chunk:&'a [u8], out_buffer: &'a mut dyn Write) -> ()
+        fn mutate<'a>(p:&'a mut Payload<'a>, seed: &mut StdRng, context: &'a WasmMutate, chunk:&'a [u8], out_buffer: &'a mut dyn Write) -> ()
         {
             match  p {
                 $(
                     $tpe => {
                         let options = [
-                            // Add no mutator as an special case
+                            #[cfg(feature="no-mutator")]
+                                move | config, chunk, out, payload  | (Some(String::from("NoMutator")), NoMutator{}.mutate(config, chunk, out, payload)),
                             $(  
-
-                                move | config, chunk, out, payload  | (Some($mutation.name()), $mutation.mutate(config, chunk, out, payload)), // Instantiate after select
-                                
+                                move | config, chunk, out, payload  | (Some($mutation.name()), $mutation.mutate(config, chunk, out, payload)), 
                             )*
-                        ];
-                        let mutation = options.get(seed as usize % options.len()).unwrap();
-                        
+                        ];// Instantiate after select
 
+                        
+                        // TODO this is maybe not the best way
+                        let mutation = options.get(seed.gen_range(0, options.len())).unwrap();
+                        let (name, _ ) = mutation(context, chunk, out_buffer, p);
+                        
                         #[cfg(debug_assertions)] {
-                            let (name, _ ) = mutation(context, chunk, out_buffer, p);
                             println!("Selected mutator {}", name.unwrap());
                         }
-                        
                     } ,
                 )
                 *
@@ -181,6 +180,7 @@ impl WasmMutate {
         self
     }
 
+    /// This type of construction allows to map payloads with specific mutators
     mutators! {
         (Payload::CodeSectionEntry(_) 
             ,ReturnI32SnipMutator{}
@@ -194,10 +194,10 @@ impl WasmMutate {
 
     /// Run this configured `WasmMutate` on the given input Wasm.
     pub fn run(&self, input_wasm: &[u8]) -> Result<Vec<u8>> {
-         // Declare available mutators here
-        
+        // Declare available mutators here
 
         let _ = input_wasm;
+        let mut rnd = StdRng::seed_from_u64(self.seed as u64);
         
         // no mutator as the default?
 
@@ -243,12 +243,12 @@ impl WasmMutate {
                     // In theory the code section entries come inmediatly after the code section start, if another payload is parsed after, all code sections have been parsed
                     function_count += 1;
                     WasmMutate::mutate(
-                        &mut payload, self.seed, &self, byteschunk, code_entries);
+                        &mut payload, &mut rnd, &self, byteschunk, code_entries);
         
                 },
                 _ => {
                     WasmMutate::mutate(
-                        &mut payload, self.seed, &self, byteschunk,     
+                        &mut payload, &mut rnd, &self, byteschunk,     
                         if !code_parsing_started {
                             &mut first_half
                         } else {
@@ -266,8 +266,6 @@ impl WasmMutate {
 
         // Recreate the code section
         if code_parsing_started  {
-
-            println!("{:?}", &code_entries);
             let mut code_section = Vec::new();
             leb128::write::unsigned(&mut code_section, function_count as u64).expect(
                 "Error writing code entries count");
