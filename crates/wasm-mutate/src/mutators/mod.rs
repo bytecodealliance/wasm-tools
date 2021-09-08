@@ -108,13 +108,14 @@ impl Mutator<Payload<'_>> for RemoveExportMutator{
                     if skip_at != i { // otherwise bypass
                         match export.kind {
                             wasmparser::ExternalKind::Function => { exports.export(export.field, Export::Function(export.index)); },
-                            wasmparser::ExternalKind::Table => todo!(),
-                            wasmparser::ExternalKind::Memory => todo!(),
-                            wasmparser::ExternalKind::Tag => todo!(),
-                            wasmparser::ExternalKind::Global => todo!(),
-                            wasmparser::ExternalKind::Type => todo!(),
-                            wasmparser::ExternalKind::Module => todo!(),
-                            wasmparser::ExternalKind::Instance => todo!(),
+                            wasmparser::ExternalKind::Table => { exports.export(export.field, Export::Table(export.index)); },
+                            wasmparser::ExternalKind::Memory => { exports.export(export.field, Export::Memory(export.index)); },
+                            wasmparser::ExternalKind::Global => { exports.export(export.field, Export::Global(export.index)); },
+                            wasmparser::ExternalKind::Module => { exports.export(export.field, Export::Module(export.index)); },
+                            wasmparser::ExternalKind::Instance => { exports.export(export.field, Export::Instance(export.index)); },
+                            _ => {
+                                // TODO, Tag, etc
+                            }
                         }
                     }
                 });

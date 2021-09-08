@@ -49,7 +49,7 @@ macro_rules! mutators {
                         let (name, _ ) = mutation(context, chunk, out_buffer, p);
                         
                         #[cfg(debug_assertions)] {
-                            println!("Selected mutator {}", name.unwrap());
+                            println!("Selected mutator {} on {:?}", name.unwrap(), p);
                         }
                     } ,
                 )
@@ -130,7 +130,7 @@ pub struct WasmMutate {
 impl Default for WasmMutate {
     fn default() -> Self {
         WasmMutate {
-            seed: 0,
+            seed: 1,
             preserve_semantics: false,
             reduce: false,
             raw_mutate_func: None
