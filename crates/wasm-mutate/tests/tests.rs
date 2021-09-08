@@ -40,7 +40,7 @@ mod tests{
         // From https://developer.mozilla.org/en-US/docs/WebAssembly/Text_format_to_wasm
         let wat = r#"
         (module
-            (func (export "exported_func") (result i32)
+            (func (result i32)
                 i32.const 42
             )
         )

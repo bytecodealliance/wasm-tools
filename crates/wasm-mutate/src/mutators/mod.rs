@@ -5,7 +5,7 @@
 "###]
 
 use std::io::Write;
-use wasm_encoder::{Export, ExportSection, Function, Instruction};
+use wasm_encoder::{Export, ExportSection, Function, Instruction, Module, Section};
 use wasmparser::{BinaryReaderError, Payload};
 use crate::{WasmMutate};
 
@@ -99,7 +99,6 @@ impl Mutator<Payload<'_>> for RemoveExportMutator{
             Payload::ExportSection(reader) => {
                 // Select a random export
                 let mut exports = ExportSection::new();
-                let mut i = 0;
                 let max_exports = reader.get_count() as u64;
                 let skip_at = config.seed % max_exports;
 
@@ -114,13 +113,21 @@ impl Mutator<Payload<'_>> for RemoveExportMutator{
                             wasmparser::ExternalKind::Module => { exports.export(export.field, Export::Module(export.index)); },
                             wasmparser::ExternalKind::Instance => { exports.export(export.field, Export::Instance(export.index)); },
                             _ => {
-                                // TODO, Tag, etc
+                                panic!("Unknown export {:?}", export)
                             }
+                        }
+                    } else {
+                        #[cfg(debug_assertions)] {
+                            eprintln!("Removing export {:?}", export);
                         }
                     }
                 });
                 
-                //exports.encode(out_buffer);
+                // it is the same by creating and empty section ?
+                let mut module = Module::new();
+                module.section(&exports);
+                out_buffer.write(&module.finish()).expect("Module could not be written");
+                
             },
             _ => panic!("Only export section is allowed"),
         }

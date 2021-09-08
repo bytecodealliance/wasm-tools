@@ -49,7 +49,7 @@ macro_rules! mutators {
                         let (name, _ ) = mutation(context, chunk, out_buffer, p);
                         
                         #[cfg(debug_assertions)] {
-                            println!("Selected mutator {} on {:?}", name.unwrap(), p);
+                            eprintln!("Selected mutator {} on {:?}", name.unwrap(), p);
                         }
                     } ,
                 )
@@ -182,10 +182,10 @@ impl WasmMutate {
 
     /// This type of construction allows to map payloads with specific mutators
     mutators! {
-        (Payload::CodeSectionEntry(_) 
+        /*(Payload::CodeSectionEntry(_) 
             ,ReturnI32SnipMutator{}
             ,SetFunction2Unreachable{}
-        ),
+        ),*/
         (
             Payload::ExportSection(_)
                ,RemoveExportMutator{}
