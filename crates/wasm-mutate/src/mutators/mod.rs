@@ -5,8 +5,8 @@
 "###]
 
 use std::io::Write;
-use wasm_encoder::{Function, Instruction};
-use wasmparser::Payload;
+use wasm_encoder::{Export, ExportSection, Function, Instruction};
+use wasmparser::{BinaryReaderError, Payload};
 use crate::{WasmMutate};
 
 
@@ -14,7 +14,7 @@ use crate::{WasmMutate};
 
     ```
 "###]
-pub trait Mutator<T>: Sized
+pub trait Mutator<T>: Sized + 'static
 {
     
     /// Method where the mutation happpens
@@ -27,25 +27,14 @@ pub trait Mutator<T>: Sized
         // The default behavior for a mutator is to pass the same input
         out_buffer.write(&chunk).expect("Could not write to out buffer");
     }
-}
 
-/// A mutator can only be used over "mutable" object, in this context, mutable means pieces of the Wasm module that can be transformed
-pub trait Mutable: Sized {
-    /// The call to the mutator can be bypassed based on a generic validation. For example, call only if a Payload is an instance of CodeSectionEntry.
-    ///
-    /// * `context` instance of WasmMutate
-    /// * `chunk` piece of the byte stream corresponding with the payload
-    /// * `out_buffer` resulting mutated byte stream
-    /// * `mutator` mutation operator
-    fn run_mutator<'a, V>(&mut self, options:&'a WasmMutate,  chunk: &'a [u8], out_buffer: &'a mut dyn Write, mutator: &mut V)
-        where V: Mutator<Self> {
-            mutator.mutate(options, chunk, out_buffer, self);
+    /// Provides the name of the mutator
+    fn name(&self) -> String {
+        return format!("{:?}", std::any::type_name::<Self>())
     }
 }
 
-impl Mutable for Payload<'_> {
-    // Custom validation could be implemented here, for example if the mutator can by applied to this payload
-}
+
 
 // Concrete implementations
 pub struct ReturnI32SnipMutator {
@@ -89,6 +78,45 @@ impl Mutator<Payload<'_>> for SetFunction2Unreachable{
 
             },
             _ => panic!("Only code entries are allowed"),
+        }
+    }
+}
+
+
+pub struct RemoveExportMutator {
+
+}
+
+impl Mutator<Payload<'_>> for RemoveExportMutator{
+    fn mutate<'a>(&mut self, config:&'a crate::WasmMutate, chunk: &'a [u8], out_buffer:&'a mut dyn Write, payload: &mut Payload<'_>) -> () {
+        match payload {
+            
+            Payload::ExportSection(reader) => {
+                // Select a random export
+                let mut exports = ExportSection::new();
+                let mut i = 0;
+                let max_exports = reader.get_count() as u64;
+                let break_at = config.seed % max_exports;
+
+                (0..max_exports).for_each(|i|{ 
+                    let export = reader.read().unwrap();
+                    if break_at != i { // otherwise bypass
+                        match export.kind {
+                            wasmparser::ExternalKind::Function => { exports.export(export.field, Export::Function(export.index)); },
+                            wasmparser::ExternalKind::Table => todo!(),
+                            wasmparser::ExternalKind::Memory => todo!(),
+                            wasmparser::ExternalKind::Tag => todo!(),
+                            wasmparser::ExternalKind::Global => todo!(),
+                            wasmparser::ExternalKind::Type => todo!(),
+                            wasmparser::ExternalKind::Module => todo!(),
+                            wasmparser::ExternalKind::Instance => todo!(),
+                        }
+                    }
+                });
+                
+                //exports.encode(out_buffer);
+            },
+            _ => panic!("Only export section is allowed"),
         }
     }
 }
