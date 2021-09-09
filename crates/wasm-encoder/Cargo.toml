@@ -25,4 +25,3 @@ wasmparser = { path = "../wasmparser" }
 
 [features]
 default = []
-no-header = [] # prevent the writing of the wasm header

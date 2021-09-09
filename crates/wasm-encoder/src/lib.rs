@@ -161,21 +161,15 @@ impl Module {
     /// Begin writing a new `Module`.
     #[rustfmt::skip]
     pub fn new() -> Self {
-        #[cfg(not(feature="no-header"))]
-        {
-            Module {
-                bytes: vec![
-                    // Magic
-                    0x00, 0x61, 0x73, 0x6D,
-                    // Version
-                    0x01, 0x00, 0x00, 0x00,
-                ],
-            }
-        }
-        #[cfg(feature="no-header")]
         Module {
-            bytes: vec![],
+            bytes: vec![
+                // Magic
+                0x00, 0x61, 0x73, 0x6D,
+                // Version
+                0x01, 0x00, 0x00, 0x00,
+            ],
         }
+        
     }
 
     /// Write a section into this module.
