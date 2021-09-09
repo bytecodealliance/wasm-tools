@@ -11,7 +11,7 @@
 
 use std::{io::Write, sync::Arc};
 
-use mutators::{Mutator, ReturnI32SnipMutator, SetFunction2Unreachable, RemoveExportMutator, NoMutator};
+use mutators::{Mutator, ReturnI32SnipMutator, SetFunction2Unreachable, RemoveExportMutator, NoMutator, RenameExportMutator};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 #[cfg(feature = "structopt")]
 use structopt::StructOpt;
@@ -193,6 +193,7 @@ impl WasmMutate {
         (
             Payload::ExportSection(_)
                ,RemoveExportMutator{}
+               ,RenameExportMutator{max_name_size: 100}
         ),
     }
 
