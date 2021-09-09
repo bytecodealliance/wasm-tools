@@ -67,7 +67,7 @@ mod tests{
         )
         "#;
         let original = &wat::parse_str(wat).unwrap();
-        let mut mutator = WasmMutate::default();
+        let mutator = WasmMutate::default();
         // seed is zero, which means first mutator
         
         let mutated = mutator.run(original).unwrap();

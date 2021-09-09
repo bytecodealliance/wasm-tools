@@ -6,7 +6,7 @@
 //! Wasm parser, validator, compiler, or any other Wasm-consuming
 //! tool. `wasm-mutate` can serve as a custom mutator for mutation-based
 //! fuzzing.
-
+#![feature(extend_one)]
 #![cfg_attr(not(feature = "structopt"), deny(missing_docs))]
 
 use std::{io::Write, sync::Arc};
@@ -15,13 +15,14 @@ use mutators::{Mutator, ReturnI32SnipMutator, SetFunction2Unreachable, RemoveExp
 use rand::{rngs::StdRng, Rng, SeedableRng};
 #[cfg(feature = "structopt")]
 use structopt::StructOpt;
+use std::convert::TryFrom;
 
 mod error;
 
 pub mod mutators;
 
 pub use error::{Error, Result};
-use wasm_encoder::{CodeSection, Module, SectionId};
+use wasm_encoder::{CodeSection, Module, RawSection, Section, SectionId, encoders};
 use wasmparser::{Chunk, Parser, Payload};
 
 
@@ -31,7 +32,8 @@ macro_rules! mutators {
             ($tpe: pat$(, $mutation:expr)*),
         )*
     ) => {
-        fn mutate<'a>(p:&'a mut Payload<'a>, seed: &mut StdRng, context: &'a WasmMutate, chunk:&'a [u8], out_buffer: &'a mut dyn Write) -> ()
+        fn mutate<'a, A>(p:&'a mut Payload<'a>, context: &'a WasmMutate, chunk:&Vec<u8>, sink: &'a mut A) -> ()
+            where A: Extend<u8>
         {
             match  p {
                 $(
@@ -44,10 +46,9 @@ macro_rules! mutators {
                             )*
                         ];// Instantiate after select
 
-                        
-                        // TODO this is maybe not the best way
-                        let mutation = options.get(seed.gen_range(0, options.len())).unwrap();
-                        let (name, _ ) = mutation(context, chunk, out_buffer, p);
+                        let mut rnd = context.get_rnd();
+                        let mutation = options.get(rnd.gen_range(0, options.len())).unwrap();
+                        let (name, _ ) = mutation(context, chunk.clone(), sink, p);
                         
                         #[cfg(debug_assertions)] {
                             eprintln!("Selected mutator {} on {:?}", name.unwrap(), p);
@@ -57,7 +58,7 @@ macro_rules! mutators {
                 *
                 _ => {
                     // default behavior, bypass payload
-                    out_buffer.write(&chunk).expect("Chunk cannot be written !");
+                    sink.extend(chunk.clone());
                 }
             }
         }
@@ -125,13 +126,15 @@ pub struct WasmMutate {
     #[cfg_attr(feature = "structopt", structopt(skip = None))]
     raw_mutate_func: Option<Arc<dyn Fn(&mut Vec<u8>) -> Result<()>>>,
 
+
 }
 
 
 impl Default for WasmMutate {
     fn default() -> Self {
+        let seed = 1;
         WasmMutate {
-            seed: 1,
+            seed: seed,
             preserve_semantics: false,
             reduce: false,
             raw_mutate_func: None
@@ -193,12 +196,16 @@ impl WasmMutate {
         ),
     }
 
+    /// Returns Random generator from seed
+    pub fn get_rnd(&self) -> StdRng {
+        StdRng::seed_from_u64(self.seed as u64)
+    }
+
     /// Run this configured `WasmMutate` on the given input Wasm.
     pub fn run(&self, input_wasm: &[u8]) -> Result<Vec<u8>> {
         // Declare available mutators here
 
         let _ = input_wasm;
-        let mut rnd = StdRng::seed_from_u64(self.seed as u64);
         
         // no mutator as the default?
 
@@ -210,9 +217,9 @@ impl WasmMutate {
 
 
         let mut code_parsing_started= false;
-        let mut first_half = &mut Vec::new();
-        let mut second_half =  &mut Vec::new();
-        let mut code = CodeSection::new();
+        let mut first_half= Vec::new();
+        let mut second_half = Vec::new();
+        let mut code: Vec<u8> = Vec::new(); 
 
         loop {
             let (mut payload, chunksize) = match parser.parse(&input_wasm[consumed..], true).unwrap() {
@@ -229,13 +236,13 @@ impl WasmMutate {
             }
 
             // Pass the payload and bytes chunk to the real mutator
-            let byteschunk = &input_wasm[consumed..(consumed + chunksize)];
+            let byteschunk = &input_wasm[consumed..(consumed + chunksize)].to_vec();
 
             // This code is a patch, the code section need to be updated if some changes are made to code entries
             // If the code section start, the previous buffer is saved for later writting
             // This pattern match returns the Write in which the data will be written
             match payload {
-                Payload::CodeSectionStart { count, range, size } => {
+                Payload::CodeSectionStart { count: _, range: _, size:_ } => {
                     code_parsing_started = true;
                     // The code section will be encoded after
 
@@ -246,15 +253,13 @@ impl WasmMutate {
                     let mut func = Vec::new();
 
                     WasmMutate::mutate(
-                        &mut payload, &mut rnd, &self, byteschunk, &mut func);
+                        &mut payload, self, byteschunk, &mut func);
 
-                    code.function_raw(&func);
-
-        
+                    code.extend(&func);
                 },
                 _ => {
                     WasmMutate::mutate(
-                        &mut payload, &mut rnd, &self, byteschunk,     
+                        &mut payload, &self, byteschunk,     
                         if !code_parsing_started {
                             &mut first_half
                         } else {
@@ -262,21 +267,31 @@ impl WasmMutate {
                         });
                 }
             }
-
-
             consumed += chunksize
         }
 
         // Write all to result buffer before the code section started
-        result.write(first_half);
+        result.extend(first_half);
         // Recreate the code section
         if code_parsing_started  {
-            let mut module = Module::new();
-            module.section(&code);
-            result.write(&module.finish()).expect("Code section could not be written");
+            // Add function count and section size to raw data
+            let mut sink = Vec::new();
+            let num_added = encoders::u32(function_count);
+            sink.extend(num_added);
+            sink.extend(code.iter().copied());
+            
+            let raw_code = RawSection{
+                id: SectionId::Code.into(),
+                data: &sink
+            };
+
+            // To check, add section if in the encoding of the section ?
+            result.extend_one(SectionId::Code as u8);
+            raw_code.encode(&mut result);
+            //result.encode(&module.finish()).expect("Code section could not be written");
         }
         // Then write the second half, payloads processed after code entries finised
-        result.write(second_half);
+        result.extend(second_half);
         
         Ok(result)
     }

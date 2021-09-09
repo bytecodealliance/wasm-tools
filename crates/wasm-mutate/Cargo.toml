@@ -11,7 +11,7 @@ doctest = false
 structopt = { optional = true, version = "0.3" }
 thiserror = "1.0.28"
 wasmparser = { version = "0.80", path = "../wasmparser" }
-wasm-encoder = { version = "0.6.0", path = "../wasm-encoder", features=["no-header"] }
+wasm-encoder = { version = "0.6.0", path = "../wasm-encoder"}
 leb128 = "0.2.4"
 arbitrary = { version = "1.0.0", features = ["derive"] }
 rand = { version = "0.7.3", features = ["small_rng"] }

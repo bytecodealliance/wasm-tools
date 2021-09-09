@@ -59,13 +59,6 @@ impl CodeSection {
         self.num_added += 1;
         self
     }
-
-    /// Write a raw function body into this code section.
-    pub fn function_raw(&mut self, func: &[u8]) -> &mut Self {
-        self.bytes.write(func).expect("Raw function could not be written");
-        self.num_added += 1;
-        self
-    }
 }
 
 impl Section for CodeSection {

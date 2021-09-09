@@ -1,3 +1,4 @@
+
 #![doc=r###"
     ## Mutator harnesses
 
@@ -5,8 +6,9 @@
 "###]
 
 use std::io::Write;
-use wasm_encoder::{Export, ExportSection, Function, Instruction, Module, Section};
-use wasmparser::{BinaryReaderError, Payload};
+use rand::RngCore;
+use wasm_encoder::{Export, ExportSection, Function, Instruction, Module, Section, SectionId};
+use wasmparser::Payload;
 use crate::{WasmMutate};
 
 
@@ -23,12 +25,14 @@ pub trait Mutator<T>: Sized + 'static
     /// * `chunk` piece of the byte stream corresponding with the payload
     /// * `out_buffer` resulting mutated byte stream
     /// * `mutable` mutable object
-    fn mutate<'a>(&mut self, _:&'a WasmMutate, chunk: &'a [u8], out_buffer:&'a mut dyn Write, _: &mut T) -> () {
+    fn mutate<'a, A>(&mut self, _:&'a WasmMutate, chunk: Vec<u8>, sink: &'a mut A, _: &mut T) -> () 
+        where A: Extend<u8>
+    {
         // The default behavior for a mutator is to pass the same input
-        out_buffer.write(&chunk).expect("Could not write to out buffer");
+        sink.extend::<Vec<u8>>(chunk);
     }
 
-    /// Provides the name of the mutator
+    /// Provides the name of the mutator, mostly used for debugging reasons
     fn name(&self) -> String {
         return format!("{:?}", std::any::type_name::<Self>())
     }
@@ -46,7 +50,9 @@ pub struct ReturnI32SnipMutator {
 }
 
 impl Mutator<Payload<'_>> for ReturnI32SnipMutator{
-    fn mutate<'a>(&mut self, _:&'a crate::WasmMutate, chunk: &'a [u8], out_buffer:&'a mut dyn Write, payload: &mut Payload<'_>) -> () {
+    fn mutate<'a, A>(&mut self, _:&'a crate::WasmMutate, chunk: Vec<u8>, sink:&'a mut A, payload: &mut Payload<'_>) -> () 
+    where A: Extend<u8>
+    {
         match payload {
             
             Payload::CodeSectionEntry(reader) => {
@@ -56,8 +62,7 @@ impl Mutator<Payload<'_>> for ReturnI32SnipMutator{
                 f.instruction(Instruction::I32Const(0));
                 f.instruction(Instruction::End);
                 f.encode(&mut tmpbuff);
-                out_buffer.write(&tmpbuff).expect("Could not write code body");
-
+                sink.extend(tmpbuff)
             },
             _ => panic!("Only code entries are allowed"),
         }
@@ -69,7 +74,9 @@ pub struct SetFunction2Unreachable {
 }
 
 impl Mutator<Payload<'_>> for SetFunction2Unreachable{
-    fn mutate<'a>(&mut self, _:&'a crate::WasmMutate, chunk: &'a [u8], out_buffer:&'a mut dyn Write, payload: &mut Payload<'_>) -> () {
+    fn mutate<'a, A>(&mut self, _:&'a crate::WasmMutate, chunk: Vec<u8>, sink:&'a mut A, payload: &mut Payload<'_>) -> () 
+        where A: Extend<u8>
+    {
         match payload {
             
             Payload::CodeSectionEntry(reader) => {
@@ -79,7 +86,7 @@ impl Mutator<Payload<'_>> for SetFunction2Unreachable{
                 f.instruction(Instruction::Unreachable);
                 f.instruction(Instruction::End);
                 f.encode(&mut tmpbuff);
-                out_buffer.write(&tmpbuff).expect("Could not write code body");
+                sink.extend(tmpbuff);
 
             },
             _ => panic!("Only code entries are allowed"),
@@ -93,14 +100,16 @@ pub struct RemoveExportMutator {
 }
 
 impl Mutator<Payload<'_>> for RemoveExportMutator{
-    fn mutate<'a>(&mut self, config:&'a crate::WasmMutate, chunk: &'a [u8], out_buffer:&'a mut dyn Write, payload: &mut Payload<'_>) -> () {
+    fn mutate<'a, A>(&mut self, config:&'a crate::WasmMutate, chunk: Vec<u8>, sink:&'a mut A, payload: &mut Payload<'_>) -> () 
+        where A: Extend<u8>
+    {
         match payload {
             
             Payload::ExportSection(reader) => {
                 // Select a random export
                 let mut exports = ExportSection::new();
                 let max_exports = reader.get_count() as u64;
-                let skip_at = config.seed % max_exports;
+                let skip_at = config.get_rnd().next_u64() % max_exports;
 
                 (0..max_exports).for_each(|i|{ 
                     let export = reader.read().unwrap();
@@ -118,15 +127,12 @@ impl Mutator<Payload<'_>> for RemoveExportMutator{
                         }
                     } else {
                         #[cfg(debug_assertions)] {
-                            eprintln!("Removing export {:?}", export);
+                            eprintln!("Removing export {:?} idx {:?}", export, skip_at);
                         }
                     }
                 });
-                
-                // it is the same by creating and empty section ?
-                let mut module = Module::new();
-                module.section(&exports);
-                out_buffer.write(&module.finish()).expect("Module could not be written");
+                sink.extend_one(SectionId::Export.into());
+                exports.encode(sink);
                 
             },
             _ => panic!("Only export section is allowed"),
