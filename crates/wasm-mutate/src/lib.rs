@@ -6,7 +6,6 @@
 //! Wasm parser, validator, compiler, or any other Wasm-consuming
 //! tool. `wasm-mutate` can serve as a custom mutator for mutation-based
 //! fuzzing.
-#![feature(extend_one)]
 #![cfg_attr(not(feature = "structopt"), deny(missing_docs))]
 
 use std::{io::Write, sync::Arc};
@@ -292,7 +291,7 @@ impl WasmMutate {
             };
 
             // To check, add section if in the encoding of the section ?
-            result.extend_one(SectionId::Code as u8);
+            result.extend(std::iter::once(SectionId::Code as u8));
             raw_code.encode(&mut result);
             //result.encode(&module.finish()).expect("Code section could not be written");
         }

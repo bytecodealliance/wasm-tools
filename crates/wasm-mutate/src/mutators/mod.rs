@@ -121,7 +121,7 @@ impl Mutator<Payload<'_>> for RemoveExportMutator{
                         }
                     }
                 });
-                sink.extend_one(SectionId::Export.into());
+                sink.extend(std::iter::once(SectionId::Export.into()));
                 exports.encode(sink);
                 
             },
@@ -201,7 +201,7 @@ impl Mutator<Payload<'_>> for RenameExportMutator{
                     }
                     
                 });
-                sink.extend_one(SectionId::Export.into());
+                sink.extend(std::iter::once(SectionId::Export.into()));
                 exports.encode(sink);
                 
             },
