@@ -32,7 +32,7 @@ macro_rules! mutators {
             ($tpe: pat$(, $mutation:expr)*),
         )*
     ) => {
-        fn mutate<'a, A>(p:&'a mut Payload<'a>, context: &'a WasmMutate, chunk:&Vec<u8>, sink: &'a mut A) -> ()
+        fn mutate<'a, A>(p:&'a mut Payload<'a>, context: &'a WasmMutate, chunk:&Vec<u8>, sink: &'a mut A) -> Result<()>
             where A: Extend<u8>
         {
             match  p {
@@ -47,18 +47,22 @@ macro_rules! mutators {
                         ];// Instantiate after select
 
                         let mut rnd = context.get_rnd();
+                        
                         let mutation = options.get(rnd.gen_range(0, options.len())).unwrap();
+
                         let (name, _ ) = mutation(context, chunk.clone(), sink, p);
                         
                         #[cfg(debug_assertions)] {
                             eprintln!("Selected mutator {} on {:?}", name.unwrap(), p);
                         }
+                        return Ok(());
                     } ,
                 )
                 *
                 _ => {
                     // default behavior, bypass payload
                     sink.extend(chunk.clone());
+                    Ok(())
                 }
             }
         }
@@ -223,7 +227,7 @@ impl WasmMutate {
         let mut code: Vec<u8> = Vec::new(); 
 
         loop {
-            let (mut payload, chunksize) = match parser.parse(&input_wasm[consumed..], true).unwrap() {
+            let (mut payload, chunksize) = match parser.parse(&input_wasm[consumed..], true)? {
                 Chunk::NeedMoreData(__) => {
                     // In theory the passed buffer is a complete Wasm module, it should not be need for more data
                     continue;
@@ -280,7 +284,8 @@ impl WasmMutate {
             let num_added = encoders::u32(function_count);
             sink.extend(num_added);
             sink.extend(code.iter().copied());
-            
+            code.get(0);
+
             let raw_code = RawSection{
                 id: SectionId::Code.into(),
                 data: &sink
