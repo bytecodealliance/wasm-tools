@@ -1,7 +1,6 @@
 
-use std::{borrow::Borrow, io::Write};
-use rand::{Rng, RngCore, prelude::StdRng};
-use wasm_encoder::{Export, ExportSection, Function, Instruction, Module, Section, SectionId};
+use rand::{Rng, RngCore, prelude::SmallRng};
+use wasm_encoder::{Export, ExportSection, Function, Instruction, Section, SectionId};
 use wasmparser::Payload;
 use crate::{WasmMutate};
 
@@ -138,7 +137,7 @@ pub struct RenameExportMutator {
 impl RenameExportMutator {
     
     // Copied and transformed from wasm-smith name generation
-    fn limited_string(&self, rnd: &mut StdRng) -> String {
+    fn limited_string(&self, rnd: &mut SmallRng) -> String {
         
         let size = rnd.gen_range(1, self.max_name_size);
         let size = std::cmp::min(size, self.max_name_size);

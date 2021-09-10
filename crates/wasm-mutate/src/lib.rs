@@ -11,7 +11,7 @@
 use std::{io::Write, sync::Arc};
 
 use mutators::{Mutator, ReturnI32SnipMutator, SetFunction2Unreachable, RemoveExportMutator, NoMutator, RenameExportMutator};
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use rand::{rngs::SmallRng, Rng, SeedableRng};
 #[cfg(feature = "structopt")]
 use structopt::StructOpt;
 use std::convert::TryFrom;
@@ -201,8 +201,8 @@ impl WasmMutate {
     }
 
     /// Returns Random generator from seed
-    pub fn get_rnd(&self) -> StdRng {
-        StdRng::seed_from_u64(self.seed as u64)
+    pub fn get_rnd(&self) -> SmallRng {
+        SmallRng::seed_from_u64(self.seed as u64)
     }
 
     /// Run this configured `WasmMutate` on the given input Wasm.
