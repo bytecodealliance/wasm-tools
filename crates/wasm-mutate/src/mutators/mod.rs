@@ -15,7 +15,7 @@ pub trait Mutator<T>: Sized + 'static
     /// * `chunk` piece of the byte stream corresponding with the payload
     /// * `out_buffer` resulting mutated byte stream
     /// * `mutable` mutable object
-    fn mutate<'a, A>(&mut self, _:&'a WasmMutate, chunk: Vec<u8>, sink: &'a mut A, _: &mut T) -> () 
+    fn mutate<'a, A>(&mut self, _:&'a WasmMutate, chunk: Vec<u8>, sink: &'a mut A, _: &mut T)
         where A: Extend<u8>
     {
         // The default behavior for a mutator is to pass the same input
@@ -40,7 +40,7 @@ pub struct ReturnI32SnipMutator {
 }
 
 impl Mutator<Payload<'_>> for ReturnI32SnipMutator{
-    fn mutate<'a, A>(&mut self, _:&'a crate::WasmMutate, chunk: Vec<u8>, sink:&'a mut A, payload: &mut Payload<'_>) -> () 
+    fn mutate<'a, A>(&mut self, _:&'a crate::WasmMutate, chunk: Vec<u8>, sink:&'a mut A, payload: &mut Payload<'_>)
     where A: Extend<u8>
     {
         match payload {
@@ -64,7 +64,7 @@ pub struct SetFunction2Unreachable {
 }
 
 impl Mutator<Payload<'_>> for SetFunction2Unreachable{
-    fn mutate<'a, A>(&mut self, _:&'a crate::WasmMutate, chunk: Vec<u8>, sink:&'a mut A, payload: &mut Payload<'_>) -> () 
+    fn mutate<'a, A>(&mut self, _:&'a crate::WasmMutate, chunk: Vec<u8>, sink:&'a mut A, payload: &mut Payload<'_>) 
         where A: Extend<u8>
     {
         match payload {
@@ -90,7 +90,7 @@ pub struct RemoveExportMutator {
 }
 
 impl Mutator<Payload<'_>> for RemoveExportMutator{
-    fn mutate<'a, A>(&mut self, config:&'a crate::WasmMutate, chunk: Vec<u8>, sink:&'a mut A, payload: &mut Payload<'_>) -> () 
+    fn mutate<'a, A>(&mut self, config:&'a crate::WasmMutate, chunk: Vec<u8>, sink:&'a mut A, payload: &mut Payload<'_>) 
         where A: Extend<u8>
     {
         match payload {
@@ -163,7 +163,7 @@ impl RenameExportMutator {
 }
 
 impl Mutator<Payload<'_>> for RenameExportMutator{
-    fn mutate<'a, A>(&mut self, config:&'a crate::WasmMutate, chunk: Vec<u8>, sink:&'a mut A, payload: &mut Payload<'_>) -> () 
+    fn mutate<'a, A>(&mut self, config:&'a crate::WasmMutate, chunk: Vec<u8>, sink:&'a mut A, payload: &mut Payload<'_>) 
         where A: Extend<u8>
     {
         match payload {
