@@ -227,9 +227,9 @@ impl WasmMutate {
 
         loop {
             let (mut payload, chunksize) = match parser.parse(&input_wasm[consumed..], true)? {
-                Chunk::NeedMoreData(__) => {
-                    // In theory the passed buffer is a complete Wasm module, it should not be need for more data
-                    continue;
+                Chunk::NeedMoreData(_) => {
+                    // In theory the passed buffer is a complete Wasm module, it should not be need for more data, panic then
+                    panic!("Invalid Wasm module");
                 },
                 Chunk::Parsed { consumed, payload } => (payload, consumed),
             };
@@ -257,7 +257,7 @@ impl WasmMutate {
                     let mut func = Vec::new();
 
                     WasmMutate::mutate(
-                        &mut payload, self, byteschunk, &mut func);
+                        &mut payload, self, byteschunk, &mut func)?;
 
                     code.extend(&func);
                 },
@@ -268,7 +268,7 @@ impl WasmMutate {
                             &mut first_half
                         } else {
                             &mut second_half
-                        });
+                        })?;
                 }
             }
             consumed += chunksize
