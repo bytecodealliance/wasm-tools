@@ -1,8 +1,4 @@
 
-#![doc=r###"
-    ## Mutators
-"###]
-
 use std::{borrow::Borrow, io::Write};
 use rand::{Rng, RngCore, prelude::StdRng};
 use wasm_encoder::{Export, ExportSection, Function, Instruction, Module, Section, SectionId};
@@ -10,10 +6,6 @@ use wasmparser::Payload;
 use crate::{WasmMutate};
 
 
-#[doc=r###"
-
-    ```
-"###]
 pub trait Mutator<T>: Sized + 'static
 {
     
