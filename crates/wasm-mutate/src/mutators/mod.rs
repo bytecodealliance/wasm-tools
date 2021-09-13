@@ -2,10 +2,10 @@
 use rand::{Rng, RngCore, prelude::SmallRng};
 use wasm_encoder::{Export, ExportSection, Function, Instruction, Section, SectionId};
 use wasmparser::Payload;
-use crate::{WasmMutate};
+use crate::{ModuleInfo, WasmMutate};
 
 
-pub trait Mutator<T>: Sized + 'static
+pub trait Mutator<T>
 {
     
     /// Method where the mutation happpens
@@ -14,88 +14,123 @@ pub trait Mutator<T>: Sized + 'static
     /// * `chunk` piece of the byte stream corresponding with the payload
     /// * `out_buffer` resulting mutated byte stream
     /// * `mutable` mutable object
-    fn mutate<'a, A>(&mut self, _:&'a WasmMutate, chunk: Vec<u8>, sink: &'a mut A, _: &mut T)
+    /// Return the number of written bytes
+    fn mutate<'a, A>(&mut self, _:&'a WasmMutate, chunk: Vec<u8>, sink: &'a mut A, _: &mut T) -> usize
         where A: Extend<u8>
     {
         // The default behavior for a mutator is to pass the same input
-        sink.extend::<Vec<u8>>(chunk);
+        // Then, return zero
+        0
+    }
+
+    /// 
+    fn can_mutate<'a>(&self, _:&'a WasmMutate, info: &ModuleInfo) -> bool{
+        true
     }
 
     /// Provides the name of the mutator, mostly used for debugging purposes
     fn name(&self) -> String {
         return format!("{:?}", std::any::type_name::<Self>())
     }
+
 }
 
+pub type Mutators<T> = Box<dyn Mutator<T>>;
 
 /// Default behavior of NoMutator is to be idempotent
 pub struct NoMutator;
 
 impl Mutator<Payload<'_>> for NoMutator {
+    fn mutate<'a, A>(&mut self, _:&'a WasmMutate, chunk: Vec<u8>, sink: &'a mut A, payload: &mut Payload<'_>) -> usize
+        where A: Extend<u8>
+    {
+        // The default behavior for a mutator is to pass the same input
+        // Then, return zero
+        let len = chunk.len();
+        sink.extend(chunk);
+        len
+    }
 }
 
 // Concrete implementations
-pub struct ReturnI32SnipMutator {
-}
+pub struct ReturnI32SnipMutator;
 
 impl Mutator<Payload<'_>> for ReturnI32SnipMutator{
-    fn mutate<'a, A>(&mut self, _:&'a crate::WasmMutate, chunk: Vec<u8>, sink:&'a mut A, payload: &mut Payload<'_>)
+    fn mutate<'a, A>(&mut self, _:&'a crate::WasmMutate, chunk: Vec<u8>, sink:&'a mut A, payload: &mut Payload<'_>) -> usize
     where A: Extend<u8>
     {
         match payload {
             
             Payload::CodeSectionEntry(reader) => {
+                if cfg!(debug_assertions) {
+                    println!("Applying ReturnI32SnipMutator");
+                };
+
                 let locals = vec![];                    
                 let mut tmpbuff: Vec<u8> = Vec::new();
                 let mut f = Function::new(locals);
                 f.instruction(Instruction::I32Const(0));
                 f.instruction(Instruction::End);
                 f.encode(&mut tmpbuff);
-                sink.extend(tmpbuff)
+                let len = tmpbuff.len();
+                sink.extend(tmpbuff);
+                println!("{:?}", len);
+                len
             },
-            _ => panic!("Only code entries are allowed"),
+            _ => 0,
         }
+    }
+
+    fn can_mutate<'a>(&self, _:&'a WasmMutate, info: &ModuleInfo) -> bool {
+        info.has_code
     }
 }
 
-pub struct SetFunction2Unreachable {
-
-}
+pub struct SetFunction2Unreachable;
 
 impl Mutator<Payload<'_>> for SetFunction2Unreachable{
-    fn mutate<'a, A>(&mut self, _:&'a crate::WasmMutate, chunk: Vec<u8>, sink:&'a mut A, payload: &mut Payload<'_>) 
+    fn mutate<'a, A>(&mut self, _:&'a crate::WasmMutate, chunk: Vec<u8>, sink:&'a mut A, payload: &mut Payload<'_>) -> usize 
         where A: Extend<u8>
     {
         match payload {
             
             Payload::CodeSectionEntry(reader) => {
+                if cfg!(debug_assertions) {
+                    println!("Applying SetFunction2Unreachable");
+                };
                 let locals = vec![];                    
                 let mut tmpbuff: Vec<u8> = Vec::new();
                 let mut f = Function::new(locals);
                 f.instruction(Instruction::Unreachable);
                 f.instruction(Instruction::End);
                 f.encode(&mut tmpbuff);
-                sink.extend(tmpbuff);
 
+                let len = tmpbuff.len();
+                sink.extend(tmpbuff);
+                len
             },
-            _ => panic!("Only code entries are allowed"),
+            _ => 0,
         }
+    }
+
+    fn can_mutate<'a>(&self, _:&'a WasmMutate, info: &ModuleInfo) -> bool {
+        info.has_code
     }
 }
 
 
-pub struct RemoveExportMutator {
-
-}
+pub struct RemoveExportMutator ;
 
 impl Mutator<Payload<'_>> for RemoveExportMutator{
-    fn mutate<'a, A>(&mut self, config:&'a crate::WasmMutate, chunk: Vec<u8>, sink:&'a mut A, payload: &mut Payload<'_>) 
+    fn mutate<'a, A>(&mut self, config:&'a crate::WasmMutate, chunk: Vec<u8>, sink:&'a mut A, payload: &mut Payload<'_>) -> usize
         where A: Extend<u8>
     {
         match payload {
             
             Payload::ExportSection(reader) => {
                 // Select a random export
+
+                println!("Applying RemoveExportMutator");
                 let mut exports = ExportSection::new();
                 let max_exports = reader.get_count() as u64;
                 let skip_at = config.get_rnd().gen_range(0, max_exports);
@@ -121,11 +156,17 @@ impl Mutator<Payload<'_>> for RemoveExportMutator{
                     }
                 });
                 sink.extend(std::iter::once(SectionId::Export.into()));
-                exports.encode(sink);
-                
+                let mut tmpbuf = Vec::new();
+                exports.encode(&mut tmpbuf);
+                sink.extend(tmpbuf);
+                0
             },
-            _ => panic!("Only export section is allowed"),
+            _ => 0,
         }
+    }
+
+    fn can_mutate<'a>(&self, _:&'a WasmMutate, info: &ModuleInfo) -> bool {
+        info.has_exports
     }
 }
 
@@ -159,15 +200,22 @@ impl RenameExportMutator {
             }
         }
     }
+
 }
 
 impl Mutator<Payload<'_>> for RenameExportMutator{
-    fn mutate<'a, A>(&mut self, config:&'a crate::WasmMutate, chunk: Vec<u8>, sink:&'a mut A, payload: &mut Payload<'_>) 
-        where A: Extend<u8>
+    fn mutate<'a, A>(&mut self, config:&'a crate::WasmMutate, chunk: Vec<u8>, sink:&'a mut A, payload: &mut Payload<'_>) -> usize
+        where A: Extend<u8> + Sized
     {
+
+
         match payload {
             
             Payload::ExportSection(reader) => {
+
+                if cfg!(debug_assertions) {
+                    println!("Applying RenameExportMutator");
+                };
                 // Select a random export
                 let mut exports = ExportSection::new();
                 let max_exports = reader.get_count() as u64;
@@ -202,9 +250,14 @@ impl Mutator<Payload<'_>> for RenameExportMutator{
                 });
                 sink.extend(std::iter::once(SectionId::Export.into()));
                 exports.encode(sink);
+                0
                 
             },
-            _ => panic!("Only export section is allowed"),
+            _ => 0,
         }
+    }
+
+    fn can_mutate<'a>(&self, _:&'a WasmMutate, info: &ModuleInfo) -> bool {
+        info.has_exports
     }
 }

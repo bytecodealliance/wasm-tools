@@ -8,9 +8,9 @@
 //! fuzzing.
 #![cfg_attr(not(feature = "structopt"), deny(missing_docs))]
 
-use std::{io::Write, sync::Arc};
+use std::{any::TypeId, io::Write, sync::Arc};
 
-use mutators::{Mutator, ReturnI32SnipMutator, SetFunction2Unreachable, RemoveExportMutator, NoMutator, RenameExportMutator};
+use mutators::{Mutator, ReturnI32SnipMutator, SetFunction2Unreachable, RemoveExportMutator, NoMutator, RenameExportMutator, Mutators};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 #[cfg(feature = "structopt")]
 use structopt::StructOpt;
@@ -28,43 +28,94 @@ use wasmparser::{Chunk, Parser, Payload};
 macro_rules! mutators {
     (
         $(
-            ($tpe: pat$(, $mutation:expr)*),
+            ($tpe: pat$(, ($mutation:expr $(, $preserve_semantic: literal)?))*),
         )*
     ) => {
-        fn mutate<'a, A>(p:&'a mut Payload<'a>, context: &'a WasmMutate, chunk:&Vec<u8>, sink: &'a mut A) -> Result<()>
-            where A: Extend<u8>
-        {
-            match  p {
-                $(
-                    $tpe => {
-                        let options = [
-                            #[cfg(feature="no-mutator")]
-                                move | config, chunk, out, payload  | (Some(String::from("NoMutator")), NoMutator{}.mutate(config, chunk, out, payload)),
-                            $(  
-                                move | config, chunk, out, payload  | (Some($mutation.name()), $mutation.mutate(config, chunk, out, payload)), 
-                            )*
-                        ];// Instantiate after select
+            
 
-                        let mut rnd = context.get_rnd();
-                        
-                        let mutation = options.get(rnd.gen_range(0, options.len())).unwrap();
+            fn mutate<'a, A>(p:&'a mut Payload<'a>, context: &'a WasmMutate, chunk:&Vec<u8>, sink: &'a mut A) -> Result<()>
+                where A: Extend<u8>
+            {
+                match  p {
+                    $(
+                        $tpe => {
 
-                        let (name, _ ) = mutation(context, chunk.clone(), sink, p);
-                        
-                        #[cfg(debug_assertions)] {
-                            eprintln!("Selected mutator {} on {:?}", name.unwrap(), p);
-                        }
-                        return Ok(());
-                    } ,
-                )
-                *
-                _ => {
-                    // default behavior, bypass payload
-                    sink.extend(chunk.clone());
-                    Ok(())
+                            let options = [
+                                #[cfg(feature="no-mutator")]
+                                    move | config, chunk, out, payload  | (Some(String::from("NoMutator")), NoMutator.mutate(config, chunk, out, payload)),
+                                $(  
+                                    move | config, chunk, out, payload  | (Some($mutation.name()), $mutation.mutate(config, chunk, out, payload)), 
+                                )*
+                            ];// Instantiate after select
+
+                            println!("{:?}", options);
+                            panic!();
+
+                            // filter by semantic
+
+                            let mut rnd = context.get_rnd();
+                            
+                            let mutation = options.get(rnd.gen_range(0, options.len())).unwrap();
+
+                            let (name, _ ) = mutation(context, chunk.clone(), sink, p);
+                            
+                            #[cfg(debug_assertions)] {
+                                eprintln!("Selected mutator {} on {:?}", name.unwrap(), p);
+                            }
+                            return Ok(());
+                        } ,
+                    )
+                    *
+                    _ => {
+                        // default behavior, bypass payload
+                        sink.extend(chunk.clone());
+                        Ok(())
+                    }
                 }
             }
-        }
+    };
+}
+
+
+macro_rules! get_mutators {
+    (
+        $(
+            ($(
+                ($mutation:expr $(, $preserve_semantic: literal)?),
+            )*),
+        )*
+    ) => {
+            
+
+            fn get_applicable_mutations<'a, A>(&self, info: &ModuleInfo) -> Result<Vec<Vec<Box<dyn Fn(&WasmMutate, Vec<u8>, &mut Vec<u8>, &mut Payload) -> usize>>>>
+                where A: Extend<u8>
+            {
+                let mut mutations = Vec::new();
+                //fn mutate<'a, A>(&mut self, _:&'a WasmMutate, chunk: Vec<u8>, sink: &'a mut A, _: &mut T)
+                type C =  Vec<u8>;
+                type R = Box<dyn Fn(&WasmMutate, Vec<u8>, &mut C, &mut Payload) -> usize>;
+
+                $(
+                    let mut dependant_mutations = Vec::new();
+                    $(
+
+                        if $mutation.can_mutate(self, info) {
+                            
+                            if cfg!(debug_assertions) {
+                                println!("{} is applicable", $mutation.name());
+                            }
+
+                            dependant_mutations.push(Box::new(
+                                ( move |a: &WasmMutate, b, c: &mut C, d: &mut Payload| (  $mutation.mutate(a, b, c , d)))
+                            ) as R);
+                        };
+                    )*
+
+                    mutations.push(dependant_mutations);
+                )*
+
+                Ok(mutations)
+            }
     };
 }
 
@@ -145,6 +196,25 @@ impl Default for WasmMutate {
     }
 }
 
+/// Provides module information for future usage during mutation
+/// an instance of ModuleInfo could be user to determine which mutation could be applied
+#[derive(Default)]
+pub struct ModuleInfo {
+
+    has_exports: bool,    
+    has_types: bool,   
+    has_imports: bool,   
+    has_tables: bool,  
+
+    has_mem: bool,
+    has_global: bool,
+    is_start_defined: bool,
+
+    elem_section: bool,
+    has_data: bool,
+    has_code: bool
+}
+
 impl WasmMutate {
     /// Set the RNG seed used to choose which transformation to apply.
     ///
@@ -187,31 +257,87 @@ impl WasmMutate {
         self
     }
 
-    /// This type of construction allows to map payloads with specific mutators
-    mutators! {
-        (Payload::CodeSectionEntry(_) 
-            ,ReturnI32SnipMutator{}
-            ,SetFunction2Unreachable{}
-        ),
-        (
-            Payload::ExportSection(_)
-               ,RemoveExportMutator{}
-               ,RenameExportMutator{max_name_size: 100}
-        ),
+    // This type of construction allows to determine which mutation can be applied
+    // The vertical dimension represents mutations that can be applied indistincly from each other
+    // Horizontal dimension allows to define mutations in which only one can be applied 
+    get_mutators! {
+        ((ReturnI32SnipMutator, false), (SetFunction2Unreachable, false),), // For code
+        ((RemoveExportMutator, true), (RenameExportMutator{max_name_size: 100}, true), ), // For exports
     }
-
     /// Returns Random generator from seed
     pub fn get_rnd(&self) -> SmallRng {
         SmallRng::seed_from_u64(self.seed as u64)
     }
 
+    /// Parse and fill lane AST with metadata information about the module
+    fn get_module_info(&self, input_wasm: &[u8]) -> Result<ModuleInfo>{
+
+        let mut parser = Parser::new(0);
+        let mut consumed = 0;
+        let mut info = ModuleInfo::default();
+
+        loop {
+            let (payload, chunksize) = match parser.parse(&input_wasm[consumed..], true)? {
+                Chunk::NeedMoreData(_) => {
+                    panic!("Invalid Wasm module");
+                },
+                Chunk::Parsed { consumed, payload } => (payload, consumed),
+            };
+
+            match payload {
+                Payload::CodeSectionStart { count, range, size } => {
+                    info.has_code = count >= 1;
+                },
+                Payload::CodeSectionEntry(_) => {
+                    
+                },
+                Payload::TypeSection(reader ) => { info.has_types = reader.get_count() >= 1; },
+                Payload::ImportSection(reader) => { info.has_tables = reader.get_count() >= 1; },
+                Payload::FunctionSection(reader) => { 
+
+                },
+                Payload::TableSection(reader) => { info.has_tables = reader.get_count() >= 1;},
+                Payload::MemorySection(reader) => { info.has_mem = reader.get_count() >= 1; },
+                Payload::GlobalSection(reader) => {info.has_global = reader.get_count() >= 1;},
+                Payload::ExportSection(reader) => { info.has_exports = reader.get_count() >= 1; },
+                Payload::StartSection { func, range } => { info.is_start_defined = true; },
+                Payload::ElementSection(reader) => { info.elem_section = true; },
+                Payload::DataSection(reader) => { info.has_data = reader.get_count() >= 1; },
+                Payload::End => {break;},
+                _ => {
+
+                }
+            }
+            consumed += chunksize
+        };
+
+        Ok(info)
+    }
+
     /// Run this configured `WasmMutate` on the given input Wasm.
-    pub fn run(&self, input_wasm: &[u8]) -> Result<Vec<u8>> {
+    pub fn run<'a>(&self, input_wasm: &[u8]) -> Result<Vec<u8>> {
         // Declare available mutators here
 
-        let _ = input_wasm;
+        let info = self.get_module_info(input_wasm)?;
+        let mutators = self.get_applicable_mutations::<Vec<u8>>(&info)?;
+
+        // Select random
+        let mut rnd = self.get_rnd();
+        let mut selected = Vec::new();
+
+        mutators.iter().for_each(|mutations|{
+            // In this dimension only one mutation can be selected
+            if mutations.len() >= 1 { // at least one mutation
+                let selected_mutation = rnd.gen_range(0, mutations.len());
+                selected.push(mutations.get(selected_mutation));
+            }
+        });
+
+        if selected.len() == 0 { // return idem if no mutators
+            return Ok(input_wasm.to_vec())
+        }
+
         
-        // no mutator as the default?
 
         let mut parser = Parser::new(0);
         let mut result: Vec<u8> = Vec::new();
@@ -219,10 +345,10 @@ impl WasmMutate {
         
         let mut function_count = 0;
 
-
         let mut code_parsing_started= false;
         let mut first_half= Vec::new();
         let mut second_half = Vec::new();
+        let mut dev_null = Vec::new();
         let mut code: Vec<u8> = Vec::new(); 
 
         loop {
@@ -245,32 +371,53 @@ impl WasmMutate {
             // This code is a patch, the code section need to be updated if some changes are made to code entries
             // If the code section start, the previous buffer is saved for later writting
             // This pattern match returns the Write in which the data will be written
-            match payload {
+            let mut buffer = match payload {
                 Payload::CodeSectionStart { count: _, range: _, size:_ } => {
                     code_parsing_started = true;
-                    // The code section will be encoded after
-
+                    &mut dev_null
                 },
                 Payload::CodeSectionEntry(_) => {
                     // In theory the code section entries come inmediatly after the code section start, if another payload is parsed after, all code sections have been parsed
                     function_count += 1;
-                    let mut func = Vec::new();
-
-                    WasmMutate::mutate(
-                        &mut payload, self, byteschunk, &mut func)?;
-
-                    code.extend(&func);
+                    &mut code
                 },
                 _ => {
-                    WasmMutate::mutate(
-                        &mut payload, &self, byteschunk,     
-                        if !code_parsing_started {
-                            &mut first_half
-                        } else {
-                            &mut second_half
-                        })?;
+                    if !code_parsing_started {
+                        &mut first_half
+                    } else {
+                        &mut second_half
+                    }
+                }
+            };
+            
+
+            // Apply the mutations
+            // Each mutator should be applied to specific payloads
+            // If the mutator is not implemented to mutate the specific payload, then the payload is bypassed (zero bytes written)
+            let mut written = 0;
+
+            println!("{:?}", payload);
+
+            for mutator in selected.iter() {
+                if let Some(mutator_func) = mutator {
+                    
+                    written = mutator_func(self, byteschunk.to_vec(), &mut buffer, &mut payload);
+                    println!("{:?}", written );
+
+                    if written >= 0 {
+                        // This will prevent two mutators rewrite the same payload
+                        break
+                    }
+                    // If something was written break
                 }
             }
+
+            if written == 0 {
+                buffer.extend(byteschunk)
+            }
+
+            // if non mutator was able to mutate, then write the initial
+
             consumed += chunksize
         }
 
@@ -293,7 +440,6 @@ impl WasmMutate {
             // To check, add section if in the encoding of the section ?
             result.extend(std::iter::once(SectionId::Code as u8));
             raw_code.encode(&mut result);
-            //result.encode(&module.finish()).expect("Code section could not be written");
         }
         // Then write the second half, payloads processed after code entries finised
         result.extend(second_half);
