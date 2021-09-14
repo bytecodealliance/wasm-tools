@@ -1,9 +1,11 @@
 
+use std::primitive;
+
 use rand::{Rng, RngCore, prelude::SmallRng};
 use wasm_encoder::{CodeSection, Export, ExportSection, Function, Instruction, RawSection, Section, SectionId, encoders};
 use wasmparser::{Chunk, Parser, Payload, Range};
 use crate::{ModuleInfo, WasmMutate};
-
+use crate::module::*;
 
 pub trait Mutator
 {
@@ -86,8 +88,26 @@ impl Mutator for ReturnI32SnipMutator {
                     let locals = vec![];                    
                     let mut tmpbuff: Vec<u8> = Vec::new();
                     let mut f = Function::new(locals);
-                    f.instruction(Instruction::I32Const(0));
+
+                    let ftype = info.get_functype_idx(idx as usize);
+
+                    match ftype {
+                        TypeInfo::Func(t) => {
+                            t.returns.iter().for_each(|primitive|{
+                                match primitive {
+                                    PrimitiveTypeInfo::I32 => {f.instruction(Instruction::I32Const(0));},
+                                    PrimitiveTypeInfo::I64 => {f.instruction(Instruction::I64Const(0));},
+                                    PrimitiveTypeInfo::F32 => {f.instruction(Instruction::F32Const(0.0));},
+                                    PrimitiveTypeInfo::F64 => {f.instruction(Instruction::F64Const(0.0));},
+                                }
+                            });
+
+                        },
+                        _ => panic!("Unconsistent function type")
+                    };
+
                     f.instruction(Instruction::End);
+
                     f.encode(&mut tmpbuff);
                     codes.extend(tmpbuff);
                 } else {

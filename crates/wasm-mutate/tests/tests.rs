@@ -40,8 +40,8 @@ mod tests{
         // From https://developer.mozilla.org/en-US/docs/WebAssembly/Text_format_to_wasm
         let wat = r#"
         (module
-            (func (result i32)
-                i32.const 42
+            (func (result i64)
+                i64.const 42
             )
         )
         "#;

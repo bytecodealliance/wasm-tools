@@ -10,6 +10,7 @@
 
 use std::{any::TypeId, collections::HashMap, io::Write, sync::Arc};
 
+use module::TypeInfo;
 use mutators::{Mutator, ReturnI32SnipMutator};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 #[cfg(feature = "structopt")]
@@ -18,13 +19,15 @@ use std::convert::TryFrom;
 
 mod error;
 
+mod module;
 pub mod mutators;
+
 
 pub use error::{Error, Result};
 use wasm_encoder::{CodeSection, Module, RawSection, Section, SectionId, encoders};
-use wasmparser::{Chunk, Parser, Payload, Range};
+use wasmparser::{Chunk, Parser, Payload, Range, TypeDef};
 
-use crate::mutators::{SetFunction2Unreachable, RemoveExportMutator, RenameExportMutator};
+use crate::{module::{FuncInfo, PrimitiveTypeInfo}, mutators::{SetFunction2Unreachable, RemoveExportMutator, RenameExportMutator}};
 
 
 macro_rules! get_mutators {
@@ -134,7 +137,7 @@ pub struct WasmMutate {
 
 impl Default for WasmMutate {
     fn default() -> Self {
-        let seed = 0;
+        let seed = 3;
         WasmMutate {
             seed: seed,
             preserve_semantics: false,
@@ -147,7 +150,7 @@ impl Default for WasmMutate {
 /// Provides module information for future usage during mutation
 /// an instance of ModuleInfo could be user to determine which mutation could be applied
 /// We have the ranges where the sections are for sake of memory safe, instead of having raw sections
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ModuleInfo {
     exports: Option<Range>,    
     types: Option<Range>,   
@@ -159,7 +162,11 @@ pub struct ModuleInfo {
     elements: Option<Range>,
     functions: Option<Range>,
     data: Option<Range>,
-    code: Option<Range>
+    code: Option<Range>,
+
+    // types for inner functions
+    types_map: Vec<TypeInfo>,
+    function_map: Vec<u32>
 }
 
 impl ModuleInfo {
@@ -169,6 +176,14 @@ impl ModuleInfo {
 
     fn has_exports(&self) -> bool {
         self.exports != None
+    }
+
+    pub fn get_type_idx(&self, idx: usize) -> &TypeInfo {
+        self.types_map.get(idx).unwrap()
+    }
+
+    pub fn get_functype_idx(&self, idx: usize) -> &TypeInfo {
+        self.types_map.get(*self.function_map.get(idx).unwrap() as usize).unwrap()
     }
 }
 
@@ -231,7 +246,7 @@ impl WasmMutate {
     }
 
     /// Parse and fill lane AST with metadata information about the module
-    fn get_module_info(&self, input_wasm: &[u8]) -> Result<ModuleInfo>{
+    fn get_module_info<'a>(&self, input_wasm: &[u8]) -> Result<ModuleInfo>{
 
         let mut parser = Parser::new(0);
         let mut consumed = 0;
@@ -249,9 +264,58 @@ impl WasmMutate {
                 Payload::CodeSectionStart { count, range, size } => {
                     info.code = Some(Range {start:consumed, end: consumed+chunksize + size as usize});
                 },
-                Payload::TypeSection(_ ) => { info.types = Some(Range {start:consumed, end: consumed+chunksize}) },
+                Payload::TypeSection(mut reader) => { 
+                    info.types = Some(Range {start:consumed, end: consumed+chunksize});
+
+                    // Save function types
+                    (0..reader.get_count()).for_each(|i| {
+                        let ty = reader.read().unwrap();
+
+                        info.types_map.push(match ty {
+                            TypeDef::Func(FT) => TypeInfo::Func(FuncInfo{
+                                params: FT.params.iter().map(|&t|{
+                                    match t {
+                                        wasmparser::Type::I32 => PrimitiveTypeInfo::I32,
+                                        wasmparser::Type::I64 => PrimitiveTypeInfo::I64,
+                                        wasmparser::Type::F32 => PrimitiveTypeInfo::F32,
+                                        wasmparser::Type::F64 => PrimitiveTypeInfo::F64,
+                                        wasmparser::Type::V128 => todo!(),
+                                        wasmparser::Type::FuncRef => todo!(),
+                                        wasmparser::Type::ExternRef => todo!(),
+                                        wasmparser::Type::ExnRef => todo!(),
+                                        wasmparser::Type::Func => todo!(),
+                                        wasmparser::Type::EmptyBlockType => todo!(),
+                                    }
+                                }).collect(),
+                                returns: FT.returns.iter().map(|&t|{
+                                    match t {
+                                        wasmparser::Type::I32 => PrimitiveTypeInfo::I32,
+                                        wasmparser::Type::I64 => PrimitiveTypeInfo::I64,
+                                        wasmparser::Type::F32 => PrimitiveTypeInfo::F32,
+                                        wasmparser::Type::F64 => PrimitiveTypeInfo::F64,
+                                        wasmparser::Type::V128 => todo!(),
+                                        wasmparser::Type::FuncRef => todo!(),
+                                        wasmparser::Type::ExternRef => todo!(),
+                                        wasmparser::Type::ExnRef => todo!(),
+                                        wasmparser::Type::Func => todo!(),
+                                        wasmparser::Type::EmptyBlockType => todo!(),
+                                    }
+                                }).collect(),
+                            }),
+                            TypeDef::Instance(_) => todo!(),
+                            TypeDef::Module(_) => todo!(),
+                        });
+                    })
+                },
                 Payload::ImportSection(_) => { info.imports = Some(Range {start:consumed, end: consumed+chunksize}) },
-                Payload::FunctionSection(_) => { info.functions =  Some(Range {start:consumed, end: consumed + chunksize})},
+                Payload::FunctionSection(mut reader) => { 
+                    info.functions =  Some(Range {start:consumed, end: consumed + chunksize});
+                    
+                    (0..reader.get_count()).for_each(|i|{
+                        let ty = reader.read().unwrap();
+                        info.function_map.push(ty);
+                    });
+                },
                 Payload::TableSection(_) => { info.tables =  Some(Range {start:consumed, end: consumed + chunksize})},
                 Payload::MemorySection(_) => { info.memories = Some(Range {start:consumed, end: consumed + chunksize} ) },
                 Payload::GlobalSection(_) => { info.globals =  Some(Range {start:consumed, end: consumed + chunksize} )},
