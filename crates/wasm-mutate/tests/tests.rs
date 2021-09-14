@@ -78,4 +78,19 @@ mod tests{
         validate(&mut validator, &mutated);
     
     }
+
+
+    #[test]
+    fn test_parsing_piece() {
+        let mut parser = Parser::new(0);
+        parser.parse(b"\0asm\x01\0\0\0", false);
+        
+        let (payload, chunksize) = match parser.parse(&[10, 6, 1, 4, 0, 65, 42, 11], false).unwrap() {
+            Chunk::NeedMoreData(_) => {
+                panic!("Invalid Wasm module");
+            },
+            Chunk::Parsed { consumed, payload } => (payload, consumed),
+        };
+
+    }
 }
