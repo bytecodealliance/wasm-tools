@@ -9,7 +9,19 @@ edition = "2018"
 structopt = { optional = true, version = "0.3" }
 thiserror = "1.0.28"
 wasmparser = { version = "0.80", path = "../wasmparser" }
+wasm-encoder = { version = "0.6.0", path = "../wasm-encoder"}
+leb128 = "0.2.4"
+arbitrary = { version = "1.0.0", features = ["derive"] }
+rand = { version = "0.7.3", features = ["small_rng"] }
+
+
 
 [dev-dependencies]
 anyhow = "1"
 wat = { version = "1", path = "../wat" }
+wasmprinter = { path = "../wasmprinter" }
+
+
+[features]
+default = ["no-mutator"]
+no-mutator = [] # this feature allows to have an idempotent mutator
