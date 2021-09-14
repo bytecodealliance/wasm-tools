@@ -134,7 +134,7 @@ pub struct WasmMutate {
 
 impl Default for WasmMutate {
     fn default() -> Self {
-        let seed = 42;
+        let seed = 0;
         WasmMutate {
             seed: seed,
             preserve_semantics: false,
@@ -283,12 +283,19 @@ impl WasmMutate {
             eprintln!("Applicable mutators:");
 
             ranges.iter().for_each(|v|{
+                eprint!("(");
                 v.iter().for_each(|(r, name)|{
-                    eprint!("{} ", name)
+                    eprint!("{} ^ ", name)
                 });
+                eprint!("\u{8}");
+                eprint!("\u{8}");
+                eprint!(") || ")
+            });
 
-                eprintln!("")
-            })
+            eprint!("\u{8}");
+            eprint!("\u{8}");
+            eprint!("\u{8}");
+            eprintln!("");
         }
         // Select random
         let mut rnd = self.get_rnd();
@@ -297,8 +304,27 @@ impl WasmMutate {
         mutators.iter().zip(ranges.iter()).for_each(|(mutations, ranges)|{
             // In this dimension only one mutation can be selected
             if mutations.len() >= 1 { // at least one mutation
-                let selected_mutation = rnd.gen_range(0, mutations.len());
-                selected.push((mutations.get(selected_mutation).unwrap(), ranges.get(selected_mutation).unwrap()));
+                // Simulate the last possible mutation is in fact a no-mutator
+                let number_of_mutations = if cfg!(feature="no-mutator") {
+                    mutations.len() + 1
+                } else {
+                    mutations.len()
+                };
+
+                let selected_mutation = rnd.gen_range(0, number_of_mutations);
+                if selected_mutation < mutations.len() {
+                    selected.push((mutations.get(selected_mutation).unwrap(), ranges.get(selected_mutation).unwrap()));
+                }// skip otherwise 
+                else {
+
+                    if cfg!(debug_assertions){
+                        eprintln!("Selecting to not mutate");
+                    }
+                }
+
+                if cfg!(debug_assertions){
+                    eprintln!("Selecting mutation {:?} ({:?})/{:?}", selected_mutation, mutations.len(), number_of_mutations)
+                }
             }
         });
 

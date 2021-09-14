@@ -141,7 +141,7 @@ impl Mutator for SetFunction2Unreachable{
            (Payload::CodeSectionEntry(_), bytes, {
                 if idx == function_to_mutate {
                     #[cfg(debug_assertions)] {
-                        eprintln!("Snip function idx {:?}", idx);
+                        eprintln!("Changing function idx {:?}", idx);
                     }
                     let locals = vec![];                    
                     let mut tmpbuff: Vec<u8> = Vec::new();
