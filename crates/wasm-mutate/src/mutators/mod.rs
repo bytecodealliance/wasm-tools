@@ -18,8 +18,8 @@ pub trait Mutator
     fn mutate<'a>(&mut self, _:&'a WasmMutate, chunk: &[u8], info: &ModuleInfo) -> Vec<u8>;
 
     /// Returns if this mutator can be applied with the info and the byte range in which it can be applied
-    fn can_mutate<'a>(&self, _:&'a WasmMutate, info: &ModuleInfo) -> (bool, Range){
-        (false, Range{start:0, end: 0}) // TODO, return an option here
+    fn can_mutate<'a>(&self, _:&'a WasmMutate, info: &ModuleInfo) -> (bool, Option<Range>){
+        (false, None) 
     }
 
     /// Provides the name of the mutator, mostly used for debugging purposes
@@ -119,7 +119,7 @@ impl Mutator for ReturnI32SnipMutator {
         result
     }
 
-    fn can_mutate<'a>(&self, config:&'a WasmMutate, info: &ModuleInfo) -> (bool, Range) {
+    fn can_mutate<'a>(&self, config:&'a WasmMutate, info: &ModuleInfo) -> (bool, Option<Range>) {
         let code = info.code;
         (!config.preserve_semantics && info.has_code(), code)
     }
@@ -181,7 +181,7 @@ impl Mutator for SetFunction2Unreachable{
         result
     }
     
-    fn can_mutate<'a>(&self, config:&'a WasmMutate, info: &ModuleInfo) -> (bool, Range) {
+    fn can_mutate<'a>(&self, config:&'a WasmMutate, info: &ModuleInfo) -> (bool, Option<Range>) {
         let code = info.code;
         (!config.preserve_semantics && info.has_code(),code)
     }
@@ -233,7 +233,7 @@ impl Mutator for RemoveExportMutator{
     }
 
     
-    fn can_mutate<'a>(&self, _:&'a WasmMutate, info: &ModuleInfo) -> (bool, Range) {
+    fn can_mutate<'a>(&self, _:&'a WasmMutate, info: &ModuleInfo) -> (bool, Option<Range>) {
         let exports = info.exports;
         (info.has_exports(), exports)
     }
@@ -322,7 +322,7 @@ impl Mutator for RenameExportMutator{
     }
 
     
-    fn can_mutate<'a>(&self, _:&'a WasmMutate, info: &ModuleInfo) -> (bool, Range) {
+    fn can_mutate<'a>(&self, _:&'a WasmMutate, info: &ModuleInfo) -> (bool, Option<Range>) {
         let exports = info.exports;
         (info.has_exports(), exports)
     }

@@ -42,7 +42,6 @@ macro_rules! get_mutators {
             {
                 let mut mutations = Vec::new();
                 let mut ranges = Vec::new();
-                //fn mutate<'a, A>(&mut self, _:&'a WasmMutate, chunk: Vec<u8>, sink: &'a mut A, _: &mut T)
                 type R = Box<dyn Fn(&WasmMutate, &[u8], &ModuleInfo) -> Vec<u8>>;
 
                 $(
@@ -54,7 +53,8 @@ macro_rules! get_mutators {
                             dependant_mutations.push(Box::new(
                                 ( move |a: &WasmMutate, b: &[u8], c: &ModuleInfo| (  $mutation.mutate(a, b, c )))
                             ) as R);
-                            applicable_on.push((on, $mutation.name()));
+                            // `on` can be unwrapped since, otherwise the can_mutate is not doing what it supposes to
+                            applicable_on.push((on.unwrap(), $mutation.name()));
                         };
                     )*
 
@@ -146,52 +146,30 @@ impl Default for WasmMutate {
 
 /// Provides module information for future usage during mutation
 /// an instance of ModuleInfo could be user to determine which mutation could be applied
+/// We have the ranges where the sections are for sake of memory safe, instead of having raw sections
+#[derive(Default)]
 pub struct ModuleInfo {
-
-    exports: Range,    
-    types: Range,   
-    imports: Range,   
-    tables: Range,  
-
-    memories: Range,
-    globals: Range,
-    
+    exports: Option<Range>,    
+    types: Option<Range>,   
+    imports: Option<Range>,   
+    tables: Option<Range>, 
+    memories: Option<Range>,
+    globals: Option<Range>,
     is_start_defined: bool,
-
-    elements: Range,
-    functions: Range,
-    data: Range,
-    code: Range
-}
-
-impl Default for ModuleInfo {
-    fn default() -> Self {
-        ModuleInfo {
-            exports: Range{start: 0, end: 0},
-            types: Range{start: 0, end: 0},
-            imports: Range{start: 0, end: 0},
-            tables: Range{start: 0, end: 0},
-            memories: Range{start: 0, end: 0},
-            globals: Range{start: 0, end: 0},
-            elements: Range{start: 0, end: 0},
-            code: Range{start: 0, end: 0},
-            data: Range{start: 0, end: 0},
-            functions: Range{start: 0, end: 0},
-            is_start_defined: false
-        }
-    }
+    elements: Option<Range>,
+    functions: Option<Range>,
+    data: Option<Range>,
+    code: Option<Range>
 }
 
 impl ModuleInfo {
     fn has_code(&self) -> bool {
-        self.code.end - self.code.start >= 1
+        self.code != None
     }
 
     fn has_exports(&self) -> bool {
-        self.exports.end - self.exports.start >= 1
+        self.exports != None
     }
-
-    // TODO finish others
 }
 
 impl WasmMutate {
@@ -241,10 +219,10 @@ impl WasmMutate {
     // Horizontal dimension allows to define mutations in which only one can be applied 
     get_mutators! {
         ((ReturnI32SnipMutator), (SetFunction2Unreachable), ), // For code
-
         // In the case of these two mutators, they can be applied independtly to the same section
-        ((RenameExportMutator{max_name_size: 100}),), // For exports
-        ((RemoveExportMutator),), // For exports
+        // For exports, they can be applied simultaneusly
+        ((RenameExportMutator{max_name_size: 100}),), 
+        ((RemoveExportMutator),), 
        
     }
     /// Returns Random generator from seed
@@ -269,23 +247,18 @@ impl WasmMutate {
 
             match payload {
                 Payload::CodeSectionStart { count, range, size } => {
-                    info.code = Range {start:consumed, end: consumed+chunksize + size as usize};
+                    info.code = Some(Range {start:consumed, end: consumed+chunksize + size as usize});
                 },
-                Payload::CodeSectionEntry(_) => {
-                    
-                },
-                Payload::TypeSection(reader ) => { info.types = Range {start:consumed, end: consumed+chunksize} },
-                Payload::ImportSection(reader) => { info.imports = Range {start:consumed, end: consumed+chunksize} },
-                Payload::FunctionSection(reader) => { 
-
-                },
-                Payload::TableSection(reader) => { info.functions = Range {start:consumed, end: consumed + chunksize}},
-                Payload::MemorySection(reader) => { info.memories = Range {start:consumed, end: consumed + chunksize} },
-                Payload::GlobalSection(reader) => { info.globals = Range {start:consumed, end: consumed + chunksize}},
-                Payload::ExportSection(reader) => { info.exports = Range {start:consumed, end: consumed + chunksize} },
-                Payload::StartSection { func, range } => { info.is_start_defined = true; },
-                Payload::ElementSection(reader) => { info.elements = Range {start:consumed, end: consumed+chunksize} },
-                Payload::DataSection(reader) => { info.data = Range {start:consumed, end: consumed+chunksize} },
+                Payload::TypeSection(_ ) => { info.types = Some(Range {start:consumed, end: consumed+chunksize}) },
+                Payload::ImportSection(_) => { info.imports = Some(Range {start:consumed, end: consumed+chunksize}) },
+                Payload::FunctionSection(_) => { info.functions =  Some(Range {start:consumed, end: consumed + chunksize})},
+                Payload::TableSection(_) => { info.tables =  Some(Range {start:consumed, end: consumed + chunksize})},
+                Payload::MemorySection(_) => { info.memories = Some(Range {start:consumed, end: consumed + chunksize} ) },
+                Payload::GlobalSection(_) => { info.globals =  Some(Range {start:consumed, end: consumed + chunksize} )},
+                Payload::ExportSection(_) => { info.exports =  Some(Range {start:consumed, end: consumed + chunksize} )},
+                Payload::StartSection { func: _, range: _ } => { info.is_start_defined = true; },
+                Payload::ElementSection(_) => { info.elements = Some(Range {start:consumed, end: consumed+chunksize} )},
+                Payload::DataSection(_) => { info.data = Some(Range {start:consumed, end: consumed+chunksize})},
                 Payload::End => {break;},
                 _ => {
 
