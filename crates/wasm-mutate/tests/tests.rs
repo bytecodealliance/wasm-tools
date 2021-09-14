@@ -1,12 +1,9 @@
-
-
 #[cfg(test)]
-mod tests{
+mod tests {
 
     use wasm_encoder::Instruction;
     use wasm_mutate::WasmMutate;
     use wasmparser::{Chunk, Operator, Parser, Payload, Validator};
-
 
     // Copied from wasm-smith
     fn validate(validator: &mut Validator, bytes: &[u8]) {
@@ -27,12 +24,11 @@ mod tests{
     fn idempotent_header() {
         let original = b"\0asm\x01\0\0\0";
         let mutator = WasmMutate::default();
-        
+
         let mutated = mutator.run(original).unwrap();
 
         assert_eq!(original.to_vec(), mutated)
     }
-
 
     /// Since there is no code section, any mutator registered under that pattern wont affect the module
     #[test]
@@ -48,14 +44,13 @@ mod tests{
         let original = &wat::parse_str(wat).unwrap();
         let mutator = WasmMutate::default();
         // seed is zero, which means first mutator
-        
+
         let mutated = mutator.run(original).unwrap();
-            
+
         let mut validator = Validator::new();
         validate(&mut validator, &mutated);
-    
     }
-    
+
     #[test]
     fn test_remove_export_mutator() {
         // From https://developer.mozilla.org/en-US/docs/WebAssembly/Text_format_to_wasm
@@ -73,26 +68,24 @@ mod tests{
         let original = &wat::parse_str(wat).unwrap();
         let mutator = WasmMutate::default();
         // seed is zero, which means first mutator
-        
+
         let mutated = mutator.run(original).unwrap();
         // Down here is the validation for the correct mutation
         let mut validator = Validator::new();
         validate(&mut validator, &mutated);
-    
     }
-
 
     #[test]
     fn test_parsing_piece() {
         let mut parser = Parser::new(0);
         parser.parse(b"\0asm\x01\0\0\0", false);
-        
-        let (payload, chunksize) = match parser.parse(&[10, 6, 1, 4, 0, 65, 42, 11], false).unwrap() {
+
+        let (payload, chunksize) = match parser.parse(&[10, 6, 1, 4, 0, 65, 42, 11], false).unwrap()
+        {
             Chunk::NeedMoreData(_) => {
                 panic!("Invalid Wasm module");
-            },
+            }
             Chunk::Parsed { consumed, payload } => (payload, consumed),
         };
-
     }
 }

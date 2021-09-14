@@ -1,5 +1,3 @@
-
-
 #[derive(Debug)]
 pub enum PrimitiveTypeInfo {
     I32,
@@ -18,6 +16,5 @@ pub struct FuncInfo {
 pub enum TypeInfo {
     Func(FuncInfo),
     Instance(),
-    Module()
+    Module(),
 }
-
