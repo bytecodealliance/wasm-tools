@@ -8,7 +8,7 @@
 //! fuzzing.
 #![cfg_attr(not(feature = "structopt"), deny(missing_docs))]
 
-use std::{any::TypeId, io::Write, sync::Arc};
+use std::{any::TypeId, collections::HashMap, io::Write, sync::Arc};
 
 use mutators::{Mutator, ReturnI32SnipMutator};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
@@ -241,7 +241,10 @@ impl WasmMutate {
     // Horizontal dimension allows to define mutations in which only one can be applied 
     get_mutators! {
         ((ReturnI32SnipMutator), (SetFunction2Unreachable), ), // For code
-        ((RenameExportMutator{max_name_size: 100}), (RemoveExportMutator), ), // For exports
+
+        // In the case of these two mutators, they can be applied independtly to the same section
+        ((RenameExportMutator{max_name_size: 100}),), // For exports
+        ((RemoveExportMutator),), // For exports
        
     }
     /// Returns Random generator from seed
@@ -294,6 +297,7 @@ impl WasmMutate {
         Ok(info)
     }
 
+
     /// Run this configured `WasmMutate` on the given input Wasm.
     pub fn run<'a>(&self, input_wasm: &[u8]) -> Result<Vec<u8>> {
         // Declare available mutators here
@@ -331,33 +335,46 @@ impl WasmMutate {
 
 
         if cfg!(debug_assertions){
-            selected.iter().for_each(|(_, (_, name))| {
-                eprintln!("Applying {}", name);
+            selected.iter().for_each(|(_, (range, name))| {
+                eprintln!("Applying {} on piece {:?}", name, range);
             })
         }
 
-        // Sort selected mutations by range
-        // TODO validate, Ranges should not overlap ?
-        selected.sort_by_key(|(_, (range, _))| {
+        // Group selected mutations by range
+        // Grouping by range will allow to mutate over the same section after one mutation has already passed
+        type R = Box<dyn Fn(&WasmMutate, &[u8], &ModuleInfo) -> Vec<u8>>;
+        let mut ranges_to_mutate: HashMap<Range, Vec<&R>> = HashMap::new();
+        
+        selected.iter().for_each(|(muta, (range, name))|{
+            ranges_to_mutate.entry(*range).or_insert_with(|| Vec::new()).push(muta);
+        });
+
+        // Get the keys and sort them
+        let mut ranges = ranges_to_mutate.keys().collect::<Vec<&Range>>();
+
+        ranges.sort_by_key(|&&range| {
             range.start
         });
 
-        let mut offset = 0;
 
+
+        let mut offset = 0;
         // Mutators will be applied in specific ranges otherwise the chunk is copied to the resultant byte stream
         // [.....][mutator1()][.....][mutator2()][mutator3()][.....]
-        // TODO, prepare mutation to be possible to 'reduce', this will allow to mutate over the same section after one mutation has already passed
-        for (muta, (range, _)) in selected {
-            // Copy from last offset to on.start
-            if range.start - offset >= 1 {
-                result.extend(&input_wasm[offset..range.start]);
-
-                let mutation = muta(self, input_wasm, &info);
-                result.extend(mutation);
-                offset = range.end;
-            }
+        //        [mutator6()]
+        println!("{:?}", ranges_to_mutate.len());
+        for range in ranges{
+            println!("{:?} {:?}", range, offset);
+            // Write previous chunk of data, e.g. not mutated section
+            result.extend(&input_wasm[offset..range.start]);
+            
+            // Mutate the section several times
+            let mutation = ranges_to_mutate.get(&range).unwrap().iter().fold(input_wasm[range.start..range.end].to_vec(),|mutation, &muta|{
+                muta(self, &mutation[..], &info)
+            });
+            result.extend(mutation);
+            offset = range.end;
         }
-
         result.extend(&input_wasm[offset..]);
         Ok(result)
     }

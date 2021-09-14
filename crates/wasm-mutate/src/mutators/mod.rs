@@ -15,7 +15,7 @@ pub trait Mutator
     /// * `out_buffer` resulting mutated byte stream
     /// * `mutable` mutable object
     /// Return the number of written bytes
-    fn mutate<'a>(&mut self, _:&'a WasmMutate, input_wasm: &[u8], info: &ModuleInfo) -> Vec<u8>;
+    fn mutate<'a>(&mut self, _:&'a WasmMutate, chunk: &[u8], info: &ModuleInfo) -> Vec<u8>;
 
     /// Returns if this mutator can be applied with the info and the byte range in which it can be applied
     fn can_mutate<'a>(&self, _:&'a WasmMutate, info: &ModuleInfo) -> (bool, Range){
@@ -31,7 +31,7 @@ pub trait Mutator
 
 
 macro_rules! parse_loop {
-    ($chunk: expr, $(($pat: pat, $todo: expr),)*) => {
+    ($chunk: expr, $(($pat: pat, $bytes: ident, $todo: tt),)*) => {
         let mut parser = Parser::new(0);
         // Hack !
         parser.parse(b"\0asm\x01\0\0\0", false);
@@ -48,7 +48,10 @@ macro_rules! parse_loop {
 
             match payload {
                 $(
-                    $pat => { $todo },
+                    $pat => {
+                        let $bytes = &$chunk[consumed..consumed+chunksize];
+                        $todo 
+                    },
                 )*
                 _ => panic!("This mutator cannot be applied to this section")
             }
@@ -66,24 +69,36 @@ macro_rules! parse_loop {
 pub struct ReturnI32SnipMutator;
 
 impl Mutator for ReturnI32SnipMutator {
-    fn mutate<'a>(&mut self, _:&'a WasmMutate, input_wasm: &[u8], info: &ModuleInfo) -> Vec<u8>
+    fn mutate<'a>(&mut self, config:&'a WasmMutate, chunk: &[u8], info: &ModuleInfo) -> Vec<u8>
     {
         let mut function_count = 0;
         let mut codes = Vec::new();
-        
+        let mut function_to_mutate  = 0;
+        let mut idx = 0;
         parse_loop!{
-           &input_wasm[info.code.start..info.code.end], 
-           (Payload::CodeSectionEntry(_), {
-                let locals = vec![];                    
-                let mut tmpbuff: Vec<u8> = Vec::new();
-                let mut f = Function::new(locals);
-                f.instruction(Instruction::I32Const(0));
-                f.instruction(Instruction::End);
-                f.encode(&mut tmpbuff);
-                codes.extend(tmpbuff);
+           &chunk, 
+           (Payload::CodeSectionEntry(_), bytes, {
+                if idx == function_to_mutate {
+
+                    #[cfg(debug_assertions)] {
+                        eprintln!("Snip function idx {:?}", idx);
+                    }
+                    let locals = vec![];                    
+                    let mut tmpbuff: Vec<u8> = Vec::new();
+                    let mut f = Function::new(locals);
+                    f.instruction(Instruction::I32Const(0));
+                    f.instruction(Instruction::End);
+                    f.encode(&mut tmpbuff);
+                    codes.extend(tmpbuff);
+                } else {
+                    codes.extend(bytes)
+                }
+
+                idx += 1;
            }),
-           (Payload::CodeSectionStart{count, range, size}, {
+           (Payload::CodeSectionStart{count, range, size}, consumed, {
                 function_count = count;
+                function_to_mutate = config.get_rnd().gen_range(0, function_count);
             }),
         };
 
@@ -115,26 +130,37 @@ impl Mutator for ReturnI32SnipMutator {
 pub struct SetFunction2Unreachable;
 
 impl Mutator for SetFunction2Unreachable{
-    fn mutate<'a>(&mut self, _:&'a WasmMutate, input_wasm: &[u8], info: &ModuleInfo) -> Vec<u8>
+    fn mutate<'a>(&mut self, config:&'a WasmMutate, chunk: &[u8], info: &ModuleInfo) -> Vec<u8>
     {
         let mut function_count = 0;
         let mut codes = Vec::new();
-        
+        let mut idx = 0;
+        let mut function_to_mutate = 0;
         parse_loop!{
-           &input_wasm[info.code.start..info.code.end], 
-           (Payload::CodeSectionEntry(_), {
-                
-                let locals = vec![];                    
-                let mut tmpbuff: Vec<u8> = Vec::new();
-                let mut f = Function::new(locals);
-                f.instruction(Instruction::Unreachable);
-                f.instruction(Instruction::End);
-                f.encode(&mut tmpbuff);
+           &chunk, 
+           (Payload::CodeSectionEntry(_), bytes, {
+                if idx == function_to_mutate {
+                    #[cfg(debug_assertions)] {
+                        eprintln!("Snip function idx {:?}", idx);
+                    }
+                    let locals = vec![];                    
+                    let mut tmpbuff: Vec<u8> = Vec::new();
+                    let mut f = Function::new(locals);
+                    f.instruction(Instruction::Unreachable);
+                    f.instruction(Instruction::End);
+                    f.encode(&mut tmpbuff);
 
-                codes.extend(tmpbuff);
+                    codes.extend(tmpbuff);
+                    }
+                else {
+                    codes.extend(bytes)
+                }
+
+                idx += 1
            }),
-           (Payload::CodeSectionStart{count, range, size}, {
+           (Payload::CodeSectionStart{count, range, size}, consumed, {
                 function_count = count;
+                function_to_mutate = config.get_rnd().gen_range(0, function_count);
             }),
         };
 
@@ -166,13 +192,13 @@ impl Mutator for SetFunction2Unreachable{
 pub struct RemoveExportMutator ;
 
 impl Mutator for RemoveExportMutator{
-    fn mutate<'a>(&mut self, config:&'a WasmMutate, input_wasm: &[u8], info: &ModuleInfo) -> Vec<u8>
+    fn mutate<'a>(&mut self, config:&'a WasmMutate, chunk: &[u8], info: &ModuleInfo) -> Vec<u8>
     {
         let mut sink = Vec::new();
 
         parse_loop!{
-            &input_wasm[info.exports.start..info.exports.end], 
-            (Payload::ExportSection(mut reader), {
+            &chunk, 
+            (Payload::ExportSection(mut reader), consumed, {
                 let mut exports = ExportSection::new();
                 let max_exports = reader.get_count() as u64;
                 let skip_at = config.get_rnd().gen_range(0, max_exports);
@@ -248,15 +274,15 @@ impl RenameExportMutator {
 
 impl Mutator for RenameExportMutator{
 
-    fn mutate<'a>(&mut self, config:&'a WasmMutate, input_wasm: &[u8], info: &ModuleInfo) -> Vec<u8>
+    fn mutate<'a>(&mut self, config:&'a WasmMutate, chunk: &[u8], info: &ModuleInfo) -> Vec<u8>
     {
 
 
         let mut sink = Vec::new();
 
         parse_loop!{
-            &input_wasm[info.exports.start..info.exports.end], 
-            (Payload::ExportSection(mut reader), {
+            &chunk, 
+            (Payload::ExportSection(mut reader), consumed, {
                 let mut exports = ExportSection::new();
                 let max_exports = reader.get_count() as u64;
                 let skip_at = config.get_rnd().gen_range(0, max_exports);
