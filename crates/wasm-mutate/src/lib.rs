@@ -150,6 +150,7 @@ impl Default for WasmMutate {
 /// Provides module information for future usage during mutation
 /// an instance of ModuleInfo could be user to determine which mutation could be applied
 /// We have the ranges where the sections are for sake of memory safe, instead of having raw sections
+/// TODO, make this structure serializable in order to save time if the same module is mutated several times
 #[derive(Default, Debug)]
 pub struct ModuleInfo {
     exports: Option<Range>,    
@@ -233,12 +234,10 @@ impl WasmMutate {
     // The vertical dimension represents mutations that can be applied indistincly from each other
     // Horizontal dimension allows to define mutations in which only one can be applied 
     get_mutators! {
-        ((ReturnI32SnipMutator), (SetFunction2Unreachable), ), // For code
+        ((ReturnI32SnipMutator), (SetFunction2Unreachable), (RenameExportMutator{max_name_size: 100}), (RemoveExportMutator),),
         // In the case of these two mutators, they can be applied independtly to the same section
         // For exports, they can be applied simultaneusly
-        ((RenameExportMutator{max_name_size: 100}),), 
-        ((RemoveExportMutator),), 
-       
+        
     }
     /// Returns Random generator from seed
     pub fn get_rnd(&self) -> SmallRng {
@@ -271,6 +270,7 @@ impl WasmMutate {
                     (0..reader.get_count()).for_each(|i| {
                         let ty = reader.read().unwrap();
 
+                        // Replace by try_into ?
                         info.types_map.push(match ty {
                             TypeDef::Func(FT) => TypeInfo::Func(FuncInfo{
                                 params: FT.params.iter().map(|&t|{
@@ -380,14 +380,9 @@ impl WasmMutate {
                     selected.push((mutations.get(selected_mutation).unwrap(), ranges.get(selected_mutation).unwrap()));
                 }// skip otherwise 
                 else {
-
                     if cfg!(debug_assertions){
                         eprintln!("Selecting to not mutate");
                     }
-                }
-
-                if cfg!(debug_assertions){
-                    eprintln!("Selecting mutation {:?} ({:?})/{:?}", selected_mutation, mutations.len(), number_of_mutations)
                 }
             }
         });
@@ -419,8 +414,9 @@ impl WasmMutate {
             range.start
         });
 
-
-
+        // TODO, &ModuleInfo -> Module
+        // TODO, two subpasses, one-peephole, code-motion pass
+        
         let mut offset = 0;
         // Mutators will be applied in specific ranges otherwise the chunk is copied to the resultant byte stream
         // [.....][mutator1()][.....][mutator2()][mutator3()][.....]
@@ -429,13 +425,14 @@ impl WasmMutate {
             // Write previous chunk of data, e.g. not mutated section
             result.extend(&input_wasm[offset..range.start]);
             
-            // Mutate the section several times
+            // Mutate the section as many mutators this range has
             let mutation = ranges_to_mutate.get(&range).unwrap().iter().fold(input_wasm[range.start..range.end].to_vec(),|mutation, &muta|{
                 muta(self, &mutation[..], &info)
             });
             result.extend(mutation);
             offset = range.end;
         }
+        // Write last piece
         result.extend(&input_wasm[offset..]);
         Ok(result)
     }
