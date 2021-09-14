@@ -61,7 +61,11 @@ mod tests{
         // From https://developer.mozilla.org/en-US/docs/WebAssembly/Text_format_to_wasm
         let wat = r#"
         (module
+            
             (func (export "exported_func") (result i32)
+                i32.const 42
+            )
+            (func (export "exported_func2") (result i32)
                 i32.const 42
             )
         )
@@ -72,8 +76,6 @@ mod tests{
         
         let mutated = mutator.run(original).unwrap();
         // Down here is the validation for the correct mutation
-
-
         let mut validator = Validator::new();
         validate(&mut validator, &mutated);
     

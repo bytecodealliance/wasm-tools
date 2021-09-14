@@ -37,7 +37,7 @@ macro_rules! get_mutators {
     ) => {
             
 
-            fn get_applicable_mutations<'a, A>(&self, info: &ModuleInfo) -> Result<(Vec<Vec<Box<dyn Fn(&WasmMutate, &[u8], &ModuleInfo) -> Vec<u8>>>>, Vec<Vec<Range>>)>
+            fn get_applicable_mutations<'a, A>(&self, info: &ModuleInfo) -> Result<(Vec<Vec<Box<dyn Fn(&WasmMutate, &[u8], &ModuleInfo) -> Vec<u8>>>>, Vec<Vec<(Range, String)>>)>
                 where A: Extend<u8>
             {
                 let mut mutations = Vec::new();
@@ -59,7 +59,7 @@ macro_rules! get_mutators {
                             dependant_mutations.push(Box::new(
                                 ( move |a: &WasmMutate, b: &[u8], c: &ModuleInfo| (  $mutation.mutate(a, b, c )))
                             ) as R);
-                            applicable_on.push(on);
+                            applicable_on.push((on, $mutation.name()));
                         };
                     )*
 
@@ -307,6 +307,17 @@ impl WasmMutate {
         let info = self.get_module_info(input_wasm)?;
         let (mutators, ranges) = self.get_applicable_mutations::<Vec<u8>>(&info)?;
 
+        if cfg!(debug_assertions){
+            eprintln!("Applicable mutators:");
+
+            ranges.iter().for_each(|v|{
+                v.iter().for_each(|(r, name)|{
+                    eprint!("{} ", name)
+                });
+
+                eprintln!("")
+            })
+        }
         // Select random
         let mut rnd = self.get_rnd();
         let mut selected = Vec::new();
@@ -323,9 +334,16 @@ impl WasmMutate {
             return Ok(input_wasm.to_vec())
         }
 
+
+        if cfg!(debug_assertions){
+            selected.iter().for_each(|(_, (_, name))| {
+                eprintln!("Applying {}", name);
+            })
+        }
+
         // Sort selected mutations by range
         // TODO validate, Ranges should not overlap ?
-        selected.sort_by_key(|(_, range)| {
+        selected.sort_by_key(|(_, (range, _))| {
             range.start
         });
 
@@ -334,15 +352,18 @@ impl WasmMutate {
         // Mutators will be applied in specific ranges otherwise the chunk is copied to the resultant byte stream
         // [.....][mutator1()][.....][mutator2()][mutator3()][.....]
         // TODO, prepare mutation to be possible to 'reduce', this will allow to mutate over the same section after one mutation has already passed
-        for (muta, on) in selected {
+        for (muta, (range, _)) in selected {
+
+            println!("{:?}", range.start);
             // Copy from last offset to on.start
-            if on.start - offset >= 1 {
-                result.extend(&input_wasm[offset..on.start]);
+            if range.start - offset >= 1 {
+                result.extend(&input_wasm[offset..range.start]);
 
                 let mutation = muta(self, input_wasm, &info);
                 result.extend(mutation);
-                offset = on.end;
+                offset = range.end;
             }
+            println!("{:?}", range.end);
         }
 
         result.extend(&input_wasm[offset..]);

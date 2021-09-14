@@ -274,21 +274,15 @@ impl Mutator for RenameExportMutator{
                         new_name
                     };
 
-                    if skip_at != i { // otherwise bypass
-                        match export.kind {
-                            wasmparser::ExternalKind::Function => { exports.export(new_name.as_str(), Export::Function(export.index)); },
-                            wasmparser::ExternalKind::Table => { exports.export(new_name.as_str(), Export::Table(export.index)); },
-                            wasmparser::ExternalKind::Memory => { exports.export(new_name.as_str(), Export::Memory(export.index)); },
-                            wasmparser::ExternalKind::Global => { exports.export(new_name.as_str(), Export::Global(export.index)); },
-                            wasmparser::ExternalKind::Module => { exports.export(new_name.as_str(), Export::Module(export.index)); },
-                            wasmparser::ExternalKind::Instance => { exports.export(new_name.as_str(), Export::Instance(export.index)); },
-                            _ => {
-                                panic!("Unknown export {:?}", export)
-                            }
-                        }
-                    } else {
-                        #[cfg(debug_assertions)] {
-                            eprintln!("Removing export {:?} idx {:?}", export, skip_at);
+                    match export.kind {
+                        wasmparser::ExternalKind::Function => { exports.export(new_name.as_str(), Export::Function(export.index)); },
+                        wasmparser::ExternalKind::Table => { exports.export(new_name.as_str(), Export::Table(export.index)); },
+                        wasmparser::ExternalKind::Memory => { exports.export(new_name.as_str(), Export::Memory(export.index)); },
+                        wasmparser::ExternalKind::Global => { exports.export(new_name.as_str(), Export::Global(export.index)); },
+                        wasmparser::ExternalKind::Module => { exports.export(new_name.as_str(), Export::Module(export.index)); },
+                        wasmparser::ExternalKind::Instance => { exports.export(new_name.as_str(), Export::Instance(export.index)); },
+                        _ => {
+                            panic!("Unknown export {:?}", export)
                         }
                     }
                 });
