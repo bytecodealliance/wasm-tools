@@ -362,9 +362,7 @@ impl WasmMutate {
         // Mutators will be applied in specific ranges otherwise the chunk is copied to the resultant byte stream
         // [.....][mutator1()][.....][mutator2()][mutator3()][.....]
         //        [mutator6()]
-        println!("{:?}", ranges_to_mutate.len());
         for range in ranges{
-            println!("{:?} {:?}", range, offset);
             // Write previous chunk of data, e.g. not mutated section
             result.extend(&input_wasm[offset..range.start]);
             
