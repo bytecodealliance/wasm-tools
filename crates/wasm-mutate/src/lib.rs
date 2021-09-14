@@ -31,7 +31,7 @@ macro_rules! get_mutators {
     (
         $(
             ($(
-                ($mutation:expr $(, $preserve_semantic: literal)?),
+                ($mutation:expr),
             )*),
         )*
     ) => {
@@ -245,8 +245,8 @@ impl WasmMutate {
     // The vertical dimension represents mutations that can be applied indistincly from each other
     // Horizontal dimension allows to define mutations in which only one can be applied 
     get_mutators! {
-        ((ReturnI32SnipMutator, false), (SetFunction2Unreachable, false), ), // For code
-        ((RenameExportMutator{max_name_size: 100}, false), (RemoveExportMutator, false), ), // For exports
+        ((ReturnI32SnipMutator), (SetFunction2Unreachable), ), // For code
+        ((RenameExportMutator{max_name_size: 100}), (RemoveExportMutator), ), // For exports
        
     }
     /// Returns Random generator from seed

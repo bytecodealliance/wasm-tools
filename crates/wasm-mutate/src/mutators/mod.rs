@@ -104,9 +104,9 @@ impl Mutator for ReturnI32SnipMutator {
         result
     }
 
-    fn can_mutate<'a>(&self, _:&'a WasmMutate, info: &ModuleInfo) -> (bool, Range) {
+    fn can_mutate<'a>(&self, config:&'a WasmMutate, info: &ModuleInfo) -> (bool, Range) {
         let code = info.code;
-        (info.has_code(), code)
+        (config.preserve_semantics && info.has_code(), code)
     }
 }
 
@@ -155,9 +155,9 @@ impl Mutator for SetFunction2Unreachable{
         result
     }
     
-    fn can_mutate<'a>(&self, _:&'a WasmMutate, info: &ModuleInfo) -> (bool, Range) {
+    fn can_mutate<'a>(&self, config:&'a WasmMutate, info: &ModuleInfo) -> (bool, Range) {
         let code = info.code;
-        (info.has_code(),code)
+        (config.preserve_semantics && info.has_code(),code)
     }
 }
 
@@ -257,8 +257,6 @@ impl Mutator for RenameExportMutator{
         parse_loop!{
             &input_wasm[info.exports.start..info.exports.end], 
             (Payload::ExportSection(mut reader), {
-                
-                println!("Applying RemoveExportMutator");
                 let mut exports = ExportSection::new();
                 let max_exports = reader.get_count() as u64;
                 let skip_at = config.get_rnd().gen_range(0, max_exports);
