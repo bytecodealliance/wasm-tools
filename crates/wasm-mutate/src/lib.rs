@@ -51,11 +51,6 @@ macro_rules! get_mutators {
                     $(
                         let (can_mutate, on) = $mutation.can_mutate(self, &info);
                         if can_mutate {
-                            
-                            if cfg!(debug_assertions) {
-                                println!("{} is applicable", $mutation.name());
-                            }
-
                             dependant_mutations.push(Box::new(
                                 ( move |a: &WasmMutate, b: &[u8], c: &ModuleInfo| (  $mutation.mutate(a, b, c )))
                             ) as R);
@@ -139,7 +134,7 @@ pub struct WasmMutate {
 
 impl Default for WasmMutate {
     fn default() -> Self {
-        let seed = 10;
+        let seed = 42;
         WasmMutate {
             seed: seed,
             preserve_semantics: false,
@@ -353,8 +348,6 @@ impl WasmMutate {
         // [.....][mutator1()][.....][mutator2()][mutator3()][.....]
         // TODO, prepare mutation to be possible to 'reduce', this will allow to mutate over the same section after one mutation has already passed
         for (muta, (range, _)) in selected {
-
-            println!("{:?}", range.start);
             // Copy from last offset to on.start
             if range.start - offset >= 1 {
                 result.extend(&input_wasm[offset..range.start]);
@@ -363,7 +356,6 @@ impl WasmMutate {
                 result.extend(mutation);
                 offset = range.end;
             }
-            println!("{:?}", range.end);
         }
 
         result.extend(&input_wasm[offset..]);

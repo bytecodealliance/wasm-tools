@@ -19,7 +19,7 @@ pub trait Mutator
 
     /// Returns if this mutator can be applied with the info and the byte range in which it can be applied
     fn can_mutate<'a>(&self, _:&'a WasmMutate, info: &ModuleInfo) -> (bool, Range){
-        (false, Range{start:0, end: 0})
+        (false, Range{start:0, end: 0}) // TODO, return an option here
     }
 
     /// Provides the name of the mutator, mostly used for debugging purposes
@@ -106,7 +106,7 @@ impl Mutator for ReturnI32SnipMutator {
 
     fn can_mutate<'a>(&self, config:&'a WasmMutate, info: &ModuleInfo) -> (bool, Range) {
         let code = info.code;
-        (config.preserve_semantics && info.has_code(), code)
+        (!config.preserve_semantics && info.has_code(), code)
     }
 }
 
@@ -157,7 +157,7 @@ impl Mutator for SetFunction2Unreachable{
     
     fn can_mutate<'a>(&self, config:&'a WasmMutate, info: &ModuleInfo) -> (bool, Range) {
         let code = info.code;
-        (config.preserve_semantics && info.has_code(),code)
+        (!config.preserve_semantics && info.has_code(),code)
     }
 }
 
