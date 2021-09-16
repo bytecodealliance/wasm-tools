@@ -138,13 +138,9 @@ impl Function {
         self
     }
 
-
     /// Add raw bytes to this function's body including locals.
-    pub fn full_raw(data: Vec<u8>) -> Self
-    {
-        let r = Self {
-            bytes: data
-        };
+    pub fn full_raw(data: Vec<u8>) -> Self {
+        let r = Self { bytes: data };
         r
     }
 
