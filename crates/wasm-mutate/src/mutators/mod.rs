@@ -32,42 +32,6 @@ pub trait Mutator {
         return format!("{:?}", std::any::type_name::<Self>());
     }
 }
-
-macro_rules! parse_loop {
-    ($chunk: expr, $(($pat: pat, $bytes: ident, $todo: tt),)*) => {
-        let mut parser = Parser::new(0);
-        // Hack !
-        parser.parse(b"\0asm\x01\0\0\0", false);
-        let mut consumed = 0;
-        let sectionsize = $chunk.len();
-
-        loop {
-            let (payload, chunksize) = match parser.parse(&$chunk[consumed..], false).unwrap() {
-                Chunk::NeedMoreData(_) => {
-                    panic!("Invalid Wasm module");
-                },
-                Chunk::Parsed { consumed, payload } => (payload, consumed),
-            };
-
-            match payload {
-                $(
-                    $pat => {
-                        let $bytes = &$chunk[consumed..consumed+chunksize];
-                        $todo
-                    },
-                )*
-                _ => panic!("This mutator cannot be applied to this section")
-            }
-
-            consumed += chunksize;
-
-            if consumed == sectionsize {
-                break
-            }
-        }
-    };
-}
-
 pub struct RemoveExportMutator;
 
 impl Mutator for RemoveExportMutator {
@@ -323,5 +287,139 @@ impl Mutator for SetFunction2Unreachable {
 
     fn can_mutate<'a>(&self, config: &'a WasmMutate, info: &ModuleInfo) -> bool {
         !config.preserve_semantics && info.has_code()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use wasmparser::{Chunk, Parser};
+
+    use crate::{
+        mutators::{RemoveExportMutator, RenameExportMutator, SetFunction2Unreachable},
+        ModuleInfo, WasmMutate,
+    };
+
+    use super::{Mutator, ReturnI32SnipMutator};
+
+    #[test]
+    fn test_code_snip_mutator() {
+        let wat = r#"
+        (module
+            (func (result i64)
+                i64.const 42
+            )
+        )
+        "#;
+        let wasmmutate = WasmMutate::default();
+        let original = &wat::parse_str(wat).unwrap();
+
+        let mutator = ReturnI32SnipMutator {};
+
+        let mut info = ModuleInfo::default();
+
+        wasmmutate.get_module_info(original, &mut info);
+        let can_mutate = mutator.can_mutate(&wasmmutate, &info);
+
+        assert_eq!(can_mutate, true);
+
+        let mutation = mutator.mutate(&wasmmutate, &mut info);
+        let mutation_bytes = mutation.finish();
+
+        // If it fails, it is probably an invalid
+        let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
+
+        assert_eq!("(module\n  (type (;0;) (func (result i64)))\n  (func (;0;) (type 0) (result i64)\n    i64.const 0))", text)
+    }
+
+    #[test]
+    fn test_code_unreachable_mutator() {
+        let wat = r#"
+        (module
+            (func (result i32)
+                i32.const 42
+            )
+        )
+        "#;
+        let wasmmutate = WasmMutate::default();
+        let original = &wat::parse_str(wat).unwrap();
+
+        let mutator = SetFunction2Unreachable {};
+
+        let mut info = ModuleInfo::default();
+
+        wasmmutate.get_module_info(original, &mut info);
+        let can_mutate = mutator.can_mutate(&wasmmutate, &info);
+
+        assert_eq!(can_mutate, true);
+
+        let mutation = mutator.mutate(&wasmmutate, &mut info);
+        let mutation_bytes = mutation.finish();
+
+        // If it fails, it is probably an invalid
+        let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
+
+        assert_eq!("(module\n  (type (;0;) (func (result i32)))\n  (func (;0;) (type 0) (result i32)\n    unreachable))", text)
+    }
+
+    #[test]
+    fn test_remove_export_mutator() {
+        // From https://developer.mozilla.org/en-US/docs/WebAssembly/Text_format_to_wasm
+        let wat = r#"
+        (module
+            (func (export "exported_func") (result i32)
+                i32.const 42
+            )
+        )
+        "#;
+
+        let wasmmutate = WasmMutate::default();
+        let original = &wat::parse_str(wat).unwrap();
+
+        let mutator = RemoveExportMutator {};
+
+        let mut info = ModuleInfo::default();
+
+        wasmmutate.get_module_info(original, &mut info);
+        let can_mutate = mutator.can_mutate(&wasmmutate, &info);
+
+        assert_eq!(can_mutate, true);
+
+        let mutation = mutator.mutate(&wasmmutate, &mut info);
+        let mutation_bytes = mutation.finish();
+
+        // If it fails, it is probably an invalid
+        let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
+        assert_eq!("(module\n  (type (;0;) (func (result i32)))\n  (func (;0;) (type 0) (result i32)\n    i32.const 42))", text)
+    }
+
+    #[test]
+    fn test_rename_export_mutator() {
+        // From https://developer.mozilla.org/en-US/docs/WebAssembly/Text_format_to_wasm
+        let wat = r#"
+        (module
+            (func (export "exported_func") (result i32)
+                i32.const 42
+            )
+        )
+        "#;
+
+        let wasmmutate = WasmMutate::default();
+        let original = &wat::parse_str(wat).unwrap();
+
+        let mutator = RenameExportMutator { max_name_size: 2 }; // the string is empty
+
+        let mut info = ModuleInfo::default();
+
+        wasmmutate.get_module_info(original, &mut info);
+        let can_mutate = mutator.can_mutate(&wasmmutate, &info);
+
+        assert_eq!(can_mutate, true);
+
+        let mutation = mutator.mutate(&wasmmutate, &mut info);
+        let mutation_bytes = mutation.finish();
+
+        // If it fails, it is probably an invalid
+        let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
+        assert_eq!("(module\n  (type (;0;) (func (result i32)))\n  (func (;0;) (type 0) (result i32)\n    i32.const 42)\n  (export \"\" (func 0)))", text)
     }
 }

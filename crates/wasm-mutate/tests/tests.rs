@@ -27,29 +27,8 @@ fn idempotent_header() {
     assert_eq!(original.to_vec(), mutated)
 }
 
-/// Since there is no code section, any mutator registered under that pattern wont affect the module
 #[test]
-fn test_code_mutator() {
-    // From https://developer.mozilla.org/en-US/docs/WebAssembly/Text_format_to_wasm
-    let wat = r#"
-    (module
-        (func (result i64)
-            i64.const 42
-        )
-    )
-    "#;
-    let original = &wat::parse_str(wat).unwrap();
-    let mutator = WasmMutate::default();
-    // seed is zero, which means first mutator
-
-    let mutated = mutator.run(original).unwrap();
-
-    let mut validator = Validator::new();
-    validate(&mut validator, &mutated);
-}
-
-#[test]
-fn test_remove_export_mutator() {
+fn integration_test() {
     // From https://developer.mozilla.org/en-US/docs/WebAssembly/Text_format_to_wasm
     let wat = r#"
     (module

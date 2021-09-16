@@ -227,7 +227,7 @@ impl WasmMutate {
     }
 
     /// Parse and fill lane AST with metadata information about the module
-    fn get_module_info<'a>(&'a self, input_wasm: &'a [u8], info: &mut ModuleInfo<'a>) {
+    pub fn get_module_info<'a>(&'a self, input_wasm: &'a [u8], info: &mut ModuleInfo<'a>) {
         let mut parser = Parser::new(0);
         let mut consumed = 0;
         loop {
@@ -343,10 +343,16 @@ impl WasmMutate {
                 Payload::DataCountSection { count: _, range } => {
                     info.section(SectionId::DataCount.into(), range, input_wasm);
                 }
+                Payload::Version { num: _, range: _ } => {
+                    // bypass
+                }
+                Payload::CodeSectionEntry(_) => {
+                    // This is handled by the code section saving
+                }
                 Payload::End => {
                     break;
                 }
-                _ => todo!(),
+                _ => todo!("{:?} not implemented", payload),
             }
             consumed += chunksize
         }
@@ -354,22 +360,7 @@ impl WasmMutate {
 
     /// Run this configured `WasmMutate` on the given input Wasm.
     pub fn run<'a>(&self, input_wasm: &'a [u8]) -> Result<Vec<u8>> {
-        let mut info = ModuleInfo {
-            exports: None,
-            types: None,
-            imports: None,
-            tables: None,
-            memories: None,
-            globals: None,
-            elements: None,
-            functions: None,
-            data: None,
-            code: None,
-            is_start_defined: false,
-            types_map: Vec::new(),
-            function_map: Vec::new(),
-            raw_sections: Vec::new(),
-        };
+        let mut info = ModuleInfo::default();
 
         self.get_module_info(&input_wasm, &mut info);
 
