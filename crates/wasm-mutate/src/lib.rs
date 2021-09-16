@@ -11,7 +11,7 @@
 use std::{any::TypeId, collections::HashMap, io::Write, sync::Arc};
 
 use module::TypeInfo;
-use mutators::{Mutator, ReturnI32SnipMutator};
+use mutators::{Mutator, RenameExportMutator};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use std::convert::TryFrom;
 #[cfg(feature = "structopt")]
@@ -23,53 +23,28 @@ mod module;
 pub mod mutators;
 
 pub use error::{Error, Result};
-use wasm_encoder::{encoders, CodeSection, Module, RawSection, Section, SectionId};
-use wasmparser::{Chunk, Parser, Payload, Range, TypeDef};
+use wasm_encoder::{CodeSection, ExportSection, Module, RawSection, Section, SectionId, encoders};
+use wasmparser::{Chunk, ExportSectionReader, Parser, Payload, Range, SectionReader, TypeDef};
 
 use crate::{
     module::{FuncInfo, PrimitiveTypeInfo},
-    mutators::{RemoveExportMutator, RenameExportMutator, SetFunction2Unreachable},
+    mutators::{RemoveExportMutator }//, RenameExportMutator, SetFunction2Unreachable, ReturnI32SnipMutator},
 };
 
-macro_rules! get_mutators {
+macro_rules! initialize_and_filter {
     (
-        $(
-            ($(
-                ($mutation:expr),
-            )*),
+        $info: ident, $config: ident, $result: ident,$(
+            $mutation:expr,            
         )*
     ) => {
-
-
-            fn get_applicable_mutations<'a, A>(&self, info: &ModuleInfo) -> Result<(Vec<Vec<Box<dyn Fn(&WasmMutate, &[u8], &ModuleInfo) -> Vec<u8>>>>, Vec<Vec<(Range, String)>>)>
-                where A: Extend<u8>
-            {
-                let mut mutations = Vec::new();
-                let mut ranges = Vec::new();
-                type R = Box<dyn Fn(&WasmMutate, &[u8], &ModuleInfo) -> Vec<u8>>;
-
-                $(
-                    let mut dependant_mutations = Vec::new();
-                    let mut applicable_on = Vec::new();
-                    $(
-                        let (can_mutate, on) = $mutation.can_mutate(self, &info);
-                        if can_mutate {
-                            dependant_mutations.push(Box::new(
-                                ( move |a: &WasmMutate, b: &[u8], c: &ModuleInfo| (  $mutation.mutate(a, b, c )))
-                            ) as R);
-                            // `on` can be unwrapped since, otherwise the can_mutate is not doing what it supposes to
-                            applicable_on.push((on.unwrap(), $mutation.name()));
-                        };
-                    )*
-
-                    mutations.push(dependant_mutations);
-                    ranges.push(applicable_on);
-                )*
-
-                Ok((mutations, ranges))
-            }
+            $(
+                if $mutation.can_mutate($config, &$info) {
+                    $result.push(Box::new($mutation))
+                }
+            )*
     };
 }
+
 
 // NB: only add this doc comment if we are not building the CLI, since otherwise
 // it will override the main CLI's about text.
@@ -145,33 +120,62 @@ impl Default for WasmMutate {
     }
 }
 
+
 /// Provides module information for future usage during mutation
 /// an instance of ModuleInfo could be user to determine which mutation could be applied
 /// We have the ranges where the sections are for sake of memory safe, instead of having raw sections
 /// TODO, make this structure serializable in order to save time if the same module is mutated several times
-#[derive(Default, Debug)]
-pub struct ModuleInfo {
-    exports: Option<Range>,
-    types: Option<Range>,
-    imports: Option<Range>,
-    tables: Option<Range>,
-    memories: Option<Range>,
-    globals: Option<Range>,
+#[derive(Default)]
+pub struct ModuleInfo<'a> {
+
+    exports: Option<usize>,
+
+    types: Option<usize>,
+    imports: Option<usize>,
+    tables: Option<usize>,
+    memories: Option<usize>,
+    globals: Option<usize>,
+    elements: Option<usize>,
+    functions: Option<usize>,
+    data: Option<usize>,
+    code: Option<usize>,
+    
     is_start_defined: bool,
-    elements: Option<Range>,
-    functions: Option<Range>,
-    data: Option<Range>,
-    code: Option<Range>,
 
     // types for inner functions
     types_map: Vec<TypeInfo>,
     function_map: Vec<u32>,
+
+    raw_sections: Vec<RawSection<'a>>,
+
 }
 
-impl ModuleInfo {
+impl<'a> ModuleInfo<'a> {
+
+
     fn has_code(&self) -> bool {
         self.code != None
     }
+
+
+    pub fn section(&mut self, 
+                        id: SectionId,
+                        range: wasmparser::Range,
+                        full_wasm: &'a [u8]){
+        self.raw_sections.push(RawSection{
+            id: id.into(),
+            data: &full_wasm[range.start..range.end]
+        });
+    }
+
+    fn get_code_section(&mut self) -> RawSection{
+        return self.raw_sections[self.code.unwrap()]
+    }
+
+    fn get_exports_section(&self) -> &RawSection{
+        return &self.raw_sections[self.exports.unwrap()]
+    }
+
 
     fn has_exports(&self) -> bool {
         self.exports != None
@@ -187,6 +191,7 @@ impl ModuleInfo {
             .unwrap()
     }
 }
+
 
 impl WasmMutate {
     /// Set the RNG seed used to choose which transformation to apply.
@@ -230,47 +235,41 @@ impl WasmMutate {
         self
     }
 
-    // This type of construction allows to determine which mutation can be applied
-    // The vertical dimension represents mutations that can be applied indistincly from each other
-    // Horizontal dimension allows to define mutations in which only one can be applied
-    get_mutators! {
-        ((ReturnI32SnipMutator), (SetFunction2Unreachable), (RenameExportMutator{max_name_size: 100}), (RemoveExportMutator),),
-        // In the case of these two mutators, they can be applied independtly to the same section
-        // For exports, they can be applied simultaneusly
-
-    }
     /// Returns Random generator from seed
     pub fn get_rnd(&self) -> SmallRng {
         SmallRng::seed_from_u64(self.seed as u64)
     }
 
     /// Parse and fill lane AST with metadata information about the module
-    fn get_module_info<'a>(&self, input_wasm: &[u8]) -> Result<ModuleInfo> {
+    fn get_module_info<'a>(&'a self, input_wasm: &'a [u8], info: &mut ModuleInfo<'a>) {
+        
         let mut parser = Parser::new(0);
         let mut consumed = 0;
-        let mut info = ModuleInfo::default();
+      
+        let mut index = 0;
+        println!("{:?}", input_wasm);
 
         loop {
-            let (payload, chunksize) = match parser.parse(&input_wasm[consumed..], true)? {
+            let (payload, chunksize) = match parser.parse(&input_wasm[consumed..], true).unwrap() {
                 Chunk::NeedMoreData(_) => {
                     panic!("Invalid Wasm module");
                 }
                 Chunk::Parsed { consumed, payload } => (payload, consumed),
             };
-
+            
             match payload {
                 Payload::CodeSectionStart { count, range, size } => {
-                    info.code = Some(Range {
-                        start: consumed,
-                        end: consumed + chunksize + size as usize,
-                    });
-                }
+                    info.code = Some(info.raw_sections.len());
+                    let allcoderange = Range{
+                        start: range.start,
+                        end: range.end
+                    };
+                    info.section(SectionId::Code, allcoderange, input_wasm);
+                },
                 Payload::TypeSection(mut reader) => {
-                    info.types = Some(Range {
-                        start: consumed,
-                        end: consumed + chunksize,
-                    });
-
+                    info.types = Some(info.raw_sections.len());
+                    info.section(SectionId::Type, reader.range(), input_wasm);
+                    
                     // Save function types
                     (0..reader.get_count()).for_each(|i| {
                         let ty = reader.read().unwrap();
@@ -286,12 +285,7 @@ impl WasmMutate {
                                         wasmparser::Type::I64 => PrimitiveTypeInfo::I64,
                                         wasmparser::Type::F32 => PrimitiveTypeInfo::F32,
                                         wasmparser::Type::F64 => PrimitiveTypeInfo::F64,
-                                        wasmparser::Type::V128 => todo!(),
-                                        wasmparser::Type::FuncRef => todo!(),
-                                        wasmparser::Type::ExternRef => todo!(),
-                                        wasmparser::Type::ExnRef => todo!(),
-                                        wasmparser::Type::Func => todo!(),
-                                        wasmparser::Type::EmptyBlockType => todo!(),
+                                        _ => panic!("Unsupported type {:?}", t)
                                     })
                                     .collect(),
                                 returns: FT
@@ -302,12 +296,7 @@ impl WasmMutate {
                                         wasmparser::Type::I64 => PrimitiveTypeInfo::I64,
                                         wasmparser::Type::F32 => PrimitiveTypeInfo::F32,
                                         wasmparser::Type::F64 => PrimitiveTypeInfo::F64,
-                                        wasmparser::Type::V128 => todo!(),
-                                        wasmparser::Type::FuncRef => todo!(),
-                                        wasmparser::Type::ExternRef => todo!(),
-                                        wasmparser::Type::ExnRef => todo!(),
-                                        wasmparser::Type::Func => todo!(),
-                                        wasmparser::Type::EmptyBlockType => todo!(),
+                                        _ => panic!("Unsupported type {:?}", t)
                                     })
                                     .collect(),
                             }),
@@ -316,180 +305,100 @@ impl WasmMutate {
                         });
                     })
                 }
-                Payload::ImportSection(_) => {
-                    info.imports = Some(Range {
-                        start: consumed,
-                        end: consumed + chunksize,
-                    })
+                Payload::ImportSection(reader) => {
+                    info.imports = Some(info.raw_sections.len());
+                    info.section(SectionId::Import, reader.range(), input_wasm);
                 }
                 Payload::FunctionSection(mut reader) => {
-                    info.functions = Some(Range {
-                        start: consumed,
-                        end: consumed + chunksize,
-                    });
+                    info.functions = Some(info.raw_sections.len());
+                    info.section(SectionId::Function, reader.range(), input_wasm);
 
-                    (0..reader.get_count()).for_each(|i| {
+                    (0..reader.get_count()).for_each(|_| {
                         let ty = reader.read().unwrap();
                         info.function_map.push(ty);
                     });
                 }
-                Payload::TableSection(_) => {
-                    info.tables = Some(Range {
-                        start: consumed,
-                        end: consumed + chunksize,
-                    })
+                Payload::TableSection(reader) => {
+                    info.tables = Some(info.raw_sections.len());
+                    info.section(SectionId::Table, reader.range(), input_wasm);
                 }
-                Payload::MemorySection(_) => {
-                    info.memories = Some(Range {
-                        start: consumed,
-                        end: consumed + chunksize,
-                    })
+                Payload::MemorySection(reader) => {
+                    info.memories = Some(info.raw_sections.len());
+                    info.section(SectionId::Memory, reader.range(), input_wasm);
                 }
-                Payload::GlobalSection(_) => {
-                    info.globals = Some(Range {
-                        start: consumed,
-                        end: consumed + chunksize,
-                    })
+                Payload::GlobalSection(reader) => {
+                    info.globals = Some(info.raw_sections.len());
+                    info.section(SectionId::Global, reader.range(), input_wasm);
                 }
-                Payload::ExportSection(_) => {
-                    info.exports = Some(Range {
-                        start: consumed,
-                        end: consumed + chunksize,
-                    })
+                Payload::ExportSection(mut reader) => {
+                    info.exports = Some(info.raw_sections.len());
+                    info.section(SectionId::Export, reader.range(), input_wasm);
                 }
                 Payload::StartSection { func: _, range: _ } => {
                     info.is_start_defined = true;
                 }
-                Payload::ElementSection(_) => {
-                    info.elements = Some(Range {
-                        start: consumed,
-                        end: consumed + chunksize,
-                    })
+                Payload::ElementSection(reader) => {
+                    info.elements = Some(info.raw_sections.len());
+                    info.section(SectionId::Element, reader.range(), input_wasm);
                 }
-                Payload::DataSection(_) => {
-                    info.data = Some(Range {
-                        start: consumed,
-                        end: consumed + chunksize,
-                    })
-                }
+                Payload::DataSection(reader) => {
+                    info.data = Some(info.raw_sections.len());
+                    info.section(SectionId::Data, reader.range(), input_wasm);
+                },
                 Payload::End => {
                     break;
                 }
+                // TODO, Add the others, make the mutator recursive on nested modules ?
                 _ => {}
             }
             consumed += chunksize
         }
-
-        Ok(info)
     }
 
     /// Run this configured `WasmMutate` on the given input Wasm.
-    pub fn run<'a>(&self, input_wasm: &[u8]) -> Result<Vec<u8>> {
-        // Declare available mutators here
+    pub fn run<'a>(&self, input_wasm: &'a [u8]) -> Result<Vec<u8>> {
+        let mut info = ModuleInfo{
+            exports: None,
+            types: None,
+            imports: None,
+            tables: None,
+            memories: None,
+            globals: None,
+            elements: None,
+            functions: None,
+            data: None,
+            code: None,
+            is_start_defined: false,
+            types_map: Vec::new(),
+            function_map: Vec::new(),
+            raw_sections: Vec::new()
+        };
 
-        let mut result: Vec<u8> = Vec::new();
-        let info = self.get_module_info(input_wasm)?;
-        let (mutators, ranges) = self.get_applicable_mutations::<Vec<u8>>(&info)?;
+        
+        self.get_module_info(&input_wasm, &mut info);
 
-        if cfg!(debug_assertions) {
-            eprintln!("Applicable mutators:");
+        let mut mutators: Vec<Box<dyn Mutator>> = Vec::new();
+        initialize_and_filter!{
+            info,
+            self,
+            mutators,
 
-            ranges.iter().for_each(|v| {
-                eprint!("(");
-                v.iter().for_each(|(r, name)| eprint!("{} ^ ", name));
-                eprint!("\u{8}");
-                eprint!("\u{8}");
-                eprint!(") || ")
-            });
+            // RenameExportMutator{max_name_size: 100},
+            RemoveExportMutator,
+        };
 
-            eprint!("\u{8}");
-            eprint!("\u{8}");
-            eprint!("\u{8}");
-            eprintln!("");
+        if mutators.len() == 0 {
+            return Ok(input_wasm.to_vec())
         }
         // Select random
         let mut rnd = self.get_rnd();
-        let mut selected = Vec::new();
 
-        mutators
-            .iter()
-            .zip(ranges.iter())
-            .for_each(|(mutations, ranges)| {
-                // In this dimension only one mutation can be selected
-                if mutations.len() >= 1 {
-                    // at least one mutation
-                    // Simulate the last possible mutation is in fact a no-mutator
-                    let number_of_mutations = if cfg!(feature = "no-mutator") {
-                        mutations.len() + 1
-                    } else {
-                        mutations.len()
-                    };
-
-                    let selected_mutation = rnd.gen_range(0, number_of_mutations);
-                    if selected_mutation < mutations.len() {
-                        selected.push((
-                            mutations.get(selected_mutation).unwrap(),
-                            ranges.get(selected_mutation).unwrap(),
-                        ));
-                    }
-                    // skip otherwise
-                    else {
-                        if cfg!(debug_assertions) {
-                            eprintln!("Selecting to not mutate");
-                        }
-                    }
-                }
-            });
-
-        if selected.len() == 0 {
-            // return idem if no mutators
-            return Ok(input_wasm.to_vec());
-        }
-
-        if cfg!(debug_assertions) {
-            selected.iter().for_each(|(_, (range, name))| {
-                eprintln!("Applying {} on piece {:?}", name, range);
-            })
-        }
-
-        // Group selected mutations by range
-        // Grouping by range will allow to mutate over the same section after one mutation has already passed
-        type R = Box<dyn Fn(&WasmMutate, &[u8], &ModuleInfo) -> Vec<u8>>;
-        let mut ranges_to_mutate: HashMap<Range, Vec<&R>> = HashMap::new();
-
-        selected.iter().for_each(|(muta, (range, name))| {
-            ranges_to_mutate
-                .entry(*range)
-                .or_insert_with(|| Vec::new())
-                .push(muta);
-        });
-
-        // Get the keys and sort them
-        let mut ranges = ranges_to_mutate.keys().collect::<Vec<&Range>>();
-
-        ranges.sort_by_key(|&&range| range.start);
-
-        // TODO, &ModuleInfo -> Module
-        // TODO, two subpasses, one-peephole, code-motion pass
-
-        let mut offset = 0;
-        // Mutators will be applied in specific ranges otherwise the chunk is copied to the resultant byte stream
-        // [.....][mutator1()][.....][mutator2()][mutator3()][.....]
-        //        [mutator6()]
-        for range in ranges {
-            // Write previous chunk of data, e.g. not mutated section
-            result.extend(&input_wasm[offset..range.start]);
-
-            // Mutate the section as many mutators this range has
-            let mutation = ranges_to_mutate.get(&range).unwrap().iter().fold(
-                input_wasm[range.start..range.end].to_vec(),
-                |mutation, &muta| muta(self, &mutation[..], &info),
-            );
-            result.extend(mutation);
-            offset = range.end;
-        }
-        // Write last piece
-        result.extend(&input_wasm[offset..]);
-        Ok(result)
+        let selected_mutation = rnd.gen_range(0, mutators.len());
+        let mutator = mutators.get(selected_mutation).unwrap();
+        
+        let module = mutator.mutate(&self, &mut info);
+        
+        println!("{:?}", module);
+        Ok(module.finish())
     }
 }

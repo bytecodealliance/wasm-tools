@@ -1,13 +1,12 @@
+use std::borrow::Borrow;
+use std::io::Write;
 use std::primitive;
 
 use crate::module::*;
 use crate::{ModuleInfo, WasmMutate};
 use rand::{prelude::SmallRng, Rng, RngCore};
-use wasm_encoder::{
-    encoders, CodeSection, Export, ExportSection, Function, Instruction, RawSection, Section,
-    SectionId,
-};
-use wasmparser::{Chunk, Parser, Payload, Range};
+use wasm_encoder::{CodeSection, Export, ExportSection, Function, Instruction, Module, RawSection, Section, SectionId, encoders};
+use wasmparser::{Chunk, ExportSectionReader, Parser, Payload, Range};
 
 pub trait Mutator {
     /// Method where the mutation happpens
@@ -16,12 +15,13 @@ pub trait Mutator {
     /// * `chunk` piece of the byte stream corresponding with the payload
     /// * `out_buffer` resulting mutated byte stream
     /// * `mutable` mutable object
-    /// Return the number of written bytes
-    fn mutate<'a>(&mut self, _: &'a WasmMutate, chunk: &[u8], info: &ModuleInfo) -> Vec<u8>;
+    fn mutate(&self, _: &WasmMutate, info: &mut ModuleInfo) -> Module {
+        Module::new()
+    }
 
     /// Returns if this mutator can be applied with the info and the byte range in which it can be applied
-    fn can_mutate<'a>(&self, _: &'a WasmMutate, info: &ModuleInfo) -> (bool, Option<Range>) {
-        (false, None)
+    fn can_mutate<'a>(&self, _: &'a WasmMutate, info: &ModuleInfo) -> bool {
+        false
     }
 
     /// Provides the name of the mutator, mostly used for debugging purposes
@@ -29,6 +29,7 @@ pub trait Mutator {
         return format!("{:?}", std::any::type_name::<Self>());
     }
 }
+
 
 macro_rules! parse_loop {
     ($chunk: expr, $(($pat: pat, $bytes: ident, $todo: tt),)*) => {
@@ -64,6 +65,141 @@ macro_rules! parse_loop {
         }
     };
 }
+
+pub struct RemoveExportMutator;
+
+impl Mutator for RemoveExportMutator {
+    fn mutate(&self, config: &WasmMutate, info: &mut ModuleInfo) -> Module {
+        let mut exports = ExportSection::new();
+        let mut reader = ExportSectionReader::new(info.get_exports_section().data, 0).unwrap();
+        let max_exports = reader.get_count() as u64;
+        let skip_at = config.get_rnd().gen_range(0, max_exports);
+
+        (0..max_exports).for_each(|i|{
+            let export = reader.read().unwrap();
+            if skip_at != i { // otherwise bypass
+                match export.kind {
+                    wasmparser::ExternalKind::Function => { exports.export(export.field, Export::Function(export.index)); },
+                    wasmparser::ExternalKind::Table => { exports.export(export.field, Export::Table(export.index)); },
+                    wasmparser::ExternalKind::Memory => { exports.export(export.field, Export::Memory(export.index)); },
+                    wasmparser::ExternalKind::Global => { exports.export(export.field, Export::Global(export.index)); },
+                    wasmparser::ExternalKind::Module => { exports.export(export.field, Export::Module(export.index)); },
+                    wasmparser::ExternalKind::Instance => { exports.export(export.field, Export::Instance(export.index)); },
+                    _ => {
+                        panic!("Unknown export {:?}", export)
+                    }
+                }
+            } else {
+                #[cfg(debug_assertions)] {
+                    eprintln!("Removing export {:?} idx {:?}", export, skip_at);
+                }
+            }
+        });
+        // Ugly solution
+        let mut modu = Module::new();
+        info.raw_sections.iter().enumerate().for_each(|(idx, s)| {
+            // if section if this one...replace
+            println!("{:?}", s);
+
+            if info.exports.unwrap() == idx 
+            {
+                modu.section(&exports);
+            } else { 
+                modu.section(s);
+            }
+            
+        });
+
+        modu
+    }
+
+    fn can_mutate<'a>(&self, _: &'a WasmMutate, info: &ModuleInfo) -> bool {
+        info.has_exports()
+    }
+}
+
+pub struct RenameExportMutator {
+    pub max_name_size: u32,
+}
+
+impl RenameExportMutator {
+    // Copied and transformed from wasm-smith name generation
+    fn limited_string(&self, rnd: &mut SmallRng) -> String {
+        let size = rnd.gen_range(1, self.max_name_size);
+        let size = std::cmp::min(size, self.max_name_size);
+        let mut str = vec![0u8; size as usize];
+        rnd.fill_bytes(&mut str);
+
+        match std::str::from_utf8(&str) {
+            Ok(s) => String::from(s),
+            Err(e) => {
+                let i = e.valid_up_to();
+                let valid = &str[0..i];
+                let s = unsafe {
+                    debug_assert!(std::str::from_utf8(valid).is_ok());
+                    std::str::from_utf8_unchecked(valid)
+                };
+                String::from(s)
+            }
+        }
+    }
+}
+
+impl Mutator for RenameExportMutator {
+    fn mutate<'a>(&self, config: &WasmMutate, info: &mut ModuleInfo<'a>) -> Module {
+        let mut exports = ExportSection::new();
+        let mut reader = ExportSectionReader::new(info.get_exports_section().data, 0).unwrap();
+        let max_exports = reader.get_count() as u64;
+        let skip_at = config.get_rnd().gen_range(0, max_exports);
+
+        (0..max_exports).for_each(|i|{
+            let export = reader.read().unwrap();
+
+            let new_name = if skip_at != i { // otherwise bypass
+                String::from(export.field)
+            } else {
+                let new_name = self.limited_string(&mut config.get_rnd());
+                #[cfg(debug_assertions)] {
+                    eprintln!("Renaming export {:?} by {:?}", export, new_name);
+                }
+                new_name
+            };
+
+            match export.kind {
+                wasmparser::ExternalKind::Function => { exports.export(new_name.as_str(), Export::Function(export.index)); },
+                wasmparser::ExternalKind::Table => { exports.export(new_name.as_str(), Export::Table(export.index)); },
+                wasmparser::ExternalKind::Memory => { exports.export(new_name.as_str(), Export::Memory(export.index)); },
+                wasmparser::ExternalKind::Global => { exports.export(new_name.as_str(), Export::Global(export.index)); },
+                wasmparser::ExternalKind::Module => { exports.export(new_name.as_str(), Export::Module(export.index)); },
+                wasmparser::ExternalKind::Instance => { exports.export(new_name.as_str(), Export::Instance(export.index)); },
+                _ => {
+                    panic!("Unknown export {:?}", export)
+                }
+            }
+        });
+
+        // Ugly solution
+        let mut modu = Module::new();
+        info.raw_sections.iter().enumerate().for_each(|(idx, s)| {
+            // if section if this one...replace
+            if info.exports.unwrap() == idx 
+                {
+                    modu.section(&exports);
+                } else { 
+                    modu.section(s);
+                }
+            
+        });
+
+        modu
+    }
+
+    fn can_mutate<'a>(&self, _: &'a WasmMutate, info: &ModuleInfo) -> bool {
+        info.has_exports()
+    }
+}
+
+/*
 
 // Concrete implementations
 pub struct ReturnI32SnipMutator;
@@ -201,128 +337,5 @@ impl Mutator for SetFunction2Unreachable {
     }
 }
 
-pub struct RemoveExportMutator;
 
-impl Mutator for RemoveExportMutator {
-    fn mutate<'a>(&mut self, config: &'a WasmMutate, chunk: &[u8], info: &ModuleInfo) -> Vec<u8> {
-        let mut sink = Vec::new();
-
-        parse_loop! {
-           &chunk,
-           (Payload::ExportSection(mut reader), consumed, {
-               let mut exports = ExportSection::new();
-               let max_exports = reader.get_count() as u64;
-               let skip_at = config.get_rnd().gen_range(0, max_exports);
-
-               (0..max_exports).for_each(|i|{
-                   let export = reader.read().unwrap();
-                   if skip_at != i { // otherwise bypass
-                       match export.kind {
-                           wasmparser::ExternalKind::Function => { exports.export(export.field, Export::Function(export.index)); },
-                           wasmparser::ExternalKind::Table => { exports.export(export.field, Export::Table(export.index)); },
-                           wasmparser::ExternalKind::Memory => { exports.export(export.field, Export::Memory(export.index)); },
-                           wasmparser::ExternalKind::Global => { exports.export(export.field, Export::Global(export.index)); },
-                           wasmparser::ExternalKind::Module => { exports.export(export.field, Export::Module(export.index)); },
-                           wasmparser::ExternalKind::Instance => { exports.export(export.field, Export::Instance(export.index)); },
-                           _ => {
-                               panic!("Unknown export {:?}", export)
-                           }
-                       }
-                   } else {
-                       #[cfg(debug_assertions)] {
-                           eprintln!("Removing export {:?} idx {:?}", export, skip_at);
-                       }
-                   }
-               });
-               sink.extend(std::iter::once(SectionId::Export as u8));
-               let mut tmpbuf = Vec::new();
-               exports.encode(&mut tmpbuf);
-               sink.extend(tmpbuf);
-           }),
-        };
-        sink
-    }
-
-    fn can_mutate<'a>(&self, _: &'a WasmMutate, info: &ModuleInfo) -> (bool, Option<Range>) {
-        let exports = info.exports;
-        (info.has_exports(), exports)
-    }
-}
-
-pub struct RenameExportMutator {
-    pub max_name_size: u32,
-}
-
-impl RenameExportMutator {
-    // Copied and transformed from wasm-smith name generation
-    fn limited_string(&self, rnd: &mut SmallRng) -> String {
-        let size = rnd.gen_range(1, self.max_name_size);
-        let size = std::cmp::min(size, self.max_name_size);
-        let mut str = vec![0u8; size as usize];
-        rnd.fill_bytes(&mut str);
-
-        match std::str::from_utf8(&str) {
-            Ok(s) => String::from(s),
-            Err(e) => {
-                let i = e.valid_up_to();
-                let valid = &str[0..i];
-                let s = unsafe {
-                    debug_assert!(std::str::from_utf8(valid).is_ok());
-                    std::str::from_utf8_unchecked(valid)
-                };
-                String::from(s)
-            }
-        }
-    }
-}
-
-impl Mutator for RenameExportMutator {
-    fn mutate<'a>(&mut self, config: &'a WasmMutate, chunk: &[u8], info: &ModuleInfo) -> Vec<u8> {
-        let mut sink = Vec::new();
-
-        parse_loop! {
-           &chunk,
-           (Payload::ExportSection(mut reader), consumed, {
-               let mut exports = ExportSection::new();
-               let max_exports = reader.get_count() as u64;
-               let skip_at = config.get_rnd().gen_range(0, max_exports);
-
-               (0..max_exports).for_each(|i|{
-                   let export = reader.read().unwrap();
-
-                   let new_name = if skip_at != i { // otherwise bypass
-                       String::from(export.field)
-                   } else {
-                       let new_name = self.limited_string(&mut config.get_rnd());
-                       #[cfg(debug_assertions)] {
-                           eprintln!("Renaming export {:?} by {:?}", export, new_name);
-                       }
-                       new_name
-                   };
-
-                   match export.kind {
-                       wasmparser::ExternalKind::Function => { exports.export(new_name.as_str(), Export::Function(export.index)); },
-                       wasmparser::ExternalKind::Table => { exports.export(new_name.as_str(), Export::Table(export.index)); },
-                       wasmparser::ExternalKind::Memory => { exports.export(new_name.as_str(), Export::Memory(export.index)); },
-                       wasmparser::ExternalKind::Global => { exports.export(new_name.as_str(), Export::Global(export.index)); },
-                       wasmparser::ExternalKind::Module => { exports.export(new_name.as_str(), Export::Module(export.index)); },
-                       wasmparser::ExternalKind::Instance => { exports.export(new_name.as_str(), Export::Instance(export.index)); },
-                       _ => {
-                           panic!("Unknown export {:?}", export)
-                       }
-                   }
-               });
-               sink.extend(std::iter::once(SectionId::Export as u8));
-               let mut tmpbuf = Vec::new();
-               exports.encode(&mut tmpbuf);
-               sink.extend(tmpbuf);
-           }),
-        };
-        sink
-    }
-
-    fn can_mutate<'a>(&self, _: &'a WasmMutate, info: &ModuleInfo) -> (bool, Option<Range>) {
-        let exports = info.exports;
-        (info.has_exports(), exports)
-    }
-}
+*/
