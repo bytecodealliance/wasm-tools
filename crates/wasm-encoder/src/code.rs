@@ -57,6 +57,13 @@ impl CodeSection {
         self.num_added += 1;
         self
     }
+
+    /// Add raw bytes as a function body
+    pub fn raw(&mut self, data: &[u8]) -> &mut Self {
+        self.bytes.extend(data);
+        self.num_added += 1;
+        self
+    }
 }
 
 impl Section for CodeSection {
@@ -136,12 +143,6 @@ impl Function {
     {
         self.bytes.extend(bytes);
         self
-    }
-
-    /// Add raw bytes to this function's body including locals.
-    pub fn full_raw(data: Vec<u8>) -> Self {
-        let r = Self { bytes: data };
-        r
     }
 
     fn encode(&self, bytes: &mut Vec<u8>) {

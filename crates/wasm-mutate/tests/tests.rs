@@ -16,17 +16,6 @@ fn validate(validator: &mut Validator, bytes: &[u8]) {
     panic!("wasm failed to validate {:?}", err);
 }
 
-/// Since there is no code section, any mutator registered under that pattern wont affect the module
-#[test]
-fn idempotent_header() {
-    let original = b"\0asm\x01\0\0\0";
-    let mutator = WasmMutate::default();
-
-    let mutated = mutator.run(original).unwrap();
-
-    assert_eq!(original.to_vec(), mutated)
-}
-
 #[test]
 fn integration_test() {
     // From https://developer.mozilla.org/en-US/docs/WebAssembly/Text_format_to_wasm

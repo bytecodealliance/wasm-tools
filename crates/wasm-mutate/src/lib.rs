@@ -12,7 +12,7 @@ use std::{any::TypeId, collections::HashMap, io::Write, rc::Rc, sync::Arc};
 
 use module::TypeInfo;
 use mutators::{Mutator, RenameExportMutator};
-use rand::{rngs::SmallRng, Rng, SeedableRng};
+use rand::{Rng, SeedableRng, prelude::SliceRandom, rngs::SmallRng};
 use std::convert::TryFrom;
 #[cfg(feature = "structopt")]
 use structopt::StructOpt;
@@ -152,7 +152,7 @@ impl<'a> ModuleInfo<'a> {
 
     pub fn section(&mut self, id: u8, range: wasmparser::Range, full_wasm: &'a [u8]) {
         self.raw_sections.push(RawSection {
-            id: id.into(),
+            id,
             data: &full_wasm[range.start..range.end],
         });
     }
@@ -176,6 +176,18 @@ impl<'a> ModuleInfo<'a> {
     pub fn get_functype_idx(&self, idx: usize) -> &TypeInfo {
         let functpeindex = self.function_map[idx] as usize;
         &self.types_map[functpeindex]
+    }
+
+    fn replace_section(&self, i: usize, new_section: &impl wasm_encoder::Section) -> wasm_encoder::Module {
+        let mut module = wasm_encoder::Module::new();
+        self.raw_sections.iter().enumerate().for_each(|(j, s)| {
+            if i == j {
+                module.section(new_section);
+            } else {
+                module.section(s);
+            }
+        });
+        module
     }
 }
 
@@ -227,60 +239,37 @@ impl WasmMutate {
     }
 
     /// Parse and fill lane AST with metadata information about the module
-    pub fn get_module_info<'a>(&'a self, input_wasm: &'a [u8], info: &mut ModuleInfo<'a>) {
+    pub fn get_module_info<'a>(&'a self, input_wasm: &'a [u8]) -> Result<ModuleInfo> {
         let mut parser = Parser::new(0);
-        let mut consumed = 0;
+        let mut wasm = input_wasm;
+        let mut info = ModuleInfo::default();
         loop {
-            let (payload, chunksize) = match parser.parse(&input_wasm[consumed..], true).unwrap() {
-                Chunk::NeedMoreData(_) => {
-                    panic!("Invalid Wasm module");
+            let (payload, consumed) = match parser.parse(&wasm, true)? {
+                Chunk::NeedMoreData(hint) => {
+                    panic!("Invalid Wasm module {:?}", hint);
                 }
                 Chunk::Parsed { consumed, payload } => (payload, consumed),
             };
-
             match payload {
-                Payload::CodeSectionStart { count, range, size } => {
+                Payload::CodeSectionStart { count:_, range, size:_ } => {
                     info.code = Some(info.raw_sections.len());
                     info.section(SectionId::Code.into(), range, input_wasm);
+                    parser.skip_section();                    
+                    println!("{:?} {:?}", wasm, consumed);
+                    // update slice
+                    wasm = &wasm[range.end - range.start + consumed - 1..];
+                    continue;
                 }
                 Payload::TypeSection(mut reader) => {
                     info.types = Some(info.raw_sections.len());
                     info.section(SectionId::Type.into(), reader.range(), input_wasm);
 
                     // Save function types
-                    (0..reader.get_count()).for_each(|i| {
+                    (0..reader.get_count()).for_each(|_| {
                         let ty = reader.read().unwrap();
-
-                        // Replace by try_into ?
-                        info.types_map.push(match ty {
-                            TypeDef::Func(FT) => TypeInfo::Func(FuncInfo {
-                                params: FT
-                                    .params
-                                    .iter()
-                                    .map(|&t| match t {
-                                        wasmparser::Type::I32 => PrimitiveTypeInfo::I32,
-                                        wasmparser::Type::I64 => PrimitiveTypeInfo::I64,
-                                        wasmparser::Type::F32 => PrimitiveTypeInfo::F32,
-                                        wasmparser::Type::F64 => PrimitiveTypeInfo::F64,
-                                        _ => panic!("Unsupported type {:?}", t),
-                                    })
-                                    .collect(),
-                                returns: FT
-                                    .returns
-                                    .iter()
-                                    .map(|&t| match t {
-                                        wasmparser::Type::I32 => PrimitiveTypeInfo::I32,
-                                        wasmparser::Type::I64 => PrimitiveTypeInfo::I64,
-                                        wasmparser::Type::F32 => PrimitiveTypeInfo::F32,
-                                        wasmparser::Type::F64 => PrimitiveTypeInfo::F64,
-                                        _ => panic!("Unsupported type {:?}", t),
-                                    })
-                                    .collect(),
-                            }),
-                            TypeDef::Instance(_) => todo!(),
-                            TypeDef::Module(_) => todo!(),
-                        });
-                    })
+                        let typeinfo = TypeInfo::try_from(ty).unwrap();
+                        info.types_map.push(typeinfo);
+                    });
                 }
                 Payload::ImportSection(reader) => {
                     info.imports = Some(info.raw_sections.len());
@@ -307,7 +296,7 @@ impl WasmMutate {
                     info.globals = Some(info.raw_sections.len());
                     info.section(SectionId::Global.into(), reader.range(), input_wasm);
                 }
-                Payload::ExportSection(mut reader) => {
+                Payload::ExportSection(reader) => {
                     info.exports = Some(info.raw_sections.len());
                     info.section(SectionId::Export.into(), reader.range(), input_wasm);
                 }
@@ -343,26 +332,19 @@ impl WasmMutate {
                 Payload::DataCountSection { count: _, range } => {
                     info.section(SectionId::DataCount.into(), range, input_wasm);
                 }
-                Payload::Version { num: _, range: _ } => {
-                    // bypass
-                }
-                Payload::CodeSectionEntry(_) => {
-                    // This is handled by the code section saving
-                }
-                Payload::End => {
-                    break;
-                }
+                Payload::Version { .. } => { }
+                Payload::End => { break; }
                 _ => todo!("{:?} not implemented", payload),
             }
-            consumed += chunksize
+            wasm = &wasm[consumed..];
         }
+
+        Ok(info)
     }
 
     /// Run this configured `WasmMutate` on the given input Wasm.
     pub fn run<'a>(&self, input_wasm: &'a [u8]) -> Result<Vec<u8>> {
-        let mut info = ModuleInfo::default();
-
-        self.get_module_info(&input_wasm, &mut info);
+        let mut info = self.get_module_info(&input_wasm)?;
 
         let mut mutators: Vec<Box<dyn Mutator>> = Vec::new();
         initialize_and_filter! {
@@ -376,14 +358,7 @@ impl WasmMutate {
             SetFunction2Unreachable,
         };
 
-        if mutators.len() == 0 {
-            return Ok(input_wasm.to_vec());
-        }
-        // Select random
-        let mut rnd = self.get_rnd();
-
-        let selected_mutation = rnd.gen_range(0, mutators.len());
-        let mutator = mutators.get(selected_mutation).unwrap();
+        let mutator = mutators.choose(&mut self.get_rnd()).ok_or(Error::NoMutationsAplicable)?;
 
         let module = mutator.mutate(&self, &mut info);
 

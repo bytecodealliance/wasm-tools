@@ -18,14 +18,10 @@ pub trait Mutator {
     /// * `chunk` piece of the byte stream corresponding with the payload
     /// * `out_buffer` resulting mutated byte stream
     /// * `mutable` mutable object
-    fn mutate(&self, _: &WasmMutate, info: &mut ModuleInfo) -> Module {
-        Module::new()
-    }
+    fn mutate(&self, _: &WasmMutate, info: &mut ModuleInfo) -> Module;
 
     /// Returns if this mutator can be applied with the info and the byte range in which it can be applied
-    fn can_mutate<'a>(&self, _: &'a WasmMutate, info: &ModuleInfo) -> bool {
-        false
-    }
+    fn can_mutate<'a>(&self, _: &'a WasmMutate, info: &ModuleInfo) -> bool;
 
     /// Provides the name of the mutator, mostly used for debugging purposes
     fn name(&self) -> String {
@@ -72,18 +68,7 @@ impl Mutator for RemoveExportMutator {
                 log::debug!("Removing export {:?} idx {:?}", export, skip_at);
             }
         });
-        // Ugly solution
-        let mut modu = Module::new();
-        info.raw_sections.iter().enumerate().for_each(|(idx, s)| {
-            // if section if this one...replace
-            if info.exports.unwrap() == idx {
-                modu.section(&exports);
-            } else {
-                modu.section(s);
-            }
-        });
-
-        modu
+        info.replace_section(info.exports.unwrap(), &exports)
     }
 
     fn can_mutate<'a>(&self, _: &'a WasmMutate, info: &ModuleInfo) -> bool {
@@ -161,19 +146,7 @@ impl Mutator for RenameExportMutator {
                 }
             }
         });
-
-        // Ugly solution
-        let mut modu = Module::new();
-        info.raw_sections.iter().enumerate().for_each(|(idx, s)| {
-            // if section if this one...replace
-            if info.exports.unwrap() == idx {
-                modu.section(&exports);
-            } else {
-                modu.section(s);
-            }
-        });
-
-        modu
+        info.replace_section(info.exports.unwrap(), &exports)
     }
 
     fn can_mutate<'a>(&self, _: &'a WasmMutate, info: &ModuleInfo) -> bool {
@@ -224,22 +197,10 @@ impl Mutator for ReturnI32SnipMutator {
                 codes.function(&f);
             } else {
                 let f = reader.read().unwrap();
-                let funclone = Function::full_raw(f.get_func_bytes().to_vec());
-                codes.function(&funclone);
+                codes.raw(f.get_func_bytes());
             }
         });
-
-        let mut modu = Module::new();
-        info.raw_sections.iter().enumerate().for_each(|(idx, s)| {
-            // if section if this one...replace
-            if info.code.unwrap() == idx {
-                modu.section(&codes);
-            } else {
-                modu.section(s);
-            }
-        });
-
-        modu
+        info.replace_section(info.code.unwrap(), &codes)
     }
 
     fn can_mutate<'a>(&self, config: &'a WasmMutate, info: &ModuleInfo) -> bool {
@@ -267,22 +228,10 @@ impl Mutator for SetFunction2Unreachable {
                 codes.function(&f);
             } else {
                 let f = reader.read().unwrap();
-                let funclone = Function::full_raw(f.get_func_bytes().to_vec());
-                codes.function(&funclone);
+                codes.raw(f.get_func_bytes());
             }
         });
-
-        let mut modu = Module::new();
-        info.raw_sections.iter().enumerate().for_each(|(idx, s)| {
-            // if section if this one...replace
-            if info.code.unwrap() == idx {
-                modu.section(&codes);
-            } else {
-                modu.section(s);
-            }
-        });
-
-        modu
+        info.replace_section(info.code.unwrap(), &codes)
     }
 
     fn can_mutate<'a>(&self, config: &'a WasmMutate, info: &ModuleInfo) -> bool {
@@ -315,9 +264,7 @@ mod tests {
 
         let mutator = ReturnI32SnipMutator {};
 
-        let mut info = ModuleInfo::default();
-
-        wasmmutate.get_module_info(original, &mut info);
+        let mut info = wasmmutate.get_module_info(original).unwrap();
         let can_mutate = mutator.can_mutate(&wasmmutate, &info);
 
         assert_eq!(can_mutate, true);
@@ -345,9 +292,7 @@ mod tests {
 
         let mutator = SetFunction2Unreachable {};
 
-        let mut info = ModuleInfo::default();
-
-        wasmmutate.get_module_info(original, &mut info);
+        let mut info = wasmmutate.get_module_info(original).unwrap();
         let can_mutate = mutator.can_mutate(&wasmmutate, &info);
 
         assert_eq!(can_mutate, true);
@@ -377,9 +322,7 @@ mod tests {
 
         let mutator = RemoveExportMutator {};
 
-        let mut info = ModuleInfo::default();
-
-        wasmmutate.get_module_info(original, &mut info);
+        let mut info = wasmmutate.get_module_info(original).unwrap();
         let can_mutate = mutator.can_mutate(&wasmmutate, &info);
 
         assert_eq!(can_mutate, true);
@@ -408,9 +351,7 @@ mod tests {
 
         let mutator = RenameExportMutator { max_name_size: 2 }; // the string is empty
 
-        let mut info = ModuleInfo::default();
-
-        wasmmutate.get_module_info(original, &mut info);
+        let mut info = wasmmutate.get_module_info(original).unwrap();
         let can_mutate = mutator.can_mutate(&wasmmutate, &info);
 
         assert_eq!(can_mutate, true);
