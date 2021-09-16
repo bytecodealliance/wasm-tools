@@ -77,6 +77,10 @@ impl<'a> FunctionBody<'a> {
         Ok(reader)
     }
 
+    pub fn get_func_bytes(&self) -> &[u8] {
+        self.data
+    }
+
     pub fn range(&self) -> Range {
         Range {
             start: self.offset,

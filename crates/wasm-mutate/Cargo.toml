@@ -11,7 +11,7 @@ thiserror = "1.0.28"
 wasmparser = { version = "0.80", path = "../wasmparser" }
 wasm-encoder = { version = "0.6.0", path = "../wasm-encoder"}
 rand = { version = "0.7.3", features = ["small_rng"] }
-
+log = "0.4.14"
 
 
 [dev-dependencies]

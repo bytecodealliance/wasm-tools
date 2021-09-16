@@ -138,6 +138,16 @@ impl Function {
         self
     }
 
+
+    /// Add raw bytes to this function's body including locals.
+    pub fn full_raw(data: Vec<u8>) -> Self
+    {
+        let r = Self {
+            bytes: data
+        };
+        r
+    }
+
     fn encode(&self, bytes: &mut Vec<u8>) {
         bytes.extend(
             encoders::u32(u32::try_from(self.bytes.len()).unwrap())
