@@ -1,6 +1,5 @@
-use wasm_encoder::Instruction;
 use wasm_mutate::WasmMutate;
-use wasmparser::{Chunk, Operator, Parser, Payload, Validator};
+use wasmparser::Validator;
 
 // Copied from wasm-smith
 fn validate(validator: &mut Validator, bytes: &[u8]) {

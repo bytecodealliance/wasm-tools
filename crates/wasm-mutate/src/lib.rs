@@ -7,12 +7,11 @@
 //! tool. `wasm-mutate` can serve as a custom mutator for mutation-based
 //! fuzzing.
 #![cfg_attr(not(feature = "structopt"), deny(missing_docs))]
-
-use std::{any::TypeId, collections::HashMap, io::Write, rc::Rc, sync::Arc};
+use std::sync::Arc;
 
 use module::TypeInfo;
 use mutators::{Mutator, RenameExportMutator};
-use rand::{Rng, SeedableRng, prelude::SliceRandom, rngs::SmallRng};
+use rand::{SeedableRng, prelude::SliceRandom, rngs::SmallRng};
 use std::convert::TryFrom;
 #[cfg(feature = "structopt")]
 use structopt::StructOpt;
@@ -23,11 +22,10 @@ mod module;
 pub mod mutators;
 
 pub use error::{Error, Result};
-use wasm_encoder::{encoders, CodeSection, ExportSection, Module, RawSection, Section, SectionId};
-use wasmparser::{Chunk, ExportSectionReader, Parser, Payload, Range, SectionReader, TypeDef};
+use wasm_encoder::{RawSection, SectionId};
+use wasmparser::{Chunk, Parser, Payload, SectionReader};
 
 use crate::{
-    module::{FuncInfo, PrimitiveTypeInfo},
     mutators::{RemoveExportMutator, ReturnI32SnipMutator, SetFunction2Unreachable}, //, RenameExportMutator, SetFunction2Unreachable, ReturnI32SnipMutator},
 };
 
@@ -38,7 +36,7 @@ macro_rules! initialize_and_filter {
         )*
     ) => {
             $(
-                if $mutation.can_mutate($config, &$info) {
+                if $mutation.can_mutate($config, &$info)? {
                     $result.push(Box::new($mutation))
                 }
             )*
@@ -142,7 +140,11 @@ pub struct ModuleInfo<'a> {
     // types for inner functions
     types_map: Vec<TypeInfo>,
     function_map: Vec<u32>,
+    
+    // raw_sections
     raw_sections: Vec<RawSection<'a>>,
+    input_wasm: &'a [u8]
+
 }
 
 impl<'a> ModuleInfo<'a> {
@@ -241,8 +243,10 @@ impl WasmMutate {
     /// Parse and fill lane AST with metadata information about the module
     pub fn get_module_info<'a>(&'a self, input_wasm: &'a [u8]) -> Result<ModuleInfo> {
         let mut parser = Parser::new(0);
-        let mut wasm = input_wasm;
         let mut info = ModuleInfo::default();
+        let mut wasm = input_wasm;
+        info.input_wasm = wasm;
+
         loop {
             let (payload, consumed) = match parser.parse(&wasm, true)? {
                 Chunk::NeedMoreData(hint) => {
@@ -258,6 +262,7 @@ impl WasmMutate {
                     println!("{:?} {:?}", wasm, consumed);
                     // update slice
                     wasm = &wasm[range.end - range.start + consumed - 1..];
+                    
                     continue;
                 }
                 Payload::TypeSection(mut reader) => {
@@ -265,11 +270,13 @@ impl WasmMutate {
                     info.section(SectionId::Type.into(), reader.range(), input_wasm);
 
                     // Save function types
-                    (0..reader.get_count()).for_each(|_| {
-                        let ty = reader.read().unwrap();
-                        let typeinfo = TypeInfo::try_from(ty).unwrap();
-                        info.types_map.push(typeinfo);
-                    });
+                    for _ in 0..reader.get_count() {
+                        reader.read().and_then(|ty|{
+                            let typeinfo = TypeInfo::try_from(ty).unwrap();
+                            info.types_map.push(typeinfo);
+                            Ok(())
+                        })?;
+                    }
                 }
                 Payload::ImportSection(reader) => {
                     info.imports = Some(info.raw_sections.len());
@@ -279,10 +286,12 @@ impl WasmMutate {
                     info.functions = Some(info.raw_sections.len());
                     info.section(SectionId::Function.into(), reader.range(), input_wasm);
 
-                    (0..reader.get_count()).for_each(|_| {
-                        let ty = reader.read().unwrap();
-                        info.function_map.push(ty);
-                    });
+                    for _ in 0..reader.get_count(){
+                        reader.read().and_then(|ty|{
+                            info.function_map.push(ty);
+                            Ok(())
+                        })?;
+                    }
                 }
                 Payload::TableSection(reader) => {
                     info.tables = Some(info.raw_sections.len());
@@ -362,6 +371,6 @@ impl WasmMutate {
 
         let module = mutator.mutate(&self, &mut info);
 
-        Ok(module.finish())
+        Ok(module?.finish())
     }
 }

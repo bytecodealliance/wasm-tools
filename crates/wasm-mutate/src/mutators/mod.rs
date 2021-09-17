@@ -1,16 +1,11 @@
-use std::borrow::Borrow;
-use std::io::Write;
-use std::primitive;
-
 use crate::module::*;
 use crate::{ModuleInfo, WasmMutate};
 use rand::{prelude::SmallRng, Rng, RngCore};
 use wasm_encoder::{
-    encoders, CodeSection, Export, ExportSection, Function, Instruction, Module, RawSection,
-    Section, SectionId,
+    CodeSection, Export, ExportSection, Function, Instruction, Module
 };
-use wasmparser::{Chunk, CodeSectionReader, ExportSectionReader, Parser, Payload, Range};
-
+use wasmparser::{CodeSectionReader, ExportSectionReader};
+use super::Result;
 pub trait Mutator {
     /// Method where the mutation happpens
     ///
@@ -18,10 +13,10 @@ pub trait Mutator {
     /// * `chunk` piece of the byte stream corresponding with the payload
     /// * `out_buffer` resulting mutated byte stream
     /// * `mutable` mutable object
-    fn mutate(&self, _: &WasmMutate, info: &mut ModuleInfo) -> Module;
+    fn mutate(&self, _: &WasmMutate, info: &mut ModuleInfo) -> Result<Module>;
 
     /// Returns if this mutator can be applied with the info and the byte range in which it can be applied
-    fn can_mutate<'a>(&self, _: &'a WasmMutate, info: &ModuleInfo) -> bool;
+    fn can_mutate<'a>(&self, _: &'a WasmMutate, info: &ModuleInfo) -> Result<bool>;
 
     /// Provides the name of the mutator, mostly used for debugging purposes
     fn name(&self) -> String {
@@ -31,9 +26,9 @@ pub trait Mutator {
 pub struct RemoveExportMutator;
 
 impl Mutator for RemoveExportMutator {
-    fn mutate(&self, config: &WasmMutate, info: &mut ModuleInfo) -> Module {
+    fn mutate(&self, config: &WasmMutate, info: &mut ModuleInfo) -> Result<Module> {
         let mut exports = ExportSection::new();
-        let mut reader = ExportSectionReader::new(info.get_exports_section().data, 0).unwrap();
+        let mut reader = ExportSectionReader::new(info.get_exports_section().data, 0)?;
         let max_exports = reader.get_count() as u64;
         let skip_at = config.get_rnd().gen_range(0, max_exports);
 
@@ -68,11 +63,11 @@ impl Mutator for RemoveExportMutator {
                 log::debug!("Removing export {:?} idx {:?}", export, skip_at);
             }
         });
-        info.replace_section(info.exports.unwrap(), &exports)
+        Ok(info.replace_section(info.exports.unwrap(), &exports))
     }
 
-    fn can_mutate<'a>(&self, _: &'a WasmMutate, info: &ModuleInfo) -> bool {
-        info.has_exports()
+    fn can_mutate<'a>(&self, _: &'a WasmMutate, info: &ModuleInfo) -> Result<bool> {
+        Ok(info.has_exports())
     }
 }
 
@@ -104,9 +99,9 @@ impl RenameExportMutator {
 }
 
 impl Mutator for RenameExportMutator {
-    fn mutate<'a>(&self, config: &WasmMutate, info: &mut ModuleInfo<'a>) -> Module {
+    fn mutate<'a>(&self, config: &WasmMutate, info: &mut ModuleInfo<'a>) -> Result<Module> {
         let mut exports = ExportSection::new();
-        let mut reader = ExportSectionReader::new(info.get_exports_section().data, 0).unwrap();
+        let mut reader = ExportSectionReader::new(info.get_exports_section().data, 0)?;
         let max_exports = reader.get_count() as u64;
         let skip_at = config.get_rnd().gen_range(0, max_exports);
 
@@ -146,11 +141,11 @@ impl Mutator for RenameExportMutator {
                 }
             }
         });
-        info.replace_section(info.exports.unwrap(), &exports)
+        Ok(info.replace_section(info.exports.unwrap(), &exports))
     }
 
-    fn can_mutate<'a>(&self, _: &'a WasmMutate, info: &ModuleInfo) -> bool {
-        info.has_exports()
+    fn can_mutate<'a>(&self, _: &'a WasmMutate, info: &ModuleInfo) -> Result<bool> {
+        Ok(info.has_exports())
     }
 }
 
@@ -158,10 +153,10 @@ impl Mutator for RenameExportMutator {
 pub struct ReturnI32SnipMutator;
 
 impl Mutator for ReturnI32SnipMutator {
-    fn mutate<'a>(&self, config: &WasmMutate, info: &mut ModuleInfo<'a>) -> Module {
+    fn mutate<'a>(&self, config: &WasmMutate, info: &mut ModuleInfo<'a>) -> Result<Module> {
         let mut codes = CodeSection::new();
         let code_section = info.get_code_section();
-        let mut reader = CodeSectionReader::new(code_section.data, 0).unwrap();
+        let mut reader = CodeSectionReader::new(code_section.data, 0)?;
         let count = reader.get_count();
         let function_to_mutate = config.get_rnd().gen_range(0, count);
         let ftype = info.get_functype_idx(function_to_mutate as usize);
@@ -197,24 +192,24 @@ impl Mutator for ReturnI32SnipMutator {
                 codes.function(&f);
             } else {
                 let f = reader.read().unwrap();
-                codes.raw(f.get_func_bytes());
+                codes.raw(&info.input_wasm[f.range().start..f.range().end]);
             }
         });
-        info.replace_section(info.code.unwrap(), &codes)
+        Ok(info.replace_section(info.code.unwrap(), &codes))
     }
 
-    fn can_mutate<'a>(&self, config: &'a WasmMutate, info: &ModuleInfo) -> bool {
-        !config.preserve_semantics && info.has_code()
+    fn can_mutate<'a>(&self, config: &'a WasmMutate, info: &ModuleInfo) -> Result<bool> {
+        Ok(!config.preserve_semantics && info.has_code())
     }
 }
 
 pub struct SetFunction2Unreachable;
 
 impl Mutator for SetFunction2Unreachable {
-    fn mutate<'a>(&self, config: &WasmMutate, info: &mut ModuleInfo<'a>) -> Module {
+    fn mutate<'a>(&self, config: &WasmMutate, info: &mut ModuleInfo<'a>) -> Result<Module> {
         let mut codes = CodeSection::new();
         let code_section = info.get_code_section();
-        let mut reader = CodeSectionReader::new(code_section.data, 0).unwrap();
+        let mut reader = CodeSectionReader::new(code_section.data, 0)?;
         let count = reader.get_count();
         let function_to_mutate = config.get_rnd().gen_range(0, count);
         (0..count).for_each(|i| {
@@ -228,24 +223,21 @@ impl Mutator for SetFunction2Unreachable {
                 codes.function(&f);
             } else {
                 let f = reader.read().unwrap();
-                codes.raw(f.get_func_bytes());
+                codes.raw(&info.input_wasm[f.range().start..f.range().end]);
             }
         });
-        info.replace_section(info.code.unwrap(), &codes)
+        Ok(info.replace_section(info.code.unwrap(), &codes))
     }
 
-    fn can_mutate<'a>(&self, config: &'a WasmMutate, info: &ModuleInfo) -> bool {
-        !config.preserve_semantics && info.has_code()
+    fn can_mutate<'a>(&self, config: &'a WasmMutate, info: &ModuleInfo) -> Result<bool> {
+        Ok(!config.preserve_semantics && info.has_code())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use wasmparser::{Chunk, Parser};
-
     use crate::{
-        mutators::{RemoveExportMutator, RenameExportMutator, SetFunction2Unreachable},
-        ModuleInfo, WasmMutate,
+        mutators::{RemoveExportMutator, RenameExportMutator, SetFunction2Unreachable}, WasmMutate,
     };
 
     use super::{Mutator, ReturnI32SnipMutator};
@@ -265,12 +257,12 @@ mod tests {
         let mutator = ReturnI32SnipMutator {};
 
         let mut info = wasmmutate.get_module_info(original).unwrap();
-        let can_mutate = mutator.can_mutate(&wasmmutate, &info);
+        let can_mutate = mutator.can_mutate(&wasmmutate, &info).unwrap();
 
         assert_eq!(can_mutate, true);
 
         let mutation = mutator.mutate(&wasmmutate, &mut info);
-        let mutation_bytes = mutation.finish();
+        let mutation_bytes = mutation.unwrap().finish();
 
         // If it fails, it is probably an invalid
         let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
@@ -293,12 +285,12 @@ mod tests {
         let mutator = SetFunction2Unreachable {};
 
         let mut info = wasmmutate.get_module_info(original).unwrap();
-        let can_mutate = mutator.can_mutate(&wasmmutate, &info);
+        let can_mutate = mutator.can_mutate(&wasmmutate, &info).unwrap();
 
         assert_eq!(can_mutate, true);
 
         let mutation = mutator.mutate(&wasmmutate, &mut info);
-        let mutation_bytes = mutation.finish();
+        let mutation_bytes = mutation.unwrap().finish();
 
         // If it fails, it is probably an invalid
         let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
@@ -323,12 +315,12 @@ mod tests {
         let mutator = RemoveExportMutator {};
 
         let mut info = wasmmutate.get_module_info(original).unwrap();
-        let can_mutate = mutator.can_mutate(&wasmmutate, &info);
+        let can_mutate = mutator.can_mutate(&wasmmutate, &info).unwrap();
 
         assert_eq!(can_mutate, true);
 
         let mutation = mutator.mutate(&wasmmutate, &mut info);
-        let mutation_bytes = mutation.finish();
+        let mutation_bytes = mutation.unwrap().finish();
 
         // If it fails, it is probably an invalid
         let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
@@ -352,12 +344,12 @@ mod tests {
         let mutator = RenameExportMutator { max_name_size: 2 }; // the string is empty
 
         let mut info = wasmmutate.get_module_info(original).unwrap();
-        let can_mutate = mutator.can_mutate(&wasmmutate, &info);
+        let can_mutate = mutator.can_mutate(&wasmmutate, &info).unwrap();
 
         assert_eq!(can_mutate, true);
 
         let mutation = mutator.mutate(&wasmmutate, &mut info);
-        let mutation_bytes = mutation.finish();
+        let mutation_bytes = mutation.unwrap().finish();
 
         // If it fails, it is probably an invalid
         let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
