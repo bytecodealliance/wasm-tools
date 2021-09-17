@@ -1,283 +1,90 @@
-
-use std::primitive;
-
-use rand::{Rng, RngCore, prelude::SmallRng};
-use wasm_encoder::{CodeSection, Export, ExportSection, Function, Instruction, RawSection, Section, SectionId, encoders};
-use wasmparser::{Chunk, Parser, Payload, Range};
-use crate::{ModuleInfo, WasmMutate};
 use crate::module::*;
-
-pub trait Mutator
-{
-    
+use crate::{ModuleInfo, WasmMutate};
+use rand::{prelude::SmallRng, Rng, RngCore};
+use wasm_encoder::{
+    CodeSection, Export, ExportSection, Function, Instruction, Module
+};
+use wasmparser::{CodeSectionReader, ExportSectionReader};
+use super::Result;
+pub trait Mutator {
     /// Method where the mutation happpens
     ///
     /// * `context` instance of WasmMutate
     /// * `chunk` piece of the byte stream corresponding with the payload
     /// * `out_buffer` resulting mutated byte stream
     /// * `mutable` mutable object
-    /// Return the number of written bytes
-    fn mutate<'a>(&mut self, _:&'a WasmMutate, chunk: &[u8], info: &ModuleInfo) -> Vec<u8>;
+    fn mutate(&self, _: &WasmMutate, info: &mut ModuleInfo) -> Result<Module>;
 
     /// Returns if this mutator can be applied with the info and the byte range in which it can be applied
-    fn can_mutate<'a>(&self, _:&'a WasmMutate, info: &ModuleInfo) -> (bool, Option<Range>){
-        (false, None) 
-    }
+    fn can_mutate<'a>(&self, _: &'a WasmMutate, info: &ModuleInfo) -> Result<bool>;
 
     /// Provides the name of the mutator, mostly used for debugging purposes
     fn name(&self) -> String {
-        return format!("{:?}", std::any::type_name::<Self>())
+        return format!("{:?}", std::any::type_name::<Self>());
     }
-
 }
+pub struct RemoveExportMutator;
 
+impl Mutator for RemoveExportMutator {
+    fn mutate(&self, config: &WasmMutate, info: &mut ModuleInfo) -> Result<Module> {
+        let mut exports = ExportSection::new();
+        let mut reader = ExportSectionReader::new(info.get_exports_section().data, 0)?;
+        let max_exports = reader.get_count() as u64;
+        let skip_at = config.get_rnd().gen_range(0, max_exports);
 
-macro_rules! parse_loop {
-    ($chunk: expr, $(($pat: pat, $bytes: ident, $todo: tt),)*) => {
-        let mut parser = Parser::new(0);
-        // Hack !
-        parser.parse(b"\0asm\x01\0\0\0", false);
-        let mut consumed = 0;
-        let sectionsize = $chunk.len();
-
-        loop {
-            let (payload, chunksize) = match parser.parse(&$chunk[consumed..], false).unwrap() {
-                Chunk::NeedMoreData(_) => {
-                    panic!("Invalid Wasm module");
-                },
-                Chunk::Parsed { consumed, payload } => (payload, consumed),
-            };
-
-            match payload {
-                $(
-                    $pat => {
-                        let $bytes = &$chunk[consumed..consumed+chunksize];
-                        $todo 
-                    },
-                )*
-                _ => panic!("This mutator cannot be applied to this section")
-            }
-            
-            consumed += chunksize;
-
-            if consumed == sectionsize {
-                break
-            }
-        }
-    };
-}
-
-// Concrete implementations
-pub struct ReturnI32SnipMutator;
-
-impl Mutator for ReturnI32SnipMutator {
-    fn mutate<'a>(&mut self, config:&'a WasmMutate, chunk: &[u8], info: &ModuleInfo) -> Vec<u8>
-    {
-        let mut function_count = 0;
-        let mut codes = Vec::new();
-        let mut function_to_mutate  = 0;
-        let mut idx = 0;
-        parse_loop!{
-           &chunk, 
-           (Payload::CodeSectionEntry(_), bytes, {
-                if idx == function_to_mutate {
-
-                    #[cfg(debug_assertions)] {
-                        eprintln!("Snip function idx {:?}", idx);
+        (0..max_exports).for_each(|i| {
+            let export = reader.read().unwrap();
+            if skip_at != i {
+                // otherwise bypass
+                match export.kind {
+                    wasmparser::ExternalKind::Function => {
+                        exports.export(export.field, Export::Function(export.index));
                     }
-                    let locals = vec![];                    
-                    let mut tmpbuff: Vec<u8> = Vec::new();
-                    let mut f = Function::new(locals);
-
-                    let ftype = info.get_functype_idx(idx as usize);
-
-                    match ftype {
-                        TypeInfo::Func(t) => {
-                            t.returns.iter().for_each(|primitive|{
-                                match primitive {
-                                    PrimitiveTypeInfo::I32 => {f.instruction(Instruction::I32Const(0));},
-                                    PrimitiveTypeInfo::I64 => {f.instruction(Instruction::I64Const(0));},
-                                    PrimitiveTypeInfo::F32 => {f.instruction(Instruction::F32Const(0.0));},
-                                    PrimitiveTypeInfo::F64 => {f.instruction(Instruction::F64Const(0.0));},
-                                }
-                            });
-
-                        },
-                        _ => panic!("Unconsistent function type")
-                    };
-
-                    f.instruction(Instruction::End);
-
-                    f.encode(&mut tmpbuff);
-                    codes.extend(tmpbuff);
-                } else {
-                    codes.extend(bytes)
+                    wasmparser::ExternalKind::Table => {
+                        exports.export(export.field, Export::Table(export.index));
+                    }
+                    wasmparser::ExternalKind::Memory => {
+                        exports.export(export.field, Export::Memory(export.index));
+                    }
+                    wasmparser::ExternalKind::Global => {
+                        exports.export(export.field, Export::Global(export.index));
+                    }
+                    wasmparser::ExternalKind::Module => {
+                        exports.export(export.field, Export::Module(export.index));
+                    }
+                    wasmparser::ExternalKind::Instance => {
+                        exports.export(export.field, Export::Instance(export.index));
+                    }
+                    _ => {
+                        panic!("Unknown export {:?}", export)
+                    }
                 }
-
-                idx += 1;
-           }),
-           (Payload::CodeSectionStart{count, range, size}, consumed, {
-                function_count = count;
-                function_to_mutate = config.get_rnd().gen_range(0, function_count);
-            }),
-        };
-
-        let mut result = Vec::new();
-        let mut sink = Vec::new();
-        let num_added = encoders::u32(function_count);
-        sink.extend(num_added);
-        sink.extend(codes.iter().copied());
-
-        let raw_code = RawSection{
-            id: SectionId::Code.into(),
-            data: &sink
-        };
-
-        // To check, add section if in the encoding of the section ?
-        result.extend(std::iter::once(SectionId::Code as u8));
-        raw_code.encode(&mut result);
-        result
+            } else {
+                log::debug!("Removing export {:?} idx {:?}", export, skip_at);
+            }
+        });
+        Ok(info.replace_section(info.exports.unwrap(), &exports))
     }
 
-    fn can_mutate<'a>(&self, config:&'a WasmMutate, info: &ModuleInfo) -> (bool, Option<Range>) {
-        let code = info.code;
-        (!config.preserve_semantics && info.has_code(), code)
+    fn can_mutate<'a>(&self, _: &'a WasmMutate, info: &ModuleInfo) -> Result<bool> {
+        Ok(info.has_exports())
     }
 }
-
-
-
-pub struct SetFunction2Unreachable;
-
-impl Mutator for SetFunction2Unreachable{
-    fn mutate<'a>(&mut self, config:&'a WasmMutate, chunk: &[u8], info: &ModuleInfo) -> Vec<u8>
-    {
-        let mut function_count = 0;
-        let mut codes = Vec::new();
-        let mut idx = 0;
-        let mut function_to_mutate = 0;
-        parse_loop!{
-           &chunk, 
-           (Payload::CodeSectionEntry(_), bytes, {
-                if idx == function_to_mutate {
-                    #[cfg(debug_assertions)] {
-                        eprintln!("Changing function idx {:?}", idx);
-                    }
-                    let locals = vec![];                    
-                    let mut tmpbuff: Vec<u8> = Vec::new();
-                    let mut f = Function::new(locals);
-                    f.instruction(Instruction::Unreachable);
-                    f.instruction(Instruction::End);
-                    f.encode(&mut tmpbuff);
-
-                    codes.extend(tmpbuff);
-                    }
-                else {
-                    codes.extend(bytes)
-                }
-
-                idx += 1
-           }),
-           (Payload::CodeSectionStart{count, range, size}, consumed, {
-                function_count = count;
-                function_to_mutate = config.get_rnd().gen_range(0, function_count);
-            }),
-        };
-
-        let mut result = Vec::new();
-        let mut sink = Vec::new();
-        let num_added = encoders::u32(function_count);
-        sink.extend(num_added);
-        sink.extend(codes.iter().copied());
-
-        let raw_code = RawSection{
-            id: SectionId::Code.into(),
-            data: &sink
-        };
-
-        // To check, add section if in the encoding of the section ?
-        result.extend(std::iter::once(SectionId::Code as u8));
-        raw_code.encode(&mut result);
-        result
-    }
-    
-    fn can_mutate<'a>(&self, config:&'a WasmMutate, info: &ModuleInfo) -> (bool, Option<Range>) {
-        let code = info.code;
-        (!config.preserve_semantics && info.has_code(),code)
-    }
-}
-
-
-
-pub struct RemoveExportMutator ;
-
-impl Mutator for RemoveExportMutator{
-    fn mutate<'a>(&mut self, config:&'a WasmMutate, chunk: &[u8], info: &ModuleInfo) -> Vec<u8>
-    {
-        let mut sink = Vec::new();
-
-        parse_loop!{
-            &chunk, 
-            (Payload::ExportSection(mut reader), consumed, {
-                let mut exports = ExportSection::new();
-                let max_exports = reader.get_count() as u64;
-                let skip_at = config.get_rnd().gen_range(0, max_exports);
-
-                (0..max_exports).for_each(|i|{ 
-                    let export = reader.read().unwrap();
-                    if skip_at != i { // otherwise bypass
-                        match export.kind {
-                            wasmparser::ExternalKind::Function => { exports.export(export.field, Export::Function(export.index)); },
-                            wasmparser::ExternalKind::Table => { exports.export(export.field, Export::Table(export.index)); },
-                            wasmparser::ExternalKind::Memory => { exports.export(export.field, Export::Memory(export.index)); },
-                            wasmparser::ExternalKind::Global => { exports.export(export.field, Export::Global(export.index)); },
-                            wasmparser::ExternalKind::Module => { exports.export(export.field, Export::Module(export.index)); },
-                            wasmparser::ExternalKind::Instance => { exports.export(export.field, Export::Instance(export.index)); },
-                            _ => {
-                                panic!("Unknown export {:?}", export)
-                            }
-                        }
-                    } else {
-                        #[cfg(debug_assertions)] {
-                            eprintln!("Removing export {:?} idx {:?}", export, skip_at);
-                        }
-                    }
-                });
-                sink.extend(std::iter::once(SectionId::Export as u8));
-                let mut tmpbuf = Vec::new();
-                exports.encode(&mut tmpbuf);
-                sink.extend(tmpbuf);
-            }),
-         };
-         sink
-    }
-
-    
-    fn can_mutate<'a>(&self, _:&'a WasmMutate, info: &ModuleInfo) -> (bool, Option<Range>) {
-        let exports = info.exports;
-        (info.has_exports(), exports)
-    }
-}
-
 
 pub struct RenameExportMutator {
-    pub max_name_size: u32
+    pub max_name_size: u32,
 }
 
 impl RenameExportMutator {
-    
     // Copied and transformed from wasm-smith name generation
     fn limited_string(&self, rnd: &mut SmallRng) -> String {
-        
         let size = rnd.gen_range(1, self.max_name_size);
         let size = std::cmp::min(size, self.max_name_size);
         let mut str = vec![0u8; size as usize];
         rnd.fill_bytes(&mut str);
 
         match std::str::from_utf8(&str) {
-            Ok(s) => {
-                String::from(s)
-            }
+            Ok(s) => String::from(s),
             Err(e) => {
                 let i = e.valid_up_to();
                 let valid = &str[0..i];
@@ -289,62 +96,263 @@ impl RenameExportMutator {
             }
         }
     }
-
 }
 
-impl Mutator for RenameExportMutator{
+impl Mutator for RenameExportMutator {
+    fn mutate<'a>(&self, config: &WasmMutate, info: &mut ModuleInfo<'a>) -> Result<Module> {
+        let mut exports = ExportSection::new();
+        let mut reader = ExportSectionReader::new(info.get_exports_section().data, 0)?;
+        let max_exports = reader.get_count() as u64;
+        let skip_at = config.get_rnd().gen_range(0, max_exports);
 
-    fn mutate<'a>(&mut self, config:&'a WasmMutate, chunk: &[u8], info: &ModuleInfo) -> Vec<u8>
-    {
+        (0..max_exports).for_each(|i| {
+            let export = reader.read().unwrap();
 
+            let new_name = if skip_at != i {
+                // otherwise bypass
+                String::from(export.field)
+            } else {
+                let new_name = self.limited_string(&mut config.get_rnd());
+                log::debug!("Renaming export {:?} by {:?}", export, new_name);
+                new_name
+            };
 
-        let mut sink = Vec::new();
+            match export.kind {
+                wasmparser::ExternalKind::Function => {
+                    exports.export(new_name.as_str(), Export::Function(export.index));
+                }
+                wasmparser::ExternalKind::Table => {
+                    exports.export(new_name.as_str(), Export::Table(export.index));
+                }
+                wasmparser::ExternalKind::Memory => {
+                    exports.export(new_name.as_str(), Export::Memory(export.index));
+                }
+                wasmparser::ExternalKind::Global => {
+                    exports.export(new_name.as_str(), Export::Global(export.index));
+                }
+                wasmparser::ExternalKind::Module => {
+                    exports.export(new_name.as_str(), Export::Module(export.index));
+                }
+                wasmparser::ExternalKind::Instance => {
+                    exports.export(new_name.as_str(), Export::Instance(export.index));
+                }
+                _ => {
+                    panic!("Unknown export {:?}", export)
+                }
+            }
+        });
+        Ok(info.replace_section(info.exports.unwrap(), &exports))
+    }
 
-        parse_loop!{
-            &chunk, 
-            (Payload::ExportSection(mut reader), consumed, {
-                let mut exports = ExportSection::new();
-                let max_exports = reader.get_count() as u64;
-                let skip_at = config.get_rnd().gen_range(0, max_exports);
+    fn can_mutate<'a>(&self, _: &'a WasmMutate, info: &ModuleInfo) -> Result<bool> {
+        Ok(info.has_exports())
+    }
+}
 
-                (0..max_exports).for_each(|i|{ 
-                    let export = reader.read().unwrap();
+// Concrete implementations
+pub struct ReturnI32SnipMutator;
 
-                    let new_name = if skip_at != i { // otherwise bypass
-                        String::from(export.field)
-                    } else {
-                        let new_name = self.limited_string(&mut config.get_rnd());
-                        #[cfg(debug_assertions)] {
-                            eprintln!("Renaming export {:?} by {:?}", export, new_name);
-                        }
-                        new_name
-                    };
+impl Mutator for ReturnI32SnipMutator {
+    fn mutate<'a>(&self, config: &WasmMutate, info: &mut ModuleInfo<'a>) -> Result<Module> {
+        let mut codes = CodeSection::new();
+        let code_section = info.get_code_section();
+        let mut reader = CodeSectionReader::new(code_section.data, 0)?;
+        let count = reader.get_count();
+        let function_to_mutate = config.get_rnd().gen_range(0, count);
+        let ftype = info.get_functype_idx(function_to_mutate as usize);
 
-                    match export.kind {
-                        wasmparser::ExternalKind::Function => { exports.export(new_name.as_str(), Export::Function(export.index)); },
-                        wasmparser::ExternalKind::Table => { exports.export(new_name.as_str(), Export::Table(export.index)); },
-                        wasmparser::ExternalKind::Memory => { exports.export(new_name.as_str(), Export::Memory(export.index)); },
-                        wasmparser::ExternalKind::Global => { exports.export(new_name.as_str(), Export::Global(export.index)); },
-                        wasmparser::ExternalKind::Module => { exports.export(new_name.as_str(), Export::Module(export.index)); },
-                        wasmparser::ExternalKind::Instance => { exports.export(new_name.as_str(), Export::Instance(export.index)); },
-                        _ => {
-                            panic!("Unknown export {:?}", export)
-                        }
+        (0..count).for_each(|i| {
+            if i == function_to_mutate {
+                log::debug!("Snip function idx {:?}", function_to_mutate);
+                let locals = vec![];
+                let mut f = Function::new(locals);
+
+                match ftype {
+                    TypeInfo::Func(t) => {
+                        t.returns.iter().for_each(|primitive| match primitive {
+                            PrimitiveTypeInfo::I32 => {
+                                f.instruction(Instruction::I32Const(0));
+                            }
+                            PrimitiveTypeInfo::I64 => {
+                                f.instruction(Instruction::I64Const(0));
+                            }
+                            PrimitiveTypeInfo::F32 => {
+                                f.instruction(Instruction::F32Const(0.0));
+                            }
+                            PrimitiveTypeInfo::F64 => {
+                                f.instruction(Instruction::F64Const(0.0));
+                            }
+                        });
                     }
-                });
-                sink.extend(std::iter::once(SectionId::Export as u8));
-                let mut tmpbuf = Vec::new();
-                exports.encode(&mut tmpbuf);
-                sink.extend(tmpbuf);
-            }),
-         };
-         sink
+                    _ => panic!("Unconsistent function type"),
+                };
+
+                f.instruction(Instruction::End);
+
+                codes.function(&f);
+            } else {
+                let f = reader.read().unwrap();
+                codes.raw(&info.input_wasm[f.range().start..f.range().end]);
+            }
+        });
+        Ok(info.replace_section(info.code.unwrap(), &codes))
     }
 
-    
-    fn can_mutate<'a>(&self, _:&'a WasmMutate, info: &ModuleInfo) -> (bool, Option<Range>) {
-        let exports = info.exports;
-        (info.has_exports(), exports)
+    fn can_mutate<'a>(&self, config: &'a WasmMutate, info: &ModuleInfo) -> Result<bool> {
+        Ok(!config.preserve_semantics && info.has_code())
     }
-    
+}
+
+pub struct SetFunction2Unreachable;
+
+impl Mutator for SetFunction2Unreachable {
+    fn mutate<'a>(&self, config: &WasmMutate, info: &mut ModuleInfo<'a>) -> Result<Module> {
+        let mut codes = CodeSection::new();
+        let code_section = info.get_code_section();
+        let mut reader = CodeSectionReader::new(code_section.data, 0)?;
+        let count = reader.get_count();
+        let function_to_mutate = config.get_rnd().gen_range(0, count);
+        (0..count).for_each(|i| {
+            if i == function_to_mutate {
+                log::debug!("Changing function idx {:?}", i);
+                let locals = vec![];
+                let mut f = Function::new(locals);
+                f.instruction(Instruction::Unreachable);
+                f.instruction(Instruction::End);
+
+                codes.function(&f);
+            } else {
+                let f = reader.read().unwrap();
+                codes.raw(&info.input_wasm[f.range().start..f.range().end]);
+            }
+        });
+        Ok(info.replace_section(info.code.unwrap(), &codes))
+    }
+
+    fn can_mutate<'a>(&self, config: &'a WasmMutate, info: &ModuleInfo) -> Result<bool> {
+        Ok(!config.preserve_semantics && info.has_code())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        mutators::{RemoveExportMutator, RenameExportMutator, SetFunction2Unreachable}, WasmMutate,
+    };
+
+    use super::{Mutator, ReturnI32SnipMutator};
+
+    #[test]
+    fn test_code_snip_mutator() {
+        let wat = r#"
+        (module
+            (func (result i64)
+                i64.const 42
+            )
+        )
+        "#;
+        let wasmmutate = WasmMutate::default();
+        let original = &wat::parse_str(wat).unwrap();
+
+        let mutator = ReturnI32SnipMutator {};
+
+        let mut info = wasmmutate.get_module_info(original).unwrap();
+        let can_mutate = mutator.can_mutate(&wasmmutate, &info).unwrap();
+
+        assert_eq!(can_mutate, true);
+
+        let mutation = mutator.mutate(&wasmmutate, &mut info);
+        let mutation_bytes = mutation.unwrap().finish();
+
+        // If it fails, it is probably an invalid
+        let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
+
+        assert_eq!("(module\n  (type (;0;) (func (result i64)))\n  (func (;0;) (type 0) (result i64)\n    i64.const 0))", text)
+    }
+
+    #[test]
+    fn test_code_unreachable_mutator() {
+        let wat = r#"
+        (module
+            (func (result i32)
+                i32.const 42
+            )
+        )
+        "#;
+        let wasmmutate = WasmMutate::default();
+        let original = &wat::parse_str(wat).unwrap();
+
+        let mutator = SetFunction2Unreachable {};
+
+        let mut info = wasmmutate.get_module_info(original).unwrap();
+        let can_mutate = mutator.can_mutate(&wasmmutate, &info).unwrap();
+
+        assert_eq!(can_mutate, true);
+
+        let mutation = mutator.mutate(&wasmmutate, &mut info);
+        let mutation_bytes = mutation.unwrap().finish();
+
+        // If it fails, it is probably an invalid
+        let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
+
+        assert_eq!("(module\n  (type (;0;) (func (result i32)))\n  (func (;0;) (type 0) (result i32)\n    unreachable))", text)
+    }
+
+    #[test]
+    fn test_remove_export_mutator() {
+        // From https://developer.mozilla.org/en-US/docs/WebAssembly/Text_format_to_wasm
+        let wat = r#"
+        (module
+            (func (export "exported_func") (result i32)
+                i32.const 42
+            )
+        )
+        "#;
+
+        let wasmmutate = WasmMutate::default();
+        let original = &wat::parse_str(wat).unwrap();
+
+        let mutator = RemoveExportMutator {};
+
+        let mut info = wasmmutate.get_module_info(original).unwrap();
+        let can_mutate = mutator.can_mutate(&wasmmutate, &info).unwrap();
+
+        assert_eq!(can_mutate, true);
+
+        let mutation = mutator.mutate(&wasmmutate, &mut info);
+        let mutation_bytes = mutation.unwrap().finish();
+
+        // If it fails, it is probably an invalid
+        let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
+        assert_eq!("(module\n  (type (;0;) (func (result i32)))\n  (func (;0;) (type 0) (result i32)\n    i32.const 42))", text)
+    }
+
+    #[test]
+    fn test_rename_export_mutator() {
+        // From https://developer.mozilla.org/en-US/docs/WebAssembly/Text_format_to_wasm
+        let wat = r#"
+        (module
+            (func (export "exported_func") (result i32)
+                i32.const 42
+            )
+        )
+        "#;
+
+        let wasmmutate = WasmMutate::default();
+        let original = &wat::parse_str(wat).unwrap();
+
+        let mutator = RenameExportMutator { max_name_size: 2 }; // the string is empty
+
+        let mut info = wasmmutate.get_module_info(original).unwrap();
+        let can_mutate = mutator.can_mutate(&wasmmutate, &info).unwrap();
+
+        assert_eq!(can_mutate, true);
+
+        let mutation = mutator.mutate(&wasmmutate, &mut info);
+        let mutation_bytes = mutation.unwrap().finish();
+
+        // If it fails, it is probably an invalid
+        let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
+        assert_eq!("(module\n  (type (;0;) (func (result i32)))\n  (func (;0;) (type 0) (result i32)\n    i32.const 42)\n  (export \"\" (func 0)))", text)
+    }
 }

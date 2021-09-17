@@ -1,5 +1,3 @@
-use std::io::Write;
-
 use super::*;
 
 /// An encoder for the code section.
@@ -56,6 +54,13 @@ impl CodeSection {
     /// Write a function body into this code section.
     pub fn function(&mut self, func: &Function) -> &mut Self {
         func.encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+
+    /// Add raw bytes as a function body
+    pub fn raw(&mut self, data: &[u8]) -> &mut Self {
+        self.bytes.extend(data);
         self.num_added += 1;
         self
     }
@@ -140,8 +145,7 @@ impl Function {
         self
     }
 
-    /// Encode function to bytes
-    pub fn encode(&self, bytes: &mut Vec<u8>) {
+    fn encode(&self, bytes: &mut Vec<u8>) {
         bytes.extend(
             encoders::u32(u32::try_from(self.bytes.len()).unwrap())
                 .chain(self.bytes.iter().copied()),

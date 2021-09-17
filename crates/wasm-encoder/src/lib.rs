@@ -169,7 +169,6 @@ impl Module {
                 0x01, 0x00, 0x00, 0x00,
             ],
         }
-        
     }
 
     /// Write a section into this module.

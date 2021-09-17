@@ -21,7 +21,3 @@ leb128 = "0.2.4"
 anyhow = "1.0.38"
 tempfile = "3.2.0"
 wasmparser = { path = "../wasmparser" }
-
-
-[features]
-default = []

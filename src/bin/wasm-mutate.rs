@@ -47,6 +47,7 @@ struct Options {
 }
 
 fn main() -> anyhow::Result<()> {
+    env_logger::init();
     let opts = Options::from_args();
 
     let stdin = stdin();
