@@ -1,3 +1,5 @@
+use wasmparser::{Type, TypeDef};
+
 /// An error encountered when choosing or applying a Wasm mutation.
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -7,7 +9,13 @@ pub enum Error {
     #[error("There are not applicable mutations for this module.")]
     NoMutationsAplicable,
     #[error("Unsupported type mapping.")]
-    InvalidTypeMapping
+    UnsupportedType(EitherType),
+}
+
+#[derive(Debug)]
+pub enum EitherType {
+    Type(Type),
+    TypeDef(String),
 }
 
 /// A `Result` type that is either `Ok(T)` or `Err(wasm_mutate::Error)`.
