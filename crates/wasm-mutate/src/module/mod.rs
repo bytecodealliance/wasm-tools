@@ -3,6 +3,8 @@ use std::convert::TryFrom;
 use wasm_encoder::{Instruction, ValType};
 use wasmparser::{Operator, Type, TypeDef};
 
+use crate::error::EitherType;
+
 #[derive(Debug, Clone)]
 pub enum PrimitiveTypeInfo {
     I32,
@@ -33,7 +35,7 @@ impl TryFrom<Type> for PrimitiveTypeInfo {
             wasmparser::Type::I64 => Ok(PrimitiveTypeInfo::I64),
             wasmparser::Type::F32 => Ok(PrimitiveTypeInfo::F32),
             wasmparser::Type::F64 => Ok(PrimitiveTypeInfo::F64),
-            _ => Err(super::Error::UnsupportedType(value)),
+            _ => Err(super::Error::UnsupportedType(EitherType::Type(value))),
         }
     }
 }
@@ -55,7 +57,7 @@ impl TryFrom<TypeDef<'_>> for TypeInfo {
                     .map(|&t| PrimitiveTypeInfo::try_from(t).unwrap())
                     .collect(),
             })),
-            _ => Err(super::Error::UnsupportedTypeDef(format!("{:?}", value))),
+            _ => Err(super::Error::UnsupportedType(EitherType::TypeDef(format!("{:?}", value)))),
         }
     }
 }

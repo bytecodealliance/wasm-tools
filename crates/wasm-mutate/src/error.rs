@@ -1,4 +1,4 @@
-use wasmparser::Type;
+use wasmparser::{Type, TypeDef};
 
 /// An error encountered when choosing or applying a Wasm mutation.
 #[derive(thiserror::Error, Debug)]
@@ -8,10 +8,14 @@ pub enum Error {
     Parse(#[from] wasmparser::BinaryReaderError),
     #[error("There are not applicable mutations for this module.")]
     NoMutationsAplicable,
-    #[error("Unsupported primitive type mapping.")]
-    UnsupportedType(Type),
-    #[error("Unsupported type definition mapping.")]
-    UnsupportedTypeDef(String),
+    #[error("Unsupported type mapping.")]
+    UnsupportedType(EitherType),
+}
+
+#[derive(Debug)]
+pub enum EitherType {
+    Type(Type),
+    TypeDef(String)
 }
 
 /// A `Result` type that is either `Ok(T)` or `Err(wasm_mutate::Error)`.
