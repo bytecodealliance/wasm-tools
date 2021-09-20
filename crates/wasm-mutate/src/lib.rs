@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use module::TypeInfo;
 use mutators::{Mutator, RenameExportMutator};
-use rand::{SeedableRng, prelude::SliceRandom, rngs::SmallRng};
+use rand::{prelude::SliceRandom, rngs::SmallRng, SeedableRng};
 use std::convert::TryFrom;
 #[cfg(feature = "structopt")]
 use structopt::StructOpt;
@@ -25,9 +25,7 @@ pub use error::{Error, Result};
 use wasm_encoder::{RawSection, SectionId};
 use wasmparser::{Chunk, Parser, Payload, SectionReader};
 
-use crate::{
-    mutators::{RemoveExportMutator, ReturnI32SnipMutator, SetFunction2Unreachable}, //, RenameExportMutator, SetFunction2Unreachable, ReturnI32SnipMutator},
-};
+use crate::mutators::{RemoveExportMutator, ReturnI32SnipMutator, SetFunction2Unreachable};
 
 macro_rules! initialize_and_filter {
     (
@@ -119,12 +117,11 @@ impl Default for WasmMutate {
 
 /// Provides module information for future usage during mutation
 /// an instance of ModuleInfo could be user to determine which mutation could be applied
-/// We have the ranges where the sections are for sake of memory safe, instead of having raw sections
-/// TODO, make this structure serializable in order to save time if the same module is mutated several times
 #[derive(Default)]
 pub struct ModuleInfo<'a> {
+    // The following fields are offsets inside the `raw_sections` field.
+    // The main idea is to maintain the order of the sections in the input Wasm.
     exports: Option<usize>,
-
     types: Option<usize>,
     imports: Option<usize>,
     tables: Option<usize>,
@@ -140,11 +137,10 @@ pub struct ModuleInfo<'a> {
     // types for inner functions
     types_map: Vec<TypeInfo>,
     function_map: Vec<u32>,
-    
+
     // raw_sections
     raw_sections: Vec<RawSection<'a>>,
-    input_wasm: &'a [u8]
-
+    input_wasm: &'a [u8],
 }
 
 impl<'a> ModuleInfo<'a> {
@@ -180,7 +176,11 @@ impl<'a> ModuleInfo<'a> {
         &self.types_map[functpeindex]
     }
 
-    fn replace_section(&self, i: usize, new_section: &impl wasm_encoder::Section) -> wasm_encoder::Module {
+    fn replace_section(
+        &self,
+        i: usize,
+        new_section: &impl wasm_encoder::Section,
+    ) -> wasm_encoder::Module {
         let mut module = wasm_encoder::Module::new();
         self.raw_sections.iter().enumerate().for_each(|(j, s)| {
             if i == j {
@@ -235,11 +235,6 @@ impl WasmMutate {
         self
     }
 
-    /// Returns Random generator from seed
-    pub fn get_rnd(&self) -> SmallRng {
-        SmallRng::seed_from_u64(self.seed as u64)
-    }
-
     /// Parse and fill lane AST with metadata information about the module
     pub fn get_module_info<'a>(&'a self, input_wasm: &'a [u8]) -> Result<ModuleInfo> {
         let mut parser = Parser::new(0);
@@ -255,14 +250,18 @@ impl WasmMutate {
                 Chunk::Parsed { consumed, payload } => (payload, consumed),
             };
             match payload {
-                Payload::CodeSectionStart { count:_, range, size:_ } => {
+                Payload::CodeSectionStart {
+                    count: _,
+                    range,
+                    size: _,
+                } => {
                     info.code = Some(info.raw_sections.len());
                     info.section(SectionId::Code.into(), range, input_wasm);
-                    parser.skip_section();                    
+                    parser.skip_section();
                     println!("{:?} {:?}", wasm, consumed);
                     // update slice
                     wasm = &wasm[range.end - range.start + consumed - 1..];
-                    
+
                     continue;
                 }
                 Payload::TypeSection(mut reader) => {
@@ -271,7 +270,7 @@ impl WasmMutate {
 
                     // Save function types
                     for _ in 0..reader.get_count() {
-                        reader.read().and_then(|ty|{
+                        reader.read().and_then(|ty| {
                             let typeinfo = TypeInfo::try_from(ty).unwrap();
                             info.types_map.push(typeinfo);
                             Ok(())
@@ -286,8 +285,8 @@ impl WasmMutate {
                     info.functions = Some(info.raw_sections.len());
                     info.section(SectionId::Function.into(), reader.range(), input_wasm);
 
-                    for _ in 0..reader.get_count(){
-                        reader.read().and_then(|ty|{
+                    for _ in 0..reader.get_count() {
+                        reader.read().and_then(|ty| {
                             info.function_map.push(ty);
                             Ok(())
                         })?;
@@ -341,8 +340,10 @@ impl WasmMutate {
                 Payload::DataCountSection { count: _, range } => {
                     info.section(SectionId::DataCount.into(), range, input_wasm);
                 }
-                Payload::Version { .. } => { }
-                Payload::End => { break; }
+                Payload::Version { .. } => {}
+                Payload::End => {
+                    break;
+                }
                 _ => todo!("{:?} not implemented", payload),
             }
             wasm = &wasm[consumed..];
@@ -367,9 +368,12 @@ impl WasmMutate {
             SetFunction2Unreachable,
         };
 
-        let mutator = mutators.choose(&mut self.get_rnd()).ok_or(Error::NoMutationsAplicable)?;
+        let mut rnd = SmallRng::seed_from_u64(self.seed);
+        let mutator = mutators
+            .choose(&mut rnd)
+            .ok_or(Error::NoMutationsAplicable)?;
 
-        let module = mutator.mutate(&self, &mut info);
+        let module = mutator.mutate(&self, &mut rnd, &mut info);
 
         Ok(module?.finish())
     }

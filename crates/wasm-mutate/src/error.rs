@@ -7,7 +7,7 @@ pub enum Error {
     #[error("There are not applicable mutations for this module.")]
     NoMutationsAplicable,
     #[error("Unsupported type mapping.")]
-    InvalidTypeMapping
+    InvalidTypeMapping,
 }
 
 /// A `Result` type that is either `Ok(T)` or `Err(wasm_mutate::Error)`.

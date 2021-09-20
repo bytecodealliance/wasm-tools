@@ -1,22 +1,25 @@
+use super::Result;
 use crate::module::*;
 use crate::{ModuleInfo, WasmMutate};
-use rand::{prelude::SmallRng, Rng, RngCore};
-use wasm_encoder::{
-    CodeSection, Export, ExportSection, Function, Instruction, Module
-};
+use rand::prelude::SmallRng;
+use rand::{Rng, RngCore};
+use wasm_encoder::{CodeSection, Export, ExportSection, Function, Instruction, Module};
 use wasmparser::{CodeSectionReader, ExportSectionReader};
-use super::Result;
 pub trait Mutator {
     /// Method where the mutation happpens
     ///
-    /// * `context` instance of WasmMutate
-    /// * `chunk` piece of the byte stream corresponding with the payload
-    /// * `out_buffer` resulting mutated byte stream
-    /// * `mutable` mutable object
-    fn mutate(&self, _: &WasmMutate, info: &mut ModuleInfo) -> Result<Module>;
+    /// * `config` instance of WasmMutate
+    /// * `rnd` random number generator
+    /// * `info` parsed lane AST of the input Wasm module
+    fn mutate(
+        &self,
+        config: &WasmMutate,
+        rnd: &mut SmallRng,
+        info: &mut ModuleInfo,
+    ) -> Result<Module>;
 
     /// Returns if this mutator can be applied with the info and the byte range in which it can be applied
-    fn can_mutate<'a>(&self, _: &'a WasmMutate, info: &ModuleInfo) -> Result<bool>;
+    fn can_mutate<'a>(&self, config: &'a WasmMutate, info: &ModuleInfo) -> Result<bool>;
 
     /// Provides the name of the mutator, mostly used for debugging purposes
     fn name(&self) -> String {
@@ -26,11 +29,16 @@ pub trait Mutator {
 pub struct RemoveExportMutator;
 
 impl Mutator for RemoveExportMutator {
-    fn mutate(&self, config: &WasmMutate, info: &mut ModuleInfo) -> Result<Module> {
+    fn mutate(
+        &self,
+        config: &WasmMutate,
+        rnd: &mut SmallRng,
+        info: &mut ModuleInfo,
+    ) -> Result<Module> {
         let mut exports = ExportSection::new();
         let mut reader = ExportSectionReader::new(info.get_exports_section().data, 0)?;
         let max_exports = reader.get_count() as u64;
-        let skip_at = config.get_rnd().gen_range(0, max_exports);
+        let skip_at = rnd.gen_range(0, max_exports);
 
         (0..max_exports).for_each(|i| {
             let export = reader.read().unwrap();
@@ -99,11 +107,16 @@ impl RenameExportMutator {
 }
 
 impl Mutator for RenameExportMutator {
-    fn mutate<'a>(&self, config: &WasmMutate, info: &mut ModuleInfo<'a>) -> Result<Module> {
+    fn mutate(
+        &self,
+        config: &WasmMutate,
+        rnd: &mut SmallRng,
+        info: &mut ModuleInfo,
+    ) -> Result<Module> {
         let mut exports = ExportSection::new();
         let mut reader = ExportSectionReader::new(info.get_exports_section().data, 0)?;
         let max_exports = reader.get_count() as u64;
-        let skip_at = config.get_rnd().gen_range(0, max_exports);
+        let skip_at = rnd.gen_range(0, max_exports);
 
         (0..max_exports).for_each(|i| {
             let export = reader.read().unwrap();
@@ -112,7 +125,7 @@ impl Mutator for RenameExportMutator {
                 // otherwise bypass
                 String::from(export.field)
             } else {
-                let new_name = self.limited_string(&mut config.get_rnd());
+                let new_name = self.limited_string(rnd);
                 log::debug!("Renaming export {:?} by {:?}", export, new_name);
                 new_name
             };
@@ -153,12 +166,17 @@ impl Mutator for RenameExportMutator {
 pub struct ReturnI32SnipMutator;
 
 impl Mutator for ReturnI32SnipMutator {
-    fn mutate<'a>(&self, config: &WasmMutate, info: &mut ModuleInfo<'a>) -> Result<Module> {
+    fn mutate(
+        &self,
+        config: &WasmMutate,
+        rnd: &mut SmallRng,
+        info: &mut ModuleInfo,
+    ) -> Result<Module> {
         let mut codes = CodeSection::new();
         let code_section = info.get_code_section();
         let mut reader = CodeSectionReader::new(code_section.data, 0)?;
         let count = reader.get_count();
-        let function_to_mutate = config.get_rnd().gen_range(0, count);
+        let function_to_mutate = rnd.gen_range(0, count);
         let ftype = info.get_functype_idx(function_to_mutate as usize);
 
         (0..count).for_each(|i| {
@@ -206,12 +224,17 @@ impl Mutator for ReturnI32SnipMutator {
 pub struct SetFunction2Unreachable;
 
 impl Mutator for SetFunction2Unreachable {
-    fn mutate<'a>(&self, config: &WasmMutate, info: &mut ModuleInfo<'a>) -> Result<Module> {
+    fn mutate(
+        &self,
+        config: &WasmMutate,
+        rnd: &mut SmallRng,
+        info: &mut ModuleInfo,
+    ) -> Result<Module> {
         let mut codes = CodeSection::new();
         let code_section = info.get_code_section();
         let mut reader = CodeSectionReader::new(code_section.data, 0)?;
         let count = reader.get_count();
-        let function_to_mutate = config.get_rnd().gen_range(0, count);
+        let function_to_mutate = rnd.gen_range(0, count);
         (0..count).for_each(|i| {
             if i == function_to_mutate {
                 log::debug!("Changing function idx {:?}", i);
@@ -237,8 +260,10 @@ impl Mutator for SetFunction2Unreachable {
 #[cfg(test)]
 mod tests {
     use crate::{
-        mutators::{RemoveExportMutator, RenameExportMutator, SetFunction2Unreachable}, WasmMutate,
+        mutators::{RemoveExportMutator, RenameExportMutator, SetFunction2Unreachable},
+        WasmMutate,
     };
+    use rand::{rngs::SmallRng, SeedableRng};
 
     use super::{Mutator, ReturnI32SnipMutator};
 
@@ -261,7 +286,9 @@ mod tests {
 
         assert_eq!(can_mutate, true);
 
-        let mutation = mutator.mutate(&wasmmutate, &mut info);
+        let mut rnd = SmallRng::seed_from_u64(0);
+        let mutation = mutator.mutate(&wasmmutate, &mut rnd, &mut info);
+
         let mutation_bytes = mutation.unwrap().finish();
 
         // If it fails, it is probably an invalid
@@ -289,7 +316,9 @@ mod tests {
 
         assert_eq!(can_mutate, true);
 
-        let mutation = mutator.mutate(&wasmmutate, &mut info);
+        let mut rnd = SmallRng::seed_from_u64(0);
+        let mutation = mutator.mutate(&wasmmutate, &mut rnd, &mut info);
+
         let mutation_bytes = mutation.unwrap().finish();
 
         // If it fails, it is probably an invalid
@@ -319,7 +348,9 @@ mod tests {
 
         assert_eq!(can_mutate, true);
 
-        let mutation = mutator.mutate(&wasmmutate, &mut info);
+        let mut rnd = SmallRng::seed_from_u64(0);
+        let mutation = mutator.mutate(&wasmmutate, &mut rnd, &mut info);
+
         let mutation_bytes = mutation.unwrap().finish();
 
         // If it fails, it is probably an invalid
@@ -348,7 +379,9 @@ mod tests {
 
         assert_eq!(can_mutate, true);
 
-        let mutation = mutator.mutate(&wasmmutate, &mut info);
+        let mut rnd = SmallRng::seed_from_u64(0);
+        let mutation = mutator.mutate(&wasmmutate, &mut rnd, &mut info);
+
         let mutation_bytes = mutation.unwrap().finish();
 
         // If it fails, it is probably an invalid
