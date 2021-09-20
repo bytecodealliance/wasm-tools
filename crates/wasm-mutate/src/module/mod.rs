@@ -56,7 +56,10 @@ impl TryFrom<TypeDef<'_>> for TypeInfo {
                     .map(|&t| PrimitiveTypeInfo::try_from(t).unwrap())
                     .collect(),
             })),
-            _ => Err(super::Error::UnsupportedType(EitherType::TypeDef(format!("{:?}", value)))),
+            _ => Err(super::Error::UnsupportedType(EitherType::TypeDef(format!(
+                "{:?}",
+                value
+            )))),
         }
     }
 }

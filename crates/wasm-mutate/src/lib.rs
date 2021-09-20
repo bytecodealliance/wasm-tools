@@ -10,7 +10,7 @@
 use std::sync::Arc;
 
 use module::TypeInfo;
-use mutators::{Mutator, RenameExportMutator};
+use mutators::{Mutator};
 use rand::{prelude::SliceRandom, rngs::SmallRng, SeedableRng};
 use std::convert::TryFrom;
 #[cfg(feature = "structopt")]
@@ -25,7 +25,8 @@ pub use error::{Error, Result};
 use wasm_encoder::{RawSection, SectionId};
 use wasmparser::{Chunk, Parser, Payload, SectionReader};
 
-use crate::mutators::{RemoveExportMutator, ReturnI32SnipMutator, SetFunction2Unreachable};
+use crate::mutators::{function2unreachable::SetFunction2Unreachable, remove_export::RemoveExportMutator, rename_export::RenameExportMutator, snip_function::SnipMutator};
+
 
 macro_rules! initialize_and_filter {
     (
@@ -364,7 +365,7 @@ impl WasmMutate {
 
             RenameExportMutator{max_name_size: 100},
             RemoveExportMutator,
-            ReturnI32SnipMutator,
+            SnipMutator,
             SetFunction2Unreachable,
         };
 

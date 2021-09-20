@@ -15,7 +15,7 @@ pub enum Error {
 #[derive(Debug)]
 pub enum EitherType {
     Type(Type),
-    TypeDef(String)
+    TypeDef(String),
 }
 
 /// A `Result` type that is either `Ok(T)` or `Err(wasm_mutate::Error)`.
