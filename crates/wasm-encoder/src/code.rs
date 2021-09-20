@@ -74,6 +74,7 @@ impl CodeSection {
     }
 
     /// Add raw bytes as a function body
+    /// The data is expected to be already encoded with the size length preffix.
     pub fn raw(&mut self, data: &[u8]) -> &mut Self {
         self.bytes.extend(data);
         self.num_added += 1;
@@ -152,7 +153,6 @@ impl Function {
     }
 
     /// Add raw bytes to this function's body.
-    /// The data is expected to be already encoded with the size length preffix.
     pub fn raw<B>(&mut self, bytes: B) -> &mut Self
     where
         B: IntoIterator<Item = u8>,
