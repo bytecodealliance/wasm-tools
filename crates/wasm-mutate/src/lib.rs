@@ -25,7 +25,7 @@ pub use error::{Error, Result};
 use wasm_encoder::{RawSection, SectionId};
 use wasmparser::{Chunk, Parser, Payload, SectionReader};
 
-use crate::mutators::{RemoveExportMutator, ReturnI32SnipMutator, SetFunction2Unreachable};
+use crate::mutators::{RemoveExportMutator, ReturnI32SnipMutator, SetFunction2Unreachable, swap_commutative::SwapCommutativeOperator};
 
 macro_rules! initialize_and_filter {
     (
@@ -34,6 +34,7 @@ macro_rules! initialize_and_filter {
         )*
     ) => {
             $(
+                // Generate this recursivelly
                 if $mutation.can_mutate($config, &$info)? {
                     $result.push(Box::new($mutation))
                 }
@@ -137,7 +138,6 @@ pub struct ModuleInfo<'a> {
     // types for inner functions
     types_map: Vec<TypeInfo>,
     function_map: Vec<u32>,
-
 
     // raw_sections
     raw_sections: Vec<RawSection<'a>>,
@@ -367,6 +367,7 @@ impl WasmMutate {
             RemoveExportMutator,
             ReturnI32SnipMutator,
             SetFunction2Unreachable,
+            SwapCommutativeOperator,
         };
 
         let mut rnd = SmallRng::seed_from_u64(self.seed);
