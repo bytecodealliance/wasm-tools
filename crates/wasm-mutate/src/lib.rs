@@ -138,6 +138,7 @@ pub struct ModuleInfo<'a> {
     types_map: Vec<TypeInfo>,
     function_map: Vec<u32>,
 
+
     // raw_sections
     raw_sections: Vec<RawSection<'a>>,
     input_wasm: &'a [u8],
