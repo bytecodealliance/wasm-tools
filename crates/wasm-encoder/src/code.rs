@@ -31,6 +31,21 @@ use super::*;
 ///
 /// let wasm_bytes = module.finish();
 /// ```
+/// you can also use the `raw` function to write an already encoded function entry to the code section.
+/// This method receives a function entry that was already encoded with its length preffix 
+/// ``` 
+///  use wasmparser::CodeSectionReader;
+///
+///                 // id, size, #functions, function entry 
+///  let codesection = [10, 6,   1,          4, 0, 65, 0, 11];
+///  // parse the code section 
+///  let mut reader = CodeSectionReader::new(&codesection, 0).unwrap();
+///  let function = reader.read().unwrap();
+///  let mut codes = CodeSection::new();
+///  // this will copy the function construction, including, length preffix,
+///  // local definitions and function body
+///  codes.raw(&codesection[function.range().start..function.range().end]);
+/// ```
 #[derive(Clone, Debug)]
 pub struct CodeSection {
     bytes: Vec<u8>,
@@ -137,6 +152,7 @@ impl Function {
     }
 
     /// Add raw bytes to this function's body.
+    /// The data is expected to be already encoded with the size length preffix.
     pub fn raw<B>(&mut self, bytes: B) -> &mut Self
     where
         B: IntoIterator<Item = u8>,
