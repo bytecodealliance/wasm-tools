@@ -1,9 +1,9 @@
 use std::convert::TryFrom;
 
-use wasm_encoder::{Instruction, ValType};
-use wasmparser::{Operator, Type, TypeDef};
+use wasm_encoder::{BlockType, Instruction, MemArg, ValType};
+use wasmparser::{Ieee32, Ieee64, MemoryImmediate, Operator, Type, TypeDef};
 
-use crate::error::EitherType;
+use crate::{Error, error::EitherType};
 
 #[derive(Debug, Clone)]
 pub enum PrimitiveTypeInfo {
@@ -57,7 +57,10 @@ impl TryFrom<TypeDef<'_>> for TypeInfo {
                     .map(|&t| PrimitiveTypeInfo::try_from(t).unwrap())
                     .collect(),
             })),
-            _ => Err(super::Error::UnsupportedType(EitherType::TypeDef(format!("{:?}", value)))),
+            _ => Err(super::Error::UnsupportedType(EitherType::TypeDef(format!(
+                "{:?}",
+                value
+            )))),
         }
     }
 }
@@ -72,27 +75,81 @@ pub fn map_type(tpe: Type) -> super::Result<ValType>{
     }
 }
 
+
+pub fn map_memarg(arg: MemoryImmediate) -> super::Result<MemArg>{
+    Ok(
+        MemArg{
+           offset: arg.offset,
+           align: arg.align as u32,
+           memory_index: arg.memory 
+        }
+    )
+}
+
+pub fn ieee32_2float(val: Ieee32) -> f32 {
+    0.0
+}
+
+pub fn ieee64_2float(val: Ieee64) -> f64 {
+    0.0
+}
+
 pub fn map_operator(operator: Operator) -> super::Result<Instruction> {
     match operator {
         Operator::Unreachable => Ok(Instruction::Unreachable),
         Operator::Nop => Ok(Instruction::Nop),
-        Operator::Block { ty } => todo!(),
-        Operator::Loop { ty } => todo!(),
-        Operator::If { ty } => todo!(),
+        Operator::Block { ty } => {
+            Ok(Instruction::Block(
+                match ty {
+                    wasmparser::TypeOrFuncType::Type(ty) => BlockType::Result(map_type(ty)?),
+                    wasmparser::TypeOrFuncType::FuncType(ty) => BlockType::FunctionType(ty),
+                }
+            ))
+        },
+        Operator::Loop { ty } => {
+            Ok(Instruction::Loop(
+                match ty {
+                    wasmparser::TypeOrFuncType::Type(ty) => BlockType::Result(map_type(ty)?),
+                    wasmparser::TypeOrFuncType::FuncType(ty) => BlockType::FunctionType(ty),
+                }
+            ))
+        },
+        Operator::If { ty } => {
+            Ok(Instruction::If(
+                match ty {
+                    wasmparser::TypeOrFuncType::Type(ty) => BlockType::Result(map_type(ty)?),
+                    wasmparser::TypeOrFuncType::FuncType(ty) => BlockType::FunctionType(ty),
+                }
+            ))
+        },
         Operator::Else => Ok(Instruction::Else),
-        Operator::Try { ty } => todo!(),
-        Operator::Catch { index } => todo!(),
-        Operator::Throw { index } => todo!(),
-        Operator::Rethrow { relative_depth } => todo!(),
+        // Some mapping is missing
+        Operator::Try { ty } => Err(Error::UnsupportedType(EitherType::Operator(format!("{:?}", operator)))),
+        Operator::Catch { index } => Err(Error::UnsupportedType(EitherType::Operator(format!("{:?}", operator)))),
+        Operator::Throw { index } => Err(Error::UnsupportedType(EitherType::Operator(format!("{:?}", operator)))),
+        Operator::Rethrow { relative_depth } => Err(Error::UnsupportedType(EitherType::Operator(format!("{:?}", operator)))),
         Operator::End => Ok(Instruction::End),
         Operator::Br { relative_depth } => Ok(Instruction::Br(relative_depth)),
         Operator::BrIf { relative_depth } => Ok(Instruction::BrIf(relative_depth)),
-        Operator::BrTable { table } => todo!(),
+        Operator::BrTable { table } => {
+            todo!();
+        },
         Operator::Return => Ok(Instruction::Return),
         Operator::Call { function_index } => Ok(Instruction::Call(function_index)),
-        Operator::CallIndirect { index, table_index } => todo!(),
-        Operator::ReturnCall { function_index } => todo!(),
-        Operator::ReturnCallIndirect { index, table_index } => todo!(),
+        Operator::CallIndirect { index, table_index } => {
+            Ok(Instruction::CallIndirect{
+                ty: index,
+                table: table_index
+            })
+        },
+        Operator::ReturnCall { function_index } => {
+            // function call and then return ?
+            todo!()
+        },
+        Operator::ReturnCallIndirect { index, table_index } => {
+            // Same comment above
+            todo!()
+        },
         Operator::Delegate { relative_depth } => todo!(),
         Operator::CatchAll => todo!(),
         Operator::Drop => Ok(Instruction::Drop),
@@ -103,38 +160,38 @@ pub fn map_operator(operator: Operator) -> super::Result<Instruction> {
         Operator::LocalTee { local_index } => Ok(Instruction::LocalTee(local_index)),
         Operator::GlobalGet { global_index } => Ok(Instruction::GlobalGet(global_index)),
         Operator::GlobalSet { global_index } => Ok(Instruction::GlobalSet(global_index)),
-        Operator::I32Load { memarg } => todo!(),
-        Operator::I64Load { memarg } => todo!(),
-        Operator::F32Load { memarg } => todo!(),
-        Operator::F64Load { memarg } => todo!(),
-        Operator::I32Load8S { memarg } => todo!(),
-        Operator::I32Load8U { memarg } => todo!(),
-        Operator::I32Load16S { memarg } => todo!(),
-        Operator::I32Load16U { memarg } => todo!(),
-        Operator::I64Load8S { memarg } => todo!(),
-        Operator::I64Load8U { memarg } => todo!(),
-        Operator::I64Load16S { memarg } => todo!(),
-        Operator::I64Load16U { memarg } => todo!(),
-        Operator::I64Load32S { memarg } => todo!(),
-        Operator::I64Load32U { memarg } => todo!(),
-        Operator::I32Store { memarg } => todo!(),
-        Operator::I64Store { memarg } => todo!(),
-        Operator::F32Store { memarg } => todo!(),
-        Operator::F64Store { memarg } => todo!(),
-        Operator::I32Store8 { memarg } => todo!(),
-        Operator::I32Store16 { memarg } => todo!(),
-        Operator::I64Store8 { memarg } => todo!(),
-        Operator::I64Store16 { memarg } => todo!(),
-        Operator::I64Store32 { memarg } => todo!(),
-        Operator::MemorySize { mem, mem_byte } => todo!(),
-        Operator::MemoryGrow { mem, mem_byte } => todo!(),
+        Operator::I32Load { memarg } => Ok(Instruction::I32Load(map_memarg(memarg)?)),
+        Operator::I64Load { memarg } => Ok(Instruction::I64Load(map_memarg(memarg)?)),
+        Operator::F32Load { memarg } => Ok(Instruction::F32Load(map_memarg(memarg)?)),
+        Operator::F64Load { memarg } => Ok(Instruction::F64Load(map_memarg(memarg)?)),
+        Operator::I32Load8S { memarg } => Ok(Instruction::I32Load8_S(map_memarg(memarg)?)),
+        Operator::I32Load8U { memarg } => Ok(Instruction::I32Load8_U(map_memarg(memarg)?)),
+        Operator::I32Load16S { memarg } => Ok(Instruction::I32Load16_S(map_memarg(memarg)?)),
+        Operator::I32Load16U { memarg } => Ok(Instruction::I32Load16_U(map_memarg(memarg)?)),
+        Operator::I64Load8S { memarg } => Ok(Instruction::I64Load8_S(map_memarg(memarg)?)),
+        Operator::I64Load8U { memarg } => Ok(Instruction::I64Load8_U(map_memarg(memarg)?)),
+        Operator::I64Load16S { memarg } => Ok(Instruction::I64Load16_S(map_memarg(memarg)?)),
+        Operator::I64Load16U { memarg } => Ok(Instruction::I64Load16_U(map_memarg(memarg)?)),
+        Operator::I64Load32S { memarg } => Ok(Instruction::I64Load32_S(map_memarg(memarg)?)),
+        Operator::I64Load32U { memarg } => Ok(Instruction::I64Load32_U(map_memarg(memarg)?)),
+        Operator::I32Store { memarg } => Ok(Instruction::I32Store(map_memarg(memarg)?)),
+        Operator::I64Store { memarg } => Ok(Instruction::I64Store(map_memarg(memarg)?)),
+        Operator::F32Store { memarg } => Ok(Instruction::F32Store(map_memarg(memarg)?)),
+        Operator::F64Store { memarg } => Ok(Instruction::F64Store(map_memarg(memarg)?)),
+        Operator::I32Store8 { memarg } => Ok(Instruction::I32Store8(map_memarg(memarg)?)),
+        Operator::I32Store16 { memarg } => Ok(Instruction::I32Store16(map_memarg(memarg)?)),
+        Operator::I64Store8 { memarg } => Ok(Instruction::I64Store8(map_memarg(memarg)?)),
+        Operator::I64Store16 { memarg } => Ok(Instruction::I64Store16(map_memarg(memarg)?)),
+        Operator::I64Store32 { memarg } => Ok(Instruction::I64Store32(map_memarg(memarg)?)),
+        Operator::MemorySize { mem, mem_byte } => Ok(Instruction::MemorySize(mem)), // mem_byte is discarded?
+        Operator::MemoryGrow { mem, mem_byte } => Ok(Instruction::MemoryGrow(mem)), // same comment above
         Operator::I32Const { value } => Ok(Instruction::I32Const(value)),
         Operator::I64Const { value } => Ok(Instruction::I64Const(value)),
-        Operator::F32Const { value } => todo!(),
-        Operator::F64Const { value } => todo!(),
-        Operator::RefNull { ty } => todo!(),
-        Operator::RefIsNull => todo!(),
-        Operator::RefFunc { function_index } => todo!(),
+        Operator::F32Const { value } => Ok(Instruction::F32Const(ieee32_2float(value))),
+        Operator::F64Const { value } => Ok(Instruction::F64Const(ieee64_2float(value))),
+        Operator::RefNull { ty } => Ok(Instruction::RefNull(map_type(ty)?)),
+        Operator::RefIsNull => Ok(Instruction::RefIsNull),
+        Operator::RefFunc { function_index } => Ok(Instruction::RefFunc(function_index)),
         Operator::I32Eqz => Ok(Instruction::I32Eqz),
         Operator::I32Eq => Ok(Instruction::I32Eq),
         Operator::I32Ne => Ok(Instruction::I32Neq),
@@ -205,59 +262,59 @@ pub fn map_operator(operator: Operator) -> super::Result<Instruction> {
         Operator::I64ShrU => Ok(Instruction::I64ShrU),
         Operator::I64Rotl => Ok(Instruction::I64Rotl),
         Operator::I64Rotr => Ok(Instruction::I64Rotr),
-        Operator::F32Abs => todo!(),
-        Operator::F32Neg => todo!(),
-        Operator::F32Ceil => todo!(),
-        Operator::F32Floor => todo!(),
-        Operator::F32Trunc => todo!(),
-        Operator::F32Nearest => todo!(),
-        Operator::F32Sqrt => todo!(),
-        Operator::F32Add => todo!(),
-        Operator::F32Sub => todo!(),
-        Operator::F32Mul => todo!(),
-        Operator::F32Div => todo!(),
-        Operator::F32Min => todo!(),
-        Operator::F32Max => todo!(),
-        Operator::F32Copysign => todo!(),
-        Operator::F64Abs => todo!(),
-        Operator::F64Neg => todo!(),
-        Operator::F64Ceil => todo!(),
-        Operator::F64Floor => todo!(),
-        Operator::F64Trunc => todo!(),
-        Operator::F64Nearest => todo!(),
-        Operator::F64Sqrt => todo!(),
-        Operator::F64Add => todo!(),
-        Operator::F64Sub => todo!(),
-        Operator::F64Mul => todo!(),
-        Operator::F64Div => todo!(),
-        Operator::F64Min => todo!(),
-        Operator::F64Max => todo!(),
-        Operator::F64Copysign => todo!(),
-        Operator::I32WrapI64 => todo!(),
-        Operator::I32TruncF32S => todo!(),
-        Operator::I32TruncF32U => todo!(),
-        Operator::I32TruncF64S => todo!(),
-        Operator::I32TruncF64U => todo!(),
-        Operator::I64ExtendI32S => todo!(),
-        Operator::I64ExtendI32U => todo!(),
-        Operator::I64TruncF32S => todo!(),
-        Operator::I64TruncF32U => todo!(),
-        Operator::I64TruncF64S => todo!(),
-        Operator::I64TruncF64U => todo!(),
-        Operator::F32ConvertI32S => todo!(),
-        Operator::F32ConvertI32U => todo!(),
-        Operator::F32ConvertI64S => todo!(),
-        Operator::F32ConvertI64U => todo!(),
-        Operator::F32DemoteF64 => todo!(),
-        Operator::F64ConvertI32S => todo!(),
-        Operator::F64ConvertI32U => todo!(),
-        Operator::F64ConvertI64S => todo!(),
-        Operator::F64ConvertI64U => todo!(),
-        Operator::F64PromoteF32 => todo!(),
-        Operator::I32ReinterpretF32 => todo!(),
-        Operator::I64ReinterpretF64 => todo!(),
-        Operator::F32ReinterpretI32 => todo!(),
-        Operator::F64ReinterpretI64 => todo!(),
+        Operator::F32Abs => Ok(Instruction::F32Abs),
+        Operator::F32Neg => Ok(Instruction::F32Neg),
+        Operator::F32Ceil => Ok(Instruction::F32Ceil),
+        Operator::F32Floor => Ok(Instruction::F32Floor),
+        Operator::F32Trunc => Ok(Instruction::F32Trunc),
+        Operator::F32Nearest => Ok(Instruction::F32Nearest),
+        Operator::F32Sqrt => Ok(Instruction::F32Sqrt),
+        Operator::F32Add => Ok(Instruction::F32Add),
+        Operator::F32Sub => Ok(Instruction::F32Sub),
+        Operator::F32Mul => Ok(Instruction::F32Mul),
+        Operator::F32Div => Ok(Instruction::F32Div),
+        Operator::F32Min => Ok(Instruction::F32Min),
+        Operator::F32Max => Ok(Instruction::F32Max),
+        Operator::F32Copysign => Ok(Instruction::F32Copysign),
+        Operator::F64Abs => Ok(Instruction::F64Abs),
+        Operator::F64Neg => Ok(Instruction::F64Neg),
+        Operator::F64Ceil => Ok(Instruction::F64Ceil),
+        Operator::F64Floor => Ok(Instruction::F64Floor),
+        Operator::F64Trunc => Ok(Instruction::F64Trunc),
+        Operator::F64Nearest => Ok(Instruction::F64Nearest),
+        Operator::F64Sqrt => Ok(Instruction::F64Sqrt),
+        Operator::F64Add => Ok(Instruction::F64Add),
+        Operator::F64Sub => Ok(Instruction::F64Sub),
+        Operator::F64Mul => Ok(Instruction::F64Mul),
+        Operator::F64Div => Ok(Instruction::F64Div),
+        Operator::F64Min => Ok(Instruction::F64Min),
+        Operator::F64Max => Ok(Instruction::F64Max),
+        Operator::F64Copysign => Ok(Instruction::F64Copysign),
+        Operator::I32WrapI64 => Ok(Instruction::I32WrapI64),
+        Operator::I32TruncF32S => Ok(Instruction::I32TruncF32S),
+        Operator::I32TruncF32U => Ok(Instruction::I32TruncF32U),
+        Operator::I32TruncF64S => Ok(Instruction::I32TruncF64S),
+        Operator::I32TruncF64U => Ok(Instruction::I32TruncF64U),
+        Operator::I64ExtendI32S => Ok(Instruction::I64Extend32S),
+        Operator::I64ExtendI32U => Ok(Instruction::I64ExtendI32U),
+        Operator::I64TruncF32S => Ok(Instruction::I64TruncF32S),
+        Operator::I64TruncF32U => Ok(Instruction::I64TruncF32U),
+        Operator::I64TruncF64S => Ok(Instruction::I64TruncF64S),
+        Operator::I64TruncF64U => Ok(Instruction::I64TruncF64U),
+        Operator::F32ConvertI32S => Ok(Instruction::F32ConvertI32S),
+        Operator::F32ConvertI32U => Ok(Instruction::F32ConvertI32U),
+        Operator::F32ConvertI64S => Ok(Instruction::F32ConvertI64S),
+        Operator::F32ConvertI64U => Ok(Instruction::F32ConvertI64U),
+        Operator::F32DemoteF64 => Ok(Instruction::F32DemoteF64),
+        Operator::F64ConvertI32S => Ok(Instruction::F64ConvertI32S),
+        Operator::F64ConvertI32U => Ok(Instruction::F64ConvertI32U),
+        Operator::F64ConvertI64S => Ok(Instruction::F64ConvertI64S),
+        Operator::F64ConvertI64U => Ok(Instruction::F64ConvertI64U),
+        Operator::F64PromoteF32 => Ok(Instruction::F64PromoteF32),
+        Operator::I32ReinterpretF32 => Ok(Instruction::I32ReinterpretF32),
+        Operator::I64ReinterpretF64 => Ok(Instruction::I64ReinterpretF64),
+        Operator::F32ReinterpretI32 => Ok(Instruction::F32ReinterpretI32),
+        Operator::F64ReinterpretI64 => Ok(Instruction::F64ReinterpretI64),
         Operator::I32Extend8S => todo!(),
         Operator::I32Extend16S => todo!(),
         Operator::I64Extend8S => todo!(),

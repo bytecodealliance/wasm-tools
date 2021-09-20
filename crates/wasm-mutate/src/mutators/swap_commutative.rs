@@ -13,8 +13,12 @@ impl SwapCommutativeOperator {
 
     fn is_commutative(&self, op: &Operator) -> bool {
         match op {
-            Operator::I32Add | Operator::I32Mul => {
-                // TODO do the others
+              Operator::I32Add | Operator::I32Mul | Operator::I32Or | Operator::I32And | Operator::I32Xor
+            | Operator::I64Add | Operator::I64Mul | Operator::I64And | Operator::I64Or | Operator::I64Xor
+            | Operator::F32Add | Operator::F32Mul // Check for float incosistency 
+            | Operator::F64Add | Operator::F64Mul // Check for float incosistency
+            // TODO do the others
+            => {
                 true
             }
             _ => {
@@ -25,10 +29,23 @@ impl SwapCommutativeOperator {
 
     fn get_operator_type(&self, op: &Operator) -> ValType {
         match op {
-            Operator::I32Add | Operator::I32Mul => {
-                // TODO do the others
+            Operator::I32Add | Operator::I32Mul | Operator::I32Or | Operator::I32And | Operator::I32Xor
+            => {
                 ValType::I32
             }
+            Operator::I64Add | Operator::I64Mul | Operator::I64And | Operator::I64Or | Operator::I64Xor
+            => {
+                ValType::I64
+            }
+            Operator::F32Add | Operator::F32Mul 
+            => {
+                ValType::F32
+            }   
+            Operator::F64Add | Operator::F64Mul 
+            => {
+                ValType::F64
+            }
+            // TODO do the others
             _ => {
                 // TODO as err
                 panic!("Unknown return type")
