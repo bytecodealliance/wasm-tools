@@ -370,12 +370,11 @@ impl WasmMutate {
         };
 
         let mut rnd = SmallRng::seed_from_u64(self.seed);
-        let mutator = mutators
+        let mut mutator = mutators
             .choose(&mut rnd)
             .ok_or(Error::NoMutationsAplicable)?;
 
         let module = mutator.mutate(&self, &mut rnd, &mut info);
-
         Ok(module?.finish())
     }
 }

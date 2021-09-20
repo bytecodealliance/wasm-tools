@@ -7,7 +7,7 @@ use crate::{ModuleInfo, WasmMutate};
 use rand::prelude::SmallRng;
 use rand::{Rng, RngCore};
 use wasm_encoder::{CodeSection, Export, ExportSection, Function, Instruction, Module, ValType};
-use wasmparser::{CodeSectionReader, ExportSectionReader};
+use wasmparser::{CodeSectionReader, ExportSectionReader, Operator, Type};
 pub trait Mutator {
     /// Method where the mutation happpens
     ///
@@ -261,11 +261,62 @@ impl Mutator for SetFunction2Unreachable {
 }
 
 
-pub struct SwapCommutativeOperator<'a>{
-    commutative_op_locations: &'a mut Vec<(u32, u32)> // (function offset, instruction offset)
+pub struct SwapCommutativeOperator;
+
+impl SwapCommutativeOperator {
+
+    fn is_commutative(&self, op: &Operator) -> bool {
+        match op {
+            Operator::I32Add | Operator::I32Mul => {
+                // TODO do the others
+                true
+            }
+            _ => {
+                false
+            }
+        }
+    }
+
+    fn get_operator_type(&self, op: &Operator) -> ValType {
+        match op {
+            Operator::I32Add | Operator::I32Mul => {
+                // TODO do the others
+                ValType::I32
+            }
+            _ => {
+                // TODO as err
+                panic!("Unknown return type")
+            }
+        }
+    }
+
+    fn get_mutable_ops(&self, info: &ModuleInfo) -> super::Result<Vec<(u32, u32, ValType)>>{
+        if !info.has_code() {
+            return Err(super::Error::NoMutationsAplicable)
+        }
+        // Check is some function body has commutative operators
+        // Save where this operators are in the AST ?
+        let code_section = info.get_code_section();
+        let mut reader = CodeSectionReader::new(code_section.data, 0)?;
+        let f = reader.read().unwrap();
+        let opcodereader  = f.get_operators_reader()?;
+        let mut idx = 0;
+        let mut v = Vec::new();
+
+        for op in opcodereader{
+            let borrowed = op.unwrap();
+            if self.is_commutative(&borrowed){
+                v.push((0, idx, self.get_operator_type(&borrowed)))
+
+            }
+            idx += 1;
+        }
+
+        Ok(v)
+    }
 }
 
-impl Mutator for SwapCommutativeOperator<'_> {
+impl Mutator for SwapCommutativeOperator {
     fn mutate(
         &self,
         config: &WasmMutate,
@@ -276,8 +327,9 @@ impl Mutator for SwapCommutativeOperator<'_> {
         let code_section = info.get_code_section();
         let mut reader = CodeSectionReader::new(code_section.data, 0)?;
         let count = reader.get_count();
-        let operation_to_mutate = rnd.gen_range(0, self.commutative_op_locations.len());
-        let (fidx, opidx) = self.commutative_op_locations[operation_to_mutate];
+        let commutative_operators = self.get_mutable_ops(info)?;
+        let operation_to_mutate = rnd.gen_range(0, commutative_operators.len());
+        let (fidx, opidx, ity) = commutative_operators[operation_to_mutate];
 
 
         (0..count).for_each(|i| {
@@ -285,7 +337,6 @@ impl Mutator for SwapCommutativeOperator<'_> {
 
             if i == fidx {
                 log::debug!("Changing function idx {:?}", i);
-                // add two temporary locals, the last two ones
                 let mut localreader = f.get_locals_reader().unwrap();
 
                 // Get current locals and map to encoder types
@@ -296,7 +347,8 @@ impl Mutator for SwapCommutativeOperator<'_> {
                     (count, super::module::map_type(ty).unwrap())
                 }).collect::<Vec<(u32, ValType)>>();
 
-                current_locals.push((2, ValType::I32));
+                // add two temporary locals, the last two
+                current_locals.push((2, ity));
 
                 let mut newf = Function::new(current_locals);
                 let opreader= f.get_operators_reader().unwrap();
@@ -323,42 +375,22 @@ impl Mutator for SwapCommutativeOperator<'_> {
     }
 
     fn can_mutate<'a>(&self, config: &'a WasmMutate, info: &ModuleInfo) -> Result<bool> {
-
-        // shortcut if there is no code
-        if !info.has_code() {
-            return Ok(false)
-        }
-        // Check is some function body has commutative operators
-        // +, *, bit and, bit or, bit xor
-        // Save where this operators are in the AST ?
-        let code_section = info.get_code_section();
-        let mut reader = CodeSectionReader::new(code_section.data, 0)?;
-        let f = reader.read().unwrap();
-        let opcodereader  = f.get_operators_reader()?;
-        let mut idx = 0;
-        let mut v = Vec::new();
-
-        for op in opcodereader{
-            match op.unwrap() {
-                wasmparser::Operator::I32Add => {
-                    v.push((0, idx))
-                },
-                _ => {
-                    // bypass
-                }
-            }
-            idx += 1;
-        }
-        
-        // At least one commutative op
         Ok(info.has_code()) // && self.commutative_op_locations.len() > 0)
     }
+
+    // For the second pass
+    /*
+    
+        // shortcut if there is no code
+        
+    */
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{WasmMutate, mutators::{RemoveExportMutator, RenameExportMutator, SetFunction2Unreachable, SwapCommutativeOperator}};
     use rand::{rngs::SmallRng, SeedableRng};
+    use wasm_encoder::ValType;
 
     use super::{Mutator, ReturnI32SnipMutator};
 
@@ -501,11 +533,7 @@ mod tests {
         let wasmmutate = WasmMutate::default();
         let original = &wat::parse_str(wat).unwrap();
 
-        let mut vec = Vec::new();
-        vec.push((
-            0, 2 // the second instruction is
-        ));
-        let mutator = SwapCommutativeOperator { commutative_op_locations: &mut vec}; // the string is empty
+        let mutator = SwapCommutativeOperator; // the string is empty
 
         let mut info = wasmmutate.get_module_info(original).unwrap();
         let can_mutate = mutator.can_mutate(&wasmmutate, &info).unwrap();
@@ -519,6 +547,6 @@ mod tests {
 
         // If it fails, it is probably an invalid
         let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
-        assert_eq!("(module\n  (type (;0;) (func (result i32)))\n  (func (;0;) (type 0) (result i32)\n    i32.const 42)\n  (export \"\" (func 0)))", text)
+        assert_eq!("(module\n  (type (;0;) (func (result i32)))\n  (func (;0;) (type 0) (result i32)\n    (local i32 i32 i32 i32)\n    i32.const 42\n    i32.const 76\n    local.tee 3\n    local.tee 4\n    i32.add)\n  (export \"exported_func\" (func 0)))", text)
     }
 }
