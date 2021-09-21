@@ -10,7 +10,7 @@
 use std::sync::Arc;
 
 use module::TypeInfo;
-use mutators::{Mutator};
+use mutators::Mutator;
 use rand::{prelude::SliceRandom, rngs::SmallRng, SeedableRng};
 use std::convert::TryFrom;
 #[cfg(feature = "structopt")]
@@ -25,8 +25,11 @@ pub use error::{Error, Result};
 use wasm_encoder::{RawSection, SectionId};
 use wasmparser::{Chunk, Parser, Payload, SectionReader};
 
-use crate::mutators::{function2unreachable::SetFunction2Unreachable, peephole::PeepholeMutator, remove_export::RemoveExportMutator, rename_export::RenameExportMutator, snip_function::SnipMutator};
-
+use crate::mutators::{
+    function2unreachable::SetFunction2Unreachable, peephole::PeepholeMutator,
+    remove_export::RemoveExportMutator, rename_export::RenameExportMutator,
+    snip_function::SnipMutator,
+};
 
 macro_rules! initialize_and_filter {
     (
@@ -150,7 +153,6 @@ impl<'a> ModuleInfo<'a> {
     fn has_code(&self) -> bool {
         self.code != None
     }
-
 
     pub fn section(&mut self, id: u8, range: wasmparser::Range, full_wasm: &'a [u8]) {
         self.raw_sections.push(RawSection {
@@ -386,9 +388,9 @@ impl WasmMutate {
                 match e {
                     Error::NotMatchingPeepholes => {
                         // TODO, Select another mutator
-                        return Err(e)
+                        return Err(e);
                     }
-                    _ => return Err(e)
+                    _ => return Err(e),
                 }
             }
         }

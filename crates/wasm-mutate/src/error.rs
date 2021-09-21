@@ -20,7 +20,7 @@ pub enum EitherType {
     Type(Type),
     TypeDef(String),
     Operator(String),
-    ValType(ValType)
+    ValType(ValType),
 }
 
 /// A `Result` type that is either `Ok(T)` or `Err(wasm_mutate::Error)`.

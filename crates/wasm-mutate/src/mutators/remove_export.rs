@@ -1,10 +1,9 @@
-
+use super::Mutator;
+use crate::{ModuleInfo, Result, WasmMutate};
 use rand::prelude::SmallRng;
 use rand::{Rng, RngCore};
 use wasm_encoder::{CodeSection, Export, ExportSection, Function, Instruction, Module};
 use wasmparser::{CodeSectionReader, ExportSectionReader};
-use crate::{ModuleInfo, WasmMutate, Result};
-use super::Mutator;
 
 pub struct RemoveExportMutator;
 
@@ -59,13 +58,9 @@ impl Mutator for RemoveExportMutator {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
-    use crate::{
-        WasmMutate,
-    };
+    use crate::WasmMutate;
     use rand::{rngs::SmallRng, SeedableRng};
 
     use super::{Mutator, RemoveExportMutator};

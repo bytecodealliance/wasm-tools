@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 use wasm_encoder::{BlockType, Instruction, MemArg, ValType};
 use wasmparser::{Ieee32, Ieee64, MemoryImmediate, Operator, Type, TypeDef};
 
-use crate::{Error, error::EitherType};
+use crate::{error::EitherType, Error};
 
 #[derive(Debug, Clone)]
 pub enum PrimitiveTypeInfo {
@@ -65,7 +65,7 @@ impl TryFrom<TypeDef<'_>> for TypeInfo {
     }
 }
 
-pub fn map_type(tpe: Type) -> super::Result<ValType>{
+pub fn map_type(tpe: Type) -> super::Result<ValType> {
     match tpe {
         Type::I32 => Ok(ValType::I32),
         Type::I64 => Ok(ValType::I64),
