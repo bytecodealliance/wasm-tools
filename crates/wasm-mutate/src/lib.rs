@@ -378,7 +378,19 @@ impl WasmMutate {
             .choose(&mut rnd)
             .ok_or(Error::NoMutationsAplicable)?;
 
-        let module = mutator.mutate(&self, &mut rnd, &mut info);
-        Ok(module?.finish())
+        let moduleresult = mutator.mutate(&self, &mut rnd, &mut info);
+
+        match moduleresult {
+            Ok(module) => Ok(module.finish()),
+            Err(e) => {
+                match e {
+                    Error::NotMatchingPeepholes => {
+                        // TODO, Select another mutator
+                        return Err(e)
+                    }
+                    _ => return Err(e)
+                }
+            }
+        }
     }
 }

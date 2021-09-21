@@ -69,8 +69,7 @@ impl Mutator for PeepholeMutator{
         // If no mutators, return specific error
 
         if applicable.len() == 0 {
-            // TODO, emit error
-            panic!("Not applicable mutator")
+            return Err(crate::Error::NotMatchingPeepholes);
         };
 
         

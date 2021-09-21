@@ -10,6 +10,8 @@ pub enum Error {
     NoMutationsAplicable,
     #[error("Unsupported mapping.")]
     UnsupportedType(EitherType),
+    #[error("There is not applicable peephole mutator for this module.")]
+    NotMatchingPeepholes,
 }
 
 #[derive(Debug)]
