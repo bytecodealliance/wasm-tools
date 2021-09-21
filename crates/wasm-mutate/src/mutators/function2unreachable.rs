@@ -65,6 +65,9 @@ mod tests {
             (func (result i64)
                 i64.const 42
             )
+            (func (export "exported_func") (result i32)
+                i32.const 42
+            )
         )
         "#;
         let wasmmutate = WasmMutate::default();
@@ -85,6 +88,6 @@ mod tests {
         // If it fails, it is probably an invalid
         let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
 
-        assert_eq!("(module\n  (type (;0;) (func (result i64)))\n  (func (;0;) (type 0) (result i64)\n    unreachable)\n  (func (;1;) (type 0) (result i64)\n    i64.const 42))", text)
+        assert_eq!("(module\n  (type (;0;) (func (result i32)))\n  (func (;0;) (type 0) (result i32)\n    unreachable)\n  (func (;1;) (type 0) (result i32)\n    i32.const 42)\n  (export \"exported_func\" (func 1)))", text)
     }
 }
