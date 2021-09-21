@@ -13,10 +13,14 @@
  * limitations under the License.
  */
 
+use crate::Range;
+
 use super::{BinaryReader, BinaryReaderError, Operator, Result};
 
 #[derive(Clone)]
 pub struct OperatorsReader<'a> {
+    offset: usize,
+    data: &'a [u8],
     pub(crate) reader: BinaryReader<'a>,
 }
 
@@ -26,6 +30,8 @@ impl<'a> OperatorsReader<'a> {
         'a: 'b,
     {
         OperatorsReader {
+            offset: offset,
+            data: data,
             reader: BinaryReader::new_with_offset(data, offset),
         }
     }
@@ -75,6 +81,13 @@ impl<'a> OperatorsReader<'a> {
     {
         let pos = self.reader.original_position();
         Ok((self.read()?, pos))
+    }
+
+    pub fn range(&self) -> Range {
+        Range {
+            start: self.offset,
+            end: self.offset + self.data.len(),
+        }
     }
 }
 

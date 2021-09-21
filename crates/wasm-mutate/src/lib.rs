@@ -25,7 +25,7 @@ pub use error::{Error, Result};
 use wasm_encoder::{RawSection, SectionId};
 use wasmparser::{Chunk, Parser, Payload, SectionReader};
 
-use crate::mutators::{function2unreachable::SetFunction2Unreachable, remove_export::RemoveExportMutator, rename_export::RenameExportMutator, snip_function::SnipMutator, swap_commutative::SwapCommutativeOperator};
+use crate::mutators::{function2unreachable::SetFunction2Unreachable, peephole::PeepholeMutator, remove_export::RemoveExportMutator, rename_export::RenameExportMutator, snip_function::SnipMutator};
 
 
 macro_rules! initialize_and_filter {
@@ -135,6 +135,7 @@ pub struct ModuleInfo<'a> {
     code: Option<usize>,
 
     is_start_defined: bool,
+    function_count: u32,
 
     // types for inner functions
     types_map: Vec<TypeInfo>,
@@ -149,6 +150,7 @@ impl<'a> ModuleInfo<'a> {
     fn has_code(&self) -> bool {
         self.code != None
     }
+
 
     pub fn section(&mut self, id: u8, range: wasmparser::Range, full_wasm: &'a [u8]) {
         self.raw_sections.push(RawSection {
@@ -253,11 +255,12 @@ impl WasmMutate {
             };
             match payload {
                 Payload::CodeSectionStart {
-                    count: _,
+                    count,
                     range,
                     size: _,
                 } => {
                     info.code = Some(info.raw_sections.len());
+                    info.function_count = count;
                     info.section(SectionId::Code.into(), range, input_wasm);
                     parser.skip_section();
                     println!("{:?} {:?}", wasm, consumed);
@@ -368,7 +371,7 @@ impl WasmMutate {
             RemoveExportMutator,
             SnipMutator,
             SetFunction2Unreachable,
-            SwapCommutativeOperator,
+            PeepholeMutator,
         };
 
         let mut rnd = SmallRng::seed_from_u64(self.seed);

@@ -30,4 +30,4 @@ pub mod function2unreachable;
 pub mod remove_export;
 pub mod rename_export;
 pub mod snip_function;
-pub mod swap_commutative;
+pub mod peephole;

@@ -25,6 +25,10 @@ pub struct FunctionBody<'a> {
     allow_memarg64: bool,
 }
 
+impl<'a> Copy for FunctionBody<'a>{
+
+}
+
 impl<'a> FunctionBody<'a> {
     pub fn new(offset: usize, data: &'a [u8]) -> Self {
         Self {
