@@ -259,7 +259,6 @@ impl WasmMutate {
                     info.code = Some(info.raw_sections.len());
                     info.section(SectionId::Code.into(), range, input_wasm);
                     parser.skip_section();
-                    println!("{:?} {:?}", wasm, consumed);
                     // update slice
                     wasm = &wasm[range.end - range.start + consumed - 1..];
 

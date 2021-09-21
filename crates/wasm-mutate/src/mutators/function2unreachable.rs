@@ -32,7 +32,7 @@ impl Mutator for SetFunction2Unreachable {
                 codes.function(&f);
             } else {
                 let f = reader.read().unwrap();
-                codes.raw(&info.input_wasm[f.range().start..f.range().end]);
+                codes.raw(&code_section.data[f.range().start..f.range().end]);
             }
         });
         Ok(info.replace_section(info.code.unwrap(), &codes))
@@ -62,6 +62,9 @@ mod tests {
             (func (result i32)
                 i32.const 42
             )
+            (func (export "exported_func") (result i32)
+                i32.const 42
+            )
         )
         "#;
         let wasmmutate = WasmMutate::default();
@@ -82,6 +85,6 @@ mod tests {
         // If it fails, it is probably an invalid
         let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
 
-        assert_eq!("(module\n  (type (;0;) (func (result i32)))\n  (func (;0;) (type 0) (result i32)\n    unreachable))", text)
+        assert_eq!("(module\n  (type (;0;) (func (result i32)))\n  (func (;0;) (type 0) (result i32)\n    unreachable)\n  (func (;1;) (type 0) (result i32)\n    i32.const 42)\n  (export \"exported_func\" (func 1)))", text)
     }
 }
