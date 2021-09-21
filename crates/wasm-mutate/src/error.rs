@@ -1,3 +1,4 @@
+use wasm_encoder::ValType;
 use wasmparser::{Operator, Type, TypeDef};
 
 /// An error encountered when choosing or applying a Wasm mutation.
@@ -18,7 +19,8 @@ pub enum Error {
 pub enum EitherType {
     Type(Type),
     TypeDef(String),
-    Operator(String)
+    Operator(String),
+    ValType(ValType)
 }
 
 /// A `Result` type that is either `Ok(T)` or `Err(wasm_mutate::Error)`.

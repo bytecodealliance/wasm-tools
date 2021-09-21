@@ -2,7 +2,7 @@ use rand::{Rng, prelude::SmallRng};
 use wasm_encoder::{CodeSection, Function, Instruction, Module, ValType};
 use wasmparser::{CodeSectionReader, FunctionBody, Operator, SectionReader};
 
-use crate::{Error, Result, ModuleInfo, WasmMutate, module::*};
+use crate::{Error, ModuleInfo, Result, WasmMutate, error::EitherType, module::*};
 
 use super::CodeMutator;
 
@@ -27,28 +27,27 @@ impl SwapCommutativeOperator {
         }
     }
 
-    fn get_operator_type(&self, op: &Operator) -> ValType {
+    fn get_operator_type(&self, op: &Operator) -> Result<ValType> {
         match op {
             Operator::I32Add | Operator::I32Mul | Operator::I32Or | Operator::I32And | Operator::I32Xor
             => {
-                ValType::I32
+                Ok(ValType::I32)
             }
             Operator::I64Add | Operator::I64Mul | Operator::I64And | Operator::I64Or | Operator::I64Xor
             => {
-                ValType::I64
+                Ok(ValType::I64)
             }
             Operator::F32Add | Operator::F32Mul 
             => {
-                ValType::F32
+                Ok(ValType::F32)
             }   
             Operator::F64Add | Operator::F64Mul 
             => {
-                ValType::F64
+                Ok(ValType::F64)
             }
             // TODO do the others
             _ => {
-                // TODO as err
-                panic!("Unknown return type")
+                Err(Error::UnsupportedType(EitherType::Operator(format!("{:?}", op))))
             }
         }
     }
@@ -81,7 +80,7 @@ impl CodeMutator for SwapCommutativeOperator {
 
         // add two temporary locals, the last two
         let (operator, _) = &operators[operator_index];
-        current_locals.push((2, self.get_operator_type(operator)));
+        current_locals.push((2, self.get_operator_type(operator)?));
 
         println!("{:?}", current_locals);
 
