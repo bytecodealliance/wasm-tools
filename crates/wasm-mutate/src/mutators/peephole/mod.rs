@@ -76,15 +76,14 @@ impl Mutator for PeepholeMutator{
         
         let mutatoridx = applicable.keys().choose(rnd).unwrap();
         let positions = &applicable[mutatoridx];
-        let (function_to_mutate, operator, mutator) = positions.choose(rnd).unwrap();
+        let (function_to_mutate, operatoridx, mutator) = positions.choose(rnd).unwrap();
 
 
         for fidx in 0..function_count as usize{
             let mut reader = all_readers[fidx];
             if fidx == *function_to_mutate {
                 log::debug!("Mutating function idx {:?}", fidx);
-                println!("{:?} {:?}", function_to_mutate, operator);
-                let function = mutator.mutate(config, rnd, &mut reader, *operator, 
+                let function = mutator.mutate(config, rnd, &mut reader, *operatoridx, 
                 &code_section.data
                 ).unwrap();
                 println!("{:?}", function);

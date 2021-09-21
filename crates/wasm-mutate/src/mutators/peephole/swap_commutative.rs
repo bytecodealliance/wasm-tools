@@ -64,6 +64,11 @@ impl CodeMutator for SwapCommutativeOperator {
         input_wasm: &[u8]
     ) -> Result<Function> {
         
+        let mut opreader= funcreader.get_operators_reader().unwrap();     
+        let body_range = opreader.range();
+        let opreaderiterator = opreader.into_iter_with_offsets();   
+        let operators = opreaderiterator.collect::<wasmparser::Result<Vec<(Operator, usize)>>>().unwrap();
+
         let mut localreader = funcreader.get_locals_reader().unwrap();
         // Get current locals and map to encoder types
         let mut local_count = 0;
@@ -75,21 +80,19 @@ impl CodeMutator for SwapCommutativeOperator {
 
 
         // add two temporary locals, the last two
-        current_locals.push((2, ValType::I32));
+        let (operator, _) = &operators[operator_index];
+        current_locals.push((2, self.get_operator_type(operator)));
 
         println!("{:?}", current_locals);
 
         let mut newf = Function::new(current_locals);
         let mut idx = 0;
 
-        let opreader= funcreader.get_operators_reader().unwrap();        
-        let body_range = opreader.range();
         
 
         let mut newoffset = 0;
         //println!("init {:?} {:?} {:?} body {:?}", input_wasm, operator_index, body_range, &input_wasm[body_range.start..body_range.end]);
-        for op in opreader.into_iter_with_offsets(){
-            let (_, offset) = op.unwrap();
+        for (_, offset) in operators {
             newoffset = offset;
             if idx == operator_index {
                 // Copy previous code to the body
