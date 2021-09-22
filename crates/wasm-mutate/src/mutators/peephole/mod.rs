@@ -191,7 +191,7 @@ macro_rules! match_code_mutation {
                         data: &original[reader.range().start..reader.range().end],
                     });
                 }
-                Payload::CodeSectionEntry(mut reader) => {
+                Payload::CodeSectionEntry(reader) => {
                     let operatorsreader = reader.get_operators_reader().unwrap();
                     let range = operatorsreader.range();
                     let operators = operatorsreader.into_iter_with_offsets()
@@ -253,12 +253,5 @@ mod tests {
         let can_mutate = mutator.can_mutate(&wasmmutate, &info).unwrap();
 
         assert_eq!(can_mutate, true);
-
-        let mut rnd = SmallRng::seed_from_u64(2);
-        let mutation = mutator.mutate(&wasmmutate, &mut rnd, &mut info);
-
-        let mutation_bytes = mutation.unwrap().finish();
-
-        let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
     }
 }

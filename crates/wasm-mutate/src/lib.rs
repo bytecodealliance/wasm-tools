@@ -376,23 +376,15 @@ impl WasmMutate {
         };
 
         let mut rnd = SmallRng::seed_from_u64(self.seed);
-        let mut mutator = mutators
-            .choose(&mut rnd)
-            .ok_or(Error::NoMutationsAplicable)?;
 
-        let moduleresult = mutator.mutate(&self, &mut rnd, &mut info);
+        // Check for this method, can be expensive
+        mutators.shuffle(&mut rnd);
 
-        match moduleresult {
-            Ok(module) => Ok(module.finish()),
-            Err(e) => {
-                match e {
-                    Error::NotMatchingPeepholes => {
-                        // TODO, Select another mutator
-                        return Err(e);
-                    }
-                    _ => return Err(e),
-                }
+        for mutator in mutators.iter(){
+            if let Ok(module) = mutator.mutate(&self, &mut rnd, &mut info){
+                return Ok(module.finish())
             }
         }
+        Err(Error::NoMutationsAplicable)
     }
 }
