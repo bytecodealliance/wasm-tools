@@ -4,7 +4,7 @@ use wasmparser::{CodeSectionReader, FunctionBody, Operator, SectionReader};
 
 use crate::{error::EitherType, module::*, Error, ModuleInfo, Result, WasmMutate};
 
-use super::CodeMutator;
+use super::{CodeMutator, TupleType};
 
 pub struct SwapCommutativeOperator;
 
@@ -53,17 +53,12 @@ impl CodeMutator for SwapCommutativeOperator {
         &self,
         _: &WasmMutate,
         _: &mut SmallRng,
-        funcreader: &mut FunctionBody,
         operator_index: usize,
-        input_wasm: &[u8],
+        operators: Vec<TupleType>,
+        funcreader: FunctionBody,
+        body_range: wasmparser::Range,
+        function_stream: &[u8],
     ) -> Result<Function> {
-        let opreader = funcreader.get_operators_reader().unwrap();
-        let body_range = opreader.range();
-        let opreaderiterator = opreader.into_iter_with_offsets();
-        let operators = opreaderiterator
-            .collect::<wasmparser::Result<Vec<(Operator, usize)>>>()
-            .unwrap();
-
         let mut localreader = funcreader.get_locals_reader().unwrap();
         // Get current locals and map to encoder types
         let mut local_count = 0;
@@ -87,18 +82,20 @@ impl CodeMutator for SwapCommutativeOperator {
             newoffset = offset;
             if idx == operator_index {
                 // Copy previous code to the body
-                let previous = &input_wasm[body_range.start..offset];
+                let previous = &function_stream[body_range.start..offset];
                 newf.raw(previous.iter().copied());
                 // Inject new code to swap operands
-                newf.instruction(Instruction::LocalTee(local_count + 1));
-                newf.instruction(Instruction::LocalTee(local_count + 2));
+                newf.instruction(Instruction::LocalSet(local_count + 1));
+                newf.instruction(Instruction::LocalSet(local_count + 2));
+                newf.instruction(Instruction::LocalGet(local_count + 1));
+                newf.instruction(Instruction::LocalGet(local_count + 2));
                 break; // this break allows to copy the remaining buffer of the current reader
             }
             idx += 1;
         }
 
         // Copy last part of the function body
-        let remaining = &input_wasm[newoffset..body_range.end];
+        let remaining = &function_stream[newoffset..body_range.end];
         newf.raw(remaining.iter().copied());
         Ok(newf)
     }
@@ -106,10 +103,10 @@ impl CodeMutator for SwapCommutativeOperator {
     fn can_mutate<'a>(
         &self,
         _: &'a WasmMutate,
-        operators: &Vec<Operator<'a>>,
+        operators: &Vec<TupleType<'a>>,
         at: usize,
     ) -> Result<bool> {
-        let operator = &operators[at];
+        let (operator, _) = &operators[at];
         Ok(self.is_commutative(operator))
     }
 }
@@ -129,6 +126,7 @@ mod tests {
     };
     use wasm_encoder::{RawSection, SectionId};
     use wasmparser::{Payload, SectionReader};
+    use crate::mutators::peephole::TupleType;
 
     use super::SwapCommutativeOperator;
 
@@ -155,19 +153,21 @@ mod tests {
               i32.const 42
               i32.add
               i32.const 56
-              local.tee 3
-              local.tee 4
+              local.set 3
+              local.set 4
+              local.get 3
+              local.get 4
               i32.add))
         "#;
 
         crate::match_code_mutation!(
             original,
-            move |config: &WasmMutate, mut reader, original: &[u8]| {
+            move |config: &WasmMutate, operators, mut reader, range,function_stream: &[u8]| {
                 let mutator = SwapCommutativeOperator;
                 let mut rnd = SmallRng::seed_from_u64(0);
 
                 mutator
-                    .mutate(&config, &mut rnd, &mut reader, 4, &original)
+                    .mutate(&config, &mut rnd, 4,operators, reader, range, &function_stream)
                     .unwrap()
             },
             expected

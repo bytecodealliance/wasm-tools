@@ -17,6 +17,71 @@ pub mod swap_commutative;
 
 pub struct PeepholeMutator;
 
+// Code mutator, function id, operator id
+type MutationContext = (Function, u32);
+// Helper type to return operator and ofsset inside the byte stream
+type TupleType<'a> = (Operator<'a>, usize);
+impl PeepholeMutator {
+    fn random_mutate(
+        &self,
+        config: &crate::WasmMutate,
+        rnd: &mut rand::prelude::SmallRng,
+        info: &mut crate::ModuleInfo,
+        peepholes: Vec<Box<dyn CodeMutator>>,
+    ) -> Result<MutationContext> {
+        let code_section = info.get_code_section();
+        let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
+        let function_count = sectionreader.get_count();
+
+        // Split where to start looking for mutable function
+        // In theory random split will provide a mutable location faster
+        let function_to_mutate = rnd.gen_range(0, function_count);
+        let all_readers = (0..function_count)
+            .map(|fidx| sectionreader.read().unwrap())
+            .collect::<Vec<FunctionBody>>();
+
+        for fidx in (function_to_mutate..function_count).chain(0..function_to_mutate) {
+            let reader = all_readers[fidx as usize];
+            let operatorreader = reader.get_operators_reader()?;
+            let operatorsrange = operatorreader.range();
+            let operators = operatorreader
+                .into_iter_with_offsets()
+                .collect::<wasmparser::Result<Vec<TupleType>>>()?;
+            let operatorscount = operators.len();
+            let opcode_to_mutate = rnd.gen_range(0, operatorscount);
+
+            for oidx in (opcode_to_mutate..operatorscount).chain(0..opcode_to_mutate) {
+                let mut applicable = Vec::new();
+                for peephole in &peepholes {
+                    if peephole.can_mutate(config, &operators, oidx)? {
+                        applicable.push(peephole);
+                    }
+                }
+                if applicable.len() > 0 {
+                    // Call the random mutator now :)
+                    let mutator = peepholes
+                        .choose(rnd)
+                        .ok_or(crate::Error::NoMutationsAplicable)?;
+                    let reader = all_readers[function_to_mutate as usize];
+                    let f = mutator.mutate(
+                        config,
+                        rnd,
+                        oidx,
+                        operators,
+                        reader,
+                        operatorsrange,
+                        code_section.data,
+                    )?;
+                    return Ok((f, fidx));
+                }
+                // continue otherwise
+            }
+        }
+
+        Err(crate::Error::NotMatchingPeepholes)
+    }
+}
+
 /// Meta mutator for peephole
 impl Mutator for PeepholeMutator {
     fn mutate(
@@ -25,78 +90,19 @@ impl Mutator for PeepholeMutator {
         rnd: &mut rand::prelude::SmallRng,
         info: &mut crate::ModuleInfo,
     ) -> Result<Module> {
-        // Parse the module to get opcodes
+        let peepholes: Vec<Box<dyn CodeMutator>> = vec![Box::new(SwapCommutativeOperator)];
+        let (new_function, function_to_mutate) =
+            self.random_mutate(config, rnd, info, peepholes)?;
+
         let mut codes = CodeSection::new();
         let code_section = info.get_code_section();
         let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
-        let function_count = sectionreader.get_count();
 
-        let peep_optimizers: &Vec<Box<dyn CodeMutator>> = &vec![Box::new(SwapCommutativeOperator)];
-
-        // Split where to start looking for mutable function
-        let function_to_mutate = rnd.gen_range(0, function_count);
-        let all_readers = (0..function_count)
-            .map(|fidx| sectionreader.read().unwrap())
-            .collect::<Vec<FunctionBody>>();
-
-        // Since we can have several positions for the same mutator it is better to group them by mutator reference
-        let mut applicable: HashMap<String, Vec<(usize, usize, &Box<dyn CodeMutator>)>> =
-            HashMap::new();
-
-        (function_to_mutate..function_count)
-            .chain(0..function_to_mutate)
-            .fold(&mut applicable, |prev, fidx| {
-                let reader = all_readers[fidx as usize];
-                let operatorreader = reader.get_operators_reader().unwrap();
-                let operators = &operatorreader
-                    .into_iter()
-                    .collect::<wasmparser::Result<Vec<Operator>>>()
-                    .unwrap();
-                let operatorscount = operators.len();
-
-                let opcode_to_mutate = rnd.gen_range(0, operatorscount);
-                (opcode_to_mutate..operatorscount)
-                    .chain(0..opcode_to_mutate)
-                    .fold(prev, |innerprev, idx| {
-                        for peephole in peep_optimizers {
-                            if peephole.can_mutate(config, &operators, idx).unwrap() {
-                                // We can have several mutators, lets group by mutator
-                                // TODO, find better key ?
-                                innerprev
-                                    .entry(peephole.name())
-                                    .or_insert(Vec::new())
-                                    .push((fidx as usize, idx, peephole));
-                            }
-                        }
-                        innerprev
-                    })
-            });
-
-        // If no mutators, return specific error
-
-        if applicable.len() == 0 {
-            return Err(crate::Error::NotMatchingPeepholes);
-        };
-
-        let mutatoridx = applicable.keys().choose(rnd).unwrap();
-        let positions = &applicable[mutatoridx];
-        let (function_to_mutate, operatoridx, mutator) = positions.choose(rnd).unwrap();
-
-        for fidx in 0..function_count as usize {
-            let mut reader = all_readers[fidx];
-            if fidx == *function_to_mutate {
-                log::debug!("Mutating function idx {:?}", fidx);
-                let function = mutator
-                    .mutate(config, rnd, &mut reader, *operatoridx, &code_section.data)
-                    .unwrap();
-                println!("{:?}", function);
-                codes.function(&function);
+        for fidx in 0..info.function_count {
+            if fidx == function_to_mutate {
+                codes.function(&new_function);
             } else {
-                // Copy exactly the same function to section
-                println!(
-                    "{:?}",
-                    &code_section.data[reader.range().start..reader.range().end]
-                );
+                let mut reader = sectionreader.read()?;
                 codes.raw(&code_section.data[reader.range().start..reader.range().end]);
             }
         }
@@ -125,8 +131,10 @@ pub(crate) trait CodeMutator {
         &self,
         config: &WasmMutate,
         rnd: &mut SmallRng,
-        funcreader: &mut FunctionBody,
         operator_index: usize,
+        operators: Vec<TupleType>,
+        funcreader: FunctionBody,
+        body_range: wasmparser::Range,
         function_data: &[u8],
     ) -> Result<Function>;
 
@@ -134,7 +142,7 @@ pub(crate) trait CodeMutator {
     fn can_mutate<'a>(
         &self,
         config: &'a WasmMutate,
-        operators: &Vec<Operator<'a>>,
+        operators: &Vec<TupleType<'a>>,
         at: usize,
     ) -> Result<bool>;
 
@@ -147,6 +155,7 @@ pub(crate) trait CodeMutator {
 // This macro is meant to be used for testing deep mutators
 // It receives the original wat text variable, the expression returning the mutated function and the expected wat
 // For an example, look at SwapCommutativeOperator
+#[cfg(test)]
 #[macro_export]
 macro_rules! match_code_mutation {
     ($wat: ident, $mutation:expr, $expected:ident) => {{
@@ -182,8 +191,12 @@ macro_rules! match_code_mutation {
                         data: &original[reader.range().start..reader.range().end],
                     });
                 }
-                Payload::CodeSectionEntry(reader) => {
-                    let mutated = $mutation(&config, reader, original);
+                Payload::CodeSectionEntry(mut reader) => {
+                    let operatorsreader = reader.get_operators_reader().unwrap();
+                    let range = operatorsreader.range();
+                    let operators = operatorsreader.into_iter_with_offsets()
+                    .collect::<wasmparser::Result<Vec<TupleType>>>().unwrap();
+                    let mutated = $mutation(&config, operators, reader, range, original);
                     codesection.function(&mutated);
                 }
                 wasmparser::Payload::End => break,
@@ -247,6 +260,5 @@ mod tests {
         let mutation_bytes = mutation.unwrap().finish();
 
         let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
-        println!("{}", text);
     }
 }
