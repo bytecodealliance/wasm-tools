@@ -59,7 +59,7 @@ impl PeepholeMutator {
                 }
                 if applicable.len() > 0 {
                     // Call the random mutator now :)
-                    let mutator = peepholes
+                    let mutator = applicable
                         .choose(rnd)
                         .ok_or(crate::Error::NoMutationsAplicable)?;
                     let reader = all_readers[function_to_mutate as usize];
