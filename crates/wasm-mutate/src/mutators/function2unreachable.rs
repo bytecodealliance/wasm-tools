@@ -1,9 +1,8 @@
-
+use crate::{ModuleInfo, Result, WasmMutate};
 use rand::prelude::SmallRng;
 use rand::{Rng, RngCore};
-use wasm_encoder::{CodeSection,Function, Instruction, Module};
-use wasmparser::{CodeSectionReader};
-use crate::{ModuleInfo, WasmMutate, Result};
+use wasm_encoder::{CodeSection, Function, Instruction, Module};
+use wasmparser::CodeSectionReader;
 
 use super::Mutator;
 
@@ -43,17 +42,12 @@ impl Mutator for SetFunction2Unreachable {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
-    use crate::{
-        WasmMutate,
-    };
+    use crate::WasmMutate;
     use rand::{rngs::SmallRng, SeedableRng};
 
     use super::{Mutator, SetFunction2Unreachable};
-
 
     #[test]
     fn test_code_unreachable_mutator() {
