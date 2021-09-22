@@ -137,3 +137,32 @@ fn module_section_too_large() {
         err
     );
 }
+
+#[test]
+fn dangling_if() {
+    let bytes = wat::parse_str(
+        r#"
+            (module
+                (func if)
+            )
+        "#,
+    )
+    .unwrap();
+    let wat = wasmprinter::print_bytes(&bytes).unwrap();
+    wat::parse_str(&wat).unwrap();
+}
+
+#[test]
+fn no_oom() {
+    // Whatever is printed here, it shouldn't take more than 500MB to print
+    // since it's only 20k functions.
+    let mut s = String::new();
+    s.push_str("(module\n");
+    for _ in 0..20_000 {
+        s.push_str("(func if)\n");
+    }
+    s.push_str(")");
+    let bytes = wat::parse_str(&s).unwrap();
+    let wat = wasmprinter::print_bytes(&bytes).unwrap();
+    assert!(wat.len() < 500_000_000);
+}

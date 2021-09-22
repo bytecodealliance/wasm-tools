@@ -715,6 +715,16 @@ impl Printer {
                 }
                 self.print_operator(&operator, nesting_start)?;
             }
+
+            // If this was an invalid function body then the nesting may not
+            // have reset back to normal. Fix that up here and forcibly insert
+            // a newline as well in case the last instruction was something
+            // like an `if` which has a comment after it which could interfere
+            // with the closing paren printed for the func.
+            if self.nesting != nesting_start {
+                self.nesting = nesting_start;
+                self.newline();
+            }
             self.end_group();
 
             self.state.func += 1;
