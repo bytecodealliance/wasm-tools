@@ -43,7 +43,7 @@ impl PeepholeMutator {
         for fidx in (function_to_mutate..function_count).chain(0..function_to_mutate) {
             let reader = all_readers[fidx as usize];
             let operatorreader = reader.get_operators_reader()?;
-            let operatorsrange = operatorreader.range();
+            let operatorsrange = operatorreader.reader.range();
             let operators = operatorreader
                 .into_iter_with_offsets()
                 .collect::<wasmparser::Result<Vec<TupleType>>>()?;
@@ -199,7 +199,7 @@ macro_rules! match_code_mutation {
                 }
                 Payload::CodeSectionEntry(reader) => {
                     let operatorsreader = reader.get_operators_reader().unwrap();
-                    let range = operatorsreader.range();
+                    let range = operatorsreader.reader.range();
                     let operators = operatorsreader
                         .into_iter_with_offsets()
                         .collect::<wasmparser::Result<Vec<TupleType>>>()
