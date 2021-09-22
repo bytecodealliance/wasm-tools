@@ -71,6 +71,6 @@ pub fn map_type(tpe: Type) -> super::Result<ValType> {
         Type::I64 => Ok(ValType::I64),
         Type::F32 => Ok(ValType::F32),
         Type::F64 => Ok(ValType::F64),
-        _ => Err(super::Error::NoMutationsAplicable),
+        _ => Err(super::Error::UnsupportedType(EitherType::Type(tpe))),
     }
 }
