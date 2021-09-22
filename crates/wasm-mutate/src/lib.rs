@@ -139,6 +139,7 @@ pub struct ModuleInfo<'a> {
 
     is_start_defined: bool,
     function_count: u32,
+    exports_count: u32,
 
     // types for inner functions
     types_map: Vec<TypeInfo>,
@@ -312,6 +313,7 @@ impl WasmMutate {
                 }
                 Payload::ExportSection(reader) => {
                     info.exports = Some(info.raw_sections.len());
+                    info.exports_count = reader.get_count();
                     info.section(SectionId::Export.into(), reader.range(), input_wasm);
                 }
                 Payload::StartSection { func: _, range: _ } => {

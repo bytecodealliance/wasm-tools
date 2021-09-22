@@ -83,7 +83,7 @@ impl Mutator for RenameExportMutator {
     }
 
     fn can_mutate<'a>(&self, _: &'a WasmMutate, info: &ModuleInfo) -> Result<bool> {
-        Ok(info.has_exports())
+        Ok(info.has_exports() && info.exports_count > 0)
     }
 }
 
