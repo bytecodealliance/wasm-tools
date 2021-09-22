@@ -147,7 +147,7 @@ mod tests {
         let expected = r#"
         (module
             (type (;0;) (func (result i32)))
-            (func (;0;) (type 0) (result i32)
+            (func (export "exported_func") (;0;) (type 0) (result i32)
               (local i32 i32 i32 i32)
               i32.const 42
               i32.const 42

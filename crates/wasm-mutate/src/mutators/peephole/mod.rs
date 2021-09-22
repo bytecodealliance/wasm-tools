@@ -191,6 +191,12 @@ macro_rules! match_code_mutation {
                         data: &original[reader.range().start..reader.range().end],
                     });
                 }
+                Payload::ExportSection(reader) => {
+                    modu.section(&RawSection {
+                        id: SectionId::Export.into(),
+                        data: &original[reader.range().start..reader.range().end],
+                    });
+                }
                 Payload::CodeSectionEntry(reader) => {
                     let operatorsreader = reader.get_operators_reader().unwrap();
                     let range = operatorsreader.range();
