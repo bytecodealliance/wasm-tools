@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use module::TypeInfo;
 use mutators::Mutator;
-use rand::{prelude::SliceRandom, rngs::SmallRng, SeedableRng};
+use rand::{prelude::SliceRandom, rngs::SmallRng, Rng, SeedableRng};
 use std::convert::TryFrom;
 #[cfg(feature = "structopt")]
 use structopt::StructOpt;
@@ -379,14 +379,14 @@ impl WasmMutate {
 
         let mut rnd = SmallRng::seed_from_u64(self.seed);
 
-        // Check for this method, can be expensive
-        mutators.shuffle(&mut rnd);
-
-        for mutator in mutators.iter() {
+        while !mutators.is_empty() {
+            let i = rnd.gen_range(0, mutators.len());
+            let mutator = mutators.swap_remove(i);
             if let Ok(module) = mutator.mutate(&self, &mut rnd, &mut info) {
                 return Ok(module.finish());
             }
         }
+
         Err(Error::NoMutationsAplicable)
     }
 }
