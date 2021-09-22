@@ -72,7 +72,8 @@ impl CodeMutator for StrengthReduction {
                             newf.instruction(Instruction::I64Mul);
                         });
                     }
-                    _ => {}
+                    _ => return Err(Error::UnsupportedType(EitherType::Operator(format!("{:?}", operator))))
+
                 }
             }
             if idx == operator_index + 1 {
