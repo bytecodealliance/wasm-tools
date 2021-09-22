@@ -8,11 +8,15 @@ use wasm_encoder::{CodeSection, Function, Module};
 use wasmparser::{BinaryReaderError, CodeSectionReader, FunctionBody, Operator};
 
 use crate::{
-    mutators::peephole::swap_commutative::SwapCommutativeOperator, ModuleInfo, Result, WasmMutate,
+    mutators::peephole::{
+        strength_reduction::StrengthReduction, swap_commutative::SwapCommutativeOperator,
+    },
+    ModuleInfo, Result, WasmMutate,
 };
 
 use super::Mutator;
 
+pub mod strength_reduction;
 pub mod swap_commutative;
 
 pub struct PeepholeMutator;
@@ -90,7 +94,10 @@ impl Mutator for PeepholeMutator {
         rnd: &mut rand::prelude::SmallRng,
         info: &mut crate::ModuleInfo,
     ) -> Result<Module> {
-        let peepholes: Vec<Box<dyn CodeMutator>> = vec![Box::new(SwapCommutativeOperator)];
+        let peepholes: Vec<Box<dyn CodeMutator>> = vec![
+            Box::new(SwapCommutativeOperator),
+            Box::new(StrengthReduction),
+        ];
         let (new_function, function_to_mutate) =
             self.random_mutate(config, rnd, info, peepholes)?;
 
@@ -223,7 +230,6 @@ macro_rules! match_code_mutation {
         // parse expected to use the same formatter
         let expected_bytes = &wat::parse_str($expected).unwrap();
         let expectedtext = wasmprinter::print_bytes(expected_bytes).unwrap();
-
         assert_eq!(text, expectedtext);
     }};
 }
