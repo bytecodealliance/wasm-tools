@@ -1,10 +1,9 @@
-
+use super::Mutator;
+use crate::{ModuleInfo, Result, WasmMutate};
 use rand::prelude::SmallRng;
 use rand::{Rng, RngCore};
 use wasm_encoder::{CodeSection, Export, ExportSection, Function, Instruction, Module};
 use wasmparser::{CodeSectionReader, ExportSectionReader};
-use crate::{ModuleInfo, WasmMutate, Result};
-use super::Mutator;
 
 pub struct RemoveExportMutator;
 
@@ -55,17 +54,13 @@ impl Mutator for RemoveExportMutator {
     }
 
     fn can_mutate<'a>(&self, _: &'a WasmMutate, info: &ModuleInfo) -> Result<bool> {
-        Ok(info.has_exports())
+        Ok(info.has_exports() && info.exports_count > 0)
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
-    use crate::{
-        WasmMutate,
-    };
+    use crate::WasmMutate;
     use rand::{rngs::SmallRng, SeedableRng};
 
     use super::{Mutator, RemoveExportMutator};
