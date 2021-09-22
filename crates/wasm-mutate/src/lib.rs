@@ -380,9 +380,9 @@ impl WasmMutate {
         // Check for this method, can be expensive
         mutators.shuffle(&mut rnd);
 
-        for mutator in mutators.iter(){
-            if let Ok(module) = mutator.mutate(&self, &mut rnd, &mut info){
-                return Ok(module.finish())
+        for mutator in mutators.iter() {
+            if let Ok(module) = mutator.mutate(&self, &mut rnd, &mut info) {
+                return Ok(module.finish());
             }
         }
         Err(Error::NoMutationsAplicable)

@@ -194,8 +194,10 @@ macro_rules! match_code_mutation {
                 Payload::CodeSectionEntry(reader) => {
                     let operatorsreader = reader.get_operators_reader().unwrap();
                     let range = operatorsreader.range();
-                    let operators = operatorsreader.into_iter_with_offsets()
-                    .collect::<wasmparser::Result<Vec<TupleType>>>().unwrap();
+                    let operators = operatorsreader
+                        .into_iter_with_offsets()
+                        .collect::<wasmparser::Result<Vec<TupleType>>>()
+                        .unwrap();
                     let mutated = $mutation(&config, operators, reader, range, original);
                     codesection.function(&mutated);
                 }

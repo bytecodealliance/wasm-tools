@@ -117,6 +117,7 @@ mod tests {
     use wasm_encoder::{CodeSection, FunctionSection, Module, TypeSection, ValType};
     use wasmparser::{Chunk, Parser};
 
+    use crate::mutators::peephole::TupleType;
     use crate::{
         mutators::{
             peephole::{CodeMutator, PeepholeMutator},
@@ -126,7 +127,6 @@ mod tests {
     };
     use wasm_encoder::{RawSection, SectionId};
     use wasmparser::{Payload, SectionReader};
-    use crate::mutators::peephole::TupleType;
 
     use super::SwapCommutativeOperator;
 
@@ -162,12 +162,20 @@ mod tests {
 
         crate::match_code_mutation!(
             original,
-            move |config: &WasmMutate, operators, mut reader, range,function_stream: &[u8]| {
+            move |config: &WasmMutate, operators, mut reader, range, function_stream: &[u8]| {
                 let mutator = SwapCommutativeOperator;
                 let mut rnd = SmallRng::seed_from_u64(0);
 
                 mutator
-                    .mutate(&config, &mut rnd, 4,operators, reader, range, &function_stream)
+                    .mutate(
+                        &config,
+                        &mut rnd,
+                        4,
+                        operators,
+                        reader,
+                        range,
+                        &function_stream,
+                    )
                     .unwrap()
             },
             expected
