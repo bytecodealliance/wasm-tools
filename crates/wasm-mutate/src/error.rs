@@ -1,4 +1,5 @@
-use wasmparser::{Type, TypeDef};
+use wasm_encoder::ValType;
+use wasmparser::{Operator, Type, TypeDef};
 
 /// An error encountered when choosing or applying a Wasm mutation.
 #[derive(thiserror::Error, Debug)]
@@ -8,14 +9,18 @@ pub enum Error {
     Parse(#[from] wasmparser::BinaryReaderError),
     #[error("There are not applicable mutations for this module.")]
     NoMutationsAplicable,
-    #[error("Unsupported type mapping.")]
+    #[error("Unsupported mapping.")]
     UnsupportedType(EitherType),
+    #[error("There is not applicable peephole mutator for this module.")]
+    NotMatchingPeepholes,
 }
 
 #[derive(Debug)]
 pub enum EitherType {
     Type(Type),
     TypeDef(String),
+    Operator(String),
+    ValType(ValType),
 }
 
 /// A `Result` type that is either `Ok(T)` or `Err(wasm_mutate::Error)`.

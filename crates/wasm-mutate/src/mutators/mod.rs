@@ -27,6 +27,7 @@ pub trait Mutator {
 }
 
 pub mod function2unreachable;
+pub mod peephole;
 pub mod remove_export;
 pub mod rename_export;
 pub mod snip_function;

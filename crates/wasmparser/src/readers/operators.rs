@@ -13,11 +13,13 @@
  * limitations under the License.
  */
 
+use crate::Range;
+
 use super::{BinaryReader, BinaryReaderError, Operator, Result};
 
 #[derive(Clone)]
 pub struct OperatorsReader<'a> {
-    pub(crate) reader: BinaryReader<'a>,
+    pub reader: BinaryReader<'a>,
 }
 
 impl<'a> OperatorsReader<'a> {

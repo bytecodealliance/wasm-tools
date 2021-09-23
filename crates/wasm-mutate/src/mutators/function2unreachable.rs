@@ -53,8 +53,11 @@ mod tests {
     fn test_code_unreachable_mutator() {
         let wat = r#"
         (module
-            (func (result i32)
-                i32.const 42
+            (func (result i64)
+                i64.const 42
+            )
+            (func (result i64)
+                i64.const 42
             )
             (func (export "exported_func") (result i32)
                 i32.const 42
@@ -76,9 +79,12 @@ mod tests {
 
         let mutation_bytes = mutation.unwrap().finish();
 
+        // validate
+        let mut validator = wasmparser::Validator::new();
+        crate::validate(&mut validator, &mutation_bytes);
         // If it fails, it is probably an invalid
         let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
 
-        assert_eq!("(module\n  (type (;0;) (func (result i32)))\n  (func (;0;) (type 0) (result i32)\n    unreachable)\n  (func (;1;) (type 0) (result i32)\n    i32.const 42)\n  (export \"exported_func\" (func 1)))", text)
+        assert_eq!("(module\n  (type (;0;) (func (result i64)))\n  (type (;1;) (func (result i32)))\n  (func (;0;) (type 0) (result i64)\n    i64.const 42)\n  (func (;1;) (type 0) (result i64)\n    i64.const 42)\n  (func (;2;) (type 1) (result i32)\n    unreachable)\n  (export \"exported_func\" (func 2)))", text)
     }
 }

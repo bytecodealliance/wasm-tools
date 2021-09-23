@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use module::TypeInfo;
 use mutators::Mutator;
-use rand::{prelude::SliceRandom, rngs::SmallRng, SeedableRng};
+use rand::{prelude::SliceRandom, rngs::SmallRng, Rng, SeedableRng};
 use std::convert::TryFrom;
 #[cfg(feature = "structopt")]
 use structopt::StructOpt;
@@ -26,8 +26,9 @@ use wasm_encoder::{RawSection, SectionId};
 use wasmparser::{Chunk, Parser, Payload, SectionReader};
 
 use crate::mutators::{
-    function2unreachable::SetFunction2Unreachable, remove_export::RemoveExportMutator,
-    rename_export::RenameExportMutator, snip_function::SnipMutator,
+    function2unreachable::SetFunction2Unreachable, peephole::PeepholeMutator,
+    remove_export::RemoveExportMutator, rename_export::RenameExportMutator,
+    snip_function::SnipMutator,
 };
 
 macro_rules! initialize_and_filter {
@@ -37,6 +38,7 @@ macro_rules! initialize_and_filter {
         )*
     ) => {
             $(
+                // Generate this recursivelly
                 if $mutation.can_mutate($config, &$info)? {
                     $result.push(Box::new($mutation))
                 }
@@ -136,6 +138,7 @@ pub struct ModuleInfo<'a> {
     code: Option<usize>,
 
     is_start_defined: bool,
+    function_count: u32,
     exports_count: u32,
 
     // types for inner functions
@@ -255,11 +258,12 @@ impl WasmMutate {
             };
             match payload {
                 Payload::CodeSectionStart {
-                    count: _,
+                    count,
                     range,
                     size: _,
                 } => {
                     info.code = Some(info.raw_sections.len());
+                    info.function_count = count;
                     info.section(SectionId::Code.into(), range, input_wasm);
                     parser.skip_section();
                     // update slice
@@ -370,15 +374,33 @@ impl WasmMutate {
             RemoveExportMutator,
             SnipMutator,
             SetFunction2Unreachable,
+            PeepholeMutator,
         };
 
         let mut rnd = SmallRng::seed_from_u64(self.seed);
-        let mutator = mutators
-            .choose(&mut rnd)
-            .ok_or(Error::NoMutationsAplicable)?;
 
-        let module = mutator.mutate(&self, &mut rnd, &mut info);
+        while !mutators.is_empty() {
+            let i = rnd.gen_range(0, mutators.len());
+            let mutator = mutators.swap_remove(i);
+            if let Ok(module) = mutator.mutate(&self, &mut rnd, &mut info) {
+                return Ok(module.finish());
+            }
+        }
 
-        Ok(module?.finish())
+        Err(Error::NoMutationsAplicable)
     }
+}
+
+#[cfg(test)]
+fn validate(validator: &mut wasmparser::Validator, bytes: &[u8]) {
+    let err = match validator.validate_all(bytes) {
+        Ok(()) => return,
+        Err(e) => e,
+    };
+    drop(std::fs::write("test.wasm", &bytes));
+    if let Ok(text) = wasmprinter::print_bytes(bytes) {
+        drop(std::fs::write("test.wat", &text));
+    }
+
+    panic!("wasm failed to validate {:?}", err);
 }
