@@ -124,11 +124,8 @@ impl CodeMutator for StrengthReduction {
 
         if self.is_shl(operator) {
             // Check the previous instruction to check for constant
-            // Check first if there is a previous operator
-            if at > 0 {
-                let (previous, _) = &operators[at - 1];
-                return Ok(self.is_valid_const(previous));
-            }
+            let (previous, _) = &operators[at - 1];
+            return Ok(self.is_valid_const(previous));
         }
 
         Ok(false)
