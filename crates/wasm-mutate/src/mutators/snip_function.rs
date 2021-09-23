@@ -96,7 +96,6 @@ mod tests {
         let mutation = mutator.mutate(&wasmmutate, &mut rnd, &mut info);
 
         let mutation_bytes = mutation.unwrap().finish();
-
         // If it fails, it is probably an invalid
         let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
 

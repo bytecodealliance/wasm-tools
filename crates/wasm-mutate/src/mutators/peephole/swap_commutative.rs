@@ -153,10 +153,10 @@ mod tests {
               i32.const 42
               i32.add
               i32.const 56
+              local.set 2
               local.set 3
-              local.set 4
+              local.get 2
               local.get 3
-              local.get 4
               i32.add))
         "#;
 

@@ -79,6 +79,9 @@ mod tests {
 
         let mutation_bytes = mutation.unwrap().finish();
 
+        // validate
+        let mut validator = wasmparser::Validator::new();
+        crate::validate(&mut validator, &mutation_bytes);
         // If it fails, it is probably an invalid
         let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
 

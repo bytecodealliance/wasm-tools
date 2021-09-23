@@ -91,6 +91,9 @@ mod tests {
 
         let mutation_bytes = mutation.unwrap().finish();
 
+        // validate
+        let mut validator = wasmparser::Validator::new();
+        crate::validate(&mut validator, &mutation_bytes);
         // If it fails, it is probably an invalid
         let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
         assert_eq!("(module\n  (type (;0;) (func (result i32)))\n  (func (;0;) (type 0) (result i32)\n    i32.const 42))", text)

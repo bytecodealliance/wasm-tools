@@ -390,3 +390,17 @@ impl WasmMutate {
         Err(Error::NoMutationsAplicable)
     }
 }
+
+#[cfg(test)]
+fn validate(validator: &mut wasmparser::Validator, bytes: &[u8]) {
+    let err = match validator.validate_all(bytes) {
+        Ok(()) => return,
+        Err(e) => e,
+    };
+    drop(std::fs::write("test.wasm", &bytes));
+    if let Ok(text) = wasmprinter::print_bytes(bytes) {
+        drop(std::fs::write("test.wat", &text));
+    }
+
+    panic!("wasm failed to validate {:?}", err);
+}

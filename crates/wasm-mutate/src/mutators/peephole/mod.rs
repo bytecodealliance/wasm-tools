@@ -214,7 +214,11 @@ macro_rules! match_code_mutation {
             }
         }
         modu.section(&codesection);
-        let text = wasmprinter::print_bytes(modu.finish()).unwrap();
+        let mutated = modu.finish();
+        let mut validator = wasmparser::Validator::new();
+        crate::validate(&mut validator, &mutated);
+
+        let text = wasmprinter::print_bytes(mutated).unwrap();
 
         // parse expected to use the same formatter
         let expected_bytes = &wat::parse_str($expected).unwrap();
