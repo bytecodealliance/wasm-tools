@@ -99,10 +99,10 @@ impl Mutator for PeepholeMutator {
         let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
 
         for fidx in 0..info.function_count {
+            let mut reader = sectionreader.read()?;
             if fidx == function_to_mutate {
                 codes.function(&new_function);
             } else {
-                let mut reader = sectionreader.read()?;
                 codes.raw(&code_section.data[reader.range().start..reader.range().end]);
             }
         }
