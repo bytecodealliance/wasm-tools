@@ -9,7 +9,7 @@ use wasmparser::{BinaryReaderError, CodeSectionReader, FunctionBody, Operator};
 
 use crate::{
     mutators::peephole::{
-        strength_reduction::StrengthReduction, swap_commutative::SwapCommutativeOperator,
+        strength_reduction::StrengthReduction, swap_commutative::SwapCommutativeOperator, shift_load::ShiftLoad
     },
     ModuleInfo, Result, WasmMutate,
 };
@@ -17,6 +17,7 @@ use crate::{
 use super::Mutator;
 
 pub mod strength_reduction;
+pub mod shift_load;
 pub mod swap_commutative;
 
 pub struct PeepholeMutator;
@@ -57,7 +58,7 @@ impl PeepholeMutator {
             for oidx in (opcode_to_mutate..operatorscount).chain(0..opcode_to_mutate) {
                 let mut applicable = Vec::new();
                 for peephole in &peepholes {
-                    if peephole.can_mutate(config, &operators, oidx)? {
+                    if peephole.can_mutate(config, info, &operators, oidx)? {
                         applicable.push(peephole);
                     }
                 }
@@ -98,6 +99,7 @@ impl Mutator for PeepholeMutator {
             Box::new(SwapCommutativeOperator),
             Box::new(StrengthReduction::new(false)), // Do not stress the stack
             Box::new(StrengthReduction::new(true)), // Stress the stack
+            Box::new(ShiftLoad)
         ];
         let (new_function, function_to_mutate) =
             self.random_mutate(config, rnd, info, peepholes)?;
@@ -150,6 +152,7 @@ pub(crate) trait CodeMutator {
     fn can_mutate<'a>(
         &self,
         config: &'a WasmMutate,
+        info: &crate::ModuleInfo,
         operators: &Vec<TupleType<'a>>,
         at: usize,
     ) -> Result<bool>;
@@ -202,6 +205,18 @@ macro_rules! match_code_mutation {
                 Payload::ExportSection(reader) => {
                     modu.section(&RawSection {
                         id: SectionId::Export.into(),
+                        data: &original[reader.range().start..reader.range().end],
+                    });
+                }
+                Payload::MemorySection(reader) => {
+                    modu.section(&RawSection {
+                        id: SectionId::Memory.into(),
+                        data: &original[reader.range().start..reader.range().end],
+                    });
+                }
+                Payload::DataSection(reader) => {
+                    modu.section(&RawSection {
+                        id: SectionId::Data.into(),
                         data: &original[reader.range().start..reader.range().end],
                     });
                 }

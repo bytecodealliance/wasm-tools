@@ -140,6 +140,7 @@ pub struct ModuleInfo<'a> {
     is_start_defined: bool,
     function_count: u32,
     exports_count: u32,
+    memory_count: u32,
 
     // types for inner functions
     types_map: Vec<TypeInfo>,
@@ -305,6 +306,7 @@ impl WasmMutate {
                 }
                 Payload::MemorySection(reader) => {
                     info.memories = Some(info.raw_sections.len());
+                    info.memory_count = reader.get_count();
                     info.section(SectionId::Memory.into(), reader.range(), input_wasm);
                 }
                 Payload::GlobalSection(reader) => {

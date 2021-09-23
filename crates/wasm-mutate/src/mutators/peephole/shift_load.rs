@@ -1,21 +1,31 @@
-use rand::{prelude::SmallRng, Rng};
-use wasm_encoder::{CodeSection, Function, Instruction, Module, ValType};
+use rand::{prelude::SmallRng, Rng, RngCore};
+use wasm_encoder::{CodeSection, Function, Instruction, MemArg, Module, ValType};
 use wasmparser::{CodeSectionReader, FunctionBody, Operator, SectionReader};
 
 use crate::{error::EitherType, module::*, Error, ModuleInfo, Result, WasmMutate};
 
 use super::{CodeMutator, TupleType};
 
-pub struct SwapCommutativeOperator;
+pub struct ShiftLoad;
 
-impl SwapCommutativeOperator {
-    fn is_commutative(&self, op: &Operator) -> bool {
+impl ShiftLoad {
+    fn is_load(&self, op: &Operator) -> bool {
         match op {
-              Operator::I32Add | Operator::I32Mul | Operator::I32Or | Operator::I32And | Operator::I32Xor
-            | Operator::I64Add | Operator::I64Mul | Operator::I64And | Operator::I64Or | Operator::I64Xor
-            | Operator::F32Add | Operator::F32Mul // Check for float incosistency 
-            | Operator::F64Add | Operator::F64Mul // Check for float incosistency
-            // TODO do the others
+              Operator::I32Load{..}
+              | Operator::F32Load{..}
+              | Operator::F64Load{..}
+              | Operator::I32Load16S{..}
+              | Operator::I32Load16U{..}
+              | Operator::I32Load8S{..}
+              | Operator::I32Load8U{..}
+              | Operator::I64Load{..}
+              | Operator::I64Load16S{..}
+              | Operator::I64Load16U{..}
+              | Operator::I64Load32S{..}
+              | Operator::I64Load32U{..}
+              | Operator::I64Load8S{..}
+              | Operator::I64Load8U{..}
+              // TODO add others
             => {
                 true
             }
@@ -24,35 +34,13 @@ impl SwapCommutativeOperator {
             }
         }
     }
-
-    fn get_operator_type(&self, op: &Operator) -> Result<ValType> {
-        match op {
-            Operator::I32Add
-            | Operator::I32Mul
-            | Operator::I32Or
-            | Operator::I32And
-            | Operator::I32Xor => Ok(ValType::I32),
-            Operator::I64Add
-            | Operator::I64Mul
-            | Operator::I64And
-            | Operator::I64Or
-            | Operator::I64Xor => Ok(ValType::I64),
-            Operator::F32Add | Operator::F32Mul => Ok(ValType::F32),
-            Operator::F64Add | Operator::F64Mul => Ok(ValType::F64),
-            // TODO do the others
-            _ => Err(Error::UnsupportedType(EitherType::Operator(format!(
-                "{:?}",
-                op
-            )))),
-        }
-    }
 }
 
-impl CodeMutator for SwapCommutativeOperator {
+impl CodeMutator for ShiftLoad {
     fn mutate(
         &self,
         _: &WasmMutate,
-        _: &mut SmallRng,
+        rnd: &mut SmallRng,
         operator_index: usize,
         operators: Vec<TupleType>,
         funcreader: FunctionBody,
@@ -70,25 +58,21 @@ impl CodeMutator for SwapCommutativeOperator {
             })
             .collect::<Vec<(u32, ValType)>>();
 
-        // add two temporary locals, the last two
-        let (operator, _) = &operators[operator_index];
-        current_locals.push((2, self.get_operator_type(operator)?));
-
         let mut newf = Function::new(current_locals);
         let mut idx = 0;
 
         let mut newoffset = 0;
         for (_, offset) in operators {
             newoffset = offset;
-            if idx == operator_index {
+            if idx == operator_index - 1 {
                 // Copy previous code to the body
                 let previous = &function_stream[body_range.start..offset];
                 newf.raw(previous.iter().copied());
-                // Inject new code to swap operands
-                newf.instruction(Instruction::LocalSet(local_count));
-                newf.instruction(Instruction::LocalSet(local_count + 1));
-                newf.instruction(Instruction::LocalGet(local_count));
-                newf.instruction(Instruction::LocalGet(local_count + 1));
+                // Inject new offset
+                let random_shift = rnd.gen();
+                newf.instruction(Instruction::I32Const(random_shift));
+                newf.instruction(Instruction::I32Add);
+
                 break; // this break allows to copy the remaining buffer of the current reader
             }
             idx += 1;
@@ -102,13 +86,13 @@ impl CodeMutator for SwapCommutativeOperator {
 
     fn can_mutate<'a>(
         &self,
-        _: &'a WasmMutate,
+        config: &'a WasmMutate,
         info: &crate::ModuleInfo,
         operators: &Vec<TupleType<'a>>,
         at: usize,
     ) -> Result<bool> {
         let (operator, _) = &operators[at];
-        Ok(self.is_commutative(operator))
+        Ok(info.memory_count > 0 && self.is_load(operator))
     }
 }
 
@@ -118,53 +102,45 @@ mod tests {
     use wasm_encoder::{CodeSection, FunctionSection, Module, TypeSection, ValType};
     use wasmparser::{Chunk, Parser};
 
+    use crate::mutators::peephole::shift_load::ShiftLoad;
     use crate::mutators::peephole::TupleType;
-    use crate::{
-        mutators::{
-            peephole::{CodeMutator, PeepholeMutator},
-            Mutator,
-        },
-        WasmMutate,
-    };
+    use crate::{mutators::peephole::CodeMutator, WasmMutate};
     use wasm_encoder::{RawSection, SectionId};
     use wasmparser::{Payload, SectionReader};
 
-    use super::SwapCommutativeOperator;
-
     #[test]
-    fn test_swap() {
+    fn test_shift() {
         let original = r#"
         (module
             (func (export "exported_func") (result i32) (local i32 i32)
                 i32.const 42
                 i32.const 42
                 i32.add
-                i32.const 56
-                i32.add
+                i32.load
             )
+            (memory 0)
         )
         "#;
 
         let expected = r#"
         (module
             (type (;0;) (func (result i32)))
-            (func (export "exported_func") (;0;) (type 0) (result i32)
-              (local i32 i32 i32 i32)
+            (func (;0;) (type 0) (result i32)
+              (local i32 i32)
               i32.const 42
               i32.const 42
               i32.add
-              i32.const 56
-              local.set 2
-              local.set 3
-              local.get 2
-              local.get 3
-              i32.add))
+              i32.const 1081994402
+              i32.add
+              i32.load)
+            (memory (;0;) 0)
+            (export "exported_func" (func 0)))
         "#;
 
         crate::match_code_mutation!(
             original,
             move |config: &WasmMutate, operators, mut reader, range, function_stream: &[u8]| {
-                let mutator = SwapCommutativeOperator;
+                let mutator = ShiftLoad;
                 let mut rnd = SmallRng::seed_from_u64(0);
 
                 mutator

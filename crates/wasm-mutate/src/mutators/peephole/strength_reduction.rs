@@ -116,7 +116,8 @@ impl CodeMutator for StrengthReduction {
 
     fn can_mutate<'a>(
         &self,
-        _: &'a WasmMutate,
+        config: &'a WasmMutate,
+        info: &crate::ModuleInfo,
         operators: &Vec<TupleType<'a>>,
         at: usize,
     ) -> Result<bool> {
