@@ -85,10 +85,10 @@ impl CodeMutator for SwapCommutativeOperator {
                 let previous = &function_stream[body_range.start..offset];
                 newf.raw(previous.iter().copied());
                 // Inject new code to swap operands
+                newf.instruction(Instruction::LocalSet(local_count));
                 newf.instruction(Instruction::LocalSet(local_count + 1));
-                newf.instruction(Instruction::LocalSet(local_count + 2));
+                newf.instruction(Instruction::LocalGet(local_count));
                 newf.instruction(Instruction::LocalGet(local_count + 1));
-                newf.instruction(Instruction::LocalGet(local_count + 2));
                 break; // this break allows to copy the remaining buffer of the current reader
             }
             idx += 1;
