@@ -6,9 +6,16 @@ use crate::{error::EitherType, module::*, Error, ModuleInfo, Result, WasmMutate}
 
 use super::{CodeMutator, TupleType};
 
-pub struct StrengthReduction;
+pub struct StrengthReduction {
+    // If true, place all x constants first and then perform the same x multiplications
+    stress_stack: bool,
+}
 
 impl StrengthReduction {
+    pub fn new(stress_stack: bool) -> Self {
+        StrengthReduction { stress_stack }
+    }
+
     fn is_shl(&self, op: &Operator) -> bool {
         match op {
             Operator::I32Shl | Operator::I64Shl => true,
@@ -63,17 +70,35 @@ impl CodeMutator for StrengthReduction {
                     Operator::I32Const { value } => {
                         (0..value).for_each(|_| {
                             newf.instruction(Instruction::I32Const(2));
-                            newf.instruction(Instruction::I32Mul);
+                            if !self.stress_stack {
+                                newf.instruction(Instruction::I32Mul);
+                            }
                         });
+                        if self.stress_stack {
+                            (0..value).for_each(|_| {
+                                newf.instruction(Instruction::I32Mul);
+                            })
+                        }
                     }
                     Operator::I64Const { value } => {
                         (0..value).for_each(|_| {
                             newf.instruction(Instruction::I64Const(2));
-                            newf.instruction(Instruction::I64Mul);
+                            if !self.stress_stack {
+                                newf.instruction(Instruction::I64Mul);
+                            }
                         });
+                        if self.stress_stack {
+                            (0..value).for_each(|_| {
+                                newf.instruction(Instruction::I64Mul);
+                            })
+                        }
                     }
-                    _ => return Err(Error::UnsupportedType(EitherType::Operator(format!("{:?}", operator))))
-
+                    _ => {
+                        return Err(Error::UnsupportedType(EitherType::Operator(format!(
+                            "{:?}",
+                            operator
+                        ))))
+                    }
                 }
             }
             if idx == operator_index + 1 {
@@ -164,7 +189,9 @@ mod tests {
         crate::match_code_mutation!(
             original,
             move |config: &WasmMutate, operators, mut reader, range, function_stream: &[u8]| {
-                let mutator = StrengthReduction;
+                let mutator = StrengthReduction {
+                    stress_stack: false,
+                };
                 let mut rnd = SmallRng::seed_from_u64(0);
 
                 mutator
@@ -206,19 +233,19 @@ mod tests {
               i64.const 42
               i64.add
               i64.const 2
-              i64.mul
+              i64.const 2
+              i64.const 2
               i64.const 2
               i64.mul
-              i64.const 2
               i64.mul
-              i64.const 2
+              i64.mul
               i64.mul))
         "#;
 
         crate::match_code_mutation!(
             original,
             move |config: &WasmMutate, operators, mut reader, range, function_stream: &[u8]| {
-                let mutator = StrengthReduction;
+                let mutator = StrengthReduction { stress_stack: true };
                 let mut rnd = SmallRng::seed_from_u64(0);
 
                 mutator
