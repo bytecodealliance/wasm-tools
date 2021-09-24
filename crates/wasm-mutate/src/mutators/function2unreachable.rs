@@ -51,40 +51,28 @@ mod tests {
 
     #[test]
     fn test_code_unreachable_mutator() {
-        let wat = r#"
-        (module
-            (func (result i64)
-                i64.const 42
+        crate::match_mutation!(
+            r#"
+            (module
+                (func (result i64)
+                    i64.const 42
+                )
+                (func (result i64)
+                    i64.const 42
+                )
+                (func (export "exported_func") (result i32)
+                    i32.const 42
+                )
             )
-            (func (result i64)
-                i64.const 42
-            )
-            (func (export "exported_func") (result i32)
-                i32.const 42
-            )
-        )
-        "#;
-        let wasmmutate = WasmMutate::default();
-        let original = &wat::parse_str(wat).unwrap();
-
-        let mutator = SetFunction2Unreachable {};
-
-        let mut info = wasmmutate.get_module_info(original).unwrap();
-        let can_mutate = mutator.can_mutate(&wasmmutate, &info).unwrap();
-
-        assert_eq!(can_mutate, true);
-
-        let mut rnd = SmallRng::seed_from_u64(0);
-        let mutation = mutator.mutate(&wasmmutate, &mut rnd, &mut info);
-
-        let mutation_bytes = mutation.unwrap().finish();
-
-        // validate
-        let mut validator = wasmparser::Validator::new();
-        crate::validate(&mut validator, &mutation_bytes);
-        // If it fails, it is probably an invalid
-        let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
-
-        assert_eq!("(module\n  (type (;0;) (func (result i64)))\n  (type (;1;) (func (result i32)))\n  (func (;0;) (type 0) (result i64)\n    i64.const 42)\n  (func (;1;) (type 0) (result i64)\n    i64.const 42)\n  (func (;2;) (type 1) (result i32)\n    unreachable)\n  (export \"exported_func\" (func 2)))", text)
+        "#,
+            SetFunction2Unreachable,
+            r#"(module
+              (type (;0;) (func (result i64)))
+              (type (;1;) (func (result i32)))
+              (func (;0;) (type 0) (result i64)
+                  i64.const 42)  (func (;1;) (type 0) (result i64)
+                  i64.const 42)  (func (;2;) (type 1) (result i32)    unreachable)
+                (export "exported_func" (func 2)))"#
+        );
     }
 }
