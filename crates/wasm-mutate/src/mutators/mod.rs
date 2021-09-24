@@ -54,8 +54,6 @@ macro_rules! match_mutation {
         // If it fails, it is probably an invalid
         // reformatting expected
         let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
-        println!("{}", text);
-
         let expected = &wat::parse_str($expected).unwrap();
         let expected_text = wasmprinter::print_bytes(expected).unwrap();
 
