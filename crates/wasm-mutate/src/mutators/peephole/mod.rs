@@ -6,11 +6,14 @@ use rand::{
     prelude::{IteratorRandom, SliceRandom, SmallRng},
     Rng,
 };
-use std::{cmp::Ordering, collections::HashMap, hash::Hash};
+use std::{cmp::Ordering, collections::HashMap, hash::Hash, num::Wrapping};
 use wasm_encoder::{CodeSection, Function, Instruction, Module, ValType};
 use wasmparser::{BinaryReaderError, CodeSectionReader, FunctionBody, Operator};
 
-use crate::{module::map_type, ModuleInfo, Result, WasmMutate};
+use crate::{
+    module::{map_operator, map_type},
+    ModuleInfo, Result, WasmMutate,
+};
 
 use super::Mutator;
 
@@ -39,7 +42,10 @@ define_language! {
         // "i32.clz" = I32Clz(Id),
         // "i32.ctz" = I32Ctz(Id),
         "i32.popcnt" = I32Popcnt(Id),
+
         "rand" = Rand, // This operation represent a random number, if its used, every time is should represent the same random number
+        // Custom mutators
+        "unfold" = Unfold([Id; 1]),
         I32Const(i32),
 
         // NB: must be last since variants are parsed in order.
@@ -54,10 +60,7 @@ impl Analysis<Lang> for PeepholeMutationAnalysis {
     type Data = Option<i32>;
 
     fn make(egraph: &EGraph<Lang, Self>, enode: &Lang) -> Self::Data {
-        let data = |i: &Id| egraph[*i].data;
-        match enode {
-            _ => None,
-        }
+        None
     }
 
     fn merge(&self, to: &mut Self::Data, from: Self::Data) -> bool {
@@ -173,16 +176,17 @@ impl PeepholeMutator {
     }
 
     // Map operator to Lang expr and the corresponding instruction
+    // This method should return the expression (egg language) expected from the operator
     fn operator2term(
         &self,
         operators: &Vec<TupleType>,
         at: usize,
-    ) -> Option<(&str, HashMap<&str, Instruction>)> {
+    ) -> Option<(&str, HashMap<&str, Vec<Operator>>)> {
         let (op, _) = &operators[at];
         match op {
             Operator::I32Const { value } => Some((
                 "?x",
-                [("?x", Instruction::I32Const(*value))]
+                [("?x", vec![Operator::I32Const { value: *value }])]
                     .iter()
                     .cloned()
                     .collect(),
@@ -214,7 +218,7 @@ impl PeepholeMutator {
         operands: Vec<Vec<Id>>,
         root: Id,
         newfunc: &mut Function,
-        symbolmap: HashMap<&str, Instruction>,
+        symbolmap: HashMap<&str, Vec<Operator>>,
     ) -> Result<()> {
         //let mut expr = RecExpr::default();
 
@@ -237,11 +241,18 @@ impl PeepholeMutator {
                 Event::Enter => {
                     let start_children = to_visit.len();
 
-                    for child in operands[usize::from(node)].iter().copied() {
-                        to_visit.push((Event::Enter, child));
-                        to_visit.push((Event::Exit, child));
-                    }
+                    // Check, Not necesarilly, custom operations could do something different
+                    let root = id_to_node[usize::from(node)];
 
+                    if let Lang::Unfold(_) = root {
+                        // Avoid to enter here
+                        println!("Avoid to enter here")
+                    } else {
+                        for child in operands[usize::from(node)].iter().copied() {
+                            to_visit.push((Event::Enter, child));
+                            to_visit.push((Event::Exit, child));
+                        }
+                    }
                     // Reverse to make it so that we visit children in order
                     // (e.g. operands are visited in order).
                     to_visit[start_children..].reverse();
@@ -249,18 +260,56 @@ impl PeepholeMutator {
                 Event::Exit => {
                     let operand = id_to_node[usize::from(node)];
                     let instruction = match operand {
-                        Lang::Symbol(s1) => symbolmap[&s1.as_str()], // Map symbol against real value
-                        Lang::Rand => Instruction::I32Const(random_pool), // The same random always ?
-                        // Add custom mapping above, otherwise it will pass to the default mapping
-                        _ => PeepholeMutator::lang2wasm(operand)?,
-                    };
-                    instructions.push(instruction);
+                        Lang::Symbol(s1) => {
+                            // If a pure symbol was reached, then do an automatic mapping between the wasmparser and wasm-encoder
+                            symbolmap[&s1.as_str()]
+                                .clone()
+                                .iter()
+                                .map(|o| map_operator(o).unwrap())
+                                .collect::<Vec<Instruction>>()
+                        } // Map symbol against real value
+                        Lang::Rand => vec![Instruction::I32Const(random_pool)], // The same random always ?
+                        Lang::Unfold(ops) => {
+                            // TODO, Replace this with custom functions like previous mutators were
+                            println!("Custom mutator unfold");
+                            // get operand...expecting a constant
+                            let operands = operands[usize::from(node)].clone();
 
-                    //let old_entry = node_to_id.insert(node, sub_expr_id);
-                    //assert!(old_entry.is_none());
+                            assert_eq!(1, operands.len());
+
+                            let symbol = id_to_node[usize::from(operands[0])];
+
+                            println!("{:?} {:?}", operands, symbol);
+
+                            if let Lang::Symbol(s) = symbol {
+                                let operators = symbolmap[&s.as_str()].clone();
+
+                                assert_eq!(operators.len(), 1);
+
+                                let i32const = &operators[0];
+                                if let Operator::I32Const { value } = i32const {
+                                    let r: i32 = rnd.gen();
+                                    vec![
+                                        Instruction::I32Const(r),
+                                        Instruction::I32Const((Wrapping(*value) - Wrapping(r)).0),
+                                        Instruction::I32Add,
+                                    ]
+                                } else {
+                                    vec![]
+                                }
+                            } else {
+                                vec![]
+                            }
+                        }
+                        // Add custom mapping above, otherwise it will pass to the default mapping
+                        _ => vec![PeepholeMutator::lang2wasm(operand)?],
+                    };
+                    instructions.extend(instruction);
                 }
             }
         }
+
+        println!("{:?}", instructions);
 
         for &instruction in &instructions {
             newfunc.instruction(instruction);
@@ -275,7 +324,7 @@ impl PeepholeMutator {
         costs: &HashMap<Id, (usize, usize)>,
         egraph: &EGraph<Lang, PeepholeMutationAnalysis>,
         newfunc: &mut Function,
-        symbolmap: HashMap<&str, Instruction>,
+        symbolmap: HashMap<&str, Vec<Operator>>,
     ) -> Result<()> {
         // A map from a node's id to its actual node data.
         let mut id_to_node = vec![];
@@ -331,8 +380,12 @@ impl PeepholeMutator {
         info: &mut crate::ModuleInfo,
     ) -> Result<MutationContext> {
         // Add rewriting rules for egg
-        let rules: &[Rewrite<Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("unfold";  "?x" => "(i32.add (i32.sub ?x rand) rand)")];
+        let rules: &[Rewrite<Lang, PeepholeMutationAnalysis>] = &[
+            rewrite!("unfold-1";  "?x" => "(i32.add (i32.sub ?x rand) rand)"),
+            rewrite!("unfold-2";  "?x" => "(unfold ?x)"), // Use a custom instruction-mutator for this
+                                                          //rewrite!("idempotent-1";  "?x" => "(i32.or ?x ?x)"),
+                                                          //rewrite!("idempotent-2";  "?x" => "(i32.and ?x ?x)"),
+        ];
 
         let start = "?x".parse().unwrap();
 
@@ -607,6 +660,10 @@ mod tests {
         let mutated = mutator.mutate(&wasmmutate, &mut rnd, &mut info).unwrap();
 
         let mut validator = wasmparser::Validator::new();
-        crate::validate(&mut validator, &mutated.finish());
+        let mutated_bytes = &mutated.finish();
+        crate::validate(&mut validator, mutated_bytes);
+        let text = wasmprinter::print_bytes(mutated_bytes).unwrap();
+
+        println!("{}", text)
     }
 }

@@ -74,3 +74,12 @@ pub fn map_type(tpe: Type) -> super::Result<ValType> {
         _ => Err(super::Error::UnsupportedType(EitherType::Type(tpe))),
     }
 }
+
+pub fn map_operator<'a>(operator: &Operator<'a>) -> super::Result<Instruction<'a>> {
+    match operator {
+        Operator::I32Const { value } => Ok(Instruction::I32Const(*value)),
+        _ => Err(super::Error::UnsupportedType(EitherType::Operator(
+            format!("{:?}", operator),
+        ))), // TODO, add the others
+    }
+}
