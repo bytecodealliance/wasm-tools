@@ -212,7 +212,7 @@ impl PeepholeMutator {
                                         "?x",
                                         Range {
                                             start: at - 2,
-                                            end: at - 2,
+                                            end: at - 1,
                                         },
                                     )]
                                     .iter()
@@ -299,8 +299,10 @@ impl PeepholeMutator {
                         Lang::Symbol(s1) => {
                             // If a pure symbol was reached, then do an automatic mapping between the wasmparser and wasm-encoder
                             // Replace this by a copy of a chunk of the initial wasm
+
+                            // TODO, implement Unfold 
                             let operators_range = symbolmap[&s1.as_str()].clone();
-                            let operators = &operators[operators_range.start..operators_range.end + 2/* take to the next operator to save the offset */];
+                            let operators = &operators[operators_range.start..operators_range.end + 1/* take to the next operator to save the offset */];
 
                             println!("Writing symbol {:?} {:?}", s1, operators);
 
@@ -320,12 +322,13 @@ impl PeepholeMutator {
                         } // Map symbol against real value
                         Lang::Rand => vec![Instruction::I32Const(random_pool)], // The same random always ?
                         Lang::Unfold(ops) => {
+                            assert_eq!(1, ops.len());
+
                             // TODO, Replace this with custom functions like previous mutators were
                             println!("Custom mutator unfold");
                             // get operand...expecting a constant
                             let operands = operands[usize::from(node)].clone();
 
-                            assert_eq!(1, operands.len());
 
                             let symbol = id_to_node[usize::from(operands[0])];
 
@@ -386,7 +389,7 @@ impl PeepholeMutator {
         // A map from a parent node id to its child operand node ids.
         let mut operands = vec![];
 
-        let root_idx = rnd.gen_range(0, egraph[root].nodes.len());
+        let root_idx = 0; //rnd.gen_range(0, egraph[root].nodes.len());
 
         id_to_node.push(&egraph[root].nodes[root_idx]);
         operands.push(vec![]);
@@ -440,8 +443,8 @@ impl PeepholeMutator {
     ) -> Result<MutationContext> {
         // Add rewriting rules for egg
         let rules: &[Rewrite<Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("unfold-1";  "?x" => "(i32.add rand (i32.sub rand ?x))"),
-            rewrite!("unfold-2";  "?x" => "(unfold ?x)"), // Use a custom instruction-mutator for this
+            //rewrite!("unfold-1";  "?x" => "(i32.add rand (i32.sub rand ?x))"),
+            //rewrite!("unfold-2";  "?x" => "(unfold ?x)"), // Use a custom instruction-mutator for this
             rewrite!("strength-undo";  "(i32.shl ?x 1)" => "(i32.mul ?x ?x)"),
             //rewrite!("idempotent-1";  "?x" => "(i32.or ?x ?x)"),
             //rewrite!("idempotent-2";  "?x" => "(i32.and ?x ?x)"),
@@ -487,7 +490,7 @@ impl PeepholeMutator {
                     let matches = pattern.search(&egraph);
                     // is empty does not work since it looks for any match in the subtrees
                     if !matches.is_empty() {
-                        println!("{:?} {:?} {:?}", eterm, symbolmap, matches);
+                        println!("{:?} {:?}", eterm, symbolmap);
 
                         // Apply random
                         let random_root_idx = 0; //always the first match? hack
