@@ -98,7 +98,7 @@ mod tests {
     fn test_rename_export_mutator() {
         // From https://developer.mozilla.org/en-US/docs/WebAssembly/Text_format_to_wasm
 
-        crate::match_mutation!(
+        crate::mutators::match_mutation(
             r#"
         (module
             (func (export "exported_func") (result i32)
@@ -106,12 +106,12 @@ mod tests {
             )
         )
         "#,
-            RenameExportMutator { max_name_size: 2 }, // the string is empty,
+            &RenameExportMutator { max_name_size: 2 }, // the string is empty,
             r#"(module
             (type (;0;) (func (result i32)))
             (func (;0;) (type 0) (result i32)
             i32.const 42)
-        (export "" (func 0)))"#
+        (export "" (func 0)))"#,
         );
     }
 }

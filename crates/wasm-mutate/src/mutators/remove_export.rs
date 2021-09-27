@@ -67,7 +67,7 @@ mod tests {
 
     #[test]
     fn test_remove_export_mutator() {
-        crate::match_mutation!(
+        crate::mutators::match_mutation(
             r#"
             (module
                 (func (export "exported_func") (result i32)
@@ -75,12 +75,12 @@ mod tests {
                 )
             )
             "#,
-            RemoveExportMutator,
+            &RemoveExportMutator,
             r#"
                 (module  (type (;0;)
                  (func (result i32)))
                  (func (;0;) (type 0) (result i32)
-                    i32.const 42))"#
+                    i32.const 42))"#,
         );
     }
 }

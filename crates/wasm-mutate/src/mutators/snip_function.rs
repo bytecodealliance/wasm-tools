@@ -72,28 +72,22 @@ mod tests {
 
     #[test]
     fn test_code_snip_mutator() {
-        crate::match_mutation!(
+        crate::mutators::match_mutation(
             r#"
         (module
             (func (result i64)
                 i64.const 42
             )
-            (func (export "exported_func") (result i32)
-                i32.const 42
-            )
         )
         "#,
-            SnipMutator,
+            &SnipMutator,
             r#"
         (module
             (type (;0;) (func (result i64)))
-            (type (;1;) (func (result i32)))
             (func (;0;) (type 0) (result i64)
               i64.const 0)
-            (func (;1;) (type 1) (result i32)
-              i64.const 42)
-            (export "exported_func" (func 1)))
-        "#
+        )
+        "#,
         );
     }
 }

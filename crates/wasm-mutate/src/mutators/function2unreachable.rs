@@ -51,7 +51,7 @@ mod tests {
 
     #[test]
     fn test_code_unreachable_mutator() {
-        crate::match_mutation!(
+        crate::mutators::match_mutation(
             r#"
             (module
                 (func (result i64)
@@ -65,14 +65,14 @@ mod tests {
                 )
             )
         "#,
-            SetFunction2Unreachable,
+            &SetFunction2Unreachable,
             r#"(module
               (type (;0;) (func (result i64)))
               (type (;1;) (func (result i32)))
               (func (;0;) (type 0) (result i64)
                   i64.const 42)  (func (;1;) (type 0) (result i64)
                   i64.const 42)  (func (;2;) (type 1) (result i32)    unreachable)
-                (export "exported_func" (func 2)))"#
+                (export "exported_func" (func 2)))"#,
         );
     }
 }
