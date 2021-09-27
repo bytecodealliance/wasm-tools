@@ -8,7 +8,7 @@ use rand::{
 };
 use std::{cmp::Ordering, collections::HashMap, hash::Hash, num::Wrapping};
 use wasm_encoder::{CodeSection, Function, Instruction, Module, ValType};
-use wasmparser::{BinaryReaderError, CodeSectionReader, FunctionBody, Operator};
+use wasmparser::{BinaryReaderError, CodeSectionReader, FunctionBody, Operator, Range};
 
 use crate::{
     module::{map_operator, map_type},
@@ -181,15 +181,21 @@ impl PeepholeMutator {
         &self,
         operators: &Vec<TupleType>,
         at: usize,
-    ) -> Option<(&str, HashMap<&str, Vec<Operator>>)> {
+    ) -> Option<(&str, HashMap<&str, Range>)> {
         let (op, _) = &operators[at];
         match op {
             Operator::I32Const { value } => Some((
                 "?x",
-                [("?x", vec![Operator::I32Const { value: *value }])]
-                    .iter()
-                    .cloned()
-                    .collect(),
+                [(
+                    "?x",
+                    Range {
+                        start: at,
+                        end: at + 1,
+                    },
+                )]
+                .iter()
+                .cloned()
+                .collect(),
             )), // constant term,
             _ => None,
         }
@@ -213,12 +219,14 @@ impl PeepholeMutator {
 
     fn write2wasm(
         &self,
+        info: &ModuleInfo,
         rnd: &mut rand::prelude::SmallRng,
         id_to_node: Vec<&Lang>,
         operands: Vec<Vec<Id>>,
         root: Id,
+        operators: &Vec<TupleType>,
         newfunc: &mut Function,
-        symbolmap: HashMap<&str, Vec<Operator>>,
+        symbolmap: HashMap<&str, Range>,
     ) -> Result<()> {
         //let mut expr = RecExpr::default();
 
@@ -262,12 +270,21 @@ impl PeepholeMutator {
                     let instruction = match operand {
                         Lang::Symbol(s1) => {
                             // If a pure symbol was reached, then do an automatic mapping between the wasmparser and wasm-encoder
-                            // Later replace this by a copy of a chunk of the initial wasm
-                            symbolmap[&s1.as_str()]
-                                .clone()
-                                .iter()
-                                .map(|o| map_operator(o).unwrap())
-                                .collect::<Vec<Instruction>>()
+                            // Replace this by a copy of a chunk of the initial wasm
+                            let operators_range = symbolmap[&s1.as_str()].clone();
+                            let operators = &operators[operators_range.start..operators_range.end + 1 /* take to the next operator to save the offset */];
+
+                            println!("{:?}", operators);
+
+                            // Copy exactly the same bnytes from the original wasm
+                            let raw_range = (
+                                operators[0].1, // offset
+                                operators[operators.len() - 1].1,
+                            );
+
+                            let raw_data = &info.get_code_section().data[raw_range.0..raw_range.1];
+                            newfunc.raw(raw_data.iter().copied());
+                            vec![]
                         } // Map symbol against real value
                         Lang::Rand => vec![Instruction::I32Const(random_pool)], // The same random always ?
                         Lang::Unfold(ops) => {
@@ -283,11 +300,12 @@ impl PeepholeMutator {
                             println!("{:?} {:?}", operands, symbol);
 
                             if let Lang::Symbol(s) = symbol {
-                                let operators = symbolmap[&s.as_str()].clone();
-
+                                let operators_range = symbolmap[&s.as_str()].clone();
+                                let operators =
+                                    &operators[operators_range.start..operators_range.end];
                                 assert_eq!(operators.len(), 1);
 
-                                let i32const = &operators[0];
+                                let (i32const, _) = &operators[0];
                                 if let Operator::I32Const { value } = i32const {
                                     let r: i32 = rnd.gen();
                                     vec![
@@ -320,12 +338,14 @@ impl PeepholeMutator {
 
     fn generate_random_tree(
         &self,
+        info: &ModuleInfo,
         rnd: &mut rand::prelude::SmallRng,
         root: Id,
         costs: &HashMap<Id, (usize, usize)>,
         egraph: &EGraph<Lang, PeepholeMutationAnalysis>,
+        operators: &Vec<TupleType>,
         newfunc: &mut Function,
-        symbolmap: HashMap<&str, Vec<Operator>>,
+        symbolmap: HashMap<&str, Range>,
     ) -> Result<()> {
         // A map from a node's id to its actual node data.
         let mut id_to_node = vec![];
@@ -370,7 +390,9 @@ impl PeepholeMutator {
             );
         }
 
-        self.write2wasm(rnd, id_to_node, operands, root, newfunc, symbolmap)?;
+        self.write2wasm(
+            info, rnd, id_to_node, operands, root, operators, newfunc, symbolmap,
+        )?;
         Ok(())
     }
 
@@ -382,7 +404,7 @@ impl PeepholeMutator {
     ) -> Result<MutationContext> {
         // Add rewriting rules for egg
         let rules: &[Rewrite<Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("unfold-1";  "?x" => "(i32.add (i32.sub ?x rand) rand)"),
+            rewrite!("unfold-1";  "?x" => "(i32.add rand (i32.sub rand ?x))"),
             rewrite!("unfold-2";  "?x" => "(unfold ?x)"), // Use a custom instruction-mutator for this
                                                           //rewrite!("idempotent-1";  "?x" => "(i32.or ?x ?x)"),
                                                           //rewrite!("idempotent-2";  "?x" => "(i32.and ?x ?x)"),
@@ -453,10 +475,12 @@ impl PeepholeMutator {
                         let eclass = random_root.eclass;
 
                         self.generate_random_tree(
+                            &info,
                             rnd,
                             eclass,
                             &costs,
                             &egraph,
+                            &operators,
                             &mut newfunc,
                             symbolmap,
                         )?;
