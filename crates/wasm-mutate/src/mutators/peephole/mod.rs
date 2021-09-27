@@ -97,7 +97,7 @@ impl Mutator for PeepholeMutator {
         let peepholes: Vec<Box<dyn CodeMutator>> = vec![
             Box::new(SwapCommutativeOperator),
             Box::new(StrengthReduction::new(false)), // Do not stress the stack
-            Box::new(StrengthReduction::new(true)), // Stress the stack
+            Box::new(StrengthReduction::new(true)),  // Stress the stack
         ];
         let (new_function, function_to_mutate) =
             self.random_mutate(config, rnd, info, peepholes)?;

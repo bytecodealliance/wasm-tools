@@ -31,3 +31,34 @@ pub mod peephole;
 pub mod remove_export;
 pub mod rename_export;
 pub mod snip_function;
+
+// macro for mutation assesment
+#[cfg(test)]
+#[macro_export]
+pub fn match_mutation(original: &str, mutator: &dyn Mutator, expected: &str) {
+    use rand::SeedableRng;
+
+    let wasmmutate = WasmMutate::default();
+    let original = &wat::parse_str(original).unwrap();
+
+    let mut info = wasmmutate.get_module_info(original).unwrap();
+    let can_mutate = mutator.can_mutate(&wasmmutate, &info).unwrap();
+
+    assert_eq!(can_mutate, true);
+
+    let mut rnd = SmallRng::seed_from_u64(0);
+    let mutation = mutator.mutate(&wasmmutate, &mut rnd, &mut info);
+
+    let mutation_bytes = mutation.unwrap().finish();
+
+    let mut validator = wasmparser::Validator::new();
+    crate::validate(&mut validator, &mutation_bytes);
+
+    // If it fails, it is probably an invalid
+    // reformatting expected
+    let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
+    let expected = &wat::parse_str(expected).unwrap();
+    let expected_text = wasmprinter::print_bytes(expected).unwrap();
+
+    assert_eq!(text, expected_text);
+}

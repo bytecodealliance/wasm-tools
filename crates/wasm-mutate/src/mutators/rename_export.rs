@@ -97,34 +97,21 @@ mod tests {
     #[test]
     fn test_rename_export_mutator() {
         // From https://developer.mozilla.org/en-US/docs/WebAssembly/Text_format_to_wasm
-        let wat = r#"
+
+        crate::mutators::match_mutation(
+            r#"
         (module
             (func (export "exported_func") (result i32)
                 i32.const 42
             )
         )
-        "#;
-
-        let wasmmutate = WasmMutate::default();
-        let original = &wat::parse_str(wat).unwrap();
-
-        let mutator = RenameExportMutator { max_name_size: 2 }; // the string is empty
-
-        let mut info = wasmmutate.get_module_info(original).unwrap();
-        let can_mutate = mutator.can_mutate(&wasmmutate, &info).unwrap();
-
-        assert_eq!(can_mutate, true);
-
-        let mut rnd = SmallRng::seed_from_u64(0);
-        let mutation = mutator.mutate(&wasmmutate, &mut rnd, &mut info);
-
-        let mutation_bytes = mutation.unwrap().finish();
-
-        // validate
-        let mut validator = wasmparser::Validator::new();
-        crate::validate(&mut validator, &mutation_bytes);
-        // If it fails, it is probably an invalid
-        let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
-        assert_eq!("(module\n  (type (;0;) (func (result i32)))\n  (func (;0;) (type 0) (result i32)\n    i32.const 42)\n  (export \"\" (func 0)))", text)
+        "#,
+            &RenameExportMutator { max_name_size: 2 }, // the string is empty,
+            r#"(module
+            (type (;0;) (func (result i32)))
+            (func (;0;) (type 0) (result i32)
+            i32.const 42)
+        (export "" (func 0)))"#,
+        );
     }
 }
