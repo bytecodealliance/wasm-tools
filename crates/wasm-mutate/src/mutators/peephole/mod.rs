@@ -262,6 +262,7 @@ impl PeepholeMutator {
                     let instruction = match operand {
                         Lang::Symbol(s1) => {
                             // If a pure symbol was reached, then do an automatic mapping between the wasmparser and wasm-encoder
+                            // Later replace this by a copy of a chunk of the initial wasm
                             symbolmap[&s1.as_str()]
                                 .clone()
                                 .iter()
