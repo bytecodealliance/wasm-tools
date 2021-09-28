@@ -116,29 +116,32 @@ impl PeepholeMutator {
         newfunc: &mut Function,
         symbolmap: &HashMap<&str, Range>,
         random_pool: Option<i32>,
-    ) -> Result<()> {
+    ) -> Result<Option<Range>> {
         let root = id_to_node[current];
 
-        let new_random = if let Lang::Unfold(_) = root {
+        let new_random = if let Lang::Rand = root {
             Some(rnd.gen())
         } else {
             random_pool
         };
 
         // Write operands first, stack way
-        for &idx in operands[current].iter() {
-            self.write2wasm(
-                info,
-                rnd,
-                usize::from(idx),
-                id_to_node,
-                operands,
-                operators,
-                newfunc,
-                symbolmap,
-                new_random,
-            )?
-        }
+        let operand_cfg = operands[current]
+            .iter()
+            .map(|&idx| {
+                self.write2wasm(
+                    info,
+                    rnd,
+                    usize::from(idx),
+                    id_to_node,
+                    operands,
+                    operators,
+                    newfunc,
+                    symbolmap,
+                    new_random,
+                )
+            })
+            .collect::<Result<Vec<Option<Range>>>>()?;
 
         match root {
             Lang::I32Add(_) => {
@@ -182,25 +185,26 @@ impl PeepholeMutator {
             }
             Lang::Unfold(_) => {
                 // Get CFG value and check, if its a constant, do the unfolding
+                // This will fail if the operand was not a Symbol
+                assert_eq!(operand_cfg.len(), 1);
 
-                /*
-                let operators =
-                                    &operators[operators_range.start..operators_range.end];
-                                assert_eq!(operators.len(), 1);
+                let operators_range = operand_cfg[0].unwrap();
+                let operators = &operators[operators_range.start..operators_range.end];
+                assert_eq!(operators.len(), 1);
+                let (i32const, _) = &operators[0];
 
-                                let (i32const, _) = &operators[0];
-                                if let Operator::I32Const { value } = i32const {
-                                    let r: i32 = rnd.gen();
-                                    vec![
-                                        Instruction::I32Const(r),
-                                        Instruction::I32Const((Wrapping(*value) - Wrapping(r)).0),
-                                        Instruction::I32Add,
-                                    ]
-                                } else {
-                                    panic!("{:?}", &operators[0]);
-                                    vec![]
-                                }
-                */
+                if let Operator::I32Const { value } = i32const {
+                    let r: i32 = rnd.gen();
+
+                    // Drop previous
+                    newfunc.instruction(Instruction::Drop);
+
+                    newfunc.instruction(Instruction::I32Const(r));
+                    newfunc.instruction(Instruction::I32Const((Wrapping(*value) - Wrapping(r)).0));
+                    newfunc.instruction(Instruction::I32Add);
+                }
+
+                println!("{:?}", newfunc);
             }
             Lang::I32Const(v) => {
                 newfunc.instruction(Instruction::I32Const(*v));
@@ -223,10 +227,12 @@ impl PeepholeMutator {
                 println!("raw data {:?}", raw_data);
 
                 newfunc.raw(raw_data.iter().copied());
+
+                return Ok(Some(operators_range));
             }
         }
 
-        Ok(())
+        Ok(None)
     }
 
     fn copy_locals(&self, reader: FunctionBody) -> Result<Function> {
@@ -313,6 +319,8 @@ impl PeepholeMutator {
                         &code_section.data[operatorsrange.start..operatorsrange.start + start_at];
                     newfunc.raw(previous.iter().copied());
 
+                    // Pool for rand instruction
+                    let i: i32 = rnd.gen();
                     // Translate lang expr to wasm
                     self.write2wasm(
                         info,
@@ -323,7 +331,7 @@ impl PeepholeMutator {
                         &operators,
                         &mut newfunc,
                         &symbolmap,
-                        None,
+                        Some(i),
                     )?;
 
                     let (_, offset) = operators[oidx + 1];
@@ -568,6 +576,8 @@ mod tests {
                 (func (;0;) (type 0) (result i32)
                   (local i32 i32)
                   i32.const 56
+                  i32.const 1
+                  drop
                   i32.const 991484282
                   i32.const -991484281
                   i32.add
