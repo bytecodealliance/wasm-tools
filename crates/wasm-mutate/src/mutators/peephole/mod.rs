@@ -109,87 +109,82 @@ impl PeepholeMutator {
         &self,
         info: &ModuleInfo,
         rnd: &mut rand::prelude::SmallRng,
-        id_to_node: Vec<&Lang>,
-        operands: Vec<Vec<Id>>,
+        current: usize,
+        id_to_node: &Vec<&Lang>,
+        operands: &Vec<Vec<Id>>,
         operators: &Vec<TupleType>,
         newfunc: &mut Function,
-        symbolmap: HashMap<&str, Range>,
+        symbolmap: &HashMap<&str, Range>,
+        random_pool: Option<i32>,
     ) -> Result<()> {
-        enum Event {
-            Enter,
-            Exit,
+        let root = id_to_node[current];
+
+        let new_random = if let Lang::Unfold(_) = root {
+            Some(rnd.gen())
+        } else {
+            random_pool
+        };
+
+        // Write operands first, stack way
+        for &idx in operands[current].iter() {
+            self.write2wasm(
+                info,
+                rnd,
+                usize::from(idx),
+                id_to_node,
+                operands,
+                operators,
+                newfunc,
+                symbolmap,
+                new_random,
+            )?
         }
-        let root = Id::from(0); //id_to_node[0];
 
-        let mut to_visit = vec![(Event::Exit, root), (Event::Enter, root)];
-        let random_pool: i32 = rnd.gen();
-        // Lets save all of them for now for sake of debugging, but each instruction can be written as soon as they can
-        let mut instructions: Vec<Instruction> = Vec::new();
-        while let Some((event, node)) = to_visit.pop() {
-            match event {
-                Event::Enter => {
-                    let start_children = to_visit.len();
-
-                    // Check, Not necesarilly, custom operations could do something different
-                    let root = id_to_node[usize::from(node)];
-
-                    println!("{:?}", root);
-
-                    if let Lang::Unfold(_) = root {
-                        // Avoid to enter here
-                        println!("Avoid to enter here")
-                    } else {
-                        for child in operands[usize::from(node)].iter().copied() {
-                            to_visit.push((Event::Enter, child));
-                            to_visit.push((Event::Exit, child));
-                        }
+        match root {
+            Lang::I32Add(_) => {
+                newfunc.instruction(Instruction::I32Add);
+            }
+            Lang::I32Sub(_) => {
+                newfunc.instruction(Instruction::I32Sub);
+            }
+            Lang::I32Mul(_) => {
+                newfunc.instruction(Instruction::I32Mul);
+            }
+            Lang::I32And(_) => {
+                newfunc.instruction(Instruction::I32And);
+            }
+            Lang::I32Or(_) => {
+                newfunc.instruction(Instruction::I32Or);
+            }
+            Lang::I32Xor(_) => {
+                newfunc.instruction(Instruction::I32Xor);
+            }
+            Lang::I32Shl(_) => {
+                newfunc.instruction(Instruction::I32Shl);
+            }
+            Lang::I32ShrU(_) => {
+                newfunc.instruction(Instruction::I32ShrU);
+            }
+            Lang::I32Popcnt(_) => {
+                newfunc.instruction(Instruction::I32Popcnt);
+            }
+            Lang::Rand => {
+                // Check if the random was set...otherwise use the rnd
+                println!("{:?}", random_pool);
+                match random_pool {
+                    Some(r) => {
+                        newfunc.instruction(Instruction::I32Const(r));
                     }
-                    // Reverse to make it so that we visit children in order
-                    // (e.g. operands are visited in order).
-                    to_visit[start_children..].reverse();
+                    None => {
+                        newfunc.instruction(Instruction::I32Const(160268115));
+                    }
                 }
-                Event::Exit => {
-                    let operand = id_to_node[usize::from(node)];
-                    let instruction = match operand {
-                        Lang::Symbol(s1) => {
-                            // If a pure symbol was reached, then do an automatic mapping between the wasmparser and wasm-encoder
-                            // Replace this by a copy of a chunk of the initial wasm
+            }
+            Lang::Unfold(_) => {
+                // Get CFG value and check, if its a constant, do the unfolding
 
-                            // TODO, implement Unfold
-                            let operators_range = symbolmap[&s1.as_str()].clone();
-                            let operators = &operators[operators_range.start..operators_range.end + 1/* take to the next operator to save the offset */];
-
-                            // Copy exactly the same bnytes from the original wasm
-                            let raw_range = (
-                                operators[0].1, // offset
-                                operators[operators.len() - 1].1,
-                            );
-
-                            println!("raw range {:?}", raw_range);
-
-                            let raw_data = &info.get_code_section().data[raw_range.0..raw_range.1];
-                            println!("raw data {:?}", raw_data);
-
-                            newfunc.raw(raw_data.iter().copied());
-                            println!("{:?}", newfunc);
-                            vec![]
-                        } // Map symbol against real value
-                        Lang::Rand => vec![Instruction::I32Const(random_pool)], // The same random always ?
-                        Lang::Unfold(ops) => {
-                            assert_eq!(1, ops.len());
-
-                            // TODO, Replace this with custom functions like previous mutators were
-                            log::debug!("Custom mutator unfold");
-                            // get operand...expecting a constant
-                            let operands = operands[usize::from(node)].clone();
-
-                            let symbol = id_to_node[usize::from(operands[0])];
-
-                            println!("{:?} {:?}", operands, symbol);
-
-                            if let Lang::Symbol(s) = symbol {
-                                let operators_range = symbolmap[&s.as_str()].clone();
-                                let operators =
+                /*
+                let operators =
                                     &operators[operators_range.start..operators_range.end];
                                 assert_eq!(operators.len(), 1);
 
@@ -205,24 +200,32 @@ impl PeepholeMutator {
                                     panic!("{:?}", &operators[0]);
                                     vec![]
                                 }
-                            } else {
-                                panic!("{:?}", symbol);
-                                vec![]
-                            }
-                        }
-                        // Add custom mapping above, otherwise it will pass to the default mapping
-                        _ => vec![PeepholeMutator::lang2wasm(operand)?],
-                    };
-                    instructions.extend(instruction);
-                }
+                */
+            }
+            Lang::I32Const(v) => {
+                newfunc.instruction(Instruction::I32Const(*v));
+            }
+            Lang::Symbol(s1) => {
+                // Copy from the CFG
+                // The data below can be taken from the input wasm directly
+                let operators_range = symbolmap[&s1.as_str()].clone();
+                let operators = &operators[operators_range.start..operators_range.end + 1/* take to the next operator to save the offset */];
+
+                // Copy exactly the same bnytes from the original wasm
+                let raw_range = (
+                    operators[0].1, // offset
+                    operators[operators.len() - 1].1,
+                );
+
+                println!("raw range {:?}", raw_range);
+
+                let raw_data = &info.get_code_section().data[raw_range.0..raw_range.1];
+                println!("raw data {:?}", raw_data);
+
+                newfunc.raw(raw_data.iter().copied());
             }
         }
 
-        println!("{:?}", instructions);
-
-        for &instruction in &instructions {
-            newfunc.instruction(instruction);
-        }
         Ok(())
     }
 
@@ -314,11 +317,13 @@ impl PeepholeMutator {
                     self.write2wasm(
                         info,
                         rnd,
-                        id_to_node,
-                        operands,
+                        0, // The root of the tree
+                        &id_to_node,
+                        &operands,
                         &operators,
                         &mut newfunc,
-                        symbolmap,
+                        &symbolmap,
+                        None,
                     )?;
 
                     let (_, offset) = operators[oidx + 1];
