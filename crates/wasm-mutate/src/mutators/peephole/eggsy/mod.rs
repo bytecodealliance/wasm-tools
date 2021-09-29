@@ -244,6 +244,8 @@ mod tests {
                         c @ Lang::I32Const(_) => expr.add((*c).clone()),
                         s @ Lang::Symbol(_) => expr.add((*s).clone()),
                         s @ Lang::Rand => expr.add((*s).clone()),
+                        p @ Lang::Prev => expr.add((*p).clone()),
+                        Lang::ILoad(_) => expr.add(Lang::ILoad(operand(0))),
                     };
                     let old_entry = node_to_id.insert(node, sub_expr_id);
                     assert!(old_entry.is_none());
@@ -252,59 +254,6 @@ mod tests {
         }
 
         expr
-    }
-
-    pub fn expr2wasm(
-        rootidx: usize,
-        id_to_node: &Vec<&Lang>,
-        operands: &Vec<Vec<Id>>,
-        rnd: &mut SmallRng,
-    ) {
-        let root = id_to_node[rootidx];
-        match root {
-            Lang::I32Add(_) => {
-                // call expr2wasm here
-                operands[rootidx].iter().for_each(|&idx| {
-                    expr2wasm(usize::from(idx), id_to_node, operands, rnd);
-                });
-                println!("i32.add")
-            }
-            Lang::I32Sub(_) => {
-                // call expr2wasm here
-                operands[rootidx].iter().for_each(|&idx| {
-                    expr2wasm(usize::from(idx), id_to_node, operands, rnd);
-                });
-                println!("i32.sub")
-            }
-            Lang::I32Mul(_) => todo!(),
-            Lang::I32And(_) => todo!(),
-            Lang::I32Or(_) => todo!(),
-            Lang::I32Xor(_) => todo!(),
-            Lang::I32Shl(_) => todo!(),
-            Lang::I32ShrU(_) => todo!(),
-            Lang::I32Popcnt(_) => todo!(),
-            Lang::Rand => {
-                operands[rootidx].iter().for_each(|&idx| {
-                    expr2wasm(usize::from(idx), id_to_node, operands, rnd);
-                });
-                let i: i32 = rnd.gen();
-                println!("i32.const {}", i)
-            }
-            Lang::Unfold(_) => {
-                // call expr2wasm here
-                operands[rootidx].iter().for_each(|&idx| {
-                    expr2wasm(usize::from(idx), id_to_node, operands, rnd);
-                });
-                //println!("unfold")
-            }
-            Lang::I32Const(_) => todo!(),
-            Lang::Symbol(s1) => {
-                operands[rootidx].iter().for_each(|&idx| {
-                    expr2wasm(usize::from(idx), id_to_node, operands, rnd);
-                });
-                println!("s1")
-            }
-        }
     }
 
     #[test]
@@ -327,11 +276,9 @@ mod tests {
 
         let (id_to_node, operands) = extractor.generate_random_tree(&mut rnd, root, 10).unwrap();
 
-        //println!("{:?} {:?}", id_to_node, operands);
-        //let random_outcome = build_expr(root, id_to_node, operands);
+        println!("{:?} {:?}", id_to_node, operands);
+        let random_outcome = build_expr(root, id_to_node, operands);
 
-        //println!("{}", random_outcome.pretty(35));
-
-        expr2wasm(0, &id_to_node, &operands, &mut rnd);
+        println!("{}", random_outcome.pretty(35));
     }
 }

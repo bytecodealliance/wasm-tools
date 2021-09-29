@@ -9,7 +9,7 @@ use rand::{
     Rng,
 };
 use std::{cmp::Ordering, collections::HashMap, hash::Hash, num::Wrapping};
-use wasm_encoder::{CodeSection, Function, Instruction, Module, ValType};
+use wasm_encoder::{CodeSection, Function, Instruction, MemArg, Module, ValType};
 use wasmparser::{BinaryReaderError, CodeSectionReader, FunctionBody, Operator, Range};
 
 use crate::{
@@ -39,6 +39,7 @@ impl PeepholeMutator {
     ) -> Option<(&str, HashMap<&str, Range>, usize)> {
         let (op, _) = &operators[at];
         match op {
+            Operator::I32Load { .. } => Some(("(i.load ?x)", [].iter().cloned().collect(), at + 1)),
             Operator::I32Const { .. } => Some((
                 "?x",
                 [(
@@ -110,6 +111,7 @@ impl PeepholeMutator {
         info: &ModuleInfo,
         rnd: &mut rand::prelude::SmallRng,
         current: usize,
+        insertion_point: usize,
         id_to_node: &Vec<&Lang>,
         operands: &Vec<Vec<Id>>,
         operators: &Vec<TupleType>,
@@ -133,6 +135,7 @@ impl PeepholeMutator {
                     info,
                     rnd,
                     usize::from(idx),
+                    insertion_point,
                     id_to_node,
                     operands,
                     operators,
@@ -205,6 +208,18 @@ impl PeepholeMutator {
                 }
 
                 println!("{:?}", newfunc);
+            }
+            Lang::ILoad(_) => {
+                // Do nothing
+                let operators = &operators[insertion_point..=insertion_point + 1/* take to the next operator to save the offset */];
+                let range = (operators[0].1, operators[1].1);
+
+                // Copy the mem operation
+                let raw_data = &info.get_code_section().data[range.0..range.1];
+                newfunc.raw(raw_data.iter().copied());
+            }
+            Lang::Prev => {
+                // Do nothing, bypass
             }
             Lang::I32Const(v) => {
                 newfunc.instruction(Instruction::I32Const(*v));
@@ -293,8 +308,8 @@ impl PeepholeMutator {
                     // In theory this will return the Id of the operator eterm
                     let root = egraph.add_expr(&start);
 
-                    // This cost function could be replaced by a custom weighted probability for example
-                    // We could modify the cost function based on the previous mutation/rotation outcome
+                    // This cost function could be replaced by a custom weighted probability, for example
+                    // we could modify the cost function based on the previous mutation/rotation outcome
                     let cf = NoPopcnt;
                     let extractor = RandomExtractor::new(&egraph, cf);
 
@@ -326,6 +341,7 @@ impl PeepholeMutator {
                         info,
                         rnd,
                         0, // The root of the tree
+                        oidx,
                         &id_to_node,
                         &operands,
                         &operators,
@@ -389,6 +405,7 @@ impl Mutator for PeepholeMutator {
             rewrite!("strength-undo";  "(i32.shl ?x 1)" => "(i32.mul ?x ?x)"),
             rewrite!("idempotent-1";  "?x" => "(i32.or ?x ?x)"),
             rewrite!("idempotent-2";  "?x" => "(i32.and ?x ?x)"),
+            rewrite!("mem-load-shift";  "(i.load ?x)" => "(i.load (i32.add prev rand))"),
         ];
 
         self.mutate_with_rules(config, rnd, info, rules)
@@ -627,6 +644,36 @@ mod tests {
                 i32.const 56
                 i32.const 1
                 i32.shl
+            )
+        )
+        "#,
+            rules,
+            r#"
+        (module
+            (type (;0;) (func (result i32)))
+            (func (;0;) (type 0) (result i32)
+              (local i32 i32)
+              i32.const 56
+              i32.const 1
+              i32.const 1
+              i32.or
+              i32.shl)
+            (export "exported_func" (func 0)))
+        "#,
+        );
+    }
+
+    #[test]
+    fn test_peep_mem_shift() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("mem-load-shift";  "(i.load ?x)" => "(i.load (i32.add prev rand))")];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func") (param i32) (result i32)
+                local.get 0
+                i32.load
             )
         )
         "#,
