@@ -8,6 +8,8 @@ pub mod lang;
 
 use crate::mutators::peephole::eggsy::lang::Lang;
 
+use super::{TupleType, cfg::MiniDFG};
+
 pub struct NoPopcnt;
 
 impl CostFunction<Lang> for NoPopcnt {
@@ -182,18 +184,53 @@ where
     }
 }
 
+/// Turns wasm to eterm and back
+pub struct Encoder;
+
+impl Encoder {
+
+    /// Maps wasm to eterm expression
+    /// TODO, check the return since it would be better to return a RecExpr
+    pub fn wasm2eterm(dfg: &MiniDFG, oidx: usize, operators: &Vec<TupleType>) -> Option<String> {
+
+        let entry = &dfg.entries[dfg.map[&oidx]];
+
+        todo!();
+        /*
+        match entry {
+            crate::mutators::peephole::cfg::StackEntry::Leaf { eterm, operator_idx, byte_stream_range } => {
+                // Map this to a variable depends on the type of the operator
+                Some("?x".to_string())
+            },
+            crate::mutators::peephole::cfg::StackEntry::Node { eterm, operator_idx, byte_stream_range, operands } => {
+
+                let operands = 
+                operands.iter().map(|mapidx|{
+                    let oidx = dfg.map[mapidx];
+                    Encoder::wasm2eterm(&dfg, oidx, operators).unwrap()
+                }).collect::<Vec<String>>();
+                
+                Some(format!("({} {})", eterm, operands.join(" ")).to_string())
+            },
+            crate::mutators::peephole::cfg::StackEntry::Unknown => Some("skip".to_string()), // This is the previous state of the stack
+        } */
+    }
+
+    pub fn eterm2wasm(){
+        todo!();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
 
-    use crate::{
-        mutators::{peephole::PeepholeMutator, Mutator},
-        WasmMutate,
-    };
+    use crate::{WasmMutate, mutators::{Mutator, peephole::{PeepholeMutator, TupleType, cfg::DFGIcator}}};
     use egg::{rewrite, Id, Pattern, RecExpr, Rewrite, Runner, Searcher};
     use rand::{prelude::SliceRandom, rngs::SmallRng, Rng, SeedableRng};
+    use wasmparser::Parser;
 
-    use super::{NoPopcnt, RandomExtractor};
+    use super::{Encoder, NoPopcnt, RandomExtractor};
     use crate::mutators::peephole::Lang;
     use crate::mutators::peephole::PeepholeMutationAnalysis;
 
@@ -280,5 +317,77 @@ mod tests {
         let random_outcome = build_expr(root, id_to_node, operands);
 
         println!("{}", random_outcome.pretty(35));
+    }
+
+    #[test]
+    pub fn test_wasm2eterm(){
+        let original = &wat::parse_str(
+            r#"
+        (module
+            (memory 1)
+            (func (export "exported_func") (param i32) (result i32)
+                i32.const 42
+                drop
+                local.get 0
+                local.get 0
+                i32.const 109
+                i32.add
+                i32.add
+                i32.load
+                if 
+                    i32.const 54
+                else
+                    i32.const 87
+                end
+                i32.const 56
+                i32.add
+                loop
+                    i32.const 1
+                    local.get 0
+                    i32.add
+                    local.set 0
+                end
+            )
+        )
+        "#,
+        )
+        .unwrap();
+
+        let mut parser = Parser::new(0);
+        let mut consumed = 0;
+        loop {
+            let (payload, size) = match parser.parse(&original[consumed..], true).unwrap() {
+                wasmparser::Chunk::NeedMoreData(_) => {
+                    panic!("This should not happen")
+                }
+                wasmparser::Chunk::Parsed { consumed, payload } => (payload, consumed),
+            };
+
+            consumed += size;
+
+            match payload {
+                wasmparser::Payload::CodeSectionEntry(reader) => {
+                    let operators = reader
+                        .get_operators_reader()
+                        .unwrap()
+                        .into_iter_with_offsets()
+                        .collect::<wasmparser::Result<Vec<TupleType>>>()
+                        .unwrap();
+
+                    let dfg = DFGIcator::get_fulldfg(&operators).unwrap();
+
+                    let eterm = Encoder::wasm2eterm(&dfg, 6, &operators);
+
+                    println!("{:?}", eterm);
+                    todo!();
+                }
+                wasmparser::Payload::End => {
+                    break;
+                }
+                _ => {
+                    // Do nothing
+                }
+            }
+        }
     }
 }

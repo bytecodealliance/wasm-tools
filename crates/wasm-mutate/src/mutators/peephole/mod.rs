@@ -21,6 +21,7 @@ use self::eggsy::{NoPopcnt, RandomExtractor};
 
 use super::Mutator;
 
+pub mod cfg;
 pub mod eggsy;
 pub struct PeepholeMutator;
 
@@ -32,6 +33,7 @@ impl PeepholeMutator {
     // Map operator to Lang expr and the corresponding instruction
     // This method should return the expression (egg language) expected from the operator
     // TODO, add small CFG information
+
     fn operator2term(
         &self,
         operators: &Vec<TupleType>,
@@ -39,7 +41,20 @@ impl PeepholeMutator {
     ) -> Option<(&str, HashMap<&str, Range>, usize)> {
         let (op, _) = &operators[at];
         match op {
-            Operator::I32Load { .. } => Some(("(i.load ?x)", [].iter().cloned().collect(), at + 1)),
+            Operator::I32Load { .. }
+            | Operator::I64Load { .. }
+            | Operator::F32Load { .. }
+            | Operator::F64Load { .. }
+            | Operator::I32Load16S { .. }
+            | Operator::I32Load16U { .. }
+            | Operator::I32Load8S { .. }
+            | Operator::I32Load8U { .. }
+            | Operator::I64Load32S { .. }
+            | Operator::I64Load32U { .. }
+            | Operator::I64Load8S { .. }
+            | Operator::I64Load8U { .. } => {
+                Some(("(i.load ?x)", [].iter().cloned().collect(), at + 1))
+            }
             Operator::I32Const { .. } => Some((
                 "?x",
                 [(
@@ -57,7 +72,7 @@ impl PeepholeMutator {
             Operator::I32Shl => {
                 let (previous2, _) = &operators[at - 2];
                 let (previous, _) = &operators[at - 1];
-                if let Operator::I32Const { value } = previous2 {
+                if let Operator::I32Const { .. } = previous2 {
                     if let Operator::I32Const { value } = previous {
                         match value {
                             1 => {
@@ -385,6 +400,8 @@ impl Mutator for PeepholeMutator {
             rewrite!("unfold-1";  "?x" => "(i32.add rand (i32.sub rand ?x))"),
             rewrite!("unfold-2";  "?x" => "(unfold ?x)"), // Use a custom instruction-mutator for this
             rewrite!("strength-undo";  "(i32.shl ?x 1)" => "(i32.mul ?x ?x)"),
+            rewrite!("strength-undo1";  "(i32.shl ?x 2)" => "(i32.mul ?x (i32.mul ?x ?x))"),
+            rewrite!("strength-undo2";  "(i32.shl ?x 3)" => "(i32.mul ?x (i32.mul ?x (i32.mul ?x ?x)))"),
             rewrite!("idempotent-1";  "?x" => "(i32.or ?x ?x)"),
             rewrite!("idempotent-2";  "?x" => "(i32.and ?x ?x)"),
             rewrite!("mem-load-shift";  "(i.load ?x)" => "(i.load (i32.add skip rand))"),
@@ -653,6 +670,7 @@ mod tests {
         test_peephole_mutator(
             r#"
         (module
+            (memory 1)
             (func (export "exported_func") (param i32) (result i32)
                 local.get 0
                 i32.load
@@ -661,16 +679,15 @@ mod tests {
         "#,
             rules,
             r#"
-        (module
-            (type (;0;) (func (result i32)))
-            (func (;0;) (type 0) (result i32)
-              (local i32 i32)
-              i32.const 56
-              i32.const 1
-              i32.const 1
-              i32.or
-              i32.shl)
-            (export "exported_func" (func 0)))
+            (module
+                (type (;0;) (func (param i32) (result i32)))
+                (func (;0;) (type 0) (param i32) (result i32)
+                  local.get 0
+                  i32.const -683260416
+                  i32.add
+                  i32.load)
+                (memory (;0;) 1)
+                (export "exported_func" (func 0)))
         "#,
         );
     }
