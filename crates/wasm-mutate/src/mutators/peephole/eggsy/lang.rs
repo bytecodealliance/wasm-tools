@@ -22,7 +22,7 @@ define_language! {
         // Custom mutation operations and instructions
         "rand" = Rand, // This operation represent a random number, if its used, every time is should represent the same random number
         "unfold" = Unfold([Id; 1]),
-        "prev" = Prev, // Use this operator as a helper, it means to respect previously wasm code probably to use it as an operand
+        "skip" = Prev, // Use this operator as a helper, it means to respect previously wasm code probably to use it as an operand
         I32Const(i32),
 
         // NB: must be last since variants are parsed in order.

@@ -87,24 +87,6 @@ impl PeepholeMutator {
         }
     }
 
-    fn lang2wasm<'a>(l: &Lang) -> Result<Instruction<'a>> {
-        println!("{:?}", l);
-
-        match l {
-            Lang::I32Add(_) => Ok(Instruction::I32Add),
-            Lang::I32Sub(_) => Ok(Instruction::I32Sub),
-            Lang::I32Mul(_) => Ok(Instruction::I32Mul),
-            Lang::I32And(_) => Ok(Instruction::I32And),
-            Lang::I32Or(_) => Ok(Instruction::I32Or),
-            Lang::I32Xor(_) => Ok(Instruction::I32Xor),
-            Lang::I32Shl(_) => Ok(Instruction::I32Shl),
-            Lang::I32ShrU(_) => Ok(Instruction::I32ShrU),
-            Lang::I32Popcnt(_) => Ok(Instruction::I32Popcnt),
-            Lang::I32Const(val) => Ok(Instruction::I32Const(*val)),
-            _ => Err(crate::Error::UnsupportedEggLangType),
-        }
-    }
-
     // lang to wasm adaptor
     fn write2wasm(
         &self,
@@ -405,7 +387,7 @@ impl Mutator for PeepholeMutator {
             rewrite!("strength-undo";  "(i32.shl ?x 1)" => "(i32.mul ?x ?x)"),
             rewrite!("idempotent-1";  "?x" => "(i32.or ?x ?x)"),
             rewrite!("idempotent-2";  "?x" => "(i32.and ?x ?x)"),
-            rewrite!("mem-load-shift";  "(i.load ?x)" => "(i.load (i32.add prev rand))"),
+            rewrite!("mem-load-shift";  "(i.load ?x)" => "(i.load (i32.add skip rand))"),
         ];
 
         self.mutate_with_rules(config, rnd, info, rules)
@@ -666,7 +648,7 @@ mod tests {
     #[test]
     fn test_peep_mem_shift() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("mem-load-shift";  "(i.load ?x)" => "(i.load (i32.add prev rand))")];
+            &[rewrite!("mem-load-shift";  "(i.load ?x)" => "(i.load (i32.add skip rand))")];
 
         test_peephole_mutator(
             r#"
