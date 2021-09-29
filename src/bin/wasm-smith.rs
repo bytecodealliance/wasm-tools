@@ -88,6 +88,10 @@ struct Config {
     min_imports: Option<usize>,
     #[structopt(long = "max-imports")]
     max_imports: Option<usize>,
+    #[structopt(long = "min-tags")]
+    min_tags: Option<usize>,
+    #[structopt(long = "max-tags")]
+    max_tags: Option<usize>,
     #[structopt(long = "min-funcs")]
     min_funcs: Option<usize>,
     #[structopt(long = "max-funcs")]
@@ -137,6 +141,9 @@ struct Config {
     #[structopt(long = "simd")]
     #[serde(rename = "simd")]
     simd_enabled: Option<bool>,
+    #[structopt(long = "exception-handling")]
+    #[serde(rename = "exception-handling")]
+    exceptions_enabled: Option<bool>,
     #[structopt(long = "module-linking")]
     #[serde(rename = "module-linking")]
     module_linking_enabled: Option<bool>,
@@ -254,6 +261,8 @@ impl wasm_smith::Config for CliAndJsonConfig {
         (max_types, usize, 100),
         (min_imports, usize, 0),
         (max_imports, usize, 100),
+        (min_tags, usize, 0),
+        (max_tags, usize, 100),
         (min_funcs, usize, 0),
         (max_funcs, usize, 100),
         (min_globals, usize, 0),
@@ -277,6 +286,7 @@ impl wasm_smith::Config for CliAndJsonConfig {
         (reference_types_enabled, bool, false),
         (memory64_enabled, bool, false),
         (simd_enabled, bool, false),
+        (exceptions_enabled, bool, false),
         (module_linking_enabled, bool, false),
         (allow_start_export, bool, true),
         (max_aliases, usize, 1000),
