@@ -114,8 +114,15 @@ where
         &self.costs
     }
 
-    /// Here is where the random magic is done
-    pub fn generate_random_tree(
+    // Do a pre-order traversal of the e-graph. As we visit each e-class, choose
+    // one of its e-nodes at random and then do the same with its children,
+    // etc. You can imagine this process as a kind of rolling wave function
+    // collapse, where we choose a concrete expression out of the potentially
+    // infinite number of equivalent expressions each e-class represents.
+    //
+    // `worklist` constains the operands we still need to process. These are
+    // currently a pair of the parent node and its operand e-class.
+    pub fn extract_random(
         &self,
         rnd: &mut rand::prelude::SmallRng,
         eclass: Id,
@@ -621,7 +628,7 @@ mod tests {
         let root = egraph.add_expr(&start);
         let extractor = RandomExtractor::new(&egraph, cf);
 
-        let (id_to_node, operands) = extractor.generate_random_tree(&mut rnd, root, 10).unwrap();
+        let (id_to_node, operands) = extractor.extract_random(&mut rnd, root, 10).unwrap();
 
         println!("{:?} {:?}", id_to_node, operands);
         let random_outcome = build_expr(root, id_to_node, operands);

@@ -19,10 +19,18 @@ define_language! {
         // TODO add the others
 
         // Custom mutation operations and instructions
-        "rand" = Rand, // This operation represent a random number, if its used, every time is should represent the same random number
+        //
+        /*
+            This operation represent a random number, if its used, every time is should represent the same random number
+        */
+        "rand" = Rand,
+        /*
+            Takes one constant operand and turn it into a sum of two random numbers whihch sum is the operand `i32.const x = i32.const r + i32.const (x - r) `
+        */
         "unfold" = Unfold([Id; 1]),
-        I32Const(i32),
+        // End of custom mutation operations and instructions
 
+        I32Const(i32),
         // NB: must be last since variants are parsed in order.
         Symbol(Symbol),
     }

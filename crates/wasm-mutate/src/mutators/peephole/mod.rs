@@ -108,8 +108,8 @@ impl PeepholeMutator {
                         let cf = AstSize;
                         let extractor = RandomExtractor::new(&egraph, cf);
 
-                        let (id_to_node, operands) = extractor
-                            .generate_random_tree(rnd, root, 0 /* only 1 for now */)?;
+                        let (id_to_node, operands) =
+                            extractor.extract_random(rnd, root, 0 /* only 1 for now */)?;
 
                         println!("random alternative {:?} {:?}", id_to_node, operands);
 
