@@ -6,7 +6,7 @@ use std::convert::TryFrom;
 /// # Example
 ///
 /// ```
-/// use wasm_encoder::{Module, TagSection, TagType};
+/// use wasm_encoder::{Module, TagSection, TagType, TagKind};
 ///
 /// let mut tags = TagSection::new();
 /// tags.tag(TagType {
