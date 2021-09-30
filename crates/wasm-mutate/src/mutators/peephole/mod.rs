@@ -1,8 +1,8 @@
-use crate::mutators::peephole::eggsy::analysis::PeepholeMutationAnalysis;
 use crate::mutators::peephole::eggsy::lang::Lang;
+use crate::mutators::peephole::eggsy::{analysis::PeepholeMutationAnalysis, Encoder};
 use egg::{
-    define_language, rewrite, Analysis, CostFunction, EClass, EGraph, Extractor, Id, Language,
-    Pattern, RecExpr, Rewrite, Runner, Searcher, Symbol,
+    define_language, rewrite, Analysis, AstSize, CostFunction, EClass, EGraph, Extractor, Id,
+    Language, Pattern, RecExpr, Rewrite, Runner, Searcher, Symbol,
 };
 use rand::{
     prelude::{IteratorRandom, SliceRandom, SmallRng},
@@ -17,14 +17,11 @@ use crate::{
     ModuleInfo, Result, WasmMutate,
 };
 
-use self::{
-    cfg::DFGIcator,
-    eggsy::{NoPopcnt, RandomExtractor},
-};
+use self::{dfg::DFGIcator, eggsy::RandomExtractor};
 
 use super::Mutator;
 
-pub mod cfg;
+pub mod dfg;
 pub mod eggsy;
 pub struct PeepholeMutator;
 
@@ -33,223 +30,6 @@ type MutationContext = (Function, u32);
 // Helper type to return operator and ofsset inside the byte stream
 type TupleType<'a> = (Operator<'a>, usize);
 impl PeepholeMutator {
-    // Map operator to Lang expr and the corresponding instruction
-    // This method should return the expression (egg language) expected from the operator
-    // TODO, add small CFG information
-
-    fn operator2term(
-        &self,
-        operators: &Vec<TupleType>,
-        at: usize,
-    ) -> Option<(&str, HashMap<&str, Range>, usize)> {
-        let (op, _) = &operators[at];
-        match op {
-            Operator::I32Load { .. }
-            | Operator::I64Load { .. }
-            | Operator::F32Load { .. }
-            | Operator::F64Load { .. }
-            | Operator::I32Load16S { .. }
-            | Operator::I32Load16U { .. }
-            | Operator::I32Load8S { .. }
-            | Operator::I32Load8U { .. }
-            | Operator::I64Load32S { .. }
-            | Operator::I64Load32U { .. }
-            | Operator::I64Load8S { .. }
-            | Operator::I64Load8U { .. } => {
-                Some(("(i.load ?x)", [].iter().cloned().collect(), at + 1))
-            }
-            Operator::I32Const { .. } => Some((
-                "?x",
-                [(
-                    "?x",
-                    Range {
-                        start: at,
-                        end: at + 1,
-                    },
-                )]
-                .iter()
-                .cloned()
-                .collect(),
-                at + 1,
-            )),
-            Operator::I32Shl => {
-                let (previous2, _) = &operators[at - 2];
-                let (previous, _) = &operators[at - 1];
-                if let Operator::I32Const { .. } = previous2 {
-                    if let Operator::I32Const { value } = previous {
-                        match value {
-                            1 => {
-                                return Some((
-                                    "(i32.shl ?x 1)",
-                                    [(
-                                        "?x",
-                                        Range {
-                                            start: at - 2,
-                                            end: at - 1,
-                                        },
-                                    )]
-                                    .iter()
-                                    .cloned()
-                                    .collect(),
-                                    at - 2,
-                                ))
-                            }
-                            _ => return None,
-                        }
-                    }
-                }
-
-                None
-            }
-            _ => None,
-        }
-    }
-
-    // lang to wasm adaptor
-    fn write2wasm(
-        &self,
-        info: &ModuleInfo,
-        rnd: &mut rand::prelude::SmallRng,
-        current: usize,
-        insertion_point: usize,
-        id_to_node: &Vec<&Lang>,
-        operands: &Vec<Vec<Id>>,
-        operators: &Vec<TupleType>,
-        newfunc: &mut Function,
-        symbolmap: &HashMap<&str, Range>,
-        random_pool: Option<i32>,
-    ) -> Result<Option<Range>> {
-        let root = id_to_node[current];
-
-        let new_random = if let Lang::Rand = root {
-            Some(rnd.gen())
-        } else {
-            random_pool
-        };
-
-        // Write operands first, stack way
-        let operand_cfg = operands[current]
-            .iter()
-            .map(|&idx| {
-                self.write2wasm(
-                    info,
-                    rnd,
-                    usize::from(idx),
-                    insertion_point,
-                    id_to_node,
-                    operands,
-                    operators,
-                    newfunc,
-                    symbolmap,
-                    new_random,
-                )
-            })
-            .collect::<Result<Vec<Option<Range>>>>()?;
-
-        match root {
-            Lang::I32Add(_) => {
-                newfunc.instruction(Instruction::I32Add);
-            }
-            Lang::I32Sub(_) => {
-                newfunc.instruction(Instruction::I32Sub);
-            }
-            Lang::I32Mul(_) => {
-                newfunc.instruction(Instruction::I32Mul);
-            }
-            Lang::I32And(_) => {
-                newfunc.instruction(Instruction::I32And);
-            }
-            Lang::I32Or(_) => {
-                newfunc.instruction(Instruction::I32Or);
-            }
-            Lang::I32Xor(_) => {
-                newfunc.instruction(Instruction::I32Xor);
-            }
-            Lang::I32Shl(_) => {
-                newfunc.instruction(Instruction::I32Shl);
-            }
-            Lang::I32ShrU(_) => {
-                newfunc.instruction(Instruction::I32ShrU);
-            }
-            Lang::I32Popcnt(_) => {
-                newfunc.instruction(Instruction::I32Popcnt);
-            }
-            Lang::Rand => {
-                // Check if the random was set...otherwise use the rnd
-                println!("{:?}", random_pool);
-                match random_pool {
-                    Some(r) => {
-                        newfunc.instruction(Instruction::I32Const(r));
-                    }
-                    None => {
-                        newfunc.instruction(Instruction::I32Const(160268115));
-                    }
-                }
-            }
-            Lang::Unfold(_) => {
-                // Get CFG value and check, if its a constant, do the unfolding
-                // This will fail if the operand was not a Symbol
-                assert_eq!(operand_cfg.len(), 1);
-
-                let operators_range = operand_cfg[0].unwrap();
-                let operators = &operators[operators_range.start..operators_range.end];
-                assert_eq!(operators.len(), 1);
-                let (i32const, _) = &operators[0];
-
-                if let Operator::I32Const { value } = i32const {
-                    let r: i32 = rnd.gen();
-
-                    // Drop previous
-                    newfunc.instruction(Instruction::Drop);
-
-                    newfunc.instruction(Instruction::I32Const(r));
-                    newfunc.instruction(Instruction::I32Const((Wrapping(*value) - Wrapping(r)).0));
-                    newfunc.instruction(Instruction::I32Add);
-                }
-
-                println!("{:?}", newfunc);
-            }
-            Lang::ILoad(_) => {
-                // Do nothing
-                let operators = &operators[insertion_point..=insertion_point + 1/* take to the next operator to save the offset */];
-                let range = (operators[0].1, operators[1].1);
-
-                // Copy the mem operation
-                let raw_data = &info.get_code_section().data[range.0..range.1];
-                newfunc.raw(raw_data.iter().copied());
-            }
-            Lang::Prev => {
-                // Do nothing, bypass
-            }
-            Lang::I32Const(v) => {
-                newfunc.instruction(Instruction::I32Const(*v));
-            }
-            Lang::Symbol(s1) => {
-                // Copy from the CFG
-                // The data below can be taken from the input wasm directly
-                let operators_range = symbolmap[&s1.as_str()].clone();
-                let operators = &operators[operators_range.start..operators_range.end + 1/* take to the next operator to save the offset */];
-
-                // Copy exactly the same bnytes from the original wasm
-                let raw_range = (
-                    operators[0].1, // offset
-                    operators[operators.len() - 1].1,
-                );
-
-                println!("raw range {:?}", raw_range);
-
-                let raw_data = &info.get_code_section().data[raw_range.0..raw_range.1];
-                println!("raw data {:?}", raw_data);
-
-                newfunc.raw(raw_data.iter().copied());
-
-                return Ok(Some(operators_range));
-            }
-        }
-
-        Ok(None)
-    }
-
     fn copy_locals(&self, reader: FunctionBody) -> Result<Function> {
         // Create the new function
         let mut localreader = reader.get_locals_reader().unwrap();
@@ -293,87 +73,72 @@ impl PeepholeMutator {
             let operatorscount = operators.len();
             let opcode_to_mutate = rnd.gen_range(0, operatorscount);
 
-            let mut dfg = DFGIcator::new();
-            let minidfg = dfg.get_fulldfg(&operators)?;
-
-            println!("{:?}", minidfg);
-
             for oidx in (opcode_to_mutate..operatorscount).chain(0..opcode_to_mutate) {
-                //let mut applicable = Vec::new();
-                //let (operator, offset) = &operators[oidx];
-                let eterm = minidfg.map.get(&oidx);
-                // println!("{:?} {:?}", eterm, operators[oidx]);
+                let mut dfg = DFGIcator::new();
+                let basicblock = dfg.get_bb_for_operator(oidx, &operators).unwrap();
+                let minidfg = dfg.get_dfg(&operators, &basicblock)?;
 
-                if let Some(etermidx) = eterm {
-                    // Create an e-graph from this operator mapping
+                println!("{:?}", minidfg);
 
-                    todo!();
+                if !minidfg.map.contains_key(&oidx) {
+                    continue;
+                }
+                let eterm = Encoder::wasm2eterm(&minidfg, oidx, &operators, rnd);
 
-                    /*
-                    let eterm = &minidfg.entries[*etermidx];
-                    println!("eterm {:?}", eterm.eterm);
+                match eterm {
+                    Ok((eterm, symbolsmap)) => {
+                        println!("ss {:?} {:?}", eterm, operators[oidx]);
+                        let start = eterm.parse().unwrap();
+                        println!("start {:?}", start);
 
-                    let start = eterm.eterm.parse().unwrap();
-                    println!("start {:?}", start);
+                        let runner = Runner::default().with_expr(&start).run(rules);
+                        let mut egraph = runner.egraph;
 
-                    let runner = Runner::default().with_expr(&start).run(rules);
-                    let mut egraph = runner.egraph;
+                        // In theory this will return the Id of the operator eterm
+                        let root = egraph.add_expr(&start);
 
-                    // In theory this will return the Id of the operator eterm
-                    let root = egraph.add_expr(&start);
+                        // This cost function could be replaced by a custom weighted probability, for example
+                        // we could modify the cost function based on the previous mutation/rotation outcome
+                        let cf = AstSize;
+                        let extractor = RandomExtractor::new(&egraph, cf);
 
-                    // This cost function could be replaced by a custom weighted probability, for example
-                    // we could modify the cost function based on the previous mutation/rotation outcome
-                    let cf = NoPopcnt;
-                    let extractor = RandomExtractor::new(&egraph, cf);
+                        // The mutation is doable if the equivalence class for this eterm is not empty
+                        println!("{:?} {:?}", egraph[root].nodes, egraph[root]);
 
-                    // The mutation is doable if the equivalence class for this eterm is not empty
-                    println!("{:?} {:?}", egraph[root].nodes, egraph[root]);
+                        let (id_to_node, operands) = extractor
+                            .generate_random_tree(rnd, root, 0 /* only 1 for now */)?;
+                        println!("{:?} {:?}", id_to_node, operands);
 
-                    let (id_to_node, operands) =
-                        extractor.generate_random_tree(rnd, root, 0 /* only 1 for now */)?;
-                    println!("{:?} {:?}", id_to_node, operands);
+                        // There is no point in generating the same symbol
+                        if operands.len() == 1 && operands[0].len() == 0 {
+                            continue;
+                        }
 
-                    if operands.len() == 1 && operands[0].len() == 0 {
-                        continue;
+                        // Create a new function using the previous locals
+                        let mut newfunc = self.copy_locals(reader)?;
+
+                        println!("{:?}", symbolsmap);
+                        // Translate lang expr to wasm
+                        Encoder::build_function(
+                            info,
+                            rnd,
+                            0, // The root of the tree
+                            oidx,
+                            &id_to_node,
+                            &operands,
+                            &operators,
+                            &basicblock,
+                            &mut newfunc,
+                            &symbolsmap,
+                            &minidfg,
+                        )?;
+
+                        let (_, offset) = operators[oidx + 1];
+                        let ending = &code_section.data[offset..operatorsrange.end];
+                        newfunc.raw(ending.iter().copied());
+                        return Ok((newfunc, fidx));
                     }
-
-                    //if egraph[root].nodes.len() > 1 /* the current root plus another one */ {
-
-                    // The magic happens here :)
-
-                    // This is a hack, TODO check is we can generate random from this root
-
-                    // Create a new function using the previous locals
-                    let mut newfunc = self.copy_locals(reader)?;
-                    // Copying code previous to the code match
-                    let previous =
-                        &code_section.data[operatorsrange.start..operatorsrange.start + start_at];
-                    newfunc.raw(previous.iter().copied());
-
-                    // Pool for rand instruction
-                    let i: i32 = rnd.gen();
-                    // Translate lang expr to wasm
-                    self.write2wasm(
-                        info,
-                        rnd,
-                        0, // The root of the tree
-                        oidx,
-                        &id_to_node,
-                        &operands,
-                        &operators,
-                        &mut newfunc,
-                        &symbolmap,
-                        Some(i),
-                    )?;
-
-                    let (_, offset) = operators[oidx + 1];
-                    let ending = &code_section.data[offset..operatorsrange.end];
-                    newfunc.raw(ending.iter().copied());
-                    return Ok((newfunc, fidx));
-                    */
-                    return Err(crate::Error::NoMutationsAplicable);
-                    //}
+                    Err(_) => continue,
                 }
             }
         }
@@ -634,7 +399,7 @@ mod tests {
             r#"
         (module
             (func (export "exported_func") (result i32) (local i32 i32)
-                i32.const 56
+                local.get 0
                 i32.const 1
                 i32.shl
             )
@@ -727,7 +492,7 @@ mod tests {
         let mut info = wasmmutate.get_module_info(original).unwrap();
         let can_mutate = mutator.can_mutate(&wasmmutate, &info).unwrap();
 
-        let mut rnd = SmallRng::seed_from_u64(0);
+        let mut rnd = SmallRng::seed_from_u64(1);
 
         assert_eq!(can_mutate, true);
 

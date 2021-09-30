@@ -1,31 +1,22 @@
 use std::{cmp::Ordering, collections::HashMap};
 
 use egg::{define_language, Analysis, CostFunction, EClass, EGraph, Id, Language, Symbol};
-use rand::Rng;
+use rand::{
+    prelude::{SliceRandom, SmallRng},
+    Rng,
+};
+use wasm_encoder::{Function, Instruction};
+use wasmparser::Operator;
 
 pub mod analysis;
 pub mod lang;
 
-use crate::mutators::peephole::eggsy::lang::Lang;
+use crate::{error::EitherType, mutators::peephole::eggsy::lang::Lang, ModuleInfo};
 
-use super::{cfg::MiniDFG, TupleType};
-
-pub struct NoPopcnt;
-
-impl CostFunction<Lang> for NoPopcnt {
-    type Cost = usize;
-    fn cost<C>(&mut self, enode: &Lang, mut costs: C) -> Self::Cost
-    where
-        C: FnMut(Id) -> Self::Cost,
-    {
-        let op_cost = match enode {
-            // Doubts on this...
-            Lang::I32Popcnt(_) => usize::MAX,
-            _ => 0,
-        };
-        enode.fold(op_cost, |sum, id| sum.saturating_add(costs(id)))
-    }
-}
+use super::{
+    dfg::{BBlock, MiniDFG},
+    TupleType,
+};
 
 /// This struct is a wrapper of egg::Extractor
 /// The majority of the methods are copied and adapted to our needs
@@ -188,27 +179,203 @@ where
 pub struct Encoder;
 
 impl Encoder {
-    /// Maps wasm to eterm expression
-    /// TODO, check the return since it would be better to return a RecExpr
-    pub fn wasm2eterm(dfg: &MiniDFG, oidx: usize, operators: &Vec<TupleType>) -> Option<String> {
-        let entry = &dfg.entries[dfg.map[&oidx]];
-
-        //todo!();
-
-        match *entry.data {
-            crate::mutators::peephole::cfg::StackEntryData::Leaf => {
-                // Map this to a variable depends on the type of the operator
-                Some("?x".to_string())
+    fn eterm2wasm(
+        info: &ModuleInfo,
+        eterm: &Lang,
+        newfunc: &mut Function,
+        symbolsmap: &HashMap<String, usize>,
+        minidfg: &MiniDFG,
+        operators: &Vec<TupleType>,
+    ) -> crate::Result<()> {
+        match eterm {
+            Lang::I32Mul(_) => {
+                newfunc.instruction(Instruction::I32Mul);
             }
-            crate::mutators::peephole::cfg::StackEntryData::Node(_) => {
-                todo!()
+            Lang::I32Const(v) => {
+                newfunc.instruction(Instruction::I32Const(*v));
             }
-            crate::mutators::peephole::cfg::StackEntryData::Unknown => Some("skip".to_string()), // This is the previous state of the stack
+            Lang::Symbol(s) => {
+                // Copy the byte stream to aavoid mapping
+                println!("{:?} {:?}", &s.to_string(), symbolsmap);
+                let entryidx = symbolsmap[&s.to_string()];
+                let entry = &minidfg.entries[entryidx];
+
+                println!("{:?} {:?}", entryidx, entry);
+                // Write the symbol in the correct place of the function
+                // TODO, here check for gaps and stack neutral operations  ?
+
+                let bytes = &info.get_code_section().data
+                    [entry.byte_stream_range.start..entry.byte_stream_range.end];
+                newfunc.raw(bytes.iter().copied());
+                //newfunc.instruction(Instruction::I32Const(*v));
+            }
+            _ => {
+                return Err(crate::Error::UnsupportedType(EitherType::Operator(
+                    format!("Eterm {:?} is not implemented", eterm),
+                )))
+            }
+        }
+        Ok(())
+    }
+
+    fn etermtree2waasm(
+        info: &ModuleInfo,
+        rnd: &mut rand::prelude::SmallRng,
+        id_to_node: &Vec<&Lang>,
+        operands: &Vec<Vec<Id>>,
+        current: usize,
+        newfunc: &mut Function,
+        symbolmap: &HashMap<String, usize>,
+        minidfg: &MiniDFG,
+        operators: &Vec<TupleType>,
+    ) -> crate::Result<()> {
+        let root = id_to_node[current];
+        let operand_cfg = &operands[current];
+
+        // Process operands
+        for idx in &operands[current] {
+            Encoder::etermtree2waasm(
+                info,
+                rnd,
+                id_to_node,
+                operands,
+                usize::from(*idx),
+                newfunc,
+                symbolmap,
+                minidfg,
+                operators,
+            )?;
+        }
+
+        Encoder::eterm2wasm(info, root, newfunc, symbolmap, minidfg, operators)?;
+        Ok(())
+    }
+
+    pub fn build_function(
+        info: &ModuleInfo,
+        rnd: &mut rand::prelude::SmallRng,
+        current: usize,
+        insertion_point: usize,
+        id_to_node: &Vec<&Lang>,
+        operands: &Vec<Vec<Id>>,
+        operators: &Vec<TupleType>,
+        basicblock: &BBlock,
+        newfunc: &mut Function,
+        symbolmap: &HashMap<String, usize>,
+        minidfg: &MiniDFG,
+    ) -> crate::Result<()> {
+        // Copy previous code
+        let range = basicblock.range;
+        let byterange = (&operators[0].1, &operators[range.start].1);
+        println!("{:?}", byterange);
+        let bytes = &info.get_code_section().data[*byterange.0..*byterange.1];
+
+        newfunc.raw(bytes.iter().copied());
+
+        Encoder::etermtree2waasm(
+            info, rnd, id_to_node, operands, current, newfunc, symbolmap, minidfg, operators,
+        )?;
+        // Copy remaining function
+        let range = basicblock.range;
+        let byterange = (
+            &operators[range.end - 1].1,
+            &operators[operators.len() - 1].1,
+        );
+        println!("{:?}", byterange);
+        let bytes = &info.get_code_section().data[*byterange.0..*byterange.1];
+
+        newfunc.raw(bytes.iter().copied());
+        println!("{:?}", newfunc);
+
+        Ok(())
+    }
+
+    /// This function maps the operator to a simple eterm
+    /// TODO, others, plus type information
+    fn get_simpleterm(operator: &Operator) -> crate::Result<(String, bool)> {
+        match operator {
+            Operator::I32Add => Ok(("i32.add".into(), false)),
+            Operator::I32Const { value } => Ok((format!("{}", value), false)),
+            Operator::LocalGet { local_index } => Ok((format!("?l{}", local_index), true)),
+            Operator::I32Shl => Ok(("i32.shl".into(), false)),
+            _ => Err(crate::Error::UnsupportedType(EitherType::Operator(
+                format!("{:?}", operator),
+            ))),
         }
     }
 
-    pub fn eterm2wasm() {
-        todo!();
+    /// Maps wasm to eterm expression
+    /// This method receives also a random generator, the idea is to map StackEntry operands to symbols in a random way.
+    /// This will allow to map expressions like `i32.const x; i32.const y; i32.shl` to `(i32.shl ?x y)` or the full expression
+    /// `(i32.shl ?x ?y)`
+    ///
+    /// TODO, check the return since it would be better to return a RecExpr
+    pub fn wasm2eterm(
+        dfg: &MiniDFG,
+        oidx: usize,
+        operators: &Vec<TupleType>,
+        rnd: &mut SmallRng,
+    ) -> crate::Result<(String, HashMap<String, usize>)> {
+        let stack_entry_index = dfg.map[&oidx];
+        let entry = &dfg.entries[stack_entry_index];
+
+        println!("{:?}", operators[entry.operator_idx]);
+        let assymbol = |stack_entry_idx: usize| -> (String, HashMap<String, usize>) {
+            let symbolname = format!("?x{}", stack_entry_idx);
+            let mut smap = HashMap::new();
+            smap.insert(symbolname.clone(), stack_entry_idx);
+            (symbolname, smap)
+        };
+
+        // continue or break
+        // 0 continue, 1 break
+        let choices = [0, 0];
+        match &*entry.data {
+            crate::mutators::peephole::dfg::StackEntryData::Leaf => {
+                // Map this to a variable depends on the type of the operator
+                let choice = choices.choose(rnd).unwrap();
+                match choice {
+                    0 => {
+                        let (operator, _) = &operators[entry.operator_idx];
+                        let (term, addtosymbolsmap) = Encoder::get_simpleterm(&operator)?;
+                        Ok((
+                            term.clone(),
+                            if addtosymbolsmap {
+                                vec![(term, stack_entry_index)].into_iter().collect()
+                            } else {
+                                HashMap::new()
+                            },
+                        ))
+                    }
+                    1 => Ok(assymbol(oidx)),
+                    _ => panic!("Invalid option {}", choice),
+                }
+            }
+            crate::mutators::peephole::dfg::StackEntryData::Node { operands } => {
+                // This is an operator
+                let (operator, _) = &operators[entry.operator_idx];
+                let (term, addtosymbolsmap) = Encoder::get_simpleterm(&operator).unwrap();
+                let choice = choices.choose(rnd).unwrap();
+                let mut operandterms = Vec::new();
+                let mut smap: HashMap<String, usize> = HashMap::new();
+                for operandi in operands {
+                    let stack_entry = &dfg.entries[*operandi];
+
+                    let (eterm, symbols) = match choice {
+                        0 => Encoder::wasm2eterm(dfg, stack_entry.operator_idx, operators, rnd)
+                            .unwrap(),
+                        1 => assymbol(stack_entry.operator_idx),
+                        _ => panic!("Invalid option {}", choice),
+                    };
+                    operandterms.push(eterm);
+                    smap.extend(symbols.into_iter())
+                }
+                Ok((format!("({} {})", term, operandterms.join(" ")), smap))
+            }
+            crate::mutators::peephole::dfg::StackEntryData::Unknown => {
+                Ok(("skip".to_string(), HashMap::new()))
+            } // This is the previous state of the stack
+        }
     }
 }
 
@@ -218,16 +385,16 @@ mod tests {
 
     use crate::{
         mutators::{
-            peephole::{cfg::DFGIcator, PeepholeMutator, TupleType},
+            peephole::{dfg::DFGIcator, PeepholeMutator, TupleType},
             Mutator,
         },
         WasmMutate,
     };
-    use egg::{rewrite, Id, Pattern, RecExpr, Rewrite, Runner, Searcher};
+    use egg::{rewrite, AstSize, Id, Pattern, RecExpr, Rewrite, Runner, Searcher};
     use rand::{prelude::SliceRandom, rngs::SmallRng, Rng, SeedableRng};
     use wasmparser::Parser;
 
-    use super::{Encoder, NoPopcnt, RandomExtractor};
+    use super::{Encoder, RandomExtractor};
     use crate::mutators::peephole::Lang;
     use crate::mutators::peephole::PeepholeMutationAnalysis;
 
@@ -301,7 +468,7 @@ mod tests {
         let start = "?x".parse().unwrap();
         let runner = Runner::default().with_expr(&start).run(rules);
         let mut egraph = runner.egraph;
-        let cf = NoPopcnt;
+        let cf = AstSize;
         let mut rnd = SmallRng::seed_from_u64(121);
 
         // ?x is the root
@@ -371,9 +538,11 @@ mod tests {
                         .collect::<wasmparser::Result<Vec<TupleType>>>()
                         .unwrap();
 
-                    let dfg = DFGIcator::new().get_fulldfg(&operators).unwrap();
-
-                    let eterm = Encoder::wasm2eterm(&dfg, 6, &operators);
+                    let bb = DFGIcator::new().get_bb_for_operator(0, &operators).unwrap();
+                    let dfg = DFGIcator::new().get_dfg(&operators, &bb).unwrap();
+                    // let mut map = HashMap::new();
+                    let mut rnd = SmallRng::seed_from_u64(0);
+                    let eterm = Encoder::wasm2eterm(&dfg, 6, &operators, &mut rnd);
 
                     println!("{:?}", eterm);
                     todo!();
