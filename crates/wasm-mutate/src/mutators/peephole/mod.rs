@@ -81,8 +81,6 @@ impl PeepholeMutator {
                 let basicblock = dfg.get_bb_for_operator(oidx, &operators).unwrap();
                 let minidfg = dfg.get_dfg(&operators, &basicblock)?;
 
-                // println!("{:?}", minidfg);
-
                 if !minidfg.map.contains_key(&oidx) {
                     continue;
                 }
@@ -93,9 +91,7 @@ impl PeepholeMutator {
 
                 match eterm {
                     Ok((eterm, symbolsmap)) => {
-                        println!("ss {:?} {:?}", eterm, operators[oidx]);
                         let start = eterm.parse().unwrap();
-                        //println!("start {:?}", start);
 
                         let runner = Runner::default().with_expr(&start).run(rules);
                         let mut egraph = runner.egraph;
@@ -110,8 +106,6 @@ impl PeepholeMutator {
 
                         let (id_to_node, operands) =
                             extractor.extract_random(rnd, root, 0 /* only 1 for now */)?;
-
-                        println!("random alternative {:?} {:?}", id_to_node, operands);
 
                         // There is no point in generating the same symbol
                         if operands.len() == 1 && operands[0].len() == 0 {
@@ -143,7 +137,6 @@ impl PeepholeMutator {
                         return Ok((newfunc, fidx));
                     }
                     Err(_) => {
-                        println!("Skipping this operator\n");
                         continue;
                     }
                 }
@@ -363,8 +356,6 @@ mod tests {
     /// check that the var is a constant
     fn is_const(vari: &'static str) -> impl Fn(&mut EG, Id, &Subst) -> bool {
         move |egraph: &mut EG, _, subst| {
-            println!("Checking if its constant {:?}", vari);
-
             let var = vari.parse();
 
             match var {
@@ -374,10 +365,7 @@ mod tests {
                         println!("{:?}", eclass);
                         let node = &eclass.nodes[0];
                         match node {
-                            Lang::I32Const(_) => {
-                                println!("Can be applied");
-                                true
-                            }
+                            Lang::I32Const(_) => true,
                             _ => false,
                         }
                     } else {

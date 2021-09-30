@@ -139,8 +139,6 @@ where
         let rootidx = rnd.gen_range(0, egraph[eclass].nodes.len());
         let rootnode = &egraph[eclass].nodes[rootidx];
 
-        // println!("{:?}", egraph[eclass].nodes);
-
         id_to_node.push(&egraph[eclass].nodes[rootidx]);
         operands.push(vec![]);
 
@@ -151,17 +149,12 @@ where
             .collect();
 
         while let Some((parent, parentidx, &node, depth)) = worklist.pop() {
-            //println!("{:?}", parent);
-
             let node_idx = if depth >= max_depth {
                 // look nearest leaf path, in this case, the best in AST size
                 self.costs[&node].1
             } else {
                 rnd.gen_range(0, egraph[node].nodes.len())
             };
-
-            //println!("random e-node {:?}", node_idx);
-            //println!("options {:?}", egraph[node].nodes);
 
             let operand = Id::from(id_to_node.len());
             let operandidx = id_to_node.len();
@@ -261,11 +254,9 @@ impl Encoder {
             }
             Lang::Symbol(s) => {
                 // Copy the byte stream to aavoid mapping
-                println!("{:?} {:?}", &s.to_string(), symbolsmap);
                 let entryidx = symbolsmap[&s.to_string()];
                 let entry = &minidfg.entries[entryidx];
 
-                println!("{:?} {:?}", entryidx, entry);
                 // Write the symbol in the correct place of the functions
 
                 let bytes = &info.get_code_section().data
@@ -350,7 +341,6 @@ impl Encoder {
                 // Write the current operator
                 let bytes = &info.get_code_section().data
                     [entry.byte_stream_range.start..=entry.byte_stream_range.end];
-                println!("{:?}", bytes);
                 newfunc.raw(bytes.iter().copied());
 
                 visited[entryidx] = 1;
@@ -385,7 +375,6 @@ impl Encoder {
         // Copy previous code
         let range = basicblock.range;
         let byterange = (&operators[0].1, &operators[range.start].1);
-        println!("DFG {:?}", minidfg);
         let bytes = &info.get_code_section().data[*byterange.0..*byterange.1];
 
         newfunc.raw(bytes.iter().copied());
@@ -402,8 +391,6 @@ impl Encoder {
                 let entry = &minidfg.entries[entryidx];
                 let operator = &operators[entry.operator_idx];
                 if entry.operator_idx == insertion_point {
-                    println!("entry {} {:?} {:?}", entryidx, entry, operator);
-
                     Encoder::etermtree2waasm(
                         info,
                         rnd,
@@ -436,11 +423,9 @@ impl Encoder {
             &operators[range.end - 1].1,
             &operators[operators.len() - 1].1,
         );
-        println!("{:?}", byterange);
         let bytes = &info.get_code_section().data[*byterange.0..*byterange.1];
 
         newfunc.raw(bytes.iter().copied());
-        println!("{:?}", newfunc);
 
         Ok(())
     }
@@ -630,10 +615,7 @@ mod tests {
 
         let (id_to_node, operands) = extractor.extract_random(&mut rnd, root, 10).unwrap();
 
-        println!("{:?} {:?}", id_to_node, operands);
         let random_outcome = build_expr(root, id_to_node, operands);
-
-        println!("{}", random_outcome.pretty(35));
     }
 
     #[test]

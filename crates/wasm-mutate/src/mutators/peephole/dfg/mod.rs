@@ -252,10 +252,6 @@ impl<'a> DFGIcator {
         operators: &'a [TupleType],
         basicblock: &BBlock,
     ) -> crate::Result<MiniDFG> {
-        // let basic_block = self.get_bb_for_operator(operator_position, operators);
-
-        println!("{:?}", basicblock);
-
         // TODO, check memory explotion of this
         // lets handle the stack
         let mut dfg_map = Vec::new();
@@ -305,8 +301,6 @@ impl<'a> DFGIcator {
                         &mut operatormap,
                         true,
                     );
-
-                    println!("{:?}", idx);
 
                     let newnode = StackEntry {
                         operator_idx: idx,
@@ -369,8 +363,6 @@ impl<'a> DFGIcator {
                 | Operator::I32Shl
                 | Operator::I32ShrS
                 | Operator::I32ShrU => {
-                    println!("");
-                    println!("{:?}", stack);
                     let leftidx = DFGIcator::pop_operand(
                         &mut stack,
                         &mut dfg_map,
@@ -560,9 +552,6 @@ mod tests {
 
                     let bb = DFGIcator::new().get_bb_for_operator(0, &operators).unwrap();
                     let roots = DFGIcator::new().get_dfg(&operators, &bb).unwrap();
-
-                    println!("{:?}", roots);
-                    //todo!();
                 }
                 wasmparser::Payload::End => {
                     break;
@@ -628,10 +617,6 @@ mod tests {
                         .unwrap();
 
                     let root = DFGIcator::new().get_bb_for_operator(5, &operators).unwrap();
-                    println!("{:?}", &operators[root.range.start..root.range.end]);
-
-                    println!("{:?}", root);
-                    //todo!();
                 }
                 wasmparser::Payload::End => {
                     break;
