@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::HashMap};
+use std::{cmp::Ordering, collections::HashMap, num::Wrapping};
 
 use egg::{define_language, Analysis, CostFunction, EClass, EGraph, Id, Language, Symbol};
 use rand::{
@@ -132,6 +132,8 @@ where
         let rootidx = rnd.gen_range(0, egraph[eclass].nodes.len());
         let rootnode = &egraph[eclass].nodes[rootidx];
 
+        // println!("{:?}", egraph[eclass].nodes);
+
         id_to_node.push(&egraph[eclass].nodes[rootidx]);
         operands.push(vec![]);
 
@@ -185,7 +187,12 @@ impl Encoder {
         newfunc: &mut Function,
         symbolsmap: &HashMap<String, usize>,
         minidfg: &MiniDFG,
+        rnd: &mut SmallRng,
+        insertion_point: usize,
         operators: &Vec<TupleType>,
+        id_to_node: &Vec<&Lang>,
+        operands: &Vec<Vec<Id>>,
+        current: usize,
     ) -> crate::Result<()> {
         match eterm {
             Lang::I32Mul(_) => {
@@ -219,11 +226,32 @@ impl Encoder {
                 newfunc.instruction(Instruction::I32Popcnt);
             }
             Lang::ILoad(_) => {
-                todo!();
+                // Do nothing
+                let operators = &operators[insertion_point..=insertion_point + 1/* take to the next operator to save the offset */];
+                let range = (operators[0].1, operators[1].1);
+
+                // Copy the mem operation
+                let raw_data = &info.get_code_section().data[range.0..range.1];
+                newfunc.raw(raw_data.iter().copied());
             }
-            Lang::Rand => todo!(),
-            Lang::Unfold(_) => todo!(),
-            Lang::Prev => todo!(),
+            Lang::Rand => {
+                newfunc.instruction(Instruction::I32Const(rnd.gen()));
+            }
+            Lang::Unfold(_) => {
+                let child = operands[current][0];
+                let node = id_to_node[usize::from(child)];
+
+                match node {
+                    Lang::I32Const(value) => {
+                        let r: i32 = rnd.gen();
+
+                        newfunc.instruction(Instruction::I32Const(r));
+                        newfunc.instruction(Instruction::I32Const((Wrapping(r) - Wrapping(*value)).0));
+                        newfunc.instruction(Instruction::I32Add);
+                    },
+                    _ => panic!("The oeprand for this operator should be a constant, check if the rewriting rule is defined with such conditions")
+                }
+            }
             Lang::Symbol(s) => {
                 // Copy the byte stream to aavoid mapping
                 println!("{:?} {:?}", &s.to_string(), symbolsmap);
@@ -250,6 +278,7 @@ impl Encoder {
     fn etermtree2waasm(
         info: &ModuleInfo,
         rnd: &mut rand::prelude::SmallRng,
+        insertion_point: usize,
         id_to_node: &Vec<&Lang>,
         operands: &Vec<Vec<Id>>,
         current: usize,
@@ -259,24 +288,43 @@ impl Encoder {
         operators: &Vec<TupleType>,
     ) -> crate::Result<()> {
         let root = id_to_node[current];
-        let operand_cfg = &operands[current];
 
-        // Process operands
-        for idx in &operands[current] {
-            Encoder::etermtree2waasm(
-                info,
-                rnd,
-                id_to_node,
-                operands,
-                usize::from(*idx),
-                newfunc,
-                symbolmap,
-                minidfg,
-                operators,
-            )?;
+        // This is a patch, this logic should be here
+        // If root is Unfol...bypass
+
+        if let Lang::Unfold(_) = root {
+            log::debug!("Unfolding a constant yeih !")
+        } else {
+            // Process operands
+            for idx in &operands[current] {
+                Encoder::etermtree2waasm(
+                    info,
+                    rnd,
+                    insertion_point,
+                    id_to_node,
+                    operands,
+                    usize::from(*idx),
+                    newfunc,
+                    symbolmap,
+                    minidfg,
+                    operators,
+                )?;
+            }
         }
 
-        Encoder::eterm2wasm(info, root, newfunc, symbolmap, minidfg, operators)?;
+        Encoder::eterm2wasm(
+            info,
+            root,
+            newfunc,
+            symbolmap,
+            minidfg,
+            rnd,
+            insertion_point,
+            operators,
+            id_to_node,
+            operands,
+            current,
+        )?;
         Ok(())
     }
 
@@ -346,10 +394,19 @@ impl Encoder {
                 // It is a root, write then
                 let entry = &minidfg.entries[entryidx];
                 let operator = &operators[entry.operator_idx];
-                println!("entry {} {:?} {:?}", entryidx, entry, operator);
                 if entry.operator_idx == insertion_point {
+                    println!("entry {} {:?} {:?}", entryidx, entry, operator);
+
                     Encoder::etermtree2waasm(
-                        info, rnd, id_to_node, operands, current, newfunc, symbolmap, minidfg,
+                        info,
+                        rnd,
+                        insertion_point,
+                        id_to_node,
+                        operands,
+                        current,
+                        newfunc,
+                        symbolmap,
+                        minidfg,
                         operators,
                     )?;
                 } else {
@@ -389,12 +446,13 @@ impl Encoder {
             Operator::I32Const { value } => Ok((format!("{}", value), false)),
             Operator::LocalGet { local_index } => Ok((format!("?l{}", local_index), true)),
             Operator::I32Shl => Ok(("i32.shl".into(), false)),
+
+            Operator::I32Load { .. } => Ok(("i.load".into(), false)),
             _ => Err(crate::Error::UnsupportedType(EitherType::Operator(
                 format!("{:?}", operator),
             ))),
         }
     }
-
     /// Maps wasm to eterm expression
     /// This method receives also a random generator, the idea is to map StackEntry operands to symbols in a random way.
     /// This will allow to map expressions like `i32.const x; i32.const y; i32.shl` to `(i32.shl ?x y)` or the full expression
@@ -409,8 +467,7 @@ impl Encoder {
     ) -> crate::Result<(String, HashMap<String, usize>)> {
         let stack_entry_index = dfg.map[&oidx];
         let entry = &dfg.entries[stack_entry_index];
-
-        println!("{:?}", operators[entry.operator_idx]);
+        let (operator, _) = &operators[entry.operator_idx];
         let assymbol = |stack_entry_idx: usize| -> (String, HashMap<String, usize>) {
             let symbolname = format!("?x{}", stack_entry_idx);
             let mut smap = HashMap::new();
@@ -535,7 +592,6 @@ mod tests {
                         c @ Lang::I32Const(_) => expr.add((*c).clone()),
                         s @ Lang::Symbol(_) => expr.add((*s).clone()),
                         s @ Lang::Rand => expr.add((*s).clone()),
-                        p @ Lang::Prev => expr.add((*p).clone()),
                         Lang::ILoad(_) => expr.add(Lang::ILoad(operand(0))),
                     };
                     let old_entry = node_to_id.insert(node, sub_expr_id);

@@ -2,7 +2,7 @@ use crate::mutators::peephole::eggsy::lang::Lang;
 use crate::mutators::peephole::eggsy::{analysis::PeepholeMutationAnalysis, Encoder};
 use egg::{
     define_language, rewrite, Analysis, AstSize, CostFunction, EClass, EGraph, Extractor, Id,
-    Language, Pattern, RecExpr, Rewrite, Runner, Searcher, Symbol,
+    Language, Pattern, RecExpr, Rewrite, Runner, Searcher, Subst, Symbol,
 };
 use rand::{
     prelude::{IteratorRandom, SliceRandom, SmallRng},
@@ -23,10 +23,13 @@ use super::Mutator;
 
 pub mod dfg;
 pub mod eggsy;
+
 pub struct PeepholeMutator;
+type EG = egg::EGraph<Lang, PeepholeMutationAnalysis>;
 
 // Code mutator, function id, operator id
 type MutationContext = (Function, u32);
+
 // Helper type to return operator and ofsset inside the byte stream
 type TupleType<'a> = (Operator<'a>, usize);
 impl PeepholeMutator {
@@ -83,11 +86,14 @@ impl PeepholeMutator {
                 if !minidfg.map.contains_key(&oidx) {
                     continue;
                 }
+                // This selection is also random, set this to a maximum number of tries
+                // For example, the code selected could be `i32.shl 54 1` which can be eterminized as `i32.shl ?x 1` or `i32.shl ?x ?y`
+                // But in practice we could have no rewriting rule for all of them
                 let eterm = Encoder::wasm2eterm(&minidfg, oidx, &operators, rnd);
 
                 match eterm {
                     Ok((eterm, symbolsmap)) => {
-                        //println!("ss {:?} {:?}", eterm, operators[oidx]);
+                        println!("ss {:?} {:?}", eterm, operators[oidx]);
                         let start = eterm.parse().unwrap();
                         //println!("start {:?}", start);
 
@@ -101,9 +107,6 @@ impl PeepholeMutator {
                         // we could modify the cost function based on the previous mutation/rotation outcome
                         let cf = AstSize;
                         let extractor = RandomExtractor::new(&egraph, cf);
-
-                        // The mutation is doable if the equivalence class for this eterm is not empty
-                        //println!("{:?} {:?}", egraph[root].nodes, egraph[root]);
 
                         let (id_to_node, operands) = extractor
                             .generate_random_tree(rnd, root, 0 /* only 1 for now */)?;
@@ -140,7 +143,7 @@ impl PeepholeMutator {
                         return Ok((newfunc, fidx));
                     }
                     Err(_) => {
-                        println!("Skipping this operator");
+                        println!("Skipping this operator\n");
                         continue;
                     }
                 }
@@ -176,6 +179,32 @@ impl PeepholeMutator {
         let module = info.replace_section(info.code.unwrap(), &codes);
         Ok(module)
     }
+
+    /// Condition to apply the unfold operator
+    /// check that the var is a constant
+    /// Condition to apply the unfold operator
+    /// check that the var is a constant
+    fn is_const(&self, vari: &'static str) -> impl Fn(&mut EG, Id, &Subst) -> bool {
+        move |egraph: &mut EG, _, subst| {
+            let var = vari.parse();
+            match var {
+                Ok(var) => {
+                    let eclass = &egraph[subst[var]];
+                    if eclass.nodes.len() == 1 {
+                        println!("{:?}", eclass);
+                        let node = &eclass.nodes[0];
+                        match node {
+                            Lang::I32Const(_) => true,
+                            _ => false,
+                        }
+                    } else {
+                        false
+                    }
+                }
+                Err(_) => false,
+            }
+        }
+    }
 }
 
 /// Meta mutator for peephole
@@ -187,15 +216,16 @@ impl Mutator for PeepholeMutator {
         info: &mut crate::ModuleInfo,
     ) -> Result<Module> {
         let rules: &[Rewrite<Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("unfold-1";  "?x" => "(i32.add rand (i32.sub rand ?x))"),
-            rewrite!("unfold-2";  "?x" => "(unfold ?x)"), // Use a custom instruction-mutator for this
+            rewrite!("unfold-2";  "?x" => "(unfold ?x)" if self.is_const("?x") ), // Use a custom instruction-mutator for this
+            // This specific rewriting rule has a condition, it should be appplied if the operand is a constant
+            // To do so we can write all symbols representing constants as ?c when we translate wasm to eterm
             rewrite!("strength-undo";  "(i32.shl ?x 1)" => "(i32.mul ?x ?x)"),
             rewrite!("strength-undo1";  "(i32.shl ?x 2)" => "(i32.mul ?x 2)"),
             rewrite!("strength-undo2";  "(i32.shl ?x 3)" => "(i32.mul ?x 8)"),
             rewrite!("add-1";  "(i32.add ?x ?x)" => "(i32.mul ?x 2)"),
             rewrite!("idempotent-1";  "?x" => "(i32.or ?x ?x)"),
             rewrite!("idempotent-2";  "?x" => "(i32.and ?x ?x)"),
-            rewrite!("mem-load-shift";  "(i.load ?x)" => "(i.load (i32.add skip rand))"),
+            rewrite!("mem-load-shift";  "(i.load ?x)" => "(i.load (i32.add ?x rand))"), // Check why this is generating a lot of the same replacements
         ];
 
         self.mutate_with_rules(config, rnd, info, rules)
@@ -323,57 +353,51 @@ mod tests {
         mutators::{peephole::PeepholeMutator, Mutator},
         WasmMutate,
     };
-    use egg::{rewrite, Rewrite};
+    use egg::{rewrite, Id, Rewrite, Subst};
     use rand::{rngs::SmallRng, SeedableRng};
 
-    use super::PeepholeMutationAnalysis;
+    use super::{PeepholeMutationAnalysis, EG};
+    use crate::mutators::peephole::Lang;
 
-    #[test]
-    fn test_peep_unfold1() {
-        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("unfold-1";  "?x" => "(i32.add rand (i32.sub rand ?x))")];
+    /// Condition to apply the unfold operator
+    /// check that the var is a constant
+    fn is_const(vari: &'static str) -> impl Fn(&mut EG, Id, &Subst) -> bool {
+        move |egraph: &mut EG, _, subst| {
+            println!("Checking if its constant {:?}", vari);
 
-        test_peephole_mutator(
-            r#"
-            (module
-                (func (export "exported_func") (result i32) (local i32 i32)
-                    i32.const 56
-                    i32.const 1
-                    i32.shl
-                )
-            )
-            "#,
-            rules,
-            r#"
-            (module
-                (type (;0;) (func (result i32)))
-                (func (;0;) (type 0) (result i32)
-                  (local i32 i32)
-                  i32.const 56
-                  i32.const 1
-                  i32.const 160268115
-                  i32.sub
-                  i32.const 160268115
-                  i32.add
-                  i32.shl)
-                (export "exported_func" (func 0)))
-            "#,
-            1,
-        );
+            let var = vari.parse();
+
+            match var {
+                Ok(var) => {
+                    let eclass = &egraph[subst[var]];
+                    if eclass.nodes.len() == 1 {
+                        println!("{:?}", eclass);
+                        let node = &eclass.nodes[0];
+                        match node {
+                            Lang::I32Const(_) => {
+                                println!("Can be applied");
+                                true
+                            }
+                            _ => false,
+                        }
+                    } else {
+                        false
+                    }
+                }
+                Err(_) => false,
+            }
+        }
     }
-
     #[test]
     fn test_peep_unfold2() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("unfold-2";  "?x" => "(unfold ?x)")];
+            &[rewrite!("unfold-2";  "?x" => "(unfold ?x)" if is_const("?x"))];
 
         test_peephole_mutator(
             r#"
             (module
                 (func (export "exported_func") (result i32) (local i32 i32)
                     i32.const 56
-                    i32.const 1
-                    i32.shl
                 )
             )
             "#,
@@ -383,16 +407,12 @@ mod tests {
                 (type (;0;) (func (result i32)))
                 (func (;0;) (type 0) (result i32)
                   (local i32 i32)
-                  i32.const 56
-                  i32.const 1
-                  drop
-                  i32.const 991484282
-                  i32.const -991484281
-                  i32.add
-                  i32.shl)
+                  i32.const -2078218253
+                  i32.const -2078218309
+                  i32.add)
                 (export "exported_func" (func 0)))
             "#,
-            1,
+            3,
         );
     }
 
@@ -491,7 +511,7 @@ mod tests {
     #[test]
     fn test_peep_mem_shift() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("mem-load-shift";  "(i.load ?x)" => "(i.load (i32.add skip rand))")];
+            &[rewrite!("mem-load-shift";  "(i.load ?x)" => "(i.load (i32.add ?x rand))")];
 
         test_peephole_mutator(
             r#"
@@ -508,14 +528,56 @@ mod tests {
             (module
                 (type (;0;) (func (param i32) (result i32)))
                 (func (;0;) (type 0) (param i32) (result i32)
+                  i32.const 2143720002
+                  i32.const -1322847442
+                  i32.const 480862779
+                  i32.const -226618899
+                  i32.const -186590935
+                  i32.const 1446998146
+                  i32.const 662639854
+                  i32.const 1453188773
+                  i32.const 718353904
+                  i32.const 982412755
+                  i32.const -1311920857
+                  i32.const 1900885693
+                  i32.const -815127447
+                  i32.const -99060203
+                  i32.const -447427166
+                  i32.const 201654363
+                  i32.const -1699431774
+                  i32.const 1727026012
+                  i32.const 1481586467
+                  i32.const -1685060834
+                  i32.const 136956081
+                  i32.const -1155874118
                   local.get 0
-                  i32.const -683260416
+                  i32.add
+                  i32.add
+                  i32.add
+                  i32.add
+                  i32.add
+                  i32.add
+                  i32.add
+                  i32.add
+                  i32.add
+                  i32.add
+                  i32.add
+                  i32.add
+                  i32.add
+                  i32.add
+                  i32.add
+                  i32.add
+                  i32.add
+                  i32.add
+                  i32.add
+                  i32.add
+                  i32.add
                   i32.add
                   i32.load)
                 (memory (;0;) 1)
                 (export "exported_func" (func 0)))
         "#,
-            1,
+            1230,
         );
     }
 
