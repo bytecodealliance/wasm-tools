@@ -17,7 +17,10 @@ use crate::{
     ModuleInfo, Result, WasmMutate,
 };
 
-use self::eggsy::{NoPopcnt, RandomExtractor};
+use self::{
+    cfg::DFGIcator,
+    eggsy::{NoPopcnt, RandomExtractor},
+};
 
 use super::Mutator;
 
@@ -290,15 +293,29 @@ impl PeepholeMutator {
             let operatorscount = operators.len();
             let opcode_to_mutate = rnd.gen_range(0, operatorscount);
 
+            let mut dfg = DFGIcator::new();
+            let minidfg = dfg.get_fulldfg(&operators)?;
+
+            println!("{:?}", minidfg);
+
             for oidx in (opcode_to_mutate..operatorscount).chain(0..opcode_to_mutate) {
                 //let mut applicable = Vec::new();
                 //let (operator, offset) = &operators[oidx];
-                let eterm = self.operator2term(&operators, oidx);
-                println!("{:?} {:?}", eterm, operators[oidx]);
-                if let Some((eterm, symbolmap, start_at)) = eterm {
+                let eterm = minidfg.map.get(&oidx);
+                // println!("{:?} {:?}", eterm, operators[oidx]);
+
+                if let Some(etermidx) = eterm {
                     // Create an e-graph from this operator mapping
-                    let start = eterm.parse().unwrap();
-                    println!("{:?}", start);
+
+                    todo!();
+
+                    /*
+                    let eterm = &minidfg.entries[*etermidx];
+                    println!("eterm {:?}", eterm.eterm);
+
+                    let start = eterm.eterm.parse().unwrap();
+                    println!("start {:?}", start);
+
                     let runner = Runner::default().with_expr(&start).run(rules);
                     let mut egraph = runner.egraph;
 
@@ -312,17 +329,20 @@ impl PeepholeMutator {
 
                     // The mutation is doable if the equivalence class for this eterm is not empty
                     println!("{:?} {:?}", egraph[root].nodes, egraph[root]);
-                    //if egraph[root].nodes.len() > 1 /* the current root plus another one */ {
 
-                    // The magic happens here :)
                     let (id_to_node, operands) =
                         extractor.generate_random_tree(rnd, root, 0 /* only 1 for now */)?;
                     println!("{:?} {:?}", id_to_node, operands);
 
-                    // This is a hack, TODO check is we can generate random from this root
                     if operands.len() == 1 && operands[0].len() == 0 {
                         continue;
                     }
+
+                    //if egraph[root].nodes.len() > 1 /* the current root plus another one */ {
+
+                    // The magic happens here :)
+
+                    // This is a hack, TODO check is we can generate random from this root
 
                     // Create a new function using the previous locals
                     let mut newfunc = self.copy_locals(reader)?;
@@ -350,8 +370,9 @@ impl PeepholeMutator {
                     let (_, offset) = operators[oidx + 1];
                     let ending = &code_section.data[offset..operatorsrange.end];
                     newfunc.raw(ending.iter().copied());
-
                     return Ok((newfunc, fidx));
+                    */
+                    return Err(crate::Error::NoMutationsAplicable);
                     //}
                 }
             }
@@ -400,8 +421,9 @@ impl Mutator for PeepholeMutator {
             rewrite!("unfold-1";  "?x" => "(i32.add rand (i32.sub rand ?x))"),
             rewrite!("unfold-2";  "?x" => "(unfold ?x)"), // Use a custom instruction-mutator for this
             rewrite!("strength-undo";  "(i32.shl ?x 1)" => "(i32.mul ?x ?x)"),
-            rewrite!("strength-undo1";  "(i32.shl ?x 2)" => "(i32.mul ?x (i32.mul ?x ?x))"),
-            rewrite!("strength-undo2";  "(i32.shl ?x 3)" => "(i32.mul ?x (i32.mul ?x (i32.mul ?x ?x)))"),
+            rewrite!("strength-undo1";  "(i32.shl ?x 2)" => "(i32.mul ?x 2)"),
+            rewrite!("strength-undo2";  "(i32.shl ?x 3)" => "(i32.mul ?x 8)"),
+            rewrite!("add-1";  "(i32.add ?x ?x)" => "(i32.mul ?x 2)"),
             rewrite!("idempotent-1";  "?x" => "(i32.or ?x ?x)"),
             rewrite!("idempotent-2";  "?x" => "(i32.and ?x ?x)"),
             rewrite!("mem-load-shift";  "(i.load ?x)" => "(i.load (i32.add skip rand))"),
@@ -606,7 +628,7 @@ mod tests {
     #[test]
     fn test_peep_strength() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("strength-undo";  "(i32.shl ?x 1)" => "(i32.mul ?x ?x)")];
+            &[rewrite!("strength-undo";  "(i32.shl ?x 1)" => "(i32.mul ?x 2)")];
 
         test_peephole_mutator(
             r#"
@@ -625,7 +647,7 @@ mod tests {
             (func (;0;) (type 0) (result i32)
               (local i32 i32)
               i32.const 56
-              i32.const 56
+              i32.const 2
               i32.mul)
             (export "exported_func" (func 0)))"#,
         );

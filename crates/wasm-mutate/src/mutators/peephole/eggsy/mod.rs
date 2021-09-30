@@ -8,7 +8,7 @@ pub mod lang;
 
 use crate::mutators::peephole::eggsy::lang::Lang;
 
-use super::{TupleType, cfg::MiniDFG};
+use super::{cfg::MiniDFG, TupleType};
 
 pub struct NoPopcnt;
 
@@ -188,35 +188,26 @@ where
 pub struct Encoder;
 
 impl Encoder {
-
     /// Maps wasm to eterm expression
     /// TODO, check the return since it would be better to return a RecExpr
     pub fn wasm2eterm(dfg: &MiniDFG, oidx: usize, operators: &Vec<TupleType>) -> Option<String> {
-
         let entry = &dfg.entries[dfg.map[&oidx]];
 
-        todo!();
-        /*
-        match entry {
-            crate::mutators::peephole::cfg::StackEntry::Leaf { eterm, operator_idx, byte_stream_range } => {
+        //todo!();
+
+        match *entry.data {
+            crate::mutators::peephole::cfg::StackEntryData::Leaf => {
                 // Map this to a variable depends on the type of the operator
                 Some("?x".to_string())
-            },
-            crate::mutators::peephole::cfg::StackEntry::Node { eterm, operator_idx, byte_stream_range, operands } => {
-
-                let operands = 
-                operands.iter().map(|mapidx|{
-                    let oidx = dfg.map[mapidx];
-                    Encoder::wasm2eterm(&dfg, oidx, operators).unwrap()
-                }).collect::<Vec<String>>();
-                
-                Some(format!("({} {})", eterm, operands.join(" ")).to_string())
-            },
-            crate::mutators::peephole::cfg::StackEntry::Unknown => Some("skip".to_string()), // This is the previous state of the stack
-        } */
+            }
+            crate::mutators::peephole::cfg::StackEntryData::Node(_) => {
+                todo!()
+            }
+            crate::mutators::peephole::cfg::StackEntryData::Unknown => Some("skip".to_string()), // This is the previous state of the stack
+        }
     }
 
-    pub fn eterm2wasm(){
+    pub fn eterm2wasm() {
         todo!();
     }
 }
@@ -225,7 +216,13 @@ impl Encoder {
 mod tests {
     use std::collections::HashMap;
 
-    use crate::{WasmMutate, mutators::{Mutator, peephole::{PeepholeMutator, TupleType, cfg::DFGIcator}}};
+    use crate::{
+        mutators::{
+            peephole::{cfg::DFGIcator, PeepholeMutator, TupleType},
+            Mutator,
+        },
+        WasmMutate,
+    };
     use egg::{rewrite, Id, Pattern, RecExpr, Rewrite, Runner, Searcher};
     use rand::{prelude::SliceRandom, rngs::SmallRng, Rng, SeedableRng};
     use wasmparser::Parser;
@@ -320,7 +317,7 @@ mod tests {
     }
 
     #[test]
-    pub fn test_wasm2eterm(){
+    pub fn test_wasm2eterm() {
         let original = &wat::parse_str(
             r#"
         (module
@@ -374,7 +371,7 @@ mod tests {
                         .collect::<wasmparser::Result<Vec<TupleType>>>()
                         .unwrap();
 
-                    let dfg = DFGIcator::get_fulldfg(&operators).unwrap();
+                    let dfg = DFGIcator::new().get_fulldfg(&operators).unwrap();
 
                     let eterm = Encoder::wasm2eterm(&dfg, 6, &operators);
 
