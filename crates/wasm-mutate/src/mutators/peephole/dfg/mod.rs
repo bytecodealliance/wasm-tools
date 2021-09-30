@@ -29,9 +29,16 @@ pub enum StackEntryData {
 
 #[derive(Debug)]
 pub struct MiniDFG {
+    // Some of the operators have no stack entry
+    // This will help to decide or not to mutate the operators, avoiding egrapphp creation, etc
     pub map: HashMap<usize, usize>,
+    // Each stack entry represents a position in the operators stream
+    // containing its children
     pub entries: Vec<StackEntry>,
-    pub parents: Vec<i32>
+    // For each stack entry we keep the parental relation, this will help to write down the dfg
+    // to Wasm
+    // We write each stack entry having no parent, i.e. a root in the dfg
+    pub parents: Vec<i32>,
 }
 
 impl<'a> DFGIcator {
@@ -145,7 +152,7 @@ impl<'a> DFGIcator {
             }
         }
 
-        if range.end - range.start > 1 {
+        if range.end - range.start > 0 {
             Some(BBlock { range })
         } else {
             // It only contains the jump
@@ -274,7 +281,7 @@ impl<'a> DFGIcator {
                         &mut dfg_map,
                         &mut operatormap,
                         &mut stack,
-                        &mut parents
+                        &mut parents,
                     );
                 }
                 Operator::I32Const { value } => {
@@ -285,7 +292,7 @@ impl<'a> DFGIcator {
                         &mut dfg_map,
                         &mut operatormap,
                         &mut stack,
-                        &mut parents
+                        &mut parents,
                     );
                 }
                 // Watch out, type information is missing here
@@ -303,18 +310,21 @@ impl<'a> DFGIcator {
 
                     let newnode = StackEntry {
                         operator_idx: idx,
-                        byte_stream_range: Range { start: 
-                            *byte_offset, end: 
-                            *byte_offset_next },
-                        data: Box::new(StackEntryData::Node { operands: vec![child] }),
+                        byte_stream_range: Range {
+                            start: *byte_offset,
+                            end: *byte_offset_next,
+                        },
+                        data: Box::new(StackEntryData::Node {
+                            operands: vec![child],
+                        }),
                     };
-            
+
                     let entry_idx = dfg_map.len();
                     operatormap.insert(idx, entry_idx);
                     // Add the data flow link
                     dfg_map.push(newnode);
                     parents.push(-1);
-                    
+
                     parents[child] = idx as i32;
                 }
                 // All memory loads
@@ -346,7 +356,7 @@ impl<'a> DFGIcator {
                         &mut operatormap,
                         &mut stack,
                         vec![offset],
-                        &mut parents
+                        &mut parents,
                     );
 
                     parents[offset] = idx as i32;
@@ -387,7 +397,7 @@ impl<'a> DFGIcator {
                         &mut operatormap,
                         &mut stack,
                         vec![rightidx, leftidx], // reverse order
-                        &mut parents
+                        &mut parents,
                     );
 
                     parents[leftidx] = idx as i32;
@@ -404,7 +414,7 @@ impl<'a> DFGIcator {
         Ok(MiniDFG {
             entries: dfg_map,
             map: operatormap,
-            parents
+            parents,
         })
     }
 }

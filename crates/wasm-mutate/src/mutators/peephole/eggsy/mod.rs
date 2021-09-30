@@ -13,7 +13,10 @@ pub mod lang;
 
 use crate::{error::EitherType, mutators::peephole::eggsy::lang::Lang, ModuleInfo};
 
-use super::{TupleType, dfg::{BBlock, MiniDFG, StackEntry}};
+use super::{
+    dfg::{BBlock, MiniDFG, StackEntry},
+    TupleType,
+};
 
 /// This struct is a wrapper of egg::Extractor
 /// The majority of the methods are copied and adapted to our needs
@@ -191,6 +194,36 @@ impl Encoder {
             Lang::I32Const(v) => {
                 newfunc.instruction(Instruction::I32Const(*v));
             }
+            Lang::I32Shl(_) => {
+                newfunc.instruction(Instruction::I32Shl);
+            }
+            Lang::I32Add(_) => {
+                newfunc.instruction(Instruction::I32Add);
+            }
+            Lang::I32Sub(_) => {
+                newfunc.instruction(Instruction::I32Sub);
+            }
+            Lang::I32And(_) => {
+                newfunc.instruction(Instruction::I32And);
+            }
+            Lang::I32Or(_) => {
+                newfunc.instruction(Instruction::I32Or);
+            }
+            Lang::I32Xor(_) => {
+                newfunc.instruction(Instruction::I32Xor);
+            }
+            Lang::I32ShrU(_) => {
+                newfunc.instruction(Instruction::I32ShrU);
+            }
+            Lang::I32Popcnt(_) => {
+                newfunc.instruction(Instruction::I32Popcnt);
+            }
+            Lang::ILoad(_) => {
+                todo!();
+            }
+            Lang::Rand => todo!(),
+            Lang::Unfold(_) => todo!(),
+            Lang::Prev => todo!(),
             Lang::Symbol(s) => {
                 // Copy the byte stream to aavoid mapping
                 println!("{:?} {:?}", &s.to_string(), symbolsmap);
@@ -198,8 +231,7 @@ impl Encoder {
                 let entry = &minidfg.entries[entryidx];
 
                 println!("{:?} {:?}", entryidx, entry);
-                // Write the symbol in the correct place of the function
-                // TODO, here check for gaps and stack neutral operations  ?
+                // Write the symbol in the correct place of the functions
 
                 let bytes = &info.get_code_section().data
                     [entry.byte_stream_range.start..entry.byte_stream_range.end];
@@ -249,40 +281,36 @@ impl Encoder {
     }
 
     fn writestackentry(
-        info: &ModuleInfo, 
-        minidfg: &MiniDFG, entry: &StackEntry, entryidx: usize, newfunc: &mut Function, visited: &mut Vec<usize>) -> crate::Result<()>{
-
+        info: &ModuleInfo,
+        minidfg: &MiniDFG,
+        entry: &StackEntry,
+        entryidx: usize,
+        newfunc: &mut Function,
+        visited: &mut Vec<usize>,
+    ) -> crate::Result<()> {
         // Write the deps in the dfg
         // Process operands
         match &*entry.data {
             super::dfg::StackEntryData::Leaf => {
                 // Write the current operator
                 let bytes = &info.get_code_section().data
-                [entry.byte_stream_range.start..=entry.byte_stream_range.end];
+                    [entry.byte_stream_range.start..=entry.byte_stream_range.end];
                 println!("{:?}", bytes);
                 newfunc.raw(bytes.iter().copied());
 
                 visited[entryidx] = 1;
-            },
+            }
             super::dfg::StackEntryData::Node { operands } => {
                 for idx in operands {
                     let entry = &minidfg.entries[*idx];
-                    Encoder::writestackentry(
-                        info,
-                        minidfg,
-                        entry,
-                        *idx,
-                        newfunc,
-                        visited
-                    )?;
+                    Encoder::writestackentry(info, minidfg, entry, *idx, newfunc, visited)?;
                 }
-            },
+            }
             super::dfg::StackEntryData::Unknown => {
                 // do nothing, this is the previous state of the stack
-            },
+            }
         }
-        
-        
+
         Ok(())
     }
 
@@ -309,37 +337,33 @@ impl Encoder {
 
         // Write all entries in the minidfg in reverse order
         // The stack neutral will be preserved but the position of the changed operands not that much :(
-        // The edges of the stackentries are always backward in the array, so, it consistent to 
+        // The edges of the stackentries are always backward in the array, so, it consistent to
         // do the writing in reverse
         let len = minidfg.map.len();
         let mut visited = vec![0; len];
         for (entryidx, parentidx) in minidfg.parents.iter().enumerate() {
-
-            if *parentidx == -1 { // It is a root, write then
+            if *parentidx == -1 {
+                // It is a root, write then
                 let entry = &minidfg.entries[entryidx];
                 let operator = &operators[entry.operator_idx];
-                println!("entry {} {:?} {:?}",entryidx, entry, operator);
+                println!("entry {} {:?} {:?}", entryidx, entry, operator);
                 if entry.operator_idx == insertion_point {
                     Encoder::etermtree2waasm(
-                        info, rnd, id_to_node, operands, current, newfunc, symbolmap, minidfg, operators,
+                        info, rnd, id_to_node, operands, current, newfunc, symbolmap, minidfg,
+                        operators,
                     )?;
                 } else {
                     // Copy the stack entry as it is
-                    Encoder::writestackentry(info, minidfg, entry, entryidx, newfunc, &mut visited)?;
+                    Encoder::writestackentry(
+                        info,
+                        minidfg,
+                        entry,
+                        entryidx,
+                        newfunc,
+                        &mut visited,
+                    )?;
                 }
             }
-            
-
-            /*if visited[entryidx] == 1{
-                // Do not write this dfg part
-                continue;
-            }
-            let reversed = len - entryidx - 1;
-            let entry = &minidfg.entries[reversed];
-
-            println!("{:?}", entry);
-
-             */
         }
 
         // Copy remaining function
@@ -396,7 +420,7 @@ impl Encoder {
 
         // continue or break
         // 0 continue, 1 break
-        let choices = [0, 0];
+        let choices = [0, 1];
         match &*entry.data {
             crate::mutators::peephole::dfg::StackEntryData::Leaf => {
                 // Map this to a variable depends on the type of the operator
@@ -421,7 +445,7 @@ impl Encoder {
             crate::mutators::peephole::dfg::StackEntryData::Node { operands } => {
                 // This is an operator
                 let (operator, _) = &operators[entry.operator_idx];
-                let (term, addtosymbolsmap) = Encoder::get_simpleterm(&operator).unwrap();
+                let (term, _) = Encoder::get_simpleterm(&operator)?;
                 let choice = choices.choose(rnd).unwrap();
                 let mut operandterms = Vec::new();
                 let mut smap: HashMap<String, usize> = HashMap::new();
@@ -429,8 +453,7 @@ impl Encoder {
                     let stack_entry = &dfg.entries[*operandi];
 
                     let (eterm, symbols) = match choice {
-                        0 => Encoder::wasm2eterm(dfg, stack_entry.operator_idx, operators, rnd)
-                            .unwrap(),
+                        0 => Encoder::wasm2eterm(dfg, stack_entry.operator_idx, operators, rnd)?,
                         1 => assymbol(stack_entry.operator_idx),
                         _ => panic!("Invalid option {}", choice),
                     };
@@ -609,10 +632,7 @@ mod tests {
                     let dfg = DFGIcator::new().get_dfg(&operators, &bb).unwrap();
                     // let mut map = HashMap::new();
                     let mut rnd = SmallRng::seed_from_u64(0);
-                    let eterm = Encoder::wasm2eterm(&dfg, 6, &operators, &mut rnd);
-
-                    println!("{:?}", eterm);
-                    todo!();
+                    Encoder::wasm2eterm(&dfg, 6, &operators, &mut rnd).unwrap();
                 }
                 wasmparser::Payload::End => {
                     break;
