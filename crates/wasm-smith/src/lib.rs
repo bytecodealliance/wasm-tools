@@ -1750,7 +1750,7 @@ impl Module {
     }
 
     fn arbitrary_tags(&mut self, u: &mut Unstructured) -> Result<()> {
-        if !self.config.exceptions_enabled() || self.has_tag_func_types() {
+        if !self.config.exceptions_enabled() || !self.has_tag_func_types() {
             return Ok(());
         }
 

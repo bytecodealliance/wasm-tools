@@ -91,7 +91,7 @@ instructions! {
     (Some(return_valid), r#return, 900),
     (Some(call_valid), call),
     (Some(call_indirect_valid), call_indirect),
-    (Some(throw_valid), throw),
+    (Some(throw_valid), throw, 850),
     (Some(rethrow_valid), rethrow),
     // Parametric instructions.
     (Some(drop_valid), drop),
