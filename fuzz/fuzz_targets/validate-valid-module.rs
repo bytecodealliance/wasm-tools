@@ -21,6 +21,7 @@ fuzz_target!(|m: &[u8]| {
         module_linking: config.module_linking_enabled,
         simd: config.simd_enabled,
         memory64: config.memory64_enabled,
+        exceptions: config.exceptions_enabled,
         ..wasmparser::WasmFeatures::default()
     });
     if let Err(e) = validator.validate_all(&bytes) {

@@ -14,6 +14,7 @@ pub fn generate_valid_module(
     config.simd_enabled = u.arbitrary()?;
     config.module_linking_enabled = u.arbitrary()?;
     config.memory64_enabled = u.arbitrary()?;
+    config.exceptions_enabled = u.arbitrary()?;
     config.canonicalize_nans = u.arbitrary()?;
 
     configure(&mut config, &mut u)?;
