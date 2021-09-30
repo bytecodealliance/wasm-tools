@@ -2,6 +2,23 @@ use super::*;
 use std::convert::TryFrom;
 
 /// An encoder for the tag section.
+///
+/// # Example
+///
+/// ```
+/// use wasm_encoder::{Module, TagSection, TagType};
+///
+/// let mut tags = TagSection::new();
+/// tags.tag(TagType {
+///     kind: TagKind::Exception,
+///     func_type_idx: 0,
+/// });
+///
+/// let mut module = Module::new();
+/// module.section(&tags);
+///
+/// let wasm_bytes = module.finish();
+/// ```
 #[derive(Clone, Debug)]
 pub struct TagSection {
     bytes: Vec<u8>,
