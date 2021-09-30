@@ -29,6 +29,11 @@ const FEATURES: &[(&str, &str, fn(&mut WasmFeatures) -> &mut bool)] = &[
     ("multi-memory", "wasm multi-memory feature", |f| {
         &mut f.multi_memory
     }),
+    (
+        "exception-handling",
+        "wasm exception-handling feature",
+        |f| &mut f.exceptions,
+    ),
     ("memory64", "wasm memory64 feature", |f| &mut f.memory64),
 ];
 
