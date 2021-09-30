@@ -390,6 +390,37 @@ mod tests {
         );
     }
 
+
+    #[test]
+    fn test_peep_stack_neutral() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("strength-undo";  "(i32.shl ?x 1)" => "(i32.mul ?x 2)")];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func") (result i32) (local i32 i32)
+                local.get 0
+                i32.const 42
+                drop
+                i32.const 1
+                i32.shl
+            )
+        )
+        "#,
+            rules,
+            r#"
+        (module
+            (type (;0;) (func (result i32)))
+            (func (;0;) (type 0) (result i32)
+              (local i32 i32)
+              i32.const 56
+              i32.const 2
+              i32.mul)
+            (export "exported_func" (func 0)))"#,
+        );
+    }
+
     #[test]
     fn test_peep_strength() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =

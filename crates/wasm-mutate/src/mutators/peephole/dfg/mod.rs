@@ -31,6 +31,7 @@ pub enum StackEntryData {
 pub struct MiniDFG {
     pub map: HashMap<usize, usize>,
     pub entries: Vec<StackEntry>,
+    pub parents: Vec<i32>
 }
 
 impl<'a> DFGIcator {
@@ -160,6 +161,7 @@ impl<'a> DFGIcator {
         dfg_map: &mut Vec<StackEntry>,
         operatormap: &mut HashMap<usize, usize>,
         stack: &mut Vec<usize>,
+        parents: &mut Vec<i32>,
     ) -> usize {
         let leaf = StackEntry {
             operator_idx: operator_idx,
@@ -171,6 +173,7 @@ impl<'a> DFGIcator {
         stack.push(entry_idx);
         // Add the data flow link
         dfg_map.push(leaf);
+        parents.push(-1);
         entry_idx
     }
 
@@ -182,6 +185,7 @@ impl<'a> DFGIcator {
         operatormap: &mut HashMap<usize, usize>,
         stack: &mut Vec<usize>,
         operands: Vec<usize>,
+        parents: &mut Vec<i32>,
     ) -> usize {
         let newnode = StackEntry {
             operator_idx: operator_idx,
@@ -194,6 +198,7 @@ impl<'a> DFGIcator {
         stack.push(entry_idx);
         // Add the data flow link
         dfg_map.push(newnode);
+        parents.push(-1);
         entry_idx
     }
 
@@ -249,6 +254,7 @@ impl<'a> DFGIcator {
         let mut dfg_map = Vec::new();
         let mut operatormap: HashMap<usize, usize> = HashMap::new(); // operator index to stack index
         let mut stack: Vec<usize> = Vec::new();
+        let mut parents: Vec<i32> = Vec::new();
 
         // Create a DFG from the BB
         // Start from the first operator and simulate the stack...
@@ -268,6 +274,7 @@ impl<'a> DFGIcator {
                         &mut dfg_map,
                         &mut operatormap,
                         &mut stack,
+                        &mut parents
                     );
                 }
                 Operator::I32Const { value } => {
@@ -278,12 +285,13 @@ impl<'a> DFGIcator {
                         &mut dfg_map,
                         &mut operatormap,
                         &mut stack,
+                        &mut parents
                     );
                 }
                 // Watch out, type information is missing here
                 Operator::LocalSet { .. } | Operator::GlobalSet { .. } | Operator::Drop => {
                     // It needs the offset arg
-                    let idx = DFGIcator::pop_operand(
+                    let child = DFGIcator::pop_operand(
                         &mut stack,
                         &mut dfg_map,
                         idx,
@@ -293,19 +301,21 @@ impl<'a> DFGIcator {
 
                     println!("{:?}", idx);
 
-                    // Pop but still add if to dfg
-                    /*
-                    DFGIcator::push_node(
-                            // construct the full eterm here ?
-                        format!("({} {})", DFGIcator::getsimpleterm(operator, termindex), dfg_map[offset].eterm,),
-                        idx,
-                        *byte_offset,
-                        *byte_offset_next,
-                        &mut dfg_map,
-                        &mut operatormap,
-                        &mut stack,
-                        vec![offset]
-                    ); */
+                    let newnode = StackEntry {
+                        operator_idx: idx,
+                        byte_stream_range: Range { start: 
+                            *byte_offset, end: 
+                            *byte_offset_next },
+                        data: Box::new(StackEntryData::Node { operands: vec![child] }),
+                    };
+            
+                    let entry_idx = dfg_map.len();
+                    operatormap.insert(idx, entry_idx);
+                    // Add the data flow link
+                    dfg_map.push(newnode);
+                    parents.push(-1);
+                    
+                    parents[child] = idx as i32;
                 }
                 // All memory loads
                 Operator::I32Load { .. }
@@ -328,7 +338,7 @@ impl<'a> DFGIcator {
                         &mut operatormap,
                         false,
                     );
-                    DFGIcator::push_node(
+                    let idx = DFGIcator::push_node(
                         idx,
                         *byte_offset,
                         *byte_offset_next,
@@ -336,7 +346,10 @@ impl<'a> DFGIcator {
                         &mut operatormap,
                         &mut stack,
                         vec![offset],
+                        &mut parents
                     );
+
+                    parents[offset] = idx as i32;
                 }
                 Operator::I32Add
                 | Operator::I32Sub
@@ -353,20 +366,20 @@ impl<'a> DFGIcator {
                         &mut dfg_map,
                         idx,
                         &mut operatormap,
-                        true,
+                        false,
                     );
                     let rightidx = DFGIcator::pop_operand(
                         &mut stack,
                         &mut dfg_map,
                         idx,
                         &mut operatormap,
-                        true,
+                        false,
                     );
 
                     // The operands should not be the same
                     assert_ne!(leftidx, rightidx);
 
-                    DFGIcator::push_node(
+                    let idx = DFGIcator::push_node(
                         idx,
                         *byte_offset,
                         *byte_offset_next,
@@ -374,7 +387,11 @@ impl<'a> DFGIcator {
                         &mut operatormap,
                         &mut stack,
                         vec![rightidx, leftidx], // reverse order
+                        &mut parents
                     );
+
+                    parents[leftidx] = idx as i32;
+                    parents[rightidx] = idx as i32;
                 }
 
                 _ => {
@@ -383,9 +400,11 @@ impl<'a> DFGIcator {
             }
         }
 
+        println!("parents {:?}", parents);
         Ok(MiniDFG {
             entries: dfg_map,
             map: operatormap,
+            parents
         })
     }
 }

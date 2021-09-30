@@ -13,10 +13,7 @@ pub mod lang;
 
 use crate::{error::EitherType, mutators::peephole::eggsy::lang::Lang, ModuleInfo};
 
-use super::{
-    dfg::{BBlock, MiniDFG},
-    TupleType,
-};
+use super::{TupleType, dfg::{BBlock, MiniDFG, StackEntry}};
 
 /// This struct is a wrapper of egg::Extractor
 /// The majority of the methods are copied and adapted to our needs
@@ -251,6 +248,44 @@ impl Encoder {
         Ok(())
     }
 
+    fn writestackentry(
+        info: &ModuleInfo, 
+        minidfg: &MiniDFG, entry: &StackEntry, entryidx: usize, newfunc: &mut Function, visited: &mut Vec<usize>) -> crate::Result<()>{
+
+        // Write the deps in the dfg
+        // Process operands
+        match &*entry.data {
+            super::dfg::StackEntryData::Leaf => {
+                // Write the current operator
+                let bytes = &info.get_code_section().data
+                [entry.byte_stream_range.start..=entry.byte_stream_range.end];
+                println!("{:?}", bytes);
+                newfunc.raw(bytes.iter().copied());
+
+                visited[entryidx] = 1;
+            },
+            super::dfg::StackEntryData::Node { operands } => {
+                for idx in operands {
+                    let entry = &minidfg.entries[*idx];
+                    Encoder::writestackentry(
+                        info,
+                        minidfg,
+                        entry,
+                        *idx,
+                        newfunc,
+                        visited
+                    )?;
+                }
+            },
+            super::dfg::StackEntryData::Unknown => {
+                // do nothing, this is the previous state of the stack
+            },
+        }
+        
+        
+        Ok(())
+    }
+
     pub fn build_function(
         info: &ModuleInfo,
         rnd: &mut rand::prelude::SmallRng,
@@ -267,14 +302,46 @@ impl Encoder {
         // Copy previous code
         let range = basicblock.range;
         let byterange = (&operators[0].1, &operators[range.start].1);
-        println!("{:?}", byterange);
+        println!("DFG {:?}", minidfg);
         let bytes = &info.get_code_section().data[*byterange.0..*byterange.1];
 
         newfunc.raw(bytes.iter().copied());
 
-        Encoder::etermtree2waasm(
-            info, rnd, id_to_node, operands, current, newfunc, symbolmap, minidfg, operators,
-        )?;
+        // Write all entries in the minidfg in reverse order
+        // The stack neutral will be preserved but the position of the changed operands not that much :(
+        // The edges of the stackentries are always backward in the array, so, it consistent to 
+        // do the writing in reverse
+        let len = minidfg.map.len();
+        let mut visited = vec![0; len];
+        for (entryidx, parentidx) in minidfg.parents.iter().enumerate() {
+
+            if *parentidx == -1 { // It is a root, write then
+                let entry = &minidfg.entries[entryidx];
+                let operator = &operators[entry.operator_idx];
+                println!("entry {} {:?} {:?}",entryidx, entry, operator);
+                if entry.operator_idx == insertion_point {
+                    Encoder::etermtree2waasm(
+                        info, rnd, id_to_node, operands, current, newfunc, symbolmap, minidfg, operators,
+                    )?;
+                } else {
+                    // Copy the stack entry as it is
+                    Encoder::writestackentry(info, minidfg, entry, entryidx, newfunc, &mut visited)?;
+                }
+            }
+            
+
+            /*if visited[entryidx] == 1{
+                // Do not write this dfg part
+                continue;
+            }
+            let reversed = len - entryidx - 1;
+            let entry = &minidfg.entries[reversed];
+
+            println!("{:?}", entry);
+
+             */
+        }
+
         // Copy remaining function
         let range = basicblock.range;
         let byterange = (
