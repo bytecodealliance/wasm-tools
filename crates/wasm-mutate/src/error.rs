@@ -13,6 +13,8 @@ pub enum Error {
     UnsupportedType(EitherType),
     #[error("There is not applicable peephole mutator for this module.")]
     NotMatchingPeepholes,
+    #[error("Unsupported egg type mapping.")]
+    UnsupportedEggLangType,
 }
 
 #[derive(Debug)]
