@@ -259,10 +259,24 @@ impl Encoder {
 
                 // Write the symbol in the correct place of the functions
 
+                // Entry could not be an indepent symbol
+                match &entry.data {
+                    super::dfg::StackEntryData::Leaf => {
+                        // Write as it is
+                        //todo!("entry {:?}", entry);
+                    }
+                    super::dfg::StackEntryData::Node { operands } => {
+                        todo!("todo {:?}", operands);
+                    }
+                    super::dfg::StackEntryData::Undef => {
+                        // do nothing
+                        return Ok(());
+                    }
+                }
+
                 let bytes = &info.get_code_section().data
                     [entry.byte_stream_range.start..entry.byte_stream_range.end];
                 newfunc.raw(bytes.iter().copied());
-                //newfunc.instruction(Instruction::I32Const(*v));
             }
             _ => {
                 return Err(crate::Error::UnsupportedType(EitherType::Operator(
@@ -351,7 +365,7 @@ impl Encoder {
                     Encoder::writestackentry(info, minidfg, entry, *idx, newfunc, visited)?;
                 }
             }
-            super::dfg::StackEntryData::Unknown => {
+            super::dfg::StackEntryData::Undef => {
                 // do nothing, this is the previous state of the stack
             }
         }
@@ -389,7 +403,6 @@ impl Encoder {
             if *parentidx == -1 {
                 // It is a root, write then
                 let entry = &minidfg.entries[entryidx];
-                let operator = &operators[entry.operator_idx];
                 if entry.operator_idx == insertion_point {
                     Encoder::etermtree2wasm(
                         info,
@@ -420,13 +433,12 @@ impl Encoder {
         // Copy remaining function
         let range = basicblock.range;
         let byterange = (
-            &operators[range.end - 1].1,
+            &operators[range.end].1, // In the worst case the next instruction will be and end
             &operators[operators.len() - 1].1,
         );
         let bytes = &info.get_code_section().data[*byterange.0..*byterange.1];
 
         newfunc.raw(bytes.iter().copied());
-
         Ok(())
     }
 
@@ -439,7 +451,6 @@ impl Encoder {
             Operator::I32Const { value } => Ok((format!("{}", value), false)),
             Operator::LocalGet { local_index } => Ok((format!("?l{}", local_index), true)),
             Operator::I32Shl => Ok(("i32.shl".into(), false)),
-
             Operator::I32Load { .. } => Ok(("i.load".into(), false)),
             _ => Err(crate::Error::UnsupportedType(EitherType::Operator(
                 format!("{:?}", operator),
@@ -509,7 +520,7 @@ impl Encoder {
                 }
                 Ok((format!("({} {})", term, operandterms.join(" ")), smap))
             }
-            crate::mutators::peephole::dfg::StackEntryData::Unknown => {
+            crate::mutators::peephole::dfg::StackEntryData::Undef => {
                 Ok(("skip".to_string(), HashMap::new()))
             } // This is the previous state of the stack
         }
@@ -614,76 +625,5 @@ mod tests {
         let (id_to_node, operands) = extractor.extract_random(&mut rnd, root, 10).unwrap();
 
         let random_outcome = build_expr(root, id_to_node, operands);
-    }
-
-    #[test]
-    pub fn test_wasm2eterm() {
-        let original = &wat::parse_str(
-            r#"
-        (module
-            (memory 1)
-            (func (export "exported_func") (param i32) (result i32)
-                i32.const 42
-                drop
-                local.get 0
-                local.get 0
-                i32.const 109
-                i32.add
-                i32.add
-                i32.load
-                if 
-                    i32.const 54
-                else
-                    i32.const 87
-                end
-                i32.const 56
-                i32.add
-                loop
-                    i32.const 1
-                    local.get 0
-                    i32.add
-                    local.set 0
-                end
-            )
-        )
-        "#,
-        )
-        .unwrap();
-
-        let mut parser = Parser::new(0);
-        let mut consumed = 0;
-        loop {
-            let (payload, size) = match parser.parse(&original[consumed..], true).unwrap() {
-                wasmparser::Chunk::NeedMoreData(_) => {
-                    panic!("This should not happen")
-                }
-                wasmparser::Chunk::Parsed { consumed, payload } => (payload, consumed),
-            };
-
-            consumed += size;
-
-            match payload {
-                wasmparser::Payload::CodeSectionEntry(reader) => {
-                    let operators = reader
-                        .get_operators_reader()
-                        .unwrap()
-                        .into_iter_with_offsets()
-                        .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()
-                        .unwrap();
-
-                    let bb = DFGIcator::new().get_bb_for_operator(0, &operators).unwrap();
-                    let dfg = DFGIcator::new().get_dfg(&operators, &bb).unwrap();
-                    // let mut map = HashMap::new();
-                    let mut rnd = SmallRng::seed_from_u64(0);
-                    Encoder::wasm2eterm(&dfg, 6, &operators, &mut rnd).unwrap();
-                }
-                wasmparser::Payload::End => {
-                    break;
-                }
-                _ => {
-                    // Do nothing
-                }
-            }
-        }
     }
 }

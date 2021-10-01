@@ -78,65 +78,72 @@ impl PeepholeMutator {
 
             for oidx in (opcode_to_mutate..operatorscount).chain(0..opcode_to_mutate) {
                 let mut dfg = DFGIcator::new();
-                let basicblock = dfg.get_bb_for_operator(oidx, &operators).unwrap();
-                let minidfg = dfg.get_dfg(&operators, &basicblock)?;
+                let basicblock = dfg.get_bb_from_operator(oidx, &operators);
 
-                if !minidfg.map.contains_key(&oidx) {
-                    continue;
-                }
-                // This selection is also random, set this to a maximum number of tries
-                // For example, the code selected could be `i32.shl 54 1` which can be eterminized as `i32.shl ?x 1` or `i32.shl ?x ?y`
-                // But in practice we could have no rewriting rule for all of them
-                let eterm = Encoder::wasm2eterm(&minidfg, oidx, &operators, rnd);
+                match basicblock {
+                    Some(basicblock) => {
+                        let minidfg = dfg.get_dfg(&operators, &basicblock)?;
 
-                match eterm {
-                    Ok((eterm, symbolsmap)) => {
-                        let start = eterm.parse().unwrap();
-
-                        let runner = Runner::default().with_expr(&start).run(rules);
-                        let mut egraph = runner.egraph;
-
-                        // In theory this will return the Id of the operator eterm
-                        let root = egraph.add_expr(&start);
-
-                        // This cost function could be replaced by a custom weighted probability, for example
-                        // we could modify the cost function based on the previous mutation/rotation outcome
-                        let cf = AstSize;
-                        let extractor = RandomExtractor::new(&egraph, cf);
-
-                        let (id_to_node, operands) =
-                            extractor.extract_random(rnd, root, 0 /* only 1 for now */)?;
-
-                        // There is no point in generating the same symbol
-                        if operands.len() == 1 && operands[0].len() == 0 {
+                        if !minidfg.map.contains_key(&oidx) {
                             continue;
                         }
+                        // This selection is also random, set this to a maximum number of tries
+                        // For example, the code selected could be `i32.shl 54 1` which can be eterminized as `i32.shl ?x 1` or `i32.shl ?x ?y`
+                        // But in practice we could have no rewriting rule for all of them
+                        let eterm = Encoder::wasm2eterm(&minidfg, oidx, &operators, rnd);
 
-                        // Create a new function using the previous locals
-                        let mut newfunc = self.copy_locals(reader)?;
+                        match eterm {
+                            Ok((eterm, symbolsmap)) => {
+                                let start = eterm.parse().unwrap();
 
-                        // println!("{:?}", symbolsmap);
-                        // Translate lang expr to wasm
-                        Encoder::build_function(
-                            info,
-                            rnd,
-                            0, // The root of the tree
-                            oidx,
-                            &id_to_node,
-                            &operands,
-                            &operators,
-                            &basicblock,
-                            &mut newfunc,
-                            &symbolsmap,
-                            &minidfg,
-                        )?;
+                                let runner = Runner::default().with_expr(&start).run(rules);
+                                let mut egraph = runner.egraph;
 
-                        let (_, offset) = operators[oidx + 1];
-                        let ending = &code_section.data[offset..operatorsrange.end];
-                        newfunc.raw(ending.iter().copied());
-                        return Ok((newfunc, fidx));
+                                // In theory this will return the Id of the operator eterm
+                                let root = egraph.add_expr(&start);
+
+                                // This cost function could be replaced by a custom weighted probability, for example
+                                // we could modify the cost function based on the previous mutation/rotation outcome
+                                let cf = AstSize;
+                                let extractor = RandomExtractor::new(&egraph, cf);
+
+                                let (id_to_node, operands) = extractor
+                                    .extract_random(rnd, root, 0 /* only 1 for now */)?;
+
+                                // There is no point in generating the same symbol
+                                if operands.len() == 1 && operands[0].len() == 0 {
+                                    continue;
+                                }
+
+                                // Create a new function using the previous locals
+                                let mut newfunc = self.copy_locals(reader)?;
+
+                                // Translate lang expr to wasm
+                                Encoder::build_function(
+                                    info,
+                                    rnd,
+                                    0, // The root of the tree
+                                    oidx,
+                                    &id_to_node,
+                                    &operands,
+                                    &operators,
+                                    &basicblock,
+                                    &mut newfunc,
+                                    &symbolsmap,
+                                    &minidfg,
+                                )?;
+
+                                let (_, offset) = operators[oidx + 1];
+                                let ending = &code_section.data[offset..operatorsrange.end];
+                                newfunc.raw(ending.iter().copied());
+                                return Ok((newfunc, fidx));
+                            }
+                            Err(_) => {
+                                continue;
+                            }
+                        }
                     }
-                    Err(_) => {
+                    None => {
                         continue;
                     }
                 }
@@ -184,7 +191,6 @@ impl PeepholeMutator {
                 Ok(var) => {
                     let eclass = &egraph[subst[var]];
                     if eclass.nodes.len() == 1 {
-                        println!("{:?}", eclass);
                         let node = &eclass.nodes[0];
                         match node {
                             Lang::I32Const(_) => true,
@@ -366,7 +372,6 @@ mod tests {
                 Ok(var) => {
                     let eclass = &egraph[subst[var]];
                     if eclass.nodes.len() == 1 {
-                        println!("{:?}", eclass);
                         let node = &eclass.nodes[0];
                         match node {
                             Lang::I32Const(_) => true,
@@ -430,15 +435,15 @@ mod tests {
             (module
                 (type (;0;) (func (result i32)))
                 (func (;0;) (type 0) (result i32)
-                  (local i32 i32)
-                  i32.const 42
-                  drop
-                  i32.const 2
-                  local.get 0
-                  i32.mul)
+                    (local i32 i32)
+                    i32.const 42
+                    drop
+                    i32.const 2
+                    local.get 0
+                    i32.mul)
                 (export "exported_func" (func 0)))
             "#,
-            7,
+            0,
         );
     }
 
@@ -468,7 +473,7 @@ mod tests {
                   i32.mul)
                 (export "exported_func" (func 0)))
             "#,
-            13,
+            27,
         );
     }
 
@@ -599,8 +604,6 @@ mod tests {
         let mutated_bytes = &mutated.finish();
         crate::validate(&mut validator, mutated_bytes);
         let text = wasmprinter::print_bytes(mutated_bytes).unwrap();
-
-        println!("{}", text);
 
         let expected_bytes = &wat::parse_str(expected).unwrap();
         let expectedtext = wasmprinter::print_bytes(expected_bytes).unwrap();
