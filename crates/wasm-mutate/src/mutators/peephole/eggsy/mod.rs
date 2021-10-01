@@ -15,7 +15,7 @@ use crate::{error::EitherType, mutators::peephole::eggsy::lang::Lang, ModuleInfo
 
 use super::{
     dfg::{BBlock, MiniDFG, StackEntry},
-    TupleType,
+    OperatorAndByteOffset,
 };
 
 /// This struct is a wrapper of egg::Extractor
@@ -189,7 +189,7 @@ impl Encoder {
         minidfg: &MiniDFG,
         rnd: &mut SmallRng,
         insertion_point: usize,
-        operators: &Vec<TupleType>,
+        operators: &Vec<OperatorAndByteOffset>,
         id_to_node: &Vec<&Lang>,
         operands: &Vec<Vec<Id>>,
         current: usize,
@@ -273,7 +273,7 @@ impl Encoder {
         Ok(())
     }
 
-    fn etermtree2waasm(
+    fn etermtree2wasm(
         info: &ModuleInfo,
         rnd: &mut rand::prelude::SmallRng,
         insertion_point: usize,
@@ -283,7 +283,7 @@ impl Encoder {
         newfunc: &mut Function,
         symbolmap: &HashMap<String, usize>,
         minidfg: &MiniDFG,
-        operators: &Vec<TupleType>,
+        operators: &Vec<OperatorAndByteOffset>,
     ) -> crate::Result<()> {
         let root = id_to_node[current];
 
@@ -295,7 +295,7 @@ impl Encoder {
         } else {
             // Process operands
             for idx in &operands[current] {
-                Encoder::etermtree2waasm(
+                Encoder::etermtree2wasm(
                     info,
                     rnd,
                     insertion_point,
@@ -336,7 +336,7 @@ impl Encoder {
     ) -> crate::Result<()> {
         // Write the deps in the dfg
         // Process operands
-        match &*entry.data {
+        match &entry.data {
             super::dfg::StackEntryData::Leaf => {
                 // Write the current operator
                 let bytes = &info.get_code_section().data
@@ -366,7 +366,7 @@ impl Encoder {
         insertion_point: usize,
         id_to_node: &Vec<&Lang>,
         operands: &Vec<Vec<Id>>,
-        operators: &Vec<TupleType>,
+        operators: &Vec<OperatorAndByteOffset>,
         basicblock: &BBlock,
         newfunc: &mut Function,
         symbolmap: &HashMap<String, usize>,
@@ -391,7 +391,7 @@ impl Encoder {
                 let entry = &minidfg.entries[entryidx];
                 let operator = &operators[entry.operator_idx];
                 if entry.operator_idx == insertion_point {
-                    Encoder::etermtree2waasm(
+                    Encoder::etermtree2wasm(
                         info,
                         rnd,
                         insertion_point,
@@ -432,6 +432,7 @@ impl Encoder {
 
     /// This function maps the operator to a simple eterm
     /// TODO, others, plus type information
+    /// It returns the eterm and if the eterm should considered as a symbol
     fn get_simpleterm(operator: &Operator) -> crate::Result<(String, bool)> {
         match operator {
             Operator::I32Add => Ok(("i32.add".into(), false)),
@@ -454,7 +455,7 @@ impl Encoder {
     pub fn wasm2eterm(
         dfg: &MiniDFG,
         oidx: usize,
-        operators: &Vec<TupleType>,
+        operators: &Vec<OperatorAndByteOffset>,
         rnd: &mut SmallRng,
     ) -> crate::Result<(String, HashMap<String, usize>)> {
         let stack_entry_index = dfg.map[&oidx];
@@ -469,12 +470,10 @@ impl Encoder {
 
         // continue or break
         // 0 continue, 1 break
-        let choices = [0, 1];
-        match &*entry.data {
+        match &entry.data {
             crate::mutators::peephole::dfg::StackEntryData::Leaf => {
                 // Map this to a variable depends on the type of the operator
-                let choice = choices.choose(rnd).unwrap();
-                match choice {
+                match rnd.gen_range(0, 2) {
                     0 => {
                         let (operator, _) = &operators[entry.operator_idx];
                         let (term, addtosymbolsmap) = Encoder::get_simpleterm(&operator)?;
@@ -488,23 +487,22 @@ impl Encoder {
                         ))
                     }
                     1 => Ok(assymbol(oidx)),
-                    _ => panic!("Invalid option {}", choice),
+                    _ => unreachable!(),
                 }
             }
             crate::mutators::peephole::dfg::StackEntryData::Node { operands } => {
                 // This is an operator
                 let (operator, _) = &operators[entry.operator_idx];
                 let (term, _) = Encoder::get_simpleterm(&operator)?;
-                let choice = choices.choose(rnd).unwrap();
                 let mut operandterms = Vec::new();
                 let mut smap: HashMap<String, usize> = HashMap::new();
                 for operandi in operands {
                     let stack_entry = &dfg.entries[*operandi];
 
-                    let (eterm, symbols) = match choice {
+                    let (eterm, symbols) = match rnd.gen_range(0, 2) {
                         0 => Encoder::wasm2eterm(dfg, stack_entry.operator_idx, operators, rnd)?,
                         1 => assymbol(stack_entry.operator_idx),
-                        _ => panic!("Invalid option {}", choice),
+                        _ => unreachable!(),
                     };
                     operandterms.push(eterm);
                     smap.extend(symbols.into_iter())
@@ -524,7 +522,7 @@ mod tests {
 
     use crate::{
         mutators::{
-            peephole::{dfg::DFGIcator, PeepholeMutator, TupleType},
+            peephole::{dfg::DFGIcator, OperatorAndByteOffset, PeepholeMutator},
             Mutator,
         },
         WasmMutate,
@@ -670,7 +668,7 @@ mod tests {
                         .get_operators_reader()
                         .unwrap()
                         .into_iter_with_offsets()
-                        .collect::<wasmparser::Result<Vec<TupleType>>>()
+                        .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()
                         .unwrap();
 
                     let bb = DFGIcator::new().get_bb_for_operator(0, &operators).unwrap();

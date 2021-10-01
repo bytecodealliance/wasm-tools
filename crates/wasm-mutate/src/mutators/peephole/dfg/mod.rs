@@ -2,7 +2,7 @@ use std::{collections::HashMap, hash::Hash};
 
 use wasmparser::{Operator, Range};
 
-use super::TupleType;
+use super::OperatorAndByteOffset;
 
 /// It executes a minimal symbolic evaluation of the stack to detect operands location in the code for certain operators
 /// For example, i.add operator should know who are its operands
@@ -16,7 +16,7 @@ pub struct BBlock {
 #[derive(Debug, Clone)]
 pub struct StackEntry {
     pub operator_idx: usize,
-    pub data: Box<StackEntryData>,
+    pub data: StackEntryData,
     pub byte_stream_range: Range,
 }
 
@@ -31,12 +31,12 @@ pub enum StackEntryData {
 pub struct MiniDFG {
     // Some of the operators have no stack entry
     // This will help to decide or not to mutate the operators, avoiding egrapphp creation, etc
+    // Each (key, value) entry corresponds to the index of the instruction in the Wasm BasicBlock and the index of the stack entry in the `entries` field
     pub map: HashMap<usize, usize>,
     // Each stack entry represents a position in the operators stream
     // containing its children
     pub entries: Vec<StackEntry>,
-    // For each stack entry we keep the parental relation, this will help to write down the dfg
-    // to Wasm
+    // For each stack entry we keep the parental relation, the ith value is the index of the ith instruction's parent instruction
     // We write each stack entry having no parent, i.e. a root in the dfg
     pub parents: Vec<i32>,
 }
@@ -46,87 +46,24 @@ impl<'a> DFGIcator {
         DFGIcator {}
     }
 
-    /// Linear algorithm  to detect basic blocks
+    /// Linear algorithm  to detect the basic block
     /// This follows the tradition way to detect them
     /// 1 - Every jump instruction creates a new BB right after (in wasm: br, br_if, loop, block, if, else)
     /// 2 - Every operator that could be a target of a jump also starts a BB (end ... :) Wasm always jumps to end)
     /// 3 - The first operator is the start of a BB
-    pub fn collect_bbs(
-        &self,
-        operators: &[TupleType],
-        onbb: Option<&dyn Fn(&BBlock)>,
-    ) -> crate::Result<Vec<BBlock>> {
-        let (mut bbs, lastidx) = operators.iter().enumerate().fold(
-            (Vec::<BBlock>::new(), 0),
-            |(mut bbs, start), (opidx, (operator, _))| {
-                match operator {
-                Operator::If{..}
-                | Operator::Else{..}
-                | Operator::End
-                | Operator::Block { .. }
-                | Operator::Loop { .. }
-                | Operator::Br { .. }
-                | Operator::BrIf { .. }
-                | Operator::BrTable { .. }
-                | Operator::Call { .. }
-                | Operator::CallIndirect { .. }
-                // | add other JMP possible instructions
-                => {
-                    // close current bb here at this instruction
-                    // start a new bb in the next instruction
-                    let newBB = BBlock{
-                        range: Range{start: start, end: opidx + 1}, // The end of the range should not be included
-                    };
-                    if let Some(cb) = onbb {
-                        cb(&newBB);
-                    }
-                    bbs.push(newBB);
-                    (bbs, opidx + 1)
-                }
-                _ => {
-                    (bbs, start)
-                }
-            }
-            },
-        );
-
-        // Assert we have all instructions included
-        assert_eq!(lastidx, operators.len());
-
-        Ok(bbs)
-    }
-
+    ///
+    /// However, since we only need the current basic block,
+    /// the iteration over the operators will be done upward until the basic block starts
     pub fn get_bb_for_operator(
         &self,
         operator_index: usize,
-        operators: &[TupleType],
+        operators: &[OperatorAndByteOffset],
     ) -> Option<BBlock> {
         let mut range = Range {
             start: operator_index,
             end: operator_index,
         };
-        // Search first down
-        loop {
-            let (operator, _) = &operators[range.end];
-            match operator {
-                Operator::If { .. }
-                | Operator::Else { .. }
-                | Operator::End
-                | Operator::Block { .. }
-                | Operator::Loop { .. }
-                | Operator::Br { .. }
-                | Operator::BrIf { .. }
-                | Operator::BrTable { .. }
-                | Operator::Call { .. }
-                | Operator::CallIndirect { .. } => {
-                    range.end += 1;
-                    break;
-                }
-                _ => {
-                    range.end += 1;
-                }
-            }
-        }
+        // We only need the basic block upward
         loop {
             let (operator, _) = &operators[range.start];
             match operator {
@@ -137,9 +74,7 @@ impl<'a> DFGIcator {
                 | Operator::Loop { .. }
                 | Operator::Br { .. }
                 | Operator::BrIf { .. }
-                | Operator::BrTable { .. }
-                | Operator::Call { .. }
-                | Operator::CallIndirect { .. } => {
+                | Operator::BrTable { .. } => {
                     break;
                 }
                 _ => {
@@ -173,7 +108,7 @@ impl<'a> DFGIcator {
         let leaf = StackEntry {
             operator_idx: operator_idx,
             byte_stream_range: Range { start, end },
-            data: Box::new(StackEntryData::Leaf),
+            data: StackEntryData::Leaf,
         };
         let entry_idx = dfg_map.len();
         operatormap.insert(operator_idx, entry_idx);
@@ -197,7 +132,7 @@ impl<'a> DFGIcator {
         let newnode = StackEntry {
             operator_idx: operator_idx,
             byte_stream_range: Range { start, end },
-            data: Box::new(StackEntryData::Node { operands }),
+            data: StackEntryData::Node { operands },
         };
 
         let entry_idx = dfg_map.len();
@@ -223,7 +158,7 @@ impl<'a> DFGIcator {
                 // Create 0 element as Unknown
                 let leaf = StackEntry {
                     operator_idx: operator_idx,
-                    data: Box::new(StackEntryData::Unknown),
+                    data: StackEntryData::Unknown,
                     byte_stream_range: Range::new(0, 0),
                 }; // Means not reachable
                 let entry_idx = dfg_map.len();
@@ -249,7 +184,7 @@ impl<'a> DFGIcator {
     /// is not taken into account in the peephole mutators
     pub fn get_dfg(
         &mut self,
-        operators: &'a [TupleType],
+        operators: &'a [OperatorAndByteOffset],
         basicblock: &BBlock,
     ) -> crate::Result<MiniDFG> {
         // TODO, check memory explotion of this
@@ -308,9 +243,9 @@ impl<'a> DFGIcator {
                             start: *byte_offset,
                             end: *byte_offset_next,
                         },
-                        data: Box::new(StackEntryData::Node {
+                        data: StackEntryData::Node {
                             operands: vec![child],
-                        }),
+                        },
                     };
 
                     let entry_idx = dfg_map.len();
@@ -417,85 +352,9 @@ mod tests {
 
     use wasmparser::Parser;
 
-    use crate::{mutators::peephole::TupleType, WasmMutate};
+    use crate::{mutators::peephole::OperatorAndByteOffset, WasmMutate};
 
     use super::DFGIcator;
-
-    #[test]
-    fn test_dfg_bbextractor() {
-        // A decent complex Wasm function
-        let original = &wat::parse_str(
-            r#"
-        (module
-            (memory 1)
-            (func (export "exported_func") (param i32) (result i32)
-                local.get 0
-                i32.load
-                if 
-                    i32.const 54
-                else
-                    i32.const 87
-                end
-                i32.const 56
-                i32.add
-                loop
-                    i32.const 1
-                    local.get 0
-                    i32.add
-                    local.set 0
-                end
-            )
-        )
-        "#,
-        )
-        .unwrap();
-
-        let mut parser = Parser::new(0);
-        let mut consumed = 0;
-        loop {
-            let (payload, size) = match parser.parse(&original[consumed..], true).unwrap() {
-                wasmparser::Chunk::NeedMoreData(_) => {
-                    panic!("This should not happen")
-                }
-                wasmparser::Chunk::Parsed { consumed, payload } => (payload, consumed),
-            };
-
-            consumed += size;
-
-            match payload {
-                wasmparser::Payload::CodeSectionEntry(reader) => {
-                    let operators = reader
-                        .get_operators_reader()
-                        .unwrap()
-                        .into_iter_with_offsets()
-                        .collect::<wasmparser::Result<Vec<TupleType>>>()
-                        .unwrap();
-
-                    let basic_blocks = DFGIcator::new()
-                        .collect_bbs(
-                            &operators,
-                            Some(&|bb| {
-                                println!("{:?}", bb);
-                                // Create a dfg from the BB
-                                // Start from the first operator and simulate the stack...
-                                // If an operator is missing in the stack then it comes from a previous BB
-                                // If the stack is unconsistent then it means that the basic block is a joint for several...
-                                println!("{:?}", &operators[bb.range.start..bb.range.end]);
-                            }),
-                        )
-                        .unwrap();
-
-                    assert_eq!(basic_blocks.len(), 6);
-                }
-                wasmparser::Payload::End => {
-                    break;
-                }
-                _ => {
-                    // Do nothing
-                }
-            }
-        }
-    }
 
     #[test]
     fn test_dfg_build() {
@@ -547,7 +406,7 @@ mod tests {
                         .get_operators_reader()
                         .unwrap()
                         .into_iter_with_offsets()
-                        .collect::<wasmparser::Result<Vec<TupleType>>>()
+                        .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()
                         .unwrap();
 
                     let bb = DFGIcator::new().get_bb_for_operator(0, &operators).unwrap();
@@ -613,7 +472,7 @@ mod tests {
                         .get_operators_reader()
                         .unwrap()
                         .into_iter_with_offsets()
-                        .collect::<wasmparser::Result<Vec<TupleType>>>()
+                        .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()
                         .unwrap();
 
                     let root = DFGIcator::new().get_bb_for_operator(5, &operators).unwrap();
@@ -666,7 +525,7 @@ mod tests {
                         .get_operators_reader()
                         .unwrap()
                         .into_iter_with_offsets()
-                        .collect::<wasmparser::Result<Vec<TupleType>>>()
+                        .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()
                         .unwrap();
 
                     let bb = DFGIcator::new().get_bb_for_operator(0, &operators).unwrap();

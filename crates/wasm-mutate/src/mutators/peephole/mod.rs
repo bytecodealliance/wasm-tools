@@ -31,7 +31,7 @@ type EG = egg::EGraph<Lang, PeepholeMutationAnalysis>;
 type MutationContext = (Function, u32);
 
 // Helper type to return operator and ofsset inside the byte stream
-type TupleType<'a> = (Operator<'a>, usize);
+type OperatorAndByteOffset<'a> = (Operator<'a>, usize);
 impl PeepholeMutator {
     fn copy_locals(&self, reader: FunctionBody) -> Result<Function> {
         // Create the new function
@@ -72,7 +72,7 @@ impl PeepholeMutator {
             let operatorsrange = operatorreader.reader.range();
             let operators = operatorreader
                 .into_iter_with_offsets()
-                .collect::<wasmparser::Result<Vec<TupleType>>>()?;
+                .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()?;
             let operatorscount = operators.len();
             let opcode_to_mutate = rnd.gen_range(0, operatorscount);
 
@@ -161,7 +161,7 @@ impl PeepholeMutator {
         let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
 
         for fidx in 0..info.function_count {
-            let mut reader = sectionreader.read()?;
+            let reader = sectionreader.read()?;
             if fidx == function_to_mutate {
                 codes.function(&new_function);
             } else {
@@ -208,7 +208,7 @@ impl Mutator for PeepholeMutator {
         rnd: &mut rand::prelude::SmallRng,
         info: &mut crate::ModuleInfo,
     ) -> Result<Module> {
-        let rules: &[Rewrite<Lang, PeepholeMutationAnalysis>] = &[
+        let mut rules = vec![
             rewrite!("unfold-2";  "?x" => "(unfold ?x)" if self.is_const("?x") ), // Use a custom instruction-mutator for this
             // This specific rewriting rule has a condition, it should be appplied if the operand is a constant
             // To do so we can write all symbols representing constants as ?c when we translate wasm to eterm
@@ -218,10 +218,14 @@ impl Mutator for PeepholeMutator {
             rewrite!("add-1";  "(i32.add ?x ?x)" => "(i32.mul ?x 2)"),
             rewrite!("idempotent-1";  "?x" => "(i32.or ?x ?x)"),
             rewrite!("idempotent-2";  "?x" => "(i32.and ?x ?x)"),
-            rewrite!("mem-load-shift";  "(i.load ?x)" => "(i.load (i32.add ?x rand))"), // Check why this is generating a lot of the same replacements
         ];
 
-        self.mutate_with_rules(config, rnd, info, rules)
+        if !config.preserve_semantics {
+            rules.push(rewrite!("mem-load-shift";  "(i.load ?x)" => "(i.load (i32.add ?x rand))"))
+            // Check why this is generating a lot of the same replacements
+        }
+
+        self.mutate_with_rules(config, rnd, info, &rules)
     }
 
     fn can_mutate<'a>(
@@ -245,7 +249,7 @@ pub(crate) trait CodeMutator {
         config: &WasmMutate,
         rnd: &mut SmallRng,
         operator_index: usize,
-        operators: Vec<TupleType>,
+        operators: Vec<OperatorAndByteOffset>,
         funcreader: FunctionBody,
         body_range: wasmparser::Range,
         function_data: &[u8],
@@ -255,7 +259,7 @@ pub(crate) trait CodeMutator {
     fn can_mutate<'a>(
         &self,
         config: &'a WasmMutate,
-        operators: &Vec<TupleType<'a>>,
+        operators: &Vec<OperatorAndByteOffset<'a>>,
         at: usize,
     ) -> Result<bool>;
 
@@ -315,7 +319,7 @@ macro_rules! match_code_mutation {
                     let range = operatorsreader.reader.range();
                     let operators = operatorsreader
                         .into_iter_with_offsets()
-                        .collect::<wasmparser::Result<Vec<TupleType>>>()
+                        .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()
                         .unwrap();
                     let mutated = $mutation(&config, operators, reader, range, original);
                     codesection.function(&mutated);
