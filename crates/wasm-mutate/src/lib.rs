@@ -127,6 +127,8 @@ pub struct ModuleInfo<'a> {
     // The following fields are offsets inside the `raw_sections` field.
     // The main idea is to maintain the order of the sections in the input Wasm.
     exports: Option<usize>,
+    export_names: Vec<&'a str>,
+
     types: Option<usize>,
     imports: Option<usize>,
     tables: Option<usize>,
@@ -155,6 +157,7 @@ impl<'a> ModuleInfo<'a> {
         self.code != None
     }
 
+    /// Registers a new raw_section in the ModuleInfo
     pub fn section(&mut self, id: u8, range: wasmparser::Range, full_wasm: &'a [u8]) {
         self.raw_sections.push(RawSection {
             id,
@@ -174,10 +177,14 @@ impl<'a> ModuleInfo<'a> {
         self.exports != None
     }
 
+    /// Returns the type information based on its index
+    /// types[index]
     pub fn get_type_idx(&self, idx: usize) -> &TypeInfo {
         &self.types_map[idx]
     }
 
+    /// Returns the function type based on the index of the function type
+    /// types[functions[idx]]
     pub fn get_functype_idx(&self, idx: usize) -> &TypeInfo {
         let functpeindex = self.function_map[idx] as usize;
         &self.types_map[functpeindex]
@@ -311,9 +318,15 @@ impl WasmMutate {
                     info.globals = Some(info.raw_sections.len());
                     info.section(SectionId::Global.into(), reader.range(), input_wasm);
                 }
-                Payload::ExportSection(reader) => {
+                Payload::ExportSection(mut reader) => {
                     info.exports = Some(info.raw_sections.len());
                     info.exports_count = reader.get_count();
+
+                    for _ in 0..reader.get_count() {
+                        let entry = reader.read()?;
+                        info.export_names.push(entry.field)
+                    }
+
                     info.section(SectionId::Export.into(), reader.range(), input_wasm);
                 }
                 Payload::StartSection { func: _, range: _ } => {
