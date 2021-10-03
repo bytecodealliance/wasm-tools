@@ -242,7 +242,7 @@ impl<'a> DFGIcator {
                     );
                 }
                 // Watch out, type information is missing here
-                // Until type info is added, Operator::LocalSet { .. } | Operator::GlobalSet { .. } | 
+                // Until type info is added, Operator::LocalSet { .. } | Operator::GlobalSet { .. } |
                 Operator::Drop => {
                     // It needs the offset arg
                     let child = DFGIcator::pop_operand(
@@ -354,11 +354,11 @@ impl<'a> DFGIcator {
                             start: *byte_offset,
                             end: *byte_offset_next,
                         },
-                        data: StackEntryData::Leaf
+                        data: StackEntryData::Leaf,
                     };
                     dfg_map.push(newnode);
                     parents.push(-1);
-                },
+                }
                 _ => {
                     log::debug!("Bypassing operator type {:?}", operator);
                     // If the operator is not implemented, break the mutation of this Basic Block
@@ -383,74 +383,6 @@ mod tests {
     use crate::{mutators::peephole::OperatorAndByteOffset, WasmMutate};
 
     use super::DFGIcator;
-
-    #[test]
-    fn test_dfg_build() {
-        // A decent complex Wasm function
-        let original = &wat::parse_str(
-            r#"
-        (module
-            (memory 1)
-            (func (export "exported_func") (param i32) (result i32)
-                
-                local.get 0
-                local.get 0
-                i32.add
-                i32.load
-                if 
-                    i32.const 54
-                else
-                    i32.const 87
-                end
-                i32.const 56
-                i32.add
-                loop
-                    i32.const 1
-                    local.get 0
-                    i32.add
-                    local.set 0
-                end
-            )
-        )
-        "#,
-        )
-        .unwrap();
-
-        let mut parser = Parser::new(0);
-        let mut consumed = 0;
-        loop {
-            let (payload, size) = match parser.parse(&original[consumed..], true).unwrap() {
-                wasmparser::Chunk::NeedMoreData(_) => {
-                    panic!("This should not happen")
-                }
-                wasmparser::Chunk::Parsed { consumed, payload } => (payload, consumed),
-            };
-
-            consumed += size;
-
-            match payload {
-                wasmparser::Payload::CodeSectionEntry(reader) => {
-                    let operators = reader
-                        .get_operators_reader()
-                        .unwrap()
-                        .into_iter_with_offsets()
-                        .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()
-                        .unwrap();
-
-                    let bb = DFGIcator::new()
-                        .get_bb_from_operator(0, &operators)
-                        .unwrap();
-                    let roots = DFGIcator::new().get_dfg(&operators, &bb).unwrap();
-                }
-                wasmparser::Payload::End => {
-                    break;
-                }
-                _ => {
-                    // Do nothing
-                }
-            }
-        }
-    }
 
     #[test]
     fn test_dfg_getsinglebb() {

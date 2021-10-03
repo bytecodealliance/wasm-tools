@@ -254,6 +254,7 @@ impl Encoder {
             }
             Lang::Symbol(s) => {
                 // Copy the byte stream to aavoid mapping
+                log::debug!("symbolmap {:?}, entries {:?}", symbolsmap, &minidfg.entries);
                 let entryidx = symbolsmap[&s.to_string()];
                 let entry = &minidfg.entries[entryidx];
 

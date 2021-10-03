@@ -77,6 +77,7 @@ impl PeepholeMutator {
             let opcode_to_mutate = rnd.gen_range(0, operatorscount);
 
             for oidx in (opcode_to_mutate..operatorscount).chain(0..opcode_to_mutate) {
+                log::debug!("Trying with oidx {:?}", oidx);
                 let mut dfg = DFGIcator::new();
                 let basicblock = dfg.get_bb_from_operator(oidx, &operators);
                 log::debug!("Basic block range {:?} for idx {:?}", basicblock, oidx);
@@ -91,7 +92,6 @@ impl PeepholeMutator {
                                 continue;
                             }
                             Some(minidfg) => {
-
                                 if !minidfg.map.contains_key(&oidx) {
                                     continue;
                                 }
@@ -99,26 +99,27 @@ impl PeepholeMutator {
                                 // For example, the code selected could be `i32.shl 54 1` which can be eterminized as `i32.shl ?x 1` or `i32.shl ?x ?y`
                                 // But in practice we could have no rewriting rule for all of them
                                 let eterm = Encoder::wasm2eterm(&minidfg, oidx, &operators, rnd);
-        
+
                                 match eterm {
                                     Ok((eterm, symbolsmap)) => {
                                         let start = eterm.parse().unwrap();
 
                                         log::debug!("Eterm {:?}", start);
-        
+
                                         let runner = Runner::default().with_expr(&start).run(rules);
                                         let mut egraph = runner.egraph;
-        
+
                                         // In theory this will return the Id of the operator eterm
                                         let root = egraph.add_expr(&start);
-        
+
                                         // This cost function could be replaced by a custom weighted probability, for example
                                         // we could modify the cost function based on the previous mutation/rotation outcome
                                         let cf = AstSize;
                                         let extractor = RandomExtractor::new(&egraph, cf);
-        
-                                        let (id_to_node, operands) = extractor
-                                            .extract_random(rnd, root, 0 /* only 1 for now */)?;
+
+                                        let (id_to_node, operands) = extractor.extract_random(
+                                            rnd, root, 0, /* only 1 for now */
+                                        )?;
 
                                         log::debug!("Random expr {:?} {:?}", id_to_node, operands);
 
@@ -129,7 +130,7 @@ impl PeepholeMutator {
                                         log::debug!("Mutating function {:?}", fidx);
                                         // Create a new function using the previous locals
                                         let mut newfunc = self.copy_locals(reader)?;
-        
+
                                         // Translate lang expr to wasm
                                         Encoder::build_function(
                                             info,
@@ -144,7 +145,7 @@ impl PeepholeMutator {
                                             &symbolsmap,
                                             &minidfg,
                                         )?;
-        
+
                                         log::debug!("Built function {:?}", newfunc);
                                         return Ok((newfunc, fidx));
                                     }
@@ -434,7 +435,7 @@ mod tests {
             r#"
         (module
             (func (export "exported_func") (result i32) (local i32 i32)
-                local.get 0
+                i32.const 42
                 i32.const 42
                 drop
                 i32.const 1
@@ -451,7 +452,7 @@ mod tests {
                     i32.const 42
                     drop
                     i32.const 2
-                    local.get 0
+                    i32.const 42
                     i32.mul)
                 (export "exported_func" (func 0)))
             "#,
@@ -468,7 +469,7 @@ mod tests {
             r#"
         (module
             (func (export "exported_func") (result i32) (local i32 i32)
-                local.get 0
+                i32.const 42
                 i32.const 1
                 i32.shl
             )
@@ -481,7 +482,7 @@ mod tests {
                 (func (;0;) (type 0) (result i32)
                   (local i32 i32)
                   i32.const 2
-                  local.get 0
+                  i32.const 42
                   i32.mul)
                 (export "exported_func" (func 0)))
             "#,
@@ -527,7 +528,7 @@ mod tests {
         (module
             (memory 1)
             (func (export "exported_func") (param i32) (result i32)
-                local.get 0
+                i32.const 42
                 i32.load
             )
         )
@@ -559,7 +560,7 @@ mod tests {
                   i32.const -1685060834
                   i32.const 136956081
                   i32.const -1155874118
-                  local.get 0
+                  i32.const 42
                   i32.add
                   i32.add
                   i32.add
