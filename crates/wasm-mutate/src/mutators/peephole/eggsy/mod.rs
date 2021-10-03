@@ -241,16 +241,15 @@ impl Encoder {
             Lang::Unfold(_) => {
                 let child = operands[current][0];
                 let node = id_to_node[usize::from(child)];
-
                 match node {
                     Lang::I32Const(value) => {
                         let r: i32 = rnd.gen();
-
+                        log::debug!("Unfolding {:?}", value);
                         newfunc.instruction(Instruction::I32Const(r));
                         newfunc.instruction(Instruction::I32Const((Wrapping(r) - Wrapping(*value)).0));
                         newfunc.instruction(Instruction::I32Add);
                     },
-                    _ => panic!("The oeprand for this operator should be a constant, check if the rewriting rule is defined with such conditions")
+                    _ => panic!("The operand for this operator should be a constant, check if the rewriting rule is defined with such conditions")
                 }
             }
             Lang::Symbol(s) => {
@@ -349,7 +348,6 @@ impl Encoder {
         entry: &StackEntry,
         entryidx: usize,
         newfunc: &mut Function,
-        visited: &mut Vec<usize>,
     ) -> crate::Result<()> {
         // Write the deps in the dfg
         // Process operands
@@ -357,16 +355,19 @@ impl Encoder {
             super::dfg::StackEntryData::Leaf => {
                 // Write the current operator
                 let bytes = &info.get_code_section().data
-                    [entry.byte_stream_range.start..=entry.byte_stream_range.end];
+                    [entry.byte_stream_range.start..entry.byte_stream_range.end];
                 newfunc.raw(bytes.iter().copied());
-
-                visited[entryidx] = 1;
+                log::debug!("Stack entry leaf bytes {:?}", bytes);
             }
             super::dfg::StackEntryData::Node { operands } => {
                 for idx in operands {
                     let entry = &minidfg.entries[*idx];
-                    Encoder::writestackentry(info, minidfg, entry, *idx, newfunc, visited)?;
+                    Encoder::writestackentry(info, minidfg, entry, *idx, newfunc)?;
                 }
+                // Write the operator
+                let bytes = &info.get_code_section().data
+                    [entry.byte_stream_range.start..entry.byte_stream_range.end];
+                newfunc.raw(bytes.iter().copied());
             }
             super::dfg::StackEntryData::Undef => {
                 // do nothing, this is the previous state of the stack
@@ -400,7 +401,6 @@ impl Encoder {
         // The edges of the stackentries are always backward in the array, so, it consistent to
         // do the writing in reverse
         let len = minidfg.map.len();
-        let mut visited = vec![0; len];
         for (entryidx, parentidx) in minidfg.parents.iter().enumerate() {
             if *parentidx == -1 {
                 // It is a root, write then
@@ -422,14 +422,7 @@ impl Encoder {
                 } else {
                     // Copy the stack entry as it is
                     log::debug!("writing no mutated DFG at {:?}", entry.operator_idx);
-                    Encoder::writestackentry(
-                        info,
-                        minidfg,
-                        entry,
-                        entryidx,
-                        newfunc,
-                        &mut visited,
-                    )?;
+                    Encoder::writestackentry(info, minidfg, entry, entryidx, newfunc)?;
                 }
             }
         }

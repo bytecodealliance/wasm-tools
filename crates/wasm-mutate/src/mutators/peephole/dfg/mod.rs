@@ -242,7 +242,8 @@ impl<'a> DFGIcator {
                     );
                 }
                 // Watch out, type information is missing here
-                Operator::LocalSet { .. } | Operator::GlobalSet { .. } | Operator::Drop => {
+                // Until type info is added, Operator::LocalSet { .. } | Operator::GlobalSet { .. } | 
+                Operator::Drop => {
                     // It needs the offset arg
                     let child = DFGIcator::pop_operand(
                         &mut stack,
@@ -345,7 +346,9 @@ impl<'a> DFGIcator {
                     parents[leftidx] = idx as i32;
                     parents[rightidx] = idx as i32;
                 }
-
+                Operator::Nop => {
+                    // Bypass
+                },
                 _ => {
                     log::debug!("Bypassing operator type {:?}", operator);
                     // If the operator is not implemented, break the mutation of this Basic Block
