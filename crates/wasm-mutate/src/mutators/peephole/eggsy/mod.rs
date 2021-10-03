@@ -1,6 +1,6 @@
 use std::{cmp::Ordering, collections::HashMap, num::Wrapping};
 
-use egg::{define_language, Analysis, CostFunction, EClass, EGraph, Id, Language, Symbol};
+use egg::{define_language, Analysis, CostFunction, EClass, EGraph, Id, Language, RecExpr, Symbol};
 use rand::{
     prelude::{SliceRandom, SmallRng},
     Rng,
@@ -134,12 +134,11 @@ where
         // A map from a parent node id to its child operand node ids.
         let mut operands = vec![];
 
-        let egraph = self.egraph;
         // Select a random node in this e-class
-        let rootidx = rnd.gen_range(0, egraph[eclass].nodes.len());
-        let rootnode = &egraph[eclass].nodes[rootidx];
+        let rootidx = rnd.gen_range(0, self.egraph[eclass].nodes.len());
+        let rootnode = &self.egraph[eclass].nodes[rootidx];
 
-        id_to_node.push(&egraph[eclass].nodes[rootidx]);
+        id_to_node.push(&self.egraph[eclass].nodes[rootidx]);
         operands.push(vec![]);
 
         let mut worklist: Vec<_> = rootnode
@@ -153,13 +152,14 @@ where
                 // look nearest leaf path, in this case, the best in AST size
                 self.costs[&node].1
             } else {
-                rnd.gen_range(0, egraph[node].nodes.len())
+                rnd.gen_range(0, self.egraph[node].nodes.len())
             };
 
             let operand = Id::from(id_to_node.len());
             let operandidx = id_to_node.len();
             let last_node_id = parentidx; // id_to_node.len() - 1;
-            id_to_node.push(&egraph[node].nodes[node_idx]);
+
+            id_to_node.push(&self.egraph[node].nodes[node_idx]);
             operands.push(vec![]);
 
             operands[last_node_id].push(operand);
@@ -167,7 +167,7 @@ where
             //let operand = &egraph[node].nodes[node_idx];
 
             worklist.extend(
-                egraph[node].nodes[node_idx]
+                self.egraph[node].nodes[node_idx]
                     .children()
                     .iter()
                     .map(|id| (operand, operandidx, id, depth + 1)),
@@ -466,38 +466,29 @@ impl Encoder {
         oidx: usize,
         operators: &Vec<OperatorAndByteOffset>,
         rnd: &mut SmallRng,
+        // Replace this by RecExpr
     ) -> crate::Result<(String, HashMap<String, usize>)> {
         let stack_entry_index = dfg.map[&oidx];
         let entry = &dfg.entries[stack_entry_index];
-        let (operator, _) = &operators[entry.operator_idx];
+        let (_, _) = &operators[entry.operator_idx];
         let assymbol = |stack_entry_idx: usize| -> (String, HashMap<String, usize>) {
             let symbolname = format!("?x{}", stack_entry_idx);
             let mut smap = HashMap::new();
             smap.insert(symbolname.clone(), stack_entry_idx);
             (symbolname, smap)
         };
-
-        // continue or break
-        // 0 continue, 1 break
         match &entry.data {
             crate::mutators::peephole::dfg::StackEntryData::Leaf => {
-                // Map this to a variable depends on the type of the operator
-                match rnd.gen_range(0, 2) {
-                    0 => {
-                        let (operator, _) = &operators[entry.operator_idx];
-                        let (term, addtosymbolsmap) = Encoder::get_simpleterm(&operator)?;
-                        Ok((
-                            term.clone(),
-                            if addtosymbolsmap {
-                                vec![(term, stack_entry_index)].into_iter().collect()
-                            } else {
-                                HashMap::new()
-                            },
-                        ))
-                    }
-                    1 => Ok(assymbol(oidx)),
-                    _ => unreachable!(),
-                }
+                let (operator, _) = &operators[entry.operator_idx];
+                let (term, addtosymbolsmap) = Encoder::get_simpleterm(&operator)?;
+                Ok((
+                    term.clone(),
+                    if addtosymbolsmap {
+                        vec![(term, stack_entry_index)].into_iter().collect()
+                    } else {
+                        HashMap::new()
+                    },
+                ))
             }
             crate::mutators::peephole::dfg::StackEntryData::Node { operands } => {
                 // This is an operator
@@ -507,12 +498,8 @@ impl Encoder {
                 let mut smap: HashMap<String, usize> = HashMap::new();
                 for operandi in operands {
                     let stack_entry = &dfg.entries[*operandi];
-
-                    let (eterm, symbols) = match rnd.gen_range(0, 2) {
-                        0 => Encoder::wasm2eterm(dfg, stack_entry.operator_idx, operators, rnd)?,
-                        1 => assymbol(stack_entry.operator_idx),
-                        _ => unreachable!(),
-                    };
+                    let (eterm, symbols) =
+                        Encoder::wasm2eterm(dfg, stack_entry.operator_idx, operators, rnd)?;
                     operandterms.push(eterm);
                     smap.extend(symbols.into_iter())
                 }
@@ -523,29 +510,10 @@ impl Encoder {
             } // This is the previous state of the stack
         }
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use std::collections::HashMap;
-
-    use crate::{
-        mutators::{
-            peephole::{dfg::DFGIcator, OperatorAndByteOffset, PeepholeMutator},
-            Mutator,
-        },
-        WasmMutate,
-    };
-    use egg::{rewrite, AstSize, Id, Pattern, RecExpr, Rewrite, Runner, Searcher};
-    use rand::{prelude::SliceRandom, rngs::SmallRng, Rng, SeedableRng};
-    use wasmparser::Parser;
-
-    use super::{Encoder, RandomExtractor};
-    use crate::mutators::peephole::Lang;
-    use crate::mutators::peephole::PeepholeMutationAnalysis;
-
-    /// For debugging mostly
-    pub fn build_expr(root: Id, id_to_node: Vec<&Lang>, operands: Vec<Vec<Id>>) -> RecExpr<Lang> {
+    /// Build RecExpr from random tree,
+    /// TODO make this private and return it in the extract random method
+    pub fn build_expr(root: Id, id_to_node: &Vec<&Lang>, operands: &Vec<Vec<Id>>) -> RecExpr<Lang> {
         let mut expr = RecExpr::default();
 
         // A map from the `Id`s we assigned to each sub-expression when extracting a
@@ -588,10 +556,10 @@ mod tests {
                         Lang::I32ShrU(_) => expr.add(Lang::I32ShrU([operand(0), operand(1)])),
                         Lang::I32Popcnt(_) => expr.add(Lang::I32Popcnt(operand(0))),
                         Lang::Unfold(_) => expr.add(Lang::Unfold([operand(0)])),
+                        Lang::ILoad(_) => expr.add(Lang::ILoad(operand(0))),
                         c @ Lang::I32Const(_) => expr.add((*c).clone()),
                         s @ Lang::Symbol(_) => expr.add((*s).clone()),
                         s @ Lang::Rand => expr.add((*s).clone()),
-                        Lang::ILoad(_) => expr.add(Lang::ILoad(operand(0))),
                     };
                     let old_entry = node_to_id.insert(node, sub_expr_id);
                     assert!(old_entry.is_none());
@@ -601,20 +569,39 @@ mod tests {
 
         expr
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use crate::{
+        mutators::{
+            peephole::{dfg::DFGIcator, OperatorAndByteOffset, PeepholeMutator},
+            Mutator,
+        },
+        WasmMutate,
+    };
+    use egg::{rewrite, AstSize, Id, Pattern, RecExpr, Rewrite, Runner, Searcher};
+    use rand::{prelude::SliceRandom, rngs::SmallRng, Rng, SeedableRng};
+    use wasmparser::Parser;
+
+    use super::{Encoder, RandomExtractor};
+    use crate::mutators::peephole::Lang;
+    use crate::mutators::peephole::PeepholeMutationAnalysis;
 
     #[test]
     fn test_random_generation() {
         let rules: &[Rewrite<Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("unfold-1";  "?x" => "(i32.add rand (i32.sub rand ?x))"),
             rewrite!("unfold-2";  "?x" => "(unfold ?x)"), // Use a custom instruction-mutator for this
-            rewrite!("strength-undo";  "(i32.shl ?x 1)" => "(i32.mul ?x ?x)"),
+                                                          // rewrite!("strength-undo";  "(i32.shl ?x 1)" => "(i32.mul ?x ?x)"),
         ];
 
         let start = "?x".parse().unwrap();
         let runner = Runner::default().with_expr(&start).run(rules);
         let mut egraph = runner.egraph;
         let cf = AstSize;
-        let mut rnd = SmallRng::seed_from_u64(121);
+        let mut rnd = SmallRng::seed_from_u64(4);
 
         // ?x is the root
         let root = egraph.add_expr(&start);
@@ -622,6 +609,6 @@ mod tests {
 
         let (id_to_node, operands) = extractor.extract_random(&mut rnd, root, 10).unwrap();
 
-        let random_outcome = build_expr(root, id_to_node, operands);
+        let random_outcome = Encoder::build_expr(root, &id_to_node, &operands);
     }
 }

@@ -1,6 +1,8 @@
-use std::{collections::HashMap, hash::Hash};
+use std::{collections::HashMap, convert::TryFrom, hash::Hash};
 
-use wasmparser::{Operator, Range};
+use wasmparser::{Operator, Range, Type};
+
+use crate::module::PrimitiveTypeInfo;
 
 use super::OperatorAndByteOffset;
 
@@ -13,11 +15,18 @@ pub struct BBlock {
     pub(crate) range: Range,
 }
 
+/// Node of a DFG extracted from a basic block in the Wasm code
 #[derive(Debug, Clone)]
 pub struct StackEntry {
+    /// Index of the operator in which this node start
     pub operator_idx: usize,
+    /// Node data, this is used to determine which kind of node this is: Leaf (constants for example), Node (operators containing childrend) and undef
+    // This last one represent a piece of the DFG that belongs to another basic block
     pub data: StackEntryData,
+    /// Range (not inclusive) in which the operator instruction is written
     pub byte_stream_range: Range,
+    /// Node type
+    pub tpes: Vec<PrimitiveTypeInfo>,
 }
 
 #[derive(Debug, Clone)]
@@ -111,11 +120,13 @@ impl<'a> DFGIcator {
         operatormap: &mut HashMap<usize, usize>,
         stack: &mut Vec<usize>,
         parents: &mut Vec<i32>,
+        tpes: Vec<PrimitiveTypeInfo>,
     ) -> usize {
         let leaf = StackEntry {
             operator_idx,
             byte_stream_range: Range { start, end },
             data: StackEntryData::Leaf,
+            tpes,
         };
         let entry_idx = dfg_map.len();
         operatormap.insert(operator_idx, entry_idx);
@@ -135,11 +146,13 @@ impl<'a> DFGIcator {
         stack: &mut Vec<usize>,
         operands: Vec<usize>,
         parents: &mut Vec<i32>,
+        tpes: Vec<PrimitiveTypeInfo>,
     ) -> usize {
         let newnode = StackEntry {
             operator_idx: operator_idx,
             byte_stream_range: Range { start, end },
             data: StackEntryData::Node { operands },
+            tpes,
         };
 
         let entry_idx = dfg_map.len();
@@ -167,6 +180,8 @@ impl<'a> DFGIcator {
                     operator_idx,
                     data: StackEntryData::Undef,
                     byte_stream_range: Range::new(0, 0),
+                    // Check if this can be inferred from the operator
+                    tpes: vec![],
                 }; // Means not reachable
                 let entry_idx = dfg_map.len();
                 if insertindfg {
@@ -193,6 +208,7 @@ impl<'a> DFGIcator {
         &mut self,
         operators: &'a [OperatorAndByteOffset],
         basicblock: &BBlock,
+        locals: &Vec<Type>,
     ) -> Option<MiniDFG> {
         // lets handle the stack
         let mut dfg_map = Vec::new();
@@ -217,8 +233,8 @@ impl<'a> DFGIcator {
 
             match operator {
                 // Until type information is added
-                /*
-                Operator::GlobalGet { .. } | Operator::LocalGet { .. } => {
+                /*Operator::GlobalGet { .. } | */
+                Operator::LocalGet { local_index } => {
                     DFGIcator::push_leaf(
                         idx,
                         *byte_offset,
@@ -227,23 +243,23 @@ impl<'a> DFGIcator {
                         &mut operatormap,
                         &mut stack,
                         &mut parents,
-                    );
-                } */
-                // TODO Add type information
-                Operator::I32Const { value } => {
-                    DFGIcator::push_leaf(
-                        idx,
-                        *byte_offset,
-                        *byte_offset_next,
-                        &mut dfg_map,
-                        &mut operatormap,
-                        &mut stack,
-                        &mut parents,
+                        vec![PrimitiveTypeInfo::try_from(locals[*local_index as usize]).unwrap()],
                     );
                 }
-                // Watch out, type information is missing here
-                // Until type info is added, Operator::LocalSet { .. } | Operator::GlobalSet { .. } |
-                Operator::Drop => {
+                // TODO Add type information
+                Operator::I32Const { .. } => {
+                    DFGIcator::push_leaf(
+                        idx,
+                        *byte_offset,
+                        *byte_offset_next,
+                        &mut dfg_map,
+                        &mut operatormap,
+                        &mut stack,
+                        &mut parents,
+                        vec![PrimitiveTypeInfo::I32],
+                    );
+                }
+                Operator::LocalSet { .. } | Operator::GlobalSet { .. } | Operator::Drop => {
                     // It needs the offset arg
                     let child = DFGIcator::pop_operand(
                         &mut stack,
@@ -262,6 +278,7 @@ impl<'a> DFGIcator {
                         data: StackEntryData::Node {
                             operands: vec![child],
                         },
+                        tpes: vec![],
                     };
 
                     let entry_idx = dfg_map.len();
@@ -302,6 +319,8 @@ impl<'a> DFGIcator {
                         &mut stack,
                         vec![offset],
                         &mut parents,
+                        // Add type here
+                        vec![],
                     );
 
                     parents[offset] = idx as i32;
@@ -341,6 +360,7 @@ impl<'a> DFGIcator {
                         &mut stack,
                         vec![rightidx, leftidx], // reverse order
                         &mut parents,
+                        vec![PrimitiveTypeInfo::I32],
                     );
 
                     parents[leftidx] = idx as i32;
@@ -355,6 +375,7 @@ impl<'a> DFGIcator {
                             end: *byte_offset_next,
                         },
                         data: StackEntryData::Leaf,
+                        tpes: vec![],
                     };
                     dfg_map.push(newnode);
                     parents.push(-1);
@@ -495,7 +516,7 @@ mod tests {
                     let bb = DFGIcator::new()
                         .get_bb_from_operator(0, &operators)
                         .unwrap();
-                    let roots = DFGIcator::new().get_dfg(&operators, &bb).unwrap();
+                    let roots = DFGIcator::new().get_dfg(&operators, &bb, &vec![]).unwrap();
                 }
                 wasmparser::Payload::End => {
                     break;

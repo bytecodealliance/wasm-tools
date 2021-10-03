@@ -10,7 +10,7 @@ use rand::{
 };
 use std::{cmp::Ordering, collections::HashMap, hash::Hash, num::Wrapping};
 use wasm_encoder::{CodeSection, Function, Instruction, MemArg, Module, ValType};
-use wasmparser::{BinaryReaderError, CodeSectionReader, FunctionBody, Operator, Range};
+use wasmparser::{BinaryReaderError, CodeSectionReader, FunctionBody, Operator, Range, Type};
 
 use crate::{
     module::{map_operator, map_type},
@@ -33,6 +33,19 @@ type MutationContext = (Function, u32);
 // Helper type to return operator and ofsset inside the byte stream
 type OperatorAndByteOffset<'a> = (Operator<'a>, usize);
 impl PeepholeMutator {
+    // Collect and unfold locals, [x, ty, y, ty2] -> [ty....ty, ty2...ty2]
+    fn get_func_locals(&self, reader: FunctionBody) -> Result<Vec<Type>> {
+        let mut localreader = reader.get_locals_reader().unwrap();
+        // Get current locals and map to encoder types
+        let mut all_locals = Vec::new();
+
+        (0..localreader.get_count()).for_each(|f| {
+            let (count, ty) = localreader.read().unwrap();
+            (0..count).for_each(|_| all_locals.push(ty));
+        });
+
+        Ok(all_locals)
+    }
     fn copy_locals(&self, reader: FunctionBody) -> Result<Function> {
         // Create the new function
         let mut localreader = reader.get_locals_reader().unwrap();
@@ -84,7 +97,8 @@ impl PeepholeMutator {
 
                 match basicblock {
                     Some(basicblock) => {
-                        let minidfg = dfg.get_dfg(&operators, &basicblock);
+                        let minidfg =
+                            dfg.get_dfg(&operators, &basicblock, &self.get_func_locals(reader)?);
                         log::debug!("DFG {:?}", minidfg);
 
                         match minidfg {
@@ -96,8 +110,6 @@ impl PeepholeMutator {
                                     continue;
                                 }
                                 // This selection is also random, set this to a maximum number of tries
-                                // For example, the code selected could be `i32.shl 54 1` which can be eterminized as `i32.shl ?x 1` or `i32.shl ?x ?y`
-                                // But in practice we could have no rewriting rule for all of them
                                 let eterm = Encoder::wasm2eterm(&minidfg, oidx, &operators, rnd);
 
                                 match eterm {
@@ -121,7 +133,8 @@ impl PeepholeMutator {
                                             rnd, root, 0, /* only 1 for now */
                                         )?;
 
-                                        log::debug!("Random expr {:?} {:?}", id_to_node, operands);
+                                        let expr =
+                                            Encoder::build_expr(root, &id_to_node, &operands);
 
                                         // There is no point in generating the same symbol
                                         if operands.len() == 1 && operands[0].len() == 0 {
@@ -235,7 +248,7 @@ impl Mutator for PeepholeMutator {
             rewrite!("strength-undo1";  "(i32.shl ?x 2)" => "(i32.mul ?x 2)"),
             rewrite!("strength-undo2";  "(i32.shl ?x 3)" => "(i32.mul ?x 8)"),
             rewrite!("add-1";  "(i32.add ?x ?x)" => "(i32.mul ?x 2)"),
-            rewrite!("idempotent-1";  "?x" => "(i32.or ?x ?x)"),
+            rewrite!("idempotent-1";  "?x" => "(i32.or ?x ?x)" if self.is_const("?x")),
             rewrite!("idempotent-2";  "?x" => "(i32.and ?x ?x)"),
         ];
 
@@ -417,12 +430,12 @@ mod tests {
                 (type (;0;) (func (result i32)))
                 (func (;0;) (type 0) (result i32)
                   (local i32 i32)
-                  i32.const -2078218253
-                  i32.const -2078218309
+                  i32.const 160268115
+                  i32.const 160268059
                   i32.add)
                 (export "exported_func" (func 0)))
             "#,
-            3,
+            0,
         );
     }
 
@@ -486,14 +499,14 @@ mod tests {
                   i32.mul)
                 (export "exported_func" (func 0)))
             "#,
-            27,
+            0,
         );
     }
 
     #[test]
     fn test_peep_idem1() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("idempotent-1";  "?x" => "(i32.or ?x ?x)")];
+            &[rewrite!("idempotent-1";  "?x" => "(i32.or ?x ?x)" if is_const("?x"))];
 
         test_peephole_mutator(
             r#"
@@ -514,7 +527,7 @@ mod tests {
                 i32.or)
             (export "exported_func" (func 0)))
         "#,
-            3,
+            0,
         );
     }
 
@@ -538,30 +551,28 @@ mod tests {
             (module
                 (type (;0;) (func (param i32) (result i32)))
                 (func (;0;) (type 0) (param i32) (result i32)
-                  i32.const 2143720002
-                  i32.const -1322847442
-                  i32.const 480862779
-                  i32.const -226618899
-                  i32.const -186590935
-                  i32.const 1446998146
-                  i32.const 662639854
-                  i32.const 1453188773
-                  i32.const 718353904
-                  i32.const 982412755
-                  i32.const -1311920857
-                  i32.const 1900885693
-                  i32.const -815127447
-                  i32.const -99060203
-                  i32.const -447427166
-                  i32.const 201654363
-                  i32.const -1699431774
-                  i32.const 1727026012
-                  i32.const 1481586467
-                  i32.const -1685060834
-                  i32.const 136956081
-                  i32.const -1155874118
+                  i32.const -683260416
+                  i32.const 160268115
+                  i32.const 991484282
+                  i32.const 2018993756
+                  i32.const -1908705872
+                  i32.const -1399093629
+                  i32.const 1735359708
+                  i32.const -1016670648
+                  i32.const 1897657819
+                  i32.const 1922808570
+                  i32.const -1502375410
+                  i32.const 2005067762
+                  i32.const -1030639517
+                  i32.const 1748478738
+                  i32.const 500342713
+                  i32.const -396939652
+                  i32.const 154479202
+                  i32.const 686992112
+                  i32.const -1751313776
+                  i32.const -1875541192
+                  i32.const 1750141307
                   i32.const 42
-                  i32.add
                   i32.add
                   i32.add
                   i32.add
@@ -587,7 +598,7 @@ mod tests {
                 (memory (;0;) 1)
                 (export "exported_func" (func 0)))
         "#,
-            1230,
+            0,
         );
     }
 

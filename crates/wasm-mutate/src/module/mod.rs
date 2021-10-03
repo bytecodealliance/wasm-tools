@@ -10,8 +10,7 @@ pub enum PrimitiveTypeInfo {
     I32,
     I64,
     F32,
-    F64,
-    // TODO, add others
+    F64, // TODO, add others
 }
 #[derive(Debug, Clone)]
 pub struct FuncInfo {
