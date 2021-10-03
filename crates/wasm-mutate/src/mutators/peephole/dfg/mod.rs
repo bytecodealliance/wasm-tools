@@ -216,6 +216,8 @@ impl<'a> DFGIcator {
             };
 
             match operator {
+                // Until type information is added
+                /*
                 Operator::GlobalGet { .. } | Operator::LocalGet { .. } => {
                     DFGIcator::push_leaf(
                         idx,
@@ -226,7 +228,8 @@ impl<'a> DFGIcator {
                         &mut stack,
                         &mut parents,
                     );
-                }
+                } */
+                // TODO Add type information
                 Operator::I32Const { value } => {
                     DFGIcator::push_leaf(
                         idx,
@@ -346,7 +349,7 @@ impl<'a> DFGIcator {
                 _ => {
                     log::debug!("Bypassing operator type {:?}", operator);
                     // If the operator is not implemented, break the mutation of this Basic Block
-                    return None
+                    return None;
                 }
             }
         }
