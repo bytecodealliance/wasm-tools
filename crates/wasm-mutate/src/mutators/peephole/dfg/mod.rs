@@ -347,7 +347,17 @@ impl<'a> DFGIcator {
                     parents[rightidx] = idx as i32;
                 }
                 Operator::Nop => {
-                    // Bypass
+                    // Write this down to do a small change in the original wasm
+                    let newnode = StackEntry {
+                        operator_idx: idx,
+                        byte_stream_range: Range {
+                            start: *byte_offset,
+                            end: *byte_offset_next,
+                        },
+                        data: StackEntryData::Leaf
+                    };
+                    dfg_map.push(newnode);
+                    parents.push(-1);
                 },
                 _ => {
                     log::debug!("Bypassing operator type {:?}", operator);
