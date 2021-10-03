@@ -81,6 +81,7 @@ impl<'a> DFGIcator {
                         // Break inmediatly
                         return None;
                     }
+                    break;
                 }
                 _ => {
                     found = true;
@@ -192,8 +193,7 @@ impl<'a> DFGIcator {
         &mut self,
         operators: &'a [OperatorAndByteOffset],
         basicblock: &BBlock,
-    ) -> crate::Result<MiniDFG> {
-        // TODO, check memory explotion of this
+    ) -> Option<MiniDFG> {
         // lets handle the stack
         let mut dfg_map = Vec::new();
         let mut operatormap: HashMap<usize, usize> = HashMap::new(); // operator index to stack index
@@ -209,7 +209,7 @@ impl<'a> DFGIcator {
             let (operator, byte_offset) = &operators[idx];
             // Check if it is not EOF
 
-            let byte_offset_next = if idx == basicblock.range.end - 1 {
+            let byte_offset_next = if idx == basicblock.range.end {
                 byte_offset
             } else {
                 &operators[idx + 1].1
@@ -344,11 +344,13 @@ impl<'a> DFGIcator {
                 }
 
                 _ => {
-                    todo!("Not implemented yet {:?}", operator)
+                    log::debug!("Bypassing operator type {:?}", operator);
+                    // If the operator is not implemented, break the mutation of this Basic Block
+                    return None
                 }
             }
         }
-        Ok(MiniDFG {
+        Some(MiniDFG {
             entries: dfg_map,
             map: operatormap,
             parents,
