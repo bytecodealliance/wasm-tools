@@ -8,19 +8,19 @@ use wasmparser::{CodeSectionReader, ExportSectionReader};
 /// RenameExportMutator generates a random renaming of prexisting exports.
 /// The export entry is selected randmonly and then a new `field` name is generated/
 pub struct RenameExportMutator {
-    /// The maximum length of the generated export entry 
+    /// The maximum length of the generated export entry
     pub max_name_size: u32,
 }
 
 impl RenameExportMutator {
     // Copied and transformed from wasm-smith name generation
-    fn limited_string(&self, rnd: &mut SmallRng, info: &ModuleInfo) -> String {
-        let size = rnd.gen_range(1, self.max_name_size);
-        let size = std::cmp::min(size, self.max_name_size);
+    fn limited_string(&self, rnd: &mut SmallRng, info: &ModuleInfo, max_name_size: u32) -> String {
+        let size = rnd.gen_range(1, max_name_size);
+        let size = std::cmp::min(size, max_name_size);
         let mut str = vec![0u8; size as usize];
         rnd.fill_bytes(&mut str);
 
-        let s = match std::str::from_utf8(&str) {
+        let mut s = match std::str::from_utf8(&str) {
             Ok(s) => String::from(s),
             Err(e) => {
                 let i = e.valid_up_to();
@@ -32,12 +32,11 @@ impl RenameExportMutator {
                 String::from(s)
             }
         };
-
-        if info.export_names.contains(&s.as_str()) {
-            return self.limited_string(rnd, info);
-        } else {
-            s
+        // Add one symbol at a time until it is not contained in the export field names
+        while info.export_names.contains(&s.as_str()) {
+            s.push_str(&self.limited_string(rnd, info, 2));
         }
+        s
     }
 }
 
@@ -60,7 +59,7 @@ impl Mutator for RenameExportMutator {
                 // otherwise bypass
                 String::from(export.field)
             } else {
-                let new_name = self.limited_string(rnd, info);
+                let new_name = self.limited_string(rnd, info, self.max_name_size);
                 log::debug!("Renaming export {:?} by {:?}", export, new_name);
                 new_name
             };
