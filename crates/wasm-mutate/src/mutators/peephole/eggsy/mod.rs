@@ -194,6 +194,7 @@ impl Encoder {
         operands: &Vec<Vec<Id>>,
         current: usize,
     ) -> crate::Result<()> {
+        log::debug!("Writing operator {:?}", eterm);
         match eterm {
             Lang::I32Mul(_) => {
                 newfunc.instruction(Instruction::I32Mul);
@@ -276,6 +277,7 @@ impl Encoder {
 
                 let bytes = &info.get_code_section().data
                     [entry.byte_stream_range.start..entry.byte_stream_range.end];
+                log::debug!("Symbol {:?}, raw bytes: {:?}", s, bytes);
                 newfunc.raw(bytes.iter().copied());
             }
             _ => {
@@ -308,6 +310,7 @@ impl Encoder {
             log::debug!("Unfolding a constant yeih !")
         } else {
             // Process operands
+            log::debug!("Writing operands for {:?}", root);
             for idx in &operands[current] {
                 Encoder::etermtree2wasm(
                     info,
@@ -390,7 +393,6 @@ impl Encoder {
         let range = basicblock.range;
         let byterange = (&operators[0].1, &operators[range.start].1);
         let bytes = &info.get_code_section().data[*byterange.0..*byterange.1];
-
         newfunc.raw(bytes.iter().copied());
 
         // Write all entries in the minidfg in reverse order
@@ -404,6 +406,7 @@ impl Encoder {
                 // It is a root, write then
                 let entry = &minidfg.entries[entryidx];
                 if entry.operator_idx == insertion_point {
+                    log::debug!("Encoding mutation at {:?}", insertion_point);
                     Encoder::etermtree2wasm(
                         info,
                         rnd,
@@ -418,6 +421,7 @@ impl Encoder {
                     )?;
                 } else {
                     // Copy the stack entry as it is
+                    log::debug!("writing no mutated DFG at {:?}", entry.operator_idx);
                     Encoder::writestackentry(
                         info,
                         minidfg,
@@ -436,7 +440,7 @@ impl Encoder {
             &operators[range.end].1, // In the worst case the next instruction will be and end
             &operators[operators.len() - 1].1,
         );
-        let bytes = &info.get_code_section().data[*byterange.0..*byterange.1];
+        let bytes = &info.get_code_section().data[*byterange.0..=*byterange.1];
 
         newfunc.raw(bytes.iter().copied());
         Ok(())

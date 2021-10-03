@@ -79,67 +79,79 @@ impl PeepholeMutator {
             for oidx in (opcode_to_mutate..operatorscount).chain(0..opcode_to_mutate) {
                 let mut dfg = DFGIcator::new();
                 let basicblock = dfg.get_bb_from_operator(oidx, &operators);
+                log::debug!("Basic block range {:?} for idx {:?}", basicblock, oidx);
 
                 match basicblock {
                     Some(basicblock) => {
-                        let minidfg = dfg.get_dfg(&operators, &basicblock)?;
+                        let minidfg = dfg.get_dfg(&operators, &basicblock);
+                        log::debug!("DFG {:?}", minidfg);
 
-                        if !minidfg.map.contains_key(&oidx) {
-                            continue;
-                        }
-                        // This selection is also random, set this to a maximum number of tries
-                        // For example, the code selected could be `i32.shl 54 1` which can be eterminized as `i32.shl ?x 1` or `i32.shl ?x ?y`
-                        // But in practice we could have no rewriting rule for all of them
-                        let eterm = Encoder::wasm2eterm(&minidfg, oidx, &operators, rnd);
+                        match minidfg {
+                            None => {
+                                continue;
+                            }
+                            Some(minidfg) => {
 
-                        match eterm {
-                            Ok((eterm, symbolsmap)) => {
-                                let start = eterm.parse().unwrap();
-
-                                let runner = Runner::default().with_expr(&start).run(rules);
-                                let mut egraph = runner.egraph;
-
-                                // In theory this will return the Id of the operator eterm
-                                let root = egraph.add_expr(&start);
-
-                                // This cost function could be replaced by a custom weighted probability, for example
-                                // we could modify the cost function based on the previous mutation/rotation outcome
-                                let cf = AstSize;
-                                let extractor = RandomExtractor::new(&egraph, cf);
-
-                                let (id_to_node, operands) = extractor
-                                    .extract_random(rnd, root, 0 /* only 1 for now */)?;
-
-                                // There is no point in generating the same symbol
-                                if operands.len() == 1 && operands[0].len() == 0 {
+                                if !minidfg.map.contains_key(&oidx) {
                                     continue;
                                 }
+                                // This selection is also random, set this to a maximum number of tries
+                                // For example, the code selected could be `i32.shl 54 1` which can be eterminized as `i32.shl ?x 1` or `i32.shl ?x ?y`
+                                // But in practice we could have no rewriting rule for all of them
+                                let eterm = Encoder::wasm2eterm(&minidfg, oidx, &operators, rnd);
+        
+                                match eterm {
+                                    Ok((eterm, symbolsmap)) => {
+                                        let start = eterm.parse().unwrap();
 
-                                // Create a new function using the previous locals
-                                let mut newfunc = self.copy_locals(reader)?;
+                                        log::debug!("Eterm {:?}", start);
+        
+                                        let runner = Runner::default().with_expr(&start).run(rules);
+                                        let mut egraph = runner.egraph;
+        
+                                        // In theory this will return the Id of the operator eterm
+                                        let root = egraph.add_expr(&start);
+        
+                                        // This cost function could be replaced by a custom weighted probability, for example
+                                        // we could modify the cost function based on the previous mutation/rotation outcome
+                                        let cf = AstSize;
+                                        let extractor = RandomExtractor::new(&egraph, cf);
+        
+                                        let (id_to_node, operands) = extractor
+                                            .extract_random(rnd, root, 0 /* only 1 for now */)?;
 
-                                // Translate lang expr to wasm
-                                Encoder::build_function(
-                                    info,
-                                    rnd,
-                                    0, // The root of the tree
-                                    oidx,
-                                    &id_to_node,
-                                    &operands,
-                                    &operators,
-                                    &basicblock,
-                                    &mut newfunc,
-                                    &symbolsmap,
-                                    &minidfg,
-                                )?;
+                                        log::debug!("Random expr {:?} {:?}", id_to_node, operands);
 
-                                let (_, offset) = operators[oidx + 1];
-                                let ending = &code_section.data[offset..operatorsrange.end];
-                                newfunc.raw(ending.iter().copied());
-                                return Ok((newfunc, fidx));
-                            }
-                            Err(_) => {
-                                continue;
+                                        // There is no point in generating the same symbol
+                                        if operands.len() == 1 && operands[0].len() == 0 {
+                                            continue;
+                                        }
+                                        log::debug!("Mutating function {:?}", fidx);
+                                        // Create a new function using the previous locals
+                                        let mut newfunc = self.copy_locals(reader)?;
+        
+                                        // Translate lang expr to wasm
+                                        Encoder::build_function(
+                                            info,
+                                            rnd,
+                                            0, // The root of the tree
+                                            oidx,
+                                            &id_to_node,
+                                            &operands,
+                                            &operators,
+                                            &basicblock,
+                                            &mut newfunc,
+                                            &symbolsmap,
+                                            &minidfg,
+                                        )?;
+        
+                                        log::debug!("Built function {:?}", newfunc);
+                                        return Ok((newfunc, fidx));
+                                    }
+                                    Err(_) => {
+                                        continue;
+                                    }
+                                }
                             }
                         }
                     }
