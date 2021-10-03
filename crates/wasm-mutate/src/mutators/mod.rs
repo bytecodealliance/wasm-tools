@@ -1,9 +1,13 @@
+//! Mutator trait
 use rand::prelude::SmallRng;
 use wasm_encoder::Module;
 
 use super::Result;
 use crate::module::*;
 use crate::{ModuleInfo, WasmMutate};
+
+/// This trait is implemented for all mutators
+/// TODO extend and add example here
 pub trait Mutator {
     /// Method where the mutation happpens
     ///
@@ -26,11 +30,11 @@ pub trait Mutator {
     }
 }
 
-pub mod function2unreachable;
-pub mod peephole;
-pub mod remove_export;
-pub mod rename_export;
-pub mod snip_function;
+pub(crate) mod function2unreachable;
+pub(crate) mod peephole;
+pub(crate) mod remove_export;
+pub(crate) mod rename_export;
+pub(crate) mod snip_function;
 
 // macro for mutation assesment
 #[cfg(test)]

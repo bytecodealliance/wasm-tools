@@ -1,3 +1,4 @@
+//! Mutator that generates a random renaming of a prexisting export
 use super::Mutator;
 use crate::{ModuleInfo, Result, WasmMutate};
 use rand::prelude::SmallRng;

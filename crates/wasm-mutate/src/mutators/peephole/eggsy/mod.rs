@@ -42,6 +42,7 @@ where
     L: Language,
     N: Analysis<L, Data = Option<i32>>, // The analysis should return the index of the node in the e-class
 {
+    /// Returns a new Random extractor from an egraph and a custom cost function
     pub fn new(egraph: &'a EGraph<L, N>, cost_function: CF) -> Self {
         let costs = HashMap::default();
 
@@ -110,18 +111,19 @@ where
         }
     }
 
+    /// The the cost of the egraph nodes
     pub fn get_costs(&self) -> &HashMap<Id, (<CF as CostFunction<L>>::Cost, usize)> {
         &self.costs
     }
 
-    // Do a pre-order traversal of the e-graph. As we visit each e-class, choose
-    // one of its e-nodes at random and then do the same with its children,
-    // etc. You can imagine this process as a kind of rolling wave function
-    // collapse, where we choose a concrete expression out of the potentially
-    // infinite number of equivalent expressions each e-class represents.
-    //
-    // `worklist` constains the operands we still need to process. These are
-    // currently a pair of the parent node and its operand e-class.
+    /// Do a pre-order traversal of the e-graph. As we visit each e-class, choose
+    /// one of its e-nodes at random and then do the same with its children,
+    /// etc. You can imagine this process as a kind of rolling wave function
+    /// collapse, where we choose a concrete expression out of the potentially
+    /// infinite number of equivalent expressions each e-class represents.
+    ///
+    /// `worklist` constains the operands we still need to process. These are
+    /// currently a pair of the parent node and its operand e-class.
     pub fn extract_random(
         &self,
         rnd: &mut rand::prelude::SmallRng,
@@ -378,6 +380,7 @@ impl Encoder {
         Ok(())
     }
 
+    /// Reassembles the mutated function and return a `Function` entry
     pub fn build_function(
         info: &ModuleInfo,
         rnd: &mut rand::prelude::SmallRng,

@@ -208,7 +208,7 @@ impl<'a> DFGIcator {
         &mut self,
         operators: &'a [OperatorAndByteOffset],
         basicblock: &BBlock,
-        locals: &Vec<Type>,
+        locals: &Vec<PrimitiveTypeInfo>,
     ) -> Option<MiniDFG> {
         // lets handle the stack
         let mut dfg_map = Vec::new();
@@ -243,7 +243,7 @@ impl<'a> DFGIcator {
                         &mut operatormap,
                         &mut stack,
                         &mut parents,
-                        vec![PrimitiveTypeInfo::try_from(locals[*local_index as usize]).unwrap()],
+                        vec![locals[*local_index as usize].clone()],
                     );
                 }
                 // TODO Add type information

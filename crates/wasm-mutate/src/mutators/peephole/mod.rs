@@ -1,3 +1,6 @@
+//! This mutator applies a random peephole transformation to the input Wasm module
+use crate::error::EitherType;
+use crate::module::PrimitiveTypeInfo;
 use crate::mutators::peephole::eggsy::lang::Lang;
 use crate::mutators::peephole::eggsy::{analysis::PeepholeMutationAnalysis, Encoder};
 use egg::{
@@ -8,9 +11,12 @@ use rand::{
     prelude::{IteratorRandom, SliceRandom, SmallRng},
     Rng,
 };
+use std::convert::TryFrom;
 use std::{cmp::Ordering, collections::HashMap, hash::Hash, num::Wrapping};
 use wasm_encoder::{CodeSection, Function, Instruction, MemArg, Module, ValType};
-use wasmparser::{BinaryReaderError, CodeSectionReader, FunctionBody, Operator, Range, Type};
+use wasmparser::{
+    BinaryReaderError, CodeSectionReader, FunctionBody, LocalsReader, Operator, Range, Type,
+};
 
 use crate::{
     module::{map_operator, map_type},
@@ -24,6 +30,7 @@ use super::Mutator;
 pub mod dfg;
 pub mod eggsy;
 
+/// This mutator applies a random peephole transformation to the input Wasm module
 pub struct PeepholeMutator;
 type EG = egg::EGraph<Lang, PeepholeMutationAnalysis>;
 
@@ -33,22 +40,42 @@ type MutationContext = (Function, u32);
 // Helper type to return operator and ofsset inside the byte stream
 type OperatorAndByteOffset<'a> = (Operator<'a>, usize);
 impl PeepholeMutator {
-    // Collect and unfold locals, [x, ty, y, ty2] -> [ty....ty, ty2...ty2]
-    fn get_func_locals(&self, reader: FunctionBody) -> Result<Vec<Type>> {
-        let mut localreader = reader.get_locals_reader().unwrap();
-        // Get current locals and map to encoder types
-        let mut all_locals = Vec::new();
+    // Collect and unfold params and locals, [x, ty, y, ty2] -> [ty....ty, ty2...ty2]
+    fn get_func_locals(
+        &self,
+        info: &ModuleInfo,
+        funcidx: u32,
+        localsreader: &mut LocalsReader,
+    ) -> Result<Vec<PrimitiveTypeInfo>> {
+        let ftype = info.get_functype_idx(funcidx as usize);
 
-        (0..localreader.get_count()).for_each(|f| {
-            let (count, ty) = localreader.read().unwrap();
-            (0..count).for_each(|_| all_locals.push(ty));
-        });
+        match ftype {
+            crate::module::TypeInfo::Func(tpe) => {
+                println!("{:?}", ftype);
+                let mut all_locals = Vec::new();
 
-        Ok(all_locals)
+                for primitive in &tpe.params {
+                    all_locals.push(primitive.clone())
+                }
+
+                for _ in 0..localsreader.get_count() {
+                    let (count, ty) = localsreader.read()?;
+                    let tymapped = PrimitiveTypeInfo::try_from(ty).unwrap();
+                    for _ in 0..count {
+                        all_locals.push(tymapped.clone());
+                    }
+                }
+
+                Ok(all_locals)
+            }
+            _ => Err(crate::Error::UnsupportedType(EitherType::TypeDef(format!(
+                "The type for this function is not a function tyupe definition"
+            )))),
+        }
     }
     fn copy_locals(&self, reader: FunctionBody) -> Result<Function> {
         // Create the new function
-        let mut localreader = reader.get_locals_reader().unwrap();
+        let mut localreader = reader.get_locals_reader()?;
         // Get current locals and map to encoder types
         let mut local_count = 0;
         let mut current_locals = (0..localreader.get_count())
@@ -82,7 +109,7 @@ impl PeepholeMutator {
         for fidx in (function_to_mutate..function_count).chain(0..function_to_mutate) {
             let reader = all_readers[fidx as usize];
             let operatorreader = reader.get_operators_reader()?;
-            let operatorsrange = operatorreader.reader.range();
+            let mut localsreader = reader.get_locals_reader()?;
             let operators = operatorreader
                 .into_iter_with_offsets()
                 .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()?;
@@ -97,8 +124,11 @@ impl PeepholeMutator {
 
                 match basicblock {
                     Some(basicblock) => {
-                        let minidfg =
-                            dfg.get_dfg(&operators, &basicblock, &self.get_func_locals(reader)?);
+                        let minidfg = dfg.get_dfg(
+                            &operators,
+                            &basicblock,
+                            &self.get_func_locals(&info, fidx, &mut localsreader)?,
+                        );
                         log::debug!("DFG {:?}", minidfg);
 
                         match minidfg {

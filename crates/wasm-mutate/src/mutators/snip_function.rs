@@ -1,3 +1,5 @@
+//! Mutator that replaces the body of a function with an empty body
+
 use super::Mutator;
 use crate::module::{PrimitiveTypeInfo, TypeInfo};
 use crate::{ModuleInfo, Result, WasmMutate};
@@ -5,6 +7,8 @@ use rand::prelude::SmallRng;
 use rand::{Rng, RngCore};
 use wasm_encoder::{CodeSection, Export, ExportSection, Function, Instruction, Module};
 use wasmparser::{CodeSectionReader, ExportSectionReader};
+
+/// Mutator that replaces the body of a function with an empty body
 pub struct SnipMutator;
 
 impl Mutator for SnipMutator {
