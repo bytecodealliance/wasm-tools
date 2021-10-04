@@ -307,6 +307,7 @@ impl<'a> DFGIcator {
                 }
                 // All memory loads
                 Operator::I32Load { .. }
+                /*
                 | Operator::I64Load { .. }
                 | Operator::F32Load { .. }
                 | Operator::F64Load { .. }
@@ -317,7 +318,7 @@ impl<'a> DFGIcator {
                 | Operator::I64Load32S { .. }
                 | Operator::I64Load32U { .. }
                 | Operator::I64Load8S { .. }
-                | Operator::I64Load8U { .. } => {
+                | Operator::I64Load8U { .. } */ => {
                     // It needs the offset arg
                     let offset = DFGIcator::pop_operand(
                         &mut stack,

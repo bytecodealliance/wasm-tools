@@ -142,6 +142,13 @@ impl PeepholeMutator {
                                     Encoder::wasm2expr(&minidfg, oidx, &operators, &mut start)?;
                                 debug!("Eterm `{}`", start);
 
+                                // TODO have this as a condition
+                                let undef = Lang::Undef;
+                                if start.as_ref().contains(&undef) {
+                                    debug!("The dfg is not deterministic");
+                                    continue;
+                                }
+
                                 let runner = Runner::default().with_expr(&start).run(rules);
                                 let mut egraph = runner.egraph;
 
@@ -251,14 +258,6 @@ impl PeepholeMutator {
             }
         }
     }
-
-    /// Condition to apply when the tree needs to be consistent
-    /// Checks if no undef oeprators are in the tree
-    fn is_complete(&self, var1: &'static str) -> impl Fn(&mut EG, Id, &Subst) -> bool {
-        let var1 = var1.parse().unwrap();
-        let undef = Lang::Undef;
-        move |egraph, _, subst| !egraph[subst[var1]].nodes.contains(&undef)
-    }
 }
 
 /// Meta mutator for peephole
@@ -278,13 +277,13 @@ impl Mutator for PeepholeMutator {
             rewrite!("strength-undo";  "(i32.shl ?x 1)" => "(i32.mul ?x ?x)"),
             rewrite!("strength-undo1";  "(i32.shl ?x 2)" => "(i32.mul ?x 2)"),
             rewrite!("strength-undo2";  "(i32.shl ?x 3)" => "(i32.mul ?x 8)"),
-            rewrite!("add-1";  "(i32.add ?x ?x)" => "(i32.mul ?x 2)" if self.is_complete("?x")),
-            rewrite!("idempotent-1";  "?x" => "(i32.or ?x ?x)" if self.is_complete("?x")),
-            rewrite!("idempotent-2";  "?x" => "(i32.and ?x ?x)" if self.is_complete("?x")),
-            rewrite!("commutative-1";  "(i32.add ?x ?y)" => "(i32.add ?y ?x)" if self.is_complete("?x") if self.is_complete("?y") ),
-            rewrite!("commutative-2";  "(i32.mul ?x ?y)" => "(i32.mul ?y ?x)" if self.is_complete("?x") if self.is_complete("?y") ),
-            rewrite!("associative-1";  "(i32.add ?x (i32.add ?y ?z))" => "(i32.add (i32.add ?x ?y) ?z)" if self.is_complete("?x") if self.is_complete("?y") if self.is_complete("?z") ),
-            rewrite!("associative-2";  "(i32.mul ?x (i32.mul ?y ?z))" => "(i32.mul (i32.mul ?x ?y) ?z)" if self.is_complete("?x") if self.is_complete("?y") if self.is_complete("?z") ),
+            rewrite!("add-1";  "(i32.add ?x ?x)" => "(i32.mul ?x 2)"),
+            rewrite!("idempotent-1";  "?x" => "(i32.or ?x ?x)" ),
+            rewrite!("idempotent-2";  "?x" => "(i32.and ?x ?x)"),
+            rewrite!("commutative-1";  "(i32.add ?x ?y)" => "(i32.add ?y ?x)" ),
+            rewrite!("commutative-2";  "(i32.mul ?x ?y)" => "(i32.mul ?y ?x)" ),
+            rewrite!("associative-1";  "(i32.add ?x (i32.add ?y ?z))" => "(i32.add (i32.add ?x ?y) ?z)" ),
+            rewrite!("associative-2";  "(i32.mul ?x (i32.mul ?y ?z))" => "(i32.mul (i32.mul ?x ?y) ?z)" ),
         ];
 
         if !config.preserve_semantics {
