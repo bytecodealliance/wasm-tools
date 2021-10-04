@@ -269,6 +269,7 @@ impl<'a> DFGIcator {
                 }
                 Operator::LocalSet { .. } | Operator::GlobalSet { .. } | Operator::Drop => {
                     // It needs the offset arg
+                    log::debug!("Droping type {:?}", operator);
                     let child = DFGIcator::pop_operand(
                         &mut stack,
                         &mut dfg_map,
@@ -277,6 +278,7 @@ impl<'a> DFGIcator {
                         &mut parents,
                         true,
                     );
+                    log::debug!("Operand {:?}, stack {:?}", child, stack);
 
                     let newnode = StackEntry {
                         operator_idx: idx,
@@ -291,7 +293,7 @@ impl<'a> DFGIcator {
                     };
 
                     let entry_idx = dfg_map.len();
-                    operatormap.insert(idx, entry_idx);
+                    // operatormap.insert(idx, entry_idx);
                     // Add the data flow link
                     dfg_map.push(newnode);
                     parents.push(-1);

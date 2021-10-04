@@ -140,7 +140,6 @@ where
 
         // Select a random node in this e-class
         let rootidx = rnd.gen_range(0, self.egraph[eclass].nodes.len());
-        println!("{:?} taken path {:?}", &self.egraph[eclass].nodes, rootidx);
         let rootnode = &self.egraph[eclass].nodes[rootidx];
 
         id_to_node.push(&self.egraph[eclass].nodes[rootidx]);
