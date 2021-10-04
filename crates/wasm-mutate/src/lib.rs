@@ -7,7 +7,7 @@
 //! tool. `wasm-mutate` can serve as a custom mutator for mutation-based
 //! fuzzing.
 #![cfg_attr(not(feature = "structopt"), deny(missing_docs))]
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use module::TypeInfo;
 use mutators::Mutator;
@@ -127,7 +127,7 @@ pub struct ModuleInfo<'a> {
     // The following fields are offsets inside the `raw_sections` field.
     // The main idea is to maintain the order of the sections in the input Wasm.
     exports: Option<usize>,
-    export_names: Vec<&'a str>,
+    export_names: HashSet<String>,
 
     types: Option<usize>,
     imports: Option<usize>,
@@ -324,7 +324,7 @@ impl WasmMutate {
 
                     for _ in 0..reader.get_count() {
                         let entry = reader.read()?;
-                        info.export_names.push(entry.field)
+                        info.export_names.insert(entry.field.into());
                     }
 
                     info.section(SectionId::Export.into(), reader.range(), input_wasm);
