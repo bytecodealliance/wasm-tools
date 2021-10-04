@@ -1,8 +1,9 @@
 //! This mutator applies a random peephole transformation to the input Wasm module
 use crate::error::EitherType;
 use crate::module::PrimitiveTypeInfo;
+use crate::mutators::peephole::eggsy::analysis::PeepholeMutationAnalysis;
+use crate::mutators::peephole::eggsy::encoder::Encoder;
 use crate::mutators::peephole::eggsy::lang::Lang;
-use crate::mutators::peephole::eggsy::{analysis::PeepholeMutationAnalysis, Encoder};
 use egg::{rewrite, AstSize, Id, RecExpr, Rewrite, Runner, Subst};
 use rand::{prelude::SmallRng, Rng};
 use std::convert::TryFrom;
