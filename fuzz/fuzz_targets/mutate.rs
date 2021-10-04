@@ -62,8 +62,10 @@ fuzz_target!(|inputs: (wasm_smith::Module, u64)| {
     log::debug!("validation result = {:?}", validation_result);
 
 
-    let mutated_text = wasmprinter::print_bytes(mutated_wasm).unwrap();
-    std::fs::write("mutated.wat", &mutated_text).expect("should write `mutated.wat` okay");
+    if log::log_enabled!(log::Level::Debug) {
+        let mutated_text = wasmprinter::print_bytes(mutated_wasm).unwrap();
+        std::fs::write("mutated.wat", &mutated_text).expect("should write `mutated.wat` okay");
+    }
 
     assert!(
         validation_result.is_ok(),
