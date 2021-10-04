@@ -46,6 +46,9 @@ impl Mutator for SnipMutator {
                             PrimitiveTypeInfo::F64 => {
                                 f.instruction(Instruction::F64Const(0.0));
                             }
+                            PrimitiveTypeInfo::Empty => {
+                                // Do nothing
+                            }
                         });
                     }
                     _ => panic!("Unconsistent function type"),

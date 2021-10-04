@@ -129,7 +129,8 @@ where
         rnd: &mut rand::prelude::SmallRng,
         eclass: Id,
         max_depth: u32,
-    ) -> crate::Result<(Vec<&L>, Vec<Vec<Id>>)> // return the random tree, TODO, improve the way the tree is returned
+        encoder: impl Fn(Id, &Vec<&L>, &Vec<Vec<Id>>) -> RecExpr<L>,
+    ) -> crate::Result<RecExpr<L>> // return the random tree, TODO, improve the way the tree is returned
     {
         // A map from a node's id to its actual node data.
         let mut id_to_node = vec![];
@@ -146,6 +147,7 @@ where
         let mut worklist: Vec<_> = rootnode
             .children()
             .iter()
+            .rev()
             .map(|id| (eclass, 0, id, 0)) // (root, operant, depth)
             .collect();
 
@@ -172,10 +174,16 @@ where
                 self.egraph[node].nodes[node_idx]
                     .children()
                     .iter()
+                    .rev()
                     .map(|id| (operand, operandidx, id, depth + 1)),
             );
         }
-        Ok((id_to_node, operands))
+        // Build the tree with the right language constructor
+        Ok(encoder(
+            Id::from(0), /* The root of the expr is the node at position 0 */
+            &id_to_node,
+            &operands,
+        ))
     }
 }
 
@@ -183,166 +191,185 @@ where
 pub struct Encoder;
 
 impl Encoder {
-    fn eterm2wasm(
-        info: &ModuleInfo,
-        eterm: &Lang,
-        newfunc: &mut Function,
-        symbolsmap: &HashMap<String, usize>,
-        minidfg: &MiniDFG,
-        rnd: &mut SmallRng,
-        insertion_point: usize,
-        operators: &Vec<OperatorAndByteOffset>,
-        id_to_node: &Vec<&Lang>,
-        operands: &Vec<Vec<Id>>,
-        current: usize,
-    ) -> crate::Result<()> {
-        log::debug!("Writing operator {:?}", eterm);
-        match eterm {
-            Lang::I32Mul(_) => {
-                newfunc.instruction(Instruction::I32Mul);
-            }
-            Lang::I32Const(v) => {
-                newfunc.instruction(Instruction::I32Const(*v));
-            }
-            Lang::I32Shl(_) => {
-                newfunc.instruction(Instruction::I32Shl);
-            }
-            Lang::I32Add(_) => {
-                newfunc.instruction(Instruction::I32Add);
-            }
-            Lang::I32Sub(_) => {
-                newfunc.instruction(Instruction::I32Sub);
-            }
-            Lang::I32And(_) => {
-                newfunc.instruction(Instruction::I32And);
-            }
-            Lang::I32Or(_) => {
-                newfunc.instruction(Instruction::I32Or);
-            }
-            Lang::I32Xor(_) => {
-                newfunc.instruction(Instruction::I32Xor);
-            }
-            Lang::I32ShrU(_) => {
-                newfunc.instruction(Instruction::I32ShrU);
-            }
-            Lang::I32Popcnt(_) => {
-                newfunc.instruction(Instruction::I32Popcnt);
-            }
-            Lang::ILoad(_) => {
-                // Do nothing
-                let operators = &operators[insertion_point..=insertion_point + 1/* take to the next operator to save the offset */];
-                let range = (operators[0].1, operators[1].1);
-
-                // Copy the mem operation
-                let raw_data = &info.get_code_section().data[range.0..range.1];
-                newfunc.raw(raw_data.iter().copied());
-            }
-            Lang::Rand => {
-                newfunc.instruction(Instruction::I32Const(rnd.gen()));
-            }
-            Lang::Unfold(_) => {
-                let child = operands[current][0];
-                let node = id_to_node[usize::from(child)];
-                match node {
-                    Lang::I32Const(value) => {
-                        let r: i32 = rnd.gen();
-                        log::debug!("Unfolding {:?}", value);
-                        newfunc.instruction(Instruction::I32Const(r));
-                        newfunc.instruction(Instruction::I32Const((Wrapping(r) - Wrapping(*value)).0));
-                        newfunc.instruction(Instruction::I32Add);
-                    },
-                    _ => panic!("The operand for this operator should be a constant, check if the rewriting rule is defined with such conditions")
-                }
-            }
-            Lang::Symbol(s) => {
-                // Copy the byte stream to aavoid mapping
-                log::debug!("symbolmap {:?}, entries {:?}", symbolsmap, &minidfg.entries);
-                let entryidx = symbolsmap[&s.to_string()];
-                let entry = &minidfg.entries[entryidx];
-
-                // Write the symbol in the correct place of the functions
-
-                // Entry could not be an indepent symbol
-                match &entry.data {
-                    super::dfg::StackEntryData::Leaf => {
-                        // Write as it is
-                        //todo!("entry {:?}", entry);
-                    }
-                    super::dfg::StackEntryData::Node { operands } => {
-                        todo!("todo {:?}", operands);
-                    }
-                    super::dfg::StackEntryData::Undef => {
-                        // do nothing
-                        return Ok(());
-                    }
-                }
-
-                let bytes = &info.get_code_section().data
-                    [entry.byte_stream_range.start..entry.byte_stream_range.end];
-                log::debug!("Symbol {:?}, raw bytes: {:?}", s, bytes);
-                newfunc.raw(bytes.iter().copied());
-            }
-            _ => {
-                return Err(crate::Error::UnsupportedType(EitherType::Operator(
-                    format!("Eterm {:?} is not implemented", eterm),
-                )))
-            }
-        }
-        Ok(())
-    }
-
-    fn etermtree2wasm(
+    fn expr2wasm(
         info: &ModuleInfo,
         rnd: &mut rand::prelude::SmallRng,
         insertion_point: usize,
-        id_to_node: &Vec<&Lang>,
-        operands: &Vec<Vec<Id>>,
-        current: usize,
+        expr: &RecExpr<Lang>,
         newfunc: &mut Function,
         symbolmap: &HashMap<String, usize>,
         minidfg: &MiniDFG,
         operators: &Vec<OperatorAndByteOffset>,
     ) -> crate::Result<()> {
-        let root = id_to_node[current];
-
         // This is a patch, this logic should be here
-        // If root is Unfol...bypass
+        // If root is Unfold...bypass
+        let nodes = expr.as_ref();
+        fn expr2wasm_aux(
+            info: &ModuleInfo,
+            rnd: &mut rand::prelude::SmallRng,
+            insertion_point: usize,
+            nodes: &[Lang],
+            current: usize,
+            newfunc: &mut Function,
+            symbolsmap: &HashMap<String, usize>,
+            minidfg: &MiniDFG,
+            operators: &Vec<OperatorAndByteOffset>,
+        ) -> crate::Result<()> {
+            let root = &nodes[current];
+            match root {
+                Lang::I32Add(operands)
+                | Lang::I32Sub(operands)
+                | Lang::I32Mul(operands)
+                | Lang::I32Shl(operands)
+                | Lang::I32And(operands)
+                | Lang::I32Xor(operands)
+                | Lang::I32Or(operands)
+                | Lang::I32ShrU(operands) => {
+                    // Process left operand
+                    expr2wasm_aux(
+                        info,
+                        rnd,
+                        insertion_point,
+                        nodes,
+                        usize::from(operands[0]),
+                        newfunc,
+                        symbolsmap,
+                        minidfg,
+                        operators,
+                    )?;
+                    // Process right operand
+                    expr2wasm_aux(
+                        info,
+                        rnd,
+                        insertion_point,
+                        nodes,
+                        usize::from(operands[1]),
+                        newfunc,
+                        symbolsmap,
+                        minidfg,
+                        operators,
+                    )?;
+                    // Write the current operator
+                    match root {
+                        Lang::I32Add(_) => {
+                            newfunc.instruction(Instruction::I32Add);
+                        }
+                        Lang::I32Sub(_) => {
+                            newfunc.instruction(Instruction::I32Sub);
+                        }
+                        Lang::I32Mul(_) => {
+                            newfunc.instruction(Instruction::I32Mul);
+                        }
+                        Lang::I32Shl(_) => {
+                            newfunc.instruction(Instruction::I32Shl);
+                        }
+                        Lang::I32And(_) => {
+                            newfunc.instruction(Instruction::I32And);
+                        }
+                        Lang::I32Or(_) => {
+                            newfunc.instruction(Instruction::I32Or);
+                        }
+                        Lang::I32Xor(_) => {
+                            newfunc.instruction(Instruction::I32Xor);
+                        }
+                        Lang::I32ShrU(_) => {
+                            newfunc.instruction(Instruction::I32ShrU);
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+                Lang::I32Popcnt(operand) => {
+                    expr2wasm_aux(
+                        info,
+                        rnd,
+                        insertion_point,
+                        nodes,
+                        usize::from(*operand),
+                        newfunc,
+                        symbolsmap,
+                        minidfg,
+                        operators,
+                    )?;
+                    newfunc.instruction(Instruction::I32Popcnt);
+                }
+                Lang::ILoad(operand) => {
+                    // Write memory load operations
+                    expr2wasm_aux(
+                        info,
+                        rnd,
+                        insertion_point,
+                        nodes,
+                        usize::from(*operand),
+                        newfunc,
+                        symbolsmap,
+                        minidfg,
+                        operators,
+                    )?;
 
-        if let Lang::Unfold(_) = root {
-            log::debug!("Unfolding a constant yeih !")
-        } else {
-            // Process operands
-            log::debug!("Writing operands for {:?}", root);
-            for idx in &operands[current] {
-                Encoder::etermtree2wasm(
-                    info,
-                    rnd,
-                    insertion_point,
-                    id_to_node,
-                    operands,
-                    usize::from(*idx),
-                    newfunc,
-                    symbolmap,
-                    minidfg,
-                    operators,
-                )?;
+                    let operators = &operators[insertion_point..=insertion_point + 1/* take to the next operator to save the offset */];
+                    let range = (operators[0].1, operators[1].1);
+
+                    // Copy the mem operation
+                    let raw_data = &info.get_code_section().data[range.0..range.1];
+                    newfunc.raw(raw_data.iter().copied());
+                }
+                Lang::Rand => {
+                    newfunc.instruction(Instruction::I32Const(rnd.gen()));
+                }
+                Lang::Undef => {
+                    log::debug!("Undefined value reached, this means that the operand will come from the evaluation of pred basic blocks");
+                }
+                Lang::Unfold(operand) => {
+                    let child = &nodes[usize::from(operand[0])];
+                    match child {
+                        Lang::I32Const(value) => {
+                            let r: i32 = rnd.gen();
+                            log::debug!("Unfolding {:?}", value);
+                            newfunc.instruction(Instruction::I32Const(r));
+                            newfunc.instruction(Instruction::I32Const((Wrapping(r) - Wrapping(*value)).0));
+                            newfunc.instruction(Instruction::I32Add);
+                        },
+                        _ => unreachable!("The operand for this operator should be a constant, check if the rewriting rule is defined with such conditions")
+                    }
+                }
+                Lang::I32Const(val) => {
+                    newfunc.instruction(Instruction::I32Const(*val));
+                }
+                Lang::Symbol(s) => {
+                    // Copy the byte stream to aavoid mapping
+                    log::debug!("symbolmap {:?}, entries {:?}", symbolsmap, &minidfg.entries);
+                    let entryidx = symbolsmap[&s.to_string()];
+                    let entry = &minidfg.entries[entryidx];
+                    // Entry could not be an indepent symbol
+                    match &entry.data {
+                        super::dfg::StackEntryData::Leaf => {
+                            let bytes = &info.input_wasm[entry.byte_stream_range.start..entry.byte_stream_range.end];
+                            log::debug!("Symbol {:?}, raw bytes: {:?}", s, bytes);
+                            newfunc.raw(bytes.iter().copied());
+                        }
+                        _ => {
+                            return Err(crate::Error::UnsupportedType(EitherType::TypeDef(format!("A leaf stack entry that cannot be mapped directly to a Symbol is not right"))))
+                        }
+                    }
+                }
+                Lang::Drop => {
+                    newfunc.instruction(Instruction::Drop);
+                }
             }
-        }
 
-        Encoder::eterm2wasm(
+            Ok(())
+        }
+        expr2wasm_aux(
             info,
-            root,
+            rnd,
+            insertion_point,
+            nodes,
+            nodes.len() - 1,
             newfunc,
             symbolmap,
             minidfg,
-            rnd,
-            insertion_point,
             operators,
-            id_to_node,
-            operands,
-            current,
-        )?;
-        Ok(())
+        )
     }
 
     fn writestackentry(
@@ -384,10 +411,8 @@ impl Encoder {
     pub fn build_function(
         info: &ModuleInfo,
         rnd: &mut rand::prelude::SmallRng,
-        current: usize,
         insertion_point: usize,
-        id_to_node: &Vec<&Lang>,
-        operands: &Vec<Vec<Id>>,
+        expr: &RecExpr<Lang>,
         operators: &Vec<OperatorAndByteOffset>,
         basicblock: &BBlock,
         newfunc: &mut Function,
@@ -399,25 +424,20 @@ impl Encoder {
         let byterange = (&operators[0].1, &operators[range.start].1);
         let bytes = &info.get_code_section().data[*byterange.0..*byterange.1];
         newfunc.raw(bytes.iter().copied());
-
         // Write all entries in the minidfg in reverse order
         // The stack neutral will be preserved but the position of the changed operands not that much :(
         // The edges of the stackentries are always backward in the array, so, it consistent to
         // do the writing in reverse
-        let len = minidfg.map.len();
         for (entryidx, parentidx) in minidfg.parents.iter().enumerate() {
             if *parentidx == -1 {
                 // It is a root, write then
                 let entry = &minidfg.entries[entryidx];
                 if entry.operator_idx == insertion_point {
-                    log::debug!("Encoding mutation at {:?}", insertion_point);
-                    Encoder::etermtree2wasm(
+                    Encoder::expr2wasm(
                         info,
                         rnd,
                         insertion_point,
-                        id_to_node,
-                        operands,
-                        current,
+                        expr,
                         newfunc,
                         symbolmap,
                         minidfg,
@@ -443,79 +463,88 @@ impl Encoder {
         Ok(())
     }
 
-    /// This function maps the operator to a simple eterm
-    /// TODO, others, plus type information
-    /// It returns the eterm and if the eterm should considered as a symbol
-    fn get_simpleterm(operator: &Operator) -> crate::Result<(String, bool)> {
-        match operator {
-            Operator::I32Add => Ok(("i32.add".into(), false)),
-            Operator::I32Const { value } => Ok((format!("{}", value), false)),
-            Operator::LocalGet { local_index } => Ok((format!("?l{}", local_index), true)),
-            Operator::I32Shl => Ok(("i32.shl".into(), false)),
-            Operator::I32Load { .. } => Ok(("i.load".into(), false)),
-            _ => Err(crate::Error::UnsupportedType(EitherType::Operator(
-                format!("{:?}", operator),
-            ))),
-        }
-    }
     /// Maps wasm to eterm expression
     /// This method receives also a random generator, the idea is to map StackEntry operands to symbols in a random way.
-    /// This will allow to map expressions like `i32.const x; i32.const y; i32.shl` to `(i32.shl ?x y)` or the full expression
-    /// `(i32.shl ?x ?y)`
-    ///
-    /// TODO, check the return since it would be better to return a RecExpr
-    pub fn wasm2eterm(
+    pub fn wasm2expr(
         dfg: &MiniDFG,
         oidx: usize,
         operators: &Vec<OperatorAndByteOffset>,
-        rnd: &mut SmallRng,
-        // Replace this by RecExpr
-    ) -> crate::Result<(String, HashMap<String, usize>)> {
+        // The wasm expressions will be added here
+        expr: &mut RecExpr<Lang>, // Replace this by RecExpr
+    ) -> crate::Result<(Id, HashMap<String, usize>)> {
         let stack_entry_index = dfg.map[&oidx];
         let entry = &dfg.entries[stack_entry_index];
-        let (_, _) = &operators[entry.operator_idx];
-        let assymbol = |stack_entry_idx: usize| -> (String, HashMap<String, usize>) {
-            let symbolname = format!("?x{}", stack_entry_idx);
-            let mut smap = HashMap::new();
-            smap.insert(symbolname.clone(), stack_entry_idx);
-            (symbolname, smap)
-        };
+
         match &entry.data {
             crate::mutators::peephole::dfg::StackEntryData::Leaf => {
+                // map to a symbol or constant
                 let (operator, _) = &operators[entry.operator_idx];
-                let (term, addtosymbolsmap) = Encoder::get_simpleterm(&operator)?;
-                Ok((
-                    term.clone(),
-                    if addtosymbolsmap {
-                        vec![(term, stack_entry_index)].into_iter().collect()
-                    } else {
-                        HashMap::new()
-                    },
-                ))
+                match operator {
+                    Operator::I32Const { value } => {
+                        let id = expr.add(Lang::I32Const(*value));
+                        Ok((
+                            id,
+                            HashMap::new(), // No symbol
+                        ))
+                    }
+                    Operator::LocalGet { local_index } => {
+                        let name = format!("?l{}", local_index);
+                        let id = expr.add(Lang::Symbol(name.clone().into()));
+                        let mut smap = HashMap::new();
+                        smap.insert(name, stack_entry_index);
+
+                        Ok((id, smap))
+                    }
+                    _ => Err(crate::Error::UnsupportedType(EitherType::Operator(
+                        format!("Operator {:?} is not supported as symbol", operator),
+                    ))),
+                }
             }
             crate::mutators::peephole::dfg::StackEntryData::Node { operands } => {
                 // This is an operator
                 let (operator, _) = &operators[entry.operator_idx];
-                let (term, _) = Encoder::get_simpleterm(&operator)?;
-                let mut operandterms = Vec::new();
+                let mut subexpressions = Vec::new();
                 let mut smap: HashMap<String, usize> = HashMap::new();
+
                 for operandi in operands {
                     let stack_entry = &dfg.entries[*operandi];
                     let (eterm, symbols) =
-                        Encoder::wasm2eterm(dfg, stack_entry.operator_idx, operators, rnd)?;
-                    operandterms.push(eterm);
-                    smap.extend(symbols.into_iter())
+                        Encoder::wasm2expr(dfg, stack_entry.operator_idx, operators, expr)?;
+                    subexpressions.push(eterm);
+                    smap.extend(symbols.into_iter());
                 }
-                Ok((format!("({} {})", term, operandterms.join(" ")), smap))
+                let operatorid = match operator {
+                    Operator::I32Shl => {
+                        // Check this node has only two child
+                        assert_eq!(subexpressions.len(), 2);
+
+                        Ok(expr.add(Lang::I32Shl([subexpressions[0], subexpressions[1]])))
+                    }
+                    Operator::I32Add => {
+                        // Check this node has only two child
+                        assert_eq!(subexpressions.len(), 2);
+
+                        Ok(expr.add(Lang::I32Add([subexpressions[0], subexpressions[1]])))
+                    }
+                    Operator::I32Load { .. } => {
+                        assert_eq!(subexpressions.len(), 1);
+                        Ok(expr.add(Lang::ILoad(subexpressions[0])))
+                    }
+                    Operator::Drop => Ok(expr.add(Lang::Drop)),
+                    _ => Err(crate::Error::UnsupportedType(EitherType::Operator(
+                        format!("The operator {:?} cannot be mapped to egg lang", operator),
+                    ))),
+                }?;
+
+                Ok((operatorid, smap))
             }
             crate::mutators::peephole::dfg::StackEntryData::Undef => {
-                Ok(("skip".to_string(), HashMap::new()))
+                let undefid = expr.add(Lang::Undef);
+                Ok((undefid, HashMap::new()))
             } // This is the previous state of the stack
         }
     }
-
-    /// Build RecExpr from random tree,
-    /// TODO make this private and return it in the extract random method
+    /// Build RecExpr from tree information
     pub fn build_expr(root: Id, id_to_node: &Vec<&Lang>, operands: &Vec<Vec<Id>>) -> RecExpr<Lang> {
         let mut expr = RecExpr::default();
 
@@ -563,6 +592,8 @@ impl Encoder {
                         c @ Lang::I32Const(_) => expr.add((*c).clone()),
                         s @ Lang::Symbol(_) => expr.add((*s).clone()),
                         s @ Lang::Rand => expr.add((*s).clone()),
+                        u @ Lang::Undef => expr.add((*u).clone()),
+                        d @ Lang::Drop => expr.add((*d).clone()),
                     };
                     let old_entry = node_to_id.insert(node, sub_expr_id);
                     assert!(old_entry.is_none());
@@ -579,6 +610,7 @@ mod tests {
     use std::collections::HashMap;
 
     use crate::{
+        module::PrimitiveTypeInfo,
         mutators::{
             peephole::{dfg::DFGIcator, OperatorAndByteOffset, PeepholeMutator},
             Mutator,
@@ -587,6 +619,7 @@ mod tests {
     };
     use egg::{rewrite, AstSize, Id, Pattern, RecExpr, Rewrite, Runner, Searcher};
     use rand::{prelude::SliceRandom, rngs::SmallRng, Rng, SeedableRng};
+    use wasm_encoder::Function;
     use wasmparser::Parser;
 
     use super::{Encoder, RandomExtractor};
@@ -609,9 +642,150 @@ mod tests {
         // ?x is the root
         let root = egraph.add_expr(&start);
         let extractor = RandomExtractor::new(&egraph, cf);
+        let encoder = Encoder::build_expr;
 
-        let (id_to_node, operands) = extractor.extract_random(&mut rnd, root, 10).unwrap();
+        let expr = extractor
+            .extract_random(&mut rnd, root, 10, encoder)
+            .unwrap();
+    }
 
-        let random_outcome = Encoder::build_expr(root, &id_to_node, &operands);
+    #[test]
+    fn test_wasm2expr() {
+        let original = &wat::parse_str(
+            r#"
+        (module
+            (memory 1)
+            (func (export "exported_func") (param i32) (result i32)
+                local.get 0
+                i32.const 32
+                i32.const 32
+                i32.add
+                i32.add
+            )
+        )
+        "#,
+        )
+        .unwrap();
+
+        let mut parser = Parser::new(0);
+        let mut consumed = 0;
+
+        loop {
+            let (payload, size) = match parser.parse(&original[consumed..], true).unwrap() {
+                wasmparser::Chunk::NeedMoreData(_) => {
+                    panic!("This should not happen")
+                }
+                wasmparser::Chunk::Parsed { consumed, payload } => (payload, consumed),
+            };
+
+            consumed += size;
+
+            match payload {
+                wasmparser::Payload::CodeSectionEntry(reader) => {
+                    let operators = reader
+                        .get_operators_reader()
+                        .unwrap()
+                        .into_iter_with_offsets()
+                        .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()
+                        .unwrap();
+
+                    let bb = DFGIcator::new()
+                        .get_bb_from_operator(4, &operators)
+                        .unwrap();
+
+                    let roots = DFGIcator::new()
+                        .get_dfg(&operators, &bb, &vec![PrimitiveTypeInfo::I32])
+                        .unwrap();
+
+                    let mut exprroot = RecExpr::<Lang>::default();
+                    let (_, _) = Encoder::wasm2expr(&roots, 4, &operators, &mut exprroot).unwrap();
+                }
+                wasmparser::Payload::End => {
+                    break;
+                }
+                _ => {
+                    // Do nothing
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_expr2wasm() {
+        let original = &wat::parse_str(
+            r#"
+        (module
+            (memory 1)
+            (func (export "exported_func") (param i32) (result i32)
+                local.get 0
+                i32.const 32
+                i32.const 32
+                i32.add
+                i32.add
+            )
+        )
+        "#,
+        )
+        .unwrap();
+        let wasmmutate = WasmMutate::default();
+        let mut info = wasmmutate.get_module_info(original).unwrap();
+
+        let mut parser = Parser::new(0);
+        let mut rnd = SmallRng::seed_from_u64(0);
+        let mut consumed = 0;
+
+        loop {
+            let (payload, size) = match parser.parse(&original[consumed..], true).unwrap() {
+                wasmparser::Chunk::NeedMoreData(_) => {
+                    panic!("This should not happen")
+                }
+                wasmparser::Chunk::Parsed { consumed, payload } => (payload, consumed),
+            };
+
+            consumed += size;
+
+            match payload {
+                wasmparser::Payload::CodeSectionEntry(reader) => {
+                    let operators = reader
+                        .get_operators_reader()
+                        .unwrap()
+                        .into_iter_with_offsets()
+                        .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()
+                        .unwrap();
+
+                    let bb = DFGIcator::new()
+                        .get_bb_from_operator(4, &operators)
+                        .unwrap();
+
+                    let roots = DFGIcator::new()
+                        .get_dfg(&operators, &bb, &vec![PrimitiveTypeInfo::I32])
+                        .unwrap();
+
+                    let mut exprroot = RecExpr::<Lang>::default();
+                    let (root, symbolsmap) =
+                        Encoder::wasm2expr(&roots, 4, &operators, &mut exprroot).unwrap();
+
+                    let mut newfunc = Function::new(vec![]);
+
+                    Encoder::expr2wasm(
+                        &info,
+                        &mut rnd,
+                        4,
+                        &exprroot,
+                        &mut newfunc,
+                        &symbolsmap,
+                        &roots,
+                        &operators,
+                    )
+                    .unwrap();
+                }
+                wasmparser::Payload::End => {
+                    break;
+                }
+                _ => {
+                    // Do nothing
+                }
+            }
+        }
     }
 }

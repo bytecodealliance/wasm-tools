@@ -3,14 +3,8 @@ use crate::error::EitherType;
 use crate::module::PrimitiveTypeInfo;
 use crate::mutators::peephole::eggsy::lang::Lang;
 use crate::mutators::peephole::eggsy::{analysis::PeepholeMutationAnalysis, Encoder};
-use egg::{
-    define_language, rewrite, Analysis, AstSize, CostFunction, EClass, EGraph, Extractor, Id,
-    Language, Pattern, RecExpr, Rewrite, Runner, Searcher, Subst, Symbol,
-};
-use rand::{
-    prelude::{IteratorRandom, SliceRandom, SmallRng},
-    Rng,
-};
+use egg::{rewrite, AstSize, Id, RecExpr, Rewrite, Runner, Subst};
+use rand::{prelude::SmallRng, Rng};
 use std::convert::TryFrom;
 use std::{cmp::Ordering, collections::HashMap, hash::Hash, num::Wrapping};
 use wasm_encoder::{CodeSection, Function, Instruction, MemArg, Module, ValType};
@@ -48,19 +42,16 @@ impl PeepholeMutator {
         localsreader: &mut LocalsReader,
     ) -> Result<Vec<PrimitiveTypeInfo>> {
         let ftype = info.get_functype_idx(funcidx as usize);
-
         match ftype {
             crate::module::TypeInfo::Func(tpe) => {
-                println!("{:?}", ftype);
                 let mut all_locals = Vec::new();
 
                 for primitive in &tpe.params {
                     all_locals.push(primitive.clone())
                 }
-
                 for _ in 0..localsreader.get_count() {
                     let (count, ty) = localsreader.read()?;
-                    let tymapped = PrimitiveTypeInfo::try_from(ty).unwrap();
+                    let tymapped = PrimitiveTypeInfo::try_from(ty)?;
                     for _ in 0..count {
                         all_locals.push(tymapped.clone());
                     }
@@ -78,8 +69,8 @@ impl PeepholeMutator {
         let mut localreader = reader.get_locals_reader()?;
         // Get current locals and map to encoder types
         let mut local_count = 0;
-        let mut current_locals = (0..localreader.get_count())
-            .map(|f| {
+        let current_locals = (0..localreader.get_count())
+            .map(|_| {
                 let (count, ty) = localreader.read().unwrap();
                 local_count += count;
                 (count, map_type(ty).unwrap())
@@ -91,7 +82,7 @@ impl PeepholeMutator {
 
     fn random_mutate(
         &self,
-        config: &crate::WasmMutate,
+        _: &crate::WasmMutate,
         rnd: &mut rand::prelude::SmallRng,
         info: &mut crate::ModuleInfo,
         rules: &[Rewrite<Lang, PeepholeMutationAnalysis>],
@@ -116,6 +107,8 @@ impl PeepholeMutator {
             let operatorscount = operators.len();
             let opcode_to_mutate = rnd.gen_range(0, operatorscount);
 
+            let locals = self.get_func_locals(&info, fidx, &mut localsreader)?;
+
             for oidx in (opcode_to_mutate..operatorscount).chain(0..opcode_to_mutate) {
                 log::debug!("Trying with oidx {:?}", oidx);
                 let mut dfg = DFGIcator::new();
@@ -124,13 +117,7 @@ impl PeepholeMutator {
 
                 match basicblock {
                     Some(basicblock) => {
-                        let minidfg = dfg.get_dfg(
-                            &operators,
-                            &basicblock,
-                            &self.get_func_locals(&info, fidx, &mut localsreader)?,
-                        );
-                        log::debug!("DFG {:?}", minidfg);
-
+                        let minidfg = dfg.get_dfg(&operators, &basicblock, &locals);
                         match minidfg {
                             None => {
                                 continue;
@@ -139,67 +126,65 @@ impl PeepholeMutator {
                                 if !minidfg.map.contains_key(&oidx) {
                                     continue;
                                 }
-                                // This selection is also random, set this to a maximum number of tries
-                                let eterm = Encoder::wasm2eterm(&minidfg, oidx, &operators, rnd);
+                                // Create an eterm expression from the basic block starting at oidx
+                                let mut start = RecExpr::<Lang>::default();
+                                let (_, symbolsmap) =
+                                    Encoder::wasm2expr(&minidfg, oidx, &operators, &mut start)?;
+                                log::debug!("Eterm {:?}", start);
 
-                                match eterm {
-                                    Ok((eterm, symbolsmap)) => {
-                                        let start = eterm.parse().unwrap();
+                                let runner = Runner::default().with_expr(&start).run(rules);
+                                let mut egraph = runner.egraph;
 
-                                        log::debug!("Eterm {:?}", start);
+                                // In theory this will return the Id of the operator eterm
+                                let root = egraph.add_expr(&start);
 
-                                        let runner = Runner::default().with_expr(&start).run(rules);
-                                        let mut egraph = runner.egraph;
+                                // This cost function could be replaced by a custom weighted probability, for example
+                                // we could modify the cost function based on the previous mutation/rotation outcome
+                                let cf = AstSize;
+                                let extractor = RandomExtractor::new(&egraph, cf);
 
-                                        // In theory this will return the Id of the operator eterm
-                                        let root = egraph.add_expr(&start);
+                                let newexpr = extractor.extract_random(
+                                    rnd,
+                                    root,
+                                    0,
+                                    /* only 1 for now */ Encoder::build_expr,
+                                )?;
 
-                                        // This cost function could be replaced by a custom weighted probability, for example
-                                        // we could modify the cost function based on the previous mutation/rotation outcome
-                                        let cf = AstSize;
-                                        let extractor = RandomExtractor::new(&egraph, cf);
-
-                                        let (id_to_node, operands) = extractor.extract_random(
-                                            rnd, root, 0, /* only 1 for now */
-                                        )?;
-
-                                        let expr =
-                                            Encoder::build_expr(root, &id_to_node, &operands);
-
-                                        // There is no point in generating the same symbol
-                                        if operands.len() == 1 && operands[0].len() == 0 {
-                                            continue;
-                                        }
-                                        log::debug!("Mutating function {:?}", fidx);
-                                        // Create a new function using the previous locals
-                                        let mut newfunc = self.copy_locals(reader)?;
-
-                                        // Translate lang expr to wasm
-                                        Encoder::build_function(
-                                            info,
-                                            rnd,
-                                            0, // The root of the tree
-                                            oidx,
-                                            &id_to_node,
-                                            &operands,
-                                            &operators,
-                                            &basicblock,
-                                            &mut newfunc,
-                                            &symbolsmap,
-                                            &minidfg,
-                                        )?;
-
-                                        log::debug!("Built function {:?}", newfunc);
-                                        return Ok((newfunc, fidx));
-                                    }
-                                    Err(_) => {
-                                        continue;
-                                    }
+                                // There is no point in generating the same symbol
+                                // TODO, Move this to try all possible before continuing
+                                if newexpr.to_string().eq(&start.to_string()) {
+                                    log::debug!("The generated random is the same intial expression, going to next operator");
+                                    continue;
                                 }
+                                log::debug!(
+                                    "Mutating function {:?} at {:?} with {}",
+                                    fidx,
+                                    oidx,
+                                    newexpr
+                                );
+                                // Create a new function using the previous locals
+                                let mut newfunc = self.copy_locals(reader)?;
+
+                                // Translate lang expr to wasm
+                                Encoder::build_function(
+                                    info,
+                                    rnd,
+                                    oidx,
+                                    &newexpr,
+                                    &operators,
+                                    &basicblock,
+                                    &mut newfunc,
+                                    &symbolsmap,
+                                    &minidfg,
+                                )?;
+
+                                log::debug!("Built function {:?}", newfunc);
+                                return Ok((newfunc, fidx));
                             }
                         }
                     }
                     None => {
+                        log::debug!("No valid basic block {:?}  for {}", basicblock, oidx);
                         continue;
                     }
                 }
@@ -494,8 +479,8 @@ mod tests {
                     (local i32 i32)
                     i32.const 42
                     drop
-                    i32.const 2
                     i32.const 42
+                    i32.const 2
                     i32.mul)
                 (export "exported_func" (func 0)))
             "#,
@@ -524,8 +509,8 @@ mod tests {
                 (type (;0;) (func (result i32)))
                 (func (;0;) (type 0) (result i32)
                   (local i32 i32)
-                  i32.const 2
                   i32.const 42
+                  i32.const 2
                   i32.mul)
                 (export "exported_func" (func 0)))
             "#,
@@ -581,48 +566,48 @@ mod tests {
             (module
                 (type (;0;) (func (param i32) (result i32)))
                 (func (;0;) (type 0) (param i32) (result i32)
-                  i32.const -683260416
-                  i32.const 160268115
-                  i32.const 991484282
-                  i32.const 2018993756
-                  i32.const -1908705872
-                  i32.const -1399093629
-                  i32.const 1735359708
-                  i32.const -1016670648
-                  i32.const 1897657819
-                  i32.const 1922808570
-                  i32.const -1502375410
-                  i32.const 2005067762
-                  i32.const -1030639517
-                  i32.const 1748478738
-                  i32.const 500342713
-                  i32.const -396939652
-                  i32.const 154479202
-                  i32.const 686992112
-                  i32.const -1751313776
-                  i32.const -1875541192
-                  i32.const 1750141307
                   i32.const 42
+                  i32.const -683260416
                   i32.add
+                  i32.const 160268115
                   i32.add
+                  i32.const 991484282
                   i32.add
+                  i32.const 2018993756
                   i32.add
+                  i32.const -1908705872
                   i32.add
+                  i32.const -1399093629
                   i32.add
+                  i32.const 1735359708
                   i32.add
+                  i32.const -1016670648
                   i32.add
+                  i32.const 1897657819
                   i32.add
+                  i32.const 1922808570
                   i32.add
+                  i32.const -1502375410
                   i32.add
+                  i32.const 2005067762
                   i32.add
+                  i32.const -1030639517
                   i32.add
+                  i32.const 1748478738
                   i32.add
+                  i32.const 500342713
                   i32.add
+                  i32.const -396939652
                   i32.add
+                  i32.const 154479202
                   i32.add
+                  i32.const 686992112
                   i32.add
+                  i32.const -1751313776
                   i32.add
+                  i32.const -1875541192
                   i32.add
+                  i32.const 1750141307
                   i32.add
                   i32.load)
                 (memory (;0;) 1)

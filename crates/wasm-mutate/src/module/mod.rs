@@ -11,6 +11,7 @@ pub enum PrimitiveTypeInfo {
     I64,
     F32,
     F64, // TODO, add others
+    Empty,
 }
 #[derive(Debug, Clone)]
 pub struct FuncInfo {
@@ -34,6 +35,7 @@ impl TryFrom<Type> for PrimitiveTypeInfo {
             wasmparser::Type::I64 => Ok(PrimitiveTypeInfo::I64),
             wasmparser::Type::F32 => Ok(PrimitiveTypeInfo::F32),
             wasmparser::Type::F64 => Ok(PrimitiveTypeInfo::F64),
+            Type::EmptyBlockType => Ok(PrimitiveTypeInfo::Empty),
             _ => Err(super::Error::UnsupportedType(EitherType::Type(value))),
         }
     }
