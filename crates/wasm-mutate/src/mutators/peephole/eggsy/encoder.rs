@@ -364,7 +364,7 @@ impl Encoder {
                         | Operator::I32Xor 
                         => {
                             // Check this node has only two child
-                            assert_eq!(subexpressions.len(), 2);
+                            debug_assert_eq!(subexpressions.len(), 2);
                             match operator {
                                 Operator::I32Add => Ok(expr.add(Lang::I32Add([subexpressions[0], subexpressions[1]]))),
                                 Operator::I32Shl => Ok(expr.add(Lang::I32Shl([subexpressions[0], subexpressions[1]]))),
@@ -380,12 +380,12 @@ impl Encoder {
                         | Operator::I64Load { .. } 
                         // TODO add others
                         => {
-                            assert_eq!(subexpressions.len(), 1);
+                            debug_assert_eq!(subexpressions.len(), 1);
                             Ok(expr.add(Lang::ILoad(subexpressions[0])))
                         }
                         Operator::I32Popcnt { .. } 
                         => {
-                            assert_eq!(subexpressions.len(), 1);
+                            debug_assert_eq!(subexpressions.len(), 1);
                             Ok(expr.add(Lang::I32Popcnt(subexpressions[0])))
                         }
                         Operator::Drop => Ok(expr.add(Lang::Drop)),
