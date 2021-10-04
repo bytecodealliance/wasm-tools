@@ -56,8 +56,6 @@ fuzz_target!(|inputs: (wasm_smith::Module, u64)| {
 
     let mut validator = wasmparser::Validator::new();
     validator.wasm_features(features);
-
-
     let validation_result = validator.validate_all(&mutated_wasm);
     log::debug!("validation result = {:?}", validation_result);
     if log::log_enabled!(log::Level::Debug) {
