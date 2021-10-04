@@ -280,8 +280,8 @@ impl Mutator for PeepholeMutator {
             rewrite!("idempotent-2";  "?x" => "(i32.and ?x ?x)" if self.is_const("?x")),
             rewrite!("commutative-1";  "(i32.add ?x ?y)" => "(i32.add ?y ?x)" if self.is_complete("?x") if self.is_complete("?y") ),
             rewrite!("commutative-2";  "(i32.mul ?x ?y)" => "(i32.mul ?y ?x)" if self.is_complete("?x") if self.is_complete("?y") ),
-            rewrite!("associative-1";  "(i32.add ?x (i32.add ?y ?x))" => "(i32.add (i32.add ?x ?y) ?z)" if self.is_complete("?x") if self.is_complete("?y") if self.is_complete("?z") ),
-            rewrite!("associative-2";  "(i32.mul ?x (i32.mul ?y ?x))" => "(i32.mul (i32.mul ?x ?y) ?z)" if self.is_complete("?x") if self.is_complete("?y") if self.is_complete("?z") ),
+            rewrite!("associative-1";  "(i32.add ?x (i32.add ?y ?z))" => "(i32.add (i32.add ?x ?y) ?z)" if self.is_complete("?x") if self.is_complete("?y") if self.is_complete("?z") ),
+            rewrite!("associative-2";  "(i32.mul ?x (i32.mul ?y ?z))" => "(i32.mul (i32.mul ?x ?y) ?z)" if self.is_complete("?x") if self.is_complete("?y") if self.is_complete("?z") ),
         ];
 
         if !config.preserve_semantics {
