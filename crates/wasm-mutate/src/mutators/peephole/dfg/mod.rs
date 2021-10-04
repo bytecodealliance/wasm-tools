@@ -243,18 +243,26 @@ impl<'a> DFGIcator {
                 // Until type information is added
                 /*Operator::GlobalGet { .. } | */
                 Operator::LocalGet { local_index } => {
-                    DFGIcator::push_leaf(
-                        idx,
-                        *byte_offset,
-                        *byte_offset_next,
-                        &mut dfg_map,
-                        &mut operatormap,
-                        &mut stack,
-                        &mut parents,
-                        vec![locals[*local_index as usize].clone()],
-                    );
+                    // This is a hack, type checking should be carried with the stack entries
+                    match locals[*local_index as usize] {
+                        PrimitiveTypeInfo::I32 => {
+                            DFGIcator::push_leaf(
+                                idx,
+                                *byte_offset,
+                                *byte_offset_next,
+                                &mut dfg_map,
+                                &mut operatormap,
+                                &mut stack,
+                                &mut parents,
+                                vec![locals[*local_index as usize].clone()],
+                            );
+                        }
+                        _ => {
+                            debug!("Only i32 local types are allowed for now");
+                            return None;
+                        }
+                    }
                 }
-                // TODO Add type information
                 Operator::I32Const { .. } => {
                     DFGIcator::push_leaf(
                         idx,
@@ -269,7 +277,6 @@ impl<'a> DFGIcator {
                 }
                 Operator::LocalSet { .. } | Operator::GlobalSet { .. } | Operator::Drop => {
                     // It needs the offset arg
-                    log::debug!("Droping type {:?}", operator);
                     let child = DFGIcator::pop_operand(
                         &mut stack,
                         &mut dfg_map,
@@ -278,7 +285,6 @@ impl<'a> DFGIcator {
                         &mut parents,
                         true,
                     );
-                    log::debug!("Operand {:?}, stack {:?}", child, stack);
 
                     let newnode = StackEntry {
                         operator_idx: idx,
@@ -292,7 +298,6 @@ impl<'a> DFGIcator {
                         tpes: vec![],
                     };
 
-                    let entry_idx = dfg_map.len();
                     // operatormap.insert(idx, entry_idx);
                     // Add the data flow link
                     dfg_map.push(newnode);

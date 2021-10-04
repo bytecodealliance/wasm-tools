@@ -84,6 +84,7 @@ impl PeepholeMutator {
             })
             .collect::<Vec<(u32, ValType)>>();
 
+        println!("Locals {:?}", current_locals);
         Ok(Function::new(current_locals /*copy locals here*/))
     }
 
@@ -268,6 +269,9 @@ impl Mutator for PeepholeMutator {
         rnd: &mut rand::prelude::SmallRng,
         info: &mut crate::ModuleInfo,
     ) -> Result<Module> {
+        // Calculate here type related information for parameters, locals and returns
+        // This information could be passed to the conditions to check for type correctness rewriting
+
         let mut rules = vec![
             rewrite!("unfold-2";  "?x" => "(unfold ?x)" if self.is_const("?x") ), // Use a custom instruction-mutator for this
             // This specific rewriting rule has a condition, it should be appplied if the operand is a constant

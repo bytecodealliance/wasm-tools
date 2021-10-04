@@ -177,7 +177,7 @@ impl Encoder {
                     // Entry could not be an indepent symbol
                     match &entry.data {
                         StackEntryData::Leaf => {
-                            let bytes = &info.input_wasm[entry.byte_stream_range.start..entry.byte_stream_range.end];
+                            let bytes = &info.get_code_section().data[entry.byte_stream_range.start..entry.byte_stream_range.end];
                             debug!("Symbol {:?}, raw bytes: {:?}", s, bytes);
                             newfunc.raw(bytes.iter().copied());
                         }
