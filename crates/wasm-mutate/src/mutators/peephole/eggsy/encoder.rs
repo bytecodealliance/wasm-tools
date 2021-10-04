@@ -160,7 +160,7 @@ impl Encoder {
                             let r: i32 = rnd.gen();
                             debug!("Unfolding {:?}", value);
                             newfunc.instruction(Instruction::I32Const(r));
-                            newfunc.instruction(Instruction::I32Const((Wrapping(r) - Wrapping(*value)).0));
+                            newfunc.instruction(Instruction::I32Const((Wrapping(*value) - Wrapping(r)).0));
                             newfunc.instruction(Instruction::I32Add);
                         },
                         _ => unreachable!("The operand for this operator should be a constant, check if the rewriting rule is defined with such conditions")

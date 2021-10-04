@@ -132,7 +132,7 @@ impl PeepholeMutator {
                             Some(minidfg) => {
                                 debug!("DFG {:?}", minidfg);
                                 if !minidfg.map.contains_key(&oidx) {
-                                    unreachable!();
+                                    continue;
                                 }
                                 // Create an eterm expression from the basic block starting at oidx
                                 let mut start = RecExpr::<Lang>::default();
@@ -271,7 +271,6 @@ impl Mutator for PeepholeMutator {
         let mut rules = vec![
             rewrite!("unfold-2";  "?x" => "(unfold ?x)" if self.is_const("?x") ), // Use a custom instruction-mutator for this
             // This specific rewriting rule has a condition, it should be appplied if the operand is a constant
-            // To do so we can write all symbols representing constants as ?c when we translate wasm to eterm
             rewrite!("strength-undo";  "(i32.shl ?x 1)" => "(i32.mul ?x ?x)"),
             rewrite!("strength-undo1";  "(i32.shl ?x 2)" => "(i32.mul ?x 2)"),
             rewrite!("strength-undo2";  "(i32.shl ?x 3)" => "(i32.mul ?x 8)"),
