@@ -4,20 +4,35 @@ use rand::prelude::SmallRng;
 use rand::{Rng, RngCore};
 use wasm_encoder::{CodeSection, Export, ExportSection, Function, Instruction, Module};
 use wasmparser::{CodeSectionReader, ExportSectionReader};
+
+/// RenameExportMutator generates a random renaming of prexisting exports.
+/// The export entry is selected randmonly and then a new `field` name is generated/
 pub struct RenameExportMutator {
+    /// The maximum length of the generated export entry
     pub max_name_size: u32,
 }
 
 impl RenameExportMutator {
     // Copied and transformed from wasm-smith name generation
-    fn limited_string(&self, rnd: &mut SmallRng) -> String {
-        let size = rnd.gen_range(1, self.max_name_size);
-        let size = std::cmp::min(size, self.max_name_size);
+    fn limited_string(
+        &self,
+        config: &WasmMutate,
+        rnd: &mut SmallRng,
+        info: &ModuleInfo,
+        max_name_size: u32,
+        result: &mut String,
+    ) -> crate::Result<()> {
+        let size = rnd.gen_range(1, max_name_size);
         let mut str = vec![0u8; size as usize];
-        rnd.fill_bytes(&mut str);
+
+        if let Some(fillfunc) = &config.raw_mutate_func {
+            fillfunc(&mut str)?;
+        } else {
+            rnd.fill_bytes(&mut str);
+        }
 
         match std::str::from_utf8(&str) {
-            Ok(s) => String::from(s),
+            Ok(s) => result.push_str(s),
             Err(e) => {
                 let i = e.valid_up_to();
                 let valid = &str[0..i];
@@ -25,9 +40,14 @@ impl RenameExportMutator {
                     debug_assert!(std::str::from_utf8(valid).is_ok());
                     std::str::from_utf8_unchecked(valid)
                 };
-                String::from(s)
+                result.push_str(s);
             }
+        };
+        // Add one symbol at a time until it is not contained in the export field names
+        while info.export_names.contains(result) {
+            let _ = &self.limited_string(config, rnd, info, 2, result)?;
         }
+        Ok(())
     }
 }
 
@@ -43,14 +63,15 @@ impl Mutator for RenameExportMutator {
         let max_exports = reader.get_count() as u64;
         let skip_at = rnd.gen_range(0, max_exports);
 
-        (0..max_exports).for_each(|i| {
+        for i in (0..max_exports) {
             let export = reader.read().unwrap();
 
             let new_name = if skip_at != i {
                 // otherwise bypass
                 String::from(export.field)
             } else {
-                let new_name = self.limited_string(rnd);
+                let mut new_name = String::default();
+                self.limited_string(config, rnd, info, self.max_name_size, &mut new_name)?;
                 log::debug!("Renaming export {:?} by {:?}", export, new_name);
                 new_name
             };
@@ -78,7 +99,7 @@ impl Mutator for RenameExportMutator {
                     panic!("Unknown export {:?}", export)
                 }
             }
-        });
+        }
         Ok(info.replace_section(info.exports.unwrap(), &exports))
     }
 
