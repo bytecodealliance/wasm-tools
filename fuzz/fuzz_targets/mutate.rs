@@ -1,6 +1,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
+use wasmparser::WasmFeatures;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static NUM_RUNS: AtomicU64 = AtomicU64::new(0);
@@ -48,8 +49,20 @@ fuzz_target!(|inputs: (wasm_smith::Module, u64)| {
         }
     };
 
-    let validation_result = wasmparser::validate(&mutated_wasm);
+    // Add valiation with all features enabled, like multiple value return
+    let mut features = WasmFeatures::default();
+    // Add other if needed
+    features.multi_value = true;
+
+    let mut validator = wasmparser::Validator::new();
+    validator.wasm_features(features);
+    let validation_result = validator.validate_all(&mutated_wasm);
     log::debug!("validation result = {:?}", validation_result);
+    if log::log_enabled!(log::Level::Debug) {
+        let mutated_text = wasmprinter::print_bytes(mutated_wasm).unwrap();
+        std::fs::write("mutated.wat", &mutated_text).expect("should write `mutated.wat` okay");
+    }
+
     assert!(
         validation_result.is_ok(),
         "`wasm-mutate` should always produce a valid Wasm file"
