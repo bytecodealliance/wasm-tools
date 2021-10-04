@@ -274,9 +274,9 @@ impl Mutator for PeepholeMutator {
             rewrite!("strength-undo";  "(i32.shl ?x 1)" => "(i32.mul ?x ?x)"),
             rewrite!("strength-undo1";  "(i32.shl ?x 2)" => "(i32.mul ?x 2)"),
             rewrite!("strength-undo2";  "(i32.shl ?x 3)" => "(i32.mul ?x 8)"),
-            rewrite!("add-1";  "(i32.add ?x ?x)" => "(i32.mul ?x 2)"),
-            rewrite!("idempotent-1";  "?x" => "(i32.or ?x ?x)" if self.is_const("?x")),
-            rewrite!("idempotent-2";  "?x" => "(i32.and ?x ?x)" if self.is_const("?x")),
+            rewrite!("add-1";  "(i32.add ?x ?x)" => "(i32.mul ?x 2)" if self.is_complete("?x")),
+            rewrite!("idempotent-1";  "?x" => "(i32.or ?x ?x)" if self.is_complete("?x")),
+            rewrite!("idempotent-2";  "?x" => "(i32.and ?x ?x)" if self.is_complete("?x")),
             rewrite!("commutative-1";  "(i32.add ?x ?y)" => "(i32.add ?y ?x)" if self.is_complete("?x") if self.is_complete("?y") ),
             rewrite!("commutative-2";  "(i32.mul ?x ?y)" => "(i32.mul ?y ?x)" if self.is_complete("?x") if self.is_complete("?y") ),
             rewrite!("associative-1";  "(i32.add ?x (i32.add ?y ?z))" => "(i32.add (i32.add ?x ?y) ?z)" if self.is_complete("?x") if self.is_complete("?y") if self.is_complete("?z") ),
@@ -286,6 +286,9 @@ impl Mutator for PeepholeMutator {
         if !config.preserve_semantics {
             rules.push(rewrite!("mem-load-shift";  "(i.load ?x)" => "(i.load (i32.add ?x rand))"))
             // Check why this is generating a lot of the same replacements
+            // Add corretness attraction ones
+            // x  = x + 1
+            //
         }
 
         self.mutate_with_rules(config, rnd, info, &rules)
