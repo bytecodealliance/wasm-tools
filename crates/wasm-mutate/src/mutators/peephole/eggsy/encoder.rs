@@ -2,6 +2,11 @@
 
 use std::{collections::HashMap, num::Wrapping};
 
+#[cfg(not(test))]
+use log::debug;
+#[cfg(test)]
+use std::println as debug;
+
 use egg::{Id, RecExpr};
 use rand::Rng;
 use wasm_encoder::{Function, Instruction};
@@ -146,14 +151,14 @@ impl Encoder {
                     newfunc.instruction(Instruction::I32Const(rnd.gen()));
                 }
                 Lang::Undef => {
-                    log::debug!("Undefined value reached, this means that the operand will come from the evaluation of pred basic blocks");
+                    debug!("Undefined value reached, this means that the operand will come from the evaluation of pred basic blocks");
                 }
                 Lang::Unfold(operand) => {
                     let child = &nodes[usize::from(operand[0])];
                     match child {
                         Lang::I32Const(value) => {
                             let r: i32 = rnd.gen();
-                            log::debug!("Unfolding {:?}", value);
+                            debug!("Unfolding {:?}", value);
                             newfunc.instruction(Instruction::I32Const(r));
                             newfunc.instruction(Instruction::I32Const((Wrapping(r) - Wrapping(*value)).0));
                             newfunc.instruction(Instruction::I32Add);
@@ -166,14 +171,14 @@ impl Encoder {
                 }
                 Lang::Symbol(s) => {
                     // Copy the byte stream to aavoid mapping
-                    log::debug!("symbolmap {:?}, entries {:?}", symbolsmap, &minidfg.entries);
+                    debug!("symbolmap {:?}, entries {:?}", symbolsmap, &minidfg.entries);
                     let entryidx = symbolsmap[&s.to_string()];
                     let entry = &minidfg.entries[entryidx];
                     // Entry could not be an indepent symbol
                     match &entry.data {
                         StackEntryData::Leaf => {
                             let bytes = &info.input_wasm[entry.byte_stream_range.start..entry.byte_stream_range.end];
-                            log::debug!("Symbol {:?}, raw bytes: {:?}", s, bytes);
+                            debug!("Symbol {:?}, raw bytes: {:?}", s, bytes);
                             newfunc.raw(bytes.iter().copied());
                         }
                         _ => {
@@ -216,7 +221,7 @@ impl Encoder {
                 let bytes = &info.get_code_section().data
                     [entry.byte_stream_range.start..entry.byte_stream_range.end];
                 newfunc.raw(bytes.iter().copied());
-                log::debug!("Stack entry leaf bytes {:?}", bytes);
+                debug!("Stack entry leaf bytes {:?}", bytes);
             }
             StackEntryData::Node { operands } => {
                 for idx in operands {
@@ -274,7 +279,7 @@ impl Encoder {
                     )?;
                 } else {
                     // Copy the stack entry as it is
-                    log::debug!("writing no mutated DFG at {:?}", entry.operator_idx);
+                    debug!("writing no mutated DFG at {:?}", entry.operator_idx);
                     Encoder::writestackentry(info, minidfg, entry, entryidx, newfunc)?;
                 }
             }
@@ -302,76 +307,102 @@ impl Encoder {
         expr: &mut RecExpr<Lang>, // Replace this by RecExpr
     ) -> crate::Result<(Id, HashMap<String, usize>)> {
         let stack_entry_index = dfg.map[&oidx];
-        let entry = &dfg.entries[stack_entry_index];
+        debug!("Starting at operator {:?}", operators[oidx]);
+        fn wasm2expraux(
+            dfg: &MiniDFG,
+            entryidx: usize,
+            operators: &Vec<OperatorAndByteOffset>,
+            // The wasm expressions will be added here
+            expr: &mut RecExpr<Lang>, // Replace this by RecExpr
+        ) -> crate::Result<(Id, HashMap<String, usize>)> {
+            let entry = &dfg.entries[entryidx];
+            match &entry.data {
+                crate::mutators::peephole::dfg::StackEntryData::Leaf => {
+                    // map to a symbol or constant
+                    let (operator, _) = &operators[entry.operator_idx];
+                    match operator {
+                        Operator::I32Const { value } => {
+                            let id = expr.add(Lang::I32Const(*value));
+                            Ok((
+                                id,
+                                HashMap::new(), // No symbol
+                            ))
+                        }
+                        Operator::LocalGet { local_index } => {
+                            let name = format!("?l{}", local_index);
+                            let id = expr.add(Lang::Symbol(name.clone().into()));
+                            let mut smap = HashMap::new();
+                            smap.insert(name, entryidx);
 
-        match &entry.data {
-            crate::mutators::peephole::dfg::StackEntryData::Leaf => {
-                // map to a symbol or constant
-                let (operator, _) = &operators[entry.operator_idx];
-                match operator {
-                    Operator::I32Const { value } => {
-                        let id = expr.add(Lang::I32Const(*value));
-                        Ok((
-                            id,
-                            HashMap::new(), // No symbol
-                        ))
+                            Ok((id, smap))
+                        }
+                        _ => Err(crate::Error::UnsupportedType(EitherType::Operator(
+                            format!("Operator {:?} is not supported as symbol", operator),
+                        ))),
                     }
-                    Operator::LocalGet { local_index } => {
-                        let name = format!("?l{}", local_index);
-                        let id = expr.add(Lang::Symbol(name.clone().into()));
-                        let mut smap = HashMap::new();
-                        smap.insert(name, stack_entry_index);
-
-                        Ok((id, smap))
-                    }
-                    _ => Err(crate::Error::UnsupportedType(EitherType::Operator(
-                        format!("Operator {:?} is not supported as symbol", operator),
-                    ))),
                 }
-            }
-            crate::mutators::peephole::dfg::StackEntryData::Node { operands } => {
-                // This is an operator
-                let (operator, _) = &operators[entry.operator_idx];
-                let mut subexpressions = Vec::new();
-                let mut smap: HashMap<String, usize> = HashMap::new();
+                crate::mutators::peephole::dfg::StackEntryData::Node { operands } => {
+                    // This is an operator
+                    let (operator, _) = &operators[entry.operator_idx];
+                    let mut subexpressions = Vec::new();
+                    let mut smap: HashMap<String, usize> = HashMap::new();
 
-                for operandi in operands {
-                    let stack_entry = &dfg.entries[*operandi];
-                    let (eterm, symbols) =
-                        Encoder::wasm2expr(dfg, stack_entry.operator_idx, operators, expr)?;
-                    subexpressions.push(eterm);
-                    smap.extend(symbols.into_iter());
+                    for operandi in operands {
+                        debug!("operand index {}, entries {:?}", operandi, &dfg.entries);
+                        let stack_entry = &dfg.entries[*operandi];
+                        let (eterm, symbols) = wasm2expraux(dfg, *operandi, operators, expr)?;
+                        subexpressions.push(eterm);
+                        smap.extend(symbols.into_iter());
+                    }
+                    let operatorid = match operator {
+                        Operator::I32Shl
+                        | Operator::I32Add 
+                        | Operator::I32Sub 
+                        | Operator::I32ShrU 
+                        | Operator::I32And 
+                        | Operator::I32Or 
+                        | Operator::I32Xor 
+                        => {
+                            // Check this node has only two child
+                            assert_eq!(subexpressions.len(), 2);
+                            match operator {
+                                Operator::I32Add => Ok(expr.add(Lang::I32Add([subexpressions[0], subexpressions[1]]))),
+                                Operator::I32Shl => Ok(expr.add(Lang::I32Shl([subexpressions[0], subexpressions[1]]))),
+                                Operator::I32Sub => Ok(expr.add(Lang::I32Sub([subexpressions[0], subexpressions[1]]))),
+                                Operator::I32ShrU => Ok(expr.add(Lang::I32ShrU([subexpressions[0], subexpressions[1]]))),
+                                Operator::I32Or => Ok(expr.add(Lang::I32Or([subexpressions[0], subexpressions[1]]))),
+                                Operator::I32And => Ok(expr.add(Lang::I32And([subexpressions[0], subexpressions[1]]))),
+                                Operator::I32Xor => Ok(expr.add(Lang::I32Xor([subexpressions[0], subexpressions[1]]))),
+                                _ => unreachable!()
+                            }
+                        }
+                        Operator::I32Load { .. } 
+                        | Operator::I64Load { .. } 
+                        // TODO add others
+                        => {
+                            assert_eq!(subexpressions.len(), 1);
+                            Ok(expr.add(Lang::ILoad(subexpressions[0])))
+                        }
+                        Operator::I32Popcnt { .. } 
+                        => {
+                            assert_eq!(subexpressions.len(), 1);
+                            Ok(expr.add(Lang::I32Popcnt(subexpressions[0])))
+                        }
+                        Operator::Drop => Ok(expr.add(Lang::Drop)),
+                        _ => Err(crate::Error::UnsupportedType(EitherType::Operator(
+                            format!("The operator {:?} cannot be mapped to egg lang", operator),
+                        ))),
+                    }?;
+
+                    Ok((operatorid, smap))
                 }
-                let operatorid = match operator {
-                    Operator::I32Shl => {
-                        // Check this node has only two child
-                        assert_eq!(subexpressions.len(), 2);
-
-                        Ok(expr.add(Lang::I32Shl([subexpressions[0], subexpressions[1]])))
-                    }
-                    Operator::I32Add => {
-                        // Check this node has only two child
-                        assert_eq!(subexpressions.len(), 2);
-
-                        Ok(expr.add(Lang::I32Add([subexpressions[0], subexpressions[1]])))
-                    }
-                    Operator::I32Load { .. } => {
-                        assert_eq!(subexpressions.len(), 1);
-                        Ok(expr.add(Lang::ILoad(subexpressions[0])))
-                    }
-                    Operator::Drop => Ok(expr.add(Lang::Drop)),
-                    _ => Err(crate::Error::UnsupportedType(EitherType::Operator(
-                        format!("The operator {:?} cannot be mapped to egg lang", operator),
-                    ))),
-                }?;
-
-                Ok((operatorid, smap))
+                crate::mutators::peephole::dfg::StackEntryData::Undef => {
+                    let undefid = expr.add(Lang::Undef);
+                    Ok((undefid, HashMap::new()))
+                } // This is the previous state of the stack
             }
-            crate::mutators::peephole::dfg::StackEntryData::Undef => {
-                let undefid = expr.add(Lang::Undef);
-                Ok((undefid, HashMap::new()))
-            } // This is the previous state of the stack
         }
+        wasm2expraux(dfg, stack_entry_index, operators, expr)
     }
     /// Build RecExpr from tree information
     pub fn build_expr(root: Id, id_to_node: &Vec<&Lang>, operands: &Vec<Vec<Id>>) -> RecExpr<Lang> {

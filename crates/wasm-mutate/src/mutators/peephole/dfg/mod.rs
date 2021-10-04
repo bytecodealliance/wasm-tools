@@ -6,6 +6,12 @@ use crate::module::PrimitiveTypeInfo;
 
 use super::OperatorAndByteOffset;
 
+// Hack to show debug messages in tests
+#[cfg(not(test))]
+use log::debug;
+#[cfg(test)]
+use std::println as debug;
+
 /// It executes a minimal symbolic evaluation of the stack to detect operands location in the code for certain operators
 /// For example, i.add operator should know who are its operands
 pub struct DFGIcator {}
@@ -169,6 +175,7 @@ impl<'a> DFGIcator {
         dfg_map: &mut Vec<StackEntry>,
         operator_idx: usize,
         operatormap: &mut HashMap<usize, usize>,
+        parents: &mut Vec<i32>,
         insertindfg: bool,
     ) -> usize {
         let idx = stack
@@ -188,9 +195,10 @@ impl<'a> DFGIcator {
                     operatormap.insert(operator_idx, entry_idx);
                 }
                 //
-                stack.push(entry_idx);
+                //stack.push(entry_idx);
                 // Add the data flow link
                 dfg_map.push(leaf);
+                parents.push(-1); // no parent yet
                 Some(entry_idx)
             })
             .unwrap();
@@ -266,6 +274,7 @@ impl<'a> DFGIcator {
                         &mut dfg_map,
                         idx,
                         &mut operatormap,
+                        &mut parents,
                         true,
                     );
 
@@ -308,6 +317,7 @@ impl<'a> DFGIcator {
                         &mut dfg_map,
                         idx,
                         &mut operatormap,
+                        &mut parents,
                         false,
                     );
                     let idx = DFGIcator::push_node(
@@ -333,22 +343,29 @@ impl<'a> DFGIcator {
                 | Operator::I32Shl
                 | Operator::I32ShrS
                 | Operator::I32ShrU => {
+                    debug!("stack {:?} map {:?}", stack, dfg_map);
                     let leftidx = DFGIcator::pop_operand(
                         &mut stack,
                         &mut dfg_map,
                         idx,
                         &mut operatormap,
+                        &mut parents,
                         false,
                     );
+                    debug!("stack {:?} map {:?}", stack, dfg_map);
                     let rightidx = DFGIcator::pop_operand(
                         &mut stack,
                         &mut dfg_map,
                         idx,
                         &mut operatormap,
+                        &mut parents,
                         false,
                     );
 
+                    debug!("stack {:?} map {:?}", stack, dfg_map);
                     // The operands should not be the same
+
+                    debug!("left {} right {} stack {:?}", leftidx, rightidx, stack);
                     assert_ne!(leftidx, rightidx);
 
                     let idx = DFGIcator::push_node(
@@ -366,7 +383,7 @@ impl<'a> DFGIcator {
                     parents[leftidx] = idx as i32;
                     parents[rightidx] = idx as i32;
                 }
-                Operator::Nop => {
+                Operator::Else | Operator::End | Operator::Nop => {
                     // Write this down to do a small change in the original wasm
                     let newnode = StackEntry {
                         operator_idx: idx,
@@ -381,7 +398,7 @@ impl<'a> DFGIcator {
                     parents.push(-1);
                 }
                 _ => {
-                    log::debug!("Bypassing operator type {:?}", operator);
+                    debug!("Bypassing operator type {:?}", operator);
                     // If the operator is not implemented, break the mutation of this Basic Block
                     return None;
                 }

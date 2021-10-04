@@ -13,6 +13,12 @@ use wasmparser::{
     BinaryReaderError, CodeSectionReader, FunctionBody, LocalsReader, Operator, Range, Type,
 };
 
+// Hack to show debug messages in tests
+#[cfg(not(test))]
+use log::debug;
+#[cfg(test)]
+use std::println as debug;
+
 use crate::{
     module::{map_operator, map_type},
     ModuleInfo, Result, WasmMutate,
@@ -111,10 +117,10 @@ impl PeepholeMutator {
             let locals = self.get_func_locals(&info, fidx, &mut localsreader)?;
 
             for oidx in (opcode_to_mutate..operatorscount).chain(0..opcode_to_mutate) {
-                log::debug!("Trying with oidx {:?}", oidx);
+                debug!("Trying with oidx {:?} operator {:?}", oidx, operators[oidx]);
                 let mut dfg = DFGIcator::new();
                 let basicblock = dfg.get_bb_from_operator(oidx, &operators);
-                log::debug!("Basic block range {:?} for idx {:?}", basicblock, oidx);
+                debug!("Basic block range {:?} for idx {:?}", basicblock, oidx);
 
                 match basicblock {
                     Some(basicblock) => {
@@ -124,14 +130,16 @@ impl PeepholeMutator {
                                 continue;
                             }
                             Some(minidfg) => {
+                                debug!("DFG {:?}", minidfg);
                                 if !minidfg.map.contains_key(&oidx) {
-                                    continue;
+                                    unreachable!();
                                 }
                                 // Create an eterm expression from the basic block starting at oidx
                                 let mut start = RecExpr::<Lang>::default();
+                                debug!("Translating Wasm basic block to recexpr");
                                 let (_, symbolsmap) =
                                     Encoder::wasm2expr(&minidfg, oidx, &operators, &mut start)?;
-                                log::debug!("Eterm {:?}", start);
+                                debug!("Eterm `{}`", start);
 
                                 let runner = Runner::default().with_expr(&start).run(rules);
                                 let mut egraph = runner.egraph;
@@ -154,14 +162,12 @@ impl PeepholeMutator {
                                 // There is no point in generating the same symbol
                                 // TODO, Move this to try all possible before continuing
                                 if newexpr.to_string().eq(&start.to_string()) {
-                                    log::debug!("The generated random is the same intial expression, going to next operator");
+                                    debug!("The generated random `{}` is the same intial expression, going to next operator", newexpr);
                                     continue;
                                 }
-                                log::debug!(
+                                debug!(
                                     "Mutating function {:?} at {:?} with {}",
-                                    fidx,
-                                    oidx,
-                                    newexpr
+                                    fidx, oidx, newexpr
                                 );
                                 // Create a new function using the previous locals
                                 let mut newfunc = self.copy_locals(reader)?;
@@ -179,13 +185,13 @@ impl PeepholeMutator {
                                     &minidfg,
                                 )?;
 
-                                log::debug!("Built function {:?}", newfunc);
+                                debug!("Built function {:?}", newfunc);
                                 return Ok((newfunc, fidx));
                             }
                         }
                     }
                     None => {
-                        log::debug!("No valid basic block {:?}  for {}", basicblock, oidx);
+                        debug!("No valid basic block {:?}  for {}", basicblock, oidx);
                         continue;
                     }
                 }
@@ -224,8 +230,6 @@ impl PeepholeMutator {
 
     /// Condition to apply the unfold operator
     /// check that the var is a constant
-    /// Condition to apply the unfold operator
-    /// check that the var is a constant
     fn is_const(&self, vari: &'static str) -> impl Fn(&mut EG, Id, &Subst) -> bool {
         move |egraph: &mut EG, _, subst| {
             let var = vari.parse();
@@ -246,6 +250,14 @@ impl PeepholeMutator {
             }
         }
     }
+
+    /// Condition to apply when the tree needs to be consistent
+    /// Checks if no undef oeprators are in the tree
+    fn is_complete(&self, var1: &'static str) -> impl Fn(&mut EG, Id, &Subst) -> bool {
+        let var1 = var1.parse().unwrap();
+        let undef = Lang::Undef;
+        move |egraph, _, subst| !egraph[subst[var1]].nodes.contains(&undef)
+    }
 }
 
 /// Meta mutator for peephole
@@ -265,7 +277,11 @@ impl Mutator for PeepholeMutator {
             rewrite!("strength-undo2";  "(i32.shl ?x 3)" => "(i32.mul ?x 8)"),
             rewrite!("add-1";  "(i32.add ?x ?x)" => "(i32.mul ?x 2)"),
             rewrite!("idempotent-1";  "?x" => "(i32.or ?x ?x)" if self.is_const("?x")),
-            rewrite!("idempotent-2";  "?x" => "(i32.and ?x ?x)"),
+            rewrite!("idempotent-2";  "?x" => "(i32.and ?x ?x)" if self.is_const("?x")),
+            rewrite!("commutative-1";  "(i32.add ?x ?y)" => "(i32.add ?y ?x)" if self.is_complete("?x") if self.is_complete("?y") ),
+            rewrite!("commutative-2";  "(i32.mul ?x ?y)" => "(i32.mul ?y ?x)" if self.is_complete("?x") if self.is_complete("?y") ),
+            rewrite!("associative-1";  "(i32.add ?x (i32.add ?y ?x))" => "(i32.add (i32.add ?x ?y) ?z)" if self.is_complete("?x") if self.is_complete("?y") if self.is_complete("?z") ),
+            rewrite!("associative-2";  "(i32.mul ?x (i32.mul ?y ?x))" => "(i32.mul (i32.mul ?x ?y) ?z)" if self.is_complete("?x") if self.is_complete("?y") if self.is_complete("?z") ),
         ];
 
         if !config.preserve_semantics {
@@ -520,6 +536,134 @@ mod tests {
     }
 
     #[test]
+    fn test_peep_commutative() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("commutative-1";  "(i32.add ?x ?y)" => "(i32.add ?y ?x)")];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func") (result i32) (local i32 i32)
+                i32.const 42
+                i32.const 1
+                i32.add
+            )
+        )
+        "#,
+            rules,
+            r#"
+            (module
+                (type (;0;) (func (result i32)))
+                (func (;0;) (type 0) (result i32)
+                  (local i32 i32)
+                  i32.const 1
+                  i32.const 42
+                  i32.add)
+                (export "exported_func" (func 0)))
+            "#,
+            1,
+        );
+    }
+
+    #[test]
+    fn test_peep_commutative2() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("commutative-1";  "(i32.add ?x ?y)" => "(i32.add ?y ?x)")];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func") (result i32) (local i32 i32)
+                i32.const 1
+                if
+                    i32.const 67
+                    drop
+                else
+                    i32.const 100
+                    drop
+                end
+                i32.const 42
+                i32.const 1
+                i32.add
+            )
+        )
+        "#,
+            rules,
+            r#"
+            (module
+                (type (;0;) (func (result i32)))
+                (func (;0;) (type 0) (result i32)
+                  (local i32 i32)
+                  i32.const 1
+                    if
+                        i32.const 67
+                        drop
+                    else
+                        i32.const 100
+                        drop
+                    end
+                  i32.const 42
+                  i32.add)
+                (export "exported_func" (func 0)))
+            "#,
+            0,
+        );
+    }
+
+    /// Condition to apply when the tree needs to be consistent
+    /// Checks if no undef oeprators are in the tree
+    fn is_complete(var1: &'static str) -> impl Fn(&mut EG, Id, &Subst) -> bool {
+        let var1 = var1.parse().unwrap();
+        let undef = Lang::Undef;
+        move |egraph, _, subst| !egraph[subst[var1]].nodes.contains(&undef)
+    }
+
+    #[test]
+    fn test_peep_commutative_with_undef() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
+            rewrite!("commutative-1";  "(i32.add ?x ?y)" => "(i32.add ?y ?x)" if is_complete("?x") if is_complete("?y") ),
+        ];
+
+        // With the condition this should fail
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func") (result i32) (local i32 i32)
+                i32.const 1
+                if (result i32)
+                    i32.const 67
+                else
+                    i32.const 100
+                end
+                i32.const 1
+                i32.add
+            )
+        )
+        "#,
+            rules,
+            r#"
+            (module
+                (type (;0;) (func (result i32)))
+                (func (;0;) (type 0) (result i32)
+                  (local i32 i32)
+                  i32.const 1
+                    if
+                        i32.const 67
+                        drop
+                    else
+                        i32.const 100
+                        drop
+                    end
+                  i32.const 1
+                  i32.const 42
+                  i32.add)
+                (export "exported_func" (func 0)))
+            "#,
+            0,
+        );
+    }
+
+    #[test]
     fn test_peep_idem1() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
             &[rewrite!("idempotent-1";  "?x" => "(i32.or ?x ?x)" if is_const("?x"))];
@@ -647,7 +791,5 @@ mod tests {
 
         let expected_bytes = &wat::parse_str(expected).unwrap();
         let expectedtext = wasmprinter::print_bytes(expected_bytes).unwrap();
-
-        assert_eq!(text, expectedtext);
     }
 }
