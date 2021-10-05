@@ -12,7 +12,7 @@ define_language! {
         "i32.or" = I32Or([Id; 2]),
         "i32.xor" = I32Xor([Id; 2]),
         "i32.shl" = I32Shl([Id; 2]),
-        "i32.shr_u" = I32ShrU([Id; 2]),
+        "shr_u" = ShrU([Id; 2]),
         "i32.popcnt" = I32Popcnt(Id),
         "drop" = Drop,
         // Memory operations

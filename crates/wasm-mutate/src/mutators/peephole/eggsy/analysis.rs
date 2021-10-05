@@ -1,8 +1,11 @@
 use std::{collections::HashMap, ops::Add};
 
-use crate::mutators::peephole::{
-    dfg::{MiniDFG, StackEntry},
-    eggsy::Lang,
+use crate::{
+    module::PrimitiveTypeInfo,
+    mutators::peephole::{
+        dfg::{MiniDFG, StackEntry},
+        eggsy::Lang,
+    },
 };
 use egg::{Analysis, CostFunction, EGraph, Id, Language};
 
@@ -55,16 +58,17 @@ pub struct ClassData {
     /// Id of the equivalence class
     pub node_id: usize,
     /// Index to the dfg stack entry
-    stack_entry_id: Option<usize>,
+    stack_entry_id: usize,
+    /// Type information for the eclass
+    pub tpes: Vec<PrimitiveTypeInfo>,
 }
 
 impl ClassData {
     /// Returns the stack enntry that corresponds to this equivalence class.
     /// The method will check if this equivalence class has a stack entry in the DFG of the analysis.
     /// If true the StackEntry is then returned
-    pub fn get_stack_entry(&self, analysis: &PeepholeMutationAnalysis) -> Option<StackEntry> {
-        self.stack_entry_id
-            .and_then(|idx| Some(analysis.get_stack_entry(idx).clone()))
+    pub fn get_stack_entry(&self, analysis: &PeepholeMutationAnalysis) -> StackEntry {
+        analysis.get_stack_entry(self.stack_entry_id).clone()
     }
 }
 
@@ -97,7 +101,12 @@ impl Analysis<Lang> for PeepholeMutationAnalysis {
             if let None = &egraph[id].data {
                 egraph[id].data = Some(ClassData {
                     node_id: usize::from(id),
-                    stack_entry_id: Some(egraph.analysis.id_to_stack[&id]),
+                    stack_entry_id: egraph.analysis.id_to_stack[&id],
+                    tpes: egraph
+                        .analysis
+                        .get_stack_entry(egraph.analysis.id_to_stack[&id])
+                        .tpes
+                        .clone(),
                 })
             }
         }

@@ -183,8 +183,6 @@ where
                     .map(|id| (operand, operandidx, id, depth + 1)),
             );
         }
-        println!("node to eclass {:?} ", id_to_node);
-
         // Build the tree with the right language constructor
         Ok(expression_builder(Id::from(0), &id_to_node, &operands))
     }

@@ -26,9 +26,10 @@ pub struct BBlock {
 pub struct StackEntry {
     /// Index of the operator in which this node start
     pub operator_idx: usize,
-    /// Node data, this is used to determine which kind of node this is: Leaf (constants for example), Node (operators containing childrend) and undef
-    // This last one represent a piece of the DFG that belongs to another basic block
-    pub data: StackEntryData,
+    /// Node operand indexes
+    pub operands: Vec<usize>,
+    /// True if the current node is an undef node, which means that the data for this leaf comes from another basic block
+    pub is_undef: bool,
     /// Byte range (not inclusive) in which the operator instruction is written
     pub byte_stream_range: Range,
     /// Node type
@@ -37,11 +38,10 @@ pub struct StackEntry {
     pub entry_idx: usize,
 }
 
-#[derive(Debug, Clone)]
-pub enum StackEntryData {
-    Leaf,
-    Node { operands: Vec<usize> },
-    Undef,
+impl StackEntry {
+    pub fn is_leaf(&self) -> bool {
+        self.operands.len() == 0
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -134,7 +134,8 @@ impl<'a> DFGIcator {
         let leaf = StackEntry {
             operator_idx,
             byte_stream_range: Range { start, end },
-            data: StackEntryData::Leaf,
+            operands: vec![],
+            is_undef: false,
             tpes,
             entry_idx,
         };
@@ -161,7 +162,8 @@ impl<'a> DFGIcator {
         let newnode = StackEntry {
             operator_idx: operator_idx,
             byte_stream_range: Range { start, end },
-            data: StackEntryData::Node { operands },
+            operands,
+            is_undef: false,
             tpes,
             entry_idx,
         };
@@ -190,7 +192,8 @@ impl<'a> DFGIcator {
                 let entry_idx = dfg_map.len();
                 let leaf = StackEntry {
                     operator_idx,
-                    data: StackEntryData::Undef,
+                    operands: vec![],
+                    is_undef: true,
                     byte_stream_range: Range::new(0, 0),
                     // Check if this can be inferred from the operator
                     tpes: vec![],
@@ -297,9 +300,8 @@ impl<'a> DFGIcator {
                             start: *byte_offset,
                             end: *byte_offset_next,
                         },
-                        data: StackEntryData::Node {
-                            operands: vec![child],
-                        },
+                        operands: vec![child],
+                        is_undef: false,
                         tpes: vec![],
                         entry_idx
                     };
@@ -406,7 +408,8 @@ impl<'a> DFGIcator {
                             start: *byte_offset,
                             end: *byte_offset_next,
                         },
-                        data: StackEntryData::Leaf,
+                        operands: vec![],
+                        is_undef: false,
                         tpes: vec![],
                         entry_idx
                     };

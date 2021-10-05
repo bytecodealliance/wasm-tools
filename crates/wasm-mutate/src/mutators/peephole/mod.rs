@@ -89,7 +89,6 @@ impl PeepholeMutator {
             })
             .collect::<Vec<(u32, ValType)>>();
 
-        println!("Locals {:?}", current_locals);
         Ok(Function::new(current_locals /*copy locals here*/))
     }
 
@@ -178,7 +177,7 @@ impl PeepholeMutator {
                                 let mut egraph = runner.egraph;
 
                                 // In theory this will return the Id of the operator eterm
-                                println!("Adding expression");
+                                debug!("Adding expression");
                                 let root = egraph.add_expr(&start);
 
                                 // This cost function could be replaced by a custom weighted probability, for example
@@ -724,6 +723,34 @@ mod tests {
     }
 
     #[test]
+    fn test_peep_typeinfo() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("type1-1";  "?x" => "(shr_u ?x 2)" )];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func") (result i32) (local i32 i32)
+                i32.const 56
+            )
+        )
+        "#,
+            rules,
+            r#"
+        (module
+            (type (;0;) (func (result i32)))
+            (func (;0;) (type 0) (result i32)
+                (local i32 i32)
+                i32.const 56
+                i32.const 56
+                i32.shr_u)
+            (export "exported_func" (func 0)))
+        "#,
+            0,
+        );
+    }
+
+    #[test]
     fn test_peep_mem_shift() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
             &[rewrite!("mem-load-shift";  "(i.load ?x)" => "(i.load (i32.add ?x rand))")];
@@ -823,5 +850,6 @@ mod tests {
 
         let expected_bytes = &wat::parse_str(expected).unwrap();
         let expectedtext = wasmprinter::print_bytes(expected_bytes).unwrap();
+        assert_eq!(expectedtext, text);
     }
 }
