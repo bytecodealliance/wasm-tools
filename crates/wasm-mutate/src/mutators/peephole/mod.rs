@@ -7,6 +7,7 @@ use crate::mutators::peephole::eggsy::lang::Lang;
 use egg::{rewrite, AstSize, Id, RecExpr, Rewrite, Runner, Subst};
 use rand::{prelude::SmallRng, Rng};
 use std::convert::TryFrom;
+use std::sync::atomic::AtomicU64;
 use std::{cmp::Ordering, collections::HashMap, hash::Hash, num::Wrapping};
 use wasm_encoder::{CodeSection, Function, Instruction, MemArg, Module, ValType};
 use wasmparser::{
@@ -23,6 +24,10 @@ use crate::{
     module::{map_operator, map_type},
     ModuleInfo, Result, WasmMutate,
 };
+
+// This is a performance counter for the number of operators that can be mutated
+static NUM_RUNS: AtomicU64 = AtomicU64::new(0);
+static NUM_SUCCESSFUL_MUTATIONS: AtomicU64 = AtomicU64::new(0);
 
 use self::{dfg::DFGIcator, eggsy::RandomExtractor};
 
@@ -123,6 +128,19 @@ impl PeepholeMutator {
                 let basicblock = dfg.get_bb_from_operator(oidx, &operators);
                 debug!("Basic block range {:?} for idx {:?}", basicblock, oidx);
 
+                let old_num_runs = NUM_RUNS.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+                if old_num_runs % 4096 == 0 && log::log_enabled!(log::Level::Info) {
+                    let successful =
+                        NUM_SUCCESSFUL_MUTATIONS.load(core::sync::atomic::Ordering::Relaxed);
+                    let percent = successful as f64 / old_num_runs as f64 * 100.0;
+                    log::info!(
+                        "{} / {} ({:.2}%) mutated operators.",
+                        successful,
+                        old_num_runs,
+                        percent
+                    );
+                }
+
                 match basicblock {
                     Some(basicblock) => {
                         let minidfg = dfg.get_dfg(&operators, &basicblock, &locals);
@@ -138,21 +156,29 @@ impl PeepholeMutator {
                                 // Create an eterm expression from the basic block starting at oidx
                                 let mut start = RecExpr::<Lang>::default();
                                 debug!("Translating Wasm basic block to recexpr");
-                                let (_, symbolsmap) =
+                                let (_, symbolsmap, id_to_stackentries) =
                                     Encoder::wasm2expr(&minidfg, oidx, &operators, &mut start)?;
-                                debug!("Eterm `{}`", start);
 
-                                // TODO have this as a condition
+                                // TODO implement def with bunch of locals
                                 let undef = Lang::Undef;
                                 if start.as_ref().contains(&undef) {
                                     debug!("The dfg is not deterministic");
                                     continue;
                                 }
 
-                                let runner = Runner::default().with_expr(&start).run(rules);
+                                let analysis = PeepholeMutationAnalysis::new(
+                                    id_to_stackentries.clone(),
+                                    minidfg.clone(),
+                                    symbolsmap,
+                                );
+                                let runner =
+                                    Runner::<Lang, PeepholeMutationAnalysis, ()>::new(analysis)
+                                        .with_expr(&start)
+                                        .run(rules);
                                 let mut egraph = runner.egraph;
 
                                 // In theory this will return the Id of the operator eterm
+                                println!("Adding expression");
                                 let root = egraph.add_expr(&start);
 
                                 // This cost function could be replaced by a custom weighted probability, for example
@@ -160,40 +186,42 @@ impl PeepholeMutator {
                                 let cf = AstSize;
                                 let extractor = RandomExtractor::new(&egraph, cf);
 
-                                let newexpr = extractor.extract_random(
+                                let (expr, node_to_eclass) = extractor.extract_random(
                                     rnd,
                                     root,
                                     0,
-                                    /* only 1 for now */ Encoder::build_expr,
+                                    Encoder::build_expr, /* only 1 for now */
                                 )?;
 
-                                // There is no point in generating the same symbol
-                                // TODO, Move this to try all possible before continuing
-                                if newexpr.to_string().eq(&start.to_string()) {
-                                    debug!("The generated random `{}` is the same intial expression, going to next operator", newexpr);
+                                if expr.to_string().eq(&start.to_string()) {
+                                    debug!("The generated random `{}` is the same intial expression, going to next operator", expr);
                                     continue;
                                 }
-                                debug!(
-                                    "Mutating function {:?} at {:?} with {}",
-                                    fidx, oidx, newexpr
-                                );
-                                // Create a new function using the previous locals
-                                let mut newfunc = self.copy_locals(reader)?;
 
-                                // Translate lang expr to wasm
+                                debug!("Mutating function {:?} at {:?} with {}", fidx, oidx, expr);
+
+                                let mut newfunc = self.copy_locals(reader)?;
+                                debug!("Locals copied");
+
                                 Encoder::build_function(
                                     info,
                                     rnd,
                                     oidx,
-                                    &newexpr,
+                                    &expr,
+                                    &node_to_eclass,
                                     &operators,
                                     &basicblock,
                                     &mut newfunc,
-                                    &symbolsmap,
-                                    &minidfg,
+                                    &egraph,
                                 )?;
 
                                 debug!("Built function {:?}", newfunc);
+
+                                if log::log_enabled!(log::Level::Info) {
+                                    NUM_SUCCESSFUL_MUTATIONS
+                                        .fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+                                }
+
                                 return Ok((newfunc, fidx));
                             }
                         }
@@ -271,20 +299,19 @@ impl Mutator for PeepholeMutator {
         // Calculate here type related information for parameters, locals and returns
         // This information could be passed to the conditions to check for type correctness rewriting
 
-        let mut rules = vec![
-            rewrite!("unfold-2";  "?x" => "(unfold ?x)" if self.is_const("?x") ), // Use a custom instruction-mutator for this
-            // This specific rewriting rule has a condition, it should be appplied if the operand is a constant
-            rewrite!("strength-undo";  "(i32.shl ?x 1)" => "(i32.mul ?x ?x)"),
-            rewrite!("strength-undo1";  "(i32.shl ?x 2)" => "(i32.mul ?x 2)"),
-            rewrite!("strength-undo2";  "(i32.shl ?x 3)" => "(i32.mul ?x 8)"),
-            rewrite!("add-1";  "(i32.add ?x ?x)" => "(i32.mul ?x 2)"),
-            rewrite!("idempotent-1";  "?x" => "(i32.or ?x ?x)" ),
-            rewrite!("idempotent-2";  "?x" => "(i32.and ?x ?x)"),
-            rewrite!("commutative-1";  "(i32.add ?x ?y)" => "(i32.add ?y ?x)" ),
-            rewrite!("commutative-2";  "(i32.mul ?x ?y)" => "(i32.mul ?y ?x)" ),
-            rewrite!("associative-1";  "(i32.add ?x (i32.add ?y ?z))" => "(i32.add (i32.add ?x ?y) ?z)" ),
-            rewrite!("associative-2";  "(i32.mul ?x (i32.mul ?y ?z))" => "(i32.mul (i32.mul ?x ?y) ?z)" ),
-        ];
+        let mut rules = vec![rewrite!("unfold-2";  "?x" => "(unfold ?x)" if self.is_const("?x") )];
+        // Use a custom instruction-mutator for this
+        // This specific rewriting rule has a condition, it should be appplied if the operand is a constant
+        rules.extend(rewrite!("strength-undo";  "(i32.shl ?x 1)" <=> "(i32.mul ?x ?x)"));
+        rules.extend(rewrite!("strength-undo1";  "(i32.shl ?x 2)" <=> "(i32.mul ?x 2)"));
+        rules.extend(rewrite!("strength-undo2";  "(i32.shl ?x 3)" <=> "(i32.mul ?x 8)"));
+        rules.extend(rewrite!("add-1";  "(i32.add ?x ?x)" <=> "(i32.mul ?x 2)"));
+        rules.extend(rewrite!("idempotent-1";  "?x" <=> "(i32.or ?x ?x)" ));
+        rules.extend(rewrite!("idempotent-2";  "?x" <=> "(i32.and ?x ?x)"));
+        rules.extend(rewrite!("commutative-1";  "(i32.add ?x ?y)" <=> "(i32.add ?y ?x)" ));
+        rules.extend(rewrite!("commutative-2";  "(i32.mul ?x ?y)" <=> "(i32.mul ?y ?x)" ));
+        rules.extend(rewrite!("associative-1";  "(i32.add ?x (i32.add ?y ?z))" <=> "(i32.add (i32.add ?x ?y) ?z)" ));
+        rules.extend(rewrite!("associative-2";  "(i32.mul ?x (i32.mul ?y ?z))" <=> "(i32.mul (i32.mul ?x ?y) ?z)" ));
 
         if !config.preserve_semantics {
             rules.push(rewrite!("mem-load-shift";  "(i.load ?x)" => "(i.load (i32.add ?x rand))"))

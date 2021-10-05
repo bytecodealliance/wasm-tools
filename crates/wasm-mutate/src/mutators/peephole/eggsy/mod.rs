@@ -14,6 +14,8 @@ pub mod lang;
 
 use crate::{error::EitherType, mutators::peephole::eggsy::lang::Lang, ModuleInfo};
 
+use self::analysis::ClassData;
+
 use super::{
     dfg::{BBlock, MiniDFG, StackEntry},
     OperatorAndByteOffset,
@@ -41,7 +43,7 @@ impl<'a, CF, L, N> RandomExtractor<'a, CF, L, N>
 where
     CF: CostFunction<L>,
     L: Language,
-    N: Analysis<L, Data = Option<i32>>, // The analysis should return the index of the node in the e-class
+    N: Analysis<L, Data = Option<ClassData>>, // The analysis should return the index of the node in the e-class
 {
     /// Returns a new Random extractor from an egraph and a custom cost function
     pub fn new(egraph: &'a EGraph<L, N>, cost_function: CF) -> Self {
@@ -85,7 +87,7 @@ where
     fn make_pass(
         &mut self,
         costs: &mut HashMap<Id, (CF::Cost, usize)>,
-        eclass: &EClass<L, Option<i32>>,
+        eclass: &EClass<L, Option<ClassData>>,
     ) -> Option<(CF::Cost, usize)> {
         let (cost, node_idx) = eclass
             .iter()
@@ -130,8 +132,8 @@ where
         rnd: &mut rand::prelude::SmallRng,
         eclass: Id,
         max_depth: u32,
-        encoder: impl Fn(Id, &Vec<&L>, &Vec<Vec<Id>>) -> RecExpr<L>,
-    ) -> crate::Result<RecExpr<L>> // return the random tree, TODO, improve the way the tree is returned
+        expression_builder: impl Fn(Id, &Vec<(&L, Id)>, &Vec<Vec<Id>>) -> (RecExpr<L>, Vec<Id>),
+    ) -> crate::Result<(RecExpr<L>, Vec<Id>)> // return the random tree, TODO, improve the way the tree is returned
     {
         // A map from a node's id to its actual node data.
         let mut id_to_node = vec![];
@@ -141,8 +143,9 @@ where
         // Select a random node in this e-class
         let rootidx = rnd.gen_range(0, self.egraph[eclass].nodes.len());
         let rootnode = &self.egraph[eclass].nodes[rootidx];
+        // The operator index is the same in all eclass nodes
 
-        id_to_node.push(&self.egraph[eclass].nodes[rootidx]);
+        id_to_node.push((&self.egraph[eclass].nodes[rootidx], eclass));
         operands.push(vec![]);
 
         let mut worklist: Vec<_> = rootnode
@@ -161,10 +164,11 @@ where
             };
 
             let operand = Id::from(id_to_node.len());
+
             let operandidx = id_to_node.len();
             let last_node_id = parentidx; // id_to_node.len() - 1;
 
-            id_to_node.push(&self.egraph[node].nodes[node_idx]);
+            id_to_node.push((&self.egraph[node].nodes[node_idx], node));
             operands.push(vec![]);
 
             operands[last_node_id].push(operand);
@@ -179,12 +183,10 @@ where
                     .map(|id| (operand, operandidx, id, depth + 1)),
             );
         }
+        println!("node to eclass {:?} ", id_to_node);
+
         // Build the tree with the right language constructor
-        Ok(encoder(
-            Id::from(0), /* The root of the expr is the node at position 0 */
-            &id_to_node,
-            &operands,
-        ))
+        Ok(expression_builder(Id::from(0), &id_to_node, &operands))
     }
 }
 
@@ -210,29 +212,6 @@ mod tests {
     use super::RandomExtractor;
     use crate::mutators::peephole::Lang;
     use crate::mutators::peephole::PeepholeMutationAnalysis;
-
-    #[test]
-    fn test_random_generation() {
-        let rules: &[Rewrite<Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("unfold-2";  "?x" => "(unfold ?x)"), // Use a custom instruction-mutator for this
-                                                          // rewrite!("strength-undo";  "(i32.shl ?x 1)" => "(i32.mul ?x ?x)"),
-        ];
-
-        let start = "?x".parse().unwrap();
-        let runner = Runner::default().with_expr(&start).run(rules);
-        let mut egraph = runner.egraph;
-        let cf = AstSize;
-        let mut rnd = SmallRng::seed_from_u64(4);
-
-        // ?x is the root
-        let root = egraph.add_expr(&start);
-        let extractor = RandomExtractor::new(&egraph, cf);
-        let encoder = Encoder::build_expr;
-
-        let expr = extractor
-            .extract_random(&mut rnd, root, 10, encoder)
-            .unwrap();
-    }
 
     #[test]
     fn test_wasm2expr() {
@@ -283,86 +262,8 @@ mod tests {
                         .unwrap();
 
                     let mut exprroot = RecExpr::<Lang>::default();
-                    let (_, _) = Encoder::wasm2expr(&roots, 4, &operators, &mut exprroot).unwrap();
-                }
-                wasmparser::Payload::End => {
-                    break;
-                }
-                _ => {
-                    // Do nothing
-                }
-            }
-        }
-    }
-
-    #[test]
-    fn test_expr2wasm() {
-        let original = &wat::parse_str(
-            r#"
-        (module
-            (memory 1)
-            (func (export "exported_func") (param i32) (result i32)
-                local.get 0
-                i32.const 32
-                i32.const 32
-                i32.add
-                i32.add
-            )
-        )
-        "#,
-        )
-        .unwrap();
-        let wasmmutate = WasmMutate::default();
-        let mut info = wasmmutate.get_module_info(original).unwrap();
-
-        let mut parser = Parser::new(0);
-        let mut rnd = SmallRng::seed_from_u64(0);
-        let mut consumed = 0;
-
-        loop {
-            let (payload, size) = match parser.parse(&original[consumed..], true).unwrap() {
-                wasmparser::Chunk::NeedMoreData(_) => {
-                    panic!("This should not happen")
-                }
-                wasmparser::Chunk::Parsed { consumed, payload } => (payload, consumed),
-            };
-
-            consumed += size;
-
-            match payload {
-                wasmparser::Payload::CodeSectionEntry(reader) => {
-                    let operators = reader
-                        .get_operators_reader()
-                        .unwrap()
-                        .into_iter_with_offsets()
-                        .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()
-                        .unwrap();
-
-                    let bb = DFGIcator::new()
-                        .get_bb_from_operator(4, &operators)
-                        .unwrap();
-
-                    let roots = DFGIcator::new()
-                        .get_dfg(&operators, &bb, &vec![PrimitiveTypeInfo::I32])
-                        .unwrap();
-
-                    let mut exprroot = RecExpr::<Lang>::default();
-                    let (root, symbolsmap) =
+                    let (_, _, _) =
                         Encoder::wasm2expr(&roots, 4, &operators, &mut exprroot).unwrap();
-
-                    let mut newfunc = Function::new(vec![]);
-
-                    Encoder::expr2wasm(
-                        &info,
-                        &mut rnd,
-                        4,
-                        &exprroot,
-                        &mut newfunc,
-                        &symbolsmap,
-                        &roots,
-                        &operators,
-                    )
-                    .unwrap();
                 }
                 wasmparser::Payload::End => {
                     break;

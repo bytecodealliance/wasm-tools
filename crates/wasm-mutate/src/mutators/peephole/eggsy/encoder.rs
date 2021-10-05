@@ -12,7 +12,8 @@ use rand::Rng;
 use wasm_encoder::{Function, Instruction};
 use wasmparser::Operator;
 
-use crate::mutators::peephole::Lang;
+use crate::mutators::peephole::eggsy::analysis::ClassData;
+use crate::mutators::peephole::{Lang, EG};
 use crate::{
     error::EitherType,
     mutators::peephole::{
@@ -21,6 +22,17 @@ use crate::{
     },
     ModuleInfo,
 };
+
+use super::analysis::PeepholeMutationAnalysis;
+
+macro_rules! hashmap {
+    ($( $key: expr => $val: expr ),*) => {{
+         let mut map = ::std::collections::HashMap::new();
+         $( map.insert($key, $val); )*
+         map
+    }}
+}
+
 /// Turns wasm to eterm and back
 pub struct Encoder;
 
@@ -28,28 +40,34 @@ impl Encoder {
     pub(crate) fn expr2wasm(
         info: &ModuleInfo,
         rnd: &mut rand::prelude::SmallRng,
-        insertion_point: usize,
         expr: &RecExpr<Lang>,
+        node_to_eclass: &Vec<Id>,
         newfunc: &mut Function,
-        symbolmap: &HashMap<String, usize>,
-        minidfg: &MiniDFG,
         operators: &Vec<OperatorAndByteOffset>,
+        egraph: &EG,
     ) -> crate::Result<()> {
         // This is a patch, this logic should be here
         // If root is Unfold...bypass
         let nodes = expr.as_ref();
+
         fn expr2wasm_aux(
             info: &ModuleInfo,
             rnd: &mut rand::prelude::SmallRng,
-            insertion_point: usize,
             nodes: &[Lang],
-            current: usize,
+            node_to_eclass: &Vec<Id>,
+            current: Id,
             newfunc: &mut Function,
-            symbolsmap: &HashMap<String, usize>,
-            minidfg: &MiniDFG,
+            // the following four parameters could be moved to the PeepholeAnalysis
             operators: &Vec<OperatorAndByteOffset>,
+            egraph: &EG,
         ) -> crate::Result<()> {
-            let root = &nodes[current];
+            let root = &nodes[usize::from(current)];
+            let eclass = node_to_eclass[usize::from(current)];
+            let data = &egraph[eclass].data;
+
+            println!("root {:?}", root);
+            //println!("tree id {:?}, real id {:?}, data: {:?}, root {:?}\n", current, realid, minidfg.entries[data.clone().unwrap().operatoridx.unwrap()], root);
+
             match root {
                 Lang::I32Add(operands)
                 | Lang::I32Sub(operands)
@@ -60,28 +78,27 @@ impl Encoder {
                 | Lang::I32Or(operands)
                 | Lang::I32ShrU(operands) => {
                     // Process left operand
+
                     expr2wasm_aux(
                         info,
                         rnd,
-                        insertion_point,
                         nodes,
-                        usize::from(operands[0]),
+                        node_to_eclass,
+                        operands[0],
                         newfunc,
-                        symbolsmap,
-                        minidfg,
                         operators,
+                        egraph,
                     )?;
                     // Process right operand
                     expr2wasm_aux(
                         info,
                         rnd,
-                        insertion_point,
                         nodes,
-                        usize::from(operands[1]),
+                        node_to_eclass,
+                        operands[1],
                         newfunc,
-                        symbolsmap,
-                        minidfg,
                         operators,
+                        egraph,
                     )?;
                     // Write the current operator
                     match root {
@@ -113,39 +130,58 @@ impl Encoder {
                     }
                 }
                 Lang::I32Popcnt(operand) => {
+                    // Process right operand
+
                     expr2wasm_aux(
                         info,
                         rnd,
-                        insertion_point,
                         nodes,
-                        usize::from(*operand),
+                        node_to_eclass,
+                        *operand,
                         newfunc,
-                        symbolsmap,
-                        minidfg,
                         operators,
+                        egraph,
                     )?;
                     newfunc.instruction(Instruction::I32Popcnt);
                 }
                 Lang::ILoad(operand) => {
                     // Write memory load operations
+
+                    // Process right operand
+                    println!("load {:?} realid {:?} data {:?}", current, eclass, data);
                     expr2wasm_aux(
                         info,
                         rnd,
-                        insertion_point,
                         nodes,
-                        usize::from(*operand),
+                        node_to_eclass,
+                        *operand,
                         newfunc,
-                        symbolsmap,
-                        minidfg,
                         operators,
+                        egraph,
                     )?;
 
-                    let operators = &operators[insertion_point..=insertion_point + 1/* take to the next operator to save the offset */];
-                    let range = (operators[0].1, operators[1].1);
+                    match data {
+                        Some(x) => {
+                            let entry = x.get_stack_entry(&egraph.analysis).unwrap();
+                            let operatoridx = entry.operator_idx;
+                            let operators = &operators[operatoridx..=operatoridx + 1/* take to the next operator to save the offset */];
+                            let range = (operators[0].1, operators[1].1);
 
-                    // Copy the mem operation
-                    let raw_data = &info.get_code_section().data[range.0..range.1];
-                    newfunc.raw(raw_data.iter().copied());
+                            // Copy the mem operation
+                            let raw_data = &info.get_code_section().data[range.0..range.1];
+                            debug!("Mem operator raw {:?} {:?}", raw_data, operators);
+                            newfunc.raw(raw_data.iter().copied());
+                        }
+                        None => unreachable!("There is not information for the memoryload"),
+                    }
+
+                    // Get operator idx here from id_to_stack map
+                    /*
+                    println!("id to stack {:?} {:?}", id_to_stack, &Id::from(current));
+                    let entry = id_to_stack[&Id::from(current)];
+                    let entry = &minidfg.entries[entry];
+                    let operatoridx = entry.operator_idx;
+                    // Get the byte offsets*/
                 }
                 Lang::Rand => {
                     newfunc.instruction(Instruction::I32Const(rnd.gen()));
@@ -171,18 +207,24 @@ impl Encoder {
                 }
                 Lang::Symbol(s) => {
                     // Copy the byte stream to aavoid mapping
-                    debug!("symbolmap {:?}, entries {:?}", symbolsmap, &minidfg.entries);
-                    let entryidx = symbolsmap[&s.to_string()];
-                    let entry = &minidfg.entries[entryidx];
-                    // Entry could not be an indepent symbol
-                    match &entry.data {
-                        StackEntryData::Leaf => {
-                            let bytes = &info.get_code_section().data[entry.byte_stream_range.start..entry.byte_stream_range.end];
-                            debug!("Symbol {:?}, raw bytes: {:?}", s, bytes);
-                            newfunc.raw(bytes.iter().copied());
+                    let entry = &egraph.analysis.get_stack_entry_from_symbol(s.to_string());
+                    match entry {
+                        Some(entry) => {
+                            // Entry could not be an indepent symbol
+                            match &entry.data {
+                                StackEntryData::Leaf => {
+                                    let bytes = &info.get_code_section().data[entry.byte_stream_range.start..entry.byte_stream_range.end];
+                                    debug!("Symbol {:?}, raw bytes: {:?}", s, bytes);
+                                    newfunc.raw(bytes.iter().copied());
+                                }
+                                _ => {
+                                    return Err(crate::Error::UnsupportedType(EitherType::TypeDef(format!("A leaf stack entry that cannot be mapped directly to a Symbol is not right"))))
+                                }
+                            }
                         }
-                        _ => {
-                            return Err(crate::Error::UnsupportedType(EitherType::TypeDef(format!("A leaf stack entry that cannot be mapped directly to a Symbol is not right"))))
+                        None => {
+                            // TODO change this to the right error
+                            return Err(crate::Error::NotMatchingPeepholes);
                         }
                     }
                 }
@@ -193,22 +235,23 @@ impl Encoder {
 
             Ok(())
         }
+
+        println!("nodes {:?}", nodes);
         expr2wasm_aux(
             info,
             rnd,
-            insertion_point,
             nodes,
-            nodes.len() - 1,
+            node_to_eclass,
+            Id::from(nodes.len() - 1), // first node is the root
             newfunc,
-            symbolmap,
-            minidfg,
             operators,
+            egraph,
         )
     }
 
     fn writestackentry(
         info: &ModuleInfo,
-        minidfg: &MiniDFG,
+        egraph: &EG,
         entry: &StackEntry,
         entryidx: usize,
         newfunc: &mut Function,
@@ -225,8 +268,8 @@ impl Encoder {
             }
             StackEntryData::Node { operands } => {
                 for idx in operands {
-                    let entry = &minidfg.entries[*idx];
-                    Encoder::writestackentry(info, minidfg, entry, *idx, newfunc)?;
+                    let entry = &egraph.analysis.get_stack_entry(*idx);
+                    Encoder::writestackentry(info, egraph, entry, *idx, newfunc)?;
                 }
                 // Write the operator
                 let bytes = &info.get_code_section().data
@@ -247,11 +290,11 @@ impl Encoder {
         rnd: &mut rand::prelude::SmallRng,
         insertion_point: usize,
         expr: &RecExpr<Lang>,
+        node_to_eclass: &Vec<Id>,
         operators: &Vec<OperatorAndByteOffset>,
-        basicblock: &BBlock,
+        basicblock: &BBlock, // move to the analysis
         newfunc: &mut Function,
-        symbolmap: &HashMap<String, usize>,
-        minidfg: &MiniDFG,
+        egraph: &EG,
     ) -> crate::Result<()> {
         // Copy previous code
         let range = basicblock.range;
@@ -262,25 +305,25 @@ impl Encoder {
         // The stack neutral will be preserved but the position of the changed operands not that much :(
         // The edges of the stackentries are always backward in the array, so, it consistent to
         // do the writing in reverse
-        for (entryidx, parentidx) in minidfg.parents.iter().enumerate() {
+        for (entryidx, parentidx) in egraph.analysis.get_roots().iter().enumerate() {
             if *parentidx == -1 {
                 // It is a root, write then
-                let entry = &minidfg.entries[entryidx];
+                let entry = &egraph.analysis.get_stack_entry(entryidx);
                 if entry.operator_idx == insertion_point {
+                    debug!("Writing mutation");
                     Encoder::expr2wasm(
                         info,
                         rnd,
-                        insertion_point,
                         expr,
+                        node_to_eclass,
                         newfunc,
-                        symbolmap,
-                        minidfg,
                         operators,
+                        egraph,
                     )?;
                 } else {
                     // Copy the stack entry as it is
                     debug!("writing no mutated DFG at {:?}", entry.operator_idx);
-                    Encoder::writestackentry(info, minidfg, entry, entryidx, newfunc)?;
+                    Encoder::writestackentry(info, &egraph, entry, entryidx, newfunc)?;
                 }
             }
         }
@@ -305,7 +348,7 @@ impl Encoder {
         operators: &Vec<OperatorAndByteOffset>,
         // The wasm expressions will be added here
         expr: &mut RecExpr<Lang>, // Replace this by RecExpr
-    ) -> crate::Result<(Id, HashMap<String, usize>)> {
+    ) -> crate::Result<(Id, HashMap<String, usize>, HashMap<Id, usize>)> {
         let stack_entry_index = dfg.map[&oidx];
         debug!("Starting at operator {:?}", operators[oidx]);
         fn wasm2expraux(
@@ -314,7 +357,7 @@ impl Encoder {
             operators: &Vec<OperatorAndByteOffset>,
             // The wasm expressions will be added here
             expr: &mut RecExpr<Lang>, // Replace this by RecExpr
-        ) -> crate::Result<(Id, HashMap<String, usize>)> {
+        ) -> crate::Result<(Id, HashMap<String, usize>, HashMap<Id, usize>)> {
             let entry = &dfg.entries[entryidx];
             match &entry.data {
                 crate::mutators::peephole::dfg::StackEntryData::Leaf => {
@@ -325,7 +368,8 @@ impl Encoder {
                             let id = expr.add(Lang::I32Const(*value));
                             Ok((
                                 id,
-                                HashMap::new(), // No symbol
+                                HashMap::new(), // No symbol,
+                                hashmap![id => entry.entry_idx],
                             ))
                         }
                         Operator::LocalGet { local_index } => {
@@ -334,7 +378,7 @@ impl Encoder {
                             let mut smap = HashMap::new();
                             smap.insert(name, entryidx);
 
-                            Ok((id, smap))
+                            Ok((id, smap, hashmap![id => entry.entry_idx]))
                         }
                         _ => Err(crate::Error::UnsupportedType(EitherType::Operator(
                             format!("Operator {:?} is not supported as symbol", operator),
@@ -346,13 +390,14 @@ impl Encoder {
                     let (operator, _) = &operators[entry.operator_idx];
                     let mut subexpressions = Vec::new();
                     let mut smap: HashMap<String, usize> = HashMap::new();
-
+                    let mut id_to_stack = hashmap![];
                     for operandi in operands {
                         debug!("operand index {}, entries {:?}", operandi, &dfg.entries);
-                        let stack_entry = &dfg.entries[*operandi];
-                        let (eterm, symbols) = wasm2expraux(dfg, *operandi, operators, expr)?;
+                        let (eterm, symbols, id_to_stackentry) =
+                            wasm2expraux(dfg, *operandi, operators, expr)?;
                         subexpressions.push(eterm);
                         smap.extend(symbols.into_iter());
+                        id_to_stack.extend(id_to_stackentry);
                     }
                     let operatorid = match operator {
                         Operator::I32Shl
@@ -393,19 +438,27 @@ impl Encoder {
                             format!("The operator {:?} cannot be mapped to egg lang", operator),
                         ))),
                     }?;
-
-                    Ok((operatorid, smap))
+                    id_to_stack.insert(operatorid, entry.entry_idx);
+                    Ok((operatorid, smap, id_to_stack))
                 }
                 crate::mutators::peephole::dfg::StackEntryData::Undef => {
                     let undefid = expr.add(Lang::Undef);
-                    Ok((undefid, HashMap::new()))
+                    Ok((
+                        undefid,
+                        HashMap::new(),
+                        hashmap![undefid => entry.entry_idx],
+                    ))
                 } // This is the previous state of the stack
             }
         }
         wasm2expraux(dfg, stack_entry_index, operators, expr)
     }
     /// Build RecExpr from tree information
-    pub fn build_expr(root: Id, id_to_node: &Vec<&Lang>, operands: &Vec<Vec<Id>>) -> RecExpr<Lang> {
+    pub fn build_expr(
+        root: Id,
+        id_to_node: &Vec<(&Lang, Id)>,
+        operands: &Vec<Vec<Id>>,
+    ) -> (RecExpr<Lang>, Vec<Id>) {
         let mut expr = RecExpr::default();
 
         // A map from the `Id`s we assigned to each sub-expression when extracting a
@@ -419,7 +472,7 @@ impl Encoder {
         }
 
         let mut to_visit = vec![(Event::Exit, root), (Event::Enter, root)];
-
+        let mut node_to_eclass = vec![];
         while let Some((event, node)) = to_visit.pop() {
             match event {
                 Event::Enter => {
@@ -437,7 +490,7 @@ impl Encoder {
                 Event::Exit => {
                     let operands = &operands[usize::from(node)];
                     let operand = |i| node_to_id[&operands[i]];
-                    let sub_expr_id = match &id_to_node[usize::from(node)] {
+                    let sub_expr_id = match &id_to_node[usize::from(node)].0 {
                         Lang::I32Add(_) => expr.add(Lang::I32Add([operand(0), operand(1)])),
                         Lang::I32Sub(_) => expr.add(Lang::I32Sub([operand(0), operand(1)])),
                         Lang::I32Mul(_) => expr.add(Lang::I32Mul([operand(0), operand(1)])),
@@ -455,12 +508,15 @@ impl Encoder {
                         u @ Lang::Undef => expr.add((*u).clone()),
                         d @ Lang::Drop => expr.add((*d).clone()),
                     };
+                    let eclass = &id_to_node[usize::from(node)].1;
+                    node_to_eclass.push(*eclass);
+                    // Copy the id to stack entries to a new one
                     let old_entry = node_to_id.insert(node, sub_expr_id);
                     assert!(old_entry.is_none());
                 }
             }
         }
 
-        expr
+        (expr, node_to_eclass)
     }
 }

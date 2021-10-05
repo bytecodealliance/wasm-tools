@@ -29,10 +29,12 @@ pub struct StackEntry {
     /// Node data, this is used to determine which kind of node this is: Leaf (constants for example), Node (operators containing childrend) and undef
     // This last one represent a piece of the DFG that belongs to another basic block
     pub data: StackEntryData,
-    /// Range (not inclusive) in which the operator instruction is written
+    /// Byte range (not inclusive) in which the operator instruction is written
     pub byte_stream_range: Range,
     /// Node type
     pub tpes: Vec<PrimitiveTypeInfo>,
+    /// Index in the MiniDFG entries collection
+    pub entry_idx: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -42,7 +44,7 @@ pub enum StackEntryData {
     Undef,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct MiniDFG {
     // Some of the operators have no stack entry
     // This will help to decide or not to mutate the operators, avoiding egrapphp creation, etc
@@ -128,13 +130,14 @@ impl<'a> DFGIcator {
         parents: &mut Vec<i32>,
         tpes: Vec<PrimitiveTypeInfo>,
     ) -> usize {
+        let entry_idx = dfg_map.len();
         let leaf = StackEntry {
             operator_idx,
             byte_stream_range: Range { start, end },
             data: StackEntryData::Leaf,
             tpes,
+            entry_idx,
         };
-        let entry_idx = dfg_map.len();
         operatormap.insert(operator_idx, entry_idx);
         stack.push(entry_idx);
         // Add the data flow link
@@ -154,14 +157,15 @@ impl<'a> DFGIcator {
         parents: &mut Vec<i32>,
         tpes: Vec<PrimitiveTypeInfo>,
     ) -> usize {
+        let entry_idx = dfg_map.len();
         let newnode = StackEntry {
             operator_idx: operator_idx,
             byte_stream_range: Range { start, end },
             data: StackEntryData::Node { operands },
             tpes,
+            entry_idx,
         };
 
-        let entry_idx = dfg_map.len();
         operatormap.insert(operator_idx, entry_idx);
         stack.push(entry_idx);
         // Add the data flow link
@@ -183,14 +187,15 @@ impl<'a> DFGIcator {
             .or_else(|| {
                 // Since this represents the same for all
                 // Create 0 element as Unknown
+                let entry_idx = dfg_map.len();
                 let leaf = StackEntry {
                     operator_idx,
                     data: StackEntryData::Undef,
                     byte_stream_range: Range::new(0, 0),
                     // Check if this can be inferred from the operator
                     tpes: vec![],
+                    entry_idx,
                 }; // Means not reachable
-                let entry_idx = dfg_map.len();
                 if insertindfg {
                     operatormap.insert(operator_idx, entry_idx);
                 }
@@ -285,7 +290,7 @@ impl<'a> DFGIcator {
                         &mut parents,
                         true,
                     );
-
+                    let entry_idx = dfg_map.len();
                     let newnode = StackEntry {
                         operator_idx: idx,
                         byte_stream_range: Range {
@@ -296,6 +301,7 @@ impl<'a> DFGIcator {
                             operands: vec![child],
                         },
                         tpes: vec![],
+                        entry_idx
                     };
 
                     // operatormap.insert(idx, entry_idx);
@@ -393,6 +399,7 @@ impl<'a> DFGIcator {
                 }
                 Operator::Else | Operator::End | Operator::Nop => {
                     // Write this down to do a small change in the original wasm
+                    let entry_idx = dfg_map.len();
                     let newnode = StackEntry {
                         operator_idx: idx,
                         byte_stream_range: Range {
@@ -401,6 +408,7 @@ impl<'a> DFGIcator {
                         },
                         data: StackEntryData::Leaf,
                         tpes: vec![],
+                        entry_idx
                     };
                     dfg_map.push(newnode);
                     parents.push(-1);
