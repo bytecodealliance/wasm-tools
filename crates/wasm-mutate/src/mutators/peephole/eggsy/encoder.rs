@@ -2,11 +2,6 @@
 
 use std::{collections::HashMap, num::Wrapping};
 
-#[cfg(not(test))]
-use log::debug;
-#[cfg(test)]
-use std::println as debug;
-
 use egg::{Id, RecExpr};
 use rand::Rng;
 use wasm_encoder::{Function, Instruction};
@@ -255,7 +250,12 @@ impl Encoder {
             [PrimitiveTypeInfo::I64] => [Instruction::I64Add]
 
         }
+        [Lang::Sub(operands), [operands], 2] => {
 
+            [PrimitiveTypeInfo::I32] => [Instruction::I32Sub]
+            [PrimitiveTypeInfo::I64] => [Instruction::I64Sub]
+
+        }
         [Lang::ShrU(operands), [operands], 2] => {
 
             [PrimitiveTypeInfo::I32] => [Instruction::I32ShrU]
@@ -277,7 +277,7 @@ impl Encoder {
 
             // Copy the mem operation
             let raw_data = &info.get_code_section().data[range.0..range.1];
-            debug!("Mem operator raw {:?} {:?}", raw_data, operators);
+            ////debug!("Mem operator raw {:?} {:?}", raw_data, operators);
             newfunc.raw(raw_data.iter().copied());
 
             Ok(())
@@ -287,11 +287,11 @@ impl Encoder {
             [PrimitiveTypeInfo::I32] => [Instruction::I32Const(*value as i32)]
             [PrimitiveTypeInfo::I64] => [Instruction::I64Const(*value)]
         }
-        [Lang::Rand, value, n, newfunc, rnd, eclassdata, rootdata, egraph, info, operators] => {{
+        [Lang::Rand, value, _n, newfunc, rnd, _eclassdata, _rootdata, _egraph, _info, _operators] => {{
             newfunc.instruction(Instruction::I32Const(rnd.gen()));
             Ok(())
         }}
-        [Lang::Symbol(s), s, n, newfunc, rnd, eclassdata, rootclassdata, egraph, info, operators] => {{
+        [Lang::Symbol(s), s, _n, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, info, _operators] => {{
             let entry = &egraph.analysis.get_stack_entry_from_symbol(s.to_string());
             match entry {
                 Some(entry) => {
@@ -299,7 +299,7 @@ impl Encoder {
                     if entry.is_leaf() {
                         let bytes = &info.get_code_section().data
                             [entry.byte_stream_range.start..entry.byte_stream_range.end];
-                        debug!("Symbol {:?}, raw bytes: {:?}", s, bytes);
+                        ////debug!("Symbol {:?}, raw bytes: {:?}", s, bytes);
                         newfunc.raw(bytes.iter().copied());
                         Ok(())
                     } else {
@@ -311,7 +311,7 @@ impl Encoder {
                 }
             }
         }}
-        [Lang::Unfold(value), value, n, newfunc, rnd, eclassdata, rootclassdata, egraph, info, operators] => {{
+        [Lang::Unfold(value), value, n, newfunc, rnd, eclassdata, _rootclassdata, _egraph, _info, _operators] => {{
             let child = &n[usize::from(*value)];
             match child {
                 Lang::Num(value) => {
@@ -321,7 +321,7 @@ impl Encoder {
                             match data.tpes[..]{
                                 [PrimitiveTypeInfo::I64] => {
                                     let r: i64 = rnd.gen();
-                                    debug!("Unfolding {:?}", value);
+                                    //debug!("Unfolding {:?}", value);
                                     newfunc.instruction(Instruction::I64Const(r));
                                     newfunc.instruction(Instruction::I64Const((Wrapping(*value) - Wrapping(r)).0));
                                     newfunc.instruction(Instruction::I64Add);
@@ -329,7 +329,7 @@ impl Encoder {
                                 },
                                 [PrimitiveTypeInfo::I32] => {
                                     let r: i32 = rnd.gen();
-                                    debug!("Unfolding {:?}", value);
+                                    //debug!("Unfolding {:?}", value);
                                     newfunc.instruction(Instruction::I32Const(r));
                                     newfunc.instruction(Instruction::I32Const((Wrapping(*value as i32) - Wrapping(r)).0));
                                     newfunc.instruction(Instruction::I32Add);
@@ -358,143 +358,6 @@ impl Encoder {
         // This is a patch, this logic should be here
         // If root is Unfold...bypass
         let nodes = expr.as_ref();
-
-        fn expr2wasm_aux(
-            info: &ModuleInfo,
-            rnd: &mut rand::prelude::SmallRng,
-            nodes: &[Lang],
-            node_to_eclass: &Vec<Id>,
-            current: Id,
-            newfunc: &mut Function,
-            // the following four parameters could be moved to the PeepholeAnalysis
-            operators: &Vec<OperatorAndByteOffset>,
-            egraph: &EG,
-        ) -> crate::Result<()> {
-            let root = &nodes[usize::from(current)];
-            let eclass = node_to_eclass[usize::from(current)];
-            let data = &egraph[eclass].data;
-
-            match root {
-                Lang::Add(operands)
-                | Lang::Sub(operands)
-                | Lang::Mul(operands)
-                | Lang::Shl(operands)
-                | Lang::And(operands)
-                | Lang::Xor(operands)
-                | Lang::Or(operands)
-                | Lang::ShrU(operands) => {
-                    // Process operands
-                    for op in operands {
-                        expr2wasm_aux(
-                            info,
-                            rnd,
-                            nodes,
-                            node_to_eclass,
-                            *op,
-                            newfunc,
-                            operators,
-                            egraph,
-                        )?;
-                    }
-                    // Write the current operator
-                    debug!("Type of the node {:?}", data);
-                    //Encoder::write_operator2wasm(data, root, newfunc)?;
-                }
-                Lang::Popcnt(operand) => {
-                    // Process right operand
-
-                    expr2wasm_aux(
-                        info,
-                        rnd,
-                        nodes,
-                        node_to_eclass,
-                        *operand,
-                        newfunc,
-                        operators,
-                        egraph,
-                    )?;
-                    newfunc.instruction(Instruction::I32Popcnt);
-                }
-                Lang::ILoad(operand) => {
-                    // Write memory load operations
-                    expr2wasm_aux(
-                        info,
-                        rnd,
-                        nodes,
-                        node_to_eclass,
-                        *operand,
-                        newfunc,
-                        operators,
-                        egraph,
-                    )?;
-
-                    match data {
-                        Some(x) => {
-                            let entry = x.get_stack_entry(&egraph.analysis);
-                            let operatoridx = entry.operator_idx;
-                            let operators = &operators[operatoridx..=operatoridx + 1/* take to the next operator to save the offset */];
-                            let range = (operators[0].1, operators[1].1);
-
-                            // Copy the mem operation
-                            let raw_data = &info.get_code_section().data[range.0..range.1];
-                            debug!("Mem operator raw {:?} {:?}", raw_data, operators);
-                            newfunc.raw(raw_data.iter().copied());
-                        }
-                        None => unreachable!("There is not information for the memoryload"),
-                    }
-                }
-                Lang::Rand => {
-                    newfunc.instruction(Instruction::I32Const(rnd.gen()));
-                }
-                Lang::Undef => {
-                    debug!("Undefined value reached, this means that the operand will come from the evaluation of pred basic blocks");
-                }
-                Lang::Unfold(operand) => {
-                    let child = &nodes[usize::from(*operand)];
-                    /*match child {
-                        Lang::I32Const(value) => {
-                            let r: i32 = rnd.gen();
-                            debug!("Unfolding {:?}", value);
-                            newfunc.instruction(Instruction::I32Const(r));
-                            newfunc.instruction(Instruction::I32Const((Wrapping(*value) - Wrapping(r)).0));
-                            newfunc.instruction(Instruction::I32Add);
-                        },
-                        _ => unreachable!("The operand for this operator should be a constant, check if the rewriting rule is defined with such conditions")
-                    }*/
-                    todo!();
-                }
-                Lang::Num(val) => {
-                    //newfunc.instruction(Instruction::I32Const(*val));
-                }
-                Lang::Symbol(s) => {
-                    // Copy the byte stream to aavoid mapping
-                    let entry = &egraph.analysis.get_stack_entry_from_symbol(s.to_string());
-                    match entry {
-                        Some(entry) => {
-                            // Entry could not be an indepent symbol
-                            if entry.is_leaf() {
-                                let bytes = &info.get_code_section().data
-                                    [entry.byte_stream_range.start..entry.byte_stream_range.end];
-                                debug!("Symbol {:?}, raw bytes: {:?}", s, bytes);
-                                newfunc.raw(bytes.iter().copied());
-                            } else {
-                                return Err(crate::Error::UnsupportedType(EitherType::TypeDef(format!("A leaf stack entry that cannot be mapped directly to a Symbol is not right"))));
-                            }
-                        }
-                        None => {
-                            // TODO change this to the right error
-                            return Err(crate::Error::NotMatchingPeepholes);
-                        }
-                    }
-                }
-                Lang::Drop => {
-                    newfunc.instruction(Instruction::Drop);
-                }
-            }
-
-            Ok(())
-        }
-
         Encoder::expr2wasm_aux2(
             info,
             rnd,
@@ -512,7 +375,7 @@ impl Encoder {
         info: &ModuleInfo,
         egraph: &EG,
         entry: &StackEntry,
-        entryidx: usize,
+        _: usize,
         newfunc: &mut Function,
     ) -> crate::Result<()> {
         // Write the deps in the dfg
@@ -559,7 +422,7 @@ impl Encoder {
                 // It is a root, write then
                 let entry = &egraph.analysis.get_stack_entry(entryidx);
                 if entry.operator_idx == insertion_point {
-                    debug!("Writing mutation");
+                    //debug!("Writing mutation");
                     Encoder::expr2wasm(
                         info,
                         rnd,
@@ -571,7 +434,7 @@ impl Encoder {
                     )?;
                 } else {
                     // Copy the stack entry as it is
-                    debug!("writing no mutated DFG at {:?}", entry.operator_idx);
+                    //debug!("writing no mutated DFG at {:?}", entry.operator_idx);
                     Encoder::writestackentry(info, &egraph, entry, entryidx, newfunc)?;
                 }
             }
@@ -599,7 +462,7 @@ impl Encoder {
         expr: &mut RecExpr<Lang>, // Replace this by RecExpr
     ) -> crate::Result<(Id, HashMap<String, usize>, HashMap<Id, usize>)> {
         let stack_entry_index = dfg.map[&oidx];
-        debug!("Starting at operator {:?}", operators[oidx]);
+        //debug!("Starting at operator {:?}", operators[oidx]);
         fn wasm2expraux(
             dfg: &MiniDFG,
             entryidx: usize,
@@ -645,7 +508,7 @@ impl Encoder {
                 let mut smap: HashMap<String, usize> = HashMap::new();
                 let mut id_to_stack = hashmap![];
                 for operandi in &entry.operands {
-                    debug!("operand index {}, entries {:?}", operandi, &dfg.entries);
+                    //debug!("operand index {}, entries {:?}", operandi, &dfg.entries);
                     let (eterm, symbols, id_to_stackentry) =
                         wasm2expraux(dfg, *operandi, operators, expr)?;
                     subexpressions.push(eterm);
@@ -655,7 +518,6 @@ impl Encoder {
                 let operatorid = match operator {
                     Operator::I32Shl
                     | Operator::I32Add 
-                    | Operator::I64Add
                     | Operator::I32Sub 
                     | Operator::I32ShrU 
                     | Operator::I32And 
@@ -672,7 +534,27 @@ impl Encoder {
                             Operator::I32Or => Ok(expr.add(Lang::Or([subexpressions[0], subexpressions[1]]))),
                             Operator::I32And => Ok(expr.add(Lang::And([subexpressions[0], subexpressions[1]]))),
                             Operator::I32Xor => Ok(expr.add(Lang::Xor([subexpressions[0], subexpressions[1]]))),
+                            _ => unreachable!()
+                        }
+                    }
+                      Operator::I64Shl
+                    | Operator::I64Add 
+                    | Operator::I64Sub 
+                    | Operator::I64ShrU 
+                    | Operator::I64And 
+                    | Operator::I64Or 
+                    | Operator::I64Xor 
+                    => {
+                        // Check this node has only two child
+                        debug_assert_eq!(subexpressions.len(), 2);
+                        match operator {
                             Operator::I64Add => Ok(expr.add(Lang::Add([subexpressions[0], subexpressions[1]]))),
+                            Operator::I64Shl => Ok(expr.add(Lang::Shl([subexpressions[0], subexpressions[1]]))),
+                            Operator::I64Sub => Ok(expr.add(Lang::Sub([subexpressions[0], subexpressions[1]]))),
+                            Operator::I64ShrU => Ok(expr.add(Lang::ShrU([subexpressions[0], subexpressions[1]]))),
+                            Operator::I64Or => Ok(expr.add(Lang::Or([subexpressions[0], subexpressions[1]]))),
+                            Operator::I64And => Ok(expr.add(Lang::And([subexpressions[0], subexpressions[1]]))),
+                            Operator::I64Xor => Ok(expr.add(Lang::Xor([subexpressions[0], subexpressions[1]]))),
                             _ => unreachable!()
                         }
                     }

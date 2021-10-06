@@ -1,26 +1,15 @@
-use std::{cmp::Ordering, collections::HashMap, num::Wrapping};
+use std::{cmp::Ordering, collections::HashMap};
 
-use egg::{define_language, Analysis, CostFunction, EClass, EGraph, Id, Language, RecExpr, Symbol};
-use rand::{
-    prelude::{SliceRandom, SmallRng},
-    Rng,
-};
-use wasm_encoder::{Function, Instruction};
-use wasmparser::Operator;
+use egg::{Analysis, CostFunction, EClass, EGraph, Id, Language, RecExpr};
+use rand::Rng;
 
 pub mod analysis;
 pub mod encoder;
 pub mod lang;
 
-use crate::{error::EitherType, mutators::peephole::eggsy::lang::Lang, ModuleInfo};
+use crate::mutators::peephole::eggsy::lang::Lang;
 
 use self::analysis::ClassData;
-
-use super::{
-    dfg::{BBlock, MiniDFG, StackEntry},
-    OperatorAndByteOffset,
-};
-
 /// This struct is a wrapper of egg::Extractor
 /// The majority of the methods are copied and adapted to our needs
 pub struct RandomExtractor<'a, CF: CostFunction<L>, L: Language, N: Analysis<L>> {
@@ -114,11 +103,6 @@ where
         }
     }
 
-    /// The the cost of the egraph nodes
-    pub fn get_costs(&self) -> &HashMap<Id, (<CF as CostFunction<L>>::Cost, usize)> {
-        &self.costs
-    }
-
     /// Do a pre-order traversal of the e-graph. As we visit each e-class, choose
     /// one of its e-nodes at random and then do the same with its children,
     /// etc. You can imagine this process as a kind of rolling wave function
@@ -155,7 +139,7 @@ where
             .map(|id| (eclass, 0, id, 0)) // (root, operant, depth)
             .collect();
 
-        while let Some((parent, parentidx, &node, depth)) = worklist.pop() {
+        while let Some((_, parentidx, &node, depth)) = worklist.pop() {
             let node_idx = if depth >= max_depth {
                 // look nearest leaf path, in this case, the best in AST size
                 self.costs[&node].1
@@ -190,26 +174,14 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
     use crate::{
         module::PrimitiveTypeInfo,
-        mutators::{
-            peephole::{
-                dfg::DFGIcator, eggsy::encoder::Encoder, OperatorAndByteOffset, PeepholeMutator,
-            },
-            Mutator,
-        },
-        WasmMutate,
+        mutators::peephole::{dfg::DFGIcator, eggsy::encoder::Encoder, OperatorAndByteOffset},
     };
-    use egg::{rewrite, AstSize, Id, Pattern, RecExpr, Rewrite, Runner, Searcher};
-    use rand::{prelude::SliceRandom, rngs::SmallRng, Rng, SeedableRng};
-    use wasm_encoder::Function;
+    use egg::RecExpr;
     use wasmparser::Parser;
 
-    use super::RandomExtractor;
     use crate::mutators::peephole::Lang;
-    use crate::mutators::peephole::PeepholeMutationAnalysis;
 
     #[test]
     fn test_wasm2expr() {

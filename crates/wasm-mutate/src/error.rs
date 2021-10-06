@@ -1,5 +1,5 @@
 use wasm_encoder::ValType;
-use wasmparser::{Operator, Type, TypeDef};
+use wasmparser::Type;
 
 /// An error encountered when choosing or applying a Wasm mutation.
 #[derive(thiserror::Error, Debug)]

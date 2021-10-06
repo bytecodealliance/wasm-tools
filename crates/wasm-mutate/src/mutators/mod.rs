@@ -3,7 +3,6 @@ use rand::prelude::SmallRng;
 use wasm_encoder::Module;
 
 use super::Result;
-use crate::module::*;
 use crate::{ModuleInfo, WasmMutate};
 
 /// This trait is implemented for all mutators
@@ -38,7 +37,6 @@ pub(crate) mod snip_function;
 
 // macro for mutation assesment
 #[cfg(test)]
-#[macro_export]
 pub fn match_mutation(original: &str, mutator: &dyn Mutator, expected: &str) {
     use rand::SeedableRng;
 

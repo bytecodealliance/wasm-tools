@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Add};
+use std::collections::HashMap;
 
 use crate::{
     module::PrimitiveTypeInfo,
@@ -7,7 +7,7 @@ use crate::{
         eggsy::Lang,
     },
 };
-use egg::{Analysis, CostFunction, EGraph, Id, Language};
+use egg::{Analysis, EGraph, Id};
 
 /// Analysis implementation for our defined language
 /// It will maintain the information regarding to map eterm to wasm and back: the DFG, the symbols
@@ -85,8 +85,7 @@ impl PartialEq for ClassData {
 impl Analysis<Lang> for PeepholeMutationAnalysis {
     type Data = Option<ClassData>;
 
-    fn make(egraph: &EGraph<Lang, Self>, enode: &Lang) -> Self::Data {
-        // Add stack entry from here ?, add the encoder here
+    fn make(_: &EGraph<Lang, Self>, _: &Lang) -> Self::Data {
         None
     }
 

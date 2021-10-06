@@ -1,7 +1,6 @@
-use crate::mutators::peephole::RecExpr;
 use egg::{define_language, Id, Symbol};
 
-/// Language definition for a piece of Wasm
+// Language definition for a piece of Wasm
 define_language! {
     pub enum Lang {
         // Define Wasm language here progressively

@@ -1,9 +1,9 @@
 use std::convert::TryFrom;
 
-use wasm_encoder::{BlockType, Instruction, MemArg, ValType};
-use wasmparser::{Ieee32, Ieee64, MemoryImmediate, Operator, Type, TypeDef};
+use wasm_encoder::ValType;
+use wasmparser::{Type, TypeDef};
 
-use crate::{error::EitherType, Error};
+use crate::error::EitherType;
 
 #[derive(Debug, Clone)]
 pub enum PrimitiveTypeInfo {
@@ -73,14 +73,5 @@ pub fn map_type(tpe: Type) -> super::Result<ValType> {
         Type::F32 => Ok(ValType::F32),
         Type::F64 => Ok(ValType::F64),
         _ => Err(super::Error::UnsupportedType(EitherType::Type(tpe))),
-    }
-}
-
-pub fn map_operator<'a>(operator: &Operator<'a>) -> super::Result<Instruction<'a>> {
-    match operator {
-        Operator::I32Const { value } => Ok(Instruction::I32Const(*value)),
-        _ => Err(super::Error::UnsupportedType(EitherType::Operator(
-            format!("{:?}", operator),
-        ))), // TODO, add the others
     }
 }

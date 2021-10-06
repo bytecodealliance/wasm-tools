@@ -8,11 +8,8 @@ use egg::{rewrite, AstSize, Id, RecExpr, Rewrite, Runner, Subst};
 use rand::{prelude::SmallRng, Rng};
 use std::convert::TryFrom;
 use std::sync::atomic::AtomicU64;
-use std::{cmp::Ordering, collections::HashMap, hash::Hash, num::Wrapping};
-use wasm_encoder::{CodeSection, Function, Instruction, MemArg, Module, ValType};
-use wasmparser::{
-    BinaryReaderError, CodeSectionReader, FunctionBody, LocalsReader, Operator, Range, Type,
-};
+use wasm_encoder::{CodeSection, Function, Module, ValType};
+use wasmparser::{CodeSectionReader, FunctionBody, LocalsReader, Operator};
 
 // Hack to show debug messages in tests
 #[cfg(not(test))]
@@ -20,10 +17,7 @@ use log::debug;
 #[cfg(test)]
 use std::println as debug;
 
-use crate::{
-    module::{map_operator, map_type},
-    ModuleInfo, Result, WasmMutate,
-};
+use crate::{module::map_type, ModuleInfo, Result, WasmMutate};
 
 // This is a performance counter for the number of operators that can be mutated
 static NUM_RUNS: AtomicU64 = AtomicU64::new(0);
@@ -122,10 +116,8 @@ impl PeepholeMutator {
             let locals = self.get_func_locals(&info, fidx, &mut localsreader)?;
 
             for oidx in (opcode_to_mutate..operatorscount).chain(0..opcode_to_mutate) {
-                debug!("Trying with oidx {:?} operator {:?}", oidx, operators[oidx]);
                 let mut dfg = DFGIcator::new();
                 let basicblock = dfg.get_bb_from_operator(oidx, &operators);
-                debug!("Basic block range {:?} for idx {:?}", basicblock, oidx);
 
                 let old_num_runs = NUM_RUNS.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
                 if old_num_runs % 4096 == 0 && log::log_enabled!(log::Level::Info) {
@@ -148,20 +140,17 @@ impl PeepholeMutator {
                                 continue;
                             }
                             Some(minidfg) => {
-                                debug!("DFG {:?}", minidfg);
                                 if !minidfg.map.contains_key(&oidx) {
                                     continue;
                                 }
                                 // Create an eterm expression from the basic block starting at oidx
                                 let mut start = RecExpr::<Lang>::default();
-                                debug!("Translating Wasm basic block to recexpr");
                                 let (_, symbolsmap, id_to_stackentries) =
                                     Encoder::wasm2expr(&minidfg, oidx, &operators, &mut start)?;
 
                                 // TODO implement def with bunch of locals
                                 let undef = Lang::Undef;
                                 if start.as_ref().contains(&undef) {
-                                    debug!("The dfg is not deterministic");
                                     continue;
                                 }
 
@@ -178,9 +167,7 @@ impl PeepholeMutator {
                                 let mut egraph = runner.egraph;
 
                                 // In theory this will return the Id of the operator eterm
-                                debug!("Adding expression");
                                 let root = egraph.add_expr(&start);
-                                debug!("Egraph {:?}", egraph);
 
                                 // This cost function could be replaced by a custom weighted probability, for example
                                 // we could modify the cost function based on the previous mutation/rotation outcome
@@ -195,14 +182,11 @@ impl PeepholeMutator {
                                 )?;
 
                                 if expr.to_string().eq(&start.to_string()) {
-                                    debug!("The generated random `{}` is the same intial expression, going to next operator", expr);
                                     continue;
                                 }
 
-                                debug!("Mutating function {:?} at {:?} with {}", fidx, oidx, expr);
-
+                                debug!("Applied mutation {}", expr);
                                 let mut newfunc = self.copy_locals(reader)?;
-                                debug!("Locals copied");
 
                                 Encoder::build_function(
                                     info,
@@ -216,8 +200,6 @@ impl PeepholeMutator {
                                     &egraph,
                                 )?;
 
-                                debug!("Built function {:?}", newfunc);
-
                                 if log::log_enabled!(log::Level::Info) {
                                     NUM_SUCCESSFUL_MUTATIONS
                                         .fetch_add(1, core::sync::atomic::Ordering::Relaxed);
@@ -228,7 +210,6 @@ impl PeepholeMutator {
                         }
                     }
                     None => {
-                        debug!("No valid basic block {:?}  for {}", basicblock, oidx);
                         continue;
                     }
                 }
@@ -311,8 +292,10 @@ impl Mutator for PeepholeMutator {
         rules.extend(rewrite!("idempotent-2";  "?x" <=> "(and ?x ?x)"));
         rules.extend(rewrite!("commutative-1";  "(add ?x ?y)" <=> "(add ?y ?x)" ));
         rules.extend(rewrite!("commutative-2";  "(mul ?x ?y)" <=> "(mul ?y ?x)" ));
-        rules.extend(rewrite!("associative-2";  "(mul ?x (mul ?y ?z))" <=> "(mul (mul ?x ?y) ?z)" ));
-        rules.extend(rewrite!("associative-1";  "(add ?x (add ?y ?z))" <=> "(add (add ?x ?y) ?z)" ));
+        rules
+            .extend(rewrite!("associative-2";  "(mul ?x (mul ?y ?z))" <=> "(mul (mul ?x ?y) ?z)" ));
+        rules
+            .extend(rewrite!("associative-1";  "(add ?x (add ?y ?z))" <=> "(add (add ?x ?y) ?z)" ));
 
         if !config.preserve_semantics {
             rules.push(rewrite!("mem-load-shift";  "(load ?x)" => "(load (add ?x rand))"))
@@ -325,11 +308,7 @@ impl Mutator for PeepholeMutator {
         self.mutate_with_rules(config, rnd, info, &rules)
     }
 
-    fn can_mutate<'a>(
-        &self,
-        config: &'a crate::WasmMutate,
-        info: &crate::ModuleInfo,
-    ) -> Result<bool> {
+    fn can_mutate<'a>(&self, _: &'a crate::WasmMutate, info: &crate::ModuleInfo) -> Result<bool> {
         Ok(info.has_code() && info.function_count > 0)
     }
 }
@@ -644,14 +623,6 @@ mod tests {
         );
     }
 
-    /// Condition to apply when the tree needs to be consistent
-    /// Checks if no undef oeprators are in the tree
-    fn is_complete(var1: &'static str) -> impl Fn(&mut EG, Id, &Subst) -> bool {
-        let var1 = var1.parse().unwrap();
-        let undef = Lang::Undef;
-        move |egraph, _, subst| !egraph[subst[var1]].nodes.contains(&undef)
-    }
-
     #[test]
     fn test_peep_idem1() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
@@ -707,7 +678,6 @@ mod tests {
             0,
         );
     }
-
 
     #[test]
     fn test_peep_locals() {

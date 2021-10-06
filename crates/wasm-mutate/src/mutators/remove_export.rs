@@ -2,20 +2,15 @@
 use super::Mutator;
 use crate::{ModuleInfo, Result, WasmMutate};
 use rand::prelude::SmallRng;
-use rand::{Rng, RngCore};
-use wasm_encoder::{CodeSection, Export, ExportSection, Function, Instruction, Module};
-use wasmparser::{CodeSectionReader, ExportSectionReader};
+use rand::Rng;
+use wasm_encoder::{Export, ExportSection, Module};
+use wasmparser::ExportSectionReader;
 
 /// Mutator that removes a random prexisting export
 pub struct RemoveExportMutator;
 
 impl Mutator for RemoveExportMutator {
-    fn mutate(
-        &self,
-        config: &WasmMutate,
-        rnd: &mut SmallRng,
-        info: &mut ModuleInfo,
-    ) -> Result<Module> {
+    fn mutate(&self, _: &WasmMutate, rnd: &mut SmallRng, info: &mut ModuleInfo) -> Result<Module> {
         let mut exports = ExportSection::new();
         let mut reader = ExportSectionReader::new(info.get_exports_section().data, 0)?;
         let max_exports = reader.get_count() as u64;
@@ -62,10 +57,7 @@ impl Mutator for RemoveExportMutator {
 
 #[cfg(test)]
 mod tests {
-    use crate::WasmMutate;
-    use rand::{rngs::SmallRng, SeedableRng};
-
-    use super::{Mutator, RemoveExportMutator};
+    use super::RemoveExportMutator;
 
     #[test]
     fn test_remove_export_mutator() {
