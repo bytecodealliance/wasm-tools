@@ -262,6 +262,12 @@ impl Encoder {
             [PrimitiveTypeInfo::I64] => [Instruction::I64ShrU]
 
         }
+        [Lang::Shl(operands), [operands], 2] => {
+
+            [PrimitiveTypeInfo::I32] => [Instruction::I32Shl]
+            [PrimitiveTypeInfo::I64] => [Instruction::I64Shl]
+
+        }
         [Lang::ILoad(operand), (*operand) /*between parenthesis means that this operand will be written down*/, _nodes, newfunc, _rnd, eclassdata, _rootclassdata, egraph, info, operators] => {{
 
             let entry = eclassdata.clone().unwrap().get_stack_entry(&egraph.analysis);
