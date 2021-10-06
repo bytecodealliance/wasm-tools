@@ -550,9 +550,10 @@ mod tests {
                         .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()
                         .unwrap();
 
-                    let _ = DFGIcator::new()
-                        .get_bb_from_operator(5, &operators)
-                        .unwrap();
+                    let roots = DFGIcator::new()
+                        .get_bb_from_operator(5, &operators);
+
+                    assert!(roots.is_some())
                 }
                 wasmparser::Payload::End => {
                     break;
@@ -608,7 +609,8 @@ mod tests {
                     let bb = DFGIcator::new()
                         .get_bb_from_operator(0, &operators)
                         .unwrap();
-                    let _ = DFGIcator::new().get_dfg(&operators, &bb, &vec![]).unwrap();
+                    let roots = DFGIcator::new().get_dfg(&operators, &bb, &vec![]);
+                    assert!(roots.is_some())
                 }
                 wasmparser::Payload::End => {
                     break;

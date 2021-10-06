@@ -454,6 +454,7 @@ impl Encoder {
 
     /// Maps wasm to eterm expression
     /// This method receives also a random generator, the idea is to map StackEntry operands to symbols in a random way.
+    // TODO, move this as well to macro
     pub fn wasm2expr(
         dfg: &MiniDFG,
         oidx: usize,

@@ -284,8 +284,8 @@ impl Mutator for PeepholeMutator {
         let mut rules = vec![rewrite!("unfold-2";  "?x" => "(unfold ?x)" if self.is_const("?x") )];
         // Use a custom instruction-mutator for this
         // This specific rewriting rule has a condition, it should be appplied if the operand is a constant
-        rules.extend(rewrite!("strength-undo";  "(shl ?x 1)" <=> "(mul ?x ?x)"));
-        rules.extend(rewrite!("strength-undo1";  "(shl ?x 2)" <=> "(mul ?x 2)"));
+        rules.extend(rewrite!("strength-undo";  "(shl ?x 1)" <=> "(mul ?x 2)"));
+        rules.extend(rewrite!("strength-undo1";  "(shl ?x 2)" <=> "(mul ?x 4)"));
         rules.extend(rewrite!("strength-undo2";  "(shl ?x 3)" <=> "(mul ?x 8)"));
         rules.extend(rewrite!("add-1";  "(add ?x ?x)" <=> "(mul ?x 2)"));
         rules.extend(rewrite!("idempotent-1";  "?x" <=> "(or ?x ?x)" ));
@@ -296,6 +296,9 @@ impl Mutator for PeepholeMutator {
             .extend(rewrite!("associative-2";  "(mul ?x (mul ?y ?z))" <=> "(mul (mul ?x ?y) ?z)" ));
         rules
             .extend(rewrite!("associative-1";  "(add ?x (add ?y ?z))" <=> "(add (add ?x ?y) ?z)" ));
+        rules.extend(rewrite!("idempotent-3";  "?x" <=> "(mul ?x 1)" ));
+        rules.extend(rewrite!("idempotent-4";  "?x" <=> "(add ?x 0)" ));
+
 
         if !config.preserve_semantics {
             rules.push(rewrite!("mem-load-shift";  "(load ?x)" => "(load (add ?x rand))"))
@@ -645,6 +648,63 @@ mod tests {
                 i32.const 56
                 i32.const 56
                 i32.or)
+            (export "exported_func" (func 0)))
+        "#,
+            0,
+        );
+    }
+
+
+    #[test]
+    fn test_peep_idem3() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("idempotent-3";  "?x" => "(add ?x 0)")];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func") (result i32) (local i32 i32)
+                i32.const 56
+            )
+        )
+        "#,
+            rules,
+            r#"
+        (module
+            (type (;0;) (func (result i32)))
+            (func (;0;) (type 0) (result i32)
+                (local i32 i32)
+                i32.const 56
+                i32.const 0
+                i32.add)
+            (export "exported_func" (func 0)))
+        "#,
+            0,
+        );
+    }
+
+    #[test]
+    fn test_peep_idem4() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("idempotent-4";  "?x" => "(mul ?x 1)")];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func") (result i32) (local i32 i32)
+                i32.const 56
+            )
+        )
+        "#,
+            rules,
+            r#"
+        (module
+            (type (;0;) (func (result i32)))
+            (func (;0;) (type 0) (result i32)
+                (local i32 i32)
+                i32.const 56
+                i32.const 1
+                i32.mul)
             (export "exported_func" (func 0)))
         "#,
             0,
