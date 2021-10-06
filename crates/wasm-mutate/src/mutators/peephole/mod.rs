@@ -311,11 +311,11 @@ impl Mutator for PeepholeMutator {
         rules.extend(rewrite!("idempotent-2";  "?x" <=> "(and ?x ?x)"));
         rules.extend(rewrite!("commutative-1";  "(add ?x ?y)" <=> "(add ?y ?x)" ));
         rules.extend(rewrite!("commutative-2";  "(mul ?x ?y)" <=> "(mul ?y ?x)" ));
-        rules.extend(rewrite!("associative-2";  "(mul ?x mul ?y ?z))" <=> "(mul mul ?x ?y) ?z)" ));
-        rules.extend(rewrite!("associative-1";  "(add ?x add ?y ?z))" <=> "(add add ?x ?y) ?z)" ));
+        rules.extend(rewrite!("associative-2";  "(mul ?x (mul ?y ?z))" <=> "(mul (mul ?x ?y) ?z)" ));
+        rules.extend(rewrite!("associative-1";  "(add ?x (add ?y ?z))" <=> "(add (add ?x ?y) ?z)" ));
 
         if !config.preserve_semantics {
-            rules.push(rewrite!("mem-load-shift";  "(load ?x)" => "(load add ?x rand))"))
+            rules.push(rewrite!("mem-load-shift";  "(load ?x)" => "(load (add ?x rand))"))
             // Check why this is generating a lot of the same replacements
             // Add corretness attraction ones
             // x  = x + 1

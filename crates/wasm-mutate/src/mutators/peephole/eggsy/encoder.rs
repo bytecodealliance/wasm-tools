@@ -235,6 +235,13 @@ impl Encoder {
             [PrimitiveTypeInfo::I64] => [Instruction::I64Or]
 
         }
+        [Lang::And(operands), [operands], 2] => {
+
+            [PrimitiveTypeInfo::I32] => [Instruction::I32And]
+            [PrimitiveTypeInfo::I64] => [Instruction::I64And]
+
+        }
+        // To add a new mapping
         [Lang::Mul(operands), [operands], 2] => {
 
             [PrimitiveTypeInfo::I32] => [Instruction::I32Mul]
@@ -255,7 +262,7 @@ impl Encoder {
             [PrimitiveTypeInfo::I64] => [Instruction::I64ShrU]
 
         }
-        [Lang::ILoad(operand), (*operand), _nodes, newfunc, _rnd, eclassdata, _rootclassdata, egraph, info, operators] => {{
+        [Lang::ILoad(operand), (*operand) /*between parenthesis means that this operand will be written down*/, _nodes, newfunc, _rnd, eclassdata, _rootclassdata, egraph, info, operators] => {{
 
             let entry = eclassdata.clone().unwrap().get_stack_entry(&egraph.analysis);
             let operatoridx = entry.operator_idx;
