@@ -23,6 +23,8 @@ use crate::{
     ModuleInfo,
 };
 
+use super::analysis::ClassData;
+
 macro_rules! hashmap {
     ($( $key: expr => $val: expr ),*) => {{
          let mut map = ::std::collections::HashMap::new();
@@ -34,7 +36,303 @@ macro_rules! hashmap {
 /// Turns wasm to eterm and back
 pub struct Encoder;
 
+macro_rules! eterm_operator_2_wasm {
+    (@expand
+        $eclassdata:expr, $newfunc:expr, $parent_eclass:expr, $nodes:expr, $root: expr,
+        { $($target:tt)* }
+    ) => {
+           $(
+               $target
+           )*
+    };
+    (@expand
+        $eclassdata:expr, $newfunc:expr, $parent_eclass: expr, $nodes:expr, $root: expr,
+        $(
+            $case:pat => [$($target:tt)+]
+        )*
+        ) => {
+            match $eclassdata {
+                Some(data) => {
+                    match data.tpes[..] {
+                        $(
+                            $case => {
+                                $newfunc.instruction(
+                                    $(
+                                        $target
+                                    )+
+                                );
+                                Ok(())
+                            }
+                        )*
+                        _ => Err(crate::Error::UnsupportedType(EitherType::EggError(format!("There is no conversion between the eclass returning type ({:?}) the the available Wasm operators", data.tpes))))
+                    }
+                }
+                None => {
+                    // Try with the parent eclass information
+                    match $parent_eclass {
+                        Some(data) => {
+                            match data.tpes[..] {
+                                $(
+                                    $case => {
+                                        $newfunc.instruction(
+                                            $(
+                                                $target
+                                            )+
+                                        );
+                                        Ok(())
+                                    }
+                                )*
+                                _ => Err(crate::Error::UnsupportedType(EitherType::EggError(format!("There is no conversion between the eclass returning type ({:?}) the the available Wasm operators", data.tpes))))
+                            }
+                        }
+                        None => Err(crate::Error::UnsupportedType(EitherType::EggError(format!("The current eclass has no data information {:?} {:?}", $eclassdata, $root))))
+
+                    }
+                }
+            }
+    };
+    // Write operands in order
+    (@write_subtree $eclassdata:expr, $newfunc:expr,  $info:expr, $rnd: expr, $nodes: expr, $root:expr, $node_to_eclass:expr, $operators:expr, $egraph: expr, $parenteclass: expr, [$operands:ident], $childcount: expr
+        => {
+            $($body:tt)*
+        }
+    ) => {
+        for oidx in (0..$childcount){
+            Encoder::expr2wasm_aux2(
+                $info,
+                $rnd,
+                $nodes,
+                $node_to_eclass,
+                $operands[oidx],
+                $newfunc,
+                $eclassdata,
+                $operators,
+                $egraph,
+            )?;
+        }
+        eterm_operator_2_wasm! {
+            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root, $(
+                $body
+            )*
+        }
+    };
+    // Single operand
+    (@write_subtree $eclassdata:expr, $newfunc:expr,  $info:expr, $rnd: expr, $nodes: expr, $root:expr, $node_to_eclass:expr, $operators:expr, $egraph: expr,$parenteclass: expr, ( $operand:expr ), $name4node:ident, $namefornewfunc:ident, $nameforrnd:ident, $namefor_eclass:ident, $namefor_rootclass:ident, $name4egraph: ident, $name4info: ident, $name4operators: ident
+        => {
+            $($body:tt)*
+        }
+    ) => {
+        Encoder::expr2wasm_aux2(
+            $info,
+            $rnd,
+            $nodes,
+            $node_to_eclass,
+            $operand,
+            $newfunc,
+            $eclassdata,
+            $operators,
+            $egraph,
+        )?;
+
+        let $name4node = $nodes;
+        let $namefornewfunc = $newfunc;
+        let $nameforrnd = $rnd;
+        let $namefor_eclass = $eclassdata;
+        let $namefor_rootclass = $parenteclass;
+        let $name4egraph = $egraph;
+        let $name4info = $info;
+        let $name4operators = $operators;
+
+        eterm_operator_2_wasm! {
+            @expand $eclassdata, $newfunc , $parenteclass, $nodes, $root, $(
+                $body
+            )*
+        }
+    };
+    //
+    (@write_subtree $eclassdata:expr, $newfunc:expr,  $info:expr, $rnd: expr, $nodes: expr, $root:expr, $node_to_eclass:expr, $operators:expr, $egraph: expr, $parenteclass: expr, $name: ident
+        => {
+            $($body:tt)*
+        }
+    ) => {
+        eterm_operator_2_wasm! {
+            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root, $(
+                $body
+            )*
+        }
+    };
+    (@write_subtree $eclassdata:expr, $newfunc:expr,  $info:expr, $rnd: expr, $nodes: expr,  $root:expr, $node_to_eclass:expr, $operators:expr, $egraph: expr, $parenteclass: expr, $name: ident, $name4node:ident, $namefornewfunc:ident, $nameforrnd:ident, $namefor_eclass:ident, $namefor_rootclass:ident, $name4egraph: ident, $name4info: ident, $name4operators: ident
+        => {
+            $($body:tt)*
+        }
+    ) => {
+        let $name4node = $nodes;
+        let $namefornewfunc = $newfunc;
+        let $nameforrnd = $rnd;
+        let $namefor_eclass = $eclassdata;
+        let $namefor_rootclass = $parenteclass;
+        let $name4egraph = $egraph;
+        let $name4info = $info;
+        let $name4operators = $operators;
+        eterm_operator_2_wasm! {
+            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root, $(
+                $body
+            )*
+        }
+    };
+    (
+        $(
+            [$lang:pat, $($kind:tt)* ] => {
+                $($body:tt)*
+            }
+        )*
+        $(,)*
+    ) => {
+
+        fn expr2wasm_aux2(info: &ModuleInfo,
+            rnd: &mut rand::prelude::SmallRng,
+            nodes: &[Lang],
+            node_to_eclass: &Vec<Id>,
+            current: Id,
+            newfunc: &mut Function,
+            parent_eclass: &Option<ClassData>,
+            // the following four parameters could be moved to the PeepholeAnalysis
+            operators: &Vec<OperatorAndByteOffset>,
+            egraph: &EG) -> crate::Result<()>{
+
+            let root = &nodes[usize::from(current)];
+            let eclass = node_to_eclass[usize::from(current)];
+            let data = &egraph[eclass].data;
+
+            match root {
+                $(
+                    $lang => {
+                        // Write the operands first
+                        eterm_operator_2_wasm!{
+                            @write_subtree data, newfunc, info, rnd, nodes, root, node_to_eclass, operators, egraph, parent_eclass, $($kind)* => {
+                                $($body)*
+                            }
+                        }
+                        /* */
+                    }
+                )*
+                _ => todo!("Not implemented {:?}", root)
+            }
+        }
+
+    };
+}
+
 impl Encoder {
+    // Lang to Wasm conversion of simple operators
+    // Lang::item(_) => {
+    //     [ PrimitiveType::item ] => [ Instruction::type ]
+    //  }
+    eterm_operator_2_wasm! {
+        [Lang::Or(operands), [operands], /* how many operands */ 2] => {
+
+            [PrimitiveTypeInfo::I32] => [Instruction::I32Or]
+            [PrimitiveTypeInfo::I64] => [Instruction::I64Or]
+
+        }
+        [Lang::Mul(operands), [operands], 2] => {
+
+            [PrimitiveTypeInfo::I32] => [Instruction::I32Mul]
+            [PrimitiveTypeInfo::I64] => [Instruction::I64Mul]
+
+        }
+
+        [Lang::Add(operands), [operands], 2] => {
+
+            [PrimitiveTypeInfo::I32] => [Instruction::I32Add]
+            [PrimitiveTypeInfo::I64] => [Instruction::I64Add]
+
+        }
+
+        [Lang::ShrU(operands), [operands], 2] => {
+
+            [PrimitiveTypeInfo::I32] => [Instruction::I32ShrU]
+            [PrimitiveTypeInfo::I64] => [Instruction::I64ShrU]
+
+        }
+        [Lang::ILoad(operand), (*operand), _nodes, newfunc, _rnd, eclassdata, _rootclassdata, egraph, info, operators] => {{
+
+            let entry = eclassdata.clone().unwrap().get_stack_entry(&egraph.analysis);
+            let operatoridx = entry.operator_idx;
+            let operators = &operators[operatoridx..=operatoridx + 1/* take to the next operator to save the offset */];
+            let range = (operators[0].1, operators[1].1);
+
+            // Copy the mem operation
+            let raw_data = &info.get_code_section().data[range.0..range.1];
+            debug!("Mem operator raw {:?} {:?}", raw_data, operators);
+            newfunc.raw(raw_data.iter().copied());
+
+            Ok(())
+        }}
+
+        [Lang::Num(value), value] => {
+            [PrimitiveTypeInfo::I32] => [Instruction::I32Const(*value as i32)]
+            [PrimitiveTypeInfo::I64] => [Instruction::I64Const(*value)]
+        }
+        [Lang::Rand, value, n, newfunc, rnd, eclassdata, rootdata, egraph, info, operators] => {{
+            newfunc.instruction(Instruction::I32Const(rnd.gen()));
+            Ok(())
+        }}
+        [Lang::Symbol(s), s, n, newfunc, rnd, eclassdata, rootclassdata, egraph, info, operators] => {{
+            let entry = &egraph.analysis.get_stack_entry_from_symbol(s.to_string());
+            match entry {
+                Some(entry) => {
+                    // Entry could not be an indepent symbol
+                    if entry.is_leaf() {
+                        let bytes = &info.get_code_section().data
+                            [entry.byte_stream_range.start..entry.byte_stream_range.end];
+                        debug!("Symbol {:?}, raw bytes: {:?}", s, bytes);
+                        newfunc.raw(bytes.iter().copied());
+                        Ok(())
+                    } else {
+                        return Err(crate::Error::UnsupportedType(EitherType::TypeDef(format!("A leaf stack entry that cannot be mapped directly to a Symbol is not right"))));
+                    }
+                }
+                None => {
+                    return Err(crate::Error::UnsupportedType(EitherType::TypeDef(format!("A leaf stack entry that cannot be mapped directly to a Symbol is not right"))));
+                }
+            }
+        }}
+        [Lang::Unfold(value), value, n, newfunc, rnd, eclassdata, rootclassdata, egraph, info, operators] => {{
+            let child = &n[usize::from(*value)];
+            match child {
+                Lang::Num(value) => {
+                    // getting type from eclass
+                    match eclassdata {
+                        Some(data) => {
+                            match data.tpes[..]{
+                                [PrimitiveTypeInfo::I64] => {
+                                    let r: i64 = rnd.gen();
+                                    debug!("Unfolding {:?}", value);
+                                    newfunc.instruction(Instruction::I64Const(r));
+                                    newfunc.instruction(Instruction::I64Const((Wrapping(*value) - Wrapping(r)).0));
+                                    newfunc.instruction(Instruction::I64Add);
+                                    Ok(())
+                                },
+                                [PrimitiveTypeInfo::I32] => {
+                                    let r: i32 = rnd.gen();
+                                    debug!("Unfolding {:?}", value);
+                                    newfunc.instruction(Instruction::I32Const(r));
+                                    newfunc.instruction(Instruction::I32Const((Wrapping(*value as i32) - Wrapping(r)).0));
+                                    newfunc.instruction(Instruction::I32Add);
+                                    Ok(())
+                                }
+                                _ => Err(crate::Error::UnsupportedType(EitherType::EggError(format!("The current eterm cannot be unfolded {:?}", child))))
+                            }
+                        },
+                        None => Err(crate::Error::UnsupportedType(EitherType::EggError(format!("The current eterm cannot be unfolded {:?}", child))))
+                    }
+                },
+                _ => Err(crate::Error::UnsupportedType(EitherType::EggError(format!("The current eterm cannot be unfolded {:?}", child))))
+            }
+        }}
+    }
+
     pub(crate) fn expr2wasm(
         info: &ModuleInfo,
         rnd: &mut rand::prelude::SmallRng,
@@ -64,85 +362,32 @@ impl Encoder {
             let data = &egraph[eclass].data;
 
             match root {
-                Lang::I32Add(operands)
-                | Lang::I32Sub(operands)
-                | Lang::I32Mul(operands)
-                | Lang::I32Shl(operands)
-                | Lang::I32And(operands)
-                | Lang::I32Xor(operands)
-                | Lang::I32Or(operands)
+                Lang::Add(operands)
+                | Lang::Sub(operands)
+                | Lang::Mul(operands)
+                | Lang::Shl(operands)
+                | Lang::And(operands)
+                | Lang::Xor(operands)
+                | Lang::Or(operands)
                 | Lang::ShrU(operands) => {
-                    // Process left operand
-
-                    expr2wasm_aux(
-                        info,
-                        rnd,
-                        nodes,
-                        node_to_eclass,
-                        operands[0],
-                        newfunc,
-                        operators,
-                        egraph,
-                    )?;
-                    // Process right operand
-                    expr2wasm_aux(
-                        info,
-                        rnd,
-                        nodes,
-                        node_to_eclass,
-                        operands[1],
-                        newfunc,
-                        operators,
-                        egraph,
-                    )?;
+                    // Process operands
+                    for op in operands {
+                        expr2wasm_aux(
+                            info,
+                            rnd,
+                            nodes,
+                            node_to_eclass,
+                            *op,
+                            newfunc,
+                            operators,
+                            egraph,
+                        )?;
+                    }
                     // Write the current operator
                     debug!("Type of the node {:?}", data);
-
-                    match root {
-                        Lang::I32Add(_) => {
-                            newfunc.instruction(Instruction::I32Add);
-                        }
-                        Lang::I32Sub(_) => {
-                            newfunc.instruction(Instruction::I32Sub);
-                        }
-                        Lang::I32Mul(_) => {
-                            newfunc.instruction(Instruction::I32Mul);
-                        }
-                        Lang::I32Shl(_) => {
-                            newfunc.instruction(Instruction::I32Shl);
-                        }
-                        Lang::I32And(_) => {
-                            newfunc.instruction(Instruction::I32And);
-                        }
-                        Lang::I32Or(_) => {
-                            newfunc.instruction(Instruction::I32Or);
-                        }
-                        Lang::I32Xor(_) => {
-                            newfunc.instruction(Instruction::I32Xor);
-                        }
-                        Lang::ShrU(_) => {
-                            // Write depending on the eclass type
-                            match data {
-                                Some(data) => match data.tpes[..] {
-                                    [PrimitiveTypeInfo::I32] => {
-                                        newfunc.instruction(Instruction::I32ShrU);
-                                    }
-                                    [PrimitiveTypeInfo::I64] => {
-                                        newfunc.instruction(Instruction::I64ShrU);
-                                    }
-                                    _ => panic!(
-                                        "The primitive types cannot be mapped to the right operand"
-                                    ),
-                                },
-                                None => {
-                                    panic!("The node should have a correct eclass data")
-                                }
-                            }
-                        }
-                        _ => unreachable!(),
-                    }
+                    //Encoder::write_operator2wasm(data, root, newfunc)?;
                 }
-                Lang::I32Popcnt(operand) => {
+                Lang::Popcnt(operand) => {
                     // Process right operand
 
                     expr2wasm_aux(
@@ -192,8 +437,8 @@ impl Encoder {
                     debug!("Undefined value reached, this means that the operand will come from the evaluation of pred basic blocks");
                 }
                 Lang::Unfold(operand) => {
-                    let child = &nodes[usize::from(operand[0])];
-                    match child {
+                    let child = &nodes[usize::from(*operand)];
+                    /*match child {
                         Lang::I32Const(value) => {
                             let r: i32 = rnd.gen();
                             debug!("Unfolding {:?}", value);
@@ -202,10 +447,11 @@ impl Encoder {
                             newfunc.instruction(Instruction::I32Add);
                         },
                         _ => unreachable!("The operand for this operator should be a constant, check if the rewriting rule is defined with such conditions")
-                    }
+                    }*/
+                    todo!();
                 }
-                Lang::I32Const(val) => {
-                    newfunc.instruction(Instruction::I32Const(*val));
+                Lang::Num(val) => {
+                    //newfunc.instruction(Instruction::I32Const(*val));
                 }
                 Lang::Symbol(s) => {
                     // Copy the byte stream to aavoid mapping
@@ -235,13 +481,15 @@ impl Encoder {
 
             Ok(())
         }
-        expr2wasm_aux(
+
+        Encoder::expr2wasm_aux2(
             info,
             rnd,
             nodes,
             node_to_eclass,
             Id::from(nodes.len() - 1), // first node is the root
             newfunc,
+            &None,
             operators,
             egraph,
         )
@@ -359,7 +607,7 @@ impl Encoder {
                 let (operator, _) = &operators[entry.operator_idx];
                 match operator {
                     Operator::I32Const { value } => {
-                        let id = expr.add(Lang::I32Const(*value));
+                        let id = expr.add(Lang::Num(*value as i64));
                         Ok((
                             id,
                             HashMap::new(), // No symbol,
@@ -394,6 +642,7 @@ impl Encoder {
                 let operatorid = match operator {
                     Operator::I32Shl
                     | Operator::I32Add 
+                    | Operator::I64Add
                     | Operator::I32Sub 
                     | Operator::I32ShrU 
                     | Operator::I32And 
@@ -403,13 +652,14 @@ impl Encoder {
                         // Check this node has only two child
                         debug_assert_eq!(subexpressions.len(), 2);
                         match operator {
-                            Operator::I32Add => Ok(expr.add(Lang::I32Add([subexpressions[0], subexpressions[1]]))),
-                            Operator::I32Shl => Ok(expr.add(Lang::I32Shl([subexpressions[0], subexpressions[1]]))),
-                            Operator::I32Sub => Ok(expr.add(Lang::I32Sub([subexpressions[0], subexpressions[1]]))),
+                            Operator::I32Add => Ok(expr.add(Lang::Add([subexpressions[0], subexpressions[1]]))),
+                            Operator::I32Shl => Ok(expr.add(Lang::Shl([subexpressions[0], subexpressions[1]]))),
+                            Operator::I32Sub => Ok(expr.add(Lang::Sub([subexpressions[0], subexpressions[1]]))),
                             Operator::I32ShrU => Ok(expr.add(Lang::ShrU([subexpressions[0], subexpressions[1]]))),
-                            Operator::I32Or => Ok(expr.add(Lang::I32Or([subexpressions[0], subexpressions[1]]))),
-                            Operator::I32And => Ok(expr.add(Lang::I32And([subexpressions[0], subexpressions[1]]))),
-                            Operator::I32Xor => Ok(expr.add(Lang::I32Xor([subexpressions[0], subexpressions[1]]))),
+                            Operator::I32Or => Ok(expr.add(Lang::Or([subexpressions[0], subexpressions[1]]))),
+                            Operator::I32And => Ok(expr.add(Lang::And([subexpressions[0], subexpressions[1]]))),
+                            Operator::I32Xor => Ok(expr.add(Lang::Xor([subexpressions[0], subexpressions[1]]))),
+                            Operator::I64Add => Ok(expr.add(Lang::Add([subexpressions[0], subexpressions[1]]))),
                             _ => unreachable!()
                         }
                     }
@@ -423,7 +673,7 @@ impl Encoder {
                     Operator::I32Popcnt { .. } 
                     => {
                         debug_assert_eq!(subexpressions.len(), 1);
-                        Ok(expr.add(Lang::I32Popcnt(subexpressions[0])))
+                        Ok(expr.add(Lang::Popcnt(subexpressions[0])))
                     }
                     Operator::Drop => Ok(expr.add(Lang::Drop)),
                     _ => Err(crate::Error::UnsupportedType(EitherType::Operator(
@@ -474,18 +724,18 @@ impl Encoder {
                     let operands = &operands[usize::from(node)];
                     let operand = |i| node_to_id[&operands[i]];
                     let sub_expr_id = match &id_to_node[usize::from(node)].0 {
-                        Lang::I32Add(_) => expr.add(Lang::I32Add([operand(0), operand(1)])),
-                        Lang::I32Sub(_) => expr.add(Lang::I32Sub([operand(0), operand(1)])),
-                        Lang::I32Mul(_) => expr.add(Lang::I32Mul([operand(0), operand(1)])),
-                        Lang::I32And(_) => expr.add(Lang::I32And([operand(0), operand(1)])),
-                        Lang::I32Or(_) => expr.add(Lang::I32Or([operand(0), operand(1)])),
-                        Lang::I32Xor(_) => expr.add(Lang::I32Xor([operand(0), operand(1)])),
-                        Lang::I32Shl(_) => expr.add(Lang::I32Shl([operand(0), operand(1)])),
+                        Lang::Add(_) => expr.add(Lang::Add([operand(0), operand(1)])),
+                        Lang::Sub(_) => expr.add(Lang::Sub([operand(0), operand(1)])),
+                        Lang::Mul(_) => expr.add(Lang::Mul([operand(0), operand(1)])),
+                        Lang::And(_) => expr.add(Lang::And([operand(0), operand(1)])),
+                        Lang::Or(_) => expr.add(Lang::Or([operand(0), operand(1)])),
+                        Lang::Xor(_) => expr.add(Lang::Xor([operand(0), operand(1)])),
+                        Lang::Shl(_) => expr.add(Lang::Shl([operand(0), operand(1)])),
                         Lang::ShrU(_) => expr.add(Lang::ShrU([operand(0), operand(1)])),
-                        Lang::I32Popcnt(_) => expr.add(Lang::I32Popcnt(operand(0))),
-                        Lang::Unfold(_) => expr.add(Lang::Unfold([operand(0)])),
+                        Lang::Popcnt(_) => expr.add(Lang::Popcnt(operand(0))),
+                        Lang::Unfold(op) => expr.add(Lang::Unfold(*op)),
                         Lang::ILoad(_) => expr.add(Lang::ILoad(operand(0))),
-                        c @ Lang::I32Const(_) => expr.add((*c).clone()),
+                        c @ Lang::Num(_) => expr.add((*c).clone()),
                         s @ Lang::Symbol(_) => expr.add((*s).clone()),
                         s @ Lang::Rand => expr.add((*s).clone()),
                         u @ Lang::Undef => expr.add((*u).clone()),

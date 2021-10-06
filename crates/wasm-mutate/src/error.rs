@@ -24,6 +24,7 @@ pub enum EitherType {
     TypeDef(String),
     Operator(String),
     ValType(ValType),
+    EggError(String),
 }
 
 /// A `Result` type that is either `Ok(T)` or `Err(wasm_mutate::Error)`.

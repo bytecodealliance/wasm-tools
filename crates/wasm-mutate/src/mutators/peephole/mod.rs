@@ -172,6 +172,7 @@ impl PeepholeMutator {
                                 );
                                 let runner =
                                     Runner::<Lang, PeepholeMutationAnalysis, ()>::new(analysis)
+                                        .with_iter_limit(1) // only two iterations, do not wait for eq saturation
                                         .with_expr(&start)
                                         .run(rules);
                                 let mut egraph = runner.egraph;
@@ -179,6 +180,7 @@ impl PeepholeMutator {
                                 // In theory this will return the Id of the operator eterm
                                 debug!("Adding expression");
                                 let root = egraph.add_expr(&start);
+                                debug!("Egraph {:?}", egraph);
 
                                 // This cost function could be replaced by a custom weighted probability, for example
                                 // we could modify the cost function based on the previous mutation/rotation outcome
@@ -274,7 +276,7 @@ impl PeepholeMutator {
                     if eclass.nodes.len() == 1 {
                         let node = &eclass.nodes[0];
                         match node {
-                            Lang::I32Const(_) => true,
+                            Lang::Num(_) => true,
                             _ => false,
                         }
                     } else {
@@ -301,19 +303,19 @@ impl Mutator for PeepholeMutator {
         let mut rules = vec![rewrite!("unfold-2";  "?x" => "(unfold ?x)" if self.is_const("?x") )];
         // Use a custom instruction-mutator for this
         // This specific rewriting rule has a condition, it should be appplied if the operand is a constant
-        rules.extend(rewrite!("strength-undo";  "(i32.shl ?x 1)" <=> "(i32.mul ?x ?x)"));
-        rules.extend(rewrite!("strength-undo1";  "(i32.shl ?x 2)" <=> "(i32.mul ?x 2)"));
-        rules.extend(rewrite!("strength-undo2";  "(i32.shl ?x 3)" <=> "(i32.mul ?x 8)"));
-        rules.extend(rewrite!("add-1";  "(i32.add ?x ?x)" <=> "(i32.mul ?x 2)"));
-        rules.extend(rewrite!("idempotent-1";  "?x" <=> "(i32.or ?x ?x)" ));
-        rules.extend(rewrite!("idempotent-2";  "?x" <=> "(i32.and ?x ?x)"));
-        rules.extend(rewrite!("commutative-1";  "(i32.add ?x ?y)" <=> "(i32.add ?y ?x)" ));
-        rules.extend(rewrite!("commutative-2";  "(i32.mul ?x ?y)" <=> "(i32.mul ?y ?x)" ));
-        rules.extend(rewrite!("associative-1";  "(i32.add ?x (i32.add ?y ?z))" <=> "(i32.add (i32.add ?x ?y) ?z)" ));
-        rules.extend(rewrite!("associative-2";  "(i32.mul ?x (i32.mul ?y ?z))" <=> "(i32.mul (i32.mul ?x ?y) ?z)" ));
+        rules.extend(rewrite!("strength-undo";  "(shl ?x 1)" <=> "(mul ?x ?x)"));
+        rules.extend(rewrite!("strength-undo1";  "(shl ?x 2)" <=> "(mul ?x 2)"));
+        rules.extend(rewrite!("strength-undo2";  "(shl ?x 3)" <=> "(mul ?x 8)"));
+        rules.extend(rewrite!("add-1";  "(add ?x ?x)" <=> "(mul ?x 2)"));
+        rules.extend(rewrite!("idempotent-1";  "?x" <=> "(or ?x ?x)" ));
+        rules.extend(rewrite!("idempotent-2";  "?x" <=> "(and ?x ?x)"));
+        rules.extend(rewrite!("commutative-1";  "(add ?x ?y)" <=> "(add ?y ?x)" ));
+        rules.extend(rewrite!("commutative-2";  "(mul ?x ?y)" <=> "(mul ?y ?x)" ));
+        rules.extend(rewrite!("associative-2";  "(mul ?x mul ?y ?z))" <=> "(mul mul ?x ?y) ?z)" ));
+        rules.extend(rewrite!("associative-1";  "(add ?x add ?y ?z))" <=> "(add add ?x ?y) ?z)" ));
 
         if !config.preserve_semantics {
-            rules.push(rewrite!("mem-load-shift";  "(i.load ?x)" => "(i.load (i32.add ?x rand))"))
+            rules.push(rewrite!("mem-load-shift";  "(load ?x)" => "(load add ?x rand))"))
             // Check why this is generating a lot of the same replacements
             // Add corretness attraction ones
             // x  = x + 1
@@ -463,7 +465,7 @@ mod tests {
                     if eclass.nodes.len() == 1 {
                         let node = &eclass.nodes[0];
                         match node {
-                            Lang::I32Const(_) => true,
+                            Lang::Num(_) => true,
                             _ => false,
                         }
                     } else {
@@ -494,7 +496,7 @@ mod tests {
                 (func (;0;) (type 0) (result i32)
                   (local i32 i32)
                   i32.const 160268115
-                  i32.const 160268059
+                  i32.const -160268059
                   i32.add)
                 (export "exported_func" (func 0)))
             "#,
@@ -505,7 +507,7 @@ mod tests {
     #[test]
     fn test_peep_stack_neutral() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("strength-undo";  "(i32.shl ?x 1)" => "(i32.mul ?x 2)")];
+            &[rewrite!("strength-undo";  "(shl ?x 1)" => "(mul ?x 2)")];
 
         test_peephole_mutator(
             r#"
@@ -539,7 +541,7 @@ mod tests {
     #[test]
     fn test_peep_strength() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("strength-undo";  "(i32.shl ?x 1)" => "(i32.mul ?x 2)")];
+            &[rewrite!("strength-undo";  "(shl ?x 1)" => "(mul ?x 2)")];
 
         test_peephole_mutator(
             r#"
@@ -569,7 +571,7 @@ mod tests {
     #[test]
     fn test_peep_commutative() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("commutative-1";  "(i32.add ?x ?y)" => "(i32.add ?y ?x)")];
+            &[rewrite!("commutative-1";  "(add ?x ?y)" => "(add ?y ?x)")];
 
         test_peephole_mutator(
             r#"
@@ -599,7 +601,7 @@ mod tests {
     #[test]
     fn test_peep_commutative2() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("commutative-1";  "(i32.add ?x ?y)" => "(i32.add ?y ?x)")];
+            &[rewrite!("commutative-2";  "(add ?x ?y)" => "(add ?y ?x)")];
 
         test_peephole_mutator(
             r#"
@@ -633,6 +635,7 @@ mod tests {
                         i32.const 100
                         drop
                     end
+                  i32.const 1
                   i32.const 42
                   i32.add)
                 (export "exported_func" (func 0)))
@@ -650,54 +653,9 @@ mod tests {
     }
 
     #[test]
-    fn test_peep_commutative_with_undef() {
-        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("commutative-1";  "(i32.add ?x ?y)" => "(i32.add ?y ?x)" if is_complete("?x") if is_complete("?y") ),
-        ];
-
-        // With the condition this should fail
-        test_peephole_mutator(
-            r#"
-        (module
-            (func (export "exported_func") (result i32) (local i32 i32)
-                i32.const 1
-                if (result i32)
-                    i32.const 67
-                else
-                    i32.const 100
-                end
-                i32.const 1
-                i32.add
-            )
-        )
-        "#,
-            rules,
-            r#"
-            (module
-                (type (;0;) (func (result i32)))
-                (func (;0;) (type 0) (result i32)
-                  (local i32 i32)
-                  i32.const 1
-                    if
-                        i32.const 67
-                        drop
-                    else
-                        i32.const 100
-                        drop
-                    end
-                  i32.const 1
-                  i32.const 42
-                  i32.add)
-                (export "exported_func" (func 0)))
-            "#,
-            0,
-        );
-    }
-
-    #[test]
     fn test_peep_idem1() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("idempotent-1";  "?x" => "(i32.or ?x ?x)" if is_const("?x"))];
+            &[rewrite!("idempotent-1";  "?x" => "(or ?x ?x)")];
 
         test_peephole_mutator(
             r#"
@@ -725,7 +683,7 @@ mod tests {
     #[test]
     fn test_peep_typeinfo() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("type1-1";  "?x" => "(shr_u ?x 2)" )];
+            &[rewrite!("type1-1";  "?x" => "(shr_u ?x ?x)" )];
 
         test_peephole_mutator(
             r#"
@@ -750,10 +708,71 @@ mod tests {
         );
     }
 
+
+    #[test]
+    fn test_peep_locals() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("type1-1";  "(add ?x ?y)" => "(add ?y ?x)" )];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func") (result i32) (local i32 i32)
+                local.get 0
+                local.get 1
+                i32.add
+            )
+        )
+        "#,
+            rules,
+            r#"
+        (module
+            (type (;0;) (func (result i32)))
+            (func (;0;) (type 0) (result i32)
+                (local i32 i32)
+                local.get 1
+                local.get 0
+                i32.add)
+            (export "exported_func" (func 0)))
+        "#,
+            1,
+        );
+    }
+
+    #[test]
+    fn test_peep_locals2() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("type1-1";  "(add ?x ?y)" => "(add ?y ?x)" )];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func") (result i64) (local i64 i64)
+                local.get 0
+                local.get 1
+                i64.add
+            )
+        )
+        "#,
+            rules,
+            r#"
+        (module
+            (type (;0;) (func (result i64)))
+            (func (;0;) (type 0) (result i64)
+                (local i64 i64)
+                local.get 1
+                local.get 0
+                i64.add)
+            (export "exported_func" (func 0)))
+        "#,
+            1,
+        );
+    }
+
     #[test]
     fn test_peep_mem_shift() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("mem-load-shift";  "(i.load ?x)" => "(i.load (i32.add ?x rand))")];
+            &[rewrite!("mem-load-shift";  "(load ?x)" => "(load (add ?x rand))")];
 
         test_peephole_mutator(
             r#"
@@ -772,46 +791,6 @@ mod tests {
                 (func (;0;) (type 0) (param i32) (result i32)
                   i32.const 42
                   i32.const -683260416
-                  i32.add
-                  i32.const 160268115
-                  i32.add
-                  i32.const 991484282
-                  i32.add
-                  i32.const 2018993756
-                  i32.add
-                  i32.const -1908705872
-                  i32.add
-                  i32.const -1399093629
-                  i32.add
-                  i32.const 1735359708
-                  i32.add
-                  i32.const -1016670648
-                  i32.add
-                  i32.const 1897657819
-                  i32.add
-                  i32.const 1922808570
-                  i32.add
-                  i32.const -1502375410
-                  i32.add
-                  i32.const 2005067762
-                  i32.add
-                  i32.const -1030639517
-                  i32.add
-                  i32.const 1748478738
-                  i32.add
-                  i32.const 500342713
-                  i32.add
-                  i32.const -396939652
-                  i32.add
-                  i32.const 154479202
-                  i32.add
-                  i32.const 686992112
-                  i32.add
-                  i32.const -1751313776
-                  i32.add
-                  i32.const -1875541192
-                  i32.add
-                  i32.const 1750141307
                   i32.add
                   i32.load)
                 (memory (;0;) 1)

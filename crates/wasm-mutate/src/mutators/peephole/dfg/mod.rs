@@ -252,24 +252,16 @@ impl<'a> DFGIcator {
                 /*Operator::GlobalGet { .. } | */
                 Operator::LocalGet { local_index } => {
                     // This is a hack, type checking should be carried with the stack entries
-                    match locals[*local_index as usize] {
-                        PrimitiveTypeInfo::I32 => {
-                            DFGIcator::push_leaf(
-                                idx,
-                                *byte_offset,
-                                *byte_offset_next,
-                                &mut dfg_map,
-                                &mut operatormap,
-                                &mut stack,
-                                &mut parents,
-                                vec![locals[*local_index as usize].clone()],
-                            );
-                        }
-                        _ => {
-                            debug!("Only i32 local types are allowed for now");
-                            return None;
-                        }
-                    }
+                    DFGIcator::push_leaf(
+                        idx,
+                        *byte_offset,
+                        *byte_offset_next,
+                        &mut dfg_map,
+                        &mut operatormap,
+                        &mut stack,
+                        &mut parents,
+                        vec![locals[*local_index as usize].clone()],
+                    );
                 }
                 Operator::I32Const { .. } => {
                     DFGIcator::push_leaf(
@@ -346,10 +338,51 @@ impl<'a> DFGIcator {
                         vec![offset],
                         &mut parents,
                         // Add type here
-                        vec![],
+                        vec![PrimitiveTypeInfo::I32],
                     );
 
                     parents[offset] = idx as i32;
+                }
+                Operator::I64Add => {
+                    debug!("stack {:?} map {:?}", stack, dfg_map);
+                    let leftidx = DFGIcator::pop_operand(
+                        &mut stack,
+                        &mut dfg_map,
+                        idx,
+                        &mut operatormap,
+                        &mut parents,
+                        false,
+                    );
+                    debug!("stack {:?} map {:?}", stack, dfg_map);
+                    let rightidx = DFGIcator::pop_operand(
+                        &mut stack,
+                        &mut dfg_map,
+                        idx,
+                        &mut operatormap,
+                        &mut parents,
+                        false,
+                    );
+
+                    debug!("stack {:?} map {:?}", stack, dfg_map);
+                    // The operands should not be the same
+
+                    debug!("left {} right {} stack {:?}", leftidx, rightidx, stack);
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = DFGIcator::push_node(
+                        idx,
+                        *byte_offset,
+                        *byte_offset_next,
+                        &mut dfg_map,
+                        &mut operatormap,
+                        &mut stack,
+                        vec![rightidx, leftidx], // reverse order
+                        &mut parents,
+                        vec![PrimitiveTypeInfo::I64],
+                    );
+
+                    parents[leftidx] = idx as i32;
+                    parents[rightidx] = idx as i32;
                 }
                 Operator::I32Add
                 | Operator::I32Sub
