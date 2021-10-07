@@ -11,7 +11,7 @@ use std::{collections::HashSet, sync::Arc};
 
 use module::TypeInfo;
 use mutators::Mutator;
-use rand::{prelude::SliceRandom, rngs::SmallRng, Rng, SeedableRng};
+use rand::{rngs::SmallRng, Rng, SeedableRng};
 use std::convert::TryFrom;
 #[cfg(feature = "structopt")]
 use structopt::StructOpt;

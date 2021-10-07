@@ -1,6 +1,6 @@
 use crate::{ModuleInfo, Result, WasmMutate};
 use rand::prelude::SmallRng;
-use rand::{Rng, RngCore};
+use rand::Rng;
 use wasm_encoder::{CodeSection, Function, Instruction, Module};
 use wasmparser::CodeSectionReader;
 
@@ -9,12 +9,7 @@ use super::Mutator;
 pub struct SetFunction2Unreachable;
 
 impl Mutator for SetFunction2Unreachable {
-    fn mutate(
-        &self,
-        config: &WasmMutate,
-        rnd: &mut SmallRng,
-        info: &mut ModuleInfo,
-    ) -> Result<Module> {
+    fn mutate(&self, _: &WasmMutate, rnd: &mut SmallRng, info: &mut ModuleInfo) -> Result<Module> {
         let mut codes = CodeSection::new();
         let code_section = info.get_code_section();
         let mut reader = CodeSectionReader::new(code_section.data, 0)?;
@@ -44,10 +39,7 @@ impl Mutator for SetFunction2Unreachable {
 
 #[cfg(test)]
 mod tests {
-    use crate::WasmMutate;
-    use rand::{rngs::SmallRng, SeedableRng};
-
-    use super::{Mutator, SetFunction2Unreachable};
+    use super::SetFunction2Unreachable;
 
     #[test]
     fn test_code_unreachable_mutator() {

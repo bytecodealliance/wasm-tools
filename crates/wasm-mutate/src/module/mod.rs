@@ -1,17 +1,17 @@
 use std::convert::TryFrom;
 
-use wasm_encoder::{BlockType, Instruction, MemArg, ValType};
-use wasmparser::{Ieee32, Ieee64, MemoryImmediate, Operator, Type, TypeDef};
+use wasm_encoder::ValType;
+use wasmparser::{Type, TypeDef};
 
-use crate::{error::EitherType, Error};
+use crate::error::EitherType;
 
 #[derive(Debug, Clone)]
 pub enum PrimitiveTypeInfo {
     I32,
     I64,
     F32,
-    F64,
-    // TODO, add others
+    F64, // TODO, add others
+    Empty,
 }
 #[derive(Debug, Clone)]
 pub struct FuncInfo {
@@ -35,6 +35,7 @@ impl TryFrom<Type> for PrimitiveTypeInfo {
             wasmparser::Type::I64 => Ok(PrimitiveTypeInfo::I64),
             wasmparser::Type::F32 => Ok(PrimitiveTypeInfo::F32),
             wasmparser::Type::F64 => Ok(PrimitiveTypeInfo::F64),
+            Type::EmptyBlockType => Ok(PrimitiveTypeInfo::Empty),
             _ => Err(super::Error::UnsupportedType(EitherType::Type(value))),
         }
     }
@@ -72,14 +73,5 @@ pub fn map_type(tpe: Type) -> super::Result<ValType> {
         Type::F32 => Ok(ValType::F32),
         Type::F64 => Ok(ValType::F64),
         _ => Err(super::Error::UnsupportedType(EitherType::Type(tpe))),
-    }
-}
-
-pub fn map_operator<'a>(operator: &Operator<'a>) -> super::Result<Instruction<'a>> {
-    match operator {
-        Operator::I32Const { value } => Ok(Instruction::I32Const(*value)),
-        _ => Err(super::Error::UnsupportedType(EitherType::Operator(
-            format!("{:?}", operator),
-        ))), // TODO, add the others
     }
 }

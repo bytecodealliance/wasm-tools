@@ -1,6 +1,8 @@
-use std::{collections::HashMap, hash::Hash};
+use std::collections::HashMap;
 
 use wasmparser::{Operator, Range};
+
+use crate::module::PrimitiveTypeInfo;
 
 use super::OperatorAndByteOffset;
 
@@ -13,21 +15,30 @@ pub struct BBlock {
     pub(crate) range: Range,
 }
 
+/// Node of a DFG extracted from a basic block in the Wasm code
 #[derive(Debug, Clone)]
 pub struct StackEntry {
+    /// Index of the operator in which this node start
     pub operator_idx: usize,
-    pub data: StackEntryData,
+    /// Node operand indexes
+    pub operands: Vec<usize>,
+    /// True if the current node is an undef node, which means that the data for this leaf comes from another basic block
+    pub is_undef: bool,
+    /// Byte range (not inclusive) in which the operator instruction is written
     pub byte_stream_range: Range,
+    /// Node type
+    pub tpes: Vec<PrimitiveTypeInfo>,
+    /// Index in the MiniDFG entries collection
+    pub entry_idx: usize,
 }
 
-#[derive(Debug, Clone)]
-pub enum StackEntryData {
-    Leaf,
-    Node { operands: Vec<usize> },
-    Undef,
+impl StackEntry {
+    pub fn is_leaf(&self) -> bool {
+        self.operands.len() == 0
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct MiniDFG {
     // Some of the operators have no stack entry
     // This will help to decide or not to mutate the operators, avoiding egrapphp creation, etc
@@ -81,6 +92,7 @@ impl<'a> DFGIcator {
                         // Break inmediatly
                         return None;
                     }
+                    break;
                 }
                 _ => {
                     found = true;
@@ -110,13 +122,17 @@ impl<'a> DFGIcator {
         operatormap: &mut HashMap<usize, usize>,
         stack: &mut Vec<usize>,
         parents: &mut Vec<i32>,
+        tpes: Vec<PrimitiveTypeInfo>,
     ) -> usize {
+        let entry_idx = dfg_map.len();
         let leaf = StackEntry {
             operator_idx,
             byte_stream_range: Range { start, end },
-            data: StackEntryData::Leaf,
+            operands: vec![],
+            is_undef: false,
+            tpes,
+            entry_idx,
         };
-        let entry_idx = dfg_map.len();
         operatormap.insert(operator_idx, entry_idx);
         stack.push(entry_idx);
         // Add the data flow link
@@ -134,14 +150,18 @@ impl<'a> DFGIcator {
         stack: &mut Vec<usize>,
         operands: Vec<usize>,
         parents: &mut Vec<i32>,
+        tpes: Vec<PrimitiveTypeInfo>,
     ) -> usize {
+        let entry_idx = dfg_map.len();
         let newnode = StackEntry {
             operator_idx: operator_idx,
             byte_stream_range: Range { start, end },
-            data: StackEntryData::Node { operands },
+            operands,
+            is_undef: false,
+            tpes,
+            entry_idx,
         };
 
-        let entry_idx = dfg_map.len();
         operatormap.insert(operator_idx, entry_idx);
         stack.push(entry_idx);
         // Add the data flow link
@@ -150,11 +170,41 @@ impl<'a> DFGIcator {
         entry_idx
     }
 
+    fn push_pop_node(
+        operator_idx: usize,
+        start: usize,
+        end: usize,
+        dfg_map: &mut Vec<StackEntry>,
+        operatormap: &mut HashMap<usize, usize>,
+        stack: &mut Vec<usize>,
+        operands: Vec<usize>,
+        parents: &mut Vec<i32>,
+        tpes: Vec<PrimitiveTypeInfo>,
+    ) -> usize {
+        let entry_idx = dfg_map.len();
+        let newnode = StackEntry {
+            operator_idx: operator_idx,
+            byte_stream_range: Range { start, end },
+            operands,
+            is_undef: false,
+            tpes,
+            entry_idx,
+        };
+
+        operatormap.insert(operator_idx, entry_idx);
+        stack.push(entry_idx);
+        // Add the data flow link
+        dfg_map.push(newnode);
+        parents.push(-1);
+        DFGIcator::pop_operand(stack, dfg_map, operator_idx, operatormap, parents, false)
+    }
+
     fn pop_operand(
         stack: &mut Vec<usize>,
         dfg_map: &mut Vec<StackEntry>,
         operator_idx: usize,
         operatormap: &mut HashMap<usize, usize>,
+        parents: &mut Vec<i32>,
         insertindfg: bool,
     ) -> usize {
         let idx = stack
@@ -162,19 +212,24 @@ impl<'a> DFGIcator {
             .or_else(|| {
                 // Since this represents the same for all
                 // Create 0 element as Unknown
+                let entry_idx = dfg_map.len();
                 let leaf = StackEntry {
                     operator_idx,
-                    data: StackEntryData::Undef,
+                    operands: vec![],
+                    is_undef: true,
                     byte_stream_range: Range::new(0, 0),
+                    // Check if this can be inferred from the operator
+                    tpes: vec![],
+                    entry_idx,
                 }; // Means not reachable
-                let entry_idx = dfg_map.len();
                 if insertindfg {
                     operatormap.insert(operator_idx, entry_idx);
                 }
                 //
-                stack.push(entry_idx);
+                //stack.push(entry_idx);
                 // Add the data flow link
                 dfg_map.push(leaf);
+                parents.push(-1); // no parent yet
                 Some(entry_idx)
             })
             .unwrap();
@@ -192,8 +247,8 @@ impl<'a> DFGIcator {
         &mut self,
         operators: &'a [OperatorAndByteOffset],
         basicblock: &BBlock,
-    ) -> crate::Result<MiniDFG> {
-        // TODO, check memory explotion of this
+        locals: &Vec<PrimitiveTypeInfo>,
+    ) -> Option<MiniDFG> {
         // lets handle the stack
         let mut dfg_map = Vec::new();
         let mut operatormap: HashMap<usize, usize> = HashMap::new(); // operator index to stack index
@@ -209,14 +264,16 @@ impl<'a> DFGIcator {
             let (operator, byte_offset) = &operators[idx];
             // Check if it is not EOF
 
-            let byte_offset_next = if idx == basicblock.range.end - 1 {
+            let byte_offset_next = if idx == basicblock.range.end {
                 byte_offset
             } else {
                 &operators[idx + 1].1
             };
 
             match operator {
-                Operator::GlobalGet { .. } | Operator::LocalGet { .. } => {
+                // Until type information is added
+                Operator::LocalGet { local_index } => {
+                    // This is a hack, type checking should be carried with the stack entries
                     DFGIcator::push_leaf(
                         idx,
                         *byte_offset,
@@ -225,9 +282,10 @@ impl<'a> DFGIcator {
                         &mut operatormap,
                         &mut stack,
                         &mut parents,
+                        vec![locals[*local_index as usize].clone()],
                     );
                 }
-                Operator::I32Const { value } => {
+                Operator::I32Const { .. } => {
                     DFGIcator::push_leaf(
                         idx,
                         *byte_offset,
@@ -236,9 +294,21 @@ impl<'a> DFGIcator {
                         &mut operatormap,
                         &mut stack,
                         &mut parents,
+                        vec![PrimitiveTypeInfo::I32],
                     );
                 }
-                // Watch out, type information is missing here
+                Operator::I64Const { .. } => {
+                    DFGIcator::push_leaf(
+                        idx,
+                        *byte_offset,
+                        *byte_offset_next,
+                        &mut dfg_map,
+                        &mut operatormap,
+                        &mut stack,
+                        &mut parents,
+                        vec![PrimitiveTypeInfo::I64],
+                    );
+                }
                 Operator::LocalSet { .. } | Operator::GlobalSet { .. } | Operator::Drop => {
                     // It needs the offset arg
                     let child = DFGIcator::pop_operand(
@@ -246,22 +316,23 @@ impl<'a> DFGIcator {
                         &mut dfg_map,
                         idx,
                         &mut operatormap,
+                        &mut parents,
                         true,
                     );
-
+                    let entry_idx = dfg_map.len();
                     let newnode = StackEntry {
                         operator_idx: idx,
                         byte_stream_range: Range {
                             start: *byte_offset,
                             end: *byte_offset_next,
                         },
-                        data: StackEntryData::Node {
-                            operands: vec![child],
-                        },
+                        operands: vec![child],
+                        is_undef: false,
+                        tpes: vec![],
+                        entry_idx,
                     };
 
-                    let entry_idx = dfg_map.len();
-                    operatormap.insert(idx, entry_idx);
+                    // operatormap.insert(idx, entry_idx);
                     // Add the data flow link
                     dfg_map.push(newnode);
                     parents.push(-1);
@@ -269,26 +340,19 @@ impl<'a> DFGIcator {
                     parents[child] = idx as i32;
                 }
                 // All memory loads
-                Operator::I32Load { .. }
-                | Operator::I64Load { .. }
-                | Operator::F32Load { .. }
-                | Operator::F64Load { .. }
-                | Operator::I32Load16S { .. }
-                | Operator::I32Load16U { .. }
-                | Operator::I32Load8U { .. }
-                | Operator::I32Load8S { .. }
-                | Operator::I64Load32S { .. }
-                | Operator::I64Load32U { .. }
-                | Operator::I64Load8S { .. }
-                | Operator::I64Load8U { .. } => {
-                    // It needs the offset arg
+                Operator::I32Load { memarg } => {
+                    // It needs the dynamic offset arg
                     let offset = DFGIcator::pop_operand(
                         &mut stack,
                         &mut dfg_map,
                         idx,
                         &mut operatormap,
+                        &mut parents,
                         false,
                     );
+
+                    // TODO add staticoffset, align and memory idx as stack entries.
+
                     let idx = DFGIcator::push_node(
                         idx,
                         *byte_offset,
@@ -298,34 +362,71 @@ impl<'a> DFGIcator {
                         &mut stack,
                         vec![offset],
                         &mut parents,
+                        // Add type here
+                        vec![PrimitiveTypeInfo::I32],
                     );
 
                     parents[offset] = idx as i32;
                 }
-                Operator::I32Add
-                | Operator::I32Sub
-                | Operator::I32Mul
-                | Operator::I32DivS
-                | Operator::I32DivU
-                | Operator::I32Shl
-                | Operator::I32ShrS
-                | Operator::I32ShrU => {
+                Operator::I64Load { memarg } => {
+                    // It needs the offset arg
+                    let offset = DFGIcator::pop_operand(
+                        &mut stack,
+                        &mut dfg_map,
+                        idx,
+                        &mut operatormap,
+                        &mut parents,
+                        false,
+                    );
+                    let idx = DFGIcator::push_node(
+                        idx,
+                        *byte_offset,
+                        *byte_offset_next,
+                        &mut dfg_map,
+                        &mut operatormap,
+                        &mut stack,
+                        vec![offset, ],
+                        &mut parents,
+                        // Add type here
+                        vec![PrimitiveTypeInfo::I64],
+                    );
+
+                    parents[offset] = idx as i32;
+                }
+                Operator::I64Add
+                | Operator::I64Sub
+                | Operator::I64Mul
+                | Operator::I64DivS
+                | Operator::I64DivU
+                | Operator::I64Shl
+                | Operator::I64ShrS
+                | Operator::I64Xor
+                | Operator::I64Or
+                | Operator::I64And
+                | Operator::I64ShrU => {
+                    //debug!("stack {:?} map {:?}", stack, dfg_map);
                     let leftidx = DFGIcator::pop_operand(
                         &mut stack,
                         &mut dfg_map,
                         idx,
                         &mut operatormap,
+                        &mut parents,
                         false,
                     );
+                    //debug!("stack {:?} map {:?}", stack, dfg_map);
                     let rightidx = DFGIcator::pop_operand(
                         &mut stack,
                         &mut dfg_map,
                         idx,
                         &mut operatormap,
+                        &mut parents,
                         false,
                     );
 
+                    //debug!("stack {:?} map {:?}", stack, dfg_map);
                     // The operands should not be the same
+
+                    //debug!("left {} right {} stack {:?}", leftidx, rightidx, stack);
                     assert_ne!(leftidx, rightidx);
 
                     let idx = DFGIcator::push_node(
@@ -337,18 +438,88 @@ impl<'a> DFGIcator {
                         &mut stack,
                         vec![rightidx, leftidx], // reverse order
                         &mut parents,
+                        vec![PrimitiveTypeInfo::I64],
                     );
 
                     parents[leftidx] = idx as i32;
                     parents[rightidx] = idx as i32;
                 }
+                Operator::I32Add
+                | Operator::I32Sub
+                | Operator::I32Mul
+                | Operator::I32DivS
+                | Operator::I32DivU
+                | Operator::I32Shl
+                | Operator::I32ShrS
+                | Operator::I32Xor
+                | Operator::I32Or
+                | Operator::I32And
+                | Operator::I32ShrU => {
+                    //debug!("stack {:?} map {:?}", stack, dfg_map);
+                    let leftidx = DFGIcator::pop_operand(
+                        &mut stack,
+                        &mut dfg_map,
+                        idx,
+                        &mut operatormap,
+                        &mut parents,
+                        false,
+                    );
+                    //debug!("stack {:?} map {:?}", stack, dfg_map);
+                    let rightidx = DFGIcator::pop_operand(
+                        &mut stack,
+                        &mut dfg_map,
+                        idx,
+                        &mut operatormap,
+                        &mut parents,
+                        false,
+                    );
 
+                    //debug!("stack {:?} map {:?}", stack, dfg_map);
+                    // The operands should not be the same
+
+                    //debug!("left {} right {} stack {:?}", leftidx, rightidx, stack);
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = DFGIcator::push_node(
+                        idx,
+                        *byte_offset,
+                        *byte_offset_next,
+                        &mut dfg_map,
+                        &mut operatormap,
+                        &mut stack,
+                        vec![rightidx, leftidx], // reverse order
+                        &mut parents,
+                        vec![PrimitiveTypeInfo::I32],
+                    );
+
+                    parents[leftidx] = idx as i32;
+                    parents[rightidx] = idx as i32;
+                }
+                Operator::Else | Operator::End | Operator::Nop => {
+                    // Write this down to do a small change in the original wasm
+                    let entry_idx = dfg_map.len();
+                    let newnode = StackEntry {
+                        operator_idx: idx,
+                        byte_stream_range: Range {
+                            start: *byte_offset,
+                            end: *byte_offset_next,
+                        },
+                        operands: vec![],
+                        is_undef: false,
+                        tpes: vec![],
+                        entry_idx,
+                    };
+                    dfg_map.push(newnode);
+                    parents.push(-1);
+                }
                 _ => {
-                    todo!("Not implemented yet {:?}", operator)
+                    //debug!("Bypassing operator type {:?}", operator);
+                    // If the operator is not implemented, break the mutation of this Basic Block
+                    return None;
                 }
             }
         }
-        Ok(MiniDFG {
+        Some(MiniDFG {
             entries: dfg_map,
             map: operatormap,
             parents,
@@ -358,81 +529,11 @@ impl<'a> DFGIcator {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
     use wasmparser::Parser;
 
-    use crate::{mutators::peephole::OperatorAndByteOffset, WasmMutate};
+    use crate::mutators::peephole::OperatorAndByteOffset;
 
     use super::DFGIcator;
-
-    #[test]
-    fn test_dfg_build() {
-        // A decent complex Wasm function
-        let original = &wat::parse_str(
-            r#"
-        (module
-            (memory 1)
-            (func (export "exported_func") (param i32) (result i32)
-                
-                local.get 0
-                local.get 0
-                i32.add
-                i32.load
-                if 
-                    i32.const 54
-                else
-                    i32.const 87
-                end
-                i32.const 56
-                i32.add
-                loop
-                    i32.const 1
-                    local.get 0
-                    i32.add
-                    local.set 0
-                end
-            )
-        )
-        "#,
-        )
-        .unwrap();
-
-        let mut parser = Parser::new(0);
-        let mut consumed = 0;
-        loop {
-            let (payload, size) = match parser.parse(&original[consumed..], true).unwrap() {
-                wasmparser::Chunk::NeedMoreData(_) => {
-                    panic!("This should not happen")
-                }
-                wasmparser::Chunk::Parsed { consumed, payload } => (payload, consumed),
-            };
-
-            consumed += size;
-
-            match payload {
-                wasmparser::Payload::CodeSectionEntry(reader) => {
-                    let operators = reader
-                        .get_operators_reader()
-                        .unwrap()
-                        .into_iter_with_offsets()
-                        .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()
-                        .unwrap();
-
-                    let bb = DFGIcator::new()
-                        .get_bb_from_operator(0, &operators)
-                        .unwrap();
-                    let roots = DFGIcator::new().get_dfg(&operators, &bb).unwrap();
-                }
-                wasmparser::Payload::End => {
-                    break;
-                }
-                _ => {
-                    // Do nothing
-                }
-            }
-        }
-    }
 
     #[test]
     fn test_dfg_getsinglebb() {
@@ -487,9 +588,10 @@ mod tests {
                         .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()
                         .unwrap();
 
-                    let root = DFGIcator::new()
-                        .get_bb_from_operator(5, &operators)
-                        .unwrap();
+                    let roots = DFGIcator::new()
+                        .get_bb_from_operator(5, &operators);
+
+                    assert!(roots.is_some())
                 }
                 wasmparser::Payload::End => {
                     break;
@@ -545,7 +647,8 @@ mod tests {
                     let bb = DFGIcator::new()
                         .get_bb_from_operator(0, &operators)
                         .unwrap();
-                    let roots = DFGIcator::new().get_dfg(&operators, &bb).unwrap();
+                    let roots = DFGIcator::new().get_dfg(&operators, &bb, &vec![]);
+                    assert!(roots.is_some())
                 }
                 wasmparser::Payload::End => {
                     break;

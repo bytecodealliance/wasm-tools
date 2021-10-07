@@ -1,19 +1,18 @@
+//! Mutator that replaces the body of a function with an empty body
+
 use super::Mutator;
 use crate::module::{PrimitiveTypeInfo, TypeInfo};
 use crate::{ModuleInfo, Result, WasmMutate};
 use rand::prelude::SmallRng;
-use rand::{Rng, RngCore};
-use wasm_encoder::{CodeSection, Export, ExportSection, Function, Instruction, Module};
-use wasmparser::{CodeSectionReader, ExportSectionReader};
+use rand::Rng;
+use wasm_encoder::{CodeSection, Function, Instruction, Module};
+use wasmparser::CodeSectionReader;
+
+/// Mutator that replaces the body of a function with an empty body
 pub struct SnipMutator;
 
 impl Mutator for SnipMutator {
-    fn mutate(
-        &self,
-        config: &WasmMutate,
-        rnd: &mut SmallRng,
-        info: &mut ModuleInfo,
-    ) -> Result<Module> {
+    fn mutate(&self, _: &WasmMutate, rnd: &mut SmallRng, info: &mut ModuleInfo) -> Result<Module> {
         let mut codes = CodeSection::new();
         let code_section = info.get_code_section();
         let mut reader = CodeSectionReader::new(code_section.data, 0)?;
@@ -42,6 +41,9 @@ impl Mutator for SnipMutator {
                             PrimitiveTypeInfo::F64 => {
                                 f.instruction(Instruction::F64Const(0.0));
                             }
+                            PrimitiveTypeInfo::Empty => {
+                                // Do nothing
+                            }
                         });
                     }
                     _ => panic!("Unconsistent function type"),
@@ -65,10 +67,7 @@ impl Mutator for SnipMutator {
 
 #[cfg(test)]
 mod tests {
-    use crate::WasmMutate;
-    use rand::{rngs::SmallRng, SeedableRng};
-
-    use super::{Mutator, SnipMutator};
+    use super::SnipMutator;
 
     #[test]
     fn test_code_snip_mutator() {
