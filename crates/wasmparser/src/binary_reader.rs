@@ -40,13 +40,6 @@ const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
 const WASM_EXPERIMENTAL_VERSION: u32 = 0xd;
 const WASM_SUPPORTED_VERSION: u32 = 0x1;
 
-#[derive(Clone)]
-pub(crate) struct SectionHeader<'a> {
-    pub code: SectionCode<'a>,
-    pub payload_start: usize,
-    pub payload_len: usize,
-}
-
 /// Bytecode range in the WebAssembly module.
 #[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Range {
