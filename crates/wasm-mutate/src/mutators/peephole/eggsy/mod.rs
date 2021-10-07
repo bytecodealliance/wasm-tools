@@ -117,6 +117,8 @@ where
         eclass: Id,
         max_depth: u32,
         expression_builder: impl Fn(Id, &Vec<(&L, Id)>, &Vec<Vec<Id>>) -> (RecExpr<L>, Vec<Id>),
+        max_tries: u32,
+        oracle: impl Fn(RecExpr<L>) -> bool,
     ) -> crate::Result<(RecExpr<L>, Vec<Id>)> // return the random tree, TODO, improve the way the tree is returned
     {
         // A map from a node's id to its actual node data.
@@ -168,7 +170,22 @@ where
             );
         }
         // Build the tree with the right language constructor
-        Ok(expression_builder(Id::from(0), &id_to_node, &operands))
+        let (expr, classes) = expression_builder(Id::from(0), &id_to_node, &operands);
+
+        if !oracle(expr.clone()) {
+            if max_tries > 0 {
+                return self.extract_random(
+                    rnd,
+                    eclass,
+                    max_depth,
+                    expression_builder,
+                    max_tries - 1,
+                    oracle,
+                );
+            }
+        };
+
+        return Ok((expr, classes));
     }
 }
 
@@ -232,8 +249,7 @@ mod tests {
                         .unwrap();
 
                     let mut exprroot = RecExpr::<Lang>::default();
-                    let (_, _, _) =
-                        Encoder::wasm2expr(&roots, 4, &operators, &mut exprroot).unwrap();
+                    let r = Encoder::wasm2expr(&roots, 4, &operators, &mut exprroot).unwrap();
                 }
                 wasmparser::Payload::End => {
                     break;

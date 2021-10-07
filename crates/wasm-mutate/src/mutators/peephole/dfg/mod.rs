@@ -170,6 +170,35 @@ impl<'a> DFGIcator {
         entry_idx
     }
 
+    fn push_pop_node(
+        operator_idx: usize,
+        start: usize,
+        end: usize,
+        dfg_map: &mut Vec<StackEntry>,
+        operatormap: &mut HashMap<usize, usize>,
+        stack: &mut Vec<usize>,
+        operands: Vec<usize>,
+        parents: &mut Vec<i32>,
+        tpes: Vec<PrimitiveTypeInfo>,
+    ) -> usize {
+        let entry_idx = dfg_map.len();
+        let newnode = StackEntry {
+            operator_idx: operator_idx,
+            byte_stream_range: Range { start, end },
+            operands,
+            is_undef: false,
+            tpes,
+            entry_idx,
+        };
+
+        operatormap.insert(operator_idx, entry_idx);
+        stack.push(entry_idx);
+        // Add the data flow link
+        dfg_map.push(newnode);
+        parents.push(-1);
+        DFGIcator::pop_operand(stack, dfg_map, operator_idx, operatormap, parents, false)
+    }
+
     fn pop_operand(
         stack: &mut Vec<usize>,
         dfg_map: &mut Vec<StackEntry>,
@@ -311,8 +340,8 @@ impl<'a> DFGIcator {
                     parents[child] = idx as i32;
                 }
                 // All memory loads
-                Operator::I32Load { .. } => {
-                    // It needs the offset arg
+                Operator::I32Load { memarg } => {
+                    // It needs the dynamic offset arg
                     let offset = DFGIcator::pop_operand(
                         &mut stack,
                         &mut dfg_map,
@@ -321,6 +350,9 @@ impl<'a> DFGIcator {
                         &mut parents,
                         false,
                     );
+
+                    // TODO add staticoffset, align and memory idx as stack entries.
+
                     let idx = DFGIcator::push_node(
                         idx,
                         *byte_offset,
@@ -336,7 +368,7 @@ impl<'a> DFGIcator {
 
                     parents[offset] = idx as i32;
                 }
-                Operator::I64Load { .. } => {
+                Operator::I64Load { memarg } => {
                     // It needs the offset arg
                     let offset = DFGIcator::pop_operand(
                         &mut stack,
@@ -353,7 +385,7 @@ impl<'a> DFGIcator {
                         &mut dfg_map,
                         &mut operatormap,
                         &mut stack,
-                        vec![offset],
+                        vec![offset, ],
                         &mut parents,
                         // Add type here
                         vec![PrimitiveTypeInfo::I64],
@@ -368,6 +400,9 @@ impl<'a> DFGIcator {
                 | Operator::I64DivU
                 | Operator::I64Shl
                 | Operator::I64ShrS
+                | Operator::I64Xor
+                | Operator::I64Or
+                | Operator::I64And
                 | Operator::I64ShrU => {
                     //debug!("stack {:?} map {:?}", stack, dfg_map);
                     let leftidx = DFGIcator::pop_operand(
@@ -416,6 +451,9 @@ impl<'a> DFGIcator {
                 | Operator::I32DivU
                 | Operator::I32Shl
                 | Operator::I32ShrS
+                | Operator::I32Xor
+                | Operator::I32Or
+                | Operator::I32And
                 | Operator::I32ShrU => {
                     //debug!("stack {:?} map {:?}", stack, dfg_map);
                     let leftidx = DFGIcator::pop_operand(

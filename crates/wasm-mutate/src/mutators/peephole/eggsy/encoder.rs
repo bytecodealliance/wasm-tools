@@ -1,5 +1,6 @@
 //! Helper methods for encoding eterm expressions to Wasm and back
 
+use std::collections::HashSet;
 use std::{collections::HashMap, num::Wrapping};
 
 use egg::{Id, RecExpr};
@@ -33,7 +34,7 @@ pub struct Encoder;
 
 macro_rules! eterm_operator_2_wasm {
     (@expand
-        $eclassdata:expr, $newfunc:expr, $parent_eclass:expr, $nodes:expr, $root: expr,
+        $eclassdata:expr, $newfunc:expr, $parent_eclass:expr, $nodes:expr, $root: expr, $egraph: expr,
         { $($target:tt)* }
     ) => {
            $(
@@ -41,14 +42,18 @@ macro_rules! eterm_operator_2_wasm {
            )*
     };
     (@expand
-        $eclassdata:expr, $newfunc:expr, $parent_eclass: expr, $nodes:expr, $root: expr,
+        $eclassdata:expr, $newfunc:expr, $parent_eclass: expr, $nodes:expr, $root: expr, $egraph: expr,
         $(
             $case:pat => [$($target:tt)+]
         )*
         ) => {
             match $eclassdata {
                 Some(data) => {
-                    match data.tpes[..] {
+
+                    let entry = data.get_next_stack_entry(&$egraph.analysis);
+                    let tpes = &entry.tpes[..];
+
+                    match tpes {
                         $(
                             $case => {
                                 $newfunc.instruction(
@@ -59,14 +64,16 @@ macro_rules! eterm_operator_2_wasm {
                                 Ok(())
                             }
                         )*
-                        _ => Err(crate::Error::UnsupportedType(EitherType::EggError(format!("There is no conversion between the eclass returning type ({:?}) the the available Wasm operators", data.tpes))))
+                        _ => Err(crate::Error::UnsupportedType(EitherType::EggError(format!("There is no conversion between the eclass returning type ({:?}) the the available Wasm operators", tpes))))
                     }
                 }
                 None => {
                     // Try with the parent eclass information
                     match $parent_eclass {
                         Some(data) => {
-                            match data.tpes[..] {
+                            let entry = &data.get_next_stack_entry(&$egraph.analysis);
+                            let tpes = &entry.tpes[..];
+                            match tpes {
                                 $(
                                     $case => {
                                         $newfunc.instruction(
@@ -77,7 +84,7 @@ macro_rules! eterm_operator_2_wasm {
                                         Ok(())
                                     }
                                 )*
-                                _ => Err(crate::Error::UnsupportedType(EitherType::EggError(format!("There is no conversion between the eclass returning type ({:?}) the the available Wasm operators", data.tpes))))
+                                _ => Err(crate::Error::UnsupportedType(EitherType::EggError(format!("There is no conversion between the eclass returning type ({:?}) the the available Wasm operators", tpes))))
                             }
                         }
                         None => Err(crate::Error::UnsupportedType(EitherType::EggError(format!("The current eclass has no data information {:?} {:?}", $eclassdata, $root))))
@@ -106,7 +113,26 @@ macro_rules! eterm_operator_2_wasm {
             )?;
         }
         eterm_operator_2_wasm! {
-            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root, $(
+            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root, $egraph, $(
+                $body
+            )*
+        }
+    };
+    (@write_subtree $eclassdata:expr, $newfunc:expr,  $info:expr, $rnd: expr, $nodes: expr, $root:expr, $node_to_eclass:expr, $operators:expr, $egraph: expr, $parenteclass: expr, [$operands:ident], $childcount: expr,$name4node:ident, $namefornewfunc:ident, $nameforrnd:ident, $namefor_eclass:ident, $namefor_rootclass:ident, $name4egraph: ident, $name4info: ident, $name4operators: ident
+        => {
+            $($body:tt)*
+        }
+    ) => {
+        let $name4node = $nodes;
+        let $namefornewfunc = $newfunc;
+        let $nameforrnd = $rnd;
+        let $namefor_eclass = $eclassdata;
+        let $namefor_rootclass = $parenteclass;
+        let $name4egraph = $egraph;
+        let $name4info = $info;
+        let $name4operators = $operators;
+        eterm_operator_2_wasm! {
+            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root,  $egraph, $(
                 $body
             )*
         }
@@ -139,7 +165,7 @@ macro_rules! eterm_operator_2_wasm {
         let $name4operators = $operators;
 
         eterm_operator_2_wasm! {
-            @expand $eclassdata, $newfunc , $parenteclass, $nodes, $root, $(
+            @expand $eclassdata, $newfunc , $parenteclass, $nodes, $root,  $egraph,$(
                 $body
             )*
         }
@@ -151,7 +177,7 @@ macro_rules! eterm_operator_2_wasm {
         }
     ) => {
         eterm_operator_2_wasm! {
-            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root, $(
+            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root,$egraph, $(
                 $body
             )*
         }
@@ -170,7 +196,7 @@ macro_rules! eterm_operator_2_wasm {
         let $name4info = $info;
         let $name4operators = $operators;
         eterm_operator_2_wasm! {
-            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root, $(
+            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root, $egraph, $(
                 $body
             )*
         }
@@ -236,7 +262,12 @@ impl Encoder {
             [PrimitiveTypeInfo::I64] => [Instruction::I64And]
 
         }
-        // To add a new mapping
+        [Lang::Xor(operands), [operands], 2] => {
+
+            [PrimitiveTypeInfo::I32] => [Instruction::I32Xor]
+            [PrimitiveTypeInfo::I64] => [Instruction::I64Xor]
+
+        }
         [Lang::Mul(operands), [operands], 2] => {
 
             [PrimitiveTypeInfo::I32] => [Instruction::I32Mul]
@@ -268,9 +299,11 @@ impl Encoder {
             [PrimitiveTypeInfo::I64] => [Instruction::I64Shl]
 
         }
-        [Lang::ILoad(operand), (*operand) /*between parenthesis means that this operand will be written down*/, _nodes, newfunc, _rnd, eclassdata, _rootclassdata, egraph, info, operators] => {{
+        [Lang::ILoad(operands), (operands[0]), /*between parenthesis means that this operand will be written down*/_nodes, newfunc, _rnd, eclassdata, _rootclassdata, egraph, info, operators] => {{
 
-            let entry = eclassdata.clone().unwrap().get_stack_entry(&egraph.analysis);
+            /// Process the first operand only, which is the dynamic offset
+
+            let entry = eclassdata.clone().unwrap().get_next_stack_entry(&egraph.analysis);
             let operatoridx = entry.operator_idx;
             let operators = &operators[operatoridx..=operatoridx + 1/* take to the next operator to save the offset */];
             let range = (operators[0].1, operators[1].1);
@@ -311,14 +344,16 @@ impl Encoder {
                 }
             }
         }}
-        [Lang::Unfold(value), value, n, newfunc, rnd, eclassdata, _rootclassdata, _egraph, _info, _operators] => {{
+        [Lang::Unfold(value), value, n, newfunc, rnd, eclassdata, _rootclassdata, egraph, _info, _operators] => {{
             let child = &n[usize::from(*value)];
             match child {
                 Lang::Num(value) => {
                     // getting type from eclass
                     match eclassdata {
                         Some(data) => {
-                            match data.tpes[..]{
+                            let entry = &data.get_next_stack_entry(&egraph.analysis);
+                            let tpes = &entry.tpes[..];
+                            match tpes{
                                 [PrimitiveTypeInfo::I64] => {
                                     let r: i64 = rnd.gen();
                                     //debug!("Unfolding {:?}", value);
@@ -454,50 +489,79 @@ impl Encoder {
 
     /// Maps wasm to eterm expression
     /// This method receives also a random generator, the idea is to map StackEntry operands to symbols in a random way.
-    // TODO, move this as well to macro
+    // TODO, move this as well to macro since is very repetitive
+    /// This method returns the enode(Lang) mapping the eclass and the stack entries where this enode is the same
     pub fn wasm2expr(
         dfg: &MiniDFG,
         oidx: usize,
         operators: &Vec<OperatorAndByteOffset>,
         // The wasm expressions will be added here
         expr: &mut RecExpr<Lang>, // Replace this by RecExpr
-    ) -> crate::Result<(Id, HashMap<String, usize>, HashMap<Id, usize>)> {
+    ) -> crate::Result<HashMap<Lang, (Id, Vec<usize>)>> {
         let stack_entry_index = dfg.map[&oidx];
         //debug!("Starting at operator {:?}", operators[oidx]);
+
+        fn put_enode(
+            l: Lang,
+            hashset: &mut HashMap<Lang, (Id, Vec<usize>)>,
+            entryindex: usize,
+        ) -> Id {
+            if hashset.contains_key(&l) {
+                let id = hashset[&l].0;
+                hashset.get_mut(&l).unwrap().1.push(entryindex);
+                id
+            } else {
+                let newid = Id::from(hashset.len());
+                hashset.insert(l.clone(), (newid, vec![entryindex]));
+                newid
+            }
+        }
         fn wasm2expraux(
             dfg: &MiniDFG,
             entryidx: usize,
             operators: &Vec<OperatorAndByteOffset>,
+            lang_to_stack_entries: &mut HashMap<Lang, (Id, Vec<usize>)>,
             // The wasm expressions will be added here
             expr: &mut RecExpr<Lang>, // Replace this by RecExpr
-        ) -> crate::Result<(Id, HashMap<String, usize>, HashMap<Id, usize>)> {
+        ) -> crate::Result<Id> {
             let entry = &dfg.entries[entryidx];
+
             if entry.is_undef {
-                let undefid = expr.add(Lang::Undef);
-                return Ok((
-                    undefid,
-                    HashMap::new(),
-                    hashmap![undefid => entry.entry_idx],
-                ));
+                expr.add(Lang::Undef);
+
+                // If the enode hashing is already in the egraph, the node is not added...this affects our mapping, therefore, we simulate this behavior by hashing
+                // the enode ourselves and creating the Id by the size of the hashset
+                let newid = put_enode(Lang::Undef, lang_to_stack_entries, entry.entry_idx);
+
+                return Ok(newid);
             }
             if entry.is_leaf() {
                 let (operator, _) = &operators[entry.operator_idx];
                 match operator {
                     Operator::I32Const { value } => {
-                        let id = expr.add(Lang::Num(*value as i64));
-                        Ok((
-                            id,
-                            HashMap::new(), // No symbol,
-                            hashmap![id => entry.entry_idx],
-                        ))
+                        expr.add(Lang::Num(*value as i64));
+                        let newid = put_enode(
+                            Lang::Num(*value as i64),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                        );
+                        Ok(newid)
+                    }
+                    Operator::I64Const { value } => {
+                        expr.add(Lang::Num(*value));
+                        let newid =
+                            put_enode(Lang::Num(*value), lang_to_stack_entries, entry.entry_idx);
+                        Ok(newid)
                     }
                     Operator::LocalGet { local_index } => {
                         let name = format!("?l{}", local_index);
-                        let id = expr.add(Lang::Symbol(name.clone().into()));
-                        let mut smap = HashMap::new();
-                        smap.insert(name, entryidx);
-
-                        Ok((id, smap, hashmap![id => entry.entry_idx]))
+                        expr.add(Lang::Symbol(name.clone().into()));
+                        let newid = put_enode(
+                            Lang::Symbol(name.clone().into()),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                        );
+                        Ok(newid)
                     }
                     _ => Err(crate::Error::UnsupportedType(EitherType::Operator(
                         format!("Operator {:?} is not supported as symbol", operator),
@@ -506,81 +570,110 @@ impl Encoder {
             } else {
                 let (operator, _) = &operators[entry.operator_idx];
                 let mut subexpressions = Vec::new();
-                let mut smap: HashMap<String, usize> = HashMap::new();
-                let mut id_to_stack = hashmap![];
                 for operandi in &entry.operands {
                     //debug!("operand index {}, entries {:?}", operandi, &dfg.entries);
-                    let (eterm, symbols, id_to_stackentry) =
-                        wasm2expraux(dfg, *operandi, operators, expr)?;
+                    let eterm =
+                        wasm2expraux(dfg, *operandi, operators, lang_to_stack_entries, expr)?;
                     subexpressions.push(eterm);
-                    smap.extend(symbols.into_iter());
-                    id_to_stack.extend(id_to_stackentry);
                 }
-                let operatorid = match operator {
-                    Operator::I32Shl
-                    | Operator::I32Add 
-                    | Operator::I32Sub 
-                    | Operator::I32ShrU 
-                    | Operator::I32And 
-                    | Operator::I32Or 
-                    | Operator::I32Xor 
-                    => {
+                let enode = match operator {
+                    Operator::I32Add
+                    | Operator::I32Sub
+                    | Operator::I32Mul
+                    | Operator::I32Shl
+                    | Operator::I32Xor
+                    | Operator::I32Or
+                    | Operator::I32And
+                    | Operator::I32ShrU => {
                         // Check this node has only two child
                         debug_assert_eq!(subexpressions.len(), 2);
                         match operator {
-                            Operator::I32Add => Ok(expr.add(Lang::Add([subexpressions[0], subexpressions[1]]))),
-                            Operator::I32Shl => Ok(expr.add(Lang::Shl([subexpressions[0], subexpressions[1]]))),
-                            Operator::I32Sub => Ok(expr.add(Lang::Sub([subexpressions[0], subexpressions[1]]))),
-                            Operator::I32ShrU => Ok(expr.add(Lang::ShrU([subexpressions[0], subexpressions[1]]))),
-                            Operator::I32Or => Ok(expr.add(Lang::Or([subexpressions[0], subexpressions[1]]))),
-                            Operator::I32And => Ok(expr.add(Lang::And([subexpressions[0], subexpressions[1]]))),
-                            Operator::I32Xor => Ok(expr.add(Lang::Xor([subexpressions[0], subexpressions[1]]))),
-                            _ => unreachable!()
+                            Operator::I32Add => {
+                                Ok(Lang::Add([subexpressions[0], subexpressions[1]]))
+                            }
+                            Operator::I32Shl => {
+                                Ok(Lang::Shl([subexpressions[0], subexpressions[1]]))
+                            }
+                            Operator::I32Sub => {
+                                Ok(Lang::Sub([subexpressions[0], subexpressions[1]]))
+                            }
+                            Operator::I32ShrU => {
+                                Ok(Lang::ShrU([subexpressions[0], subexpressions[1]]))
+                            }
+                            Operator::I32Or => Ok(Lang::Or([subexpressions[0], subexpressions[1]])),
+                            Operator::I32And => {
+                                Ok(Lang::And([subexpressions[0], subexpressions[1]]))
+                            }
+                            Operator::I32Xor => {
+                                Ok(Lang::Xor([subexpressions[0], subexpressions[1]]))
+                            }
+                            Operator::I32Mul => {
+                                Ok(Lang::Mul([subexpressions[0], subexpressions[1]]))
+                            }
+                            _ => unreachable!(),
                         }
                     }
-                      Operator::I64Shl
-                    | Operator::I64Add 
-                    | Operator::I64Sub 
-                    | Operator::I64ShrU 
-                    | Operator::I64And 
-                    | Operator::I64Or 
-                    | Operator::I64Xor 
-                    => {
+                    Operator::I64Add
+                    | Operator::I64Sub
+                    | Operator::I64Mul
+                    | Operator::I64Shl
+                    | Operator::I64Xor
+                    | Operator::I64Or
+                    | Operator::I64And
+                    | Operator::I64ShrU => {
                         // Check this node has only two child
                         debug_assert_eq!(subexpressions.len(), 2);
                         match operator {
-                            Operator::I64Add => Ok(expr.add(Lang::Add([subexpressions[0], subexpressions[1]]))),
-                            Operator::I64Shl => Ok(expr.add(Lang::Shl([subexpressions[0], subexpressions[1]]))),
-                            Operator::I64Sub => Ok(expr.add(Lang::Sub([subexpressions[0], subexpressions[1]]))),
-                            Operator::I64ShrU => Ok(expr.add(Lang::ShrU([subexpressions[0], subexpressions[1]]))),
-                            Operator::I64Or => Ok(expr.add(Lang::Or([subexpressions[0], subexpressions[1]]))),
-                            Operator::I64And => Ok(expr.add(Lang::And([subexpressions[0], subexpressions[1]]))),
-                            Operator::I64Xor => Ok(expr.add(Lang::Xor([subexpressions[0], subexpressions[1]]))),
-                            _ => unreachable!()
+                            Operator::I64Add => {
+                                Ok(Lang::Add([subexpressions[0], subexpressions[1]]))
+                            }
+                            Operator::I64Shl => {
+                                Ok(Lang::Shl([subexpressions[0], subexpressions[1]]))
+                            }
+                            Operator::I64Sub => {
+                                Ok(Lang::Sub([subexpressions[0], subexpressions[1]]))
+                            }
+                            Operator::I64ShrU => {
+                                Ok(Lang::ShrU([subexpressions[0], subexpressions[1]]))
+                            }
+                            Operator::I64Or => Ok(Lang::Or([subexpressions[0], subexpressions[1]])),
+                            Operator::I64And => {
+                                Ok(Lang::And([subexpressions[0], subexpressions[1]]))
+                            }
+                            Operator::I64Xor => {
+                                Ok(Lang::Xor([subexpressions[0], subexpressions[1]]))
+                            }
+                            Operator::I64Mul => {
+                                Ok(Lang::Mul([subexpressions[0], subexpressions[1]]))
+                            }
+                            _ => unreachable!(),
                         }
                     }
-                    Operator::I32Load { .. } 
-                    | Operator::I64Load { .. } 
-                    // TODO add others
-                    => {
+                    Operator::I32Load { memarg } | Operator::I64Load { memarg } => {
                         debug_assert_eq!(subexpressions.len(), 1);
-                        Ok(expr.add(Lang::ILoad(subexpressions[0])))
+                        //let staticoffset = put_enode(Lang::Num(memarg.offset as i64), lang_to_stack_entries, entry.entry_idx);
+                        //let align = put_enode(Lang::Num(memarg.align as i64), lang_to_stack_entries, entry.entry_idx);
+                        //let mem = put_enode(Lang::Num(memarg.memory as i64), lang_to_stack_entries, entry.entry_idx);
+                        Ok(Lang::ILoad([subexpressions[0]]))
                     }
-                    Operator::I32Popcnt { .. } 
-                    => {
+                    Operator::I32Popcnt { .. } => {
                         debug_assert_eq!(subexpressions.len(), 1);
-                        Ok(expr.add(Lang::Popcnt(subexpressions[0])))
+                        Ok(Lang::Popcnt(subexpressions[0]))
                     }
-                    Operator::Drop => Ok(expr.add(Lang::Drop)),
+                    Operator::Drop => Ok(Lang::Drop),
                     _ => Err(crate::Error::UnsupportedType(EitherType::Operator(
                         format!("The operator {:?} cannot be mapped to egg lang", operator),
                     ))),
                 }?;
-                id_to_stack.insert(operatorid, entry.entry_idx);
-                Ok((operatorid, smap, id_to_stack))
+
+                expr.add(enode.clone());
+                let newid = put_enode(enode.clone(), lang_to_stack_entries, entry.entry_idx);
+                Ok(newid)
             }
         }
-        wasm2expraux(dfg, stack_entry_index, operators, expr)
+        let mut r = HashMap::new();
+        wasm2expraux(dfg, stack_entry_index, operators, &mut r, expr)?;
+        Ok(r)
     }
     /// Build RecExpr from tree information
     pub fn build_expr(
@@ -619,7 +712,8 @@ impl Encoder {
                 Event::Exit => {
                     let operands = &operands[usize::from(node)];
                     let operand = |i| node_to_id[&operands[i]];
-                    let sub_expr_id = match &id_to_node[usize::from(node)].0 {
+                    let (term, eclass) = &id_to_node[usize::from(node)];
+                    let sub_expr_id = match term {
                         Lang::Add(_) => expr.add(Lang::Add([operand(0), operand(1)])),
                         Lang::Sub(_) => expr.add(Lang::Sub([operand(0), operand(1)])),
                         Lang::Mul(_) => expr.add(Lang::Mul([operand(0), operand(1)])),
@@ -630,14 +724,13 @@ impl Encoder {
                         Lang::ShrU(_) => expr.add(Lang::ShrU([operand(0), operand(1)])),
                         Lang::Popcnt(_) => expr.add(Lang::Popcnt(operand(0))),
                         Lang::Unfold(op) => expr.add(Lang::Unfold(*op)),
-                        Lang::ILoad(_) => expr.add(Lang::ILoad(operand(0))),
+                        Lang::ILoad(_) => expr.add(Lang::ILoad([operand(0)])),
                         c @ Lang::Num(_) => expr.add((*c).clone()),
                         s @ Lang::Symbol(_) => expr.add((*s).clone()),
                         s @ Lang::Rand => expr.add((*s).clone()),
                         u @ Lang::Undef => expr.add((*u).clone()),
                         d @ Lang::Drop => expr.add((*d).clone()),
                     };
-                    let eclass = &id_to_node[usize::from(node)].1;
                     node_to_eclass.push(*eclass);
                     // Copy the id to stack entries to a new one
                     let old_entry = node_to_id.insert(node, sub_expr_id);

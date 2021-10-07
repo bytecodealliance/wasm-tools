@@ -15,7 +15,7 @@ define_language! {
         "popcnt" = Popcnt(Id),
         "drop" = Drop,
         // Memory operations
-        "load" = ILoad(Id),
+        "load" = ILoad([Id;1]), // dynamic offset, offset, align mem value
         // TODO add the others
 
         // Custom mutation operations and instructions
