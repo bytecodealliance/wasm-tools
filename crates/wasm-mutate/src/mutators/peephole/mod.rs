@@ -156,7 +156,7 @@ impl PeepholeMutator {
 
                                 let analysis = PeepholeMutationAnalysis::new(
                                     lang_to_stack_entries.clone(),
-                                    minidfg.clone()
+                                    minidfg.clone(),
                                 );
                                 let runner =
                                     Runner::<Lang, PeepholeMutationAnalysis, ()>::new(analysis)
@@ -177,16 +177,16 @@ impl PeepholeMutator {
                                     rnd,
                                     root,
                                     /* only 1 for now */ 0,
-                                    Encoder::build_expr, 
-                                    /* max tries */ 1, 
-                                    |expr| !expr.to_string().eq(&start.to_string())
+                                    Encoder::build_expr,
+                                    /* max tries */ 1,
+                                    |expr| !expr.to_string().eq(&start.to_string()),
                                 )?;
 
                                 if expr.to_string().eq(&start.to_string()) {
                                     continue;
                                 }
 
-                                debug!("Applied mutation {:?} {:?}", expr.as_ref(), node_to_eclass);
+                                debug!("Applied mutation {} for {}", expr, start);
 
                                 let mut newfunc = self.copy_locals(reader)?;
 
@@ -285,8 +285,8 @@ impl Mutator for PeepholeMutator {
 
         let mut rules = vec![
             rewrite!("unfold-2";  "?x" => "(unfold ?x)" if self.is_const("?x") ),
-            rewrite!("xor-x-x";  "(xor ?x ?x)" => "0" )
-            ];
+            rewrite!("xor-x-x";  "(xor ?x ?x)" => "0" ),
+        ];
         // Use a custom instruction-mutator for this
         // This specific rewriting rule has a condition, it should be appplied if the operand is a constant
         rules.extend(rewrite!("strength-undo";  "(shl ?x 1)" <=> "(mul ?x 2)"));
@@ -308,10 +308,8 @@ impl Mutator for PeepholeMutator {
         rules.extend(rewrite!("idempotent-4";  "?x" <=> "(add ?x 0)" ));
         rules.extend(rewrite!("idempotent-5";  "?x" <=> "(xor ?x 0)" ));
 
-
-
         if !config.preserve_semantics {
-            rules.push(rewrite!("mem-load-shift";  "(load ?x)" => "(load (add ?x rand))"))
+            rules.push(rewrite!("mem-load-shift";  "(load ?x ?y ?z ?w)" => "(load (add ?x rand) ?y ?z ?w)"))
             // Check why this is generating a lot of the same replacements
             // Add corretness attraction ones
             // x  = x + 1
@@ -635,52 +633,6 @@ mod tests {
     }
 
     #[test]
-    fn test_peep_commutative2() {
-        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("commutative-2";  "(add ?x ?y)" => "(add ?y ?x)")];
-
-        test_peephole_mutator(
-            r#"
-        (module
-            (func (export "exported_func") (result i32) (local i32 i32)
-                i32.const 1
-                if
-                    i32.const 67
-                    drop
-                else
-                    i32.const 100
-                    drop
-                end
-                i32.const 42
-                i32.const 1
-                i32.add
-            )
-        )
-        "#,
-            rules,
-            r#"
-            (module
-                (type (;0;) (func (result i32)))
-                (func (;0;) (type 0) (result i32)
-                  (local i32 i32)
-                  i32.const 1
-                    if
-                        i32.const 67
-                        drop
-                    else
-                        i32.const 100
-                        drop
-                    end
-                  i32.const 1
-                  i32.const 42
-                  i32.add)
-                (export "exported_func" (func 0)))
-            "#,
-            0,
-        );
-    }
-
-    #[test]
     fn test_peep_idem1() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
             &[rewrite!("idempotent-1";  "?x" => "(or ?x ?x)")];
@@ -707,7 +659,6 @@ mod tests {
             0,
         );
     }
-
 
     #[test]
     fn test_peep_idem3() {
@@ -856,7 +807,7 @@ mod tests {
     #[test]
     fn test_peep_mem_shift() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("mem-load-shift";  "(load ?x)" => "(load (add ?x rand))")];
+            &[rewrite!("mem-load-shift";  "(load ?x ?y ?z ?w)" => "(load (add ?x rand) ?y ?z ?w)")];
 
         test_peephole_mutator(
             r#"
@@ -909,7 +860,7 @@ mod tests {
         let mut validator = wasmparser::Validator::new();
         let mutated_bytes = &mutated.finish();
         crate::validate(&mut validator, mutated_bytes);
-        let text = wasmprinter::print_bytes(mutated_bytes).unwrap();    
+        let text = wasmprinter::print_bytes(mutated_bytes).unwrap();
 
         let expected_bytes = &wat::parse_str(expected).unwrap();
         let expectedtext = wasmprinter::print_bytes(expected_bytes).unwrap();

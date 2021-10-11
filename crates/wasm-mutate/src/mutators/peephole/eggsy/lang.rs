@@ -15,7 +15,7 @@ define_language! {
         "popcnt" = Popcnt(Id),
         "drop" = Drop,
         // Memory operations
-        "load" = ILoad([Id;1]), // dynamic offset, offset, align mem value
+        "load" = ILoad([Id;4]), // dynamic offset, offset, align mem value
         // TODO add the others
 
         // Custom mutation operations and instructions
@@ -37,5 +37,15 @@ define_language! {
         Num(i64),
         // NB: must be last since variants are parsed in order.
         Symbol(Symbol),
+
+        // Use the following to internally pass arguments and not parsed as number constants
+        // Since variants will be parsed in order, this wont be created directly from `parse`
+        Arg(u64),
+    }
+}
+
+impl Default for Lang {
+    fn default() -> Self {
+        Lang::Undef
     }
 }

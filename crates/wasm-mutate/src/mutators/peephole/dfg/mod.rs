@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Index};
 
 use wasmparser::{Operator, Range};
 
@@ -19,22 +19,36 @@ pub struct BBlock {
 #[derive(Debug, Clone)]
 pub struct StackEntry {
     /// Index of the operator in which this node start
-    pub operator_idx: usize,
+    pub operator: StackType,
     /// Node operand indexes
     pub operands: Vec<usize>,
-    /// True if the current node is an undef node, which means that the data for this leaf comes from another basic block
-    pub is_undef: bool,
-    /// Byte range (not inclusive) in which the operator instruction is written
-    pub byte_stream_range: Range,
     /// Node type
     pub tpes: Vec<PrimitiveTypeInfo>,
     /// Index in the MiniDFG entries collection
     pub entry_idx: usize,
 }
 
+/// This is the IR used to turn wasm to eterm and back
+/// It separates the operator logic from the type information and destackifies the Wasm code
+#[derive(Debug, Clone)]
+pub enum StackType {
+    I32(i32),
+    I64(i64),
+    LocalGet(u32 /*Index*/),
+    LocalSet(u32),
+    // static ofsset, mem align, mem index
+    Load(u64, u8, u32),
+    Undef,
+    IndexAtCode(usize, usize),
+}
+
 impl StackEntry {
     pub fn is_leaf(&self) -> bool {
-        self.operands.len() == 0
+        if let StackType::Undef = self.operator {
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -115,9 +129,8 @@ impl<'a> DFGIcator {
     }
 
     fn push_leaf(
+        operator: StackType,
         operator_idx: usize,
-        start: usize,
-        end: usize,
         dfg_map: &mut Vec<StackEntry>,
         operatormap: &mut HashMap<usize, usize>,
         stack: &mut Vec<usize>,
@@ -126,10 +139,8 @@ impl<'a> DFGIcator {
     ) -> usize {
         let entry_idx = dfg_map.len();
         let leaf = StackEntry {
-            operator_idx,
-            byte_stream_range: Range { start, end },
+            operator,
             operands: vec![],
-            is_undef: false,
             tpes,
             entry_idx,
         };
@@ -142,9 +153,8 @@ impl<'a> DFGIcator {
     }
 
     fn push_node(
+        operator: StackType,
         operator_idx: usize,
-        start: usize,
-        end: usize,
         dfg_map: &mut Vec<StackEntry>,
         operatormap: &mut HashMap<usize, usize>,
         stack: &mut Vec<usize>,
@@ -154,10 +164,8 @@ impl<'a> DFGIcator {
     ) -> usize {
         let entry_idx = dfg_map.len();
         let newnode = StackEntry {
-            operator_idx: operator_idx,
-            byte_stream_range: Range { start, end },
+            operator,
             operands,
-            is_undef: false,
             tpes,
             entry_idx,
         };
@@ -168,35 +176,6 @@ impl<'a> DFGIcator {
         dfg_map.push(newnode);
         parents.push(-1);
         entry_idx
-    }
-
-    fn push_pop_node(
-        operator_idx: usize,
-        start: usize,
-        end: usize,
-        dfg_map: &mut Vec<StackEntry>,
-        operatormap: &mut HashMap<usize, usize>,
-        stack: &mut Vec<usize>,
-        operands: Vec<usize>,
-        parents: &mut Vec<i32>,
-        tpes: Vec<PrimitiveTypeInfo>,
-    ) -> usize {
-        let entry_idx = dfg_map.len();
-        let newnode = StackEntry {
-            operator_idx: operator_idx,
-            byte_stream_range: Range { start, end },
-            operands,
-            is_undef: false,
-            tpes,
-            entry_idx,
-        };
-
-        operatormap.insert(operator_idx, entry_idx);
-        stack.push(entry_idx);
-        // Add the data flow link
-        dfg_map.push(newnode);
-        parents.push(-1);
-        DFGIcator::pop_operand(stack, dfg_map, operator_idx, operatormap, parents, false)
     }
 
     fn pop_operand(
@@ -214,10 +193,8 @@ impl<'a> DFGIcator {
                 // Create 0 element as Unknown
                 let entry_idx = dfg_map.len();
                 let leaf = StackEntry {
-                    operator_idx,
+                    operator: StackType::Undef,
                     operands: vec![],
-                    is_undef: true,
-                    byte_stream_range: Range::new(0, 0),
                     // Check if this can be inferred from the operator
                     tpes: vec![],
                     entry_idx,
@@ -261,23 +238,16 @@ impl<'a> DFGIcator {
 
         for idx in basicblock.range.start..basicblock.range.end {
             // We dont care about the jump
-            let (operator, byte_offset) = &operators[idx];
+            let (operator, _) = &operators[idx];
             // Check if it is not EOF
-
-            let byte_offset_next = if idx == basicblock.range.end {
-                byte_offset
-            } else {
-                &operators[idx + 1].1
-            };
 
             match operator {
                 // Until type information is added
                 Operator::LocalGet { local_index } => {
                     // This is a hack, type checking should be carried with the stack entries
                     DFGIcator::push_leaf(
+                        StackType::LocalGet(*local_index),
                         idx,
-                        *byte_offset,
-                        *byte_offset_next,
                         &mut dfg_map,
                         &mut operatormap,
                         &mut stack,
@@ -285,11 +255,10 @@ impl<'a> DFGIcator {
                         vec![locals[*local_index as usize].clone()],
                     );
                 }
-                Operator::I32Const { .. } => {
+                Operator::I32Const { value } => {
                     DFGIcator::push_leaf(
+                        StackType::I32(*value),
                         idx,
-                        *byte_offset,
-                        *byte_offset_next,
                         &mut dfg_map,
                         &mut operatormap,
                         &mut stack,
@@ -297,11 +266,10 @@ impl<'a> DFGIcator {
                         vec![PrimitiveTypeInfo::I32],
                     );
                 }
-                Operator::I64Const { .. } => {
+                Operator::I64Const { value } => {
                     DFGIcator::push_leaf(
+                        StackType::I64(*value),
                         idx,
-                        *byte_offset,
-                        *byte_offset_next,
                         &mut dfg_map,
                         &mut operatormap,
                         &mut stack,
@@ -309,7 +277,7 @@ impl<'a> DFGIcator {
                         vec![PrimitiveTypeInfo::I64],
                     );
                 }
-                Operator::LocalSet { .. } | Operator::GlobalSet { .. } | Operator::Drop => {
+                Operator::LocalSet { local_index } => {
                     // It needs the offset arg
                     let child = DFGIcator::pop_operand(
                         &mut stack,
@@ -321,22 +289,15 @@ impl<'a> DFGIcator {
                     );
                     let entry_idx = dfg_map.len();
                     let newnode = StackEntry {
-                        operator_idx: idx,
-                        byte_stream_range: Range {
-                            start: *byte_offset,
-                            end: *byte_offset_next,
-                        },
+                        operator: StackType::LocalSet(*local_index),
                         operands: vec![child],
-                        is_undef: false,
                         tpes: vec![],
                         entry_idx,
                     };
 
                     // operatormap.insert(idx, entry_idx);
-                    // Add the data flow link
                     dfg_map.push(newnode);
                     parents.push(-1);
-
                     parents[child] = idx as i32;
                 }
                 // All memory loads
@@ -354,9 +315,8 @@ impl<'a> DFGIcator {
                     // TODO add staticoffset, align and memory idx as stack entries.
 
                     let idx = DFGIcator::push_node(
+                        StackType::Load(memarg.offset, memarg.align, memarg.memory),
                         idx,
-                        *byte_offset,
-                        *byte_offset_next,
                         &mut dfg_map,
                         &mut operatormap,
                         &mut stack,
@@ -379,13 +339,12 @@ impl<'a> DFGIcator {
                         false,
                     );
                     let idx = DFGIcator::push_node(
+                        StackType::Load(memarg.offset, memarg.align, memarg.memory),
                         idx,
-                        *byte_offset,
-                        *byte_offset_next,
                         &mut dfg_map,
                         &mut operatormap,
                         &mut stack,
-                        vec![offset, ],
+                        vec![offset],
                         &mut parents,
                         // Add type here
                         vec![PrimitiveTypeInfo::I64],
@@ -430,9 +389,8 @@ impl<'a> DFGIcator {
                     assert_ne!(leftidx, rightidx);
 
                     let idx = DFGIcator::push_node(
+                        StackType::IndexAtCode(idx, 2),
                         idx,
-                        *byte_offset,
-                        *byte_offset_next,
                         &mut dfg_map,
                         &mut operatormap,
                         &mut stack,
@@ -481,9 +439,8 @@ impl<'a> DFGIcator {
                     assert_ne!(leftidx, rightidx);
 
                     let idx = DFGIcator::push_node(
+                        StackType::IndexAtCode(idx, 2),
                         idx,
-                        *byte_offset,
-                        *byte_offset_next,
                         &mut dfg_map,
                         &mut operatormap,
                         &mut stack,
@@ -495,17 +452,12 @@ impl<'a> DFGIcator {
                     parents[leftidx] = idx as i32;
                     parents[rightidx] = idx as i32;
                 }
-                Operator::Else | Operator::End | Operator::Nop => {
+                Operator::Else | Operator::End | Operator::Nop | Operator::Drop => {
                     // Write this down to do a small change in the original wasm
                     let entry_idx = dfg_map.len();
                     let newnode = StackEntry {
-                        operator_idx: idx,
-                        byte_stream_range: Range {
-                            start: *byte_offset,
-                            end: *byte_offset_next,
-                        },
+                        operator: StackType::IndexAtCode(idx, 2),
                         operands: vec![],
-                        is_undef: false,
                         tpes: vec![],
                         entry_idx,
                     };
@@ -588,8 +540,7 @@ mod tests {
                         .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()
                         .unwrap();
 
-                    let roots = DFGIcator::new()
-                        .get_bb_from_operator(5, &operators);
+                    let roots = DFGIcator::new().get_bb_from_operator(5, &operators);
 
                     assert!(roots.is_some())
                 }

@@ -5,11 +5,13 @@ use std::{collections::HashMap, num::Wrapping};
 
 use egg::{Id, RecExpr};
 use rand::Rng;
-use wasm_encoder::{Function, Instruction};
+use wasm_encoder::{Function, Instruction, MemArg};
 use wasmparser::Operator;
 
 use crate::module::PrimitiveTypeInfo;
+use crate::mutators::peephole::dfg::StackType;
 use crate::mutators::peephole::{Lang, EG};
+use crate::Error;
 use crate::{
     error::EitherType,
     mutators::peephole::{
@@ -20,14 +22,6 @@ use crate::{
 };
 
 use super::analysis::ClassData;
-
-macro_rules! hashmap {
-    ($( $key: expr => $val: expr ),*) => {{
-         let mut map = ::std::collections::HashMap::new();
-         $( map.insert($key, $val); )*
-         map
-    }}
-}
 
 /// Turns wasm to eterm and back
 pub struct Encoder;
@@ -223,6 +217,7 @@ macro_rules! eterm_operator_2_wasm {
 
             let root = &nodes[usize::from(current)];
             let eclass = node_to_eclass[usize::from(current)];
+
             let data = &egraph[eclass].data;
 
             match root {
@@ -300,19 +295,33 @@ impl Encoder {
 
         }
         [Lang::ILoad(operands), (operands[0]), /*between parenthesis means that this operand will be written down*/_nodes, newfunc, _rnd, eclassdata, _rootclassdata, egraph, info, operators] => {{
-
-            /// Process the first operand only, which is the dynamic offset
-
             let entry = eclassdata.clone().unwrap().get_next_stack_entry(&egraph.analysis);
-            let operatoridx = entry.operator_idx;
-            let operators = &operators[operatoridx..=operatoridx + 1/* take to the next operator to save the offset */];
-            let range = (operators[0].1, operators[1].1);
-
-            // Copy the mem operation
-            let raw_data = &info.get_code_section().data[range.0..range.1];
-            ////debug!("Mem operator raw {:?} {:?}", raw_data, operators);
-            newfunc.raw(raw_data.iter().copied());
-
+            if let StackType::Load(offset, align, idx) = entry.operator {
+                match entry.tpes[..] {
+                    [PrimitiveTypeInfo::I32] => {
+                        newfunc.instruction(Instruction::I32Load(
+                            MemArg{
+                                offset: offset, // These can be mutated as well
+                                align: align as u32,
+                                memory_index: idx,
+                            }
+                        ));
+                    },
+                    [PrimitiveTypeInfo::I64] => {
+                        newfunc.instruction(Instruction::I64Load(
+                            MemArg{
+                                offset: offset,
+                                align: align as u32,
+                                memory_index: idx,
+                            }
+                        ));
+                    },
+                    _ => panic!("Replace with err")
+                }
+            }
+            else {
+                unreachable!("Incorrect mapping")
+            }
             Ok(())
         }}
 
@@ -325,23 +334,13 @@ impl Encoder {
             Ok(())
         }}
         [Lang::Symbol(s), s, _n, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, info, _operators] => {{
-            let entry = &egraph.analysis.get_stack_entry_from_symbol(s.to_string());
-            match entry {
-                Some(entry) => {
-                    // Entry could not be an indepent symbol
-                    if entry.is_leaf() {
-                        let bytes = &info.get_code_section().data
-                            [entry.byte_stream_range.start..entry.byte_stream_range.end];
-                        ////debug!("Symbol {:?}, raw bytes: {:?}", s, bytes);
-                        newfunc.raw(bytes.iter().copied());
-                        Ok(())
-                    } else {
-                        return Err(crate::Error::UnsupportedType(EitherType::TypeDef(format!("A leaf stack entry that cannot be mapped directly to a Symbol is not right"))));
-                    }
-                }
-                None => {
-                    return Err(crate::Error::UnsupportedType(EitherType::TypeDef(format!("A leaf stack entry that cannot be mapped directly to a Symbol is not right"))));
-                }
+            let entry = &egraph.analysis.get_stack_entry_from_symbol(s.to_string()).ok_or(crate::Error::UnsupportedType(EitherType::EggError(format!("The current eterm cannot be unfolded"))))?;
+            if let StackType::LocalGet(idx) = entry.operator {
+                newfunc.instruction(Instruction::LocalGet(idx));
+                Ok(())
+            }
+            else{
+                Err(crate::Error::UnsupportedType(EitherType::EggError(format!("Incorrect stack type"))))
             }
         }}
         [Lang::Unfold(value), value, n, newfunc, rnd, eclassdata, _rootclassdata, egraph, _info, _operators] => {{
@@ -410,23 +409,67 @@ impl Encoder {
         info: &ModuleInfo,
         egraph: &EG,
         entry: &StackEntry,
-        _: usize,
+        operators: &Vec<OperatorAndByteOffset>,
         newfunc: &mut Function,
     ) -> crate::Result<()> {
         // Write the deps in the dfg
         // Process operands
-        if entry.is_undef {
+        if let StackType::Undef = entry.operator {
             // Do nothing
             // log
         } else {
             for idx in &entry.operands {
                 let entry = &egraph.analysis.get_stack_entry(*idx);
-                Encoder::writestackentry(info, egraph, entry, *idx, newfunc)?;
+                Encoder::writestackentry(info, egraph, entry, operators, newfunc)?;
             }
             // Write the operator
-            let bytes = &info.get_code_section().data
-                [entry.byte_stream_range.start..entry.byte_stream_range.end];
-            newfunc.raw(bytes.iter().copied());
+
+            match entry.operator {
+                StackType::I32(val) => {
+                    newfunc.instruction(Instruction::I32Const(val));
+                }
+                StackType::I64(val) => {
+                    newfunc.instruction(Instruction::I64Const(val));
+                }
+                StackType::LocalGet(idx) => {
+                    newfunc.instruction(Instruction::LocalGet(idx));
+                }
+                StackType::LocalSet(idx) => {
+                    newfunc.instruction(Instruction::LocalSet(idx));
+                }
+                StackType::Load(static_offset, align, idx) => {
+                    // Here it depends on the type
+                    // TODO add the other operands here as well
+                    match entry.tpes[..] {
+                        [PrimitiveTypeInfo::I32] => {
+                            newfunc.instruction(Instruction::I32Load(MemArg {
+                                offset: static_offset,
+                                align: align as u32,
+                                memory_index: idx,
+                            }));
+                        }
+                        [PrimitiveTypeInfo::I64] => {
+                            newfunc.instruction(Instruction::I64Load(MemArg {
+                                offset: static_offset,
+                                align: align as u32,
+                                memory_index: idx,
+                            }));
+                        }
+                        _ => panic!("Replace with err"),
+                    }
+                }
+                StackType::Undef => {
+                    // Do nothing
+                }
+                StackType::IndexAtCode(operatoridx, _) => {
+                    // Copy as it is
+                    let range = (operatoridx, operatoridx + 1);
+                    let range = &operators[range.0..=range.1];
+                    let range = [range[0].1, range[1].1];
+                    let raw_data = &info.get_code_section().data[range[0]..range[1]];
+                    newfunc.raw(raw_data.iter().copied());
+                }
+            }
         }
         Ok(())
     }
@@ -456,7 +499,7 @@ impl Encoder {
             if *parentidx == -1 {
                 // It is a root, write then
                 let entry = &egraph.analysis.get_stack_entry(entryidx);
-                if entry.operator_idx == insertion_point {
+                if entryidx == insertion_point {
                     //debug!("Writing mutation");
                     Encoder::expr2wasm(
                         info,
@@ -469,8 +512,7 @@ impl Encoder {
                     )?;
                 } else {
                     // Copy the stack entry as it is
-                    //debug!("writing no mutated DFG at {:?}", entry.operator_idx);
-                    Encoder::writestackentry(info, &egraph, entry, entryidx, newfunc)?;
+                    Encoder::writestackentry(info, &egraph, entry, operators, newfunc)?;
                 }
             }
         }
@@ -499,12 +541,13 @@ impl Encoder {
         expr: &mut RecExpr<Lang>, // Replace this by RecExpr
     ) -> crate::Result<HashMap<Lang, (Id, Vec<usize>)>> {
         let stack_entry_index = dfg.map[&oidx];
-        //debug!("Starting at operator {:?}", operators[oidx]);
-
+        // If the enode hashing is already in the egraph, the node is not added...this affects our mapping, therefore, we simulate this behavior by hashing
+        // the enode ourselves and creating the Id by the size of the hashset
         fn put_enode(
             l: Lang,
             hashset: &mut HashMap<Lang, (Id, Vec<usize>)>,
             entryindex: usize,
+            expr: &mut RecExpr<Lang>, // Replace this by RecExpr
         ) -> Id {
             if hashset.contains_key(&l) {
                 let id = hashset[&l].0;
@@ -513,6 +556,7 @@ impl Encoder {
             } else {
                 let newid = Id::from(hashset.len());
                 hashset.insert(l.clone(), (newid, vec![entryindex]));
+                expr.add(l.clone());
                 newid
             }
         }
@@ -526,151 +570,150 @@ impl Encoder {
         ) -> crate::Result<Id> {
             let entry = &dfg.entries[entryidx];
 
-            if entry.is_undef {
-                expr.add(Lang::Undef);
-
-                // If the enode hashing is already in the egraph, the node is not added...this affects our mapping, therefore, we simulate this behavior by hashing
-                // the enode ourselves and creating the Id by the size of the hashset
-                let newid = put_enode(Lang::Undef, lang_to_stack_entries, entry.entry_idx);
-
+            if let StackType::Undef = entry.operator {
+                let newid = put_enode(Lang::Undef, lang_to_stack_entries, entry.entry_idx, expr);
                 return Ok(newid);
             }
-            if entry.is_leaf() {
-                let (operator, _) = &operators[entry.operator_idx];
-                match operator {
-                    Operator::I32Const { value } => {
-                        expr.add(Lang::Num(*value as i64));
-                        let newid = put_enode(
-                            Lang::Num(*value as i64),
-                            lang_to_stack_entries,
-                            entry.entry_idx,
-                        );
-                        Ok(newid)
-                    }
-                    Operator::I64Const { value } => {
-                        expr.add(Lang::Num(*value));
-                        let newid =
-                            put_enode(Lang::Num(*value), lang_to_stack_entries, entry.entry_idx);
-                        Ok(newid)
-                    }
-                    Operator::LocalGet { local_index } => {
-                        let name = format!("?l{}", local_index);
-                        expr.add(Lang::Symbol(name.clone().into()));
-                        let newid = put_enode(
-                            Lang::Symbol(name.clone().into()),
-                            lang_to_stack_entries,
-                            entry.entry_idx,
-                        );
-                        Ok(newid)
-                    }
-                    _ => Err(crate::Error::UnsupportedType(EitherType::Operator(
-                        format!("Operator {:?} is not supported as symbol", operator),
-                    ))),
-                }
-            } else {
-                let (operator, _) = &operators[entry.operator_idx];
-                let mut subexpressions = Vec::new();
-                for operandi in &entry.operands {
-                    //debug!("operand index {}, entries {:?}", operandi, &dfg.entries);
-                    let eterm =
-                        wasm2expraux(dfg, *operandi, operators, lang_to_stack_entries, expr)?;
-                    subexpressions.push(eterm);
-                }
-                let enode = match operator {
-                    Operator::I32Add
-                    | Operator::I32Sub
-                    | Operator::I32Mul
-                    | Operator::I32Shl
-                    | Operator::I32Xor
-                    | Operator::I32Or
-                    | Operator::I32And
-                    | Operator::I32ShrU => {
-                        // Check this node has only two child
-                        debug_assert_eq!(subexpressions.len(), 2);
-                        match operator {
-                            Operator::I32Add => {
-                                Ok(Lang::Add([subexpressions[0], subexpressions[1]]))
-                            }
-                            Operator::I32Shl => {
-                                Ok(Lang::Shl([subexpressions[0], subexpressions[1]]))
-                            }
-                            Operator::I32Sub => {
-                                Ok(Lang::Sub([subexpressions[0], subexpressions[1]]))
-                            }
-                            Operator::I32ShrU => {
-                                Ok(Lang::ShrU([subexpressions[0], subexpressions[1]]))
-                            }
-                            Operator::I32Or => Ok(Lang::Or([subexpressions[0], subexpressions[1]])),
-                            Operator::I32And => {
-                                Ok(Lang::And([subexpressions[0], subexpressions[1]]))
-                            }
-                            Operator::I32Xor => {
-                                Ok(Lang::Xor([subexpressions[0], subexpressions[1]]))
-                            }
-                            Operator::I32Mul => {
-                                Ok(Lang::Mul([subexpressions[0], subexpressions[1]]))
-                            }
-                            _ => unreachable!(),
-                        }
-                    }
-                    Operator::I64Add
-                    | Operator::I64Sub
-                    | Operator::I64Mul
-                    | Operator::I64Shl
-                    | Operator::I64Xor
-                    | Operator::I64Or
-                    | Operator::I64And
-                    | Operator::I64ShrU => {
-                        // Check this node has only two child
-                        debug_assert_eq!(subexpressions.len(), 2);
-                        match operator {
-                            Operator::I64Add => {
-                                Ok(Lang::Add([subexpressions[0], subexpressions[1]]))
-                            }
-                            Operator::I64Shl => {
-                                Ok(Lang::Shl([subexpressions[0], subexpressions[1]]))
-                            }
-                            Operator::I64Sub => {
-                                Ok(Lang::Sub([subexpressions[0], subexpressions[1]]))
-                            }
-                            Operator::I64ShrU => {
-                                Ok(Lang::ShrU([subexpressions[0], subexpressions[1]]))
-                            }
-                            Operator::I64Or => Ok(Lang::Or([subexpressions[0], subexpressions[1]])),
-                            Operator::I64And => {
-                                Ok(Lang::And([subexpressions[0], subexpressions[1]]))
-                            }
-                            Operator::I64Xor => {
-                                Ok(Lang::Xor([subexpressions[0], subexpressions[1]]))
-                            }
-                            Operator::I64Mul => {
-                                Ok(Lang::Mul([subexpressions[0], subexpressions[1]]))
-                            }
-                            _ => unreachable!(),
-                        }
-                    }
-                    Operator::I32Load { memarg } | Operator::I64Load { memarg } => {
-                        debug_assert_eq!(subexpressions.len(), 1);
-                        //let staticoffset = put_enode(Lang::Num(memarg.offset as i64), lang_to_stack_entries, entry.entry_idx);
-                        //let align = put_enode(Lang::Num(memarg.align as i64), lang_to_stack_entries, entry.entry_idx);
-                        //let mem = put_enode(Lang::Num(memarg.memory as i64), lang_to_stack_entries, entry.entry_idx);
-                        Ok(Lang::ILoad([subexpressions[0]]))
-                    }
-                    Operator::I32Popcnt { .. } => {
-                        debug_assert_eq!(subexpressions.len(), 1);
-                        Ok(Lang::Popcnt(subexpressions[0]))
-                    }
-                    Operator::Drop => Ok(Lang::Drop),
-                    _ => Err(crate::Error::UnsupportedType(EitherType::Operator(
-                        format!("The operator {:?} cannot be mapped to egg lang", operator),
-                    ))),
-                }?;
+            let op = &entry.operator;
 
-                expr.add(enode.clone());
-                let newid = put_enode(enode.clone(), lang_to_stack_entries, entry.entry_idx);
-                Ok(newid)
-            }
+            match op {
+                StackType::I32(value) => {
+                    let lang = Lang::Num(*value as i64);
+                    return Ok(put_enode(
+                        lang,
+                        lang_to_stack_entries,
+                        entry.entry_idx,
+                        expr,
+                    ));
+                }
+                StackType::I64(value) => {
+                    let lang = Lang::Num(*value);
+                    return Ok(put_enode(
+                        lang,
+                        lang_to_stack_entries,
+                        entry.entry_idx,
+                        expr,
+                    ));
+                }
+                StackType::LocalGet(idx) => {
+                    let name = format!("?l{}", idx);
+                    return Ok(put_enode(
+                        Lang::Symbol(name.clone().into()),
+                        lang_to_stack_entries,
+                        entry.entry_idx,
+                        expr,
+                    ));
+                }
+                StackType::Load(static_offset, align, memidx) => {
+                    // Write load operands
+
+                    let offset = wasm2expraux(
+                        dfg,
+                        entry.operands[0],
+                        operators,
+                        lang_to_stack_entries,
+                        expr,
+                    )?;
+
+                    let offsetid = put_enode(
+                        Lang::Arg(*static_offset as u64),
+                        lang_to_stack_entries,
+                        entry.entry_idx,
+                        expr,
+                    );
+                    let alignid = put_enode(
+                        Lang::Arg(*align as u64),
+                        lang_to_stack_entries,
+                        entry.entry_idx,
+                        expr,
+                    );
+                    let memidxid = put_enode(
+                        Lang::Arg(*memidx as u64),
+                        lang_to_stack_entries,
+                        entry.entry_idx,
+                        expr,
+                    );
+
+                    // do kid and the
+                    return Ok(put_enode(
+                        Lang::ILoad([offset, offsetid, alignid, memidxid]),
+                        lang_to_stack_entries,
+                        entry.entry_idx,
+                        expr,
+                    ));
+                }
+                StackType::IndexAtCode(operatoridx, childcount) => {
+                    let mut subexpressions = Vec::new();
+                    for operandi in &entry.operands {
+                        //debug!("operand index {}, entries {:?}", operandi, &dfg.entries);
+                        let eterm =
+                            wasm2expraux(dfg, *operandi, operators, lang_to_stack_entries, expr)?;
+                        subexpressions.push(eterm);
+                    }
+                    let len = subexpressions.len();
+                    debug_assert_eq!(*childcount, len);
+
+                    let (operator, _) = &operators[*operatoridx];
+
+                    // Mapping operator to Lang
+                    let nodeid = match operator {
+                        Operator::I32Add | Operator::I64Add => put_enode(
+                            Lang::Add([subexpressions[0], subexpressions[1]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
+                        Operator::I32Shl | Operator::I64Shl => put_enode(
+                            Lang::Shl([subexpressions[0], subexpressions[1]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
+                        Operator::I64ShrU | Operator::I32ShrU => put_enode(
+                            Lang::ShrU([subexpressions[0], subexpressions[1]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
+                        Operator::I32And | Operator::I64And => put_enode(
+                            Lang::And([subexpressions[0], subexpressions[1]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
+                        Operator::I32Or | Operator::I64Or => put_enode(
+                            Lang::Or([subexpressions[0], subexpressions[1]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
+                        Operator::I32Xor | Operator::I64Xor => put_enode(
+                            Lang::Xor([subexpressions[0], subexpressions[1]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
+                        Operator::I32Sub | Operator::I64Sub => put_enode(
+                            Lang::Sub([subexpressions[0], subexpressions[1]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
+                        Operator::I32Mul | Operator::I64Mul => put_enode(
+                            Lang::Mul([subexpressions[0], subexpressions[1]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
+                        _ => panic!("No yet implemented {:?}", operator),
+                    };
+
+                    return Ok(nodeid);
+                }
+                _ => panic!("Not implemented yet {:?}", op),
+            };
         }
+
         let mut r = HashMap::new();
         wasm2expraux(dfg, stack_entry_index, operators, &mut r, expr)?;
         Ok(r)
@@ -724,12 +767,18 @@ impl Encoder {
                         Lang::ShrU(_) => expr.add(Lang::ShrU([operand(0), operand(1)])),
                         Lang::Popcnt(_) => expr.add(Lang::Popcnt(operand(0))),
                         Lang::Unfold(op) => expr.add(Lang::Unfold(*op)),
-                        Lang::ILoad(_) => expr.add(Lang::ILoad([operand(0)])),
+                        Lang::ILoad(_) => expr.add(Lang::ILoad([
+                            operand(0),
+                            operand(1),
+                            operand(2),
+                            operand(3),
+                        ])),
                         c @ Lang::Num(_) => expr.add((*c).clone()),
                         s @ Lang::Symbol(_) => expr.add((*s).clone()),
                         s @ Lang::Rand => expr.add((*s).clone()),
                         u @ Lang::Undef => expr.add((*u).clone()),
                         d @ Lang::Drop => expr.add((*d).clone()),
+                        a @ Lang::Arg(_) => expr.add((*a).clone()),
                     };
                     node_to_eclass.push(*eclass);
                     // Copy the id to stack entries to a new one
