@@ -12,6 +12,9 @@ define_language! {
         "xor" = Xor([Id; 2]),
         "shl" = Shl([Id; 2]),
         "shr_u" = ShrU([Id; 2]),
+        "div_u" = DivU([Id; 2]),
+        "div_s" = DivS([Id; 2]),
+        "shr_s" = ShrS([Id; 2]),
         "popcnt" = Popcnt(Id),
         "drop" = Drop,
         // Memory operations
@@ -40,7 +43,7 @@ define_language! {
 
         // Use the following to internally pass arguments and not parsed as number constants
         // Since variants will be parsed in order, this wont be created directly from `parse`
-        Arg(u64),
+        Arg(u64), // TODO, create this as a children-having instruction
     }
 }
 

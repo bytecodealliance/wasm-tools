@@ -251,6 +251,24 @@ impl Encoder {
             [PrimitiveTypeInfo::I64] => [Instruction::I64Or]
 
         }
+        [Lang::DivS(operands), [operands], /* how many operands */ 2] => {
+
+            [PrimitiveTypeInfo::I32] => [Instruction::I32DivS]
+            [PrimitiveTypeInfo::I64] => [Instruction::I64DivS]
+
+        }
+        [Lang::ShrS(operands), [operands], /* how many operands */ 2] => {
+
+            [PrimitiveTypeInfo::I32] => [Instruction::I32ShrS]
+            [PrimitiveTypeInfo::I64] => [Instruction::I64ShrS]
+
+        }
+        [Lang::DivU(operands), [operands], /* how many operands */ 2] => {
+
+            [PrimitiveTypeInfo::I32] => [Instruction::I32DivU]
+            [PrimitiveTypeInfo::I64] => [Instruction::I64DivU]
+
+        }
         [Lang::And(operands), [operands], 2] => {
 
             [PrimitiveTypeInfo::I32] => [Instruction::I32And]
@@ -696,6 +714,25 @@ impl Encoder {
                             entry.entry_idx,
                             expr,
                         ),
+
+                        Operator::I64ShrS | Operator::I32ShrS => put_enode(
+                            Lang::ShrS([subexpressions[0], subexpressions[1]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
+                        Operator::I64DivS | Operator::I32DivS => put_enode(
+                            Lang::DivS([subexpressions[0], subexpressions[1]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
+                        Operator::I64DivU | Operator::I32DivU => put_enode(
+                            Lang::DivU([subexpressions[0], subexpressions[1]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
                         Operator::I32And | Operator::I64And => put_enode(
                             Lang::And([subexpressions[0], subexpressions[1]]),
                             lang_to_stack_entries,
@@ -786,6 +823,9 @@ impl Encoder {
                         Lang::Xor(_) => expr.add(Lang::Xor([operand(0), operand(1)])),
                         Lang::Shl(_) => expr.add(Lang::Shl([operand(0), operand(1)])),
                         Lang::ShrU(_) => expr.add(Lang::ShrU([operand(0), operand(1)])),
+                        Lang::ShrS(_) => expr.add(Lang::ShrS([operand(0), operand(1)])),
+                        Lang::DivS(_) => expr.add(Lang::DivS([operand(0), operand(1)])),
+                        Lang::DivU(_) => expr.add(Lang::DivU([operand(0), operand(1)])),
                         Lang::Popcnt(_) => expr.add(Lang::Popcnt(operand(0))),
                         Lang::Unfold(op) => expr.add(Lang::Unfold(*op)),
                         Lang::ILoad(_) => expr.add(Lang::ILoad([
