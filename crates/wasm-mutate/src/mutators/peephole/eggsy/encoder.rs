@@ -294,26 +294,43 @@ impl Encoder {
             [PrimitiveTypeInfo::I64] => [Instruction::I64Shl]
 
         }
-        [Lang::ILoad(operands), (operands[0]), /*between parenthesis means that this operand will be written down*/_nodes, newfunc, _rnd, eclassdata, _rootclassdata, egraph, info, operators] => {{
+        [Lang::ILoad(operands), (operands[0]), /*between parenthesis means that this operand will be written down*/nodes, newfunc, _rnd, eclassdata, _rootclassdata, egraph, info, operators] => {{
             let entry = eclassdata.clone().unwrap().get_next_stack_entry(&egraph.analysis);
             if let StackType::Load(offset, align, idx) = entry.operator {
+
+                debug_assert_eq!(4, operands.len());
+                let offset_operand = &nodes[usize::from(operands[1])];
+                let align_operand = &nodes[usize::from(operands[2])];
+                let memidx_operand = &nodes[usize::from(operands[3])];
+
+                let toarg = |op: &Lang| {
+                    match op {
+                        Lang::Arg(val) => *val,
+                        Lang::Num(val) => *val as u64, // Num needs to be taken into account here because the parsing of rules is done by egg itself
+                        _ => unreachable!("This operand should be an Arg node. Current operand {:?}",op ),
+                    }
+                };
+
+                let offset_value = toarg(offset_operand);
+
+                let align_value = toarg(align_operand);
+
+                let memidx_value = toarg(memidx_operand);
+
+                let memarg = MemArg{
+                    offset: offset_value, // These can be mutated as well
+                    align: align_value as u32,
+                    memory_index: memidx_value as u32,
+                };
                 match entry.tpes[..] {
                     [PrimitiveTypeInfo::I32] => {
                         newfunc.instruction(Instruction::I32Load(
-                            MemArg{
-                                offset: offset, // These can be mutated as well
-                                align: align as u32,
-                                memory_index: idx,
-                            }
+                            memarg
                         ));
                     },
                     [PrimitiveTypeInfo::I64] => {
                         newfunc.instruction(Instruction::I64Load(
-                            MemArg{
-                                offset: offset,
-                                align: align as u32,
-                                memory_index: idx,
-                            }
+                            memarg
                         ));
                     },
                     _ => panic!("Replace with err")
@@ -331,6 +348,10 @@ impl Encoder {
         }
         [Lang::Rand, value, _n, newfunc, rnd, _eclassdata, _rootdata, _egraph, _info, _operators] => {{
             newfunc.instruction(Instruction::I32Const(rnd.gen()));
+            Ok(())
+        }}
+        [Lang::Arg(value), value, _n, newfunc, rnd, _eclassdata, _rootdata, _egraph, _info, _operators] => {{
+            newfunc.instruction(Instruction::I32Const(*value as i32));
             Ok(())
         }}
         [Lang::Symbol(s), s, _n, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, info, _operators] => {{

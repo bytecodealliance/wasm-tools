@@ -86,7 +86,6 @@ impl Analysis<Lang> for PeepholeMutationAnalysis {
         // The node id to stack is consistent then with the order in which this method is call
         //
         if egraph.analysis.lang_to_stack_entries.contains_key(l) {
-            println!("eg {:?} {:?}", l, egraph.analysis.lang_to_stack_entries[&l]);
             Some(ClassData {
                 eclass_and_stackentries: egraph.analysis.lang_to_stack_entries[&l].clone(),
                 current_entry: 0,

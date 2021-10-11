@@ -835,6 +835,38 @@ mod tests {
         );
     }
 
+
+    #[test]
+    fn test_peep_mem_popout() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("mem-load-shift";  "(load ?x ?y ?z ?w)" => "(load (add ?x ?y) 0 ?z ?w)")];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (memory 1)
+            (func (export "exported_func") (param i32) (result i32)
+                i32.const 42
+                i32.load offset=100
+            )
+        )
+        "#,
+            rules,
+            r#"
+            (module
+                (type (;0;) (func (param i32) (result i32)))
+                (func (;0;) (type 0) (param i32) (result i32)
+                  i32.const 42
+                  i32.const 100
+                  i32.add
+                  i32.load)
+                (memory (;0;) 1)
+                (export "exported_func" (func 0)))
+        "#,
+            1,
+        );
+    }
+
     fn test_peephole_mutator(
         original: &str,
         rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>],
