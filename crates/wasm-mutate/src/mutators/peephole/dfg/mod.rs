@@ -42,16 +42,6 @@ pub enum StackType {
     IndexAtCode(usize, usize),
 }
 
-impl StackEntry {
-    pub fn is_leaf(&self) -> bool {
-        if let StackType::Undef = self.operator {
-            true
-        } else {
-            false
-        }
-    }
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct MiniDFG {
     // Some of the operators have no stack entry
