@@ -35,31 +35,6 @@ jobs:
     - name: Install Rust (rustup)
       run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
       shell: bash
-    - name: Install Ninja (Linux)
-      run: sudo apt install ninja-build
-      if: matrix.os == 'ubuntu-latest'
-    - name: Install Ninja (macOS)
-      run: brew install ninja
-      if: matrix.os == 'macos-latest'
-    - name: Install Ninja (Windows)
-      run: choco install ninja
-      if: matrix.os == 'windows-latest'
-
-    - name: Build wabt
-      run: |
-        set -e
-        cd tests/wabt
-        cmake . -G Ninja -DBUILD_TESTS=OFF
-        ninja wast2json wat2wasm wasm2wat
-      shell: bash
-    - name: Add wabt to path (unix)
-      run: echo `pwd`/tests/wabt >> $GITHUB_PATH
-      if: matrix.os != 'windows-latest'
-    - name: Add wabt to path (windows)
-      run: echo D:/a/wasm-tools/wasm-tools/tests/wabt >> $GITHUB_PATH
-      if: matrix.os == 'windows-latest'
-      shell: bash
-
     - run: cargo test --all
     - run: cargo test --all
       env:
@@ -106,17 +81,15 @@ jobs:
       - uses: actions/checkout@v2
       - run: cargo check --benches -p wasm-smith
 
-  # Make sure running tests without wabt is supported
-  test_no_wabt:
-    name: Test
+  encoder_linking_tests:
+    name: Tests for the wasm-encoder crate that need wabt
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
       with:
         submodules: true
-    - name: Install Rust (rustup)
-      run: rustup update stable --no-self-update && rustup default stable
-      shell: bash
-    - run: cargo test --all
-      env:
-        SKIP_WABT: 1
+    - run: rustup update stable --no-self-update && rustup default stable
+    - run: curl -L https://github.com/WebAssembly/wabt/releases/download/1.0.24/wabt-1.0.24-ubuntu.tar.gz | tar xzf -
+    - run: echo "`pwd`/wabt-1.0.24/bin" >> $GITHUB_PATH
+    - run: cargo test -p wasm-encoder
+
