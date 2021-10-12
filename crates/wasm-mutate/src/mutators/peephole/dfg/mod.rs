@@ -18,7 +18,7 @@ pub struct BBlock {
 /// Node of a DFG extracted from a basic block in the Wasm code
 #[derive(Debug, Clone)]
 pub struct StackEntry {
-    /// Index of the operator in which this node start
+    /// Wasm operator mapping
     pub operator: StackType,
     /// Node operand indexes
     pub operands: Vec<usize>,
@@ -26,6 +26,8 @@ pub struct StackEntry {
     pub tpes: Vec<PrimitiveTypeInfo>,
     /// Index in the MiniDFG entries collection
     pub entry_idx: usize,
+    /// Color of the dfg part
+    pub color: u32,
 }
 
 /// This is the IR used to turn wasm to eterm and back
@@ -46,14 +48,34 @@ pub enum StackType {
 pub struct MiniDFG {
     // Some of the operators have no stack entry
     // This will help to decide or not to mutate the operators, avoiding egrapphp creation, etc
-    // Each (key, value) entry corresponds to the index of the instruction in the Wasm BasicBlock and the index of the stack entry in the `entries` field
+    // Each (key, value) entry corresponds to the index of the instruction in
+    // the Wasm BasicBlock and the index of the stack entry in the `entries` field
     pub map: HashMap<usize, usize>,
     // Each stack entry represents a position in the operators stream
     // containing its children
     pub entries: Vec<StackEntry>,
-    // For each stack entry we keep the parental relation, the ith value is the index of the ith instruction's parent instruction
+    // For each stack entry we keep the parental relation, the ith value is the index of
+    // the ith instruction's parent instruction
     // We write each stack entry having no parent, i.e. a root in the dfg
     pub parents: Vec<i32>,
+}
+
+impl MiniDFG {
+    /// Return true if the coloring of the children subtrees is the same as the root
+    /// Notice that this value can be calcuated when the tree is built
+    pub fn is_subtree_consistent(&self, current: usize, parent: Option<usize>) -> bool {
+        let entry = &self.entries[current];
+        match parent {
+            None => {
+                return entry
+                    .operands
+                    .iter()
+                    .map(|&u| self.is_subtree_consistent(u, Some(current)))
+                    .all(|x| x)
+            }
+            Some(u) => entry.color == self.entries[u].color,
+        }
+    }
 }
 
 impl<'a> DFGIcator {
@@ -118,30 +140,6 @@ impl<'a> DFGIcator {
         }
     }
 
-    fn push_leaf(
-        operator: StackType,
-        operator_idx: usize,
-        dfg_map: &mut Vec<StackEntry>,
-        operatormap: &mut HashMap<usize, usize>,
-        stack: &mut Vec<usize>,
-        parents: &mut Vec<i32>,
-        tpes: Vec<PrimitiveTypeInfo>,
-    ) -> usize {
-        let entry_idx = dfg_map.len();
-        let leaf = StackEntry {
-            operator,
-            operands: vec![],
-            tpes,
-            entry_idx,
-        };
-        operatormap.insert(operator_idx, entry_idx);
-        stack.push(entry_idx);
-        // Add the data flow link
-        dfg_map.push(leaf);
-        parents.push(-1);
-        entry_idx
-    }
-
     fn push_node(
         operator: StackType,
         operator_idx: usize,
@@ -150,6 +148,7 @@ impl<'a> DFGIcator {
         stack: &mut Vec<usize>,
         operands: Vec<usize>,
         parents: &mut Vec<i32>,
+        color: u32,
         tpes: Vec<PrimitiveTypeInfo>,
     ) -> usize {
         let entry_idx = dfg_map.len();
@@ -158,6 +157,7 @@ impl<'a> DFGIcator {
             operands,
             tpes,
             entry_idx,
+            color,
         };
 
         operatormap.insert(operator_idx, entry_idx);
@@ -188,6 +188,7 @@ impl<'a> DFGIcator {
                     // Check if this can be inferred from the operator
                     tpes: vec![],
                     entry_idx,
+                    color: 0, // 0 color is undefined
                 }; // Means not reachable
                 if insertindfg {
                     operatormap.insert(operator_idx, entry_idx);
@@ -221,10 +222,10 @@ impl<'a> DFGIcator {
         let mut operatormap: HashMap<usize, usize> = HashMap::new(); // operator index to stack index
         let mut stack: Vec<usize> = Vec::new();
         let mut parents: Vec<i32> = Vec::new();
-
-        // Create a DFG from the BB
-        // Start from the first operator and simulate the stack...
-        // If an operator is missing in the stack then it probably comes from a previous BB
+        let mut color = 1; // start with color 1 since 0 is undef
+                           // Create a DFG from the BB
+                           // Start from the first operator and simulate the stack...
+                           // If an operator is missing in the stack then it probably comes from a previous BB
 
         for idx in basicblock.range.start..basicblock.range.end {
             // We dont care about the jump
@@ -235,35 +236,41 @@ impl<'a> DFGIcator {
                 // Until type information is added
                 Operator::LocalGet { local_index } => {
                     // This is a hack, type checking should be carried with the stack entries
-                    DFGIcator::push_leaf(
+                    DFGIcator::push_node(
                         StackType::LocalGet(*local_index),
                         idx,
                         &mut dfg_map,
                         &mut operatormap,
                         &mut stack,
+                        vec![],
                         &mut parents,
+                        color,
                         vec![locals[*local_index as usize].clone()],
                     );
                 }
                 Operator::I32Const { value } => {
-                    DFGIcator::push_leaf(
+                    DFGIcator::push_node(
                         StackType::I32(*value),
                         idx,
                         &mut dfg_map,
                         &mut operatormap,
                         &mut stack,
+                        vec![],
                         &mut parents,
+                        color,
                         vec![PrimitiveTypeInfo::I32],
                     );
                 }
                 Operator::I64Const { value } => {
-                    DFGIcator::push_leaf(
+                    DFGIcator::push_node(
                         StackType::I64(*value),
                         idx,
                         &mut dfg_map,
                         &mut operatormap,
                         &mut stack,
+                        vec![],
                         &mut parents,
+                        color,
                         vec![PrimitiveTypeInfo::I64],
                     );
                 }
@@ -283,12 +290,15 @@ impl<'a> DFGIcator {
                         operands: vec![child],
                         tpes: vec![],
                         entry_idx,
+                        color,
                     };
 
                     // operatormap.insert(idx, entry_idx);
                     dfg_map.push(newnode);
                     parents.push(-1);
                     parents[child] = idx as i32;
+                    // Augnment the color since the next operations could be inconsistent
+                    color += 1;
                 }
                 // All memory loads
                 Operator::I32Load { memarg } => {
@@ -312,6 +322,7 @@ impl<'a> DFGIcator {
                         &mut stack,
                         vec![offset],
                         &mut parents,
+                        color,
                         // Add type here
                         vec![PrimitiveTypeInfo::I32],
                     );
@@ -336,7 +347,7 @@ impl<'a> DFGIcator {
                         &mut stack,
                         vec![offset],
                         &mut parents,
-                        // Add type here
+                        color,
                         vec![PrimitiveTypeInfo::I64],
                     );
 
@@ -344,6 +355,17 @@ impl<'a> DFGIcator {
                 }
                 Operator::I64Add
                 | Operator::I64Sub
+                | Operator::I64Eqz
+                | Operator::I64Eq
+                | Operator::I64Ne
+                | Operator::I64LtS
+                | Operator::I64LtU
+                | Operator::I64GtS
+                | Operator::I64GtU
+                | Operator::I64LeS
+                | Operator::I64LeU
+                | Operator::I64GeS
+                | Operator::I64GeU
                 | Operator::I64Mul
                 | Operator::I64DivS
                 | Operator::I64DivU
@@ -353,7 +375,6 @@ impl<'a> DFGIcator {
                 | Operator::I64Or
                 | Operator::I64And
                 | Operator::I64ShrU => {
-                    //debug!("stack {:?} map {:?}", stack, dfg_map);
                     let leftidx = DFGIcator::pop_operand(
                         &mut stack,
                         &mut dfg_map,
@@ -362,7 +383,6 @@ impl<'a> DFGIcator {
                         &mut parents,
                         false,
                     );
-                    //debug!("stack {:?} map {:?}", stack, dfg_map);
                     let rightidx = DFGIcator::pop_operand(
                         &mut stack,
                         &mut dfg_map,
@@ -371,11 +391,7 @@ impl<'a> DFGIcator {
                         &mut parents,
                         false,
                     );
-
-                    //debug!("stack {:?} map {:?}", stack, dfg_map);
                     // The operands should not be the same
-
-                    //debug!("left {} right {} stack {:?}", leftidx, rightidx, stack);
                     assert_ne!(leftidx, rightidx);
 
                     let idx = DFGIcator::push_node(
@@ -386,6 +402,7 @@ impl<'a> DFGIcator {
                         &mut stack,
                         vec![rightidx, leftidx], // reverse order
                         &mut parents,
+                        color,
                         vec![PrimitiveTypeInfo::I64],
                     );
 
@@ -394,6 +411,17 @@ impl<'a> DFGIcator {
                 }
                 Operator::I32Add
                 | Operator::I32Sub
+                | Operator::I32Eqz
+                | Operator::I32Eq
+                | Operator::I32Ne
+                | Operator::I32LtS
+                | Operator::I32LtU
+                | Operator::I32GtS
+                | Operator::I32GtU
+                | Operator::I32LeS
+                | Operator::I32LeU
+                | Operator::I32GeS
+                | Operator::I32GeU
                 | Operator::I32Mul
                 | Operator::I32DivS
                 | Operator::I32DivU
@@ -403,7 +431,6 @@ impl<'a> DFGIcator {
                 | Operator::I32Or
                 | Operator::I32And
                 | Operator::I32ShrU => {
-                    //debug!("stack {:?} map {:?}", stack, dfg_map);
                     let leftidx = DFGIcator::pop_operand(
                         &mut stack,
                         &mut dfg_map,
@@ -412,7 +439,6 @@ impl<'a> DFGIcator {
                         &mut parents,
                         false,
                     );
-                    //debug!("stack {:?} map {:?}", stack, dfg_map);
                     let rightidx = DFGIcator::pop_operand(
                         &mut stack,
                         &mut dfg_map,
@@ -422,10 +448,7 @@ impl<'a> DFGIcator {
                         false,
                     );
 
-                    //debug!("stack {:?} map {:?}", stack, dfg_map);
                     // The operands should not be the same
-
-                    //debug!("left {} right {} stack {:?}", leftidx, rightidx, stack);
                     assert_ne!(leftidx, rightidx);
 
                     let idx = DFGIcator::push_node(
@@ -436,6 +459,7 @@ impl<'a> DFGIcator {
                         &mut stack,
                         vec![rightidx, leftidx], // reverse order
                         &mut parents,
+                        color,
                         vec![PrimitiveTypeInfo::I32],
                     );
 
@@ -450,12 +474,12 @@ impl<'a> DFGIcator {
                         operands: vec![],
                         tpes: vec![],
                         entry_idx,
+                        color,
                     };
                     dfg_map.push(newnode);
                     parents.push(-1);
                 }
                 _ => {
-                    //debug!("Bypassing operator type {:?}", operator);
                     // If the operator is not implemented, break the mutation of this Basic Block
                     return None;
                 }
@@ -590,6 +614,86 @@ mod tests {
                         .unwrap();
                     let roots = DFGIcator::new().get_dfg(&operators, &bb, &vec![]);
                     assert!(roots.is_some())
+                }
+                wasmparser::Payload::End => {
+                    break;
+                }
+                _ => {
+                    // Do nothing
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_dfg_build2() {
+        // A decent complex Wasm function
+        let original = &wat::parse_str(
+            r#"
+        (module
+            (memory 1)
+            (func (export "exported_func") (param i32) (result i32)
+                i32.const 32
+                i32.load
+                i32.const 100
+                i32.load
+                i32.const 1
+                i32.gt_s
+                i32.const 1
+                i32.gt_u
+                i32.const 1
+                i32.lt_u
+                i32.const 1
+                i32.lt_s
+                i32.const 1
+                i32.ne
+                i32.const 1
+                i32.eq
+                i32.const 1
+                i32.eqz
+                i32.const 1
+                i32.le_s
+                i32.const 1
+                i32.le_u
+                i32.const 1
+                i32.ge_s
+                i32.const 1
+                i32.ge_u
+                local.set 0
+                i32.const 1
+                i32.add
+            )
+        )
+        "#,
+        )
+        .unwrap();
+
+        let mut parser = Parser::new(0);
+        let mut consumed = 0;
+        loop {
+            let (payload, size) = match parser.parse(&original[consumed..], true).unwrap() {
+                wasmparser::Chunk::NeedMoreData(_) => {
+                    panic!("This should not happen")
+                }
+                wasmparser::Chunk::Parsed { consumed, payload } => (payload, consumed),
+            };
+
+            consumed += size;
+
+            match payload {
+                wasmparser::Payload::CodeSectionEntry(reader) => {
+                    let operators = reader
+                        .get_operators_reader()
+                        .unwrap()
+                        .into_iter_with_offsets()
+                        .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()
+                        .unwrap();
+
+                    let bb = DFGIcator::new()
+                        .get_bb_from_operator(7, &operators)
+                        .unwrap();
+                    let roots = DFGIcator::new().get_dfg(&operators, &bb, &vec![]);
+                    assert!(roots.is_some());
                 }
                 wasmparser::Payload::End => {
                     break;

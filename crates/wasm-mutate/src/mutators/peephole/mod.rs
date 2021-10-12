@@ -148,12 +148,12 @@ impl PeepholeMutator {
                                 let lang_to_stack_entries =
                                     Encoder::wasm2expr(&minidfg, oidx, &operators, &mut start)?;
 
-                                // TODO implement def with bunch of locals
                                 let undef = Lang::Undef;
                                 if start.as_ref().contains(&undef) {
                                     continue;
                                 }
 
+                                println!("dfg {:?}", start);
                                 let analysis = PeepholeMutationAnalysis::new(
                                     lang_to_stack_entries.clone(),
                                     minidfg.clone(),
@@ -286,6 +286,7 @@ impl Mutator for PeepholeMutator {
         let mut rules = vec![
             rewrite!("unfold-2";  "?x" => "(unfold ?x)" if self.is_const("?x") ),
             rewrite!("xor-x-x";  "(xor ?x ?x)" => "0" ),
+            rewrite!("mem-load-shift";  "(load ?x ?y ?z ?w)" => "(load (add ?x ?y) 0 ?z ?w)"),
         ];
         // Use a custom instruction-mutator for this
         // This specific rewriting rule has a condition, it should be appplied if the operand is a constant
@@ -589,6 +590,36 @@ mod tests {
     }
 
     #[test]
+    fn test_peep_inversion() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("inversion-1";  "(gt_s ?x ?y)" => "(le_s ?y ?x)")];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func") (result i32) (local i32 i32)
+                i32.const 42
+                i32.const 1
+                i32.gt_s
+            )
+        )
+        "#,
+            rules,
+            r#"
+            (module
+                (type (;0;) (func (result i32)))
+                (func (;0;) (type 0) (result i32)
+                  (local i32 i32)
+                  i32.const 1
+                  i32.const 42
+                  i32.le_s)
+                (export "exported_func" (func 0)))
+            "#,
+            0,
+        );
+    }
+
+    #[test]
     fn test_peep_shl0() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
             &[rewrite!("strength-undo3";  "(shr_u ?x ?y)" => "(shl (shr_u ?x ?y) 0)" )];
@@ -834,7 +865,6 @@ mod tests {
             1,
         );
     }
-
 
     #[test]
     fn test_peep_mem_popout() {

@@ -245,6 +245,67 @@ impl Encoder {
     //     [ PrimitiveType::item ] => [ Instruction::type ]
     //  }
     eterm_operator_2_wasm! {
+        [Lang::GtS(operands), [operands], /* how many operands */ 2] => {
+
+            [PrimitiveTypeInfo::I32] => [Instruction::I32GtS]
+            [PrimitiveTypeInfo::I64] => [Instruction::I64GtS]
+
+        }
+        [Lang::GtU(operands), [operands], /* how many operands */ 2] => {
+
+            [PrimitiveTypeInfo::I32] => [Instruction::I32GtU]
+            [PrimitiveTypeInfo::I64] => [Instruction::I64GtU]
+
+        }
+        [Lang::LtS(operands), [operands], /* how many operands */ 2] => {
+
+            [PrimitiveTypeInfo::I32] => [Instruction::I32LtS]
+            [PrimitiveTypeInfo::I64] => [Instruction::I64LtS]
+
+        }
+        [Lang::LtU(operands), [operands], /* how many operands */ 2] => {
+
+            [PrimitiveTypeInfo::I32] => [Instruction::I32LtU]
+            [PrimitiveTypeInfo::I64] => [Instruction::I64LtU]
+
+        }
+        [Lang::LeU(operands), [operands], /* how many operands */ 2] => {
+
+            [PrimitiveTypeInfo::I32] => [Instruction::I32LeU]
+            [PrimitiveTypeInfo::I64] => [Instruction::I64LeU]
+
+        }
+
+        [Lang::LeS(operands), [operands], /* how many operands */ 2] => {
+
+            [PrimitiveTypeInfo::I32] => [Instruction::I32LeS]
+            [PrimitiveTypeInfo::I64] => [Instruction::I64LeS]
+
+        }
+        [Lang::GeS(operands), [operands], /* how many operands */ 2] => {
+
+            [PrimitiveTypeInfo::I32] => [Instruction::I32GeS]
+            [PrimitiveTypeInfo::I64] => [Instruction::I64GeS]
+
+        }
+        [Lang::Eq(operands), [operands], /* how many operands */ 2] => {
+
+            [PrimitiveTypeInfo::I32] => [Instruction::I32Eq]
+            [PrimitiveTypeInfo::I64] => [Instruction::I32Eq]
+
+        }
+        [Lang::Ne(operands), [operands], /* how many operands */ 2] => {
+
+            [PrimitiveTypeInfo::I32] => [Instruction::I32Neq]
+            [PrimitiveTypeInfo::I64] => [Instruction::I64Neq]
+
+        }
+        [Lang::Eqz(operands), [operands], /* how many operands */ 1] => {
+
+            [PrimitiveTypeInfo::I32] => [Instruction::I32Eqz]
+            [PrimitiveTypeInfo::I64] => [Instruction::I64Eqz]
+
+        }
         [Lang::Or(operands), [operands], /* how many operands */ 2] => {
 
             [PrimitiveTypeInfo::I32] => [Instruction::I32Or]
@@ -394,7 +455,6 @@ impl Encoder {
                             match tpes{
                                 [PrimitiveTypeInfo::I64] => {
                                     let r: i64 = rnd.gen();
-                                    //debug!("Unfolding {:?}", value);
                                     newfunc.instruction(Instruction::I64Const(r));
                                     newfunc.instruction(Instruction::I64Const((Wrapping(*value) - Wrapping(r)).0));
                                     newfunc.instruction(Instruction::I64Add);
@@ -402,7 +462,6 @@ impl Encoder {
                                 },
                                 [PrimitiveTypeInfo::I32] => {
                                     let r: i32 = rnd.gen();
-                                    //debug!("Unfolding {:?}", value);
                                     newfunc.instruction(Instruction::I32Const(r));
                                     newfunc.instruction(Instruction::I32Const((Wrapping(*value as i32) - Wrapping(r)).0));
                                     newfunc.instruction(Instruction::I32Add);
@@ -478,7 +537,6 @@ impl Encoder {
                 }
                 StackType::Load(static_offset, align, idx) => {
                     // Here it depends on the type
-                    // TODO add the other operands here as well
                     match entry.tpes[..] {
                         [PrimitiveTypeInfo::I32] => {
                             newfunc.instruction(Instruction::I32Load(MemArg {
@@ -494,7 +552,7 @@ impl Encoder {
                                 memory_index: idx,
                             }));
                         }
-                        _ => panic!("Replace with err"),
+                        _ => unreachable!("Type {:?} is not supported", entry.tpes),
                     }
                 }
                 StackType::Undef => {
@@ -539,7 +597,6 @@ impl Encoder {
                 // It is a root, write then
                 let entry = &egraph.analysis.get_stack_entry(entryidx);
                 if entryidx == insertion_point {
-                    //debug!("Writing mutation");
                     Encoder::expr2wasm(
                         info,
                         rnd,
@@ -569,9 +626,10 @@ impl Encoder {
     }
 
     /// Maps wasm to eterm expression
-    /// This method receives also a random generator, the idea is to map StackEntry operands to symbols in a random way.
-    // TODO, move this as well to macro since is very repetitive
-    /// This method returns the enode(Lang) mapping the eclass and the stack entries where this enode is the same
+    /// This method receives also a random generator, the idea is to map StackEntry
+    /// operands to symbols in a random way.
+    /// This method returns the enode(Lang) mapping the eclass and the stack
+    /// entries where this enode is the same
     pub fn wasm2expr(
         dfg: &MiniDFG,
         oidx: usize,
@@ -580,7 +638,8 @@ impl Encoder {
         expr: &mut RecExpr<Lang>, // Replace this by RecExpr
     ) -> crate::Result<HashMap<Lang, (Id, Vec<usize>)>> {
         let stack_entry_index = dfg.map[&oidx];
-        // If the enode hashing is already in the egraph, the node is not added...this affects our mapping, therefore, we simulate this behavior by hashing
+        // If the enode hashing is already in the egraph, the node is not added,
+        // this affects our mapping, therefore, we simulate this behavior by hashing
         // the enode ourselves and creating the Id by the size of the hashset
         fn put_enode(
             l: Lang,
@@ -645,7 +704,6 @@ impl Encoder {
                 }
                 StackType::Load(static_offset, align, memidx) => {
                     // Write load operands
-
                     let offset = wasm2expraux(
                         dfg,
                         entry.operands[0],
@@ -672,8 +730,6 @@ impl Encoder {
                         entry.entry_idx,
                         expr,
                     );
-
-                    // do kid and the
                     return Ok(put_enode(
                         Lang::ILoad([offset, offsetid, alignid, memidxid]),
                         lang_to_stack_entries,
@@ -684,7 +740,6 @@ impl Encoder {
                 StackType::IndexAtCode(operatoridx, childcount) => {
                     let mut subexpressions = Vec::new();
                     for operandi in &entry.operands {
-                        //debug!("operand index {}, entries {:?}", operandi, &dfg.entries);
                         let eterm =
                             wasm2expraux(dfg, *operandi, operators, lang_to_stack_entries, expr)?;
                         subexpressions.push(eterm);
@@ -763,6 +818,72 @@ impl Encoder {
                             entry.entry_idx,
                             expr,
                         ),
+                        Operator::I32Eqz | Operator::I64Eqz => put_enode(
+                            Lang::Eqz([subexpressions[0]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
+                        Operator::I32Eq | Operator::I64Eq => put_enode(
+                            Lang::Eq([subexpressions[0], subexpressions[1]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
+                        Operator::I32Ne | Operator::I64Ne => put_enode(
+                            Lang::Ne([subexpressions[0], subexpressions[1]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
+                        Operator::I32LtS | Operator::I64LtS => put_enode(
+                            Lang::LtS([subexpressions[0], subexpressions[1]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
+                        Operator::I32LtU | Operator::I64LtU => put_enode(
+                            Lang::LtU([subexpressions[0], subexpressions[1]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
+                        Operator::I32GtS | Operator::I64GtS => put_enode(
+                            Lang::GtS([subexpressions[0], subexpressions[1]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
+                        Operator::I32GtU | Operator::I64GtU => put_enode(
+                            Lang::GtU([subexpressions[0], subexpressions[1]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
+                        Operator::I32LeS | Operator::I64LeS => put_enode(
+                            Lang::LeS([subexpressions[0], subexpressions[1]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
+                        Operator::I32LeU | Operator::I64LeU => put_enode(
+                            Lang::LeU([subexpressions[0], subexpressions[1]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
+                        Operator::I32GeU | Operator::I64GeU => put_enode(
+                            Lang::GeU([subexpressions[0], subexpressions[1]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
+                        Operator::I32GeS | Operator::I64GeS => put_enode(
+                            Lang::GeS([subexpressions[0], subexpressions[1]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
                         _ => panic!("No yet implemented {:?}", operator),
                     };
 
@@ -826,6 +947,17 @@ impl Encoder {
                         Lang::ShrS(_) => expr.add(Lang::ShrS([operand(0), operand(1)])),
                         Lang::DivS(_) => expr.add(Lang::DivS([operand(0), operand(1)])),
                         Lang::DivU(_) => expr.add(Lang::DivU([operand(0), operand(1)])),
+                        Lang::Eqz(_) => expr.add(Lang::Eqz([operand(1)])),
+                        Lang::Eq(_) => expr.add(Lang::Eq([operand(0), operand(1)])),
+                        Lang::Ne(_) => expr.add(Lang::Ne([operand(0), operand(1)])),
+                        Lang::LtS(_) => expr.add(Lang::LtS([operand(0), operand(1)])),
+                        Lang::LtU(_) => expr.add(Lang::LtU([operand(0), operand(1)])),
+                        Lang::GtS(_) => expr.add(Lang::GtS([operand(0), operand(1)])),
+                        Lang::GtU(_) => expr.add(Lang::GtU([operand(0), operand(1)])),
+                        Lang::LeS(_) => expr.add(Lang::LeS([operand(0), operand(1)])),
+                        Lang::LeU(_) => expr.add(Lang::LeU([operand(0), operand(1)])),
+                        Lang::GeS(_) => expr.add(Lang::GeS([operand(0), operand(1)])),
+                        Lang::GeU(_) => expr.add(Lang::GeU([operand(0), operand(1)])),
                         Lang::Popcnt(_) => expr.add(Lang::Popcnt(operand(0))),
                         Lang::Unfold(op) => expr.add(Lang::Unfold(*op)),
                         Lang::ILoad(_) => expr.add(Lang::ILoad([

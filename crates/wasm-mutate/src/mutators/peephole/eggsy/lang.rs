@@ -15,6 +15,17 @@ define_language! {
         "div_u" = DivU([Id; 2]),
         "div_s" = DivS([Id; 2]),
         "shr_s" = ShrS([Id; 2]),
+        "eqz" = Eqz([Id; 1]),
+        "eq" = Eq([Id; 2]),
+        "ne" = Ne([Id; 2]),
+        "lt_s" = LtS([Id; 2]),
+        "lt_u" = LtU([Id; 2]),
+        "gt_s" = GtS([Id; 2]),
+        "gt_u" = GtU([Id; 2]),
+        "le_s" = LeS([Id; 2]),
+        "le_u" = LeU([Id; 2]),
+        "ge_s" = GeS([Id; 2]),
+        "ge_u" = GeU([Id; 2]),
         "popcnt" = Popcnt(Id),
         "drop" = Drop,
         // Memory operations
@@ -41,8 +52,9 @@ define_language! {
         // NB: must be last since variants are parsed in order.
         Symbol(Symbol),
 
-        // Use the following to internally pass arguments and not parsed as number constants
-        // Since variants will be parsed in order, this wont be created directly from `parse`
+        // Use the following to internally pass arguments that dont need to be
+        // parsed as number constants. Since variants will be parsed in order,
+        // this wont be created directly from `parse`
         Arg(u64), // TODO, create this as a children-having instruction
     }
 }
