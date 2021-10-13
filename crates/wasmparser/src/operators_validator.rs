@@ -228,23 +228,16 @@ impl OperatorValidator {
         } else {
             self.operands.pop().unwrap()
         };
-        let actual_ty = match actual {
-            Some(ty) => ty,
-            None => return Ok(expected),
-        };
-        let expected_ty = match expected {
-            Some(ty) => ty,
-            None => return Ok(actual),
-        };
-        if actual_ty != expected_ty {
-            bail_op_err!(
-                "type mismatch: expected {}, found {}",
-                ty_to_str(expected_ty),
-                ty_to_str(actual_ty)
-            )
-        } else {
-            Ok(actual)
+        if let (Some(actual_ty), Some(expected_ty)) = (actual, expected) {
+            if actual_ty != expected_ty {
+                bail_op_err!(
+                    "type mismatch: expected {}, found {}",
+                    ty_to_str(expected_ty),
+                    ty_to_str(actual_ty)
+                )
+            }
         }
+        Ok(actual)
     }
 
     /// Flags the current control frame as unreachable, additionally truncating
@@ -706,7 +699,6 @@ impl OperatorValidator {
             }
             Operator::BrTable { ref table } => {
                 self.pop_operand(Some(Type::I32))?;
-                let unreachable = self.control.last().unwrap().unreachable;
                 let default = self.jump(table.default())?;
                 let default_types = label_types(default.0, resources, default.1)?;
                 for element in table.targets() {
@@ -727,7 +719,7 @@ impl OperatorValidator {
                         self.br_table_tmp.push(ty);
                     }
                     for ty in self.br_table_tmp.drain(..).rev() {
-                        self.operands.push(if unreachable { None } else { ty });
+                        self.operands.push(ty);
                     }
                 }
                 for ty in default_types.rev() {
@@ -763,19 +755,22 @@ impl OperatorValidator {
             }
             Operator::Select => {
                 self.pop_operand(Some(Type::I32))?;
-                let ty = self.pop_operand(None)?;
-                match self.pop_operand(ty)? {
-                    ty @ Some(Type::I32)
-                    | ty @ Some(Type::I64)
-                    | ty @ Some(Type::F32)
-                    | ty @ Some(Type::F64) => self.operands.push(ty),
-                    ty @ Some(Type::V128) => {
-                        self.check_simd_enabled()?;
-                        self.operands.push(ty)
+                let ty1 = self.pop_operand(None)?;
+                let ty2 = self.pop_operand(None)?;
+                fn is_num(ty: Option<Type>) -> bool {
+                    match ty {
+                        Some(Type::I32) | Some(Type::I64) | Some(Type::F32) | Some(Type::F64)
+                        | Some(Type::V128) | None => true,
+                        _ => false,
                     }
-                    None => self.operands.push(None),
-                    Some(_) => bail_op_err!("type mismatch: select only takes integral types"),
                 }
+                if !is_num(ty1) || !is_num(ty2) {
+                    bail_op_err!("type mismatch: select only takes integral types")
+                }
+                if ty1 != ty2 && ty1 != None && ty2 != None {
+                    bail_op_err!("type mismatch: select operands have different types")
+                }
+                self.operands.push(ty1.or(ty2));
             }
             Operator::TypedSelect { ty } => {
                 self.pop_operand(Some(Type::I32))?;
