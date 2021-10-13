@@ -38,8 +38,11 @@ pub enum StackType {
     I64(i64),
     LocalGet(u32 /*Index*/),
     LocalSet(u32),
-    // static ofsset, mem align, mem index
-    Load(u64, u8, u32),
+    Load {
+        offset: u64,
+        align: u8,
+        memory: u32
+    },
     Undef,
     IndexAtCode(usize, usize),
 }
