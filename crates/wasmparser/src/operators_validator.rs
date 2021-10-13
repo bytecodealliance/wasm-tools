@@ -718,9 +718,7 @@ impl OperatorValidator {
                         let ty = self.pop_operand(Some(ty))?;
                         self.br_table_tmp.push(ty);
                     }
-                    for ty in self.br_table_tmp.drain(..).rev() {
-                        self.operands.push(ty);
-                    }
+                    self.operands.extend(self.br_table_tmp.drain(..).rev());
                 }
                 for ty in default_types.rev() {
                     self.pop_operand(Some(ty))?;
