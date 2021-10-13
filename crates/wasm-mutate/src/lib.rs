@@ -291,9 +291,24 @@ impl WasmMutate {
                         })?;
                     }
                 }
-                Payload::ImportSection(reader) => {
+                Payload::ImportSection(mut reader) => {
                     info.imports = Some(info.raw_sections.len());
                     info.section(SectionId::Import.into(), reader.range(), input_wasm);
+
+                    for _ in 0..reader.get_count() {
+                        reader.read().and_then(|ty| {
+                            match ty.ty {
+                                wasmparser::ImportSectionEntryType::Function(ty) => {
+                                    // Save imported functions
+                                    info.function_map.push(ty);
+                                },
+                                _ => {
+                                    // Do nothing
+                                }
+                            }
+                            Ok(())
+                        })?;
+                    }
                 }
                 Payload::FunctionSection(mut reader) => {
                     info.functions = Some(info.raw_sections.len());
