@@ -153,7 +153,6 @@ impl PeepholeMutator {
                                     continue;
                                 }
 
-                                println!("dfg {:?}", start);
                                 let analysis = PeepholeMutationAnalysis::new(
                                     lang_to_stack_entries.clone(),
                                     minidfg.clone(),
@@ -187,6 +186,7 @@ impl PeepholeMutator {
                                 }
 
                                 debug!("Applied mutation {} for {}", expr, start);
+                                debug!("Applied mutation {:?} for {:?}, node to eclass {:?}", expr, start, node_to_eclass);
 
                                 let mut newfunc = self.copy_locals(reader)?;
 
@@ -559,6 +559,7 @@ mod tests {
         );
     }
 
+
     #[test]
     fn test_peep_commutative() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
@@ -613,6 +614,36 @@ mod tests {
                   i32.const 1
                   i32.const 42
                   i32.le_s)
+                (export "exported_func" (func 0)))
+            "#,
+            0,
+        );
+    }
+
+    #[test]
+    fn test_peep_inversion2() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("inversion-1";  "(gt_u ?x ?y)" => "(le_u ?y ?x)")];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func") (result i32) (local i32 i32)
+                i32.const 42
+                i32.const 1
+                i32.gt_u
+            )
+        )
+        "#,
+            rules,
+            r#"
+            (module
+                (type (;0;) (func (result i32)))
+                (func (;0;) (type 0) (result i32)
+                  (local i32 i32)
+                  i32.const 1
+                  i32.const 42
+                  i32.le_u)
                 (export "exported_func" (func 0)))
             "#,
             0,

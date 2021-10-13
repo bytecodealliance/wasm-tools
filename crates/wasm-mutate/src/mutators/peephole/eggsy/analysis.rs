@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use crate::{
-    module::PrimitiveTypeInfo,
     mutators::peephole::{
         dfg::{MiniDFG, StackEntry},
         eggsy::Lang,
@@ -15,9 +14,10 @@ use egg::{Analysis, EGraph, Id};
 #[derive(Clone, Debug, Default)]
 pub struct PeepholeMutationAnalysis {
     /// Egraph node ID to Stack entry in the minidfg entries
-    /// The Lang eterm is hashed, which means that if the first entrance is the expression to mutated, the eclass data could be maintained by using the
+    /// The Lang eterm is hashed, which means that if the first entrance is the expression to mutated,
+    /// the eclass data could be maintained by using the
     /// Hashing of the original eterm
-    lang_to_stack_entries: HashMap<Lang, (Id, Vec<usize>)>,
+    pub lang_to_stack_entries: HashMap<Lang, (Id, Vec<usize>)>,
     /// DFG data mapping from the input Wasm basic block
     minidfg: MiniDFG,
 }
@@ -84,7 +84,6 @@ impl Analysis<Lang> for PeepholeMutationAnalysis {
     fn make(egraph: &EGraph<Lang, Self>, l: &Lang) -> Self::Data {
         // This works beacuase always the first expression is the one constructed from the DFG
         // The node id to stack is consistent then with the order in which this method is call
-        //
         if egraph.analysis.lang_to_stack_entries.contains_key(l) {
             Some(ClassData {
                 eclass_and_stackentries: egraph.analysis.lang_to_stack_entries[&l].clone(),

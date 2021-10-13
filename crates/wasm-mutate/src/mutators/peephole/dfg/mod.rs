@@ -353,19 +353,54 @@ impl<'a> DFGIcator {
 
                     parents[offset] = idx as i32;
                 }
+                Operator::I32Eqz => {
+                    let operand = DFGIcator::pop_operand(
+                        &mut stack,
+                        &mut dfg_map,
+                        idx,
+                        &mut operatormap,
+                        &mut parents,
+                        false,
+                    );
+                    let idx = DFGIcator::push_node(
+                        StackType::IndexAtCode(idx, 1),
+                        idx,
+                        &mut dfg_map,
+                        &mut operatormap,
+                        &mut stack,
+                        vec![operand],
+                        &mut parents,
+                        color,
+                        vec![PrimitiveTypeInfo::I32],
+                    );
+
+                    parents[operand] = idx as i32;
+                }
+                Operator::I64Eqz => {
+                    let operand = DFGIcator::pop_operand(
+                        &mut stack,
+                        &mut dfg_map,
+                        idx,
+                        &mut operatormap,
+                        &mut parents,
+                        false,
+                    );
+                    let idx = DFGIcator::push_node(
+                        StackType::IndexAtCode(idx, 1),
+                        idx,
+                        &mut dfg_map,
+                        &mut operatormap,
+                        &mut stack,
+                        vec![operand],
+                        &mut parents,
+                        color,
+                        vec![PrimitiveTypeInfo::I32],
+                    );
+
+                    parents[operand] = idx as i32;
+                }
                 Operator::I64Add
                 | Operator::I64Sub
-                | Operator::I64Eqz
-                | Operator::I64Eq
-                | Operator::I64Ne
-                | Operator::I64LtS
-                | Operator::I64LtU
-                | Operator::I64GtS
-                | Operator::I64GtU
-                | Operator::I64LeS
-                | Operator::I64LeU
-                | Operator::I64GeS
-                | Operator::I64GeU
                 | Operator::I64Mul
                 | Operator::I64DivS
                 | Operator::I64DivU
@@ -411,7 +446,6 @@ impl<'a> DFGIcator {
                 }
                 Operator::I32Add
                 | Operator::I32Sub
-                | Operator::I32Eqz
                 | Operator::I32Eq
                 | Operator::I32Ne
                 | Operator::I32LtS
@@ -429,6 +463,16 @@ impl<'a> DFGIcator {
                 | Operator::I32ShrS
                 | Operator::I32Xor
                 | Operator::I32Or
+                | Operator::I64Eq
+                | Operator::I64Ne
+                | Operator::I64LtS
+                | Operator::I64LtU
+                | Operator::I64GtS
+                | Operator::I64GtU
+                | Operator::I64LeS
+                | Operator::I64LeU
+                | Operator::I64GeS
+                | Operator::I64GeU
                 | Operator::I32And
                 | Operator::I32ShrU => {
                     let leftidx = DFGIcator::pop_operand(
