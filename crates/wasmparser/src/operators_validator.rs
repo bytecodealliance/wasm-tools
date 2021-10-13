@@ -88,6 +88,9 @@ pub(crate) struct OperatorValidator {
     // This is a list of flags for wasm features which are used to gate various
     // instructions.
     pub(crate) features: WasmFeatures,
+
+    // Temporary storage used during the validation of `br_table`.
+    br_table_tmp: Vec<Option<Type>>,
 }
 
 // This structure corresponds to `ctrl_frame` as specified at in the validation
@@ -139,6 +142,7 @@ impl OperatorValidator {
                 unreachable: false,
             }],
             features: *features,
+            br_table_tmp: Vec::new(),
         })
     }
 
@@ -702,28 +706,31 @@ impl OperatorValidator {
             }
             Operator::BrTable { ref table } => {
                 self.pop_operand(Some(Type::I32))?;
-                let mut label = None;
+                let unreachable = self.control.last().unwrap().unreachable;
+                let default = self.jump(table.default())?;
+                let default_types = label_types(default.0, resources, default.1)?;
                 for element in table.targets() {
-                    let (relative_depth, _is_default) = element.map_err(|mut e| {
+                    let relative_depth = element.map_err(|mut e| {
                         e.inner.offset = usize::max_value();
                         OperatorValidatorError(e)
                     })?;
                     let block = self.jump(relative_depth)?;
-                    match label {
-                        None => label = Some(block),
-                        Some(prev) => {
-                            let a = label_types(block.0, resources, block.1)?;
-                            let b = label_types(prev.0, resources, prev.1)?;
-                            if a.ne(b) {
-                                bail_op_err!(
-                                    "type mismatch: br_table target labels have different types"
-                                );
-                            }
-                        }
+                    let tys = label_types(block.0, resources, block.1)?;
+                    if tys.len() != default_types.len() {
+                        bail_op_err!(
+                            "type mismatch: br_table target labels have different number of types"
+                        );
+                    }
+                    debug_assert!(self.br_table_tmp.len() == 0);
+                    for ty in tys.rev() {
+                        let ty = self.pop_operand(Some(ty))?;
+                        self.br_table_tmp.push(ty);
+                    }
+                    for ty in self.br_table_tmp.drain(..).rev() {
+                        self.operands.push(if unreachable { None } else { ty });
                     }
                 }
-                let (ty, kind) = label.unwrap();
-                for ty in label_types(ty, resources, kind)?.rev() {
+                for ty in default_types.rev() {
                     self.pop_operand(Some(ty))?;
                 }
                 self.unreachable();
@@ -2001,6 +2008,7 @@ where
         }
     }
 }
+
 impl<A, B> DoubleEndedIterator for Either<A, B>
 where
     A: DoubleEndedIterator,
@@ -2014,10 +2022,26 @@ where
     }
 }
 
+impl<A, B> ExactSizeIterator for Either<A, B>
+where
+    A: ExactSizeIterator,
+    B: ExactSizeIterator<Item = A::Item>,
+{
+    fn len(&self) -> usize {
+        match self {
+            Either::A(a) => a.len(),
+            Either::B(b) => b.len(),
+        }
+    }
+}
+
+trait PreciseIterator: ExactSizeIterator + DoubleEndedIterator {}
+impl<T: ExactSizeIterator + DoubleEndedIterator> PreciseIterator for T {}
+
 fn params<'a>(
     ty: TypeOrFuncType,
     resources: &'a impl WasmModuleResources,
-) -> OperatorValidatorResult<impl DoubleEndedIterator<Item = Type> + 'a> {
+) -> OperatorValidatorResult<impl PreciseIterator<Item = Type> + 'a> {
     Ok(match ty {
         TypeOrFuncType::FuncType(t) => Either::A(func_type_at(resources, t)?.inputs()),
         TypeOrFuncType::Type(_) => Either::B(None.into_iter()),
@@ -2027,7 +2051,7 @@ fn params<'a>(
 fn results<'a>(
     ty: TypeOrFuncType,
     resources: &'a impl WasmModuleResources,
-) -> OperatorValidatorResult<impl DoubleEndedIterator<Item = Type> + 'a> {
+) -> OperatorValidatorResult<impl PreciseIterator<Item = Type> + 'a> {
     Ok(match ty {
         TypeOrFuncType::FuncType(t) => Either::A(func_type_at(resources, t)?.outputs()),
         TypeOrFuncType::Type(Type::EmptyBlockType) => Either::B(None.into_iter()),
@@ -2039,7 +2063,7 @@ fn label_types<'a>(
     ty: TypeOrFuncType,
     resources: &'a impl WasmModuleResources,
     kind: FrameKind,
-) -> OperatorValidatorResult<impl DoubleEndedIterator<Item = Type> + 'a> {
+) -> OperatorValidatorResult<impl PreciseIterator<Item = Type> + 'a> {
     Ok(match kind {
         FrameKind::Loop => Either::A(params(ty, resources)?),
         _ => Either::B(results(ty, resources)?),

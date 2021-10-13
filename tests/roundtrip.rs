@@ -131,8 +131,17 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         "dump/reference-types.txt",
         "interp/reference-types.txt",
         "expr/reference-types.txt",
+        // TODO: this proposal needs to be merged with the upstream spec to pick
+        // up a fix to this test case since otherwise this test asserts that
+        // something is invalid which the spec asserts is valid.
+        "exception-handling/unreached-invalid.wast",
     ];
     if broken.iter().any(|x| test.ends_with(x)) {
+        return true;
+    }
+
+    // TODO: the gc proposal isn't implemented yet
+    if test.iter().any(|p| p == "gc") {
         return true;
     }
 
@@ -547,12 +556,19 @@ impl TestState {
         };
         for part in test.iter().filter_map(|t| t.to_str()) {
             match part {
-                "testsuite" | "wasmtime905.wast" | "missing-features" => {
+                "testsuite" | "missing-features" => {
+                    features = WasmFeatures::default();
+                }
+                "wasmtime905.wast" => {
                     features = WasmFeatures::default();
                     features.bulk_memory = false;
                     features.reference_types = false;
                 }
-                "threads" => features.threads = true,
+                "threads" => {
+                    features.threads = true;
+                    features.reference_types = false;
+                    features.bulk_memory = false;
+                }
                 "simd" => features.simd = true,
                 "reference-types" => {
                     features.bulk_memory = true;

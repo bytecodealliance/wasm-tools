@@ -325,7 +325,8 @@ pub enum RelocType {
 #[derive(Clone)]
 pub struct BrTable<'a> {
     pub(crate) reader: crate::BinaryReader<'a>,
-    pub(crate) cnt: usize,
+    pub(crate) cnt: u32,
+    pub(crate) default: u32,
 }
 
 /// An IEEE binary32 immediate floating point value, represented as a u32

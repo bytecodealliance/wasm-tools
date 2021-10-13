@@ -1263,17 +1263,6 @@ impl Validator {
                     .create_error("constant expression required: invalid init_expr operator")
             }
         };
-        if ty != expected_ty {
-            return self.create_error("type mismatch: invalid init_expr type");
-        }
-
-        if let Some(index) = function_reference {
-            self.cur
-                .state
-                .assert_mut()
-                .function_references
-                .insert(index);
-        }
 
         // Make sure the next instruction is an `end`
         match ops.next() {
@@ -1284,6 +1273,18 @@ impl Validator {
                     .create_error("constant expression required: type mismatch: only one init_expr operator is expected")
             }
             None => return self.create_error("type mismatch: init_expr is not terminated"),
+        }
+
+        if ty != expected_ty {
+            return self.create_error("type mismatch: invalid init_expr type");
+        }
+
+        if let Some(index) = function_reference {
+            self.cur
+                .state
+                .assert_mut()
+                .function_references
+                .insert(index);
         }
 
         // ... and verify we're done after that
@@ -1414,12 +1415,8 @@ impl Validator {
             for _ in 0..items.get_count() {
                 me.offset = items.original_position();
                 match items.read()? {
-                    ElementItem::Null(ty) => {
-                        if ty != e.ty {
-                            return me.create_error(
-                                "type mismatch: null type doesn't match element type",
-                            );
-                        }
+                    ElementItem::Expr(expr) => {
+                        me.init_expr(&expr, e.ty)?;
                     }
                     ElementItem::Func(f) => {
                         if e.ty != Type::FuncRef {

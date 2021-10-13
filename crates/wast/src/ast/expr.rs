@@ -579,6 +579,7 @@ instructions! {
         // function-references proposal
         RefAsNonNull : [0xd3] : "ref.as_non_null",
         BrOnNull(ast::Index<'a>) : [0xd4] : "br_on_null",
+        BrOnNonNull(ast::Index<'a>) : [0xd6] : "br_on_non_null",
 
         // gc proposal: eqref
         RefEq : [0xd5] : "ref.eq",
