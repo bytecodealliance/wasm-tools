@@ -196,6 +196,7 @@ mod tests {
     use crate::{
         module::PrimitiveTypeInfo,
         mutators::peephole::{dfg::DFGIcator, eggsy::encoder::Encoder, OperatorAndByteOffset},
+        ModuleInfo,
     };
     use egg::RecExpr;
     use wasmparser::Parser;
@@ -247,7 +248,12 @@ mod tests {
                         .unwrap();
 
                     let roots = DFGIcator::new()
-                        .get_dfg(&operators, &bb, &vec![PrimitiveTypeInfo::I32])
+                        .get_dfg(
+                            &ModuleInfo::default(),
+                            &operators,
+                            &bb,
+                            &vec![PrimitiveTypeInfo::I32],
+                        )
                         .unwrap();
 
                     let mut exprroot = RecExpr::<Lang>::default();

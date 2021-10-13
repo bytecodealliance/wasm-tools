@@ -26,6 +26,8 @@ define_language! {
         "le_u" = LeU([Id; 2]),
         "ge_s" = GeS([Id; 2]),
         "ge_u" = GeU([Id; 2]),
+        // The firsts Id should be the function index
+        "call" = Call(Vec<Id>),
         "popcnt" = Popcnt(Id),
         "drop" = Drop,
         // Memory operations

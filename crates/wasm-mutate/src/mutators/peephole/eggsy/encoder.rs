@@ -26,7 +26,7 @@ pub struct Encoder;
 
 macro_rules! eterm_operator_2_wasm {
     (@expand
-        $eclassdata:expr, $newfunc:expr, $parent_eclass:expr, $nodes:expr, $root: expr, $egraph: expr,
+        $eclassdata:expr, $newfunc:expr, $parent_eclass:expr, $nodes:expr, $root: expr, $egraph: expr, $index_at_parent: expr,
         { $($target:tt)* }
     ) => {
            $(
@@ -34,64 +34,63 @@ macro_rules! eterm_operator_2_wasm {
            )*
     };
     (@expand
-        $eclassdata:expr, $newfunc:expr, $parent_eclass: expr, $nodes:expr, $root: expr, $egraph: expr,
+        $eclassdata:expr, $newfunc:expr, $parent_eclass: expr, $nodes:expr, $root: expr, $egraph: expr, $index_at_parent: expr,
         $(
             $case:pat => [$($target:tt)+]
         )*
         ) => {
-            match $eclassdata {
-                Some(data) => {
+            // Infer the type of the root
+            let it = $eclassdata.as_ref().and_then(|data|{
+                let entry = &data.get_next_stack_entry(&$egraph.analysis);
+                Some(entry.return_type.clone())
+            });
 
-                    let entry = data.get_next_stack_entry(&$egraph.analysis);
-                    let tpes = &entry.tpes[..];
+            let expected = $parent_eclass.as_ref().and_then(|data|{
+                // Get from expectation of the father
+                let entry = &data.get_next_stack_entry(&$egraph.analysis);
+                // Get the type expected for this operand
+                let tpes = &$egraph.analysis.get_stack_entry_expected_input_tpes(&entry);
+                if let Some(idx) = $index_at_parent {
 
-                    match tpes {
-                        $(
-                            $case => {
-                                $newfunc.instruction(
-                                    $(
-                                        $target
-                                    )+
-                                );
-                                Ok(())
-                            }
-                        )*
-                        _ => Err(crate::Error::UnsupportedType(EitherType::EggError(format!("There is no conversion between the eclass returning type ({:?}) the the available Wasm operators", tpes))))
+                    if tpes.len() > idx {
+                        Some(tpes[idx].clone())
+                    } else {
+                        None
                     }
+                } else
+                {
+                    None
                 }
-                None => {
-                    // Try with the parent eclass information
-                    match $parent_eclass {
-                        Some(data) => {
-                            let entry = &data.get_next_stack_entry(&$egraph.analysis);
-                            let tpes = &entry.tpes[..];
-                            match tpes {
-                                $(
-                                    $case => {
-                                        $newfunc.instruction(
-                                            $(
-                                                $target
-                                            )+
-                                        );
-                                        Ok(())
-                                    }
-                                )*
-                                _ => Err(crate::Error::UnsupportedType(EitherType::EggError(format!("There is no conversion between the eclass returning type ({:?}) the the available Wasm operators", tpes))))
-                            }
-                        }
-                        None => Err(crate::Error::UnsupportedType(EitherType::EggError(format!("The current eclass has no data information {:?} {:?}", $eclassdata, $root))))
+            });
+            let parent = $parent_eclass.as_ref().and_then(|data| {
+                let entry = data.get_next_stack_entry(&$egraph.analysis);
+                Some(entry.return_type.clone())
+            });
 
+            let tpe = it.or(expected).or(parent).ok_or(
+                crate::Error::UnsupportedType(EitherType::EggError(format!("The type of the instruction cannot be inferred")))
+            )?;
+            match tpe {
+                $(
+                    $case => {
+                        $newfunc.instruction(
+                            $(
+                                $target
+                            )+
+                        );
+                        Ok(())
                     }
-                }
+                )*
+                _ => Err(crate::Error::UnsupportedType(EitherType::EggError(format!("There is no conversion between the eclass returning type ({:?}) the the available Wasm operators", tpe))))
             }
     };
     // Write operands in order
-    (@write_subtree $eclassdata:expr, $newfunc:expr,  $info:expr, $rnd: expr, $nodes: expr, $root:expr, $node_to_eclass:expr, $operators:expr, $egraph: expr, $parenteclass: expr, [$operands:ident], $childcount: expr
+    (@write_subtree $eclassdata:expr, $newfunc:expr,  $info:expr, $rnd: expr, $nodes: expr, $root:expr, $node_to_eclass:expr, $operators:expr, $egraph: expr, $parenteclass: expr, $index_at_parent: expr, [$operands:expr]
         => {
             $($body:tt)*
         }
     ) => {
-        for oidx in (0..$childcount){
+        for oidx in (0..$operands.len()){
             Encoder::expr2wasm_aux2(
                 $info,
                 $rnd,
@@ -100,22 +99,24 @@ macro_rules! eterm_operator_2_wasm {
                 $operands[oidx],
                 $newfunc,
                 $eclassdata,
+                Some(oidx),
                 $operators,
                 $egraph,
             )?;
         }
         eterm_operator_2_wasm! {
-            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root, $egraph, $(
+            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root, $egraph, $index_at_parent, $(
                 $body
             )*
         }
     };
-    (@write_subtree $eclassdata:expr, $newfunc:expr,  $info:expr, $rnd: expr, $nodes: expr, $root:expr, $node_to_eclass:expr, $operators:expr, $egraph: expr, $parenteclass: expr, [$operands:ident], $childcount: expr,$name4node:ident, $namefornewfunc:ident, $nameforrnd:ident, $namefor_eclass:ident, $namefor_rootclass:ident, $name4egraph: ident, $name4info: ident, $name4operators: ident, $name4nodetoeclass: ident
+    (@write_subtree $eclassdata:expr, $newfunc:expr,  $info:expr, $rnd: expr, $nodes: expr, $root:expr, $node_to_eclass:expr, $operators:expr, $egraph: expr, $parenteclass: expr, $index_at_parent: expr, [$operands:expr], $name4node:ident, $namefornewfunc:ident, $nameforrnd:ident, $namefor_eclass:ident, $namefor_rootclass:ident, $name4egraph: ident, $name4info: ident, $name4operators: ident, $name4nodetoeclass: ident
         => {
             $($body:tt)*
         }
     ) => {
-        for oidx in (0..$childcount){
+
+        for oidx in (0..$operands.len()){
             Encoder::expr2wasm_aux2(
                 $info,
                 $rnd,
@@ -124,6 +125,7 @@ macro_rules! eterm_operator_2_wasm {
                 $operands[oidx],
                 $newfunc,
                 $eclassdata,
+                Some(oidx),
                 $operators,
                 $egraph,
             )?;
@@ -140,57 +142,24 @@ macro_rules! eterm_operator_2_wasm {
         let $name4nodetoeclass = $node_to_eclass;
 
         eterm_operator_2_wasm! {
-            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root,  $egraph, $(
-                $body
-            )*
-        }
-    };
-    // Single operand
-    (@write_subtree $eclassdata:expr, $newfunc:expr,  $info:expr, $rnd: expr, $nodes: expr, $root:expr, $node_to_eclass:expr, $operators:expr, $egraph: expr,$parenteclass: expr, ( $operand:expr ), $name4node:ident, $namefornewfunc:ident, $nameforrnd:ident, $namefor_eclass:ident, $namefor_rootclass:ident, $name4egraph: ident, $name4info: ident, $name4operators: ident, $name4nodetoeclass: ident
-        => {
-            $($body:tt)*
-        }
-    ) => {
-        Encoder::expr2wasm_aux2(
-            $info,
-            $rnd,
-            $nodes,
-            $node_to_eclass,
-            $operand,
-            $newfunc,
-            $eclassdata,
-            $operators,
-            $egraph,
-        )?;
-
-        let $name4node = $nodes;
-        let $namefornewfunc = $newfunc;
-        let $nameforrnd = $rnd;
-        let $namefor_eclass = $eclassdata;
-        let $namefor_rootclass = $parenteclass;
-        let $name4egraph = $egraph;
-        let $name4info = $info;
-        let $name4operators = $operators;
-        let $name4nodetoeclass = $node_to_eclass;
-        eterm_operator_2_wasm! {
-            @expand $eclassdata, $newfunc , $parenteclass, $nodes, $root,  $egraph,$(
+            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root,  $egraph, $index_at_parent, $(
                 $body
             )*
         }
     };
     //
-    (@write_subtree $eclassdata:expr, $newfunc:expr,  $info:expr, $rnd: expr, $nodes: expr, $root:expr, $node_to_eclass:expr, $operators:expr, $egraph: expr, $parenteclass: expr, $name: ident
+    (@write_subtree $eclassdata:expr, $newfunc:expr,  $info:expr, $rnd: expr, $nodes: expr, $root:expr, $node_to_eclass:expr, $operators:expr, $egraph: expr, $parenteclass: expr, $index_at_parent:expr, $name: ident
         => {
             $($body:tt)*
         }
     ) => {
         eterm_operator_2_wasm! {
-            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root,$egraph, $(
+            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root,$egraph, $index_at_parent, $(
                 $body
             )*
         }
     };
-    (@write_subtree $eclassdata:expr, $newfunc:expr,  $info:expr, $rnd: expr, $nodes: expr,  $root:expr, $node_to_eclass:expr, $operators:expr, $egraph: expr, $parenteclass: expr, $name: ident,  $name4node:ident, $namefornewfunc:ident, $nameforrnd:ident, $namefor_eclass:ident, $namefor_rootclass:ident, $name4egraph: ident, $name4info: ident, $name4operators: ident, $name4nodetoeclass: ident
+    (@write_subtree $eclassdata:expr, $newfunc:expr,  $info:expr, $rnd: expr, $nodes: expr,  $root:expr, $node_to_eclass:expr, $operators:expr, $egraph: expr, $parenteclass: expr, $index_at_parent: expr, $name: ident,  $name4node:ident, $namefornewfunc:ident, $nameforrnd:ident, $namefor_eclass:ident, $namefor_rootclass:ident, $name4egraph: ident, $name4info: ident, $name4operators: ident, $name4nodetoeclass: ident
         => {
             $($body:tt)*
         }
@@ -205,7 +174,7 @@ macro_rules! eterm_operator_2_wasm {
         let $name4operators = $operators;
         let $name4nodetoeclass = $node_to_eclass;
         eterm_operator_2_wasm! {
-            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root, $egraph, $(
+            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root, $egraph, $index_at_parent, $(
                 $body
             )*
         }
@@ -226,6 +195,7 @@ macro_rules! eterm_operator_2_wasm {
             current: Id,
             newfunc: &mut Function,
             parent_eclass: &Option<ClassData>,
+            index_at_parent: Option<usize>,
             // the following four parameters could be moved to the PeepholeAnalysis
             operators: &Vec<OperatorAndByteOffset>,
             egraph: &EG) -> crate::Result<()>{
@@ -235,17 +205,15 @@ macro_rules! eterm_operator_2_wasm {
             let eclass = node_to_eclass[usize::from(current)];
 
             let data = &egraph[eclass].data;
-
             match root {
                 $(
                     $lang => {
                         // Write the operands first
                         eterm_operator_2_wasm!{
-                            @write_subtree data, newfunc, info, rnd, nodes, root, node_to_eclass, operators, egraph, parent_eclass, $($kind)* => {
+                            @write_subtree data, newfunc, info, rnd, nodes, root, node_to_eclass, operators, egraph, parent_eclass, index_at_parent, $($kind)* => {
                                 $($body)*
                             }
                         }
-                        /* */
                     }
                 )*
                 _ => todo!("Not implemented {:?}", root)
@@ -257,7 +225,7 @@ macro_rules! eterm_operator_2_wasm {
 
 impl Encoder {
     eterm_operator_2_wasm! {
-        [Lang::GtS(operands), [operands], 2, _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
+        [Lang::GtS(operands), [operands],  _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
             // The type of irelop is the operand, and it always returns i32
             let operandeid = operands[0];
             let eclassid = node_to_eclass[usize::from(operandeid)];
@@ -266,10 +234,10 @@ impl Encoder {
                 Some(data) => {
 
                     let operandtpe = data.get_next_stack_entry(&egraph.analysis);
-                    let operandtpe = &operandtpe.tpes[..];
+                    let operandtpe = &operandtpe.return_type;
                     match operandtpe {
-                        [PrimitiveTypeInfo::I32] => {newfunc.instruction(Instruction::I32GtS);},
-                        [PrimitiveTypeInfo::I64] => {newfunc.instruction(Instruction::I64GtS);},
+                        PrimitiveTypeInfo::I32 => {newfunc.instruction(Instruction::I32GtS);},
+                        PrimitiveTypeInfo::I64 => {newfunc.instruction(Instruction::I64GtS);},
                         _ => unreachable!("Type cannot be encoded")
                     }
                     Ok(())
@@ -279,7 +247,24 @@ impl Encoder {
                 }
             }
         }}
-        [Lang::GtU(operands), [operands], 2, _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
+        [Lang::Call(operands), [operands[1..]] /* Since the last element is an inmediate argument,
+        it should not be processed as usual*/, nodes, newfunc, _rnd, _eclassdata, _rootclassdata, _egraph, _info, _operators, _node_to_eclass] => {{
+            // The type of irelop is the operand, and it always returns i32
+            let first = operands[0];
+            let firstnode = &nodes[usize::from(first)];
+            match firstnode {
+                Lang::Arg(val) => {
+                    newfunc.instruction(Instruction::Call(*val as u32));
+                }
+                Lang::Num(val) => {
+                    newfunc.instruction(Instruction::Call(*val as u32));
+                }
+                _ => unreachable!("The last argument for Call nodes should be an inmmediate node type (Arg)")
+            }
+
+            Ok(())
+        }}
+        [Lang::GtU(operands), [operands], _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
             // The type of irelop is the operand, and it always returns i32
             let operandeid = operands[0];
             let eclassid = node_to_eclass[usize::from(operandeid)];
@@ -288,10 +273,10 @@ impl Encoder {
                 Some(data) => {
 
                     let operandtpe = data.get_next_stack_entry(&egraph.analysis);
-                    let operandtpe = &operandtpe.tpes[..];
+                    let operandtpe = &operandtpe.return_type;
                     match operandtpe {
-                        [PrimitiveTypeInfo::I32] => {newfunc.instruction(Instruction::I32GtU);},
-                        [PrimitiveTypeInfo::I64] => {newfunc.instruction(Instruction::I64GtU);},
+                        PrimitiveTypeInfo::I32 => {newfunc.instruction(Instruction::I32GtU);},
+                        PrimitiveTypeInfo::I64 => {newfunc.instruction(Instruction::I64GtU);},
                         _ => unreachable!("Type cannot be encoded")
                     }
                     Ok(())
@@ -301,7 +286,7 @@ impl Encoder {
                 }
             }
         }}
-        [Lang::LtS(operands), [operands],2, _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
+        [Lang::LtS(operands), [operands], _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
             // The type of irelop is the operand, and it always returns i32
             let operandeid = operands[0];
             let eclassid = node_to_eclass[usize::from(operandeid)];
@@ -310,10 +295,10 @@ impl Encoder {
                 Some(data) => {
 
                     let operandtpe = data.get_next_stack_entry(&egraph.analysis);
-                    let operandtpe = &operandtpe.tpes[..];
+                    let operandtpe = &operandtpe.return_type;
                     match operandtpe {
-                        [PrimitiveTypeInfo::I32] => {newfunc.instruction(Instruction::I32LtS);},
-                        [PrimitiveTypeInfo::I64] => {newfunc.instruction(Instruction::I64LtS);},
+                        PrimitiveTypeInfo::I32 => {newfunc.instruction(Instruction::I32LtS);},
+                        PrimitiveTypeInfo::I64 => {newfunc.instruction(Instruction::I64LtS);},
                         _ => unreachable!("Type cannot be encoded")
                     }
                     Ok(())
@@ -323,7 +308,7 @@ impl Encoder {
                 }
             }
         }}
-        [Lang::LtU(operands), [operands], 2, _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
+        [Lang::LtU(operands), [operands], _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
             // The type of irelop is the operand, and it always returns i32
             let operandeid = operands[0];
             let eclassid = node_to_eclass[usize::from(operandeid)];
@@ -332,10 +317,10 @@ impl Encoder {
                 Some(data) => {
 
                     let operandtpe = data.get_next_stack_entry(&egraph.analysis);
-                    let operandtpe = &operandtpe.tpes[..];
+                    let operandtpe = &operandtpe.return_type;
                     match operandtpe {
-                        [PrimitiveTypeInfo::I32] => {newfunc.instruction(Instruction::I32LtU);},
-                        [PrimitiveTypeInfo::I64] => {newfunc.instruction(Instruction::I64LtU);},
+                        PrimitiveTypeInfo::I32 => {newfunc.instruction(Instruction::I32LtU);},
+                        PrimitiveTypeInfo::I64 => {newfunc.instruction(Instruction::I64LtU);},
                         _ => unreachable!("Type cannot be encoded")
                     }
                     Ok(())
@@ -345,7 +330,7 @@ impl Encoder {
                 }
             }
         }}
-        [Lang::LeU(operands), [operands], 2, _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
+        [Lang::LeU(operands), [operands], _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
             // The type of irelop is the operand, and it always returns i32
             let operandeid = operands[0];
             let eclassid = node_to_eclass[usize::from(operandeid)];
@@ -354,10 +339,10 @@ impl Encoder {
                 Some(data) => {
 
                     let operandtpe = data.get_next_stack_entry(&egraph.analysis);
-                    let operandtpe = &operandtpe.tpes[..];
+                    let operandtpe = &operandtpe.return_type;
                     match operandtpe {
-                        [PrimitiveTypeInfo::I32] => {newfunc.instruction(Instruction::I32LeU);},
-                        [PrimitiveTypeInfo::I64] => {newfunc.instruction(Instruction::I64LeU);},
+                        PrimitiveTypeInfo::I32 => {newfunc.instruction(Instruction::I32LeU);},
+                        PrimitiveTypeInfo::I64 => {newfunc.instruction(Instruction::I64LeU);},
                         _ => unreachable!("Type cannot be encoded")
                     }
                     Ok(())
@@ -367,7 +352,7 @@ impl Encoder {
                 }
             }
         }}
-        [Lang::LeS(operands), [operands], 2, _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
+        [Lang::LeS(operands), [operands], _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
             // The type of irelop is the operand, and it always returns i32
             let operandeid = operands[0];
             let eclassid = node_to_eclass[usize::from(operandeid)];
@@ -376,10 +361,10 @@ impl Encoder {
                 Some(data) => {
 
                     let operandtpe = data.get_next_stack_entry(&egraph.analysis);
-                    let operandtpe = &operandtpe.tpes[..];
+                    let operandtpe = &operandtpe.return_type;
                     match operandtpe {
-                        [PrimitiveTypeInfo::I32] => {newfunc.instruction(Instruction::I32LeS);},
-                        [PrimitiveTypeInfo::I64] => {newfunc.instruction(Instruction::I64LeS);},
+                        PrimitiveTypeInfo::I32 => {newfunc.instruction(Instruction::I32LeS);},
+                        PrimitiveTypeInfo::I64 => {newfunc.instruction(Instruction::I64LeS);},
                         _ => unreachable!("Type cannot be encoded")
                     }
                     Ok(())
@@ -389,7 +374,7 @@ impl Encoder {
                 }
             }
         }}
-        [Lang::GeS(operands), [operands], 2, _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
+        [Lang::GeS(operands), [operands], _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
             // The type of irelop is the operand, and it always returns i32
             let operandeid = operands[0];
             let eclassid = node_to_eclass[usize::from(operandeid)];
@@ -398,10 +383,10 @@ impl Encoder {
                 Some(data) => {
 
                     let operandtpe = data.get_next_stack_entry(&egraph.analysis);
-                    let operandtpe = &operandtpe.tpes[..];
+                    let operandtpe = &operandtpe.return_type;
                     match operandtpe {
-                        [PrimitiveTypeInfo::I32] => {newfunc.instruction(Instruction::I32GeU);},
-                        [PrimitiveTypeInfo::I64] => {newfunc.instruction(Instruction::I64GeU);},
+                        PrimitiveTypeInfo::I32 => {newfunc.instruction(Instruction::I32GeU);},
+                        PrimitiveTypeInfo::I64 => {newfunc.instruction(Instruction::I64GeU);},
                         _ => unreachable!("Type cannot be encoded")
                     }
                     Ok(())
@@ -411,7 +396,7 @@ impl Encoder {
                 }
             }
         }}
-        [Lang::Eq(operands), [operands], 2, _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
+        [Lang::Eq(operands), [operands],  _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
             // The type of irelop is the operand, and it always returns i32
             let operandeid = operands[0];
             let eclassid = node_to_eclass[usize::from(operandeid)];
@@ -420,10 +405,10 @@ impl Encoder {
                 Some(data) => {
 
                     let operandtpe = data.get_next_stack_entry(&egraph.analysis);
-                    let operandtpe = &operandtpe.tpes[..];
+                    let operandtpe = &operandtpe.return_type;
                     match operandtpe {
-                        [PrimitiveTypeInfo::I32] => {newfunc.instruction(Instruction::I32Eq);},
-                        [PrimitiveTypeInfo::I64] => {newfunc.instruction(Instruction::I64Eq);},
+                        PrimitiveTypeInfo::I32 => {newfunc.instruction(Instruction::I32Eq);},
+                        PrimitiveTypeInfo::I64 => {newfunc.instruction(Instruction::I64Eq);},
                         _ => unreachable!("Type cannot be encoded")
                     }
                     Ok(())
@@ -433,7 +418,7 @@ impl Encoder {
                 }
             }
         }}
-        [Lang::Ne(operands), [operands], 2, _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
+        [Lang::Ne(operands), [operands],  _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
             // The type of irelop is the operand, and it always returns i32
             // The type of irelop is the operand, and it always returns i32
             let operandeid = operands[0];
@@ -444,10 +429,10 @@ impl Encoder {
                 Some(data) => {
 
                     let operandtpe = data.get_next_stack_entry(&egraph.analysis);
-                    let operandtpe = &operandtpe.tpes[..];
+                    let operandtpe = &operandtpe.return_type;
                     match operandtpe {
-                        [PrimitiveTypeInfo::I32] => {newfunc.instruction(Instruction::I32Neq);},
-                        [PrimitiveTypeInfo::I64] => {newfunc.instruction(Instruction::I64Neq);},
+                        PrimitiveTypeInfo::I32 => {newfunc.instruction(Instruction::I32Neq);},
+                        PrimitiveTypeInfo::I64 => {newfunc.instruction(Instruction::I64Neq);},
                         _ => unreachable!("Type cannot be encoded")
                     }
                     Ok(())
@@ -457,7 +442,7 @@ impl Encoder {
                 }
             }
         }}
-        [Lang::Eqz(operands), [operands], 1, _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
+        [Lang::Eqz(operands), [operands],  _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
             // The type of irelop is the operand, and it always returns i32
             let operandeid = operands[0];
             let eclassid = node_to_eclass[usize::from(operandeid)];
@@ -467,10 +452,10 @@ impl Encoder {
                 Some(data) => {
 
                     let operandtpe = data.get_next_stack_entry(&egraph.analysis);
-                    let operandtpe = &operandtpe.tpes[..];
+                    let operandtpe = &operandtpe.return_type;
                     match operandtpe {
-                        [PrimitiveTypeInfo::I32] => {newfunc.instruction(Instruction::I32Eqz);},
-                        [PrimitiveTypeInfo::I64] => {newfunc.instruction(Instruction::I64Eqz);},
+                        PrimitiveTypeInfo::I32 => {newfunc.instruction(Instruction::I32Eqz);},
+                        PrimitiveTypeInfo::I64 => {newfunc.instruction(Instruction::I64Eqz);},
                         _ => unreachable!("Type cannot be encoded")
                     }
                     Ok(())
@@ -480,74 +465,74 @@ impl Encoder {
                 }
             }
         }}
-        [Lang::Or(operands), [operands], 2] => {
+        [Lang::Or(operands), [operands]] => {
 
-            [PrimitiveTypeInfo::I32] => [Instruction::I32Or]
-            [PrimitiveTypeInfo::I64] => [Instruction::I64Or]
-
-        }
-        [Lang::DivS(operands), [operands], 2] => {
-
-            [PrimitiveTypeInfo::I32] => [Instruction::I32DivS]
-            [PrimitiveTypeInfo::I64] => [Instruction::I64DivS]
+            PrimitiveTypeInfo::I32 => [Instruction::I32Or]
+            PrimitiveTypeInfo::I64 => [Instruction::I64Or]
 
         }
-        [Lang::ShrS(operands), [operands], 2] => {
+        [Lang::DivS(operands), [operands]] => {
 
-            [PrimitiveTypeInfo::I32] => [Instruction::I32ShrS]
-            [PrimitiveTypeInfo::I64] => [Instruction::I64ShrS]
-
-        }
-        [Lang::DivU(operands), [operands], 2] => {
-
-            [PrimitiveTypeInfo::I32] => [Instruction::I32DivU]
-            [PrimitiveTypeInfo::I64] => [Instruction::I64DivU]
+            PrimitiveTypeInfo::I32 => [Instruction::I32DivS]
+            PrimitiveTypeInfo::I64 => [Instruction::I64DivS]
 
         }
-        [Lang::And(operands), [operands], 2] => {
+        [Lang::ShrS(operands), [operands]] => {
 
-            [PrimitiveTypeInfo::I32] => [Instruction::I32And]
-            [PrimitiveTypeInfo::I64] => [Instruction::I64And]
-
-        }
-        [Lang::Xor(operands), [operands], 2] => {
-
-            [PrimitiveTypeInfo::I32] => [Instruction::I32Xor]
-            [PrimitiveTypeInfo::I64] => [Instruction::I64Xor]
+            PrimitiveTypeInfo::I32 => [Instruction::I32ShrS]
+            PrimitiveTypeInfo::I64 => [Instruction::I64ShrS]
 
         }
-        [Lang::Mul(operands), [operands], 2] => {
+        [Lang::DivU(operands), [operands]] => {
 
-            [PrimitiveTypeInfo::I32] => [Instruction::I32Mul]
-            [PrimitiveTypeInfo::I64] => [Instruction::I64Mul]
+            PrimitiveTypeInfo::I32 => [Instruction::I32DivU]
+            PrimitiveTypeInfo::I64 => [Instruction::I64DivU]
+
+        }
+        [Lang::And(operands), [operands]] => {
+
+            PrimitiveTypeInfo::I32 => [Instruction::I32And]
+            PrimitiveTypeInfo::I64 => [Instruction::I64And]
+
+        }
+        [Lang::Xor(operands), [operands]] => {
+
+            PrimitiveTypeInfo::I32 => [Instruction::I32Xor]
+            PrimitiveTypeInfo::I64 => [Instruction::I64Xor]
+
+        }
+        [Lang::Mul(operands), [operands]] => {
+
+            PrimitiveTypeInfo::I32 => [Instruction::I32Mul]
+            PrimitiveTypeInfo::I64 => [Instruction::I64Mul]
 
         }
 
-        [Lang::Add(operands), [operands], 2] => {
+        [Lang::Add(operands), [operands]] => {
 
-            [PrimitiveTypeInfo::I32] => [Instruction::I32Add]
-            [PrimitiveTypeInfo::I64] => [Instruction::I64Add]
-
-        }
-        [Lang::Sub(operands), [operands], 2] => {
-
-            [PrimitiveTypeInfo::I32] => [Instruction::I32Sub]
-            [PrimitiveTypeInfo::I64] => [Instruction::I64Sub]
+            PrimitiveTypeInfo::I32 => [Instruction::I32Add]
+            PrimitiveTypeInfo::I64 => [Instruction::I64Add]
 
         }
-        [Lang::ShrU(operands), [operands], 2] => {
+        [Lang::Sub(operands), [operands]] => {
 
-            [PrimitiveTypeInfo::I32] => [Instruction::I32ShrU]
-            [PrimitiveTypeInfo::I64] => [Instruction::I64ShrU]
-
-        }
-        [Lang::Shl(operands), [operands], 2] => {
-
-            [PrimitiveTypeInfo::I32] => [Instruction::I32Shl]
-            [PrimitiveTypeInfo::I64] => [Instruction::I64Shl]
+            PrimitiveTypeInfo::I32 => [Instruction::I32Sub]
+            PrimitiveTypeInfo::I64 => [Instruction::I64Sub]
 
         }
-        [Lang::ILoad(operands), (operands[0]), /*between parenthesis means that this operand will be written down*/nodes, newfunc, _rnd, eclassdata, _rootclassdata, egraph, _info, _operators, _node_to_eclass] => {{
+        [Lang::ShrU(operands), [operands]] => {
+
+            PrimitiveTypeInfo::I32 => [Instruction::I32ShrU]
+            PrimitiveTypeInfo::I64 => [Instruction::I64ShrU]
+
+        }
+        [Lang::Shl(operands), [operands]] => {
+
+            PrimitiveTypeInfo::I32 => [Instruction::I32Shl]
+            PrimitiveTypeInfo::I64 => [Instruction::I64Shl]
+
+        }
+        [Lang::ILoad(operands), [vec![operands[0]]], /*between parenthesis means that this operand will be written down*/nodes, newfunc, _rnd, eclassdata, _rootclassdata, egraph, _info, _operators, _node_to_eclass] => {{
             let entry = eclassdata.clone().unwrap().get_next_stack_entry(&egraph.analysis);
             if let StackType::Load { .. } = entry.operator {
 
@@ -575,13 +560,13 @@ impl Encoder {
                     align: align_value as u32,
                     memory_index: memidx_value as u32,
                 };
-                match entry.tpes[..] {
-                    [PrimitiveTypeInfo::I32] => {
+                match entry.return_type {
+                    PrimitiveTypeInfo::I32 => {
                         newfunc.instruction(Instruction::I32Load(
                             memarg
                         ));
                     },
-                    [PrimitiveTypeInfo::I64] => {
+                    PrimitiveTypeInfo::I64 => {
                         newfunc.instruction(Instruction::I64Load(
                             memarg
                         ));
@@ -596,8 +581,8 @@ impl Encoder {
         }}
 
         [Lang::Num(value), value] => {
-            [PrimitiveTypeInfo::I32] => [Instruction::I32Const(*value as i32)]
-            [PrimitiveTypeInfo::I64] => [Instruction::I64Const(*value)]
+            PrimitiveTypeInfo::I32 => [Instruction::I32Const(*value as i32)]
+            PrimitiveTypeInfo::I64 => [Instruction::I64Const(*value)]
         }
         [Lang::Rand, value, _n, newfunc, rnd, _eclassdata, _rootdata, _egraph, _info, _operators, _node_to_eclass] => {{
             newfunc.instruction(Instruction::I32Const(rnd.gen()));
@@ -625,16 +610,16 @@ impl Encoder {
                     match eclassdata {
                         Some(data) => {
                             let entry = &data.get_next_stack_entry(&egraph.analysis);
-                            let tpes = &entry.tpes[..];
+                            let tpes = &entry.return_type;
                             match tpes{
-                                [PrimitiveTypeInfo::I64] => {
+                                PrimitiveTypeInfo::I64 => {
                                     let r: i64 = rnd.gen();
                                     newfunc.instruction(Instruction::I64Const(r));
                                     newfunc.instruction(Instruction::I64Const((Wrapping(*value) - Wrapping(r)).0));
                                     newfunc.instruction(Instruction::I64Add);
                                     Ok(())
                                 },
-                                [PrimitiveTypeInfo::I32] => {
+                                PrimitiveTypeInfo::I32 => {
                                     let r: i32 = rnd.gen();
                                     newfunc.instruction(Instruction::I32Const(r));
                                     newfunc.instruction(Instruction::I32Const((Wrapping(*value as i32) - Wrapping(r)).0));
@@ -672,6 +657,7 @@ impl Encoder {
             Id::from(nodes.len() - 1), // first node is the root
             newfunc,
             &None,
+            None,
             operators,
             egraph,
         )
@@ -715,22 +701,22 @@ impl Encoder {
                     memory,
                 } => {
                     // Here it depends on the type
-                    match entry.tpes[..] {
-                        [PrimitiveTypeInfo::I32] => {
+                    match entry.return_type {
+                        PrimitiveTypeInfo::I32 => {
                             newfunc.instruction(Instruction::I32Load(MemArg {
                                 offset: offset,
                                 align: align as u32,
                                 memory_index: memory,
                             }));
                         }
-                        [PrimitiveTypeInfo::I64] => {
+                        PrimitiveTypeInfo::I64 => {
                             newfunc.instruction(Instruction::I64Load(MemArg {
                                 offset: offset,
                                 align: align as u32,
                                 memory_index: memory,
                             }));
                         }
-                        _ => unreachable!("Type {:?} is not supported", entry.tpes),
+                        _ => unreachable!("Type {:?} is not supported", entry.return_type),
                     }
                 }
                 StackType::Undef => {
@@ -743,6 +729,12 @@ impl Encoder {
                     let range = [range[0].1, range[1].1];
                     let raw_data = &info.get_code_section().data[range[0]..range[1]];
                     newfunc.raw(raw_data.iter().copied());
+                }
+                StackType::Call {
+                    function_index,
+                    params_count: _,
+                } => {
+                    newfunc.instruction(Instruction::Call(function_index));
                 }
             }
         }
@@ -831,8 +823,9 @@ impl Encoder {
                 id
             } else {
                 let newid = Id::from(hashset.len());
-                hashset.insert(l.clone(), (newid, vec![entryindex]));
                 expr.add(l.clone());
+                hashset.insert(l.clone(), (newid, vec![entryindex]));
+
                 newid
             }
         }
@@ -1071,7 +1064,39 @@ impl Encoder {
 
                     return Ok(nodeid);
                 }
-                _ => panic!("Not implemented yet {:?}", op),
+                StackType::Call {
+                    function_index,
+                    params_count,
+                } => {
+                    // To differentiate between functions, the first child
+                    // is the index of the function in the Wasm module
+                    let function_indexid = put_enode(
+                        Lang::Arg(*function_index as u64),
+                        lang_to_stack_entries,
+                        entry.entry_idx,
+                        expr,
+                    );
+                    let id = vec![function_indexid];
+                    let children = (0..*params_count)
+                        .map(|i| {
+                            wasm2expraux(
+                                dfg,
+                                entry.operands[i],
+                                operators,
+                                lang_to_stack_entries,
+                                expr,
+                            )
+                        })
+                        .collect::<crate::Result<Vec<Id>>>()?;
+
+                    return Ok(put_enode(
+                        Lang::Call(vec![id, children].concat()),
+                        lang_to_stack_entries,
+                        entry.entry_idx,
+                        expr,
+                    ));
+                }
+                _ => panic!("Not yet implemented {:?}", op),
             };
         }
 
@@ -1141,6 +1166,9 @@ impl Encoder {
                         Lang::GeS(_) => expr.add(Lang::GeS([operand(0), operand(1)])),
                         Lang::GeU(_) => expr.add(Lang::GeU([operand(0), operand(1)])),
                         Lang::Popcnt(_) => expr.add(Lang::Popcnt(operand(0))),
+                        Lang::Call(op) => expr.add(Lang::Call(
+                            (0..op.len()).map(|id| operand(id)).collect::<Vec<Id>>(),
+                        )),
                         Lang::Unfold(op) => expr.add(Lang::Unfold(*op)),
                         Lang::ILoad(_) => expr.add(Lang::ILoad([
                             operand(0),

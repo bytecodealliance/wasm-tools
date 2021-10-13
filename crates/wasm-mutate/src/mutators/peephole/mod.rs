@@ -134,7 +134,7 @@ impl PeepholeMutator {
 
                 match basicblock {
                     Some(basicblock) => {
-                        let minidfg = dfg.get_dfg(&operators, &basicblock, &locals);
+                        let minidfg = dfg.get_dfg(&info, &operators, &basicblock, &locals);
                         match minidfg {
                             None => {
                                 continue;
@@ -147,9 +147,8 @@ impl PeepholeMutator {
                                 let mut start = RecExpr::<Lang>::default();
                                 let lang_to_stack_entries =
                                     Encoder::wasm2expr(&minidfg, oidx, &operators, &mut start)?;
-
-                                let undef = Lang::Undef;
-                                if start.as_ref().contains(&undef) {
+                                // Continue if the subtree coloring is inconsistent
+                                if !minidfg.is_subtree_consistent_from_root() {
                                     continue;
                                 }
 
@@ -186,10 +185,6 @@ impl PeepholeMutator {
                                 }
 
                                 debug!("Applied mutation {} for {}", expr, start);
-                                debug!(
-                                    "Applied mutation {:?} for {:?}, node to eclass {:?}",
-                                    expr, start, node_to_eclass
-                                );
 
                                 let mut newfunc = self.copy_locals(reader)?;
 
@@ -835,6 +830,33 @@ mod tests {
             (export "exported_func" (func 0)))
         "#,
             0,
+        );
+    }
+
+    #[test]
+    fn test_peep_functions() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("type1-1";  "(call ?fidx ?x )" => "(call ?fidx 1) " )];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func") (param i32 ) (local i32 i32)
+                local.get 0
+                call 0
+            )
+        )
+        "#,
+            rules,
+            r#"
+            (module
+                (func (export "exported_func") (param i32 ) (local i32 i32)
+                    i32.const 1
+                    call 0
+                )
+            )
+        "#,
+            1,
         );
     }
 
