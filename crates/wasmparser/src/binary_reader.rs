@@ -28,8 +28,6 @@ use crate::{
     ExportType, Import, ImportSectionEntryType, InitExpr, InstanceType, ModuleType, TagType,
 };
 
-const MAX_WASM_BR_TABLE_SIZE: u32 = MAX_WASM_FUNCTION_SIZE as u32;
-
 fn is_name(name: &str, expected: &'static str) -> bool {
     name == expected
 }
