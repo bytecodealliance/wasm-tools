@@ -186,7 +186,10 @@ impl PeepholeMutator {
                                 }
 
                                 debug!("Applied mutation {} for {}", expr, start);
-                                debug!("Applied mutation {:?} for {:?}, node to eclass {:?}", expr, start, node_to_eclass);
+                                debug!(
+                                    "Applied mutation {:?} for {:?}, node to eclass {:?}",
+                                    expr, start, node_to_eclass
+                                );
 
                                 let mut newfunc = self.copy_locals(reader)?;
 
@@ -558,7 +561,6 @@ mod tests {
             0,
         );
     }
-
 
     #[test]
     fn test_peep_commutative() {

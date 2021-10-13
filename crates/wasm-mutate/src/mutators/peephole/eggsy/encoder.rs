@@ -258,7 +258,7 @@ macro_rules! eterm_operator_2_wasm {
 impl Encoder {
     eterm_operator_2_wasm! {
         [Lang::GtS(operands), [operands], 2, _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
-            // The type of irelop is the operand, and it always returns i32 
+            // The type of irelop is the operand, and it always returns i32
             let operandeid = operands[0];
             let eclassid = node_to_eclass[usize::from(operandeid)];
             let operandeclass = &egraph[eclassid];
@@ -280,7 +280,7 @@ impl Encoder {
             }
         }}
         [Lang::GtU(operands), [operands], 2, _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
-            // The type of irelop is the operand, and it always returns i32 
+            // The type of irelop is the operand, and it always returns i32
             let operandeid = operands[0];
             let eclassid = node_to_eclass[usize::from(operandeid)];
             let operandeclass = &egraph[eclassid];
@@ -302,7 +302,7 @@ impl Encoder {
             }
         }}
         [Lang::LtS(operands), [operands],2, _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
-            // The type of irelop is the operand, and it always returns i32 
+            // The type of irelop is the operand, and it always returns i32
             let operandeid = operands[0];
             let eclassid = node_to_eclass[usize::from(operandeid)];
             let operandeclass = &egraph[eclassid];
@@ -324,7 +324,7 @@ impl Encoder {
             }
         }}
         [Lang::LtU(operands), [operands], 2, _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
-            // The type of irelop is the operand, and it always returns i32 
+            // The type of irelop is the operand, and it always returns i32
             let operandeid = operands[0];
             let eclassid = node_to_eclass[usize::from(operandeid)];
             let operandeclass = &egraph[eclassid];
@@ -346,7 +346,7 @@ impl Encoder {
             }
         }}
         [Lang::LeU(operands), [operands], 2, _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
-            // The type of irelop is the operand, and it always returns i32 
+            // The type of irelop is the operand, and it always returns i32
             let operandeid = operands[0];
             let eclassid = node_to_eclass[usize::from(operandeid)];
             let operandeclass = &egraph[eclassid];
@@ -368,7 +368,7 @@ impl Encoder {
             }
         }}
         [Lang::LeS(operands), [operands], 2, _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
-            // The type of irelop is the operand, and it always returns i32 
+            // The type of irelop is the operand, and it always returns i32
             let operandeid = operands[0];
             let eclassid = node_to_eclass[usize::from(operandeid)];
             let operandeclass = &egraph[eclassid];
@@ -390,7 +390,7 @@ impl Encoder {
             }
         }}
         [Lang::GeS(operands), [operands], 2, _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
-            // The type of irelop is the operand, and it always returns i32 
+            // The type of irelop is the operand, and it always returns i32
             let operandeid = operands[0];
             let eclassid = node_to_eclass[usize::from(operandeid)];
             let operandeclass = &egraph[eclassid];
@@ -412,7 +412,7 @@ impl Encoder {
             }
         }}
         [Lang::Eq(operands), [operands], 2, _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
-            // The type of irelop is the operand, and it always returns i32 
+            // The type of irelop is the operand, and it always returns i32
             let operandeid = operands[0];
             let eclassid = node_to_eclass[usize::from(operandeid)];
             let operandeclass = &egraph[eclassid];
@@ -434,8 +434,8 @@ impl Encoder {
             }
         }}
         [Lang::Ne(operands), [operands], 2, _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
-            // The type of irelop is the operand, and it always returns i32 
-            // The type of irelop is the operand, and it always returns i32 
+            // The type of irelop is the operand, and it always returns i32
+            // The type of irelop is the operand, and it always returns i32
             let operandeid = operands[0];
             let eclassid = node_to_eclass[usize::from(operandeid)];
             let operandeclass = &egraph[eclassid];
@@ -458,7 +458,7 @@ impl Encoder {
             }
         }}
         [Lang::Eqz(operands), [operands], 1, _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
-            // The type of irelop is the operand, and it always returns i32 
+            // The type of irelop is the operand, and it always returns i32
             let operandeid = operands[0];
             let eclassid = node_to_eclass[usize::from(operandeid)];
             let operandeclass = &egraph[eclassid];
@@ -549,7 +549,7 @@ impl Encoder {
         }
         [Lang::ILoad(operands), (operands[0]), /*between parenthesis means that this operand will be written down*/nodes, newfunc, _rnd, eclassdata, _rootclassdata, egraph, _info, _operators, _node_to_eclass] => {{
             let entry = eclassdata.clone().unwrap().get_next_stack_entry(&egraph.analysis);
-            if let StackType::Load(_, _, _) = entry.operator {
+            if let StackType::Load { offset, align, memory } = entry.operator {
 
                 debug_assert_eq!(4, operands.len());
                 let offset_operand = &nodes[usize::from(operands[1])];
@@ -709,21 +709,25 @@ impl Encoder {
                 StackType::LocalSet(idx) => {
                     newfunc.instruction(Instruction::LocalSet(idx));
                 }
-                StackType::Load(static_offset, align, idx) => {
+                StackType::Load {
+                    offset,
+                    align,
+                    memory,
+                } => {
                     // Here it depends on the type
                     match entry.tpes[..] {
                         [PrimitiveTypeInfo::I32] => {
                             newfunc.instruction(Instruction::I32Load(MemArg {
-                                offset: static_offset,
+                                offset: offset,
                                 align: align as u32,
-                                memory_index: idx,
+                                memory_index: memory,
                             }));
                         }
                         [PrimitiveTypeInfo::I64] => {
                             newfunc.instruction(Instruction::I64Load(MemArg {
-                                offset: static_offset,
+                                offset: offset,
                                 align: align as u32,
-                                memory_index: idx,
+                                memory_index: memory,
                             }));
                         }
                         _ => unreachable!("Type {:?} is not supported", entry.tpes),
@@ -876,9 +880,13 @@ impl Encoder {
                         expr,
                     ));
                 }
-                StackType::Load(static_offset, align, memidx) => {
+                StackType::Load {
+                    offset,
+                    align,
+                    memory,
+                } => {
                     // Write load operands
-                    let offset = wasm2expraux(
+                    let offsetid = wasm2expraux(
                         dfg,
                         entry.operands[0],
                         operators,
@@ -887,7 +895,7 @@ impl Encoder {
                     )?;
 
                     let offsetid = put_enode(
-                        Lang::Arg(*static_offset as u64),
+                        Lang::Arg(*offset as u64),
                         lang_to_stack_entries,
                         entry.entry_idx,
                         expr,
@@ -899,13 +907,13 @@ impl Encoder {
                         expr,
                     );
                     let memidxid = put_enode(
-                        Lang::Arg(*memidx as u64),
+                        Lang::Arg(*memory as u64),
                         lang_to_stack_entries,
                         entry.entry_idx,
                         expr,
                     );
                     return Ok(put_enode(
-                        Lang::ILoad([offset, offsetid, alignid, memidxid]),
+                        Lang::ILoad([offsetid, offsetid, alignid, memidxid]),
                         lang_to_stack_entries,
                         entry.entry_idx,
                         expr,

@@ -38,11 +38,7 @@ pub enum StackType {
     I64(i64),
     LocalGet(u32 /*Index*/),
     LocalSet(u32),
-    Load {
-        offset: u64,
-        align: u8,
-        memory: u32
-    },
+    Load { offset: u64, align: u8, memory: u32 },
     Undef,
     IndexAtCode(usize, usize),
 }
@@ -315,10 +311,12 @@ impl<'a> DFGIcator {
                         false,
                     );
 
-                    // TODO add staticoffset, align and memory idx as stack entries.
-
                     let idx = DFGIcator::push_node(
-                        StackType::Load(memarg.offset, memarg.align, memarg.memory),
+                        StackType::Load {
+                            offset: memarg.offset,
+                            align: memarg.align,
+                            memory: memarg.memory,
+                        },
                         idx,
                         &mut dfg_map,
                         &mut operatormap,
@@ -343,7 +341,11 @@ impl<'a> DFGIcator {
                         false,
                     );
                     let idx = DFGIcator::push_node(
-                        StackType::Load(memarg.offset, memarg.align, memarg.memory),
+                        StackType::Load {
+                            offset: memarg.offset,
+                            align: memarg.align,
+                            memory: memarg.memory,
+                        },
                         idx,
                         &mut dfg_map,
                         &mut operatormap,
