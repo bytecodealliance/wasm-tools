@@ -549,7 +549,7 @@ impl Encoder {
         }
         [Lang::ILoad(operands), (operands[0]), /*between parenthesis means that this operand will be written down*/nodes, newfunc, _rnd, eclassdata, _rootclassdata, egraph, _info, _operators, _node_to_eclass] => {{
             let entry = eclassdata.clone().unwrap().get_next_stack_entry(&egraph.analysis);
-            if let StackType::Load { offset, align, memory } = entry.operator {
+            if let StackType::Load { .. } = entry.operator {
 
                 debug_assert_eq!(4, operands.len());
                 let offset_operand = &nodes[usize::from(operands[1])];
@@ -894,7 +894,7 @@ impl Encoder {
                         expr,
                     )?;
 
-                    let offsetid = put_enode(
+                    let staticoffsetoid = put_enode(
                         Lang::Arg(*offset as u64),
                         lang_to_stack_entries,
                         entry.entry_idx,
@@ -913,7 +913,7 @@ impl Encoder {
                         expr,
                     );
                     return Ok(put_enode(
-                        Lang::ILoad([offsetid, offsetid, alignid, memidxid]),
+                        Lang::ILoad([offsetid, staticoffsetoid, alignid, memidxid]),
                         lang_to_stack_entries,
                         entry.entry_idx,
                         expr,
