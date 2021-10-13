@@ -318,14 +318,16 @@ impl<'a> BinaryReader<'a> {
 
     pub(crate) fn read_table_type(&mut self) -> Result<TableType> {
         let element_type = self.read_type()?;
-        let flags = self.read_u8()?;
-        if (flags & !0x1) != 0 {
-            return Err(BinaryReaderError::new(
-                "invalid table resizable limits flags",
-                self.original_position() - 1,
-            ));
-        }
-        let has_max = (flags & 0b1) != 0;
+        let has_max = match self.read_u8()? {
+            0x00 => false,
+            0x01 => true,
+            _ => {
+                return Err(BinaryReaderError::new(
+                    "invalid table resizable limits flags",
+                    self.original_position() - 1,
+                ))
+            }
+        };
         let initial = self.read_var_u32()?;
         let maximum = if has_max {
             Some(self.read_var_u32()?)
