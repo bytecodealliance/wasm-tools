@@ -17,7 +17,7 @@ use super::{
     BinaryReader, BinaryReaderError, InitExpr, Range, Result, SectionIteratorLimited,
     SectionReader, SectionWithLimitedItems, Type,
 };
-use crate::{ExternalKind, Operator};
+use crate::ExternalKind;
 
 #[derive(Clone)]
 pub struct Element<'a> {
@@ -44,9 +44,9 @@ pub struct ElementItems<'a> {
 }
 
 #[derive(Debug)]
-pub enum ElementItem {
-    Null(Type),
+pub enum ElementItem<'a> {
     Func(u32),
+    Expr(InitExpr<'a>),
 }
 
 impl<'a> ElementItems<'a> {
@@ -87,27 +87,19 @@ impl<'a> ElementItemsReader<'a> {
         self.exprs
     }
 
-    pub fn read(&mut self) -> Result<ElementItem> {
+    pub fn read(&mut self) -> Result<ElementItem<'a>> {
         if self.exprs {
-            let offset = self.reader.original_position();
-            let ret = match self.reader.read_operator()? {
-                Operator::RefNull { ty } => ElementItem::Null(ty),
-                Operator::RefFunc { function_index } => ElementItem::Func(function_index),
-                _ => return Err(BinaryReaderError::new("invalid element segment", offset)),
-            };
-            match self.reader.read_operator()? {
-                Operator::End => {}
-                _ => return Err(BinaryReaderError::new("invalid element segment", offset)),
-            }
-            Ok(ret)
+            let expr = self.reader.read_init_expr()?;
+            Ok(ElementItem::Expr(expr))
         } else {
-            self.reader.read_var_u32().map(ElementItem::Func)
+            let idx = self.reader.read_var_u32()?;
+            Ok(ElementItem::Func(idx))
         }
     }
 }
 
 impl<'a> IntoIterator for ElementItemsReader<'a> {
-    type Item = Result<ElementItem>;
+    type Item = Result<ElementItem<'a>>;
     type IntoIter = ElementItemsIterator<'a>;
     fn into_iter(self) -> Self::IntoIter {
         let count = self.count;
@@ -126,7 +118,7 @@ pub struct ElementItemsIterator<'a> {
 }
 
 impl<'a> Iterator for ElementItemsIterator<'a> {
-    type Item = Result<ElementItem>;
+    type Item = Result<ElementItem<'a>>;
     fn next(&mut self) -> Option<Self::Item> {
         if self.err || self.left == 0 {
             return None;

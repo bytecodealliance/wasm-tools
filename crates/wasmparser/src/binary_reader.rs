@@ -24,9 +24,9 @@ use crate::primitives::{
     Ieee64, LinkingType, MemoryImmediate, MemoryType, NameType, Operator, RelocType, Result,
     SIMDLaneIndex, SectionCode, TableType, Type, TypeOrFuncType, V128,
 };
-use crate::{ExportType, Import, ImportSectionEntryType, InstanceType, ModuleType, TagType};
-
-const MAX_WASM_BR_TABLE_SIZE: usize = MAX_WASM_FUNCTION_SIZE;
+use crate::{
+    ExportType, Import, ImportSectionEntryType, InitExpr, InstanceType, ModuleType, TagType,
+};
 
 fn is_name(name: &str, expected: &'static str) -> bool {
     name == expected
@@ -316,14 +316,16 @@ impl<'a> BinaryReader<'a> {
 
     pub(crate) fn read_table_type(&mut self) -> Result<TableType> {
         let element_type = self.read_type()?;
-        let flags = self.read_var_u32()?;
-        if (flags & !0x1) != 0 {
-            return Err(BinaryReaderError::new(
-                "invalid table resizable limits flags",
-                self.original_position() - 1,
-            ));
-        }
-        let has_max = (flags & 0b1) != 0;
+        let has_max = match self.read_u8()? {
+            0x00 => false,
+            0x01 => true,
+            _ => {
+                return Err(BinaryReaderError::new(
+                    "invalid table resizable limits flags",
+                    self.original_position() - 1,
+                ))
+            }
+        };
         let initial = self.read_var_u32()?;
         let maximum = if has_max {
             Some(self.read_var_u32()?)
@@ -464,22 +466,23 @@ impl<'a> BinaryReader<'a> {
     }
 
     fn read_br_table(&mut self) -> Result<BrTable<'a>> {
-        let targets_len = self.read_var_u32()? as usize;
-        if targets_len > MAX_WASM_BR_TABLE_SIZE {
+        let cnt = self.read_var_u32()?;
+        if cnt > MAX_WASM_BR_TABLE_SIZE {
             return Err(BinaryReaderError::new(
                 "br_table size is out of bound",
                 self.original_position() - 1,
             ));
         }
         let start = self.position;
-        for _ in 0..targets_len {
+        for _ in 0..cnt {
             self.skip_var_32()?;
         }
-        self.skip_var_32()?;
         let end = self.position;
+        let default = self.read_var_u32()?;
         Ok(BrTable {
             reader: BinaryReader::new_with_offset(&self.buffer[start..end], start),
-            cnt: targets_len as usize,
+            cnt,
+            default,
         })
     }
 
@@ -1910,6 +1913,13 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
+    pub(crate) fn read_init_expr(&mut self) -> Result<InitExpr<'a>> {
+        let expr_offset = self.position;
+        self.skip_init_expr()?;
+        let data = &self.buffer[expr_offset..self.position];
+        Ok(InitExpr::new(data, self.original_offset + expr_offset))
+    }
+
     pub(crate) fn skip_init_expr(&mut self) -> Result<()> {
         // TODO add skip_operator() method and/or validate init_expr operators.
         loop {
@@ -1923,7 +1933,7 @@ impl<'a> BinaryReader<'a> {
 impl<'a> BrTable<'a> {
     /// Returns the number of `br_table` entries, not including the default
     /// label
-    pub fn len(&self) -> usize {
+    pub fn len(&self) -> u32 {
         self.cnt
     }
 
@@ -1932,19 +1942,19 @@ impl<'a> BrTable<'a> {
         self.len() == 0
     }
 
+    /// Returns the default target of this `br_table` instruction.
+    pub fn default(&self) -> u32 {
+        self.default
+    }
+
     /// Returns the list of targets that this `br_table` instruction will be
     /// jumping to.
     ///
     /// This method will return an iterator which parses each target of this
-    /// `br_table` as well as the default target. The returned iterator will
-    /// yield `self.len() + 1` elements.
+    /// `br_table` except the default target. The returned iterator will
+    /// yield `self.len()` elements.
     ///
-    /// Each iterator item is a tuple of `(u32, bool)`, where the first item is
-    /// the relative depth of the jump and the second item is `true` if the item
-    /// is the default label. You're guaranteed that `true` will only show up
-    /// for the final element of the iterator.
-    ///
-    /// #Examples
+    /// # Examples
     ///
     /// ```rust
     /// let buf = [0x0e, 0x02, 0x01, 0x02, 0x00];
@@ -1952,21 +1962,20 @@ impl<'a> BrTable<'a> {
     /// let op = reader.read_operator().unwrap();
     /// if let wasmparser::Operator::BrTable { table } = op {
     ///     let targets = table.targets().collect::<Result<Vec<_>, _>>().unwrap();
-    ///     assert_eq!(targets, [(1, false), (2, false), (0, true)]);
+    ///     assert_eq!(targets, [1, 2]);
     /// }
     /// ```
-    pub fn targets<'b>(&'b self) -> impl Iterator<Item = Result<(u32, bool)>> + 'b {
+    pub fn targets<'b>(&'b self) -> impl Iterator<Item = Result<u32>> + 'b {
         let mut reader = self.reader.clone();
-        (0..self.cnt + 1).map(move |i| {
+        (0..self.cnt).map(move |i| {
             let label = reader.read_var_u32()?;
-            let ret = (label, i == self.cnt);
-            if ret.1 && !reader.eof() {
+            if i == self.cnt - 1 && !reader.eof() {
                 return Err(BinaryReaderError::new(
                     "trailing data in br_table",
                     reader.original_position(),
                 ));
             }
-            Ok(ret)
+            Ok(label)
         })
     }
 }
@@ -1975,6 +1984,7 @@ impl fmt::Debug for BrTable<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut f = f.debug_struct("BrTable");
         f.field("count", &self.cnt);
+        f.field("default", &self.default);
         match self.targets().collect::<Result<Vec<_>>>() {
             Ok(targets) => {
                 f.field("targets", &targets);

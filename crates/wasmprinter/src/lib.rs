@@ -799,8 +799,8 @@ impl Printer {
             }
             BrTable { table } => {
                 self.result.push_str("br_table");
-                for item in table.targets() {
-                    let (item, _is_default) = item?;
+                for item in table.targets().chain(Some(Ok(table.default()))) {
+                    let item = item?;
                     write!(self.result, " {} (;{};)", item, label(item))?;
                 }
             }
@@ -1801,21 +1801,10 @@ impl Printer {
                 self.print_reftype(elem.ty)?;
             }
             for _ in 0..items_reader.get_count() {
+                self.result.push_str(" ");
                 match items_reader.read()? {
-                    ElementItem::Null(ty) => {
-                        self.result.push_str(" (ref.null ");
-                        self.print_reftype(ty)?;
-                        self.result.push_str(")");
-                    }
-                    ElementItem::Func(idx) if items_reader.uses_exprs() => {
-                        self.result.push_str(" (ref.func ");
-                        self.print_func_idx(idx)?;
-                        self.result.push_str(")");
-                    }
-                    ElementItem::Func(idx) => {
-                        self.result.push_str(" ");
-                        self.print_func_idx(idx)?;
-                    }
+                    ElementItem::Expr(expr) => self.print_init_expr(&expr)?,
+                    ElementItem::Func(idx) => self.print_func_idx(idx)?,
                 }
             }
             self.end_group();

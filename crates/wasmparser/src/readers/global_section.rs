@@ -65,10 +65,7 @@ impl<'a> GlobalSectionReader<'a> {
         'a: 'b,
     {
         let ty = self.reader.read_global_type()?;
-        let expr_offset = self.reader.position;
-        self.reader.skip_init_expr()?;
-        let data = &self.reader.buffer[expr_offset..self.reader.position];
-        let init_expr = InitExpr::new(data, self.reader.original_offset + expr_offset);
+        let init_expr = self.reader.read_init_expr()?;
         Ok(Global { ty, init_expr })
     }
 }

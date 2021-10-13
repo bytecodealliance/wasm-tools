@@ -25,7 +25,7 @@ pub const MAX_WASM_MEMORY32_PAGES: u64 = 65536;
 pub const MAX_WASM_MEMORY64_PAGES: u64 = 1 << 48;
 pub const MAX_WASM_STRING_SIZE: usize = 100_000;
 pub const _MAX_WASM_MODULE_SIZE: usize = 1024 * 1024 * 1024; //= 1 GiB
-pub const MAX_WASM_FUNCTION_SIZE: usize = 128 * 1024;
+pub const MAX_WASM_FUNCTION_SIZE: u32 = 128 * 1024;
 pub const MAX_WASM_FUNCTION_LOCALS: usize = 50000;
 pub const MAX_WASM_FUNCTION_PARAMS: usize = 1000;
 pub const MAX_WASM_FUNCTION_RETURNS: usize = 1000;
@@ -37,3 +37,4 @@ pub const MAX_WASM_MODULES: usize = 1_000;
 pub const MAX_WASM_INSTANCES: usize = 1_000;
 pub const MAX_WASM_TAGS: usize = 1_000_000;
 pub const MAX_TYPE_SIZE: u32 = 100_000;
+pub const MAX_WASM_BR_TABLE_SIZE: u32 = MAX_WASM_FUNCTION_SIZE;
