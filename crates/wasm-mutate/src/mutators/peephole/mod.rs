@@ -113,7 +113,7 @@ impl PeepholeMutator {
             let operatorscount = operators.len();
             let opcode_to_mutate = rnd.gen_range(0, operatorscount);
 
-            let locals = self.get_func_locals(&info, fidx, &mut localsreader)?;
+            let locals = self.get_func_locals(&info, fidx + info.imported_functions_count /* the function type is shifted by the imported functions*/, &mut localsreader)?;
 
             for oidx in (opcode_to_mutate..operatorscount).chain(0..opcode_to_mutate) {
                 let mut dfg = DFGIcator::new();
@@ -233,9 +233,13 @@ impl PeepholeMutator {
         let code_section = info.get_code_section();
         let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
 
+        // this mutator is applicable to internal functions, so
+        // it starts by randomly selecting an index between
+        // the imported functions and the total count, total=imported + internal
         for fidx in 0..info.function_count {
             let reader = sectionreader.read()?;
             if fidx == function_to_mutate {
+                debug!("Mutating function  idx {:?}", fidx);
                 codes.function(&new_function);
             } else {
                 codes.raw(&code_section.data[reader.range().start..reader.range().end]);

@@ -26,7 +26,7 @@ pub struct Encoder;
 
 macro_rules! eterm_operator_2_wasm {
     (@expand
-        $eclassdata:expr, $newfunc:expr, $parent_eclass:expr, $nodes:expr, $root: expr, $egraph: expr, $index_at_parent: expr,
+        $eclassdata:expr, $newfunc:expr, $parent_eclass:expr, $nodes:expr, $root: expr, $egraph: expr, $index_at_parent: expr,$parent: expr, $info: expr,
         { $($target:tt)* }
     ) => {
            $(
@@ -34,7 +34,7 @@ macro_rules! eterm_operator_2_wasm {
            )*
     };
     (@expand
-        $eclassdata:expr, $newfunc:expr, $parent_eclass: expr, $nodes:expr, $root: expr, $egraph: expr, $index_at_parent: expr,
+        $eclassdata:expr, $newfunc:expr, $parent_eclass: expr, $nodes:expr, $root: expr, $egraph: expr, $index_at_parent: expr, $parent: expr, $info: expr,
         $(
             $case:pat => [$($target:tt)+]
         )*
@@ -45,29 +45,51 @@ macro_rules! eterm_operator_2_wasm {
                 Some(entry.return_type.clone())
             });
 
-            let expected = $parent_eclass.as_ref().and_then(|data|{
-                // Get from expectation of the father
-                let entry = &data.get_next_stack_entry(&$egraph.analysis);
-                // Get the type expected for this operand
-                let tpes = &$egraph.analysis.get_stack_entry_expected_input_tpes(&entry);
-                if let Some(idx) = $index_at_parent {
-
-                    if tpes.len() > idx {
-                        Some(tpes[idx].clone())
-                    } else {
-                        None
-                    }
-                } else
-                {
-                    None
-                }
-            });
-            let parent = $parent_eclass.as_ref().and_then(|data| {
+            // println!("lang current {:?} root {:?}", $root, $parent);
+            // If the type cannot be taken from the eclass data, then it is probably
+            // artificially created and it can be inferred from the parent and the siblings
+            // For example, ?x => (add ?x 0), Num(0) in this case is artificial and it is determined by the
+            // type of the add operator. In this case the eclass of ?x is merge with the add operator, thus,
+            // that `add` has the type of ?x and therefore following the semantic of Wasm instructions, 0
+            // has the same type
+            let parenttpe = $parent_eclass.as_ref().and_then(|data| {
                 let entry = data.get_next_stack_entry(&$egraph.analysis);
                 Some(entry.return_type.clone())
             });
 
-            let tpe = it.or(expected).or(parent).ok_or(
+            let expected = $parent.and_then(|parent|{
+                match parent {
+                    // In this case both operators and the parent have the same return type
+                    // A call is an special case, the type of the operand is determined by its signature
+                    Lang::Call(operands) => {
+                        $index_at_parent.and_then(|idx|{
+                            let first = operands[0];
+                            let firstnode = &$nodes[usize::from(first)];
+                            let functionindex = match firstnode {
+                                Lang::Arg(val) => {
+                                    *val as u32
+                                }
+                                Lang::Num(val) => {
+                                    *val as u32
+                                }
+                                _ => unreachable!("The last argument for Call nodes should be an inmmediate node type (Arg)")
+                            };
+
+                            let typeinfo = $info.get_functype_idx(functionindex as usize);
+
+                            if let crate::module::TypeInfo::Func(tpe) = typeinfo {
+                                return Some(tpe.params[idx].clone())
+                            }
+                            None
+                        })
+                    }
+                   _ => parenttpe // Usually the parent type is the type of the operand
+                }
+            });
+
+
+             // println!("root {:?}, it {:?}, expected {:?}", $root, it, expected);
+            let tpe = it.or(expected).ok_or(
                 crate::Error::UnsupportedType(EitherType::EggError(format!("The type of the instruction cannot be inferred")))
             )?;
             match tpe {
@@ -85,7 +107,7 @@ macro_rules! eterm_operator_2_wasm {
             }
     };
     // Write operands in order
-    (@write_subtree $eclassdata:expr, $newfunc:expr,  $info:expr, $rnd: expr, $nodes: expr, $root:expr, $node_to_eclass:expr, $operators:expr, $egraph: expr, $parenteclass: expr, $index_at_parent: expr, [$operands:expr]
+    (@write_subtree $eclassdata:expr, $newfunc:expr,  $info:expr, $rnd: expr, $nodes: expr, $root:expr, $node_to_eclass:expr, $operators:expr, $egraph: expr, $parenteclass: expr, $index_at_parent: expr, $parent:expr, [$operands:expr]
         => {
             $($body:tt)*
         }
@@ -100,17 +122,18 @@ macro_rules! eterm_operator_2_wasm {
                 $newfunc,
                 $eclassdata,
                 Some(oidx),
+                Some($root),
                 $operators,
                 $egraph,
             )?;
         }
         eterm_operator_2_wasm! {
-            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root, $egraph, $index_at_parent, $(
+            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root, $egraph, $index_at_parent, $parent, $info, $(
                 $body
             )*
         }
     };
-    (@write_subtree $eclassdata:expr, $newfunc:expr,  $info:expr, $rnd: expr, $nodes: expr, $root:expr, $node_to_eclass:expr, $operators:expr, $egraph: expr, $parenteclass: expr, $index_at_parent: expr, [$operands:expr], $name4node:ident, $namefornewfunc:ident, $nameforrnd:ident, $namefor_eclass:ident, $namefor_rootclass:ident, $name4egraph: ident, $name4info: ident, $name4operators: ident, $name4nodetoeclass: ident
+    (@write_subtree $eclassdata:expr, $newfunc:expr,  $info:expr, $rnd: expr, $nodes: expr, $root:expr, $node_to_eclass:expr, $operators:expr, $egraph: expr, $parenteclass: expr, $index_at_parent: expr,$parent:expr, [$operands:expr], $name4node:ident, $namefornewfunc:ident, $nameforrnd:ident, $namefor_eclass:ident, $namefor_rootclass:ident, $name4egraph: ident, $name4info: ident, $name4operators: ident, $name4nodetoeclass: ident
         => {
             $($body:tt)*
         }
@@ -126,6 +149,7 @@ macro_rules! eterm_operator_2_wasm {
                 $newfunc,
                 $eclassdata,
                 Some(oidx),
+                Some($root),
                 $operators,
                 $egraph,
             )?;
@@ -142,24 +166,24 @@ macro_rules! eterm_operator_2_wasm {
         let $name4nodetoeclass = $node_to_eclass;
 
         eterm_operator_2_wasm! {
-            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root,  $egraph, $index_at_parent, $(
+            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root,  $egraph, $index_at_parent, $parent, $info,$(
                 $body
             )*
         }
     };
     //
-    (@write_subtree $eclassdata:expr, $newfunc:expr,  $info:expr, $rnd: expr, $nodes: expr, $root:expr, $node_to_eclass:expr, $operators:expr, $egraph: expr, $parenteclass: expr, $index_at_parent:expr, $name: ident
+    (@write_subtree $eclassdata:expr, $newfunc:expr,  $info:expr, $rnd: expr, $nodes: expr, $root:expr, $node_to_eclass:expr, $operators:expr, $egraph: expr, $parenteclass: expr, $index_at_parent:expr, $parent:expr, $name: ident
         => {
             $($body:tt)*
         }
     ) => {
         eterm_operator_2_wasm! {
-            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root,$egraph, $index_at_parent, $(
+            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root,$egraph, $index_at_parent, $parent, $info, $(
                 $body
             )*
         }
     };
-    (@write_subtree $eclassdata:expr, $newfunc:expr,  $info:expr, $rnd: expr, $nodes: expr,  $root:expr, $node_to_eclass:expr, $operators:expr, $egraph: expr, $parenteclass: expr, $index_at_parent: expr, $name: ident,  $name4node:ident, $namefornewfunc:ident, $nameforrnd:ident, $namefor_eclass:ident, $namefor_rootclass:ident, $name4egraph: ident, $name4info: ident, $name4operators: ident, $name4nodetoeclass: ident
+    (@write_subtree $eclassdata:expr, $newfunc:expr,  $info:expr, $rnd: expr, $nodes: expr,  $root:expr, $node_to_eclass:expr, $operators:expr, $egraph: expr, $parenteclass: expr, $index_at_parent: expr, $parent:expr, $name: ident,  $name4node:ident, $namefornewfunc:ident, $nameforrnd:ident, $namefor_eclass:ident, $namefor_rootclass:ident, $name4egraph: ident, $name4info: ident, $name4operators: ident, $name4nodetoeclass: ident
         => {
             $($body:tt)*
         }
@@ -174,7 +198,7 @@ macro_rules! eterm_operator_2_wasm {
         let $name4operators = $operators;
         let $name4nodetoeclass = $node_to_eclass;
         eterm_operator_2_wasm! {
-            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root, $egraph, $index_at_parent, $(
+            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root, $egraph, $index_at_parent, $parent, $info, $(
                 $body
             )*
         }
@@ -196,6 +220,7 @@ macro_rules! eterm_operator_2_wasm {
             newfunc: &mut Function,
             parent_eclass: &Option<ClassData>,
             index_at_parent: Option<usize>,
+            parent: Option<&Lang>,
             // the following four parameters could be moved to the PeepholeAnalysis
             operators: &Vec<OperatorAndByteOffset>,
             egraph: &EG) -> crate::Result<()>{
@@ -210,7 +235,7 @@ macro_rules! eterm_operator_2_wasm {
                     $lang => {
                         // Write the operands first
                         eterm_operator_2_wasm!{
-                            @write_subtree data, newfunc, info, rnd, nodes, root, node_to_eclass, operators, egraph, parent_eclass, index_at_parent, $($kind)* => {
+                            @write_subtree data, newfunc, info, rnd, nodes, root, node_to_eclass, operators, egraph, parent_eclass, index_at_parent, parent, $($kind)* => {
                                 $($body)*
                             }
                         }
@@ -657,6 +682,7 @@ impl Encoder {
             Id::from(nodes.len() - 1), // first node is the root
             newfunc,
             &None,
+            None,
             None,
             operators,
             egraph,

@@ -259,6 +259,11 @@ impl<'a> DFGIcator {
                     let typeinfo = info.get_functype_idx(*function_index as usize);
                     match typeinfo {
                         crate::module::TypeInfo::Func(tpe) => {
+                            // Skip if it returns more than one value
+                            // since it is not yet supported
+                            if tpe.returns.len() > 1 {
+                                return None;
+                            }
                             // Pop as many parameters from the stack
                             let mut operands = (0..tpe.params.len())
                                 .map(|_| {

@@ -142,9 +142,11 @@ pub struct ModuleInfo<'a> {
     is_start_defined: bool,
     function_count: u32,
     exports_count: u32,
+    imported_functions_count: u32,
 
     // types for inner functions
     types_map: Vec<TypeInfo>,
+    // function idx to type idx
     function_map: Vec<u32>,
 
     // raw_sections
@@ -301,7 +303,8 @@ impl WasmMutate {
                                 wasmparser::ImportSectionEntryType::Function(ty) => {
                                     // Save imported functions
                                     info.function_map.push(ty);
-                                },
+                                    info.imported_functions_count += 1;
+                                }
                                 _ => {
                                     // Do nothing
                                 }

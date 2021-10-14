@@ -18,7 +18,8 @@ impl Mutator for SnipMutator {
         let mut reader = CodeSectionReader::new(code_section.data, 0)?;
         let count = reader.get_count();
         let function_to_mutate = rnd.gen_range(0, count);
-        let ftype = info.get_functype_idx(function_to_mutate as usize);
+        let ftype =
+            info.get_functype_idx((function_to_mutate + info.imported_functions_count) as usize);
 
         (0..count).for_each(|i| {
             if i == function_to_mutate {
