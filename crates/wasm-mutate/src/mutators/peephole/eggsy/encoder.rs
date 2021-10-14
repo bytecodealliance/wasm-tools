@@ -61,6 +61,10 @@ macro_rules! eterm_operator_2_wasm {
                 match parent {
                     // In this case both operators and the parent have the same return type
                     // A call is an special case, the type of the operand is determined by its signature
+                    Lang::ILoad{..} => {
+                        // All arguments for this kind are i32
+                        Some(PrimitiveTypeInfo::I32)
+                    }
                     Lang::Call(operands) => {
                         $index_at_parent.and_then(|idx|{
                             let first = operands[0];
