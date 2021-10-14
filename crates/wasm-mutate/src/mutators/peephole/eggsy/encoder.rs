@@ -581,6 +581,16 @@ impl Encoder {
             PrimitiveTypeInfo::I64 => [Instruction::I64Shl]
 
         }
+        [Lang::Tee(operands), [operands], /*between parenthesis means that this operand will be written down*/_nodes, newfunc, _rnd, eclassdata, _rootclassdata, egraph, _info, _operators, _node_to_eclass] => {{
+            let entry = eclassdata.clone().unwrap().get_next_stack_entry(&egraph.analysis);
+            if let StackType::LocalTee(local_index) = entry.operator {
+                newfunc.instruction(Instruction::LocalTee(local_index));
+            }
+            else {
+                unreachable!("Incorrect mapping")
+            }
+            Ok(())
+        }}
         [Lang::ILoad(operands), [vec![operands[0]]], /*between parenthesis means that this operand will be written down*/nodes, newfunc, _rnd, eclassdata, _rootclassdata, egraph, _info, _operators, _node_to_eclass] => {{
             let entry = eclassdata.clone().unwrap().get_next_stack_entry(&egraph.analysis);
             if let StackType::Load { .. } = entry.operator {
@@ -651,12 +661,17 @@ impl Encoder {
         }}
         [Lang::Symbol(s), s, _n, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, _node_to_eclass] => {{
             let entry = &egraph.analysis.get_stack_entry_from_symbol(s.to_string()).ok_or(crate::Error::UnsupportedType(EitherType::EggError(format!("The current eterm cannot be unfolded"))))?;
-            if let StackType::LocalGet(idx) = entry.operator {
-                newfunc.instruction(Instruction::LocalGet(idx));
-                Ok(())
-            }
-            else{
-                Err(crate::Error::UnsupportedType(EitherType::EggError(format!("Incorrect stack type"))))
+
+            match entry.operator {
+                StackType::LocalGet(idx) => {
+                    newfunc.instruction(Instruction::LocalGet(idx));
+                    Ok(())
+                },
+                StackType::GlobalGet(idx) => {
+                    newfunc.instruction(Instruction::GlobalGet(idx));
+                    Ok(())
+                }
+                _ => Err(crate::Error::UnsupportedType(EitherType::EggError(format!("Incorrect stack type"))))
             }
         }}
         [Lang::Unfold(value), value, n, newfunc, rnd, eclassdata, _rootclassdata, egraph, _info, _operators, _node_to_eclass] => {{
@@ -796,7 +811,16 @@ impl Encoder {
                 }
                 StackType::Drop => {
                     newfunc.instruction(Instruction::Drop);
-                },
+                }
+                StackType::LocalTee(idx) => {
+                    newfunc.instruction(Instruction::LocalTee(idx));
+                }
+                StackType::GlobalGet(idx) => {
+                    newfunc.instruction(Instruction::GlobalGet(idx));
+                }
+                StackType::GlobalSet(idx) => {
+                    newfunc.instruction(Instruction::GlobalSet(idx));
+                }
             }
         }
         Ok(())
@@ -901,6 +925,11 @@ impl Encoder {
         ) -> crate::Result<Id> {
             let entry = &dfg.entries[entryidx];
 
+            if let PrimitiveTypeInfo::Empty = entry.return_type {
+                // Return if the value returned by this operator is empty
+                return Err(crate::Error::NoMutationsAplicable);
+            }
+
             if let StackType::Undef = entry.operator {
                 let newid = put_enode(Lang::Undef, lang_to_stack_entries, entry.entry_idx, expr);
                 return Ok(newid);
@@ -928,6 +957,30 @@ impl Encoder {
                 }
                 StackType::LocalGet(idx) => {
                     let name = format!("?l{}", idx);
+                    return Ok(put_enode(
+                        Lang::Symbol(name.clone().into()),
+                        lang_to_stack_entries,
+                        entry.entry_idx,
+                        expr,
+                    ));
+                }
+                StackType::LocalTee(idx) => {
+                    let value = wasm2expraux(
+                        dfg,
+                        entry.operands[0],
+                        operators,
+                        lang_to_stack_entries,
+                        expr,
+                    )?;
+                    return Ok(put_enode(
+                        Lang::Tee([value]),
+                        lang_to_stack_entries,
+                        entry.entry_idx,
+                        expr,
+                    ));
+                }
+                StackType::GlobalGet(idx) => {
+                    let name = format!("?g{}", idx);
                     return Ok(put_enode(
                         Lang::Symbol(name.clone().into()),
                         lang_to_stack_entries,
@@ -1158,14 +1211,6 @@ impl Encoder {
                         expr,
                     ));
                 }
-                StackType::Drop => {
-                    return Ok(put_enode(
-                        Lang::Drop,
-                        lang_to_stack_entries,
-                        entry.entry_idx,
-                        expr,
-                    ));
-                }
                 _ => panic!("Not yet implemented {:?}", op),
             };
         }
@@ -1239,6 +1284,7 @@ impl Encoder {
                         Lang::Call(op) => expr.add(Lang::Call(
                             (0..op.len()).map(|id| operand(id)).collect::<Vec<Id>>(),
                         )),
+                        Lang::Tee(_) => expr.add(Lang::Tee([operand(0)])),
                         Lang::Unfold(op) => expr.add(Lang::Unfold(*op)),
                         Lang::ILoad(_) => expr.add(Lang::ILoad([
                             operand(0),

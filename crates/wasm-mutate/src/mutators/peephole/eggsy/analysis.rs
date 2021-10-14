@@ -1,10 +1,8 @@
 use std::collections::HashMap;
 
-use crate::{
-    mutators::peephole::{
-        dfg::{MiniDFG, StackEntry},
-        eggsy::Lang,
-    },
+use crate::mutators::peephole::{
+    dfg::{MiniDFG, StackEntry},
+    eggsy::Lang,
 };
 use egg::{Analysis, EGraph, Id};
 

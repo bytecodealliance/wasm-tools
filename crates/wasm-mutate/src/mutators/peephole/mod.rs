@@ -119,7 +119,6 @@ impl PeepholeMutator {
                 let mut dfg = DFGIcator::new();
                 let basicblock = dfg.get_bb_from_operator(oidx, &operators);
 
-                
                 let old_num_runs = NUM_RUNS.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
                 if old_num_runs % 4096 == 0 && log::log_enabled!(log::Level::Info) {
                     let successful =
@@ -149,7 +148,16 @@ impl PeepholeMutator {
                                 // Create an eterm expression from the basic block starting at oidx
                                 let mut start = RecExpr::<Lang>::default();
                                 let lang_to_stack_entries =
-                                    Encoder::wasm2expr(&minidfg, oidx, &operators, &mut start)?;
+                                    Encoder::wasm2expr(&minidfg, oidx, &operators, &mut start);
+
+                                if let Err(crate::Error::NoMutationsAplicable) =
+                                    lang_to_stack_entries
+                                {
+                                    // Definition entries that dont return values cannot be rewritten ?
+                                    debug!("{} does not return a value", start);
+                                    continue;
+                                }
+                                let lang_to_stack_entries = lang_to_stack_entries?;
                                 // Continue if the subtree coloring is inconsistent
                                 debug!("{}", minidfg);
                                 if !minidfg.is_subtree_consistent_from_root() {
@@ -157,7 +165,7 @@ impl PeepholeMutator {
                                     continue;
                                 }
 
-                                debug!("Ttrying to mutate {} at {}", start, oidx);
+                                debug!("Trying to mutate {} at {}", start, oidx);
 
                                 let analysis = PeepholeMutationAnalysis::new(
                                     lang_to_stack_entries.clone(),
@@ -545,7 +553,6 @@ mod tests {
         );
     }
 
-
     #[test]
     fn test_peep_stack_neutral2() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
@@ -886,12 +893,12 @@ mod tests {
     #[test]
     fn test_peep_functions() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("type1-1";  "(call ?fidx ?x )" => "(call ?fidx 1) " )];
+            &[rewrite!("type1-1";  "(call ?fidx ?x)" => "(call ?fidx 1) " )];
 
         test_peephole_mutator(
             r#"
         (module
-            (func (export "exported_func") (param i32 ) (local i32 i32)
+            (func (export "exported_func")(param i32 )  (result i32)  (local i32 i32)
                 local.get 0
                 call 0
             )
@@ -900,13 +907,13 @@ mod tests {
             rules,
             r#"
             (module
-                (func (export "exported_func") (param i32 ) (local i32 i32)
+                (func (export "exported_func") (param i32 )  (result i32)  (local i32 i32)
                     i32.const 1
                     call 0
                 )
             )
         "#,
-            1,
+            5,
         );
     }
 
@@ -999,6 +1006,109 @@ mod tests {
                 (export "exported_func" (func 0)))
         "#,
             1,
+        );
+    }
+
+    #[test]
+    fn test_peep_globals1() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("mem-load-shift";  "?x" => "(add ?x 0)")];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (memory 1)
+            (global $0 i32 i32.const 0)
+            (func (export "exported_func") (param i32) (result i32)
+                global.get 0
+            )
+        )
+        "#,
+            rules,
+            r#"
+            (module
+                (type (;0;) (func (param i32) (result i32)))
+                (global $0 i32 i32.const 0)
+                (func (;0;) (type 0) (param i32) (result i32)
+                  global.get $0
+                  i32.const 0  
+                  i32.add)
+                (memory (;0;) 1)
+                (export "exported_func" (func 0)))
+        "#,
+            0,
+        );
+    }
+
+    #[test]
+    fn test_peep_globals2() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("mem-load-shift";  "?x" => "(add ?x 0)")];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (memory 1)
+            (global $0 (mut i32) i32.const 0)
+            (func (export "exported_func") (param i32) (result i32)
+                i32.const 10
+                global.set 0
+                i32.const 20
+            )
+        )
+        "#,
+            rules,
+            r#"
+            (module
+                (type (;0;) (func (param i32) (result i32)))
+
+                (global $0 (mut i32) i32.const 0)
+                (func (;0;) (type 0) (param i32) (result i32)
+                  i32.const 10
+                  i32.const 0  
+                  i32.add
+                    global.set $0
+                    i32.const 20
+                )
+                (memory (;0;) 1)
+                (export "exported_func" (func 0)))
+        "#,
+            1,
+        );
+    }
+
+    #[test]
+    fn test_peep_locals3() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("mem-load-shift";  "?x" => "(add ?x 0)")];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (memory 1)
+            (global $0 (mut i32) i32.const 0)
+            (func (export "exported_func") (param i32) (result i32)
+                i32.const 120
+                local.tee 0
+            )
+        )
+        "#,
+            rules,
+            r#"
+            (module
+                (type (;0;) (func (param i32) (result i32)))
+
+                (global $0 (mut i32) i32.const 0)
+                (func (;0;) (type 0) (param i32) (result i32)
+                    i32.const 120
+                    local.tee 0
+                    i32.const 0
+                    i32.add
+                )
+                (memory (;0;) 1)
+                (export "exported_func" (func 0)))
+        "#,
+            3,
         );
     }
 

@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 
 use wasm_encoder::ValType;
-use wasmparser::{Type, TypeDef};
+use wasmparser::{GlobalType, Type, TypeDef};
 
 use crate::error::EitherType;
 
