@@ -38,6 +38,7 @@ pub enum StackType {
     I64(i64),
     LocalGet(u32 /*Index*/),
     LocalSet(u32),
+    Drop,
     Call {
         function_index: u32,
         params_count: usize,
@@ -162,9 +163,15 @@ impl<'a> DFGIcator {
         operands: Vec<usize>,
         parents: &mut Vec<i32>,
         color: u32,
-        return_type: PrimitiveTypeInfo,
+        return_type: PrimitiveTypeInfo
     ) -> usize {
         let entry_idx = dfg_map.len();
+        let push_to_stack = if let PrimitiveTypeInfo::Empty = return_type {
+            // Avoid to push empty values on to the stack
+            false
+        } else {
+            true
+        };
         let newnode = StackEntry {
             operator,
             operands,
@@ -174,7 +181,9 @@ impl<'a> DFGIcator {
         };
 
         operatormap.insert(operator_idx, entry_idx);
-        stack.push(entry_idx);
+        if push_to_stack {
+            stack.push(entry_idx)
+        }
         // Add the data flow link
         dfg_map.push(newnode);
         parents.push(-1);
@@ -288,7 +297,7 @@ impl<'a> DFGIcator {
                                     PrimitiveTypeInfo::Empty
                                 } else {
                                     tpe.returns[0].clone()
-                                },
+                                }
                             );
                             // Set the parents for the operands
                             for id in &operands {
@@ -312,7 +321,7 @@ impl<'a> DFGIcator {
                         vec![],
                         &mut parents,
                         color,
-                        locals[*local_index as usize].clone(),
+                        locals[*local_index as usize].clone()
                     );
                 }
                 Operator::I32Const { value } => {
@@ -325,7 +334,7 @@ impl<'a> DFGIcator {
                         vec![],
                         &mut parents,
                         color,
-                        PrimitiveTypeInfo::I32,
+                        PrimitiveTypeInfo::I32
                     );
                 }
                 Operator::I64Const { value } => {
@@ -338,7 +347,7 @@ impl<'a> DFGIcator {
                         vec![],
                         &mut parents,
                         color,
-                        PrimitiveTypeInfo::I64,
+                        PrimitiveTypeInfo::I64
                     );
                 }
                 Operator::LocalSet { local_index } => {
@@ -393,7 +402,7 @@ impl<'a> DFGIcator {
                         &mut parents,
                         color,
                         // Add type here
-                        PrimitiveTypeInfo::I32,
+                        PrimitiveTypeInfo::I32
                     );
 
                     parents[offset] = idx as i32;
@@ -421,7 +430,7 @@ impl<'a> DFGIcator {
                         vec![offset],
                         &mut parents,
                         color,
-                        PrimitiveTypeInfo::I64,
+                        PrimitiveTypeInfo::I64
                     );
 
                     parents[offset] = idx as i32;
@@ -444,7 +453,7 @@ impl<'a> DFGIcator {
                         vec![operand],
                         &mut parents,
                         color,
-                        PrimitiveTypeInfo::I32,
+                        PrimitiveTypeInfo::I32
                     );
 
                     parents[operand] = idx as i32;
@@ -467,7 +476,7 @@ impl<'a> DFGIcator {
                         vec![operand],
                         &mut parents,
                         color,
-                        PrimitiveTypeInfo::I32,
+                        PrimitiveTypeInfo::I32
                     );
 
                     parents[operand] = idx as i32;
@@ -511,7 +520,7 @@ impl<'a> DFGIcator {
                         vec![rightidx, leftidx], // reverse order
                         &mut parents,
                         color,
-                        PrimitiveTypeInfo::I64,
+                        PrimitiveTypeInfo::I64
                     );
 
                     parents[leftidx] = idx as i32;
@@ -577,7 +586,7 @@ impl<'a> DFGIcator {
                         vec![rightidx, leftidx], // reverse order
                         &mut parents,
                         color,
-                        PrimitiveTypeInfo::I32,
+                        PrimitiveTypeInfo::I32
                     );
 
                     parents[leftidx] = idx as i32;
@@ -594,7 +603,7 @@ impl<'a> DFGIcator {
                     );
 
                     let idx = DFGIcator::push_node(
-                        StackType::IndexAtCode(idx, 1),
+                        StackType::Drop,
                         idx,
                         &mut dfg_map,
                         &mut operatormap,
@@ -602,7 +611,7 @@ impl<'a> DFGIcator {
                         vec![arg], // reverse order
                         &mut parents,
                         color,
-                        PrimitiveTypeInfo::Empty,
+                        PrimitiveTypeInfo::Empty
                     );
 
                     parents[arg] = idx as i32;

@@ -29,7 +29,7 @@ define_language! {
         // The firsts Id should be the function index
         "call" = Call(Vec<Id>),
         "popcnt" = Popcnt(Id),
-        "drop" = Drop([Id; 1]),
+        "drop" = Drop,
         // Memory operations
         "load" = ILoad([Id;4]), // dynamic offset, offset, align mem value
         // TODO add the others
