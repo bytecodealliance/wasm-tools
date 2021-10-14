@@ -306,6 +306,10 @@ impl WasmMutate {
                                     info.function_map.push(ty);
                                     info.imported_functions_count += 1;
                                 }
+                                wasmparser::ImportSectionEntryType::Global(ty) => {
+                                    let ty = PrimitiveTypeInfo::try_from(ty.content_type).unwrap();
+                                    info.global_types.push(ty);
+                                }
                                 _ => {
                                     // Do nothing
                                 }
