@@ -545,6 +545,7 @@ impl TestState {
             threads: true,
             reference_types: true,
             simd: true,
+            relaxed_simd: true,
             exceptions: true,
             bulk_memory: true,
             tail_call: true,

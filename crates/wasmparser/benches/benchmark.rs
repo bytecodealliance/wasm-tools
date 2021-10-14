@@ -210,6 +210,7 @@ fn validate_benchmark(c: &mut Criterion) {
             reference_types: true,
             multi_value: true,
             simd: true,
+            relaxed_simd: true,
             exceptions: true,
             module_linking: true,
             bulk_memory: true,

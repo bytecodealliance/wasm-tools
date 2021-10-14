@@ -141,6 +141,9 @@ struct Config {
     #[structopt(long = "simd")]
     #[serde(rename = "simd")]
     simd_enabled: Option<bool>,
+    #[structopt(long = "relaxed-simd")]
+    #[serde(rename = "relaxed-simd")]
+    relaxed_simd_enabled: Option<bool>,
     #[structopt(long = "exception-handling")]
     #[serde(rename = "exception-handling")]
     exceptions_enabled: Option<bool>,
@@ -286,6 +289,7 @@ impl wasm_smith::Config for CliAndJsonConfig {
         (reference_types_enabled, bool, false),
         (memory64_enabled, bool, false),
         (simd_enabled, bool, false),
+        (relaxed_simd_enabled, bool, false),
         (exceptions_enabled, bool, false),
         (module_linking_enabled, bool, false),
         (allow_start_export, bool, true),
