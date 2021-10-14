@@ -1,4 +1,5 @@
 use super::*;
+use std::borrow::Cow;
 
 /// An encoder for the code section.
 ///
@@ -124,7 +125,7 @@ impl Function {
     }
 
     /// Write an instruction into this function body.
-    pub fn instruction(&mut self, instruction: Instruction) -> &mut Self {
+    pub fn instruction(&mut self, instruction: &Instruction) -> &mut Self {
         instruction.encode(&mut self.bytes);
         self
     }
@@ -202,7 +203,7 @@ impl BlockType {
 }
 
 /// WebAssembly instructions.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 #[allow(missing_docs, non_camel_case_types)]
 pub enum Instruction<'a> {
@@ -220,7 +221,7 @@ pub enum Instruction<'a> {
     End,
     Br(u32),
     BrIf(u32),
-    BrTable(&'a [u32], u32),
+    BrTable(Cow<'a, [u32]>, u32),
     Return,
     Call(u32),
     CallIndirect { ty: u32, table: u32 },
@@ -727,10 +728,10 @@ impl Instruction<'_> {
                 bytes.push(0x0D);
                 bytes.extend(encoders::u32(l));
             }
-            Instruction::BrTable(ls, l) => {
+            Instruction::BrTable(ref ls, l) => {
                 bytes.push(0x0E);
                 bytes.extend(encoders::u32(u32::try_from(ls.len()).unwrap()));
-                for l in ls {
+                for l in ls.as_ref() {
                     bytes.extend(encoders::u32(*l));
                 }
                 bytes.extend(encoders::u32(l));

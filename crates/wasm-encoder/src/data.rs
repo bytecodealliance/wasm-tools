@@ -37,7 +37,7 @@ pub struct DataSection {
 }
 
 /// A segment in the data section.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct DataSegment<'a, D> {
     /// This data segment's mode.
     pub mode: DataSegmentMode<'a>,
@@ -46,14 +46,14 @@ pub struct DataSegment<'a, D> {
 }
 
 /// A data segment's mode.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum DataSegmentMode<'a> {
     /// An active data segment.
     Active {
         /// The memory this segment applies to.
         memory_index: u32,
         /// The offset where this segment's data is initialized at.
-        offset: Instruction<'a>,
+        offset: &'a Instruction<'a>,
     },
     /// A passive data segment.
     ///
@@ -117,7 +117,7 @@ impl DataSection {
     pub fn active<'a, D>(
         &mut self,
         memory_index: u32,
-        offset: Instruction<'a>,
+        offset: &Instruction<'a>,
         data: D,
     ) -> &mut Self
     where

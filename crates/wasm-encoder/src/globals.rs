@@ -42,7 +42,7 @@ impl GlobalSection {
     }
 
     /// Define a global.
-    pub fn global(&mut self, global_type: GlobalType, init_expr: Instruction) -> &mut Self {
+    pub fn global(&mut self, global_type: GlobalType, init_expr: &Instruction<'_>) -> &mut Self {
         global_type.encode(&mut self.bytes);
         init_expr.encode(&mut self.bytes);
         Instruction::End.encode(&mut self.bytes);
@@ -71,7 +71,7 @@ impl Section for GlobalSection {
 }
 
 /// A global's type.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct GlobalType {
     /// This global's value type.
     pub val_type: ValType,

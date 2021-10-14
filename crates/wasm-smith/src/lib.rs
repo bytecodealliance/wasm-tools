@@ -80,8 +80,11 @@ use std::marker;
 use std::ops::Range;
 use std::rc::Rc;
 use std::str;
+use wasm_encoder::{BlockType, Export, GlobalType, ItemKind, MemoryType, TableType, ValType};
 
 pub use config::{Config, DefaultConfig, SwarmConfig};
+
+type Instruction = wasm_encoder::Instruction<'static>;
 
 /// A pseudo-random WebAssembly module.
 ///
@@ -362,37 +365,6 @@ enum EntityType {
     Module(u32, Rc<ModuleType>),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-enum ValType {
-    I32,
-    I64,
-    F32,
-    F64,
-    V128,
-    FuncRef,
-    ExternRef,
-}
-
-#[derive(Clone, Debug)]
-struct TableType {
-    minimum: u32,
-    maximum: Option<u32>,
-    elem_ty: ValType,
-}
-
-#[derive(Clone, Debug)]
-struct MemoryType {
-    minimum: u64,
-    maximum: Option<u64>,
-    memory64: bool,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-struct GlobalType {
-    val_type: ValType,
-    mutable: bool,
-}
-
 #[derive(Clone, Debug)]
 struct TagType {
     func_type_idx: u32,
@@ -420,28 +392,6 @@ enum Alias {
 struct Instance {
     module: u32,
     args: Vec<(String, Export)>,
-}
-
-#[derive(Copy, Clone, Debug)]
-enum ItemKind {
-    Func,
-    Table,
-    Memory,
-    Global,
-    Tag,
-    Instance,
-    Module,
-}
-
-#[derive(Copy, Clone, Debug)]
-enum Export {
-    Func(u32),
-    Table(u32),
-    Memory(u32),
-    Global(u32),
-    Tag(u32),
-    Instance(u32),
-    Module(u32),
 }
 
 #[derive(Debug)]
@@ -477,511 +427,6 @@ struct Code {
 enum Instructions {
     Generated(Vec<Instruction>),
     Arbitrary(Vec<u8>),
-}
-
-#[derive(Clone, Copy, Debug)]
-enum BlockType {
-    Empty,
-    Result(ValType),
-    FuncType(u32),
-}
-
-impl BlockType {
-    fn params_results(&self, module: &Module) -> (Vec<ValType>, Vec<ValType>) {
-        match self {
-            BlockType::Empty => (vec![], vec![]),
-            BlockType::Result(t) => (vec![], vec![*t]),
-            BlockType::FuncType(ty) => {
-                let ty = module.func_type(*ty);
-                (ty.params.clone(), ty.results.clone())
-            }
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-struct MemArg {
-    offset: u64,
-    align: u32,
-    memory_index: u32,
-}
-
-type Lane = u8;
-
-#[derive(Clone, Debug)]
-#[allow(non_camel_case_types)]
-enum Instruction {
-    // Control instructions.
-    Unreachable,
-    Nop,
-    Block(BlockType),
-    Loop(BlockType),
-    If(BlockType),
-    Try(BlockType),
-    Delegate(u32),
-    Catch(u32),
-    CatchAll,
-    Else,
-    End,
-    Br(u32),
-    BrIf(u32),
-    BrTable(Vec<u32>, u32),
-    Return,
-    Call(u32),
-    CallIndirect { ty: u32, table: u32 },
-    Throw(u32),
-    Rethrow(u32),
-
-    // Parametric instructions.
-    Drop,
-    Select,
-
-    // Variable instructions.
-    LocalGet(u32),
-    LocalSet(u32),
-    LocalTee(u32),
-    GlobalGet(u32),
-    GlobalSet(u32),
-
-    // Memory instructions.
-    I32Load(MemArg),
-    I64Load(MemArg),
-    F32Load(MemArg),
-    F64Load(MemArg),
-    I32Load8_S(MemArg),
-    I32Load8_U(MemArg),
-    I32Load16_S(MemArg),
-    I32Load16_U(MemArg),
-    I64Load8_S(MemArg),
-    I64Load8_U(MemArg),
-    I64Load16_S(MemArg),
-    I64Load16_U(MemArg),
-    I64Load32_S(MemArg),
-    I64Load32_U(MemArg),
-    I32Store(MemArg),
-    I64Store(MemArg),
-    F32Store(MemArg),
-    F64Store(MemArg),
-    I32Store8(MemArg),
-    I32Store16(MemArg),
-    I64Store8(MemArg),
-    I64Store16(MemArg),
-    I64Store32(MemArg),
-    MemorySize(u32),
-    MemoryGrow(u32),
-    MemoryInit { mem: u32, data: u32 },
-    DataDrop(u32),
-    MemoryCopy { src: u32, dst: u32 },
-    MemoryFill(u32),
-
-    // Numeric instructions.
-    I32Const(i32),
-    I64Const(i64),
-    F32Const(f32),
-    F64Const(f64),
-    I32Eqz,
-    I32Eq,
-    I32Neq,
-    I32LtS,
-    I32LtU,
-    I32GtS,
-    I32GtU,
-    I32LeS,
-    I32LeU,
-    I32GeS,
-    I32GeU,
-    I64Eqz,
-    I64Eq,
-    I64Neq,
-    I64LtS,
-    I64LtU,
-    I64GtS,
-    I64GtU,
-    I64LeS,
-    I64LeU,
-    I64GeS,
-    I64GeU,
-    F32Eq,
-    F32Neq,
-    F32Lt,
-    F32Gt,
-    F32Le,
-    F32Ge,
-    F64Eq,
-    F64Neq,
-    F64Lt,
-    F64Gt,
-    F64Le,
-    F64Ge,
-    I32Clz,
-    I32Ctz,
-    I32Popcnt,
-    I32Add,
-    I32Sub,
-    I32Mul,
-    I32DivS,
-    I32DivU,
-    I32RemS,
-    I32RemU,
-    I32And,
-    I32Or,
-    I32Xor,
-    I32Shl,
-    I32ShrS,
-    I32ShrU,
-    I32Rotl,
-    I32Rotr,
-    I64Clz,
-    I64Ctz,
-    I64Popcnt,
-    I64Add,
-    I64Sub,
-    I64Mul,
-    I64DivS,
-    I64DivU,
-    I64RemS,
-    I64RemU,
-    I64And,
-    I64Or,
-    I64Xor,
-    I64Shl,
-    I64ShrS,
-    I64ShrU,
-    I64Rotl,
-    I64Rotr,
-    F32Abs,
-    F32Neg,
-    F32Ceil,
-    F32Floor,
-    F32Trunc,
-    F32Nearest,
-    F32Sqrt,
-    F32Add,
-    F32Sub,
-    F32Mul,
-    F32Div,
-    F32Min,
-    F32Max,
-    F32Copysign,
-    F64Abs,
-    F64Neg,
-    F64Ceil,
-    F64Floor,
-    F64Trunc,
-    F64Nearest,
-    F64Sqrt,
-    F64Add,
-    F64Sub,
-    F64Mul,
-    F64Div,
-    F64Min,
-    F64Max,
-    F64Copysign,
-    I32WrapI64,
-    I32TruncF32S,
-    I32TruncF32U,
-    I32TruncF64S,
-    I32TruncF64U,
-    I64ExtendI32S,
-    I64ExtendI32U,
-    I64TruncF32S,
-    I64TruncF32U,
-    I64TruncF64S,
-    I64TruncF64U,
-    F32ConvertI32S,
-    F32ConvertI32U,
-    F32ConvertI64S,
-    F32ConvertI64U,
-    F32DemoteF64,
-    F64ConvertI32S,
-    F64ConvertI32U,
-    F64ConvertI64S,
-    F64ConvertI64U,
-    F64PromoteF32,
-    I32ReinterpretF32,
-    I64ReinterpretF64,
-    F32ReinterpretI32,
-    F64ReinterpretI64,
-    I32Extend8S,
-    I32Extend16S,
-    I64Extend8S,
-    I64Extend16S,
-    I64Extend32S,
-    I32TruncSatF32S,
-    I32TruncSatF32U,
-    I32TruncSatF64S,
-    I32TruncSatF64U,
-    I64TruncSatF32S,
-    I64TruncSatF32U,
-    I64TruncSatF64S,
-    I64TruncSatF64U,
-    TypedSelect(ValType),
-    RefNull(ValType),
-    RefIsNull,
-    RefFunc(u32),
-    TableInit { segment: u32, table: u32 },
-    ElemDrop { segment: u32 },
-    TableFill { table: u32 },
-    TableSet { table: u32 },
-    TableGet { table: u32 },
-    TableGrow { table: u32 },
-    TableSize { table: u32 },
-    TableCopy { src: u32, dst: u32 },
-
-    // SIMD instructions.
-    V128Load { memarg: MemArg },
-    V128Load8x8S { memarg: MemArg },
-    V128Load8x8U { memarg: MemArg },
-    V128Load16x4S { memarg: MemArg },
-    V128Load16x4U { memarg: MemArg },
-    V128Load32x2S { memarg: MemArg },
-    V128Load32x2U { memarg: MemArg },
-    V128Load8Splat { memarg: MemArg },
-    V128Load16Splat { memarg: MemArg },
-    V128Load32Splat { memarg: MemArg },
-    V128Load64Splat { memarg: MemArg },
-    V128Load32Zero { memarg: MemArg },
-    V128Load64Zero { memarg: MemArg },
-    V128Store { memarg: MemArg },
-    V128Load8Lane { memarg: MemArg, lane: Lane },
-    V128Load16Lane { memarg: MemArg, lane: Lane },
-    V128Load32Lane { memarg: MemArg, lane: Lane },
-    V128Load64Lane { memarg: MemArg, lane: Lane },
-    V128Store8Lane { memarg: MemArg, lane: Lane },
-    V128Store16Lane { memarg: MemArg, lane: Lane },
-    V128Store32Lane { memarg: MemArg, lane: Lane },
-    V128Store64Lane { memarg: MemArg, lane: Lane },
-    V128Const(i128),
-    I8x16Shuffle { lanes: [Lane; 16] },
-    I8x16ExtractLaneS { lane: Lane },
-    I8x16ExtractLaneU { lane: Lane },
-    I8x16ReplaceLane { lane: Lane },
-    I16x8ExtractLaneS { lane: Lane },
-    I16x8ExtractLaneU { lane: Lane },
-    I16x8ReplaceLane { lane: Lane },
-    I32x4ExtractLane { lane: Lane },
-    I32x4ReplaceLane { lane: Lane },
-    I64x2ExtractLane { lane: Lane },
-    I64x2ReplaceLane { lane: Lane },
-    F32x4ExtractLane { lane: Lane },
-    F32x4ReplaceLane { lane: Lane },
-    F64x2ExtractLane { lane: Lane },
-    F64x2ReplaceLane { lane: Lane },
-    I8x16Swizzle,
-    I8x16Splat,
-    I16x8Splat,
-    I32x4Splat,
-    I64x2Splat,
-    F32x4Splat,
-    F64x2Splat,
-    I8x16Eq,
-    I8x16Ne,
-    I8x16LtS,
-    I8x16LtU,
-    I8x16GtS,
-    I8x16GtU,
-    I8x16LeS,
-    I8x16LeU,
-    I8x16GeS,
-    I8x16GeU,
-    I16x8Eq,
-    I16x8Ne,
-    I16x8LtS,
-    I16x8LtU,
-    I16x8GtS,
-    I16x8GtU,
-    I16x8LeS,
-    I16x8LeU,
-    I16x8GeS,
-    I16x8GeU,
-    I32x4Eq,
-    I32x4Ne,
-    I32x4LtS,
-    I32x4LtU,
-    I32x4GtS,
-    I32x4GtU,
-    I32x4LeS,
-    I32x4LeU,
-    I32x4GeS,
-    I32x4GeU,
-    I64x2Eq,
-    I64x2Ne,
-    I64x2LtS,
-    I64x2GtS,
-    I64x2LeS,
-    I64x2GeS,
-    F32x4Eq,
-    F32x4Ne,
-    F32x4Lt,
-    F32x4Gt,
-    F32x4Le,
-    F32x4Ge,
-    F64x2Eq,
-    F64x2Ne,
-    F64x2Lt,
-    F64x2Gt,
-    F64x2Le,
-    F64x2Ge,
-    V128Not,
-    V128And,
-    V128AndNot,
-    V128Or,
-    V128Xor,
-    V128Bitselect,
-    V128AnyTrue,
-    I8x16Abs,
-    I8x16Neg,
-    I8x16Popcnt,
-    I8x16AllTrue,
-    I8x16Bitmask,
-    I8x16NarrowI16x8S,
-    I8x16NarrowI16x8U,
-    I8x16Shl,
-    I8x16ShrS,
-    I8x16ShrU,
-    I8x16Add,
-    I8x16AddSatS,
-    I8x16AddSatU,
-    I8x16Sub,
-    I8x16SubSatS,
-    I8x16SubSatU,
-    I8x16MinS,
-    I8x16MinU,
-    I8x16MaxS,
-    I8x16MaxU,
-    I8x16RoundingAverageU,
-    I16x8ExtAddPairwiseI8x16S,
-    I16x8ExtAddPairwiseI8x16U,
-    I16x8Abs,
-    I16x8Neg,
-    I16x8Q15MulrSatS,
-    I16x8AllTrue,
-    I16x8Bitmask,
-    I16x8NarrowI32x4S,
-    I16x8NarrowI32x4U,
-    I16x8ExtendLowI8x16S,
-    I16x8ExtendHighI8x16S,
-    I16x8ExtendLowI8x16U,
-    I16x8ExtendHighI8x16U,
-    I16x8Shl,
-    I16x8ShrS,
-    I16x8ShrU,
-    I16x8Add,
-    I16x8AddSatS,
-    I16x8AddSatU,
-    I16x8Sub,
-    I16x8SubSatS,
-    I16x8SubSatU,
-    I16x8Mul,
-    I16x8MinS,
-    I16x8MinU,
-    I16x8MaxS,
-    I16x8MaxU,
-    I16x8RoundingAverageU,
-    I16x8ExtMulLowI8x16S,
-    I16x8ExtMulHighI8x16S,
-    I16x8ExtMulLowI8x16U,
-    I16x8ExtMulHighI8x16U,
-    I32x4ExtAddPairwiseI16x8S,
-    I32x4ExtAddPairwiseI16x8U,
-    I32x4Abs,
-    I32x4Neg,
-    I32x4AllTrue,
-    I32x4Bitmask,
-    I32x4ExtendLowI16x8S,
-    I32x4ExtendHighI16x8S,
-    I32x4ExtendLowI16x8U,
-    I32x4ExtendHighI16x8U,
-    I32x4Shl,
-    I32x4ShrS,
-    I32x4ShrU,
-    I32x4Add,
-    I32x4Sub,
-    I32x4Mul,
-    I32x4MinS,
-    I32x4MinU,
-    I32x4MaxS,
-    I32x4MaxU,
-    I32x4DotI16x8S,
-    I32x4ExtMulLowI16x8S,
-    I32x4ExtMulHighI16x8S,
-    I32x4ExtMulLowI16x8U,
-    I32x4ExtMulHighI16x8U,
-    I64x2Abs,
-    I64x2Neg,
-    I64x2AllTrue,
-    I64x2Bitmask,
-    I64x2ExtendLowI32x4S,
-    I64x2ExtendHighI32x4S,
-    I64x2ExtendLowI32x4U,
-    I64x2ExtendHighI32x4U,
-    I64x2Shl,
-    I64x2ShrS,
-    I64x2ShrU,
-    I64x2Add,
-    I64x2Sub,
-    I64x2Mul,
-    I64x2ExtMulLowI32x4S,
-    I64x2ExtMulHighI32x4S,
-    I64x2ExtMulLowI32x4U,
-    I64x2ExtMulHighI32x4U,
-    F32x4Ceil,
-    F32x4Floor,
-    F32x4Trunc,
-    F32x4Nearest,
-    F32x4Abs,
-    F32x4Neg,
-    F32x4Sqrt,
-    F32x4Add,
-    F32x4Sub,
-    F32x4Mul,
-    F32x4Div,
-    F32x4Min,
-    F32x4Max,
-    F32x4PMin,
-    F32x4PMax,
-    F64x2Ceil,
-    F64x2Floor,
-    F64x2Trunc,
-    F64x2Nearest,
-    F64x2Abs,
-    F64x2Neg,
-    F64x2Sqrt,
-    F64x2Add,
-    F64x2Sub,
-    F64x2Mul,
-    F64x2Div,
-    F64x2Min,
-    F64x2Max,
-    F64x2PMin,
-    F64x2PMax,
-    I32x4TruncSatF32x4S,
-    I32x4TruncSatF32x4U,
-    F32x4ConvertI32x4S,
-    F32x4ConvertI32x4U,
-    I32x4TruncSatF64x2SZero,
-    I32x4TruncSatF64x2UZero,
-    F64x2ConvertLowI32x4S,
-    F64x2ConvertLowI32x4U,
-    F32x4DemoteF64x2Zero,
-    F64x2PromoteLowF32x4,
-    I8x16SwizzleRelaxed,
-    I32x4TruncSatF32x4SRelaxed,
-    I32x4TruncSatF32x4URelaxed,
-    I32x4TruncSatF64x2SZeroRelaxed,
-    I32x4TruncSatF64x2UZeroRelaxed,
-    F32x4FmaRelaxed,
-    F32x4FmsRelaxed,
-    F64x2FmaRelaxed,
-    F64x2FmsRelaxed,
-    I8x16LaneSelect,
-    I16x8LaneSelect,
-    I32x4LaneSelect,
-    I64x2LaneSelect,
-    F32x4MinRelaxed,
-    F32x4MaxRelaxed,
-    F64x2MinRelaxed,
-    F64x2MaxRelaxed,
 }
 
 #[derive(Debug)]
@@ -1477,7 +922,7 @@ impl Module {
                             };
                             self.memories.push(ty);
                         }
-                        ItemKind::Func => {
+                        ItemKind::Function => {
                             let (i, ty) = match &ty.exports[name] {
                                 EntityType::Func(i, t) => (*i, t),
                                 _ => unreachable!(),
@@ -1650,7 +1095,7 @@ impl Module {
             Export::Global(idx) => EntityType::Global(self.globals[idx as usize].clone()),
             Export::Memory(idx) => EntityType::Memory(self.memories[idx as usize].clone()),
             Export::Table(idx) => EntityType::Table(self.tables[idx as usize].clone()),
-            Export::Func(idx) => {
+            Export::Function(idx) => {
                 let (_idx, ty) = &self.funcs[idx as usize];
                 EntityType::Func(u32::max_value(), ty.clone())
             }
@@ -1746,7 +1191,7 @@ impl Module {
         let max_inbounds = 10_000;
         let (minimum, maximum) = self.arbitrary_limits32(u, 1_000_000, false, max_inbounds)?;
         Ok(TableType {
-            elem_ty: if self.config.reference_types_enabled() {
+            element_type: if self.config.reference_types_enabled() {
                 *u.choose(&[ValType::FuncRef, ValType::ExternRef])?
             } else {
                 ValType::FuncRef
@@ -1912,7 +1357,7 @@ impl Module {
         let mut choices: Vec<Vec<Export>> = Vec::with_capacity(6);
         choices.push(
             (0..self.funcs.len())
-                .map(|i| Export::Func(i as u32))
+                .map(|i| Export::Function(i as u32))
                 .collect(),
         );
         choices.push(
@@ -2039,7 +1484,7 @@ impl Module {
                 continue;
             }
 
-            let dst = if ty.elem_ty == ValType::FuncRef {
+            let dst = if ty.element_type == ValType::FuncRef {
                 &mut funcrefs
             } else {
                 &mut externrefs
@@ -2047,7 +1492,7 @@ impl Module {
             let minimum = ty.minimum;
             // If the first table is a funcref table then it's a candidate for
             // the MVP encoding of element segments.
-            if i == 0 && ty.elem_ty == ValType::FuncRef {
+            if i == 0 && ty.element_type == ValType::FuncRef {
                 dst.push(Box::new(move |u| arbitrary_active_elem(u, minimum, None)));
             }
             dst.push(Box::new(move |u| {
@@ -2311,7 +1756,7 @@ impl Module {
             EntityType::Func(_, expected) => {
                 for (i, (_, actual)) in self.funcs.iter().enumerate().skip(skip.funcs) {
                     if self.is_subtype_func(actual, expected) {
-                        ret.push(Export::Func(i as u32));
+                        ret.push(Export::Function(i as u32));
                     }
                 }
             }
@@ -2385,7 +1830,8 @@ impl Module {
 
     // https://webassembly.github.io/spec/core/exec/modules.html#tables
     fn is_subtype_table(&self, a: &TableType, b: &TableType) -> bool {
-        a.elem_ty == b.elem_ty && self.is_subtype_limits(a.minimum, a.maximum, b.minimum, b.maximum)
+        a.element_type == b.element_type
+            && self.is_subtype_limits(a.minimum, a.maximum, b.minimum, b.maximum)
     }
 
     // https://webassembly.github.io/spec/core/exec/modules.html#limits
@@ -2463,6 +1909,17 @@ impl Module {
             None
         };
         Ok((min, max))
+    }
+
+    fn params_results(&self, ty: &BlockType) -> (Vec<ValType>, Vec<ValType>) {
+        match ty {
+            BlockType::Empty => (vec![], vec![]),
+            BlockType::Result(t) => (vec![], vec![*t]),
+            BlockType::FunctionType(ty) => {
+                let ty = self.func_type(*ty);
+                (ty.params.clone(), ty.results.clone())
+            }
+        }
     }
 }
 
@@ -2770,7 +2227,7 @@ impl AvailableAliases {
                     EntityType::Func(_, _) => {
                         self.aliases.push(Alias::InstanceExport {
                             instance,
-                            kind: ItemKind::Func,
+                            kind: ItemKind::Function,
                             name: name.clone(),
                         });
                     }
@@ -2831,7 +2288,7 @@ impl AvailableAliases {
                 ..
             } => module.tables.len() < module.config.max_tables(),
             Alias::InstanceExport {
-                kind: ItemKind::Func,
+                kind: ItemKind::Function,
                 ..
             } => module.funcs.len() < module.config.max_funcs(),
             Alias::InstanceExport {
