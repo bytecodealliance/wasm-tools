@@ -253,6 +253,12 @@ pub trait Config: 'static + std::fmt::Debug {
         false
     }
 
+    /// Determines whether the Relaxed SIMD proposal is enabled for
+    /// generating insructions. Defaults to `false`.
+    fn relaxed_simd_enabled(&self) -> bool {
+        false
+    }
+
     /// Determines whether the exception-handling proposal is enabled for
     /// generating insructions. Defaults to `false`.
     fn exceptions_enabled(&self) -> bool {
@@ -376,6 +382,7 @@ pub struct SwarmConfig {
     pub memory_offset_choices: (u32, u32, u32),
     pub memory_max_size_required: bool,
     pub simd_enabled: bool,
+    pub relaxed_simd_enabled: bool,
     pub exceptions_enabled: bool,
     pub allow_start_export: bool,
     pub max_type_size: u32,
@@ -429,6 +436,7 @@ impl<'a> Arbitrary<'a> for SwarmConfig {
             memory_offset_choices: (75, 24, 1),
             allow_start_export: true,
             simd_enabled: false,
+            relaxed_simd_enabled: false,
             exceptions_enabled: false,
             memory64_enabled: false,
             max_type_size: 1000,
@@ -565,6 +573,10 @@ impl Config for SwarmConfig {
 
     fn simd_enabled(&self) -> bool {
         self.simd_enabled
+    }
+
+    fn relaxed_simd_enabled(&self) -> bool {
+        self.relaxed_simd_enabled
     }
 
     fn exceptions_enabled(&self) -> bool {

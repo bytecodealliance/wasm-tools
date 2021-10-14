@@ -664,6 +664,23 @@ pub enum Instruction<'a> {
     F64x2ConvertLowI32x4U,
     F32x4DemoteF64x2Zero,
     F64x2PromoteLowF32x4,
+    I8x16SwizzleRelaxed,
+    I32x4TruncSatF32x4SRelaxed,
+    I32x4TruncSatF32x4URelaxed,
+    I32x4TruncSatF64x2SZeroRelaxed,
+    I32x4TruncSatF64x2UZeroRelaxed,
+    F32x4FmaRelaxed,
+    F32x4FmsRelaxed,
+    F64x2FmaRelaxed,
+    F64x2FmsRelaxed,
+    I8x16LaneSelect,
+    I16x8LaneSelect,
+    I32x4LaneSelect,
+    I64x2LaneSelect,
+    F32x4MinRelaxed,
+    F32x4MaxRelaxed,
+    F64x2MinRelaxed,
+    F64x2MaxRelaxed,
 }
 
 impl Instruction<'_> {
@@ -2139,6 +2156,74 @@ impl Instruction<'_> {
             Instruction::I64x2GeS => {
                 bytes.push(0xFD);
                 bytes.extend(encoders::u32(0xDB));
+            }
+            Instruction::I8x16SwizzleRelaxed => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xA2));
+            }
+            Instruction::I32x4TruncSatF32x4SRelaxed => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xA5));
+            }
+            Instruction::I32x4TruncSatF32x4URelaxed => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xA6));
+            }
+            Instruction::I32x4TruncSatF64x2SZeroRelaxed => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xC5));
+            }
+            Instruction::I32x4TruncSatF64x2UZeroRelaxed => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xC6));
+            }
+            Instruction::F32x4FmaRelaxed => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xAF));
+            }
+            Instruction::F32x4FmsRelaxed => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xB0));
+            }
+            Instruction::F64x2FmaRelaxed => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xCF));
+            }
+            Instruction::F64x2FmsRelaxed => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xD0));
+            }
+            Instruction::I8x16LaneSelect => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xB2));
+            }
+            Instruction::I16x8LaneSelect => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xB3));
+            }
+            Instruction::I32x4LaneSelect => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xD2));
+            }
+            Instruction::I64x2LaneSelect => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xD3));
+            }
+            Instruction::F32x4MinRelaxed => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xB4));
+            }
+            Instruction::F32x4MaxRelaxed => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xE2));
+            }
+            Instruction::F64x2MinRelaxed => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xD4));
+            }
+            Instruction::F64x2MaxRelaxed => {
+                bytes.push(0xFD);
+                bytes.extend(encoders::u32(0xEE));
             }
         }
     }

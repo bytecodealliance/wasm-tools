@@ -324,7 +324,6 @@ instructions! {
     (Some(simd_v128_f32_on_stack), f32x4_replace_lane),
     (Some(simd_v128_on_stack), f64x2_extract_lane),
     (Some(simd_v128_f64_on_stack), f64x2_replace_lane),
-    (Some(simd_v128_v128_on_stack), i8x16_swizzle),
     (Some(simd_i32_on_stack), i8x16_splat),
     (Some(simd_i32_on_stack), i16x8_splat),
     (Some(simd_i32_on_stack), i32x4_splat),
@@ -332,7 +331,12 @@ instructions! {
     (Some(simd_f32_on_stack), f32x4_splat),
     (Some(simd_f64_on_stack), f64x2_splat),
     (Some(simd_v128_v128_on_stack), i8x16_swizzle),
+    (Some(simd_v128_v128_on_stack_relaxed), i8x16_swizzle_relaxed),
     (Some(simd_v128_v128_v128_on_stack), v128_bitselect),
+    (Some(simd_v128_v128_v128_on_stack_relaxed), i8x16_laneselect),
+    (Some(simd_v128_v128_v128_on_stack_relaxed), i16x8_laneselect),
+    (Some(simd_v128_v128_v128_on_stack_relaxed), i32x4_laneselect),
+    (Some(simd_v128_v128_v128_on_stack_relaxed), i64x2_laneselect),
     (Some(simd_v128_v128_on_stack), i8x16_eq),
     (Some(simd_v128_v128_on_stack), i8x16_ne),
     (Some(simd_v128_v128_on_stack), i8x16_lt_s),
@@ -523,6 +527,18 @@ instructions! {
     (Some(simd_v128_on_stack), f64x2_convert_low_i32x4u),
     (Some(simd_v128_on_stack), f32x4_demote_f64x2_zero),
     (Some(simd_v128_on_stack), f64x2_promote_low_f32x4),
+    (Some(simd_v128_on_stack_relaxed), i32x4_trunc_sat_f32x4s_relaxed),
+    (Some(simd_v128_on_stack_relaxed), i32x4_trunc_sat_f32x4u_relaxed),
+    (Some(simd_v128_on_stack_relaxed), i32x4_trunc_sat_f64x2s_zero_relaxed),
+    (Some(simd_v128_on_stack_relaxed), i32x4_trunc_sat_f64x2u_zero_relaxed),
+    (Some(simd_v128_v128_on_stack_relaxed), f32x4_fma_relaxed),
+    (Some(simd_v128_v128_on_stack_relaxed), f32x4_fms_relaxed),
+    (Some(simd_v128_v128_on_stack_relaxed), f64x2_fma_relaxed),
+    (Some(simd_v128_v128_on_stack_relaxed), f64x2_fms_relaxed),
+    (Some(simd_v128_v128_on_stack_relaxed), f32x4_min_relaxed),
+    (Some(simd_v128_v128_on_stack_relaxed), f32x4_max_relaxed),
+    (Some(simd_v128_v128_on_stack_relaxed), f64x2_min_relaxed),
+    (Some(simd_v128_v128_on_stack_relaxed), f64x2_max_relaxed),
 }
 
 pub(crate) struct CodeBuilderAllocations {
@@ -3421,13 +3437,29 @@ fn simd_v128_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
 }
 
 #[inline]
+fn simd_v128_on_stack_relaxed(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.relaxed_simd_enabled() && builder.types_on_stack(&[ValType::V128])
+}
+
+#[inline]
 fn simd_v128_v128_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.simd_enabled() && builder.types_on_stack(&[ValType::V128, ValType::V128])
 }
 
 #[inline]
+fn simd_v128_v128_on_stack_relaxed(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.relaxed_simd_enabled() && builder.types_on_stack(&[ValType::V128, ValType::V128])
+}
+
+#[inline]
 fn simd_v128_v128_v128_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.simd_enabled()
+        && builder.types_on_stack(&[ValType::V128, ValType::V128, ValType::V128])
+}
+
+#[inline]
+fn simd_v128_v128_v128_on_stack_relaxed(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.relaxed_simd_enabled()
         && builder.types_on_stack(&[ValType::V128, ValType::V128, ValType::V128])
 }
 
@@ -3657,6 +3689,20 @@ macro_rules! simd_unop {
     };
 }
 
+macro_rules! simd_ternop {
+    ($instruction:ident, $generator_fn_name:ident) => {
+        fn $generator_fn_name(
+            _: &mut Unstructured,
+            _: &Module,
+            builder: &mut CodeBuilder,
+        ) -> Result<Instruction> {
+            builder.pop_operands(&[ValType::V128, ValType::V128, ValType::V128]);
+            builder.push_operands(&[ValType::V128]);
+            Ok(Instruction::$instruction)
+        }
+    };
+}
+
 macro_rules! simd_shift {
     ($instruction:ident, $generator_fn_name:ident) => {
         fn $generator_fn_name(
@@ -3868,13 +3914,27 @@ simd_unop!(F64x2ConvertLowI32x4S, f64x2_convert_low_i32x4s);
 simd_unop!(F64x2ConvertLowI32x4U, f64x2_convert_low_i32x4u);
 simd_unop!(F32x4DemoteF64x2Zero, f32x4_demote_f64x2_zero);
 simd_unop!(F64x2PromoteLowF32x4, f64x2_promote_low_f32x4);
-
-fn v128_bitselect(
-    _: &mut Unstructured,
-    _: &Module,
-    builder: &mut CodeBuilder,
-) -> Result<Instruction> {
-    builder.pop_operands(&[ValType::V128, ValType::V128, ValType::V128]);
-    builder.push_operands(&[ValType::V128]);
-    Ok(Instruction::V128Bitselect)
-}
+simd_ternop!(V128Bitselect, v128_bitselect);
+simd_binop!(I8x16SwizzleRelaxed, i8x16_swizzle_relaxed);
+simd_unop!(I32x4TruncSatF32x4SRelaxed, i32x4_trunc_sat_f32x4s_relaxed);
+simd_unop!(I32x4TruncSatF32x4URelaxed, i32x4_trunc_sat_f32x4u_relaxed);
+simd_unop!(
+    I32x4TruncSatF64x2SZeroRelaxed,
+    i32x4_trunc_sat_f64x2s_zero_relaxed
+);
+simd_unop!(
+    I32x4TruncSatF64x2UZeroRelaxed,
+    i32x4_trunc_sat_f64x2u_zero_relaxed
+);
+simd_binop!(F32x4FmaRelaxed, f32x4_fma_relaxed);
+simd_binop!(F32x4FmsRelaxed, f32x4_fms_relaxed);
+simd_binop!(F64x2FmaRelaxed, f64x2_fma_relaxed);
+simd_binop!(F64x2FmsRelaxed, f64x2_fms_relaxed);
+simd_ternop!(I8x16LaneSelect, i8x16_laneselect);
+simd_ternop!(I16x8LaneSelect, i16x8_laneselect);
+simd_ternop!(I32x4LaneSelect, i32x4_laneselect);
+simd_ternop!(I64x2LaneSelect, i64x2_laneselect);
+simd_binop!(F32x4MinRelaxed, f32x4_min_relaxed);
+simd_binop!(F32x4MaxRelaxed, f32x4_max_relaxed);
+simd_binop!(F64x2MinRelaxed, f64x2_min_relaxed);
+simd_binop!(F64x2MaxRelaxed, f64x2_max_relaxed);

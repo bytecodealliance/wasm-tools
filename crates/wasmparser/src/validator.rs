@@ -166,6 +166,8 @@ pub struct WasmFeatures {
     pub module_linking: bool,
     /// The WebAssembly SIMD proposal
     pub simd: bool,
+    /// The WebAssembly Relaxed SIMD proposal
+    pub relaxed_simd: bool,
     /// The WebAssembly threads proposal
     pub threads: bool,
     /// The WebAssembly tail-call proposal
@@ -186,6 +188,7 @@ impl Default for WasmFeatures {
             // off-by-default features
             module_linking: false,
             simd: false,
+            relaxed_simd: false,
             threads: false,
             tail_call: false,
             multi_memory: false,
