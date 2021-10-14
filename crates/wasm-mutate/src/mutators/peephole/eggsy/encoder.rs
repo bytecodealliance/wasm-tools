@@ -355,6 +355,28 @@ impl Encoder {
                 }
             }
         }}
+        [Lang::GeU(operands), [operands], _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
+            // The type of irelop is the operand, and it always returns i32
+            let operandeid = operands[0];
+            let eclassid = node_to_eclass[usize::from(operandeid)];
+            let operandeclass = &egraph[eclassid];
+            match &operandeclass.data {
+                Some(data) => {
+
+                    let operandtpe = data.get_next_stack_entry(&egraph.analysis);
+                    let operandtpe = &operandtpe.return_type;
+                    match operandtpe {
+                        PrimitiveTypeInfo::I32 => {newfunc.instruction(Instruction::I32GeU);},
+                        PrimitiveTypeInfo::I64 => {newfunc.instruction(Instruction::I64GeU);},
+                        _ => unreachable!("Type cannot be encoded")
+                    }
+                    Ok(())
+                }
+                None => {
+                    unreachable!("The operand for this instruction should have a type information")
+                }
+            }
+        }}
         [Lang::LeU(operands), [operands], _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, egraph, _info, _operators, node_to_eclass] => {{
             // The type of irelop is the operand, and it always returns i32
             let operandeid = operands[0];

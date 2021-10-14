@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Index};
+use std::{collections::HashMap};
 
 use wasmparser::{Operator, Range};
 
@@ -88,14 +88,6 @@ impl MiniDFG {
     pub fn is_subtree_consistent_from_root(&self) -> bool {
         let current = self.entries.len() - 1;
         self.is_subtree_consistent(current, None)
-    }
-
-    pub fn get_input_types(&self, entry: &StackEntry) -> Vec<PrimitiveTypeInfo> {
-        entry
-            .operands
-            .iter()
-            .map(|idx| self.entries[*idx].return_type.clone())
-            .collect()
     }
 }
 
@@ -265,7 +257,7 @@ impl<'a> DFGIcator {
                                 return None;
                             }
                             // Pop as many parameters from the stack
-                            let mut operands = (0..tpe.params.len())
+                            let operands = (0..tpe.params.len())
                                 .map(|_| {
                                     DFGIcator::pop_operand(
                                         &mut stack,
@@ -852,7 +844,7 @@ mod tests {
 
         let wasmmutate = WasmMutate::default();
 
-        let mut info = wasmmutate.get_module_info(original).unwrap();
+        let info = wasmmutate.get_module_info(original).unwrap();
 
         let mut parser = Parser::new(0);
         let mut consumed = 0;

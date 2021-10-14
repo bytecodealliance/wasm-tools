@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use crate::{
-    module::PrimitiveTypeInfo,
     mutators::peephole::{
         dfg::{MiniDFG, StackEntry},
         eggsy::Lang,
@@ -46,13 +45,6 @@ impl PeepholeMutationAnalysis {
     /// Return the parental relations in the DFG
     pub fn get_roots(&self) -> &Vec<i32> {
         &self.minidfg.parents
-    }
-    /// Return the expected types from the operands of the stack entry
-    pub fn get_stack_entry_expected_input_tpes(
-        &self,
-        entry: &StackEntry,
-    ) -> Vec<PrimitiveTypeInfo> {
-        self.minidfg.get_input_types(entry)
     }
 }
 
@@ -106,5 +98,5 @@ impl Analysis<Lang> for PeepholeMutationAnalysis {
         egg::merge_if_different(to, to.clone().or(from))
     }
 
-    fn modify(egraph: &mut EGraph<Lang, Self>, id: Id) {}
+    fn modify(_: &mut EGraph<Lang, Self>, _: Id) {}
 }

@@ -257,7 +257,7 @@ mod tests {
                         .unwrap();
 
                     let mut exprroot = RecExpr::<Lang>::default();
-                    let r = Encoder::wasm2expr(&roots, 4, &operators, &mut exprroot).unwrap();
+                    let _ = Encoder::wasm2expr(&roots, 4, &operators, &mut exprroot).unwrap();
                 }
                 wasmparser::Payload::End => {
                     break;
