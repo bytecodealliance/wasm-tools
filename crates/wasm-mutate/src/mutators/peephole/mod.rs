@@ -119,6 +119,7 @@ impl PeepholeMutator {
                 let mut dfg = DFGIcator::new();
                 let basicblock = dfg.get_bb_from_operator(oidx, &operators);
 
+                
                 let old_num_runs = NUM_RUNS.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
                 if old_num_runs % 4096 == 0 && log::log_enabled!(log::Level::Info) {
                     let successful =
@@ -135,14 +136,21 @@ impl PeepholeMutator {
                 match basicblock {
                     Some(basicblock) => {
                         let minidfg = dfg.get_dfg(&info, &operators, &basicblock, &locals);
+
                         match minidfg {
                             None => {
                                 continue;
                             }
                             Some(minidfg) => {
+                                //println!("parents {:?}", minidfg.parents);
+                                //for e in &minidfg.entries{
+                                //    println!("entry {:?}", e);
+                                //}
+
                                 if !minidfg.map.contains_key(&oidx) {
                                     continue;
                                 }
+
                                 // Create an eterm expression from the basic block starting at oidx
                                 let mut start = RecExpr::<Lang>::default();
                                 let lang_to_stack_entries =

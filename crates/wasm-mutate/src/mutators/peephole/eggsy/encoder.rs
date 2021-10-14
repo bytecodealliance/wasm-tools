@@ -516,6 +516,10 @@ impl Encoder {
                 }
             }
         }}
+        [Lang::Drop(operands), [operands],  _nodes, newfunc, _rnd, _eclassdata, _rootclassdata, _egraph, _info, _operators, _node_to_eclass] => {{
+            newfunc.instruction(Instruction::I32Eqz);
+            Ok(())
+        }}
         [Lang::Or(operands), [operands]] => {
 
             PrimitiveTypeInfo::I32 => [Instruction::I32Or]
@@ -1111,6 +1115,12 @@ impl Encoder {
                             entry.entry_idx,
                             expr,
                         ),
+                        Operator::Drop  => put_enode(
+                            Lang::Drop([subexpressions[0]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
                         _ => panic!("No yet implemented {:?}", operator),
                     };
 
@@ -1228,11 +1238,11 @@ impl Encoder {
                             operand(2),
                             operand(3),
                         ])),
+                        Lang::Drop(_) => expr.add(Lang::Drop([operand(0)])),
                         c @ Lang::Num(_) => expr.add((*c).clone()),
                         s @ Lang::Symbol(_) => expr.add((*s).clone()),
                         s @ Lang::Rand => expr.add((*s).clone()),
                         u @ Lang::Undef => expr.add((*u).clone()),
-                        d @ Lang::Drop => expr.add((*d).clone()),
                         a @ Lang::Arg(_) => expr.add((*a).clone()),
                     };
                     node_to_eclass.push(*eclass);
