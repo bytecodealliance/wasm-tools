@@ -45,7 +45,6 @@ macro_rules! eterm_operator_2_wasm {
                 Some(entry.return_type.clone())
             });
 
-            // println!("lang current {:?} root {:?}", $root, $parent);
             // If the type cannot be taken from the eclass data, then it is probably
             // artificially created and it can be inferred from the parent and the siblings
             // For example, ?x => (add ?x 0), Num(0) in this case is artificial and it is determined by the
@@ -92,7 +91,6 @@ macro_rules! eterm_operator_2_wasm {
             });
 
 
-             // println!("root {:?}, it {:?}, expected {:?}", $root, it, expected);
             let tpe = it.or(expected).ok_or(
                 crate::Error::UnsupportedType(EitherType::EggError(format!("The type of the instruction cannot be inferred")))
             )?;
@@ -643,6 +641,10 @@ impl Encoder {
             newfunc.instruction(Instruction::Drop);
             Ok(())
         }}
+        [Lang::Undef, value, _n, newfunc, _rnd, _eclassdata, _rootdata, _egraph, _info, _operators, _node_to_eclass] => {{
+            // Do nothing
+            Ok(())
+        }}
         [Lang::Arg(value), value, _n, newfunc, _rnd, _eclassdata, _rootdata, _egraph, _info, _operators, _node_to_eclass] => {{
             newfunc.instruction(Instruction::I32Const(*value as i32));
             Ok(())
@@ -817,6 +819,7 @@ impl Encoder {
         let byterange = (&operators[0].1, &operators[range.start].1);
         let bytes = &info.get_code_section().data[*byterange.0..*byterange.1];
         newfunc.raw(bytes.iter().copied());
+
         // Write all entries in the minidfg in reverse order
         // The stack neutral will be preserved but the position of the changed operands not that much :(
         // The edges of the stackentries are always backward in the array, so, it consistent to
@@ -825,7 +828,7 @@ impl Encoder {
             if *parentidx == -1 {
                 // It is a root, write then
                 let entry = &egraph.analysis.get_stack_entry(entryidx);
-                if entryidx == insertion_point {
+                if entry.operator_idx == insertion_point {
                     Encoder::expr2wasm(
                         info,
                         rnd,

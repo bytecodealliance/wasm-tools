@@ -28,6 +28,8 @@ pub struct StackEntry {
     pub entry_idx: usize,
     /// Color of the dfg part
     pub color: u32,
+    /// Instruction index if its apply
+    pub operator_idx : usize
 }
 
 /// This is the IR used to turn wasm to eterm and back
@@ -71,24 +73,42 @@ pub struct MiniDFG {
 impl MiniDFG {
     /// Return true if the coloring of the children subtrees is the same as the root
     /// Notice that this value can be calcuated when the tree is built
-    pub fn is_subtree_consistent(&self, current: usize, parent: Option<usize>) -> bool {
+    pub fn is_subtree_consistent(&self, current: usize) -> bool {
         let entry = &self.entries[current];
-        match parent {
-            None => {
-                return entry
-                    .operands
-                    .iter()
-                    .map(|&u| self.is_subtree_consistent(u, Some(current)))
-                    .all(|x| x)
+        let mut colors = vec![];
+        let mut worklist = vec![
+            entry
+        ];
+        
+        loop {
+            match worklist.pop() {
+                Some(entry) => {
+                    colors.push(entry.color);
+                    
+                    entry.operands.iter().for_each(|i| {
+                        worklist.push(
+                            &self.entries[*i]
+                        );
+                    });
+                }
+                None => {
+                    break;
+                }
             }
-            Some(u) => entry.color == self.entries[u].color,
         }
+
+        // All nodes in the tree should have the same color
+        colors.get(0).and_then(|&val|
+            {
+                Some(colors.iter().all(|&x|x == val))
+            }
+        ).or(Some(false)).unwrap()
     }
     /// Return true if the coloring of the children subtrees is the same as the root
     /// Notice that this value can be calcuated when the tree is built
     pub fn is_subtree_consistent_from_root(&self) -> bool {
         let current = self.entries.len() - 1;
-        self.is_subtree_consistent(current, None)
+        self.is_subtree_consistent(current)
     }
 }
 
@@ -178,6 +198,7 @@ impl<'a> DFGIcator {
             return_type,
             entry_idx,
             color,
+            operator_idx
         };
 
         operatormap.insert(operator_idx, entry_idx);
@@ -211,6 +232,7 @@ impl<'a> DFGIcator {
                     return_type: PrimitiveTypeInfo::Empty,
                     entry_idx,
                     color: 0, // 0 color is undefined
+                    operator_idx
                 }; // Means not reachable
                 if insertindfg {
                     operatormap.insert(operator_idx, entry_idx);
@@ -221,6 +243,8 @@ impl<'a> DFGIcator {
                 dfg_map.push(leaf);
                 parents.push(-1); // no parent yet
                 Some(entry_idx)
+
+                // TODO, Undef means another color
             })
             .unwrap();
         idx
@@ -367,6 +391,7 @@ impl<'a> DFGIcator {
                         return_type: PrimitiveTypeInfo::Empty,
                         entry_idx,
                         color,
+                        operator_idx: idx
                     };
 
                     // operatormap.insert(idx, entry_idx);
@@ -615,6 +640,7 @@ impl<'a> DFGIcator {
                     );
 
                     parents[arg] = idx as i32;
+                    //color += 1;
                 }
                 Operator::Else | Operator::End | Operator::Nop => {
                     // Write this down to do a small change in the original wasm
@@ -625,6 +651,7 @@ impl<'a> DFGIcator {
                         return_type: PrimitiveTypeInfo::Empty,
                         entry_idx,
                         color,
+                        operator_idx: idx
                     };
                     dfg_map.push(newnode);
                     parents.push(-1);
@@ -640,6 +667,54 @@ impl<'a> DFGIcator {
             map: operatormap,
             parents,
         })
+    }
+}
+
+impl std::fmt::Display for MiniDFG {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("DFG forest \n")?;
+
+        // To get ansi colors
+        fn get_color(color: u32) -> &'static str {
+            match color  {
+                0 => "\u{001b}[31m", // red
+                1 => "\u{001b}[32m", // green
+                2 => "\u{001b}[33m", // yellow
+                3 => "\u{001b}[34m", // blue
+                4 => "\u{001b}[35m", // magenta
+                5 => "\u{001b}[36m", // cyan
+                _ => "\u{001b}[0m"
+            }
+        }
+        fn write_child(minidfg: &MiniDFG, entryidx: usize, f: &mut std::fmt::Formatter<'_>, preffix: &str, childrenpreffix: &str) -> std::fmt::Result{
+            let entry = &minidfg.entries[entryidx];
+            f.write_str(&preffix)?;
+            let color = get_color(entry.color);
+            f.write_str(format!("{}(at {}) {:?}\u{001b}[0m\n", color, entry.operator_idx, entry.operator ).as_str())?;
+
+            for (idx, op) in entry.operands.iter().enumerate() {
+                if idx < entry.operands.len() - 1 {
+                    // Has no next child
+                    let preffix = format!("{}{}", childrenpreffix, "├──");
+                    let childrenpreffix = format!("{}{}", childrenpreffix, "│   ");
+                    write_child(&minidfg, *op, f,  &preffix, &childrenpreffix)?;
+                } else {
+
+                    let preffix = format!("{}{}", childrenpreffix, "└──");
+                    let childrenpreffix = format!("{}{}", childrenpreffix, "    ");
+                    write_child(&minidfg, *op, f,  &preffix, &childrenpreffix)?;
+                }
+            }
+            Ok(())
+        }
+        // Get roots
+        for (entryidx, idx) in self.parents.iter().enumerate(){
+            if *idx == -1 {
+                write_child(&self, entryidx, f, &"", &"")?;
+            } 
+        }
+        
+        f.write_str("")
     }
 }
 

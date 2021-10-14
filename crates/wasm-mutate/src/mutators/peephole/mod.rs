@@ -142,11 +142,6 @@ impl PeepholeMutator {
                                 continue;
                             }
                             Some(minidfg) => {
-                                //println!("parents {:?}", minidfg.parents);
-                                //for e in &minidfg.entries{
-                                //    println!("entry {:?}", e);
-                                //}
-
                                 if !minidfg.map.contains_key(&oidx) {
                                     continue;
                                 }
@@ -156,9 +151,13 @@ impl PeepholeMutator {
                                 let lang_to_stack_entries =
                                     Encoder::wasm2expr(&minidfg, oidx, &operators, &mut start)?;
                                 // Continue if the subtree coloring is inconsistent
+                                debug!("{}", minidfg);
                                 if !minidfg.is_subtree_consistent_from_root() {
+                                    debug!("{} is not consistent", start);
                                     continue;
                                 }
+
+                                debug!("Ttrying to mutate {} at {}", start, oidx);
 
                                 let analysis = PeepholeMutationAnalysis::new(
                                     lang_to_stack_entries.clone(),
@@ -280,6 +279,13 @@ impl PeepholeMutator {
             }
         }
     }
+
+    /// Checks that the rule has not undefined nodes in it
+    fn is_defined(&self, vari: &'static str) -> impl Fn(&mut EG, Id, &Subst) -> bool {
+        let vari = vari.parse().unwrap();
+        let undef = Lang::Undef;
+        move |egraph: &mut EG, _, subst| !egraph[subst[vari]].nodes.contains(&undef)
+    }
 }
 
 /// Meta mutator for peephole
@@ -308,7 +314,7 @@ impl Mutator for PeepholeMutator {
         rules.extend(rewrite!("add-1";  "(add ?x ?x)" <=> "(mul ?x 2)"));
         rules.extend(rewrite!("idempotent-1";  "?x" <=> "(or ?x ?x)" ));
         rules.extend(rewrite!("idempotent-2";  "?x" <=> "(and ?x ?x)"));
-        rules.extend(rewrite!("commutative-1";  "(add ?x ?y)" <=> "(add ?y ?x)" ));
+        rules.extend(rewrite!("commutative-1";  "(add ?x ?y)" <=> "(add ?y ?x)"));
         rules.extend(rewrite!("commutative-2";  "(mul ?x ?y)" <=> "(mul ?y ?x)" ));
         rules
             .extend(rewrite!("associative-2";  "(mul ?x (mul ?y ?z))" <=> "(mul (mul ?x ?y) ?z)" ));
@@ -506,7 +512,7 @@ mod tests {
     }
 
     #[test]
-    fn test_peep_stack_neutral() {
+    fn test_peep_stack_neutral1() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
             &[rewrite!("strength-undo";  "(shl ?x 1)" => "(mul ?x 2)")];
 
@@ -533,6 +539,38 @@ mod tests {
                     i32.const 42
                     i32.const 2
                     i32.mul)
+                (export "exported_func" (func 0)))
+            "#,
+            2,
+        );
+    }
+
+
+    #[test]
+    fn test_peep_stack_neutral2() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("strength-undo";  "?x" => "(or ?x ?x)")];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func")  (local i32 i32)
+                i32.const 10
+                drop
+            )
+        )
+        "#,
+            rules,
+            r#"
+            (module
+                (type (;0;) (func ))
+                (func (;0;) (type 0) 
+                    (local i32 i32)
+                    i32.const 10
+                    i32.const 10
+                    i32.or
+                    drop
+                )
                 (export "exported_func" (func 0)))
             "#,
             2,
