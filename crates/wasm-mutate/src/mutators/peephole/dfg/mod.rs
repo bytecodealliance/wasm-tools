@@ -583,11 +583,35 @@ impl<'a> DFGIcator {
                     parents[leftidx] = idx as i32;
                     parents[rightidx] = idx as i32;
                 }
-                Operator::Else | Operator::End | Operator::Nop | Operator::Drop => {
+                Operator::Drop => {
+                    let arg = DFGIcator::pop_operand(
+                        &mut stack,
+                        &mut dfg_map,
+                        idx,
+                        &mut operatormap,
+                        &mut parents,
+                        false,
+                    );
+
+                    let idx = DFGIcator::push_node(
+                        StackType::IndexAtCode(idx, 1),
+                        idx,
+                        &mut dfg_map,
+                        &mut operatormap,
+                        &mut stack,
+                        vec![arg], // reverse order
+                        &mut parents,
+                        color,
+                        PrimitiveTypeInfo::Empty,
+                    );
+
+                    parents[arg] = idx as i32;
+                }
+                Operator::Else | Operator::End | Operator::Nop => {
                     // Write this down to do a small change in the original wasm
                     let entry_idx = dfg_map.len();
                     let newnode = StackEntry {
-                        operator: StackType::IndexAtCode(idx, 2),
+                        operator: StackType::IndexAtCode(idx, 1),
                         operands: vec![],
                         return_type: PrimitiveTypeInfo::Empty,
                         entry_idx,
