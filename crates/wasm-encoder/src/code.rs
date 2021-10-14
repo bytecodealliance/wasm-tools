@@ -20,7 +20,7 @@ use std::borrow::Cow;
 ///
 /// let locals = vec![];
 /// let mut func = Function::new(locals);
-/// func.instruction(Instruction::I32Const(42));
+/// func.instruction(&Instruction::I32Const(42));
 /// let mut code = CodeSection::new();
 /// code.function(&func);
 ///
@@ -94,9 +94,9 @@ impl Section for CodeSection {
 /// //       i32.add)
 /// let locals = vec![];
 /// let mut func = Function::new(locals);
-/// func.instruction(Instruction::LocalGet(0));
-/// func.instruction(Instruction::LocalGet(1));
-/// func.instruction(Instruction::I32Add);
+/// func.instruction(&Instruction::LocalGet(0));
+/// func.instruction(&Instruction::LocalGet(1));
+/// func.instruction(&Instruction::I32Add);
 ///
 /// // Add our function to the code section.
 /// let mut code = CodeSection::new();

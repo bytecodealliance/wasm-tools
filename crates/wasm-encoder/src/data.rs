@@ -21,7 +21,7 @@ use super::*;
 /// let memory_index = 0;
 /// let offset = Instruction::I32Const(42);
 /// let segment_data = b"hello";
-/// data.active(memory_index, offset, segment_data.iter().copied());
+/// data.active(memory_index, &offset, segment_data.iter().copied());
 ///
 /// let mut module = Module::new();
 /// module

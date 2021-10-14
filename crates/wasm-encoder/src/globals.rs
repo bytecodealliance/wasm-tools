@@ -13,7 +13,7 @@ use super::*;
 ///         val_type: ValType::I32,
 ///         mutable: false,
 ///     },
-///     Instruction::I32Const(42),
+///     &Instruction::I32Const(42),
 /// );
 ///
 /// let mut module = Module::new();

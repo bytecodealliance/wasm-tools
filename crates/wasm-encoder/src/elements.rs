@@ -24,7 +24,7 @@ use super::*;
 /// let functions = Elements::Functions(&[
 ///     // Function indices...
 /// ]);
-/// elements.active(Some(table_index), offset, element_type, functions);
+/// elements.active(Some(table_index), &offset, element_type, functions);
 ///
 /// let mut module = Module::new();
 /// module
