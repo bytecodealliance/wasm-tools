@@ -450,7 +450,7 @@ impl Module {
         self.valtypes.push(ValType::I64);
         self.valtypes.push(ValType::F32);
         self.valtypes.push(ValType::F64);
-        if self.config.simd_enabled() || self.config.relaxed_simd_enabled() {
+        if self.config.simd_enabled() {
             self.valtypes.push(ValType::V128);
         }
         if self.config.reference_types_enabled() {
