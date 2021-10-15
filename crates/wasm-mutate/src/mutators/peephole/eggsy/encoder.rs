@@ -601,6 +601,16 @@ impl Encoder {
             PrimitiveTypeInfo::I64 => [Instruction::I64Shl]
 
         }
+        [Lang::RotL(operands), [operands]] => {
+
+            PrimitiveTypeInfo::I32 => [Instruction::I32Rotl]
+            PrimitiveTypeInfo::I64 => [Instruction::I64Rotl]
+        }
+        [Lang::RotR(operands), [operands]] => {
+
+            PrimitiveTypeInfo::I32 => [Instruction::I32Rotr]
+            PrimitiveTypeInfo::I64 => [Instruction::I64Rotr]
+        }
         [Lang::Tee(operands), [operands], /*between parenthesis means that this operand will be written down*/_nodes, newfunc, _rnd, eclassdata, _rootclassdata, egraph, _info, _operators, _node_to_eclass] => {{
             let entry = eclassdata.clone().unwrap().get_next_stack_entry(&egraph.analysis);
             if let StackType::LocalTee(local_index) = entry.operator {
@@ -1194,6 +1204,18 @@ impl Encoder {
                             entry.entry_idx,
                             expr,
                         ),
+                        Operator::I32Rotr | Operator::I64Rotr => put_enode(
+                            Lang::RotR([subexpressions[0], subexpressions[1]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
+                        Operator::I32Rotl | Operator::I64Rotl => put_enode(
+                            Lang::RotL([subexpressions[0], subexpressions[1]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
                         _ => panic!("No yet implemented {:?}", operator),
                     };
 
@@ -1300,6 +1322,8 @@ impl Encoder {
                         Lang::LeU(_) => expr.add(Lang::LeU([operand(0), operand(1)])),
                         Lang::GeS(_) => expr.add(Lang::GeS([operand(0), operand(1)])),
                         Lang::GeU(_) => expr.add(Lang::GeU([operand(0), operand(1)])),
+                        Lang::RotL(_) => expr.add(Lang::RotL([operand(0), operand(1)])),
+                        Lang::RotR(_) => expr.add(Lang::RotR([operand(0), operand(1)])),
                         Lang::Popcnt(_) => expr.add(Lang::Popcnt(operand(0))),
                         Lang::Call(op) => expr.add(Lang::Call(
                             (0..op.len()).map(|id| operand(id)).collect::<Vec<Id>>(),

@@ -15,7 +15,11 @@ define_language! {
         "div_u" = DivU([Id; 2]),
         "div_s" = DivS([Id; 2]),
         "shr_s" = ShrS([Id; 2]),
+        "rotr" = RotR([Id; 2]),
+        "rotl" = RotL([Id; 2]),
+        // testop
         "eqz" = Eqz([Id; 1]),
+        // relop
         "eq" = Eq([Id; 2]),
         "ne" = Ne([Id; 2]),
         "lt_s" = LtS([Id; 2]),

@@ -581,6 +581,8 @@ impl<'a> DFGIcator {
                 | Operator::I64Xor
                 | Operator::I64Or
                 | Operator::I64And
+                | Operator::I64Rotl
+                | Operator::I64Rotr
                 | Operator::I64ShrU => {
                     let leftidx = DFGIcator::pop_operand(
                         &mut stack,
@@ -646,7 +648,10 @@ impl<'a> DFGIcator {
                 | Operator::I64GeS
                 | Operator::I64GeU
                 | Operator::I32And
-                | Operator::I32ShrU => {
+                | Operator::I32ShrU
+                | Operator::I32Rotl
+                | Operator::I32Rotr
+                => {
                     let leftidx = DFGIcator::pop_operand(
                         &mut stack,
                         &mut dfg_map,
@@ -1139,6 +1144,13 @@ mod tests {
                 nop
                 nop
                 
+                i32.const 10
+                i32.const 20
+                i32.rotr
+
+                i32.const 10
+                i32.const 20
+                i32.rotl
             )
         )
         "#,
@@ -1169,7 +1181,7 @@ mod tests {
                         .unwrap();
 
                     let bb = DFGIcator::new()
-                        .get_bb_from_operator(21, &operators)
+                        .get_bb_from_operator(27, &operators)
                         .unwrap();
                     let roots = DFGIcator::new().get_dfg(
                         &info,

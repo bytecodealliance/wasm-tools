@@ -803,6 +803,40 @@ mod tests {
     }
 
     #[test]
+    fn test_peep_rots() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("idempotent-1";  "?x" => "(or ?x ?x)")];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func") (result i32) (local i32 i32)
+                i32.const 56
+                i32.const 2
+                i32.rotr
+            )
+        )
+        "#,
+            rules,
+            r#"
+        (module
+            (type (;0;) (func (result i32)))
+            (func (;0;) (type 0) (result i32)
+                (local i32 i32)
+                i32.const 56
+                i32.const 2
+                i32.rotr
+                i32.const 56
+                i32.const 2
+                i32.rotr
+                i32.or)
+            (export "exported_func" (func 0)))
+        "#,
+            1,
+        );
+    }
+
+    #[test]
     fn test_peep_idem3() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
             &[rewrite!("idempotent-3";  "?x" => "(add ?x 0)")];
