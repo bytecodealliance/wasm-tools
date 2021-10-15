@@ -24,7 +24,7 @@ use super::*;
 /// let functions = Elements::Functions(&[
 ///     // Function indices...
 /// ]);
-/// elements.active(Some(table_index), offset, element_type, functions);
+/// elements.active(Some(table_index), &offset, element_type, functions);
 ///
 /// let mut module = Module::new();
 /// module
@@ -58,7 +58,7 @@ pub enum Element {
 }
 
 /// An element segment's mode.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum ElementMode<'a> {
     /// A passive element segment.
     ///
@@ -76,12 +76,12 @@ pub enum ElementMode<'a> {
         /// reference types proposal.
         table: Option<u32>,
         /// The offset within the table to place this segment.
-        offset: Instruction<'a>,
+        offset: &'a Instruction<'a>,
     },
 }
 
 /// An element segment in the element section.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct ElementSegment<'a> {
     /// The element segment's mode.
     pub mode: ElementMode<'a>,
@@ -179,12 +179,12 @@ impl ElementSection {
     }
 
     /// Define an active element segment.
-    pub fn active<'a>(
+    pub fn active(
         &mut self,
         table_index: Option<u32>,
-        offset: Instruction,
+        offset: &Instruction<'_>,
         element_type: ValType,
-        elements: Elements<'a>,
+        elements: Elements<'_>,
     ) -> &mut Self {
         self.segment(ElementSegment {
             mode: ElementMode::Active {

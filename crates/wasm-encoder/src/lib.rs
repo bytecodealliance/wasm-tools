@@ -54,10 +54,10 @@
 //! let mut codes = CodeSection::new();
 //! let locals = vec![];
 //! let mut f = Function::new(locals);
-//! f.instruction(Instruction::LocalGet(0));
-//! f.instruction(Instruction::LocalGet(1));
-//! f.instruction(Instruction::I32Add);
-//! f.instruction(Instruction::End);
+//! f.instruction(&Instruction::LocalGet(0));
+//! f.instruction(&Instruction::LocalGet(1));
+//! f.instruction(&Instruction::I32Add);
+//! f.instruction(&Instruction::End);
 //! codes.function(&f);
 //! module.section(&codes);
 //!
@@ -234,7 +234,7 @@ impl From<SectionId> for u8 {
 }
 
 /// The type of a value.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 #[repr(u8)]
 pub enum ValType {
     /// The `i32` type.

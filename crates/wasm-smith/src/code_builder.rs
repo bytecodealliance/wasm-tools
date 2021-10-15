@@ -1,7 +1,8 @@
-use super::{BlockType, Elements, FuncType, Instruction, MemArg, Module, ValType};
+use super::{Elements, FuncType, Instruction, Module, ValType};
 use arbitrary::{Result, Unstructured};
 use std::collections::{BTreeMap, BTreeSet};
 use std::convert::TryFrom;
+use wasm_encoder::{BlockType, MemArg};
 
 macro_rules! instructions {
 	(
@@ -672,8 +673,8 @@ impl CodeBuilderAllocations {
         let mut funcref_tables = Vec::new();
         let mut table_tys = Vec::new();
         for (i, table) in module.tables.iter().enumerate() {
-            table_tys.push(table.elem_ty);
-            if table.elem_ty == ValType::FuncRef {
+            table_tys.push(table.element_type);
+            if table.element_type == ValType::FuncRef {
                 funcref_tables.push(i as u32);
             }
         }
@@ -805,7 +806,7 @@ impl CodeBuilder<'_> {
 
         for (i, ty) in module.func_types() {
             if self.types_on_stack(&ty.params) {
-                options.push(Box::new(move |_| Ok(BlockType::FuncType(i as u32))));
+                options.push(Box::new(move |_| Ok(BlockType::FunctionType(i as u32))));
             }
         }
 
@@ -1095,7 +1096,7 @@ fn nop(_: &mut Unstructured, _: &Module, _: &mut CodeBuilder) -> Result<Instruct
 
 fn block(u: &mut Unstructured, module: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     let block_ty = builder.arbitrary_block_type(u, module)?;
-    let (params, results) = block_ty.params_results(module);
+    let (params, results) = module.params_results(&block_ty);
     let height = builder.allocs.operands.len() - params.len();
     builder.allocs.controls.push(Control {
         kind: ControlKind::Block,
@@ -1113,7 +1114,7 @@ fn try_valid(module: &Module, _: &mut CodeBuilder) -> bool {
 
 fn r#try(u: &mut Unstructured, module: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     let block_ty = builder.arbitrary_block_type(u, module)?;
-    let (params, results) = block_ty.params_results(module);
+    let (params, results) = module.params_results(&block_ty);
     let height = builder.allocs.operands.len() - params.len();
     builder.allocs.controls.push(Control {
         kind: ControlKind::Try,
@@ -1196,7 +1197,7 @@ fn catch_all(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Res
 
 fn r#loop(u: &mut Unstructured, module: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     let block_ty = builder.arbitrary_block_type(u, module)?;
-    let (params, results) = block_ty.params_results(module);
+    let (params, results) = module.params_results(&block_ty);
     let height = builder.allocs.operands.len() - params.len();
     builder.allocs.controls.push(Control {
         kind: ControlKind::Loop,
@@ -1216,7 +1217,7 @@ fn r#if(u: &mut Unstructured, module: &Module, builder: &mut CodeBuilder) -> Res
     builder.pop_operands(&[ValType::I32]);
 
     let block_ty = builder.arbitrary_block_type(u, module)?;
-    let (params, results) = block_ty.params_results(module);
+    let (params, results) = module.params_results(&block_ty);
     let height = builder.allocs.operands.len() - params.len();
     builder.allocs.controls.push(Control {
         kind: ControlKind::If,
@@ -3255,7 +3256,7 @@ fn table_fill_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
         && module.config.bulk_memory_enabled()
         && [ValType::ExternRef, ValType::FuncRef].iter().any(|ty| {
             builder.types_on_stack(&[ValType::I32, *ty, ValType::I32])
-                && module.tables.iter().any(|t| t.elem_ty == *ty)
+                && module.tables.iter().any(|t| t.element_type == *ty)
         })
 }
 
@@ -3276,7 +3277,7 @@ fn table_set_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled()
         && [ValType::ExternRef, ValType::FuncRef].iter().any(|ty| {
             builder.types_on_stack(&[ValType::I32, *ty])
-                && module.tables.iter().any(|t| t.elem_ty == *ty)
+                && module.tables.iter().any(|t| t.element_type == *ty)
         })
 }
 
@@ -3305,7 +3306,7 @@ fn table_get(
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
     let idx = u.int_in_range(0..=module.tables.len() - 1)?;
-    let ty = module.tables[idx].elem_ty;
+    let ty = module.tables[idx].element_type;
     builder.push_operands(&[ty]);
     Ok(Instruction::TableGet { table: idx as u32 })
 }
@@ -3330,7 +3331,7 @@ fn table_grow_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled()
         && [ValType::ExternRef, ValType::FuncRef].iter().any(|ty| {
             builder.types_on_stack(&[*ty, ValType::I32])
-                && module.tables.iter().any(|t| t.elem_ty == *ty)
+                && module.tables.iter().any(|t| t.element_type == *ty)
         })
 }
 
@@ -3360,7 +3361,7 @@ fn table_copy(
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32, ValType::I32]);
     let src = u.int_in_range(0..=module.tables.len() - 1)? as u32;
-    let dst = table_index(module.tables[src as usize].elem_ty, u, module)?;
+    let dst = table_index(module.tables[src as usize].element_type, u, module)?;
     Ok(Instruction::TableCopy { src, dst })
 }
 
@@ -3381,7 +3382,7 @@ fn table_init(
         .elems
         .iter()
         .enumerate()
-        .filter(|(_, e)| module.tables.iter().any(|t| t.elem_ty == e.ty))
+        .filter(|(_, e)| module.tables.iter().any(|t| t.element_type == e.ty))
         .map(|(i, _)| i)
         .collect::<Vec<_>>();
     let segment = *u.choose(&segments)?;
@@ -3421,7 +3422,7 @@ fn table_index(ty: ValType, u: &mut Unstructured, module: &Module) -> Result<u32
         .tables
         .iter()
         .enumerate()
-        .filter(|(_, t)| t.elem_ty == ty)
+        .filter(|(_, t)| t.element_type == ty)
         .map(|t| t.0 as u32)
         .collect::<Vec<_>>();
     Ok(*u.choose(&tables)?)
