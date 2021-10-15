@@ -12,10 +12,42 @@ define_language! {
         "xor" = Xor([Id; 2]),
         "shl" = Shl([Id; 2]),
         "shr_u" = ShrU([Id; 2]),
+        "div_u" = DivU([Id; 2]),
+        "div_s" = DivS([Id; 2]),
+        "shr_s" = ShrS([Id; 2]),
+        "rotr" = RotR([Id; 2]),
+        "rotl" = RotL([Id; 2]),
+        "rem_s" = RemS([Id; 2]),
+        "rem_u" = RemU([Id; 2]),
+        // testop
+        "eqz" = Eqz([Id; 1]),
+        // relop
+        "eq" = Eq([Id; 2]),
+        "ne" = Ne([Id; 2]),
+        "lt_s" = LtS([Id; 2]),
+        "lt_u" = LtU([Id; 2]),
+        "gt_s" = GtS([Id; 2]),
+        "gt_u" = GtU([Id; 2]),
+        "le_s" = LeS([Id; 2]),
+        "le_u" = LeU([Id; 2]),
+        "ge_s" = GeS([Id; 2]),
+        "ge_u" = GeU([Id; 2]),
+        "tee" = Tee([Id; 1]),
+        // conversion operators
+        "wrap" = Wrap([Id; 1]),
+
+        "extend8s" = Extend8S([Id; 1]),
+        "extend16s" = Extend16S([Id; 1]),
+        "extend32s" = Extend32S([Id; 1]),
+        "extendi32s" = ExtendI32S([Id; 1]),
+        "extendi32u" = ExtendI32U([Id; 1]),
+
+        // The firsts Id should be the function index
+        "call" = Call(Vec<Id>),
         "popcnt" = Popcnt(Id),
         "drop" = Drop,
         // Memory operations
-        "load" = ILoad([Id;1]), // dynamic offset, offset, align mem value
+        "load" = ILoad([Id;4]), // dynamic offset, offset, align mem value
         // TODO add the others
 
         // Custom mutation operations and instructions
@@ -37,5 +69,16 @@ define_language! {
         Num(i64),
         // NB: must be last since variants are parsed in order.
         Symbol(Symbol),
+
+        // Use the following to internally pass arguments that dont need to be
+        // parsed as number constants. Since variants will be parsed in order,
+        // this wont be created directly from `parse`
+        Arg(u64), // TODO, create this as a children-having instruction
+    }
+}
+
+impl Default for Lang {
+    fn default() -> Self {
+        Lang::Undef
     }
 }

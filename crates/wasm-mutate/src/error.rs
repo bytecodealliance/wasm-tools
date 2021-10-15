@@ -1,5 +1,5 @@
 use wasm_encoder::ValType;
-use wasmparser::Type;
+use wasmparser::{GlobalType, Type};
 
 /// An error encountered when choosing or applying a Wasm mutation.
 #[derive(thiserror::Error, Debug)]
@@ -25,6 +25,7 @@ pub enum EitherType {
     Operator(String),
     ValType(ValType),
     EggError(String),
+    GlobalType(GlobalType),
 }
 
 /// A `Result` type that is either `Ok(T)` or `Err(wasm_mutate::Error)`.

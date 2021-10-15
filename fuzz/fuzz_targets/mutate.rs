@@ -47,8 +47,6 @@ fuzz_target!(|inputs: (wasm_smith::Module, u64)| {
             match e {
                 wasm_mutate::Error::NotMatchingPeepholes | 
                 wasm_mutate::Error::NoMutationsAplicable => {
-
-                    log::info!("failed to mutate the Wasm: {:?}", e);
                     return;
                 }
                 _ => panic!("Invalid mutation process")

@@ -138,10 +138,12 @@ where
             .children()
             .iter()
             .rev()
-            .map(|id| (eclass, 0, id, 0)) // (root, operant, depth)
+            .map(|id| (0, id, 0)) // (root, operant, depth)
             .collect();
 
-        while let Some((_, parentidx, &node, depth)) = worklist.pop() {
+        // The RecExpr can be built directly here following the following rules
+        // The childrens of a node are before in the array
+        while let Some((parentidx, &node, depth)) = worklist.pop() {
             let node_idx = if depth >= max_depth {
                 // look nearest leaf path, in this case, the best in AST size
                 self.costs[&node].1
@@ -166,7 +168,7 @@ where
                     .children()
                     .iter()
                     .rev()
-                    .map(|id| (operand, operandidx, id, depth + 1)),
+                    .map(|id| (operandidx, id, depth + 1)),
             );
         }
         // Build the tree with the right language constructor
@@ -194,6 +196,7 @@ mod tests {
     use crate::{
         module::PrimitiveTypeInfo,
         mutators::peephole::{dfg::DFGIcator, eggsy::encoder::Encoder, OperatorAndByteOffset},
+        ModuleInfo,
     };
     use egg::RecExpr;
     use wasmparser::Parser;
@@ -245,11 +248,16 @@ mod tests {
                         .unwrap();
 
                     let roots = DFGIcator::new()
-                        .get_dfg(&operators, &bb, &vec![PrimitiveTypeInfo::I32])
+                        .get_dfg(
+                            &ModuleInfo::default(),
+                            &operators,
+                            &bb,
+                            &vec![PrimitiveTypeInfo::I32],
+                        )
                         .unwrap();
 
                     let mut exprroot = RecExpr::<Lang>::default();
-                    let r = Encoder::wasm2expr(&roots, 4, &operators, &mut exprroot).unwrap();
+                    let _ = Encoder::wasm2expr(&roots, 4, &operators, &mut exprroot).unwrap();
                 }
                 wasmparser::Payload::End => {
                     break;

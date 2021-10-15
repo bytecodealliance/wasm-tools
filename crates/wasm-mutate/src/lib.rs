@@ -9,7 +9,7 @@
 #![cfg_attr(not(feature = "structopt"), deny(missing_docs))]
 use std::{collections::HashSet, sync::Arc};
 
-use module::TypeInfo;
+use module::{PrimitiveTypeInfo, TypeInfo};
 use mutators::Mutator;
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use std::convert::TryFrom;
@@ -142,10 +142,13 @@ pub struct ModuleInfo<'a> {
     is_start_defined: bool,
     function_count: u32,
     exports_count: u32,
+    imported_functions_count: u32,
 
     // types for inner functions
     types_map: Vec<TypeInfo>,
+    // function idx to type idx
     function_map: Vec<u32>,
+    global_types: Vec<PrimitiveTypeInfo>,
 
     // raw_sections
     raw_sections: Vec<RawSection<'a>>,
@@ -291,9 +294,29 @@ impl WasmMutate {
                         })?;
                     }
                 }
-                Payload::ImportSection(reader) => {
+                Payload::ImportSection(mut reader) => {
                     info.imports = Some(info.raw_sections.len());
                     info.section(SectionId::Import.into(), reader.range(), input_wasm);
+
+                    for _ in 0..reader.get_count() {
+                        reader.read().and_then(|ty| {
+                            match ty.ty {
+                                wasmparser::ImportSectionEntryType::Function(ty) => {
+                                    // Save imported functions
+                                    info.function_map.push(ty);
+                                    info.imported_functions_count += 1;
+                                }
+                                wasmparser::ImportSectionEntryType::Global(ty) => {
+                                    let ty = PrimitiveTypeInfo::try_from(ty.content_type).unwrap();
+                                    info.global_types.push(ty);
+                                }
+                                _ => {
+                                    // Do nothing
+                                }
+                            }
+                            Ok(())
+                        })?;
+                    }
                 }
                 Payload::FunctionSection(mut reader) => {
                     info.functions = Some(info.raw_sections.len());
@@ -314,9 +337,18 @@ impl WasmMutate {
                     info.memories = Some(info.raw_sections.len());
                     info.section(SectionId::Memory.into(), reader.range(), input_wasm);
                 }
-                Payload::GlobalSection(reader) => {
+                Payload::GlobalSection(mut reader) => {
                     info.globals = Some(info.raw_sections.len());
                     info.section(SectionId::Global.into(), reader.range(), input_wasm);
+
+                    for _ in 0..reader.get_count() {
+                        reader.read().and_then(|ty| {
+                            // We only need the type of the global, not necesarily if is mutable or not
+                            let ty = PrimitiveTypeInfo::try_from(ty.ty.content_type).unwrap();
+                            info.global_types.push(ty);
+                            Ok(())
+                        })?;
+                    }
                 }
                 Payload::ExportSection(mut reader) => {
                     info.exports = Some(info.raw_sections.len());
