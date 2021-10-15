@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 
 use wasm_encoder::ValType;
-use wasmparser::{GlobalType, Type, TypeDef};
+use wasmparser::{Type, TypeDef};
 
 use crate::error::EitherType;
 
@@ -10,8 +10,15 @@ pub enum PrimitiveTypeInfo {
     I32,
     I64,
     F32,
-    F64, // TODO, add others
+    F64,
     Empty,
+    // The following types are used to map the extend operators
+    I8S,
+    I8SU,
+    I16S,
+    I16U,
+    I32S,
+    I32U,
 }
 #[derive(Debug, Clone)]
 pub struct FuncInfo {

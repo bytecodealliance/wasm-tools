@@ -908,6 +908,96 @@ mod tests {
     }
 
     #[test]
+    fn test_peep_cv2() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("idempotent-1";  "?x" => "(or ?x ?x)")];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func") (result i64) (local i32 i32)
+                i64.const 56
+                i64.extend8_s
+            )
+        )
+        "#,
+            rules,
+            r#"
+        (module
+            (func (;0;) (result i64)
+                (local i32 i32)
+                i64.const 56
+                i64.extend8_s
+                i64.const 56
+                i64.extend8_s
+                i64.or)
+            (export "exported_func" (func 0)))
+        "#,
+            8,
+        );
+    }
+
+    #[test]
+    fn test_peep_cv3() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("idempotent-1";  "?x" => "(or ?x ?x)")];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func") (result i64) (local i32 i32)
+                i64.const 56
+                i64.extend16_s
+            )
+        )
+        "#,
+            rules,
+            r#"
+        (module
+            (func (;0;) (result i64)
+                (local i32 i32)
+                i64.const 56
+                i64.extend16_s
+                i64.const 56
+                i64.extend16_s
+                i64.or)
+            (export "exported_func" (func 0)))
+        "#,
+            8,
+        );
+    }
+
+    #[test]
+    fn test_peep_cv4() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("idempotent-1";  "?x" => "(or ?x ?x)")];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func") (result i32) (local i32 i32)
+                i32.const 56
+                i32.extend8_s
+            )
+        )
+        "#,
+            rules,
+            r#"
+        (module
+            (func (;0;) (result i32)
+                (local i32 i32)
+                i32.const 56
+                i32.extend8_s
+                i32.const 56
+                i32.extend8_s
+                i32.or)
+            (export "exported_func" (func 0)))
+        "#,
+            8,
+        );
+    }
+
+    #[test]
     fn test_peep_idem3() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
             &[rewrite!("idempotent-3";  "?x" => "(add ?x 0)")];

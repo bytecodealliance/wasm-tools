@@ -69,6 +69,30 @@ macro_rules! eterm_operator_2_wasm {
                         // The expected value is an i64
                         Some(PrimitiveTypeInfo::I64)
                     }
+                    Lang::Extend8S(_) => {
+                        match parenttpe {
+                            Some(tpe) => {
+                                match tpe {
+                                    PrimitiveTypeInfo::I32 => Some(PrimitiveTypeInfo::I32),
+                                    PrimitiveTypeInfo::I64 => Some(PrimitiveTypeInfo::I64),
+                                    _ => unreachable!("Invalid type")
+                                }
+                            }
+                            None => unreachable!("Extend operation with no type information")
+                        }
+                    }
+                    Lang::Extend16S(_) => {
+                        match parenttpe {
+                            Some(tpe) => {
+                                match tpe {
+                                    PrimitiveTypeInfo::I32 => Some(PrimitiveTypeInfo::I32),
+                                    PrimitiveTypeInfo::I64 => Some(PrimitiveTypeInfo::I64),
+                                    _ => unreachable!("Invalid type")
+                                }
+                            }
+                            None => unreachable!("Extend operation with no type information")
+                        }
+                    }
                     Lang::Call(operands) => {
                         $index_at_parent.and_then(|idx|{
                             let first = operands[0];
@@ -627,6 +651,24 @@ impl Encoder {
         }
         [Lang::Wrap(operands), [operands]] => {
             PrimitiveTypeInfo::I32 => [Instruction::I32WrapI64]
+        }
+
+        [Lang::Extend8S(operands), [operands]] => {
+            PrimitiveTypeInfo::I32 => [Instruction::I32Extend8S]
+            PrimitiveTypeInfo::I64 => [Instruction::I64Extend8S]
+        }
+        [Lang::Extend16S(operands), [operands]] => {
+            PrimitiveTypeInfo::I32 => [Instruction::I32Extend16S]
+            PrimitiveTypeInfo::I64 => [Instruction::I64Extend16S]
+        }
+        [Lang::Extend32S(operands), [operands]] => {
+            PrimitiveTypeInfo::I64 => [Instruction::I64Extend32S]
+        }
+        [Lang::ExtendI32S(operands), [operands]] => {
+            PrimitiveTypeInfo::I64 => [Instruction::I64ExtendI32S]
+        }
+        [Lang::ExtendI32U(operands), [operands]] => {
+            PrimitiveTypeInfo::I64 => [Instruction::I64ExtendI32U]
         }
         [Lang::Tee(operands), [operands], /*between parenthesis means that this operand will be written down*/_nodes, newfunc, _rnd, eclassdata, _rootclassdata, egraph, _info, _operators, _node_to_eclass] => {{
             let entry = eclassdata.clone().unwrap().get_next_stack_entry(&egraph.analysis);
@@ -1245,8 +1287,38 @@ impl Encoder {
                             entry.entry_idx,
                             expr,
                         ),
-                        Operator::I32WrapI64  => put_enode(
+                        Operator::I32WrapI64 => put_enode(
                             Lang::Wrap([subexpressions[0]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
+                        Operator::I32Extend8S | Operator::I64Extend8S => put_enode(
+                            Lang::Extend8S([subexpressions[0]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
+                        Operator::I32Extend16S | Operator::I64Extend16S => put_enode(
+                            Lang::Extend16S([subexpressions[0]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
+                        Operator::I64Extend32S => put_enode(
+                            Lang::Extend32S([subexpressions[0]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
+                        Operator::I64ExtendI32S => put_enode(
+                            Lang::ExtendI32S([subexpressions[0]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
+                        Operator::I64ExtendI32U => put_enode(
+                            Lang::ExtendI32U([subexpressions[0]]),
                             lang_to_stack_entries,
                             entry.entry_idx,
                             expr,
@@ -1362,6 +1434,11 @@ impl Encoder {
                         Lang::RemU(_) => expr.add(Lang::RemU([operand(0), operand(1)])),
                         Lang::RemS(_) => expr.add(Lang::RemS([operand(0), operand(1)])),
                         Lang::Wrap(_) => expr.add(Lang::Wrap([operand(0)])),
+                        Lang::Extend8S(_) => expr.add(Lang::Extend8S([operand(0)])),
+                        Lang::Extend16S(_) => expr.add(Lang::Extend16S([operand(0)])),
+                        Lang::Extend32S(_) => expr.add(Lang::Extend32S([operand(0)])),
+                        Lang::ExtendI32S(_) => expr.add(Lang::ExtendI32S([operand(0)])),
+                        Lang::ExtendI32U(_) => expr.add(Lang::ExtendI32U([operand(0)])),
                         Lang::Popcnt(_) => expr.add(Lang::Popcnt(operand(0))),
                         Lang::Call(op) => expr.add(Lang::Call(
                             (0..op.len()).map(|id| operand(id)).collect::<Vec<Id>>(),

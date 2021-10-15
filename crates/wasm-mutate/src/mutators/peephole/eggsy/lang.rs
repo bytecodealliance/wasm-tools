@@ -36,7 +36,12 @@ define_language! {
         // conversion operators
         "wrap" = Wrap([Id; 1]),
 
-        
+        "extend8s" = Extend8S([Id; 1]),
+        "extend16s" = Extend16S([Id; 1]),
+        "extend32s" = Extend32S([Id; 1]),
+        "extendi32s" = ExtendI32S([Id; 1]),
+        "extendi32u" = ExtendI32U([Id; 1]),
+
         // The firsts Id should be the function index
         "call" = Call(Vec<Id>),
         "popcnt" = Popcnt(Id),

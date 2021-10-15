@@ -466,7 +466,7 @@ impl<'a> DFGIcator {
                     // Augnment the color since the next operations could be inconsistent
                     color += 1;
                 }
-                Operator::I32Store {..} | Operator::I64Store {..} => {
+                Operator::I32Store { .. } | Operator::I64Store { .. } => {
                     let offset = DFGIcator::pop_operand(
                         &mut stack,
                         &mut dfg_map,
@@ -610,8 +610,7 @@ impl<'a> DFGIcator {
                 | Operator::I64Rotr
                 | Operator::I64ShrU
                 | Operator::I64RemS
-                | Operator::I64RemU
-                => {
+                | Operator::I64RemU => {
                     let leftidx = DFGIcator::pop_operand(
                         &mut stack,
                         &mut dfg_map,
@@ -680,8 +679,7 @@ impl<'a> DFGIcator {
                 | Operator::I32Rotl
                 | Operator::I32Rotr
                 | Operator::I32RemS
-                | Operator::I32RemU
-                => {
+                | Operator::I32RemU => {
                     let leftidx = DFGIcator::pop_operand(
                         &mut stack,
                         &mut dfg_map,
@@ -763,6 +761,59 @@ impl<'a> DFGIcator {
                         &mut parents,
                         color,
                         PrimitiveTypeInfo::I32,
+                    );
+
+                    parents[arg] = idx as i32;
+                }
+                Operator::I32Extend16S | Operator::I32Extend8S => {
+                    let arg = DFGIcator::pop_operand(
+                        &mut stack,
+                        &mut dfg_map,
+                        idx,
+                        &mut operatormap,
+                        &mut parents,
+                        false,
+                    );
+
+                    let idx = DFGIcator::push_node(
+                        StackType::IndexAtCode(idx, 1),
+                        idx,
+                        &mut dfg_map,
+                        &mut operatormap,
+                        &mut stack,
+                        vec![arg], // reverse order
+                        &mut parents,
+                        color,
+                        PrimitiveTypeInfo::I32,
+                    );
+
+                    parents[arg] = idx as i32;
+                }
+
+                Operator::I64Extend16S
+                | Operator::I64Extend8S
+                | Operator::I64ExtendI32S
+                | Operator::I64Extend32S
+                | Operator::I64ExtendI32U => {
+                    let arg = DFGIcator::pop_operand(
+                        &mut stack,
+                        &mut dfg_map,
+                        idx,
+                        &mut operatormap,
+                        &mut parents,
+                        false,
+                    );
+
+                    let idx = DFGIcator::push_node(
+                        StackType::IndexAtCode(idx, 1),
+                        idx,
+                        &mut dfg_map,
+                        &mut operatormap,
+                        &mut stack,
+                        vec![arg], // reverse order
+                        &mut parents,
+                        color,
+                        PrimitiveTypeInfo::I64,
                     );
 
                     parents[arg] = idx as i32;
