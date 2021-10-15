@@ -68,7 +68,7 @@ impl ClassData {
 
 impl PartialEq for ClassData {
     fn eq(&self, other: &Self) -> bool {
-        self.eclass_and_stackentries.1 == other.eclass_and_stackentries.1 // && self.operatoridx == other.operatoridx
+        self.eclass_and_stackentries.1 == other.eclass_and_stackentries.1
     }
 
     fn ne(&self, other: &Self) -> bool {

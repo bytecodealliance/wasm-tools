@@ -291,7 +291,7 @@ impl<'a> DFGIcator {
                                 return None;
                             }
                             // Pop as many parameters from the stack
-                            let operands = (0..tpe.params.len())
+                            let mut operands = (0..tpe.params.len())
                                 .map(|_| {
                                     DFGIcator::pop_operand(
                                         &mut stack,
@@ -304,7 +304,7 @@ impl<'a> DFGIcator {
                                 })
                                 .collect::<Vec<usize>>();
                             // reverse operands
-                            //operands.reverse();
+                            operands.reverse();
                             // Add this as a new operator
                             let fidx = DFGIcator::push_node(
                                 StackType::Call {
@@ -739,6 +739,89 @@ impl<'a> DFGIcator {
             map: operatormap,
             parents,
         })
+    }
+}
+
+impl MiniDFG {
+    /// Pretty prints the DFG forest in a tree structure
+    pub fn pretty_print(&self, operators: &Vec<OperatorAndByteOffset>) -> String {
+        let mut builder = String::from("");
+
+        builder.push_str("DFG forest\n");
+
+        // To get ansi colors
+        fn get_color(color: u32) -> &'static str {
+            match color {
+                0 => "\u{001b}[31m",    // red
+                1 => "\u{001b}[32m",    // green
+                2 => "\u{001b}[33m",    // yellow
+                3 => "\u{001b}[34m",    // blue
+                4 => "\u{001b}[35m",    // magenta
+                5 => "\u{001b}[36m",    // cyan
+                11 => "\u{001b}[31;1m", //
+                6 => "\u{001b}[37;1m",  //
+                7 => "\u{001b}[32;1m",  //
+                8 => "\u{001b}[31m",    //
+                9 => "\u{001b}[31m",    //
+                10 => "\u{001b}[32m",   //
+                _ => "\u{001b}[0m",
+            }
+        }
+        fn write_child(
+            minidfg: &MiniDFG,
+            entryidx: usize,
+            preffix: &str,
+            operators: &Vec<OperatorAndByteOffset>,
+            childrenpreffix: &str,
+            builder: &mut String,
+        ) {
+            let entry = &minidfg.entries[entryidx];
+            builder.push_str(&format!("{}", &preffix));
+            let color = get_color(entry.color);
+            let (operator, _) = &operators[entry.operator_idx];
+            builder.push_str(
+                format!(
+                    "{}({})(at {}) {:?}\u{001b}[0m\n",
+                    color, entry.color, entry.operator_idx, operator
+                )
+                .as_str(),
+            );
+
+            for (idx, op) in entry.operands.iter().enumerate() {
+                if idx < entry.operands.len() - 1 {
+                    // Has no next child
+                    let preffix = format!("{}{}", childrenpreffix, "├──");
+                    let childrenpreffix = format!("{}{}", childrenpreffix, "│   ");
+                    write_child(
+                        &minidfg,
+                        *op,
+                        &preffix,
+                        operators,
+                        &childrenpreffix,
+                        builder,
+                    );
+                } else {
+                    let preffix = format!("{}{}", childrenpreffix, "└──");
+                    let childrenpreffix = format!("{}{}", childrenpreffix, "    ");
+                    write_child(
+                        &minidfg,
+                        *op,
+                        &preffix,
+                        operators,
+                        &childrenpreffix,
+                        builder,
+                    );
+                }
+            }
+        }
+        // Get roots
+        for (entryidx, idx) in self.parents.iter().enumerate() {
+            if *idx == -1 {
+                write_child(&self, entryidx, &"", operators, &"", &mut builder);
+            }
+        }
+
+        builder
     }
 }
 

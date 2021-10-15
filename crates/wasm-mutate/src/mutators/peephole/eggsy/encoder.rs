@@ -26,7 +26,7 @@ pub struct Encoder;
 
 macro_rules! eterm_operator_2_wasm {
     (@expand
-        $eclassdata:expr, $newfunc:expr, $parent_eclass:expr, $nodes:expr, $root: expr, $egraph: expr, $index_at_parent: expr,$parent: expr, $info: expr,
+        $eclassdata:expr, $newfunc:expr, $parent_eclass:expr, $nodes:expr, $root: expr, $egraph: expr, $index_at_parent: expr,$parent: expr, $info: expr,$node_to_eclass:expr,
         { $($target:tt)* }
     ) => {
            $(
@@ -34,7 +34,7 @@ macro_rules! eterm_operator_2_wasm {
            )*
     };
     (@expand
-        $eclassdata:expr, $newfunc:expr, $parent_eclass: expr, $nodes:expr, $root: expr, $egraph: expr, $index_at_parent: expr, $parent: expr, $info: expr,
+        $eclassdata:expr, $newfunc:expr, $parent_eclass: expr, $nodes:expr, $root: expr, $egraph: expr, $index_at_parent: expr, $parent: expr, $info: expr,$node_to_eclass:expr,
         $(
             $case:pat => [$($target:tt)+]
         )*
@@ -56,7 +56,8 @@ macro_rules! eterm_operator_2_wasm {
                 Some(entry.return_type.clone())
             });
 
-            let expected = $parent.and_then(|parent|{
+
+            let forced = $parent.and_then(|parent|{
                 match parent {
                     // In this case both operators and the parent have the same return type
                     // A call is an special case, the type of the operand is determined by its signature
@@ -86,12 +87,31 @@ macro_rules! eterm_operator_2_wasm {
                             None
                         })
                     }
+                    // In irelops the type of the oeprand is determined by the sibling type
+                    Lang::Eqz(_) => it.clone(),
+                    Lang::Eq(operands) | Lang::Ne(operands) | Lang::LtS(operands) | Lang::LtU(operands)
+                    | Lang::GtU(operands) | Lang::GtS(operands) | Lang::GeS(operands) | Lang::GeU(operands)
+                    | Lang::LeS(operands) | Lang::LeU(operands) => {
+                        let index = $index_at_parent.unwrap();
+                        let siblingidx = (usize::from(index) + 1) % operands.len();
+                        let sibling = &operands[siblingidx];
+                        // let siblinglang = &$nodes[usize::from(*sibling)];
+                        let siblingeclassindex = &$node_to_eclass[usize::from(*sibling)];
+                        let siblingdata = &$egraph[*siblingeclassindex].data;
+                        //println!("sibling {:?} data {:?}, Id {:?} real id {:?}", siblinglang, siblingdata, sibling, siblingeclassindex);
+                        siblingdata.as_ref().and_then(|data| {
+                            let entry = data.get_next_stack_entry(&$egraph.analysis);
+                            // println!("Entry {:?}", entry);
+                            Some(entry.return_type.clone())
+                        })
+                    },
                    _ => parenttpe // Usually the parent type is the type of the operand
                 }
             });
 
 
-            let tpe = it.or(expected).ok_or(
+            //println!("root {:?} it {:?}, parent ?, expected {:?}",$root, it, forced);
+            let tpe = forced.or(it).ok_or(
                 crate::Error::UnsupportedType(EitherType::EggError(format!("The type of the instruction cannot be inferred")))
             )?;
             match tpe {
@@ -130,7 +150,7 @@ macro_rules! eterm_operator_2_wasm {
             )?;
         }
         eterm_operator_2_wasm! {
-            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root, $egraph, $index_at_parent, $parent, $info, $(
+            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root, $egraph, $index_at_parent, $parent, $info, $node_to_eclass, $(
                 $body
             )*
         }
@@ -168,7 +188,7 @@ macro_rules! eterm_operator_2_wasm {
         let $name4nodetoeclass = $node_to_eclass;
 
         eterm_operator_2_wasm! {
-            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root,  $egraph, $index_at_parent, $parent, $info,$(
+            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root,  $egraph, $index_at_parent, $parent, $info, $node_to_eclass, $(
                 $body
             )*
         }
@@ -180,7 +200,7 @@ macro_rules! eterm_operator_2_wasm {
         }
     ) => {
         eterm_operator_2_wasm! {
-            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root,$egraph, $index_at_parent, $parent, $info, $(
+            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root,$egraph, $index_at_parent, $parent, $info, $node_to_eclass, $(
                 $body
             )*
         }
@@ -200,7 +220,7 @@ macro_rules! eterm_operator_2_wasm {
         let $name4operators = $operators;
         let $name4nodetoeclass = $node_to_eclass;
         eterm_operator_2_wasm! {
-            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root, $egraph, $index_at_parent, $parent, $info, $(
+            @expand $eclassdata, $newfunc, $parenteclass, $nodes, $root, $egraph, $index_at_parent, $parent, $info, $node_to_eclass, $(
                 $body
             )*
         }
@@ -651,7 +671,7 @@ impl Encoder {
             newfunc.instruction(Instruction::Drop);
             Ok(())
         }}
-        [Lang::Undef, value, _n, newfunc, _rnd, _eclassdata, _rootdata, _egraph, _info, _operators, _node_to_eclass] => {{
+        [Lang::Undef, value, _n, _newfunc, _rnd, _eclassdata, _rootdata, _egraph, _info, _operators, _node_to_eclass] => {{
             // Do nothing
             Ok(())
         }}
@@ -964,7 +984,7 @@ impl Encoder {
                         expr,
                     ));
                 }
-                StackType::LocalTee(idx) => {
+                StackType::LocalTee(_) => {
                     let value = wasm2expraux(
                         dfg,
                         entry.operands[0],

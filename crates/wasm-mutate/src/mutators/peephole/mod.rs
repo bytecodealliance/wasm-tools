@@ -159,7 +159,8 @@ impl PeepholeMutator {
                                 }
                                 let lang_to_stack_entries = lang_to_stack_entries?;
                                 // Continue if the subtree coloring is inconsistent
-                                debug!("{}", minidfg);
+                                debug!("{}", minidfg.pretty_print(&operators));
+
                                 if !minidfg.is_subtree_consistent_from_root() {
                                     debug!("{} is not consistent", start);
                                     continue;
@@ -287,13 +288,6 @@ impl PeepholeMutator {
             }
         }
     }
-
-    /// Checks that the rule has not undefined nodes in it
-    fn is_defined(&self, vari: &'static str) -> impl Fn(&mut EG, Id, &Subst) -> bool {
-        let vari = vari.parse().unwrap();
-        let undef = Lang::Undef;
-        move |egraph: &mut EG, _, subst| !egraph[subst[vari]].nodes.contains(&undef)
-    }
 }
 
 /// Meta mutator for peephole
@@ -332,6 +326,8 @@ impl Mutator for PeepholeMutator {
         rules.extend(rewrite!("idempotent-3";  "?x" <=> "(mul ?x 1)" ));
         rules.extend(rewrite!("idempotent-4";  "?x" <=> "(add ?x 0)" ));
         rules.extend(rewrite!("idempotent-5";  "?x" <=> "(xor ?x 0)" ));
+        rules.extend(rewrite!("idempotent-6"; "(eqz ?x)" <=> "(eq ?x 0)"));
+        rules.extend(rewrite!("commutative-3"; "(eq ?x ?y)" <=> "(eq ?y ?x)"));
 
         if !config.preserve_semantics {
             rules.push(rewrite!("mem-load-shift";  "(load ?x ?y ?z ?w)" => "(load (add ?x rand) ?y ?z ?w)"))
@@ -577,6 +573,36 @@ mod tests {
                     i32.const 10
                     i32.or
                     drop
+                )
+                (export "exported_func" (func 0)))
+            "#,
+            2,
+        );
+    }
+
+    #[test]
+    fn test_peep_irelop1() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("strength-undo";  "(eqz ?x)" => "(eq ?x 0)")];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func") (result i32) (local i32 i32)
+                i64.const 10
+                i64.eqz
+            )
+        )
+        "#,
+            rules,
+            r#"
+            (module
+                (type (;0;) (func (result i32) ))
+                (func (;0;) (type 0) 
+                    (local i32 i32)
+                    i64.const 10
+                    i64.const 0
+                    i64.eq
                 )
                 (export "exported_func" (func 0)))
             "#,
