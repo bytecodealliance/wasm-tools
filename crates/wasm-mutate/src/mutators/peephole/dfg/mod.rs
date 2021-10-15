@@ -742,6 +742,31 @@ impl<'a> DFGIcator {
                     parents[arg] = idx as i32;
                     //color += 1;
                 }
+                // conversion between integers
+                Operator::I32WrapI64 => {
+                    let arg = DFGIcator::pop_operand(
+                        &mut stack,
+                        &mut dfg_map,
+                        idx,
+                        &mut operatormap,
+                        &mut parents,
+                        false,
+                    );
+
+                    let idx = DFGIcator::push_node(
+                        StackType::IndexAtCode(idx, 1),
+                        idx,
+                        &mut dfg_map,
+                        &mut operatormap,
+                        &mut stack,
+                        vec![arg], // reverse order
+                        &mut parents,
+                        color,
+                        PrimitiveTypeInfo::I32,
+                    );
+
+                    parents[arg] = idx as i32;
+                }
                 Operator::Else
                 | Operator::End
                 | Operator::Nop

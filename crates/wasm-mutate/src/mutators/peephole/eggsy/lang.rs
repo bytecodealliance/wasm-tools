@@ -17,7 +17,6 @@ define_language! {
         "shr_s" = ShrS([Id; 2]),
         "rotr" = RotR([Id; 2]),
         "rotl" = RotL([Id; 2]),
-
         "rem_s" = RemS([Id; 2]),
         "rem_u" = RemU([Id; 2]),
         // testop
@@ -34,6 +33,10 @@ define_language! {
         "ge_s" = GeS([Id; 2]),
         "ge_u" = GeU([Id; 2]),
         "tee" = Tee([Id; 1]),
+        // conversion operators
+        "wrap" = Wrap([Id; 1]),
+
+        
         // The firsts Id should be the function index
         "call" = Call(Vec<Id>),
         "popcnt" = Popcnt(Id),

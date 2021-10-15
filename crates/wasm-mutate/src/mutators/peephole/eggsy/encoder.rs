@@ -65,6 +65,10 @@ macro_rules! eterm_operator_2_wasm {
                         // All arguments for this kind are i32
                         Some(PrimitiveTypeInfo::I32)
                     }
+                    Lang::Wrap(_) => {
+                        // The expected value is an i64
+                        Some(PrimitiveTypeInfo::I64)
+                    }
                     Lang::Call(operands) => {
                         $index_at_parent.and_then(|idx|{
                             let first = operands[0];
@@ -620,6 +624,9 @@ impl Encoder {
 
             PrimitiveTypeInfo::I32 => [Instruction::I32RemU]
             PrimitiveTypeInfo::I64 => [Instruction::I64RemU]
+        }
+        [Lang::Wrap(operands), [operands]] => {
+            PrimitiveTypeInfo::I32 => [Instruction::I32WrapI64]
         }
         [Lang::Tee(operands), [operands], /*between parenthesis means that this operand will be written down*/_nodes, newfunc, _rnd, eclassdata, _rootclassdata, egraph, _info, _operators, _node_to_eclass] => {{
             let entry = eclassdata.clone().unwrap().get_next_stack_entry(&egraph.analysis);
@@ -1238,6 +1245,12 @@ impl Encoder {
                             entry.entry_idx,
                             expr,
                         ),
+                        Operator::I32WrapI64  => put_enode(
+                            Lang::Wrap([subexpressions[0]]),
+                            lang_to_stack_entries,
+                            entry.entry_idx,
+                            expr,
+                        ),
                         _ => panic!("No yet implemented {:?}", operator),
                     };
 
@@ -1348,6 +1361,7 @@ impl Encoder {
                         Lang::RotR(_) => expr.add(Lang::RotR([operand(0), operand(1)])),
                         Lang::RemU(_) => expr.add(Lang::RemU([operand(0), operand(1)])),
                         Lang::RemS(_) => expr.add(Lang::RemS([operand(0), operand(1)])),
+                        Lang::Wrap(_) => expr.add(Lang::Wrap([operand(0)])),
                         Lang::Popcnt(_) => expr.add(Lang::Popcnt(operand(0))),
                         Lang::Call(op) => expr.add(Lang::Call(
                             (0..op.len()).map(|id| operand(id)).collect::<Vec<Id>>(),
