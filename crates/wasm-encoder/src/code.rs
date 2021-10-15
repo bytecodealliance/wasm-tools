@@ -114,11 +114,12 @@ impl Function {
     ///
     /// For example, a function with locals 0 and 1 of type I32 and
     /// local 2 of type F32 would be created as:
+    ///
     /// ```
     /// # use wasm_encoder::{Function, ValType};
     /// let f = Function::new([(2, ValType::I32), (1, ValType::F32)]);
     /// ```
-    /// 
+    ///
     /// For more information about the code section (and function definition) in the WASM binary format
     /// see the [WebAssembly spec](https://webassembly.github.io/spec/core/binary/modules.html#binary-func)
     pub fn new<L>(locals: L) -> Self
@@ -137,23 +138,24 @@ impl Function {
     }
 
     /// Create a function from a list of locals' types.
-    /// 
+    ///
     /// Unlike [`Function::new`], this constructor simply takes a list of types
     /// which are in order associated with locals.
-    /// 
+    ///
     /// For example:
-    /// ```
+    ///
+    ///  ```
     /// # use wasm_encoder::{Function, ValType};
     /// let f = Function::new([(2, ValType::I32), (1, ValType::F32)]);
     /// let g = Function::new_with_locals_types([
     ///     ValType::I32, ValType::I32, ValType::F32
     /// ]);
-    /// 
+    ///
     /// assert_eq!(f, g)
     /// ```
     pub fn new_with_locals_types<L>(locals: L) -> Self
     where
-        L: IntoIterator<Item = ValType>
+        L: IntoIterator<Item = ValType>,
     {
         let locals = locals.into_iter();
 
@@ -163,7 +165,7 @@ impl Function {
                 if l == *last_type {
                     // Increment the count of consecutive locals of this type
                     *last_count += 1;
-                    continue
+                    continue;
                 }
             }
             // If we didn't increment, a new type of local appeared
@@ -2295,14 +2297,14 @@ mod tests {
             ValType::F32,
             ValType::I32,
             ValType::I64,
-            ValType::I64
+            ValType::I64,
         ]);
         let f2 = Function::new([
             (2, ValType::I32),
             (1, ValType::I64),
             (3, ValType::F32),
             (1, ValType::I32),
-            (2, ValType::I64)
+            (2, ValType::I64),
         ]);
 
         assert_eq!(f1.bytes, f2.bytes)
