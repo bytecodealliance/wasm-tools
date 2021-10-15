@@ -93,6 +93,9 @@ macro_rules! eterm_operator_2_wasm {
                             None => unreachable!("Extend operation with no type information")
                         }
                     }
+                    Lang::ExtendI32U(_) | Lang::Extend32S(_) | Lang::ExtendI32S(_)=> {
+                        Some(PrimitiveTypeInfo::I32)
+                    }
                     Lang::Call(operands) => {
                         $index_at_parent.and_then(|idx|{
                             let first = operands[0];
