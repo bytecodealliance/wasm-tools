@@ -15,6 +15,7 @@ Customizable Rust parsers for the WebAssembly Text formats WAT and WAST
 [dependencies]
 leb128 = "0.2"
 unicode-width = "0.1.9"
+memchr = "2.4.1"
 
 [dev-dependencies]
 anyhow = "1.0"

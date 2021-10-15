@@ -28,7 +28,6 @@ use crate::{Error, Span};
 use std::borrow::Cow;
 use std::char;
 use std::fmt;
-use std::iter;
 use std::str;
 
 /// A structure used to lex the s-expression syntax of WAT files.
@@ -38,7 +37,7 @@ use std::str;
 /// returned for any non-lexable text.
 #[derive(Clone)]
 pub struct Lexer<'a> {
-    it: iter::Peekable<str::CharIndices<'a>>,
+    remaining: &'a str,
     input: &'a str,
     allow_confusing_unicode: bool,
 }
@@ -227,11 +226,50 @@ pub enum FloatVal<'a> {
     },
 }
 
+// https://webassembly.github.io/spec/core/text/lexical.html#white-space
+macro_rules! ws_chars {
+    () => {
+        b' ' | b'\n' | b'\r' | b'\t'
+    };
+}
+
+// https://webassembly.github.io/spec/core/text/values.html#text-idchar
+macro_rules! idchars {
+    () => {
+        b'0'..=b'9'
+        | b'A'..=b'Z'
+        | b'a'..=b'z'
+        | b'!'
+        | b'#'
+        | b'$'
+        | b'%'
+        | b'&'
+        | b'\''
+        | b'*'
+        | b'+'
+        | b'-'
+        | b'.'
+        | b'/'
+        | b':'
+        | b'<'
+        | b'='
+        | b'>'
+        | b'?'
+        | b'@'
+        | b'\\'
+        | b'^'
+        | b'_'
+        | b'`'
+        | b'|'
+        | b'~'
+    }
+}
+
 impl<'a> Lexer<'a> {
     /// Creates a new lexer which will lex the `input` source string.
     pub fn new(input: &str) -> Lexer<'_> {
         Lexer {
-            it: input.char_indices().peekable(),
+            remaining: input,
             input,
             allow_confusing_unicode: false,
         }
@@ -266,68 +304,136 @@ impl<'a> Lexer<'a> {
     ///
     /// Returns an error if the input is malformed.
     pub fn parse(&mut self) -> Result<Option<Token<'a>>, Error> {
-        if let Some(ws) = self.ws() {
-            return Ok(Some(Token::Whitespace(ws)));
-        }
-        if let Some(comment) = self.comment()? {
-            return Ok(Some(comment));
-        }
-        if let Some(token) = self.token()? {
-            return Ok(Some(token));
-        }
-        match self.it.next() {
-            Some((i, ch)) => Err(self.error(i, LexError::Unexpected(ch))),
-            None => Ok(None),
-        }
-    }
-
-    fn token(&mut self) -> Result<Option<Token<'a>>, Error> {
-        // First two are easy, they're just parens
-        if let Some(pos) = self.eat_char('(') {
-            return Ok(Some(Token::LParen(&self.input[pos..pos + 1])));
-        }
-        if let Some(pos) = self.eat_char(')') {
-            return Ok(Some(Token::RParen(&self.input[pos..pos + 1])));
-        }
-
-        // Strings are also pretty easy, leading `"` is a dead giveaway
-        if let Some(pos) = self.eat_char('"') {
-            let val = self.string()?;
-            let src = &self.input[pos..self.cur()];
-            return Ok(Some(Token::String(WasmString(Box::new(WasmStringInner {
-                val,
-                src,
-            })))));
-        }
-
-        let (start, prefix) = match self.it.peek().cloned() {
-            Some((i, ch)) if is_idchar(ch) => (i, ch),
-            Some((i, ch)) if is_reserved_extra(ch) => {
-                self.it.next();
-                return Ok(Some(Token::Reserved(&self.input[i..self.cur()])));
-            }
-            Some((i, ch)) => return Err(self.error(i, LexError::Unexpected(ch))),
+        let pos = self.cur();
+        // This `match` generally parses the grammar specified at
+        //
+        // https://webassembly.github.io/spec/core/text/lexical.html#text-token
+        let byte = match self.remaining.as_bytes().get(0) {
+            Some(b) => b,
             None => return Ok(None),
         };
 
-        while let Some((_, ch)) = self.it.peek().cloned() {
-            if is_idchar(ch) {
-                self.it.next();
-            } else {
-                break;
+        match byte {
+            // Open-parens check the next character to see if this is the start
+            // of a block comment, otherwise it's just a bland left-parent
+            // token.
+            b'(' => match self.remaining.as_bytes().get(1) {
+                Some(b';') => {
+                    let mut level = 1;
+                    let mut iter = self.remaining.as_bytes()[2..].iter();
+                    while let Some(ch) = iter.next() {
+                        match ch {
+                            b'(' => {
+                                if let Some(b';') = iter.as_slice().get(0) {
+                                    level += 1;
+                                    iter.next();
+                                }
+                            }
+                            b';' => {
+                                if let Some(b')') = iter.as_slice().get(0) {
+                                    level -= 1;
+                                    iter.next();
+                                    if level == 0 {
+                                        let len = self.remaining.len() - iter.as_slice().len();
+                                        let (comment, remaining) = self.remaining.split_at(len);
+                                        self.remaining = remaining;
+                                        self.check_confusing_comment(comment)?;
+                                        return Ok(Some(Token::BlockComment(comment)));
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                    Err(self.error(pos, LexError::DanglingBlockComment))
+                }
+                _ => Ok(Some(Token::LParen(self.split_first_byte()))),
+            },
+
+            b')' => Ok(Some(Token::RParen(self.split_first_byte()))),
+
+            b'"' => {
+                let val = self.string()?;
+                let src = &self.input[pos..self.cur()];
+                return Ok(Some(Token::String(WasmString(Box::new(WasmStringInner {
+                    val,
+                    src,
+                })))));
+            }
+
+            ws_chars!() => Ok(Some(Token::Whitespace(self.split_ws()))),
+
+            c @ idchars!() => {
+                let reserved = self.split_while(|b| match b {
+                    idchars!() => true,
+                    _ => false,
+                });
+
+                // https://webassembly.github.io/spec/core/text/values.html#integers
+                if let Some(number) = self.number(reserved) {
+                    Ok(Some(number))
+                // https://webassembly.github.io/spec/core/text/values.html#text-id
+                } else if *c == b'$' && reserved.len() > 1 {
+                    Ok(Some(Token::Id(reserved)))
+                // https://webassembly.github.io/spec/core/text/lexical.html#text-keyword
+                } else if b'a' <= *c && *c <= b'z' {
+                    Ok(Some(Token::Keyword(reserved)))
+                } else {
+                    Ok(Some(Token::Reserved(reserved)))
+                }
+            }
+
+            // This could be a line comment, otherwise `;` is a reserved token.
+            // The second byte is checked to see if it's a `;;` line comment
+            b';' => match self.remaining.as_bytes().get(1) {
+                Some(b';') => {
+                    let comment = self.split_until(b'\n');
+                    self.check_confusing_comment(comment)?;
+                    Ok(Some(Token::LineComment(comment)))
+                }
+                _ => Ok(Some(Token::Reserved(self.split_first_byte()))),
+            },
+
+            // Other known reserved tokens other than `;`
+            b',' | b'[' | b']' | b'{' | b'}' => Ok(Some(Token::Reserved(self.split_first_byte()))),
+
+            _ => {
+                let ch = self.remaining.chars().next().unwrap();
+                Err(self.error(pos, LexError::Unexpected(ch)))
             }
         }
+    }
 
-        let reserved = &self.input[start..self.cur()];
-        if let Some(number) = self.number(reserved) {
-            Ok(Some(number))
-        } else if prefix == '$' && reserved.len() > 1 {
-            Ok(Some(Token::Id(reserved)))
-        } else if 'a' <= prefix && prefix <= 'z' {
-            Ok(Some(Token::Keyword(reserved)))
-        } else {
-            Ok(Some(Token::Reserved(reserved)))
-        }
+    fn split_first_byte(&mut self) -> &'a str {
+        let (token, remaining) = self.remaining.split_at(1);
+        self.remaining = remaining;
+        token
+    }
+
+    fn split_until(&mut self, byte: u8) -> &'a str {
+        let pos = memchr::memchr(byte, self.remaining.as_bytes()).unwrap_or(self.remaining.len());
+        let (ret, remaining) = self.remaining.split_at(pos);
+        self.remaining = remaining;
+        ret
+    }
+
+    fn split_ws(&mut self) -> &'a str {
+        self.split_while(|c| match c {
+            ws_chars!() => true,
+            _ => false,
+        })
+    }
+
+    fn split_while(&mut self, f: impl Fn(u8) -> bool) -> &'a str {
+        let pos = self
+            .remaining
+            .as_bytes()
+            .iter()
+            .position(|b| !f(*b))
+            .unwrap_or(self.remaining.len());
+        let (ret, remaining) = self.remaining.split_at(pos);
+        self.remaining = remaining;
+        ret
     }
 
     fn number(&self, src: &'a str) -> Option<Token<'a>> {
@@ -506,154 +612,130 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// Attempts to consume whitespace from the input stream, returning `None`
-    /// if there's no whitespace to consume
-    fn ws(&mut self) -> Option<&'a str> {
-        let start = self.cur();
-        loop {
-            match self.it.peek() {
-                Some((_, ' ')) | Some((_, '\n')) | Some((_, '\r')) | Some((_, '\t')) => {
-                    drop(self.it.next())
-                }
-                _ => break,
-            }
+    /// Verifies that `comment`, which is about to be returned, has a "confusing
+    /// unicode character" in it and should instead be transformed into an
+    /// error.
+    fn check_confusing_comment(&self, comment: &str) -> Result<(), Error> {
+        if self.allow_confusing_unicode {
+            return Ok(());
         }
-        let end = self.cur();
-        if start != end {
-            Some(&self.input[start..end])
-        } else {
-            None
-        }
-    }
 
-    /// Attempts to read a comment from the input stream
-    fn comment(&mut self) -> Result<Option<Token<'a>>, Error> {
-        if let Some(start) = self.eat_str(";;") {
-            let mut it = self.it.clone();
-            loop {
-                match it.next() {
-                    None | Some((_, '\n')) => break,
-                    Some((i, ch)) => {
-                        self.check_if_confusing(i, ch)?;
-                        self.it = it.clone();
+        // In an effort to avoid utf-8 decoding the entire `comment` the search
+        // here is a bit more optimized. This checks for the `0xe2` byte because
+        // in the utf-8 encoding that's the leading encoding byte for all
+        // "confusing characters". Each instance of 0xe2 is checked to see if it
+        // starts a confusing character, and if so that's returned.
+        let bytes = comment.as_bytes();
+        for pos in memchr::Memchr::new(0xe2, bytes) {
+            if let Some(s) = comment.get(pos..) {
+                if let Some(c) = s.chars().next() {
+                    if is_confusing_unicode(c) {
+                        // Note that `self.cur()` accounts for already having
+                        // parsed `comment`, so we move backwards to where
+                        // `comment` started and then add the index within
+                        // `comment`.
+                        let pos = self.cur() - comment.len() + pos;
+                        return Err(self.error(pos, LexError::ConfusingUnicode(c)));
                     }
                 }
             }
-            let end = self.cur();
-            return Ok(Some(Token::LineComment(&self.input[start..end])));
         }
-        if let Some(start) = self.eat_str("(;") {
-            let mut level = 1;
-            while let Some((i, ch)) = self.it.next() {
-                if ch == '(' && self.eat_char(';').is_some() {
-                    level += 1;
-                }
-                if ch == ';' && self.eat_char(')').is_some() {
-                    level -= 1;
-                    if level == 0 {
-                        let end = self.cur();
-                        return Ok(Some(Token::BlockComment(&self.input[start..end])));
-                    }
-                }
-                self.check_if_confusing(i, ch)?;
-            }
 
-            return Err(self.error(start, LexError::DanglingBlockComment));
-        }
-        Ok(None)
-    }
-
-    /// This is an attempt to protect agains the "trojan source" problem where
-    /// unicode characters can cause editors to render source code differently
-    /// for humans than the compiler itself sees.
-    ///
-    /// To mitigate this issue, and because it's relatively rare in practice,
-    /// this simply rejects characters of that form.
-    fn check_if_confusing(&mut self, pos: usize, ch: char) -> Result<(), Error> {
-        match ch {
-            '\u{202a}' | '\u{202b}' | '\u{202d}' | '\u{202e}' | '\u{2066}' | '\u{2067}'
-            | '\u{2068}' | '\u{206c}' | '\u{2069}'
-                if !self.allow_confusing_unicode =>
-            {
-                Err(self.error(pos, LexError::ConfusingUnicode(ch)))
-            }
-            _ => Ok(()),
-        }
+        Ok(())
     }
 
     /// Reads everything for a literal string except the leading `"`. Returns
     /// the string value that has been read.
+    ///
+    /// https://webassembly.github.io/spec/core/text/values.html#text-string
     fn string(&mut self) -> Result<Cow<'a, [u8]>, Error> {
+        let mut it = self.remaining[1..].chars();
+        let result = Lexer::parse_str(&mut it, self.allow_confusing_unicode);
+        let end = self.input.len() - it.as_str().len();
+        self.remaining = &self.input[end..];
+        result.map_err(|e| {
+            let err_pos = match &e {
+                LexError::UnexpectedEof => self.input.len(),
+                _ => self.input[..end].char_indices().next_back().unwrap().0,
+            };
+            self.error(err_pos, e)
+        })
+    }
+
+    fn parse_str(
+        it: &mut str::Chars<'a>,
+        allow_confusing_unicode: bool,
+    ) -> Result<Cow<'a, [u8]>, LexError> {
         enum State {
-            Start(usize),
+            Start,
             String(Vec<u8>),
         }
-        let mut state = State::Start(self.cur());
+        let orig = it.as_str();
+        let mut state = State::Start;
         loop {
-            match self.it.next() {
-                Some((i, '\\')) => {
+            match it.next().ok_or(LexError::UnexpectedEof)? {
+                '"' => break,
+                '\\' => {
                     match state {
                         State::String(_) => {}
-                        State::Start(start) => {
-                            state = State::String(self.input[start..i].as_bytes().to_vec());
+                        State::Start => {
+                            let pos = orig.len() - it.as_str().len() - 1;
+                            state = State::String(orig[..pos].as_bytes().to_vec());
                         }
                     }
                     let buf = match &mut state {
                         State::String(b) => b,
-                        State::Start(_) => unreachable!(),
+                        State::Start => unreachable!(),
                     };
-                    match self.it.next() {
-                        Some((_, '"')) => buf.push(b'"'),
-                        Some((_, '\'')) => buf.push(b'\''),
-                        Some((_, 't')) => buf.push(b'\t'),
-                        Some((_, 'n')) => buf.push(b'\n'),
-                        Some((_, 'r')) => buf.push(b'\r'),
-                        Some((_, '\\')) => buf.push(b'\\'),
-                        Some((i, 'u')) => {
-                            self.must_eat_char('{')?;
-                            let n = self.hexnum()?;
+                    match it.next().ok_or(LexError::UnexpectedEof)? {
+                        '"' => buf.push(b'"'),
+                        '\'' => buf.push(b'\''),
+                        't' => buf.push(b'\t'),
+                        'n' => buf.push(b'\n'),
+                        'r' => buf.push(b'\r'),
+                        '\\' => buf.push(b'\\'),
+                        'u' => {
+                            Lexer::must_eat_char(it, '{')?;
+                            let n = Lexer::hexnum(it)?;
                             let c = char::from_u32(n)
-                                .ok_or_else(|| self.error(i, LexError::InvalidUnicodeValue(n)))?;
+                                .ok_or_else(|| LexError::InvalidUnicodeValue(n))?;
                             buf.extend(c.encode_utf8(&mut [0; 4]).as_bytes());
-                            self.must_eat_char('}')?;
+                            Lexer::must_eat_char(it, '}')?;
                         }
-                        Some((_, c1)) if c1.is_ascii_hexdigit() => {
-                            let (_, c2) = self.hexdigit()?;
+                        c1 if c1.is_ascii_hexdigit() => {
+                            let c2 = Lexer::hexdigit(it)?;
                             buf.push(to_hex(c1) * 16 + c2);
                         }
-                        Some((i, c)) => return Err(self.error(i, LexError::InvalidStringEscape(c))),
-                        None => return Err(self.error(self.input.len(), LexError::UnexpectedEof)),
+                        c => return Err(LexError::InvalidStringEscape(c)),
                     }
                 }
-                Some((_, '"')) => break,
-                Some((i, c)) => {
-                    if (c as u32) < 0x20 || c as u32 == 0x7f {
-                        return Err(self.error(i, LexError::InvalidStringElement(c)));
-                    }
-                    self.check_if_confusing(i, c)?;
-                    match &mut state {
-                        State::Start(_) => {}
-                        State::String(v) => {
-                            v.extend(c.encode_utf8(&mut [0; 4]).as_bytes());
-                        }
-                    }
+                c if (c as u32) < 0x20 || c as u32 == 0x7f => {
+                    return Err(LexError::InvalidStringElement(c))
                 }
-                None => return Err(self.error(self.input.len(), LexError::UnexpectedEof)),
+                c if !allow_confusing_unicode && is_confusing_unicode(c) => {
+                    return Err(LexError::ConfusingUnicode(c))
+                }
+                c => match &mut state {
+                    State::Start => {}
+                    State::String(v) => {
+                        v.extend(c.encode_utf8(&mut [0; 4]).as_bytes());
+                    }
+                },
             }
         }
         match state {
-            State::Start(pos) => Ok(self.input[pos..self.cur() - 1].as_bytes().into()),
+            State::Start => Ok(orig[..orig.len() - it.as_str().len() - 1].as_bytes().into()),
             State::String(s) => Ok(s.into()),
         }
     }
 
-    fn hexnum(&mut self) -> Result<u32, Error> {
-        let (_, n) = self.hexdigit()?;
+    fn hexnum(it: &mut str::Chars<'_>) -> Result<u32, LexError> {
+        let n = Lexer::hexdigit(it)?;
         let mut last_underscore = false;
         let mut n = n as u32;
-        while let Some((i, c)) = self.it.peek().cloned() {
+        while let Some(c) = it.clone().next() {
             if c == '_' {
-                self.it.next();
+                it.next();
                 last_underscore = true;
                 continue;
             }
@@ -661,15 +743,14 @@ impl<'a> Lexer<'a> {
                 break;
             }
             last_underscore = false;
-            self.it.next();
+            it.next();
             n = n
                 .checked_mul(16)
                 .and_then(|n| n.checked_add(to_hex(c) as u32))
-                .ok_or_else(|| self.error(i, LexError::NumberTooBig))?;
+                .ok_or(LexError::NumberTooBig)?;
         }
         if last_underscore {
-            let cur = self.cur();
-            return Err(self.error(cur - 1, LexError::LoneUnderscore));
+            return Err(LexError::LoneUnderscore);
         }
         Ok(n)
     }
@@ -677,65 +758,34 @@ impl<'a> Lexer<'a> {
     /// Reads a hexidecimal digit from the input stream, returning where it's
     /// defined and the hex value. Returns an error on EOF or an invalid hex
     /// digit.
-    fn hexdigit(&mut self) -> Result<(usize, u8), Error> {
-        let (i, ch) = self.must_char()?;
+    fn hexdigit(it: &mut str::Chars<'_>) -> Result<u8, LexError> {
+        let ch = Lexer::must_char(it)?;
         if ch.is_ascii_hexdigit() {
-            Ok((i, to_hex(ch)))
+            Ok(to_hex(ch))
         } else {
-            Err(self.error(i, LexError::InvalidHexDigit(ch)))
-        }
-    }
-
-    /// Returns where the match started, if any
-    fn eat_str(&mut self, s: &str) -> Option<usize> {
-        if !self.cur_str().starts_with(s) {
-            return None;
-        }
-        let ret = self.cur();
-        for _ in s.chars() {
-            self.it.next();
-        }
-        Some(ret)
-    }
-
-    /// Returns where the match happened, if any
-    fn eat_char(&mut self, needle: char) -> Option<usize> {
-        match self.it.peek() {
-            Some((i, c)) if *c == needle => {
-                let ret = *i;
-                self.it.next();
-                Some(ret)
-            }
-            _ => None,
+            Err(LexError::InvalidHexDigit(ch))
         }
     }
 
     /// Reads the next character from the input string and where it's located,
     /// returning an error if the input stream is empty.
-    fn must_char(&mut self) -> Result<(usize, char), Error> {
-        self.it
-            .next()
-            .ok_or_else(|| self.error(self.input.len(), LexError::UnexpectedEof))
+    fn must_char(it: &mut str::Chars<'_>) -> Result<char, LexError> {
+        it.next().ok_or(LexError::UnexpectedEof)
     }
 
     /// Expects that a specific character must be read next
-    fn must_eat_char(&mut self, wanted: char) -> Result<usize, Error> {
-        let (pos, found) = self.must_char()?;
+    fn must_eat_char(it: &mut str::Chars<'_>, wanted: char) -> Result<(), LexError> {
+        let found = Lexer::must_char(it)?;
         if wanted == found {
-            Ok(pos)
+            Ok(())
         } else {
-            Err(self.error(pos, LexError::Expected { wanted, found }))
+            Err(LexError::Expected { wanted, found })
         }
     }
 
     /// Returns the current position of our iterator through the input string
-    fn cur(&mut self) -> usize {
-        self.it.peek().map(|p| p.0).unwrap_or(self.input.len())
-    }
-
-    /// Returns the remaining string that we have left to parse
-    fn cur_str(&mut self) -> &'a str {
-        &self.input[self.cur()..]
+    fn cur(&self) -> usize {
+        self.input.len() - self.remaining.len()
     }
 
     /// Creates an error at `pos` with the specified `kind`
@@ -822,45 +872,6 @@ fn to_hex(c: char) -> u8 {
     }
 }
 
-fn is_idchar(c: char) -> bool {
-    match c {
-        '0'..='9'
-        | 'a'..='z'
-        | 'A'..='Z'
-        | '!'
-        | '#'
-        | '$'
-        | '%'
-        | '&'
-        | '\''
-        | '*'
-        | '+'
-        | '-'
-        | '.'
-        | '/'
-        | ':'
-        | '<'
-        | '='
-        | '>'
-        | '?'
-        | '@'
-        | '\\'
-        | '^'
-        | '_'
-        | '`'
-        | '|'
-        | '~' => true,
-        _ => false,
-    }
-}
-
-fn is_reserved_extra(c: char) -> bool {
-    match c {
-        ',' | ';' | '[' | ']' | '{' | '}' => true,
-        _ => false,
-    }
-}
-
 impl fmt::Display for LexError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use LexError::*;
@@ -900,6 +911,20 @@ fn escape_char(c: char) -> String {
         '\"' => String::from("\""),
         '\x20'..='\x7e' => String::from(c),
         _ => c.escape_unicode().to_string(),
+    }
+}
+
+/// This is an attempt to protect agains the "trojan source" problem where
+/// unicode characters can cause editors to render source code differently
+/// for humans than the compiler itself sees.
+///
+/// To mitigate this issue, and because it's relatively rare in practice,
+/// this simply rejects characters of that form.
+fn is_confusing_unicode(ch: char) -> bool {
+    match ch {
+        '\u{202a}' | '\u{202b}' | '\u{202d}' | '\u{202e}' | '\u{2066}' | '\u{2067}'
+        | '\u{2068}' | '\u{206c}' | '\u{2069}' => true,
+        _ => false,
     }
 }
 
