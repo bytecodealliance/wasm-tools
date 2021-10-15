@@ -466,6 +466,31 @@ impl<'a> DFGIcator {
                     // Augnment the color since the next operations could be inconsistent
                     color += 1;
                 }
+                Operator::I32Store {..} | Operator::I64Store {..} => {
+                    let offset = DFGIcator::pop_operand(
+                        &mut stack,
+                        &mut dfg_map,
+                        idx,
+                        &mut operatormap,
+                        &mut parents,
+                        false,
+                    );
+                    let idx = DFGIcator::push_node(
+                        StackType::IndexAtCode(idx, 1),
+                        idx,
+                        &mut dfg_map,
+                        &mut operatormap,
+                        &mut stack,
+                        vec![offset],
+                        &mut parents,
+                        color,
+                        // Add type here
+                        PrimitiveTypeInfo::Empty,
+                    );
+
+                    parents[offset] = idx as i32;
+                    color += 1;
+                }
                 // All memory loads
                 Operator::I32Load { memarg } => {
                     // It needs the dynamic offset arg
@@ -583,7 +608,10 @@ impl<'a> DFGIcator {
                 | Operator::I64And
                 | Operator::I64Rotl
                 | Operator::I64Rotr
-                | Operator::I64ShrU => {
+                | Operator::I64ShrU
+                | Operator::I64RemS
+                | Operator::I64RemU
+                => {
                     let leftidx = DFGIcator::pop_operand(
                         &mut stack,
                         &mut dfg_map,
@@ -651,6 +679,8 @@ impl<'a> DFGIcator {
                 | Operator::I32ShrU
                 | Operator::I32Rotl
                 | Operator::I32Rotr
+                | Operator::I32RemS
+                | Operator::I32RemU
                 => {
                     let leftidx = DFGIcator::pop_operand(
                         &mut stack,
@@ -1151,6 +1181,9 @@ mod tests {
                 i32.const 10
                 i32.const 20
                 i32.rotl
+                i32.const 100
+                i32.const 50
+                i32.store
             )
         )
         "#,
@@ -1181,7 +1214,7 @@ mod tests {
                         .unwrap();
 
                     let bb = DFGIcator::new()
-                        .get_bb_from_operator(27, &operators)
+                        .get_bb_from_operator(30, &operators)
                         .unwrap();
                     let roots = DFGIcator::new().get_dfg(
                         &info,

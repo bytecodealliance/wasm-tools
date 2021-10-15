@@ -17,6 +17,9 @@ define_language! {
         "shr_s" = ShrS([Id; 2]),
         "rotr" = RotR([Id; 2]),
         "rotl" = RotL([Id; 2]),
+
+        "rem_s" = RemS([Id; 2]),
+        "rem_u" = RemU([Id; 2]),
         // testop
         "eqz" = Eqz([Id; 1]),
         // relop
