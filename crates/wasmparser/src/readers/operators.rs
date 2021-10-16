@@ -14,6 +14,7 @@
  */
 
 use super::{BinaryReader, BinaryReaderError, Operator, Result};
+use std::prelude::v1::*;
 
 #[derive(Clone)]
 pub struct OperatorsReader<'a> {

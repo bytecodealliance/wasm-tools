@@ -18,6 +18,7 @@ use super::{
     SectionReader, SectionWithLimitedItems, Type,
 };
 use crate::ExternalKind;
+use std::prelude::v1::*;
 
 #[derive(Clone)]
 pub struct Element<'a> {

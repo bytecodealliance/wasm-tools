@@ -17,6 +17,7 @@ use super::{
     BinaryReader, Range, RelocType, Result, SectionCode, SectionIteratorLimited, SectionReader,
     SectionWithLimitedItems,
 };
+use std::prelude::v1::*;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Reloc {

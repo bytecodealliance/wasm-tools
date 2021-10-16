@@ -29,3 +29,9 @@ harness = false
 # across any hardware. This feature is very critical for many Blockchain infrastructures
 # that rely on deterministic executions of smart contracts across different hardwares.
 deterministic = []
+default = [ "std" ] # Default to using libstd
+std = [ "no-std-compat/std" ]
+
+
+[dependencies]
+no-std-compat = { version = "0.4.1", default-features = false, features = ["compat_hash", "compat_sync", "alloc"] }

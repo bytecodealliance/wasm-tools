@@ -17,6 +17,7 @@ use super::{
     BinaryReader, Range, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
     TableType,
 };
+use std::prelude::v1::*;
 
 #[derive(Clone)]
 pub struct TableSectionReader<'a> {

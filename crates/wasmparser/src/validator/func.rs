@@ -1,6 +1,7 @@
 use crate::operators_validator::OperatorValidator;
 use crate::{BinaryReader, Result, Type};
 use crate::{FunctionBody, Operator, WasmFeatures, WasmModuleResources};
+use std::prelude::v1::*;
 
 /// Validation context for a WebAssembly function.
 ///

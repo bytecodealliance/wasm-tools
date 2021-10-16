@@ -16,6 +16,7 @@
 use super::{
     BinaryReader, Range, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
 };
+use std::prelude::v1::*;
 
 #[derive(Clone)]
 pub struct FunctionSectionReader<'a> {

@@ -17,6 +17,7 @@ use super::{
     BinaryReader, BinaryReaderError, OperatorsReader, Range, Result, SectionIteratorLimited,
     SectionReader, SectionWithLimitedItems, Type,
 };
+use std::prelude::v1::*;
 
 #[derive(Debug, Clone)]
 pub struct FunctionBody<'a> {

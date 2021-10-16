@@ -17,6 +17,7 @@ use crate::{
     BinaryReader, BinaryReaderError, Range, Result, SectionIteratorLimited, SectionReader,
     SectionWithLimitedItems, TypeDef,
 };
+use std::prelude::v1::*;
 
 #[derive(Clone)]
 pub struct TypeSectionReader<'a> {

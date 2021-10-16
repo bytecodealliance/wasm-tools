@@ -22,6 +22,7 @@ use crate::{FuncType, SectionReader, SectionWithLimitedItems};
 use crate::{FunctionBody, Parser, Payload};
 use std::collections::{HashMap, HashSet};
 use std::mem;
+use std::prelude::v1::*;
 use std::sync::Arc;
 
 /// Test whether the given buffer contains a valid WebAssembly module,

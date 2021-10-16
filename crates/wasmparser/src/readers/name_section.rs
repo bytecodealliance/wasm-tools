@@ -17,6 +17,7 @@ use super::{
     BinaryReader, BinaryReaderError, NameType, Naming, Range, Result, SectionIterator,
     SectionReader,
 };
+use std::prelude::v1::*;
 
 #[derive(Debug, Copy, Clone)]
 pub struct SingleName<'a> {

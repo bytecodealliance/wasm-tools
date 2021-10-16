@@ -14,6 +14,7 @@
  */
 
 use super::{BinaryReaderError, Range, Result};
+use std::prelude::v1::*;
 
 pub trait SectionReader {
     type Item;

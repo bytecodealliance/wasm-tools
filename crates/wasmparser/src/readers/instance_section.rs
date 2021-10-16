@@ -2,6 +2,7 @@ use crate::{
     BinaryReader, BinaryReaderError, ExternalKind, Range, Result, SectionIteratorLimited,
     SectionReader, SectionWithLimitedItems,
 };
+use std::prelude::v1::*;
 
 #[derive(Clone)]
 pub struct InstanceSectionReader<'a> {

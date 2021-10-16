@@ -25,6 +25,7 @@
 use crate::limits::MAX_WASM_FUNCTION_LOCALS;
 use crate::primitives::{MemoryImmediate, Operator, SIMDLaneIndex, Type, TypeOrFuncType};
 use crate::{BinaryReaderError, Result, WasmFeatures, WasmFuncType, WasmModuleResources};
+use std::prelude::v1::*;
 
 /// A wrapper around a `BinaryReaderError` where the inner error's offset is a
 /// temporary placeholder value. This can be converted into a proper

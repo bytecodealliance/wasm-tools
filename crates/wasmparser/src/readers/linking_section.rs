@@ -17,6 +17,7 @@ use super::{
     BinaryReader, LinkingType, Range, Result, SectionIteratorLimited, SectionReader,
     SectionWithLimitedItems,
 };
+use std::prelude::v1::*;
 
 pub struct LinkingSectionReader<'a> {
     reader: BinaryReader<'a>,

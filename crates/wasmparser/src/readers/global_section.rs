@@ -17,6 +17,7 @@ use super::{
     BinaryReader, GlobalType, InitExpr, Range, Result, SectionIteratorLimited, SectionReader,
     SectionWithLimitedItems,
 };
+use std::prelude::v1::*;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Global<'a> {
