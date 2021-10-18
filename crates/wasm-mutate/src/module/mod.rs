@@ -12,13 +12,6 @@ pub enum PrimitiveTypeInfo {
     F32,
     F64,
     Empty,
-    // The following types are used to map the extend operators
-    I8S,
-    I8SU,
-    I16S,
-    I16U,
-    I32S,
-    I32U,
 }
 #[derive(Debug, Clone)]
 pub struct FuncInfo {

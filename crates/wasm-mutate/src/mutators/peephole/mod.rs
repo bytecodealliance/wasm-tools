@@ -23,7 +23,7 @@ use crate::{module::map_type, ModuleInfo, Result, WasmMutate};
 static NUM_RUNS: AtomicU64 = AtomicU64::new(0);
 static NUM_SUCCESSFUL_MUTATIONS: AtomicU64 = AtomicU64::new(0);
 
-use self::{dfg::DFGIcator, eggsy::RandomExtractor};
+use self::{dfg::DFGBuilder, eggsy::RandomExtractor};
 
 use super::Mutator;
 
@@ -116,7 +116,7 @@ impl PeepholeMutator {
             let locals = self.get_func_locals(&info, fidx + info.imported_functions_count /* the function type is shifted by the imported functions*/, &mut localsreader)?;
 
             for oidx in (opcode_to_mutate..operatorscount).chain(0..opcode_to_mutate) {
-                let mut dfg = DFGIcator::new();
+                let mut dfg = DFGBuilder::new();
                 let basicblock = dfg.get_bb_from_operator(oidx, &operators);
 
                 let old_num_runs = NUM_RUNS.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
@@ -159,7 +159,13 @@ impl PeepholeMutator {
                                 }
                                 let lang_to_stack_entries = lang_to_stack_entries?;
                                 // Continue if the subtree coloring is inconsistent
-                                debug!("{}", minidfg.pretty_print(&operators));
+                                debug!(
+                                    "{}",
+                                    minidfg.pretty_print(&|entry| format!(
+                                        "{:?}",
+                                        &operators[entry.operator_idx]
+                                    ))
+                                );
 
                                 if !minidfg.is_subtree_consistent_from_root() {
                                     debug!("{} is not consistent", start);

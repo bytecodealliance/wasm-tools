@@ -195,7 +195,7 @@ where
 mod tests {
     use crate::{
         module::PrimitiveTypeInfo,
-        mutators::peephole::{dfg::DFGIcator, eggsy::encoder::Encoder, OperatorAndByteOffset},
+        mutators::peephole::{dfg::DFGBuilder, eggsy::encoder::Encoder, OperatorAndByteOffset},
         ModuleInfo,
     };
     use egg::RecExpr;
@@ -243,11 +243,11 @@ mod tests {
                         .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()
                         .unwrap();
 
-                    let bb = DFGIcator::new()
+                    let bb = DFGBuilder::new()
                         .get_bb_from_operator(4, &operators)
                         .unwrap();
 
-                    let roots = DFGIcator::new()
+                    let roots = DFGBuilder::new()
                         .get_dfg(
                             &ModuleInfo::default(),
                             &operators,

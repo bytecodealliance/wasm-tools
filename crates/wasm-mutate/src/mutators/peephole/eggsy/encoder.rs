@@ -95,7 +95,7 @@ macro_rules! eterm_operator_2_wasm {
                     }
                     Lang::ExtendI32U(_) | Lang::ExtendI32S(_) => {
                         Some(PrimitiveTypeInfo::I32)
-                    } 
+                    }
                     Lang::Extend32S(_) => {
                         Some(PrimitiveTypeInfo::I64)
                     }
