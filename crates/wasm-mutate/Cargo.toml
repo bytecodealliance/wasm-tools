@@ -1,0 +1,18 @@
+[package]
+name = "wasm-mutate"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+structopt = { optional = true, version = "0.3" }
+thiserror = "1.0.28"
+wasmparser = { version = "0.81", path = "../wasmparser" }
+wasm-encoder = { version = "0.7.0", path = "../wasm-encoder"}
+rand = { version = "0.7.3", features = ["small_rng"] }
+log = "0.4.14"
+egg = "0.6.0"
+
+[dev-dependencies]
+anyhow = "1"
+wat = { version = "1", path = "../wat" }
+wasmprinter = { path = "../wasmprinter" }
