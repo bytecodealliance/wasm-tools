@@ -17,7 +17,7 @@ use super::{BinaryReader, BinaryReaderError, Operator, Result};
 
 #[derive(Clone)]
 pub struct OperatorsReader<'a> {
-    pub reader: BinaryReader<'a>,
+    pub(crate) reader: BinaryReader<'a>,
 }
 
 impl<'a> OperatorsReader<'a> {
@@ -75,6 +75,10 @@ impl<'a> OperatorsReader<'a> {
     {
         let pos = self.reader.original_position();
         Ok((self.read()?, pos))
+    }
+
+    pub fn get_binary_reader(&self) -> BinaryReader<'a> {
+        self.reader.clone()
     }
 }
 

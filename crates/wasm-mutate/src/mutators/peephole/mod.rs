@@ -430,7 +430,7 @@ macro_rules! match_code_mutation {
                 }
                 Payload::CodeSectionEntry(reader) => {
                     let operatorsreader = reader.get_operators_reader().unwrap();
-                    let range = operatorsreader.reader.range();
+                    let range = operatorsreader.get_binary_reader().range();
                     let operators = operatorsreader
                         .into_iter_with_offsets()
                         .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()
