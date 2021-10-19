@@ -8,6 +8,7 @@ edition = "2018"
 cargo-fuzz = true
 
 [dependencies]
+anyhow = "1"
 env_logger = "0.8"
 libfuzzer-sys = "0.4.0"
 log = "0.4"
@@ -16,6 +17,7 @@ wasm-mutate = { path = "../crates/wasm-mutate" }
 wasm-smith = { path = "../crates/wasm-smith" }
 wasmparser = { path = "../crates/wasmparser" }
 wasmprinter = { path = "../crates/wasmprinter" }
+wasmtime = { version = "0.30.0", optional = true }
 wast = { path = "../crates/wast" }
 wat = { path = "../crates/wat" }
 

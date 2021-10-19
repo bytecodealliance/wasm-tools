@@ -99,8 +99,8 @@ impl Mutator for RenameExportMutator {
         Ok(info.replace_section(info.exports.unwrap(), &exports))
     }
 
-    fn can_mutate<'a>(&self, _: &'a WasmMutate, info: &ModuleInfo) -> bool {
-        info.has_exports() && info.exports_count > 0
+    fn can_mutate<'a>(&self, config: &'a WasmMutate, info: &ModuleInfo) -> bool {
+        !config.preserve_semantics && info.has_exports() && info.exports_count > 0
     }
 }
 
