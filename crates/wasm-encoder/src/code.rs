@@ -58,6 +58,38 @@ impl CodeSection {
         self.num_added += 1;
         self
     }
+
+    /// Add a raw byte slice into this code section as a function body.
+    ///
+    /// The length prefix of the function body will be automatically prepended,
+    /// and should not be included in the raw byte slice.
+    ///
+    /// # Example
+    ///
+    /// You can use the `raw` method to copy an already-encoded function body
+    /// into a new code section encoder:
+    ///
+    /// ```
+    /// //                  id, size, # entries, entry
+    /// let code_section = [10, 6,    1,         4, 0, 65, 0, 11];
+    ///
+    /// // Parse the code section.
+    /// let mut reader = wasmparser::CodeSectionReader::new(&code_section, 0).unwrap();
+    /// let body = reader.read().unwrap();
+    /// let body_range = body.range();
+    ///
+    /// // Add the body to a new code section encoder by copying bytes rather
+    /// // than re-parsing and re-encoding it.
+    /// let mut encoder = wasm_encoder::CodeSection::new();
+    /// encoder.raw(&code_section[body_range.start..body_range.end]);
+    /// ```
+    pub fn raw(&mut self, data: &[u8]) -> &mut Self {
+        self.bytes
+            .extend(encoders::u32(u32::try_from(data.len()).unwrap()));
+        self.bytes.extend(data);
+        self.num_added += 1;
+        self
+    }
 }
 
 impl Section for CodeSection {

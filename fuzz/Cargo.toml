@@ -12,6 +12,7 @@ env_logger = "0.8"
 libfuzzer-sys = "0.4.0"
 log = "0.4"
 tempfile = "3.0"
+wasm-mutate = { path = "../crates/wasm-mutate" }
 wasm-smith = { path = "../crates/wasm-smith" }
 wasmparser = { path = "../crates/wasmparser" }
 wasmprinter = { path = "../crates/wasmprinter" }
@@ -69,5 +70,11 @@ doc = false
 [[bin]]
 name = "roundtrip-valid-module"
 path = "fuzz_targets/roundtrip-valid-module.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "mutate"
+path = "fuzz_targets/mutate.rs"
 test = false
 doc = false

@@ -76,6 +76,10 @@ impl<'a> OperatorsReader<'a> {
         let pos = self.reader.original_position();
         Ok((self.read()?, pos))
     }
+
+    pub fn get_binary_reader(&self) -> BinaryReader<'a> {
+        self.reader.clone()
+    }
 }
 
 impl<'a> IntoIterator for OperatorsReader<'a> {
