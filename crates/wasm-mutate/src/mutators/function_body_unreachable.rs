@@ -18,6 +18,7 @@ impl Mutator for FunctionBodyUnreachable {
         let count = reader.get_count();
         let function_to_mutate = rnd.gen_range(0, count);
         (0..count).for_each(|i| {
+            let f = reader.read().unwrap();
             if i == function_to_mutate {
                 log::debug!("Changing function idx {:?}", i);
                 let locals = vec![];
@@ -27,7 +28,6 @@ impl Mutator for FunctionBodyUnreachable {
 
                 codes.function(&f);
             } else {
-                let f = reader.read().unwrap();
                 codes.raw(&code_section.data[f.range().start..f.range().end]);
             }
         });

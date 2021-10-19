@@ -22,6 +22,7 @@ impl Mutator for SnipMutator {
             info.get_functype_idx((function_to_mutate + info.imported_functions_count) as usize);
 
         (0..count).for_each(|i| {
+            let f = reader.read().unwrap();
             if i == function_to_mutate {
                 log::debug!("Snip function idx {:?}", function_to_mutate);
                 let locals = vec![];
@@ -54,7 +55,6 @@ impl Mutator for SnipMutator {
 
                 codes.function(&f);
             } else {
-                let f = reader.read().unwrap();
                 codes.raw(&code_section.data[f.range().start..f.range().end]);
             }
         });
