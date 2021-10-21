@@ -68,8 +68,8 @@ impl<'a> ModuleInfo<'a> {
                     info.function_count = count;
                     info.section(SectionId::Code.into(), range, input_wasm);
                     parser.skip_section();
-                    // update slice
-                    wasm = &wasm[range.end - range.start + consumed - 1..];
+                    // update slice, bypass the section
+                    wasm = &input_wasm[range.end..];
 
                     continue;
                 }
