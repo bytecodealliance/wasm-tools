@@ -18,7 +18,7 @@ harness = false
 [dependencies]
 arbitrary = { version = "1.0.0", features = ["derive"] }
 leb128 = "0.2.4"
-wasm-encoder = { version = "0.7.0", path = "../wasm-encoder" }
+wasm-encoder = { version = "0.8.0", path = "../wasm-encoder" }
 indexmap = "1.6"
 
 [dev-dependencies]
