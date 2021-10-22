@@ -27,16 +27,21 @@ pub struct NameSection {
 }
 
 enum Subsection {
-    Module,
-    Function,
-    Local,
-    Label,
-    Type,
-    Table,
-    Memory,
-    Global,
-    Element,
-    Data,
+    // Currently specified in the wasm spec's appendix
+    Module = 0,
+    Function = 1,
+    Local = 2,
+
+    // specified as part of the extended name section proposal
+    //
+    // https://github.com/WebAssembly/extended-name-section/blob/main/proposals/extended-name-section/Overview.md
+    Label = 3,
+    Type = 4,
+    Table = 5,
+    Memory = 6,
+    Global = 7,
+    Element = 8,
+    Data = 9,
 }
 
 impl NameSection {
@@ -190,8 +195,10 @@ impl NameMap {
 
     /// Adds a an entry where the item at `idx` has the `name` specified.
     ///
-    /// Note that indexes should be appended in ascending order of the index
-    /// value.
+    /// Note that indices should be appended in ascending order of the index
+    /// value. Each index may only be named once, but not all indices must be
+    /// named (e.g. `0 foo; 1 bar; 7 qux` is valid but `0 foo; 0 bar` is not).
+    /// Names do not have to be unique (e.g. `0 foo; 1 foo; 2 foo` is valid).
     pub fn append(&mut self, idx: u32, name: &str) {
         self.bytes.extend(encoders::u32(idx));
         self.bytes
