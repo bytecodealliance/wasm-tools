@@ -1364,8 +1364,9 @@ mod tests {
 
         let mut validator = wasmparser::Validator::new();
         let mutated_bytes = &mutated.finish();
-        crate::validate(&mut validator, mutated_bytes);
         let text = wasmprinter::print_bytes(mutated_bytes).unwrap();
+
+        crate::validate(&mut validator, mutated_bytes);
 
         let expected_bytes = &wat::parse_str(expected).unwrap();
         let expectedtext = wasmprinter::print_bytes(expected_bytes).unwrap();
