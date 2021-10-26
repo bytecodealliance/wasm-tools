@@ -405,23 +405,37 @@ impl<'a> DFGBuilder {
                 }
                 Operator::LocalGet { local_index } => {
                     // This is a hack, type checking should be carried with the stack entries
-                    self.push_node(
-                        StackType::LocalGet(*local_index),
-                        idx,
-                        vec![],
-                        color,
-                        locals[*local_index as usize].clone(),
-                    );
+                    match locals[*local_index as usize] {
+                        PrimitiveTypeInfo::I32 | PrimitiveTypeInfo::I64 => {
+                            self.push_node(
+                                StackType::LocalGet(*local_index),
+                                idx,
+                                vec![],
+                                color,
+                                locals[*local_index as usize].clone(),
+                            );
+                        }
+                        // Only integer oeprations or now
+                        _ => return None
+                    }
+                    
                 }
                 Operator::GlobalGet { global_index } => {
                     // This is a hack, type checking should be carried with the stack entries
-                    self.push_node(
-                        StackType::GlobalGet(*global_index),
-                        idx,
-                        vec![],
-                        color,
-                        info.global_types[*global_index as usize].clone(),
-                    );
+                    
+                    match info.global_types[*global_index as usize] {
+                        PrimitiveTypeInfo::I32 | PrimitiveTypeInfo::I64 => {
+                                self.push_node(
+                                    StackType::GlobalGet(*global_index),
+                                    idx,
+                                    vec![],
+                                    color,
+                                    info.global_types[*global_index as usize].clone(),
+                                );
+                        },
+                        // Only integer oeprations or now
+                        _ => return None
+                    }
                 }
                 Operator::GlobalSet { global_index } => {
                     let child = self.pop_operand(idx, true);

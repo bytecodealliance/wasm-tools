@@ -145,19 +145,25 @@ impl PeepholeMutator {
                                     continue;
                                 }
 
+                                // Check to change only returning integer operators
+                                let data = minidfg.map[&oidx];
+                                let data = &minidfg.entries[data];
+                                let data = &data.return_type;
+                                match data {
+                                    PrimitiveTypeInfo::I32 | PrimitiveTypeInfo::I64 => {
+                                        // Do nothing
+                                    },
+                                    _ => {
+                                        log::debug!("Tree does not return an integer type");
+                                        continue;
+                                    }
+                                }
+
                                 // Create an eterm expression from the basic block starting at oidx
                                 let mut start = RecExpr::<Lang>::default();
                                 let lang_to_stack_entries =
-                                    Encoder::wasm2expr(&minidfg, oidx, &operators, &mut start);
+                                    Encoder::wasm2expr(&minidfg, oidx, &operators, &mut start)?;
 
-                                if let Err(crate::Error::NoMutationsApplicable) =
-                                    lang_to_stack_entries
-                                {
-                                    // Definition entries that dont return values cannot be rewritten ?
-                                    debug!("{} does not return a value", start);
-                                    continue;
-                                }
-                                let lang_to_stack_entries = lang_to_stack_entries?;
                                 // Continue if the subtree coloring is inconsistent
                                 debug!(
                                     "{}",
@@ -166,6 +172,7 @@ impl PeepholeMutator {
                                         &operators[entry.operator_idx]
                                     ))
                                 );
+
 
                                 if !minidfg.is_subtree_consistent_from_root() {
                                     debug!("{} is not consistent", start);
