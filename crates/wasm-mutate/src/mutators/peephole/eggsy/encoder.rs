@@ -69,103 +69,107 @@ macro_rules! eterm_operator_2_wasm {
         // this case the eclass of `?x` is merged with the `add` operator, thus,
         // that `add` has the type of `?x` and therefore following the semantics
         // of Wasm instructions, `Num(0)` has the same type.
-        let parenttpe = $parent_eclass.as_ref().and_then(|data| {
+        let parenttpe = $parent_eclass.as_ref().clone().and_then(|data| {
             let entry = data.get_next_stack_entry(&$egraph.analysis);
             Some(entry.return_type.clone())
         });
-
-
         let forced = $parent.and_then(|parent|{
-            match parent {
-                // In this case both operators and the parent have the same
-                // return type. A call is an special case, the type of the
-                // operand is determined by its signature.
-                Lang::ILoad {..} => {
-                    // All arguments for this kind are i32.
-                    Some(PrimitiveTypeInfo::I32)
-                }
-                Lang::Wrap(_) => {
-                    // The expected value is an i64.
-                    Some(PrimitiveTypeInfo::I64)
-                }
-                Lang::Extend8S(_) => {
-                    match parenttpe {
-                        Some(tpe) => {
-                            match tpe {
-                                PrimitiveTypeInfo::I32 => Some(PrimitiveTypeInfo::I32),
-                                PrimitiveTypeInfo::I64 => Some(PrimitiveTypeInfo::I64),
-                                _ => unreachable!("Invalid type")
+            match $root {
+                // Special cases where the type of the operand should not be inferred
+                Lang::Extend16S { .. } | Lang::Extend8S { .. } | Lang::Extend32S { .. }  | Lang::ExtendI32S { .. } | Lang::ExtendI32U { .. }
+                =>  None,
+                _ => {
+                    match parent {
+                        // In this case both operators and the parent have the same
+                        // return type. A call is an special case, the type of the
+                        // operand is determined by its signature.
+                        Lang::ILoad {..} => {
+                            // All arguments for this kind are i32.
+                            Some(PrimitiveTypeInfo::I32)
+                        }
+                        Lang::Wrap(_) => {
+                            // The expected value is an i64.
+                            Some(PrimitiveTypeInfo::I64)
+                        }
+                        Lang::Extend8S(_) => {
+                            match parenttpe {
+                                Some(tpe) => {
+                                    match tpe {
+                                        PrimitiveTypeInfo::I32 => Some(PrimitiveTypeInfo::I32),
+                                        PrimitiveTypeInfo::I64 => Some(PrimitiveTypeInfo::I64),
+                                        _ => unreachable!("Invalid type")
+                                    }
+                                }
+                                None => unreachable!("Extend operation with no type information")
                             }
                         }
-                        None => unreachable!("Extend operation with no type information")
-                    }
-                }
-                Lang::Extend16S(_) => {
-                    match parenttpe {
-                        Some(tpe) => {
-                            match tpe {
-                                PrimitiveTypeInfo::I32 => Some(PrimitiveTypeInfo::I32),
-                                PrimitiveTypeInfo::I64 => Some(PrimitiveTypeInfo::I64),
-                                _ => unreachable!("Invalid type")
+                        Lang::Extend16S(_) => {
+                            match parenttpe.clone() {
+                                Some(tpe) => {
+                                    println!("parent for extend 16s {:?}", tpe);
+                                    match tpe {
+                                        PrimitiveTypeInfo::I32 => Some(PrimitiveTypeInfo::I32),
+                                        PrimitiveTypeInfo::I64 => Some(PrimitiveTypeInfo::I64),
+                                        _ => unreachable!("Invalid type {:?}", tpe)
+                                    }
+                                }
+                                None => unreachable!("Extend operation with no type information")
                             }
                         }
-                        None => unreachable!("Extend operation with no type information")
-                    }
-                }
-                Lang::ExtendI32U(_) | Lang::ExtendI32S(_) => {
-                    Some(PrimitiveTypeInfo::I32)
-                }
-                Lang::Extend32S(_) => {
-                    Some(PrimitiveTypeInfo::I64)
-                }
-                Lang::Call(operands) => {
-                    $index_at_parent.and_then(|idx|{
-                        let first = operands[0];
-                        let firstnode = &$nodes[usize::from(first)];
-                        let functionindex = match firstnode {
-                            Lang::Arg(val) => {
-                                *val as u32
-                            }
-                            Lang::Num(val) => {
-                                *val as u32
-                            }
-                            _ => unreachable!("The last argument for Call nodes should be an inmmediate node type (Arg)")
-                        };
+                        Lang::ExtendI32U(_) | Lang::ExtendI32S(_) => {
+                            Some(PrimitiveTypeInfo::I32)
+                        }
+                        Lang::Extend32S(_) => {
+                            Some(PrimitiveTypeInfo::I64)
+                        }
+                        Lang::Call(operands) => {
+                            $index_at_parent.and_then(|idx|{
+                                let first = operands[0];
+                                let firstnode = &$nodes[usize::from(first)];
+                                let functionindex = match firstnode {
+                                    Lang::Arg(val) => {
+                                        *val as u32
+                                    }
+                                    Lang::Num(val) => {
+                                        *val as u32
+                                    }
+                                    _ => unreachable!("The last argument for Call nodes should be an inmmediate node type (Arg)")
+                                };
 
-                        let typeinfo = $info.get_functype_idx(functionindex as usize);
+                                let typeinfo = $info.get_functype_idx(functionindex as usize);
 
-                        if let crate::module::TypeInfo::Func(tpe) = typeinfo {
-                            return Some(tpe.params[idx].clone())
+                                if let crate::module::TypeInfo::Func(tpe) = typeinfo {
+                                    return Some(tpe.params[idx].clone())
+                                }
+                                None
+                            })
                         }
-                        None
-                    })
-                }
-                // In irelops the type of the oeprand is determined by the sibling type
-                Lang::Eqz(_) => it.clone(),
-                Lang::Eq(operands) | Lang::Ne(operands) | Lang::LtS(operands) | Lang::LtU(operands)
-                    | Lang::GtU(operands) | Lang::GtS(operands) | Lang::GeS(operands) | Lang::GeU(operands)
-                    | Lang::LeS(operands) | Lang::LeU(operands) => {
-                        let index = $index_at_parent.unwrap();
-                        let siblingidx = (usize::from(index) + 1) % operands.len();
-                        let sibling = &operands[siblingidx];
-                        // let siblinglang = &$nodes[usize::from(*sibling)];
-                        let siblingeclassindex = &$node_to_eclass[usize::from(*sibling)];
-                        let siblingdata = &$egraph[*siblingeclassindex].data;
-                        //println!("sibling {:?} data {:?}, Id {:?} real id {:?}", siblinglang, siblingdata, sibling, siblingeclassindex);
-                        siblingdata.as_ref().and_then(|data| {
-                            let entry = data.get_next_stack_entry(&$egraph.analysis);
-                            // println!("Entry {:?}", entry);
-                            Some(entry.return_type.clone())
-                        })
-                    },
-                _ => parenttpe // Usually the parent type is the type of the operand
+                        // In irelops the type of the oeprand is determined by the sibling type
+                        Lang::Eqz(_) => it.clone(),
+                        Lang::Eq(operands) | Lang::Ne(operands) | Lang::LtS(operands) | Lang::LtU(operands)
+                            | Lang::GtU(operands) | Lang::GtS(operands) | Lang::GeS(operands) | Lang::GeU(operands)
+                            | Lang::LeS(operands) | Lang::LeU(operands) => {
+                                let index = $index_at_parent.unwrap();
+                                let siblingidx = (usize::from(index) + 1) % operands.len();
+                                let sibling = &operands[siblingidx];
+                                let siblingeclassindex = &$node_to_eclass[usize::from(*sibling)];
+                                let siblingdata = &$egraph[*siblingeclassindex].data;
+                                siblingdata.as_ref().and_then(|data| {
+                                    let entry = data.get_next_stack_entry(&$egraph.analysis);
+                                    Some(entry.return_type.clone())
+                                })
+                            },
+                        _ => parenttpe
+                    }
+                },
             }
         });
 
 
-        let tpe = forced.or(it).ok_or(
-            crate::Error::UnsupportedType(EitherType::EggError(format!("The type of the instruction cannot be inferred")))
+        let tpe = forced.clone().or(it.clone()).ok_or(
+            crate::Error::UnsupportedType(EitherType::EggError(format!("The type of the instruction cannot be inferred for {:?}", $root)))
         )?;
+
         match tpe {
             $(
                 $case => {
@@ -406,7 +410,6 @@ macro_rules! eterm_operator_2_wasm {
             egraph: &EG
         ) -> crate::Result<()> {
             let root = &nodes[usize::from(current)];
-
             // Pass node_to_eclass down as well
             let eclass = node_to_eclass[usize::from(current)];
 

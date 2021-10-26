@@ -80,7 +80,7 @@ impl Analysis<Lang> for PeepholeMutationAnalysis {
     type Data = Option<ClassData>;
 
     fn make(egraph: &EGraph<Lang, Self>, l: &Lang) -> Self::Data {
-        // This works beacuase always the first expression is the one constructed from the DFG
+        // This works because always the first expression is the one constructed from the DFG
         // The node id to stack is consistent then with the order in which this method is call
         if egraph.analysis.lang_to_stack_entries.contains_key(l) {
             Some(ClassData {
