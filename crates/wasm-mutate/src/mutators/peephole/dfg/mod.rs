@@ -372,6 +372,7 @@ impl<'a> DFGBuilder {
                             if tpe.returns.len() > 1 {
                                 return None;
                             }
+
                             // Pop as many parameters from the stack
                             let mut operands = (0..tpe.params.len())
                                 .map(|_| self.pop_operand(idx, true))
@@ -404,38 +405,22 @@ impl<'a> DFGBuilder {
                     }
                 }
                 Operator::LocalGet { local_index } => {
-                    // This is a hack, type checking should be carried with the stack entries
-                    match locals[*local_index as usize] {
-                        PrimitiveTypeInfo::I32 | PrimitiveTypeInfo::I64 => {
-                            self.push_node(
-                                StackType::LocalGet(*local_index),
-                                idx,
-                                vec![],
-                                color,
-                                locals[*local_index as usize].clone(),
-                            );
-                        }
-                        // Only integer oeprations or now
-                        _ => return None
-                    }
-                    
+                    self.push_node(
+                        StackType::LocalGet(*local_index),
+                        idx,
+                        vec![],
+                        color,
+                        locals[*local_index as usize].clone(),
+                    );
                 }
                 Operator::GlobalGet { global_index } => {
-                    // This is a hack, type checking should be carried with the stack entries
-                    
-                    match info.global_types[*global_index as usize] {
-                        PrimitiveTypeInfo::I32 | PrimitiveTypeInfo::I64 => {
-                                self.push_node(
-                                    StackType::GlobalGet(*global_index),
-                                    idx,
-                                    vec![],
-                                    color,
-                                    info.global_types[*global_index as usize].clone(),
-                                );
-                        },
-                        // Only integer oeprations or now
-                        _ => return None
-                    }
+                    self.push_node(
+                        StackType::GlobalGet(*global_index),
+                        idx,
+                        vec![],
+                        color,
+                        info.global_types[*global_index as usize].clone(),
+                    );
                 }
                 Operator::GlobalSet { global_index } => {
                     let child = self.pop_operand(idx, true);
@@ -735,6 +720,29 @@ impl<'a> DFGBuilder {
                         color,
                         PrimitiveTypeInfo::Empty,
                     );
+                }
+                // iunop operators
+                Operator::I32Popcnt => {
+                    let arg = self.pop_operand(idx, false);
+                    self.push_node(
+                        StackType::IndexAtCode(idx, 1),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::I32,
+                    );
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::I64Popcnt => {
+                    let arg = self.pop_operand(idx, false);
+                    self.push_node(
+                        StackType::IndexAtCode(idx, 1),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::I64,
+                    );
+                    self.parents[arg] = idx as i32;
                 }
                 _ => {
                     // If the operator is not implemented, break the mutation of this Basic Block
