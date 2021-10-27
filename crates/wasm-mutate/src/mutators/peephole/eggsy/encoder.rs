@@ -47,7 +47,6 @@ impl Encoder {
             (root, None, None, None, Event::Enter),
         ];
 
-        //let mut to_encode = vec![];
 
         let gettpe = |id: Id| {
             let eclass = node_to_eclass[usize::from(id)];
