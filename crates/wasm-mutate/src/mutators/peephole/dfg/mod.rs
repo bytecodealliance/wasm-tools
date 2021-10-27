@@ -721,7 +721,7 @@ impl<'a> DFGBuilder {
                         PrimitiveTypeInfo::Empty,
                     );
                 }
-                // iunop operators
+                // Unary integer operators.
                 Operator::I32Popcnt => {
                     let arg = self.pop_operand(idx, false);
                     self.push_node(
