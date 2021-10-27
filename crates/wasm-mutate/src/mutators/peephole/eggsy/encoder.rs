@@ -21,6 +21,12 @@ use crate::{
 /// Turns wasm to eterm and back
 pub struct Encoder;
 
+/// Traversing node events
+enum TraversalEvent {
+    Enter,
+    Exit,
+}
+
 impl Encoder {
     pub(crate) fn expr2wasm(
         info: &ModuleInfo,
@@ -37,27 +43,60 @@ impl Encoder {
         // The last node is the root.
         let root = Id::from(nodes.len() - 1);
 
-        enum Event {
-            Enter,
-            Exit,
+        struct Context {
+            // Current visited node index in the tree traversing
+            current_node: Id,
+            // Parent node index in the tree traversing (root has None)
+            parent_node: Option<Id>,
+            // Index at the parent node
+            index_at_parent: Option<usize>,
+            // Sometimes the type of the current node is forced by its parent
+            // e.g. the offset of a load operation is always an i32 type value
+            forced_from_parent_tpe: Option<PrimitiveTypeInfo>,
+            // In which state of the traversing of the current node the process is
+            traversal_event: TraversalEvent,
+        }
+
+        impl Context {
+            fn new(
+                current_node: Id,
+                parent_node: Option<Id>,
+                index_at_parent: Option<usize>,
+                forced_from_parent_tpe: Option<PrimitiveTypeInfo>,
+                traversal_event: TraversalEvent,
+            ) -> Self {
+                Context {
+                    current_node,
+                    parent_node,
+                    index_at_parent,
+                    forced_from_parent_tpe,
+                    traversal_event,
+                }
+            }
         }
 
         let mut worklist = vec![
-            (root, None, None, None, Event::Exit),
-            (root, None, None, None, Event::Enter),
+            Context::new(root, None, None, None, TraversalEvent::Exit),
+            Context::new(root, None, None, None, TraversalEvent::Enter),
         ];
-
 
         let gettpe = |id: Id| {
             let eclass = node_to_eclass[usize::from(id)];
             let data = &egraph[eclass].data;
 
-            data.as_ref().and_then(|data| {
-                let entry = &data.get_next_stack_entry(&egraph.analysis);
-                Some(entry.return_type.clone())
-            })
+            let data = data.as_ref()?;
+            let entry = &data.get_next_stack_entry(&egraph.analysis);
+            Some(entry.return_type.clone())
         };
 
+        // Return the type of a sibling
+        //      op
+        //    /    \
+        // t1.x      t?.y
+        // => t? = t1
+        // the sibling is calculated by increasing the index in the parent
+        // overflow are prevented by calculating the remainder on the number of children
+        // this will prevent: index overflow errors, return the type of the same operand
         let anysibling = |parentid: Id, index_at_parent: Option<usize>| {
             let rootlang = &nodes[usize::from(parentid)];
             match rootlang {
@@ -78,89 +117,80 @@ impl Encoder {
                 | Lang::ShrS(operands)
                 | Lang::LeS(operands)
                 | Lang::ShrU(operands)
-                | Lang::LeU(operands) => index_at_parent.and_then(|index| {
-                    let siblingidx = (usize::from(index) + 1) % operands.len();
+                | Lang::LeU(operands) => {
+                    let siblingidx = (usize::from(index_at_parent?) + 1) % operands.len();
                     let sibling = &operands[siblingidx];
                     gettpe(*sibling)
-                }),
+                }
                 _ => None,
             }
         };
 
+        // There are three places where the type can be inferred:
+        // by operands (e.g ?x -> (add ?x 0) is applied, t? = t1 can be inferred from the x operand, t?.add t1.x t?.0 )
+        // by parent (e.g. if the parent is a load operation, its type is i32)
+        // and by sibling relation ( Integer relation operations t?.irelop t1.x t?.y => t? = t1 )
+        //
+        // This function tries to infer the type from some parental cases and by sibling relations
+        // This is mostly to infer the type of artificially created nodes
         let infer = |parentid: Option<Id>, index_at_parent: Option<usize>| {
-            parentid.and_then(|parentid| {
-                let parenttpe = gettpe(parentid);
-                let rootlang = &nodes[usize::from(parentid)];
-                match rootlang {
-                    Lang::ILoad { .. } => {
-                        // All arguments for this kind are i32.
-                        Some(PrimitiveTypeInfo::I32)
-                    }
-                    Lang::Wrap(_) => {
-                        // The expected value is an i64.
-                        Some(PrimitiveTypeInfo::I64)
-                    }
-                    Lang::Extend8S(_) => {
-                        match parenttpe {
-                            Some(tpe) => {
-                                match tpe {
-                                    PrimitiveTypeInfo::I32 => Some(PrimitiveTypeInfo::I32),
-                                    PrimitiveTypeInfo::I64 => Some(PrimitiveTypeInfo::I64),
-                                    _ => unreachable!("Invalid type")
-                                }
-                            }
-                            None => unreachable!("Extend operation with no type information")
-                        }
-                    }
-                    Lang::Extend16S(_) => {
-                        match parenttpe {
-                            Some(tpe) => {
-                                match tpe {
-                                    PrimitiveTypeInfo::I32 => Some(PrimitiveTypeInfo::I32),
-                                    PrimitiveTypeInfo::I64 => Some(PrimitiveTypeInfo::I64),
-                                    _ => unreachable!("Invalid type")
-                                }
-                            }
-                            None => unreachable!("Extend operation with no type information")
-                        }
-                    }
-                    Lang::ExtendI32U(_) | Lang::ExtendI32S(_) => {
-                        Some(PrimitiveTypeInfo::I32)
-                    }
-                    Lang::Extend32S(_) => {
-                        Some(PrimitiveTypeInfo::I64)
-                    }
-                    Lang::Call(operands) => {
-                        index_at_parent.and_then(|idx|{
-                            let first = operands[0];
-                            let firstnode = &nodes[usize::from(first)];
-                            let functionindex = match firstnode {
-                                Lang::Arg(val) => {
-                                    *val as u32
-                                }
-                                Lang::Num(val) => {
-                                    *val as u32
-                                }
-                                _ => unreachable!("The first argument for Call nodes should be an inmmediate node type (Arg)")
-                            };
-                            let typeinfo = info.get_functype_idx(functionindex as usize);
-                            if let crate::module::TypeInfo::Func(tpe) = typeinfo {
-                                return Some(tpe.params[idx].clone())
-                            }
-                            None
-                        })
-                    }
-                    _ => anysibling(parentid, index_at_parent), //.or(parenttpe)
+            let parenttpe = gettpe(parentid?);
+            let rootlang = &nodes[usize::from(parentid?)];
+            match rootlang {
+                Lang::ILoad { .. } => {
+                    // All arguments for this kind are i32.
+                    Some(PrimitiveTypeInfo::I32)
                 }
-            })
+                Lang::Wrap(_) => {
+                    // The expected value is an i64.
+                    Some(PrimitiveTypeInfo::I64)
+                }
+                Lang::Extend8S(_) => match parenttpe {
+                    Some(tpe) => match tpe {
+                        PrimitiveTypeInfo::I32 => Some(PrimitiveTypeInfo::I32),
+                        PrimitiveTypeInfo::I64 => Some(PrimitiveTypeInfo::I64),
+                        _ => unreachable!("Invalid type"),
+                    },
+                    None => unreachable!("Extend operation with no type information"),
+                },
+                Lang::Extend16S(_) => match parenttpe {
+                    Some(tpe) => match tpe {
+                        PrimitiveTypeInfo::I32 => Some(PrimitiveTypeInfo::I32),
+                        PrimitiveTypeInfo::I64 => Some(PrimitiveTypeInfo::I64),
+                        _ => unreachable!("Invalid type"),
+                    },
+                    None => unreachable!("Extend operation with no type information"),
+                },
+                Lang::ExtendI32U(_) | Lang::ExtendI32S(_) => Some(PrimitiveTypeInfo::I32),
+                Lang::Extend32S(_) => Some(PrimitiveTypeInfo::I64),
+                Lang::Call(operands) => {
+                    let first = operands[0];
+                    let firstnode = &nodes[usize::from(first)];
+                    let functionindex = match firstnode {
+                        Lang::Arg(val) => {
+                            *val as u32
+                        }
+                        Lang::Num(val) => {
+                            *val as u32
+                        }
+                        _ => unreachable!("The first argument for Call nodes should be an inmmediate node type (Arg)")
+                    };
+                    let typeinfo = info.get_functype_idx(functionindex as usize);
+                    if let crate::module::TypeInfo::Func(tpe) = typeinfo {
+                        return Some(tpe.params[index_at_parent?].clone());
+                    }
+                    None
+                }
+                _ => anysibling(parentid?, index_at_parent),
+            }
         };
 
         // Enqueue the coding back nodes and infer types
-        while let Some((current_node, parent, index_at_parent, tpe, event)) = worklist.pop() {
-            let rootlang = &nodes[usize::from(current_node)];
+        while let Some(context) = worklist.pop() {
+            let rootlang = &nodes[usize::from(context.current_node)];
 
-            match event {
-                Event::Enter => {
+            match context.traversal_event {
+                TraversalEvent::Enter => {
                     // Push children
                     match rootlang {
                         Lang::Add(operands)
@@ -180,23 +210,24 @@ impl Encoder {
                         | Lang::RemU(operands) => {
                             let operands = *operands;
                             for (idx, operand) in operands.iter().enumerate().rev() {
-                                let newtpe = tpe
+                                let newtpe = context
+                                    .forced_from_parent_tpe
                                     .clone()
-                                    .or(infer(Some(current_node), Some(idx)))
+                                    .or(infer(Some(context.current_node), Some(idx)))
                                     .or(gettpe(*operand));
-                                worklist.push((
+                                worklist.push(Context::new(
                                     *operand,
-                                    Some(current_node),
+                                    Some(context.current_node),
                                     Some(idx),
                                     newtpe.clone(),
-                                    Event::Exit,
+                                    TraversalEvent::Exit,
                                 ));
-                                worklist.push((
+                                worklist.push(Context::new(
                                     *operand,
-                                    Some(current_node),
+                                    Some(context.current_node),
                                     Some(idx),
                                     newtpe,
-                                    Event::Enter,
+                                    TraversalEvent::Enter,
                                 ));
                             }
                         }
@@ -213,20 +244,20 @@ impl Encoder {
                             let operands = *operands;
                             for (idx, operand) in operands.iter().enumerate().rev() {
                                 // The type is one of the siblings
-                                let newtpe = anysibling(current_node, Some(idx));
-                                worklist.push((
+                                let newtpe = anysibling(context.current_node, Some(idx));
+                                worklist.push(Context::new(
                                     *operand,
-                                    Some(current_node),
+                                    Some(context.current_node),
                                     Some(idx),
                                     newtpe.clone(),
-                                    Event::Exit,
+                                    TraversalEvent::Exit,
                                 ));
-                                worklist.push((
+                                worklist.push(Context::new(
                                     *operand,
-                                    Some(current_node),
+                                    Some(context.current_node),
                                     Some(idx),
                                     newtpe,
-                                    Event::Enter,
+                                    TraversalEvent::Enter,
                                 ));
                             }
                         }
@@ -239,67 +270,68 @@ impl Encoder {
                         | Lang::Tee(operands)
                         | Lang::Wrap(operands)
                         | Lang::Eqz(operands) => {
-                            let tpe = gettpe(operands[0]).or(gettpe(current_node));
-                            worklist.push((
+                            let tpe = gettpe(operands[0]).or(gettpe(context.current_node));
+                            worklist.push(Context::new(
                                 operands[0],
-                                Some(current_node),
+                                Some(context.current_node),
                                 Some(0),
                                 tpe.clone(),
-                                Event::Exit,
+                                TraversalEvent::Exit,
                             ));
-                            worklist.push((
+                            worklist.push(Context::new(
                                 operands[0],
-                                Some(current_node),
+                                Some(context.current_node),
                                 Some(0),
                                 tpe,
-                                Event::Enter,
+                                TraversalEvent::Enter,
                             ));
                         }
                         Lang::Call(operands) => {
                             // The first operand is always the helper Arg to identify the function
                             for (idx, operand) in operands.iter().skip(1).enumerate().rev() {
                                 // Get the type of the operand by the definition of the function
-                                let tpe = infer(Some(current_node), Some(idx));
-                                worklist.push((
+                                let tpe = infer(Some(context.current_node), Some(idx));
+                                worklist.push(Context::new(
                                     *operand,
-                                    Some(current_node),
+                                    Some(context.current_node),
                                     Some(idx),
                                     tpe.clone(),
-                                    Event::Exit,
+                                    TraversalEvent::Exit,
                                 ));
-                                worklist.push((
+                                worklist.push(Context::new(
                                     *operand,
-                                    Some(current_node),
+                                    Some(context.current_node),
                                     Some(idx),
                                     tpe,
-                                    Event::Enter,
+                                    TraversalEvent::Enter,
                                 ));
                             }
                         }
                         Lang::ILoad(operands) => {
                             // Only push the first argument, remaining are helpers
-                            worklist.push((
+                            worklist.push(Context::new(
                                 operands[0],
-                                Some(current_node),
+                                Some(context.current_node),
                                 Some(0),
                                 Some(PrimitiveTypeInfo::I32),
-                                Event::Exit,
+                                TraversalEvent::Exit,
                             ));
-                            worklist.push((
+                            worklist.push(Context::new(
                                 operands[0],
-                                Some(current_node),
+                                Some(context.current_node),
                                 Some(0),
                                 Some(PrimitiveTypeInfo::I32),
-                                Event::Enter,
+                                TraversalEvent::Enter,
                             ));
                         }
                         _ => { /* Do nothing */ }
                     }
                 }
-                Event::Exit => {
+                TraversalEvent::Exit => {
                     match rootlang {
                         Lang::Add(operands) => {
-                            match tpe
+                            match context
+                                .forced_from_parent_tpe
                                 .or(gettpe(operands[0]))
                                 .or(gettpe(operands[1]))
                                 .expect("Type information is needed")
@@ -314,7 +346,8 @@ impl Encoder {
                             }
                         }
                         Lang::Shl(operands) => {
-                            match tpe
+                            match context
+                                .forced_from_parent_tpe
                                 .or(gettpe(operands[0]))
                                 .or(gettpe(operands[1]))
                                 .expect("Type information is needed")
@@ -329,7 +362,8 @@ impl Encoder {
                             }
                         }
                         Lang::ShrU(operands) => {
-                            match tpe
+                            match context
+                                .forced_from_parent_tpe
                                 .or(gettpe(operands[0]))
                                 .or(gettpe(operands[1]))
                                 .expect("Type information is needed")
@@ -344,7 +378,8 @@ impl Encoder {
                             }
                         }
                         Lang::Sub(operands) => {
-                            match tpe
+                            match context
+                                .forced_from_parent_tpe
                                 .or(gettpe(operands[0]))
                                 .or(gettpe(operands[1]))
                                 .expect("Type information is needed")
@@ -359,7 +394,8 @@ impl Encoder {
                             }
                         }
                         Lang::Mul(operands) => {
-                            match tpe
+                            match context
+                                .forced_from_parent_tpe
                                 .or(gettpe(operands[0]))
                                 .or(gettpe(operands[1]))
                                 .expect("Type information is needed")
@@ -374,7 +410,8 @@ impl Encoder {
                             }
                         }
                         Lang::And(operands) => {
-                            match tpe
+                            match context
+                                .forced_from_parent_tpe
                                 .or(gettpe(operands[0]))
                                 .or(gettpe(operands[1]))
                                 .expect("Type information is needed")
@@ -389,7 +426,8 @@ impl Encoder {
                             }
                         }
                         Lang::Or(operands) => {
-                            match tpe
+                            match context
+                                .forced_from_parent_tpe
                                 .or(gettpe(operands[0]))
                                 .or(gettpe(operands[1]))
                                 .expect("Type information is needed")
@@ -404,7 +442,8 @@ impl Encoder {
                             }
                         }
                         Lang::Xor(operands) => {
-                            match tpe
+                            match context
+                                .forced_from_parent_tpe
                                 .or(gettpe(operands[0]))
                                 .or(gettpe(operands[1]))
                                 .expect("Type information is needed")
@@ -419,7 +458,8 @@ impl Encoder {
                             }
                         }
                         Lang::ShrS(operands) => {
-                            match tpe
+                            match context
+                                .forced_from_parent_tpe
                                 .or(gettpe(operands[0]))
                                 .or(gettpe(operands[1]))
                                 .expect("Type information is needed")
@@ -434,7 +474,8 @@ impl Encoder {
                             }
                         }
                         Lang::DivS(operands) => {
-                            match tpe
+                            match context
+                                .forced_from_parent_tpe
                                 .or(gettpe(operands[0]))
                                 .or(gettpe(operands[1]))
                                 .expect("Type information is needed")
@@ -449,7 +490,8 @@ impl Encoder {
                             }
                         }
                         Lang::DivU(operands) => {
-                            match tpe
+                            match context
+                                .forced_from_parent_tpe
                                 .or(gettpe(operands[0]))
                                 .or(gettpe(operands[1]))
                                 .expect("Type information is needed")
@@ -464,7 +506,8 @@ impl Encoder {
                             }
                         }
                         Lang::RotR(operands) => {
-                            match tpe
+                            match context
+                                .forced_from_parent_tpe
                                 .or(gettpe(operands[0]))
                                 .or(gettpe(operands[1]))
                                 .expect("Type information is needed")
@@ -479,7 +522,8 @@ impl Encoder {
                             }
                         }
                         Lang::RotL(operands) => {
-                            match tpe
+                            match context
+                                .forced_from_parent_tpe
                                 .or(gettpe(operands[0]))
                                 .or(gettpe(operands[1]))
                                 .expect("Type information is needed")
@@ -494,7 +538,8 @@ impl Encoder {
                             }
                         }
                         Lang::RemS(operands) => {
-                            match tpe
+                            match context
+                                .forced_from_parent_tpe
                                 .or(gettpe(operands[0]))
                                 .or(gettpe(operands[1]))
                                 .expect("Type information is needed")
@@ -509,7 +554,8 @@ impl Encoder {
                             }
                         }
                         Lang::RemU(operands) => {
-                            match tpe
+                            match context
+                                .forced_from_parent_tpe
                                 .or(gettpe(operands[0]))
                                 .or(gettpe(operands[1]))
                                 .expect("Type information is needed")
@@ -676,7 +722,7 @@ impl Encoder {
                             }
                         }
                         Lang::Tee(_) => {
-                            let eclass = node_to_eclass[usize::from(current_node)];
+                            let eclass = node_to_eclass[usize::from(context.current_node)];
                             let data = &egraph[eclass].data;
                             let entry =
                                 data.clone().unwrap().get_next_stack_entry(&egraph.analysis);
@@ -690,8 +736,8 @@ impl Encoder {
                             newfunc.instruction(&Instruction::I32WrapI64);
                         }
                         Lang::Extend8S(_) => {
-                            let tpe =
-                                gettpe(current_node).expect("Extend operation should have a type");
+                            let tpe = gettpe(context.current_node)
+                                .expect("Extend operation should have a type");
                             match tpe {
                                 PrimitiveTypeInfo::I32 => {
                                     newfunc.instruction(&Instruction::I32Extend8S);
@@ -703,8 +749,8 @@ impl Encoder {
                             }
                         }
                         Lang::Extend16S(_) => {
-                            let tpe =
-                                gettpe(current_node).expect("Extend operation should have a type");
+                            let tpe = gettpe(context.current_node)
+                                .expect("Extend operation should have a type");
                             match tpe {
                                 PrimitiveTypeInfo::I32 => {
                                     newfunc.instruction(&Instruction::I32Extend16S);
@@ -716,8 +762,8 @@ impl Encoder {
                             }
                         }
                         Lang::Extend32S(_) => {
-                            let tpe =
-                                gettpe(current_node).expect("Extend operation should have a type");
+                            let tpe = gettpe(context.current_node)
+                                .expect("Extend operation should have a type");
                             match tpe {
                                 PrimitiveTypeInfo::I64 => {
                                     newfunc.instruction(&Instruction::I64Extend32S);
@@ -726,8 +772,8 @@ impl Encoder {
                             }
                         }
                         Lang::ExtendI32S(_) => {
-                            let tpe =
-                                gettpe(current_node).expect("Extend operation should have a type");
+                            let tpe = gettpe(context.current_node)
+                                .expect("Extend operation should have a type");
                             match tpe {
                                 PrimitiveTypeInfo::I64 => {
                                     newfunc.instruction(&Instruction::I64ExtendI32S);
@@ -736,8 +782,8 @@ impl Encoder {
                             }
                         }
                         Lang::ExtendI32U(_) => {
-                            let tpe =
-                                gettpe(current_node).expect("Extend operation should have a type");
+                            let tpe = gettpe(context.current_node)
+                                .expect("Extend operation should have a type");
                             match tpe {
                                 PrimitiveTypeInfo::I64 => {
                                     newfunc.instruction(&Instruction::I64ExtendI32U);
@@ -759,7 +805,7 @@ impl Encoder {
                             }
                         }
                         Lang::Popcnt(_) => {
-                            let tpe = gettpe(current_node)
+                            let tpe = gettpe(context.current_node)
                                 .expect("Popcnt should have a type information");
                             match tpe {
                                 PrimitiveTypeInfo::I32 => {
@@ -801,7 +847,7 @@ impl Encoder {
                                 align: align_value as u32,
                                 memory_index: memidx_value as u32,
                             };
-                            let tpe = gettpe(current_node)
+                            let tpe = gettpe(context.current_node)
                                 .expect("A load operation should be encoded with a type");
                             match tpe {
                                 PrimitiveTypeInfo::I32 => {
@@ -813,7 +859,10 @@ impl Encoder {
                                 _ => unreachable!("Type cannot be encoded"),
                             }
                         }
-                        Lang::Rand => match tpe.expect("Type information missing") {
+                        Lang::Rand => match context
+                            .forced_from_parent_tpe
+                            .expect("Type information missing")
+                        {
                             PrimitiveTypeInfo::I32 => {
                                 newfunc.instruction(&Instruction::I32Const(rnd.gen()));
                             }
@@ -825,7 +874,7 @@ impl Encoder {
                         Lang::Undef => { /* Do nothig */ }
                         Lang::Unfold(value) => {
                             let child = &nodes[usize::from(*value)];
-                            let tpe = infer(parent, index_at_parent)
+                            let tpe = infer(context.parent_node, context.index_at_parent)
                                 .or(gettpe(*value))
                                 .expect("Missing type information");
                             match child {
@@ -869,10 +918,11 @@ impl Encoder {
                             }
                         }
                         Lang::Num(v) => {
-                            let tpe = tpe
-                                .or(infer(parent, index_at_parent))
-                                .or(gettpe(current_node))
-                                .or(parent.and_then(|parent| gettpe(parent)))
+                            let tpe = context
+                                .forced_from_parent_tpe
+                                .or(infer(context.parent_node, context.index_at_parent))
+                                .or(gettpe(context.current_node))
+                                .or(context.parent_node.and_then(|parent| gettpe(parent)))
                                 .expect("Num nodes need type information");
                             match tpe {
                                 PrimitiveTypeInfo::I32 => {
@@ -906,7 +956,10 @@ impl Encoder {
                                 }
                             }
                         }
-                        Lang::Arg(val) => match tpe.expect("Type information is needed") {
+                        Lang::Arg(val) => match context
+                            .forced_from_parent_tpe
+                            .expect("Type information is needed")
+                        {
                             PrimitiveTypeInfo::I32 => {
                                 newfunc.instruction(&Instruction::I32Const(*val as i32));
                             }
@@ -929,25 +982,22 @@ impl Encoder {
         operators: &Vec<OperatorAndByteOffset>,
         newfunc: &mut Function,
     ) -> crate::Result<()> {
-        // Write the deps in the dfg
-        enum Event {
-            Enter,
-            Exit,
-        }
-
-        let mut worklist = vec![(entry, Event::Exit), (entry, Event::Enter)];
+        let mut worklist = vec![
+            (entry, TraversalEvent::Exit),
+            (entry, TraversalEvent::Enter),
+        ];
 
         while let Some((entry, event)) = worklist.pop() {
             match event {
-                Event::Enter => {
+                TraversalEvent::Enter => {
                     // push operands
                     for idx in entry.operands.iter().rev() {
                         let entry = &egraph.analysis.get_stack_entry(*idx);
-                        worklist.push((entry, Event::Exit));
-                        worklist.push((entry, Event::Enter));
+                        worklist.push((entry, TraversalEvent::Exit));
+                        worklist.push((entry, TraversalEvent::Enter));
                     }
                 }
-                Event::Exit => {
+                TraversalEvent::Exit => {
                     match entry.operator {
                         StackType::I32(val) => {
                             newfunc.instruction(&Instruction::I32Const(val));
@@ -1110,15 +1160,9 @@ impl Encoder {
             _ => return Err(crate::Error::NoMutationsApplicable),
         }
 
-        // Stackify
-        enum Event {
-            Enter,
-            Exit,
-        }
-
         let mut worklist = vec![
-            (stack_entry_index, Event::Exit),
-            (stack_entry_index, Event::Enter),
+            (stack_entry_index, TraversalEvent::Exit),
+            (stack_entry_index, TraversalEvent::Enter),
         ];
 
         let mut r = HashMap::new();
@@ -1127,7 +1171,7 @@ impl Encoder {
             let entry = &dfg.entries[entryidx];
             let op = &entry.operator;
             match event {
-                Event::Enter => {
+                TraversalEvent::Enter => {
                     // Push the children first
                     let mut operands = entry.operands.clone();
                     operands.reverse();
@@ -1147,11 +1191,11 @@ impl Encoder {
                     }
 
                     for operand in &operands {
-                        worklist.push((*operand, Event::Exit));
-                        worklist.push((*operand, Event::Enter))
+                        worklist.push((*operand, TraversalEvent::Exit));
+                        worklist.push((*operand, TraversalEvent::Enter))
                     }
                 }
-                Event::Exit => {
+                TraversalEvent::Exit => {
                     match op {
                         StackType::I32(value) => {
                             // Create a new ID and add it to the ids stack
@@ -1472,28 +1516,23 @@ impl Encoder {
         // `RecExpr`.
         let mut node_to_id: HashMap<Id, Id> = Default::default();
 
-        enum Event {
-            Enter,
-            Exit,
-        }
-
-        let mut to_visit = vec![(Event::Exit, root), (Event::Enter, root)];
+        let mut to_visit = vec![(TraversalEvent::Exit, root), (TraversalEvent::Enter, root)];
         let mut node_to_eclass = vec![];
         while let Some((event, node)) = to_visit.pop() {
             match event {
-                Event::Enter => {
+                TraversalEvent::Enter => {
                     let start_children = to_visit.len();
 
                     for child in operands[usize::from(node)].iter().copied() {
-                        to_visit.push((Event::Enter, child));
-                        to_visit.push((Event::Exit, child));
+                        to_visit.push((TraversalEvent::Enter, child));
+                        to_visit.push((TraversalEvent::Exit, child));
                     }
 
                     // Reverse to make it so that we visit children in order
                     // (e.g. operands are visited in order).
                     to_visit[start_children..].reverse();
                 }
-                Event::Exit => {
+                TraversalEvent::Exit => {
                     let operands = &operands[usize::from(node)];
                     let operand = |i| node_to_id[&operands[i]];
                     let (term, eclass) = &id_to_node[usize::from(node)];
