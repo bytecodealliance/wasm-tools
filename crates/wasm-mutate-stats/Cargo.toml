@@ -1,0 +1,23 @@
+[package]
+name = "wasm-mutate-stats"
+version = "0.1.0"
+edition = "2018"
+publish = false
+
+[dependencies]
+anyhow = "1.0"
+arbitrary = "1.0"
+num_cpus = "1.13"
+rand = { version = "0.7.3", features = ["small_rng"] }
+wasm-mutate = { path = '../wasm-mutate' }
+wasmprinter = { path = '../wasmprinter' }
+wasmparser = { version = "0.81.0", path = "../wasmparser" }
+wasmtime = "0.29"
+env_logger = "0.8"
+itertools = "0.10.0"
+structopt = "0.3.16"
+log = "0.4"
+
+[lib]
+doctest = false
+test = false

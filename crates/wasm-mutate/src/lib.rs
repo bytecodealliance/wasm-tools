@@ -147,6 +147,7 @@ impl WasmMutate {
 
     /// Run this configured `WasmMutate` on the given input Wasm.
     pub fn run<'a>(&self, input_wasm: &'a [u8]) -> Result<Vec<u8>> {
+        let mut rng = SmallRng::seed_from_u64(self.seed);
         let info = ModuleInfo::new(&input_wasm)?;
 
         let mutators: Vec<Box<dyn Mutator>> = vec![
@@ -161,12 +162,10 @@ impl WasmMutate {
             .filter(|m| m.can_mutate(self, &info))
             .collect();
 
-        let mut rnd = SmallRng::seed_from_u64(self.seed);
-
         while !mutators.is_empty() {
-            let i = rnd.gen_range(0, mutators.len());
+            let i = rng.gen_range(0, mutators.len());
             let mutator = mutators.swap_remove(i);
-            if let Ok(module) = mutator.mutate(&self, &mut rnd, &info) {
+            if let Ok(module) = mutator.mutate(&self, &mut rng, &info) {
                 return Ok(module.finish());
             }
         }
