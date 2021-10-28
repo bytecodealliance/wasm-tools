@@ -153,11 +153,11 @@ impl PeepholeMutator {
                                 if let Err(crate::Error::NoMutationsApplicable) =
                                     lang_to_stack_entries
                                 {
-                                    // Definition entries that dont return values cannot be rewritten ?
-                                    debug!("{} does not return a value", start);
+                                    log::debug!("The DFG tree does not return an integer type");
                                     continue;
                                 }
                                 let lang_to_stack_entries = lang_to_stack_entries?;
+
                                 // Continue if the subtree coloring is inconsistent
                                 debug!(
                                     "{}",
@@ -206,7 +206,11 @@ impl PeepholeMutator {
                                     continue;
                                 }
 
-                                debug!("Applied mutation {} for {}", expr, start);
+                                debug!(
+                                    "Applied mutation {}\nfor\n{}",
+                                    expr.pretty(35),
+                                    start.pretty(35)
+                                );
 
                                 let mut newfunc = self.copy_locals(reader)?;
 
@@ -335,12 +339,12 @@ impl Mutator for PeepholeMutator {
         rules.extend(rewrite!("idempotent-6"; "(eqz ?x)" <=> "(eq ?x 0)"));
         rules.extend(rewrite!("commutative-3"; "(eq ?x ?y)" <=> "(eq ?y ?x)"));
 
+        // Overflow rules
+
         if !config.preserve_semantics {
-            rules.push(rewrite!("mem-load-shift";  "(load ?x ?y ?z ?w)" => "(load (add ?x rand) ?y ?z ?w)"))
-            // Check why this is generating a lot of the same replacements
-            // Add corretness attraction ones
-            // x  = x + 1
-            //
+            rules.push(rewrite!("mem-load-shift";  "(load ?x ?y ?z ?w)" => "(load (add ?x rand) ?y ?z ?w)"));
+            // Correctness attraction
+            rules.push(rewrite!("correctness-1";  "?x" => "(add ?x 1)" if self.is_const("?x")))
         }
 
         self.mutate_with_rules(config, rnd, info, &rules)
@@ -579,6 +583,108 @@ mod tests {
                     i32.const 10
                     i32.const 10
                     i32.or
+                    drop
+                )
+                (export "exported_func" (func 0)))
+            "#,
+            2,
+        );
+    }
+
+    // From fuzz crash
+    #[test]
+    fn test_peep_popcnt() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("mul1";  "?x" => "(mul ?x 1)")];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func")  (local i32 i32)
+                i32.const -1768515946
+                i32.eqz
+                i32.eqz
+                i32.eqz
+                br_if 0 (;@0;)
+                i32.const -1768515946
+                i32.eqz
+                i32.eqz
+                i32.eqz
+                i32.eqz
+                i32.eqz
+                i32.eqz
+                i32.eqz
+                i32.eqz
+                i32.eqz
+                i32.eqz
+                i32.const -644442474
+                i32.shr_u
+                i32.eqz
+                i32.popcnt
+                i32.popcnt
+                i32.popcnt
+                i32.popcnt
+                i32.popcnt
+                i32.popcnt
+                i32.popcnt
+                i32.popcnt
+                i32.popcnt
+                i32.popcnt
+                i32.popcnt
+                i32.popcnt
+                i32.popcnt
+                i32.popcnt
+                i32.eqz
+                i32.eqz
+                i32.eqz
+                drop
+            )
+        )
+        "#,
+            rules,
+            r#"
+            (module
+                (type (;0;) (func ))
+                (func (;0;) (type 0)
+                    (local i32 i32)
+                    i32.const -1768515946
+                    i32.eqz
+                    i32.eqz
+                    i32.eqz
+                    br_if 0 (;@0;)
+                    i32.const -1768515946
+                    i32.eqz
+                    i32.eqz
+                    i32.eqz
+                    i32.eqz
+                    i32.eqz
+                    i32.eqz
+                    i32.eqz
+                    i32.eqz
+                    i32.eqz
+                    i32.eqz
+                    i32.const -644442474
+                    i32.shr_u
+                    i32.eqz
+                    i32.popcnt
+                    i32.popcnt
+                    i32.popcnt
+                    i32.popcnt
+                    i32.popcnt
+                    i32.popcnt
+                    i32.popcnt
+                    i32.popcnt
+                    i32.popcnt
+                    i32.popcnt
+                    i32.popcnt
+                    i32.popcnt
+                    i32.popcnt
+                    i32.popcnt
+                    i32.eqz
+                    i32.eqz
+                    i32.const 1
+                    i32.mul
+                    i32.eqz
                     drop
                 )
                 (export "exported_func" (func 0)))
@@ -1121,13 +1227,14 @@ mod tests {
     #[test]
     fn test_peep_functions() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("type1-1";  "(call ?fidx ?x)" => "(call ?fidx 1) " )];
+            &[rewrite!("type1-1";  "(call ?fidx ?x ?y)" => "(call ?fidx 1 11) " )];
 
         test_peephole_mutator(
             r#"
         (module
-            (func (export "exported_func")(param i32 )  (result i32)  (local i32 i32)
+            (func (export "exported_func")(param i64 i32 )  (result i64)  (local i64 i32)
                 local.get 0
+                i32.const 10
                 call 0
             )
         )
@@ -1135,13 +1242,87 @@ mod tests {
             rules,
             r#"
             (module
-                (func (export "exported_func") (param i32 )  (result i32)  (local i32 i32)
-                    i32.const 1
+                (func (export "exported_func") (param i64 i32)  (result i64)  (local i64 i32)
+                    i64.const 1
+                    i32.const 11
                     call 0
                 )
             )
         "#,
             5,
+        );
+    }
+
+    #[test]
+    fn test_peep_functions2() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("type1-1";  "?x" => "(or ?x ?x)")];
+
+        test_peephole_mutator(
+            r#"
+            (module
+                (type (;0;) (func (param i64 i64 i64 i64 i64 i64 i64 i64 i64 i64) (result i32)))
+                (type (;1;) (func (param i64) (result i32)))
+                (import "ttttttttttttuttttttttttut\09" "" (func (;0;) (type 1)))
+                (func (;1;) (type 0) (param i64 i64 i64 i64 i64 i64 i64 i64 i64 i64) (result i32)
+                  (local i32)
+                  local.get 6
+                  local.get 6
+                  i64.div_s
+                  local.get 6
+                  i64.div_s
+                  local.get 6
+                  i64.div_s
+                  local.get 6
+                  i64.div_s
+                  local.get 6
+                  i64.div_s
+                  local.get 6
+                  i64.div_s
+                  call 0)
+            )
+            "#,
+            rules,
+            r#"
+            (module
+                (type (;0;) (func (param i64 i64 i64 i64 i64 i64 i64 i64 i64 i64) (result i32)))
+                (type (;1;) (func (param i64) (result i32)))
+                (import "ttttttttttttuttttttttttut\09" "" (func (;0;) (type 1)))
+                (func (;1;) (type 0) (param i64 i64 i64 i64 i64 i64 i64 i64 i64 i64) (result i32)
+                  (local i32)
+                  local.get 6
+                  local.get 6
+                  i64.div_s
+                  local.get 6
+                  i64.div_s
+                  local.get 6
+                  i64.div_s
+                  local.get 6
+                  i64.div_s
+                  local.get 6
+                  i64.div_s
+                  local.get 6
+                  i64.div_s
+                  call 0
+                  local.get 6
+                  local.get 6
+                  i64.div_s
+                  local.get 6
+                  i64.div_s
+                  local.get 6
+                  i64.div_s
+                  local.get 6
+                  i64.div_s
+                  local.get 6
+                  i64.div_s
+                  local.get 6
+                  i64.div_s
+                  call 0
+                  i32.or
+                )
+            )
+        "#,
+            9,
         );
     }
 
@@ -1186,7 +1367,7 @@ mod tests {
             (memory 1)
             (func (export "exported_func") (param i32) (result i32)
                 i32.const 42
-                i32.load
+                i32.load offset=56 align=2
             )
         )
         "#,
@@ -1198,7 +1379,7 @@ mod tests {
                   i32.const 42
                   i32.const -1267761968
                   i32.add
-                  i32.load)
+                  i32.load offset=56 align=2 )
                 (memory (;0;) 1)
                 (export "exported_func" (func 0)))
         "#,
@@ -1230,6 +1411,37 @@ mod tests {
                   i32.const 100
                   i32.add
                   i32.load)
+                (memory (;0;) 1)
+                (export "exported_func" (func 0)))
+        "#,
+            1,
+        );
+    }
+
+    #[test]
+    fn test_peep_mem_popout2() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("mem-load-shift";  "(load ?x ?y ?z ?w)" => "(load (add ?x ?y) 0 ?z ?w)")];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (memory 1)
+            (func (export "exported_func") (param i32) (result i64)
+                i32.const 42
+                i64.load offset=100
+            )
+        )
+        "#,
+            rules,
+            r#"
+            (module
+                (type (;0;) (func (param i32) (result i64)))
+                (func (;0;) (type 0) (param i32) (result i64)
+                  i32.const 42
+                  i32.const 100
+                  i32.add
+                  i64.load)
                 (memory (;0;) 1)
                 (export "exported_func" (func 0)))
         "#,
