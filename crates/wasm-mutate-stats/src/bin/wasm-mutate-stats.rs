@@ -116,10 +116,7 @@ impl State {
             .map(|usize| {
                 let state = self.clone();
                 let artifact_folder = artifact_folders[usize].clone();
-                std::thread::spawn(move || {
-                    //sema1.lock();
-                    state.generate(usize, seed, artifact_folder)
-                })
+                std::thread::spawn(move || state.generate(usize, state.seed, &artifact_folder))
             })
             .collect::<Vec<_>>();
 
@@ -152,20 +149,9 @@ impl State {
                 .to_str().unwrap()
             );
 
-            // Read dir looking for Wasm
-            let entries =
-            std::fs::read_dir(artifacts_folder).expect("failed to read dir");
-            let mut files_count = 0;
-            
-            let mut worklist = Vec::new();
-            for e in entries {
-                let e = e.expect("failed to read dir entry");
-                if e.file_type().unwrap().is_file() {
-                    if  e.path().extension().unwrap() == "wasm" {
-                        worklist.push(e.path());
-                        files_count += 1;
-                    }
-                }
+        for w in worklist {
+            let data = std::fs::read(w).expect("Wasm file could not be read");
+            let h = self.hash(&data);
 
             }
             let wasm_hashes = HashMap::new();
@@ -205,8 +191,39 @@ impl State {
 
     fn compile_and_save(&self, range: (usize, usize), worklist: Arc<Vec<PathBuf>>, wasm_hashes: Arc<Mutex<HashMap<u64, Vec<String>>>>, low_hashes: Arc<Mutex<HashMap<u64, Vec<String>>>>, artifact_folder: String) {
 
-        let newfolder = format!("{}/aot", artifact_folder);
-        std::fs::create_dir_all(&newfolder).expect("Artifacts folder could not be created");
+        for e in entries {
+            let e = e.context("failed to read dir entry")?;
+            if e.file_type()
+                .context("File type could not be retrieved")?
+                .is_file()
+            {
+                if e.path()
+                    .extension()
+                    .context("File extension failed to be retrieved")?
+                    == "obj"
+                {
+                    let data = std::fs::read(e.path()).with_context(|| {
+                        format!("Object file could not be read {}", e.path().display())
+                    })?;
+                    let h = self.hash(&data);
+                    hashes
+                        .entry(h)
+                        .and_modify(|f: &mut Vec<_>| f.push(e.path().clone()))
+                        .or_insert(vec![e.path().clone()]);
+                }
+            }
+        }
+        let hashes_len = hashes.len();
+        println!(
+            "\t\t{}/{} unique objects for opt config ({:?}) ({:.2}%)",
+            hashes_len,
+            number_of_wasm,
+            optlevel,
+            100.0 * hashes_len as f64 / number_of_wasm as f64
+        );
+
+        Ok(())
+    }
 
         for entryindex in range.0..range.1 {
             if let Some(entry) = worklist.get(entryindex) {
@@ -239,13 +256,13 @@ impl State {
         }
     }
 
-    fn generate(&self, wasm_idx: usize, seed: u64, artifact_folder: String) {
-
+    fn generate(&self, wasm_idx: usize, seed: u64, artifact_folder: &PathBuf) -> anyhow::Result<()> {
         let mut wasmmutate = WasmMutate::default();
         let (name, data) = &self.corpus[wasm_idx];
 
         log::debug!("Wasm input {:?}", name);
         let mut wasm = data.clone();
+        let artifact_folder_cp = artifact_folder.clone();
         // Generate until thread is interrupted
         let mut rotations = 0;
         
@@ -262,24 +279,22 @@ impl State {
 
             while !finish_writing_wrap_clone.load(Relaxed) {
                 // pop from worklist
-                match  to_write_clone
-                    .lock()
-                    .unwrap()
-                    .pop() {
-                        Some(wasm) => {
-                            //Write down
-                            std::fs::write(format!("{}/mutated.{}.wasm", &artifact_folder, counter), &wasm).expect("Something went wrong");
-                            counter += 1;
-                        },
-                        None => {
-
-                        },
+                match to_write_clone.lock().unwrap().pop() {
+                    Some(wasm) => {
+                        //Write down
+                        let filename = artifact_folder_cp.join(format!("mutated.{}.wasm", counter));
+                        std::fs::write(filename, &wasm).context("Failed to write mutated wasm")?;
+                        counter += 1;
+                    }
+                    None => {}
                 }
             }
             log::debug!("Writing down pending mutated binaries!");
             // Then write pending wasms
-            while let Some(wasm) = to_write_clone.lock().unwrap().pop(){
-                std::fs::write(format!("cor/mutated.{}.wasm", counter), &wasm).expect("Something went wrong");
+            while let Some(wasm) = to_write_clone.lock().unwrap().pop() {
+                let filename = artifact_folder_cp.join(format!("mutated.{}.wasm", counter));
+
+                std::fs::write(filename, &wasm).context("Failed to write mutated wasm")?;
                 counter += 1;
             }
         });
@@ -293,15 +308,21 @@ impl State {
 
         let mut rng = SmallRng::seed_from_u64(seed);
         while !self.timeout_reached.load(Relaxed) {
-            wasmmutate.seed(rng.gen());
+            let seed = rng.gen();
+            wasmmutate.seed(seed);
             wasmmutate.preserve_semantics(true);
 
             // First stage, generate and return the mutated
             let mutated = match wasmmutate.run(&wasm) {
                 Ok(mutated) => mutated,
                 Err(e) => match e {
-                    wasm_mutate::Error::NoMutationsApplicable => wasm,
-                    _ => panic!("Invalid mutation process"),
+                    wasm_mutate::Error::NoMutationsApplicable => wasm.clone(),
+                    _ => {
+                        // Saving report
+                        let h1 = self.hash(&wasm);
+                        self.save_crash(&wasm, None, seed, &artifact_folder)?;
+                        anyhow::bail!(format!("Mutation invalid for entry {} seed {}.\n Crashing wasm is saved at crashes folder with name '<seed>.original.wasm'", h1, seed))
+                    },
                 },
             };
 
@@ -314,8 +335,13 @@ impl State {
                         .unwrap()
                         .push(mutated.clone());
                     wasm = mutated;
+                }
+                Err(_) => {
+                    let h1 = self.hash(&wasm);
+                    let h2 = self.hash(&mutated);
+                    self.save_crash(&wasm, Some(&mutated), seed, &artifact_folder)?;
+                    anyhow::bail!(format!("All generated Wasm should be valid {} -> {}, seed {}", h1, h2, seed));
                 },
-                Err(_) => panic!(""),
             }
 
             rotations += 1;
@@ -326,7 +352,31 @@ impl State {
         encoder.join().expect("Process exited or is not available");
     }
 
-    fn hash(&self, data: Vec<u8>) -> u64 {
+    fn save_crash(&self, wasm: &Vec<u8>, mutated: Option<&Vec<u8>>, seed: u64, artifacts_folder: &PathBuf) -> anyhow::Result<()> {
+        let newfolder = artifacts_folder.join("crashes");
+        std::fs::create_dir_all(&newfolder).with_context(|| {
+            format!(
+                "Crash folder could not be created {}",
+                newfolder.display()
+            )
+        })?;
+
+        let newfile = newfolder.join(format!("{}.original.wasm", seed));
+
+        std::fs::write(&newfile, wasm)?;
+
+        // Saving the mutation if one
+
+        if let Some(mutated) = mutated {
+            let newfile = newfolder.clone().join(format!("{}.mutated.wasm", seed));
+            std::fs::write(newfile, mutated)?;
+        }
+
+        println!("Crash saved with name {}", newfile.display());
+        Ok(())
+    }
+
+    fn hash(&self, data: &Vec<u8>) -> u64 {
         // Default hasher
         let mut h = DefaultHasher::default();
         data.hash(&mut h);
