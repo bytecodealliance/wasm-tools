@@ -1574,7 +1574,7 @@ impl Encoder {
                             (0..op.len()).map(|id| operand(id)).collect::<Vec<Id>>(),
                         )),
                         Lang::Tee(_) => expr.add(Lang::Tee([operand(0)])),
-                        Lang::Unfold(op) => expr.add(Lang::Unfold(*op)),
+                        Lang::Unfold(_) => expr.add(Lang::Unfold(operand(0))),
                         Lang::ILoad(_) => expr.add(Lang::ILoad([
                             operand(0),
                             operand(1),
