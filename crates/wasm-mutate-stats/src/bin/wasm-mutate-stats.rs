@@ -1,6 +1,5 @@
 use anyhow::Context;
 use core::sync::atomic::Ordering::{Relaxed, SeqCst};
-use std::{panic, process};
 use rand::Rng;
 use rand::{rngs::SmallRng, SeedableRng};
 use std::collections::hash_map::DefaultHasher;
@@ -12,6 +11,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
 use std::time::Duration;
 use std::{collections::HashMap, sync::Arc};
+use std::{panic, process};
 use structopt::StructOpt;
 use wasm_mutate::WasmMutate;
 use wasmtime::{Config, Engine, OptLevel};
@@ -299,7 +299,7 @@ impl State {
         artifact_folders: &[PathBuf],
     ) -> anyhow::Result<Duration> {
         let generation_start = std::time::Instant::now();
-    
+
         let threads = (0..self.corpus.len())
             .into_iter()
             .map(|usize| {
@@ -485,7 +485,7 @@ impl State {
         // Save the original as well
         to_write.lock().unwrap().push(wasm.clone());
 
-        let mut rng = SmallRng::seed_from_u64(seed);            
+        let mut rng = SmallRng::seed_from_u64(seed);
 
         while !self.timeout_reached.load(Relaxed) {
             let seed = rng.gen();
@@ -503,7 +503,7 @@ impl State {
                 println!("Internal undhandled panicking \n{:?}!", panic_info);
                 // stop generator
                 finish_writing_wrap_clone2.store(true, SeqCst);
-                // report current crash 
+                // report current crash
                 self_clone.save_crash(&data_clone, None, seed, &artifact_clone);
                 process::exit(1);
             }));
