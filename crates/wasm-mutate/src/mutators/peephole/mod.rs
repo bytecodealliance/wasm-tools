@@ -346,7 +346,6 @@ impl Mutator for PeepholeMutator {
             // Correctness attraction
             rules.push(rewrite!("correctness-1";  "?x" => "(add ?x 1)" if self.is_const("?x")))
         }
-
         self.mutate_with_rules(config, rnd, info, &rules)
     }
 
