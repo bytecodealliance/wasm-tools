@@ -192,7 +192,7 @@ impl State {
             .iter()
             .map(|(name, _)| {
                 let filename = name.file_name().with_context(|| {
-                    format!("File name could not be reetrieved for {}", name.display())
+                    format!("File name could not be retrieved for {}", name.display())
                 })?;
                 let newfolder = self
                     .get_parent_folders(name.clone())?
