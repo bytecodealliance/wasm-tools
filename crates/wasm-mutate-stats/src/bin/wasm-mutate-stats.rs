@@ -368,8 +368,7 @@ impl State {
             {
                 if e.path()
                     .extension()
-                    .context("File extension failed to be retrieved")?
-                    == "obj"
+                    == Some(OsStr::new("obj"))
                 {
                     let data = std::fs::read(e.path()).with_context(|| {
                         format!("Object file could not be read {}", e.path().display())
