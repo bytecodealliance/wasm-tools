@@ -80,7 +80,7 @@ struct Options {
     /// If it is not set, the default configuration of wasmtime will be used
     #[structopt(short = "c", long = "compilation-configs", parse(try_from_str=parse_optimization_types) )]
     configs: Option<Vec<OptLevel>>,
-    /// Target triple during coompilation, e.g. "x86_64-apple-darwin"
+    /// Target triple during compilation, e.g. "x86_64-apple-darwin"
     #[structopt(short = "a", long = "triple")]
     triple: Option<String>,
     /// Only generate report, if this option is set, it will skip the generation
