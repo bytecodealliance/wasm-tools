@@ -1,116 +1,303 @@
+use anyhow::Context;
+use core::sync::atomic::Ordering::{Relaxed, SeqCst};
 use rand::Rng;
 use rand::{rngs::SmallRng, SeedableRng};
-use wasmtime::Engine;
 use std::collections::hash_map::DefaultHasher;
+use std::ffi::OsStr;
+use std::fmt::Display;
 use std::hash::{Hash, Hasher};
-use std::path::{PathBuf};
-use std::sync::atomic::{AtomicBool};
+use std::path::PathBuf;
+use std::sync::atomic::AtomicBool;
+use std::sync::Mutex;
+use std::time::Duration;
 use std::{collections::HashMap, sync::Arc};
-use wasm_mutate::WasmMutate;
 use structopt::StructOpt;
-use std::sync::{Mutex};
-use core::sync::atomic::Ordering::{SeqCst, Relaxed};
+use wasm_mutate::WasmMutate;
+use wasmtime::{Config, Engine, OptLevel};
 
-/// Stats for wasm-mutate.
+#[derive(Debug)]
+enum ParsingOptLevelError {
+    Parsing(String),
+}
+impl Display for ParsingOptLevelError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParsingOptLevelError::Parsing(msg) => f.write_str(msg),
+        }
+    }
+}
+
+/// Parses the list of optimizations to set in wasmtime
+fn parse_optimization_types(s: &str) -> Result<OptLevel, ParsingOptLevelError> {
+    match s {
+        "O0" => Ok(OptLevel::None),
+        "O2" => Ok(OptLevel::Speed),
+        "Os" => Ok(OptLevel::SpeedAndSize),
+        _ => Err(ParsingOptLevelError::Parsing(format!(
+            "Invalid optimization type {}",
+            s
+        ))),
+    }
+}
+
+/// # Stats for wasm-mutate.
 ///
-/// TODO
+/// `wasm-mutate-stats` is a benchmark to illustrate how many mutation of the same input Wasm can be generated
+/// per time. This tool reads all Wasm in a folder (only in the root level) and for each Wasm file, it will iteratively
+/// run the wasm-mutate tool until a timeout is reached. Every iteration mutates the previous mutated Wasm.
+///
+/// The tool works in three main stages:
+/// - Generate the mutations until timeout is reached.
+/// - Compile the generated Wasm with the wasmtime engine to check for the preservation of the mutations
+///   at low level.
+/// - Generate a report.
+///
+/// The final report illustrates, for each Wasm file in the input folder: how many unique mutations were generated,
+/// and for each wasmtime configuration, how many of them still preserved.
+///
+/// All the generated Wasm files are saved into al folder named **artifacts** in the same level of the input
+/// folder.
+///
+/// ## Example
+/// `wasm-mutate-stats corpus 300 -c O0 -c O2 --triple x86_64-apple-darwin`
+///
+/// The previous example will run wasm-mutate-stats over the folder corpus, with a timeout of 300 seconds,
+/// checking preservation for O0(No optimizations) and O2(size and speed optimization), using architecture
+/// triple `x86_64-apple-darwin`.
 ///
 #[derive(StructOpt)]
 struct Options {
     /// The input folder that contains the Wasm binaries.
-    ///
     input: PathBuf,
     /// The timeout, 0 to wait for keyboard interrupt
-    /// 
-    #[structopt(short = "t", long = "timeout")]
-    timeout: Option<u64>,
+    timeout: u64,
     /// The seed of the random mutation, 0 by default
-    /// 
     #[structopt(short = "s", long = "seed")]
-    seed: Option<u64>
-}
-
-// Used to stop threads
-pub enum Signals {
-    TimeOut
+    seed: u64,
+    /// List of engine configurations.
+    /// Allowed values: [O0, O2, Os]
+    /// If it is not set, the default configuration of wasmtime will be used
+    #[structopt(short = "c", long = "compilation-configs", parse(try_from_str=parse_optimization_types) )]
+    configs: Option<Vec<OptLevel>>,
+    /// Target triple during coompilation, e.g. "x86_64-apple-darwin"
+    #[structopt(short = "a", long = "triple")]
+    triple: Option<String>,
+    /// Only generate report, if this option is set, it will skip the generation
+    #[structopt(short = "k", long = "skip")]
+    skip_generation: bool,
 }
 
 struct State {
-    // To print the report
-    print: bool,
-    // To save temporary files like object generation from cranelift
-    save_files: bool,
     // Tuples of filenames and the corresponding byte stream
     corpus: Vec<(PathBuf, Vec<u8>)>,
     // Engine used to compile the mutated Wasm
-    engine : wasmtime::Engine,
+    engines: Vec<(wasmtime::Engine, OptLevel)>,
     // timeout_reached state
     timeout_reached: AtomicBool,
+    // To avoid generation of mutations, just print report over prexisting folders
+    do_not_generate: bool,
+    // seed
+    seed: u64,
+    // timeout to stop generation
+    timeout: u64,
 }
 
-
-fn main() {
+fn main() -> anyhow::Result<()> {
     // Init logs
-    let _ = env_logger::init();
-    
-    let opts = Options::from_args();
-    let timeout = match opts.timeout {
-        Some(u) => u,
-        None => 0
-    };
-    let seed = match opts.seed {
-        Some(u) => u,
-        None => 0
-    };
+    env_logger::init();
 
+    let opts = Options::from_args();
+    let timeout = opts.timeout;
+    let seed = opts.seed;
+
+    let triple = &opts.triple;
+    let engines = opts
+        .configs
+        .and_then(|configs| {
+            Some(
+                configs
+                    .iter()
+                    .map(|optlevel| {
+                        let mut config = Config::default();
+                        config.cranelift_opt_level(optlevel.clone());
+                        if let Some(triple) = triple {
+                            config.target(&triple).context("Invalid target")?;
+                        }
+                        Ok((
+                            Engine::new(&config).context("Engine could not be initialized")?,
+                            optlevel.clone(),
+                        ))
+                    })
+                    .collect::<anyhow::Result<Vec<(Engine, OptLevel)>>>(),
+            )
+        })
+        .or(Some(Ok(vec![]))) // To not compile the mutated Wasm is the default option, if no configs are passed
+        .context("Failed to created configurations")?;
     // Start benchmarking
-    Arc::new(State::new(opts.input)).run(timeout, seed);
+    Arc::new(State::new(
+        opts.input,
+        engines?,
+        opts.skip_generation,
+        seed,
+        timeout,
+    )?)
+    .run()?;
+    Ok(())
 }
 
 impl State {
-    pub fn new(input_folder: PathBuf) -> Self {
+    pub fn new(
+        input_folder: PathBuf,
+        engines: Vec<(Engine, OptLevel)>,
+        skip_generation: bool,
+        seed: u64,
+        timeout: u64,
+    ) -> anyhow::Result<Self> {
         // Read corpus folder
         let mut corpus = Vec::with_capacity(2000);
-        let entries =
-            std::fs::read_dir(input_folder).expect("failed to read dir");
+        let entries = std::fs::read_dir(input_folder.clone())
+            .with_context(|| format!("failed to read directory {}", input_folder.display()))?;
         for e in entries {
-            let e = e.expect("failed to read dir entry");
-            if e.file_type().unwrap().is_file() {
-                let seed = std::fs::read(e.path()).expect("failed to read seed file");
-                if  e.path().extension().unwrap() == "wasm" {
+            let e = e.context("failed to read dir entry")?;
+            if e.file_type()
+                .context("File type could not be retrieved")?
+                .is_file()
+            {
+                let seed = std::fs::read(e.path()).context("failed to read file content")?;
+                if e.path().extension() == Some(OsStr::new("wasm")) {
                     corpus.push((e.path(), seed));
                 }
             }
         }
-        State {
-            print: true,
-            save_files: true,
+
+        Ok(State {
             corpus,
             timeout_reached: AtomicBool::new(false),
-            engine: Engine::default()
-        }
+            // Add many engines as configurations are passed
+            engines,
+            do_not_generate: skip_generation,
+            seed,
+            timeout,
+        })
     }
 
-    fn run(self: &Arc<Self>, timeout: u64, seed: u64) {
-
+    fn run(self: &Arc<Self>) -> anyhow::Result<()> {
         if self.corpus.len() == 0 {
-            log::error!("No Wasm files in the folder");
-            return;
+            anyhow::bail!("No Wasm files into the directory");
         }
         // create a folder to save the mutated files
-        let artifact_folders = self.corpus.iter().map(|(name, _)|{
-            let newfolder = format!("{}/artifacts/{}", name.parent()
-                .expect("Invalid parent")
-                .parent()
-                .expect("Invalid parent")
-                .display(), 
-                name.file_name().expect("File name could not be retrieved")
-                .to_str().unwrap()
-            );
-            log::debug!("Artifacts saved at {:?}", newfolder);
-            std::fs::create_dir_all(&newfolder).expect("Artifacts folder could not be created");
-            newfolder
-        }).collect::<Vec<_>>();
+        let artifact_folders = self
+            .corpus
+            .iter()
+            .map(|(name, _)| {
+                let filename = name.file_name().with_context(|| {
+                    format!("File name could not be reetrieved for {}", name.display())
+                })?;
+                let newfolder = self
+                    .get_parent_folders(name.clone())?
+                    .join(PathBuf::from("artifacts"))
+                    .join(filename);
+
+                std::fs::create_dir_all(&newfolder).with_context(|| {
+                    format!(
+                        "Artifacts folder could not be created {}",
+                        newfolder.display()
+                    )
+                })?;
+                println!("Artifacts saved at {:?}", newfolder);
+                Ok(newfolder)
+            })
+            .collect::<anyhow::Result<Vec<_>>>()?;
+
+        if !self.do_not_generate {
+            let elapsed = self.generate_wasm_files(&artifact_folders)?;
+            // Second stage, compile
+            for (wasmidx, (name, _)) in self.corpus.iter().enumerate() {
+                let filename = name
+                    .file_name()
+                    .with_context(|| format!("Unable to get file name for {}", name.display()))?;
+                let artifacts_folder = self
+                    .get_parent_folders(name.clone())?
+                    .join("artifacts")
+                    .join(filename);
+
+                // Read dir looking for Wasm
+                let entries = std::fs::read_dir(&artifacts_folder).with_context(|| {
+                    format!("Failed to read dir {}", artifacts_folder.display())
+                })?;
+
+                let mut worklist = Vec::new();
+                for e in entries {
+                    let e = e.context("Failed to read dir entry")?;
+                    if e.file_type()
+                        .context("File type could not be retrieved")?
+                        .is_file()
+                    {
+                        if e.path().extension() == Some(OsStr::new("wasm")) {
+                            worklist.push(e.path());
+                        }
+                    }
+                }
+                let files_count = worklist.clone().len();
+                println!(
+                    "{} files generated (+ original) in {}.{:03} seconds for {}",
+                    files_count,
+                    elapsed.as_secs(),
+                    elapsed.subsec_millis(),
+                    name.display()
+                );
+                // Create shared worklist
+                // This is the second stage, to compile all saved Wasm
+                if self.engines.len() > 0 {
+                    self.compile_and_save(&worklist, &artifact_folders[wasmidx])?;
+                }
+            }
+        }
+        for (wasmidx, (name, _)) in self.corpus.iter().enumerate() {
+            let filename = name.file_name().with_context(|| {
+                format!("File name could not be reetrieved for {}", name.display())
+            })?;
+
+            println!("Input wasm \"{:?}\"", filename);
+            let artifacts_folder = self
+                .get_parent_folders(name.clone())?
+                .join("artifacts")
+                .join(filename);
+
+            // Read dir looking for Wasm
+            let entries = std::fs::read_dir(&artifacts_folder)
+                .with_context(|| format!("Failed to read dir {}", artifacts_folder.display()))?;
+            let mut worklist = Vec::new();
+            for e in entries {
+                let e = e.context("failed to read dir entry")?;
+                if e.file_type()
+                    .context("File type could not be retrieved")?
+                    .is_file()
+                {
+                    if e.path().extension() == Some(OsStr::new("wasm")) {
+                        worklist.push(e.path());
+                    }
+                }
+            }
+            self.print_report(&artifact_folders[wasmidx], &worklist)?;
+        }
+        Ok(())
+    }
+
+    fn get_parent_folders(&self, path: PathBuf) -> anyhow::Result<PathBuf> {
+        Ok(path
+            .parent()
+            .context("corpus files always have a parent")?
+            .parent()
+            .context("corpus files always have a grandparent")?
+            .to_path_buf())
+    }
+
+    fn generate_wasm_files(
+        self: &Arc<Self>,
+        artifact_folders: &[PathBuf],
+    ) -> anyhow::Result<Duration> {
+        let generation_start = std::time::Instant::now();
         let threads = (0..self.corpus.len())
             .into_iter()
             .map(|usize| {
@@ -121,75 +308,57 @@ impl State {
             .collect::<Vec<_>>();
 
         // Sleep the main thread as many seconds are defined in the timeout
-        if timeout > 0 {
-            std::thread::sleep(std::time::Duration::new(timeout, 0));
-        } else {
-            todo!();
-            // Wait for keyboard interrupt
-        }
+        std::thread::sleep(std::time::Duration::new(self.timeout, 0));
         // Send termination signal, false || true = true
         self.timeout_reached.fetch_or(true, SeqCst);
-        // Collect the results in the receiver
-        for thread in threads {
-            // Expect all module here
-            thread.join().unwrap();
-        }
 
-        // Second stage, reports
-        for (wasmidx, (name, _)) in self.corpus.iter().enumerate() {
-            log::debug!("Input wasm \"{}\"", name.file_name()
-                .expect("Missing file name")
-                .to_str().unwrap());
-            let artifacts_folder = format!("{}/artifacts/{}", name.parent()
-                .expect("Invalid parent")
-                .parent()
-                .expect("Invalid parent")
-                .display(), 
-                name.file_name().expect("File name could not be retrieved")
-                .to_str().unwrap()
-            );
+        for thread in threads {
+            // Expect all threads here
+            thread.join().expect("Thread panicked!")?;
+        }
+        let elapsed = generation_start.elapsed();
+
+        Ok(elapsed)
+    }
+
+    fn print_report(&self, artifact_folder: &PathBuf, worklist: &[PathBuf]) -> anyhow::Result<()> {
+        let mut wasm_hashes = HashMap::new();
 
         for w in worklist {
             let data = std::fs::read(w).expect("Wasm file could not be read");
             let h = self.hash(&data);
 
-            }
-            let wasm_hashes = HashMap::new();
-            let low_hashes = HashMap::new();
-            log::debug!("{} files generated (+ original)", files_count);
-            // Create shared worklist
-            let wasm_hash_wrapper = Arc::new(Mutex::new(wasm_hashes));
-            let low_hash_wrapper = Arc::new(Mutex::new(low_hashes));
-            // Start compilation workers
-            let num_workers = num_cpus::get();
-            let chunksize = worklist.len()/num_workers + 1;
-            let workers = (0..num_workers).map(|i|{
-                    let wasm_hash_copy = wasm_hash_wrapper.clone();
-                    let low_hash_copy = low_hash_wrapper.clone();
-                    let state = self.clone();
-                    let range = (i*chunksize,(i + 1)*chunksize);
-                    let worklist_copy  = Arc::new(worklist.clone());
-                    let object_folder = format!("{}", artifact_folders[wasmidx]);
-                    std::thread::spawn(move || state.compile_and_save(range, worklist_copy,wasm_hash_copy,low_hash_copy, object_folder
-                    ) )
-            }).collect::<Vec<_>>();
-
-            log::debug!("Waiting for {} compiler workers", workers.len());
-            for worker in workers {
-                worker.join().expect("Thread panicked !");
-            }
-            let whashes_len = wasm_hash_wrapper.lock().unwrap().len();
-            let lhashes_len = low_hash_wrapper.lock().unwrap().len();
-            log::debug!("{} unique Wasm ({:.2}%)",whashes_len , 100.0 * whashes_len as f64 / files_count as f64);
-            log::debug!("{} unique Low-Level ({:.2}%)", lhashes_len, 100.0 * lhashes_len as f64 / whashes_len as f64);
-
-            // Check low-level prevalence
-            // create the engine outside this function and pass it in as an argument, so that
-            // it is shared across all modules.
+            wasm_hashes
+                .entry(h)
+                .and_modify(|f: &mut Vec<_>| f.push(w.clone()))
+                .or_insert(vec![w.clone()]);
         }
+        let whashes_len = wasm_hashes.len();
+        println!(
+            "\t{}/{} unique Wasm ({:.2}%)",
+            whashes_len,
+            worklist.len(),
+            100.0 * whashes_len as f64 / worklist.len() as f64
+        );
+
+        for (_, optlevel) in &self.engines {
+            self.print_report_compilation(artifact_folder, optlevel, whashes_len)?
+        }
+
+        Ok(())
     }
 
-    fn compile_and_save(&self, range: (usize, usize), worklist: Arc<Vec<PathBuf>>, wasm_hashes: Arc<Mutex<HashMap<u64, Vec<String>>>>, low_hashes: Arc<Mutex<HashMap<u64, Vec<String>>>>, artifact_folder: String) {
+    fn print_report_compilation(
+        &self,
+        artifact_folder: &PathBuf,
+        optlevel: &OptLevel,
+        number_of_wasm: usize,
+    ) -> anyhow::Result<()> {
+        let mut hashes = HashMap::new();
+        //let low_hashes = HashMap::new();
+        let objfolder = artifact_folder.join("obj").join(format!("{:?}", optlevel));
+        let entries = std::fs::read_dir(&objfolder)
+            .with_context(|| format!("failed to read dir {}", objfolder.display()))?;
 
         for e in entries {
             let e = e.context("failed to read dir entry")?;
@@ -225,57 +394,66 @@ impl State {
         Ok(())
     }
 
-        for entryindex in range.0..range.1 {
-            if let Some(entry) = worklist.get(entryindex) {
-                let data = std::fs::read(entry).expect("failed to read seed file");
-                // Hash and report
-                let h = self.hash(data.clone());
-                let fname = entry.display().to_string();
+    fn compile_and_save(
+        &self,
+        worklist: &[PathBuf],
+        artifact_folder: &PathBuf,
+    ) -> anyhow::Result<()> {
+        for (_, config) in &self.engines {
+            let newfolder = artifact_folder.join("obj").join(format!("{:?}", config));
+            std::fs::create_dir_all(&newfolder).with_context(|| {
+                format!(
+                    "Artifacts folder {} could not be created",
+                    newfolder.display()
+                )
+            })?;
+        }
 
-                // Saving the hash for later reporting
-                wasm_hashes.lock().unwrap().entry(h).and_modify(|v: &mut Vec<_>| v.push(fname.clone()))
-                .or_insert(vec![fname.clone()]);
+        for (entryidx, entry) in worklist.iter().enumerate() {
+            let data = std::fs::read(entry).context("failed to read seed file")?;
+            // Compile each configuration
+            // Spwan compilation
+            for (engine, optlevel) in &self.engines {
+                let module = wasmtime::Module::new(&engine, &data).with_context(|| {
+                    format!(
+                        "The mutated Wasm should be valid, wasm file {:?}, seed {:?}",
+                        entry.display(),
+                        self.seed
+                    )
+                })?;
 
-                let module = wasmtime::Module::new(&self.engine, &data)
-                        .expect("the mutated Wasm should be valid");
-                        
-                let obj = module.serialize().expect("Wasm module could not be serialized");
+                let obj = module
+                    .serialize()
+                    .context("Wasm module could not be serialized")?;
 
                 // Save the obj to the file system as well
-                if self.save_files {
-                    let fname = format!("{}/{}.aot", &newfolder, entryindex);
-                    std::fs::write(&fname, &obj).expect("Aot file could be written to filesystem");
-                }
-                
-                let low_hash = self.hash(obj.clone());
 
-                // Saving the hash for later reporting
-                low_hashes.lock().unwrap().entry(low_hash).and_modify(|v: &mut Vec<_>| v.push(fname.clone()))
-                .or_insert(vec![fname]);
+                let filename = artifact_folder
+                    .join("obj")
+                    .join(format!("{:?}", optlevel))
+                    .join(format!("{}.obj", entryidx));
+                std::fs::write(&filename, &obj)
+                    .context("Aot file could be written to filesystem")?;
             }
         }
+        Ok(())
     }
 
     fn generate(&self, wasm_idx: usize, seed: u64, artifact_folder: &PathBuf) -> anyhow::Result<()> {
         let mut wasmmutate = WasmMutate::default();
         let (name, data) = &self.corpus[wasm_idx];
-
-        log::debug!("Wasm input {:?}", name);
+        println!("Wasm input {}", name.display());
         let mut wasm = data.clone();
         let artifact_folder_cp = artifact_folder.clone();
         // Generate until thread is interrupted
-        let mut rotations = 0;
-        
         let to_write = Arc::new(Mutex::new(Vec::new()));
         let to_write_clone = to_write.clone();
         let finish_writing = AtomicBool::new(false);
         let finish_writing_wrap = Arc::new(finish_writing);
         let finish_writing_wrap_clone = finish_writing_wrap.clone();
-        let name_clone = name.clone();
         // Spawn Wasm to file writer
-        let encoder = std::thread::spawn(move ||{
+        let encoder = std::thread::spawn(move || -> anyhow::Result<()> {
             let mut counter = 0;
-            
 
             while !finish_writing_wrap_clone.load(Relaxed) {
                 // pop from worklist
@@ -289,7 +467,7 @@ impl State {
                     None => {}
                 }
             }
-            log::debug!("Writing down pending mutated binaries!");
+            eprintln!("Writing down pending mutated binaries!");
             // Then write pending wasms
             while let Some(wasm) = to_write_clone.lock().unwrap().pop() {
                 let filename = artifact_folder_cp.join(format!("mutated.{}.wasm", counter));
@@ -297,14 +475,12 @@ impl State {
                 std::fs::write(filename, &wasm).context("Failed to write mutated wasm")?;
                 counter += 1;
             }
+
+            Ok(())
         });
 
-        
         // Save the original as well
-        to_write
-        .lock()
-        .unwrap()
-        .push(wasm.clone());
+        to_write.lock().unwrap().push(wasm.clone());
 
         let mut rng = SmallRng::seed_from_u64(seed);
         while !self.timeout_reached.load(Relaxed) {
@@ -330,10 +506,7 @@ impl State {
             match validator.validate_all(&mutated.clone()) {
                 Ok(_) => {
                     // send the bytes for storage and compilation to another worker
-                    to_write
-                        .lock()
-                        .unwrap()
-                        .push(mutated.clone());
+                    to_write.lock().unwrap().push(mutated.clone());
                     wasm = mutated;
                 }
                 Err(_) => {
@@ -343,13 +516,15 @@ impl State {
                     anyhow::bail!(format!("All generated Wasm should be valid {} -> {}, seed {}", h1, h2, seed));
                 },
             }
-
-            rotations += 1;
         }
-        
+
         // Send signal to encoder to break infinite consumer loop
         finish_writing_wrap.store(true, SeqCst);
-        encoder.join().expect("Process exited or is not available");
+        encoder
+            .join()
+            .expect("Process exited or is not available")?;
+
+        Ok(())
     }
 
     fn save_crash(&self, wasm: &Vec<u8>, mutated: Option<&Vec<u8>>, seed: u64, artifacts_folder: &PathBuf) -> anyhow::Result<()> {
