@@ -256,7 +256,7 @@ impl State {
         }
         for (wasmidx, (name, _)) in self.corpus.iter().enumerate() {
             let filename = name.file_name().with_context(|| {
-                format!("File name could not be reetrieved for {}", name.display())
+                format!("File name could not be retrieved for {}", name.display())
             })?;
 
             println!("Input wasm \"{:?}\"", filename);
