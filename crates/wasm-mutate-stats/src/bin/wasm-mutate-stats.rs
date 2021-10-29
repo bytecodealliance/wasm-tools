@@ -411,6 +411,7 @@ impl State {
             // Spwan compilation
             for (engine, optlevel) in &self.engines {
                 let module = wasmtime::Module::new(&engine, &data).with_context(|| {
+                    self.save_crash(&data, Some(&data), self.seed, artifact_folder);
                     format!(
                         "The mutated Wasm should be valid, wasm file {:?}, seed {:?}",
                         entry.display(),
