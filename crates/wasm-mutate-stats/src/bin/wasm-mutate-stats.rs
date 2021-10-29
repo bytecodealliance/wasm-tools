@@ -366,10 +366,7 @@ impl State {
                 .context("File type could not be retrieved")?
                 .is_file()
             {
-                if e.path()
-                    .extension()
-                    == Some(OsStr::new("obj"))
-                {
+                if e.path().extension() == Some(OsStr::new("obj")) {
                     let data = std::fs::read(e.path()).with_context(|| {
                         format!("Object file could not be read {}", e.path().display())
                     })?;
@@ -438,7 +435,12 @@ impl State {
         Ok(())
     }
 
-    fn generate(&self, wasm_idx: usize, seed: u64, artifact_folder: &PathBuf) -> anyhow::Result<()> {
+    fn generate(
+        &self,
+        wasm_idx: usize,
+        seed: u64,
+        artifact_folder: &PathBuf,
+    ) -> anyhow::Result<()> {
         let mut wasmmutate = WasmMutate::default();
         let (name, data) = &self.corpus[wasm_idx];
         println!("Wasm input {}", name.display());
@@ -497,7 +499,7 @@ impl State {
                         let h1 = self.hash(&wasm);
                         self.save_crash(&wasm, None, seed, &artifact_folder)?;
                         anyhow::bail!(format!("Mutation invalid for entry {} seed {}.\n Crashing wasm is saved at crashes folder with name '<seed>.original.wasm'", h1, seed))
-                    },
+                    }
                 },
             };
 
@@ -512,8 +514,11 @@ impl State {
                     let h1 = self.hash(&wasm);
                     let h2 = self.hash(&mutated);
                     self.save_crash(&wasm, Some(&mutated), seed, &artifact_folder)?;
-                    anyhow::bail!(format!("All generated Wasm should be valid {} -> {}, seed {}", h1, h2, seed));
-                },
+                    anyhow::bail!(format!(
+                        "All generated Wasm should be valid {} -> {}, seed {}",
+                        h1, h2, seed
+                    ));
+                }
             }
         }
 
@@ -526,13 +531,16 @@ impl State {
         Ok(())
     }
 
-    fn save_crash(&self, wasm: &Vec<u8>, mutated: Option<&Vec<u8>>, seed: u64, artifacts_folder: &PathBuf) -> anyhow::Result<()> {
+    fn save_crash(
+        &self,
+        wasm: &Vec<u8>,
+        mutated: Option<&Vec<u8>>,
+        seed: u64,
+        artifacts_folder: &PathBuf,
+    ) -> anyhow::Result<()> {
         let newfolder = artifacts_folder.join("crashes");
         std::fs::create_dir_all(&newfolder).with_context(|| {
-            format!(
-                "Crash folder could not be created {}",
-                newfolder.display()
-            )
+            format!("Crash folder could not be created {}", newfolder.display())
         })?;
 
         let newfile = newfolder.join(format!("{}.original.wasm", seed));
