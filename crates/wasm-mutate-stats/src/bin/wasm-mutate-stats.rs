@@ -1,5 +1,6 @@
 use anyhow::Context;
 use core::sync::atomic::Ordering::{Relaxed, SeqCst};
+use std::{panic, process};
 use rand::Rng;
 use rand::{rngs::SmallRng, SeedableRng};
 use std::collections::hash_map::DefaultHasher;
@@ -298,6 +299,7 @@ impl State {
         artifact_folders: &[PathBuf],
     ) -> anyhow::Result<Duration> {
         let generation_start = std::time::Instant::now();
+    
         let threads = (0..self.corpus.len())
             .into_iter()
             .map(|usize| {
@@ -436,7 +438,7 @@ impl State {
     }
 
     fn generate(
-        &self,
+        self: &Arc<Self>,
         wasm_idx: usize,
         seed: u64,
         artifact_folder: &PathBuf,
@@ -483,11 +485,28 @@ impl State {
         // Save the original as well
         to_write.lock().unwrap().push(wasm.clone());
 
-        let mut rng = SmallRng::seed_from_u64(seed);
+        let mut rng = SmallRng::seed_from_u64(seed);            
+
         while !self.timeout_reached.load(Relaxed) {
             let seed = rng.gen();
             wasmmutate.seed(seed);
             wasmmutate.preserve_semantics(true);
+
+            // Set a panic hook since some errors are not carried out, this looks more like a patch
+            let self_clone = self.clone();
+            let artifact_clone = artifact_folder.clone();
+            let data_clone = wasm.clone();
+            let finish_writing_wrap_clone2 = finish_writing_wrap.clone();
+
+            panic::set_hook(Box::new(move |panic_info| {
+                // invoke the default handler and exit the process
+                println!("Internal undhandled panicking \n{:?}!", panic_info);
+                // stop generator
+                finish_writing_wrap_clone2.store(true, SeqCst);
+                // report current crash 
+                self_clone.save_crash(&data_clone, None, seed, &artifact_clone);
+                process::exit(1);
+            }));
 
             // First stage, generate and return the mutated
             let mutated = match wasmmutate.run(&wasm) {
@@ -495,6 +514,8 @@ impl State {
                 Err(e) => match e {
                     wasm_mutate::Error::NoMutationsApplicable => wasm.clone(),
                     _ => {
+                        // Stop writing worker
+                        finish_writing_wrap.store(true, SeqCst);
                         // Saving report
                         let h1 = self.hash(&wasm);
                         self.save_crash(&wasm, None, seed, &artifact_folder)?;
@@ -511,6 +532,8 @@ impl State {
                     wasm = mutated;
                 }
                 Err(_) => {
+                    // Stop writing worker
+                    finish_writing_wrap.store(true, SeqCst);
                     let h1 = self.hash(&wasm);
                     let h2 = self.hash(&mutated);
                     self.save_crash(&wasm, Some(&mutated), seed, &artifact_folder)?;
@@ -538,6 +561,7 @@ impl State {
         seed: u64,
         artifacts_folder: &PathBuf,
     ) -> anyhow::Result<()> {
+        println!("Saving crash");
         let newfolder = artifacts_folder.join("crashes");
         std::fs::create_dir_all(&newfolder).with_context(|| {
             format!("Crash folder could not be created {}", newfolder.display())
