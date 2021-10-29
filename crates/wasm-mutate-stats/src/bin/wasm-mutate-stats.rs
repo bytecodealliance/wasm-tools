@@ -6,7 +6,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::ffi::OsStr;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
 use std::time::Duration;
@@ -114,25 +114,23 @@ fn main() -> anyhow::Result<()> {
     let triple = &opts.triple;
     let engines = opts
         .configs
-        .and_then(|configs| {
-            Some(
-                configs
-                    .iter()
-                    .map(|optlevel| {
-                        let mut config = Config::default();
-                        config.cranelift_opt_level(optlevel.clone());
-                        if let Some(triple) = triple {
-                            config.target(&triple).context("Invalid target")?;
-                        }
-                        Ok((
-                            Engine::new(&config).context("Engine could not be initialized")?,
-                            optlevel.clone(),
-                        ))
-                    })
-                    .collect::<anyhow::Result<Vec<(Engine, OptLevel)>>>(),
-            )
+        .map(|configs| {
+            configs
+                .iter()
+                .map(|optlevel| {
+                    let mut config = Config::default();
+                    config.cranelift_opt_level(optlevel.clone());
+                    if let Some(triple) = triple {
+                        config.target(triple).context("Invalid target")?;
+                    }
+                    Ok((
+                        Engine::new(&config).context("Engine could not be initialized")?,
+                        optlevel.clone(),
+                    ))
+                })
+                .collect::<anyhow::Result<Vec<(Engine, OptLevel)>>>()
         })
-        .or(Some(Ok(vec![]))) // To not compile the mutated Wasm is the default option, if no configs are passed
+        .or_else(|| Some(Ok(vec![]))) // To not compile the mutated Wasm is the default option, if no configs are passed
         .context("Failed to created configurations")?;
     // Start benchmarking
     Arc::new(State::new(
@@ -183,7 +181,7 @@ impl State {
     }
 
     fn run(self: &Arc<Self>) -> anyhow::Result<()> {
-        if self.corpus.len() == 0 {
+        if self.corpus.is_empty() {
             anyhow::bail!("No Wasm files into the directory");
         }
         // create a folder to save the mutated files
@@ -233,10 +231,9 @@ impl State {
                     if e.file_type()
                         .context("File type could not be retrieved")?
                         .is_file()
+                        && e.path().extension() == Some(OsStr::new("wasm"))
                     {
-                        if e.path().extension() == Some(OsStr::new("wasm")) {
-                            worklist.push(e.path());
-                        }
+                        worklist.push(e.path());
                     }
                 }
                 let files_count = worklist.clone().len();
@@ -249,7 +246,7 @@ impl State {
                 );
                 // Create shared worklist
                 // This is the second stage, to compile all saved Wasm
-                if self.engines.len() > 0 {
+                if !self.engines.is_empty() {
                     self.compile_and_save(&worklist, &artifact_folders[wasmidx])?;
                 }
             }
@@ -274,10 +271,9 @@ impl State {
                 if e.file_type()
                     .context("File type could not be retrieved")?
                     .is_file()
+                    && e.path().extension() == Some(OsStr::new("wasm"))
                 {
-                    if e.path().extension() == Some(OsStr::new("wasm")) {
-                        worklist.push(e.path());
-                    }
+                    worklist.push(e.path());
                 }
             }
             self.print_report(&artifact_folders[wasmidx], &worklist)?;
@@ -323,7 +319,7 @@ impl State {
         Ok(elapsed)
     }
 
-    fn print_report(&self, artifact_folder: &PathBuf, worklist: &[PathBuf]) -> anyhow::Result<()> {
+    fn print_report(&self, artifact_folder: &Path, worklist: &[PathBuf]) -> anyhow::Result<()> {
         let mut wasm_hashes = HashMap::new();
 
         for w in worklist {
@@ -333,7 +329,7 @@ impl State {
             wasm_hashes
                 .entry(h)
                 .and_modify(|f: &mut Vec<_>| f.push(w.clone()))
-                .or_insert(vec![w.clone()]);
+                .or_insert_with(|| vec![w.clone()]);
         }
         let whashes_len = wasm_hashes.len();
         println!(
@@ -352,7 +348,7 @@ impl State {
 
     fn print_report_compilation(
         &self,
-        artifact_folder: &PathBuf,
+        artifact_folder: &Path,
         optlevel: &OptLevel,
         number_of_wasm: usize,
     ) -> anyhow::Result<()> {
@@ -367,17 +363,16 @@ impl State {
             if e.file_type()
                 .context("File type could not be retrieved")?
                 .is_file()
+                && e.path().extension() == Some(OsStr::new("obj"))
             {
-                if e.path().extension() == Some(OsStr::new("obj")) {
-                    let data = std::fs::read(e.path()).with_context(|| {
-                        format!("Object file could not be read {}", e.path().display())
-                    })?;
-                    let h = self.hash(&data);
-                    hashes
-                        .entry(h)
-                        .and_modify(|f: &mut Vec<_>| f.push(e.path().clone()))
-                        .or_insert(vec![e.path().clone()]);
-                }
+                let data = std::fs::read(e.path()).with_context(|| {
+                    format!("Object file could not be read {}", e.path().display())
+                })?;
+                let h = self.hash(&data);
+                hashes
+                    .entry(h)
+                    .and_modify(|f: &mut Vec<_>| f.push(e.path()))
+                    .or_insert_with(|| vec![e.path()]);
             }
         }
         let hashes_len = hashes.len();
@@ -392,11 +387,7 @@ impl State {
         Ok(())
     }
 
-    fn compile_and_save(
-        &self,
-        worklist: &[PathBuf],
-        artifact_folder: &PathBuf,
-    ) -> anyhow::Result<()> {
+    fn compile_and_save(&self, worklist: &[PathBuf], artifact_folder: &Path) -> anyhow::Result<()> {
         for (_, config) in &self.engines {
             let newfolder = artifact_folder.join("obj").join(format!("{:?}", config));
             std::fs::create_dir_all(&newfolder).with_context(|| {
@@ -412,7 +403,7 @@ impl State {
             // Compile each configuration
             // Spwan compilation
             for (engine, optlevel) in &self.engines {
-                let module = wasmtime::Module::new(&engine, &data).with_context(|| {
+                let module = wasmtime::Module::new(engine, &data).with_context(|| {
                     format!(
                         "The mutated Wasm should be valid, wasm file {:?}, config {:?}",
                         entry.display(),
@@ -441,13 +432,13 @@ impl State {
         self: &Arc<Self>,
         wasm_idx: usize,
         seed: u64,
-        artifact_folder: &PathBuf,
+        artifact_folder: &Path,
     ) -> anyhow::Result<()> {
         let mut wasmmutate = WasmMutate::default();
         let (name, data) = &self.corpus[wasm_idx];
         println!("Wasm input {}", name.display());
         let mut wasm = data.clone();
-        let artifact_folder_cp = artifact_folder.clone();
+        let artifact_folder_cp = artifact_folder.to_path_buf();
         // Generate until thread is interrupted
         let to_write = Arc::new(Mutex::new(Vec::new()));
         let to_write_clone = to_write.clone();
@@ -460,14 +451,10 @@ impl State {
 
             while !finish_writing_wrap_clone.load(Relaxed) {
                 // pop from worklist
-                match to_write_clone.lock().unwrap().pop() {
-                    Some(wasm) => {
-                        //Write down
-                        let filename = artifact_folder_cp.join(format!("mutated.{}.wasm", counter));
-                        std::fs::write(filename, &wasm).context("Failed to write mutated wasm")?;
-                        counter += 1;
-                    }
-                    None => {}
+                if let Some(wasm) = to_write_clone.lock().unwrap().pop() {
+                    let filename = artifact_folder_cp.join(format!("mutated.{}.wasm", counter));
+                    std::fs::write(filename, &wasm).context("Failed to write mutated wasm")?;
+                    counter += 1;
                 }
             }
             eprintln!("Writing down pending mutated binaries!");
@@ -494,7 +481,7 @@ impl State {
 
             // Set a panic hook since some errors are not carried out, this looks more like a patch
             let self_clone = self.clone();
-            let artifact_clone = artifact_folder.clone();
+            let artifact_clone = artifact_folder.to_path_buf();
             let data_clone = wasm.clone();
             let finish_writing_wrap_clone2 = finish_writing_wrap.clone();
 
@@ -518,7 +505,7 @@ impl State {
                         finish_writing_wrap.store(true, SeqCst);
                         // Saving report
                         let h1 = self.hash(&wasm);
-                        self.save_crash(&wasm, None, seed, &artifact_folder)?;
+                        self.save_crash(&wasm, None, seed, artifact_folder)?;
                         anyhow::bail!(format!("Mutation invalid for entry {} seed {}.\n Crashing wasm is saved at crashes folder with name '<seed>.original.wasm'", h1, seed))
                     }
                 },
@@ -536,7 +523,7 @@ impl State {
                     finish_writing_wrap.store(true, SeqCst);
                     let h1 = self.hash(&wasm);
                     let h2 = self.hash(&mutated);
-                    self.save_crash(&wasm, Some(&mutated), seed, &artifact_folder)?;
+                    self.save_crash(&wasm, Some(&mutated), seed, artifact_folder)?;
                     anyhow::bail!(format!(
                         "All generated Wasm should be valid {} -> {}, seed {}",
                         h1, h2, seed
@@ -556,10 +543,10 @@ impl State {
 
     fn save_crash(
         &self,
-        wasm: &Vec<u8>,
-        mutated: Option<&Vec<u8>>,
+        wasm: &[u8],
+        mutated: Option<&[u8]>,
         seed: u64,
-        artifacts_folder: &PathBuf,
+        artifacts_folder: &Path,
     ) -> anyhow::Result<()> {
         println!("Saving crash");
         let newfolder = artifacts_folder.join("crashes");
@@ -574,7 +561,7 @@ impl State {
         // Saving the mutation if one
 
         if let Some(mutated) = mutated {
-            let newfile = newfolder.clone().join(format!("{}.mutated.wasm", seed));
+            let newfile = newfolder.join(format!("{}.mutated.wasm", seed));
             std::fs::write(newfile, mutated)?;
         }
 
@@ -582,7 +569,7 @@ impl State {
         Ok(())
     }
 
-    fn hash(&self, data: &Vec<u8>) -> u64 {
+    fn hash(&self, data: &[u8]) -> u64 {
         // Default hasher
         let mut h = DefaultHasher::default();
         data.hash(&mut h);
