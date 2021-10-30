@@ -19,7 +19,7 @@ use super::{
 };
 use std::prelude::v1::*;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct FunctionBody<'a> {
     offset: usize,
     data: &'a [u8],

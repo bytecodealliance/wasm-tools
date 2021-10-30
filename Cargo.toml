@@ -6,7 +6,7 @@ edition = "2018"
 publish = false
 
 [workspace]
-members = ['fuzz', 'crates/wasm-encoder', 'crates/fuzz-stats']
+members = ['fuzz', 'crates/wasm-encoder', 'crates/fuzz-stats', 'crates/wasm-mutate-stats']
 
 [dependencies]
 anyhow = "1.0"
@@ -16,6 +16,7 @@ getopts = "0.2"
 log = "0.4"
 rayon = "1.0"
 structopt = "0.3.16"
+wasm-mutate = { path = "crates/wasm-mutate", features = ["structopt"] }
 wasm-smith = { path = "crates/wasm-smith" }
 wasmparser = { path = "crates/wasmparser" }
 wasmparser-dump = { path = "crates/dump" }
