@@ -30,6 +30,8 @@ harness = false
 # that rely on deterministic executions of smart contracts across different hardwares.
 deterministic = []
 default = [ "std" ] # Default to using libstd
+# The "std" feature enables the importation of the Rust standard library.
+# Disabling it allows wasmparser to function in a no-std environment.
 std = [ "no-std-compat/std" ]
 
 
