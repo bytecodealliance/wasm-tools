@@ -24,7 +24,7 @@ fn cmp<T: PartialOrd>(a: &Option<T>, b: &Option<T>) -> Ordering {
         (None, None) => Ordering::Equal,
         (None, Some(_)) => Ordering::Greater,
         (Some(_), None) => Ordering::Less,
-        (Some(a), Some(b)) => a.partial_cmp(&b).unwrap(),
+        (Some(a), Some(b)) => a.partial_cmp(b).unwrap(),
     }
 }
 
@@ -97,7 +97,7 @@ where
         if node.children().iter().all(has_cost) {
             let costs = &costs;
             let cost_f = |id| costs[&egraph.find(id)].0.clone();
-            Some(self.cost_function.cost(&node, cost_f))
+            Some(self.cost_function.cost(node, cost_f))
         } else {
             None
         }
@@ -116,7 +116,7 @@ where
         rnd: &mut rand::prelude::SmallRng,
         eclass: Id,
         max_depth: u32,
-        expression_builder: impl Fn(Id, &Vec<(&L, Id)>, &Vec<Vec<Id>>) -> (RecExpr<L>, Vec<Id>),
+        expression_builder: impl Fn(Id, &[(&L, Id)], &[Vec<Id>]) -> (RecExpr<L>, Vec<Id>),
         max_tries: u32,
         oracle: impl Fn(RecExpr<L>) -> bool,
     ) -> crate::Result<(RecExpr<L>, Vec<Id>)> // return the random tree, TODO, improve the way the tree is returned
@@ -174,20 +174,18 @@ where
         // Build the tree with the right language constructor
         let (expr, classes) = expression_builder(Id::from(0), &id_to_node, &operands);
 
-        if !oracle(expr.clone()) {
-            if max_tries > 0 {
-                return self.extract_random(
-                    rnd,
-                    eclass,
-                    max_depth,
-                    expression_builder,
-                    max_tries - 1,
-                    oracle,
-                );
-            }
+        if !oracle(expr.clone()) && max_tries > 0 {
+            return self.extract_random(
+                rnd,
+                eclass,
+                max_depth,
+                expression_builder,
+                max_tries - 1,
+                oracle,
+            );
         };
 
-        return Ok((expr, classes));
+        Ok((expr, classes))
     }
 }
 

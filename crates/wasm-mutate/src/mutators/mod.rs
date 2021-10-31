@@ -40,7 +40,7 @@ pub(crate) fn match_mutation(original: &str, mutator: &dyn Mutator, expected: &s
     let info = ModuleInfo::new(original).unwrap();
     let can_mutate = mutator.can_mutate(&wasmmutate, &info);
 
-    assert_eq!(can_mutate, true);
+    assert!(can_mutate == true);
 
     let mut rnd = SmallRng::seed_from_u64(0);
     let mutation = mutator.mutate(&wasmmutate, &mut rnd, &info);

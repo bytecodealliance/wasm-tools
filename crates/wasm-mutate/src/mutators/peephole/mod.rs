@@ -65,9 +65,9 @@ impl PeepholeMutator {
 
                 Ok(all_locals)
             }
-            _ => Err(crate::Error::UnsupportedType(EitherType::TypeDef(format!(
-                "The type for this function is not a function tyupe definition"
-            )))),
+            _ => Err(crate::Error::UnsupportedType(EitherType::TypeDef(
+                "The type for this function is not a function tyupe definition".to_string(),
+            ))),
         }
     }
     fn copy_locals(&self, reader: FunctionBody) -> Result<Function> {
@@ -113,7 +113,7 @@ impl PeepholeMutator {
             let operatorscount = operators.len();
             let opcode_to_mutate = rnd.gen_range(0, operatorscount);
 
-            let locals = self.get_func_locals(&info, fidx + info.imported_functions_count /* the function type is shifted by the imported functions*/, &mut localsreader)?;
+            let locals = self.get_func_locals(info, fidx + info.imported_functions_count /* the function type is shifted by the imported functions*/, &mut localsreader)?;
 
             for oidx in (opcode_to_mutate..operatorscount).chain(0..opcode_to_mutate) {
                 let mut dfg = DFGBuilder::new();
@@ -134,7 +134,7 @@ impl PeepholeMutator {
 
                 match basicblock {
                     Some(basicblock) => {
-                        let minidfg = dfg.get_dfg(&info, &operators, &basicblock, &locals);
+                        let minidfg = dfg.get_dfg(info, &operators, &basicblock, &locals);
 
                         match minidfg {
                             None => {
@@ -376,7 +376,7 @@ pub(crate) trait CodeMutator {
     fn can_mutate<'a>(
         &self,
         config: &'a WasmMutate,
-        operators: &Vec<OperatorAndByteOffset<'a>>,
+        operators: &[OperatorAndByteOffset<'a>],
         at: usize,
     ) -> Result<bool>;
 
@@ -1604,7 +1604,7 @@ mod tests {
 
         let mutator = PeepholeMutator; // the string is empty
 
-        let mut info = ModuleInfo::new(original).unwrap();
+        let info = ModuleInfo::new(original).unwrap();
         let can_mutate = mutator.can_mutate(&wasmmutate, &info);
 
         let mut rnd = SmallRng::seed_from_u64(seed);
@@ -1612,7 +1612,7 @@ mod tests {
         assert_eq!(can_mutate, true);
 
         let mutated = mutator
-            .mutate_with_rules(&wasmmutate, &mut rnd, &mut info, rules)
+            .mutate_with_rules(&wasmmutate, &mut rnd, &info, rules)
             .unwrap();
 
         let mut validator = wasmparser::Validator::new();

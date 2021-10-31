@@ -86,25 +86,18 @@ impl MiniDFG {
         let mut colors = vec![];
         let mut worklist = vec![entry];
 
-        loop {
-            match worklist.pop() {
-                Some(entry) => {
-                    colors.push(entry.color);
+        while let Some(entry) = worklist.pop() {
+            colors.push(entry.color);
 
-                    entry.operands.iter().for_each(|i| {
-                        worklist.push(&self.entries[*i]);
-                    });
-                }
-                None => {
-                    break;
-                }
-            }
+            entry.operands.iter().for_each(|i| {
+                worklist.push(&self.entries[*i]);
+            });
         }
 
         // All nodes in the tree should have the same color
         colors
             .get(0)
-            .and_then(|&val| Some(colors.iter().all(|&x| x == val)))
+            .map(|&val| colors.iter().all(|&x| x == val))
             .or(Some(false))
             .unwrap()
     }
@@ -155,7 +148,7 @@ impl MiniDFG {
             builder: &mut String,
         ) {
             let entry = &minidfg.entries[entryidx];
-            builder.push_str(&format!("{}", &preffix));
+            builder.push_str(&(&preffix).to_string());
             let color = get_color(entry.color);
             builder.push_str(
                 format!(
@@ -174,7 +167,7 @@ impl MiniDFG {
                     let preffix = format!("{}{}", childrenpreffix, "├──");
                     let childrenpreffix = format!("{}{}", childrenpreffix, "│   ");
                     write_child(
-                        &minidfg,
+                        minidfg,
                         *op,
                         &preffix,
                         entryformatter,
@@ -185,7 +178,7 @@ impl MiniDFG {
                     let preffix = format!("{}{}", childrenpreffix, "└──");
                     let childrenpreffix = format!("{}{}", childrenpreffix, "    ");
                     write_child(
-                        &minidfg,
+                        minidfg,
                         *op,
                         &preffix,
                         entryformatter,
@@ -198,7 +191,7 @@ impl MiniDFG {
         // Get roots
         for (entryidx, idx) in self.parents.iter().enumerate() {
             if *idx == -1 {
-                write_child(&self, entryidx, &"", entryformatter, &"", &mut builder);
+                write_child(self, entryidx, "", entryformatter, "", &mut builder);
             }
         }
 
@@ -310,8 +303,7 @@ impl<'a> DFGBuilder {
     }
 
     fn pop_operand(&mut self, operator_idx: usize, insertindfg: bool) -> usize {
-        let idx = self
-            .stack
+        self.stack
             .pop()
             .or_else(|| {
                 // Since this represents the same for all
@@ -334,8 +326,7 @@ impl<'a> DFGBuilder {
                 self.parents.push(-1); // no parent yet
                 Some(entry_idx)
             })
-            .unwrap();
-        idx
+            .unwrap()
     }
 
     /// This method should build lane dfg information
@@ -388,7 +379,7 @@ impl<'a> DFGBuilder {
                                 idx,
                                 operands.clone(),
                                 color,
-                                if tpe.returns.len() == 0 {
+                                if tpe.returns.is_empty() {
                                     PrimitiveTypeInfo::Empty
                                 } else {
                                     tpe.returns[0].clone()

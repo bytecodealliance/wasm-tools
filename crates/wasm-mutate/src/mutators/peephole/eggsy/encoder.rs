@@ -40,7 +40,7 @@ impl Encoder {
     fn infer_types(
         info: &ModuleInfo,
         expr: &RecExpr<Lang>,
-        node_to_eclass: &Vec<Id>,
+        node_to_eclass: &[Id],
         egraph: &EG,
     ) -> crate::Result<Vec<Option<PrimitiveTypeInfo>>> {
         let nodes = expr.as_ref();
@@ -175,10 +175,10 @@ impl Encoder {
                         .or(types[usize::from(operands[1])].clone())
                         .or(gettpe(Id::from(idx))); // Last from collected info during Wasm2eterm translation
                                                     // Set the type for the children
-                    if let None = types[usize::from(operands[0])] {
+                    if types[usize::from(operands[0])].is_none() {
                         types[usize::from(operands[0])] = types[idx].clone();
                     }
-                    if let None = types[usize::from(operands[1])] {
+                    if types[usize::from(operands[1])].is_none() {
                         types[usize::from(operands[1])] = types[idx].clone();
                     }
                 }
@@ -216,10 +216,10 @@ impl Encoder {
                             .or(types[usize::from(operands[1])].clone())
                             .or(gettpe(Id::from(idx))); // Last from collected info during Wasm2eterm translation
                                                         // Set the type for the children
-                        if let None = types[usize::from(operands[0])] {
+                        if types[usize::from(operands[0])].is_none() {
                             types[usize::from(operands[0])] = types[idx].clone();
                         }
-                        if let None = types[usize::from(operands[1])] {
+                        if types[usize::from(operands[1])].is_none() {
                             types[usize::from(operands[1])] = types[idx].clone();
                         }
                     }
@@ -321,7 +321,7 @@ impl Encoder {
         info: &ModuleInfo,
         rnd: &mut rand::prelude::SmallRng,
         expr: &RecExpr<Lang>,
-        node_to_eclass: &Vec<Id>,
+        node_to_eclass: &[Id],
         newfunc: &mut Function,
         egraph: &EG,
     ) -> crate::Result<()> {
@@ -392,7 +392,7 @@ impl Encoder {
                         | Lang::GeS(operands)
                         | Lang::GeU(operands) => {
                             let operands = *operands;
-                            for (idx, operand) in operands.iter().enumerate().rev() {
+                            for (_idx, operand) in operands.iter().enumerate().rev() {
                                 // The type is one of the siblings
                                 worklist.push(Context::new(*operand, TraversalEvent::Exit));
                                 worklist.push(Context::new(*operand, TraversalEvent::Enter));
@@ -412,7 +412,7 @@ impl Encoder {
                         }
                         Lang::Call(operands) => {
                             // The first operand is always the helper Arg to identify the function
-                            for (idx, operand) in operands.iter().skip(1).enumerate().rev() {
+                            for (_idx, operand) in operands.iter().skip(1).enumerate().rev() {
                                 worklist.push(Context::new(*operand, TraversalEvent::Exit));
                                 worklist.push(Context::new(*operand, TraversalEvent::Enter));
                             }
@@ -428,7 +428,7 @@ impl Encoder {
                 TraversalEvent::Exit => {
                     let tpe = types[usize::from(context.current_node)].as_ref();
                     match rootlang {
-                        Lang::Add(operands) => match tpe.expect("Type information is needed") {
+                        Lang::Add(_operands) => match tpe.expect("Type information is needed") {
                             PrimitiveTypeInfo::I32 => {
                                 newfunc.instruction(&Instruction::I32Add);
                             }
@@ -437,7 +437,7 @@ impl Encoder {
                             }
                             _ => unreachable!("bad type"),
                         },
-                        Lang::Shl(operands) => match tpe.expect("Type information is needed") {
+                        Lang::Shl(_operands) => match tpe.expect("Type information is needed") {
                             PrimitiveTypeInfo::I32 => {
                                 newfunc.instruction(&Instruction::I32Shl);
                             }
@@ -446,7 +446,7 @@ impl Encoder {
                             }
                             _ => unreachable!("bad type"),
                         },
-                        Lang::ShrU(operands) => match tpe.expect("Type information is needed") {
+                        Lang::ShrU(_operands) => match tpe.expect("Type information is needed") {
                             PrimitiveTypeInfo::I32 => {
                                 newfunc.instruction(&Instruction::I32ShrU);
                             }
@@ -455,7 +455,7 @@ impl Encoder {
                             }
                             _ => unreachable!("bad type"),
                         },
-                        Lang::Sub(operands) => match tpe.expect("Type information is needed") {
+                        Lang::Sub(_operands) => match tpe.expect("Type information is needed") {
                             PrimitiveTypeInfo::I32 => {
                                 newfunc.instruction(&Instruction::I32Sub);
                             }
@@ -464,7 +464,7 @@ impl Encoder {
                             }
                             _ => unreachable!("bad type"),
                         },
-                        Lang::Mul(operands) => match tpe.expect("Type information is needed") {
+                        Lang::Mul(_operands) => match tpe.expect("Type information is needed") {
                             PrimitiveTypeInfo::I32 => {
                                 newfunc.instruction(&Instruction::I32Mul);
                             }
@@ -473,7 +473,7 @@ impl Encoder {
                             }
                             _ => unreachable!("bad type"),
                         },
-                        Lang::And(operands) => match tpe.expect("Type information is needed") {
+                        Lang::And(_operands) => match tpe.expect("Type information is needed") {
                             PrimitiveTypeInfo::I32 => {
                                 newfunc.instruction(&Instruction::I32And);
                             }
@@ -482,7 +482,7 @@ impl Encoder {
                             }
                             _ => unreachable!("bad type"),
                         },
-                        Lang::Or(operands) => match tpe.expect("Type information is needed") {
+                        Lang::Or(_operands) => match tpe.expect("Type information is needed") {
                             PrimitiveTypeInfo::I32 => {
                                 newfunc.instruction(&Instruction::I32Or);
                             }
@@ -491,7 +491,7 @@ impl Encoder {
                             }
                             _ => unreachable!("bad type"),
                         },
-                        Lang::Xor(operands) => match tpe.expect("Type information is needed") {
+                        Lang::Xor(_operands) => match tpe.expect("Type information is needed") {
                             PrimitiveTypeInfo::I32 => {
                                 newfunc.instruction(&Instruction::I32Xor);
                             }
@@ -500,7 +500,7 @@ impl Encoder {
                             }
                             _ => unreachable!("bad type"),
                         },
-                        Lang::ShrS(operands) => match tpe.expect("Type information is needed") {
+                        Lang::ShrS(_operands) => match tpe.expect("Type information is needed") {
                             PrimitiveTypeInfo::I32 => {
                                 newfunc.instruction(&Instruction::I32ShrS);
                             }
@@ -509,7 +509,7 @@ impl Encoder {
                             }
                             _ => unreachable!("bad type"),
                         },
-                        Lang::DivS(operands) => match tpe.expect("Type information is needed") {
+                        Lang::DivS(_operands) => match tpe.expect("Type information is needed") {
                             PrimitiveTypeInfo::I32 => {
                                 newfunc.instruction(&Instruction::I32DivS);
                             }
@@ -518,7 +518,7 @@ impl Encoder {
                             }
                             _ => unreachable!("bad type"),
                         },
-                        Lang::DivU(operands) => match tpe.expect("Type information is needed") {
+                        Lang::DivU(_operands) => match tpe.expect("Type information is needed") {
                             PrimitiveTypeInfo::I32 => {
                                 newfunc.instruction(&Instruction::I32DivU);
                             }
@@ -527,7 +527,7 @@ impl Encoder {
                             }
                             _ => unreachable!("bad type"),
                         },
-                        Lang::RotR(operands) => match tpe.expect("Type information is needed") {
+                        Lang::RotR(_operands) => match tpe.expect("Type information is needed") {
                             PrimitiveTypeInfo::I32 => {
                                 newfunc.instruction(&Instruction::I32Rotr);
                             }
@@ -536,7 +536,7 @@ impl Encoder {
                             }
                             _ => unreachable!("bad type"),
                         },
-                        Lang::RotL(operands) => match tpe.expect("Type information is needed") {
+                        Lang::RotL(_operands) => match tpe.expect("Type information is needed") {
                             PrimitiveTypeInfo::I32 => {
                                 newfunc.instruction(&Instruction::I32Rotl);
                             }
@@ -905,9 +905,11 @@ impl Encoder {
                             let entry = &egraph
                                 .analysis
                                 .get_stack_entry_from_symbol(s.to_string())
-                                .ok_or(crate::Error::UnsupportedType(EitherType::EggError(
-                                    "The current symbol cannot be retrieved".into(),
-                                )))?;
+                                .ok_or_else(|| {
+                                    crate::Error::UnsupportedType(EitherType::EggError(
+                                        "The current symbol cannot be retrieved".into(),
+                                    ))
+                                })?;
 
                             match entry.operator {
                                 StackType::LocalGet(idx) => {
@@ -943,7 +945,7 @@ impl Encoder {
         info: &ModuleInfo,
         egraph: &EG,
         entry: &StackEntry,
-        operators: &Vec<OperatorAndByteOffset>,
+        operators: &[OperatorAndByteOffset],
         newfunc: &mut Function,
     ) -> crate::Result<()> {
         let mut worklist = vec![
@@ -1041,8 +1043,8 @@ impl Encoder {
         rnd: &mut rand::prelude::SmallRng,
         insertion_point: usize,
         expr: &RecExpr<Lang>,
-        node_to_eclass: &Vec<Id>,
-        operators: &Vec<OperatorAndByteOffset>,
+        node_to_eclass: &[Id],
+        operators: &[OperatorAndByteOffset],
         basicblock: &BBlock, // move to the analysis
         newfunc: &mut Function,
         egraph: &EG,
@@ -1065,7 +1067,7 @@ impl Encoder {
                     Encoder::expr2wasm(info, rnd, expr, node_to_eclass, newfunc, egraph)?;
                 } else {
                     // Copy the stack entry as it is
-                    Encoder::writestackentry(info, &egraph, entry, operators, newfunc)?;
+                    Encoder::writestackentry(info, egraph, entry, operators, newfunc)?;
                 }
             }
         }
@@ -1090,7 +1092,7 @@ impl Encoder {
     pub fn wasm2expr(
         dfg: &MiniDFG,
         oidx: usize,
-        operators: &Vec<OperatorAndByteOffset>,
+        operators: &[OperatorAndByteOffset],
         // The wasm expressions will be added here
         expr: &mut RecExpr<Lang>, // Replace this by RecExpr
     ) -> crate::Result<HashMap<Lang, (Id, Vec<usize>)>> {
@@ -1470,8 +1472,8 @@ impl Encoder {
     /// Build RecExpr from tree information
     pub fn build_expr(
         root: Id,
-        id_to_node: &Vec<(&Lang, Id)>,
-        operands: &Vec<Vec<Id>>,
+        id_to_node: &[(&Lang, Id)],
+        operands: &[Vec<Id>],
     ) -> (RecExpr<Lang>, Vec<Id>) {
         let mut expr = RecExpr::default();
 
@@ -1534,9 +1536,9 @@ impl Encoder {
                         Lang::ExtendI32S(_) => expr.add(Lang::ExtendI32S([operand(0)])),
                         Lang::ExtendI32U(_) => expr.add(Lang::ExtendI32U([operand(0)])),
                         Lang::Popcnt(_) => expr.add(Lang::Popcnt([operand(0)])),
-                        Lang::Call(op) => expr.add(Lang::Call(
-                            (0..op.len()).map(|id| operand(id)).collect::<Vec<Id>>(),
-                        )),
+                        Lang::Call(op) => {
+                            expr.add(Lang::Call((0..op.len()).map(operand).collect::<Vec<Id>>()))
+                        }
                         Lang::Tee(_) => expr.add(Lang::Tee([operand(0)])),
                         Lang::Unfold(_) => expr.add(Lang::Unfold(operand(0))),
                         Lang::ILoad(_) => expr.add(Lang::ILoad([

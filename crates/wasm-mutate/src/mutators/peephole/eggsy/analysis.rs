@@ -38,7 +38,7 @@ impl PeepholeMutationAnalysis {
     pub fn get_stack_entry_from_symbol(&self, symbol: String) -> Option<&StackEntry> {
         self.lang_to_stack_entries
             .get(&Lang::Symbol(symbol.into()))
-            .and_then(|(_, entries)| entries.get(0).and_then(|&x| Some(&self.minidfg.entries[x])))
+            .and_then(|(_, entries)| entries.get(0).map(|&x| &self.minidfg.entries[x]))
     }
     /// Return the parental relations in the DFG
     pub fn get_roots(&self) -> &Vec<i32> {
@@ -84,7 +84,7 @@ impl Analysis<Lang> for PeepholeMutationAnalysis {
         // The node id to stack is consistent then with the order in which this method is call
         if egraph.analysis.lang_to_stack_entries.contains_key(l) {
             Some(ClassData {
-                eclass_and_stackentries: egraph.analysis.lang_to_stack_entries[&l].clone(),
+                eclass_and_stackentries: egraph.analysis.lang_to_stack_entries[l].clone(),
                 current_entry: 0,
             })
         } else {
