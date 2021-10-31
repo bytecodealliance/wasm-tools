@@ -13,6 +13,13 @@ pub enum PrimitiveTypeInfo {
     F64,
     Empty,
 }
+
+impl PartialEq for PrimitiveTypeInfo {
+    fn eq(&self, other: &Self) -> bool {
+        self == other
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct FuncInfo {
     pub params: Vec<PrimitiveTypeInfo>,

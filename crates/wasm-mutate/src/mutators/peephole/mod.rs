@@ -693,6 +693,48 @@ mod tests {
     }
 
     #[test]
+    fn test_peep_wrap() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("strength-undo";  "?x" => "(add ?x 0)")];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func") (result i32) (local i64)
+                local.get 0
+                i64.const 0
+                i64.shl
+                i32.wrap_i64
+                i32.const -441701230
+                i32.const 441701230
+                i32.add
+                i32.add
+            )
+        )
+        "#,
+            rules,
+            r#"
+            (module
+                (type (;0;) (func (result i32) ))
+                (func (;0;) (type 0) (result i32)
+                    (local i64)
+                    local.get 0
+                    i64.const 0
+                    i64.shl
+                    i32.wrap_i64
+                    i32.const -441701230
+                    i32.const 441701230
+                    i32.add
+                    i32.add
+                    i32.const 0
+                    i32.add)
+              (export "exported_func" (func 0)))
+            "#,
+            0,
+        );
+    }
+
+    #[test]
     fn test_peep_irelop1() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
             &[rewrite!("strength-undo";  "(eqz ?x)" => "(eq ?x 0)")];
