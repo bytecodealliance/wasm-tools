@@ -396,7 +396,7 @@ impl Encoder {
                         | Lang::RemS(operands)
                         | Lang::RemU(operands) => {
                             let operands = *operands;
-                            for (_, operand) in operands.iter().enumerate().rev() {
+                            for operand in operands.iter().rev() {
                                 worklist.push(Context::new(*operand, TraversalEvent::Exit));
                                 worklist.push(Context::new(*operand, TraversalEvent::Enter));
                             }
@@ -412,7 +412,7 @@ impl Encoder {
                         | Lang::GeS(operands)
                         | Lang::GeU(operands) => {
                             let operands = *operands;
-                            for (_idx, operand) in operands.iter().enumerate().rev() {
+                            for operand in operands.iter().rev() {
                                 // The type is one of the siblings
                                 worklist.push(Context::new(*operand, TraversalEvent::Exit));
                                 worklist.push(Context::new(*operand, TraversalEvent::Enter));
@@ -432,7 +432,7 @@ impl Encoder {
                         }
                         Lang::Call(operands) => {
                             // The first operand is always the helper Arg to identify the function
-                            for (_idx, operand) in operands.iter().skip(1).enumerate().rev() {
+                            for operand in operands.iter().skip(1).rev() {
                                 worklist.push(Context::new(*operand, TraversalEvent::Exit));
                                 worklist.push(Context::new(*operand, TraversalEvent::Enter));
                             }
