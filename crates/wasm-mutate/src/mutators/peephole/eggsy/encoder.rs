@@ -1,4 +1,5 @@
 //! Helper methods for encoding eterm expressions to Wasm and back
+use std::cell::RefCell;
 use std::{collections::HashMap, num::Wrapping};
 
 use egg::{Id, RecExpr};
@@ -55,25 +56,43 @@ impl Encoder {
             Some(entry.return_type.clone())
         };
 
-        // types will contain the return type of the instruction, notice that for irelops the type returnin is always i32,
-        // however when the operator is encoded, the instruction type depends on the type of the operands
-        let mut types = nodes
+        let types = nodes
             .iter()
             .map(|_| None)
             .collect::<Vec<Option<PrimitiveTypeInfo>>>();
-        let mut previous_pass = Vec::new();
+        let types = RefCell::new(types);
+        let changed = false;
+        let changed = RefCell::new(changed);
 
+        let get = |index| -> Option<PrimitiveTypeInfo> {
+            let types = types.borrow();
+            let item: &Option<PrimitiveTypeInfo> = &types[index];
+            item.clone()
+        };
+
+        let update = |index, ty| {
+            let mut types = types.borrow_mut();
+            let entry: &Option<PrimitiveTypeInfo> = &types[index];
+            if entry.is_none() {
+                types[index] = ty;
+                *changed.borrow_mut() = true;
+            } else {
+                // reset the fixed point state
+                *changed.borrow_mut() = false;
+                assert_eq!(*entry, ty);
+            }
+        };
         // First pass set type for known nodes (we know the type returning of the operator and the operand)
         // functions, wrap, loads, symbols and extend returns
         for (idx, node) in nodes.iter().enumerate() {
             match node {
                 Lang::Wrap(operands) => {
-                    types[idx] = Some(PrimitiveTypeInfo::I32);
-                    types[usize::from(operands[0])] = Some(PrimitiveTypeInfo::I64)
+                    update(idx, Some(PrimitiveTypeInfo::I32));
+                    update(usize::from(operands[0]), Some(PrimitiveTypeInfo::I64));
                 }
                 Lang::ILoad(operands) => {
-                    types[idx] = gettpe(Id::from(idx));
-                    types[usize::from(operands[0])] = Some(PrimitiveTypeInfo::I32)
+                    update(idx, gettpe(Id::from(idx)));
+                    update(usize::from(operands[0]), Some(PrimitiveTypeInfo::I32));
                 }
                 Lang::Symbol(s) => {
                     let entry = egraph
@@ -84,14 +103,13 @@ impl Encoder {
                         )))
                         .unwrap();
 
-                    types[idx] = Some(entry.return_type.clone());
+                    update(idx, Some(entry.return_type.clone()));
                 }
                 Lang::Extend8S(_) => {
-                    // Its type is encoded from the previous wasm2term translation
-                    types[idx] = gettpe(Id::from(idx));
+                    update(idx, gettpe(Id::from(idx)));
                 }
                 Lang::Extend16S(_) => {
-                    types[idx] = gettpe(Id::from(idx));
+                    update(idx, gettpe(Id::from(idx)));
                 }
                 Lang::Call(operands) => {
                     let first = operands[0];
@@ -109,27 +127,26 @@ impl Encoder {
                     if let crate::module::TypeInfo::Func(tpe) = typeinfo {
                         // Set the type for the operands
                         for (idx, operand) in operands[1..].iter().enumerate() {
-                            types[usize::from(*operand)] = Some(tpe.params[idx].clone())
+                            update(usize::from(*operand), Some(tpe.params[idx].clone()))
                         }
 
                         // set return type of the Call
                         // Set the first operands only, mltiple return values
                         // is not yet allowed by wasm-mutate
-                        types[idx] = Some(tpe.returns[0].clone());
+                        update(idx, Some(tpe.returns[0].clone()));
                     }
                 }
                 Lang::Extend32S(operands) => {
-                    types[idx] = gettpe(Id::from(idx));
-                    // The child should have type I64
-                    types[usize::from(operands[0])] = Some(PrimitiveTypeInfo::I64)
+                    update(idx, gettpe(Id::from(idx)));
+                    update(usize::from(operands[0]), Some(PrimitiveTypeInfo::I64));
                 }
                 Lang::ExtendI32S(operands) | Lang::ExtendI32U(operands) => {
-                    types[idx] = gettpe(Id::from(idx));
-                    // The child should have type I64
-                    types[usize::from(operands[0])] = Some(PrimitiveTypeInfo::I32)
+                    update(idx, gettpe(Id::from(idx)));
+                    update(usize::from(operands[0]), Some(PrimitiveTypeInfo::I32));
                 }
                 Lang::Tee(operands) => {
-                    types[idx] = types[usize::from(operands[0])].clone();
+                    let child = get(usize::from(operands[0])).clone();
+                    update(idx, child);
                 }
                 Lang::Eqz(_)
                 | Lang::LtS(_)
@@ -143,11 +160,12 @@ impl Encoder {
                 | Lang::Ne(_)
                 | Lang::GeU(_) => {
                     // It always return i32
-                    types[idx] = Some(PrimitiveTypeInfo::I32)
+                    update(idx, Some(PrimitiveTypeInfo::I32));
                 }
-                _ => {
-                    // Do nothing
+                Lang::Drop => {
+                    update(idx, Some(PrimitiveTypeInfo::Empty));
                 }
+                _ => {}
             }
         }
 
@@ -170,18 +188,15 @@ impl Encoder {
                 | Lang::Shl(operands)
                 | Lang::Add(operands) => {
                     // first check if its fixed
-                    types[idx] = types[idx]
-                        .clone()
-                        .or(types[usize::from(operands[0])].clone())
-                        .or(types[usize::from(operands[1])].clone())
-                        .or(gettpe(Id::from(idx))); // Last from collected info during Wasm2eterm translation
-                                                    // Set the type for the children
-                    if types[usize::from(operands[0])].is_none() {
-                        types[usize::from(operands[0])] = types[idx].clone();
-                    }
-                    if types[usize::from(operands[1])].is_none() {
-                        types[usize::from(operands[1])] = types[idx].clone();
-                    }
+                    update(
+                        idx,
+                        get(idx).or(get(usize::from(operands[0]).clone())
+                            .or(get(usize::from(operands[1])).clone())
+                            .or(gettpe(Id::from(idx)))),
+                    );
+                    // Set the type for the children
+                    update(usize::from(operands[0]), get(idx));
+                    update(usize::from(operands[1]), get(idx));
                 }
 
                 _ => {
@@ -191,8 +206,6 @@ impl Encoder {
         }
         // Last pass, remaining nodes
         loop {
-            // Types propagation, first level of operators
-            previous_pass = types.clone();
             for (idx, node) in nodes.iter().enumerate() {
                 match node {
                     Lang::Sub(operands)
@@ -211,26 +224,23 @@ impl Encoder {
                     | Lang::Shl(operands)
                     | Lang::Add(operands) => {
                         // first check if its fixed
-                        types[idx] = types[idx]
-                            .clone()
-                            .or(types[usize::from(operands[0])].clone())
-                            .or(types[usize::from(operands[1])].clone())
-                            .or(gettpe(Id::from(idx))); // Last from collected info during Wasm2eterm translation
-                                                        // Set the type for the children
-                        if types[usize::from(operands[0])].is_none() {
-                            types[usize::from(operands[0])] = types[idx].clone();
-                        }
-                        if types[usize::from(operands[1])].is_none() {
-                            types[usize::from(operands[1])] = types[idx].clone();
-                        }
+                        update(
+                            idx,
+                            get(idx)
+                                .or(get(usize::from(operands[0])))
+                                .or(get(usize::from(operands[1])))
+                                .or(gettpe(Id::from(idx))),
+                        );
+                        update(usize::from(operands[0]), get(idx));
+                        update(usize::from(operands[1]), get(idx));
                     }
                     Lang::Wrap(operands) => {
-                        types[idx] = Some(PrimitiveTypeInfo::I32);
-                        types[usize::from(operands[0])] = Some(PrimitiveTypeInfo::I64)
+                        update(idx, Some(PrimitiveTypeInfo::I32));
+                        update(usize::from(operands[0]), Some(PrimitiveTypeInfo::I64))
                     }
                     Lang::ILoad(operands) => {
-                        types[idx] = gettpe(Id::from(idx));
-                        types[usize::from(operands[0])] = Some(PrimitiveTypeInfo::I32)
+                        update(idx, gettpe(Id::from(idx)));
+                        update(usize::from(operands[0]), Some(PrimitiveTypeInfo::I32))
                     }
                     Lang::Symbol(s) => {
                         let entry = egraph
@@ -241,22 +251,24 @@ impl Encoder {
                             )))
                             .unwrap();
 
-                        types[idx] = Some(entry.return_type.clone());
+                        update(idx, Some(entry.return_type.clone()));
                     }
                     Lang::Eqz(operands) => {
-                        let encoding_tpe = types[usize::from(operands[0])].clone();
+                        let encoding_tpe = get(usize::from(operands[0]));
                         // Set the type for the children
-                        types[usize::from(operands[0])] =
-                            types[usize::from(operands[0])].clone().or(encoding_tpe);
+                        update(
+                            usize::from(operands[0]),
+                            get(usize::from(operands[0])).or(encoding_tpe),
+                        );
                     }
                     Lang::Tee(operands) => {
-                        let encoding_tpe = types[usize::from(operands[0])]
-                            .clone()
-                            .or(gettpe(Id::from(idx)));
+                        let encoding_tpe = get(usize::from(operands[0])).or(gettpe(Id::from(idx)));
+
                         // Only set if its unset
-                        types[usize::from(operands[0])] = types[usize::from(operands[0])]
-                            .clone()
-                            .or(encoding_tpe.clone());
+                        update(
+                            usize::from(operands[0]),
+                            get(usize::from(operands[0])).or(encoding_tpe),
+                        );
                     }
                     Lang::LtS(operands)
                     | Lang::LtU(operands)
@@ -269,33 +281,40 @@ impl Encoder {
                     | Lang::Ne(operands)
                     | Lang::GeU(operands) => {
                         // first check if its fixed
-                        let encoding_tpe = types[usize::from(operands[0])]
-                            .clone()
-                            .or(types[usize::from(operands[1])].clone()); // Last from collected info during Wasm2eterm translation
-                                                                          // Set the type for the children
-                        types[usize::from(operands[1])] = types[usize::from(operands[1])]
-                            .clone()
-                            .or(encoding_tpe.clone());
-                        types[usize::from(operands[0])] =
-                            types[usize::from(operands[0])].clone().or(encoding_tpe);
+                        let encoding_tpe =
+                            get(usize::from(operands[0])).or(get(usize::from(operands[1]))); // Last from collected info during Wasm2eterm translation
+                                                                                             // Set the type for the children
+                        update(
+                            usize::from(operands[1]),
+                            get(usize::from(operands[1])).or(encoding_tpe.clone()),
+                        );
+                        update(
+                            usize::from(operands[0]),
+                            get(usize::from(operands[0])).or(encoding_tpe.clone()),
+                        );
                     }
                     Lang::Popcnt(operands) => {
                         // if its not inferred from the parent, then is the type of the children
-                        types[idx] = types[idx]
-                            .clone()
-                            .or(types[usize::from(operands[0])].clone())
-                            .or(gettpe(Id::from(idx)));
+                        update(
+                            idx,
+                            get(idx)
+                                .clone()
+                                .or(get(usize::from(operands[0])))
+                                .or(gettpe(Id::from(idx))),
+                        );
                     }
                     Lang::Unfold(operand) => {
                         // if its not inferred from the parent, then is the type of the children
-                        types[idx] = types[idx]
-                            .clone()
-                            .or(types[usize::from(*operand)].clone())
-                            .or(gettpe(Id::from(idx)));
+                        update(
+                            idx,
+                            get(idx)
+                                .or(get(usize::from(*operand)))
+                                .or(gettpe(Id::from(idx))),
+                        );
                     }
                     Lang::Num(_) => {
                         // If it is not set, then take the information from the egraph
-                        types[idx] = types[idx].clone().or(gettpe(Id::from(idx)));
+                        update(idx, get(idx).or(gettpe(Id::from(idx))));
                     }
                     Lang::Arg(_)
                     | Lang::Drop
@@ -309,13 +328,13 @@ impl Encoder {
                     | Lang::Call(_) => {}
                 }
             }
-            // TODO, check a better wway to check if the type inferring converge
-            if format!("{:?}", previous_pass) == format!("{:?}", types) {
+            if !*changed.borrow() {
                 break;
             }
         }
 
-        Ok(types)
+        let r = &*types.borrow();
+        Ok(r.clone())
     }
 
     pub(crate) fn expr2wasm(

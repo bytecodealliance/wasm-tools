@@ -5,19 +5,13 @@ use wasmparser::{Type, TypeDef};
 
 use crate::error::EitherType;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum PrimitiveTypeInfo {
     I32,
     I64,
     F32,
     F64,
     Empty,
-}
-
-impl PartialEq for PrimitiveTypeInfo {
-    fn eq(&self, other: &Self) -> bool {
-        self == other
-    }
 }
 
 #[derive(Debug, Clone)]
