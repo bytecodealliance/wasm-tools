@@ -28,8 +28,9 @@ enum TraversalEvent {
 }
 
 impl Encoder {
-    /// Infers types for the rewriting egraph tree
-    /// During the translation from Wasm to the egraph some type information is missin
+    /// Infers types for the rewriting egraph tree.
+    ///
+    /// During the translation from Wasm to the egraph some type information is missing.
     /// However, it can be inferred by the type relations between the nodes, for example
     /// for `i32.wrap_i64` operator, we always know that it returns an i32 constant and waits
     /// for the operand to be an i64 integer. This information could be propagated to the other
