@@ -1,5 +1,5 @@
 //! Helper methods for encoding eterm expressions to Wasm and back
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::{collections::HashMap, num::Wrapping};
 
 use egg::{Id, RecExpr};
@@ -46,7 +46,6 @@ impl Encoder {
         egraph: &EG,
     ) -> crate::Result<Vec<Option<PrimitiveTypeInfo>>> {
         let nodes = expr.as_ref();
-
         let gettpe = |id: Id| {
             let eclass = node_to_eclass[usize::from(id)];
             let data = &egraph[eclass].data;
@@ -62,23 +61,20 @@ impl Encoder {
             .collect::<Vec<Option<PrimitiveTypeInfo>>>();
         let types = RefCell::new(types);
         let changed = false;
-        let changed = RefCell::new(changed);
+        let changed = Cell::new(changed);
 
-        let get = |index| -> Option<PrimitiveTypeInfo> {
+        let get = |index: usize| {
             let types = types.borrow();
-            let item: &Option<PrimitiveTypeInfo> = &types[index];
-            item.clone()
+            types[index].clone()
         };
 
-        let update = |index, ty| {
+        let update = |index, ty: Option<PrimitiveTypeInfo>| {
             let mut types = types.borrow_mut();
             let entry: &Option<PrimitiveTypeInfo> = &types[index];
-            if entry.is_none() {
+            if entry.is_none() && ty.is_some() {
                 types[index] = ty;
-                *changed.borrow_mut() = true;
+                changed.set(true);
             } else {
-                // reset the fixed point state
-                *changed.borrow_mut() = false;
                 assert_eq!(*entry, ty);
             }
         };
@@ -187,7 +183,6 @@ impl Encoder {
                 | Lang::RemU(operands)
                 | Lang::Shl(operands)
                 | Lang::Add(operands) => {
-                    // first check if its fixed
                     update(
                         idx,
                         get(idx).or(get(usize::from(operands[0]).clone())
@@ -206,6 +201,9 @@ impl Encoder {
         }
         // Last pass, remaining nodes
         loop {
+            // reset the fixed point state
+            changed.set(false);
+
             for (idx, node) in nodes.iter().enumerate() {
                 match node {
                     Lang::Sub(operands)
@@ -223,7 +221,6 @@ impl Encoder {
                     | Lang::RemU(operands)
                     | Lang::Shl(operands)
                     | Lang::Add(operands) => {
-                        // first check if its fixed
                         update(
                             idx,
                             get(idx)
@@ -263,8 +260,6 @@ impl Encoder {
                     }
                     Lang::Tee(operands) => {
                         let encoding_tpe = get(usize::from(operands[0])).or(gettpe(Id::from(idx)));
-
-                        // Only set if its unset
                         update(
                             usize::from(operands[0]),
                             get(usize::from(operands[0])).or(encoding_tpe),
@@ -280,7 +275,6 @@ impl Encoder {
                     | Lang::Eq(operands)
                     | Lang::Ne(operands)
                     | Lang::GeU(operands) => {
-                        // first check if its fixed
                         let encoding_tpe =
                             get(usize::from(operands[0])).or(get(usize::from(operands[1]))); // Last from collected info during Wasm2eterm translation
                                                                                              // Set the type for the children
@@ -328,7 +322,7 @@ impl Encoder {
                     | Lang::Call(_) => {}
                 }
             }
-            if !*changed.borrow() {
+            if !changed.get() {
                 break;
             }
         }
