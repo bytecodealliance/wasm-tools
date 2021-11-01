@@ -52,7 +52,7 @@ impl<'a> ModuleInfo<'a> {
         info.input_wasm = wasm;
 
         loop {
-            let (payload, consumed) = match parser.parse(&wasm, true)? {
+            let (payload, consumed) = match parser.parse(wasm, true)? {
                 Chunk::NeedMoreData(hint) => {
                     panic!("Invalid Wasm module {:?}", hint);
                 }
@@ -79,10 +79,9 @@ impl<'a> ModuleInfo<'a> {
 
                     // Save function types
                     for _ in 0..reader.get_count() {
-                        reader.read().and_then(|ty| {
+                        reader.read().map(|ty| {
                             let typeinfo = TypeInfo::try_from(ty).unwrap();
                             info.types_map.push(typeinfo);
-                            Ok(())
                         })?;
                     }
                 }
@@ -91,7 +90,7 @@ impl<'a> ModuleInfo<'a> {
                     info.section(SectionId::Import.into(), reader.range(), input_wasm);
 
                     for _ in 0..reader.get_count() {
-                        reader.read().and_then(|ty| {
+                        reader.read().map(|ty| {
                             match ty.ty {
                                 wasmparser::ImportSectionEntryType::Function(ty) => {
                                     // Save imported functions
@@ -106,7 +105,6 @@ impl<'a> ModuleInfo<'a> {
                                     // Do nothing
                                 }
                             }
-                            Ok(())
                         })?;
                     }
                 }
@@ -115,9 +113,8 @@ impl<'a> ModuleInfo<'a> {
                     info.section(SectionId::Function.into(), reader.range(), input_wasm);
 
                     for _ in 0..reader.get_count() {
-                        reader.read().and_then(|ty| {
+                        reader.read().map(|ty| {
                             info.function_map.push(ty);
-                            Ok(())
                         })?;
                     }
                 }
@@ -134,11 +131,10 @@ impl<'a> ModuleInfo<'a> {
                     info.section(SectionId::Global.into(), reader.range(), input_wasm);
 
                     for _ in 0..reader.get_count() {
-                        reader.read().and_then(|ty| {
+                        reader.read().map(|ty| {
                             // We only need the type of the global, not necesarily if is mutable or not
                             let ty = PrimitiveTypeInfo::try_from(ty.ty.content_type).unwrap();
                             info.global_types.push(ty);
-                            Ok(())
                         })?;
                     }
                 }
@@ -210,11 +206,11 @@ impl<'a> ModuleInfo<'a> {
     }
 
     pub fn get_code_section(&self) -> RawSection {
-        return self.raw_sections[self.code.unwrap()];
+        self.raw_sections[self.code.unwrap()]
     }
 
     pub fn get_exports_section(&self) -> &RawSection {
-        return &self.raw_sections[self.exports.unwrap()];
+        &self.raw_sections[self.exports.unwrap()]
     }
 
     pub fn has_exports(&self) -> bool {

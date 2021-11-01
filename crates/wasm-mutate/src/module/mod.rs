@@ -5,7 +5,7 @@ use wasmparser::{Type, TypeDef};
 
 use crate::error::EitherType;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum PrimitiveTypeInfo {
     I32,
     I64,
@@ -13,6 +13,7 @@ pub enum PrimitiveTypeInfo {
     F64,
     Empty,
 }
+
 #[derive(Debug, Clone)]
 pub struct FuncInfo {
     pub params: Vec<PrimitiveTypeInfo>,
