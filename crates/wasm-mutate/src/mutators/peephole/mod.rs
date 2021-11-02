@@ -25,7 +25,7 @@ static NUM_SUCCESSFUL_MUTATIONS: AtomicU64 = AtomicU64::new(0);
 
 use self::{dfg::DFGBuilder, eggsy::RandomExtractor};
 
-use super::Mutator;
+use super::{Mutator, OperatorAndByteOffset};
 
 pub mod dfg;
 pub mod eggsy;
@@ -37,8 +37,6 @@ type EG = egg::EGraph<Lang, PeepholeMutationAnalysis>;
 // Code mutator, function id, operator id
 type MutationContext = (Function, u32);
 
-// Helper type to return operator and ofsset inside the byte stream
-type OperatorAndByteOffset<'a> = (Operator<'a>, usize);
 impl PeepholeMutator {
     // Collect and unfold params and locals, [x, ty, y, ty2] -> [ty....ty, ty2...ty2]
     fn get_func_locals(

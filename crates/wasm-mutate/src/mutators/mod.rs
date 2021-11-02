@@ -1,6 +1,7 @@
 //! Mutator trait
 use rand::prelude::SmallRng;
 use wasm_encoder::Module;
+use wasmparser::Operator;
 
 use super::Result;
 use crate::{ModuleInfo, WasmMutate};
@@ -24,11 +25,15 @@ pub trait Mutator {
     }
 }
 
+// Helper type to return operator and ofsset inside the byte stream
+pub type OperatorAndByteOffset<'a> = (Operator<'a>, usize);
+
 pub(crate) mod function_body_unreachable;
 pub(crate) mod peephole;
 pub(crate) mod remove_export;
 pub(crate) mod rename_export;
 pub(crate) mod snip_function;
+pub(crate) mod codemotion;
 
 #[cfg(test)]
 pub(crate) fn match_mutation(original: &str, mutator: &dyn Mutator, expected: &str) {

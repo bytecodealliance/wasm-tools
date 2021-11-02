@@ -6,6 +6,7 @@ use egg::{Id, RecExpr};
 use rand::Rng;
 use wasm_encoder::{Function, Instruction, MemArg};
 use wasmparser::Operator;
+use crate::mutators::OperatorAndByteOffset;
 
 use crate::module::PrimitiveTypeInfo;
 use crate::mutators::peephole::dfg::StackType;
@@ -14,7 +15,6 @@ use crate::{
     error::EitherType,
     mutators::peephole::{
         dfg::{BBlock, MiniDFG, StackEntry},
-        OperatorAndByteOffset,
     },
     ModuleInfo,
 };

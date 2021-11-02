@@ -4,8 +4,8 @@ use wasmparser::{Operator, Range};
 
 use crate::{module::PrimitiveTypeInfo, ModuleInfo};
 
-use super::OperatorAndByteOffset;
 
+use crate::mutators::OperatorAndByteOffset;
 /// It executes a minimal symbolic evaluation of the stack to detect operands location in the code for certain operators
 /// For example, i.add operator should know who are its operands
 pub struct DFGBuilder {
@@ -763,8 +763,9 @@ impl std::fmt::Display for MiniDFG {
 
 #[cfg(test)]
 mod tests {
+    use crate::mutators::OperatorAndByteOffset;
     use super::DFGBuilder;
-    use crate::{module::PrimitiveTypeInfo, mutators::peephole::OperatorAndByteOffset, ModuleInfo};
+    use crate::{module::PrimitiveTypeInfo, ModuleInfo};
     use wasmparser::Parser;
 
     #[test]
