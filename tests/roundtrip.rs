@@ -29,6 +29,7 @@ use std::path::{Path, PathBuf};
 use std::str;
 use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 use wasmparser::*;
+use wast::lexer::Lexer;
 use wast::parser::ParseBuffer;
 use wast::*;
 
@@ -246,7 +247,9 @@ impl TestState {
                 e
             }};
         }
-        let buf = ParseBuffer::new(contents).map_err(|e| adjust!(e))?;
+        let mut lexer = Lexer::new(contents);
+        lexer.allow_confusing_unicode(test.ends_with("names.wast"));
+        let buf = ParseBuffer::new_with_lexer(lexer).map_err(|e| adjust!(e))?;
         let wast = parser::parse::<Wast>(&buf).map_err(|e| adjust!(e))?;
         self.bump_ntests();
 
