@@ -1,1 +1,1 @@
-tests/parse-fail/newline-in-string.wat text eol=lf
+parse-fail/newline-in-string.wat text eol=lf
