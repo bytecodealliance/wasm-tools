@@ -40,6 +40,7 @@ use std::str;
 pub struct Lexer<'a> {
     it: iter::Peekable<str::CharIndices<'a>>,
     input: &'a str,
+    allow_confusing_unicode: bool,
 }
 
 /// A fragment of source lex'd from an input string.
@@ -140,6 +141,13 @@ pub enum LexError {
     /// should always be preceded and succeeded with a digit of some form.
     LoneUnderscore,
 
+    /// A "confusing" unicode character is present in a comment or a string
+    /// literal, such as a character that changes the direction text is
+    /// typically displayed in editors. This could cause the human-read
+    /// version to behave differently than the compiler-visible version, so
+    /// these are simply rejected for now.
+    ConfusingUnicode(char),
+
     #[doc(hidden)]
     __Nonexhaustive,
 }
@@ -225,12 +233,29 @@ impl<'a> Lexer<'a> {
         Lexer {
             it: input.char_indices().peekable(),
             input,
+            allow_confusing_unicode: false,
         }
     }
 
     /// Returns the original source input that we're lexing.
     pub fn input(&self) -> &'a str {
         self.input
+    }
+
+    /// Configures whether "confusing" unicode characters are allowed while
+    /// lexing.
+    ///
+    /// If allowed then no error will happen if these characters are found, but
+    /// otherwise if disallowed a lex error will be produced when these
+    /// characters are found. Confusing characters are denied by default.
+    ///
+    /// For now "confusing characters" are primarily related to the "trojan
+    /// source" problem where it refers to characters which cause humans to read
+    /// text differently than this lexer, such as characters that alter the
+    /// left-to-right display of the source code.
+    pub fn allow_confusing_unicode(&mut self, allow: bool) -> &mut Self {
+        self.allow_confusing_unicode = allow;
+        self
     }
 
     /// Lexes the next token in the input.
@@ -504,10 +529,14 @@ impl<'a> Lexer<'a> {
     /// Attempts to read a comment from the input stream
     fn comment(&mut self) -> Result<Option<Token<'a>>, Error> {
         if let Some(start) = self.eat_str(";;") {
+            let mut it = self.it.clone();
             loop {
-                match self.it.peek() {
+                match it.next() {
                     None | Some((_, '\n')) => break,
-                    _ => drop(self.it.next()),
+                    Some((i, ch)) => {
+                        self.check_if_confusing(i, ch)?;
+                        self.it = it.clone();
+                    }
                 }
             }
             let end = self.cur();
@@ -515,7 +544,7 @@ impl<'a> Lexer<'a> {
         }
         if let Some(start) = self.eat_str("(;") {
             let mut level = 1;
-            while let Some((_, ch)) = self.it.next() {
+            while let Some((i, ch)) = self.it.next() {
                 if ch == '(' && self.eat_char(';').is_some() {
                     level += 1;
                 }
@@ -526,11 +555,30 @@ impl<'a> Lexer<'a> {
                         return Ok(Some(Token::BlockComment(&self.input[start..end])));
                     }
                 }
+                self.check_if_confusing(i, ch)?;
             }
 
             return Err(self.error(start, LexError::DanglingBlockComment));
         }
         Ok(None)
+    }
+
+    /// This is an attempt to protect agains the "trojan source" problem where
+    /// unicode characters can cause editors to render source code differently
+    /// for humans than the compiler itself sees.
+    ///
+    /// To mitigate this issue, and because it's relatively rare in practice,
+    /// this simply rejects characters of that form.
+    fn check_if_confusing(&mut self, pos: usize, ch: char) -> Result<(), Error> {
+        match ch {
+            '\u{202a}' | '\u{202b}' | '\u{202d}' | '\u{202e}' | '\u{2066}' | '\u{2067}'
+            | '\u{2068}' | '\u{206c}' | '\u{2069}'
+                if !self.allow_confusing_unicode =>
+            {
+                Err(self.error(pos, LexError::ConfusingUnicode(ch)))
+            }
+            _ => Ok(()),
+        }
     }
 
     /// Reads everything for a literal string except the leading `"`. Returns
@@ -582,6 +630,7 @@ impl<'a> Lexer<'a> {
                     if (c as u32) < 0x20 || c as u32 == 0x7f {
                         return Err(self.error(i, LexError::InvalidStringElement(c)));
                     }
+                    self.check_if_confusing(i, c)?;
                     match &mut state {
                         State::Start(_) => {}
                         State::String(v) => {
@@ -834,6 +883,7 @@ impl fmt::Display for LexError {
             NumberTooBig => f.write_str("number is too big to parse")?,
             InvalidUnicodeValue(c) => write!(f, "invalid unicode scalar value 0x{:x}", c)?,
             LoneUnderscore => write!(f, "bare underscore in numeric literal")?,
+            ConfusingUnicode(c) => write!(f, "likely-confusing unicode character found {:?}", c)?,
             __Nonexhaustive => unreachable!(),
         }
         Ok(())
@@ -842,9 +892,9 @@ impl fmt::Display for LexError {
 
 fn escape_char(c: char) -> String {
     match c {
-        '\t' => String::from("\\\t"),
-        '\r' => String::from("\\\r"),
-        '\n' => String::from("\\\n"),
+        '\t' => String::from("\\t"),
+        '\r' => String::from("\\r"),
+        '\n' => String::from("\\n"),
         '\\' => String::from("\\\\"),
         '\'' => String::from("\\\'"),
         '\"' => String::from("\""),
