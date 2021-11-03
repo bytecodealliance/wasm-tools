@@ -2,20 +2,18 @@
 use std::cell::{Cell, RefCell};
 use std::{collections::HashMap, num::Wrapping};
 
+use crate::mutators::OperatorAndByteOffset;
 use egg::{Id, RecExpr};
 use rand::Rng;
 use wasm_encoder::{Function, Instruction, MemArg};
 use wasmparser::Operator;
-use crate::mutators::OperatorAndByteOffset;
 
 use crate::module::PrimitiveTypeInfo;
 use crate::mutators::peephole::dfg::StackType;
 use crate::mutators::peephole::{Lang, EG};
 use crate::{
     error::EitherType,
-    mutators::peephole::{
-        dfg::{BBlock, MiniDFG, StackEntry},
-    },
+    mutators::peephole::dfg::{BBlock, MiniDFG, StackEntry},
     ModuleInfo,
 };
 
@@ -185,7 +183,7 @@ impl Encoder {
                 | Lang::Add(operands) => {
                     update(
                         idx,
-                        get(idx).or(get(usize::from(operands[0]).clone())
+                        get(idx).or(get(usize::from(operands[0]))
                             .or(get(usize::from(operands[1])).clone())
                             .or(gettpe(Id::from(idx)))),
                     );

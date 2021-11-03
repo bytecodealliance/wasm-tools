@@ -13,6 +13,9 @@ pub enum Error {
     /// There is a type/operator that wasm-mutate cannot process
     #[error("Unsupported mapping.")]
     UnsupportedType(EitherType),
+    /// Ast parsing error for code motion mutators
+    #[error("Invalid Ast parsing for code motion")]
+    InvalidAstOperation(String),
 }
 
 #[derive(Debug)]

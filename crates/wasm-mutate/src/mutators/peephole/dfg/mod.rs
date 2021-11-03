@@ -4,7 +4,6 @@ use wasmparser::{Operator, Range};
 
 use crate::{module::PrimitiveTypeInfo, ModuleInfo};
 
-
 use crate::mutators::OperatorAndByteOffset;
 /// It executes a minimal symbolic evaluation of the stack to detect operands location in the code for certain operators
 /// For example, i.add operator should know who are its operands
@@ -329,6 +328,17 @@ impl<'a> DFGBuilder {
             .unwrap()
     }
 
+    /// Returns the status of the stack
+    /// Ideally this should be called after the DFG is contructed, to
+    /// for example, get the type of the basic block
+    pub fn get_stack_status(&self) -> Vec<StackEntry> {
+        return self
+            .stack
+            .iter()
+            .map(|idx| self.dfg_map[*idx].clone())
+            .collect::<Vec<_>>();
+    }
+
     /// This method should build lane dfg information
     /// It returns a map of operator indexes over the function operators,
     /// in which every key refers to a vector of ranges determining the operands
@@ -341,7 +351,7 @@ impl<'a> DFGBuilder {
         info: &ModuleInfo,
         operators: &'a [OperatorAndByteOffset],
         basicblock: &BBlock,
-        locals: &Vec<PrimitiveTypeInfo>,
+        locals: &[PrimitiveTypeInfo],
     ) -> Option<MiniDFG> {
         let mut color = 1; // start with color 1 since 0 is undef
                            // Create a DFG from the BB
@@ -763,8 +773,8 @@ impl std::fmt::Display for MiniDFG {
 
 #[cfg(test)]
 mod tests {
-    use crate::mutators::OperatorAndByteOffset;
     use super::DFGBuilder;
+    use crate::mutators::OperatorAndByteOffset;
     use crate::{module::PrimitiveTypeInfo, ModuleInfo};
     use wasmparser::Parser;
 
@@ -880,7 +890,7 @@ mod tests {
                         .get_bb_from_operator(0, &operators)
                         .unwrap();
                     let roots =
-                        DFGBuilder::new().get_dfg(&ModuleInfo::default(), &operators, &bb, &vec![]);
+                        DFGBuilder::new().get_dfg(&ModuleInfo::default(), &operators, &bb, &[]);
                     assert!(roots.is_some())
                 }
                 wasmparser::Payload::End => {
@@ -961,7 +971,7 @@ mod tests {
                         .get_bb_from_operator(7, &operators)
                         .unwrap();
                     let roots =
-                        DFGBuilder::new().get_dfg(&ModuleInfo::default(), &operators, &bb, &vec![]);
+                        DFGBuilder::new().get_dfg(&ModuleInfo::default(), &operators, &bb, &[]);
                     assert!(roots.is_some());
                 }
                 wasmparser::Payload::End => {
@@ -1051,7 +1061,7 @@ mod tests {
                         &info,
                         &operators,
                         &bb,
-                        &vec![PrimitiveTypeInfo::I32],
+                        &[PrimitiveTypeInfo::I32],
                     );
                     assert!(roots.is_some());
                 }
@@ -1107,7 +1117,7 @@ mod tests {
                     let bb = DFGBuilder::new()
                         .get_bb_from_operator(3, &operators)
                         .unwrap();
-                    let roots = DFGBuilder::new().get_dfg(&info, &operators, &bb, &vec![]);
+                    let roots = DFGBuilder::new().get_dfg(&info, &operators, &bb, &[]);
                     assert!(roots.is_some());
                 }
                 wasmparser::Payload::End => {

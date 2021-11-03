@@ -33,6 +33,8 @@ use structopt::StructOpt;
 ///      supported by `wasm-mutate`.
 ///
 /// * 4: The input is not a valid Wasm module.
+///
+/// * 5: Constructing the Ast for code motion mutations fails
 #[derive(StructOpt)]
 struct Options {
     /// The input WebAssembly binary that will be mutated.
@@ -97,6 +99,7 @@ fn main() -> anyhow::Result<()> {
                 wasm_mutate::Error::NoMutationsApplicable => 2,
                 wasm_mutate::Error::UnsupportedType(_) => 3,
                 wasm_mutate::Error::Parse(_) => 4,
+                wasm_mutate::Error::InvalidAstOperation(_) => 5,
             };
             eprintln!("{}", e);
             std::process::exit(code);

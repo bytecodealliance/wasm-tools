@@ -250,7 +250,7 @@ mod tests {
                             &ModuleInfo::default(),
                             &operators,
                             &bb,
-                            &vec![PrimitiveTypeInfo::I32],
+                            &[PrimitiveTypeInfo::I32],
                         )
                         .unwrap();
 
