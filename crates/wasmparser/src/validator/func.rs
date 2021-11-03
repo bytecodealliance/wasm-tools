@@ -31,7 +31,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
         features: &WasmFeatures,
     ) -> Result<FuncValidator<T>> {
         Ok(FuncValidator {
-            validator: OperatorValidator::new(ty, offset, features, &resources)?,
+            validator: OperatorValidator::new_func(ty, offset, features, &resources)?,
             resources,
         })
     }

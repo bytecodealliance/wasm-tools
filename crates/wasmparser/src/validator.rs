@@ -14,6 +14,7 @@
  */
 
 use crate::limits::*;
+use crate::operators_validator::OperatorValidator;
 use crate::WasmModuleResources;
 use crate::{Alias, ExternalKind, Import, ImportSectionEntryType};
 use crate::{BinaryReaderError, GlobalType, MemoryType, Range, Result, TableType, TagType, Type};
@@ -180,6 +181,8 @@ pub struct WasmFeatures {
     pub exceptions: bool,
     /// The WebAssembly memory64 proposal
     pub memory64: bool,
+    /// The WebAssembly extended_const proposal
+    pub extended_const: bool,
 }
 
 impl Default for WasmFeatures {
@@ -194,6 +197,7 @@ impl Default for WasmFeatures {
             multi_memory: false,
             exceptions: false,
             memory64: false,
+            extended_const: false,
             deterministic_only: cfg!(feature = "deterministic"),
 
             // on-by-default features
@@ -1226,78 +1230,90 @@ impl Validator {
     }
 
     fn init_expr(&mut self, expr: &InitExpr<'_>, expected_ty: Type) -> Result<()> {
-        let mut ops = expr.get_operators_reader().into_iter_with_offsets();
-        let (op, offset) = match ops.next() {
-            Some(Err(e)) => return Err(e),
-            Some(Ok(pair)) => pair,
-            None => return self.create_error("type mismatch: init_expr is empty"),
-        };
-        self.offset = offset;
-        let mut function_reference = None;
-        let ty = match op {
-            Operator::I32Const { .. } => Type::I32,
-            Operator::I64Const { .. } => Type::I64,
-            Operator::F32Const { .. } => Type::F32,
-            Operator::F64Const { .. } => Type::F64,
-            Operator::RefNull { ty } => ty,
-            Operator::V128Const { .. } => Type::V128,
-            Operator::GlobalGet { global_index } => {
-                let global = self.get_global(global_index)?;
-                if global_index >= self.cur.state.num_imported_globals {
-                    return self.create_error(
-                        "constant expression required: global.get of locally defined global",
-                    );
+        let mut ops = expr.get_operators_reader();
+        let mut validator = OperatorValidator::new_init_expr(&self.features, expected_ty);
+        let mut uninserted_function_references = false;
+
+        while !ops.eof() {
+            let offset = ops.original_position();
+            self.offset = offset;
+            let op = ops.read()?;
+            match &op {
+                Operator::I32Const { .. }
+                | Operator::I64Const { .. }
+                | Operator::F32Const { .. }
+                | Operator::F64Const { .. }
+                | Operator::RefNull { .. }
+                | Operator::V128Const { .. }
+                | Operator::End => {}
+
+                Operator::I32Add
+                | Operator::I32Sub
+                | Operator::I32Mul
+                | Operator::I64Add
+                | Operator::I64Sub
+                | Operator::I64Mul
+                    if self.features.extended_const => {}
+
+                Operator::GlobalGet { global_index } => {
+                    let global = self.get_global(*global_index)?;
+                    if *global_index >= self.cur.state.num_imported_globals {
+                        return self.create_error(
+                            "constant expression required: global.get of locally defined global",
+                        );
+                    }
+                    if global.mutable {
+                        return self.create_error(
+                            "constant expression required: global.get of mutable global",
+                        );
+                    }
                 }
-                if global.mutable {
-                    return self.create_error(
-                        "constant expression required: global.get of mutable global",
-                    );
+
+                // Functions in initialization expressions are only valid in
+                // element segment initialization expressions and globals. In
+                // these contexts we want to record all function references.
+                //
+                // Initialization expressions can also be found in the data
+                // section, however. A `RefFunc` instruction in those situations
+                // is always invalid and needs to produce a validation error. In
+                // this situation, though, we can no longer modify
+                // `self.cur.state` since it's been "snapshot" already for
+                // parallel validation of functions.
+                //
+                // Consequently we test where we are in the module to determine
+                // whether we can modify the set of function references. If we
+                // cannot modify the function references then this function
+                // *should* result in a validation error, but we defer that
+                // validation error to happen later. The
+                // `uninserted_function_references` boolean here is used to
+                // track this and will cause a panic (aka a fuzz bug) if we
+                // somehow forget to emit an error somewhere else.
+                Operator::RefFunc { function_index } => {
+                    if self.cur.order <= Order::Code {
+                        self.cur
+                            .state
+                            .assert_mut()
+                            .function_references
+                            .insert(*function_index);
+                    } else {
+                        uninserted_function_references = true;
+                    }
                 }
-                global.content_type
+                _ => {
+                    return self
+                        .create_error("constant expression required: invalid init_expr operator")
+                }
             }
-            Operator::RefFunc { function_index } => {
-                function_reference = Some(function_index);
-                self.get_func_type(function_index)?;
-                Type::FuncRef
-            }
-            Operator::End => return self.create_error("type mismatch: init_expr is empty"),
-            _ => {
-                return self
-                    .create_error("constant expression required: invalid init_expr operator")
-            }
-        };
-
-        // Make sure the next instruction is an `end`
-        match ops.next() {
-            Some(Err(e)) => return Err(e),
-            Some(Ok((Operator::End, _))) => {}
-            Some(Ok(_)) => {
-                return self
-                    .create_error("constant expression required: type mismatch: only one init_expr operator is expected")
-            }
-            None => return self.create_error("type mismatch: init_expr is not terminated"),
+            validator
+                .process_operator(&op, self)
+                .map_err(|e| e.set_offset(offset))?;
         }
+        validator.finish().map_err(|e| e.set_offset(self.offset))?;
 
-        if ty != expected_ty {
-            return self.create_error("type mismatch: invalid init_expr type");
-        }
+        // See comment in `RefFunc` above for why this is an assert.
+        assert!(!uninserted_function_references);
 
-        if let Some(index) = function_reference {
-            self.cur
-                .state
-                .assert_mut()
-                .function_references
-                .insert(index);
-        }
-
-        // ... and verify we're done after that
-        match ops.next() {
-            Some(Err(e)) => Err(e),
-            Some(Ok(_)) => {
-                self.create_error("constant expression required: invalid init_expr operator")
-            }
-            None => Ok(()),
-        }
+        Ok(())
     }
 
     /// Validates [`Payload::ExportSection`](crate::Payload)
@@ -1592,7 +1608,7 @@ impl WasmModuleResources for Validator {
     }
 
     fn type_of_function(&self, func_idx: u32) -> Option<&Self::FuncType> {
-        self.cur.state.type_of_function(func_idx)
+        self.get_func_type(func_idx).ok()
     }
 
     fn element_type_at(&self, at: u32) -> Option<Type> {
@@ -1768,7 +1784,7 @@ mod arc {
     }
 
     impl<T> MaybeOwned<T> {
-        pub fn as_mut(&mut self) -> Option<&mut T> {
+        fn as_mut(&mut self) -> Option<&mut T> {
             if !self.owned {
                 return None;
             }
