@@ -1239,6 +1239,7 @@ impl Validator {
             self.offset = offset;
             let op = ops.read()?;
             match &op {
+                // These are always valid in const expressions.
                 Operator::I32Const { .. }
                 | Operator::I64Const { .. }
                 | Operator::F32Const { .. }
@@ -1247,6 +1248,7 @@ impl Validator {
                 | Operator::V128Const { .. }
                 | Operator::End => {}
 
+                // These are valid const expressions when the extended-const proposal is enabled.
                 Operator::I32Add
                 | Operator::I32Sub
                 | Operator::I32Mul
@@ -1255,6 +1257,7 @@ impl Validator {
                 | Operator::I64Mul
                     if self.features.extended_const => {}
 
+                // `global.get` is a valid const expression for imported, immutable globals.
                 Operator::GlobalGet { global_index } => {
                     let global = self.get_global(*global_index)?;
                     if *global_index >= self.cur.state.num_imported_globals {
