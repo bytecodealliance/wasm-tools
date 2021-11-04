@@ -1812,7 +1812,7 @@ impl Printer {
                         self.result.push_str(")");
                     }
                     self.result.push_str(" ");
-                    self.print_init_expr(&init_expr)?;
+                    self.print_init_expr_sugar(&init_expr, "offset")?;
                 }
             }
             let mut items_reader = elem.items.get_items_reader()?;
@@ -1825,7 +1825,7 @@ impl Printer {
             for _ in 0..items_reader.get_count() {
                 self.result.push_str(" ");
                 match items_reader.read()? {
-                    ElementItem::Expr(expr) => self.print_init_expr(&expr)?,
+                    ElementItem::Expr(expr) => self.print_init_expr_sugar(&expr, "item")?,
                     ElementItem::Func(idx) => self.print_func_idx(idx)?,
                 }
             }
@@ -1852,7 +1852,7 @@ impl Printer {
                         self.print_memory_idx(*memory_index)?;
                         self.result.push_str(") ");
                     }
-                    self.print_init_expr(&init_expr)?;
+                    self.print_init_expr_sugar(&init_expr, "offset")?;
                     self.result.push_str(" ");
                 }
             }
@@ -1974,8 +1974,46 @@ impl Printer {
         Ok(())
     }
 
-    fn print_init_expr(&mut self, expr: &InitExpr) -> Result<()> {
+    /// Prints the operators of `expr` space-separated, taking into account that
+    /// if there's only one operator in `expr` then instead of `(explicit ...)`
+    /// the printing can be `(...)`.
+    fn print_init_expr_sugar(&mut self, expr: &InitExpr, explicit: &str) -> Result<()> {
         self.start_group("");
+        let mut first_op = None;
+        for (i, op) in expr.get_operators_reader().into_iter().enumerate() {
+            match op? {
+                Operator::End => {}
+
+                // Save the first operator to get printed later.
+                other if i == 0 => first_op = Some(other),
+
+                // If this is the second operator (i == 1) then we push our
+                // un-sugared form with `explicit` as the starting delimiter and
+                // then the operators are printed.
+                other => {
+                    if i == 1 {
+                        self.result.push_str(explicit);
+                        self.result.push_str(" ");
+                        self.print_operator(&first_op.take().unwrap(), self.nesting)?;
+                    }
+                    self.result.push_str(" ");
+                    self.print_operator(&other, self.nesting)?;
+                }
+            }
+        }
+
+        // If `first_op` is still set here then it means we don't need to print
+        // an expression with `explicit` as the leading token, instead we can
+        // print the single operator.
+        if let Some(op) = first_op {
+            self.print_operator(&op, self.nesting)?;
+        }
+        self.end_group();
+        Ok(())
+    }
+
+    /// Prints the operators of `expr` space-separated.
+    fn print_init_expr(&mut self, expr: &InitExpr) -> Result<()> {
         for (i, op) in expr.get_operators_reader().into_iter().enumerate() {
             match op? {
                 Operator::End => {}
@@ -1987,7 +2025,6 @@ impl Printer {
                 }
             }
         }
-        self.end_group();
         Ok(())
     }
 

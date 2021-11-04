@@ -557,6 +557,7 @@ impl TestState {
             multi_value: true,
             multi_memory: true,
             memory64: true,
+            extended_const: true,
         };
         for part in test.iter().filter_map(|t| t.to_str()) {
             match part {
@@ -590,6 +591,7 @@ impl TestState {
                     features.bulk_memory = true;
                 }
                 "module-linking" => features.module_linking = true,
+                "extended-const" => features.extended_const = true,
                 _ => {}
             }
         }

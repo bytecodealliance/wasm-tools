@@ -26,6 +26,7 @@ fuzz_target!(|data: &[u8]| {
         memory64: (byte2 & 0b0000_0010) != 0,
         exceptions: (byte2 & 0b0000_0100) != 0,
         relaxed_simd: (byte2 & 0b0000_1000) != 0,
+        extended_const: (byte2 & 0b0001_0000) != 0,
     });
 
     drop(validator.validate_all(&data[2..]));

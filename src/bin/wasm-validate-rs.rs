@@ -35,6 +35,9 @@ const FEATURES: &[(&str, &str, fn(&mut WasmFeatures) -> &mut bool)] = &[
         |f| &mut f.exceptions,
     ),
     ("memory64", "wasm memory64 feature", |f| &mut f.memory64),
+    ("extended-const", "wasm extended-const feature", |f| {
+        &mut f.extended_const
+    }),
 ];
 
 fn main() -> Result<()> {

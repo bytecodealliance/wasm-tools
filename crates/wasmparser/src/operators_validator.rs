@@ -119,7 +119,12 @@ enum FrameKind {
 }
 
 impl OperatorValidator {
-    pub fn new(
+    /// Creates a new operator validator which will be used to validate a
+    /// function whose type is the `ty` index specified.
+    ///
+    /// The `resources` are used to learn about the function type underlying
+    /// `ty`.
+    pub fn new_func(
         ty: u32,
         offset: usize,
         features: &WasmFeatures,
@@ -144,6 +149,25 @@ impl OperatorValidator {
             features: *features,
             br_table_tmp: Vec::new(),
         })
+    }
+
+    /// Creates a new operator validator which will be used to validate an
+    /// `init_expr` constant expression which should result in the `ty`
+    /// specified.
+    pub fn new_init_expr(features: &WasmFeatures, ty: Type) -> OperatorValidator {
+        OperatorValidator {
+            num_locals: 0,
+            locals: Vec::new(),
+            operands: Vec::new(),
+            control: vec![Frame {
+                kind: FrameKind::Block,
+                block_type: TypeOrFuncType::Type(ty),
+                height: 0,
+                unreachable: false,
+            }],
+            features: *features,
+            br_table_tmp: Vec::new(),
+        }
     }
 
     pub fn define_locals(&mut self, offset: usize, count: u32, ty: Type) -> Result<()> {
@@ -1370,9 +1394,10 @@ impl OperatorValidator {
             Operator::RefFunc { function_index } => {
                 self.check_reference_types_enabled()?;
                 if resources.type_of_function(function_index).is_none() {
-                    return Err(OperatorValidatorError::new(
-                        "unknown function: function index out of bounds",
-                    ));
+                    return Err(OperatorValidatorError::new(format!(
+                        "unknown function {}: function index out of bounds",
+                        function_index,
+                    )));
                 }
                 if !resources.is_function_referenced(function_index) {
                     return Err(OperatorValidatorError::new("undeclared function reference"));

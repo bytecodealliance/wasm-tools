@@ -15,7 +15,11 @@ pub struct Expression<'a> {
 
 impl<'a> Parse<'a> for Expression<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        ExpressionParser::default().parse(parser)
+        let mut exprs = ExpressionParser::default();
+        exprs.parse(parser)?;
+        Ok(Expression {
+            instrs: exprs.instrs.into(),
+        })
     }
 }
 
@@ -96,7 +100,7 @@ enum Try<'a> {
 }
 
 impl<'a> ExpressionParser<'a> {
-    fn parse(mut self, parser: Parser<'a>) -> Result<Expression<'a>> {
+    fn parse(&mut self, parser: Parser<'a>) -> Result<()> {
         // Here we parse instructions in a loop, and we do not recursively
         // invoke this parse function to avoid blowing the stack on
         // deeply-recursive parses.
@@ -207,9 +211,7 @@ impl<'a> ExpressionParser<'a> {
             }
         }
 
-        Ok(Expression {
-            instrs: self.instrs.into(),
-        })
+        Ok(())
     }
 
     /// Parses either `(`, `)`, or nothing.
