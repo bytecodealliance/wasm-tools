@@ -11,45 +11,53 @@ use wasmparser::ExportSectionReader;
 pub struct RemoveExportMutator;
 
 impl Mutator for RemoveExportMutator {
-    fn mutate(&self, _: &WasmMutate, rnd: &mut SmallRng, info: &ModuleInfo, resources: &mut Resources) -> Result<Module> {
+    fn mutate(
+        &self,
+        _: &WasmMutate,
+        rnd: &mut SmallRng,
+        info: &ModuleInfo,
+        resources: &mut Resources,
+    ) -> Result<Module> {
         let mut exports = ExportSection::new();
         let mut reader = ExportSectionReader::new(info.get_exports_section().data, 0)?;
         let max_exports = reader.get_count() as u64;
         let skip_at = rnd.gen_range(0, max_exports);
 
-        (0..max_exports).map(|i| {
-            resources.consume(1)?;
-            let export = reader.read().unwrap();
-            if skip_at != i {
-                // otherwise bypass
-                match export.kind {
-                    wasmparser::ExternalKind::Function => {
-                        exports.export(export.field, Export::Function(export.index));
+        (0..max_exports)
+            .map(|i| {
+                resources.consume(1)?;
+                let export = reader.read().unwrap();
+                if skip_at != i {
+                    // otherwise bypass
+                    match export.kind {
+                        wasmparser::ExternalKind::Function => {
+                            exports.export(export.field, Export::Function(export.index));
+                        }
+                        wasmparser::ExternalKind::Table => {
+                            exports.export(export.field, Export::Table(export.index));
+                        }
+                        wasmparser::ExternalKind::Memory => {
+                            exports.export(export.field, Export::Memory(export.index));
+                        }
+                        wasmparser::ExternalKind::Global => {
+                            exports.export(export.field, Export::Global(export.index));
+                        }
+                        wasmparser::ExternalKind::Module => {
+                            exports.export(export.field, Export::Module(export.index));
+                        }
+                        wasmparser::ExternalKind::Instance => {
+                            exports.export(export.field, Export::Instance(export.index));
+                        }
+                        _ => {
+                            panic!("Unknown export {:?}", export)
+                        }
                     }
-                    wasmparser::ExternalKind::Table => {
-                        exports.export(export.field, Export::Table(export.index));
-                    }
-                    wasmparser::ExternalKind::Memory => {
-                        exports.export(export.field, Export::Memory(export.index));
-                    }
-                    wasmparser::ExternalKind::Global => {
-                        exports.export(export.field, Export::Global(export.index));
-                    }
-                    wasmparser::ExternalKind::Module => {
-                        exports.export(export.field, Export::Module(export.index));
-                    }
-                    wasmparser::ExternalKind::Instance => {
-                        exports.export(export.field, Export::Instance(export.index));
-                    }
-                    _ => {
-                        panic!("Unknown export {:?}", export)
-                    }
+                } else {
+                    log::debug!("Removing export {:?} idx {:?}", export, skip_at);
                 }
-            } else {
-                log::debug!("Removing export {:?} idx {:?}", export, skip_at);
-            }
-            Ok(())
-        }).collect::<Result<Vec<_>>>()?;
+                Ok(())
+            })
+            .collect::<Result<Vec<_>>>()?;
         Ok(info.replace_section(info.exports.unwrap(), &exports))
     }
 

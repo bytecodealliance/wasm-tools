@@ -1,13 +1,13 @@
 //! This mutator applies a random peephole transformation to the input Wasm module
-use crate::Resources;
 use crate::error::EitherType;
 use crate::module::PrimitiveTypeInfo;
 use crate::mutators::peephole::eggsy::analysis::PeepholeMutationAnalysis;
 use crate::mutators::peephole::eggsy::encoder::Encoder;
 use crate::mutators::peephole::eggsy::lang::Lang;
+use crate::Resources;
 use egg::{rewrite, AstSize, Id, RecExpr, Rewrite, Runner, Subst};
 use rand::{prelude::SmallRng, Rng};
-use std::{convert::TryFrom};
+use std::convert::TryFrom;
 use std::sync::atomic::AtomicU64;
 use wasm_encoder::{CodeSection, Function, Module, ValType};
 use wasmparser::{CodeSectionReader, FunctionBody, LocalsReader, Operator};
@@ -93,7 +93,7 @@ impl PeepholeMutator {
         rnd: &mut rand::prelude::SmallRng,
         info: &crate::ModuleInfo,
         rules: &[Rewrite<Lang, PeepholeMutationAnalysis>],
-        resources: &mut Resources
+        resources: &mut Resources,
     ) -> Result<MutationContext> {
         let code_section = info.get_code_section();
         let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
@@ -118,7 +118,6 @@ impl PeepholeMutator {
             let locals = self.get_func_locals(info, fidx + info.imported_functions_count /* the function type is shifted by the imported functions*/, &mut localsreader)?;
 
             for oidx in (opcode_to_mutate..operatorscount).chain(0..opcode_to_mutate) {
-
                 resources.consume(1)?;
 
                 let mut dfg = DFGBuilder::new();
@@ -248,9 +247,10 @@ impl PeepholeMutator {
         rnd: &mut rand::prelude::SmallRng,
         info: &crate::ModuleInfo,
         rules: &[Rewrite<Lang, PeepholeMutationAnalysis>],
-        resources: &mut Resources
+        resources: &mut Resources,
     ) -> Result<Module> {
-        let (new_function, function_to_mutate) = self.random_mutate(config, rnd, info, rules, resources)?;
+        let (new_function, function_to_mutate) =
+            self.random_mutate(config, rnd, info, rules, resources)?;
 
         let mut codes = CodeSection::new();
         let code_section = info.get_code_section();
@@ -308,12 +308,11 @@ impl PeepholeMutator {
                     if let Some(data) = data {
                         match data.get_next_stack_entry(&egraph.analysis).return_type {
                             PrimitiveTypeInfo::I32 | PrimitiveTypeInfo::I64 => true,
-                            _ => false
+                            _ => false,
                         }
                     } else {
                         false
                     }
-                    
                 }
                 Err(_) => false,
             }
@@ -328,13 +327,13 @@ impl Mutator for PeepholeMutator {
         config: &crate::WasmMutate,
         rnd: &mut rand::prelude::SmallRng,
         info: &crate::ModuleInfo,
-        resources: &mut Resources
+        resources: &mut Resources,
     ) -> Result<Module> {
         // Calculate here type related information for parameters, locals and returns
         // This information could be passed to the conditions to check for type correctness rewriting
 
         let mut rules = vec![
-            rewrite!("unfold-2";  "?x" => "(unfold ?x)" if self.is_const("?x") ),            
+            rewrite!("unfold-2";  "?x" => "(unfold ?x)" if self.is_const("?x") ),
             rewrite!("unfold-drop";  "(drop ?x)" => "(drop rand)" ), // Since the value is discarded...replace it with a random wathever
             rewrite!("xor-x-x";  "(xor ?x ?x)" => "0" if self.returns_integer("?x")),
             rewrite!("mem-load-shift";  "(load ?x ?y ?z ?w)" => "(load (add ?x ?y) 0 ?z ?w)"),
@@ -353,13 +352,25 @@ impl Mutator for PeepholeMutator {
         rules
             .extend(rewrite!("associative-1";  "(add ?x (add ?y ?z))" <=> "(add (add ?x ?y) ?z)" ));
 
-        rules.extend(rewrite!("idempotent-1";  "?x" <=> "(or ?x ?x)" if self.returns_integer("?x") ));
-        rules.extend(rewrite!("idempotent-2";  "?x" <=> "(and ?x ?x)" if self.returns_integer("?x") ));
-        rules.extend(rewrite!("idempotent-3";  "?x" <=> "(mul ?x 1)" if self.returns_integer("?x") ));
-        rules.extend(rewrite!("idempotent-4";  "?x" <=> "(add ?x 0)" if self.returns_integer("?x") ));
-        rules.extend(rewrite!("idempotent-5";  "?x" <=> "(xor ?x 0)" if self.returns_integer("?x")));
-        rules.extend(rewrite!("idempotent-6";  "(shl ?x 0)" <=> "?x" if self.returns_integer("?x")));
-        rules.extend(rewrite!("idempotent-7"; "(eqz ?x)" <=> "(eq ?x 0)" if self.returns_integer("?x")));
+        rules.extend(
+            rewrite!("idempotent-1";  "?x" <=> "(or ?x ?x)" if self.returns_integer("?x") ),
+        );
+        rules.extend(
+            rewrite!("idempotent-2";  "?x" <=> "(and ?x ?x)" if self.returns_integer("?x") ),
+        );
+        rules.extend(
+            rewrite!("idempotent-3";  "?x" <=> "(mul ?x 1)" if self.returns_integer("?x") ),
+        );
+        rules.extend(
+            rewrite!("idempotent-4";  "?x" <=> "(add ?x 0)" if self.returns_integer("?x") ),
+        );
+        rules
+            .extend(rewrite!("idempotent-5";  "?x" <=> "(xor ?x 0)" if self.returns_integer("?x")));
+        rules
+            .extend(rewrite!("idempotent-6";  "(shl ?x 0)" <=> "?x" if self.returns_integer("?x")));
+        rules.extend(
+            rewrite!("idempotent-7"; "(eqz ?x)" <=> "(eq ?x 0)" if self.returns_integer("?x")),
+        );
 
         rules.extend(rewrite!("commutative-3"; "(eq ?x ?y)" <=> "(eq ?y ?x)"));
 
@@ -486,7 +497,11 @@ macro_rules! match_code_mutation {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Resources, WasmMutate, info::ModuleInfo, mutators::{peephole::PeepholeMutator, Mutator}};
+    use crate::{
+        info::ModuleInfo,
+        mutators::{peephole::PeepholeMutator, Mutator},
+        Resources, WasmMutate,
+    };
     use egg::{rewrite, Id, Rewrite, Subst};
     use rand::{rngs::SmallRng, SeedableRng};
 
@@ -601,15 +616,18 @@ mod tests {
             rules,
             r#"
             (module
-                (type (;0;) (func ))
-                (func (;0;) (type 0)
-                    (local i32 i32)
-                    i32.const 10
-                    i32.const 10
-                    i32.or
-                    drop
-                )
-                (export "exported_func" (func 0)))
+            (type (;0;) (func))
+            (func (;0;) (type 0)
+                (local i32 i32)
+                i32.const 10
+                i32.const 10
+                i32.const 10
+                drop
+                i32.const 1725880714
+                drop
+                drop
+                drop)
+            (export "exported_func" (func 0)))
             "#,
             3,
         );
@@ -1175,7 +1193,6 @@ mod tests {
         );
     }
 
-
     #[test]
     fn test_peep_drop() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
@@ -1697,7 +1714,13 @@ mod tests {
         assert_eq!(can_mutate, true);
 
         let mutated = mutator
-            .mutate_with_rules(&wasmmutate, &mut rnd, &info, rules, &mut Resources::default())
+            .mutate_with_rules(
+                &wasmmutate,
+                &mut rnd,
+                &info,
+                rules,
+                &mut Resources::default(),
+            )
             .unwrap();
 
         let mut validator = wasmparser::Validator::new();

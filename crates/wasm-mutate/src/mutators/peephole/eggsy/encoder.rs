@@ -185,7 +185,7 @@ impl Encoder {
                 | Lang::Add(operands) => {
                     update(
                         idx,
-                        get(idx).or(get(usize::from(operands[0]).clone())
+                        get(idx).or(get(usize::from(operands[0]))
                             .or(get(usize::from(operands[1])).clone())
                             .or(gettpe(Id::from(idx)))),
                     );
@@ -1137,7 +1137,8 @@ impl Encoder {
         // Check the returning type of the root, if it is not integer, return NoApplicablePeephole
         let root = &dfg.entries[stack_entry_index];
         match root.return_type {
-            PrimitiveTypeInfo::I32 | PrimitiveTypeInfo::I64 | PrimitiveTypeInfo::Empty => { /* pass */ }
+            PrimitiveTypeInfo::I32 | PrimitiveTypeInfo::I64 | PrimitiveTypeInfo::Empty => { /* pass */
+            }
             _ => return Err(crate::Error::NoMutationsApplicable),
         }
 
@@ -1226,7 +1227,7 @@ impl Encoder {
                                 entry.entry_idx,
                                 expr,
                             ));
-                        },
+                        }
                         StackType::Call {
                             function_index: _,
                             params_count,

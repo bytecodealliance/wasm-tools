@@ -53,7 +53,13 @@ impl RenameExportMutator {
 }
 
 impl Mutator for RenameExportMutator {
-    fn mutate(&self, config: &WasmMutate, rnd: &mut SmallRng, info: &ModuleInfo, resources: &mut Resources) -> Result<Module> {
+    fn mutate(
+        &self,
+        config: &WasmMutate,
+        rnd: &mut SmallRng,
+        info: &ModuleInfo,
+        resources: &mut Resources,
+    ) -> Result<Module> {
         let mut exports = ExportSection::new();
         let mut reader = ExportSectionReader::new(info.get_exports_section().data, 0)?;
         let max_exports = reader.get_count() as u64;

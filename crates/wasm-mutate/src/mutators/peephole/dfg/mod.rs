@@ -302,7 +302,7 @@ impl<'a> DFGBuilder {
         entry_idx
     }
 
-    fn pop_operand(&mut self, operator_idx: usize, insertindfg: bool, undef_color:u32 ) -> usize {
+    fn pop_operand(&mut self, operator_idx: usize, insertindfg: bool, undef_color: u32) -> usize {
         self.stack
             .pop()
             .or_else(|| {
@@ -315,7 +315,7 @@ impl<'a> DFGBuilder {
                     // Check if this can be inferred from the operator
                     return_type: PrimitiveTypeInfo::Empty,
                     entry_idx,
-                    color: undef_color, 
+                    color: undef_color,
                     operator_idx,
                 }; // Means not reachable
                 if insertindfg {
@@ -414,7 +414,7 @@ impl<'a> DFGBuilder {
                     );
                 }
                 Operator::GlobalSet { global_index } => {
-                    let child = self.pop_operand(idx, true, 0);// 0 color is undefined
+                    let child = self.pop_operand(idx, true, 0); // 0 color is undefined
 
                     self.push_node(
                         StackType::GlobalSet(*global_index),

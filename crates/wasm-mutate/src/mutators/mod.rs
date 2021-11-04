@@ -13,7 +13,13 @@ pub trait Mutator {
     /// * `config` instance of WasmMutate
     /// * `rnd` random number generator
     /// * `info` parsed lane AST of the input Wasm module
-    fn mutate(&self, config: &WasmMutate, rnd: &mut SmallRng, info: &ModuleInfo, resources: &mut Resources) -> Result<Module>;
+    fn mutate(
+        &self,
+        config: &WasmMutate,
+        rnd: &mut SmallRng,
+        info: &ModuleInfo,
+        resources: &mut Resources,
+    ) -> Result<Module>;
 
     /// Returns if this mutator can be applied with the info and the byte range in which it can be applied
     fn can_mutate<'a>(&self, config: &'a WasmMutate, info: &ModuleInfo) -> bool;

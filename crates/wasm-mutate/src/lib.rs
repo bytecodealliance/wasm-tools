@@ -103,35 +103,37 @@ impl Default for WasmMutate {
             preserve_semantics: false,
             reduce: false,
             raw_mutate_func: None,
-            fuel: u64::MAX
+            fuel: u64::MAX,
         }
     }
 }
 
-#[derive(Default)]
 /// Manages resources for the mutation and handles how the resources are consumed
 pub struct Resources {
-    fuel: u64
+    fuel: u64,
+}
+
+impl Default for Resources {
+    fn default() -> Self {
+        Self { fuel: u64::MAX }
+    }
 }
 
 impl Resources {
     pub(crate) fn consume(&mut self, qt: u64) -> crate::Result<()> {
-        if qt > self.fuel{
+        if qt > self.fuel {
             self.fuel = 0;
             log::debug!("Resource limits reached!");
-            return Err(crate::Error::NoMutationsApplicable) // Replace by a TimeoutError type
+            return Err(crate::Error::NoMutationsApplicable); // Replace by a TimeoutError type
         }
         self.fuel -= qt;
         Ok(())
-        
     }
 
     /// Creates a new allocation of resources for the mutation
-    /// 
+    ///
     pub fn new(fuel: u64) -> Self {
-        Resources{
-            fuel
-        }
+        Resources { fuel }
     }
 }
 
@@ -184,12 +186,12 @@ impl WasmMutate {
     }
 
     pub(crate) fn consume_fuel(&mut self, qt: u64) -> bool {
-        if qt > self.fuel{
+        if qt > self.fuel {
             self.fuel = 0;
-            return false
+            false
         } else {
             self.fuel -= qt;
-            return true;
+            true
         }
     }
 
@@ -214,7 +216,7 @@ impl WasmMutate {
             let i = rng.gen_range(0, mutators.len());
             let mutator = mutators.swap_remove(i);
             let mut resources = Resources::new(self.fuel);
-            if let Ok(module) = mutator.mutate(&self, &mut rng, &info, &mut resources) {
+            if let Ok(module) = mutator.mutate(self, &mut rng, &info, &mut resources) {
                 return Ok(module.finish());
             }
         }
