@@ -1,6 +1,6 @@
 //! Mutator that replaces a function's body with an `unreachable` instruction.
 
-use crate::{ModuleInfo, Resources, Result, WasmMutate};
+use crate::{ModuleInfo, Result, WasmMutate};
 use rand::prelude::SmallRng;
 use rand::Rng;
 use wasm_encoder::{CodeSection, Function, Instruction, Module};
@@ -11,13 +11,7 @@ use super::Mutator;
 pub struct FunctionBodyUnreachable;
 
 impl Mutator for FunctionBodyUnreachable {
-    fn mutate(
-        &self,
-        _: &WasmMutate,
-        rnd: &mut SmallRng,
-        info: &ModuleInfo,
-        resources: &mut Resources,
-    ) -> Result<Module> {
+    fn mutate(&self, config: &WasmMutate, rnd: &mut SmallRng, info: &ModuleInfo) -> Result<Module> {
         let mut codes = CodeSection::new();
         let code_section = info.get_code_section();
         let mut reader = CodeSectionReader::new(code_section.data, 0)?;
@@ -25,7 +19,7 @@ impl Mutator for FunctionBodyUnreachable {
         let function_to_mutate = rnd.gen_range(0, count);
         (0..count)
             .map(|i| {
-                resources.consume(1)?;
+                config.consume_fuel(1)?;
                 let f = reader.read().unwrap();
                 if i == function_to_mutate {
                     log::debug!("Changing function idx {:?}", i);

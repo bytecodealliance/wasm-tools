@@ -2,7 +2,7 @@
 
 use super::Mutator;
 use crate::module::{PrimitiveTypeInfo, TypeInfo};
-use crate::{ModuleInfo, Resources, Result, WasmMutate};
+use crate::{ModuleInfo, Result, WasmMutate};
 use rand::prelude::SmallRng;
 use rand::Rng;
 use wasm_encoder::{CodeSection, Function, Instruction, Module};
@@ -12,13 +12,7 @@ use wasmparser::CodeSectionReader;
 pub struct SnipMutator;
 
 impl Mutator for SnipMutator {
-    fn mutate(
-        &self,
-        _: &WasmMutate,
-        rnd: &mut SmallRng,
-        info: &ModuleInfo,
-        resources: &mut Resources,
-    ) -> Result<Module> {
+    fn mutate(&self, config: &WasmMutate, rnd: &mut SmallRng, info: &ModuleInfo) -> Result<Module> {
         let mut codes = CodeSection::new();
         let code_section = info.get_code_section();
         let mut reader = CodeSectionReader::new(code_section.data, 0)?;
@@ -29,7 +23,7 @@ impl Mutator for SnipMutator {
 
         (0..count)
             .map(|i| {
-                resources.consume(1)?;
+                config.consume_fuel(1)?;
                 let f = reader.read().unwrap();
                 if i == function_to_mutate {
                     log::debug!("Snip function idx {:?}", function_to_mutate);

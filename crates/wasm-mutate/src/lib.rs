@@ -22,7 +22,7 @@ use crate::mutators::{
 use info::ModuleInfo;
 use mutators::Mutator;
 use rand::{rngs::SmallRng, Rng, SeedableRng};
-use std::sync::Arc;
+use std::{cell::Cell, sync::Arc};
 
 #[cfg(feature = "structopt")]
 use structopt::StructOpt;
@@ -81,9 +81,8 @@ pub struct WasmMutate {
     preserve_semantics: bool,
 
     /// Fuel to control the time of the mutation.
-    #[cfg_attr(feature = "structopt", structopt(long))]
-    fuel: u64,
-
+    #[cfg_attr(feature = "structopt", structopt(skip = Cell::new(u64::MAX)))]
+    fuel: Cell<u64>,
     /// Only perform size-reducing transformations on the Wasm module. This
     /// allows `wasm-mutate` to be used as a test case reducer.
     #[cfg_attr(feature = "structopt", structopt(long))]
@@ -103,37 +102,8 @@ impl Default for WasmMutate {
             preserve_semantics: false,
             reduce: false,
             raw_mutate_func: None,
-            fuel: u64::MAX,
+            fuel: Cell::new(u64::MAX),
         }
-    }
-}
-
-/// Manages resources for the mutation and handles how the resources are consumed
-pub struct Resources {
-    fuel: u64,
-}
-
-impl Default for Resources {
-    fn default() -> Self {
-        Self { fuel: u64::MAX }
-    }
-}
-
-impl Resources {
-    pub(crate) fn consume(&mut self, qt: u64) -> crate::Result<()> {
-        if qt > self.fuel {
-            self.fuel = 0;
-            log::debug!("Resource limits reached!");
-            return Err(crate::Error::NoMutationsApplicable); // Replace by a TimeoutError type
-        }
-        self.fuel -= qt;
-        Ok(())
-    }
-
-    /// Creates a new allocation of resources for the mutation
-    ///
-    pub fn new(fuel: u64) -> Self {
-        Resources { fuel }
     }
 }
 
@@ -156,7 +126,7 @@ impl WasmMutate {
 
     /// Configure the fuel used during the mutation
     pub fn fuel(&mut self, fuel: u64) -> &mut Self {
-        self.fuel = fuel;
+        self.fuel = Cell::new(fuel);
         self
     }
 
@@ -185,14 +155,13 @@ impl WasmMutate {
         self
     }
 
-    pub(crate) fn consume_fuel(&mut self, qt: u64) -> bool {
-        if qt > self.fuel {
-            self.fuel = 0;
-            false
-        } else {
-            self.fuel -= qt;
-            true
+    pub(crate) fn consume_fuel(&self, qt: u64) -> Result<()> {
+        if qt > self.fuel.get() {
+            log::debug!("Resource limits reached!");
+            return Err(crate::Error::NoMutationsApplicable); // Replace by a TimeoutError type
         }
+        self.fuel.set(self.fuel.get() - qt);
+        Ok(())
     }
 
     /// Run this configured `WasmMutate` on the given input Wasm.
@@ -215,8 +184,7 @@ impl WasmMutate {
         while !mutators.is_empty() {
             let i = rng.gen_range(0, mutators.len());
             let mutator = mutators.swap_remove(i);
-            let mut resources = Resources::new(self.fuel);
-            if let Ok(module) = mutator.mutate(self, &mut rng, &info, &mut resources) {
+            if let Ok(module) = mutator.mutate(self, &mut rng, &info) {
                 return Ok(module.finish());
             }
         }

@@ -4,7 +4,6 @@ use crate::module::PrimitiveTypeInfo;
 use crate::mutators::peephole::eggsy::analysis::PeepholeMutationAnalysis;
 use crate::mutators::peephole::eggsy::encoder::Encoder;
 use crate::mutators::peephole::eggsy::lang::Lang;
-use crate::Resources;
 use egg::{rewrite, AstSize, Id, RecExpr, Rewrite, Runner, Subst};
 use rand::{prelude::SmallRng, Rng};
 use std::convert::TryFrom;
@@ -89,11 +88,10 @@ impl PeepholeMutator {
 
     fn random_mutate(
         &self,
-        _: &crate::WasmMutate,
+        config: &crate::WasmMutate,
         rnd: &mut rand::prelude::SmallRng,
         info: &crate::ModuleInfo,
         rules: &[Rewrite<Lang, PeepholeMutationAnalysis>],
-        resources: &mut Resources,
     ) -> Result<MutationContext> {
         let code_section = info.get_code_section();
         let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
@@ -118,7 +116,7 @@ impl PeepholeMutator {
             let locals = self.get_func_locals(info, fidx + info.imported_functions_count /* the function type is shifted by the imported functions*/, &mut localsreader)?;
 
             for oidx in (opcode_to_mutate..operatorscount).chain(0..opcode_to_mutate) {
-                resources.consume(1)?;
+                config.consume_fuel(1)?;
 
                 let mut dfg = DFGBuilder::new();
                 let basicblock = dfg.get_bb_from_operator(oidx, &operators);
@@ -247,10 +245,8 @@ impl PeepholeMutator {
         rnd: &mut rand::prelude::SmallRng,
         info: &crate::ModuleInfo,
         rules: &[Rewrite<Lang, PeepholeMutationAnalysis>],
-        resources: &mut Resources,
     ) -> Result<Module> {
-        let (new_function, function_to_mutate) =
-            self.random_mutate(config, rnd, info, rules, resources)?;
+        let (new_function, function_to_mutate) = self.random_mutate(config, rnd, info, rules)?;
 
         let mut codes = CodeSection::new();
         let code_section = info.get_code_section();
@@ -327,7 +323,6 @@ impl Mutator for PeepholeMutator {
         config: &crate::WasmMutate,
         rnd: &mut rand::prelude::SmallRng,
         info: &crate::ModuleInfo,
-        resources: &mut Resources,
     ) -> Result<Module> {
         // Calculate here type related information for parameters, locals and returns
         // This information could be passed to the conditions to check for type correctness rewriting
@@ -380,7 +375,7 @@ impl Mutator for PeepholeMutator {
             // Correctness attraction
             rules.push(rewrite!("correctness-1";  "?x" => "(add ?x 1)" if self.is_const("?x")))
         }
-        self.mutate_with_rules(config, rnd, info, &rules, resources)
+        self.mutate_with_rules(config, rnd, info, &rules)
     }
 
     fn can_mutate<'a>(&self, _: &'a crate::WasmMutate, info: &crate::ModuleInfo) -> bool {
@@ -500,7 +495,7 @@ mod tests {
     use crate::{
         info::ModuleInfo,
         mutators::{peephole::PeepholeMutator, Mutator},
-        Resources, WasmMutate,
+        WasmMutate,
     };
     use egg::{rewrite, Id, Rewrite, Subst};
     use rand::{rngs::SmallRng, SeedableRng};
@@ -1714,13 +1709,7 @@ mod tests {
         assert_eq!(can_mutate, true);
 
         let mutated = mutator
-            .mutate_with_rules(
-                &wasmmutate,
-                &mut rnd,
-                &info,
-                rules,
-                &mut Resources::default(),
-            )
+            .mutate_with_rules(&wasmmutate, &mut rnd, &info, rules)
             .unwrap();
 
         let mut validator = wasmparser::Validator::new();

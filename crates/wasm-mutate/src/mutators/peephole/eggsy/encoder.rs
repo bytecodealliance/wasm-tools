@@ -1219,7 +1219,7 @@ impl Encoder {
                         }
                         StackType::GlobalSet(_) => return Err(crate::Error::NoMutationsApplicable),
                         StackType::Drop => {
-                            let id = ids_stack.pop().expect("The dynamic offset operand for the load operation is not in the stack");
+                            let id = ids_stack.pop().expect("The dynamic offset operand for the drop operation is not in the stack");
 
                             ids_stack.push(put_enode(
                                 Lang::Drop([id]),
