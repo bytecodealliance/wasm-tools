@@ -302,7 +302,7 @@ impl<'a> DFGBuilder {
         entry_idx
     }
 
-    fn pop_operand(&mut self, operator_idx: usize, insertindfg: bool) -> usize {
+    fn pop_operand(&mut self, operator_idx: usize, insertindfg: bool, undef_color:u32 ) -> usize {
         self.stack
             .pop()
             .or_else(|| {
@@ -315,7 +315,7 @@ impl<'a> DFGBuilder {
                     // Check if this can be inferred from the operator
                     return_type: PrimitiveTypeInfo::Empty,
                     entry_idx,
-                    color: 0, // 0 color is undefined
+                    color: undef_color, 
                     operator_idx,
                 }; // Means not reachable
                 if insertindfg {
@@ -366,7 +366,7 @@ impl<'a> DFGBuilder {
 
                             // Pop as many parameters from the stack
                             let mut operands = (0..tpe.params.len())
-                                .map(|_| self.pop_operand(idx, true))
+                                .map(|_| self.pop_operand(idx, true, 0))
                                 .collect::<Vec<usize>>();
                             // reverse operands
                             operands.reverse();
@@ -414,7 +414,7 @@ impl<'a> DFGBuilder {
                     );
                 }
                 Operator::GlobalSet { global_index } => {
-                    let child = self.pop_operand(idx, true);
+                    let child = self.pop_operand(idx, true, 0);// 0 color is undefined
 
                     self.push_node(
                         StackType::GlobalSet(*global_index),
@@ -448,7 +448,7 @@ impl<'a> DFGBuilder {
                 }
                 Operator::LocalSet { local_index } => {
                     // It needs the offset arg
-                    let child = self.pop_operand(idx, true);
+                    let child = self.pop_operand(idx, true, 0);
 
                     let idx = self.push_node(
                         StackType::LocalSet(*local_index),
@@ -463,7 +463,7 @@ impl<'a> DFGBuilder {
                 }
                 Operator::LocalTee { local_index } => {
                     // It needs the offset arg
-                    let child = self.pop_operand(idx, true);
+                    let child = self.pop_operand(idx, true, 0);
 
                     let idx = self.push_node(
                         StackType::LocalTee(*local_index),
@@ -477,8 +477,8 @@ impl<'a> DFGBuilder {
                     color += 1;
                 }
                 Operator::I32Store { .. } | Operator::I64Store { .. } => {
-                    let value = self.pop_operand(idx, false);
-                    let offset = self.pop_operand(idx, false);
+                    let value = self.pop_operand(idx, false, 0);
+                    let offset = self.pop_operand(idx, false, 0);
                     let idx = self.push_node(
                         StackType::IndexAtCode(idx, 2),
                         idx,
@@ -495,7 +495,7 @@ impl<'a> DFGBuilder {
                 // All memory loads
                 Operator::I32Load { memarg } => {
                     // It needs the dynamic offset arg
-                    let offset = self.pop_operand(idx, false);
+                    let offset = self.pop_operand(idx, false, 0);
 
                     let idx = self.push_node(
                         StackType::Load {
@@ -514,7 +514,7 @@ impl<'a> DFGBuilder {
                 }
                 Operator::I64Load { memarg } => {
                     // It needs the offset arg
-                    let offset = self.pop_operand(idx, false);
+                    let offset = self.pop_operand(idx, false, 0);
                     let idx = self.push_node(
                         StackType::Load {
                             offset: memarg.offset,
@@ -530,7 +530,7 @@ impl<'a> DFGBuilder {
                     self.parents[offset] = idx as i32;
                 }
                 Operator::I32Eqz => {
-                    let operand = self.pop_operand(idx, false);
+                    let operand = self.pop_operand(idx, false, 0);
                     let idx = self.push_node(
                         StackType::IndexAtCode(idx, 1),
                         idx,
@@ -542,7 +542,7 @@ impl<'a> DFGBuilder {
                     self.parents[operand] = idx as i32;
                 }
                 Operator::I64Eqz => {
-                    let operand = self.pop_operand(idx, false);
+                    let operand = self.pop_operand(idx, false, 0);
                     let idx = self.push_node(
                         StackType::IndexAtCode(idx, 1),
                         idx,
@@ -568,8 +568,8 @@ impl<'a> DFGBuilder {
                 | Operator::I64ShrU
                 | Operator::I64RemS
                 | Operator::I64RemU => {
-                    let leftidx = self.pop_operand(idx, false);
-                    let rightidx = self.pop_operand(idx, false);
+                    let leftidx = self.pop_operand(idx, false, 0);
+                    let rightidx = self.pop_operand(idx, false, 0);
                     // The operands should not be the same
                     assert_ne!(leftidx, rightidx);
 
@@ -619,8 +619,8 @@ impl<'a> DFGBuilder {
                 | Operator::I32Rotr
                 | Operator::I32RemS
                 | Operator::I32RemU => {
-                    let leftidx = self.pop_operand(idx, false);
-                    let rightidx = self.pop_operand(idx, false);
+                    let leftidx = self.pop_operand(idx, false, 0);
+                    let rightidx = self.pop_operand(idx, false, 0);
 
                     // The operands should not be the same
                     assert_ne!(leftidx, rightidx);
@@ -637,7 +637,7 @@ impl<'a> DFGBuilder {
                     self.parents[rightidx] = idx as i32;
                 }
                 Operator::Drop => {
-                    let arg = self.pop_operand(idx, false);
+                    let arg = self.pop_operand(idx, false, 0);
 
                     let idx = self.push_node(
                         StackType::Drop,
@@ -652,7 +652,7 @@ impl<'a> DFGBuilder {
                 }
                 // conversion between integers
                 Operator::I32WrapI64 => {
-                    let arg = self.pop_operand(idx, false);
+                    let arg = self.pop_operand(idx, false, 0);
 
                     let idx = self.push_node(
                         StackType::IndexAtCode(idx, 1),
@@ -665,7 +665,7 @@ impl<'a> DFGBuilder {
                     self.parents[arg] = idx as i32;
                 }
                 Operator::I32Extend16S | Operator::I32Extend8S => {
-                    let arg = self.pop_operand(idx, false);
+                    let arg = self.pop_operand(idx, false, 0);
 
                     let idx = self.push_node(
                         StackType::IndexAtCode(idx, 1),
@@ -683,7 +683,7 @@ impl<'a> DFGBuilder {
                 | Operator::I64ExtendI32S
                 | Operator::I64Extend32S
                 | Operator::I64ExtendI32U => {
-                    let arg = self.pop_operand(idx, false);
+                    let arg = self.pop_operand(idx, false, 0);
 
                     let idx = self.push_node(
                         StackType::IndexAtCode(idx, 1),
@@ -714,7 +714,7 @@ impl<'a> DFGBuilder {
                 }
                 // Unary integer operators.
                 Operator::I32Popcnt => {
-                    let arg = self.pop_operand(idx, false);
+                    let arg = self.pop_operand(idx, false, 0);
                     self.push_node(
                         StackType::IndexAtCode(idx, 1),
                         idx,
@@ -725,7 +725,7 @@ impl<'a> DFGBuilder {
                     self.parents[arg] = idx as i32;
                 }
                 Operator::I64Popcnt => {
-                    let arg = self.pop_operand(idx, false);
+                    let arg = self.pop_operand(idx, false, 0);
                     self.push_node(
                         StackType::IndexAtCode(idx, 1),
                         idx,

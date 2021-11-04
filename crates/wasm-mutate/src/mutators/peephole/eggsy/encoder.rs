@@ -158,7 +158,7 @@ impl Encoder {
                     // It always return i32
                     update(idx, Some(PrimitiveTypeInfo::I32));
                 }
-                Lang::Drop => {
+                Lang::Drop(_) => {
                     update(idx, Some(PrimitiveTypeInfo::Empty));
                 }
                 _ => {}
@@ -311,7 +311,7 @@ impl Encoder {
                         update(idx, get(idx).or(gettpe(Id::from(idx))));
                     }
                     Lang::Arg(_)
-                    | Lang::Drop
+                    | Lang::Drop(_)
                     | Lang::Rand
                     | Lang::Undef
                     | Lang::Extend8S(_)
@@ -420,6 +420,7 @@ impl Encoder {
                         | Lang::ExtendI32U(operands)
                         | Lang::Tee(operands)
                         | Lang::Wrap(operands)
+                        | Lang::Drop(operands)
                         | Lang::Eqz(operands) => {
                             worklist.push(Context::new(operands[0], TraversalEvent::Exit));
                             worklist.push(Context::new(operands[0], TraversalEvent::Enter));
@@ -813,7 +814,7 @@ impl Encoder {
                             }
                             _ => unreachable!("Type cannot be encoded"),
                         },
-                        Lang::Drop => {
+                        Lang::Drop(_) => {
                             newfunc.instruction(&Instruction::Drop);
                         }
                         Lang::ILoad(operands) => {
@@ -853,7 +854,7 @@ impl Encoder {
                                 _ => unreachable!("Type cannot be encoded"),
                             }
                         }
-                        Lang::Rand => match tpe.expect("Type information missing") {
+                        Lang::Rand => match tpe.or(Some(&PrimitiveTypeInfo::I32)).unwrap() {
                             PrimitiveTypeInfo::I32 => {
                                 newfunc.instruction(&Instruction::I32Const(rnd.gen()));
                             }
@@ -1136,7 +1137,7 @@ impl Encoder {
         // Check the returning type of the root, if it is not integer, return NoApplicablePeephole
         let root = &dfg.entries[stack_entry_index];
         match root.return_type {
-            PrimitiveTypeInfo::I32 | PrimitiveTypeInfo::I64 => { /* pass */ }
+            PrimitiveTypeInfo::I32 | PrimitiveTypeInfo::I64 | PrimitiveTypeInfo::Empty => { /* pass */ }
             _ => return Err(crate::Error::NoMutationsApplicable),
         }
 
@@ -1196,7 +1197,7 @@ impl Encoder {
                                 expr,
                             ));
                         }
-                        StackType::LocalSet(_) => unreachable!(),
+                        StackType::LocalSet(_) => return Err(crate::Error::NoMutationsApplicable),
                         StackType::LocalTee(_) => {
                             let value = ids_stack.pop().expect("Ids stack should not be empty");
                             ids_stack.push(put_enode(
@@ -1215,8 +1216,17 @@ impl Encoder {
                                 expr,
                             ));
                         }
-                        StackType::GlobalSet(_) => unreachable!(),
-                        StackType::Drop => unreachable!(),
+                        StackType::GlobalSet(_) => return Err(crate::Error::NoMutationsApplicable),
+                        StackType::Drop => {
+                            let id = ids_stack.pop().expect("The dynamic offset operand for the load operation is not in the stack");
+
+                            ids_stack.push(put_enode(
+                                Lang::Drop([id]),
+                                &mut r,
+                                entry.entry_idx,
+                                expr,
+                            ));
+                        },
                         StackType::Call {
                             function_index: _,
                             params_count,
@@ -1471,7 +1481,7 @@ impl Encoder {
                                     entry.entry_idx,
                                     expr,
                                 ),
-                                _ => panic!("No yet implemented {:?}", operator),
+                                _ => return Err(crate::Error::NoMutationsApplicable),
                             };
 
                             ids_stack.push(nodeid);
@@ -1561,7 +1571,7 @@ impl Encoder {
                             operand(2),
                             operand(3),
                         ])),
-                        d @ Lang::Drop => expr.add((*d).clone()),
+                        Lang::Drop(_) => expr.add(Lang::Drop([operand(0)])),
                         c @ Lang::Num(_) => expr.add((*c).clone()),
                         s @ Lang::Symbol(_) => expr.add((*s).clone()),
                         s @ Lang::Rand => expr.add((*s).clone()),
