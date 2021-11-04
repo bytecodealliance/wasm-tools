@@ -80,6 +80,10 @@ pub struct WasmMutate {
     #[cfg_attr(feature = "structopt", structopt(long))]
     preserve_semantics: bool,
 
+    /// Fuel to control the time of the mutation.
+    #[cfg_attr(feature = "structopt", structopt(long))]
+    fuel: u64,
+
     /// Only perform size-reducing transformations on the Wasm module. This
     /// allows `wasm-mutate` to be used as a test case reducer.
     #[cfg_attr(feature = "structopt", structopt(long))]
@@ -99,6 +103,34 @@ impl Default for WasmMutate {
             preserve_semantics: false,
             reduce: false,
             raw_mutate_func: None,
+            fuel: u64::MAX
+        }
+    }
+}
+
+#[derive(Default)]
+/// Manages resources for the mutation and handles how the resources are consumed
+pub struct Resources {
+    fuel: u64
+}
+
+impl Resources {
+    pub(crate) fn consume(&mut self, qt: u64) -> crate::Result<()> {
+        if qt > self.fuel{
+            self.fuel = 0;
+            log::debug!("Resource limits reached!");
+            return Err(crate::Error::NoMutationsApplicable) // Replace by a TimeoutError type
+        }
+        self.fuel -= qt;
+        Ok(())
+        
+    }
+
+    /// Creates a new allocation of resources for the mutation
+    /// 
+    pub fn new(fuel: u64) -> Self {
+        Resources{
+            fuel
         }
     }
 }
@@ -117,6 +149,12 @@ impl WasmMutate {
     /// transformations on the Wasm module.
     pub fn preserve_semantics(&mut self, preserve_semantics: bool) -> &mut Self {
         self.preserve_semantics = preserve_semantics;
+        self
+    }
+
+    /// Configure the fuel used during the mutation
+    pub fn fuel(&mut self, fuel: u64) -> &mut Self {
+        self.fuel = fuel;
         self
     }
 
@@ -145,6 +183,16 @@ impl WasmMutate {
         self
     }
 
+    pub(crate) fn consume_fuel(&mut self, qt: u64) -> bool {
+        if qt > self.fuel{
+            self.fuel = 0;
+            return false
+        } else {
+            self.fuel -= qt;
+            return true;
+        }
+    }
+
     /// Run this configured `WasmMutate` on the given input Wasm.
     pub fn run<'a>(&self, input_wasm: &'a [u8]) -> Result<Vec<u8>> {
         let mut rng = SmallRng::seed_from_u64(self.seed);
@@ -165,7 +213,8 @@ impl WasmMutate {
         while !mutators.is_empty() {
             let i = rng.gen_range(0, mutators.len());
             let mutator = mutators.swap_remove(i);
-            if let Ok(module) = mutator.mutate(self, &mut rng, &info) {
+            let mut resources = Resources::new(self.fuel);
+            if let Ok(module) = mutator.mutate(&self, &mut rng, &info, &mut resources) {
                 return Ok(module.finish());
             }
         }

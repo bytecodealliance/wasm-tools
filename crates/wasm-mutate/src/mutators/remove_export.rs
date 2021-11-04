@@ -1,7 +1,7 @@
 //! Mutator that removes a random prexisting export
 
 use super::Mutator;
-use crate::{ModuleInfo, Result, WasmMutate};
+use crate::{ModuleInfo, Resources, Result, WasmMutate};
 use rand::prelude::SmallRng;
 use rand::Rng;
 use wasm_encoder::{Export, ExportSection, Module};
@@ -11,13 +11,14 @@ use wasmparser::ExportSectionReader;
 pub struct RemoveExportMutator;
 
 impl Mutator for RemoveExportMutator {
-    fn mutate(&self, _: &WasmMutate, rnd: &mut SmallRng, info: &ModuleInfo) -> Result<Module> {
+    fn mutate(&self, _: &WasmMutate, rnd: &mut SmallRng, info: &ModuleInfo, resources: &mut Resources) -> Result<Module> {
         let mut exports = ExportSection::new();
         let mut reader = ExportSectionReader::new(info.get_exports_section().data, 0)?;
         let max_exports = reader.get_count() as u64;
         let skip_at = rnd.gen_range(0, max_exports);
 
-        (0..max_exports).for_each(|i| {
+        (0..max_exports).map(|i| {
+            resources.consume(1)?;
             let export = reader.read().unwrap();
             if skip_at != i {
                 // otherwise bypass
@@ -47,7 +48,8 @@ impl Mutator for RemoveExportMutator {
             } else {
                 log::debug!("Removing export {:?} idx {:?}", export, skip_at);
             }
-        });
+            Ok(())
+        }).collect::<Result<Vec<_>>>()?;
         Ok(info.replace_section(info.exports.unwrap(), &exports))
     }
 

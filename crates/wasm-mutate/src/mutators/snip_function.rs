@@ -2,7 +2,7 @@
 
 use super::Mutator;
 use crate::module::{PrimitiveTypeInfo, TypeInfo};
-use crate::{ModuleInfo, Result, WasmMutate};
+use crate::{ModuleInfo, Resources, Result, WasmMutate};
 use rand::prelude::SmallRng;
 use rand::Rng;
 use wasm_encoder::{CodeSection, Function, Instruction, Module};
@@ -12,7 +12,7 @@ use wasmparser::CodeSectionReader;
 pub struct SnipMutator;
 
 impl Mutator for SnipMutator {
-    fn mutate(&self, _: &WasmMutate, rnd: &mut SmallRng, info: &ModuleInfo) -> Result<Module> {
+    fn mutate(&self, _: &WasmMutate, rnd: &mut SmallRng, info: &ModuleInfo, resources: &mut Resources) -> Result<Module> {
         let mut codes = CodeSection::new();
         let code_section = info.get_code_section();
         let mut reader = CodeSectionReader::new(code_section.data, 0)?;
@@ -21,7 +21,8 @@ impl Mutator for SnipMutator {
         let ftype =
             info.get_functype_idx((function_to_mutate + info.imported_functions_count) as usize);
 
-        (0..count).for_each(|i| {
+        (0..count).map(|i| {
+            resources.consume(1)?;
             let f = reader.read().unwrap();
             if i == function_to_mutate {
                 log::debug!("Snip function idx {:?}", function_to_mutate);
@@ -57,7 +58,8 @@ impl Mutator for SnipMutator {
             } else {
                 codes.raw(&code_section.data[f.range().start..f.range().end]);
             }
-        });
+            Ok(())
+        }).collect::<Result<Vec<_>>>()?;
         Ok(info.replace_section(info.code.unwrap(), &codes))
     }
 

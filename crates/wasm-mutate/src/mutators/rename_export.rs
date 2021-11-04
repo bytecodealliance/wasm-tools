@@ -1,6 +1,6 @@
 //! Mutator that generates a random renaming of a prexisting export
 use super::Mutator;
-use crate::{ModuleInfo, Result, WasmMutate};
+use crate::{ModuleInfo, Resources, Result, WasmMutate};
 use rand::prelude::SmallRng;
 use rand::{Rng, RngCore};
 use wasm_encoder::{Export, ExportSection, Module};
@@ -53,13 +53,15 @@ impl RenameExportMutator {
 }
 
 impl Mutator for RenameExportMutator {
-    fn mutate(&self, config: &WasmMutate, rnd: &mut SmallRng, info: &ModuleInfo) -> Result<Module> {
+    fn mutate(&self, config: &WasmMutate, rnd: &mut SmallRng, info: &ModuleInfo, resources: &mut Resources) -> Result<Module> {
         let mut exports = ExportSection::new();
         let mut reader = ExportSectionReader::new(info.get_exports_section().data, 0)?;
         let max_exports = reader.get_count() as u64;
         let skip_at = rnd.gen_range(0, max_exports);
 
         for i in 0..max_exports {
+            resources.consume(1)?;
+
             let export = reader.read().unwrap();
 
             let new_name = if skip_at != i {

@@ -1,4 +1,5 @@
 //! This mutator applies a random peephole transformation to the input Wasm module
+use crate::Resources;
 use crate::error::EitherType;
 use crate::module::PrimitiveTypeInfo;
 use crate::mutators::peephole::eggsy::analysis::PeepholeMutationAnalysis;
@@ -91,7 +92,8 @@ impl PeepholeMutator {
         _: &crate::WasmMutate,
         rnd: &mut rand::prelude::SmallRng,
         info: &crate::ModuleInfo,
-        rules: &[Rewrite<Lang, PeepholeMutationAnalysis>]
+        rules: &[Rewrite<Lang, PeepholeMutationAnalysis>],
+        resources: &mut Resources
     ) -> Result<MutationContext> {
         let code_section = info.get_code_section();
         let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
@@ -116,6 +118,8 @@ impl PeepholeMutator {
             let locals = self.get_func_locals(info, fidx + info.imported_functions_count /* the function type is shifted by the imported functions*/, &mut localsreader)?;
 
             for oidx in (opcode_to_mutate..operatorscount).chain(0..opcode_to_mutate) {
+
+                resources.consume(1)?;
 
                 let mut dfg = DFGBuilder::new();
                 let basicblock = dfg.get_bb_from_operator(oidx, &operators);
@@ -158,15 +162,6 @@ impl PeepholeMutator {
                                     continue;
                                 }
                                 let lang_to_stack_entries = lang_to_stack_entries?;
-
-                                // Continue if the subtree coloring is inconsistent
-                                debug!(
-                                    "{}",
-                                    minidfg.pretty_print(&|entry| format!(
-                                        "{:?}",
-                                        &operators[entry.operator_idx]
-                                    ))
-                                );
 
                                 if !minidfg.is_subtree_consistent_from_root() {
                                     debug!("{} is not consistent", start);
@@ -252,9 +247,10 @@ impl PeepholeMutator {
         config: &crate::WasmMutate,
         rnd: &mut rand::prelude::SmallRng,
         info: &crate::ModuleInfo,
-        rules: &[Rewrite<Lang, PeepholeMutationAnalysis>]
+        rules: &[Rewrite<Lang, PeepholeMutationAnalysis>],
+        resources: &mut Resources
     ) -> Result<Module> {
-        let (new_function, function_to_mutate) = self.random_mutate(config, rnd, info, rules)?;
+        let (new_function, function_to_mutate) = self.random_mutate(config, rnd, info, rules, resources)?;
 
         let mut codes = CodeSection::new();
         let code_section = info.get_code_section();
@@ -332,6 +328,7 @@ impl Mutator for PeepholeMutator {
         config: &crate::WasmMutate,
         rnd: &mut rand::prelude::SmallRng,
         info: &crate::ModuleInfo,
+        resources: &mut Resources
     ) -> Result<Module> {
         // Calculate here type related information for parameters, locals and returns
         // This information could be passed to the conditions to check for type correctness rewriting
@@ -372,7 +369,7 @@ impl Mutator for PeepholeMutator {
             // Correctness attraction
             rules.push(rewrite!("correctness-1";  "?x" => "(add ?x 1)" if self.is_const("?x")))
         }
-        self.mutate_with_rules(config, rnd, info, &rules)
+        self.mutate_with_rules(config, rnd, info, &rules, resources)
     }
 
     fn can_mutate<'a>(&self, _: &'a crate::WasmMutate, info: &crate::ModuleInfo) -> bool {
@@ -489,11 +486,7 @@ macro_rules! match_code_mutation {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        info::ModuleInfo,
-        mutators::{peephole::PeepholeMutator, Mutator},
-        WasmMutate,
-    };
+    use crate::{Resources, WasmMutate, info::ModuleInfo, mutators::{peephole::PeepholeMutator, Mutator}};
     use egg::{rewrite, Id, Rewrite, Subst};
     use rand::{rngs::SmallRng, SeedableRng};
 
@@ -1704,7 +1697,7 @@ mod tests {
         assert_eq!(can_mutate, true);
 
         let mutated = mutator
-            .mutate_with_rules(&wasmmutate, &mut rnd, &info, rules)
+            .mutate_with_rules(&wasmmutate, &mut rnd, &info, rules, &mut Resources::default())
             .unwrap();
 
         let mut validator = wasmparser::Validator::new();
