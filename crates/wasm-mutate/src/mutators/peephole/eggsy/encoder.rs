@@ -144,19 +144,27 @@ impl Encoder {
                     let child = get(usize::from(operands[0])).clone();
                     update(idx, child);
                 }
-                Lang::Eqz(_)
-                | Lang::LtS(_)
-                | Lang::LtU(_)
-                | Lang::GtS(_)
-                | Lang::GtU(_)
-                | Lang::LeS(_)
-                | Lang::LeU(_)
-                | Lang::GeS(_)
-                | Lang::Eq(_)
-                | Lang::Ne(_)
-                | Lang::GeU(_) => {
+                Lang::Eqz(_) => {
+                    update(idx, Some(PrimitiveTypeInfo::I32));
+                }
+                Lang::LtS(operands)
+                | Lang::LtU(operands)
+                | Lang::GtS(operands)
+                | Lang::GtU(operands)
+                | Lang::LeS(operands)
+                | Lang::LeU(operands)
+                | Lang::GeS(operands)
+                | Lang::Eq(operands)
+                | Lang::Ne(operands)
+                | Lang::GeU(operands) => {
                     // It always return i32
                     update(idx, Some(PrimitiveTypeInfo::I32));
+                    // Both children should have the same type
+                    let ty = get(usize::from(operands[0]).clone())
+                        .or(get(usize::from(operands[1])).clone());
+                    // Set the type for the children
+                    update(usize::from(operands[0]), ty.clone());
+                    update(usize::from(operands[1]), ty);
                 }
                 Lang::Drop(_) => {
                     update(idx, Some(PrimitiveTypeInfo::Empty));

@@ -1249,6 +1249,41 @@ mod tests {
     }
 
     #[test]
+    fn test_peep_cv5() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("cv4";  "?x" => "(and ?x ?x)")];
+
+        test_peephole_mutator(
+            r#"
+                (module
+                    (type (;0;) (func (result i32)))
+                    (func (;0;) (type 0) (result i32)
+                    i32.const -1
+                    i64.extend_i32_u
+                    i64.const -1
+                    i64.ge_s)
+                    (data (;0;) ""))
+            "#,
+            rules,
+            r#"
+                        (module
+                            (type (;0;) (func (result i32)))
+                            (func (;0;) (type 0) (result i32)
+                            i32.const -1
+                            i64.extend_i32_u
+                            i64.const -1
+                            i64.ge_s
+                            i32.const -1
+                            i64.extend_i32_u
+                            i64.const -1
+                            i64.ge_s
+                            i32.and)
+                            (data (;0;) ""))
+                    "#,
+            1,
+        );
+    }
+    #[test]
     fn test_peep_idem3() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
             &[rewrite!("idempotent-3";  "?x" => "(add ?x 0)")];
