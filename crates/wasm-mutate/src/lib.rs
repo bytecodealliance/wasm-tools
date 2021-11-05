@@ -22,7 +22,7 @@ use crate::mutators::{
 use info::ModuleInfo;
 use mutators::Mutator;
 use rand::{rngs::SmallRng, Rng, SeedableRng};
-use std::sync::Arc;
+use std::{cell::Cell, sync::Arc};
 
 #[cfg(feature = "structopt")]
 use structopt::StructOpt;
@@ -80,6 +80,9 @@ pub struct WasmMutate {
     #[cfg_attr(feature = "structopt", structopt(long))]
     preserve_semantics: bool,
 
+    /// Fuel to control the time of the mutation.
+    #[cfg_attr(feature = "structopt", structopt(skip = Cell::new(u64::MAX)))]
+    fuel: Cell<u64>,
     /// Only perform size-reducing transformations on the Wasm module. This
     /// allows `wasm-mutate` to be used as a test case reducer.
     #[cfg_attr(feature = "structopt", structopt(long))]
@@ -99,6 +102,7 @@ impl Default for WasmMutate {
             preserve_semantics: false,
             reduce: false,
             raw_mutate_func: None,
+            fuel: Cell::new(u64::MAX),
         }
     }
 }
@@ -117,6 +121,12 @@ impl WasmMutate {
     /// transformations on the Wasm module.
     pub fn preserve_semantics(&mut self, preserve_semantics: bool) -> &mut Self {
         self.preserve_semantics = preserve_semantics;
+        self
+    }
+
+    /// Configure the fuel used during the mutation
+    pub fn fuel(&mut self, fuel: u64) -> &mut Self {
+        self.fuel = Cell::new(fuel);
         self
     }
 
@@ -143,6 +153,15 @@ impl WasmMutate {
     ) -> &mut Self {
         self.raw_mutate_func = raw_mutate_func;
         self
+    }
+
+    pub(crate) fn consume_fuel(&self, qt: u64) -> Result<()> {
+        if qt > self.fuel.get() {
+            log::debug!("Resource limits reached!");
+            return Err(crate::Error::NoMutationsApplicable); // Replace by a TimeoutError type
+        }
+        self.fuel.set(self.fuel.get() - qt);
+        Ok(())
     }
 
     /// Run this configured `WasmMutate` on the given input Wasm.

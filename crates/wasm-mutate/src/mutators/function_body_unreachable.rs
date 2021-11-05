@@ -11,26 +11,30 @@ use super::Mutator;
 pub struct FunctionBodyUnreachable;
 
 impl Mutator for FunctionBodyUnreachable {
-    fn mutate(&self, _: &WasmMutate, rnd: &mut SmallRng, info: &ModuleInfo) -> Result<Module> {
+    fn mutate(&self, config: &WasmMutate, rnd: &mut SmallRng, info: &ModuleInfo) -> Result<Module> {
         let mut codes = CodeSection::new();
         let code_section = info.get_code_section();
         let mut reader = CodeSectionReader::new(code_section.data, 0)?;
         let count = reader.get_count();
         let function_to_mutate = rnd.gen_range(0, count);
-        (0..count).for_each(|i| {
-            let f = reader.read().unwrap();
-            if i == function_to_mutate {
-                log::debug!("Changing function idx {:?}", i);
-                let locals = vec![];
-                let mut f = Function::new(locals);
-                f.instruction(&Instruction::Unreachable);
-                f.instruction(&Instruction::End);
+        (0..count)
+            .map(|i| {
+                config.consume_fuel(1)?;
+                let f = reader.read().unwrap();
+                if i == function_to_mutate {
+                    log::debug!("Changing function idx {:?}", i);
+                    let locals = vec![];
+                    let mut f = Function::new(locals);
+                    f.instruction(&Instruction::Unreachable);
+                    f.instruction(&Instruction::End);
 
-                codes.function(&f);
-            } else {
-                codes.raw(&code_section.data[f.range().start..f.range().end]);
-            }
-        });
+                    codes.function(&f);
+                } else {
+                    codes.raw(&code_section.data[f.range().start..f.range().end]);
+                }
+                Ok(())
+            })
+            .collect::<Result<Vec<_>>>()?;
         Ok(info.replace_section(info.code.unwrap(), &codes))
     }
 

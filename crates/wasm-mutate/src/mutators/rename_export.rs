@@ -60,6 +60,8 @@ impl Mutator for RenameExportMutator {
         let skip_at = rnd.gen_range(0, max_exports);
 
         for i in 0..max_exports {
+            config.consume_fuel(1)?;
+
             let export = reader.read().unwrap();
 
             let new_name = if skip_at != i {
