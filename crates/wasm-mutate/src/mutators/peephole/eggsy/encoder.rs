@@ -336,8 +336,6 @@ impl Encoder {
         }
 
         let r = &*types.borrow();
-        println!("typs {:?}", r);
-        println!("typs {:?}", nodes);
         Ok(r.clone())
     }
 
