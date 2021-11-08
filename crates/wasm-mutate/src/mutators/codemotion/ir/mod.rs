@@ -32,7 +32,7 @@ pub trait AstWriter {
     }
 
     /// Default encoding for a loop node
-    /// 
+    ///
     /// This function is called by the defaut implementation
     /// of the `write_loop` method
     ///
@@ -55,7 +55,7 @@ pub trait AstWriter {
     }
 
     /// Default encoding for a block node
-    /// 
+    ///
     /// This function is called by the defaut implementation
     /// of the `write_block` method
     ///
@@ -129,7 +129,7 @@ pub trait AstWriter {
     }
 
     /// Default encoding for an if-else node
-    /// 
+    ///
     /// This function is called by the defaut implementation
     /// of the `write_if_else` method
     ///
@@ -161,8 +161,8 @@ pub trait AstWriter {
         Ok(())
     }
 
-    /// Encodes a code node. 
-    /// 
+    /// Encodes a code node.
+    ///
     /// Redefine this if your implementation mutates basic block constructions. For example, if your
     /// implementation replaces the basic block with an unreachable instruction, override
     /// this method. For the other nodes in the Wasm that your implementation is not
@@ -188,7 +188,7 @@ pub trait AstWriter {
     }
 
     /// Default encoding for code node
-    /// 
+    ///
     /// This function is called by the defaut implementation
     /// of the `write_code` method
     ///
@@ -205,7 +205,7 @@ pub trait AstWriter {
     }
 
     /// Encoding discriminator for the Ast nodes
-    /// 
+    ///
     /// It calls the corresponding methods depending on the node type
     ///
     fn write<'a>(
