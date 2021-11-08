@@ -226,13 +226,6 @@ pub enum FloatVal<'a> {
     },
 }
 
-// https://webassembly.github.io/spec/core/text/lexical.html#white-space
-macro_rules! ws_chars {
-    () => {
-        b' ' | b'\n' | b'\r' | b'\t'
-    };
-}
-
 // https://webassembly.github.io/spec/core/text/values.html#text-idchar
 macro_rules! idchars {
     () => {
@@ -371,7 +364,8 @@ impl<'a> Lexer<'a> {
                 })))));
             }
 
-            ws_chars!() => Ok(Some(Token::Whitespace(self.split_ws()))),
+            // https://webassembly.github.io/spec/core/text/lexical.html#white-space
+            b' ' | b'\n' | b'\r' | b'\t' => Ok(Some(Token::Whitespace(self.split_ws()))),
 
             c @ idchars!() => {
                 let reserved = self.split_while(|b| match b {
