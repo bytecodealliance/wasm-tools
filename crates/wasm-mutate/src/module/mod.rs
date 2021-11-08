@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 
-use wasm_encoder::ValType;
-use wasmparser::{Type, TypeDef};
+use wasm_encoder::{BlockType, ValType};
+use wasmparser::{Type, TypeDef, TypeOrFuncType};
 
 use crate::error::EitherType;
 
@@ -74,5 +74,19 @@ pub fn map_type(tpe: Type) -> super::Result<ValType> {
         Type::F32 => Ok(ValType::F32),
         Type::F64 => Ok(ValType::F64),
         _ => Err(super::Error::UnsupportedType(EitherType::Type(tpe))),
+    }
+}
+
+pub fn map_block_type(ty: TypeOrFuncType) -> super::Result<BlockType> {
+    match ty {
+        TypeOrFuncType::Type(ty) => match ty {
+            Type::I32 => Ok(BlockType::Result(ValType::I32)),
+            Type::I64 => Ok(BlockType::Result(ValType::I64)),
+            Type::F32 => Ok(BlockType::Result(ValType::F32)),
+            Type::F64 => Ok(BlockType::Result(ValType::F64)),
+            Type::EmptyBlockType => Ok(BlockType::Empty),
+            _ => Err(super::Error::NoMutationsApplicable),
+        },
+        TypeOrFuncType::FuncType(_) => Err(super::Error::NoMutationsApplicable),
     }
 }

@@ -1,6 +1,7 @@
 //! Mutator trait
 use rand::prelude::SmallRng;
 use wasm_encoder::Module;
+use wasmparser::Operator;
 
 use super::Result;
 use crate::{ModuleInfo, WasmMutate};
@@ -24,6 +25,10 @@ pub trait Mutator {
     }
 }
 
+/// Type helper to wrap operator and the byte offset in the code section of a Wasm module
+pub type OperatorAndByteOffset<'a> = (Operator<'a>, usize);
+
+pub(crate) mod codemotion;
 pub(crate) mod function_body_unreachable;
 pub(crate) mod peephole;
 pub(crate) mod remove_export;

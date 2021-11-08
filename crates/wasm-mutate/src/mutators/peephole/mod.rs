@@ -9,7 +9,7 @@ use rand::{prelude::SmallRng, Rng};
 use std::convert::TryFrom;
 use std::sync::atomic::AtomicU64;
 use wasm_encoder::{CodeSection, Function, Module, ValType};
-use wasmparser::{CodeSectionReader, FunctionBody, LocalsReader, Operator};
+use wasmparser::{CodeSectionReader, FunctionBody, LocalsReader};
 
 // Hack to show debug messages in tests
 #[cfg(not(test))]
@@ -25,7 +25,7 @@ static NUM_SUCCESSFUL_MUTATIONS: AtomicU64 = AtomicU64::new(0);
 
 use self::{dfg::DFGBuilder, eggsy::RandomExtractor};
 
-use super::Mutator;
+use super::{Mutator, OperatorAndByteOffset};
 
 pub mod dfg;
 pub mod eggsy;
@@ -37,8 +37,6 @@ type EG = egg::EGraph<Lang, PeepholeMutationAnalysis>;
 // Code mutator, function id, operator id
 type MutationContext = (Function, u32);
 
-// Helper type to return operator and ofsset inside the byte stream
-type OperatorAndByteOffset<'a> = (Operator<'a>, usize);
 impl PeepholeMutator {
     // Collect and unfold params and locals, [x, ty, y, ty2] -> [ty....ty, ty2...ty2]
     fn get_func_locals(
@@ -70,6 +68,7 @@ impl PeepholeMutator {
             ))),
         }
     }
+
     fn copy_locals(&self, reader: FunctionBody) -> Result<Function> {
         // Create the new function
         let mut localreader = reader.get_locals_reader()?;
@@ -97,8 +96,8 @@ impl PeepholeMutator {
         let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
         let function_count = sectionreader.get_count();
 
-        // Split where to start looking for mutable function
-        // In theory random split will provide a mutable location faster
+        // This split strategy will avoid very often mutating the first function
+        // and very rarely mutating the last function
         let function_to_mutate = rnd.gen_range(0, function_count);
         let all_readers = (0..function_count)
             .map(|_| sectionreader.read().unwrap())

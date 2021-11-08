@@ -15,9 +15,9 @@ pub(crate) mod module;
 pub mod mutators;
 
 use crate::mutators::{
-    function_body_unreachable::FunctionBodyUnreachable, peephole::PeepholeMutator,
-    remove_export::RemoveExportMutator, rename_export::RenameExportMutator,
-    snip_function::SnipMutator,
+    codemotion::CodemotionMutator, function_body_unreachable::FunctionBodyUnreachable,
+    peephole::PeepholeMutator, remove_export::RemoveExportMutator,
+    rename_export::RenameExportMutator, snip_function::SnipMutator,
 };
 use info::ModuleInfo;
 use mutators::Mutator;
@@ -175,6 +175,7 @@ impl WasmMutate {
             Box::new(SnipMutator),
             Box::new(FunctionBodyUnreachable),
             Box::new(PeepholeMutator),
+            Box::new(CodemotionMutator),
         ];
         let mut mutators: Vec<_> = mutators
             .into_iter()

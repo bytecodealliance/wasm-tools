@@ -2,6 +2,7 @@
 use std::cell::{Cell, RefCell};
 use std::{collections::HashMap, num::Wrapping};
 
+use crate::mutators::OperatorAndByteOffset;
 use egg::{Id, RecExpr};
 use rand::Rng;
 use wasm_encoder::{Function, Instruction, MemArg};
@@ -12,10 +13,7 @@ use crate::mutators::peephole::dfg::StackType;
 use crate::mutators::peephole::{Lang, EG};
 use crate::{
     error::EitherType,
-    mutators::peephole::{
-        dfg::{BBlock, MiniDFG, StackEntry},
-        OperatorAndByteOffset,
-    },
+    mutators::peephole::dfg::{BBlock, MiniDFG, StackEntry},
     ModuleInfo,
 };
 
