@@ -235,15 +235,15 @@ impl ParseContext {
     ///
     /// Returns a new Ast instance
     ///
-    pub fn finish(&mut self) -> Ast {
+    pub fn finish(mut self) -> Ast {
         let roots = self.get_current_parsing();
         let root_id = self.push_node_to_current_parsing(Node::Root(roots));
         Ast {
             root: root_id,
-            nodes: self.get_nodes(),
-            ifs: self.ifs.clone(),
-            loops: self.loops.clone(),
-            blocks: self.blocks.clone(),
+            nodes: self.nodes,
+            ifs: self.ifs,
+            loops: self.loops,
+            blocks: self.blocks,
         }
     }
 }
