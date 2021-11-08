@@ -133,11 +133,11 @@ impl Encoder {
                     }
                 }
                 Lang::Extend32S(operands) => {
-                    update(idx, gettpe(Id::from(idx)));
+                    update(idx, Some(PrimitiveTypeInfo::I64));
                     update(usize::from(operands[0]), Some(PrimitiveTypeInfo::I64));
                 }
                 Lang::ExtendI32S(operands) | Lang::ExtendI32U(operands) => {
-                    update(idx, gettpe(Id::from(idx)));
+                    update(idx, Some(PrimitiveTypeInfo::I64));
                     update(usize::from(operands[0]), Some(PrimitiveTypeInfo::I32));
                 }
                 Lang::Tee(operands) => {
