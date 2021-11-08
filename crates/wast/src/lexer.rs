@@ -315,11 +315,21 @@ impl<'a> Lexer<'a> {
 
         match byte {
             // Open-parens check the next character to see if this is the start
-            // of a block comment, otherwise it's just a bland left-parent
+            // of a block comment, otherwise it's just a bland left-paren
             // token.
             b'(' => match self.remaining.as_bytes().get(1) {
                 Some(b';') => {
                     let mut level = 1;
+                    // Note that we're doing a byte-level search here for the
+                    // close-delimiter of `;)`. The actual source text is utf-8
+                    // encode in `self.remaining` but due to how utf-8 works we
+                    // can safely search for an ASCII byte since it'll never
+                    // otherwise appear in the middle of a codepoint and if we
+                    // find it then it's guaranteed to be the right byte.
+                    //
+                    // Mainly we're avoiding the overhead of decoding utf-8
+                    // characters into a Rust `char` since it's otherwise
+                    // unnecessary work.
                     let mut iter = self.remaining.as_bytes()[2..].iter();
                     while let Some(ch) = iter.next() {
                         match ch {
@@ -418,10 +428,52 @@ impl<'a> Lexer<'a> {
     }
 
     fn split_ws(&mut self) -> &'a str {
-        self.split_while(|c| match c {
-            ws_chars!() => true,
-            _ => false,
-        })
+        // This table is a byte lookup table to determine whether a byte is a
+        // whitespace byte. There are only 4 whitespace bytes for the `*.wat`
+        // format right now which are ' ', '\t', '\r', and '\n'. These 4 bytes
+        // have a '1' in the table below.
+        //
+        // Due to how utf-8 works (our input is guaranteed to be utf-8) it is
+        // known that if these bytes are found they're guaranteed to be the
+        // whitespace byte, so they can be safely skipped and we don't have to
+        // do full utf-8 decoding. This means that the goal of this function is
+        // to find the first non-whitespace byte in `self.remaining`.
+        //
+        // For now this lookup table seems to be the fastest, but projects like
+        // https://github.com/lemire/despacer show other simd algorithms which
+        // can possibly accelerate this even more. Note that `*.wat` files often
+        // have a lot of whitespace so this function is typically quite hot when
+        // parsing inputs.
+        #[rustfmt::skip]
+        const WS: [u8; 256] = [
+            //                                   \t \n       \r
+            /* 0x00 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0,
+            /* 0x10 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            //        ' '
+            /* 0x20 */ 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            /* 0x30 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            /* 0x40 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            /* 0x50 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            /* 0x60 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            /* 0x70 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            /* 0x80 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            /* 0x90 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            /* 0xa0 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            /* 0xb0 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            /* 0xc0 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            /* 0xd0 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            /* 0xe0 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            /* 0xf0 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ];
+        let pos = self
+            .remaining
+            .as_bytes()
+            .iter()
+            .position(|b| WS[*b as usize] != 1)
+            .unwrap_or(self.remaining.len());
+        let (ret, remaining) = self.remaining.split_at(pos);
+        self.remaining = remaining;
+        ret
     }
 
     fn split_while(&mut self, f: impl Fn(u8) -> bool) -> &'a str {
@@ -625,18 +677,20 @@ impl<'a> Lexer<'a> {
         // in the utf-8 encoding that's the leading encoding byte for all
         // "confusing characters". Each instance of 0xe2 is checked to see if it
         // starts a confusing character, and if so that's returned.
+        //
+        // Also note that 0xe2 will never be found in the middle of a codepoint,
+        // it's always the start of a codepoint. This means that if our special
+        // characters show up they're guaranteed to start with 0xe2 bytes.
         let bytes = comment.as_bytes();
         for pos in memchr::Memchr::new(0xe2, bytes) {
-            if let Some(s) = comment.get(pos..) {
-                if let Some(c) = s.chars().next() {
-                    if is_confusing_unicode(c) {
-                        // Note that `self.cur()` accounts for already having
-                        // parsed `comment`, so we move backwards to where
-                        // `comment` started and then add the index within
-                        // `comment`.
-                        let pos = self.cur() - comment.len() + pos;
-                        return Err(self.error(pos, LexError::ConfusingUnicode(c)));
-                    }
+            if let Some(c) = comment[pos..].chars().next() {
+                if is_confusing_unicode(c) {
+                    // Note that `self.cur()` accounts for already having
+                    // parsed `comment`, so we move backwards to where
+                    // `comment` started and then add the index within
+                    // `comment`.
+                    let pos = self.cur() - comment.len() + pos;
+                    return Err(self.error(pos, LexError::ConfusingUnicode(c)));
                 }
             }
         }
@@ -914,12 +968,14 @@ fn escape_char(c: char) -> String {
     }
 }
 
-/// This is an attempt to protect agains the "trojan source" problem where
+/// This is an attempt to protect agains the "trojan source" [1] problem where
 /// unicode characters can cause editors to render source code differently
 /// for humans than the compiler itself sees.
 ///
 /// To mitigate this issue, and because it's relatively rare in practice,
 /// this simply rejects characters of that form.
+///
+/// [1]: https://www.trojansource.codes/
 fn is_confusing_unicode(ch: char) -> bool {
     match ch {
         '\u{202a}' | '\u{202b}' | '\u{202d}' | '\u{202e}' | '\u{2066}' | '\u{2067}'
