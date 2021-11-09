@@ -1,11 +1,4 @@
-use crate::{
-    module::map_type,
-    mutators::{
-        codemotion::{ir::AstBuilder, mutators::if_complement::IfComplementMutator},
-        OperatorAndByteOffset,
-    },
-    Error, Result,
-};
+use crate::{Error, Result, module::map_type, mutators::{OperatorAndByteOffset, codemotion::{ir::AstBuilder, mutators::{if_complement::IfComplementMutator, loop_unrolling::LoopUnrollMutator}}}};
 use rand::{prelude::SliceRandom, Rng};
 use wasm_encoder::{CodeSection, Function, Module, ValType};
 use wasmparser::{CodeSectionReader, FunctionBody};
@@ -131,7 +124,8 @@ impl Mutator for CodemotionMutator {
     ) -> Result<Module> {
         // Initialize mutators
         let mutators: Vec<Box<dyn AstMutator>> = vec![
-            Box::new(IfComplementMutator), // Add the other here
+            Box::new(IfComplementMutator), 
+            Box::new(LoopUnrollMutator), // Add the other here
         ];
 
         let (newfunc, function_to_mutate) = self.random_mutate(config, rnd, info, &mutators)?;

@@ -57,6 +57,12 @@ impl Ast {
         &self.ifs
     }
 
+    /// Returns the node indexes corresponding to if-else nodes
+    ///
+    pub fn get_loops(&self) -> &[usize] {
+        &self.loops
+    }
+
     /// Returns the `Root` node index of the Ast
     ///
     pub fn get_root(&self) -> usize {
