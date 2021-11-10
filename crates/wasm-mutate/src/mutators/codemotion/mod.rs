@@ -189,7 +189,6 @@ mod tests {
         let mut validator = wasmparser::Validator::new();
         let mutated_bytes = &mutated.finish();
         let text = wasmprinter::print_bytes(mutated_bytes).unwrap();
-        println!("{}", text);
         crate::validate(&mut validator, mutated_bytes);
         let expected_bytes = &wat::parse_str(expected).unwrap();
         let expectedtext = wasmprinter::print_bytes(expected_bytes).unwrap();
@@ -686,9 +685,7 @@ mod tests {
                       block  ;; label = @3
                         loop  ;; label = @4
                           local.get 0
-                          i32.const 100
-                          i32.ge_s
-                          br_if 3 (;@1;)
+                          br_table 1 (;@3;) 3 (;@1;) 3 (;@1;) 3 (;@1;) 3 (;@1;)
                         end
                         local.get 0
                         i32.const 200
@@ -699,9 +696,7 @@ mod tests {
                       loop  ;; label = @3
                         loop  ;; label = @4
                           local.get 0
-                          i32.const 100
-                          i32.ge_s
-                          br_if 3 (;@1;)
+                          br_table 1 (;@3;) 3 (;@1;) 3 (;@1;) 3 (;@1;) 3 (;@1;)
                         end
                         local.get 0
                         i32.const 200
@@ -713,7 +708,6 @@ mod tests {
                   local.get 0)
                 (memory (;0;) 1)
                 (export "exported_func" (func 0)))
-
         "#,
             1,
         );
