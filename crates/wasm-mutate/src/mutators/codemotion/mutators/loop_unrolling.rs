@@ -1,7 +1,5 @@
-//! This mutator selects a random `if` construction in a function and swap its branches.
-//! Since this mutator preserves the original semantic of the input Wasm,
-//! before the mutated if structure is encoded, a "negation" of the previous operand
-//! in the stack is written. The "negation" is encoded with a `i32.eqz` operator.
+//! This mutator selects a random `loop` construction in a function and tries to unroll it.
+//! This mutator only works on empty-returning loops
 use std::{cell::Cell, collections::HashMap, slice::Iter};
 
 use rand::prelude::SliceRandom;
@@ -27,7 +25,6 @@ pub struct LoopUnrollMutator;
 #[derive(Default)]
 struct LoopUnrollWriter {
     loop_to_mutate: usize,
-    mutated: Cell<bool>,
 }
 
 impl LoopUnrollWriter {
@@ -59,11 +56,6 @@ impl LoopUnrollWriter {
         operators: &Vec<OperatorAndByteOffset>,
         input_wasm: &'a [u8],
     ) -> crate::Result<()> {
-        // Do not write as it is
-        // Increase the current AST with the custom nodes
-
-        // Create outer block
-        self.mutated.set(true);
         let nodes = ast.get_nodes();
 
         enum State {
@@ -181,7 +173,7 @@ impl AstWriter for LoopUnrollWriter {
         input_wasm: &'a [u8],
         ty: &wasmparser::TypeOrFuncType,
     ) -> crate::Result<()> {
-        if self.loop_to_mutate == nodeidx && !self.mutated.get() {
+        if self.loop_to_mutate == nodeidx {
             self.unroll_loop(ast, nodeidx, newfunc, operators, input_wasm)?;
         } else {
             self.write_loop_default(ast, nodeidx, body, newfunc, operators, input_wasm, ty)?;
@@ -232,12 +224,11 @@ impl AstMutator for LoopUnrollMutator {
         // Select the if index
         let mut newfunc = Function::new(locals.to_vec());
         let empty_returning_loops = self.get_empty_returning_loops(ast);
-        let loop_index = empty_retuurning_loops
+        let loop_index = empty_returning_loops
             .choose(rnd)
             .expect("This mutator should check first if the AST contains at least one loop node");
         let writer = LoopUnrollWriter {
             loop_to_mutate: *loop_index,
-            mutated: Cell::new(false),
         };
         writer.write(ast, ast.get_root(), &mut newfunc, operators, input_wasm)?;
         Ok(newfunc)
