@@ -231,7 +231,7 @@ impl AstMutator for LoopUnrollMutator {
     ) -> crate::Result<Function> {
         // Select the if index
         let mut newfunc = Function::new(locals.to_vec());
-        let empty_retuurning_loops = self.get_empty_returning_loops(ast);
+        let empty_returning_loops = self.get_empty_returning_loops(ast);
         let loop_index = empty_retuurning_loops
             .choose(rnd)
             .expect("This mutator should check first if the AST contains at least one loop node");
