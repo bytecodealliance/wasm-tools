@@ -138,7 +138,6 @@ impl LoopUnrollWriter {
                     }
                 }
 
-                // println!("To fix {:?}", to_fix);
                 // Write the unroll
                 newfunc.instruction(&Instruction::Block(map_block_type(*ty)?));
                 // Write A' br B'
