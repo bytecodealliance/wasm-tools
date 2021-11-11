@@ -1,64 +1,50 @@
-use std::collections::HashMap;
+use std::cell::RefCell;
 
 use crate::{
-    error::EitherType,
-    module::PrimitiveTypeInfo,
-    mutators::peephole::{
-        dfg::{MiniDFG, StackEntry},
-        eggsy::Lang,
-    },
+    module::{PrimitiveTypeInfo, TypeInfo},
+    mutators::peephole::eggsy::Lang,
 };
 use egg::{Analysis, EGraph, Id};
 
 /// Analysis implementation for our defined language
 /// It will maintain the information regarding to map eterm to wasm and back: the DFG, the symbols
 /// and the mapping between the equivalence classes and the stack entry in the DFG of the Wasm basic block
-#[derive(Clone, Debug, Default)]
 pub struct PeepholeMutationAnalysis {
-    /// Egraph node ID to Stack entry in the minidfg entries
-    /// The Lang eterm is hashed, which means that if the first entrance is the expression to mutated,
-    /// the eclass data could be maintained by using the
-    /// Hashing of the original eterm
-    pub lang_to_stack_entries: HashMap<Lang, (Id, Vec<usize>)>,
-    /// DFG data mapping from the input Wasm basic block
-    minidfg: MiniDFG,
+    /// Module information for globals
+    global_types: Vec<PrimitiveTypeInfo>,
+    /// Module information for function locals
+    locals: Vec<PrimitiveTypeInfo>,
+
+    /// Information from the ModuleInfo
+    /// types for functions
+    types_map: Vec<TypeInfo>,
+    /// function idx to type idx
+    function_map: Vec<u32>,
+    // Egraph nodes
+    // This will help to infer returning types from
+    // local, globals and function calls
+    nodes: RefCell<Vec<Lang>>,
 }
 
 impl PeepholeMutationAnalysis {
     /// Returns a new analysis from the given DFG
-    pub fn new(lang_to_stack_entries: HashMap<Lang, (Id, Vec<usize>)>, minidfg: MiniDFG) -> Self {
+    pub fn new(
+        global_types: Vec<PrimitiveTypeInfo>,
+        locals: Vec<PrimitiveTypeInfo>,
+        types_map: Vec<TypeInfo>,
+        function_map: Vec<u32>,
+    ) -> Self {
         PeepholeMutationAnalysis {
-            lang_to_stack_entries,
-            minidfg,
+            global_types,
+            locals,
+            types_map,
+            function_map,
+            nodes: RefCell::new(Vec::new()),
         }
     }
 
-    /// Returns a stack entry from the DFG given its index
-    pub fn get_stack_entry(&self, idx: usize) -> &StackEntry {
-        &self.minidfg.entries[idx]
-    }
-    /// Returns a stack entry from the DFG given the symbol name
-    /// If the symbol is not in the DFG, it returns None
-    pub fn get_stack_entry_from_symbol(&self, symbol: String) -> Option<&StackEntry> {
-        self.lang_to_stack_entries
-            .get(&Lang::Symbol(symbol.into()))
-            .and_then(|(_, entries)| entries.get(0).map(|&x| &self.minidfg.entries[x]))
-    }
-    /// Returns a stack entry from the DFG given node repr
-    /// If the node is not in the DFG, it returns None
-    pub fn get_stack_entry_from_lang(&self, l: &Lang) -> Option<&StackEntry> {
-        self.lang_to_stack_entries
-            .get(l)
-            .and_then(|(_, entries)| entries.get(0).map(|&x| &self.minidfg.entries[x]))
-    }
-
-    /// Return the parental relations in the DFG
-    pub fn get_roots(&self) -> &Vec<i32> {
-        &self.minidfg.parents
-    }
-
-    /// Returns returning type of node
-    pub fn get_tpe(&self, l: &Lang) -> crate::Result<PrimitiveTypeInfo> {
+    /// Gets returning type of node
+    pub fn get_returning_tpe(&self, l: &Lang, expr: &[Lang]) -> crate::Result<PrimitiveTypeInfo> {
         match l {
             Lang::I32Add(_) => Ok(PrimitiveTypeInfo::I32),
             Lang::I64Add(_) => Ok(PrimitiveTypeInfo::I64),
@@ -112,23 +98,40 @@ impl PeepholeMutationAnalysis {
             Lang::I64GeS(_) => Ok(PrimitiveTypeInfo::I32),
             Lang::I32GeU(_) => Ok(PrimitiveTypeInfo::I32),
             Lang::I64GeU(_) => Ok(PrimitiveTypeInfo::I32),
-            Lang::Tee(_) => {
-                let entry = self.get_stack_entry_from_lang(l).ok_or_else(|| {
-                    crate::Error::UnsupportedType(EitherType::EggError(
-                        "The current symbol cannot be retrieved".into(),
-                    ))
-                })?;
-                Ok(entry.return_type.clone())
+            Lang::LocalTee(operands) => {
+                let idxnode = &expr[usize::from(operands[0])];
+                match idxnode {
+                    Lang::Arg(v) => Ok(self.locals[*v as usize].clone()),
+                    _ => unreachable!("Invalid idx node {:?} for local.tee", idxnode),
+                }
             }
             Lang::Wrap(_) => Ok(PrimitiveTypeInfo::I32),
-            Lang::Call(_) => {
-                // Replace all by this
-                let entry = self.get_stack_entry_from_lang(l).ok_or_else(|| {
-                    crate::Error::UnsupportedType(EitherType::EggError(
-                        "The current symbol cannot be retrieved".into(),
-                    ))
-                })?;
-                Ok(entry.return_type.clone())
+            Lang::Call(operands) => {
+                let first = operands[0];
+                let firstnode = &expr[usize::from(first)];
+                let functionindex = match firstnode {
+                    Lang::Arg(val) => *val as u32,
+                    Lang::Const(val) => *val as u32,
+                    _ => unreachable!(
+                        "The first argument for Call nodes should be an inmmediate node type (Arg)"
+                    ),
+                };
+                let typeinfo = self.get_functype_idx(functionindex as usize);
+
+                match typeinfo {
+                    TypeInfo::Func(ty) => {
+                        if ty.returns.is_empty() {
+                            return Ok(PrimitiveTypeInfo::Empty);
+                        }
+
+                        if ty.returns.len() > 1 {
+                            return Err(crate::Error::NoMutationsApplicable);
+                        }
+
+                        Ok(ty.returns[0].clone())
+                    }
+                    _ => unreachable!("Invalid function type {:?}", typeinfo),
+                }
             }
             Lang::I32Popcnt(_) => Ok(PrimitiveTypeInfo::I32),
             Lang::I64Popcnt(_) => Ok(PrimitiveTypeInfo::I64),
@@ -140,17 +143,6 @@ impl PeepholeMutationAnalysis {
             Lang::Unfold(_) => Ok(PrimitiveTypeInfo::Empty),
             Lang::I32(_) => Ok(PrimitiveTypeInfo::I32),
             Lang::I64(_) => Ok(PrimitiveTypeInfo::I64),
-            // Get the type from the locals
-            Lang::Symbol(s) => {
-                let entry = self
-                    .get_stack_entry_from_symbol(s.to_string())
-                    .ok_or_else(|| {
-                        crate::Error::UnsupportedType(EitherType::EggError(
-                            "The current symbol cannot be retrieved".into(),
-                        ))
-                    })?;
-                Ok(entry.return_type.clone())
-            }
             Lang::Arg(_) => Ok(PrimitiveTypeInfo::I32),
             Lang::Const(_) => Ok(PrimitiveTypeInfo::I32),
             Lang::I32Extend8S(_) => Ok(PrimitiveTypeInfo::I32),
@@ -160,38 +152,43 @@ impl PeepholeMutationAnalysis {
             Lang::I64Extend32S(_) => Ok(PrimitiveTypeInfo::I64),
             Lang::I64ExtendI32S(_) => Ok(PrimitiveTypeInfo::I64),
             Lang::I64ExtendI32U(_) => Ok(PrimitiveTypeInfo::I64),
-            Lang::Set(_) => Ok(PrimitiveTypeInfo::Empty),
+            Lang::LocalSet(_) => Ok(PrimitiveTypeInfo::Empty),
             Lang::GlobalSet(_) => Ok(PrimitiveTypeInfo::Empty),
+            Lang::LocalGet(operands) => {
+                let idxnode = &expr[usize::from(operands[0])];
+                match idxnode {
+                    Lang::Arg(v) => Ok(self.locals[*v as usize].clone()),
+                    _ => unreachable!("Invalid idx node {:?} for local.get", idxnode),
+                }
+            }
+            Lang::GlobalGet(operands) => {
+                let idxnode = &expr[usize::from(operands[0])];
+                match idxnode {
+                    Lang::Arg(v) => Ok(self.global_types[*v as usize].clone()),
+                    _ => unreachable!("Invalid idx node {:?} for global.get", idxnode),
+                }
+            }
         }
+    }
+
+    /// Returns the function type based on the index of the function type
+    /// `types[functions[idx]]`
+    pub fn get_functype_idx(&self, idx: usize) -> &TypeInfo {
+        let functpeindex = self.function_map[idx] as usize;
+        &self.types_map[functpeindex]
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct ClassData {
-    /// Index to the dfg stack entry
-    pub eclass_and_stackentries: (Id, Vec<usize>),
-    // The eclass can represent several stack entries
-    // Every time a new stack entry information is requested
-    current_entry: usize,
-
     /// Type 't' of the operator
     /// 't'.op
     pub tpe: PrimitiveTypeInfo,
 }
 
-impl ClassData {
-    /// Returns the stack enntry that corresponds to this equivalence class.
-    /// The method will check if this equivalence class has a stack entry in the DFG of the analysis.
-    /// If true the StackEntry is then returned
-    pub fn get_next_stack_entry(&self, analysis: &PeepholeMutationAnalysis) -> StackEntry {
-        let idx = self.eclass_and_stackentries.1[self.current_entry];
-        analysis.minidfg.entries[idx].clone()
-    }
-}
-
 impl PartialEq for ClassData {
     fn eq(&self, other: &Self) -> bool {
-        self.eclass_and_stackentries.1 == other.eclass_and_stackentries.1
+        self.tpe == other.tpe
     }
 
     fn ne(&self, other: &Self) -> bool {
@@ -203,17 +200,17 @@ impl Analysis<Lang> for PeepholeMutationAnalysis {
     type Data = Option<ClassData>;
 
     fn make(egraph: &EGraph<Lang, Self>, l: &Lang) -> Self::Data {
-        // This works because always the first expression is the one constructed from the DFG
-        // The node id to stack is consistent then with the order in which this method is call
-        if egraph.analysis.lang_to_stack_entries.contains_key(l) {
-            Some(ClassData {
-                eclass_and_stackentries: egraph.analysis.lang_to_stack_entries[l].clone(),
-                current_entry: 0,
-                tpe: egraph.analysis.get_tpe(l).expect("Missing type"),
-            })
-        } else {
-            None
-        }
+        // We build the nodes collection in the same order the egraph is built
+        egraph.analysis.nodes.borrow_mut().push(l.clone());
+        Some(ClassData {
+            // This type information is used only when the rewriting rules are being applied ot the egraph
+            // Thats why we need the original expression in the analysis beforehand :)
+            // Beyond that the random extracted expression needs to be pass to the `get_returning_tpe` method
+            tpe: egraph
+                .analysis
+                .get_returning_tpe(l, &egraph.analysis.nodes.borrow())
+                .expect("Missing type"),
+        })
     }
 
     fn merge(&self, to: &mut Self::Data, from: Self::Data) -> bool {

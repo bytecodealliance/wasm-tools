@@ -3,10 +3,9 @@ use crate::error::EitherType;
 use crate::module::PrimitiveTypeInfo;
 use crate::mutators::peephole::eggsy::analysis::PeepholeMutationAnalysis;
 use crate::mutators::peephole::eggsy::encoder::rebuild::build_expr;
-use crate::mutators::peephole::eggsy::encoder::wasm2expr::wasm2expr;
 use crate::mutators::peephole::eggsy::encoder::Encoder;
 use crate::mutators::peephole::eggsy::lang::Lang;
-use egg::{rewrite, AstSize, Id, RecExpr, Rewrite, Runner, Subst};
+use egg::{rewrite, AstSize, Id, Rewrite, Runner, Subst};
 use rand::{prelude::SmallRng, Rng};
 use std::convert::TryFrom;
 use std::sync::atomic::AtomicU64;
@@ -147,30 +146,20 @@ impl PeepholeMutator {
                                 if !minidfg.map.contains_key(&oidx) {
                                     continue;
                                 }
-
                                 // Create an eterm expression from the basic block starting at oidx
-                                let mut start = RecExpr::<Lang>::default();
-                                let lang_to_stack_entries =
-                                    wasm2expr(&minidfg, oidx, &operators, &mut start);
-
-                                if let Err(crate::Error::NoMutationsApplicable) =
-                                    lang_to_stack_entries
-                                {
-                                    log::debug!("The DFG tree does not return an integer type");
-                                    continue;
-                                }
-                                let lang_to_stack_entries = lang_to_stack_entries?;
+                                let start = minidfg.get_expr(oidx);
 
                                 if !minidfg.is_subtree_consistent_from_root() {
                                     debug!("{} is not consistent", start);
                                     continue;
                                 }
-
-                                debug!("Trying to mutate {} at {}", start, oidx);
+                                debug!("Trying to mutate \n{} at {}", start.pretty(30), oidx);
 
                                 let analysis = PeepholeMutationAnalysis::new(
-                                    lang_to_stack_entries.clone(),
-                                    minidfg.clone(),
+                                    info.global_types.clone(),
+                                    locals.clone(),
+                                    info.types_map.clone(),
+                                    info.function_map.clone(),
                                 );
                                 let runner =
                                     Runner::<Lang, PeepholeMutationAnalysis, ()>::new(analysis)
@@ -187,7 +176,7 @@ impl PeepholeMutator {
                                 let cf = AstSize;
                                 let extractor = RandomExtractor::new(&egraph, cf);
 
-                                let (expr, node_to_eclass) = extractor.extract_random(
+                                let expr = extractor.extract_random(
                                     rnd,
                                     root,
                                     /* only 1 for now */ 0,
@@ -207,16 +196,15 @@ impl PeepholeMutator {
                                 );
 
                                 let mut newfunc = self.copy_locals(reader)?;
-
                                 Encoder::build_function(
                                     info,
                                     rnd,
                                     oidx,
                                     &expr,
-                                    &node_to_eclass,
                                     &operators,
                                     &basicblock,
                                     &mut newfunc,
+                                    &minidfg,
                                     &egraph,
                                 )?;
 
@@ -625,107 +613,6 @@ mod tests {
             4,
         );
     }
-    // From fuzz crash
-    #[test]
-    fn test_peep_popcnt() {
-        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("mul1";  "?x" => "(i32mul ?x 1)" if is_type("?x", PrimitiveTypeInfo::I32))];
-
-        test_peephole_mutator(
-            r#"
-        (module
-            (func (export "exported_func")  (local i32 i32)
-                i32.const -1768515946
-                i32.eqz
-                i32.eqz
-                i32.eqz
-                br_if 0 (;@0;)
-                i32.const -1768515946
-                i32.eqz
-                i32.eqz
-                i32.eqz
-                i32.eqz
-                i32.eqz
-                i32.eqz
-                i32.eqz
-                i32.eqz
-                i32.eqz
-                i32.eqz
-                i32.const -644442474
-                i32.shr_u
-                i32.eqz
-                i32.popcnt
-                i32.popcnt
-                i32.popcnt
-                i32.popcnt
-                i32.popcnt
-                i32.popcnt
-                i32.popcnt
-                i32.popcnt
-                i32.popcnt
-                i32.popcnt
-                i32.popcnt
-                i32.popcnt
-                i32.popcnt
-                i32.popcnt
-                i32.eqz
-                i32.eqz
-                i32.eqz
-                drop
-            )
-        )
-        "#,
-            rules,
-            r#"
-            (module
-                (type (;0;) (func ))
-                (func (;0;) (type 0)
-                    (local i32 i32)
-                    i32.const -1768515946
-                    i32.eqz
-                    i32.eqz
-                    i32.eqz
-                    br_if 0 (;@0;)
-                    i32.const -1768515946
-                    i32.eqz
-                    i32.eqz
-                    i32.eqz
-                    i32.eqz
-                    i32.eqz
-                    i32.eqz
-                    i32.eqz
-                    i32.eqz
-                    i32.eqz
-                    i32.eqz
-                    i32.const -644442474
-                    i32.shr_u
-                    i32.eqz
-                    i32.popcnt
-                    i32.popcnt
-                    i32.popcnt
-                    i32.popcnt
-                    i32.popcnt
-                    i32.popcnt
-                    i32.popcnt
-                    i32.popcnt
-                    i32.popcnt
-                    i32.popcnt
-                    i32.popcnt
-                    i32.popcnt
-                    i32.popcnt
-                    i32.popcnt
-                    i32.eqz
-                    i32.eqz
-                    i32.const 1
-                    i32.mul
-                    i32.eqz
-                    drop
-                )
-                (export "exported_func" (func 0)))
-            "#,
-            2,
-        );
-    }
 
     #[test]
     fn test_peep_wrap() {
@@ -863,10 +750,11 @@ mod tests {
                   (local i32 i32)
                   i32.const 1
                   i32.const 42
-                  i32.add)
+                  i32.add
+                )
                 (export "exported_func" (func 0)))
             "#,
-            0,
+            6,
         );
     }
 
@@ -978,7 +866,7 @@ mod tests {
     fn test_peep_idem1() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
             rewrite!("idempotent-1";  "?x" => "(i32or ?x ?x)" if is_type("?x", PrimitiveTypeInfo::I32)),
-            rewrite!("idempotent-1";  "?x" => "(i64or ?x ?x)" if is_type("?x", PrimitiveTypeInfo::I64)),
+            rewrite!("idempotent-12";  "?x" => "(i64or ?x ?x)" if is_type("?x", PrimitiveTypeInfo::I64)),
         ];
 
         test_peephole_mutator(
@@ -1000,7 +888,7 @@ mod tests {
                 i32.or)
             (export "exported_func" (func 0)))
         "#,
-            1,
+            0,
         );
     }
 
@@ -1451,7 +1339,7 @@ mod tests {
                 (memory (;0;) 1)
                 (export "exported_func" (func 0)))
         "#,
-            0,
+            1,
         );
     }
 

@@ -6,20 +6,14 @@ use crate::mutators::peephole::Lang;
 use egg::{Id, RecExpr};
 
 /// Build RecExpr from tree information
-pub fn build_expr(
-    root: Id,
-    id_to_node: &[(&Lang, Id)],
-    operands: &[Vec<Id>],
-) -> (RecExpr<Lang>, Vec<Id>) {
+pub fn build_expr(root: Id, id_to_node: &[Lang], operands: &[Vec<Id>]) -> RecExpr<Lang> {
     let mut expr = RecExpr::default();
-
     // A map from the `Id`s we assigned to each sub-expression when extracting a
     // random expression to the `Id`s assigned to each sub-expression by the
     // `RecExpr`.
     let mut node_to_id: HashMap<Id, Id> = Default::default();
 
     let mut to_visit = vec![(TraversalEvent::Exit, root), (TraversalEvent::Enter, root)];
-    let mut node_to_eclass = vec![];
     while let Some((event, node)) = to_visit.pop() {
         match event {
             TraversalEvent::Enter => {
@@ -37,7 +31,7 @@ pub fn build_expr(
             TraversalEvent::Exit => {
                 let operands = &operands[usize::from(node)];
                 let operand = |i| node_to_id[&operands[i]];
-                let (term, eclass) = &id_to_node[usize::from(node)];
+                let term = &id_to_node[usize::from(node)];
                 let sub_expr_id = match term {
                     Lang::I32Add(_) => expr.add(Lang::I32Add([operand(0), operand(1)])),
                     Lang::I64Add(_) => expr.add(Lang::I64Add([operand(0), operand(1)])),
@@ -97,7 +91,7 @@ pub fn build_expr(
                     Lang::Call(op) => {
                         expr.add(Lang::Call((0..op.len()).map(operand).collect::<Vec<Id>>()))
                     }
-                    Lang::Tee(_) => expr.add(Lang::Tee([operand(0), operand(1)])),
+                    Lang::LocalTee(_) => expr.add(Lang::LocalTee([operand(0), operand(1)])),
                     Lang::Unfold(_) => expr.add(Lang::Unfold(operand(0))),
                     Lang::I32Load(_) => expr.add(Lang::I32Load([
                         operand(0),
@@ -119,23 +113,22 @@ pub fn build_expr(
                     Lang::I64ExtendI32S(_) => expr.add(Lang::I64ExtendI32S([operand(0)])),
                     Lang::I64ExtendI32U(_) => expr.add(Lang::I64ExtendI32U([operand(0)])),
                     Lang::Drop(_) => expr.add(Lang::Drop([operand(0)])),
-                    Lang::Set(_) => expr.add(Lang::Set([operand(0)])),
-                    Lang::GlobalSet(_) => expr.add(Lang::GlobalSet([operand(0)])),
+                    Lang::GlobalSet(_) => expr.add(Lang::GlobalSet([operand(0), operand(1)])),
+                    Lang::LocalGet(_) => expr.add(Lang::LocalGet([operand(0)])),
+                    Lang::GlobalGet(_) => expr.add(Lang::GlobalGet([operand(0)])),
+                    Lang::LocalSet(_) => expr.add(Lang::LocalSet([operand(0), operand(1)])),
                     i32 @ Lang::I32(_) => expr.add((*i32).clone()),
                     i64 @ Lang::I64(_) => expr.add((*i64).clone()),
-                    s @ Lang::Symbol(_) => expr.add((*s).clone()),
                     s @ Lang::Rand => expr.add((*s).clone()),
                     u @ Lang::Undef => expr.add((*u).clone()),
                     a @ Lang::Arg(_) => expr.add((*a).clone()),
                     c @ Lang::Const(_) => expr.add((*c).clone()),
                 };
-                node_to_eclass.push(*eclass);
                 // Copy the id to stack entries to a new one
                 let old_entry = node_to_id.insert(node, sub_expr_id);
                 assert!(old_entry.is_none());
             }
         }
     }
-
-    (expr, node_to_eclass)
+    expr
 }

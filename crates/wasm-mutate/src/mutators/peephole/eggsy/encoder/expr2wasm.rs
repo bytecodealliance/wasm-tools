@@ -3,7 +3,7 @@ use std::num::Wrapping;
 use crate::error::EitherType;
 use crate::info::ModuleInfo;
 use crate::module::PrimitiveTypeInfo;
-use crate::mutators::peephole::dfg::StackType;
+
 use crate::mutators::peephole::eggsy::encoder::TraversalEvent;
 use crate::mutators::peephole::{Lang, EG};
 use egg::{Id, RecExpr};
@@ -14,7 +14,6 @@ pub(crate) fn expr2wasm(
     info: &ModuleInfo,
     rnd: &mut rand::prelude::SmallRng,
     expr: &RecExpr<Lang>,
-    node_to_eclass: &[Id],
     newfunc: &mut Function,
     egraph: &EG,
 ) -> crate::Result<()> {
@@ -178,10 +177,32 @@ pub(crate) fn expr2wasm(
                         worklist.push(Context::new(operands[0], TraversalEvent::Exit));
                         worklist.push(Context::new(operands[0], TraversalEvent::Enter));
                     }
-                    Lang::Tee(operands) => {
+                    Lang::LocalTee(operands) => {
                         // Skip operand 0 which is the symbol
-                        let save_to = &nodes[usize::from(operands[0])];
-                        let tpe = egraph.analysis.get_tpe(save_to)?;
+                        let expectedvalue = &nodes[usize::from(operands[1])];
+                        let tpe = egraph
+                            .analysis
+                            .get_returning_tpe(expectedvalue, expr.as_ref())?;
+                        type_stack.push(tpe);
+                        worklist.push(Context::new(operands[1], TraversalEvent::Exit));
+                        worklist.push(Context::new(operands[1], TraversalEvent::Enter));
+                    }
+                    Lang::LocalSet(operands) => {
+                        // Skip operand 0 which is the symbol
+                        let expectedvalue = &nodes[usize::from(operands[1])];
+                        let tpe = egraph
+                            .analysis
+                            .get_returning_tpe(expectedvalue, expr.as_ref())?;
+                        type_stack.push(tpe);
+                        worklist.push(Context::new(operands[1], TraversalEvent::Exit));
+                        worklist.push(Context::new(operands[1], TraversalEvent::Enter));
+                    }
+                    Lang::GlobalSet(operands) => {
+                        // Skip operand 0 which is the symbol
+                        let expectedvalue = &nodes[usize::from(operands[1])];
+                        let tpe = egraph
+                            .analysis
+                            .get_returning_tpe(expectedvalue, expr.as_ref())?;
                         type_stack.push(tpe);
                         worklist.push(Context::new(operands[1], TraversalEvent::Exit));
                         worklist.push(Context::new(operands[1], TraversalEvent::Enter));
@@ -231,37 +252,51 @@ pub(crate) fn expr2wasm(
                 }
             }
             TraversalEvent::Exit => {
-                // println!("t {:?}, {:?}", type_stack, rootlang);
                 let top = type_stack.pop();
                 match rootlang {
-                    Lang::Set(_) => {
-                        let eclass = node_to_eclass[usize::from(context.current_node)];
-                        let data = &egraph[eclass].data;
-                        let entry = data.clone().unwrap().get_next_stack_entry(&egraph.analysis);
-                        if let StackType::LocalSet(local_index) = entry.operator {
-                            newfunc.instruction(&Instruction::LocalSet(local_index));
-                        } else {
-                            unreachable!("Incorrect mapping")
+                    Lang::LocalGet(operands) => {
+                        let id = &nodes[usize::from(operands[0])];
+                        match id {
+                            Lang::Arg(val) => {
+                                newfunc.instruction(&Instruction::LocalGet(*val as u32));
+                            }
+                            _ => unreachable!("Invalid local index {:?}", id),
                         }
                     }
-                    Lang::GlobalSet(_) => {
-                        let eclass = node_to_eclass[usize::from(context.current_node)];
-                        let data = &egraph[eclass].data;
-                        let entry = data.clone().unwrap().get_next_stack_entry(&egraph.analysis);
-                        if let StackType::GlobalSet(global_index) = entry.operator {
-                            newfunc.instruction(&Instruction::LocalSet(global_index));
-                        } else {
-                            unreachable!("Incorrect mapping")
+                    Lang::GlobalGet(operands) => {
+                        let id = &nodes[usize::from(operands[0])];
+                        match id {
+                            Lang::Arg(val) => {
+                                newfunc.instruction(&Instruction::GlobalGet(*val as u32));
+                            }
+                            _ => unreachable!("Invalid local index {:?}", id),
                         }
                     }
-                    Lang::Tee(_) => {
-                        let eclass = node_to_eclass[usize::from(context.current_node)];
-                        let data = &egraph[eclass].data;
-                        let entry = data.clone().unwrap().get_next_stack_entry(&egraph.analysis);
-                        if let StackType::LocalTee(local_index) = entry.operator {
-                            newfunc.instruction(&Instruction::LocalTee(local_index));
-                        } else {
-                            unreachable!("Incorrect mapping")
+                    Lang::LocalSet(operands) => {
+                        let id = &nodes[usize::from(operands[0])];
+                        match id {
+                            Lang::Arg(val) => {
+                                newfunc.instruction(&Instruction::LocalSet(*val as u32));
+                            }
+                            _ => unreachable!("Invalid local index {:?}", id),
+                        }
+                    }
+                    Lang::GlobalSet(operands) => {
+                        let id = &nodes[usize::from(operands[0])];
+                        match id {
+                            Lang::Arg(val) => {
+                                newfunc.instruction(&Instruction::GlobalSet(*val as u32));
+                            }
+                            _ => unreachable!("Invalid local index {:?}", id),
+                        }
+                    }
+                    Lang::LocalTee(operands) => {
+                        let id = &nodes[usize::from(operands[0])];
+                        match id {
+                            Lang::Arg(val) => {
+                                newfunc.instruction(&Instruction::LocalTee(*val as u32));
+                            }
+                            _ => unreachable!("Invalid local index {:?}", id),
                         }
                     }
                     Lang::Wrap(_) => {
@@ -382,30 +417,6 @@ pub(crate) fn expr2wasm(
                     }
                     Lang::I64(v) => {
                         newfunc.instruction(&Instruction::I64Const(*v));
-                    }
-                    Lang::Symbol(s) => {
-                        let entry = &egraph
-                            .analysis
-                            .get_stack_entry_from_symbol(s.to_string())
-                            .ok_or_else(|| {
-                                crate::Error::UnsupportedType(EitherType::EggError(
-                                    "The current symbol cannot be retrieved".into(),
-                                ))
-                            })?;
-
-                        match entry.operator {
-                            StackType::LocalGet(idx) => {
-                                newfunc.instruction(&Instruction::LocalGet(idx));
-                            }
-                            StackType::GlobalGet(idx) => {
-                                newfunc.instruction(&Instruction::GlobalGet(idx));
-                            }
-                            _ => {
-                                return Err(crate::Error::UnsupportedType(EitherType::EggError(
-                                    "Incorrect stack type".into(),
-                                )))
-                            }
-                        }
                     }
                     Lang::Arg(val) => {
                         let t = type_stack.pop().expect("Missing type information");

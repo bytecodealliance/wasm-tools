@@ -116,10 +116,10 @@ where
         rnd: &mut rand::prelude::SmallRng,
         eclass: Id,
         max_depth: u32,
-        expression_builder: impl Fn(Id, &[(&L, Id)], &[Vec<Id>]) -> (RecExpr<L>, Vec<Id>),
+        expression_builder: impl Fn(Id, &[L], &[Vec<Id>]) -> RecExpr<L>,
         max_tries: u32,
         oracle: impl Fn(RecExpr<L>) -> bool,
-    ) -> crate::Result<(RecExpr<L>, Vec<Id>)> // return the random tree, TODO, improve the way the tree is returned
+    ) -> crate::Result<RecExpr<L>> // return the random tree, TODO, improve the way the tree is returned
     {
         // A map from a node's id to its actual node data.
         let mut id_to_node = vec![];
@@ -131,7 +131,7 @@ where
         let rootnode = &self.egraph[eclass].nodes[rootidx];
         // The operator index is the same in all eclass nodes
 
-        id_to_node.push((&self.egraph[eclass].nodes[rootidx], eclass));
+        id_to_node.push(self.egraph[eclass].nodes[rootidx].clone());
         operands.push(vec![]);
 
         let mut worklist: Vec<_> = rootnode
@@ -156,7 +156,7 @@ where
             let operandidx = id_to_node.len();
             let last_node_id = parentidx; // id_to_node.len() - 1;
 
-            id_to_node.push((&self.egraph[node].nodes[node_idx], node));
+            id_to_node.push(self.egraph[node].nodes[node_idx].clone());
             operands.push(vec![]);
 
             operands[last_node_id].push(operand);
@@ -172,7 +172,7 @@ where
             );
         }
         // Build the tree with the right language constructor
-        let (expr, classes) = expression_builder(Id::from(0), &id_to_node, &operands);
+        let expr = expression_builder(Id::from(0), &id_to_node, &operands);
 
         if !oracle(expr.clone()) && max_tries > 0 {
             return self.extract_random(
@@ -185,90 +185,6 @@ where
             );
         };
 
-        Ok((expr, classes))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{
-        module::PrimitiveTypeInfo,
-        mutators::peephole::{
-            dfg::DFGBuilder,
-            eggsy::encoder::{self},
-            OperatorAndByteOffset,
-        },
-        ModuleInfo,
-    };
-    use egg::RecExpr;
-    use wasmparser::Parser;
-
-    use crate::mutators::peephole::Lang;
-
-    #[test]
-    fn test_wasm2expr() {
-        let original = &wat::parse_str(
-            r#"
-        (module
-            (memory 1)
-            (func (export "exported_func") (param i32) (result i32)
-                local.get 0
-                i32.const 32
-                i32.const 32
-                i32.add
-                i32.add
-            )
-        )
-        "#,
-        )
-        .unwrap();
-
-        let mut parser = Parser::new(0);
-        let mut consumed = 0;
-
-        loop {
-            let (payload, size) = match parser.parse(&original[consumed..], true).unwrap() {
-                wasmparser::Chunk::NeedMoreData(_) => {
-                    panic!("This should not happen")
-                }
-                wasmparser::Chunk::Parsed { consumed, payload } => (payload, consumed),
-            };
-
-            consumed += size;
-
-            match payload {
-                wasmparser::Payload::CodeSectionEntry(reader) => {
-                    let operators = reader
-                        .get_operators_reader()
-                        .unwrap()
-                        .into_iter_with_offsets()
-                        .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()
-                        .unwrap();
-
-                    let bb = DFGBuilder::new()
-                        .get_bb_from_operator(4, &operators)
-                        .unwrap();
-
-                    let roots = DFGBuilder::new()
-                        .get_dfg(
-                            &ModuleInfo::default(),
-                            &operators,
-                            &bb,
-                            &[PrimitiveTypeInfo::I32],
-                        )
-                        .unwrap();
-
-                    let mut exprroot = RecExpr::<Lang>::default();
-                    let _ = encoder::wasm2expr::wasm2expr(&roots, 4, &operators, &mut exprroot)
-                        .unwrap();
-                }
-                wasmparser::Payload::End => {
-                    break;
-                }
-                _ => {
-                    // Do nothing
-                }
-            }
-        }
+        Ok(expr)
     }
 }

@@ -1,4 +1,4 @@
-use egg::{define_language, Id, Symbol};
+use egg::{define_language, Id};
 
 // Language definition for a piece of Wasm
 define_language! {
@@ -67,9 +67,16 @@ define_language! {
         "i64popcnt" = I64Popcnt([Id; 1]),
 
         // Locals
-        "tee" = Tee([Id; 2]),
-        "set" = Set([Id; 1]),
-        "global_set" = GlobalSet([Id; 1]),
+        // Idx and value
+        "local_tee" = LocalTee([Id; 2]),
+        // Idx and value
+        "local_set" = LocalSet([Id; 2]),
+        "local_get" = LocalGet([Id; 1]),
+
+        // Globals
+        // Idx and value
+        "global_set" = GlobalSet([Id; 2]),
+        "global_get" = GlobalGet([Id; 1]),
         // conversion operators
         "wrap" = Wrap([Id; 1]),
 
@@ -109,8 +116,6 @@ define_language! {
         Const(i64),
         I32(i32),
         I64(i64),
-        // NB: must be last since variants are parsed in order.
-        Symbol(Symbol),
 
         // Use the following to internally pass arguments that dont need to be
         // parsed as number constants. Since variants will be parsed in order,
