@@ -58,15 +58,7 @@ impl LoopUnrollWriter {
     ) -> crate::Result<()> {
         let nodes = ast.get_nodes();
 
-        enum State {
-            Loop,
-            Block,
-            If,
-            Else,
-        }
-
         let mut current_depth = 0;
-        let mut stack = vec![];
         let mut to_fix = HashMap::new();
 
         match &nodes[nodeidx] {
@@ -76,23 +68,15 @@ impl LoopUnrollWriter {
                 for (idx, (op, _)) in chunk.iter().enumerate() {
                     match op {
                         Operator::Block { .. } => {
-                            stack.push(State::Block);
                             current_depth += 1;
                         }
                         Operator::Loop { .. } => {
-                            stack.push(State::Loop);
                             current_depth += 1;
                         }
                         Operator::If { .. } => {
-                            stack.push(State::If);
                             current_depth += 1;
                         }
-                        Operator::Else { .. } => {
-                            stack.pop().expect("Invalid stack state");
-                            stack.push(State::Else);
-                        }
                         Operator::End { .. } => {
-                            let _ = stack.pop().expect("Invalid stack state");
                             current_depth -= 1;
                         }
                         Operator::Br { relative_depth } => {
