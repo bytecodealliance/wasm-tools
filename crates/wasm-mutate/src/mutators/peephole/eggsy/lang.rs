@@ -4,50 +4,90 @@ use egg::{define_language, Id, Symbol};
 define_language! {
     pub enum Lang {
         // Define Wasm language here progressively
-        "add" = Add([Id; 2]),
-        "sub" = Sub([Id; 2]),
-        "mul" = Mul([Id; 2]),
-        "and" = And([Id; 2]),
-        "or" = Or([Id; 2]),
-        "xor" = Xor([Id; 2]),
-        "shl" = Shl([Id; 2]),
-        "shr_u" = ShrU([Id; 2]),
-        "div_u" = DivU([Id; 2]),
-        "div_s" = DivS([Id; 2]),
-        "shr_s" = ShrS([Id; 2]),
-        "rotr" = RotR([Id; 2]),
-        "rotl" = RotL([Id; 2]),
-        "rem_s" = RemS([Id; 2]),
-        "rem_u" = RemU([Id; 2]),
+        "i32add" = I32Add([Id; 2]),
+        "i64add" = I64Add([Id; 2]),
+        "i32sub" = I32Sub([Id; 2]),
+        "i32sub" = I64Sub([Id; 2]),
+        "i32mul" = I32Mul([Id; 2]),
+        "i64mul" = I64Mul([Id; 2]),
+        "i32and" = I32And([Id; 2]),
+        "i64and" = I64And([Id; 2]),
+        "i32or" = I32Or([Id; 2]),
+        "i64or" = I64Or([Id; 2]),
+        "i32xor" = I32Xor([Id; 2]),
+        "i64xor" = I64Xor([Id; 2]),
+        "i32shl" = I32Shl([Id; 2]),
+        "i64shl" = I64Shl([Id; 2]),
+        "i32shr_u" = I32ShrU([Id; 2]),
+        "i64shr_u" = I64ShrU([Id; 2]),
+        "i32div_u" = I32DivU([Id; 2]),
+        "i64div_u" = I64DivU([Id; 2]),
+        "i32div_s" = I32DivS([Id; 2]),
+        "i64div_s" = I64DivS([Id; 2]),
+        "i32shr_s" = I32ShrS([Id; 2]),
+        "i64shr_s" = I64ShrS([Id; 2]),
+        "i32rotr" = I32RotR([Id; 2]),
+        "i64rotr" = I64RotR([Id; 2]),
+        "i32rotl" = I32RotL([Id; 2]),
+        "i64rotl" = I64RotL([Id; 2]),
+        "i32rem_s" = I32RemS([Id; 2]),
+        "i64rem_s" = I64RemS([Id; 2]),
+        "i32rem_u" = I32RemU([Id; 2]),
+        "i64rem_u" = I64RemU([Id; 2]),
         // testop
-        "eqz" = Eqz([Id; 1]),
+        "i32eqz" = I32Eqz([Id; 1]),
+        "i64eqz" = I64Eqz([Id; 1]),
         // relop
-        "eq" = Eq([Id; 2]),
-        "ne" = Ne([Id; 2]),
-        "lt_s" = LtS([Id; 2]),
-        "lt_u" = LtU([Id; 2]),
-        "gt_s" = GtS([Id; 2]),
-        "gt_u" = GtU([Id; 2]),
-        "le_s" = LeS([Id; 2]),
-        "le_u" = LeU([Id; 2]),
-        "ge_s" = GeS([Id; 2]),
-        "ge_u" = GeU([Id; 2]),
-        "tee" = Tee([Id; 1]),
+        "i32eq" = I32Eq([Id; 2]),
+        "i64eq" = I64Eq([Id; 2]),
+        "i32ne" = I32Ne([Id; 2]),
+        "i64ne" = I64Ne([Id; 2]),
+
+        "i32lt_s" = I32LtS([Id; 2]),
+        "i64lt_s" = I64LtS([Id; 2]),
+        "i32lt_u" = I32LtU([Id; 2]),
+        "i64lt_u" = I64LtU([Id; 2]),
+
+        "i32gt_s" = I32GtS([Id; 2]),
+        "i64gt_s" = I64GtS([Id; 2]),
+
+        "i32gt_u" = I32GtU([Id; 2]),
+        "i64gt_u" = I64GtU([Id; 2]),
+        "i32le_s" = I32LeS([Id; 2]),
+        "i64le_s" = I64LeS([Id; 2]),
+
+        "i32le_u" = I32LeU([Id; 2]),
+        "i64le_u" = I64LeU([Id; 2]),
+        "i32ge_s" = I32GeS([Id; 2]),
+        "i64ge_s" = I64GeS([Id; 2]),
+        "i32ge_u" = I32GeU([Id; 2]),
+        "i64ge_u" = I64GeU([Id; 2]),
+
+        "i32popcnt" = I32Popcnt([Id; 1]),
+        "i64popcnt" = I64Popcnt([Id; 1]),
+
+        // Locals
+        "tee" = Tee([Id; 2]),
+        "set" = Set([Id; 1]),
+        "global_set" = GlobalSet([Id; 1]),
         // conversion operators
         "wrap" = Wrap([Id; 1]),
 
-        "extend8s" = Extend8S([Id; 1]),
-        "extend16s" = Extend16S([Id; 1]),
-        "extend32s" = Extend32S([Id; 1]),
-        "extendi32s" = ExtendI32S([Id; 1]),
-        "extendi32u" = ExtendI32U([Id; 1]),
+        // more conversion
+        "i32extend8s" = I32Extend8S([Id; 1]),
+        "i64extend8s" = I64Extend8S([Id; 1]),
+        "i32extend16s" = I32Extend16S([Id; 1]),
+        "i64extend16s" = I64Extend16S([Id; 1]),
+        "i64extend32s" = I64Extend32S([Id; 1]),
+        "i64extendi32s" = I64ExtendI32S([Id; 1]),
+        "i64extendi32u" = I64ExtendI32U([Id; 1]),
 
         // The firsts Id should be the function index
         "call" = Call(Vec<Id>),
-        "popcnt" = Popcnt([Id; 1]),
         "drop" = Drop([Id; 1]),
         // Memory operations
-        "load" = ILoad([Id;4]), // dynamic offset, offset, align mem value
+        "i32load" = I32Load([Id;4]), // dynamic offset, offset, align mem value
+        "i64load" = I64Load([Id;4]), // dynamic offset, offset, align mem value
         // TODO add the others
 
         // Custom mutation operations and instructions
@@ -66,7 +106,9 @@ define_language! {
         "unfold" = Unfold(Id),
         // End of custom mutation operations and instructions
 
-        Num(i64),
+        Const(i64),
+        I32(i32),
+        I64(i64),
         // NB: must be last since variants are parsed in order.
         Symbol(Symbol),
 

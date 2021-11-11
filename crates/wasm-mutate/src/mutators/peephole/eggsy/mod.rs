@@ -193,7 +193,11 @@ where
 mod tests {
     use crate::{
         module::PrimitiveTypeInfo,
-        mutators::peephole::{dfg::DFGBuilder, eggsy::encoder::Encoder, OperatorAndByteOffset},
+        mutators::peephole::{
+            dfg::DFGBuilder,
+            eggsy::encoder::{self},
+            OperatorAndByteOffset,
+        },
         ModuleInfo,
     };
     use egg::RecExpr;
@@ -255,7 +259,8 @@ mod tests {
                         .unwrap();
 
                     let mut exprroot = RecExpr::<Lang>::default();
-                    let _ = Encoder::wasm2expr(&roots, 4, &operators, &mut exprroot).unwrap();
+                    let _ = encoder::wasm2expr::wasm2expr(&roots, 4, &operators, &mut exprroot)
+                        .unwrap();
                 }
                 wasmparser::Payload::End => {
                     break;

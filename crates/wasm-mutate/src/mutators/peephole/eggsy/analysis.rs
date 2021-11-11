@@ -1,8 +1,12 @@
-use std::collections::HashMap;
+use std::{collections::HashMap};
 
-use crate::mutators::peephole::{
-    dfg::{MiniDFG, StackEntry},
-    eggsy::Lang,
+use crate::{
+    error::EitherType,
+    module::PrimitiveTypeInfo,
+    mutators::peephole::{
+        dfg::{MiniDFG, StackEntry},
+        eggsy::Lang,
+    },
 };
 use egg::{Analysis, EGraph, Id};
 
@@ -40,9 +44,125 @@ impl PeepholeMutationAnalysis {
             .get(&Lang::Symbol(symbol.into()))
             .and_then(|(_, entries)| entries.get(0).map(|&x| &self.minidfg.entries[x]))
     }
+    /// Returns a stack entry from the DFG given node repr
+    /// If the node is not in the DFG, it returns None
+    pub fn get_stack_entry_from_lang(&self, l: &Lang) -> Option<&StackEntry> {
+        self.lang_to_stack_entries
+            .get(l)
+            .and_then(|(_, entries)| entries.get(0).map(|&x| &self.minidfg.entries[x]))
+    }
+
     /// Return the parental relations in the DFG
     pub fn get_roots(&self) -> &Vec<i32> {
         &self.minidfg.parents
+    }
+
+    /// Returns returning type of node
+    pub fn get_tpe(&self, l: &Lang) -> crate::Result<PrimitiveTypeInfo> {
+        match l {
+            Lang::I32Add(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64Add(_) => Ok(PrimitiveTypeInfo::I64),
+            Lang::I32Sub(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64Sub(_) => Ok(PrimitiveTypeInfo::I64),
+            Lang::I32Mul(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64Mul(_) => Ok(PrimitiveTypeInfo::I64),
+            Lang::I32And(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64And(_) => Ok(PrimitiveTypeInfo::I64),
+            Lang::I32Or(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64Or(_) => Ok(PrimitiveTypeInfo::I64),
+            Lang::I32Xor(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64Xor(_) => Ok(PrimitiveTypeInfo::I64),
+            Lang::I32Shl(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64Shl(_) => Ok(PrimitiveTypeInfo::I64),
+            Lang::I32ShrU(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64ShrU(_) => Ok(PrimitiveTypeInfo::I64),
+            Lang::I32DivU(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64DivU(_) => Ok(PrimitiveTypeInfo::I64),
+            Lang::I32DivS(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64DivS(_) => Ok(PrimitiveTypeInfo::I64),
+            Lang::I32ShrS(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64ShrS(_) => Ok(PrimitiveTypeInfo::I64),
+            Lang::I32RotR(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64RotR(_) => Ok(PrimitiveTypeInfo::I64),
+            Lang::I32RotL(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64RotL(_) => Ok(PrimitiveTypeInfo::I64),
+            Lang::I32RemS(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64RemS(_) => Ok(PrimitiveTypeInfo::I64),
+            Lang::I32RemU(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64RemU(_) => Ok(PrimitiveTypeInfo::I64),
+            Lang::I32Eqz(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64Eqz(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I32Eq(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64Eq(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I32Ne(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64Ne(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I32LtS(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64LtS(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I32LtU(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64LtU(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I32GtS(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64GtS(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I32GtU(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64GtU(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I32LeS(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64LeS(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I32LeU(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64LeU(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I32GeS(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64GeS(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I32GeU(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64GeU(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::Tee(_) => {
+                let entry = self.get_stack_entry_from_lang(l).ok_or_else(|| {
+                    crate::Error::UnsupportedType(EitherType::EggError(
+                        "The current symbol cannot be retrieved".into(),
+                    ))
+                })?;
+                Ok(entry.return_type.clone())
+            }
+            Lang::Wrap(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::Call(_) => {
+                // Replace all by this
+                let entry = self.get_stack_entry_from_lang(l).ok_or_else(|| {
+                    crate::Error::UnsupportedType(EitherType::EggError(
+                        "The current symbol cannot be retrieved".into(),
+                    ))
+                })?;
+                Ok(entry.return_type.clone())
+            }
+            Lang::I32Popcnt(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64Popcnt(_) => Ok(PrimitiveTypeInfo::I64),
+            Lang::Drop(_) => Ok(PrimitiveTypeInfo::Empty),
+            Lang::I32Load(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64Load(_) => Ok(PrimitiveTypeInfo::I64),
+            Lang::Rand => Ok(PrimitiveTypeInfo::I32),
+            Lang::Undef => Ok(PrimitiveTypeInfo::Empty),
+            Lang::Unfold(_) => Ok(PrimitiveTypeInfo::Empty),
+            Lang::I32(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64(_) => Ok(PrimitiveTypeInfo::I64),
+            // Get the type from the locals
+            Lang::Symbol(s) => {
+                let entry = self
+                    .get_stack_entry_from_symbol(s.to_string())
+                    .ok_or_else(|| {
+                        crate::Error::UnsupportedType(EitherType::EggError(
+                            "The current symbol cannot be retrieved".into(),
+                        ))
+                    })?;
+                Ok(entry.return_type.clone())
+            }
+            Lang::Arg(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::Const(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I32Extend8S(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64Extend8S(_) => Ok(PrimitiveTypeInfo::I64),
+            Lang::I32Extend16S(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64Extend16S(_) => Ok(PrimitiveTypeInfo::I64),
+            Lang::I64Extend32S(_) => Ok(PrimitiveTypeInfo::I64),
+            Lang::I64ExtendI32S(_) => Ok(PrimitiveTypeInfo::I64),
+            Lang::I64ExtendI32U(_) => Ok(PrimitiveTypeInfo::I64),
+            Lang::Set(_) => Ok(PrimitiveTypeInfo::Empty),
+            Lang::GlobalSet(_) => Ok(PrimitiveTypeInfo::Empty),
+        }
     }
 }
 
@@ -50,10 +170,13 @@ impl PeepholeMutationAnalysis {
 pub struct ClassData {
     /// Index to the dfg stack entry
     pub eclass_and_stackentries: (Id, Vec<usize>),
-
     // The eclass can represent several stack entries
     // Every time a new stack entry information is requested
     current_entry: usize,
+
+    /// Type 't' of the operator
+    /// 't'.op
+    pub tpe: PrimitiveTypeInfo,
 }
 
 impl ClassData {
@@ -86,6 +209,7 @@ impl Analysis<Lang> for PeepholeMutationAnalysis {
             Some(ClassData {
                 eclass_and_stackentries: egraph.analysis.lang_to_stack_entries[l].clone(),
                 current_entry: 0,
+                tpe: egraph.analysis.get_tpe(l).expect("Missing type"),
             })
         } else {
             None

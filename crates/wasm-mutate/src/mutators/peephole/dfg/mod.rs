@@ -52,11 +52,6 @@ pub enum StackType {
         function_index: u32,
         params_count: usize,
     },
-    Load {
-        offset: u64,
-        align: u8,
-        memory: u32,
-    },
     Undef,
     IndexAtCode(usize, usize),
 }
@@ -503,16 +498,12 @@ impl<'a> DFGBuilder {
                     color += 1;
                 }
                 // All memory loads
-                Operator::I32Load { memarg } => {
+                Operator::I32Load { memarg: _ } => {
                     // It needs the dynamic offset arg
                     let offset = self.pop_operand(idx, false);
 
                     let idx = self.push_node(
-                        StackType::Load {
-                            offset: memarg.offset,
-                            align: memarg.align,
-                            memory: memarg.memory,
-                        },
+                        StackType::IndexAtCode(idx, 1),
                         idx,
                         vec![offset],
                         color,
@@ -522,15 +513,11 @@ impl<'a> DFGBuilder {
 
                     self.parents[offset] = idx as i32;
                 }
-                Operator::I64Load { memarg } => {
+                Operator::I64Load { memarg: _ } => {
                     // It needs the offset arg
                     let offset = self.pop_operand(idx, false);
                     let idx = self.push_node(
-                        StackType::Load {
-                            offset: memarg.offset,
-                            align: memarg.align,
-                            memory: memarg.memory,
-                        },
+                        StackType::IndexAtCode(idx, 1),
                         idx,
                         vec![offset],
                         color,
