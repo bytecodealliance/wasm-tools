@@ -1,7 +1,10 @@
 use crate::{
     module::map_type,
     mutators::{
-        codemotion::{ir::AstBuilder, mutators::if_complement::IfComplementMutator},
+        codemotion::{
+            ir::AstBuilder,
+            mutators::{if_complement::IfComplementMutator, loop_unrolling::LoopUnrollMutator},
+        },
         OperatorAndByteOffset,
     },
     Error, Result,
@@ -16,7 +19,6 @@ use super::Mutator;
 // Hack to show debug messages in tests
 #[cfg(not(test))]
 use log::debug;
-
 #[cfg(test)]
 use std::println as debug;
 
@@ -61,6 +63,7 @@ impl CodemotionMutator {
             .collect::<Vec<FunctionBody>>();
 
         for fidx in (function_to_mutate..function_count).chain(0..function_to_mutate) {
+            config.consume_fuel(1)?;
             let reader = all_readers[fidx as usize];
             let operatorreader = reader.get_operators_reader()?;
 
@@ -131,7 +134,8 @@ impl Mutator for CodemotionMutator {
     ) -> Result<Module> {
         // Initialize mutators
         let mutators: Vec<Box<dyn AstMutator>> = vec![
-            Box::new(IfComplementMutator), // Add the other here
+            Box::new(IfComplementMutator),
+            Box::new(LoopUnrollMutator), // Add the other here
         ];
 
         let (newfunc, function_to_mutate) = self.random_mutate(config, rnd, info, &mutators)?;
@@ -185,7 +189,6 @@ mod tests {
         let mut validator = wasmparser::Validator::new();
         let mutated_bytes = &mutated.finish();
         let text = wasmprinter::print_bytes(mutated_bytes).unwrap();
-        println!("{}", text);
         crate::validate(&mut validator, mutated_bytes);
         let expected_bytes = &wat::parse_str(expected).unwrap();
         let expectedtext = wasmprinter::print_bytes(expected_bytes).unwrap();
@@ -327,6 +330,382 @@ mod tests {
                   else
                     i32.const 50
                   end)
+                (memory (;0;) 1)
+                (export "exported_func" (func 0)))
+        "#,
+            1,
+        );
+    }
+
+    #[test]
+    fn test_unrolling1() {
+        test_motion_mutator(
+            r#"
+        (module
+            (memory 1)
+            (func (export "exported_func") (param i32) (result i32)
+                local.get 0
+                local.get 0
+                i32.add
+                drop
+                loop
+                    i32.const 1
+                    local.get 0
+                    i32.add
+                    local.tee 0
+                    i32.const 100
+                    i32.le_u
+                    br_if 0
+                end
+                local.get 0
+            )
+        )
+        "#,
+            r#"
+            (module
+                (type (;0;) (func (param i32) (result i32)))
+                (func (;0;) (type 0) (param i32) (result i32)
+                  local.get 0
+                  local.get 0
+                  i32.add
+                  drop
+                  block  ;; label = @1
+                    block  ;; label = @2
+                      i32.const 1
+                      local.get 0
+                      i32.add
+                      local.tee 0
+                      i32.const 100
+                      i32.le_u
+                      br_if 0 (;@2;)
+                      br 1 (;@1;)
+                    end
+                    loop  ;; label = @2
+                      i32.const 1
+                      local.get 0
+                      i32.add
+                      local.tee 0
+                      i32.const 100
+                      i32.le_u
+                      br_if 0 (;@2;)
+                    end
+                  end
+                  local.get 0)
+                (memory (;0;) 1)
+                (export "exported_func" (func 0)))
+
+        "#,
+            1,
+        );
+    }
+
+    #[test]
+    fn test_unrolling2() {
+        test_motion_mutator(
+            r#"
+        (module
+            (memory 1)
+            (func (export "exported_func") (param i32) (result i32)
+                local.get 0
+                local.get 0
+                i32.add
+                drop
+                loop
+                    i32.const 1
+                    local.get 0
+                    i32.add
+                    local.tee 0
+                    i32.const 100
+                    i32.le_u
+                    br_if 0
+                    local.get 0
+                    if 
+                        i32.const 200
+                        local.get 0
+                        i32.add
+                        local.set 0
+                    else
+                        i32.const 300
+                        local.get 0
+                        i32.add
+                        local.set 0
+                    end
+                end
+                local.get 0
+            )
+        )
+        "#,
+            r#"
+            (module
+                (type (;0;) (func (param i32) (result i32)))
+                (func (;0;) (type 0) (param i32) (result i32)
+                  local.get 0
+                  local.get 0
+                  i32.add
+                  drop
+                  block  ;; label = @1
+                    block  ;; label = @2
+                      i32.const 1
+                      local.get 0
+                      i32.add
+                      local.tee 0
+                      i32.const 100
+                      i32.le_u
+                      br_if 0 (;@2;)
+                      local.get 0
+                      if  ;; label = @3
+                        i32.const 200
+                        local.get 0
+                        i32.add
+                        local.set 0
+                      else
+                        i32.const 300
+                        local.get 0
+                        i32.add
+                        local.set 0
+                      end
+                      br 1 (;@1;)
+                    end
+                    loop  ;; label = @2
+                      i32.const 1
+                      local.get 0
+                      i32.add
+                      local.tee 0
+                      i32.const 100
+                      i32.le_u
+                      br_if 0 (;@2;)
+                      local.get 0
+                      if  ;; label = @3
+                        i32.const 200
+                        local.get 0
+                        i32.add
+                        local.set 0
+                      else
+                        i32.const 300
+                        local.get 0
+                        i32.add
+                        local.set 0
+                      end
+                    end
+                  end
+                  local.get 0)
+                (memory (;0;) 1)
+                (export "exported_func" (func 0)))
+
+        "#,
+            1,
+        );
+    }
+
+    #[test]
+    fn test_unrolling3() {
+        test_motion_mutator(
+            r#"
+        (module
+            (memory 1)
+            (func (export "exported_func") (param i32) (result i32)
+                local.get 0
+                local.get 0
+                i32.add
+                drop
+                loop
+                    i32.const 1
+                    local.get 0
+                    i32.add
+                    local.tee 0
+                    if 
+                        i32.const 200
+                        local.get 0
+                        i32.add
+                        local.tee 0
+                        br_if 1
+                    else
+                        local.get 0
+                        br_if 1
+                    end
+                    local.get 0
+                    br_if 0
+                end
+                local.get 0
+            )
+        )
+        "#,
+            r#"
+            (module
+                (type (;0;) (func (param i32) (result i32)))
+                (func (;0;) (type 0) (param i32) (result i32)
+                  local.get 0
+                  local.get 0
+                  i32.add
+                  drop
+                  block  ;; label = @1
+                    block  ;; label = @2
+                      i32.const 1
+                      local.get 0
+                      i32.add
+                      local.tee 0
+                      if  ;; label = @3
+                        i32.const 200
+                        local.get 0
+                        i32.add
+                        local.tee 0
+                        br_if 1 (;@2;)
+                      else
+                        local.get 0
+                        br_if 1 (;@2;)
+                      end
+                      local.get 0
+                      br_if 0 (;@2;)
+                      br 1 (;@1;)
+                    end
+                    loop  ;; label = @2
+                      i32.const 1
+                      local.get 0
+                      i32.add
+                      local.tee 0
+                      if  ;; label = @3
+                        i32.const 200
+                        local.get 0
+                        i32.add
+                        local.tee 0
+                        br_if 1 (;@2;)
+                      else
+                        local.get 0
+                        br_if 1 (;@2;)
+                      end
+                      local.get 0
+                      br_if 0 (;@2;)
+                    end
+                  end
+                  local.get 0)
+                (memory (;0;) 1)
+                (export "exported_func" (func 0)))
+
+        "#,
+            1,
+        );
+    }
+
+    #[test]
+    fn test_unrolling4() {
+        test_motion_mutator(
+            r#"
+        (module
+            (memory 1)
+            (func (export "exported_func") (param i32) (result i32)
+                block
+                    loop
+                        loop 
+                            local.get 0
+                            i32.const 100
+                            i32.ge_s 
+                            br_if 2
+                        end
+                        local.get 0
+                        i32.const 200
+                        i32.le_s 
+                        br_if 0
+                    end
+                end
+                local.get 0
+            )
+        )
+        "#,
+            r#"
+            (module
+                (type (;0;) (func (param i32) (result i32)))
+                (func (;0;) (type 0) (param i32) (result i32)
+                  block  ;; label = @1
+                    block  ;; label = @2
+                      block  ;; label = @3
+                        loop  ;; label = @4
+                          local.get 0
+                          i32.const 100
+                          i32.ge_s
+                          br_if 3 (;@1;)
+                        end
+                        local.get 0
+                        i32.const 200
+                        i32.le_s
+                        br_if 0 (;@3;)
+                        br 1 (;@2;)
+                      end
+                      loop  ;; label = @3
+                        loop  ;; label = @4
+                          local.get 0
+                          i32.const 100
+                          i32.ge_s
+                          br_if 3 (;@1;)
+                        end
+                        local.get 0
+                        i32.const 200
+                        i32.le_s
+                        br_if 0 (;@3;)
+                      end
+                    end
+                  end
+                  local.get 0)
+                (memory (;0;) 1)
+                (export "exported_func" (func 0)))
+
+        "#,
+            1,
+        );
+    }
+
+    #[test]
+    fn test_unrolling5() {
+        test_motion_mutator(
+            r#"
+        (module
+            (memory 1)
+            (func (export "exported_func") (param i32) (result i32)
+                block
+                    loop
+                        loop 
+                            local.get 0
+                            br_table 1 2 2 2 2
+                        end
+                        local.get 0
+                        i32.const 200
+                        i32.le_s 
+                        br_if 0
+                    end
+                end
+                local.get 0
+            )
+        )
+        "#,
+            r#"
+            (module
+                (type (;0;) (func (param i32) (result i32)))
+                (func (;0;) (type 0) (param i32) (result i32)
+                  block  ;; label = @1
+                    block  ;; label = @2
+                      block  ;; label = @3
+                        loop  ;; label = @4
+                          local.get 0
+                          br_table 1 (;@3;) 3 (;@1;) 3 (;@1;) 3 (;@1;) 3 (;@1;)
+                        end
+                        local.get 0
+                        i32.const 200
+                        i32.le_s
+                        br_if 0 (;@3;)
+                        br 1 (;@2;)
+                      end
+                      loop  ;; label = @3
+                        loop  ;; label = @4
+                          local.get 0
+                          br_table 1 (;@3;) 3 (;@1;) 3 (;@1;) 3 (;@1;) 3 (;@1;)
+                        end
+                        local.get 0
+                        i32.const 200
+                        i32.le_s
+                        br_if 0 (;@3;)
+                      end
+                    end
+                  end
+                  local.get 0)
                 (memory (;0;) 1)
                 (export "exported_func" (func 0)))
         "#,

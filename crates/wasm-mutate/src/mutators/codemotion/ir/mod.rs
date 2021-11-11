@@ -223,6 +223,7 @@ pub trait AstWriter {
                 consequent,
                 alternative,
                 ty,
+                range: _,
             } => {
                 self.write_if_else(
                     ast,
@@ -238,10 +239,10 @@ pub trait AstWriter {
             Node::Code { range } => {
                 self.write_code(ast, nodeidx, *range, newfunc, operators, input_wasm)?;
             }
-            Node::Loop(body, ty) => {
+            Node::Loop { body, ty, range: _ } => {
                 self.write_loop(ast, nodeidx, body, newfunc, operators, input_wasm, ty)?
             }
-            Node::Block(body, ty) => {
+            Node::Block { body, ty, range: _ } => {
                 self.write_block(ast, nodeidx, body, newfunc, operators, input_wasm, ty)?
             }
             Node::Root(body) => {
@@ -270,13 +271,9 @@ impl AstBuilder {
     /// Parsing algorith to construct the Ast
     ///
     fn parse<'a>(&self, operators: &'a [OperatorAndByteOffset]) -> crate::Result<Ast> {
-        let mut ifs = Vec::new();
-        let mut loops = Vec::new();
-        let mut blocks = Vec::new();
-
         let mut parse_context = ParseContext::default();
         // Push the first frame, the root
-        parse_context.push_frame(State::Root, None);
+        parse_context.push_frame(State::Root, None, 0);
 
         for (idx, (operator, _)) in operators.iter().enumerate() {
             match operator {
@@ -287,7 +284,7 @@ impl AstBuilder {
                     }
                     parse_context.reset_code_range_at(idx + 1);
                     parse_context.push_state();
-                    parse_context.push_frame(State::If, Some(*ty));
+                    parse_context.push_frame(State::If, Some(*ty), idx);
                 }
                 Operator::Else => {
                     if !parse_context.current_code_is_empty() {
@@ -295,7 +292,7 @@ impl AstBuilder {
                     }
                     parse_context.reset_code_range_at(idx + 1);
                     parse_context.push_state();
-                    parse_context.push_frame(State::Else, None);
+                    parse_context.push_frame(State::Else, None, idx);
                 }
                 Operator::Block { ty } => {
                     if !parse_context.current_code_is_empty() {
@@ -303,7 +300,7 @@ impl AstBuilder {
                     }
                     parse_context.reset_code_range_at(idx + 1);
                     parse_context.push_state();
-                    parse_context.push_frame(State::Block, Some(*ty));
+                    parse_context.push_frame(State::Block, Some(*ty), idx);
                 }
                 Operator::Loop { ty } => {
                     if !parse_context.current_code_is_empty() {
@@ -311,7 +308,7 @@ impl AstBuilder {
                     }
                     parse_context.reset_code_range_at(idx + 1);
                     parse_context.push_state();
-                    parse_context.push_frame(State::Loop, Some(*ty));
+                    parse_context.push_frame(State::Loop, Some(*ty), idx);
                 }
                 Operator::End => {
                     if !parse_context.current_code_is_empty() {
@@ -319,21 +316,21 @@ impl AstBuilder {
                     }
                     parse_context.reset_code_range_at(idx + 1);
 
-                    let (last_frame, ty) = parse_context.pop_frame()?;
+                    let (last_frame, ty, frame_start) = parse_context.pop_frame()?;
                     match last_frame {
                         State::If => {
                             let then_branch = parse_context.get_current_parsing();
-                            parse_context.pop_state();
+                            parse_context.pop_state()?;
                             // if return type of condition is empty, then the condition is the previous
-                            let id = parse_context.push_node_to_current_parsing(Node::IfElse {
+                            parse_context.push_node_to_current_parsing(Node::IfElse {
                                 consequent: then_branch,
                                 alternative: None,
                                 ty: ty.expect("Missing if type"),
+                                range: Range::new(frame_start, idx),
                             });
-                            ifs.push(id);
                         }
                         State::Else => {
-                            let (last_frame, ty) = parse_context.pop_frame()?;
+                            let (last_frame, ty, if_start) = parse_context.pop_frame()?;
                             // Validate parent
                             match last_frame {
                                 State::If => {}
@@ -341,34 +338,34 @@ impl AstBuilder {
                             }
                             let else_branch = parse_context.get_current_parsing();
                             let then_branch = parse_context.pop_state()?;
-                            parse_context.pop_state();
+                            parse_context.pop_state()?;
                             // if return type of condition is empty, then the condition is the previous
-                            let id = parse_context.push_node_to_current_parsing(Node::IfElse {
+                            parse_context.push_node_to_current_parsing(Node::IfElse {
                                 consequent: then_branch,
                                 alternative: Some(else_branch),
                                 ty: ty.expect("Missing if type"),
+                                range: Range::new(if_start, idx),
                             });
-                            ifs.push(id);
                         }
                         State::Loop => {
                             let children = parse_context.get_current_parsing();
-                            parse_context.pop_state();
+                            parse_context.pop_state()?;
 
-                            let id = parse_context.push_node_to_current_parsing(Node::Loop(
-                                children,
-                                ty.expect("Missing block type for loop"),
-                            ));
-                            loops.push(id);
+                            parse_context.push_node_to_current_parsing(Node::Loop {
+                                body: children,
+                                ty: ty.expect("Missing block type for loop"),
+                                range: Range::new(frame_start, idx),
+                            });
                         }
                         State::Block => {
                             let children = parse_context.get_current_parsing();
-                            parse_context.pop_state();
+                            parse_context.pop_state()?;
 
-                            let id = parse_context.push_node_to_current_parsing(Node::Block(
-                                children,
-                                ty.expect("Missing block type for loop"),
-                            ));
-                            blocks.push(id);
+                            parse_context.push_node_to_current_parsing(Node::Block {
+                                body: children,
+                                ty: ty.expect("Missing block type for loop"),
+                                range: Range::new(frame_start, idx),
+                            });
                         }
                         State::Root => {
                             // break

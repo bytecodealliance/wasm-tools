@@ -57,6 +57,12 @@ impl Ast {
         &self.ifs
     }
 
+    /// Returns the node indexes corresponding to if-else nodes
+    ///
+    pub fn get_loops(&self) -> &[usize] {
+        &self.loops
+    }
+
     /// Returns the `Root` node index of the Ast
     ///
     pub fn get_root(&self) -> usize {
@@ -80,13 +86,31 @@ pub enum Node {
         alternative: Option<Vec<usize>>,
         /// The block type for the branches.
         ty: TypeOrFuncType,
+        range: Range,
     },
-    /// Code node (pseudo basic block) (range of the operators in the input function)
-    Code { range: Range },
-    /// Loop node (pseudo basic block) (sorted children node indexes, type of the Loop node)
-    Loop(Vec<usize>, TypeOrFuncType),
-    /// Block node (pseudo basic block) (sorted children node indexes, type of the Block node)
-    Block(Vec<usize>, TypeOrFuncType),
+    /// Code node
+    Code {
+        /// Range on the instructions stream
+        range: Range,
+    },
+    /// Loop Node
+    Loop {
+        /// Children nodes
+        body: Vec<usize>,
+        /// Block type
+        ty: TypeOrFuncType,
+        /// Range on the instructions stream
+        range: Range,
+    },
+    /// Block Node
+    Block {
+        /// Children nodes
+        body: Vec<usize>,
+        /// Block type
+        ty: TypeOrFuncType,
+        /// Range on the instructions stream
+        range: Range,
+    },
     /// Special node to wrap the root nodes of the Ast
     Root(Vec<usize>),
 }
@@ -104,7 +128,7 @@ pub(crate) enum State {
 pub(crate) struct ParseContext {
     current_parsing: Vec<usize>,
     stack: Vec<Vec<usize>>,
-    frames: Vec<(State, Option<TypeOrFuncType>)>,
+    frames: Vec<(State, Option<TypeOrFuncType>, usize)>,
     current_code_range: Range,
     nodes: Vec<Node>,
 
@@ -163,9 +187,10 @@ impl ParseContext {
                 consequent: _,
                 alternative: _,
                 ty: _,
+                range: _,
             } => self.ifs.push(id),
-            Node::Loop(_, _) => self.loops.push(id),
-            Node::Block(_, _) => self.blocks.push(id),
+            Node::Loop { .. } => self.loops.push(id),
+            Node::Block { .. } => self.blocks.push(id),
             _ => {}
         }
         id
@@ -174,14 +199,15 @@ impl ParseContext {
     /// Push a new frame,
     /// * `state` - `If`, `Else`, `Block`, or `Loop` frame type
     /// * `ty` - Returning type of the frame
+    /// * `idx` - Instruction index
     ///
-    pub fn push_frame(&mut self, state: State, ty: Option<TypeOrFuncType>) {
-        self.frames.push((state, ty))
+    pub fn push_frame(&mut self, state: State, ty: Option<TypeOrFuncType>, idx: usize) {
+        self.frames.push((state, ty, idx))
     }
 
     /// Pop frame from the current parsing
     ///
-    pub fn pop_frame(&mut self) -> crate::Result<(State, Option<TypeOrFuncType>)> {
+    pub fn pop_frame(&mut self) -> crate::Result<(State, Option<TypeOrFuncType>, usize)> {
         match self.frames.pop() {
             Some(e) => Ok(e),
             None => Err(crate::Error::InvalidAstOperation(
