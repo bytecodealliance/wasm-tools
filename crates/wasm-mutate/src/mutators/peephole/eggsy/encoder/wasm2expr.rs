@@ -1,9 +1,7 @@
-use crate::{
-    mutators::peephole::{
-        dfg::{MiniDFG, StackType},
-        eggsy::encoder::TraversalEvent,
-        Lang, OperatorAndByteOffset,
-    },
+use crate::mutators::peephole::{
+    dfg::{MiniDFG, StackType},
+    eggsy::encoder::TraversalEvent,
+    Lang, OperatorAndByteOffset,
 };
 use egg::{Id, RecExpr};
 use std::collections::HashMap;
