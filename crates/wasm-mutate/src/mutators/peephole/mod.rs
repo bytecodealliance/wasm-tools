@@ -321,6 +321,8 @@ impl Mutator for PeepholeMutator {
             rewrite!("unfold-3";  "?x" => "(i64unfold ?x)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I64) ),
             rewrite!("mem-load-shift";  "(i32load ?x ?y ?z ?w)" => "(i32load (i32add ?x ?y) 0 ?z ?w)"),
             rewrite!("mem-load-shift2";  "(i64load ?x ?y ?z ?w)" => "(i64load (i32add ?x ?y) 0 ?z ?w)"),
+            rewrite!("mem-store-shift1";  "(i32store ?x ?y ?z ?u ?t)" => "(i32store ?x (i32add ?y ?z) 0 ?u ?t)"),
+            rewrite!("mem-store-shift2";  "(i64store ?x ?y ?z ?u ?t)" => "(i64store ?x (i32add ?y ?z) 0 ?u ?t)"),
         ];
         // Use a custom instruction-mutator for this
         // This specific rewriting rule has a condition, it should be appplied if the operand is a constant
@@ -817,6 +819,42 @@ mod tests {
             0,
         );
     }
+
+
+    #[test]
+    fn test_mem_store1() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("rule";  "(i32store ?x ?y ?z ?u ?t)" => "(i32store ?x (i32add ?y ?z) 0 ?u ?t)" )];
+
+        test_peephole_mutator(
+            r#"
+            (module
+                (type (;0;) (func (param i64 i32 f32)))
+                (func (;0;) (type 0) (param i64 i32 f32)
+                  i32.const 100
+                  i32.const 200
+                  i32.store offset=600
+                )
+                (memory (;0;) 0)
+                (export "\00" (memory 0)))
+        "#,
+            rules,
+            r#"
+            (module
+                (type (;0;) (func (param i64 i32 f32)))
+                (func (;0;) (type 0) (param i64 i32 f32)
+                  i32.const 100
+                  i32.const 600
+                  i32.add
+                  i32.const 200
+                  i32.store)
+                (memory (;0;) 0)
+                (export "\00" (memory 0)))
+            "#,
+            0,
+        );
+    }
+
 
     #[test]
     fn test_peep_shl0() {

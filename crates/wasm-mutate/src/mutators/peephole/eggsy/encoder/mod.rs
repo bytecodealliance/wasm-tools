@@ -412,6 +412,8 @@ impl Encoder {
                         | Lang::Arg(_) => unreachable!(
                             "Custom and helper nodes cannot be directly encoded to Wasm"
                         ),
+                        Lang::I32Store(_) => todo!(),
+                        Lang::I64Store(_) => todo!(),
                     }
                 }
             }

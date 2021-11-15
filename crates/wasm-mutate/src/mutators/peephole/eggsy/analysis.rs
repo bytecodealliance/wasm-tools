@@ -170,6 +170,8 @@ impl PeepholeMutationAnalysis {
                     _ => unreachable!("Invalid idx node {:?} for global.get", idxnode),
                 }
             }
+            Lang::I32Store(_) => Ok(PrimitiveTypeInfo::Empty),
+            Lang::I64Store(_) => Ok(PrimitiveTypeInfo::Empty),
         }
     }
 

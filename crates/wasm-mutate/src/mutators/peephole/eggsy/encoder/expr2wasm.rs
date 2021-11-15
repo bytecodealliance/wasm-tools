@@ -248,6 +248,26 @@ pub(crate) fn expr2wasm(
                         worklist.push(Context::new(operands[0], TraversalEvent::Exit));
                         worklist.push(Context::new(operands[0], TraversalEvent::Enter));
                     }
+                    Lang::I32Store(operands) => {
+                        
+                        type_stack.push(PrimitiveTypeInfo::I32);
+                        type_stack.push(PrimitiveTypeInfo::I32);
+                        // Only push the first argument, remaining are helpers
+                        worklist.push(Context::new(operands[0], TraversalEvent::Exit));
+                        worklist.push(Context::new(operands[0], TraversalEvent::Enter));
+                        worklist.push(Context::new(operands[1], TraversalEvent::Exit));
+                        worklist.push(Context::new(operands[1], TraversalEvent::Enter));
+                    }
+                    Lang::I64Store(operands) => {
+                        type_stack.push(PrimitiveTypeInfo::I32);
+                        type_stack.push(PrimitiveTypeInfo::I64);
+                        // Only push the first argument, remaining are helpers
+                        worklist.push(Context::new(operands[0], TraversalEvent::Exit));
+                        worklist.push(Context::new(operands[0], TraversalEvent::Enter));
+
+                        worklist.push(Context::new(operands[1], TraversalEvent::Exit));
+                        worklist.push(Context::new(operands[1], TraversalEvent::Enter));
+                    }
                     _ => { /* Do nothing */ }
                 }
             }
@@ -626,6 +646,62 @@ pub(crate) fn expr2wasm(
                             newfunc.instruction(&Instruction::I64Const(*v));
                         }
                         _ => unreachable!("Invalid type"),
+                    },
+                    Lang::I32Store(operands) => {
+                        let offset_operand = &nodes[usize::from(operands[2])];
+                        let align_operand = &nodes[usize::from(operands[3])];
+                        let memidx_operand = &nodes[usize::from(operands[4])];
+
+                        let toarg = |op: &Lang| match op {
+                            Lang::Arg(val) => *val as u64,
+                            Lang::Const(val) => *val as u64,
+                            _ => unreachable!(
+                                "This operand should be an Arg node. Current operand {:?}",
+                                op
+                            ),
+                        };
+
+                        let offset_value = toarg(offset_operand);
+
+                        let align_value = toarg(align_operand);
+
+                        let memidx_value = toarg(memidx_operand);
+
+                        let memarg = MemArg {
+                            offset: offset_value, // These can be mutated as well
+                            align: align_value as u32,
+                            memory_index: memidx_value as u32,
+                        };
+
+                        newfunc.instruction(&Instruction::I32Store(memarg));
+                    },
+                    Lang::I64Store(operands) => {
+                        let offset_operand = &nodes[usize::from(operands[2])];
+                        let align_operand = &nodes[usize::from(operands[3])];
+                        let memidx_operand = &nodes[usize::from(operands[4])];
+
+                        let toarg = |op: &Lang| match op {
+                            Lang::Arg(val) => *val as u64,
+                            Lang::Const(val) => *val as u64,
+                            _ => unreachable!(
+                                "This operand should be an Arg node. Current operand {:?}",
+                                op
+                            ),
+                        };
+
+                        let offset_value = toarg(offset_operand);
+
+                        let align_value = toarg(align_operand);
+
+                        let memidx_value = toarg(memidx_operand);
+
+                        let memarg = MemArg {
+                            offset: offset_value, // These can be mutated as well
+                            align: align_value as u32,
+                            memory_index: memidx_value as u32,
+                        };
+
+                        newfunc.instruction(&Instruction::I64Store(memarg));
                     },
                 }
             }
