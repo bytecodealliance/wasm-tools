@@ -323,6 +323,9 @@ impl Mutator for PeepholeMutator {
             rewrite!("mem-load-shift2";  "(i64load ?x ?y ?z ?w)" => "(i64load (i32add ?x ?y) 0 ?z ?w)"),
             rewrite!("mem-store-shift1";  "(i32store ?x ?y ?z ?u ?t)" => "(i32store ?x (i32add ?y ?z) 0 ?u ?t)"),
             rewrite!("mem-store-shift2";  "(i64store ?x ?y ?z ?u ?t)" => "(i64store ?x (i32add ?y ?z) 0 ?u ?t)"),
+            // The following rules will be useful for reducing feature
+            rewrite!("drop1";  "(drop ?x)" => "(drop i32rand)" if self.is_type("?x", PrimitiveTypeInfo::I32)),
+            rewrite!("drop2";  "(drop ?x)" => "(drop i64rand)" if self.is_type("?x", PrimitiveTypeInfo::I64)),
         ];
         // Use a custom instruction-mutator for this
         // This specific rewriting rule has a condition, it should be appplied if the operand is a constant
