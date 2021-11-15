@@ -317,8 +317,8 @@ impl Mutator for PeepholeMutator {
         // This information could be passed to the conditions to check for type correctness rewriting
 
         let mut rules = vec![
-            rewrite!("unfold-2";  "?x" => "(unfold ?x)" if self.is_type("?x", PrimitiveTypeInfo::I32) ),
-            rewrite!("unfold-3";  "?x" => "(unfold ?x)" if self.is_type("?x", PrimitiveTypeInfo::I64) ),
+            rewrite!("unfold-2";  "?x" => "(i32unfold ?x)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I32) ),
+            rewrite!("unfold-3";  "?x" => "(i64unfold ?x)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I64) ),
             rewrite!("mem-load-shift";  "(i32load ?x ?y ?z ?w)" => "(i32load (i32add ?x ?y) 0 ?z ?w)"),
             rewrite!("mem-load-shift2";  "(i64load ?x ?y ?z ?w)" => "(i64load (i32add ?x ?y) 0 ?z ?w)"),
         ];
@@ -378,8 +378,8 @@ impl Mutator for PeepholeMutator {
 
         // Overflow rules
         if !config.preserve_semantics {
-            rules.push(rewrite!("mem-load-shift";  "(i32load ?x ?y ?z ?w)" => "(i32load (i32add ?x rand) ?y ?z ?w)"));
-            rules.push(rewrite!("mem-load-shift11";  "(i64load ?x ?y ?z ?w)" => "(i64load (i32add ?x rand) ?y ?z ?w)"));
+            rules.push(rewrite!("mem-load-shift";  "(i32load ?x ?y ?z ?w)" => "(i32load (i32add ?x i32rand) ?y ?z ?w)"));
+            rules.push(rewrite!("mem-load-shift11";  "(i64load ?x ?y ?z ?w)" => "(i64load (i32add ?x i32rand) ?y ?z ?w)"));
             // Correctness attraction
             rules.push(rewrite!("correctness-1";  "?x" => "(i32add ?x 1)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I32)));
             rules.push(rewrite!("correctness-12";  "?x" => "(i64add ?x 1)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I64)));
@@ -557,7 +557,7 @@ mod tests {
     #[test]
     fn test_peep_unfold2() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("unfold-2";  "?x" => "(unfold ?x)" if is_const("?x"))];
+            &[rewrite!("unfold-2";  "?x" => "(i32unfold ?x)" if is_const("?x") if is_type("?x", PrimitiveTypeInfo::I32))];
 
         test_peephole_mutator(
             r#"
@@ -1250,7 +1250,7 @@ mod tests {
     #[test]
     fn test_peep_mem_shift() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("mem-load-shift";  "(i32load ?x ?y ?z ?w)" => "(i32load (i32add ?x rand) ?y ?z ?w)"),
+            rewrite!("mem-load-shift";  "(i32load ?x ?y ?z ?w)" => "(i32load (i32add ?x i32rand) ?y ?z ?w)"),
         ];
 
         test_peephole_mutator(

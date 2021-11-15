@@ -374,27 +374,12 @@ pub(crate) fn expr2wasm(
 
                         newfunc.instruction(&Instruction::I64Load(memarg));
                     }
-                    Lang::Rand => match top.expect("Missing info") {
-                        PrimitiveTypeInfo::I32 => {
-                            newfunc.instruction(&Instruction::I32Const(rnd.gen()));
-                        }
-                        PrimitiveTypeInfo::I64 => {
-                            newfunc.instruction(&Instruction::I64Const(rnd.gen()));
-                        }
-                        _ => unreachable!("Type cannot be encoded"),
-                    },
+                    Lang::RandI32 => {newfunc.instruction(&Instruction::I32Const(rnd.gen()));},
+                    Lang::RandI64 => {newfunc.instruction(&Instruction::I64Const(rnd.gen()));},
                     Lang::Undef => { /* Do nothig */ }
-                    Lang::Unfold(value) => {
+                    Lang::UnfoldI32(value) => {
                         let child = &nodes[usize::from(*value)];
                         match child {
-                            Lang::I64(value) => {
-                                let r: i64 = rnd.gen();
-                                newfunc.instruction(&Instruction::I64Const(r));
-                                newfunc.instruction(&Instruction::I64Const(
-                                    (Wrapping(*value) - Wrapping(r)).0,
-                                ));
-                                newfunc.instruction(&Instruction::I64Add);
-                            }
                             Lang::I32(value) => {
                                 // Getting type from eclass.
 
@@ -404,6 +389,26 @@ pub(crate) fn expr2wasm(
                                     (Wrapping(*value as i32) - Wrapping(r)).0,
                                 ));
                                 newfunc.instruction(&Instruction::I32Add);
+                            }
+                            _ => {
+                                return Err(crate::Error::UnsupportedType(EitherType::EggError(
+                                    format!("The current eterm cannot be unfolded {:?}", child,),
+                                )))
+                            }
+                        }
+                    }
+                    Lang::UnfoldI64(value) => {
+                        let child = &nodes[usize::from(*value)];
+                        match child {
+                            Lang::I64(value) => {
+                                // Getting type from eclass.
+
+                                let r: i64 = rnd.gen();
+                                newfunc.instruction(&Instruction::I64Const(r));
+                                newfunc.instruction(&Instruction::I64Const(
+                                    (Wrapping(*value) - Wrapping(r)).0,
+                                ));
+                                newfunc.instruction(&Instruction::I64Add);
                             }
                             _ => {
                                 return Err(crate::Error::UnsupportedType(EitherType::EggError(

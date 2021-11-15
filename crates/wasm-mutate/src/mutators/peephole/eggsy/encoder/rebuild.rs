@@ -92,7 +92,8 @@ pub fn build_expr(root: Id, id_to_node: &[Lang], operands: &[Vec<Id>]) -> RecExp
                         expr.add(Lang::Call((0..op.len()).map(operand).collect::<Vec<Id>>()))
                     }
                     Lang::LocalTee(_) => expr.add(Lang::LocalTee([operand(0), operand(1)])),
-                    Lang::Unfold(_) => expr.add(Lang::Unfold(operand(0))),
+                    Lang::UnfoldI32(_) => expr.add(Lang::UnfoldI32(operand(0))),
+                    Lang::UnfoldI64(_) => expr.add(Lang::UnfoldI64(operand(0))),
                     Lang::I32Load(_) => expr.add(Lang::I32Load([
                         operand(0),
                         operand(1),
@@ -119,7 +120,8 @@ pub fn build_expr(root: Id, id_to_node: &[Lang], operands: &[Vec<Id>]) -> RecExp
                     Lang::LocalSet(_) => expr.add(Lang::LocalSet([operand(0), operand(1)])),
                     i32 @ Lang::I32(_) => expr.add((*i32).clone()),
                     i64 @ Lang::I64(_) => expr.add((*i64).clone()),
-                    s @ Lang::Rand => expr.add((*s).clone()),
+                    s @ Lang::RandI32 => expr.add((*s).clone()),
+                    s @ Lang::RandI64 => expr.add((*s).clone()),
                     u @ Lang::Undef => expr.add((*u).clone()),
                     a @ Lang::Arg(_) => expr.add((*a).clone()),
                     c @ Lang::Const(_) => expr.add((*c).clone()),

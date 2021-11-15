@@ -102,7 +102,8 @@ define_language! {
         /*
             This operation represent a random number, if its used, every time is should represent the same random number
         */
-        "rand" = Rand,
+        "i32rand" = RandI32,
+        "i64rand" = RandI64,
         /*
             This instructions is used to define unknown operands, for example when the value can come from the join of several basic blocks in a dfg
         */
@@ -110,7 +111,8 @@ define_language! {
         /*
             Takes one constant operand and turn it into a sum of two random numbers whihch sum is the operand `i32.const x = i32.const r + i32.const (x - r) `
         */
-        "unfold" = Unfold(Id),
+        "i32unfold" = UnfoldI32(Id),
+        "i64unfold" = UnfoldI64(Id),
         // End of custom mutation operations and instructions
 
         Const(i64),

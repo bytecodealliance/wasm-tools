@@ -403,9 +403,11 @@ impl Encoder {
                         Lang::I64(v) => {
                             newfunc.instruction(&Instruction::I64Const(*v));
                         }
-                        Lang::Rand
+                        Lang::RandI32
+                        |  Lang::RandI64
                         | Lang::Undef
-                        | Lang::Unfold(_)
+                        | Lang::UnfoldI32(_)
+                        | Lang::UnfoldI64(_)
                         | Lang::Const(_)
                         | Lang::Arg(_) => unreachable!(
                             "Custom and helper nodes cannot be directly encoded to Wasm"
