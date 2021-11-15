@@ -249,7 +249,6 @@ pub(crate) fn expr2wasm(
                         worklist.push(Context::new(operands[0], TraversalEvent::Enter));
                     }
                     Lang::I32Store(operands) => {
-                        
                         type_stack.push(PrimitiveTypeInfo::I32);
                         type_stack.push(PrimitiveTypeInfo::I32);
                         // Only push the first argument, remaining are helpers
@@ -259,8 +258,8 @@ pub(crate) fn expr2wasm(
                         worklist.push(Context::new(operands[1], TraversalEvent::Enter));
                     }
                     Lang::I64Store(operands) => {
-                        type_stack.push(PrimitiveTypeInfo::I32);
                         type_stack.push(PrimitiveTypeInfo::I64);
+                        type_stack.push(PrimitiveTypeInfo::I32);
                         // Only push the first argument, remaining are helpers
                         worklist.push(Context::new(operands[0], TraversalEvent::Exit));
                         worklist.push(Context::new(operands[0], TraversalEvent::Enter));
@@ -394,8 +393,12 @@ pub(crate) fn expr2wasm(
 
                         newfunc.instruction(&Instruction::I64Load(memarg));
                     }
-                    Lang::RandI32 => {newfunc.instruction(&Instruction::I32Const(rnd.gen()));},
-                    Lang::RandI64 => {newfunc.instruction(&Instruction::I64Const(rnd.gen()));},
+                    Lang::RandI32 => {
+                        newfunc.instruction(&Instruction::I32Const(rnd.gen()));
+                    }
+                    Lang::RandI64 => {
+                        newfunc.instruction(&Instruction::I64Const(rnd.gen()));
+                    }
                     Lang::Undef => { /* Do nothig */ }
                     Lang::UnfoldI32(value) => {
                         let child = &nodes[usize::from(*value)];
@@ -674,7 +677,7 @@ pub(crate) fn expr2wasm(
                         };
 
                         newfunc.instruction(&Instruction::I32Store(memarg));
-                    },
+                    }
                     Lang::I64Store(operands) => {
                         let offset_operand = &nodes[usize::from(operands[2])];
                         let align_operand = &nodes[usize::from(operands[3])];
@@ -702,7 +705,7 @@ pub(crate) fn expr2wasm(
                         };
 
                         newfunc.instruction(&Instruction::I64Store(memarg));
-                    },
+                    }
                 }
             }
         }

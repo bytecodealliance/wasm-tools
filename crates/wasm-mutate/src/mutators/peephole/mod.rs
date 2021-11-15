@@ -319,11 +319,19 @@ impl Mutator for PeepholeMutator {
         let mut rules = vec![
             rewrite!("unfold-2";  "?x" => "(i32unfold ?x)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I32) ),
             rewrite!("unfold-3";  "?x" => "(i64unfold ?x)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I64) ),
+            // Pop out the offset
             rewrite!("mem-load-shift";  "(i32load ?x ?y ?z ?w)" => "(i32load (i32add ?x ?y) 0 ?z ?w)"),
             rewrite!("mem-load-shift2";  "(i64load ?x ?y ?z ?w)" => "(i64load (i32add ?x ?y) 0 ?z ?w)"),
             rewrite!("mem-store-shift1";  "(i32store ?x ?y ?z ?u ?t)" => "(i32store ?x (i32add ?y ?z) 0 ?u ?t)"),
             rewrite!("mem-store-shift2";  "(i64store ?x ?y ?z ?u ?t)" => "(i64store ?x (i32add ?y ?z) 0 ?u ?t)"),
             // The following rules will be useful for reducing feature
+
+            // Remove the add before the offset (useful for shrinking)
+            rewrite!("mem-load-shift-reverse";  "(i32load (i32add ?x ?y) 0 ?z ?w)" => "(i32load ?x ?y ?z ?w)" if self.is_const("?y")),
+            rewrite!("mem-load-shift-reverse2";  "(i64load (i32add ?x ?y) 0 ?z ?w)" => "(i64load ?x ?y ?z ?w)" if self.is_const("?y")),
+            rewrite!("mem-store-shift-reverse";  "(i32store ?t (i32add ?x ?y) 0 ?z ?w)" => "(i32store ?t ?x ?y ?z ?w)" if self.is_const("?y")),
+            rewrite!("mem-store-shift-reverse2";  "(i64store ?t (i32add ?x ?y) 0 ?z ?w)" => "(i64store ?t ?x ?y ?z ?w)" if self.is_const("?y")),
+            // Rmove the full subtree of the drop
             rewrite!("drop1";  "(drop ?x)" => "(drop i32rand)" if self.is_type("?x", PrimitiveTypeInfo::I32)),
             rewrite!("drop2";  "(drop ?x)" => "(drop i64rand)" if self.is_type("?x", PrimitiveTypeInfo::I64)),
         ];
@@ -561,8 +569,9 @@ mod tests {
 
     #[test]
     fn test_peep_unfold2() {
-        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("unfold-2";  "?x" => "(i32unfold ?x)" if is_const("?x") if is_type("?x", PrimitiveTypeInfo::I32))];
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
+            rewrite!("unfold-2";  "?x" => "(i32unfold ?x)" if is_const("?x") if is_type("?x", PrimitiveTypeInfo::I32)),
+        ];
 
         test_peephole_mutator(
             r#"
@@ -823,11 +832,11 @@ mod tests {
         );
     }
 
-
     #[test]
     fn test_mem_store1() {
-        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("rule";  "(i32store ?x ?y ?z ?u ?t)" => "(i32store ?x (i32add ?y ?z) 0 ?u ?t)" )];
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
+            rewrite!("rule";  "(i32store ?x ?y ?z ?u ?t)" => "(i32store ?x (i32add ?y ?z) 0 ?u ?t)" ),
+        ];
 
         test_peephole_mutator(
             r#"
@@ -857,7 +866,6 @@ mod tests {
             0,
         );
     }
-
 
     #[test]
     fn test_peep_shl0() {

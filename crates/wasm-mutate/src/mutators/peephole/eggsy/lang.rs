@@ -95,8 +95,8 @@ define_language! {
         // Memory operations
         "i32load" = I32Load([Id;4]), // dynamic offset, offset, align mem value
         "i64load" = I64Load([Id;4]), // dynamic offset, offset, align mem value
-        "i32store" = I32Store([Id;5]), 
-        "i64store" = I64Store([Id;5]), 
+        "i32store" = I32Store([Id;5]),
+        "i64store" = I64Store([Id;5]),
         // TODO add the others
 
         // Custom mutation operations and instructions

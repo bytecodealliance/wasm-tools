@@ -404,7 +404,7 @@ impl Encoder {
                             newfunc.instruction(&Instruction::I64Const(*v));
                         }
                         Lang::RandI32
-                        |  Lang::RandI64
+                        | Lang::RandI64
                         | Lang::Undef
                         | Lang::UnfoldI32(_)
                         | Lang::UnfoldI64(_)
@@ -412,8 +412,86 @@ impl Encoder {
                         | Lang::Arg(_) => unreachable!(
                             "Custom and helper nodes cannot be directly encoded to Wasm"
                         ),
-                        Lang::I32Store(_) => todo!(),
-                        Lang::I64Store(_) => todo!(),
+                        Lang::I32Store(operands) => {
+                            let offset = &operands[2];
+                            let offset = &dfg.nodes[usize::from(*offset)];
+
+                            let offset = match offset {
+                                Lang::Arg(v) => *v,
+                                Lang::Const(v) => *v as u64,
+                                _ => unreachable!(
+                                    "Invalid node type, load static offset cannot be inferred {:?}",
+                                    offset
+                                ),
+                            };
+
+                            let align = &operands[3];
+                            let align = &dfg.nodes[usize::from(*align)];
+
+                            let align = match align {
+                                Lang::Arg(v) => *v as u32,
+                                _ => unreachable!(
+                                    "Invalid node type, load static offset cannot be inferred {:?}",
+                                    align
+                                ),
+                            };
+
+                            let memory_index = &operands[4];
+                            let memory_index = &dfg.nodes[usize::from(*memory_index)];
+
+                            let memory_index = match memory_index {
+                                Lang::Arg(v) => *v as u32,
+                                _ => unreachable!(
+                                    "Invalid node type, load static offset cannot be inferred {:?}",
+                                    memory_index
+                                ),
+                            };
+                            newfunc.instruction(&Instruction::I32Store(MemArg {
+                                offset,
+                                align,
+                                memory_index,
+                            }));
+                        }
+                        Lang::I64Store(operands) => {
+                            let offset = &operands[2];
+                            let offset = &dfg.nodes[usize::from(*offset)];
+
+                            let offset = match offset {
+                                Lang::Arg(v) => *v,
+                                Lang::Const(v) => *v as u64,
+                                _ => unreachable!(
+                                    "Invalid node type, load static offset cannot be inferred {:?}",
+                                    offset
+                                ),
+                            };
+
+                            let align = &operands[3];
+                            let align = &dfg.nodes[usize::from(*align)];
+
+                            let align = match align {
+                                Lang::Arg(v) => *v as u32,
+                                _ => unreachable!(
+                                    "Invalid node type, load static offset cannot be inferred {:?}",
+                                    align
+                                ),
+                            };
+
+                            let memory_index = &operands[4];
+                            let memory_index = &dfg.nodes[usize::from(*memory_index)];
+
+                            let memory_index = match memory_index {
+                                Lang::Arg(v) => *v as u32,
+                                _ => unreachable!(
+                                    "Invalid node type, load static offset cannot be inferred {:?}",
+                                    memory_index
+                                ),
+                            };
+                            newfunc.instruction(&Instruction::I64Store(MemArg {
+                                offset,
+                                align,
+                                memory_index,
+                            }));
+                        }
                     }
                 }
             }

@@ -539,11 +539,10 @@ impl<'a> DFGBuilder {
 
                     self.parents[arg] = idx as i32;
                 }
-                Operator::I32Store { memarg} => {
+                Operator::I32Store { memarg } => {
                     let value = self.pop_operand(idx, false);
                     let offset = self.pop_operand(idx, false);
-                    
-                    
+
                     self.push_node(
                         Lang::Arg(memarg.offset),
                         idx,
@@ -570,10 +569,14 @@ impl<'a> DFGBuilder {
                         PrimitiveTypeInfo::I32,
                     );
                     let memory = self.pop_operand(idx, false);
-                    
+
                     let idx = self.push_node(
                         Lang::I32Store([
-                             Id::from(value), Id::from(offset), Id::from(static_ofsset), Id::from(align), Id::from(memory)
+                            Id::from(value),
+                            Id::from(offset),
+                            Id::from(static_ofsset),
+                            Id::from(align),
+                            Id::from(memory),
                         ]),
                         idx,
                         vec![offset, value],
@@ -582,7 +585,6 @@ impl<'a> DFGBuilder {
                         PrimitiveTypeInfo::Empty,
                     );
 
-                    
                     self.parents[offset] = idx as i32;
                     self.parents[value] = idx as i32;
                     self.parents[static_ofsset] = idx as i32;
@@ -590,11 +592,10 @@ impl<'a> DFGBuilder {
                     self.parents[memory] = idx as i32;
                     color += 1;
                 }
-                Operator::I64Store { memarg} => {
+                Operator::I64Store { memarg } => {
                     let value = self.pop_operand(idx, false);
                     let offset = self.pop_operand(idx, false);
-                    
-                    
+
                     self.push_node(
                         Lang::Arg(memarg.offset),
                         idx,
@@ -621,10 +622,14 @@ impl<'a> DFGBuilder {
                         PrimitiveTypeInfo::I32,
                     );
                     let memory = self.pop_operand(idx, false);
-                    
+
                     let idx = self.push_node(
                         Lang::I64Store([
-                            Id::from(value),Id::from(offset),  Id::from(static_ofsset), Id::from(align), Id::from(memory)
+                            Id::from(value),
+                            Id::from(offset),
+                            Id::from(static_ofsset),
+                            Id::from(align),
+                            Id::from(memory),
                         ]),
                         idx,
                         vec![offset, value],
@@ -633,7 +638,6 @@ impl<'a> DFGBuilder {
                         PrimitiveTypeInfo::Empty,
                     );
 
-                    
                     self.parents[offset] = idx as i32;
                     self.parents[value] = idx as i32;
                     self.parents[static_ofsset] = idx as i32;
