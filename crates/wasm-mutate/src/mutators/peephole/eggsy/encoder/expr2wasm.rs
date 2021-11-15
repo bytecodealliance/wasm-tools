@@ -37,7 +37,6 @@ pub(crate) fn expr2wasm(
         }
     }
 
-    let mut type_stack = vec![PrimitiveTypeInfo::Empty];
     let mut worklist = vec![
         Context::new(root, TraversalEvent::Exit),
         Context::new(root, TraversalEvent::Enter),
@@ -65,9 +64,6 @@ pub(crate) fn expr2wasm(
                     | Lang::I64RotL(operands)
                     | Lang::I64RemS(operands)
                     | Lang::I64RemU(operands) => {
-                        type_stack.push(PrimitiveTypeInfo::I64);
-                        type_stack.push(PrimitiveTypeInfo::I64);
-
                         for operand in operands.iter().rev() {
                             worklist.push(Context::new(*operand, TraversalEvent::Exit));
                             worklist.push(Context::new(*operand, TraversalEvent::Enter));
@@ -88,9 +84,6 @@ pub(crate) fn expr2wasm(
                     | Lang::I32RotL(operands)
                     | Lang::I32RemS(operands)
                     | Lang::I32RemU(operands) => {
-                        type_stack.push(PrimitiveTypeInfo::I32);
-                        type_stack.push(PrimitiveTypeInfo::I32);
-
                         for operand in operands.iter().rev() {
                             worklist.push(Context::new(*operand, TraversalEvent::Exit));
                             worklist.push(Context::new(*operand, TraversalEvent::Enter));
@@ -106,8 +99,6 @@ pub(crate) fn expr2wasm(
                     | Lang::I32LeU(operands)
                     | Lang::I32GeS(operands)
                     | Lang::I32GeU(operands) => {
-                        type_stack.push(PrimitiveTypeInfo::I32);
-                        type_stack.push(PrimitiveTypeInfo::I32);
                         for operand in operands.iter().rev() {
                             // The type is one of the siblings
                             worklist.push(Context::new(*operand, TraversalEvent::Exit));
@@ -124,8 +115,6 @@ pub(crate) fn expr2wasm(
                     | Lang::I64LeU(operands)
                     | Lang::I64GeS(operands)
                     | Lang::I64GeU(operands) => {
-                        type_stack.push(PrimitiveTypeInfo::I64);
-                        type_stack.push(PrimitiveTypeInfo::I64);
                         for operand in operands.iter().rev() {
                             // The type is one of the siblings
                             worklist.push(Context::new(*operand, TraversalEvent::Exit));
@@ -133,262 +122,159 @@ pub(crate) fn expr2wasm(
                         }
                     }
                     Lang::I32Popcnt(operands) | Lang::I32Eqz(operands) => {
-                        type_stack.push(PrimitiveTypeInfo::I32);
                         worklist.push(Context::new(operands[0], TraversalEvent::Exit));
                         worklist.push(Context::new(operands[0], TraversalEvent::Enter));
                     }
                     Lang::I64Popcnt(operands) | Lang::I64Eqz(operands) => {
-                        type_stack.push(PrimitiveTypeInfo::I64);
                         worklist.push(Context::new(operands[0], TraversalEvent::Exit));
                         worklist.push(Context::new(operands[0], TraversalEvent::Enter));
                     }
                     Lang::I32Extend8S(operands) => {
-                        type_stack.push(PrimitiveTypeInfo::I32);
                         worklist.push(Context::new(operands[0], TraversalEvent::Exit));
                         worklist.push(Context::new(operands[0], TraversalEvent::Enter));
                     }
                     Lang::I32Extend16S(operands) => {
-                        type_stack.push(PrimitiveTypeInfo::I32);
                         worklist.push(Context::new(operands[0], TraversalEvent::Exit));
                         worklist.push(Context::new(operands[0], TraversalEvent::Enter));
                     }
                     Lang::I64Extend32S(operands) => {
-                        type_stack.push(PrimitiveTypeInfo::I64);
                         worklist.push(Context::new(operands[0], TraversalEvent::Exit));
                         worklist.push(Context::new(operands[0], TraversalEvent::Enter));
                     }
                     Lang::I64Extend16S(operands) => {
-                        type_stack.push(PrimitiveTypeInfo::I64);
                         worklist.push(Context::new(operands[0], TraversalEvent::Exit));
                         worklist.push(Context::new(operands[0], TraversalEvent::Enter));
                     }
                     Lang::I64ExtendI32S(operands) => {
-                        type_stack.push(PrimitiveTypeInfo::I32);
                         worklist.push(Context::new(operands[0], TraversalEvent::Exit));
                         worklist.push(Context::new(operands[0], TraversalEvent::Enter));
                     }
                     Lang::I64Extend8S(operands) => {
-                        type_stack.push(PrimitiveTypeInfo::I64);
                         worklist.push(Context::new(operands[0], TraversalEvent::Exit));
                         worklist.push(Context::new(operands[0], TraversalEvent::Enter));
                     }
                     Lang::I64ExtendI32U(operands) => {
-                        type_stack.push(PrimitiveTypeInfo::I32);
                         worklist.push(Context::new(operands[0], TraversalEvent::Exit));
                         worklist.push(Context::new(operands[0], TraversalEvent::Enter));
                     }
-                    Lang::LocalTee(operands) => {
-                        // Skip operand 0 which is the symbol
-                        let expectedvalue = &nodes[usize::from(operands[1])];
-                        let tpe = egraph
-                            .analysis
-                            .get_returning_tpe(expectedvalue, expr.as_ref())?;
-                        type_stack.push(tpe);
-                        worklist.push(Context::new(operands[1], TraversalEvent::Exit));
-                        worklist.push(Context::new(operands[1], TraversalEvent::Enter));
+                    Lang::LocalTee(idx, operands) => {
+                        worklist.push(Context::new(*operands, TraversalEvent::Exit));
+                        worklist.push(Context::new(*operands, TraversalEvent::Enter));
                     }
-                    Lang::LocalSet(operands) => {
+                    Lang::LocalSet(idx, operands) => {
                         // Skip operand 0 which is the symbol
-                        let expectedvalue = &nodes[usize::from(operands[1])];
-                        let tpe = egraph
-                            .analysis
-                            .get_returning_tpe(expectedvalue, expr.as_ref())?;
-                        type_stack.push(tpe);
-                        worklist.push(Context::new(operands[1], TraversalEvent::Exit));
-                        worklist.push(Context::new(operands[1], TraversalEvent::Enter));
+                        worklist.push(Context::new(*operands, TraversalEvent::Exit));
+                        worklist.push(Context::new(*operands, TraversalEvent::Enter));
                     }
-                    Lang::GlobalSet(operands) => {
-                        // Skip operand 0 which is the symbol
-                        let expectedvalue = &nodes[usize::from(operands[1])];
-                        let tpe = egraph
-                            .analysis
-                            .get_returning_tpe(expectedvalue, expr.as_ref())?;
-                        type_stack.push(tpe);
-                        worklist.push(Context::new(operands[1], TraversalEvent::Exit));
-                        worklist.push(Context::new(operands[1], TraversalEvent::Enter));
+                    Lang::GlobalSet(idx, operand) => {
+                        worklist.push(Context::new(*operand, TraversalEvent::Exit));
+                        worklist.push(Context::new(*operand, TraversalEvent::Enter));
                     }
                     Lang::Wrap(operands) => {
-                        type_stack.push(PrimitiveTypeInfo::I64);
                         worklist.push(Context::new(operands[0], TraversalEvent::Exit));
                         worklist.push(Context::new(operands[0], TraversalEvent::Enter));
                     }
                     Lang::Drop(operands) => {
-                        type_stack.push(PrimitiveTypeInfo::I64);
                         worklist.push(Context::new(operands[0], TraversalEvent::Exit));
                         worklist.push(Context::new(operands[0], TraversalEvent::Enter));
                     }
-                    Lang::Call(operands) => {
-                        // The first operand is always the helper Arg to identify the function
-                        let first = operands[0];
-                        let firstnode = &nodes[usize::from(first)];
-                        let functionindex = match firstnode {
-                            Lang::Arg(val) => {
-                                *val as u32
-                            }
-                            Lang::Const(val) => {
-                                *val as u32
-                            }
-                            _ => unreachable!("The first argument for Call nodes should be an inmmediate node type (Arg)")
-                        };
-                        let typeinfo = info.get_functype_idx(functionindex as usize);
-                        if let crate::module::TypeInfo::Func(tpe) = typeinfo {
-                            // Push operands types in reverse order
-                            for (idx, _) in operands[1..].iter().enumerate().rev() {
-                                type_stack.push(tpe.params[idx].clone())
-                            }
-                        }
-                        for operand in operands.iter().skip(1).rev() {
+                    Lang::Call(idx, operands) => {
+                        for operand in operands.iter().rev() {
                             worklist.push(Context::new(*operand, TraversalEvent::Exit));
                             worklist.push(Context::new(*operand, TraversalEvent::Enter));
                         }
                     }
-                    Lang::I32Load(operands) | Lang::I64Load(operands) => {
-                        type_stack.push(PrimitiveTypeInfo::I32);
-                        // Only push the first argument, remaining are helpers
-                        worklist.push(Context::new(operands[0], TraversalEvent::Exit));
-                        worklist.push(Context::new(operands[0], TraversalEvent::Enter));
+                    Lang::I32Load {
+                        align,
+                        mem,
+                        static_offset,
+                        offset,
                     }
-                    Lang::I32Store(operands) => {
-                        type_stack.push(PrimitiveTypeInfo::I32);
-                        type_stack.push(PrimitiveTypeInfo::I32);
-                        // Only push the first argument, remaining are helpers
-                        worklist.push(Context::new(operands[0], TraversalEvent::Exit));
-                        worklist.push(Context::new(operands[0], TraversalEvent::Enter));
-                        worklist.push(Context::new(operands[1], TraversalEvent::Exit));
-                        worklist.push(Context::new(operands[1], TraversalEvent::Enter));
+                    | Lang::I64Load {
+                        align,
+                        mem,
+                        static_offset,
+                        offset,
+                    } => {
+                        worklist.push(Context::new(*offset, TraversalEvent::Exit));
+                        worklist.push(Context::new(*offset, TraversalEvent::Enter));
                     }
-                    Lang::I64Store(operands) => {
-                        type_stack.push(PrimitiveTypeInfo::I64);
-                        type_stack.push(PrimitiveTypeInfo::I32);
-                        // Only push the first argument, remaining are helpers
-                        worklist.push(Context::new(operands[0], TraversalEvent::Exit));
-                        worklist.push(Context::new(operands[0], TraversalEvent::Enter));
+                    Lang::I32Store {
+                        align,
+                        mem,
+                        static_offset,
+                        value_and_offset,
+                    } => {
+                        worklist.push(Context::new(value_and_offset[1], TraversalEvent::Exit));
+                        worklist.push(Context::new(value_and_offset[1], TraversalEvent::Enter));
+                        worklist.push(Context::new(value_and_offset[0], TraversalEvent::Exit));
+                        worklist.push(Context::new(value_and_offset[0], TraversalEvent::Enter));
+                    }
+                    Lang::I64Store {
+                        align,
+                        mem,
+                        static_offset,
+                        value_and_offset,
+                    } => {
+                        worklist.push(Context::new(value_and_offset[1], TraversalEvent::Exit));
+                        worklist.push(Context::new(value_and_offset[1], TraversalEvent::Enter));
 
-                        worklist.push(Context::new(operands[1], TraversalEvent::Exit));
-                        worklist.push(Context::new(operands[1], TraversalEvent::Enter));
+                        worklist.push(Context::new(value_and_offset[0], TraversalEvent::Exit));
+                        worklist.push(Context::new(value_and_offset[0], TraversalEvent::Enter));
                     }
                     _ => { /* Do nothing */ }
                 }
             }
             TraversalEvent::Exit => {
-                let top = type_stack.pop();
                 match rootlang {
-                    Lang::LocalGet(operands) => {
-                        let id = &nodes[usize::from(operands[0])];
-                        match id {
-                            Lang::Arg(val) => {
-                                newfunc.instruction(&Instruction::LocalGet(*val as u32));
-                            }
-                            _ => unreachable!("Invalid local index {:?}", id),
-                        }
+                    Lang::LocalGet(idx) => {
+                        newfunc.instruction(&Instruction::LocalGet(*idx as u32));
                     }
-                    Lang::GlobalGet(operands) => {
-                        let id = &nodes[usize::from(operands[0])];
-                        match id {
-                            Lang::Arg(val) => {
-                                newfunc.instruction(&Instruction::GlobalGet(*val as u32));
-                            }
-                            _ => unreachable!("Invalid local index {:?}", id),
-                        }
+                    Lang::GlobalGet(idx) => {
+                        newfunc.instruction(&Instruction::GlobalGet(*idx as u32));
                     }
-                    Lang::LocalSet(operands) => {
-                        let id = &nodes[usize::from(operands[0])];
-                        match id {
-                            Lang::Arg(val) => {
-                                newfunc.instruction(&Instruction::LocalSet(*val as u32));
-                            }
-                            _ => unreachable!("Invalid local index {:?}", id),
-                        }
+                    Lang::LocalSet(idx, val) => {
+                        newfunc.instruction(&Instruction::LocalSet(*idx as u32));
                     }
-                    Lang::GlobalSet(operands) => {
-                        let id = &nodes[usize::from(operands[0])];
-                        match id {
-                            Lang::Arg(val) => {
-                                newfunc.instruction(&Instruction::GlobalSet(*val as u32));
-                            }
-                            _ => unreachable!("Invalid local index {:?}", id),
-                        }
+                    Lang::GlobalSet(idx, val) => {
+                        newfunc.instruction(&Instruction::GlobalSet(*idx as u32));
                     }
-                    Lang::LocalTee(operands) => {
-                        let id = &nodes[usize::from(operands[0])];
-                        match id {
-                            Lang::Arg(val) => {
-                                newfunc.instruction(&Instruction::LocalTee(*val as u32));
-                            }
-                            _ => unreachable!("Invalid local index {:?}", id),
-                        }
+                    Lang::LocalTee(idx, _) => {
+                        newfunc.instruction(&Instruction::LocalTee(*idx as u32));
                     }
                     Lang::Wrap(_) => {
                         newfunc.instruction(&Instruction::I32WrapI64);
                     }
-                    Lang::Call(operands) => {
-                        let first = operands[0];
-                        let firstnode = &nodes[usize::from(first)];
-                        match firstnode {
-                            Lang::Arg(val) => {
-                                newfunc.instruction(&Instruction::Call(*val as u32));
-                            }
-                            ////Lang::Num(val) => {
-                             //   newfunc.instruction(&Instruction::Call(*val as u32));
-                            //}
-                            _ => unreachable!("The first argument for Call nodes should be an inmmediate node type (Arg)")
-                        }
+                    Lang::Call(idx, _) => {
+                        newfunc.instruction(&Instruction::Call(*idx as u32));
                     }
                     Lang::Drop(_) => {
                         newfunc.instruction(&Instruction::Drop);
                     }
-                    Lang::I32Load(operands) => {
-                        let offset_operand = &nodes[usize::from(operands[1])];
-                        let align_operand = &nodes[usize::from(operands[2])];
-                        let memidx_operand = &nodes[usize::from(operands[3])];
-
-                        let toarg = |op: &Lang| match op {
-                            Lang::Arg(val) => *val as u64,
-                            Lang::Const(val) => *val as u64,
-                            _ => unreachable!(
-                                "This operand should be an Arg node. Current operand {:?}",
-                                op
-                            ),
-                        };
-
-                        let offset_value = toarg(offset_operand);
-
-                        let align_value = toarg(align_operand);
-
-                        let memidx_value = toarg(memidx_operand);
-
+                    Lang::I32Load {
+                        align,
+                        mem,
+                        static_offset,
+                        offset: _,
+                    } => {
                         let memarg = MemArg {
-                            offset: offset_value, // These can be mutated as well
-                            align: align_value as u32,
-                            memory_index: memidx_value as u32,
+                            offset: *static_offset, // These can be mutated as well
+                            align: *align as u32,
+                            memory_index: *mem,
                         };
 
                         newfunc.instruction(&Instruction::I32Load(memarg));
                     }
-                    Lang::I64Load(operands) => {
-                        let offset_operand = &nodes[usize::from(operands[1])];
-                        let align_operand = &nodes[usize::from(operands[2])];
-                        let memidx_operand = &nodes[usize::from(operands[3])];
-
-                        let toarg = |op: &Lang| match op {
-                            Lang::Arg(val) => *val as u64,
-                            Lang::Const(val) => *val as u64,
-                            _ => unreachable!(
-                                "This operand should be an Arg node. Current operand {:?}",
-                                op
-                            ),
-                        };
-
-                        let offset_value = toarg(offset_operand);
-
-                        let align_value = toarg(align_operand);
-
-                        let memidx_value = toarg(memidx_operand);
-
+                    Lang::I64Load {
+                        align,
+                        mem,
+                        static_offset,
+                        offset: _,
+                    } => {
                         let memarg = MemArg {
-                            offset: offset_value, // These can be mutated as well
-                            align: align_value as u32,
-                            memory_index: memidx_value as u32,
+                            offset: *static_offset, // These can be mutated as well
+                            align: *align as u32,
+                            memory_index: *mem,
                         };
 
                         newfunc.instruction(&Instruction::I64Load(memarg));
@@ -445,18 +331,6 @@ pub(crate) fn expr2wasm(
                     }
                     Lang::I64(v) => {
                         newfunc.instruction(&Instruction::I64Const(*v));
-                    }
-                    Lang::Arg(val) => {
-                        let t = type_stack.pop().expect("Missing type information");
-                        match t {
-                            PrimitiveTypeInfo::I32 => {
-                                newfunc.instruction(&Instruction::I32Const(*val as i32));
-                            }
-                            PrimitiveTypeInfo::I64 => {
-                                newfunc.instruction(&Instruction::I64Const(*val as i64));
-                            }
-                            _ => unreachable!("Type cannot be encoded"),
-                        }
                     }
                     Lang::I32Add(_) => {
                         newfunc.instruction(&Instruction::I32Add);
@@ -641,67 +515,30 @@ pub(crate) fn expr2wasm(
                     Lang::I64ExtendI32U(_) => {
                         newfunc.instruction(&Instruction::I64ExtendI32U);
                     }
-                    Lang::Const(v) => match top.expect("Missing info") {
-                        PrimitiveTypeInfo::I32 => {
-                            newfunc.instruction(&Instruction::I32Const(*v as i32));
-                        }
-                        PrimitiveTypeInfo::I64 => {
-                            newfunc.instruction(&Instruction::I64Const(*v));
-                        }
-                        _ => unreachable!("Invalid type"),
-                    },
-                    Lang::I32Store(operands) => {
-                        let offset_operand = &nodes[usize::from(operands[2])];
-                        let align_operand = &nodes[usize::from(operands[3])];
-                        let memidx_operand = &nodes[usize::from(operands[4])];
-
-                        let toarg = |op: &Lang| match op {
-                            Lang::Arg(val) => *val as u64,
-                            Lang::Const(val) => *val as u64,
-                            _ => unreachable!(
-                                "This operand should be an Arg node. Current operand {:?}",
-                                op
-                            ),
-                        };
-
-                        let offset_value = toarg(offset_operand);
-
-                        let align_value = toarg(align_operand);
-
-                        let memidx_value = toarg(memidx_operand);
-
+                    Lang::I32Store {
+                        align,
+                        mem,
+                        static_offset,
+                        value_and_offset: _,
+                    } => {
                         let memarg = MemArg {
-                            offset: offset_value, // These can be mutated as well
-                            align: align_value as u32,
-                            memory_index: memidx_value as u32,
+                            offset: *static_offset, // These can be mutated as well
+                            align: *align as u32,
+                            memory_index: *mem,
                         };
 
                         newfunc.instruction(&Instruction::I32Store(memarg));
                     }
-                    Lang::I64Store(operands) => {
-                        let offset_operand = &nodes[usize::from(operands[2])];
-                        let align_operand = &nodes[usize::from(operands[3])];
-                        let memidx_operand = &nodes[usize::from(operands[4])];
-
-                        let toarg = |op: &Lang| match op {
-                            Lang::Arg(val) => *val as u64,
-                            Lang::Const(val) => *val as u64,
-                            _ => unreachable!(
-                                "This operand should be an Arg node. Current operand {:?}",
-                                op
-                            ),
-                        };
-
-                        let offset_value = toarg(offset_operand);
-
-                        let align_value = toarg(align_operand);
-
-                        let memidx_value = toarg(memidx_operand);
-
+                    Lang::I64Store {
+                        align,
+                        mem,
+                        static_offset,
+                        value_and_offset: _,
+                    } => {
                         let memarg = MemArg {
-                            offset: offset_value, // These can be mutated as well
-                            align: align_value as u32,
-                            memory_index: memidx_value as u32,
+                            offset: *static_offset, // These can be mutated as well
+                            align: *align as u32,
+                            memory_index: *mem,
                         };
 
                         newfunc.instruction(&Instruction::I64Store(memarg));

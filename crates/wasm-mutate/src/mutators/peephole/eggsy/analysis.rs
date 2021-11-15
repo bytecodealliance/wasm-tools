@@ -20,10 +20,6 @@ pub struct PeepholeMutationAnalysis {
     types_map: Vec<TypeInfo>,
     /// function idx to type idx
     function_map: Vec<u32>,
-    // Egraph nodes
-    // This will help to infer returning types from
-    // local, globals and function calls
-    nodes: RefCell<Vec<Lang>>,
 }
 
 impl PeepholeMutationAnalysis {
@@ -39,12 +35,11 @@ impl PeepholeMutationAnalysis {
             locals,
             types_map,
             function_map,
-            nodes: RefCell::new(Vec::new()),
         }
     }
 
     /// Gets returning type of node
-    pub fn get_returning_tpe(&self, l: &Lang, expr: &[Lang]) -> crate::Result<PrimitiveTypeInfo> {
+    pub fn get_returning_tpe(&self, l: &Lang) -> crate::Result<PrimitiveTypeInfo> {
         match l {
             Lang::I32Add(_) => Ok(PrimitiveTypeInfo::I32),
             Lang::I64Add(_) => Ok(PrimitiveTypeInfo::I64),
@@ -98,25 +93,10 @@ impl PeepholeMutationAnalysis {
             Lang::I64GeS(_) => Ok(PrimitiveTypeInfo::I32),
             Lang::I32GeU(_) => Ok(PrimitiveTypeInfo::I32),
             Lang::I64GeU(_) => Ok(PrimitiveTypeInfo::I32),
-            Lang::LocalTee(operands) => {
-                let idxnode = &expr[usize::from(operands[0])];
-                match idxnode {
-                    Lang::Arg(v) => Ok(self.locals[*v as usize].clone()),
-                    _ => unreachable!("Invalid idx node {:?} for local.tee", idxnode),
-                }
-            }
+            Lang::LocalTee(idx, _) => Ok(self.locals[*idx as usize].clone()),
             Lang::Wrap(_) => Ok(PrimitiveTypeInfo::I32),
-            Lang::Call(operands) => {
-                let first = operands[0];
-                let firstnode = &expr[usize::from(first)];
-                let functionindex = match firstnode {
-                    Lang::Arg(val) => *val as u32,
-                    Lang::Const(val) => *val as u32,
-                    _ => unreachable!(
-                        "The first argument for Call nodes should be an inmmediate node type (Arg)"
-                    ),
-                };
-                let typeinfo = self.get_functype_idx(functionindex as usize);
+            Lang::Call(idx, _) => {
+                let typeinfo = self.get_functype_idx(*idx);
 
                 match typeinfo {
                     TypeInfo::Func(ty) => {
@@ -136,8 +116,8 @@ impl PeepholeMutationAnalysis {
             Lang::I32Popcnt(_) => Ok(PrimitiveTypeInfo::I32),
             Lang::I64Popcnt(_) => Ok(PrimitiveTypeInfo::I64),
             Lang::Drop(_) => Ok(PrimitiveTypeInfo::Empty),
-            Lang::I32Load(_) => Ok(PrimitiveTypeInfo::I32),
-            Lang::I64Load(_) => Ok(PrimitiveTypeInfo::I64),
+            Lang::I32Load { .. } => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64Load { .. } => Ok(PrimitiveTypeInfo::I64),
             Lang::RandI32 => Ok(PrimitiveTypeInfo::I32),
             Lang::RandI64 => Ok(PrimitiveTypeInfo::I64),
             Lang::Undef => Ok(PrimitiveTypeInfo::Empty),
@@ -145,8 +125,6 @@ impl PeepholeMutationAnalysis {
             Lang::UnfoldI64(_) => Ok(PrimitiveTypeInfo::I64),
             Lang::I32(_) => Ok(PrimitiveTypeInfo::I32),
             Lang::I64(_) => Ok(PrimitiveTypeInfo::I64),
-            Lang::Arg(_) => Ok(PrimitiveTypeInfo::I32),
-            Lang::Const(_) => Ok(PrimitiveTypeInfo::I32),
             Lang::I32Extend8S(_) => Ok(PrimitiveTypeInfo::I32),
             Lang::I64Extend8S(_) => Ok(PrimitiveTypeInfo::I64),
             Lang::I32Extend16S(_) => Ok(PrimitiveTypeInfo::I32),
@@ -154,24 +132,12 @@ impl PeepholeMutationAnalysis {
             Lang::I64Extend32S(_) => Ok(PrimitiveTypeInfo::I64),
             Lang::I64ExtendI32S(_) => Ok(PrimitiveTypeInfo::I64),
             Lang::I64ExtendI32U(_) => Ok(PrimitiveTypeInfo::I64),
-            Lang::LocalSet(_) => Ok(PrimitiveTypeInfo::Empty),
-            Lang::GlobalSet(_) => Ok(PrimitiveTypeInfo::Empty),
-            Lang::LocalGet(operands) => {
-                let idxnode = &expr[usize::from(operands[0])];
-                match idxnode {
-                    Lang::Arg(v) => Ok(self.locals[*v as usize].clone()),
-                    _ => unreachable!("Invalid idx node {:?} for local.get", idxnode),
-                }
-            }
-            Lang::GlobalGet(operands) => {
-                let idxnode = &expr[usize::from(operands[0])];
-                match idxnode {
-                    Lang::Arg(v) => Ok(self.global_types[*v as usize].clone()),
-                    _ => unreachable!("Invalid idx node {:?} for global.get", idxnode),
-                }
-            }
-            Lang::I32Store(_) => Ok(PrimitiveTypeInfo::Empty),
-            Lang::I64Store(_) => Ok(PrimitiveTypeInfo::Empty),
+            Lang::LocalSet(_, _) => Ok(PrimitiveTypeInfo::Empty),
+            Lang::GlobalSet(_, _) => Ok(PrimitiveTypeInfo::Empty),
+            Lang::LocalGet(idx) => Ok(self.locals[*idx as usize].clone()),
+            Lang::GlobalGet(v) => Ok(self.global_types[*v as usize].clone()),
+            Lang::I32Store { .. } => Ok(PrimitiveTypeInfo::Empty),
+            Lang::I64Store { .. } => Ok(PrimitiveTypeInfo::Empty),
         }
     }
 
@@ -205,15 +171,11 @@ impl Analysis<Lang> for PeepholeMutationAnalysis {
 
     fn make(egraph: &EGraph<Lang, Self>, l: &Lang) -> Self::Data {
         // We build the nodes collection in the same order the egraph is built
-        egraph.analysis.nodes.borrow_mut().push(l.clone());
         Some(ClassData {
             // This type information is used only when the rewriting rules are being applied ot the egraph
             // Thats why we need the original expression in the analysis beforehand :)
             // Beyond that the random extracted expression needs to be pass to the `get_returning_tpe` method
-            tpe: egraph
-                .analysis
-                .get_returning_tpe(l, &egraph.analysis.nodes.borrow())
-                .expect("Missing type"),
+            tpe: egraph.analysis.get_returning_tpe(l).expect("Missing type"),
         })
     }
 

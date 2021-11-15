@@ -168,6 +168,7 @@ impl PeepholeMutator {
                                         .run(rules);
                                 let mut egraph = runner.egraph;
 
+                                println!("start {:?}", start.as_ref());
                                 // In theory this will return the Id of the operator eterm
                                 let root = egraph.add_expr(&start);
 
@@ -194,6 +195,7 @@ impl PeepholeMutator {
                                     expr.pretty(35),
                                     start.pretty(35)
                                 );
+                                println!("expr {:?}", expr.as_ref());
 
                                 let mut newfunc = self.copy_locals(reader)?;
                                 Encoder::build_function(
@@ -292,7 +294,6 @@ impl PeepholeMutator {
                         match node {
                             Lang::I32(_) => true,
                             Lang::I64(_) => true,
-                            Lang::Const(_) => true,
                             _ => false,
                         }
                     } else {
@@ -317,85 +318,73 @@ impl Mutator for PeepholeMutator {
         // This information could be passed to the conditions to check for type correctness rewriting
 
         let mut rules = vec![
-            rewrite!("unfold-2";  "?x" => "(i32unfold ?x)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I32) ),
-            rewrite!("unfold-3";  "?x" => "(i64unfold ?x)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I64) ),
-            // Pop out the offset
-            rewrite!("mem-load-shift";  "(i32load ?x ?y ?z ?w)" => "(i32load (i32add ?x ?y) 0 ?z ?w)"),
-            rewrite!("mem-load-shift2";  "(i64load ?x ?y ?z ?w)" => "(i64load (i32add ?x ?y) 0 ?z ?w)"),
-            rewrite!("mem-store-shift1";  "(i32store ?x ?y ?z ?u ?t)" => "(i32store ?x (i32add ?y ?z) 0 ?u ?t)"),
-            rewrite!("mem-store-shift2";  "(i64store ?x ?y ?z ?u ?t)" => "(i64store ?x (i32add ?y ?z) 0 ?u ?t)"),
-            // The following rules will be useful for reducing feature
+            rewrite!("unfold-2";  "?x" => "(i32.unfold ?x)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I32) ),
+            rewrite!("unfold-3";  "?x" => "(i64.unfold ?x)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I64) ),
+            // TODO Pop out the offset
 
-            // Remove the add before the offset (useful for shrinking)
-            rewrite!("mem-load-shift-reverse";  "(i32load (i32add ?x ?y) 0 ?z ?w)" => "(i32load ?x ?y ?z ?w)" if self.is_const("?y")),
-            rewrite!("mem-load-shift-reverse2";  "(i64load (i32add ?x ?y) 0 ?z ?w)" => "(i64load ?x ?y ?z ?w)" if self.is_const("?y")),
-            rewrite!("mem-store-shift-reverse";  "(i32store ?t (i32add ?x ?y) 0 ?z ?w)" => "(i32store ?t ?x ?y ?z ?w)" if self.is_const("?y")),
-            rewrite!("mem-store-shift-reverse2";  "(i64store ?t (i32add ?x ?y) 0 ?z ?w)" => "(i64store ?t ?x ?y ?z ?w)" if self.is_const("?y")),
             // Rmove the full subtree of the drop
-            rewrite!("drop1";  "(drop ?x)" => "(drop i32rand)" if self.is_type("?x", PrimitiveTypeInfo::I32)),
-            rewrite!("drop2";  "(drop ?x)" => "(drop i64rand)" if self.is_type("?x", PrimitiveTypeInfo::I64)),
+            rewrite!("drop1";  "(drop ?x)" => "(drop i32.rand)" if self.is_type("?x", PrimitiveTypeInfo::I32)),
+            rewrite!("drop2";  "(drop ?x)" => "(drop i64.rand)" if self.is_type("?x", PrimitiveTypeInfo::I64)),
         ];
         // Use a custom instruction-mutator for this
         // This specific rewriting rule has a condition, it should be appplied if the operand is a constant
-        rules.extend(rewrite!("strength-undo";  "(i32shl ?x 1)" <=> "(i32mul ?x 2)"));
-        rules.extend(rewrite!("strength-undo01";  "(i64shl ?x 1)" <=> "(i64mul ?x 2)"));
+        rules.extend(rewrite!("strength-undo";  "(i32.shl ?x 1)" <=> "(i32.mul ?x 2_i32)"));
+        rules.extend(rewrite!("strength-undo01";  "(i64.shl ?x 1)" <=> "(i64.mul ?x 2_i32)"));
 
-        rules.extend(rewrite!("strength-undo1";  "(i32shl ?x 2)" <=> "(i32mul ?x 4)"));
-        rules.extend(rewrite!("strength-undo12";  "(i64shl ?x 2)" <=> "(i64mul ?x 4)"));
+        rules.extend(rewrite!("strength-undo1";  "(i32.shl ?x 2)" <=> "(i32.mul ?x 4_i32)"));
+        rules.extend(rewrite!("strength-undo12";  "(i64.shl ?x 2)" <=> "(i64.mul ?x 4_i64)"));
 
-        rules.extend(rewrite!("strength-undo2";  "(i32shl ?x 3)" <=> "(i32mul ?x 8)"));
-        rules.extend(rewrite!("strength-undo22";  "(i64shl ?x 3)" <=> "(i64mul ?x 8)"));
+        rules.extend(rewrite!("strength-undo2";  "(i32.shl ?x 3)" <=> "(i32.mul ?x 8_i32)"));
+        rules.extend(rewrite!("strength-undo22";  "(i64.shl ?x 3)" <=> "(i64.mul ?x 8_i64)"));
 
-        rules.extend(rewrite!("strength-undo3";  "(i32shl ?x 0)" <=> "?x" if self.is_type("?x", PrimitiveTypeInfo::I32) ));
-        rules.extend(rewrite!("strength-undo31";  "(i64shl ?x 0)" <=> "?x" if self.is_type("?x", PrimitiveTypeInfo::I64)  ));
+        rules.extend(rewrite!("strength-undo3";  "(i32.shl ?x 0_i32)" <=> "?x" if self.is_type("?x", PrimitiveTypeInfo::I32) ));
+        rules.extend(rewrite!("strength-undo31";  "(i64.shl ?x 0_i64)" <=> "?x" if self.is_type("?x", PrimitiveTypeInfo::I64)  ));
 
-        rules.extend(rewrite!("add-1";  "(i32add ?x ?x)" <=> "(i32mul ?x 2)"));
-        rules.extend(rewrite!("add-12";  "(i64add ?x ?x)" <=> "(i64mul ?x 2)"));
+        rules.extend(rewrite!("add-1";  "(i32.add ?x ?x)" <=> "(i32.mul ?x 2_i32)"));
+        rules.extend(rewrite!("add-12";  "(i64.add ?x ?x)" <=> "(i64.mul ?x 2_i64)"));
 
-        rules.extend(rewrite!("idempotent-1";  "?x" <=> "(i32or ?x ?x)" if self.is_type("?x", PrimitiveTypeInfo::I32)));
-        rules.extend(rewrite!("idempotent-12";  "?x" <=> "(i64or ?x ?x)" if self.is_type("?x", PrimitiveTypeInfo::I64)));
+        rules.extend(rewrite!("idempotent-1";  "?x" <=> "(i32.or ?x ?x)" if self.is_type("?x", PrimitiveTypeInfo::I32)));
+        rules.extend(rewrite!("idempotent-12";  "?x" <=> "(i64.or ?x ?x)" if self.is_type("?x", PrimitiveTypeInfo::I64)));
 
-        rules.extend(rewrite!("idempotent-2";  "?x" <=> "(i32and ?x ?x)" if self.is_type("?x", PrimitiveTypeInfo::I32)));
-        rules.extend(rewrite!("idempotent-21";  "?x" <=> "(i64and ?x ?x)" if self.is_type("?x", PrimitiveTypeInfo::I64)));
+        rules.extend(rewrite!("idempotent-2";  "?x" <=> "(i32.and ?x ?x)" if self.is_type("?x", PrimitiveTypeInfo::I32)));
+        rules.extend(rewrite!("idempotent-21";  "?x" <=> "(i64.and ?x ?x)" if self.is_type("?x", PrimitiveTypeInfo::I64)));
 
-        rules.extend(rewrite!("commutative-1";  "(i32add ?x ?y)" <=> "(i32add ?y ?x)"));
-        rules.extend(rewrite!("commutative-12";  "(i64add ?x ?y)" <=> "(i64add ?y ?x)"));
+        rules.extend(rewrite!("commutative-1";  "(i32.add ?x ?y)" <=> "(i32.add ?y ?x)"));
+        rules.extend(rewrite!("commutative-12";  "(i64.add ?x ?y)" <=> "(i64.add ?y ?x)"));
 
-        rules.extend(rewrite!("commutative-2";  "(i32mul ?x ?y)" <=> "(i32mul ?y ?x)" ));
-        rules.extend(rewrite!("commutative-22";  "(i64mul ?x ?y)" <=> "(i64mul ?y ?x)" ));
-
-        rules
-            .extend(rewrite!("associative-2";  "(i32mul ?x (i32mul ?y ?z))" <=> "(i32mul (i32mul ?x ?y) ?z)" ));
-        rules
-            .extend(rewrite!("associative-22";  "(i64mul ?x (i64mul ?y ?z))" <=> "(i64mul (i64mul ?x ?y) ?z)" ));
+        rules.extend(rewrite!("commutative-2";  "(i32.mul ?x ?y)" <=> "(i32.mul ?y ?x)" ));
+        rules.extend(rewrite!("commutative-22";  "(i64.mul ?x ?y)" <=> "(i64.mul ?y ?x)" ));
 
         rules
-            .extend(rewrite!("associative-1";  "(i32add ?x (i32add ?y ?z))" <=> "(i32add (i32add ?x ?y) ?z)" ));
+            .extend(rewrite!("associative-2";  "(i32.mul ?x (i32.mul ?y ?z))" <=> "(i32.mul (i32.mul ?x ?y) ?z)" ));
         rules
-            .extend(rewrite!("associative-12";  "(i64add ?x (i64add ?y ?z))" <=> "(i64add (i64add ?x ?y) ?z)" ));
+            .extend(rewrite!("associative-22";  "(i64.mul ?x (i64.mul ?y ?z))" <=> "(i64.mul (i64.mul ?x ?y) ?z)" ));
 
-        rules.extend(rewrite!("idempotent-3";  "?x" <=> "(i32mul ?x 1)" if self.is_type("?x", PrimitiveTypeInfo::I32)));
-        rules.extend(rewrite!("idempotent-31";  "?x" <=> "(i64mul ?x 1)" if self.is_type("?x", PrimitiveTypeInfo::I64)));
+        rules
+            .extend(rewrite!("associative-1";  "(i32.add ?x (i32.add ?y ?z))" <=> "(i32.add (i32.add ?x ?y) ?z)" ));
+        rules
+            .extend(rewrite!("associative-12";  "(i64.add ?x (i64.add ?y ?z))" <=> "(i64.add (i64.add ?x ?y) ?z)" ));
 
-        rules.extend(rewrite!("idempotent-4";  "?x" <=> "(i32add ?x 0)" if self.is_type("?x", PrimitiveTypeInfo::I32)));
-        rules.extend(rewrite!("idempotent-41";  "?x" <=> "(i64add ?x 0)" if self.is_type("?x", PrimitiveTypeInfo::I64)));
+        rules.extend(rewrite!("idempotent-3";  "?x" <=> "(i32.mul ?x 1_i32)" if self.is_type("?x", PrimitiveTypeInfo::I32)));
+        rules.extend(rewrite!("idempotent-31";  "?x" <=> "(i64.mul ?x 1_i64)" if self.is_type("?x", PrimitiveTypeInfo::I64)));
 
-        rules.extend(rewrite!("idempotent-5";  "?x" <=> "(i32xor ?x 0)" if self.is_type("?x", PrimitiveTypeInfo::I32)));
-        rules.extend(rewrite!("idempotent-51";  "?x" <=> "(i64xor ?x 0)" if self.is_type("?x", PrimitiveTypeInfo::I64)));
+        rules.extend(rewrite!("idempotent-4";  "?x" <=> "(i32.add ?x 0_i32)" if self.is_type("?x", PrimitiveTypeInfo::I32)));
+        rules.extend(rewrite!("idempotent-41";  "?x" <=> "(i64.add ?x 0_i64)" if self.is_type("?x", PrimitiveTypeInfo::I64)));
 
-        rules.extend(rewrite!("idempotent-6"; "(i32eqz ?x)" <=> "(i32eq ?x 0)" if self.is_type("?x", PrimitiveTypeInfo::I32)));
-        rules.extend(rewrite!("idempotent-61"; "(i64eqz ?x)" <=> "(i64eq ?x 0)" if self.is_type("?x", PrimitiveTypeInfo::I64)));
+        rules.extend(rewrite!("idempotent-5";  "?x" <=> "(i32.xor ?x 0_i32)" if self.is_type("?x", PrimitiveTypeInfo::I32)));
+        rules.extend(rewrite!("idempotent-51";  "?x" <=> "(i64.xor ?x 0_i64)" if self.is_type("?x", PrimitiveTypeInfo::I64)));
 
-        rules.extend(rewrite!("commutative-3"; "(i32eq ?x ?y)" <=> "(i32eq ?y ?x)" if self.is_type("?x", PrimitiveTypeInfo::I32)));
-        rules.extend(rewrite!("commutative-31"; "(i64eq ?x ?y)" <=> "(i64eq ?y ?x)" if self.is_type("?x", PrimitiveTypeInfo::I64)));
+        rules.extend(rewrite!("idempotent-6"; "(i32.eqz ?x)" <=> "(i32.eq ?x 0_i32)" if self.is_type("?x", PrimitiveTypeInfo::I32)));
+        rules.extend(rewrite!("idempotent-61"; "(i64.eqz ?x)" <=> "(i64.eq ?x 0_i64)" if self.is_type("?x", PrimitiveTypeInfo::I64)));
+
+        rules.extend(rewrite!("commutative-3"; "(i32.eq ?x ?y)" <=> "(i32.eq ?y ?x)" if self.is_type("?x", PrimitiveTypeInfo::I32)));
+        rules.extend(rewrite!("commutative-31"; "(i64.eq ?x ?y)" <=> "(i64.eq ?y ?x)" if self.is_type("?x", PrimitiveTypeInfo::I64)));
 
         // Overflow rules
         if !config.preserve_semantics {
-            rules.push(rewrite!("mem-load-shift";  "(i32load ?x ?y ?z ?w)" => "(i32load (i32add ?x i32rand) ?y ?z ?w)"));
-            rules.push(rewrite!("mem-load-shift11";  "(i64load ?x ?y ?z ?w)" => "(i64load (i32add ?x i32rand) ?y ?z ?w)"));
             // Correctness attraction
-            rules.push(rewrite!("correctness-1";  "?x" => "(i32add ?x 1)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I32)));
-            rules.push(rewrite!("correctness-12";  "?x" => "(i64add ?x 1)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I64)));
+            rules.push(rewrite!("correctness-1";  "?x" => "(i32.add ?x 1)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I32)));
+            rules.push(rewrite!("correctness-12";  "?x" => "(i64.add ?x 1)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I64)));
         }
         self.mutate_with_rules(config, rnd, info, &rules)
     }
@@ -570,7 +559,7 @@ mod tests {
     #[test]
     fn test_peep_unfold2() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("unfold-2";  "?x" => "(i32unfold ?x)" if is_const("?x") if is_type("?x", PrimitiveTypeInfo::I32)),
+            rewrite!("unfold-2";  "?x" => "(i32.unfold ?x)" if is_const("?x") if is_type("?x", PrimitiveTypeInfo::I32)),
         ];
 
         test_peephole_mutator(
@@ -599,7 +588,7 @@ mod tests {
     #[test]
     fn test_peep_stack_neutral2() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("strength-undo";  "?x" => "(i32or ?x ?x)" if is_type("?x", PrimitiveTypeInfo::I32)),
+            rewrite!("strength-undo";  "?x" => "(i32.or ?x ?x)" if is_type("?x", PrimitiveTypeInfo::I32)),
         ];
 
         test_peephole_mutator(
@@ -631,7 +620,7 @@ mod tests {
     #[test]
     fn test_peep_wrap() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("strength-undo";  "?x" => "(i32add ?x 0)" if is_type("?x", PrimitiveTypeInfo::I32)),
+            rewrite!("strength-undo";  "?x" => "(i32.add ?x 0_i32)" if is_type("?x", PrimitiveTypeInfo::I32)),
         ];
 
         test_peephole_mutator(
@@ -674,7 +663,7 @@ mod tests {
     #[test]
     fn test_peep_irelop1() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("strength-undo";  "(i64eqz ?x)" => "(i64eq ?x 0)")];
+            &[rewrite!("strength-undo";  "(i64.eqz ?x)" => "(i64.eq ?x 0_i64)")];
 
         test_peephole_mutator(
             r#"
@@ -704,7 +693,7 @@ mod tests {
     #[test]
     fn test_peep_bug1() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("strength-undo";  "?x" => "(i32shl ?x 0)" if is_type("?x", PrimitiveTypeInfo::I32)),
+            rewrite!("strength-undo";  "?x" => "(i32.shl ?x 0_i32)" if is_type("?x", PrimitiveTypeInfo::I32)),
         ];
 
         test_peephole_mutator(
@@ -744,7 +733,7 @@ mod tests {
     #[test]
     fn test_peep_commutative() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("commutative-1";  "(i32add ?x ?y)" => "(i32add ?y ?x)")];
+            &[rewrite!("commutative-1";  "(i32.add ?x ?y)" => "(i32.add ?y ?x)")];
 
         test_peephole_mutator(
             r#"
@@ -775,7 +764,7 @@ mod tests {
     #[test]
     fn test_peep_inversion() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("inversion-1";  "(i32gt_s ?x ?y)" => "(i32le_s ?y ?x)")];
+            &[rewrite!("inversion-1";  "(i32.gt_s ?x ?y)" => "(i32.le_s ?y ?x)")];
 
         test_peephole_mutator(
             r#"
@@ -805,7 +794,7 @@ mod tests {
     #[test]
     fn test_peep_inversion2() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("inversion-1";  "(i32gt_u ?x ?y)" => "(i32le_u ?y ?x)")];
+            &[rewrite!("inversion-1";  "(i32.gt_u ?x ?y)" => "(i32.le_u ?y ?x)")];
 
         test_peephole_mutator(
             r#"
@@ -835,7 +824,7 @@ mod tests {
     #[test]
     fn test_mem_store1() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("rule";  "(i32store ?x ?y ?z ?u ?t)" => "(i32store ?x (i32add ?y ?z) 0 ?u ?t)" ),
+            rewrite!("rule";  "(i32.store.600.0.0 ?value ?offset)" => "(i32.store.0.0.0 ?value (i32.add ?offset 600_i32))" ),
         ];
 
         test_peephole_mutator(
@@ -845,7 +834,7 @@ mod tests {
                 (func (;0;) (type 0) (param i64 i32 f32)
                   i32.const 100
                   i32.const 200
-                  i32.store offset=600
+                  i32.store offset=600 align=1
                 )
                 (memory (;0;) 0)
                 (export "\00" (memory 0)))
@@ -859,7 +848,7 @@ mod tests {
                   i32.const 600
                   i32.add
                   i32.const 200
-                  i32.store)
+                  i32.store align=1)
                 (memory (;0;) 0)
                 (export "\00" (memory 0)))
             "#,
@@ -869,8 +858,9 @@ mod tests {
 
     #[test]
     fn test_peep_shl0() {
-        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("strength-undo3";  "(i64shr_u ?x ?y)" => "(i64shl (i64shr_u ?x ?y) 0)" )];
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
+            rewrite!("strength-undo3";  "(i64.shr_u ?x ?y)" => "(i64.shl (i64.shr_u ?x ?y) 0_i64)" ),
+        ];
 
         test_peephole_mutator(
             r#"
@@ -907,15 +897,15 @@ mod tests {
                 (memory (;0;) 0)
                 (export "\00" (memory 0)))
             "#,
-            1,
+            5,
         );
     }
 
     #[test]
     fn test_peep_idem1() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("idempotent-1";  "?x" => "(i32or ?x ?x)" if is_type("?x", PrimitiveTypeInfo::I32)),
-            rewrite!("idempotent-12";  "?x" => "(i64or ?x ?x)" if is_type("?x", PrimitiveTypeInfo::I64)),
+            rewrite!("idempotent-1";  "?x" => "(i32.or ?x ?x)" if is_type("?x", PrimitiveTypeInfo::I32)),
+            rewrite!("idempotent-12";  "?x" => "(i64.or ?x ?x)" if is_type("?x", PrimitiveTypeInfo::I64)),
         ];
 
         test_peephole_mutator(
@@ -944,7 +934,7 @@ mod tests {
     #[test]
     fn test_peep_cv() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("idempotent-1";  "?x" => "(i32or ?x ?x)" if is_type("?x", PrimitiveTypeInfo::I32)),
+            rewrite!("idempotent-1";  "?x" => "(i32.or ?x ?x)" if is_type("?x", PrimitiveTypeInfo::I32)),
         ];
 
         test_peephole_mutator(
@@ -982,7 +972,7 @@ mod tests {
     #[test]
     fn test_peep_cv4() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("idempotent-1";  "?x" => "(i32or ?x ?x)" if is_type("?x", PrimitiveTypeInfo::I32)),
+            rewrite!("idempotent-1";  "?x" => "(i32.or ?x ?x)" if is_type("?x", PrimitiveTypeInfo::I32)),
         ];
 
         test_peephole_mutator(
@@ -1013,7 +1003,7 @@ mod tests {
     #[test]
     fn test_peep_cv5() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("cv4";  "?x" => "(i32and ?x ?x)" if is_type("?x", PrimitiveTypeInfo::I32))];
+            &[rewrite!("cv4";  "?x" => "(i32.and ?x ?x)" if is_type("?x", PrimitiveTypeInfo::I32))];
 
         test_peephole_mutator(
             r#"
@@ -1048,7 +1038,7 @@ mod tests {
     #[test]
     fn test_peep_idem3() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("idempotent-3";  "?x" => "(i32add ?x 0)" if is_type("?x", PrimitiveTypeInfo::I32)),
+            rewrite!("idempotent-3";  "?x" => "(i32.add ?x 0_i32)" if is_type("?x", PrimitiveTypeInfo::I32)),
         ];
 
         test_peephole_mutator(
@@ -1077,8 +1067,8 @@ mod tests {
     #[test]
     fn test_peep_idem4() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("idempotent-4";  "?x" => "(i32mul ?x 1)" if is_type("?x", PrimitiveTypeInfo::I32)),
-            rewrite!("idempotent-4";  "?x" => "(i64mul ?x 1)" if is_type("?x", PrimitiveTypeInfo::I64)),
+            rewrite!("idempotent-4";  "?x" => "(i32.mul ?x 1_i32)" if is_type("?x", PrimitiveTypeInfo::I32)),
+            rewrite!("idempotent-4";  "?x" => "(i64.mul ?x 1_i32)" if is_type("?x", PrimitiveTypeInfo::I64)),
         ];
 
         test_peephole_mutator(
@@ -1107,7 +1097,7 @@ mod tests {
     #[test]
     fn test_peep_typeinfo() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("type1-1";  "?x" => "(i32shr_u ?x ?x)" if is_type("?x", PrimitiveTypeInfo::I32) ),
+            rewrite!("type1-1";  "?x" => "(i32.shr_u ?x ?x)" if is_type("?x", PrimitiveTypeInfo::I32) ),
         ];
 
         test_peephole_mutator(
@@ -1136,7 +1126,7 @@ mod tests {
     #[test]
     fn test_peep_locals1() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("type1-1";  "(i32add ?x ?y)" => "(i32add ?y ?x)" )];
+            &[rewrite!("type1-1";  "(i32.add ?x ?y)" => "(i32.add ?y ?x)" )];
 
         test_peephole_mutator(
             r#"
@@ -1159,14 +1149,44 @@ mod tests {
                 i32.add)
             (export "exported_func" (func 0)))
         "#,
-            0,
+            5,
+        );
+    }
+
+    #[test]
+    fn test_peep_locals3() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("type1-1";  "(local.set.1 100_i32)" => "(local.set.1 0_i32)" )];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func") (local i32 i32)
+                i32.const 100
+                local.set 1
+                
+            )
+        )
+        "#,
+            rules,
+            r#"
+        (module
+            (type (;0;) (func ))
+            (func (;0;) (type 0)
+                (local i32 i32)
+                i32.const 0
+                local.set 1
+            )
+            (export "exported_func" (func 0)))
+        "#,
+            1,
         );
     }
 
     #[test]
     fn test_peep_functions() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("type1-1";  "(call ?fidx ?x ?y)" => "(call ?fidx 1 11) " )];
+            &[rewrite!("type1-1";  "(call.0 ?x ?y)" => "(call.0 1_i64 11_i32) " )];
 
         test_peephole_mutator(
             r#"
@@ -1195,7 +1215,7 @@ mod tests {
     #[test]
     fn test_peep_functions2() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("type1-1";  "?x" => "(i32or ?x ?x)" if is_type("?x", PrimitiveTypeInfo::I32)),
+            rewrite!("type1-1";  "?x" => "(i32.or ?x ?x)" if is_type("?x", PrimitiveTypeInfo::I32)),
         ];
 
         test_peephole_mutator(
@@ -1269,7 +1289,7 @@ mod tests {
     #[test]
     fn test_peep_locals2() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("type1-1";  "(i64add ?x ?y)" => "(i64add ?y ?x)" )];
+            &[rewrite!("type1-1";  "(i64.add ?x ?y)" => "(i64.add ?y ?x)" )];
 
         test_peephole_mutator(
             r#"
@@ -1297,105 +1317,9 @@ mod tests {
     }
 
     #[test]
-    fn test_peep_mem_shift() {
-        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("mem-load-shift";  "(i32load ?x ?y ?z ?w)" => "(i32load (i32add ?x i32rand) ?y ?z ?w)"),
-        ];
-
-        test_peephole_mutator(
-            r#"
-        (module
-            (memory 1)
-            (func (export "exported_func") (param i32) (result i32)
-                i32.const 42
-                i32.load offset=56 align=2
-            )
-        )
-        "#,
-            rules,
-            r#"
-            (module
-                (type (;0;) (func (param i32) (result i32)))
-                (func (;0;) (type 0) (param i32) (result i32)
-                  i32.const 42
-                  i32.const -1267761968
-                  i32.add
-                  i32.load offset=56 align=2 )
-                (memory (;0;) 1)
-                (export "exported_func" (func 0)))
-        "#,
-            1,
-        );
-    }
-
-    #[test]
-    fn test_peep_mem_popout() {
-        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("mem-load-shift";  "(i32load ?x ?y ?z ?w)" => "(i32load (i32add ?x ?y) 0 ?z ?w)"),
-        ];
-
-        test_peephole_mutator(
-            r#"
-        (module
-            (memory 1)
-            (func (export "exported_func") (param i32) (result i32)
-                i32.const 42
-                i32.load offset=100
-            )
-        )
-        "#,
-            rules,
-            r#"
-            (module
-                (type (;0;) (func (param i32) (result i32)))
-                (func (;0;) (type 0) (param i32) (result i32)
-                  i32.const 42
-                  i32.const 100
-                  i32.add
-                  i32.load)
-                (memory (;0;) 1)
-                (export "exported_func" (func 0)))
-        "#,
-            1,
-        );
-    }
-
-    #[test]
-    fn test_peep_mem_popout2() {
-        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("mem-load-shift";  "(i64load ?x ?y ?z ?w)" => "(i64load (i32add ?x ?y) 0 ?z ?w)"),
-        ];
-
-        test_peephole_mutator(
-            r#"
-        (module
-            (memory 1)
-            (func (export "exported_func") (param i32) (result i64)
-                i32.const 42
-                i64.load offset=100
-            )
-        )
-        "#,
-            rules,
-            r#"
-            (module
-                (type (;0;) (func (param i32) (result i64)))
-                (func (;0;) (type 0) (param i32) (result i64)
-                  i32.const 42
-                  i32.const 100
-                  i32.add
-                  i64.load)
-                (memory (;0;) 1)
-                (export "exported_func" (func 0)))
-        "#,
-            1,
-        );
-    }
-
-    #[test]
     fn test_peep_globals1() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("mem-load-shift";  "?x" => "(i32add ?x 0)" if is_type("?x", PrimitiveTypeInfo::I32)),
+            rewrite!("mem-load-shift";  "?x" => "(i32.add ?x 0_i32)" if is_type("?x", PrimitiveTypeInfo::I32)),
         ];
 
         test_peephole_mutator(
@@ -1426,8 +1350,9 @@ mod tests {
 
     #[test]
     fn test_peep_globals2() {
-        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("rule";  "?x" => "(i32add ?x 0)" if is_type("?x", PrimitiveTypeInfo::I32))];
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
+            rewrite!("rule";  "?x" => "(i32.add ?x 0_i32)" if is_type("?x", PrimitiveTypeInfo::I32)),
+        ];
 
         test_peephole_mutator(
             r#"
@@ -1484,6 +1409,7 @@ mod tests {
         let mut validator = wasmparser::Validator::new();
         let mutated_bytes = &mutated.finish();
         let text = wasmprinter::print_bytes(mutated_bytes).unwrap();
+        println!("{}", text);
         crate::validate(&mut validator, mutated_bytes);
 
         let expected_bytes = &wat::parse_str(expected).unwrap();
