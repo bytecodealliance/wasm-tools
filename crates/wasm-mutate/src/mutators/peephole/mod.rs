@@ -316,7 +316,7 @@ impl PeepholeMutator {
         // Use a custom instruction-mutator for this
         // This specific rewriting rule has a condition, it should be appplied if the operand is a constant
         rules.extend(rewrite!("strength-undo";  "(i32.shl ?x 1_i32)" <=> "(i32.mul ?x 2_i32)"));
-        rules.extend(rewrite!("strength-undo01";  "(i64.shl ?x 1_i64)" <=> "(i64.mul ?x 2_i32)"));
+        rules.extend(rewrite!("strength-undo01";  "(i64.shl ?x 1_i64)" <=> "(i64.mul ?x 2_i64)"));
 
         rules.extend(rewrite!("strength-undo1";  "(i32.shl ?x 2_i32)" <=> "(i32.mul ?x 4_i32)"));
         rules.extend(rewrite!("strength-undo12";  "(i64.shl ?x 2_i64)" <=> "(i64.mul ?x 4_i64)"));
