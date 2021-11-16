@@ -242,6 +242,7 @@ impl<'a> DFGBuilder {
                         // Break inmediatly
                         return None;
                     }
+                    range.start += 1; // Do not include the last jmp
                     break;
                 }
                 _ => {
