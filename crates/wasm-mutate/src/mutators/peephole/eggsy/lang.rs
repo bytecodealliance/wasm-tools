@@ -1,6 +1,6 @@
-use egg::{define_language, Id};
+use egg::Id;
+use std::fmt::Display;
 use std::str::FromStr;
-use std::{borrow::Borrow, fmt::Display};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 pub enum Lang {
@@ -181,8 +181,7 @@ impl Lang {
     /// global.(get|set).$i
     ///
     pub fn parse_index_op(op_str: &str, children: &Vec<Id>) -> Result<Self, String> {
-        println!("Parsing index op {}", op_str);
-        let splat = op_str.split(".");
+        let splat = op_str.split('.');
         let ops = splat.collect::<Vec<_>>();
         if ops.len() != 3 {
             return Err(format!("Invalid index based operation {}", op_str));
@@ -205,7 +204,7 @@ impl Lang {
     /// (i32|i64|...).(store|load).$static_offset.$align.$mem
     ///
     pub fn parse_mem_op(op_str: &str, children: &Vec<Id>) -> Result<Self, String> {
-        let splat = op_str.split(".");
+        let splat = op_str.split('.');
         let ops = splat.collect::<Vec<_>>();
         if ops.len() != 5 {
             return Err(format!("Invalid mem operation operation {}", op_str));
@@ -215,7 +214,6 @@ impl Lang {
         let align = u8::from_str(ops[3]).unwrap();
         let mem = u32::from_str(ops[4]).unwrap();
 
-        println!("Parsing mem {} {}", op_str, align);
         match &ops[..2] {
             ["i32", "load"] => Ok(Lang::I32Load {
                 static_offset,
@@ -250,13 +248,12 @@ impl Lang {
     /// call.$i
     ///
     pub fn parse_call(op_str: &str, children: &Vec<Id>) -> Result<Self, String> {
-        let splat = op_str.split(".");
+        let splat = op_str.split('.');
         let ops = splat.collect::<Vec<_>>();
         if ops.len() != 2 {
             return Err(format!("Invalid call operation {}", op_str));
         }
-
-        let index = usize::from_str(ops[1]).unwrap();
+        let index = usize::from_str(ops[1]).expect("Invlid function index");
 
         match ops[0] {
             "call" => Ok(Lang::Call(index, children.clone())),
@@ -267,7 +264,6 @@ impl Lang {
 
 impl egg::Language for Lang {
     fn matches(&self, other: &Self) -> bool {
-        println!("matching {} ~ {}", self, other);
         ::std::mem::discriminant(self) == ::std::mem::discriminant(other)
     }
 
@@ -345,27 +341,27 @@ impl egg::Language for Lang {
             Lang::Call(_, operands) => operands,
             Lang::I32Load {
                 offset,
-                static_offset,
-                align,
-                mem,
+                static_offset: _,
+                align: _,
+                mem: _,
             }
             | Lang::I64Load {
                 offset,
-                static_offset,
-                align,
-                mem,
+                static_offset: _,
+                align: _,
+                mem: _,
             } => std::slice::from_ref(offset),
             Lang::I32Store {
                 value_and_offset,
-                static_offset,
-                align,
-                mem,
+                static_offset: _,
+                align: _,
+                mem: _,
             }
             | Lang::I64Store {
                 value_and_offset,
-                static_offset,
-                align,
-                mem,
+                static_offset: _,
+                align: _,
+                mem: _,
             } => value_and_offset,
             Lang::RandI32 => &[],
             Lang::RandI64 => &[],
@@ -451,27 +447,27 @@ impl egg::Language for Lang {
             Lang::Call(_, operands) => operands,
             Lang::I32Load {
                 offset,
-                static_offset,
-                align,
-                mem,
+                static_offset: _,
+                align: _,
+                mem: _,
             }
             | Lang::I64Load {
                 offset,
-                static_offset,
-                align,
-                mem,
+                static_offset: _,
+                align: _,
+                mem: _,
             } => std::slice::from_mut(offset),
             Lang::I32Store {
                 value_and_offset,
-                static_offset,
-                align,
-                mem,
+                static_offset: _,
+                align: _,
+                mem: _,
             }
             | Lang::I64Store {
                 value_and_offset,
-                static_offset,
-                align,
-                mem,
+                static_offset: _,
+                align: _,
+                mem: _,
             } => value_and_offset,
             Lang::RandI32 => &mut [],
             Lang::RandI64 => &mut [],
@@ -548,6 +544,19 @@ impl egg::Language for Lang {
             "i64.ge_u" => Ok(Lang::I64GeU([children[0], children[1]])),
             //unop
             "i64.eqz" => Ok(Lang::I64Eqz([children[0]])),
+            "i32.eqz" => Ok(Lang::I32Eqz([children[0]])),
+
+            "i32.popcnt" => Ok(Lang::I32Popcnt([children[0]])),
+            "i64.popcnt" => Ok(Lang::I64Popcnt([children[0]])),
+            // more conversion
+            "i32.extend8_s" => Ok(Lang::I32Extend8S([children[0]])),
+            "i64.extend8_s" => Ok(Lang::I64Extend8S([children[0]])),
+            "i32.extend16_s" => Ok(Lang::I32Extend16S([children[0]])),
+            "i64.extend16_s" => Ok(Lang::I64Extend16S([children[0]])),
+            "i64.extend32_s" => Ok(Lang::I64Extend32S([children[0]])),
+            "i64.extendi32_s" => Ok(Lang::I64ExtendI32S([children[0]])),
+            "i64.extendi32_u" => Ok(Lang::I64ExtendI32U([children[0]])),
+            "i32.wrapi64" => Ok(Lang::Wrap([children[0]])),
             // Special nodes :)
             "i32.unfold" => Ok(Lang::UnfoldI32(children[0])),
             "i64.unfold" => Ok(Lang::UnfoldI64(children[0])),

@@ -99,7 +99,7 @@ pub fn build_expr(root: Id, id_to_node: &[Lang], operands: &[Vec<Id>]) -> RecExp
                         static_offset,
                         align,
                         mem,
-                        offset,
+                        offset: _,
                     } => expr.add(Lang::I32Load {
                         static_offset: *static_offset,
                         align: *align,
@@ -110,7 +110,7 @@ pub fn build_expr(root: Id, id_to_node: &[Lang], operands: &[Vec<Id>]) -> RecExp
                         static_offset,
                         align,
                         mem,
-                        offset,
+                        offset: _,
                     } => expr.add(Lang::I64Load {
                         static_offset: *static_offset,
                         align: *align,

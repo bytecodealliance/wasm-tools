@@ -9,7 +9,7 @@ use crate::{module::PrimitiveTypeInfo, ModuleInfo};
 use crate::mutators::OperatorAndByteOffset;
 
 use super::eggsy::encoder::rebuild::build_expr;
-use super::eggsy::encoder::Encoder;
+
 /// It executes a minimal symbolic evaluation of the stack to detect operands location in the code for certain operators
 /// For example, i.add operator should know who are its operands
 pub struct DFGBuilder {
@@ -412,7 +412,7 @@ impl<'a> DFGBuilder {
                     );
                 }
                 Operator::GlobalGet { global_index } => {
-                    let idx = self.push_node(
+                    let _idx = self.push_node(
                         Lang::GlobalGet(*global_index),
                         idx,
                         vec![],
@@ -1666,7 +1666,7 @@ impl std::fmt::Display for MiniDFG {
 mod tests {
     use super::DFGBuilder;
     use crate::mutators::OperatorAndByteOffset;
-    use crate::{module::PrimitiveTypeInfo, ModuleInfo};
+    use crate::ModuleInfo;
     use wasmparser::Parser;
 
     #[test]

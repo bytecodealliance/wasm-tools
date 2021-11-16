@@ -167,8 +167,6 @@ impl PeepholeMutator {
                                         .with_expr(&start)
                                         .run(rules);
                                 let mut egraph = runner.egraph;
-
-                                println!("start {:?}", start.as_ref());
                                 // In theory this will return the Id of the operator eterm
                                 let root = egraph.add_expr(&start);
 
@@ -195,7 +193,6 @@ impl PeepholeMutator {
                                     expr.pretty(35),
                                     start.pretty(35)
                                 );
-                                println!("expr {:?}", expr.as_ref());
 
                                 let mut newfunc = self.copy_locals(reader)?;
                                 Encoder::build_function(
@@ -304,19 +301,9 @@ impl PeepholeMutator {
             }
         }
     }
-}
 
-/// Meta mutator for peephole
-impl Mutator for PeepholeMutator {
-    fn mutate(
-        &self,
-        config: &crate::WasmMutate,
-        rnd: &mut rand::prelude::SmallRng,
-        info: &crate::ModuleInfo,
-    ) -> Result<Module> {
-        // Calculate here type related information for parameters, locals and returns
-        // This information could be passed to the conditions to check for type correctness rewriting
-
+    /// Returns the rewriting rules
+    pub fn get_rules(&self, config: &WasmMutate) -> Vec<Rewrite<Lang, PeepholeMutationAnalysis>> {
         let mut rules = vec![
             rewrite!("unfold-2";  "?x" => "(i32.unfold ?x)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I32) ),
             rewrite!("unfold-3";  "?x" => "(i64.unfold ?x)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I64) ),
@@ -328,14 +315,14 @@ impl Mutator for PeepholeMutator {
         ];
         // Use a custom instruction-mutator for this
         // This specific rewriting rule has a condition, it should be appplied if the operand is a constant
-        rules.extend(rewrite!("strength-undo";  "(i32.shl ?x 1)" <=> "(i32.mul ?x 2_i32)"));
-        rules.extend(rewrite!("strength-undo01";  "(i64.shl ?x 1)" <=> "(i64.mul ?x 2_i32)"));
+        rules.extend(rewrite!("strength-undo";  "(i32.shl ?x 1_i32)" <=> "(i32.mul ?x 2_i32)"));
+        rules.extend(rewrite!("strength-undo01";  "(i64.shl ?x 1_i64)" <=> "(i64.mul ?x 2_i32)"));
 
-        rules.extend(rewrite!("strength-undo1";  "(i32.shl ?x 2)" <=> "(i32.mul ?x 4_i32)"));
-        rules.extend(rewrite!("strength-undo12";  "(i64.shl ?x 2)" <=> "(i64.mul ?x 4_i64)"));
+        rules.extend(rewrite!("strength-undo1";  "(i32.shl ?x 2_i32)" <=> "(i32.mul ?x 4_i32)"));
+        rules.extend(rewrite!("strength-undo12";  "(i64.shl ?x 2_i64)" <=> "(i64.mul ?x 4_i64)"));
 
-        rules.extend(rewrite!("strength-undo2";  "(i32.shl ?x 3)" <=> "(i32.mul ?x 8_i32)"));
-        rules.extend(rewrite!("strength-undo22";  "(i64.shl ?x 3)" <=> "(i64.mul ?x 8_i64)"));
+        rules.extend(rewrite!("strength-undo2";  "(i32.shl ?x 3_i32)" <=> "(i32.mul ?x 8_i32)"));
+        rules.extend(rewrite!("strength-undo22";  "(i64.shl ?x 3_i64)" <=> "(i64.mul ?x 8_i64)"));
 
         rules.extend(rewrite!("strength-undo3";  "(i32.shl ?x 0_i32)" <=> "?x" if self.is_type("?x", PrimitiveTypeInfo::I32) ));
         rules.extend(rewrite!("strength-undo31";  "(i64.shl ?x 0_i64)" <=> "?x" if self.is_type("?x", PrimitiveTypeInfo::I64)  ));
@@ -383,9 +370,26 @@ impl Mutator for PeepholeMutator {
         // Overflow rules
         if !config.preserve_semantics {
             // Correctness attraction
-            rules.push(rewrite!("correctness-1";  "?x" => "(i32.add ?x 1)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I32)));
-            rules.push(rewrite!("correctness-12";  "?x" => "(i64.add ?x 1)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I64)));
+            rules.push(rewrite!("correctness-1";  "?x" => "(i32.add ?x 1_i32)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I32)));
+            rules.push(rewrite!("correctness-12";  "?x" => "(i64.add ?x 1_i64)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I64)));
         }
+
+        rules
+    }
+}
+
+/// Meta mutator for peephole
+impl Mutator for PeepholeMutator {
+    fn mutate(
+        &self,
+        config: &crate::WasmMutate,
+        rnd: &mut rand::prelude::SmallRng,
+        info: &crate::ModuleInfo,
+    ) -> Result<Module> {
+        // Calculate here type related information for parameters, locals and returns
+        // This information could be passed to the conditions to check for type correctness rewriting
+
+        let rules = self.get_rules(config);
         self.mutate_with_rules(config, rnd, info, &rules)
     }
 
@@ -792,9 +796,9 @@ mod tests {
     }
 
     #[test]
-    fn test_peep_inversion2() {
+    fn test_peep_integrtion() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("inversion-1";  "(i32.gt_u ?x ?y)" => "(i32.le_u ?y ?x)")];
+            &[rewrite!("inversion-1";  "(i32.gt_s ?x ?y)" => "(i32.le_s ?y ?x)")];
 
         test_peephole_mutator(
             r#"
@@ -802,7 +806,7 @@ mod tests {
             (func (export "exported_func") (result i32) (local i32 i32)
                 i32.const 42
                 i32.const 1
-                i32.gt_u
+                i32.gt_s
             )
         )
         "#,
@@ -814,11 +818,51 @@ mod tests {
                   (local i32 i32)
                   i32.const 1
                   i32.const 42
-                  i32.le_u)
+                  i32.le_s)
                 (export "exported_func" (func 0)))
             "#,
             0,
         );
+    }
+
+    #[test]
+    fn test_peep_inversion2() {
+        let original = r#"
+            (module
+                (type (;0;) (func (param i64 i32 f32)))
+                (func (;0;) (type 0) (param i64 i32 f32)
+                i32.const 100
+                i32.const 200
+                i32.store offset=600 align=1
+                )
+                (memory (;0;) 0)
+                (export "\00" (memory 0)))
+        "#;
+        let wasmmutate = WasmMutate::default();
+        let original = &wat::parse_str(original).unwrap();
+
+        let mutator = PeepholeMutator; // the string is empty
+
+        let info = ModuleInfo::new(original).unwrap();
+        let can_mutate = mutator.can_mutate(&wasmmutate, &info);
+
+        let mut rnd = SmallRng::seed_from_u64(0);
+
+        assert_eq!(can_mutate, true);
+
+        let mutated = mutator
+            .mutate_with_rules(
+                &wasmmutate,
+                &mut rnd,
+                &info,
+                &mutator.get_rules(&wasmmutate),
+            )
+            .unwrap();
+
+        let mut validator = wasmparser::Validator::new();
+        let mutated_bytes = &mutated.finish();
+        let _text = wasmprinter::print_bytes(mutated_bytes).unwrap();
+        crate::validate(&mut validator, mutated_bytes);
     }
 
     #[test]

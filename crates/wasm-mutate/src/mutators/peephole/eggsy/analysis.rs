@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-
 use crate::{
     module::{PrimitiveTypeInfo, TypeInfo},
     mutators::peephole::eggsy::Lang,

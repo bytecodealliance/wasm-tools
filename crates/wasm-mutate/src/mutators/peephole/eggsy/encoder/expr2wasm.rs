@@ -2,7 +2,6 @@ use std::num::Wrapping;
 
 use crate::error::EitherType;
 use crate::info::ModuleInfo;
-use crate::module::PrimitiveTypeInfo;
 
 use crate::mutators::peephole::eggsy::encoder::TraversalEvent;
 use crate::mutators::peephole::{Lang, EG};
@@ -11,11 +10,11 @@ use rand::Rng;
 use wasm_encoder::{Function, Instruction, MemArg};
 
 pub(crate) fn expr2wasm(
-    info: &ModuleInfo,
+    _info: &ModuleInfo,
     rnd: &mut rand::prelude::SmallRng,
     expr: &RecExpr<Lang>,
     newfunc: &mut Function,
-    egraph: &EG,
+    _egraph: &EG,
 ) -> crate::Result<()> {
     let nodes = expr.as_ref();
     // The last node is the root.
@@ -157,16 +156,16 @@ pub(crate) fn expr2wasm(
                         worklist.push(Context::new(operands[0], TraversalEvent::Exit));
                         worklist.push(Context::new(operands[0], TraversalEvent::Enter));
                     }
-                    Lang::LocalTee(idx, operands) => {
+                    Lang::LocalTee(_idx, operands) => {
                         worklist.push(Context::new(*operands, TraversalEvent::Exit));
                         worklist.push(Context::new(*operands, TraversalEvent::Enter));
                     }
-                    Lang::LocalSet(idx, operands) => {
+                    Lang::LocalSet(_idx, operands) => {
                         // Skip operand 0 which is the symbol
                         worklist.push(Context::new(*operands, TraversalEvent::Exit));
                         worklist.push(Context::new(*operands, TraversalEvent::Enter));
                     }
-                    Lang::GlobalSet(idx, operand) => {
+                    Lang::GlobalSet(_idx, operand) => {
                         worklist.push(Context::new(*operand, TraversalEvent::Exit));
                         worklist.push(Context::new(*operand, TraversalEvent::Enter));
                     }
@@ -178,31 +177,31 @@ pub(crate) fn expr2wasm(
                         worklist.push(Context::new(operands[0], TraversalEvent::Exit));
                         worklist.push(Context::new(operands[0], TraversalEvent::Enter));
                     }
-                    Lang::Call(idx, operands) => {
+                    Lang::Call(_idx, operands) => {
                         for operand in operands.iter().rev() {
                             worklist.push(Context::new(*operand, TraversalEvent::Exit));
                             worklist.push(Context::new(*operand, TraversalEvent::Enter));
                         }
                     }
                     Lang::I32Load {
-                        align,
-                        mem,
-                        static_offset,
+                        align: _,
+                        mem: _,
+                        static_offset: _,
                         offset,
                     }
                     | Lang::I64Load {
-                        align,
-                        mem,
-                        static_offset,
+                        align: _,
+                        mem: _,
+                        static_offset: _,
                         offset,
                     } => {
                         worklist.push(Context::new(*offset, TraversalEvent::Exit));
                         worklist.push(Context::new(*offset, TraversalEvent::Enter));
                     }
                     Lang::I32Store {
-                        align,
-                        mem,
-                        static_offset,
+                        align: _,
+                        mem: _,
+                        static_offset: _,
                         value_and_offset,
                     } => {
                         worklist.push(Context::new(value_and_offset[1], TraversalEvent::Exit));
@@ -211,9 +210,9 @@ pub(crate) fn expr2wasm(
                         worklist.push(Context::new(value_and_offset[0], TraversalEvent::Enter));
                     }
                     Lang::I64Store {
-                        align,
-                        mem,
-                        static_offset,
+                        align: _,
+                        mem: _,
+                        static_offset: _,
                         value_and_offset,
                     } => {
                         worklist.push(Context::new(value_and_offset[1], TraversalEvent::Exit));
@@ -233,10 +232,10 @@ pub(crate) fn expr2wasm(
                     Lang::GlobalGet(idx) => {
                         newfunc.instruction(&Instruction::GlobalGet(*idx as u32));
                     }
-                    Lang::LocalSet(idx, val) => {
+                    Lang::LocalSet(idx, _val) => {
                         newfunc.instruction(&Instruction::LocalSet(*idx as u32));
                     }
-                    Lang::GlobalSet(idx, val) => {
+                    Lang::GlobalSet(idx, _val) => {
                         newfunc.instruction(&Instruction::GlobalSet(*idx as u32));
                     }
                     Lang::LocalTee(idx, _) => {
