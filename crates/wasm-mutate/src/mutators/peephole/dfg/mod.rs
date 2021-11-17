@@ -609,6 +609,1098 @@ impl<'a> DFGBuilder {
 
                     self.parents[operand] = idx as i32;
                 }
+                Operator::F32Eq => {
+                    let leftidx = self.pop_operand(idx, false);
+                    let rightidx = self.pop_operand(idx, false);
+
+                    // The operands should not be the same
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = self.push_node(
+                        Lang::F32Eq([Id::from(rightidx), Id::from(leftidx)]),
+                        idx,
+                        vec![rightidx, leftidx],
+                        color,
+                        PrimitiveTypeInfo::F32,
+                    );
+
+                    self.parents[leftidx] = idx as i32;
+                    self.parents[rightidx] = idx as i32;
+                }
+                Operator::F32Ne => {
+                    let leftidx = self.pop_operand(idx, false);
+                    let rightidx = self.pop_operand(idx, false);
+
+                    // The operands should not be the same
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = self.push_node(
+                        Lang::F32Ne([Id::from(rightidx), Id::from(leftidx)]),
+                        idx,
+                        vec![rightidx, leftidx],
+                        color,
+                        PrimitiveTypeInfo::F32,
+                    );
+
+                    self.parents[leftidx] = idx as i32;
+                    self.parents[rightidx] = idx as i32;
+                }
+                Operator::F32Lt => {
+                    let leftidx = self.pop_operand(idx, false);
+                    let rightidx = self.pop_operand(idx, false);
+
+                    // The operands should not be the same
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = self.push_node(
+                        Lang::F32Lt([Id::from(rightidx), Id::from(leftidx)]),
+                        idx,
+                        vec![rightidx, leftidx],
+                        color,
+                        PrimitiveTypeInfo::F32,
+                    );
+
+                    self.parents[leftidx] = idx as i32;
+                    self.parents[rightidx] = idx as i32;
+                }
+                Operator::F32Gt => {
+                    let leftidx = self.pop_operand(idx, false);
+                    let rightidx = self.pop_operand(idx, false);
+
+                    // The operands should not be the same
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = self.push_node(
+                        Lang::F32Gt([Id::from(rightidx), Id::from(leftidx)]),
+                        idx,
+                        vec![rightidx, leftidx],
+                        color,
+                        PrimitiveTypeInfo::F32,
+                    );
+
+                    self.parents[leftidx] = idx as i32;
+                    self.parents[rightidx] = idx as i32;
+                }
+                Operator::F32Le => {
+                    let leftidx = self.pop_operand(idx, false);
+                    let rightidx = self.pop_operand(idx, false);
+
+                    // The operands should not be the same
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = self.push_node(
+                        Lang::F32Le([Id::from(rightidx), Id::from(leftidx)]),
+                        idx,
+                        vec![rightidx, leftidx],
+                        color,
+                        PrimitiveTypeInfo::F32,
+                    );
+
+                    self.parents[leftidx] = idx as i32;
+                    self.parents[rightidx] = idx as i32;
+                }
+                Operator::F32Ge => {
+                    let leftidx = self.pop_operand(idx, false);
+                    let rightidx = self.pop_operand(idx, false);
+
+                    // The operands should not be the same
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = self.push_node(
+                        Lang::F32Ge([Id::from(rightidx), Id::from(leftidx)]),
+                        idx,
+                        vec![rightidx, leftidx],
+                        color,
+                        PrimitiveTypeInfo::F32,
+                    );
+
+                    self.parents[leftidx] = idx as i32;
+                    self.parents[rightidx] = idx as i32;
+                }
+                Operator::F64Eq => {
+                    let leftidx = self.pop_operand(idx, false);
+                    let rightidx = self.pop_operand(idx, false);
+
+                    // The operands should not be the same
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = self.push_node(
+                        Lang::F64Eq([Id::from(rightidx), Id::from(leftidx)]),
+                        idx,
+                        vec![rightidx, leftidx],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[leftidx] = idx as i32;
+                    self.parents[rightidx] = idx as i32;
+                }
+                Operator::F64Ne => {
+                    let leftidx = self.pop_operand(idx, false);
+                    let rightidx = self.pop_operand(idx, false);
+
+                    // The operands should not be the same
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = self.push_node(
+                        Lang::F64Ne([Id::from(rightidx), Id::from(leftidx)]),
+                        idx,
+                        vec![rightidx, leftidx],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[leftidx] = idx as i32;
+                    self.parents[rightidx] = idx as i32;
+                }
+                Operator::F64Lt => {
+                    let leftidx = self.pop_operand(idx, false);
+                    let rightidx = self.pop_operand(idx, false);
+
+                    // The operands should not be the same
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = self.push_node(
+                        Lang::F64Lt([Id::from(rightidx), Id::from(leftidx)]),
+                        idx,
+                        vec![rightidx, leftidx],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[leftidx] = idx as i32;
+                    self.parents[rightidx] = idx as i32;
+                }
+                Operator::F64Gt => {
+                    let leftidx = self.pop_operand(idx, false);
+                    let rightidx = self.pop_operand(idx, false);
+
+                    // The operands should not be the same
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = self.push_node(
+                        Lang::F64Gt([Id::from(rightidx), Id::from(leftidx)]),
+                        idx,
+                        vec![rightidx, leftidx],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[leftidx] = idx as i32;
+                    self.parents[rightidx] = idx as i32;
+                }
+                Operator::F64Le => {
+                    let leftidx = self.pop_operand(idx, false);
+                    let rightidx = self.pop_operand(idx, false);
+
+                    // The operands should not be the same
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = self.push_node(
+                        Lang::F64Le([Id::from(rightidx), Id::from(leftidx)]),
+                        idx,
+                        vec![rightidx, leftidx],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[leftidx] = idx as i32;
+                    self.parents[rightidx] = idx as i32;
+                }
+                Operator::F64Ge => {
+                    let leftidx = self.pop_operand(idx, false);
+                    let rightidx = self.pop_operand(idx, false);
+
+                    // The operands should not be the same
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = self.push_node(
+                        Lang::F64Ge([Id::from(rightidx), Id::from(leftidx)]),
+                        idx,
+                        vec![rightidx, leftidx],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[leftidx] = idx as i32;
+                    self.parents[rightidx] = idx as i32;
+                }
+                Operator::I32Clz => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::I32Clz([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::I32,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::I32Ctz => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::I32Ctz([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::I32,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::I64Clz => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::I64Clz([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::I64,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::I64Ctz => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::I64Ctz([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F32,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F32Abs => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::F32Abs([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F32,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F32Neg => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::F32Neg([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F32,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F32Ceil => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::F32Ceil([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F32,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F32Floor => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::F32Floor([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F32,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F32Trunc => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::F32Trunc([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F32Nearest => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::F32Nearest([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F32,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F32Sqrt => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::F32Sqrt([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F32,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F32Add => {
+                    let leftidx = self.pop_operand(idx, false);
+                    let rightidx = self.pop_operand(idx, false);
+
+                    // The operands should not be the same
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = self.push_node(
+                        Lang::F32Add([Id::from(rightidx), Id::from(leftidx)]),
+                        idx,
+                        vec![rightidx, leftidx],
+                        color,
+                        PrimitiveTypeInfo::F32,
+                    );
+
+                    self.parents[leftidx] = idx as i32;
+                    self.parents[rightidx] = idx as i32;
+                }
+                Operator::F32Sub => {
+                    let leftidx = self.pop_operand(idx, false);
+                    let rightidx = self.pop_operand(idx, false);
+
+                    // The operands should not be the same
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = self.push_node(
+                        Lang::F32Sub([Id::from(rightidx), Id::from(leftidx)]),
+                        idx,
+                        vec![rightidx, leftidx],
+                        color,
+                        PrimitiveTypeInfo::F32,
+                    );
+
+                    self.parents[leftidx] = idx as i32;
+                    self.parents[rightidx] = idx as i32;
+                }
+                Operator::F32Mul => {
+                    let leftidx = self.pop_operand(idx, false);
+                    let rightidx = self.pop_operand(idx, false);
+
+                    // The operands should not be the same
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = self.push_node(
+                        Lang::F32Mul([Id::from(rightidx), Id::from(leftidx)]),
+                        idx,
+                        vec![rightidx, leftidx],
+                        color,
+                        PrimitiveTypeInfo::F32,
+                    );
+
+                    self.parents[leftidx] = idx as i32;
+                    self.parents[rightidx] = idx as i32;
+                }
+                Operator::F32Div => {
+                    let leftidx = self.pop_operand(idx, false);
+                    let rightidx = self.pop_operand(idx, false);
+
+                    // The operands should not be the same
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = self.push_node(
+                        Lang::F32Div([Id::from(rightidx), Id::from(leftidx)]),
+                        idx,
+                        vec![rightidx, leftidx],
+                        color,
+                        PrimitiveTypeInfo::F32,
+                    );
+
+                    self.parents[leftidx] = idx as i32;
+                    self.parents[rightidx] = idx as i32;
+                }
+                Operator::F32Min => {
+                    let leftidx = self.pop_operand(idx, false);
+                    let rightidx = self.pop_operand(idx, false);
+
+                    // The operands should not be the same
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = self.push_node(
+                        Lang::F32Min([Id::from(rightidx), Id::from(leftidx)]),
+                        idx,
+                        vec![rightidx, leftidx],
+                        color,
+                        PrimitiveTypeInfo::F32,
+                    );
+
+                    self.parents[leftidx] = idx as i32;
+                    self.parents[rightidx] = idx as i32;
+                }
+                Operator::F32Max => {
+                    let leftidx = self.pop_operand(idx, false);
+                    let rightidx = self.pop_operand(idx, false);
+
+                    // The operands should not be the same
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = self.push_node(
+                        Lang::F32Max([Id::from(rightidx), Id::from(leftidx)]),
+                        idx,
+                        vec![rightidx, leftidx],
+                        color,
+                        PrimitiveTypeInfo::F32,
+                    );
+
+                    self.parents[leftidx] = idx as i32;
+                    self.parents[rightidx] = idx as i32;
+                }
+                Operator::F32Copysign => {
+                    let leftidx = self.pop_operand(idx, false);
+                    let rightidx = self.pop_operand(idx, false);
+
+                    // The operands should not be the same
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = self.push_node(
+                        Lang::F32Copysign([Id::from(rightidx), Id::from(leftidx)]),
+                        idx,
+                        vec![rightidx, leftidx],
+                        color,
+                        PrimitiveTypeInfo::F32,
+                    );
+
+                    self.parents[leftidx] = idx as i32;
+                    self.parents[rightidx] = idx as i32;
+                }
+                Operator::F64Abs => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::F64Abs([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F64Neg => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::F64Neg([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F64Ceil => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::F64Ceil([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F64Floor => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::F64Floor([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F64Trunc => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::F64trunc([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F64Nearest => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::F64Nearest([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F64Sqrt => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::F64Sqrt([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F64Add => {
+                    let leftidx = self.pop_operand(idx, false);
+                    let rightidx = self.pop_operand(idx, false);
+
+                    // The operands should not be the same
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = self.push_node(
+                        Lang::F64Add([Id::from(rightidx), Id::from(leftidx)]),
+                        idx,
+                        vec![rightidx, leftidx],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[leftidx] = idx as i32;
+                    self.parents[rightidx] = idx as i32;
+                }
+                Operator::F64Sub => {
+                    let leftidx = self.pop_operand(idx, false);
+                    let rightidx = self.pop_operand(idx, false);
+
+                    // The operands should not be the same
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = self.push_node(
+                        Lang::F64Sub([Id::from(rightidx), Id::from(leftidx)]),
+                        idx,
+                        vec![rightidx, leftidx],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[leftidx] = idx as i32;
+                    self.parents[rightidx] = idx as i32;
+                }
+                Operator::F64Mul => {
+                    let leftidx = self.pop_operand(idx, false);
+                    let rightidx = self.pop_operand(idx, false);
+
+                    // The operands should not be the same
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = self.push_node(
+                        Lang::F64Mul([Id::from(rightidx), Id::from(leftidx)]),
+                        idx,
+                        vec![rightidx, leftidx],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[leftidx] = idx as i32;
+                    self.parents[rightidx] = idx as i32;
+                }
+                Operator::F64Div => {
+                    let leftidx = self.pop_operand(idx, false);
+                    let rightidx = self.pop_operand(idx, false);
+
+                    // The operands should not be the same
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = self.push_node(
+                        Lang::F64Div([Id::from(rightidx), Id::from(leftidx)]),
+                        idx,
+                        vec![rightidx, leftidx],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[leftidx] = idx as i32;
+                    self.parents[rightidx] = idx as i32;
+                }
+                Operator::F64Min => {
+                    let leftidx = self.pop_operand(idx, false);
+                    let rightidx = self.pop_operand(idx, false);
+
+                    // The operands should not be the same
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = self.push_node(
+                        Lang::F64Min([Id::from(rightidx), Id::from(leftidx)]),
+                        idx,
+                        vec![rightidx, leftidx],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[leftidx] = idx as i32;
+                    self.parents[rightidx] = idx as i32;
+                }
+                Operator::F64Max => {
+                    let leftidx = self.pop_operand(idx, false);
+                    let rightidx = self.pop_operand(idx, false);
+
+                    // The operands should not be the same
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = self.push_node(
+                        Lang::F64Max([Id::from(rightidx), Id::from(leftidx)]),
+                        idx,
+                        vec![rightidx, leftidx],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[leftidx] = idx as i32;
+                    self.parents[rightidx] = idx as i32;
+                }
+                Operator::F64Copysign => {
+                    let leftidx = self.pop_operand(idx, false);
+                    let rightidx = self.pop_operand(idx, false);
+
+                    // The operands should not be the same
+                    assert_ne!(leftidx, rightidx);
+
+                    let idx = self.push_node(
+                        Lang::F64Copysign([Id::from(rightidx), Id::from(leftidx)]),
+                        idx,
+                        vec![rightidx, leftidx],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[leftidx] = idx as i32;
+                    self.parents[rightidx] = idx as i32;
+                }
+                Operator::I32TruncF32S => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::I32TruncF32S([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::I32,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::I32TruncF32U => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::I32TruncF32U([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::I32,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::I32TruncF64S => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::I32TruncF64S([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::I32,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::I32TruncF64U => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::I32TruncF64U([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::I32,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::I64TruncF32S => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::I64TruncF32S([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::I64,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::I64TruncF32U => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::I64TruncF32U([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::I64,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::I64TruncF64S => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::I64TruncF64S([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::I64,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::I64TruncF64U => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::I64TruncF64U([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::I64,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F32ConvertI32S => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::F32ConvertI32S([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F32,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F32ConvertI32U => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::F32ConvertI32U([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F32,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F32ConvertI64S => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::F32ConvertI64S([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F32,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F32ConvertI64U => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::F32ConvertI64U([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F32,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F32DemoteF64 => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::F32DemoteF64([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F32,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F64ConvertI32S => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::F64ConvertI32S([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F64ConvertI32U => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::F64ConvertI32U([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F64ConvertI64S => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::F64ConvertI64S([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F64ConvertI64U => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::F64ConvertI64U([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F64PromoteF32 => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::F64PromoteF32([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::I32ReinterpretF32 => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::I32ReinterpretF32([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::I32,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::I64ReinterpretF64 => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::I64ReinterpretF64([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::I64,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F32ReinterpretI32 => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::F32ReinterpretI32([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F32,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::F64ReinterpretI64 => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::F64ReinterpretI64([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::F64,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::I32TruncSatF32S => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::I32TruncSatF32S([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::I32,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::I32TruncSatF32U => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::I32TruncSatF32U([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::I32,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::I32TruncSatF64S => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::I32TruncSatF64S([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::I32,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::I32TruncSatF64U => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::I32TruncSatF64U([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::I32,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::I64TruncSatF32S => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::I64TruncSatF32S([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::I64,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::I64TruncSatF32U => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::I64TruncSatF32U([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::I64,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::I64TruncSatF64S => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::I64TruncSatF64S([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::I64,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::I64TruncSatF64U => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::I64TruncSatF64U([Id::from(arg)]),
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::I64,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
                 Operator::I64Add => {
                     let leftidx = self.pop_operand(idx, false);
                     let rightidx = self.pop_operand(idx, false);
