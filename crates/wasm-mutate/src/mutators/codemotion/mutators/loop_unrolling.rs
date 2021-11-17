@@ -1,6 +1,6 @@
 //! This mutator selects a random `loop` construction in a function and tries to unroll it.
 //! This mutator only works on empty-returning loops
-use std::{cell::Cell, collections::HashMap, slice::Iter};
+use std::{collections::HashMap, slice::Iter};
 
 use rand::prelude::SliceRandom;
 use wasm_encoder::{Function, Instruction, ValType};
