@@ -4,6 +4,7 @@ use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 pub enum Lang {
+    // binops integers
     I32Add([Id; 2]),
     I64Add([Id; 2]),
     I32Sub([Id; 2]),
@@ -34,37 +35,80 @@ pub enum Lang {
     I64RemS([Id; 2]),
     I32RemU([Id; 2]),
     I64RemU([Id; 2]),
-    // testop
-    I32Eqz([Id; 1]),
-    I64Eqz([Id; 1]),
-    // relop
     I32Eq([Id; 2]),
     I64Eq([Id; 2]),
     I32Ne([Id; 2]),
     I64Ne([Id; 2]),
-
     I32LtS([Id; 2]),
     I64LtS([Id; 2]),
     I32LtU([Id; 2]),
     I64LtU([Id; 2]),
-
     I32GtS([Id; 2]),
     I64GtS([Id; 2]),
-
     I32GtU([Id; 2]),
     I64GtU([Id; 2]),
     I32LeS([Id; 2]),
     I64LeS([Id; 2]),
-
     I32LeU([Id; 2]),
     I64LeU([Id; 2]),
     I32GeS([Id; 2]),
     I64GeS([Id; 2]),
     I32GeU([Id; 2]),
     I64GeU([Id; 2]),
+    // binops floats
+    F32Add([Id; 2]),
+    F64Add([Id; 2]),
+    F32Sub([Id; 2]),
+    F64Sub([Id; 2]),
+    F32Mul([Id; 2]),
+    F64Mul([Id; 2]),
+    F32Div([Id; 2]),
+    F64Div([Id; 2]),
+    F32Min([Id; 2]),
+    F64Min([Id; 2]),
+    F32Max([Id; 2]),
+    F64Max([Id; 2]),
+    F32Copysign([Id; 2]),
+    F64Copysign([Id; 2]),
+    // frelops
+    F32Eq([Id; 2]),
+    F64Eq([Id; 2]),
+    F32Ne([Id; 2]),
+    F64Ne([Id; 2]),
+    F32Lt([Id; 2]),
+    F64Lt([Id; 2]),
+    F32Gt([Id; 2]),
+    F64Gt([Id; 2]),
+    F32Le([Id; 2]),
+    F64Le([Id; 2]),
+    F32Ge([Id; 2]),
+    F64Ge([Id; 2]),
+    // unops integers
+    I32Eqz([Id; 1]),
+    I64Eqz([Id; 1]),
 
     I32Popcnt([Id; 1]),
     I64Popcnt([Id; 1]),
+    I32Clz([Id; 1]),
+    I32Ctz([Id; 1]),
+    I64Ctz([Id; 1]),
+    I64Clz([Id; 1]),
+
+    // unops floats
+    F32Abs([Id; 1]),
+    F64Abs([Id; 1]),
+    F32Neg([Id; 1]),
+    F64Neg([Id; 1]),
+    F32Sqrt([Id; 1]),
+    F64Sqrt([Id; 1]),
+    F32Ceil([Id; 1]),
+    F64Ceil([Id; 1]),
+    F32Floor([Id; 1]),
+    F64Floor([Id; 1]),
+    F32Trunc([Id; 1]),
+    F64trunc([Id; 1]),
+    F32Nearest([Id; 1]),
+    F64Nearest([Id; 1]),
 
     // Locals
     // Idx and value
@@ -80,7 +124,7 @@ pub enum Lang {
     // conversion operators
     Wrap([Id; 1]),
 
-    // more conversion
+    // conversion
     I32Extend8S([Id; 1]),
     I64Extend8S([Id; 1]),
     I32Extend16S([Id; 1]),
@@ -88,14 +132,42 @@ pub enum Lang {
     I64Extend32S([Id; 1]),
     I64ExtendI32S([Id; 1]),
     I64ExtendI32U([Id; 1]),
-
-    // select
-    // Select([Id; 3]),
+    I32TruncF32S([Id; 1]),
+    I32TruncF32U([Id; 1]),
+    I32TruncF64S([Id; 1]),
+    I32TruncF64U([Id; 1]),
+    I64TruncF32S([Id; 1]),
+    I64TruncF32U([Id; 1]),
+    I64TruncF64S([Id; 1]),
+    I64TruncF64U([Id; 1]),
+    F32ConvertI32S([Id; 1]),
+    F32ConvertI32U([Id; 1]),
+    F32ConvertI64S([Id; 1]),
+    F32ConvertI64U([Id; 1]),
+    F32DemoteF64([Id; 1]),
+    F64ConvertI32S([Id; 1]),
+    F64ConvertI32U([Id; 1]),
+    F64ConvertI64S([Id; 1]),
+    F64ConvertI64U([Id; 1]),
+    F64PromoteF32([Id; 1]),
+    I32ReinterpretF32([Id; 1]),
+    I64ReinterpretF64([Id; 1]),
+    F32ReinterpretI32([Id; 1]),
+    F64ReinterpretI64([Id; 1]),
+    I32TruncSatF32S([Id; 1]),
+    I32TruncSatF32U([Id; 1]),
+    I32TruncSatF64S([Id; 1]),
+    I32TruncSatF64U([Id; 1]),
+    I64TruncSatF32S([Id; 1]),
+    I64TruncSatF32U([Id; 1]),
+    I64TruncSatF64S([Id; 1]),
+    I64TruncSatF64U([Id; 1]),
 
     // The u32 argument should be the function index
     Call(usize, Vec<Id>),
     Drop([Id; 1]),
     // Memory operations
+    // loads
     I32Load {
         static_offset: u64,
         align: u8,
@@ -108,6 +180,80 @@ pub enum Lang {
         mem: u32,
         offset: Id,
     },
+    F32Load{
+        static_offset: u64,
+        align: u8,
+        mem: u32,
+        offset: Id,
+    },
+    F64Load{
+        static_offset: u64,
+        align: u8,
+        mem: u32,
+        offset: Id,
+    },
+    I32Load8S{
+        static_offset: u64,
+        align: u8,
+        mem: u32,
+        offset: Id,
+    },
+    I32Load8U{
+        static_offset: u64,
+        align: u8,
+        mem: u32,
+        offset: Id,
+    },
+    I32Load16S{
+        static_offset: u64,
+        align: u8,
+        mem: u32,
+        offset: Id,
+    },
+    I32Load16U{
+        static_offset: u64,
+        align: u8,
+        mem: u32,
+        offset: Id,
+    },
+    I64Load8S{
+        static_offset: u64,
+        align: u8,
+        mem: u32,
+        offset: Id,
+    },
+    I64Load8U{
+        static_offset: u64,
+        align: u8,
+        mem: u32,
+        offset: Id,
+    },
+    I64Load16S{
+        static_offset: u64,
+        align: u8,
+        mem: u32,
+        offset: Id,
+    },
+    I64Load16U{
+        static_offset: u64,
+        align: u8,
+        mem: u32,
+        offset: Id,
+    },
+    I64Load32S{
+        static_offset: u64,
+        align: u8,
+        mem: u32,
+        offset: Id,
+    },
+    I64Load32U{
+        static_offset: u64,
+        align: u8,
+        mem: u32,
+        offset: Id,
+    },
+
+    // store
     I32Store {
         static_offset: u64,
         align: u8,
@@ -120,6 +266,49 @@ pub enum Lang {
         mem: u32,
         value_and_offset: [Id; 2],
     },
+    F32Store{
+        static_offset: u64,
+        align: u8,
+        mem: u32,
+        value_and_offset: [Id; 2],
+    },
+    F64Store{
+        static_offset: u64,
+        align: u8,
+        mem: u32,
+        value_and_offset: [Id; 2],
+    },
+    I32Store8{
+        static_offset: u64,
+        align: u8,
+        mem: u32,
+        value_and_offset: [Id; 2],
+    },
+    I32Store16{
+        static_offset: u64,
+        align: u8,
+        mem: u32,
+        value_and_offset: [Id; 2],
+    },
+    I64Store8{
+        static_offset: u64,
+        align: u8,
+        mem: u32,
+        value_and_offset: [Id; 2],
+    },
+    I64Store16{
+        static_offset: u64,
+        align: u8,
+        mem: u32,
+        value_and_offset: [Id; 2],
+    },
+    I64Store32{
+        static_offset: u64,
+        align: u8,
+        mem: u32,
+        value_and_offset: [Id; 2],
+    },
+
     // TODO add the others
 
     // Custom mutation operations and instructions
@@ -144,6 +333,9 @@ pub enum Lang {
     // Save bits
     F32(u32),
     F64(u64),
+
+    MemorySize([Id; 1]),
+    MemoryGrow([Id; 1]),
 }
 
 impl Display for Lang {
