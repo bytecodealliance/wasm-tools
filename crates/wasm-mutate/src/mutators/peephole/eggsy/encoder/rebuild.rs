@@ -441,6 +441,7 @@ pub fn build_expr(root: Id, id_to_node: &[Lang], operands: &[Vec<Id>]) -> RecExp
                     s @ Lang::RandI32 => expr.add((*s).clone()),
                     s @ Lang::RandI64 => expr.add((*s).clone()),
                     u @ Lang::Undef => expr.add((*u).clone()),
+                    n @ Lang::Nop => expr.add((*n).clone()),
                 };
                 // Copy the id to stack entries to a new one
                 let old_entry = node_to_id.insert(node, sub_expr_id);

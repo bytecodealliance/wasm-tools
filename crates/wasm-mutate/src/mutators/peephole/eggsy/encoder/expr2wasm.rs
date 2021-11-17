@@ -1191,6 +1191,9 @@ pub(crate) fn expr2wasm(
 
                         newfunc.instruction(&Instruction::I64Store32(memarg));
                     }
+                    Lang::Nop => {
+                        newfunc.instruction(&Instruction::Nop);
+                    }
                 }
             }
         }

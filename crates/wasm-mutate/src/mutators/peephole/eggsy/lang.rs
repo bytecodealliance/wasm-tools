@@ -165,7 +165,9 @@ pub enum Lang {
 
     // The u32 argument should be the function index
     Call(usize, Vec<Id>),
+
     Drop([Id; 1]),
+    Nop,
     // Memory operations
     // loads
     I32Load {
@@ -629,7 +631,7 @@ impl Display for Lang {
             Lang::Undef => f.write_str("undef"),
             Lang::UnfoldI32(_) => f.write_str("i32.unfold"),
             Lang::UnfoldI64(_) => f.write_str("i64.unfold"),
-            //Lang::Select(_) => f.write_str("select"),
+            Lang::Nop => f.write_str("nop"), //Lang::Select(_) => f.write_str("select"),
         }
     }
 }
@@ -1162,6 +1164,7 @@ impl egg::Language for Lang {
             Lang::I64(_) => &[],
             Lang::F32(_) => &[],
             Lang::F64(_) => &[],
+            Lang::Nop => &[],
             //Lang::Select(operands) => operands,
         }
     }
@@ -1458,6 +1461,7 @@ impl egg::Language for Lang {
             Lang::I64(_) => &mut [],
             Lang::F32(_) => &mut [],
             Lang::F64(_) => &mut [],
+            Lang::Nop => &mut [],
             //Lang::Select(operands) => operands,
         }
     }

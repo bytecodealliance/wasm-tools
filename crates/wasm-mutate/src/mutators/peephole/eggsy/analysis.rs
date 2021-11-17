@@ -231,6 +231,7 @@ impl PeepholeMutationAnalysis {
             Lang::I64Store8 { .. } => Ok(PrimitiveTypeInfo::Empty),
             Lang::I64Store16 { .. } => Ok(PrimitiveTypeInfo::Empty),
             Lang::I64Store32 { .. } => Ok(PrimitiveTypeInfo::Empty),
+            Lang::Nop => Ok(PrimitiveTypeInfo::Empty),
         }
     }
 
