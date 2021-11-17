@@ -32,7 +32,6 @@ pub mod dfg;
 pub mod eggsy;
 pub mod rules;
 
-
 /// This mutator applies a random peephole transformation to the input Wasm module
 pub struct PeepholeMutator;
 type EG = egg::EGraph<Lang, PeepholeMutationAnalysis>;
