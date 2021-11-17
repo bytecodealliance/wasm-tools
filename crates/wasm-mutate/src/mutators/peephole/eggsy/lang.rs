@@ -180,73 +180,73 @@ pub enum Lang {
         mem: u32,
         offset: Id,
     },
-    F32Load{
+    F32Load {
         static_offset: u64,
         align: u8,
         mem: u32,
         offset: Id,
     },
-    F64Load{
+    F64Load {
         static_offset: u64,
         align: u8,
         mem: u32,
         offset: Id,
     },
-    I32Load8S{
+    I32Load8S {
         static_offset: u64,
         align: u8,
         mem: u32,
         offset: Id,
     },
-    I32Load8U{
+    I32Load8U {
         static_offset: u64,
         align: u8,
         mem: u32,
         offset: Id,
     },
-    I32Load16S{
+    I32Load16S {
         static_offset: u64,
         align: u8,
         mem: u32,
         offset: Id,
     },
-    I32Load16U{
+    I32Load16U {
         static_offset: u64,
         align: u8,
         mem: u32,
         offset: Id,
     },
-    I64Load8S{
+    I64Load8S {
         static_offset: u64,
         align: u8,
         mem: u32,
         offset: Id,
     },
-    I64Load8U{
+    I64Load8U {
         static_offset: u64,
         align: u8,
         mem: u32,
         offset: Id,
     },
-    I64Load16S{
+    I64Load16S {
         static_offset: u64,
         align: u8,
         mem: u32,
         offset: Id,
     },
-    I64Load16U{
+    I64Load16U {
         static_offset: u64,
         align: u8,
         mem: u32,
         offset: Id,
     },
-    I64Load32S{
+    I64Load32S {
         static_offset: u64,
         align: u8,
         mem: u32,
         offset: Id,
     },
-    I64Load32U{
+    I64Load32U {
         static_offset: u64,
         align: u8,
         mem: u32,
@@ -266,43 +266,43 @@ pub enum Lang {
         mem: u32,
         value_and_offset: [Id; 2],
     },
-    F32Store{
+    F32Store {
         static_offset: u64,
         align: u8,
         mem: u32,
         value_and_offset: [Id; 2],
     },
-    F64Store{
+    F64Store {
         static_offset: u64,
         align: u8,
         mem: u32,
         value_and_offset: [Id; 2],
     },
-    I32Store8{
+    I32Store8 {
         static_offset: u64,
         align: u8,
         mem: u32,
         value_and_offset: [Id; 2],
     },
-    I32Store16{
+    I32Store16 {
         static_offset: u64,
         align: u8,
         mem: u32,
         value_and_offset: [Id; 2],
     },
-    I64Store8{
+    I64Store8 {
         static_offset: u64,
         align: u8,
         mem: u32,
         value_and_offset: [Id; 2],
     },
-    I64Store16{
+    I64Store16 {
         static_offset: u64,
         align: u8,
         mem: u32,
         value_and_offset: [Id; 2],
     },
-    I64Store32{
+    I64Store32 {
         static_offset: u64,
         align: u8,
         mem: u32,
@@ -333,9 +333,6 @@ pub enum Lang {
     // Save bits
     F32(u32),
     F64(u64),
-
-    MemorySize([Id; 1]),
-    MemoryGrow([Id; 1]),
 }
 
 impl Display for Lang {
@@ -401,6 +398,50 @@ impl Display for Lang {
             Lang::I64GeU(_) => f.write_str("i64.ge_u"),
             Lang::I32Popcnt(_) => f.write_str("i32.popcnt"),
             Lang::I64Popcnt(_) => f.write_str("i64.popcnt"),
+            Lang::F32Add(_) => f.write_str("f32.add"),
+            Lang::F64Add(_) => f.write_str("f64.add"),
+            Lang::F32Sub(_) => f.write_str("f32.sub"),
+            Lang::F64Sub(_) => f.write_str("f64.sub"),
+            Lang::F32Mul(_) => f.write_str("f32.mul"),
+            Lang::F64Mul(_) => f.write_str("f64.mul"),
+            Lang::F32Div(_) => f.write_str("f32.div"),
+            Lang::F64Div(_) => f.write_str("f64.div"),
+            Lang::F32Min(_) => f.write_str("f32.min"),
+            Lang::F64Min(_) => f.write_str("f64.min"),
+            Lang::F32Max(_) => f.write_str("f32.max"),
+            Lang::F64Max(_) => f.write_str("f64.max"),
+            Lang::F32Copysign(_) => f.write_str("f32.copysign"),
+            Lang::F64Copysign(_) => f.write_str("f64.copysign"),
+            Lang::F32Eq(_) => f.write_str("f32.eq"),
+            Lang::F64Eq(_) => f.write_str("f64.eq"),
+            Lang::F32Ne(_) => f.write_str("f32.ne"),
+            Lang::F64Ne(_) => f.write_str("f64.ne"),
+            Lang::F32Lt(_) => f.write_str("f32.lt"),
+            Lang::F64Lt(_) => f.write_str("f64.lt"),
+            Lang::F32Gt(_) => f.write_str("f32.gt"),
+            Lang::F64Gt(_) => f.write_str("f64.gt"),
+            Lang::F32Le(_) => f.write_str("f32.le"),
+            Lang::F64Le(_) => f.write_str("f64.le"),
+            Lang::F32Ge(_) => f.write_str("f32.ge"),
+            Lang::F64Ge(_) => f.write_str("f64.ge"),
+            Lang::I32Clz(_) => f.write_str("i32.clz"),
+            Lang::I32Ctz(_) => f.write_str("i32.ctz"),
+            Lang::I64Ctz(_) => f.write_str("i64.ctz"),
+            Lang::I64Clz(_) => f.write_str("i64.clz"),
+            Lang::F32Abs(_) => f.write_str("f32.abs"),
+            Lang::F64Abs(_) => f.write_str("f64.abs"),
+            Lang::F32Neg(_) => f.write_str("f32.neg"),
+            Lang::F64Neg(_) => f.write_str("f64.neg"),
+            Lang::F32Sqrt(_) => f.write_str("f32.sqrt"),
+            Lang::F64Sqrt(_) => f.write_str("f64.sqrt"),
+            Lang::F32Ceil(_) => f.write_str("f32.ceil"),
+            Lang::F64Ceil(_) => f.write_str("f64.ceil"),
+            Lang::F32Floor(_) => f.write_str("f32.floor"),
+            Lang::F64Floor(_) => f.write_str("f64.floor"),
+            Lang::F32Trunc(_) => f.write_str("f32.trunc"),
+            Lang::F64trunc(_) => f.write_str("f64.trunc"),
+            Lang::F32Nearest(_) => f.write_str("f32.nearest"),
+            Lang::F64Nearest(_) => f.write_str("f64.nearest"),
             Lang::LocalGet(idx) => f.write_str(&format!("local.get.{}", idx)),
             Lang::GlobalGet(idx) => f.write_str(&format!("global.get.{}", idx)),
             Lang::GlobalSet(idx, _) => f.write_str(&format!("global.set.{}", idx)),
@@ -412,6 +453,36 @@ impl Display for Lang {
             Lang::I64Extend32S(_) => f.write_str("i64.extend32_s"),
             Lang::I64ExtendI32S(_) => f.write_str("i64.extendi32_s"),
             Lang::I64ExtendI32U(_) => f.write_str("i64.extendi32_u"),
+            Lang::I32TruncF32S(_) => f.write_str("i32.truncf32_s"),
+            Lang::I32TruncF32U(_) => f.write_str("i32.truncf32_u"),
+            Lang::I32TruncF64S(_) => f.write_str("i32.truncf64_s"),
+            Lang::I32TruncF64U(_) => f.write_str("i32.truncf64_u"),
+            Lang::I64TruncF32S(_) => f.write_str("i64.truncf32_s"),
+            Lang::I64TruncF32U(_) => f.write_str("i64.truncf32_u"),
+            Lang::I64TruncF64S(_) => f.write_str("i64.truncf64_s"),
+            Lang::I64TruncF64U(_) => f.write_str("i64.truncf64_u"),
+            Lang::F32ConvertI32S(_) => f.write_str("f32.converti32_s"),
+            Lang::F32ConvertI32U(_) => f.write_str("f32.converti32_u"),
+            Lang::F32ConvertI64S(_) => f.write_str("f32.converti64_s"),
+            Lang::F32ConvertI64U(_) => f.write_str("f32.converti64_u"),
+            Lang::F32DemoteF64(_) => f.write_str("f32.demotef64"),
+            Lang::F64ConvertI32S(_) => f.write_str("f64.converti32_s"),
+            Lang::F64ConvertI32U(_) => f.write_str("f64.converti32_u"),
+            Lang::F64ConvertI64S(_) => f.write_str("f64.converti64_s"),
+            Lang::F64ConvertI64U(_) => f.write_str("f64.converti64_u"),
+            Lang::F64PromoteF32(_) => f.write_str("f64.promotef32"),
+            Lang::I32ReinterpretF32(_) => f.write_str("i32.reinterpretf32"),
+            Lang::I64ReinterpretF64(_) => f.write_str("i64.reinterpretf64"),
+            Lang::F32ReinterpretI32(_) => f.write_str("f32.reinterpreti32"),
+            Lang::F64ReinterpretI64(_) => f.write_str("f64.reinterpreti64"),
+            Lang::I32TruncSatF32S(_) => f.write_str("i32.truncsatf32_s"),
+            Lang::I32TruncSatF32U(_) => f.write_str("i32.truncsatf32_u"),
+            Lang::I32TruncSatF64S(_) => f.write_str("i32.truncsatf64_s"),
+            Lang::I32TruncSatF64U(_) => f.write_str("i32.truncsatf64_u"),
+            Lang::I64TruncSatF32S(_) => f.write_str("i64.truncsatf32_s"),
+            Lang::I64TruncSatF32U(_) => f.write_str("i64.truncsatf32_u"),
+            Lang::I64TruncSatF64S(_) => f.write_str("i64.truncsatf64_s"),
+            Lang::I64TruncSatF64U(_) => f.write_str("i64.truncsatf64_u"),
             Lang::Call(idx, _) => f.write_str(&format!("call.{}", idx)),
             Lang::Drop(_) => f.write_str("drop"),
             Lang::I32Load {
@@ -426,6 +497,78 @@ impl Display for Lang {
                 mem,
                 offset: _,
             } => f.write_str(&format!("i64.load.{}.{}.{}", static_offset, align, mem)),
+            Lang::F32Load {
+                static_offset,
+                align,
+                mem,
+                offset,
+            } => f.write_str(&format!("f32.load.{}.{}.{}", static_offset, align, mem)),
+            Lang::F64Load {
+                static_offset,
+                align,
+                mem,
+                offset,
+            } => f.write_str(&format!("f64.load.{}.{}.{}", static_offset, align, mem)),
+            Lang::I32Load8S {
+                static_offset,
+                align,
+                mem,
+                offset,
+            } => f.write_str(&format!("i32.load8s.{}.{}.{}", static_offset, align, mem)),
+            Lang::I32Load8U {
+                static_offset,
+                align,
+                mem,
+                offset,
+            } => f.write_str(&format!("i32.load8u.{}.{}.{}", static_offset, align, mem)),
+            Lang::I32Load16S {
+                static_offset,
+                align,
+                mem,
+                offset,
+            } => f.write_str(&format!("i32.load16s.{}.{}.{}", static_offset, align, mem)),
+            Lang::I32Load16U {
+                static_offset,
+                align,
+                mem,
+                offset,
+            } => f.write_str(&format!("i32.load16u.{}.{}.{}", static_offset, align, mem)),
+            Lang::I64Load8S {
+                static_offset,
+                align,
+                mem,
+                offset,
+            } => f.write_str(&format!("i64.load8s.{}.{}.{}", static_offset, align, mem)),
+            Lang::I64Load8U {
+                static_offset,
+                align,
+                mem,
+                offset,
+            } => f.write_str(&format!("i64.load8u.{}.{}.{}", static_offset, align, mem)),
+            Lang::I64Load16S {
+                static_offset,
+                align,
+                mem,
+                offset,
+            } => f.write_str(&format!("i64.load16s.{}.{}.{}", static_offset, align, mem)),
+            Lang::I64Load16U {
+                static_offset,
+                align,
+                mem,
+                offset,
+            } => f.write_str(&format!("i64.load16u.{}.{}.{}", static_offset, align, mem)),
+            Lang::I64Load32S {
+                static_offset,
+                align,
+                mem,
+                offset,
+            } => f.write_str(&format!("i64.load32s.{}.{}.{}", static_offset, align, mem)),
+            Lang::I64Load32U {
+                static_offset,
+                align,
+                mem,
+                offset,
+            } => f.write_str(&format!("i64.load32u.{}.{}.{}", static_offset, align, mem)),
             Lang::I32Store {
                 static_offset,
                 align,
@@ -438,6 +581,49 @@ impl Display for Lang {
                 mem,
                 value_and_offset: _,
             } => f.write_str(&format!("i32.store.{}.{}.{}", static_offset, align, mem)),
+            Lang::F32Store {
+                static_offset,
+                align,
+                mem,
+                value_and_offset,
+            } => f.write_str(&format!("f32.store.{}.{}.{}", static_offset, align, mem)),
+            Lang::F64Store {
+                static_offset,
+                align,
+                mem,
+                value_and_offset,
+            } => f.write_str(&format!("f64.store.{}.{}.{}", static_offset, align, mem)),
+            Lang::I32Store8 {
+                static_offset,
+                align,
+                mem,
+                value_and_offset,
+            } => f.write_str(&format!("i32.store8.{}.{}.{}", static_offset, align, mem)),
+            Lang::I32Store16 {
+                static_offset,
+                align,
+                mem,
+                value_and_offset,
+            } => f.write_str(&format!("i32.store16.{}.{}.{}", static_offset, align, mem)),
+            Lang::I64Store8 {
+                static_offset,
+                align,
+                mem,
+                value_and_offset,
+            } => f.write_str(&format!("i64.store8.{}.{}.{}", static_offset, align, mem)),
+            Lang::I64Store16 {
+                static_offset,
+                align,
+                mem,
+                value_and_offset,
+            } => f.write_str(&format!("i64.store16.{}.{}.{}", static_offset, align, mem)),
+            Lang::I64Store32 {
+                static_offset,
+                align,
+                mem,
+                value_and_offset,
+            } => f.write_str(&format!("i64.store32.{}.{}.{}", static_offset, align, mem)),
+
             Lang::RandI32 => f.write_str("i32.rand"),
             Lang::RandI64 => f.write_str("i64.rand"),
             Lang::Undef => f.write_str("undef"),
@@ -622,7 +808,33 @@ impl egg::Language for Lang {
             | Lang::I64GeS(operands)
             | Lang::I32GeU(operands)
             | Lang::I64GeU(operands)
-            | Lang::I32Add(operands) => operands,
+            | Lang::I32Add(operands)
+            | Lang::F32Add(operands)
+            | Lang::F64Add(operands)
+            | Lang::F32Sub(operands)
+            | Lang::F64Sub(operands)
+            | Lang::F32Mul(operands)
+            | Lang::F64Mul(operands)
+            | Lang::F32Div(operands)
+            | Lang::F64Div(operands)
+            | Lang::F32Min(operands)
+            | Lang::F64Min(operands)
+            | Lang::F32Max(operands)
+            | Lang::F64Max(operands)
+            | Lang::F32Copysign(operands)
+            | Lang::F64Copysign(operands)
+            | Lang::F32Eq(operands)
+            | Lang::F64Eq(operands)
+            | Lang::F32Ne(operands)
+            | Lang::F64Ne(operands)
+            | Lang::F32Lt(operands)
+            | Lang::F64Lt(operands)
+            | Lang::F32Gt(operands)
+            | Lang::F64Gt(operands)
+            | Lang::F32Le(operands)
+            | Lang::F64Le(operands)
+            | Lang::F32Ge(operands)
+            | Lang::F64Ge(operands) => operands,
             // unops
             Lang::Drop(operands)
             | Lang::I32Extend8S(operands)
@@ -635,7 +847,55 @@ impl egg::Language for Lang {
             | Lang::I64Popcnt(operands)
             | Lang::I32Eqz(operands)
             | Lang::I64Eqz(operands)
-            | Lang::I32Popcnt(operands) => operands,
+            | Lang::I32Popcnt(operands)
+            | Lang::I32Clz(operands)
+            | Lang::I32Ctz(operands)
+            | Lang::I64Ctz(operands)
+            | Lang::I64Clz(operands)
+            | Lang::F32Abs(operands)
+            | Lang::F64Abs(operands)
+            | Lang::F32Neg(operands)
+            | Lang::F64Neg(operands)
+            | Lang::F32Sqrt(operands)
+            | Lang::F64Sqrt(operands)
+            | Lang::F32Ceil(operands)
+            | Lang::F64Ceil(operands)
+            | Lang::F32Floor(operands)
+            | Lang::F64Floor(operands)
+            | Lang::F32Trunc(operands)
+            | Lang::F64trunc(operands)
+            | Lang::F32Nearest(operands)
+            | Lang::F64Nearest(operands)
+            | Lang::I32TruncF32S(operands)
+            | Lang::I32TruncF32U(operands)
+            | Lang::I32TruncF64S(operands)
+            | Lang::I32TruncF64U(operands)
+            | Lang::I64TruncF32S(operands)
+            | Lang::I64TruncF32U(operands)
+            | Lang::I64TruncF64S(operands)
+            | Lang::I64TruncF64U(operands)
+            | Lang::F32ConvertI32S(operands)
+            | Lang::F32ConvertI32U(operands)
+            | Lang::F32ConvertI64S(operands)
+            | Lang::F32ConvertI64U(operands)
+            | Lang::F32DemoteF64(operands)
+            | Lang::F64ConvertI32S(operands)
+            | Lang::F64ConvertI32U(operands)
+            | Lang::F64ConvertI64S(operands)
+            | Lang::F64ConvertI64U(operands)
+            | Lang::F64PromoteF32(operands)
+            | Lang::I32ReinterpretF32(operands)
+            | Lang::I64ReinterpretF64(operands)
+            | Lang::F32ReinterpretI32(operands)
+            | Lang::F64ReinterpretI64(operands)
+            | Lang::I32TruncSatF32S(operands)
+            | Lang::I32TruncSatF32U(operands)
+            | Lang::I32TruncSatF64S(operands)
+            | Lang::I32TruncSatF64U(operands)
+            | Lang::I64TruncSatF32S(operands)
+            | Lang::I64TruncSatF32U(operands)
+            | Lang::I64TruncSatF64S(operands)
+            | Lang::I64TruncSatF64U(operands) => operands,
             Lang::GlobalSet(_, val) | Lang::LocalTee(_, val) => std::slice::from_ref(val),
             Lang::LocalSet(_, val) => std::slice::from_ref(val),
             Lang::LocalGet(_) => &[],
@@ -653,6 +913,78 @@ impl egg::Language for Lang {
                 static_offset: _,
                 align: _,
                 mem: _,
+            }
+            | Lang::F32Load {
+                static_offset: _,
+                align: _,
+                mem: _,
+                offset,
+            }
+            | Lang::F64Load {
+                static_offset: _,
+                align: _,
+                mem: _,
+                offset,
+            }
+            | Lang::I32Load8S {
+                static_offset: _,
+                align: _,
+                mem: _,
+                offset,
+            }
+            | Lang::I32Load8U {
+                static_offset: _,
+                align: _,
+                mem: _,
+                offset,
+            }
+            | Lang::I32Load16S {
+                static_offset: _,
+                align: _,
+                mem: _,
+                offset,
+            }
+            | Lang::I32Load16U {
+                static_offset: _,
+                align: _,
+                mem: _,
+                offset,
+            }
+            | Lang::I64Load8S {
+                static_offset: _,
+                align: _,
+                mem: _,
+                offset,
+            }
+            | Lang::I64Load8U {
+                static_offset: _,
+                align: _,
+                mem: _,
+                offset,
+            }
+            | Lang::I64Load16S {
+                static_offset: _,
+                align: _,
+                mem: _,
+                offset,
+            }
+            | Lang::I64Load16U {
+                static_offset: _,
+                align: _,
+                mem: _,
+                offset,
+            }
+            | Lang::I64Load32S {
+                static_offset: _,
+                align: _,
+                mem: _,
+                offset,
+            }
+            | Lang::I64Load32U {
+                static_offset: _,
+                align: _,
+                mem: _,
+                offset,
             } => std::slice::from_ref(offset),
             Lang::I32Store {
                 value_and_offset,
@@ -661,6 +993,48 @@ impl egg::Language for Lang {
                 mem: _,
             }
             | Lang::I64Store {
+                value_and_offset,
+                static_offset: _,
+                align: _,
+                mem: _,
+            }
+            | Lang::F32Store {
+                value_and_offset,
+                static_offset: _,
+                align: _,
+                mem: _,
+            }
+            | Lang::F64Store {
+                value_and_offset,
+                static_offset: _,
+                align: _,
+                mem: _,
+            }
+            | Lang::I32Store8 {
+                value_and_offset,
+                static_offset: _,
+                align: _,
+                mem: _,
+            }
+            | Lang::I32Store16 {
+                value_and_offset,
+                static_offset: _,
+                align: _,
+                mem: _,
+            }
+            | Lang::I64Store8 {
+                value_and_offset,
+                static_offset: _,
+                align: _,
+                mem: _,
+            }
+            | Lang::I64Store16 {
+                value_and_offset,
+                static_offset: _,
+                align: _,
+                mem: _,
+            }
+            | Lang::I64Store32 {
                 value_and_offset,
                 static_offset: _,
                 align: _,
@@ -729,7 +1103,33 @@ impl egg::Language for Lang {
             | Lang::I64GeS(operands)
             | Lang::I32GeU(operands)
             | Lang::I64GeU(operands)
-            | Lang::I32Add(operands) => operands,
+            | Lang::I32Add(operands)
+            | Lang::F32Add(operands)
+            | Lang::F64Add(operands)
+            | Lang::F32Sub(operands)
+            | Lang::F64Sub(operands)
+            | Lang::F32Mul(operands)
+            | Lang::F64Mul(operands)
+            | Lang::F32Div(operands)
+            | Lang::F64Div(operands)
+            | Lang::F32Min(operands)
+            | Lang::F64Min(operands)
+            | Lang::F32Max(operands)
+            | Lang::F64Max(operands)
+            | Lang::F32Copysign(operands)
+            | Lang::F64Copysign(operands)
+            | Lang::F32Eq(operands)
+            | Lang::F64Eq(operands)
+            | Lang::F32Ne(operands)
+            | Lang::F64Ne(operands)
+            | Lang::F32Lt(operands)
+            | Lang::F64Lt(operands)
+            | Lang::F32Gt(operands)
+            | Lang::F64Gt(operands)
+            | Lang::F32Le(operands)
+            | Lang::F64Le(operands)
+            | Lang::F32Ge(operands)
+            | Lang::F64Ge(operands) => operands,
 
             Lang::UnfoldI32(val) | Lang::UnfoldI64(val) | Lang::LocalTee(_, val) => {
                 std::slice::from_mut(val)
@@ -742,6 +1142,54 @@ impl egg::Language for Lang {
             | Lang::I64Popcnt(operands)
             | Lang::I32Eqz(operands)
             | Lang::I64Eqz(operands)
+            | Lang::I32Clz(operands)
+            | Lang::I32Ctz(operands)
+            | Lang::I64Ctz(operands)
+            | Lang::I64Clz(operands)
+            | Lang::F32Abs(operands)
+            | Lang::F64Abs(operands)
+            | Lang::F32Neg(operands)
+            | Lang::F64Neg(operands)
+            | Lang::F32Sqrt(operands)
+            | Lang::F64Sqrt(operands)
+            | Lang::F32Ceil(operands)
+            | Lang::F64Ceil(operands)
+            | Lang::F32Floor(operands)
+            | Lang::F64Floor(operands)
+            | Lang::F32Trunc(operands)
+            | Lang::F64trunc(operands)
+            | Lang::F32Nearest(operands)
+            | Lang::F64Nearest(operands)
+            | Lang::I32TruncF32S(operands)
+            | Lang::I32TruncF32U(operands)
+            | Lang::I32TruncF64S(operands)
+            | Lang::I32TruncF64U(operands)
+            | Lang::I64TruncF32S(operands)
+            | Lang::I64TruncF32U(operands)
+            | Lang::I64TruncF64S(operands)
+            | Lang::I64TruncF64U(operands)
+            | Lang::F32ConvertI32S(operands)
+            | Lang::F32ConvertI32U(operands)
+            | Lang::F32ConvertI64S(operands)
+            | Lang::F32ConvertI64U(operands)
+            | Lang::F32DemoteF64(operands)
+            | Lang::F64ConvertI32S(operands)
+            | Lang::F64ConvertI32U(operands)
+            | Lang::F64ConvertI64S(operands)
+            | Lang::F64ConvertI64U(operands)
+            | Lang::F64PromoteF32(operands)
+            | Lang::I32ReinterpretF32(operands)
+            | Lang::I64ReinterpretF64(operands)
+            | Lang::F32ReinterpretI32(operands)
+            | Lang::F64ReinterpretI64(operands)
+            | Lang::I32TruncSatF32S(operands)
+            | Lang::I32TruncSatF32U(operands)
+            | Lang::I32TruncSatF64S(operands)
+            | Lang::I32TruncSatF64U(operands)
+            | Lang::I64TruncSatF32S(operands)
+            | Lang::I64TruncSatF32U(operands)
+            | Lang::I64TruncSatF64S(operands)
+            | Lang::I64TruncSatF64U(operands)
             | Lang::I32Extend8S(operands)
             | Lang::I64Extend8S(operands)
             | Lang::I32Extend16S(operands)
@@ -762,6 +1210,78 @@ impl egg::Language for Lang {
                 static_offset: _,
                 align: _,
                 mem: _,
+            }
+            | Lang::F32Load {
+                static_offset: _,
+                align: _,
+                mem: _,
+                offset,
+            }
+            | Lang::F64Load {
+                static_offset: _,
+                align: _,
+                mem: _,
+                offset,
+            }
+            | Lang::I32Load8S {
+                static_offset: _,
+                align: _,
+                mem: _,
+                offset,
+            }
+            | Lang::I32Load8U {
+                static_offset: _,
+                align: _,
+                mem: _,
+                offset,
+            }
+            | Lang::I32Load16S {
+                static_offset: _,
+                align: _,
+                mem: _,
+                offset,
+            }
+            | Lang::I32Load16U {
+                static_offset: _,
+                align: _,
+                mem: _,
+                offset,
+            }
+            | Lang::I64Load8S {
+                static_offset: _,
+                align: _,
+                mem: _,
+                offset,
+            }
+            | Lang::I64Load8U {
+                static_offset: _,
+                align: _,
+                mem: _,
+                offset,
+            }
+            | Lang::I64Load16S {
+                static_offset: _,
+                align: _,
+                mem: _,
+                offset,
+            }
+            | Lang::I64Load16U {
+                static_offset: _,
+                align: _,
+                mem: _,
+                offset,
+            }
+            | Lang::I64Load32S {
+                static_offset: _,
+                align: _,
+                mem: _,
+                offset,
+            }
+            | Lang::I64Load32U {
+                static_offset: _,
+                align: _,
+                mem: _,
+                offset,
             } => std::slice::from_mut(offset),
             Lang::I32Store {
                 value_and_offset,
@@ -770,6 +1290,48 @@ impl egg::Language for Lang {
                 mem: _,
             }
             | Lang::I64Store {
+                value_and_offset,
+                static_offset: _,
+                align: _,
+                mem: _,
+            }
+            | Lang::F32Store {
+                value_and_offset,
+                static_offset: _,
+                align: _,
+                mem: _,
+            }
+            | Lang::F64Store {
+                value_and_offset,
+                static_offset: _,
+                align: _,
+                mem: _,
+            }
+            | Lang::I32Store8 {
+                value_and_offset,
+                static_offset: _,
+                align: _,
+                mem: _,
+            }
+            | Lang::I32Store16 {
+                value_and_offset,
+                static_offset: _,
+                align: _,
+                mem: _,
+            }
+            | Lang::I64Store8 {
+                value_and_offset,
+                static_offset: _,
+                align: _,
+                mem: _,
+            }
+            | Lang::I64Store16 {
+                value_and_offset,
+                static_offset: _,
+                align: _,
+                mem: _,
+            }
+            | Lang::I64Store32 {
                 value_and_offset,
                 static_offset: _,
                 align: _,
