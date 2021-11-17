@@ -310,7 +310,7 @@ pub enum Lang {
         mem: u32,
         value_and_offset: [Id; 2],
     },
-
+    //Select([Id; 3]),
     // TODO add the others
 
     // Custom mutation operations and instructions
@@ -329,6 +329,16 @@ pub enum Lang {
     */
     UnfoldI32(Id),
     UnfoldI64(Id),
+
+    /*
+        Just a wrapper of multiple nodes, when encoding to Wasm it is written as nothing
+        Its only responsability is to add stack neutral operations (if semantic equivalence is set)
+        For example, lets assume we want to insert a nop operation after or before (or both) another node
+        `?x => (container nop ?x nop)`
+        `?x => (container (drop i32.rand) ?x) `
+    */
+    Container(Vec<Id>),
+
     // End of custom mutation operations and instructions
     I32(i32),
     I64(i64),
@@ -631,7 +641,8 @@ impl Display for Lang {
             Lang::Undef => f.write_str("undef"),
             Lang::UnfoldI32(_) => f.write_str("i32.unfold"),
             Lang::UnfoldI64(_) => f.write_str("i64.unfold"),
-            Lang::Nop => f.write_str("nop"), //Lang::Select(_) => f.write_str("select"),
+            Lang::Nop => f.write_str("nop"),
+            Lang::Container(_) => f.write_str("container"),
         }
     }
 }
@@ -1165,6 +1176,7 @@ impl egg::Language for Lang {
             Lang::F32(_) => &[],
             Lang::F64(_) => &[],
             Lang::Nop => &[],
+            Lang::Container(operands) => operands,
             //Lang::Select(operands) => operands,
         }
     }
@@ -1462,6 +1474,7 @@ impl egg::Language for Lang {
             Lang::F32(_) => &mut [],
             Lang::F64(_) => &mut [],
             Lang::Nop => &mut [],
+            Lang::Container(operands) => operands,
             //Lang::Select(operands) => operands,
         }
     }
@@ -1632,6 +1645,7 @@ impl egg::Language for Lang {
             "undef" => Ok(Lang::Undef),
             "drop" => Ok(Lang::Drop([children[0]])),
             "nop" => Ok(Lang::Nop),
+            "container" => Ok(Lang::Container(children)),
             //"select" => Ok(Lang::Select([children[0], children[1], children[2]])),
             _ => Lang::parse_call(op_str, &children)
                 .or(Lang::parse_mem_op(op_str, &children))

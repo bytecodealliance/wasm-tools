@@ -232,6 +232,8 @@ impl PeepholeMutationAnalysis {
             Lang::I64Store16 { .. } => Ok(PrimitiveTypeInfo::Empty),
             Lang::I64Store32 { .. } => Ok(PrimitiveTypeInfo::Empty),
             Lang::Nop => Ok(PrimitiveTypeInfo::Empty),
+            // This node is not directly written to Wasm
+            Lang::Container(_) => Ok(PrimitiveTypeInfo::Empty),
         }
     }
 

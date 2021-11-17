@@ -229,6 +229,13 @@ pub(crate) fn expr2wasm(
                             worklist.push(Context::new(*operand, TraversalEvent::Enter));
                         }
                     }
+                    Lang::Container(operands) => {
+                        println!("Container !");
+                        for operand in operands.iter().rev() {
+                            worklist.push(Context::new(*operand, TraversalEvent::Exit));
+                            worklist.push(Context::new(*operand, TraversalEvent::Enter));
+                        }
+                    }
                     Lang::F32Load {
                         align: _,
                         mem: _,
@@ -1193,6 +1200,9 @@ pub(crate) fn expr2wasm(
                     }
                     Lang::Nop => {
                         newfunc.instruction(&Instruction::Nop);
+                    }
+                    Lang::Container(_) => {
+                        // Do nothing
                     }
                 }
             }

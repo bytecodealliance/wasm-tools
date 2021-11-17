@@ -21,6 +21,10 @@ impl PeepholeMutator {
             rewrite!("drop2";  "(drop ?x)" => "(drop i64.rand)" if self.is_type("?x", PrimitiveTypeInfo::I64)),
             rewrite!("drop3";  "(drop ?x)" => "(drop 0_f32)" if self.is_type("?x", PrimitiveTypeInfo::F32)),
             rewrite!("drop4";  "(drop ?x)" => "(drop 0_f32)" if self.is_type("?x", PrimitiveTypeInfo::F64)),
+            // Some stack neutral rewriting rules
+            rewrite!("container1"; "?x" => "(container nop ?x)"),
+            rewrite!("container2"; "?x" => "(container (drop i32.rand) ?x)"),
+            rewrite!("container3"; "?x" => "(container (drop i64.rand) ?x)"),
         ];
         // Use a custom instruction-mutator for this
         // This specific rewriting rule has a condition, it should be appplied if the operand is a constant

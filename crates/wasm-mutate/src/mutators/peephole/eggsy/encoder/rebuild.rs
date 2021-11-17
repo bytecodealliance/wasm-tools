@@ -118,6 +118,10 @@ pub fn build_expr(root: Id, id_to_node: &[Lang], operands: &[Vec<Id>]) -> RecExp
                         *id,
                         (0..op.len()).map(operand).collect::<Vec<Id>>(),
                     )),
+
+                    Lang::Container(op) => expr.add(Lang::Container(
+                        (0..op.len()).map(operand).collect::<Vec<Id>>(),
+                    )),
                     Lang::LocalTee(idx, _) => expr.add(Lang::LocalTee(*idx, operand(0))),
                     Lang::UnfoldI32(_) => expr.add(Lang::UnfoldI32(operand(0))),
                     Lang::UnfoldI64(_) => expr.add(Lang::UnfoldI64(operand(0))),
