@@ -137,7 +137,7 @@ impl PeepholeMutationAnalysis {
             Lang::I32Store { .. } => Ok(PrimitiveTypeInfo::Empty),
             Lang::I64Store { .. } => Ok(PrimitiveTypeInfo::Empty),
             Lang::F32(_) => Ok(PrimitiveTypeInfo::F32),
-            Lang::F64(_) => Ok(PrimitiveTypeInfo::I64),
+            Lang::F64(_) => Ok(PrimitiveTypeInfo::F64),
             Lang::F32Add(_) => Ok(PrimitiveTypeInfo::F32),
             Lang::F64Add(_) => Ok(PrimitiveTypeInfo::F64),
             Lang::F32Sub(_) => Ok(PrimitiveTypeInfo::F32),

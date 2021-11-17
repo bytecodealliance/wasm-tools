@@ -291,6 +291,8 @@ impl PeepholeMutator {
                         match node {
                             Lang::I32(_) => true,
                             Lang::I64(_) => true,
+                            Lang::F32(_) => true,
+                            Lang::F64(_) => true,
                             _ => false,
                         }
                     } else {
