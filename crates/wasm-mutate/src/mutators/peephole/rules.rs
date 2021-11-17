@@ -19,6 +19,8 @@ impl PeepholeMutator {
             // Rmove the full subtree of the drop
             rewrite!("drop1";  "(drop ?x)" => "(drop i32.rand)" if self.is_type("?x", PrimitiveTypeInfo::I32)),
             rewrite!("drop2";  "(drop ?x)" => "(drop i64.rand)" if self.is_type("?x", PrimitiveTypeInfo::I64)),
+            rewrite!("drop3";  "(drop ?x)" => "(drop 0_f32)" if self.is_type("?x", PrimitiveTypeInfo::F32)),
+            rewrite!("drop4";  "(drop ?x)" => "(drop 0_f32)" if self.is_type("?x", PrimitiveTypeInfo::F64)),
         ];
         // Use a custom instruction-mutator for this
         // This specific rewriting rule has a condition, it should be appplied if the operand is a constant
@@ -45,9 +47,13 @@ impl PeepholeMutator {
 
         rules.extend(rewrite!("commutative-1";  "(i32.add ?x ?y)" <=> "(i32.add ?y ?x)"));
         rules.extend(rewrite!("commutative-12";  "(i64.add ?x ?y)" <=> "(i64.add ?y ?x)"));
+        rules.extend(rewrite!("commutative-13";  "(f32.add ?x ?y)" <=> "(f32.add ?y ?x)"));
+        rules.extend(rewrite!("commutative-14";  "(f64.add ?x ?y)" <=> "(f64.add ?y ?x)"));
 
         rules.extend(rewrite!("commutative-2";  "(i32.mul ?x ?y)" <=> "(i32.mul ?y ?x)" ));
         rules.extend(rewrite!("commutative-22";  "(i64.mul ?x ?y)" <=> "(i64.mul ?y ?x)" ));
+        rules.extend(rewrite!("commutative-23";  "(f32.mul ?x ?y)" <=> "(f32.mul ?y ?x)" ));
+        rules.extend(rewrite!("commutative-224";  "(f64.mul ?x ?y)" <=> "(f64.mul ?y ?x)" ));
 
         rules
             .extend(rewrite!("associative-2";  "(i32.mul ?x (i32.mul ?y ?z))" <=> "(i32.mul (i32.mul ?x ?y) ?z)" ));
@@ -62,8 +68,13 @@ impl PeepholeMutator {
         rules.extend(rewrite!("idempotent-3";  "?x" <=> "(i32.mul ?x 1_i32)" if self.is_type("?x", PrimitiveTypeInfo::I32)));
         rules.extend(rewrite!("idempotent-31";  "?x" <=> "(i64.mul ?x 1_i64)" if self.is_type("?x", PrimitiveTypeInfo::I64)));
 
+        rules.extend(rewrite!("idempotent-311";  "?x" <=> "(f32.mul ?x 1_f32)" if self.is_type("?x", PrimitiveTypeInfo::F32)));
+        rules.extend(rewrite!("idempotent-312";  "?x" <=> "(f64.mul ?x 1_f64)" if self.is_type("?x", PrimitiveTypeInfo::F64)));
+
         rules.extend(rewrite!("idempotent-4";  "?x" <=> "(i32.add ?x 0_i32)" if self.is_type("?x", PrimitiveTypeInfo::I32)));
         rules.extend(rewrite!("idempotent-41";  "?x" <=> "(i64.add ?x 0_i64)" if self.is_type("?x", PrimitiveTypeInfo::I64)));
+        rules.extend(rewrite!("idempotent-42";  "?x" <=> "(f32.add ?x 0_f32)" if self.is_type("?x", PrimitiveTypeInfo::F32)));
+        rules.extend(rewrite!("idempotent-43";  "?x" <=> "(f64.add ?x 0_f64)" if self.is_type("?x", PrimitiveTypeInfo::F64)));
 
         rules.extend(rewrite!("idempotent-5";  "?x" <=> "(i32.xor ?x 0_i32)" if self.is_type("?x", PrimitiveTypeInfo::I32)));
         rules.extend(rewrite!("idempotent-51";  "?x" <=> "(i64.xor ?x 0_i64)" if self.is_type("?x", PrimitiveTypeInfo::I64)));
