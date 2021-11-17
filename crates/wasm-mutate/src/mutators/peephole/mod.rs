@@ -5,7 +5,7 @@ use crate::mutators::peephole::eggsy::analysis::PeepholeMutationAnalysis;
 use crate::mutators::peephole::eggsy::encoder::rebuild::build_expr;
 use crate::mutators::peephole::eggsy::encoder::Encoder;
 use crate::mutators::peephole::eggsy::lang::Lang;
-use egg::{rewrite, AstSize, Id, Rewrite, Runner, Subst};
+use egg::{AstSize, Id, Rewrite, Runner, Subst};
 use rand::{prelude::SmallRng, Rng};
 use std::convert::TryFrom;
 use std::sync::atomic::AtomicU64;
@@ -31,7 +31,7 @@ use super::{Mutator, OperatorAndByteOffset};
 pub mod dfg;
 pub mod eggsy;
 pub mod rules;
-use rules::*;
+
 
 /// This mutator applies a random peephole transformation to the input Wasm module
 pub struct PeepholeMutator;
