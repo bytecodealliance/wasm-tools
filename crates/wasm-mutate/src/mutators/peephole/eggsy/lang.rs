@@ -1631,6 +1631,7 @@ impl egg::Language for Lang {
             "i64.rand" => Ok(Lang::RandI64),
             "undef" => Ok(Lang::Undef),
             "drop" => Ok(Lang::Drop([children[0]])),
+            "nop" => Ok(Lang::Nop),
             //"select" => Ok(Lang::Select([children[0], children[1], children[2]])),
             _ => Lang::parse_call(op_str, &children)
                 .or(Lang::parse_mem_op(op_str, &children))
