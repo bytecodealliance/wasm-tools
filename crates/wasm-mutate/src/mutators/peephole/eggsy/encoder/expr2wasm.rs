@@ -230,7 +230,6 @@ pub(crate) fn expr2wasm(
                         }
                     }
                     Lang::Container(operands) => {
-                        println!("Container !");
                         for operand in operands.iter().rev() {
                             worklist.push(Context::new(*operand, TraversalEvent::Exit));
                             worklist.push(Context::new(*operand, TraversalEvent::Enter));
