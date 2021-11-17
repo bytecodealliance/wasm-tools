@@ -153,6 +153,8 @@ pub fn build_expr(root: Id, id_to_node: &[Lang], operands: &[Vec<Id>]) -> RecExp
                     }),
                     i32 @ Lang::I32(_) => expr.add((*i32).clone()),
                     i64 @ Lang::I64(_) => expr.add((*i64).clone()),
+                    f32 @ Lang::F32(_) => expr.add((*f32).clone()),
+                    f64 @ Lang::F64(_) => expr.add((*f64).clone()),
                     s @ Lang::RandI32 => expr.add((*s).clone()),
                     s @ Lang::RandI64 => expr.add((*s).clone()),
                     u @ Lang::Undef => expr.add((*u).clone()),

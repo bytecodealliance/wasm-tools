@@ -331,6 +331,12 @@ pub(crate) fn expr2wasm(
                     Lang::I64(v) => {
                         newfunc.instruction(&Instruction::I64Const(*v));
                     }
+                    Lang::F32(v) => {
+                        newfunc.instruction(&Instruction::F32Const(f32::from_bits(*v)));
+                    }
+                    Lang::F64(v) => {
+                        newfunc.instruction(&Instruction::F64Const(f64::from_bits(*v)));
+                    }
                     Lang::I32Add(_) => {
                         newfunc.instruction(&Instruction::I32Add);
                     }

@@ -89,6 +89,9 @@ pub enum Lang {
     I64ExtendI32S([Id; 1]),
     I64ExtendI32U([Id; 1]),
 
+    // select
+    // Select([Id; 3]),
+
     // The u32 argument should be the function index
     Call(usize, Vec<Id>),
     Drop([Id; 1]),
@@ -122,7 +125,7 @@ pub enum Lang {
     // Custom mutation operations and instructions
     //
     /*
-        This operation represent a random number, if its used, every time is should represent the same random number
+        This operation represent a random number, if its used
     */
     RandI32,
     RandI64,
@@ -138,16 +141,117 @@ pub enum Lang {
     // End of custom mutation operations and instructions
     I32(i32),
     I64(i64),
+    // Save bits
+    F32(u32),
+    F64(u64),
 }
 
 impl Display for Lang {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Lang::LocalSet(idx, _) => f.write_str(&format!("local.set {}", idx)),
-            Lang::LocalTee(idx, _) => f.write_str(&format!("local.tee {}", idx)),
+            Lang::LocalSet(idx, _) => f.write_str(&format!("local.set.{}", idx)),
+            Lang::LocalTee(idx, _) => f.write_str(&format!("local.tee.{}", idx)),
             Lang::I32(val) => f.write_str(&format!("{}_i32", val)),
             Lang::I64(val) => f.write_str(&format!("{}_i64", val)),
-            _ => f.write_str(&format!("{:?}", self)),
+            Lang::F32(v) => f.write_str(&format!("{}_f32", *v)),
+            Lang::F64(v) => f.write_str(&format!("{}_f64", *v)),
+            Lang::I32Add(_) => f.write_str("i32.add"),
+            Lang::I64Add(_) => f.write_str("i64.add"),
+            Lang::I32Sub(_) => f.write_str("i32.sub"),
+            Lang::I64Sub(_) => f.write_str("i64.sub"),
+            Lang::I32Mul(_) => f.write_str("i32.mul"),
+            Lang::I64Mul(_) => f.write_str("i64.mul"),
+            Lang::I32And(_) => f.write_str("i32.and"),
+            Lang::I64And(_) => f.write_str("i64.and"),
+            Lang::I32Or(_) => f.write_str("i32.or"),
+            Lang::I64Or(_) => f.write_str("i64.or"),
+            Lang::I32Xor(_) => f.write_str("i32.xor"),
+            Lang::I64Xor(_) => f.write_str("i64.xor"),
+            Lang::I32Shl(_) => f.write_str("i32.shl"),
+            Lang::I64Shl(_) => f.write_str("i64.shl"),
+            Lang::I32ShrU(_) => f.write_str("i32.shr_u"),
+            Lang::I64ShrU(_) => f.write_str("i64.shr_u"),
+            Lang::I32DivU(_) => f.write_str("i32.div_u"),
+            Lang::I64DivU(_) => f.write_str("i64.div_u"),
+            Lang::I32DivS(_) => f.write_str("i32.div_s"),
+            Lang::I64DivS(_) => f.write_str("i64.div_s"),
+            Lang::I32ShrS(_) => f.write_str("i32.shr_s"),
+            Lang::I64ShrS(_) => f.write_str("i64.shr_s"),
+            Lang::I32RotR(_) => f.write_str("i32.rotr"),
+            Lang::I64RotR(_) => f.write_str("i64.rotr"),
+            Lang::I32RotL(_) => f.write_str("i32.rotl"),
+            Lang::I64RotL(_) => f.write_str("i64.rotl"),
+            Lang::I32RemS(_) => f.write_str("i32.rem_s"),
+            Lang::I64RemS(_) => f.write_str("i64.rem_s"),
+            Lang::I32RemU(_) => f.write_str("i32.rem_u"),
+            Lang::I64RemU(_) => f.write_str("i64.rem_u"),
+            Lang::I32Eqz(_) => f.write_str("i32.eqz"),
+            Lang::I64Eqz(_) => f.write_str("i64.eqz"),
+            Lang::I32Eq(_) => f.write_str("i32.eq"),
+            Lang::I64Eq(_) => f.write_str("i64.eq"),
+            Lang::I32Ne(_) => f.write_str("i32.ne"),
+            Lang::I64Ne(_) => f.write_str("i64.ne"),
+            Lang::I32LtS(_) => f.write_str("i32.lt_s"),
+            Lang::I64LtS(_) => f.write_str("i64.lt_s"),
+            Lang::I32LtU(_) => f.write_str("i32.lt_u"),
+            Lang::I64LtU(_) => f.write_str("i64.lt_u"),
+            Lang::I32GtS(_) => f.write_str("i32.gt_s"),
+            Lang::I64GtS(_) => f.write_str("i64.gt_s"),
+            Lang::I32GtU(_) => f.write_str("i32.gt_u"),
+            Lang::I64GtU(_) => f.write_str("i64.gt_u"),
+            Lang::I32LeS(_) => f.write_str("i32.le_s"),
+            Lang::I64LeS(_) => f.write_str("i64.le_s"),
+            Lang::I32LeU(_) => f.write_str("i32.le_u"),
+            Lang::I64LeU(_) => f.write_str("i64.le_u"),
+            Lang::I32GeS(_) => f.write_str("i32.ge_s"),
+            Lang::I64GeS(_) => f.write_str("i64.ge_s"),
+            Lang::I32GeU(_) => f.write_str("i32.ge_u"),
+            Lang::I64GeU(_) => f.write_str("i64.ge_u"),
+            Lang::I32Popcnt(_) => f.write_str("i32.popcnt"),
+            Lang::I64Popcnt(_) => f.write_str("i64.popcnt"),
+            Lang::LocalGet(idx) => f.write_str(&format!("local.get.{}", idx)),
+            Lang::GlobalGet(idx) => f.write_str(&format!("global.get.{}", idx)),
+            Lang::GlobalSet(idx, _) => f.write_str(&format!("global.set.{}", idx)),
+            Lang::Wrap(_) => f.write_str("wrap"),
+            Lang::I32Extend8S(_) => f.write_str("i32.extend8_s"),
+            Lang::I64Extend8S(_) => f.write_str("i64.extend8_s"),
+            Lang::I32Extend16S(_) => f.write_str("i32.extend16_s"),
+            Lang::I64Extend16S(_) => f.write_str("i64.extend16_s"),
+            Lang::I64Extend32S(_) => f.write_str("i64.extend32_s"),
+            Lang::I64ExtendI32S(_) => f.write_str("i64.extendi32_s"),
+            Lang::I64ExtendI32U(_) => f.write_str("i64.extendi32_u"),
+            Lang::Call(idx, _) => f.write_str(&format!("call.{}", idx)),
+            Lang::Drop(_) => f.write_str("drop"),
+            Lang::I32Load {
+                static_offset,
+                align,
+                mem,
+                offset: _,
+            } => f.write_str(&format!("i32.load.{}.{}.{}", static_offset, align, mem)),
+            Lang::I64Load {
+                static_offset,
+                align,
+                mem,
+                offset: _,
+            } => f.write_str(&format!("i64.load.{}.{}.{}", static_offset, align, mem)),
+            Lang::I32Store {
+                static_offset,
+                align,
+                mem,
+                value_and_offset: _,
+            } => f.write_str(&format!("i32.store.{}.{}.{}", static_offset, align, mem)),
+            Lang::I64Store {
+                static_offset,
+                align,
+                mem,
+                value_and_offset: _,
+            } => f.write_str(&format!("i32.store.{}.{}.{}", static_offset, align, mem)),
+            Lang::RandI32 => f.write_str("i32.rand"),
+            Lang::RandI64 => f.write_str("i64.rand"),
+            Lang::Undef => f.write_str("undef"),
+            Lang::UnfoldI32(_) => f.write_str("i32.unfold"),
+            Lang::UnfoldI64(_) => f.write_str("i64.unfold"),
+            //Lang::Select(_) => f.write_str("select"),
         }
     }
 }
@@ -170,6 +274,13 @@ impl Lang {
             )),
             "_i64" => Ok(Lang::I64(
                 i64::from_str(n).expect("Invalid integer parsing radix 10"),
+            )),
+            // Notice that the rewriting rules should be written in the integer representation of the float bits
+            "_f32" => Ok(Lang::F32(
+                u32::from_str(n).expect("Invalid integer parsing radix 10"),
+            )),
+            "_f64" => Ok(Lang::F64(
+                u64::from_str(n).expect("Invalid integer parsing radix 10"),
             )),
             // Add other types here
             _ => Err(format!("Invalid type annotation for {:?}", op_str)),
@@ -369,6 +480,9 @@ impl egg::Language for Lang {
             Lang::UnfoldI32(operand) | Lang::UnfoldI64(operand) => std::slice::from_ref(operand),
             Lang::I32(_) => &[],
             Lang::I64(_) => &[],
+            Lang::F32(_) => &[],
+            Lang::F64(_) => &[],
+            //Lang::Select(operands) => operands,
         }
     }
 
@@ -474,6 +588,9 @@ impl egg::Language for Lang {
             Lang::Undef => &mut [],
             Lang::I32(_) => &mut [],
             Lang::I64(_) => &mut [],
+            Lang::F32(_) => &mut [],
+            Lang::F64(_) => &mut [],
+            //Lang::Select(operands) => operands,
         }
     }
 
@@ -564,6 +681,7 @@ impl egg::Language for Lang {
             "i64.rand" => Ok(Lang::RandI64),
             "undef" => Ok(Lang::Undef),
             "drop" => Ok(Lang::Drop([children[0]])),
+            //"select" => Ok(Lang::Select([children[0], children[1], children[2]])),
             _ => Lang::parse_call(op_str, &children)
                 .or(Lang::parse_mem_op(op_str, &children))
                 .or(Lang::parse_index_op(op_str, &children))

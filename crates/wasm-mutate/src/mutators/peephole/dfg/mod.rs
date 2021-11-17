@@ -454,6 +454,24 @@ impl<'a> DFGBuilder {
                         PrimitiveTypeInfo::I64,
                     );
                 }
+                Operator::F32Const { value } => {
+                    self.push_node(
+                        Lang::F32(value.bits()),
+                        idx,
+                        vec![],
+                        color,
+                        PrimitiveTypeInfo::I32,
+                    );
+                }
+                Operator::F64Const { value } => {
+                    self.push_node(
+                        Lang::F64(value.bits()),
+                        idx,
+                        vec![],
+                        color,
+                        PrimitiveTypeInfo::I64,
+                    );
+                }
                 Operator::LocalSet { local_index } => {
                     // It needs the offset arg
                     let child = self.pop_operand(idx, true);

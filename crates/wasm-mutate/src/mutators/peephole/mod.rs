@@ -180,7 +180,7 @@ impl PeepholeMutator {
                                     root,
                                     /* only 1 for now */ 0,
                                     build_expr,
-                                    /* max tries */ 1,
+                                    /* max tries */ 3,
                                     |expr| !expr.to_string().eq(&start.to_string()),
                                 )?;
 
@@ -1355,6 +1355,32 @@ mod tests {
                 local.get 0
                 i64.add)
             (export "exported_func" (func 0)))
+        "#,
+            0,
+        );
+    }
+
+    #[test]
+    fn test_peep_floats1() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("rule";  "1_f32" => "0_f32" )];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func") (result f32) (local i64 i64)
+                f32.const 1
+            )
+        )
+        "#,
+            rules,
+            r#"
+            (module
+                (type (;0;) (func (result f32)))
+                (func (;0;) (type 0) (result f32)
+                  (local i64 i64)
+                  f32.const 0x0p+0 (;=0;))
+                (export "exported_func" (func 0)))
         "#,
             0,
         );

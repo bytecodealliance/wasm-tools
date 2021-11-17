@@ -136,6 +136,9 @@ impl PeepholeMutationAnalysis {
             Lang::GlobalGet(v) => Ok(self.global_types[*v as usize].clone()),
             Lang::I32Store { .. } => Ok(PrimitiveTypeInfo::Empty),
             Lang::I64Store { .. } => Ok(PrimitiveTypeInfo::Empty),
+            // Lang::Select(_) => todo!(),
+            Lang::F32(_) => Ok(PrimitiveTypeInfo::F32),
+            Lang::F64(_) => Ok(PrimitiveTypeInfo::I64),
         }
     }
 
