@@ -113,8 +113,9 @@ where
     pub fn extract_shorter(
         &self,
         eclass: Id,
-        expression_builder: impl Fn(Id, &[L], &[Vec<Id>]) -> RecExpr<L>,
-    ) -> crate::Result<RecExpr<L>> // return the random tree, TODO, improve the way the tree is returned
+        recexpr: &RefCell<RecExpr<L>>,
+        expression_builder: impl Fn(Id, &[L], &[Vec<Id>], &mut RecExpr<L>) -> Id,
+    ) -> crate::Result<Id> // return the random tree, TODO, improve the way the tree is returned
     {
         // A map from a node's id to its actual node data.
         let mut id_to_node = vec![];
@@ -125,7 +126,6 @@ where
         let rootidx = self.costs[&eclass].1;
         let rootnode = &self.egraph[eclass].nodes[rootidx];
         // The operator index is the same in all eclass nodes
-
         id_to_node.push(self.egraph[eclass].nodes[rootidx].clone());
         operands.push(vec![]);
 
@@ -138,6 +138,7 @@ where
 
         // The RecExpr can be built directly here following the following rules
         // The childrens of a node are before in the array
+
         while let Some((parentidx, &node, depth)) = worklist.pop() {
             let node_idx = self.costs[&node].1;
             let operand = Id::from(id_to_node.len());
@@ -158,7 +159,8 @@ where
             );
         }
         // Build the tree with the right language constructor
-        let expr = expression_builder(Id::from(0), &id_to_node, &operands);
+        let mut to_write_in = recexpr.borrow_mut();
+        let expr = expression_builder(Id::from(0), &id_to_node, &operands, &mut to_write_in);
         Ok(expr)
     }
 }

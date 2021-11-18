@@ -1,26 +1,96 @@
-use std::{
-    cell::{RefCell},
-};
+use std::cell::RefCell;
 
-use crate::{
-    mutators::peephole::{
-        eggsy::{encoder::rebuild::build_expr, RandomExtractor},
-        EG,
-    },
+use crate::mutators::peephole::{
+    eggsy::{encoder::rebuild::build_expr_inner, RandomExtractor},
+    EG,
 };
-use egg::{AstSize, Id, Language};
+use egg::{AstSize, Id, Language, RecExpr};
 use rand::{prelude::SmallRng, Rng};
 
 use super::lang::Lang;
 
-macro_rules! product(
-    ($first:ident, $($next:ident),*) => (
-        $first.iter() $(
-            .flat_map(|e| std::iter::Repeat::new(e)
-                .zip($next.iter()))
-        )*
-    );
-);
+macro_rules! binop {
+    ($lang:ident, $left:ident, $right: ident, $egraph: ident, $rnd: ident, $depth: ident, $recexpr: ident) => {{
+        let lcope = $left;
+        let rcopy = $right;
+        let t = lazy_expand(lcope, $egraph.clone(), $depth, $rnd, &$recexpr)
+            .flat_map(move |e| {
+                std::iter::repeat(e).zip(lazy_expand(
+                    rcopy,
+                    $egraph.clone(),
+                    $depth,
+                    $rnd,
+                    &$recexpr,
+                ))
+            })
+            .map(move |(l, r)| $recexpr.borrow_mut().add(Lang::$lang([l, r])));
+
+        Box::new(t)
+    }};
+}
+
+macro_rules! unop {
+    ($lang:ident,$arg: ident, $egraph: ident, $rnd: ident, $depth: ident, $recexpr: ident) => {{
+        let lcope = $arg;
+        let t = lazy_expand(lcope, $egraph, $depth, $rnd, &$recexpr)
+            .map(move |l| $recexpr.borrow_mut().add(Lang::$lang([l])));
+
+        Box::new(t)
+    }};
+}
+
+macro_rules! store {
+    ($lang:ident, $left:ident, $right: ident, $egraph: ident, $rnd: ident, $depth: ident, $recexpr: ident, $align: ident, $offset: ident, $mem: ident) => {{
+        let lcope = $left;
+        let rcopy = $right;
+        let t = lazy_expand(lcope, $egraph.clone(), $depth, $rnd, &$recexpr)
+            .flat_map(move |e| {
+                std::iter::repeat(e).zip(lazy_expand(
+                    rcopy,
+                    $egraph.clone(),
+                    $depth,
+                    $rnd,
+                    &$recexpr,
+                ))
+            })
+            .map(move |(l, r)| {
+                $recexpr.borrow_mut().add(Lang::$lang {
+                    value_and_offset: [l, r],
+                    align: $align,
+                    mem: $mem,
+                    static_offset: $offset,
+                })
+            });
+
+        Box::new(t)
+    }};
+}
+
+macro_rules! load {
+    ($lang:ident, $arg: ident, $egraph: ident, $rnd: ident, $depth: ident, $recexpr: ident, $align: ident, $offset: ident, $mem: ident) => {{
+        let lcope = $arg;
+        let t = lazy_expand(lcope, $egraph, $depth, $rnd, &$recexpr).map(move |l| {
+            $recexpr.borrow_mut().add(Lang::$lang {
+                offset: l,
+                static_offset: $offset,
+                align: $align,
+                mem: $mem,
+            })
+        });
+
+        Box::new(t)
+    }};
+}
+
+macro_rules! local_or_global {
+    ($lang:ident, $idx: ident, $arg: ident, $egraph: ident, $rnd: ident, $depth: ident, $recexpr: ident) => {{
+        let lcope = $arg;
+        let t = lazy_expand(lcope, $egraph, $depth, $rnd, &$recexpr)
+            .map(move |l| $recexpr.borrow_mut().add(Lang::$lang($idx, l)));
+
+        Box::new(t)
+    }};
+}
 
 /// Returns a lazy iterator over random expressions in the eggraph
 ///
@@ -29,16 +99,19 @@ pub fn lazy_expand<'a>(
     egraph: EG,
     depth: u32,
     rnd: &'a RefCell<&'a mut SmallRng>,
-) -> impl Iterator<Item = String> + 'a {
-    println!("Calling for {}", id);
+    recexpr: &'a RefCell<RecExpr<Lang>>,
+) -> impl Iterator<Item = Id> + 'a {
     // Notice that the result is a String, it is easier to construct the expression like this
     // future implementation can take a mut RecExpr and just return the Id of the expression on
     // each `lazy_expand` iteration
-    let t: Box<dyn Iterator<Item = String>> = if depth == 0 {
+    let t: Box<dyn Iterator<Item = Id>> = if depth == 0 {
         let cf = AstSize;
         let extractor = RandomExtractor::new(&egraph, cf);
-        let shorter = extractor.extract_shorter(id, build_expr).unwrap();
-        Box::new(vec![format!("{}", shorter)].into_iter())
+        let shorter = extractor
+            .extract_shorter(id, &recexpr, build_expr_inner)
+            .unwrap();
+
+        Box::new(vec![shorter].into_iter())
     } else {
         let nodes = egraph[id].nodes.clone();
         let count = nodes.len();
@@ -52,132 +125,282 @@ pub fn lazy_expand<'a>(
                 let eg = egraph.clone();
                 let lc = l;
 
-                let iter: Box<dyn Iterator<Item = String>> = match lc {
+                let iter: Box<dyn Iterator<Item = Id>> = match lc {
+                    // ($lang:ident, $left:ident, $right: ident, $egraph: ident, $rnd: ident, $depth: ident, $recexpr: ident, &align: ident, &offset: ident, &mem: ident)
                     Lang::I32Store {
+                        value_and_offset: [left, right],
+                        mem,
+                        static_offset,
+                        align,
+                    } => store!(
+                        I32Store,
+                        left,
+                        right,
+                        eg,
+                        rnd,
+                        n,
+                        recexpr,
+                        align,
+                        static_offset,
+                        mem
+                    ),
+                    Lang::I64Store {
                         value_and_offset: [right, left],
-                        ..
-                    }
-                    | Lang::I64Store {
+                        mem,
+                        static_offset,
+                        align,
+                    } => store!(
+                        I64Store,
+                        left,
+                        right,
+                        eg,
+                        rnd,
+                        n,
+                        recexpr,
+                        align,
+                        static_offset,
+                        mem
+                    ),
+                    Lang::F32Store {
                         value_and_offset: [right, left],
-                        ..
-                    }
-                    | Lang::F32Store {
+                        mem,
+                        static_offset,
+                        align,
+                    } => store!(
+                        F32Store,
+                        left,
+                        right,
+                        eg,
+                        rnd,
+                        n,
+                        recexpr,
+                        align,
+                        static_offset,
+                        mem
+                    ),
+                    Lang::F64Store {
                         value_and_offset: [right, left],
-                        ..
-                    }
-                    | Lang::F64Store {
+                        mem,
+                        static_offset,
+                        align,
+                    } => store!(
+                        F64Store,
+                        left,
+                        right,
+                        eg,
+                        rnd,
+                        n,
+                        recexpr,
+                        align,
+                        static_offset,
+                        mem
+                    ),
+                    Lang::I32Store8 {
                         value_and_offset: [right, left],
-                        ..
-                    }
-                    | Lang::I32Store8 {
+                        mem,
+                        static_offset,
+                        align,
+                    } => store!(
+                        I32Store8,
+                        left,
+                        right,
+                        eg,
+                        rnd,
+                        n,
+                        recexpr,
+                        align,
+                        static_offset,
+                        mem
+                    ),
+                    Lang::I32Store16 {
                         value_and_offset: [right, left],
-                        ..
-                    }
-                    | Lang::I32Store16 {
+                        mem,
+                        static_offset,
+                        align,
+                    } => store!(
+                        I32Store16,
+                        left,
+                        right,
+                        eg,
+                        rnd,
+                        n,
+                        recexpr,
+                        align,
+                        static_offset,
+                        mem
+                    ),
+                    Lang::I64Store8 {
                         value_and_offset: [right, left],
-                        ..
-                    }
-                    | Lang::I64Store8 {
+                        mem,
+                        static_offset,
+                        align,
+                    } => store!(
+                        I64Store8,
+                        left,
+                        right,
+                        eg,
+                        rnd,
+                        n,
+                        recexpr,
+                        align,
+                        static_offset,
+                        mem
+                    ),
+                    Lang::I64Store16 {
                         value_and_offset: [right, left],
-                        ..
-                    }
-                    | Lang::I64Store16 {
+                        mem,
+                        static_offset,
+                        align,
+                    } => store!(
+                        I64Store16,
+                        left,
+                        right,
+                        eg,
+                        rnd,
+                        n,
+                        recexpr,
+                        align,
+                        static_offset,
+                        mem
+                    ),
+                    Lang::I64Store32 {
                         value_and_offset: [right, left],
-                        ..
+                        mem,
+                        static_offset,
+                        align,
+                    } => store!(
+                        I64Store32,
+                        left,
+                        right,
+                        eg,
+                        rnd,
+                        n,
+                        recexpr,
+                        align,
+                        static_offset,
+                        mem
+                    ),
+                    Lang::I32Add([left, right]) => binop!(I32Add, left, right, eg, rnd, n, recexpr),
+                    Lang::I64Add([left, right]) => binop!(I64Add, left, right, eg, rnd, n, recexpr),
+                    Lang::I32Sub([left, right]) => binop!(I32Sub, left, right, eg, rnd, n, recexpr),
+                    Lang::I64Sub([left, right]) => binop!(I64Sub, left, right, eg, rnd, n, recexpr),
+                    Lang::I32Mul([left, right]) => binop!(I32Mul, left, right, eg, rnd, n, recexpr),
+                    Lang::I64Mul([left, right]) => binop!(I64Mul, left, right, eg, rnd, n, recexpr),
+                    Lang::I32And([left, right]) => binop!(I32And, left, right, eg, rnd, n, recexpr),
+                    Lang::I64And([left, right]) => binop!(I64And, left, right, eg, rnd, n, recexpr),
+                    Lang::I32Or([left, right]) => binop!(I32Or, left, right, eg, rnd, n, recexpr),
+                    Lang::I64Or([left, right]) => binop!(I64Or, left, right, eg, rnd, n, recexpr),
+                    Lang::I32Xor([left, right]) => binop!(I32Xor, left, right, eg, rnd, n, recexpr),
+                    Lang::I64Xor([left, right]) => binop!(I64Xor, left, right, eg, rnd, n, recexpr),
+                    Lang::I32Shl([left, right]) => binop!(I32Shl, left, right, eg, rnd, n, recexpr),
+                    Lang::I64Shl([left, right]) => binop!(I64Shl, left, right, eg, rnd, n, recexpr),
+                    Lang::I32ShrU([left, right]) => {
+                        binop!(I32ShrU, left, right, eg, rnd, n, recexpr)
                     }
-                    | Lang::I64Store32 {
-                        value_and_offset: [right, left],
-                        ..
+                    Lang::I64ShrU([left, right]) => {
+                        binop!(I64ShrU, left, right, eg, rnd, n, recexpr)
                     }
-                    | Lang::I32Add([left, right])
-                    | Lang::I64Add([left, right])
-                    | Lang::I32Sub([left, right])
-                    | Lang::I64Sub([left, right])
-                    | Lang::I32Mul([left, right])
-                    | Lang::I64Mul([left, right])
-                    | Lang::I32And([left, right])
-                    | Lang::I64And([left, right])
-                    | Lang::I32Or([left, right])
-                    | Lang::I64Or([left, right])
-                    | Lang::I32Xor([left, right])
-                    | Lang::I64Xor([left, right])
-                    | Lang::I32Shl([left, right])
-                    | Lang::I64Shl([left, right])
-                    | Lang::I32ShrU([left, right])
-                    | Lang::I64ShrU([left, right])
-                    | Lang::I32DivU([left, right])
-                    | Lang::I64DivU([left, right])
-                    | Lang::I32DivS([left, right])
-                    | Lang::I64DivS([left, right])
-                    | Lang::I32ShrS([left, right])
-                    | Lang::I64ShrS([left, right])
-                    | Lang::I32RotR([left, right])
-                    | Lang::I64RotR([left, right])
-                    | Lang::I32RotL([left, right])
-                    | Lang::I64RotL([left, right])
-                    | Lang::I32RemS([left, right])
-                    | Lang::I64RemS([left, right])
-                    | Lang::I32RemU([left, right])
-                    | Lang::I64RemU([left, right])
-                    | Lang::I32Eq([left, right])
-                    | Lang::I64Eq([left, right])
-                    | Lang::I32Ne([left, right])
-                    | Lang::I64Ne([left, right])
-                    | Lang::I32LtS([left, right])
-                    | Lang::I64LtS([left, right])
-                    | Lang::I32LtU([left, right])
-                    | Lang::I64LtU([left, right])
-                    | Lang::I32GtS([left, right])
-                    | Lang::I64GtS([left, right])
-                    | Lang::I32GtU([left, right])
-                    | Lang::I64GtU([left, right])
-                    | Lang::I32LeS([left, right])
-                    | Lang::I64LeS([left, right])
-                    | Lang::I32LeU([left, right])
-                    | Lang::I64LeU([left, right])
-                    | Lang::I32GeS([left, right])
-                    | Lang::I64GeS([left, right])
-                    | Lang::I32GeU([left, right])
-                    | Lang::I64GeU([left, right])
-                    | Lang::F32Add([left, right])
-                    | Lang::F64Add([left, right])
-                    | Lang::F32Sub([left, right])
-                    | Lang::F64Sub([left, right])
-                    | Lang::F32Mul([left, right])
-                    | Lang::F64Mul([left, right])
-                    | Lang::F32Div([left, right])
-                    | Lang::F64Div([left, right])
-                    | Lang::F32Min([left, right])
-                    | Lang::F64Min([left, right])
-                    | Lang::F32Max([left, right])
-                    | Lang::F64Max([left, right])
-                    | Lang::F32Copysign([left, right])
-                    | Lang::F64Copysign([left, right])
-                    | Lang::F32Eq([left, right])
-                    | Lang::F64Eq([left, right])
-                    | Lang::F32Ne([left, right])
-                    | Lang::F64Ne([left, right])
-                    | Lang::F32Lt([left, right])
-                    | Lang::F64Lt([left, right])
-                    | Lang::F32Gt([left, right])
-                    | Lang::F64Gt([left, right])
-                    | Lang::F32Le([left, right])
-                    | Lang::F64Le([left, right])
-                    | Lang::F32Ge([left, right])
-                    | Lang::F64Ge([left, right]) => {
-                        let lcope = left;
-                        let rcopy = right;
-                        let lc2 = lc.clone();
-                        // zip the expansion of the operands
-                        let t = lazy_expand(lcope, eg.clone(), n, rnd)
-                            .flat_map(move |e| {
-                                std::iter::repeat(e).zip(lazy_expand(rcopy, eg.clone(), n, rnd))
-                            })
-                            .map(move |(l, r)| {
-                                format!("({} {} {})", lc2.display_op(), l, r)
-                            });
+                    Lang::I32DivU([left, right]) => {
+                        binop!(I32DivU, left, right, eg, rnd, n, recexpr)
+                    }
+                    Lang::I64DivU([left, right]) => {
+                        binop!(I64DivU, left, right, eg, rnd, n, recexpr)
+                    }
+                    Lang::I32DivS([left, right]) => {
+                        binop!(I32DivS, left, right, eg, rnd, n, recexpr)
+                    }
+                    Lang::I64DivS([left, right]) => {
+                        binop!(I64DivS, left, right, eg, rnd, n, recexpr)
+                    }
+                    Lang::I32ShrS([left, right]) => {
+                        binop!(I32ShrS, left, right, eg, rnd, n, recexpr)
+                    }
+                    Lang::I64ShrS([left, right]) => {
+                        binop!(I64ShrS, left, right, eg, rnd, n, recexpr)
+                    }
+                    Lang::I32RotR([left, right]) => {
+                        binop!(I32RotR, left, right, eg, rnd, n, recexpr)
+                    }
+                    Lang::I64RotR([left, right]) => {
+                        binop!(I64RotR, left, right, eg, rnd, n, recexpr)
+                    }
+                    Lang::I32RotL([left, right]) => {
+                        binop!(I32RotL, left, right, eg, rnd, n, recexpr)
+                    }
+                    Lang::I64RotL([left, right]) => {
+                        binop!(I64RotL, left, right, eg, rnd, n, recexpr)
+                    }
+                    Lang::I32RemS([left, right]) => {
+                        binop!(I32RemS, left, right, eg, rnd, n, recexpr)
+                    }
+                    Lang::I64RemS([left, right]) => {
+                        binop!(I64RemS, left, right, eg, rnd, n, recexpr)
+                    }
+                    Lang::I32RemU([left, right]) => {
+                        binop!(I32RemU, left, right, eg, rnd, n, recexpr)
+                    }
+                    Lang::I64RemU([left, right]) => {
+                        binop!(I64RemU, left, right, eg, rnd, n, recexpr)
+                    }
+                    Lang::I32Eq([left, right]) => binop!(I32Eq, left, right, eg, rnd, n, recexpr),
+                    Lang::I64Eq([left, right]) => binop!(I64Eq, left, right, eg, rnd, n, recexpr),
+                    Lang::I32Ne([left, right]) => binop!(I32Ne, left, right, eg, rnd, n, recexpr),
+                    Lang::I64Ne([left, right]) => binop!(I64Ne, left, right, eg, rnd, n, recexpr),
+                    Lang::I32LtS([left, right]) => binop!(I32LtS, left, right, eg, rnd, n, recexpr),
+                    Lang::I64LtS([left, right]) => binop!(I64LtS, left, right, eg, rnd, n, recexpr),
+                    Lang::I32LtU([left, right]) => binop!(I32LtU, left, right, eg, rnd, n, recexpr),
+                    Lang::I64LtU([left, right]) => binop!(I64LtU, left, right, eg, rnd, n, recexpr),
+                    Lang::I32GtS([left, right]) => binop!(I32GtS, left, right, eg, rnd, n, recexpr),
+                    Lang::I64GtS([left, right]) => binop!(I64GtS, left, right, eg, rnd, n, recexpr),
+                    Lang::I32GtU([left, right]) => binop!(I32GtU, left, right, eg, rnd, n, recexpr),
+                    Lang::I64GtU([left, right]) => binop!(I64GtU, left, right, eg, rnd, n, recexpr),
+                    Lang::I32LeS([left, right]) => binop!(I32LeS, left, right, eg, rnd, n, recexpr),
+                    Lang::I64LeS([left, right]) => binop!(I64LeS, left, right, eg, rnd, n, recexpr),
+                    Lang::I32LeU([left, right]) => binop!(I32LeU, left, right, eg, rnd, n, recexpr),
+                    Lang::I64LeU([left, right]) => binop!(I64LeU, left, right, eg, rnd, n, recexpr),
+                    Lang::I32GeS([left, right]) => binop!(I32GeS, left, right, eg, rnd, n, recexpr),
+                    Lang::I64GeS([left, right]) => binop!(I64GeS, left, right, eg, rnd, n, recexpr),
+                    Lang::I32GeU([left, right]) => binop!(I32GeU, left, right, eg, rnd, n, recexpr),
+                    Lang::I64GeU([left, right]) => binop!(I64GeU, left, right, eg, rnd, n, recexpr),
+                    Lang::F32Add([left, right]) => binop!(F32Add, left, right, eg, rnd, n, recexpr),
+                    Lang::F64Add([left, right]) => binop!(F64Add, left, right, eg, rnd, n, recexpr),
+                    Lang::F32Sub([left, right]) => binop!(F32Sub, left, right, eg, rnd, n, recexpr),
+                    Lang::F64Sub([left, right]) => binop!(F64Sub, left, right, eg, rnd, n, recexpr),
+                    Lang::F32Mul([left, right]) => binop!(F32Mul, left, right, eg, rnd, n, recexpr),
+                    Lang::F64Mul([left, right]) => binop!(F64Mul, left, right, eg, rnd, n, recexpr),
+                    Lang::F32Div([left, right]) => binop!(F32Div, left, right, eg, rnd, n, recexpr),
+                    Lang::F64Div([left, right]) => binop!(F64Div, left, right, eg, rnd, n, recexpr),
+                    Lang::F32Min([left, right]) => binop!(F32Min, left, right, eg, rnd, n, recexpr),
+                    Lang::F64Min([left, right]) => binop!(F64Min, left, right, eg, rnd, n, recexpr),
+                    Lang::F32Max([left, right]) => binop!(F32Max, left, right, eg, rnd, n, recexpr),
+                    Lang::F64Max([left, right]) => binop!(F64Max, left, right, eg, rnd, n, recexpr),
+                    Lang::F32Copysign([left, right]) => {
+                        binop!(F32Copysign, left, right, eg, rnd, n, recexpr)
+                    }
+                    Lang::F64Copysign([left, right]) => {
+                        binop!(F64Copysign, left, right, eg, rnd, n, recexpr)
+                    }
+                    Lang::F32Eq([left, right]) => binop!(F32Eq, left, right, eg, rnd, n, recexpr),
+                    Lang::F64Eq([left, right]) => binop!(F64Eq, left, right, eg, rnd, n, recexpr),
+                    Lang::F32Ne([left, right]) => binop!(F32Ne, left, right, eg, rnd, n, recexpr),
+                    Lang::F64Ne([left, right]) => binop!(F64Ne, left, right, eg, rnd, n, recexpr),
+                    Lang::F32Lt([left, right]) => binop!(F32Lt, left, right, eg, rnd, n, recexpr),
+                    Lang::F64Lt([left, right]) => binop!(F64Lt, left, right, eg, rnd, n, recexpr),
+                    Lang::F32Gt([left, right]) => binop!(F32Gt, left, right, eg, rnd, n, recexpr),
+                    Lang::F64Gt([left, right]) => binop!(F64Gt, left, right, eg, rnd, n, recexpr),
+                    Lang::F32Le([left, right]) => binop!(F32Le, left, right, eg, rnd, n, recexpr),
+                    Lang::F64Le([left, right]) => binop!(F64Le, left, right, eg, rnd, n, recexpr),
+                    Lang::F32Ge([left, right]) => binop!(F32Ge, left, right, eg, rnd, n, recexpr),
+                    Lang::F64Ge([left, right]) => binop!(F64Ge, left, right, eg, rnd, n, recexpr),
 
-                        Box::new(t)
+                    Lang::LocalSet(idx, arg) => {
+                        local_or_global!(LocalSet, idx, arg, eg, rnd, n, recexpr)
+                    }
+                    Lang::LocalTee(idx, arg) => {
+                        local_or_global!(LocalTee, idx, arg, eg, rnd, n, recexpr)
+                    }
+                    Lang::GlobalSet(idx, arg) => {
+                        local_or_global!(GlobalSet, idx, arg, eg, rnd, n, recexpr)
                     }
                     Lang::Call(idx, arguments) => {
                         // FIXME
@@ -187,133 +410,365 @@ pub fn lazy_expand<'a>(
                         // arguments are expressed in the binary tree
                         // For example
                         // (call.$1 a b c d) can be turned into (call.$1 a (container b (container c (container d)))))
-                        let mut expr = String::from("");
+                        let mut operands = vec![];
                         for a in &arguments {
-                            expr.push_str(&format!(
-                                " {}",
-                                lazy_expand(*a, eg.clone(), n, rnd).next().unwrap()
-                            ));
+                            let na = lazy_expand(*a, eg.clone(), n, rnd, &recexpr)
+                                .next()
+                                .unwrap();
+                            operands.push(na);
                         }
 
-                        let t = std::iter::once(format!("(call.{}{})", idx, expr));
+                        let t =
+                            std::iter::once(recexpr.borrow_mut().add(Lang::Call(idx, operands)));
                         Box::new(t)
                     }
-
                     Lang::Container(arguments) => {
                         // FIXME
                         // Same as Call
-                        let mut expr = String::from("");
+                        let mut operands = vec![];
                         for a in &arguments {
-                            expr.push_str(&format!(
-                                " {}",
-                                lazy_expand(*a, eg.clone(), n, rnd).next().unwrap()
-                            ));
+                            let na = lazy_expand(*a, eg.clone(), n, rnd, &recexpr)
+                                .next()
+                                .unwrap();
+                            operands.push(na);
                         }
 
-                        let t = std::iter::once(format!("(container {})", expr));
+                        let t =
+                            std::iter::once(recexpr.borrow_mut().add(Lang::Container(operands)));
                         Box::new(t)
                     }
-                    Lang::F32Load { offset: arg, .. }
-                    | Lang::F64Load { offset: arg, .. }
-                    | Lang::I32Load8S { offset: arg, .. }
-                    | Lang::I32Load8U { offset: arg, .. }
-                    | Lang::I32Load16S { offset: arg, .. }
-                    | Lang::I32Load16U { offset: arg, .. }
-                    | Lang::I64Load8S { offset: arg, .. }
-                    | Lang::I64Load8U { offset: arg, .. }
-                    | Lang::I64Load16S { offset: arg, .. }
-                    | Lang::I64Load16U { offset: arg, .. }
-                    | Lang::I64Load32S { offset: arg, .. }
-                    | Lang::I64Load32U { offset: arg, .. }
-                    | Lang::I64Load { offset: arg, .. }
-                    | Lang::I32Load { offset: arg, .. }
-                    | Lang::LocalSet(_, arg)
-                    | Lang::LocalTee(_, arg)
-                    | Lang::GlobalSet(_, arg)
-                    | Lang::F32Abs([arg])
-                    | Lang::F64Abs([arg])
-                    | Lang::F32Neg([arg])
-                    | Lang::F64Neg([arg])
-                    | Lang::F32Sqrt([arg])
-                    | Lang::F64Sqrt([arg])
-                    | Lang::F32Ceil([arg])
-                    | Lang::F64Ceil([arg])
-                    | Lang::F32Floor([arg])
-                    | Lang::F64Floor([arg])
-                    | Lang::F32Trunc([arg])
-                    | Lang::F64trunc([arg])
-                    | Lang::F32Nearest([arg])
-                    | Lang::F64Nearest([arg])
-                    | Lang::Wrap([arg])
-                    | Lang::I32Extend8S([arg])
-                    | Lang::I64Extend8S([arg])
-                    | Lang::I32Extend16S([arg])
-                    | Lang::I64Extend16S([arg])
-                    | Lang::I64Extend32S([arg])
-                    | Lang::I64ExtendI32S([arg])
-                    | Lang::I64ExtendI32U([arg])
-                    | Lang::I32TruncF32S([arg])
-                    | Lang::I32TruncF32U([arg])
-                    | Lang::I32TruncF64S([arg])
-                    | Lang::I32TruncF64U([arg])
-                    | Lang::I64TruncF32S([arg])
-                    | Lang::I64TruncF32U([arg])
-                    | Lang::I64TruncF64S([arg])
-                    | Lang::I64TruncF64U([arg])
-                    | Lang::F32ConvertI32S([arg])
-                    | Lang::F32ConvertI32U([arg])
-                    | Lang::F32ConvertI64S([arg])
-                    | Lang::F32ConvertI64U([arg])
-                    | Lang::F32DemoteF64([arg])
-                    | Lang::F64ConvertI32S([arg])
-                    | Lang::F64ConvertI32U([arg])
-                    | Lang::F64ConvertI64S([arg])
-                    | Lang::F64ConvertI64U([arg])
-                    | Lang::F64PromoteF32([arg])
-                    | Lang::I32ReinterpretF32([arg])
-                    | Lang::I64ReinterpretF64([arg])
-                    | Lang::F32ReinterpretI32([arg])
-                    | Lang::F64ReinterpretI64([arg])
-                    | Lang::I32TruncSatF32S([arg])
-                    | Lang::I32TruncSatF32U([arg])
-                    | Lang::I32TruncSatF64S([arg])
-                    | Lang::I32TruncSatF64U([arg])
-                    | Lang::I64TruncSatF32S([arg])
-                    | Lang::I64TruncSatF32U([arg])
-                    | Lang::I64TruncSatF64S([arg])
-                    | Lang::I64TruncSatF64U([arg])
-                    | Lang::Drop([arg])
-                    | Lang::I32Eqz([arg])
-                    | Lang::I64Eqz([arg])
-                    | Lang::I32Popcnt([arg])
-                    | Lang::I64Popcnt([arg])
-                    | Lang::I32Clz([arg])
-                    | Lang::I32Ctz([arg])
-                    | Lang::I64Ctz([arg])
-                    | Lang::I64Clz([arg])
-                    | Lang::UnfoldI64(arg)
-                    | Lang::UnfoldI32(arg) => {
+                    Lang::I64Load32U {
+                        offset: arg,
+                        align,
+                        static_offset,
+                        mem,
+                    } => load!(
+                        I64Load32U,
+                        arg,
+                        eg,
+                        rnd,
+                        n,
+                        recexpr,
+                        align,
+                        static_offset,
+                        mem
+                    ),
+
+                    Lang::F32Load {
+                        offset: arg,
+                        align,
+                        static_offset,
+                        mem,
+                    } => load!(F32Load, arg, eg, rnd, n, recexpr, align, static_offset, mem),
+                    Lang::F64Load {
+                        offset: arg,
+                        align,
+                        static_offset,
+                        mem,
+                    } => load!(F64Load, arg, eg, rnd, n, recexpr, align, static_offset, mem),
+                    Lang::I32Load8S {
+                        offset: arg,
+                        align,
+                        static_offset,
+                        mem,
+                    } => load!(
+                        I32Load8S,
+                        arg,
+                        eg,
+                        rnd,
+                        n,
+                        recexpr,
+                        align,
+                        static_offset,
+                        mem
+                    ),
+                    Lang::I32Load8U {
+                        offset: arg,
+                        align,
+                        static_offset,
+                        mem,
+                    } => load!(
+                        I32Load8U,
+                        arg,
+                        eg,
+                        rnd,
+                        n,
+                        recexpr,
+                        align,
+                        static_offset,
+                        mem
+                    ),
+                    Lang::I32Load16S {
+                        offset: arg,
+                        align,
+                        static_offset,
+                        mem,
+                    } => load!(
+                        I32Load16S,
+                        arg,
+                        eg,
+                        rnd,
+                        n,
+                        recexpr,
+                        align,
+                        static_offset,
+                        mem
+                    ),
+                    Lang::I32Load16U {
+                        offset: arg,
+                        align,
+                        static_offset,
+                        mem,
+                    } => load!(
+                        I32Load16U,
+                        arg,
+                        eg,
+                        rnd,
+                        n,
+                        recexpr,
+                        align,
+                        static_offset,
+                        mem
+                    ),
+                    Lang::I64Load8S {
+                        offset: arg,
+                        align,
+                        static_offset,
+                        mem,
+                    } => load!(
+                        I64Load8S,
+                        arg,
+                        eg,
+                        rnd,
+                        n,
+                        recexpr,
+                        align,
+                        static_offset,
+                        mem
+                    ),
+                    Lang::I64Load8U {
+                        offset: arg,
+                        align,
+                        static_offset,
+                        mem,
+                    } => load!(
+                        I64Load8U,
+                        arg,
+                        eg,
+                        rnd,
+                        n,
+                        recexpr,
+                        align,
+                        static_offset,
+                        mem
+                    ),
+                    Lang::I64Load16S {
+                        offset: arg,
+                        align,
+                        static_offset,
+                        mem,
+                    } => load!(
+                        I64Load16S,
+                        arg,
+                        eg,
+                        rnd,
+                        n,
+                        recexpr,
+                        align,
+                        static_offset,
+                        mem
+                    ),
+                    Lang::I64Load16U {
+                        offset: arg,
+                        align,
+                        static_offset,
+                        mem,
+                    } => load!(
+                        I64Load16U,
+                        arg,
+                        eg,
+                        rnd,
+                        n,
+                        recexpr,
+                        align,
+                        static_offset,
+                        mem
+                    ),
+                    Lang::I64Load32S {
+                        offset: arg,
+                        align,
+                        static_offset,
+                        mem,
+                    } => load!(
+                        I64Load32S,
+                        arg,
+                        eg,
+                        rnd,
+                        n,
+                        recexpr,
+                        align,
+                        static_offset,
+                        mem
+                    ),
+                    Lang::I64Load32U {
+                        offset: arg,
+                        align,
+                        static_offset,
+                        mem,
+                    } => load!(
+                        I64Load32U,
+                        arg,
+                        eg,
+                        rnd,
+                        n,
+                        recexpr,
+                        align,
+                        static_offset,
+                        mem
+                    ),
+                    Lang::I64Load {
+                        offset: arg,
+                        align,
+                        static_offset,
+                        mem,
+                    } => load!(I64Load, arg, eg, rnd, n, recexpr, align, static_offset, mem),
+                    Lang::I32Load {
+                        offset: arg,
+                        align,
+                        static_offset,
+                        mem,
+                    } => load!(I32Load, arg, eg, rnd, n, recexpr, align, static_offset, mem),
+                    Lang::F32Abs([arg]) => unop!(F32Abs, arg, eg, rnd, n, recexpr),
+                    Lang::F64Abs([arg]) => unop!(F64Abs, arg, eg, rnd, n, recexpr),
+                    Lang::F32Neg([arg]) => unop!(F32Neg, arg, eg, rnd, n, recexpr),
+                    Lang::F64Neg([arg]) => unop!(F64Neg, arg, eg, rnd, n, recexpr),
+                    Lang::F32Sqrt([arg]) => unop!(F32Sqrt, arg, eg, rnd, n, recexpr),
+                    Lang::F64Sqrt([arg]) => unop!(F64Sqrt, arg, eg, rnd, n, recexpr),
+                    Lang::F32Ceil([arg]) => unop!(F32Ceil, arg, eg, rnd, n, recexpr),
+                    Lang::F64Ceil([arg]) => unop!(F64Ceil, arg, eg, rnd, n, recexpr),
+                    Lang::F32Floor([arg]) => unop!(F32Floor, arg, eg, rnd, n, recexpr),
+                    Lang::F64Floor([arg]) => unop!(F64Floor, arg, eg, rnd, n, recexpr),
+                    Lang::F32Trunc([arg]) => unop!(F32Trunc, arg, eg, rnd, n, recexpr),
+                    Lang::F64trunc([arg]) => unop!(F64trunc, arg, eg, rnd, n, recexpr),
+                    Lang::F32Nearest([arg]) => unop!(F32Nearest, arg, eg, rnd, n, recexpr),
+                    Lang::F64Nearest([arg]) => unop!(F64Nearest, arg, eg, rnd, n, recexpr),
+                    Lang::Wrap([arg]) => unop!(Wrap, arg, eg, rnd, n, recexpr),
+                    Lang::I32Extend8S([arg]) => unop!(I32Extend8S, arg, eg, rnd, n, recexpr),
+                    Lang::I64Extend8S([arg]) => unop!(I64Extend8S, arg, eg, rnd, n, recexpr),
+                    Lang::I32Extend16S([arg]) => unop!(I32Extend16S, arg, eg, rnd, n, recexpr),
+                    Lang::I64Extend16S([arg]) => unop!(I64Extend16S, arg, eg, rnd, n, recexpr),
+                    Lang::I64Extend32S([arg]) => unop!(I64Extend32S, arg, eg, rnd, n, recexpr),
+                    Lang::I64ExtendI32S([arg]) => unop!(I64ExtendI32S, arg, eg, rnd, n, recexpr),
+                    Lang::I64ExtendI32U([arg]) => unop!(I64ExtendI32U, arg, eg, rnd, n, recexpr),
+                    Lang::I32TruncF32S([arg]) => unop!(I32TruncF32S, arg, eg, rnd, n, recexpr),
+                    Lang::I32TruncF32U([arg]) => unop!(I32TruncF32U, arg, eg, rnd, n, recexpr),
+                    Lang::I32TruncF64S([arg]) => unop!(I32TruncF64S, arg, eg, rnd, n, recexpr),
+                    Lang::I32TruncF64U([arg]) => unop!(I32TruncF64U, arg, eg, rnd, n, recexpr),
+                    Lang::I64TruncF32S([arg]) => unop!(I64TruncF32S, arg, eg, rnd, n, recexpr),
+                    Lang::I64TruncF32U([arg]) => unop!(I64TruncF32U, arg, eg, rnd, n, recexpr),
+                    Lang::I64TruncF64S([arg]) => unop!(I64TruncF64S, arg, eg, rnd, n, recexpr),
+                    Lang::I64TruncF64U([arg]) => unop!(I64TruncF64U, arg, eg, rnd, n, recexpr),
+                    Lang::F32ConvertI32S([arg]) => unop!(F32ConvertI32S, arg, eg, rnd, n, recexpr),
+                    Lang::F32ConvertI32U([arg]) => unop!(F32ConvertI32U, arg, eg, rnd, n, recexpr),
+                    Lang::F32ConvertI64S([arg]) => unop!(F32ConvertI64S, arg, eg, rnd, n, recexpr),
+                    Lang::F32ConvertI64U([arg]) => unop!(F32ConvertI64U, arg, eg, rnd, n, recexpr),
+                    Lang::F32DemoteF64([arg]) => unop!(F32DemoteF64, arg, eg, rnd, n, recexpr),
+                    Lang::F64ConvertI32S([arg]) => unop!(F64ConvertI32S, arg, eg, rnd, n, recexpr),
+                    Lang::F64ConvertI32U([arg]) => unop!(F64ConvertI32U, arg, eg, rnd, n, recexpr),
+                    Lang::F64ConvertI64S([arg]) => unop!(F64ConvertI64S, arg, eg, rnd, n, recexpr),
+                    Lang::F64ConvertI64U([arg]) => unop!(F64ConvertI64U, arg, eg, rnd, n, recexpr),
+                    Lang::F64PromoteF32([arg]) => unop!(F64PromoteF32, arg, eg, rnd, n, recexpr),
+                    Lang::I32ReinterpretF32([arg]) => {
+                        unop!(I32ReinterpretF32, arg, eg, rnd, n, recexpr)
+                    }
+                    Lang::I64ReinterpretF64([arg]) => {
+                        unop!(I64ReinterpretF64, arg, eg, rnd, n, recexpr)
+                    }
+                    Lang::F32ReinterpretI32([arg]) => {
+                        unop!(F32ReinterpretI32, arg, eg, rnd, n, recexpr)
+                    }
+                    Lang::F64ReinterpretI64([arg]) => {
+                        unop!(F64ReinterpretI64, arg, eg, rnd, n, recexpr)
+                    }
+                    Lang::I32TruncSatF32S([arg]) => {
+                        unop!(I32TruncSatF32S, arg, eg, rnd, n, recexpr)
+                    }
+                    Lang::I32TruncSatF32U([arg]) => {
+                        unop!(I32TruncSatF32U, arg, eg, rnd, n, recexpr)
+                    }
+                    Lang::I32TruncSatF64S([arg]) => {
+                        unop!(I32TruncSatF64S, arg, eg, rnd, n, recexpr)
+                    }
+                    Lang::I32TruncSatF64U([arg]) => {
+                        unop!(I32TruncSatF64U, arg, eg, rnd, n, recexpr)
+                    }
+                    Lang::I64TruncSatF32S([arg]) => {
+                        unop!(I64TruncSatF32S, arg, eg, rnd, n, recexpr)
+                    }
+                    Lang::I64TruncSatF32U([arg]) => {
+                        unop!(I64TruncSatF32U, arg, eg, rnd, n, recexpr)
+                    }
+                    Lang::I64TruncSatF64S([arg]) => {
+                        unop!(I64TruncSatF64S, arg, eg, rnd, n, recexpr)
+                    }
+                    Lang::I64TruncSatF64U([arg]) => {
+                        unop!(I64TruncSatF64U, arg, eg, rnd, n, recexpr)
+                    }
+                    Lang::Drop([arg]) => unop!(Drop, arg, eg, rnd, n, recexpr),
+                    Lang::I32Eqz([arg]) => unop!(I32Eqz, arg, eg, rnd, n, recexpr),
+                    Lang::I64Eqz([arg]) => unop!(I64Eqz, arg, eg, rnd, n, recexpr),
+                    Lang::I32Popcnt([arg]) => unop!(I32Popcnt, arg, eg, rnd, n, recexpr),
+                    Lang::I64Popcnt([arg]) => unop!(I64Popcnt, arg, eg, rnd, n, recexpr),
+                    Lang::I32Clz([arg]) => unop!(I32Clz, arg, eg, rnd, n, recexpr),
+                    Lang::I32Ctz([arg]) => unop!(I32Ctz, arg, eg, rnd, n, recexpr),
+                    Lang::I64Ctz([arg]) => unop!(I64Ctz, arg, eg, rnd, n, recexpr),
+                    Lang::I64Clz([arg]) => unop!(I64Clz, arg, eg, rnd, n, recexpr),
+                    Lang::UnfoldI32(arg) => {
                         let lcope = arg;
-                        let lc2 = lc.clone();
-                        // zip the expansion of the operands
-                        let t = lazy_expand(lcope, eg, n, rnd)
-                            .map(move |l| format!("({} {})", lc2.display_op(), l));
+                        let t = lazy_expand(lcope, eg, n, rnd, &recexpr)
+                            .map(move |l| recexpr.borrow_mut().add(Lang::UnfoldI32(l)));
 
                         Box::new(t)
                     }
-                    i @ Lang::I32(_) => Box::new(vec![i.display_op().to_string()].into_iter()),
-                    i @ Lang::I64(_) => Box::new(vec![i.display_op().to_string()].into_iter()),
-                    i @ Lang::F32(_) => Box::new(vec![i.display_op().to_string()].into_iter()),
-                    i @ Lang::F64(_) => Box::new(vec![i.display_op().to_string()].into_iter()),
-                    l @ Lang::LocalGet(_) => Box::new(vec![l.display_op().to_string()].into_iter()),
-                    g @ Lang::GlobalGet(_) => {
-                        Box::new(vec![g.display_op().to_string()].into_iter())
+                    Lang::UnfoldI64(arg) => {
+                        let lcope = arg;
+                        let t = lazy_expand(lcope, eg, n, rnd, &recexpr)
+                            .map(move |l| recexpr.borrow_mut().add(Lang::UnfoldI64(l)));
+
+                        Box::new(t)
                     }
-                    u @ Lang::Undef => Box::new(vec![u.display_op().to_string()].into_iter()),
-                    n @ Lang::Nop => Box::new(vec![n.display_op().to_string()].into_iter()),
-                    r32 @ Lang::RandI32 => Box::new(vec![r32.display_op().to_string()].into_iter()),
-                    r64 @ Lang::RandI64 => Box::new(vec![r64.display_op().to_string()].into_iter()),
-                    //_ => unreachable!("not implemented {:?}", lc),
+                    i @ Lang::I32(_) => {
+                        Box::new(vec![recexpr.borrow_mut().add(i.clone())].into_iter())
+                    }
+
+                    i @ Lang::I64(_) => {
+                        Box::new(vec![recexpr.borrow_mut().add(i.clone())].into_iter())
+                    }
+                    i @ Lang::F32(_) => {
+                        Box::new(vec![recexpr.borrow_mut().add(i.clone())].into_iter())
+                    }
+                    i @ Lang::F64(_) => {
+                        Box::new(vec![recexpr.borrow_mut().add(i.clone())].into_iter())
+                    }
+                    l @ Lang::LocalGet(_) => {
+                        Box::new(vec![recexpr.borrow_mut().add(l.clone())].into_iter())
+                    }
+                    g @ Lang::GlobalGet(_) => {
+                        Box::new(vec![recexpr.borrow_mut().add(g.clone())].into_iter())
+                    }
+                    u @ Lang::Undef => {
+                        Box::new(vec![recexpr.borrow_mut().add(u.clone())].into_iter())
+                    }
+                    n @ Lang::Nop => {
+                        Box::new(vec![recexpr.borrow_mut().add(n.clone())].into_iter())
+                    }
+                    r32 @ Lang::RandI32 => {
+                        Box::new(vec![recexpr.borrow_mut().add(r32.clone())].into_iter())
+                    }
+                    r64 @ Lang::RandI64 => {
+                        Box::new(vec![recexpr.borrow_mut().add(r64.clone())].into_iter())
+                    }
+                    _ => unreachable!("not implemented {:?}", lc),
                 };
                 iter
             })
@@ -325,13 +780,13 @@ pub fn lazy_expand<'a>(
 
 #[cfg(test)]
 mod tests {
-    use std::{cell::RefCell, str::FromStr};
+    use std::{cell::RefCell, collections::HashMap, ops::RangeBounds, str::FromStr};
 
     use egg::{rewrite, AstSize, RecExpr, Rewrite, Runner};
     use rand::{prelude::SmallRng, SeedableRng};
 
-    use crate::mutators::peephole::{
-        eggsy::{analysis::PeepholeMutationAnalysis, expr_enumerator::lazy_expand, lang::Lang},
+    use crate::mutators::peephole::eggsy::{
+        analysis::PeepholeMutationAnalysis, expr_enumerator::lazy_expand, lang::Lang,
     };
 
     #[derive(Clone, Copy, Debug)]
@@ -366,7 +821,8 @@ mod tests {
     fn test_rec_iterator() {
         let rules: &[Rewrite<Lang, PeepholeMutationAnalysis>] = &[
             rewrite!("rule";  "?x" => "(i32.add ?x 0_i32)"),
-            //rewrite!("rule2";  "(i32.add ?y ?x)" => "(i32.add ?x ?y)"),
+            rewrite!("rule2";  "(i32.add ?y ?x)" => "(i32.add ?x ?y)"),
+            rewrite!("rule2";  "0_i32" => "(i32.sub 500_i32 500_i32)"),
             //rewrite!("rule3";  "?x" => "(i32.mul ?x 1_i32)"),
             //rewrite!("rule4";  "0_i32" => "(i32.unfold 0_i32)"),
             //rewrite!("rule5";  "1_i32" => "(i32.unfold 1_i32)"),
@@ -385,15 +841,23 @@ mod tests {
         let _enumeration_start = std::time::Instant::now();
         let root = egraph.add_expr(&expr.parse().unwrap());
         let mut rnd = SmallRng::seed_from_u64(0);
+        let mut recexpr = RecExpr::default();
         let rnd = RefCell::new(&mut rnd);
+        let recexpr = RefCell::new(recexpr);
 
-        let mut it = lazy_expand(root, egraph, 4, &rnd);
-
+        let mut it = lazy_expand(root, egraph, 10, &rnd, &recexpr);
+        let mut h: HashMap<String, usize> = HashMap::new();
         for i in 0..100000 {
             if let Some(it) = it.next() {
                 println!("{} {}", i, it);
+                println!("expr {}", recexpr.borrow());
+                let t = format!("{}", recexpr.borrow());
+
+                assert!(!h.contains_key(&t));
+
+                h.insert(t, 1);
                 // Parsing with our Parser :)
-                let _r = RecExpr::<Lang>::from_str(&it).unwrap();
+                //let _r = RecExpr::<Lang>::from_str(&it).unwrap();
             } else {
                 break;
             }
