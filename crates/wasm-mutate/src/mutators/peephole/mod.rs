@@ -96,13 +96,14 @@ impl PeepholeMutator {
         info: &crate::ModuleInfo,
         rules: &[Rewrite<Lang, PeepholeMutationAnalysis>],
     ) -> Result<MutationContext> {
+        let rnd_ref = RefCell::new(rnd);
         let code_section = info.get_code_section();
         let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
         let function_count = sectionreader.get_count();
 
         // This split strategy will avoid very often mutating the first function
         // and very rarely mutating the last function
-        let function_to_mutate = rnd.gen_range(0, function_count);
+        let function_to_mutate = rnd_ref.borrow_mut().gen_range(0, function_count);
         let all_readers = (0..function_count)
             .map(|_| sectionreader.read().unwrap())
             .collect::<Vec<FunctionBody>>();
@@ -114,8 +115,7 @@ impl PeepholeMutator {
                 .into_iter_with_offsets()
                 .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()?;
             let operatorscount = operators.len();
-            let opcode_to_mutate = rnd.gen_range(0, operatorscount);
-
+            let opcode_to_mutate = rnd_ref.borrow_mut().gen_range(0, operatorscount);
             let locals = self.get_func_locals(info, fidx + info.imported_functions_count /* the function type is shifted by the imported functions*/, &mut localsreader)?;
 
             for oidx in (opcode_to_mutate..operatorscount).chain(0..opcode_to_mutate) {
@@ -174,18 +174,24 @@ impl PeepholeMutator {
                                 // This cost function could be replaced by a custom weighted probability, for example
                                 // we could modify the cost function based on the previous mutation/rotation outcome
 
-                                let rnd_ref = RefCell::new(rnd);
-                                let mut expr = lazy_expand(root, &egraph, 0, &rnd_ref);
+                                let mut depth = 1;
+
+                                #[cfg(not(test))]
+                                {
+                                    depth = 100;
+                                }
+
+                                let mut expr = lazy_expand(root, egraph.clone(), depth, &rnd_ref);
 
                                 while let Some(expr) = expr.next() {
                                     config.consume_fuel(1)?;
                                     // Let the parser do its job
-                                    println!("Extracted {}", expr);
 
                                     if expr.eq(&start.to_string()) {
                                         continue;
                                     }
 
+                                    // println!("Extracted {}", expr);
                                     let compiled =
                                         RecExpr::<Lang>::from_str(&expr).expect("Invalid parsing");
 
@@ -215,8 +221,6 @@ impl PeepholeMutator {
 
                                     return Ok((newfunc, fidx));
                                 }
-                                // If the iterator is done
-                                return Err(crate::Error::NoMutationsApplicable);
                             }
                         }
                     }
@@ -1183,7 +1187,7 @@ mod tests {
                 )
             )
         "#,
-            5,
+            0,
         );
     }
 
