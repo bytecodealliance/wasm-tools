@@ -222,13 +222,6 @@ impl ParseContext {
         self.current_parsing.clone()
     }
 
-    /// Returns all parsed nodes since the creation of this `ParseContext`
-    /// inetance.
-    ///
-    pub fn get_nodes(&self) -> Vec<Node> {
-        self.nodes.clone()
-    }
-
     /// Checks if the corrent code parsing has at least one instruction
     ///
     pub fn current_code_is_empty(&self) -> bool {

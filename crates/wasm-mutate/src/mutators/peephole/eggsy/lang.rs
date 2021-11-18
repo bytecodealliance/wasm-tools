@@ -617,6 +617,25 @@ pub enum Lang {
         /// Value and dynamic offset node Ids
         value_and_offset: [Id; 2],
     },
+    /// Select operator
+    Select([Id; 3]),
+    /// Memory grow operator
+    MemoryGrow {
+        /// immediate mem value
+        mem: u32,
+        /// immediate mem byte value
+        mem_byte: u8,
+        /// by node idx
+        by: Id,
+    },
+    /// Memory size operator
+    MemorySize {
+        /// immediate mem value
+        mem: u32,
+        /// immediate mem byte
+        mem_byte: u8,
+    },
+
     /// Add custom or others operator nodes below
 
     /// Custom mutation operations and instructions
@@ -948,6 +967,13 @@ impl Display for Lang {
             Lang::UnfoldI64(_) => f.write_str("i64.unfold"),
             Lang::Nop => f.write_str("nop"),
             Lang::Container(_) => f.write_str("container"),
+            Lang::Select(_) => f.write_str("select"),
+            Lang::MemoryGrow { mem, mem_byte, .. } => {
+                f.write_str(&format!("memory.grow.{}.{}", mem, mem_byte))
+            }
+            Lang::MemorySize { mem, mem_byte } => {
+                f.write_str(&format!("memory.size.{}.{}", mem, mem_byte))
+            }
         }
     }
 }
@@ -1176,6 +1202,31 @@ impl Lang {
             _ => Err(format!("Invalid call operation {:?}", op_str)),
         }
     }
+
+    /// Parses memory grow or size operator
+    /// memory.(grow|size).$mem.$membyte
+    ///
+    pub fn parse_memory_sg(op_str: &str, children: &Vec<Id>) -> Result<Self, String> {
+        let splat = op_str.split('.');
+        let ops = splat.collect::<Vec<_>>();
+        if ops.len() != 4 {
+            return Err(format!("Invalid memory (grow|size) operator {}", op_str));
+        }
+
+        // In theory indices can have eclasses as well
+        // If we want to have index-change-like mutators
+        let mem = u32::from_str(ops[2]).unwrap();
+        let mem_byte = u8::from_str(ops[3]).unwrap();
+        match &ops[..2] {
+            ["memory", "grow"] => Ok(Lang::MemoryGrow {
+                mem,
+                mem_byte,
+                by: children[0],
+            }),
+            ["memory", "size"] => Ok(Lang::MemorySize { mem, mem_byte }),
+            _ => Err(format!("Invalid index based operation {:?}", op_str)),
+        }
+    }
 }
 
 // To match memory like nodes by its inmediates
@@ -1238,6 +1289,21 @@ impl egg::Language for Lang {
             | (Lang::LocalSet(v, _), Lang::LocalSet(v2, _))
             | (Lang::LocalTee(v, _), Lang::LocalTee(v2, _)) => v == v2,
             (Lang::Call(v, _), Lang::Call(v2, _)) => v == v2,
+            (
+                Lang::MemoryGrow { mem_byte, mem, .. },
+                Lang::MemoryGrow {
+                    mem_byte: mem_byte2,
+                    mem: mem2,
+                    ..
+                },
+            ) => mem == mem2 && mem_byte == mem_byte2,
+            (
+                Lang::MemorySize { mem_byte, mem },
+                Lang::MemorySize {
+                    mem_byte: mem_byte2,
+                    mem: mem2,
+                },
+            ) => mem == mem2 && mem_byte == mem_byte2,
             (Lang::Container(v), Lang::Container(v2)) => v.len() == v2.len(),
             _ => ::std::mem::discriminant(self) == ::std::mem::discriminant(other),
         }
@@ -1537,7 +1603,9 @@ impl egg::Language for Lang {
             Lang::F64(_) => &[],
             Lang::Nop => &[],
             Lang::Container(operands) => operands,
-            //Lang::Select(operands) => operands,
+            Lang::Select(operands) => operands,
+            Lang::MemoryGrow { by, .. } => std::slice::from_ref(by),
+            Lang::MemorySize { .. } => &[],
         }
     }
 
@@ -1835,6 +1903,16 @@ impl egg::Language for Lang {
             Lang::F64(_) => &mut [],
             Lang::Nop => &mut [],
             Lang::Container(operands) => operands,
+            Lang::Select(operands) => operands,
+            Lang::MemoryGrow {
+                mem: _,
+                mem_byte: _,
+                by,
+            } => std::slice::from_mut(by),
+            Lang::MemorySize {
+                mem: _,
+                mem_byte: _,
+            } => &mut [],
         }
     }
 
@@ -2005,8 +2083,9 @@ impl egg::Language for Lang {
             "drop" => Ok(Lang::Drop([children[0]])),
             "nop" => Ok(Lang::Nop),
             "container" => Ok(Lang::Container(children)),
-            //"select" => Ok(Lang::Select([children[0], children[1], children[2]])),
+            "select" => Ok(Lang::Select([children[0], children[1], children[2]])),
             _ => Lang::parse_call(op_str, &children)
+                .or(Lang::parse_memory_sg(op_str, &children))
                 .or(Lang::parse_mem_op(op_str, &children))
                 .or(Lang::parse_index_op(op_str, &children))
                 .or(Lang::parse_integer(op_str))
@@ -2072,12 +2151,9 @@ impl Default for Lang {
 
 #[cfg(test)]
 mod tests {
-    use std::{cell::RefCell, collections::HashMap, str::FromStr};
+    use egg::{Id, Language};
 
-    use egg::{rewrite, AstSize, Id, Language, RecExpr, Rewrite, Runner};
-    use rand::{prelude::SmallRng, SeedableRng};
-
-    use crate::mutators::peephole::eggsy::{analysis::PeepholeMutationAnalysis, lang::Lang};
+    use crate::mutators::peephole::eggsy::lang::Lang;
 
     #[test]
     fn test_parsing2() {

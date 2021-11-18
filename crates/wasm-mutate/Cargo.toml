@@ -16,3 +16,4 @@ egg = "0.6.0"
 anyhow = "1"
 wat = { version = "1", path = "../wat" }
 wasmprinter = { path = "../wasmprinter" }
+env_logger = "0.8"

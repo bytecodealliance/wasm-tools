@@ -7,12 +7,10 @@
 //! tool. `wasm-mutate` can serve as a custom mutator for mutation-based
 //! fuzzing.
 #![cfg_attr(not(feature = "structopt"), deny(missing_docs))]
-
 mod error;
 pub(crate) mod info;
 pub(crate) mod module;
 pub mod mutators;
-
 use crate::mutators::{
     codemotion::CodemotionMutator, function_body_unreachable::FunctionBodyUnreachable,
     peephole::PeepholeMutator, remove_export::RemoveExportMutator,
@@ -20,6 +18,7 @@ use crate::mutators::{
 };
 use info::ModuleInfo;
 use mutators::Mutator;
+
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use std::{cell::Cell, sync::Arc};
 
@@ -27,6 +26,73 @@ use std::{cell::Cell, sync::Arc};
 use structopt::StructOpt;
 
 pub use error::{Error, Result};
+
+macro_rules! define_mutators {
+    (@count) => {0};
+    (@count $first: expr , $( $tail: expr ,) *) => { 1 + define_mutators!(@count $($tail , )*) };
+    (@expand $self:ident, $discriminator: ident, $start: expr, . , $( $rest: expr ,)*) => {};
+    // The dot (.) is the mark to avoid infinite recursion , something like and
+    // LR parser
+    (@expand $self:ident, $discriminator: ident, $start: expr, $first: expr , $( $head: expr ,)*  . , $( $rest: expr ,)*) => {
+        if $discriminator == $start {
+            // Start by the current node
+            let m = $first;
+
+            if m.can_mutate($self) {
+                match m.mutate($self) {
+                    Ok(iter) => {
+                        return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))))
+                    }
+                    Err(e) => {
+                        log::info!("mutator {} failed: {}; will try again", m.name(), e);
+                        return Err(e);
+                    }
+                }
+            }
+            // Follow the tail
+            $(
+                let m = $rest;
+
+                if m.can_mutate($self) {
+                    match m.mutate($self) {
+                        Ok(iter) => {
+                            return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))))
+                        }
+                        Err(e) => {
+                            log::info!("mutator {} failed: {}; will try again", m.name(), e);
+                            return Err(e);
+                        }
+                    }
+                }
+            )*
+            // Follow the head
+            $(
+                let m = $head;
+
+                if m.can_mutate($self) {
+                    match m.mutate($self) {
+                        Ok(iter) => {
+                            return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))))
+                        }
+                        Err(e) => {
+                            log::info!("mutator {} failed: {}; will try again", m.name(), e);
+                            return Err(e);
+                        }
+                    }
+                }
+            )*
+        };
+
+        define_mutators!(@expand $self, $discriminator, ($start + 1), $($head ,)* ., $($rest ,)* $first, )
+    };
+    ( $self: ident , ($first: expr , $( $tail: expr ,)* ) ) => {
+        {
+            let count = define_mutators!(@count $first , $($tail ,)*);
+            let discriminator:u32 = $self.rng().gen_range(0, count);
+            define_mutators!(@expand $self, discriminator , 0 , $first , $($tail ,)*  . , );
+        }
+    };
+}
 
 // NB: only add this doc comment if we are not building the CLI, since otherwise
 // it will override the main CLI's about text.
@@ -66,9 +132,9 @@ let mutated_wasm = WasmMutate::default()
 ```
 "###
 )]
-#[derive(Clone)]
 #[cfg_attr(feature = "structopt", derive(StructOpt))]
-pub struct WasmMutate {
+#[derive(Clone)]
+pub struct WasmMutate<'wasm> {
     /// The RNG seed used to choose which transformation to apply. Given the
     /// same input Wasm and same seed, `wasm-mutate` will always generate the
     /// same output Wasm.
@@ -91,9 +157,15 @@ pub struct WasmMutate {
     // CLI.
     #[cfg_attr(feature = "structopt", structopt(skip = None))]
     raw_mutate_func: Option<Arc<dyn Fn(&mut Vec<u8>) -> Result<()>>>,
+
+    #[cfg_attr(feature = "structopt", structopt(skip = None))]
+    rng: Option<SmallRng>,
+
+    #[cfg_attr(feature = "structopt", structopt(skip = None))]
+    info: Option<ModuleInfo<'wasm>>,
 }
 
-impl Default for WasmMutate {
+impl Default for WasmMutate<'_> {
     fn default() -> Self {
         let seed = 3;
         WasmMutate {
@@ -102,11 +174,13 @@ impl Default for WasmMutate {
             reduce: false,
             raw_mutate_func: None,
             fuel: Cell::new(u64::MAX),
+            rng: None,
+            info: None,
         }
     }
 }
 
-impl WasmMutate {
+impl<'wasm> WasmMutate<'wasm> {
     /// Set the RNG seed used to choose which transformation to apply.
     ///
     /// Given the same input Wasm and same seed, `wasm-mutate` will always
@@ -156,7 +230,7 @@ impl WasmMutate {
 
     pub(crate) fn consume_fuel(&self, qt: u64) -> Result<()> {
         if qt > self.fuel.get() {
-            log::debug!("Resource limits reached!");
+            log::info!("Resource limits reached!");
             return Err(crate::Error::NoMutationsApplicable); // Replace by a TimeoutError type
         }
         self.fuel.set(self.fuel.get() - qt);
@@ -164,32 +238,40 @@ impl WasmMutate {
     }
 
     /// Run this configured `WasmMutate` on the given input Wasm.
-    pub fn run<'a>(&self, input_wasm: &'a [u8]) -> Result<Vec<u8>> {
-        let mut rng = SmallRng::seed_from_u64(self.seed);
-        let info = ModuleInfo::new(input_wasm)?;
+    pub fn run<'a>(
+        &'a mut self,
+        input_wasm: &'wasm [u8],
+    ) -> Result<Box<dyn Iterator<Item = Result<Vec<u8>>> + 'a>> {
+        self.info = Some(ModuleInfo::new(input_wasm)?);
+        self.rng = Some(SmallRng::seed_from_u64(self.seed));
 
-        let mutators: Vec<Box<dyn Mutator>> = vec![
-            Box::new(RenameExportMutator { max_name_size: 100 }),
-            Box::new(RemoveExportMutator),
-            Box::new(SnipMutator),
-            Box::new(FunctionBodyUnreachable),
-            Box::new(PeepholeMutator),
-            Box::new(CodemotionMutator),
-        ];
-        let mut mutators: Vec<_> = mutators
-            .into_iter()
-            .filter(|m| m.can_mutate(self, &info))
-            .collect();
+        // This macro just expands the logic to return an iterator form the
+        // mutators
+        // It simulates a circular checking of the mutators starting by a random
+        // one, returning the first one that can provides a mutation.
+        // All possible start indexes are calculated at compilation time, if N
+        // is the number of mutataros, N possible starting indexes are injected
+        // and compiled to the final code
+        define_mutators!(
+            self,
+            (
+                PeepholeMutator::new(2),
+                RemoveExportMutator,
+                RenameExportMutator { max_name_size: 100 },
+                SnipMutator,
+                CodemotionMutator,
+                FunctionBodyUnreachable,
+            )
+        );
+        Err(crate::Error::NoMutationsApplicable)
+    }
 
-        while !mutators.is_empty() {
-            let i = rng.gen_range(0, mutators.len());
-            let mutator = mutators.swap_remove(i);
-            if let Ok(module) = mutator.mutate(self, &mut rng, &info) {
-                return Ok(module.finish());
-            }
-        }
+    pub(crate) fn rng(&mut self) -> &mut SmallRng {
+        self.rng.as_mut().unwrap()
+    }
 
-        Err(Error::NoMutationsApplicable)
+    pub(crate) fn info(&self) -> &ModuleInfo<'wasm> {
+        self.info.as_ref().unwrap()
     }
 }
 

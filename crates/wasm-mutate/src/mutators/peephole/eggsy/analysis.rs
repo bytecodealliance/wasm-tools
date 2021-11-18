@@ -1,12 +1,14 @@
 use crate::{
     module::{PrimitiveTypeInfo, TypeInfo},
-    mutators::peephole::eggsy::Lang,
+    mutators::peephole::{eggsy::Lang, EG},
 };
 use egg::{Analysis, EGraph, Id};
 
 /// Analysis implementation for our defined language
 /// It will maintain the information regarding to map eterm to wasm and back: the DFG, the symbols
-/// and the mapping between the equivalence classes and the stack entry in the DFG of the Wasm basic block
+/// and the mapping between the equivalence classes and the stack entry in the DFG of the Wasm basic block]
+
+#[derive(Clone)]
 pub struct PeepholeMutationAnalysis {
     /// Module information for globals
     global_types: Vec<PrimitiveTypeInfo>,
@@ -37,7 +39,7 @@ impl PeepholeMutationAnalysis {
     }
 
     /// Gets returning type of node
-    pub fn get_returning_tpe(&self, l: &Lang) -> crate::Result<PrimitiveTypeInfo> {
+    pub fn get_returning_tpe(&self, l: &Lang, eg: &EG) -> crate::Result<PrimitiveTypeInfo> {
         match l {
             Lang::I32Add(_) => Ok(PrimitiveTypeInfo::I32),
             Lang::I64Add(_) => Ok(PrimitiveTypeInfo::I64),
@@ -234,6 +236,23 @@ impl PeepholeMutationAnalysis {
             Lang::Nop => Ok(PrimitiveTypeInfo::Empty),
             // This node is not directly written to Wasm
             Lang::Container(_) => Ok(PrimitiveTypeInfo::Empty),
+            Lang::Select([_, consequent, alternative]) => {
+                // Get from operands
+                let consequenttpe = eg[*consequent]
+                    .data
+                    .clone()
+                    .expect("Missing operand type")
+                    .tpe;
+                let alternativetpe = eg[*alternative]
+                    .data
+                    .clone()
+                    .expect("Missing operand type")
+                    .tpe;
+                debug_assert_eq!(consequenttpe, alternativetpe);
+                Ok(consequenttpe)
+            }
+            Lang::MemoryGrow { .. } => Ok(PrimitiveTypeInfo::I32),
+            Lang::MemorySize { .. } => Ok(PrimitiveTypeInfo::I32),
         }
     }
 
@@ -271,7 +290,10 @@ impl Analysis<Lang> for PeepholeMutationAnalysis {
             // This type information is used only when the rewriting rules are being applied ot the egraph
             // Thats why we need the original expression in the analysis beforehand :)
             // Beyond that the random extracted expression needs to be pass to the `get_returning_tpe` method
-            tpe: egraph.analysis.get_returning_tpe(l).expect("Missing type"),
+            tpe: egraph
+                .analysis
+                .get_returning_tpe(l, egraph)
+                .expect("Missing type"),
         })
     }
 

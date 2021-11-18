@@ -24,7 +24,7 @@ use crate::{
         },
         OperatorAndByteOffset,
     },
-    Error, Result,
+    Error, Result, WasmMutate,
 };
 use rand::{prelude::SliceRandom, Rng};
 use wasm_encoder::{CodeSection, Function, Module, ValType};
@@ -44,6 +44,7 @@ pub mod mutators;
 
 /// Code motion meta mutator, it groups all code motion mutators and select a
 /// valid random one when an input Wasm binary is passed to it.
+#[derive(Clone, Copy)]
 pub struct CodemotionMutator;
 
 impl CodemotionMutator {
@@ -65,18 +66,17 @@ impl CodemotionMutator {
 
     fn random_mutate(
         &self,
-        config: &crate::WasmMutate,
-        rnd: &mut rand::prelude::SmallRng,
-        info: &crate::ModuleInfo,
+        config: &mut WasmMutate,
         mutators: &[Box<dyn AstMutator>],
     ) -> crate::Result<(Function, u32)> {
-        let original_code_section = info.get_code_section();
+        let original_code_section = config.info().get_code_section();
+
         let mut sectionreader = CodeSectionReader::new(original_code_section.data, 0)?;
         let function_count = sectionreader.get_count();
+        let function_to_mutate = config.rng().gen_range(0, function_count);
 
         // This split strategy will avoid very often mutating the first function
         // and very rarely mutating the last function
-        let function_to_mutate = rnd.gen_range(0, function_count);
         let all_readers = (0..function_count)
             .map(|_| sectionreader.read().unwrap())
             .collect::<Vec<FunctionBody>>();
@@ -95,19 +95,17 @@ impl CodemotionMutator {
             // filter mutators by those applicable
             let filtered = mutators
                 .iter()
-                .filter(|m| m.can_mutate(config, info, &ast))
+                .filter(|m| m.can_mutate(config, &ast))
                 .collect::<Vec<_>>();
             // If no mutator, just continue to the next function
             if filtered.is_empty() {
                 continue;
             }
 
-            match filtered.choose(rnd) {
+            match filtered.choose(config.rng()) {
                 Some(choosen_mutator) => {
                     let newfunc = choosen_mutator.mutate(
                         config,
-                        info,
-                        rnd,
                         &ast,
                         &self.copy_locals(reader)?,
                         &operators,
@@ -128,9 +126,7 @@ pub trait AstMutator {
     ///
     fn mutate<'a>(
         &self,
-        config: &'a crate::WasmMutate,
-        info: &crate::ModuleInfo,
-        rnd: &mut rand::prelude::SmallRng,
+        config: &'a mut WasmMutate,
         ast: &Ast,
         locals: &[(u32, ValType)],
         operators: &Vec<OperatorAndByteOffset>,
@@ -139,35 +135,28 @@ pub trait AstMutator {
 
     /// Checks if this mutator can be applied to the passed `ast`
     ///
-    fn can_mutate<'a>(
-        &self,
-        config: &'a crate::WasmMutate,
-        info: &crate::ModuleInfo,
-        ast: &Ast,
-    ) -> bool;
+    fn can_mutate<'a>(&self, config: &'a crate::WasmMutate, ast: &Ast) -> bool;
 }
 
 /// Meta mutator for peephole
 impl Mutator for CodemotionMutator {
-    fn mutate(
-        &self,
-        config: &crate::WasmMutate,
-        rnd: &mut rand::prelude::SmallRng,
-        info: &crate::ModuleInfo,
-    ) -> Result<Module> {
+    fn mutate<'a>(
+        self,
+        config: &mut WasmMutate<'a>,
+    ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         // Initialize mutators
         let mutators: Vec<Box<dyn AstMutator>> = vec![
             Box::new(IfComplementMutator),
             Box::new(LoopUnrollMutator), // Add the other here
         ];
 
-        let (newfunc, function_to_mutate) = self.random_mutate(config, rnd, info, &mutators)?;
+        let (newfunc, function_to_mutate) = self.random_mutate(config, &mutators)?;
 
         let mut codes = CodeSection::new();
-        let code_section = info.get_code_section();
+        let code_section = config.info().get_code_section();
         let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
 
-        for fidx in 0..info.function_count {
+        for fidx in 0..config.info().function_count {
             let reader = sectionreader.read()?;
             if fidx == function_to_mutate {
                 debug!("Mutating function  idx {:?}", fidx);
@@ -176,12 +165,14 @@ impl Mutator for CodemotionMutator {
                 codes.raw(&code_section.data[reader.range().start..reader.range().end]);
             }
         }
-        let module = info.replace_section(info.code.unwrap(), &codes);
-        Ok(module)
+        let module = config
+            .info()
+            .replace_section(config.info().code.unwrap(), &codes);
+        Ok(Box::new(std::iter::once(Ok(module))))
     }
 
-    fn can_mutate<'a>(&self, _: &'a crate::WasmMutate, info: &crate::ModuleInfo) -> bool {
-        info.has_code() && info.function_count > 0
+    fn can_mutate<'a>(&self, config: &'a WasmMutate) -> bool {
+        config.info().has_code() && config.info().function_count > 0
     }
 }
 
@@ -195,19 +186,26 @@ mod tests {
     use rand::{rngs::SmallRng, SeedableRng};
 
     fn test_motion_mutator(original: &str, expected: &str, seed: u64) {
-        let wasmmutate = WasmMutate::default();
+        let mut wasmmutate = WasmMutate::default();
         let original = &wat::parse_str(original).unwrap();
 
         let mutator = CodemotionMutator; // the string is empty
 
-        let mut info = ModuleInfo::new(original).unwrap();
-        let can_mutate = mutator.can_mutate(&wasmmutate, &info);
+        let rnd = SmallRng::seed_from_u64(seed);
+        let info = ModuleInfo::new(original).unwrap();
+        wasmmutate.info = Some(info);
+        wasmmutate.rng = Some(rnd);
 
-        let mut rnd = SmallRng::seed_from_u64(seed);
+        let can_mutate = mutator.can_mutate(&wasmmutate);
 
         assert_eq!(can_mutate, true);
 
-        let mutated = mutator.mutate(&wasmmutate, &mut rnd, &mut info).unwrap();
+        let mutated = mutator
+            .mutate(&mut wasmmutate)
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap();
 
         let mut validator = wasmparser::Validator::new();
         let mutated_bytes = &mutated.finish();
@@ -265,7 +263,7 @@ mod tests {
                 local.get 0
                 i32.add
                 local.get 0
-                if 
+                if
                     i32.const 150
                     drop
                 else
@@ -319,7 +317,7 @@ mod tests {
                 local.get 0
                 i32.add
                 local.get 0
-                if 
+                if
                     i32.const 150
                     drop
                 else
@@ -442,7 +440,7 @@ mod tests {
                     i32.le_u
                     br_if 0
                     local.get 0
-                    if 
+                    if
                         i32.const 200
                         local.get 0
                         i32.add
@@ -536,7 +534,7 @@ mod tests {
                     local.get 0
                     i32.add
                     local.tee 0
-                    if 
+                    if
                         i32.const 200
                         local.get 0
                         i32.add
@@ -618,15 +616,15 @@ mod tests {
             (func (export "exported_func") (param i32) (result i32)
                 block
                     loop
-                        loop 
+                        loop
                             local.get 0
                             i32.const 100
-                            i32.ge_s 
+                            i32.ge_s
                             br_if 2
                         end
                         local.get 0
                         i32.const 200
-                        i32.le_s 
+                        i32.le_s
                         br_if 0
                     end
                 end
@@ -685,13 +683,13 @@ mod tests {
             (func (export "exported_func") (param i32) (result i32)
                 block
                     loop
-                        loop 
+                        loop
                             local.get 0
                             br_table 1 2 2 2 2
                         end
                         local.get 0
                         i32.const 200
-                        i32.le_s 
+                        i32.le_s
                         br_if 0
                     end
                 end
