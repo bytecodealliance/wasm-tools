@@ -8,6 +8,7 @@ use rand::Rng;
 
 pub(crate) mod analysis;
 pub mod encoder;
+pub mod expr_enumerator;
 pub mod lang;
 
 use crate::mutators::peephole::eggsy::lang::Lang;
@@ -120,8 +121,6 @@ where
         eclass: Id,
         max_depth: u32,
         expression_builder: impl Fn(Id, &[L], &[Vec<Id>]) -> RecExpr<L>,
-        max_tries: u32,
-        oracle: impl Fn(RecExpr<L>) -> bool,
     ) -> crate::Result<RecExpr<L>> // return the random tree, TODO, improve the way the tree is returned
     {
         // A map from a node's id to its actual node data.
@@ -176,18 +175,61 @@ where
         }
         // Build the tree with the right language constructor
         let expr = expression_builder(Id::from(0), &id_to_node, &operands);
+        Ok(expr)
+    }
 
-        if !oracle(expr.clone()) && max_tries > 0 {
-            return self.extract_random(
-                rnd,
-                eclass,
-                max_depth,
-                expression_builder,
-                max_tries - 1,
-                oracle,
+    /// Do a pre-order traversal of the e-graph. As we visit each e-class, choose
+    /// costless with its children.
+    ///
+    pub fn extract_shorter(
+        &self,
+        eclass: Id,
+        expression_builder: impl Fn(Id, &[L], &[Vec<Id>]) -> RecExpr<L>,
+    ) -> crate::Result<RecExpr<L>> // return the random tree, TODO, improve the way the tree is returned
+    {
+        // A map from a node's id to its actual node data.
+        let mut id_to_node = vec![];
+        // A map from a parent node id to its child operand node ids.
+        let mut operands = vec![];
+
+        // Select a random node in this e-class
+        let rootidx = self.costs[&eclass].1;
+        let rootnode = &self.egraph[eclass].nodes[rootidx];
+        // The operator index is the same in all eclass nodes
+
+        id_to_node.push(self.egraph[eclass].nodes[rootidx].clone());
+        operands.push(vec![]);
+
+        let mut worklist: Vec<_> = rootnode
+            .children()
+            .iter()
+            .rev()
+            .map(|id| (0, id, 0)) // (root, operant, depth)
+            .collect();
+
+        // The RecExpr can be built directly here following the following rules
+        // The childrens of a node are before in the array
+        while let Some((parentidx, &node, depth)) = worklist.pop() {
+            let node_idx = self.costs[&node].1;
+            let operand = Id::from(id_to_node.len());
+            let operandidx = id_to_node.len();
+            let last_node_id = parentidx; // id_to_node.len() - 1;
+
+            id_to_node.push(self.egraph[node].nodes[node_idx].clone());
+            operands.push(vec![]);
+
+            operands[last_node_id].push(operand);
+
+            worklist.extend(
+                self.egraph[node].nodes[node_idx]
+                    .children()
+                    .iter()
+                    .rev()
+                    .map(|id| (operandidx, id, depth + 1)),
             );
-        };
-
+        }
+        // Build the tree with the right language constructor
+        let expr = expression_builder(Id::from(0), &id_to_node, &operands);
         Ok(expr)
     }
 }

@@ -21,12 +21,15 @@
 use crate::error::EitherType;
 use crate::module::PrimitiveTypeInfo;
 use crate::mutators::peephole::eggsy::analysis::PeepholeMutationAnalysis;
-use crate::mutators::peephole::eggsy::encoder::rebuild::build_expr;
+
 use crate::mutators::peephole::eggsy::encoder::Encoder;
 use crate::mutators::peephole::eggsy::lang::Lang;
-use egg::{AstSize, Id, Rewrite, Runner, Subst};
+use crate::{error::EitherType, mutators::peephole::eggsy::expr_enumerator::lazy_expand};
+use egg::{Id, RecExpr, Rewrite, Runner, Subst};
 use rand::{prelude::SmallRng, Rng};
+use std::cell::RefCell;
 use std::convert::TryFrom;
+use std::str::FromStr;
 use std::sync::atomic::AtomicU64;
 use wasm_encoder::{CodeSection, Function, Module, ValType};
 use wasmparser::{CodeSectionReader, FunctionBody, LocalsReader};
@@ -43,7 +46,7 @@ use crate::{module::map_type, ModuleInfo, Result, WasmMutate};
 static NUM_RUNS: AtomicU64 = AtomicU64::new(0);
 static NUM_SUCCESSFUL_MUTATIONS: AtomicU64 = AtomicU64::new(0);
 
-use self::{dfg::DFGBuilder, eggsy::RandomExtractor};
+use self::{dfg::DFGBuilder};
 
 use super::{Mutator, OperatorAndByteOffset};
 
@@ -113,13 +116,14 @@ impl PeepholeMutator {
         info: &crate::ModuleInfo,
         rules: &[Rewrite<Lang, PeepholeMutationAnalysis>],
     ) -> Result<MutationContext> {
+        let rnd_ref = RefCell::new(rnd);
         let code_section = info.get_code_section();
         let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
         let function_count = sectionreader.get_count();
 
         // This split strategy will avoid very often mutating the first function
         // and very rarely mutating the last function
-        let function_to_mutate = rnd.gen_range(0, function_count);
+        let function_to_mutate = rnd_ref.borrow_mut().gen_range(0, function_count);
         let all_readers = (0..function_count)
             .map(|_| sectionreader.read().unwrap())
             .collect::<Vec<FunctionBody>>();
@@ -131,13 +135,10 @@ impl PeepholeMutator {
                 .into_iter_with_offsets()
                 .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()?;
             let operatorscount = operators.len();
-            let opcode_to_mutate = rnd.gen_range(0, operatorscount);
-
+            let opcode_to_mutate = rnd_ref.borrow_mut().gen_range(0, operatorscount);
             let locals = self.get_func_locals(info, fidx + info.imported_functions_count /* the function type is shifted by the imported functions*/, &mut localsreader)?;
 
             for oidx in (opcode_to_mutate..operatorscount).chain(0..opcode_to_mutate) {
-                config.consume_fuel(1)?;
-
                 let mut dfg = DFGBuilder::new();
                 let basicblock = dfg.get_bb_from_operator(oidx, &operators);
 
@@ -169,6 +170,8 @@ impl PeepholeMutator {
                                 // Create an eterm expression from the basic block starting at oidx
                                 let start = minidfg.get_expr(oidx);
 
+                                // println!("start  {}", start);
+
                                 if !minidfg.is_subtree_consistent_from_root() {
                                     debug!("{} is not consistent", start);
                                     continue;
@@ -192,47 +195,52 @@ impl PeepholeMutator {
 
                                 // This cost function could be replaced by a custom weighted probability, for example
                                 // we could modify the cost function based on the previous mutation/rotation outcome
-                                let cf = AstSize;
-                                let extractor = RandomExtractor::new(&egraph, cf);
 
-                                let expr = extractor.extract_random(
-                                    rnd,
-                                    root,
-                                    /* only 1 for now */ 0,
-                                    build_expr,
-                                    /* max tries */ 3,
-                                    |expr| !expr.to_string().eq(&start.to_string()),
-                                )?;
-
-                                if expr.to_string().eq(&start.to_string()) {
-                                    continue;
+                                let depth = 6;
+                                #[cfg(not(test))]
+                                {
+                                    let depth = 6;
                                 }
 
-                                debug!(
-                                    "Applied mutation {}\nfor\n{}",
-                                    expr.pretty(35),
-                                    start.pretty(35)
-                                );
+                                let mut expr = lazy_expand(root, egraph.clone(), depth, &rnd_ref);
+                                let mut it = 0;
+                                for expr in expr {
+                                    config.consume_fuel(1)?;
+                                    // Let the parser do its job
+                                    it += 1;
+                                    if expr.eq(&start.to_string()) {
+                                        continue;
+                                    }
+                                    let compiled =
+                                        RecExpr::<Lang>::from_str(&expr).expect("Invalid parsing");
 
-                                let mut newfunc = self.copy_locals(reader)?;
-                                Encoder::build_function(
-                                    info,
-                                    rnd,
-                                    oidx,
-                                    &expr,
-                                    &operators,
-                                    &basicblock,
-                                    &mut newfunc,
-                                    &minidfg,
-                                    &egraph,
-                                )?;
+                                    debug!(
+                                        "Applied mutation {}\nfor\n{} after {} iterations",
+                                        compiled.pretty(35),
+                                        start.pretty(35),
+                                        it
+                                    );
 
-                                if log::log_enabled!(log::Level::Info) {
-                                    NUM_SUCCESSFUL_MUTATIONS
-                                        .fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+                                    let mut newfunc = self.copy_locals(reader)?;
+                                    Encoder::build_function(
+                                        info,
+                                        &rnd_ref,
+                                        oidx,
+                                        &compiled,
+                                        &operators,
+                                        &basicblock,
+                                        &mut newfunc,
+                                        &minidfg,
+                                        &egraph,
+                                    )?;
+
+                                    if log::log_enabled!(log::Level::Info) {
+                                        NUM_SUCCESSFUL_MUTATIONS
+                                            .fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+                                    }
+
+                                    return Ok((newfunc, fidx));
                                 }
-
-                                return Ok((newfunc, fidx));
                             }
                         }
                     }
@@ -1199,7 +1207,7 @@ mod tests {
                 )
             )
         "#,
-            5,
+            0,
         );
     }
 

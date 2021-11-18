@@ -1,5 +1,7 @@
 //! Helper methods for encoding eterm expressions to Wasm and back
 
+use std::cell::RefCell;
+
 use crate::mutators::peephole::dfg::MiniDFG;
 use crate::mutators::peephole::eggsy::encoder::expr2wasm::expr2wasm;
 use crate::mutators::peephole::{Lang, EG};
@@ -27,7 +29,7 @@ impl Encoder {
     /// Reassembles the mutated function and return a `Function` entry
     pub fn build_function(
         info: &ModuleInfo,
-        rnd: &mut rand::prelude::SmallRng,
+        rnd: &RefCell<&mut rand::prelude::SmallRng>,
         insertion_point: usize,
         expr: &RecExpr<Lang>,
         operators: &[OperatorAndByteOffset],
@@ -56,7 +58,7 @@ impl Encoder {
                 } else {
                     dfg.get_expr(entry.operator_idx)
                 };
-                expr2wasm(info, rnd, &to_encode, newfunc, egraph)?;
+                expr2wasm(info, &mut rnd.borrow_mut(), &to_encode, newfunc, egraph)?;
             }
         }
 

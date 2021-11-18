@@ -6,7 +6,9 @@ use egg::{Analysis, EGraph, Id};
 
 /// Analysis implementation for our defined language
 /// It will maintain the information regarding to map eterm to wasm and back: the DFG, the symbols
-/// and the mapping between the equivalence classes and the stack entry in the DFG of the Wasm basic block
+/// and the mapping between the equivalence classes and the stack entry in the DFG of the Wasm basic block]
+
+#[derive(Clone)]
 pub struct PeepholeMutationAnalysis {
     /// Module information for globals
     global_types: Vec<PrimitiveTypeInfo>,
