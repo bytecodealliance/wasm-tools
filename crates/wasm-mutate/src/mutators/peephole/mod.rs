@@ -177,12 +177,7 @@ impl PeepholeMutator {
                                 let extractor = RandomExtractor::new(&egraph, cf);
 
                                 let expr = extractor.extract_random(
-                                    rnd,
-                                    root,
-                                    /* only 1 for now */ 0,
-                                    build_expr,
-                                    /* max tries */ 3,
-                                    |expr| !expr.to_string().eq(&start.to_string()),
+                                    rnd, root, /* only 1 for now */ 0, build_expr,
                                 )?;
 
                                 if expr.to_string().eq(&start.to_string()) {
