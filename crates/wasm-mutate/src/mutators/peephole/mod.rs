@@ -150,6 +150,8 @@ impl PeepholeMutator {
                                 // Create an eterm expression from the basic block starting at oidx
                                 let start = minidfg.get_expr(oidx);
 
+                                // println!("start  {}", start);
+
                                 if !minidfg.is_subtree_consistent_from_root() {
                                     debug!("{} is not consistent", start);
                                     continue;
@@ -174,31 +176,29 @@ impl PeepholeMutator {
                                 // This cost function could be replaced by a custom weighted probability, for example
                                 // we could modify the cost function based on the previous mutation/rotation outcome
 
-                                let mut depth = 1;
-
+                                let depth = 6;
                                 #[cfg(not(test))]
                                 {
-                                    depth = 100;
+                                    let depth = 6;
                                 }
 
                                 let mut expr = lazy_expand(root, egraph.clone(), depth, &rnd_ref);
-
+                                let mut it = 0;
                                 while let Some(expr) = expr.next() {
                                     config.consume_fuel(1)?;
                                     // Let the parser do its job
-
+                                    it += 1;
                                     if expr.eq(&start.to_string()) {
                                         continue;
                                     }
-
-                                    // println!("Extracted {}", expr);
                                     let compiled =
                                         RecExpr::<Lang>::from_str(&expr).expect("Invalid parsing");
 
                                     debug!(
-                                        "Applied mutation {}\nfor\n{}",
+                                        "Applied mutation {}\nfor\n{} after {} iterations",
                                         compiled.pretty(35),
-                                        start.pretty(35)
+                                        start.pretty(35),
+                                        it
                                     );
 
                                     let mut newfunc = self.copy_locals(reader)?;

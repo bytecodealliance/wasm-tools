@@ -592,7 +592,7 @@ impl Display for Lang {
                 align,
                 mem,
                 value_and_offset: _,
-            } => f.write_str(&format!("i32.store.{}.{}.{}", static_offset, align, mem)),
+            } => f.write_str(&format!("i64.store.{}.{}.{}", static_offset, align, mem)),
             Lang::F32Store {
                 static_offset,
                 align,
