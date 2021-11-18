@@ -1,11 +1,11 @@
 //! This mutator applies a random peephole transformation to the input Wasm module
 use crate::module::PrimitiveTypeInfo;
 use crate::mutators::peephole::eggsy::analysis::PeepholeMutationAnalysis;
-use crate::mutators::peephole::eggsy::encoder::rebuild::build_expr;
+
 use crate::mutators::peephole::eggsy::encoder::Encoder;
 use crate::mutators::peephole::eggsy::lang::Lang;
 use crate::{error::EitherType, mutators::peephole::eggsy::expr_enumerator::lazy_expand};
-use egg::{AstSize, Id, RecExpr, Rewrite, Runner, Subst};
+use egg::{Id, RecExpr, Rewrite, Runner, Subst};
 use rand::{prelude::SmallRng, Rng};
 use std::cell::RefCell;
 use std::convert::TryFrom;
@@ -26,7 +26,7 @@ use crate::{module::map_type, ModuleInfo, Result, WasmMutate};
 static NUM_RUNS: AtomicU64 = AtomicU64::new(0);
 static NUM_SUCCESSFUL_MUTATIONS: AtomicU64 = AtomicU64::new(0);
 
-use self::{dfg::DFGBuilder, eggsy::RandomExtractor};
+use self::{dfg::DFGBuilder};
 
 use super::{Mutator, OperatorAndByteOffset};
 
@@ -184,7 +184,7 @@ impl PeepholeMutator {
 
                                 let mut expr = lazy_expand(root, egraph.clone(), depth, &rnd_ref);
                                 let mut it = 0;
-                                while let Some(expr) = expr.next() {
+                                for expr in expr {
                                     config.consume_fuel(1)?;
                                     // Let the parser do its job
                                     it += 1;

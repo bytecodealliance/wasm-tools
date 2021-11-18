@@ -1,6 +1,5 @@
 use std::{
-    cell::{Cell, RefCell},
-    convert::TryFrom,
+    cell::{RefCell},
 };
 
 use crate::{
@@ -8,10 +7,9 @@ use crate::{
         eggsy::{encoder::rebuild::build_expr, RandomExtractor},
         EG,
     },
-    WasmMutate,
 };
-use egg::{AstSize, CostFunction, Id, Language, RecExpr};
-use rand::{prelude::SmallRng, Rng, SeedableRng};
+use egg::{AstSize, Id, Language};
+use rand::{prelude::SmallRng, Rng};
 
 use super::lang::Lang;
 
@@ -46,13 +44,13 @@ pub fn lazy_expand<'a>(
         let count = nodes.len();
         // For each eclass, at least one node exists
         let split_at = rnd.borrow_mut().gen_range(0, count);
-        let indices = (0..split_at).into_iter().chain(split_at..count).into_iter();
+        let indices = (0..split_at).into_iter().chain(split_at..count);
         let t = indices
             .map(move |i| nodes[i].clone())
             .map(move |l| {
                 let n = depth - 1;
                 let eg = egraph.clone();
-                let lc = l.clone();
+                let lc = l;
 
                 let iter: Box<dyn Iterator<Item = String>> = match lc {
                     Lang::I32Store {
@@ -167,8 +165,8 @@ pub fn lazy_expand<'a>(
                     | Lang::F64Le([left, right])
                     | Lang::F32Ge([left, right])
                     | Lang::F64Ge([left, right]) => {
-                        let lcope = left.clone();
-                        let rcopy = right.clone();
+                        let lcope = left;
+                        let rcopy = right;
                         let lc2 = lc.clone();
                         // zip the expansion of the operands
                         let t = lazy_expand(lcope, eg.clone(), n, rnd)
@@ -176,7 +174,7 @@ pub fn lazy_expand<'a>(
                                 std::iter::repeat(e).zip(lazy_expand(rcopy, eg.clone(), n, rnd))
                             })
                             .map(move |(l, r)| {
-                                format!("({} {} {})", lc2.display_op().to_string(), l, r)
+                                format!("({} {} {})", lc2.display_op(), l, r)
                             });
 
                         Box::new(t)
@@ -295,11 +293,11 @@ pub fn lazy_expand<'a>(
                     | Lang::I64Clz([arg])
                     | Lang::UnfoldI64(arg)
                     | Lang::UnfoldI32(arg) => {
-                        let lcope = arg.clone();
+                        let lcope = arg;
                         let lc2 = lc.clone();
                         // zip the expansion of the operands
                         let t = lazy_expand(lcope, eg, n, rnd)
-                            .map(move |l| format!("({} {})", lc2.display_op().to_string(), l));
+                            .map(move |l| format!("({} {})", lc2.display_op(), l));
 
                         Box::new(t)
                     }
@@ -329,12 +327,11 @@ pub fn lazy_expand<'a>(
 mod tests {
     use std::{cell::RefCell, str::FromStr};
 
-    use egg::{rewrite, AstSize, Id, Language, RecExpr, Rewrite, Runner};
+    use egg::{rewrite, AstSize, RecExpr, Rewrite, Runner};
     use rand::{prelude::SmallRng, SeedableRng};
 
     use crate::mutators::peephole::{
         eggsy::{analysis::PeepholeMutationAnalysis, expr_enumerator::lazy_expand, lang::Lang},
-        EG,
     };
 
     #[derive(Clone, Copy, Debug)]
@@ -383,9 +380,9 @@ mod tests {
             .with_expr(&expr.parse().unwrap())
             .run(rules);
         let mut egraph = runner.egraph;
-        let cf = AstSize;
+        let _cf = AstSize;
 
-        let enumeration_start = std::time::Instant::now();
+        let _enumeration_start = std::time::Instant::now();
         let root = egraph.add_expr(&expr.parse().unwrap());
         let mut rnd = SmallRng::seed_from_u64(0);
         let rnd = RefCell::new(&mut rnd);
@@ -396,7 +393,7 @@ mod tests {
             if let Some(it) = it.next() {
                 println!("{} {}", i, it);
                 // Parsing with our Parser :)
-                let r = RecExpr::<Lang>::from_str(&it).unwrap();
+                let _r = RecExpr::<Lang>::from_str(&it).unwrap();
             } else {
                 break;
             }
