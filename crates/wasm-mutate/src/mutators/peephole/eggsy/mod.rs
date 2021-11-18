@@ -4,7 +4,6 @@
 use std::{cmp::Ordering, collections::HashMap};
 
 use egg::{Analysis, CostFunction, EClass, EGraph, Id, Language, RecExpr};
-use rand::Rng;
 
 pub(crate) mod analysis;
 pub mod encoder;

@@ -332,17 +332,6 @@ impl<'a> DFGBuilder {
             .unwrap()
     }
 
-    /// Returns the status of the stack
-    /// Ideally this should be called after the DFG is contructed, to
-    /// for example, get the type of the basic block
-    pub fn get_stack_status(&self) -> Vec<StackEntry> {
-        return self
-            .stack
-            .iter()
-            .map(|idx| self.dfg_map[*idx].clone())
-            .collect::<Vec<_>>();
-    }
-
     /// This method should build lane dfg information
     /// It returns a map of operator indexes over the function operators,
     /// in which every key refers to a vector of ranges determining the operands

@@ -4,7 +4,7 @@ use crate::mutators::peephole::{
     eggsy::{encoder::rebuild::build_expr_inner, RandomExtractor},
     EG,
 };
-use egg::{AstSize, Id, Language, RecExpr};
+use egg::{AstSize, Id, RecExpr};
 use rand::{prelude::SmallRng, Rng};
 
 use super::lang::Lang;
@@ -13,6 +13,7 @@ macro_rules! binop {
     ($lang:ident, $left:ident, $right: ident, $egraph: ident, $rnd: ident, $depth: ident, $recexpr: ident) => {{
         let lcope = $left;
         let rcopy = $right;
+        // Cartesian product of the operands
         let t = lazy_expand(lcope, $egraph.clone(), $depth, $rnd, &$recexpr)
             .flat_map(move |e| {
                 std::iter::repeat(e).zip(lazy_expand(
@@ -101,9 +102,6 @@ pub fn lazy_expand<'a>(
     rnd: &'a RefCell<&'a mut SmallRng>,
     recexpr: &'a RefCell<RecExpr<Lang>>,
 ) -> impl Iterator<Item = Id> + 'a {
-    // Notice that the result is a String, it is easier to construct the expression like this
-    // future implementation can take a mut RecExpr and just return the Id of the expression on
-    // each `lazy_expand` iteration
     let t: Box<dyn Iterator<Item = Id>> = if depth == 0 {
         let cf = AstSize;
         let extractor = RandomExtractor::new(&egraph, cf);
@@ -145,7 +143,7 @@ pub fn lazy_expand<'a>(
                         mem
                     ),
                     Lang::I64Store {
-                        value_and_offset: [right, left],
+                        value_and_offset: [left, right],
                         mem,
                         static_offset,
                         align,
@@ -162,7 +160,7 @@ pub fn lazy_expand<'a>(
                         mem
                     ),
                     Lang::F32Store {
-                        value_and_offset: [right, left],
+                        value_and_offset: [left, right],
                         mem,
                         static_offset,
                         align,
@@ -179,7 +177,7 @@ pub fn lazy_expand<'a>(
                         mem
                     ),
                     Lang::F64Store {
-                        value_and_offset: [right, left],
+                        value_and_offset: [left, right],
                         mem,
                         static_offset,
                         align,
@@ -196,7 +194,7 @@ pub fn lazy_expand<'a>(
                         mem
                     ),
                     Lang::I32Store8 {
-                        value_and_offset: [right, left],
+                        value_and_offset: [left, right],
                         mem,
                         static_offset,
                         align,
@@ -213,7 +211,7 @@ pub fn lazy_expand<'a>(
                         mem
                     ),
                     Lang::I32Store16 {
-                        value_and_offset: [right, left],
+                        value_and_offset: [left, right],
                         mem,
                         static_offset,
                         align,
@@ -230,7 +228,7 @@ pub fn lazy_expand<'a>(
                         mem
                     ),
                     Lang::I64Store8 {
-                        value_and_offset: [right, left],
+                        value_and_offset: [left, right],
                         mem,
                         static_offset,
                         align,
@@ -247,7 +245,7 @@ pub fn lazy_expand<'a>(
                         mem
                     ),
                     Lang::I64Store16 {
-                        value_and_offset: [right, left],
+                        value_and_offset: [left, right],
                         mem,
                         static_offset,
                         align,
@@ -264,7 +262,7 @@ pub fn lazy_expand<'a>(
                         mem
                     ),
                     Lang::I64Store32 {
-                        value_and_offset: [right, left],
+                        value_and_offset: [left, right],
                         mem,
                         static_offset,
                         align,
@@ -610,22 +608,6 @@ pub fn lazy_expand<'a>(
                         static_offset,
                         mem
                     ),
-                    Lang::I64Load32U {
-                        offset: arg,
-                        align,
-                        static_offset,
-                        mem,
-                    } => load!(
-                        I64Load32U,
-                        arg,
-                        eg,
-                        rnd,
-                        n,
-                        recexpr,
-                        align,
-                        static_offset,
-                        mem
-                    ),
                     Lang::I64Load {
                         offset: arg,
                         align,
@@ -768,7 +750,6 @@ pub fn lazy_expand<'a>(
                     r64 @ Lang::RandI64 => {
                         Box::new(vec![recexpr.borrow_mut().add(r64.clone())].into_iter())
                     }
-                    _ => unreachable!("not implemented {:?}", lc),
                 };
                 iter
             })
@@ -780,7 +761,7 @@ pub fn lazy_expand<'a>(
 
 #[cfg(test)]
 mod tests {
-    use std::{cell::RefCell, collections::HashMap, ops::RangeBounds, str::FromStr};
+    use std::{cell::RefCell, collections::HashMap};
 
     use egg::{rewrite, AstSize, RecExpr, Rewrite, Runner};
     use rand::{prelude::SmallRng, SeedableRng};
@@ -800,11 +781,11 @@ mod tests {
     }
     #[test]
     fn test_lazy() {
-        let O1 = vec![Mimi { id: 1 }, Mimi { id: 2 }].into_iter();
-        let O2 = vec![Mimi { id: 2 }, Mimi { id: 3 }].into_iter();
+        let o1 = vec![Mimi { id: 1 }, Mimi { id: 2 }].into_iter();
+        let o2 = vec![Mimi { id: 2 }, Mimi { id: 3 }].into_iter();
 
-        let mut l = O1
-            .flat_map(|e| std::iter::repeat(e).zip(O2.clone()))
+        let mut l = o1
+            .flat_map(|e| std::iter::repeat(e).zip(o2.clone()))
             .map(|(l, r)| {
                 l.used();
                 r.used();
@@ -841,23 +822,19 @@ mod tests {
         let _enumeration_start = std::time::Instant::now();
         let root = egraph.add_expr(&expr.parse().unwrap());
         let mut rnd = SmallRng::seed_from_u64(0);
-        let mut recexpr = RecExpr::default();
+        let recexpr = RecExpr::default();
         let rnd = RefCell::new(&mut rnd);
         let recexpr = RefCell::new(recexpr);
 
         let mut it = lazy_expand(root, egraph, 10, &rnd, &recexpr);
         let mut h: HashMap<String, usize> = HashMap::new();
-        for i in 0..100000 {
-            if let Some(it) = it.next() {
-                println!("{} {}", i, it);
-                println!("expr {}", recexpr.borrow());
+        for _ in 0..100000 {
+            if let Some(_) = it.next() {
                 let t = format!("{}", recexpr.borrow());
 
                 assert!(!h.contains_key(&t));
 
                 h.insert(t, 1);
-                // Parsing with our Parser :)
-                //let _r = RecExpr::<Lang>::from_str(&it).unwrap();
             } else {
                 break;
             }

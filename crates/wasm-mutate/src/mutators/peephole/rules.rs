@@ -30,6 +30,8 @@ impl PeepholeMutator {
             rewrite!("container1"; "?x" => "(container nop ?x)"),
             rewrite!("container2"; "?x" => "(container (drop i32.rand) ?x)"),
             rewrite!("container3"; "?x" => "(container (drop i64.rand) ?x)"),
+            rewrite!("or--1";  "(i32.or ?x -1_i32)" => "-1_i32" ),
+            rewrite!("or--12";  "(i64.or ?x -1_i64)" => "-1_i64" ),
         ];
         // Use a custom instruction-mutator for this
         // This specific rewriting rule has a condition, it should be appplied if the operand is a constant
@@ -73,6 +75,22 @@ impl PeepholeMutator {
             .extend(rewrite!("associative-1";  "(i32.add ?x (i32.add ?y ?z))" <=> "(i32.add (i32.add ?x ?y) ?z)" ));
         rules
             .extend(rewrite!("associative-12";  "(i64.add ?x (i64.add ?y ?z))" <=> "(i64.add (i64.add ?x ?y) ?z)" ));
+
+        rules
+                .extend(rewrite!("associative-3";  "(i32.and ?x (i32.and ?y ?z))" <=> "(i32.and (i32.and ?x ?y) ?z)" ));
+        rules
+                .extend(rewrite!("associative-32";  "(i64.and ?x (i64.and ?y ?z))" <=> "(i64.and (i64.and ?x ?y) ?z)" ));
+
+        rules.extend(
+            rewrite!("and-repeated-1";  "(i32.and (i32.and ?x ?y) ?y)" <=> "(i32.and ?x ?y)" ),
+        );
+
+        rules.extend(
+            rewrite!("and-repeated-2";  "(i64.and (i64.and ?x ?y) ?y)" <=> "(i64.and ?x ?y)" ),
+        );
+
+        rules.extend(rewrite!("sub-0";  "(i32.sub ?x 0_i32)" <=> "?x" if self.is_type("?x", PrimitiveTypeInfo::I32) ));
+        rules.extend(rewrite!("sub-01";  "(i64.sub ?x 0_i64)" <=> "?x" if self.is_type("?x", PrimitiveTypeInfo::I64) ));
 
         rules.extend(rewrite!("idempotent-3";  "?x" <=> "(i32.mul ?x 1_i32)" if self.is_type("?x", PrimitiveTypeInfo::I32)));
         rules.extend(rewrite!("idempotent-31";  "?x" <=> "(i64.mul ?x 1_i64)" if self.is_type("?x", PrimitiveTypeInfo::I64)));
