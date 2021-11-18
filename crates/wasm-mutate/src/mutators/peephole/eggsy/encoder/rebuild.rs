@@ -1,13 +1,24 @@
 //! Function to construct expressions
-use std::collections::HashMap;
+use std::{cell::RefCell, collections::HashMap};
 
 use crate::mutators::peephole::eggsy::encoder::TraversalEvent;
 use crate::mutators::peephole::Lang;
 use egg::{Id, RecExpr};
 
 /// Build RecExpr from tree information
+///
 pub fn build_expr(root: Id, id_to_node: &[Lang], operands: &[Vec<Id>]) -> RecExpr<Lang> {
     let mut expr = RecExpr::default();
+    build_expr_inner(root, id_to_node, operands, &mut expr);
+    expr
+}
+
+pub(crate) fn build_expr_inner(
+    root: Id,
+    id_to_node: &[Lang],
+    operands: &[Vec<Id>],
+    expr: &mut RecExpr<Lang>,
+) -> Id {
     // A map from the `Id`s we assigned to each sub-expression when extracting a
     // random expression to the `Id`s assigned to each sub-expression by the
     // `RecExpr`.
@@ -453,5 +464,5 @@ pub fn build_expr(root: Id, id_to_node: &[Lang], operands: &[Vec<Id>]) -> RecExp
             }
         }
     }
-    expr
+    Id::from(expr.as_ref().len() - 1)
 }

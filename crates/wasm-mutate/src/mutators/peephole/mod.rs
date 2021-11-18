@@ -26,7 +26,7 @@ use crate::{module::map_type, ModuleInfo, Result, WasmMutate};
 static NUM_RUNS: AtomicU64 = AtomicU64::new(0);
 static NUM_SUCCESSFUL_MUTATIONS: AtomicU64 = AtomicU64::new(0);
 
-use self::{dfg::DFGBuilder};
+use self::dfg::DFGBuilder;
 
 use super::{Mutator, OperatorAndByteOffset};
 
@@ -101,6 +101,8 @@ impl PeepholeMutator {
         let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
         let function_count = sectionreader.get_count();
 
+        let recexpr = RecExpr::default();
+        let recexpr = RefCell::new(recexpr);
         // This split strategy will avoid very often mutating the first function
         // and very rarely mutating the last function
         let function_to_mutate = rnd_ref.borrow_mut().gen_range(0, function_count);
@@ -176,27 +178,27 @@ impl PeepholeMutator {
                                 // This cost function could be replaced by a custom weighted probability, for example
                                 // we could modify the cost function based on the previous mutation/rotation outcome
 
-                                let depth = 6;
+                                let depth = 1;
                                 #[cfg(not(test))]
                                 {
                                     let depth = 6;
                                 }
 
-                                let mut expr = lazy_expand(root, egraph.clone(), depth, &rnd_ref);
+                                let mut iterator =
+                                    lazy_expand(root, egraph.clone(), depth, &rnd_ref, &recexpr);
                                 let mut it = 0;
-                                for expr in expr {
+                                for on in iterator {
                                     config.consume_fuel(1)?;
                                     // Let the parser do its job
                                     it += 1;
-                                    if expr.eq(&start.to_string()) {
+                                    let expr = recexpr.borrow();
+                                    if expr.to_string().eq(&start.to_string()) {
                                         continue;
                                     }
-                                    let compiled =
-                                        RecExpr::<Lang>::from_str(&expr).expect("Invalid parsing");
 
                                     debug!(
                                         "Applied mutation {}\nfor\n{} after {} iterations",
-                                        compiled.pretty(35),
+                                        expr.pretty(35),
                                         start.pretty(35),
                                         it
                                     );
@@ -206,7 +208,7 @@ impl PeepholeMutator {
                                         info,
                                         &rnd_ref,
                                         oidx,
-                                        &compiled,
+                                        &expr,
                                         &operators,
                                         &basicblock,
                                         &mut newfunc,
