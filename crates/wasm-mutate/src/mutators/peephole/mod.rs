@@ -9,7 +9,6 @@ use egg::{Id, RecExpr, Rewrite, Runner, Subst};
 use rand::{prelude::SmallRng, Rng};
 use std::cell::RefCell;
 use std::convert::TryFrom;
-use std::str::FromStr;
 use std::sync::atomic::AtomicU64;
 use wasm_encoder::{CodeSection, Function, Module, ValType};
 use wasmparser::{CodeSectionReader, FunctionBody, LocalsReader};
@@ -184,10 +183,10 @@ impl PeepholeMutator {
                                     let depth = 6;
                                 }
 
-                                let mut iterator =
+                                let iterator =
                                     lazy_expand(root, egraph.clone(), depth, &rnd_ref, &recexpr);
                                 let mut it = 0;
-                                for on in iterator {
+                                for _ in iterator {
                                     config.consume_fuel(1)?;
                                     // Let the parser do its job
                                     it += 1;

@@ -1,5 +1,5 @@
 //! Function to construct expressions
-use std::{cell::RefCell, collections::HashMap};
+use std::collections::HashMap;
 
 use crate::mutators::peephole::eggsy::encoder::TraversalEvent;
 use crate::mutators::peephole::Lang;

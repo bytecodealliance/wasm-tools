@@ -1,7 +1,6 @@
 use std::{cell::RefCell, cmp::Ordering, collections::HashMap};
 
 use egg::{Analysis, CostFunction, EClass, EGraph, Id, Language, RecExpr};
-use rand::Rng;
 
 pub mod analysis;
 pub mod encoder;
