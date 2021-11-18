@@ -1,40 +1,69 @@
-use std::convert::TryFrom;
+use std::{
+    cell::{Cell, RefCell},
+    convert::TryFrom,
+};
 
 use egg::{AstSize, CostFunction, Id, Language, RecExpr};
+use rand::{prelude::SmallRng, Rng, SeedableRng};
 
-use crate::mutators::peephole::{
-    eggsy::{encoder::rebuild::build_expr, RandomExtractor},
-    EG,
+use crate::{
+    mutators::peephole::{
+        eggsy::{encoder::rebuild::build_expr, RandomExtractor},
+        EG,
+    },
+    WasmMutate,
 };
 
 use super::lang::Lang;
 
 struct ENodeIterator;
 
-fn lazy_expand(id: Id, egraph: &EG, depth: u32) -> impl Iterator<Item = String> + '_ {
+pub fn lazy_expand<'a>(
+    id: Id,
+    egraph: &'a EG,
+    depth: u32,
+    rnd: &'a RefCell<&'a mut SmallRng>,
+) -> impl Iterator<Item = String> + 'a {
     let t: Box<dyn Iterator<Item = String>> = if depth == 0 {
+        // TODO, Consume fuel
         let cf = AstSize;
         let extractor = RandomExtractor::new(&egraph, cf);
         let shorter = extractor.extract_shorter(id, build_expr).unwrap();
         Box::new(vec![format!("{}", shorter)].into_iter())
     } else {
-        let t = egraph[id]
-            .nodes
-            .clone()
-            .into_iter()
+        let nodes = egraph[id].nodes.clone();
+        let count = nodes.len();
+        // For each eclass, at least one node exists
+        let split_at = rnd.borrow_mut().gen_range(0, count);
+        let indices = (0..split_at).into_iter().chain(split_at..count).into_iter();
+        let t = indices
+            .map(move |i| nodes[i].clone())
             .map(move |l| {
                 let n = depth - 1;
                 let eg = egraph.clone();
                 let lc = l.clone();
 
                 let iter: Box<dyn Iterator<Item = String>> = match lc {
-                    Lang::I32Add([left, right]) => {
+                    Lang::I32Mul([left, right]) | Lang::I32Add([left, right]) => {
                         let lcope = left.clone();
                         let rcopy = right.clone();
+                        let lc2 = lc.clone();
                         // zip the expansion of the operands
-                        let t = lazy_expand(lcope, eg, n)
-                            .flat_map(move |e| std::iter::repeat(e).zip(lazy_expand(rcopy, eg, n)))
-                            .map(|(l, r)| format!("(i32.add {} {})", l, r));
+                        let t = lazy_expand(lcope, eg, n, rnd)
+                            .flat_map(move |e| {
+                                std::iter::repeat(e).zip(lazy_expand(rcopy, eg, n, rnd))
+                            })
+                            .map(move |(l, r)| {
+                                format!("({} {} {})", lc2.display_op().to_string(), l, r)
+                            });
+
+                        Box::new(t)
+                    }
+                    Lang::UnfoldI32(arg) => {
+                        let lcope = arg.clone();
+                        // zip the expansion of the operands
+                        let t = lazy_expand(lcope, eg, n, rnd)
+                            .map(move |l| format!("(i32.unfold {} )", l));
 
                         Box::new(t)
                     }
@@ -51,6 +80,8 @@ fn lazy_expand(id: Id, egraph: &EG, depth: u32) -> impl Iterator<Item = String> 
 
 #[cfg(test)]
 mod tests {
+    use std::{cell::RefCell, str::FromStr};
+
     use egg::{rewrite, AstSize, Id, Language, RecExpr, Rewrite, Runner};
     use rand::{prelude::SmallRng, SeedableRng};
 
@@ -92,6 +123,9 @@ mod tests {
         let rules: &[Rewrite<Lang, PeepholeMutationAnalysis>] = &[
             rewrite!("rule";  "?x" => "(i32.add ?x 0_i32)"),
             rewrite!("rule2";  "(i32.add ?y ?x)" => "(i32.add ?x ?y)"),
+            rewrite!("rule3";  "?x" => "(i32.mul ?x 1_i32)"),
+            rewrite!("rule4";  "0_i32" => "(i32.unfold 0_i32)"),
+            rewrite!("rule5";  "1_i32" => "(i32.unfold 1_i32)"),
         ];
 
         let expr = "(i32.add 100_i32 200_i32)";
@@ -106,7 +140,9 @@ mod tests {
 
         let enumeration_start = std::time::Instant::now();
         let root = egraph.add_expr(&expr.parse().unwrap());
-        let mut it = lazy_expand(root, &egraph, 2);
+        let mut rnd = SmallRng::seed_from_u64(0);
+        let rnd = RefCell::new(&mut rnd);
+        let mut it = lazy_expand(root, &egraph, 4, &rnd);
         let elapsed = enumeration_start.elapsed();
         eprintln!(
             "Construction {}.{:03} seconds",
@@ -114,7 +150,7 @@ mod tests {
             elapsed.subsec_millis()
         );
 
-        for i in 0..100 {
+        for i in 0..100000 {
             let enumeration_start = std::time::Instant::now();
             if let Some(it) = it.next() {
                 println!("{} {}", i, it);
@@ -124,11 +160,12 @@ mod tests {
                     elapsed.as_secs(),
                     elapsed.subsec_millis()
                 );
+                // Parsing with our Parser :)
+
+                let r = RecExpr::<Lang>::from_str(&it).unwrap();
             } else {
                 break;
             }
         }
-
-        todo!();
     }
 }

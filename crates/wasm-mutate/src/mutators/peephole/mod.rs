@@ -1,13 +1,15 @@
 //! This mutator applies a random peephole transformation to the input Wasm module
-use crate::error::EitherType;
 use crate::module::PrimitiveTypeInfo;
 use crate::mutators::peephole::eggsy::analysis::PeepholeMutationAnalysis;
 use crate::mutators::peephole::eggsy::encoder::rebuild::build_expr;
 use crate::mutators::peephole::eggsy::encoder::Encoder;
 use crate::mutators::peephole::eggsy::lang::Lang;
-use egg::{AstSize, Id, Rewrite, Runner, Subst};
+use crate::{error::EitherType, mutators::peephole::eggsy::expr_enumerator::lazy_expand};
+use egg::{AstSize, Id, RecExpr, Rewrite, Runner, Subst};
 use rand::{prelude::SmallRng, Rng};
+use std::cell::RefCell;
 use std::convert::TryFrom;
+use std::str::FromStr;
 use std::sync::atomic::AtomicU64;
 use wasm_encoder::{CodeSection, Function, Module, ValType};
 use wasmparser::{CodeSectionReader, FunctionBody, LocalsReader};
@@ -117,8 +119,6 @@ impl PeepholeMutator {
             let locals = self.get_func_locals(info, fidx + info.imported_functions_count /* the function type is shifted by the imported functions*/, &mut localsreader)?;
 
             for oidx in (opcode_to_mutate..operatorscount).chain(0..opcode_to_mutate) {
-                config.consume_fuel(1)?;
-
                 let mut dfg = DFGBuilder::new();
                 let basicblock = dfg.get_bb_from_operator(oidx, &operators);
 
@@ -173,42 +173,50 @@ impl PeepholeMutator {
 
                                 // This cost function could be replaced by a custom weighted probability, for example
                                 // we could modify the cost function based on the previous mutation/rotation outcome
-                                let cf = AstSize;
-                                let extractor = RandomExtractor::new(&egraph, cf);
 
-                                let expr = extractor.extract_random(
-                                    rnd, root, /* only 1 for now */ 0, build_expr,
-                                )?;
+                                let rnd_ref = RefCell::new(rnd);
+                                let mut expr = lazy_expand(root, &egraph, 0, &rnd_ref);
 
-                                if expr.to_string().eq(&start.to_string()) {
-                                    continue;
+                                while let Some(expr) = expr.next() {
+                                    config.consume_fuel(1)?;
+                                    // Let the parser do its job
+                                    println!("Extracted {}", expr);
+
+                                    if expr.eq(&start.to_string()) {
+                                        continue;
+                                    }
+
+                                    let compiled =
+                                        RecExpr::<Lang>::from_str(&expr).expect("Invalid parsing");
+
+                                    debug!(
+                                        "Applied mutation {}\nfor\n{}",
+                                        compiled.pretty(35),
+                                        start.pretty(35)
+                                    );
+
+                                    let mut newfunc = self.copy_locals(reader)?;
+                                    Encoder::build_function(
+                                        info,
+                                        &rnd_ref,
+                                        oidx,
+                                        &compiled,
+                                        &operators,
+                                        &basicblock,
+                                        &mut newfunc,
+                                        &minidfg,
+                                        &egraph,
+                                    )?;
+
+                                    if log::log_enabled!(log::Level::Info) {
+                                        NUM_SUCCESSFUL_MUTATIONS
+                                            .fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+                                    }
+
+                                    return Ok((newfunc, fidx));
                                 }
-
-                                debug!(
-                                    "Applied mutation {}\nfor\n{}",
-                                    expr.pretty(35),
-                                    start.pretty(35)
-                                );
-
-                                let mut newfunc = self.copy_locals(reader)?;
-                                Encoder::build_function(
-                                    info,
-                                    rnd,
-                                    oidx,
-                                    &expr,
-                                    &operators,
-                                    &basicblock,
-                                    &mut newfunc,
-                                    &minidfg,
-                                    &egraph,
-                                )?;
-
-                                if log::log_enabled!(log::Level::Info) {
-                                    NUM_SUCCESSFUL_MUTATIONS
-                                        .fetch_add(1, core::sync::atomic::Ordering::Relaxed);
-                                }
-
-                                return Ok((newfunc, fidx));
+                                // If the iterator is done
+                                return Err(crate::Error::NoMutationsApplicable);
                             }
                         }
                     }
