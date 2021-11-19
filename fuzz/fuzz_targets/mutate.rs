@@ -48,7 +48,7 @@ fuzz_target!(|bytes: &[u8]| {
 
     let mutated_wasm = wasm_mutate::WasmMutate::default()
         .seed(seed)
-        .fuel(1000)
+        .fuel(2000)
         .preserve_semantics(true)
         .run(&wasm);
     let mutated_wasm = match mutated_wasm {
