@@ -172,6 +172,7 @@ impl Printer {
             name.write(&mut self.result);
         }
         self.result.push_str(module_ty);
+        let mut code_printed = false;
         loop {
             let payload = match parser.parse(*wasm, true)? {
                 Chunk::NeedMoreData(_) => unreachable!(),
@@ -196,6 +197,9 @@ impl Printer {
                 Payload::TypeSection(s) => self.print_types(s)?,
                 Payload::ImportSection(s) => self.print_imports(s)?,
                 Payload::FunctionSection(reader) => {
+                    if mem::replace(&mut code_printed, true) {
+                        bail!("function section appeared twice in module");
+                    }
                     if reader.get_count() == 0 {
                         continue;
                     }
@@ -633,6 +637,9 @@ impl Printer {
         code: &[FunctionBody<'_>],
         mut funcs: FunctionSectionReader<'_>,
     ) -> Result<()> {
+        if funcs.get_count() != code.len() as u32 {
+            bail!("mismatch in function and code section counts");
+        }
         for body in code {
             let ty = funcs.read()?;
             self.newline();
