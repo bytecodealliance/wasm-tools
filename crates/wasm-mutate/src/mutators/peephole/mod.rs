@@ -120,6 +120,7 @@ impl PeepholeMutator {
             let locals = self.get_func_locals(info, fidx + info.imported_functions_count /* the function type is shifted by the imported functions*/, &mut localsreader)?;
 
             for oidx in (opcode_to_mutate..operatorscount).chain(0..opcode_to_mutate) {
+                config.consume_fuel(1)?;
                 let mut dfg = DFGBuilder::new();
                 let basicblock = dfg.get_bb_from_operator(oidx, &operators);
 
