@@ -719,6 +719,37 @@ pub fn lazy_expand<'a>(
 
                         Box::new(t)
                     }
+                    Lang::Select(arguments) => {
+                        // FIXME
+                        // Same as Call
+                        let mut operands = vec![];
+                        for a in &arguments {
+                            let na = lazy_expand(*a, eg.clone(), n, rnd, &recexpr)
+                                .next()
+                                .unwrap();
+                            operands.push(na);
+                        }
+
+                        let t = std::iter::once(recexpr.borrow_mut().add(Lang::Select([
+                            operands[0],
+                            operands[1],
+                            operands[2],
+                        ])));
+
+                        Box::new(t)
+                    }
+                    Lang::MemoryGrow { mem, mem_byte, by } => {
+                        let lcope = by;
+                        let t = lazy_expand(lcope, eg, n, rnd, &recexpr).map(move |l| {
+                            recexpr.borrow_mut().add(Lang::MemoryGrow {
+                                mem,
+                                mem_byte,
+                                by: l,
+                            })
+                        });
+
+                        Box::new(t)
+                    }
                     i @ Lang::I32(_) => {
                         Box::new(vec![recexpr.borrow_mut().add(i.clone())].into_iter())
                     }
@@ -749,6 +780,9 @@ pub fn lazy_expand<'a>(
                     }
                     r64 @ Lang::RandI64 => {
                         Box::new(vec![recexpr.borrow_mut().add(r64.clone())].into_iter())
+                    }
+                    ms @ Lang::MemorySize { .. } => {
+                        Box::new(vec![recexpr.borrow_mut().add(ms.clone())].into_iter())
                     }
                 };
                 iter

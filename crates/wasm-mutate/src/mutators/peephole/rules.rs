@@ -19,8 +19,6 @@ impl PeepholeMutator {
         let mut rules = vec![
             rewrite!("unfold-2";  "?x" => "(i32.unfold ?x)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I32) ),
             rewrite!("unfold-3";  "?x" => "(i64.unfold ?x)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I64) ),
-            // TODO Pop out the offset
-
             // Rmove the full subtree of the drop
             rewrite!("drop1";  "(drop ?x)" => "(drop i32.rand)" if self.is_type("?x", PrimitiveTypeInfo::I32)),
             rewrite!("drop2";  "(drop ?x)" => "(drop i64.rand)" if self.is_type("?x", PrimitiveTypeInfo::I64)),

@@ -948,6 +948,13 @@ impl Display for Lang {
             Lang::UnfoldI64(_) => f.write_str("i64.unfold"),
             Lang::Nop => f.write_str("nop"),
             Lang::Container(_) => f.write_str("container"),
+            Lang::Select(_) => f.write_str("select"),
+            Lang::MemoryGrow { mem, mem_byte, .. } => {
+                f.write_str(&format!("memory.grow.{}.{}", mem, mem_byte))
+            }
+            Lang::MemorySize { mem, mem_byte } => {
+                f.write_str(&format!("memory.size.{}.{}", mem, mem_byte))
+            }
         }
     }
 }
@@ -1174,6 +1181,31 @@ impl Lang {
         match ops[0] {
             "call" => Ok(Lang::Call(index, children.clone())),
             _ => Err(format!("Invalid call operation {:?}", op_str)),
+        }
+    }
+
+    /// Parses memory grow or size operator
+    /// memory.(grow|size).$mem.$membyte
+    ///
+    pub fn parse_memory_sg(op_str: &str, children: &Vec<Id>) -> Result<Self, String> {
+        let splat = op_str.split('.');
+        let ops = splat.collect::<Vec<_>>();
+        if ops.len() != 4 {
+            return Err(format!("Invalid memory (grow|size) operator {}", op_str));
+        }
+
+        // In theory indices can have eclasses as well
+        // If we want to have index-change-like mutators
+        let mem = u32::from_str(ops[2]).unwrap();
+        let mem_byte = u8::from_str(ops[3]).unwrap();
+        match &ops[..2] {
+            ["memory", "grow"] => Ok(Lang::MemoryGrow {
+                mem,
+                mem_byte,
+                by: children[0],
+            }),
+            ["memory", "size"] => Ok(Lang::MemorySize { mem, mem_byte }),
+            _ => Err(format!("Invalid index based operation {:?}", op_str)),
         }
     }
 }
@@ -1537,6 +1569,9 @@ impl egg::Language for Lang {
             Lang::F64(_) => &[],
             Lang::Nop => &[],
             Lang::Container(operands) => operands,
+            Lang::Select(operands) => operands,
+            Lang::MemoryGrow { by, .. } => std::slice::from_ref(by),
+            Lang::MemorySize { .. } => &[],
             //Lang::Select(operands) => operands,
         }
     }
@@ -2005,8 +2040,10 @@ impl egg::Language for Lang {
             "drop" => Ok(Lang::Drop([children[0]])),
             "nop" => Ok(Lang::Nop),
             "container" => Ok(Lang::Container(children)),
+            "select" => Ok(Lang::Select([children[0], children[1], children[2]])),
             //"select" => Ok(Lang::Select([children[0], children[1], children[2]])),
             _ => Lang::parse_call(op_str, &children)
+                .or(Lang::parse_memory_sg(op_str, &children))
                 .or(Lang::parse_mem_op(op_str, &children))
                 .or(Lang::parse_index_op(op_str, &children))
                 .or(Lang::parse_integer(op_str))

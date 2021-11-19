@@ -578,6 +578,43 @@ mod tests {
     }
 
     #[test]
+    fn test_peep_select() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("rule";  "(select ?x ?y ?z)" => "(select (i32.eqz ?x) ?z ?y)")];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func") (result f32)  (local i32 i32)
+                f32.const 10
+                f32.const 20
+                f32.add
+                f32.const 200
+                local.get 0
+                select
+            )
+        )
+        "#,
+            rules,
+            r#"
+            (module
+                (type (;0;) (func (result f32)))
+                (func (;0;) (type 0) (result f32)
+                  (local i32 i32)
+                  f32.const 0x1.9p+7 (;=200;)
+                  f32.const 0x1.4p+3 (;=10;)
+                  f32.const 0x1.4p+4 (;=20;)
+                  f32.add
+                  local.get 0
+                  i32.eqz
+                  select)
+                (export "exported_func" (func 0)))
+            "#,
+            4,
+        );
+    }
+
+    #[test]
     fn test_peep_wrap() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
             rewrite!("strength-undo";  "?x" => "(i32.add ?x 0_i32)" if is_type("?x", PrimitiveTypeInfo::I32)),
@@ -1435,7 +1472,6 @@ mod tests {
         let mut validator = wasmparser::Validator::new();
         let mutated_bytes = &mutated.finish();
         let text = wasmprinter::print_bytes(mutated_bytes).unwrap();
-        println!("{}", text);
         crate::validate(&mut validator, mutated_bytes);
 
         let expected_bytes = &wat::parse_str(expected).unwrap();

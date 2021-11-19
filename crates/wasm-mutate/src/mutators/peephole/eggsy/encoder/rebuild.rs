@@ -449,6 +449,12 @@ pub(crate) fn build_expr_inner(
                         mem: *mem,
                         value_and_offset: [operand(0), operand(1)],
                     }),
+                    Lang::Select(_) => expr.add(Lang::Select([operand(0), operand(1), operand(2)])),
+                    Lang::MemoryGrow { mem, mem_byte, .. } => expr.add(Lang::MemoryGrow {
+                        mem: *mem,
+                        mem_byte: *mem_byte,
+                        by: operand(0),
+                    }),
                     i32 @ Lang::I32(_) => expr.add((*i32).clone()),
                     i64 @ Lang::I64(_) => expr.add((*i64).clone()),
                     f32 @ Lang::F32(_) => expr.add((*f32).clone()),
@@ -457,6 +463,7 @@ pub(crate) fn build_expr_inner(
                     s @ Lang::RandI64 => expr.add((*s).clone()),
                     u @ Lang::Undef => expr.add((*u).clone()),
                     n @ Lang::Nop => expr.add((*n).clone()),
+                    ms @ Lang::MemorySize { .. } => expr.add((*ms).clone()),
                 };
                 // Copy the id to stack entries to a new one
                 let old_entry = node_to_id.insert(node, sub_expr_id);
