@@ -3117,6 +3117,56 @@ impl<'a> DFGBuilder {
 
                     self.parents[arg] = idx as i32;
                 }
+                Operator::Select => {
+                    let condition = self.pop_operand(idx, false);
+                    let alternative = self.pop_operand(idx, false);
+                    let consequent = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::Select([
+                            Id::from(condition),
+                            Id::from(consequent),
+                            Id::from(alternative),
+                        ]),
+                        idx,
+                        vec![condition, consequent, alternative],
+                        color,
+                        PrimitiveTypeInfo::I32,
+                    );
+
+                    self.parents[condition] = idx as i32;
+                    self.parents[consequent] = idx as i32;
+                    self.parents[alternative] = idx as i32;
+                }
+                Operator::MemoryGrow { mem, mem_byte } => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::MemoryGrow {
+                            mem: *mem,
+                            mem_byte: *mem_byte,
+                            by: Id::from(arg),
+                        },
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::I32,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::MemorySize { mem, mem_byte } => {
+                    let idx = self.push_node(
+                        Lang::MemorySize {
+                            mem: *mem,
+                            mem_byte: *mem_byte,
+                        },
+                        idx,
+                        vec![],
+                        color,
+                        PrimitiveTypeInfo::I32,
+                    );
+                }
                 _ => {
                     // If the operator is not implemented, break the mutation of this Basic Block
                     return None;

@@ -382,6 +382,21 @@ pub(crate) fn expr2wasm(
                         worklist.push(Context::new(value_and_offset[0], TraversalEvent::Exit));
                         worklist.push(Context::new(value_and_offset[0], TraversalEvent::Enter));
                     }
+                    Lang::Select([condition, consequent, alternative]) => {
+                        worklist.push(Context::new(*condition, TraversalEvent::Exit));
+                        worklist.push(Context::new(*condition, TraversalEvent::Enter));
+
+                        worklist.push(Context::new(*alternative, TraversalEvent::Exit));
+                        worklist.push(Context::new(*alternative, TraversalEvent::Enter));
+
+                        worklist.push(Context::new(*consequent, TraversalEvent::Exit));
+                        worklist.push(Context::new(*consequent, TraversalEvent::Enter));
+                    }
+                    Lang::MemoryGrow { by, .. } => {
+                        worklist.push(Context::new(*by, TraversalEvent::Exit));
+                        worklist.push(Context::new(*by, TraversalEvent::Enter));
+                    }
+                    Lang::MemorySize { mem, .. } => {}
                     _ => { /* Do nothing */ }
                 }
             }
@@ -1202,6 +1217,15 @@ pub(crate) fn expr2wasm(
                     }
                     Lang::Container(_) => {
                         // Do nothing
+                    }
+                    Lang::Select(_) => {
+                        newfunc.instruction(&Instruction::Select);
+                    }
+                    Lang::MemoryGrow { mem, .. } => {
+                        newfunc.instruction(&Instruction::MemoryGrow(*mem));
+                    }
+                    Lang::MemorySize { mem, .. } => {
+                        newfunc.instruction(&Instruction::MemorySize(*mem));
                     }
                 }
             }
