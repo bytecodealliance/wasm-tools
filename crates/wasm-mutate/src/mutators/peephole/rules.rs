@@ -30,11 +30,17 @@ impl PeepholeMutator {
             rewrite!("container3"; "?x" => "(container (drop i64.rand) ?x)"),
             rewrite!("or--1";  "(i32.or ?x -1_i32)" => "-1_i32" ),
             rewrite!("or--12";  "(i64.or ?x -1_i64)" => "-1_i64" ),
+            rewrite!("select-reduce";  "(select ?x ?y ?y)" => "?y"),
         ];
         // Use a custom instruction-mutator for this
         // This specific rewriting rule has a condition, it should be appplied if the operand is a constant
         rules.extend(rewrite!("strength-undo";  "(i32.shl ?x 1_i32)" <=> "(i32.mul ?x 2_i32)"));
         rules.extend(rewrite!("strength-undo01";  "(i64.shl ?x 1_i64)" <=> "(i64.mul ?x 2_i64)"));
+
+        // invert select
+        rules.extend(
+            rewrite!("select-invert";  "(select ?x ?y ?z)" <=> "(select (i32.eqz ?x) ?z ?y)"),
+        );
 
         rules.extend(rewrite!("strength-undo1";  "(i32.shl ?x 2_i32)" <=> "(i32.mul ?x 4_i32)"));
         rules.extend(rewrite!("strength-undo12";  "(i64.shl ?x 2_i64)" <=> "(i64.mul ?x 4_i64)"));
