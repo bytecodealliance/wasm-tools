@@ -654,7 +654,7 @@ impl Display for Lang {
             Lang::Nop => f.write_str("nop"),
             Lang::Container(_) => f.write_str("container"),
             Lang::Select(_) => f.write_str("select"),
-            Lang::MemoryGrow { mem, mem_byte, by } => {
+            Lang::MemoryGrow { mem, mem_byte, .. } => {
                 f.write_str(&format!("memory.grow.{}.{}", mem, mem_byte))
             }
             Lang::MemorySize { mem, mem_byte } => {
@@ -1220,8 +1220,8 @@ impl egg::Language for Lang {
             Lang::Nop => &[],
             Lang::Container(operands) => operands,
             Lang::Select(operands) => operands,
-            Lang::MemoryGrow { mem, mem_byte, by } => std::slice::from_ref(by),
-            Lang::MemorySize { mem, mem_byte } => &[],
+            Lang::MemoryGrow { by, .. } => std::slice::from_ref(by),
+            Lang::MemorySize { .. } => &[],
             //Lang::Select(operands) => operands,
         }
     }
@@ -1521,8 +1521,8 @@ impl egg::Language for Lang {
             Lang::Nop => &mut [],
             Lang::Container(operands) => operands,
             Lang::Select(operands) => operands,
-            Lang::MemoryGrow { mem, mem_byte, by } => std::slice::from_mut(by),
-            Lang::MemorySize { mem, mem_byte } => &mut [],
+            Lang::MemoryGrow { by, .. } => std::slice::from_mut(by),
+            Lang::MemorySize { .. } => &mut [],
             //Lang::Select(operands) => operands,
         }
     }

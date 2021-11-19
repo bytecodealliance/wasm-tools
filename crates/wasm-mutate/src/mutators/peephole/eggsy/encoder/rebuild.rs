@@ -450,7 +450,7 @@ pub(crate) fn build_expr_inner(
                         value_and_offset: [operand(0), operand(1)],
                     }),
                     Lang::Select(_) => expr.add(Lang::Select([operand(0), operand(1), operand(2)])),
-                    Lang::MemoryGrow { mem, mem_byte, by } => expr.add(Lang::MemoryGrow {
+                    Lang::MemoryGrow { mem, mem_byte, .. } => expr.add(Lang::MemoryGrow {
                         mem: *mem,
                         mem_byte: *mem_byte,
                         by: operand(0),

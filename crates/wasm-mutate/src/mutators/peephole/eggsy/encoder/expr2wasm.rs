@@ -396,7 +396,6 @@ pub(crate) fn expr2wasm(
                         worklist.push(Context::new(*by, TraversalEvent::Exit));
                         worklist.push(Context::new(*by, TraversalEvent::Enter));
                     }
-                    Lang::MemorySize { mem, .. } => {}
                     _ => { /* Do nothing */ }
                 }
             }
