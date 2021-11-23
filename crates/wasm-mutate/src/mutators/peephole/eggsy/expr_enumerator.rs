@@ -14,15 +14,9 @@ macro_rules! binop {
         let lcope = $left;
         let rcopy = $right;
         // Cartesian product of the operands
-        let t = lazy_expand(lcope, $egraph.clone(), $depth, $rnd, &$recexpr)
+        let t = lazy_expand(lcope, $egraph, $depth, $rnd, &$recexpr)
             .flat_map(move |e| {
-                std::iter::repeat(e).zip(lazy_expand(
-                    rcopy,
-                    $egraph.clone(),
-                    $depth,
-                    $rnd,
-                    &$recexpr,
-                ))
+                std::iter::repeat(e).zip(lazy_expand(rcopy, $egraph, $depth, $rnd, &$recexpr))
             })
             .map(move |(l, r)| $recexpr.borrow_mut().add(Lang::$lang([l, r])));
 
@@ -44,15 +38,9 @@ macro_rules! store {
     ($lang:ident, $left:ident, $right: ident, $egraph: ident, $rnd: ident, $depth: ident, $recexpr: ident, $align: ident, $offset: ident, $mem: ident) => {{
         let lcope = $left;
         let rcopy = $right;
-        let t = lazy_expand(lcope, $egraph.clone(), $depth, $rnd, &$recexpr)
+        let t = lazy_expand(lcope, $egraph, $depth, $rnd, &$recexpr)
             .flat_map(move |e| {
-                std::iter::repeat(e).zip(lazy_expand(
-                    rcopy,
-                    $egraph.clone(),
-                    $depth,
-                    $rnd,
-                    &$recexpr,
-                ))
+                std::iter::repeat(e).zip(lazy_expand(rcopy, $egraph, $depth, $rnd, &$recexpr))
             })
             .map(move |(l, r)| {
                 $recexpr.borrow_mut().add(Lang::$lang {
@@ -97,7 +85,7 @@ macro_rules! local_or_global {
 ///
 pub fn lazy_expand<'a>(
     id: Id,
-    egraph: EG,
+    egraph: &'a EG,
     depth: u32,
     rnd: &'a RefCell<&'a mut SmallRng>,
     recexpr: &'a RefCell<RecExpr<Lang>>,
@@ -106,7 +94,7 @@ pub fn lazy_expand<'a>(
         let cf = AstSize;
         let extractor = RandomExtractor::new(&egraph, cf);
         let shorter = extractor
-            .extract_shorter(id, &recexpr, build_expr_inner)
+            .extract_smallest(id, &recexpr, build_expr_inner)
             .unwrap();
 
         Box::new(vec![shorter].into_iter())
@@ -120,7 +108,7 @@ pub fn lazy_expand<'a>(
             .map(move |i| nodes[i].clone())
             .map(move |l| {
                 let n = depth - 1;
-                let eg = egraph.clone();
+                let eg = egraph;
                 let lc = l;
 
                 let iter: Box<dyn Iterator<Item = Id>> = match lc {
@@ -410,9 +398,7 @@ pub fn lazy_expand<'a>(
                         // (call.$1 a b c d) can be turned into (call.$1 a (container b (container c (container d)))))
                         let mut operands = vec![];
                         for a in &arguments {
-                            let na = lazy_expand(*a, eg.clone(), n, rnd, &recexpr)
-                                .next()
-                                .unwrap();
+                            let na = lazy_expand(*a, eg, n, rnd, &recexpr).next().unwrap();
                             operands.push(na);
                         }
 
@@ -425,9 +411,7 @@ pub fn lazy_expand<'a>(
                         // Same as Call
                         let mut operands = vec![];
                         for a in &arguments {
-                            let na = lazy_expand(*a, eg.clone(), n, rnd, &recexpr)
-                                .next()
-                                .unwrap();
+                            let na = lazy_expand(*a, eg, n, rnd, &recexpr).next().unwrap();
                             operands.push(na);
                         }
 
@@ -724,9 +708,7 @@ pub fn lazy_expand<'a>(
                         // Same as Call
                         let mut operands = vec![];
                         for a in &arguments {
-                            let na = lazy_expand(*a, eg.clone(), n, rnd, &recexpr)
-                                .next()
-                                .unwrap();
+                            let na = lazy_expand(*a, eg, n, rnd, &recexpr).next().unwrap();
                             operands.push(na);
                         }
 
@@ -860,7 +842,7 @@ mod tests {
         let rnd = RefCell::new(&mut rnd);
         let recexpr = RefCell::new(recexpr);
 
-        let mut it = lazy_expand(root, egraph, 10, &rnd, &recexpr);
+        let mut it = lazy_expand(root, &egraph, 10, &rnd, &recexpr);
         let mut h: HashMap<String, usize> = HashMap::new();
         for _ in 0..100000 {
             if let Some(_) = it.next() {

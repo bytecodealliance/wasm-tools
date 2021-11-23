@@ -109,7 +109,7 @@ where
     /// Do a pre-order traversal of the e-graph. As we visit each e-class, choose
     /// costless with its children.
     ///
-    pub fn extract_shorter(
+    pub fn extract_smallest(
         &self,
         eclass: Id,
         recexpr: &RefCell<RecExpr<L>>,
