@@ -104,7 +104,7 @@ where
     }
 
     /// Do a pre-order traversal of the e-graph. As we visit each e-class, choose
-    /// costless with its children.
+    /// choose the smallest e-node (according to the cost function).
     ///
     pub fn extract_smallest(
         &self,
