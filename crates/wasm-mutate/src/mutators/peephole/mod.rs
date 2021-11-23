@@ -88,7 +88,7 @@ impl PeepholeMutator {
                 Ok(all_locals)
             }
             _ => Err(crate::Error::UnsupportedType(EitherType::TypeDef(
-                "The type for this function is not a function tyupe definition".to_string(),
+                "The type for this function is not a function type definition".to_string(),
             ))),
         }
     }
@@ -195,7 +195,7 @@ impl PeepholeMutator {
                                 let depth = 1;
                                 #[cfg(not(test))]
                                 {
-                                    let depth = 6;
+                                    let depth = 20;
                                 }
 
                                 // Rec expr used in the egraph iterator
@@ -345,12 +345,14 @@ impl Mutator for PeepholeMutator {
         config: &crate::WasmMutate,
         rnd: &mut rand::prelude::SmallRng,
         info: &crate::ModuleInfo,
-    ) -> Result<Module> {
+    ) -> Result<Box<dyn Iterator<Item = Result<Module>>>> {
         // Calculate here type related information for parameters, locals and returns
         // This information could be passed to the conditions to check for type correctness rewriting
         // Write the new rules in the rules.rs file
         let rules = self.get_rules(config);
-        self.mutate_with_rules(config, rnd, info, &rules)
+        Ok(Box::new(std::iter::once(
+            self.mutate_with_rules(config, rnd, info, &rules),
+        )))
     }
 
     fn can_mutate<'a>(&self, _: &'a crate::WasmMutate, info: &crate::ModuleInfo) -> bool {

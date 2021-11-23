@@ -9,7 +9,7 @@ use wasmparser::{Chunk, Parser, Payload, SectionReader};
 
 /// Provides module information for future usage during mutation
 /// an instance of ModuleInfo could be user to determine which mutation could be applied
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ModuleInfo<'a> {
     // The following fields are offsets inside the `raw_sections` field.
     // The main idea is to maintain the order of the sections in the input Wasm.

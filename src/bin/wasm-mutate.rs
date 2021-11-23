@@ -91,8 +91,8 @@ fn main() -> anyhow::Result<()> {
     input
         .read_to_end(&mut input_wasm)
         .with_context(|| format!("failed to read '{}'", input_name))?;
-
-    let output_wasm = match opts.wasm_mutate.run(&input_wasm) {
+    let it = opts.wasm_mutate.run(&input_wasm);
+    let output_wasm = match it {
         Ok(w) => w,
         Err(e) => {
             let code = match &e {

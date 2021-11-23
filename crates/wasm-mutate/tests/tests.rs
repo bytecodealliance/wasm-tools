@@ -17,7 +17,7 @@ fn validate(validator: &mut Validator, bytes: &[u8]) {
 
 #[test]
 fn integration_test() {
-    // From https://developer.mozilla.org/en-US/docs/WebAssembly/Text_format_to_wasm
+    let _ = env_logger::try_init();
     let wat = r#"
     (module
         
@@ -32,9 +32,12 @@ fn integration_test() {
     let original = &wat::parse_str(wat).unwrap();
     let mutator = WasmMutate::default();
     // seed is zero, which means first mutator
+    let mut it = mutator.run(original).unwrap();
 
-    let mutated = mutator.run(original).unwrap();
-    // Down here is the validation for the correct mutation
-    let mut validator = Validator::new();
-    validate(&mut validator, &mutated);
+    while let Some(mutated) = it.next() {
+        // Down here is the validation for the correct mutation
+        println!("Mutated !!");
+        let mut validator = Validator::new();
+        validate(&mut validator, &mutated);
+    }
 }

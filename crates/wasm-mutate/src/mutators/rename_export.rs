@@ -54,7 +54,12 @@ impl RenameExportMutator {
 }
 
 impl Mutator for RenameExportMutator {
-    fn mutate(&self, config: &WasmMutate, rnd: &mut SmallRng, info: &ModuleInfo) -> Result<Module> {
+    fn mutate(
+        &self,
+        config: &WasmMutate,
+        rnd: &mut SmallRng,
+        info: &ModuleInfo,
+    ) -> Result<Box<dyn Iterator<Item = Result<Module>>>> {
         let mut exports = ExportSection::new();
         let mut reader = ExportSectionReader::new(info.get_exports_section().data, 0)?;
         let max_exports = reader.get_count() as u64;
@@ -99,7 +104,9 @@ impl Mutator for RenameExportMutator {
                 }
             }
         }
-        Ok(info.replace_section(info.exports.unwrap(), &exports))
+        Ok(Box::new(std::iter::once(Ok(
+            info.replace_section(info.exports.unwrap(), &exports)
+        ))))
     }
 
     fn can_mutate<'a>(&self, config: &'a WasmMutate, info: &ModuleInfo) -> bool {

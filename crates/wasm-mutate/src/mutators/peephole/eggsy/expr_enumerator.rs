@@ -81,8 +81,35 @@ macro_rules! local_or_global {
     }};
 }
 
-/// Returns a lazy iterator over random expressions in the eggraph
+/// Returns a lazy iterator over all possible expressions that can be
+/// constructed starting in eclass *Id*. If the eclass *Id* is the root of the
+/// expression to mutate, this function will return a random but semantically
+/// equivalent (based on the rewriting rules) expression.
 ///
+/// Starting by the *Id* eclass in the egraph it selects a random node.
+/// Depending on the node, the cartesian product of the operands iterators
+/// (lazy_expand calls) is built to provide a random expression.
+///
+/// Lets assume the language formed only by the `add` and `100` nodes, with
+/// the rewriting rule `?x => add ?x 0`. And lets assume also that we want to
+/// return a random expression out of the parsing of the former integer
+/// expression `100`. When the egraph is constructed, the expression `100` is in
+/// the same eclass than `add 100 0`.
+/// But, since we defined the rewriting rule for any node, recursivelly, all
+/// nodes are in the same equivalence class.
+///
+/// If we call `lazy_expand` to randomly construct an expression out of the
+/// egraph starting at equivalence class `i`, a random node is first selected
+/// from  the selected starting eclass.
+/// For this case, lets assume the `add i 0` node is selected. The iterator will then build
+/// the lazy iterator upon this, something like `add(lazy_expand(i),
+/// lazy_expand(0)) => add(add(lazy_expand(i), 0), 0)`, and so on until the max
+/// depth  is reached and the smallest expression that can be constructed for i
+/// is filled up. Every time the `next` method is called a new expression is
+/// returned until no more are expressions are available due to the *depth* argument.
+///
+/// Notice that if new nodes are added to the Lang enum, the corresponding random
+/// construction of equivalent expressions needs to be added to this method.
 pub fn lazy_expand<'a>(
     id: Id,
     egraph: &'a EG,

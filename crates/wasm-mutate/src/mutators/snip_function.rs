@@ -12,7 +12,12 @@ use wasmparser::CodeSectionReader;
 pub struct SnipMutator;
 
 impl Mutator for SnipMutator {
-    fn mutate(&self, config: &WasmMutate, rnd: &mut SmallRng, info: &ModuleInfo) -> Result<Module> {
+    fn mutate(
+        &self,
+        config: &WasmMutate,
+        rnd: &mut SmallRng,
+        info: &ModuleInfo,
+    ) -> Result<Box<dyn Iterator<Item = Result<Module>>>> {
         let mut codes = CodeSection::new();
         let code_section = info.get_code_section();
         let mut reader = CodeSectionReader::new(code_section.data, 0)?;
@@ -62,7 +67,9 @@ impl Mutator for SnipMutator {
                 Ok(())
             })
             .collect::<Result<Vec<_>>>()?;
-        Ok(info.replace_section(info.code.unwrap(), &codes))
+        Ok(Box::new(std::iter::once(Ok(
+            info.replace_section(info.code.unwrap(), &codes)
+        ))))
     }
 
     fn can_mutate<'a>(&self, config: &'a WasmMutate, info: &ModuleInfo) -> bool {

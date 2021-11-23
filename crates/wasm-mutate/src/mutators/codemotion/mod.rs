@@ -154,7 +154,7 @@ impl Mutator for CodemotionMutator {
         config: &crate::WasmMutate,
         rnd: &mut rand::prelude::SmallRng,
         info: &crate::ModuleInfo,
-    ) -> Result<Module> {
+    ) -> Result<Box<dyn Iterator<Item = Result<Module>>>> {
         // Initialize mutators
         let mutators: Vec<Box<dyn AstMutator>> = vec![
             Box::new(IfComplementMutator),
@@ -177,7 +177,7 @@ impl Mutator for CodemotionMutator {
             }
         }
         let module = info.replace_section(info.code.unwrap(), &codes);
-        Ok(module)
+        Ok(Box::new(std::iter::once(Ok(module))))
     }
 
     fn can_mutate<'a>(&self, _: &'a crate::WasmMutate, info: &crate::ModuleInfo) -> bool {
@@ -207,7 +207,12 @@ mod tests {
 
         assert_eq!(can_mutate, true);
 
-        let mutated = mutator.mutate(&wasmmutate, &mut rnd, &mut info).unwrap();
+        let mutated = mutator
+            .mutate(&wasmmutate, &mut rnd, &mut info)
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap();
 
         let mut validator = wasmparser::Validator::new();
         let mutated_bytes = &mutated.finish();
