@@ -68,7 +68,7 @@ impl PeepholeMutator {
                 Ok(all_locals)
             }
             _ => Err(crate::Error::UnsupportedType(EitherType::TypeDef(
-                "The type for this function is not a function tyupe definition".to_string(),
+                "The type for this function is not a function type definition".to_string(),
             ))),
         }
     }
