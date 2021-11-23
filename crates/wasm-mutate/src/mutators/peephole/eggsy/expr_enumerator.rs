@@ -94,7 +94,7 @@ pub fn lazy_expand<'a>(
         let cf = AstSize;
         let extractor = RandomExtractor::new(&egraph, cf);
         let shorter = extractor
-            .extract_shorter(id, &recexpr, build_expr_inner)
+            .extract_smallest(id, &recexpr, build_expr_inner)
             .unwrap();
 
         Box::new(vec![shorter].into_iter())
@@ -411,9 +411,7 @@ pub fn lazy_expand<'a>(
                         // Same as Call
                         let mut operands = vec![];
                         for a in &arguments {
-                            let na = lazy_expand(*a, eg, n, rnd, &recexpr)
-                                .next()
-                                .unwrap();
+                            let na = lazy_expand(*a, eg, n, rnd, &recexpr).next().unwrap();
                             operands.push(na);
                         }
 

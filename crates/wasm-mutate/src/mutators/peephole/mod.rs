@@ -6,6 +6,7 @@ use crate::mutators::peephole::eggsy::encoder::Encoder;
 use crate::mutators::peephole::eggsy::lang::Lang;
 use crate::{error::EitherType, mutators::peephole::eggsy::expr_enumerator::lazy_expand};
 use egg::{Id, RecExpr, Rewrite, Runner, Subst};
+use rand::SeedableRng;
 use rand::{prelude::SmallRng, Rng};
 use std::cell::RefCell;
 use std::convert::TryFrom;
@@ -95,16 +96,13 @@ impl PeepholeMutator {
         info: &crate::ModuleInfo,
         rules: &[Rewrite<Lang, PeepholeMutationAnalysis>],
     ) -> Result<MutationContext> {
-        let rnd_ref = RefCell::new(rnd);
         let code_section = info.get_code_section();
         let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
         let function_count = sectionreader.get_count();
 
-        let recexpr = RecExpr::default();
-        let recexpr = RefCell::new(recexpr);
         // This split strategy will avoid very often mutating the first function
         // and very rarely mutating the last function
-        let function_to_mutate = rnd_ref.borrow_mut().gen_range(0, function_count);
+        let function_to_mutate = rnd.gen_range(0, function_count);
         let all_readers = (0..function_count)
             .map(|_| sectionreader.read().unwrap())
             .collect::<Vec<FunctionBody>>();
@@ -116,7 +114,7 @@ impl PeepholeMutator {
                 .into_iter_with_offsets()
                 .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()?;
             let operatorscount = operators.len();
-            let opcode_to_mutate = rnd_ref.borrow_mut().gen_range(0, operatorscount);
+            let opcode_to_mutate = rnd.gen_range(0, operatorscount);
             let locals = self.get_func_locals(info, fidx + info.imported_functions_count /* the function type is shifted by the imported functions*/, &mut localsreader)?;
 
             for oidx in (opcode_to_mutate..operatorscount).chain(0..opcode_to_mutate) {
@@ -174,18 +172,24 @@ impl PeepholeMutator {
                                 let mut egraph = runner.egraph;
                                 // In theory this will return the Id of the operator eterm
                                 let root = egraph.add_expr(&start);
-
-                                // This cost function could be replaced by a custom weighted probability, for example
-                                // we could modify the cost function based on the previous mutation/rotation outcome
-
                                 let depth = 1;
                                 #[cfg(not(test))]
                                 {
                                     let depth = 6;
                                 }
 
+                                // Rec expr used in the egraph iterator
+                                let recexpr = RecExpr::default();
+                                let recexpr = RefCell::new(recexpr);
+                                // FIXME, to use another rand generator here
+                                // can break the consistency of the
+                                // deterministic generation. This will be
+                                // ideally fixed once the migration of all
+                                // mutator to be enumerator is completed
+                                let mut iterator_rnd = SmallRng::seed_from_u64(rnd.gen());
+                                let iterator_rnd = RefCell::new(&mut iterator_rnd);
                                 let iterator =
-                                    lazy_expand(root, egraph.clone(), depth, &rnd_ref, &recexpr);
+                                    lazy_expand(root, &egraph, depth, &iterator_rnd, &recexpr);
                                 let mut it = 0;
                                 for _ in iterator {
                                     config.consume_fuel(1)?;
@@ -206,7 +210,7 @@ impl PeepholeMutator {
                                     let mut newfunc = self.copy_locals(reader)?;
                                     Encoder::build_function(
                                         info,
-                                        &rnd_ref,
+                                        rnd,
                                         oidx,
                                         &expr,
                                         &operators,
@@ -220,7 +224,6 @@ impl PeepholeMutator {
                                         NUM_SUCCESSFUL_MUTATIONS
                                             .fetch_add(1, core::sync::atomic::Ordering::Relaxed);
                                     }
-
                                     return Ok((newfunc, fidx));
                                 }
                             }
