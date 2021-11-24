@@ -32,14 +32,24 @@ fn integration_test() {
     let original = &wat::parse_str(wat).unwrap();
     let mutator = WasmMutate::default();
     // seed is zero, which means first mutator
+    let start = std::time::Instant::now();
     let it = mutator.run(original).unwrap();
-
+    let mut count = 0;
     for mutated in it {
         // Down here is the validation for the correct mutation
 
         let text = wasmprinter::print_bytes(&mutated).unwrap();
-        //println!("{}", text);
+        println!("{}", text);
         let mut validator = Validator::new();
         validate(&mut validator, &mutated);
+        count += 1;
     }
+
+    let elapsed = start.elapsed();
+    println!(
+        "Generate {} modules in {}.{:03} seconds",
+        count,
+        elapsed.as_secs(),
+        elapsed.subsec_millis()
+    );
 }

@@ -28,7 +28,7 @@ use crate::{error::EitherType, mutators::peephole::eggsy::expr_enumerator::lazy_
 use egg::{Id, RecExpr, Rewrite, Runner, Subst};
 use rand::SeedableRng;
 use rand::{prelude::SmallRng, Rng};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::convert::TryFrom;
 use std::sync::atomic::AtomicU64;
 use wasm_encoder::{CodeSection, Function, Module, ValType};
@@ -55,13 +55,22 @@ pub mod eggsy;
 pub mod rules;
 
 /// This mutator applies a random peephole transformation to the input Wasm module
-pub struct PeepholeMutator;
+pub struct PeepholeMutator {
+    fuel: Cell<u32>,
+}
 type EG = egg::EGraph<Lang, PeepholeMutationAnalysis>;
 
 // Code mutator, function id, operator id
 type MutationContext = (Function, u32);
 
 impl PeepholeMutator {
+    /// Initializes a new PeepholeMutator with fuel
+    pub fn new(fuel: u32) -> Self {
+        PeepholeMutator {
+            fuel: Cell::new(fuel),
+        }
+    }
+
     // Collect and unfold params and locals, [x, ty, y, ty2] -> [ty....ty, ty2...ty2]
     fn get_func_locals(
         &self,
@@ -193,10 +202,10 @@ impl PeepholeMutator {
                                 let mut egraph = runner.egraph;
                                 // In theory this will return the Id of the operator eterm
                                 let root = egraph.add_expr(&start);
-                                let depth = 3;
+                                let depth = 2;
                                 #[cfg(not(test))]
                                 {
-                                    let depth = 20;
+                                    let depth = 2;
                                 }
 
                                 // Rec expr used in the egraph iterator
@@ -211,24 +220,22 @@ impl PeepholeMutator {
                                 let iterator_rnd = RefCell::new(&mut iterator_rnd);
                                 let iterator =
                                     lazy_expand(root, &egraph, depth, &iterator_rnd, &recexpr);
-                                let mut it = 0;
+
                                 for _ in iterator {
-                                    if it == 1000 {
+                                    if self.fuel.get() == 0 {
                                         break;
                                     }
-                                    //config.consume_fuel(1)?;
-                                    // Let the parser do its job
-                                    it += 1;
+                                    self.fuel.set(self.fuel.get() - 1);
+
                                     let expr = recexpr.borrow();
                                     if expr.to_string().eq(&start.to_string()) {
                                         continue;
                                     }
 
                                     debug!(
-                                        "Applied mutation {}\nfor\n{} after {} iterations",
+                                        "Applied mutation {}\nfor\n{} after",
                                         expr.pretty(35),
                                         start.pretty(35),
-                                        it
                                     );
 
                                     let mut newfunc = self.copy_locals(reader)?;
@@ -243,12 +250,12 @@ impl PeepholeMutator {
                                         &minidfg,
                                         &egraph,
                                     )?;
-
-                                    if log::log_enabled!(log::Level::Info) {
-                                        NUM_SUCCESSFUL_MUTATIONS
-                                            .fetch_add(1, core::sync::atomic::Ordering::Relaxed);
-                                    }
                                     functions.push((newfunc, fidx));
+                                }
+
+                                if log::log_enabled!(log::Level::Info) {
+                                    NUM_SUCCESSFUL_MUTATIONS
+                                        .fetch_add(1, core::sync::atomic::Ordering::Relaxed);
                                 }
                             }
                         }
@@ -322,7 +329,7 @@ impl Mutator for PeepholeMutator {
         let rules = self.get_rules(config);
         let modules = self.mutate_with_rules(config, rnd, info, &rules)?;
 
-        println!("returning ");
+        log::info!("{} modules generated ", modules.len());
         Ok(Box::new(modules.into_iter()))
     }
 

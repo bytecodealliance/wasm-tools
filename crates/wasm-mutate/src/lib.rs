@@ -12,7 +12,6 @@ mod error;
 pub(crate) mod info;
 pub(crate) mod module;
 pub mod mutators;
-
 use crate::mutators::{
     codemotion::CodemotionMutator, function_body_unreachable::FunctionBodyUnreachable,
     peephole::PeepholeMutator, remove_export::RemoveExportMutator,
@@ -20,6 +19,7 @@ use crate::mutators::{
 };
 use info::ModuleInfo;
 use mutators::Mutator;
+use rand::seq::SliceRandom;
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use std::{
     cell::{Cell, RefCell},
@@ -160,7 +160,7 @@ impl WasmMutate {
 
     pub(crate) fn consume_fuel(&self, qt: u64) -> Result<()> {
         if qt > self.fuel.get() {
-            log::debug!("Resource limits reached!");
+            log::info!("Resource limits reached!");
             return Err(crate::Error::NoMutationsApplicable); // Replace by a TimeoutError type
         }
         self.fuel.set(self.fuel.get() - qt);
@@ -178,41 +178,37 @@ impl WasmMutate {
 
         let refself = RefCell::new(self);
 
-        let mutators: Vec<Box<dyn Mutator>> = vec![
-            //Box::new(RenameExportMutator { max_name_size: 100 }),
-            // Box::new(RemoveExportMutator),
-            // Box::new(SnipMutator),
-            // Box::new(FunctionBodyUnreachable),
-            Box::new(PeepholeMutator),
-            // Box::new(CodemotionMutator),
+        let mut mutators: Vec<Box<dyn Mutator>> = vec![
+            Box::new(RenameExportMutator { max_name_size: 100 }),
+            Box::new(RemoveExportMutator),
+            Box::new(SnipMutator),
+            Box::new(FunctionBodyUnreachable),
+            Box::new(PeepholeMutator::new(
+                10, /* 1000 generated expressions only */
+            )),
+            Box::new(CodemotionMutator),
         ];
-        //.collect();
 
-        /*  while !mutators.is_empty() {
-            let i = rng.gen_range(0, mutators.len());
-            let mutator = mutators.swap_remove(i);
-            if let Ok(module) = mutator.mutate(self, &mut rng, &info) {
-                return Ok(module.finish());
-            }
-        } */
-        // TODO Shuffle
-
+        mutators.shuffle(&mut rng);
         let t: Box<dyn Iterator<Item = Vec<u8>>> = Box::new(
             mutators
                 .into_iter()
                 .zip(std::iter::repeat((info, refself)))
                 .filter(move |(m, (info, refself))| {
-                    println!("Filtering mutator {}", m.name());
                     let info = info.borrow();
                     m.can_mutate(&refself.borrow(), &info)
                 })
                 .map(move |(m, (info, refself))| {
-                    println!("Lazy calling {}", m.name());
                     let info = &info.borrow();
+                    println!("Mutating with {}", m.name());
                     m.mutate(&refself.borrow(), &mut rng, &info)
                 })
                 .filter(|mutated| {
-                    println!("{:?}", mutated.is_ok());
+                    // log errors
+                    match mutated {
+                        Err(e) => println!("Error on mutation {:?}", e),
+                        Ok(_) => {}
+                    }
                     mutated.is_ok()
                 })
                 .map(|t| t.unwrap())
