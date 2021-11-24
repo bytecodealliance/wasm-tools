@@ -716,16 +716,19 @@ pub fn lazy_expand<'a>(
                     Lang::I32Ctz([arg]) => unop!(I32Ctz, arg, eg, rnd, n, recexpr),
                     Lang::I64Ctz([arg]) => unop!(I64Ctz, arg, eg, rnd, n, recexpr),
                     Lang::I64Clz([arg]) => unop!(I64Clz, arg, eg, rnd, n, recexpr),
-                    // FIXME, the unfol operator cannot be expanded unless
-                    // another logic is implemented for it, for example, the
-                    // expand of the integer operand can return a something like
-                    // unfold(add(?x 0)) which is incorrect since the value
-                    // should be known statically
-                    u32 @ Lang::UnfoldI32(_) => {
-                        Box::new(vec![recexpr.borrow_mut().add(u32.clone())].into_iter())
+                    Lang::UnfoldI32(arg) => {
+                        let lcope = arg;
+                        let t = lazy_expand(lcope, eg, 0 /* This is a patch to avoid expansion of non statically known values */, rnd, &recexpr)
+                            .map(move |l| recexpr.borrow_mut().add(Lang::UnfoldI32(l)));
+
+                        Box::new(t)
                     }
-                    u64 @ Lang::UnfoldI64(_) => {
-                        Box::new(vec![recexpr.borrow_mut().add(u64.clone())].into_iter())
+                    Lang::UnfoldI64(arg) => {
+                        let lcope = arg;
+                        let t = lazy_expand(lcope, eg, 0, rnd, &recexpr)
+                            .map(move |l| recexpr.borrow_mut().add(Lang::UnfoldI64(l)));
+
+                        Box::new(t)
                     }
                     Lang::Select(arguments) => {
                         // FIXME
