@@ -184,7 +184,8 @@ impl WasmMutate {
             Box::new(SnipMutator),
             Box::new(FunctionBodyUnreachable),
             Box::new(PeepholeMutator::new(
-                10, /* 1000 generated expressions only */
+                100, /* 1000 generated expressions only */
+                2,
             )),
             Box::new(CodemotionMutator),
         ];

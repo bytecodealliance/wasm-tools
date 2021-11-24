@@ -477,7 +477,7 @@ impl State {
         while !self.timeout_reached.load(Relaxed) {
             let seed = rng.gen();
             wasmmutate.seed(seed);
-            wasmmutate.fuel(u64::MAX);
+            wasmmutate.fuel(100);
             wasmmutate.preserve_semantics(true);
 
             // Set a panic hook since some errors are not carried out, this looks more like a patch
@@ -522,6 +522,8 @@ impl State {
                     Ok(_) => {
                         // send the bytes for storage and compilation to another worker
                         to_write.lock().unwrap().push(mutated.clone());
+                        // FIXME, this will always set wasm to the result of the
+                        // last mutation
                         wasm = mutated;
                     }
                     Err(_) => {

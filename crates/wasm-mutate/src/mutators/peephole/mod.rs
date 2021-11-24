@@ -57,6 +57,7 @@ pub mod rules;
 /// This mutator applies a random peephole transformation to the input Wasm module
 pub struct PeepholeMutator {
     fuel: Cell<u32>,
+    max_tree_depth: u32,
 }
 type EG = egg::EGraph<Lang, PeepholeMutationAnalysis>;
 
@@ -65,9 +66,10 @@ type MutationContext = (Function, u32);
 
 impl PeepholeMutator {
     /// Initializes a new PeepholeMutator with fuel
-    pub fn new(fuel: u32) -> Self {
+    pub fn new(fuel: u32, max_depth: u32) -> Self {
         PeepholeMutator {
             fuel: Cell::new(fuel),
+            max_tree_depth: max_depth,
         }
     }
 
@@ -148,7 +150,19 @@ impl PeepholeMutator {
             let locals = self.get_func_locals(info, fidx + info.imported_functions_count /* the function type is shifted by the imported functions*/, &mut localsreader)?;
 
             for oidx in (opcode_to_mutate..operatorscount).chain(0..opcode_to_mutate) {
-                config.consume_fuel(1)?;
+                if let Err(e) = config.consume_fuel(1) {
+                    // If fuel is low, return collected functions
+                    match e {
+                        crate::Error::NoMutationsApplicable => {
+                            if functions.is_empty() {
+                                return Err(e);
+                            }
+
+                            return Ok(functions);
+                        }
+                        _ => return Err(e),
+                    }
+                }
                 let mut dfg = DFGBuilder::new();
                 let basicblock = dfg.get_bb_from_operator(oidx, &operators);
 
@@ -202,11 +216,6 @@ impl PeepholeMutator {
                                 let mut egraph = runner.egraph;
                                 // In theory this will return the Id of the operator eterm
                                 let root = egraph.add_expr(&start);
-                                let depth = 2;
-                                #[cfg(not(test))]
-                                {
-                                    let depth = 2;
-                                }
 
                                 // Rec expr used in the egraph iterator
                                 let recexpr = RecExpr::default();
@@ -218,19 +227,23 @@ impl PeepholeMutator {
                                 // mutator to be enumerator is completed
                                 let mut iterator_rnd = SmallRng::seed_from_u64(rnd.gen());
                                 let iterator_rnd = RefCell::new(&mut iterator_rnd);
-                                let iterator =
-                                    lazy_expand(root, &egraph, depth, &iterator_rnd, &recexpr);
+                                let iterator = lazy_expand(
+                                    root,
+                                    &egraph,
+                                    self.max_tree_depth,
+                                    &iterator_rnd,
+                                    &recexpr,
+                                );
 
                                 for _ in iterator {
-                                    if self.fuel.get() == 0 {
-                                        break;
-                                    }
-                                    self.fuel.set(self.fuel.get() - 1);
-
                                     let expr = recexpr.borrow();
                                     if expr.to_string().eq(&start.to_string()) {
                                         continue;
                                     }
+                                    if self.fuel.get() == 0 {
+                                        break;
+                                    }
+                                    self.fuel.set(self.fuel.get() - 1);
 
                                     debug!(
                                         "Applied mutation {}\nfor\n{} after",
