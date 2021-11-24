@@ -200,7 +200,12 @@ impl PeepholeMutator {
                                     debug!("{} is not consistent", start);
                                     continue;
                                 }
-                                debug!("Trying to mutate \n{} at {}", start.pretty(30), oidx);
+                                debug!(
+                                    "Trying to mutate \n{} at {} in fidx {}",
+                                    start.pretty(30),
+                                    oidx,
+                                    fidx
+                                );
 
                                 let analysis = PeepholeMutationAnalysis::new(
                                     info.global_types.clone(),
@@ -263,6 +268,7 @@ impl PeepholeMutator {
                                         &minidfg,
                                         &egraph,
                                     )?;
+                                    println!("fidx {}", fidx);
                                     functions.push((newfunc, fidx));
                                 }
 
@@ -280,6 +286,7 @@ impl PeepholeMutator {
             }
         }
 
+        println!("func {:?}", functions);
         if functions.is_empty() {
             Err(crate::Error::NoMutationsApplicable)
         } else {
@@ -817,7 +824,7 @@ mod tests {
 
     #[test]
     fn test_peep_inversion2() {
-        /* let original = r#"
+        let original = r#"
             (module
                 (type (;0;) (func (param i64 i32 f32)))
                 (func (;0;) (type 0) (param i64 i32 f32)
@@ -831,7 +838,7 @@ mod tests {
         let wasmmutate = WasmMutate::default();
         let original = &wat::parse_str(original).unwrap();
 
-        let mutator = PeepholeMutator; // the string is empty
+        let mutator = PeepholeMutator::new(1, 1); // the string is empty
 
         let info = ModuleInfo::new(original).unwrap();
         let can_mutate = mutator.can_mutate(&wasmmutate, &info);
@@ -840,7 +847,7 @@ mod tests {
 
         assert_eq!(can_mutate, true);
 
-        let mutated = mutator
+        for mutated in mutator
             .mutate_with_rules(
                 &wasmmutate,
                 &mut rnd,
@@ -848,14 +855,14 @@ mod tests {
                 &mutator.get_rules(&wasmmutate),
             )
             .unwrap()
-            .get(0)
-            .unwrap()
-            .unwrap();
+        {
+            let module = mutated.unwrap();
 
-        let mut validator = wasmparser::Validator::new();
-        let mutated_bytes = &mutated.finish();
-        let _text = wasmprinter::print_bytes(mutated_bytes).unwrap();
-        crate::validate(&mut validator, mutated_bytes); */
+            let mut validator = wasmparser::Validator::new();
+            let mutated_bytes = &module.finish();
+            let _text = wasmprinter::print_bytes(mutated_bytes).unwrap();
+            crate::validate(&mut validator, mutated_bytes);
+        }
     }
 
     #[test]
@@ -1447,16 +1454,65 @@ mod tests {
         );
     }
 
+    #[test]
+    fn test_multiple_functions() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
+            rewrite!("rule";  "?x" => "(i32.add ?x 0_i32)" if is_type("?x", PrimitiveTypeInfo::I32)),
+        ];
+
+        let original = r#"
+            (module
+                (type (;0;) (func (param i64 i32 f32)))
+                (func (;0;) (type 0) (param i64 i32 f32)
+                    i32.const 100
+                    i32.const 200
+                    i32.store offset=600 align=1
+                )
+                (func (;2;) (type 0) (param i64 i32 f32)
+                    i32.const 100
+                    i32.const 200
+                    i32.store offset=600 align=1
+                )
+                (memory (;0;) 0)
+                (export "\00" (memory 0)))
+        "#;
+        let wasmmutate = WasmMutate::default();
+        let original = &wat::parse_str(original).unwrap();
+
+        let mutator = PeepholeMutator::new(100, 1); // the string is empty
+
+        let info = ModuleInfo::new(original).unwrap();
+        let can_mutate = mutator.can_mutate(&wasmmutate, &info);
+
+        let mut rnd = SmallRng::seed_from_u64(0);
+
+        assert_eq!(can_mutate, true);
+        let mut funcs = vec![];
+        for (_, id) in mutator
+            .random_mutate(
+                &wasmmutate,
+                &mut rnd,
+                &info,
+                &mutator.get_rules(&wasmmutate),
+            )
+            .unwrap()
+        {
+            funcs.push(id)
+        }
+        assert!(funcs.contains(&0));
+        assert!(funcs.contains(&1))
+    }
+
     fn test_peephole_mutator(
         original: &str,
         rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>],
         expected: &str,
         seed: u64,
     ) {
-        /* let wasmmutate = WasmMutate::default();
+        let wasmmutate = WasmMutate::default();
         let original = &wat::parse_str(original).unwrap();
 
-        let mutator = PeepholeMutator; // the string is empty
+        let mutator = PeepholeMutator::new(1, 1); // the string is empty
 
         let info = ModuleInfo::new(original).unwrap();
         let can_mutate = mutator.can_mutate(&wasmmutate, &info);
@@ -1465,20 +1521,18 @@ mod tests {
 
         assert_eq!(can_mutate, true);
 
-        let mutated = &mutator
+        for mutated in mutator
             .mutate_with_rules(&wasmmutate, &mut rnd, &info, rules)
             .unwrap()
-            .get(0)
-            .unwrap()
-            .unwrap();
+        {
+            let mut validator = wasmparser::Validator::new();
+            let mutated_bytes = &mutated.unwrap().finish();
+            let text = wasmprinter::print_bytes(mutated_bytes).unwrap();
+            crate::validate(&mut validator, mutated_bytes);
 
-        let mut validator = wasmparser::Validator::new();
-        let mutated_bytes = &mutated.finish();
-        let text = wasmprinter::print_bytes(mutated_bytes).unwrap();
-        crate::validate(&mut validator, mutated_bytes);
-
-        let expected_bytes = &wat::parse_str(expected).unwrap();
-        let expectedtext = wasmprinter::print_bytes(expected_bytes).unwrap();
-        assert_eq!(expectedtext, text); */
+            let expected_bytes = &wat::parse_str(expected).unwrap();
+            let expectedtext = wasmprinter::print_bytes(expected_bytes).unwrap();
+            assert_eq!(expectedtext, text);
+        }
     }
 }
