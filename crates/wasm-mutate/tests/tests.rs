@@ -32,11 +32,13 @@ fn integration_test() {
     let original = &wat::parse_str(wat).unwrap();
     let mutator = WasmMutate::default();
     // seed is zero, which means first mutator
-    let mut it = mutator.run(original).unwrap();
+    let it = mutator.run(original).unwrap();
 
-    while let Some(mutated) = it.next() {
+    for mutated in it {
         // Down here is the validation for the correct mutation
-        println!("Mutated !!");
+
+        let text = wasmprinter::print_bytes(&mutated).unwrap();
+        //println!("{}", text);
         let mut validator = Validator::new();
         validate(&mut validator, &mutated);
     }

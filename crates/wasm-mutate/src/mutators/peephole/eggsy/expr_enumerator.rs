@@ -718,14 +718,14 @@ pub fn lazy_expand<'a>(
                     Lang::I64Clz([arg]) => unop!(I64Clz, arg, eg, rnd, n, recexpr),
                     Lang::UnfoldI32(arg) => {
                         let lcope = arg;
-                        let t = lazy_expand(lcope, eg, n, rnd, &recexpr)
+                        let t = lazy_expand(lcope, eg, 0 /* This is a patch to avoid expansion of non statically known values */, rnd, &recexpr)
                             .map(move |l| recexpr.borrow_mut().add(Lang::UnfoldI32(l)));
 
                         Box::new(t)
                     }
                     Lang::UnfoldI64(arg) => {
                         let lcope = arg;
-                        let t = lazy_expand(lcope, eg, n, rnd, &recexpr)
+                        let t = lazy_expand(lcope, eg, 0, rnd, &recexpr)
                             .map(move |l| recexpr.borrow_mut().add(Lang::UnfoldI64(l)));
 
                         Box::new(t)

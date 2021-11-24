@@ -637,7 +637,11 @@ pub fn expr2wasm(
                             }
                             _ => {
                                 return Err(crate::Error::UnsupportedType(EitherType::EggError(
-                                    format!("The current eterm cannot be unfolded {:?}", child,),
+                                    format!(
+                                        "The current eterm cannot be unfolded {:?}.\n expr {}",
+                                        child,
+                                        expr.to_string()
+                                    ),
                                 )))
                             }
                         }
@@ -657,7 +661,11 @@ pub fn expr2wasm(
                             }
                             _ => {
                                 return Err(crate::Error::UnsupportedType(EitherType::EggError(
-                                    format!("The current eterm cannot be unfolded {:?}", child,),
+                                    format!(
+                                        "The current eterm cannot be unfolded {:?}.\n expr {}",
+                                        child,
+                                        expr.to_string()
+                                    ),
                                 )))
                             }
                         }

@@ -45,22 +45,25 @@ fuzz_target!(|bytes: &[u8]| {
     }
 
     // Mutate the Wasm with `wasm-mutate`. We always preserve semantics.
-
-    let mutated_wasm = wasm_mutate::WasmMutate::default()
+    let wasm_mutate = wasm_mutate::WasmMutate::default()
         .seed(seed)
         .fuel(1000)
-        .preserve_semantics(true)
-        .run(&wasm);
-    let mutated_wasm = match mutated_wasm {
-        Ok(w) => {
-            NUM_SUCCESSFUL_MUTATIONS.fetch_add(1, Ordering::Relaxed);
-            w
+        .preserve_semantics(true);
+
+    if let Ok(iterator) = wasm_mutate.run(&wasm) {
+        for mutated_wasm in iterator {
+            let mutated_wasm = match mutated_wasm {
+                Ok(w) => {
+                    NUM_SUCCESSFUL_MUTATIONS.fetch_add(1, Ordering::Relaxed);
+                    w
+                }
+                Err(e) => match e {
+                    wasm_mutate::Error::NoMutationsApplicable => return,
+                    e => panic!("Unexpected mutation failure: {}", e),
+                },
+            };
         }
-        Err(e) => match e {
-            wasm_mutate::Error::NoMutationsApplicable => return,
-            e => panic!("Unexpected mutation failure: {}", e),
-        },
-    };
+    }
 
     if log::log_enabled!(log::Level::Debug) {
         std::fs::write("mutated.wasm", &mutated_wasm).expect("should write `mutated.wasm` okay");
