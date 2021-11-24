@@ -477,7 +477,7 @@ impl State {
         while !self.timeout_reached.load(Relaxed) {
             let seed = rng.gen();
             wasmmutate.seed(seed);
-            wasmmutate.fuel(100);
+            wasmmutate.fuel(1000);
             wasmmutate.preserve_semantics(true);
 
             // Set a panic hook since some errors are not carried out, this looks more like a patch

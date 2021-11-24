@@ -1,11 +1,11 @@
-use std::cell::RefCell;
+use std::{cell::RefCell, rc::Rc};
 
 use crate::mutators::peephole::{
     eggsy::{encoder::rebuild::build_expr_inner, RandomExtractor},
     EG,
 };
 use egg::{AstSize, Id, RecExpr};
-use rand::{prelude::SmallRng, Rng};
+use rand::{prelude::SmallRng, Rng, SeedableRng};
 
 use super::lang::Lang;
 
@@ -13,12 +13,24 @@ macro_rules! binop {
     ($lang:ident, $left:ident, $right: ident, $egraph: ident, $rnd: ident, $depth: ident, $recexpr: ident) => {{
         let lcope = $left;
         let rcopy = $right;
+        let rec = $recexpr.clone();
+        let rec2 = $recexpr.clone();
+        let rec3 = $recexpr.clone();
+
+        let rnd1 = $rnd.clone();
+        let rnd2 = $rnd.clone();
         // Cartesian product of the operands
-        let t = lazy_expand(lcope, $egraph, $depth, $rnd, &$recexpr)
+        let t = lazy_expand(lcope, $egraph.clone(), $depth, rnd1.clone(), rec3)
             .flat_map(move |e| {
-                std::iter::repeat(e).zip(lazy_expand(rcopy, $egraph, $depth, $rnd, &$recexpr))
+                std::iter::repeat(e).zip(lazy_expand(
+                    rcopy,
+                    $egraph.clone(),
+                    $depth,
+                    rnd2.clone(),
+                    rec2.clone(),
+                ))
             })
-            .map(move |(l, r)| $recexpr.borrow_mut().add(Lang::$lang([l, r])));
+            .map(move |(l, r)| rec.borrow_mut().add(Lang::$lang([l, r])));
 
         Box::new(t)
     }};
@@ -27,8 +39,10 @@ macro_rules! binop {
 macro_rules! unop {
     ($lang:ident,$arg: ident, $egraph: ident, $rnd: ident, $depth: ident, $recexpr: ident) => {{
         let lcope = $arg;
-        let t = lazy_expand(lcope, $egraph, $depth, $rnd, &$recexpr)
-            .map(move |l| $recexpr.borrow_mut().add(Lang::$lang([l])));
+        let rec = $recexpr.clone();
+        let rnd1 = $rnd.clone();
+        let t = lazy_expand(lcope, $egraph, $depth, rnd1, $recexpr.clone())
+            .map(move |l| rec.clone().borrow_mut().add(Lang::$lang([l])));
 
         Box::new(t)
     }};
@@ -38,12 +52,24 @@ macro_rules! store {
     ($lang:ident, $left:ident, $right: ident, $egraph: ident, $rnd: ident, $depth: ident, $recexpr: ident, $align: ident, $offset: ident, $mem: ident) => {{
         let lcope = $left;
         let rcopy = $right;
-        let t = lazy_expand(lcope, $egraph, $depth, $rnd, &$recexpr)
+        let rec = $recexpr.clone();
+        let rec2 = $recexpr.clone();
+        let rec3 = $recexpr.clone();
+
+        let rnd1 = $rnd.clone();
+        let rnd2 = $rnd.clone();
+        let t = lazy_expand(lcope, $egraph.clone(), $depth, rnd1, rec)
             .flat_map(move |e| {
-                std::iter::repeat(e).zip(lazy_expand(rcopy, $egraph, $depth, $rnd, &$recexpr))
+                std::iter::repeat(e).zip(lazy_expand(
+                    rcopy,
+                    $egraph.clone(),
+                    $depth,
+                    rnd2.clone(),
+                    rec2.clone(),
+                ))
             })
             .map(move |(l, r)| {
-                $recexpr.borrow_mut().add(Lang::$lang {
+                rec3.clone().borrow_mut().add(Lang::$lang {
                     value_and_offset: [l, r],
                     align: $align,
                     mem: $mem,
@@ -58,8 +84,10 @@ macro_rules! store {
 macro_rules! load {
     ($lang:ident, $arg: ident, $egraph: ident, $rnd: ident, $depth: ident, $recexpr: ident, $align: ident, $offset: ident, $mem: ident) => {{
         let lcope = $arg;
-        let t = lazy_expand(lcope, $egraph, $depth, $rnd, &$recexpr).map(move |l| {
-            $recexpr.borrow_mut().add(Lang::$lang {
+        let rec = $recexpr.clone();
+        let rnd1 = $rnd.clone();
+        let t = lazy_expand(lcope, $egraph, $depth, rnd1, $recexpr.clone()).map(move |l| {
+            rec.clone().borrow_mut().add(Lang::$lang {
                 offset: l,
                 static_offset: $offset,
                 align: $align,
@@ -74,8 +102,10 @@ macro_rules! load {
 macro_rules! local_or_global {
     ($lang:ident, $idx: ident, $arg: ident, $egraph: ident, $rnd: ident, $depth: ident, $recexpr: ident) => {{
         let lcope = $arg;
-        let t = lazy_expand(lcope, $egraph, $depth, $rnd, &$recexpr)
-            .map(move |l| $recexpr.borrow_mut().add(Lang::$lang($idx, l)));
+        let rec = $recexpr.clone();
+        let rnd1 = $rnd.clone();
+        let t = lazy_expand(lcope, $egraph, $depth, rnd1.clone(), $recexpr.clone())
+            .map(move |l| rec.clone().borrow_mut().add(Lang::$lang($idx, l)));
 
         Box::new(t)
     }};
@@ -112,10 +142,10 @@ macro_rules! local_or_global {
 /// construction of equivalent expressions needs to be added to this method.
 pub fn lazy_expand<'a>(
     id: Id,
-    egraph: &'a EG,
+    egraph: Rc<EG>,
     depth: u32,
-    rnd: &'a RefCell<&'a mut SmallRng>,
-    recexpr: &'a RefCell<RecExpr<Lang>>,
+    rnd: Rc<RefCell<SmallRng>>,
+    recexpr: Rc<RefCell<RecExpr<Lang>>>,
 ) -> impl Iterator<Item = Id> + 'a {
     let t: Box<dyn Iterator<Item = Id>> = if depth == 0 {
         let cf = AstSize;
@@ -135,7 +165,7 @@ pub fn lazy_expand<'a>(
             .map(move |i| nodes[i].clone())
             .map(move |l| {
                 let n = depth - 1;
-                let eg = egraph;
+                let eg = egraph.clone();
                 let lc = l;
 
                 let iter: Box<dyn Iterator<Item = Id>> = match lc {
@@ -425,7 +455,9 @@ pub fn lazy_expand<'a>(
                         // (call.$1 a b c d) can be turned into (call.$1 a (container b (container c (container d)))))
                         let mut operands = vec![];
                         for a in &arguments {
-                            let na = lazy_expand(*a, eg, n, rnd, &recexpr).next().unwrap();
+                            let na = lazy_expand(*a, eg.clone(), n, rnd.clone(), recexpr.clone())
+                                .next()
+                                .unwrap();
                             operands.push(na);
                         }
 
@@ -438,7 +470,9 @@ pub fn lazy_expand<'a>(
                         // Same as Call
                         let mut operands = vec![];
                         for a in &arguments {
-                            let na = lazy_expand(*a, eg, n, rnd, &recexpr).next().unwrap();
+                            let na = lazy_expand(*a, eg.clone(), n, rnd.clone(), recexpr.clone())
+                                .next()
+                                .unwrap();
                             operands.push(na);
                         }
 
@@ -718,15 +752,24 @@ pub fn lazy_expand<'a>(
                     Lang::I64Clz([arg]) => unop!(I64Clz, arg, eg, rnd, n, recexpr),
                     Lang::UnfoldI32(arg) => {
                         let lcope = arg;
-                        let t = lazy_expand(lcope, eg, 0 /* This is a patch to avoid expansion of non statically known values */, rnd, &recexpr)
-                            .map(move |l| recexpr.borrow_mut().add(Lang::UnfoldI32(l)));
+                        let rec = recexpr.clone();
+                        let t = lazy_expand(
+                            lcope,
+                            eg,
+                            0, /* This is a patch to avoid expansion of
+                               non statically known values */
+                            rnd.clone(),
+                            recexpr.clone(),
+                        )
+                        .map(move |l| rec.clone().borrow_mut().add(Lang::UnfoldI32(l)));
 
                         Box::new(t)
                     }
                     Lang::UnfoldI64(arg) => {
                         let lcope = arg;
-                        let t = lazy_expand(lcope, eg, 0, rnd, &recexpr)
-                            .map(move |l| recexpr.borrow_mut().add(Lang::UnfoldI64(l)));
+                        let rec = recexpr.clone();
+                        let t = lazy_expand(lcope, eg, 0, rnd.clone(), recexpr.clone())
+                            .map(move |l| rec.clone().borrow_mut().add(Lang::UnfoldI64(l)));
 
                         Box::new(t)
                     }
@@ -734,8 +777,11 @@ pub fn lazy_expand<'a>(
                         // FIXME
                         // Same as Call
                         let mut operands = vec![];
+                        let rec = recexpr.clone();
                         for a in &arguments {
-                            let na = lazy_expand(*a, eg, n, rnd, &recexpr).next().unwrap();
+                            let na = lazy_expand(*a, eg.clone(), n, rnd.clone(), recexpr.clone())
+                                .next()
+                                .unwrap();
                             operands.push(na);
                         }
 
@@ -749,13 +795,15 @@ pub fn lazy_expand<'a>(
                     }
                     Lang::MemoryGrow { mem, mem_byte, by } => {
                         let lcope = by;
-                        let t = lazy_expand(lcope, eg, n, rnd, &recexpr).map(move |l| {
-                            recexpr.borrow_mut().add(Lang::MemoryGrow {
-                                mem,
-                                mem_byte,
-                                by: l,
-                            })
-                        });
+                        let rec = recexpr.clone();
+                        let t =
+                            lazy_expand(lcope, eg, n, rnd.clone(), recexpr.clone()).map(move |l| {
+                                rec.clone().borrow_mut().add(Lang::MemoryGrow {
+                                    mem,
+                                    mem_byte,
+                                    by: l,
+                                })
+                            });
 
                         Box::new(t)
                     }
@@ -802,9 +850,31 @@ pub fn lazy_expand<'a>(
     t
 }
 
+pub fn lazy_expand_aux<'a>(
+    id: Id,
+    egraph: EG,
+    depth: u32,
+    seed: u64,
+) -> Box<dyn Iterator<Item = RecExpr<Lang>> + 'a> {
+    let expr_buffer = RecExpr::default();
+    let recexpr = Rc::new(RefCell::new(expr_buffer));
+    // FIXME,
+    let mut r = SmallRng::seed_from_u64(seed);
+    let refrnd = Rc::new(RefCell::new(r));
+    let recexprcp = recexpr.clone();
+    let recexprcp2 = recexpr.clone();
+    let eg = Rc::new(egraph);
+    let it = lazy_expand(id, eg.clone(), depth, refrnd, recexprcp).map(move |id| {
+        let expr = RecExpr::from(recexprcp2.borrow().as_ref().to_vec());
+        expr
+    });
+
+    return Box::new(it);
+}
+
 #[cfg(test)]
 mod tests {
-    use std::{cell::RefCell, collections::HashMap};
+    use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
     use egg::{rewrite, AstSize, RecExpr, Rewrite, Runner};
     use rand::{prelude::SmallRng, SeedableRng};
@@ -866,14 +936,14 @@ mod tests {
         let root = egraph.add_expr(&expr.parse().unwrap());
         let mut rnd = SmallRng::seed_from_u64(0);
         let recexpr = RecExpr::default();
-        let rnd = RefCell::new(&mut rnd);
-        let recexpr = RefCell::new(recexpr);
-
-        let mut it = lazy_expand(root, &egraph, 10, &rnd, &recexpr);
+        let rnd = Rc::new(RefCell::new(rnd));
+        let recexpr = Rc::new(RefCell::new(recexpr));
+        let r = recexpr.clone();
+        let mut it = lazy_expand(root, Rc::new(egraph), 10, rnd, recexpr);
         let mut h: HashMap<String, usize> = HashMap::new();
         for _ in 0..100000 {
             if let Some(_) = it.next() {
-                let t = format!("{}", recexpr.borrow());
+                let t = format!("{}", r.borrow());
 
                 assert!(!h.contains_key(&t));
 

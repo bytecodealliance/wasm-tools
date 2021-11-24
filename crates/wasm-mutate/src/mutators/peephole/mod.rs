@@ -23,6 +23,7 @@ use crate::module::PrimitiveTypeInfo;
 use crate::mutators::peephole::eggsy::analysis::PeepholeMutationAnalysis;
 
 use crate::mutators::peephole::eggsy::encoder::Encoder;
+use crate::mutators::peephole::eggsy::expr_enumerator::lazy_expand_aux;
 use crate::mutators::peephole::eggsy::lang::Lang;
 use crate::{error::EitherType, mutators::peephole::eggsy::expr_enumerator::lazy_expand};
 use egg::{Id, RecExpr, Rewrite, Runner, Subst};
@@ -30,6 +31,7 @@ use rand::SeedableRng;
 use rand::{prelude::SmallRng, Rng};
 use std::cell::{Cell, RefCell};
 use std::convert::TryFrom;
+use std::rc::Rc;
 use std::sync::atomic::AtomicU64;
 use wasm_encoder::{CodeSection, Function, Module, ValType};
 use wasmparser::{CodeSectionReader, FunctionBody, LocalsReader};
@@ -47,6 +49,7 @@ static NUM_RUNS: AtomicU64 = AtomicU64::new(0);
 static NUM_SUCCESSFUL_MUTATIONS: AtomicU64 = AtomicU64::new(0);
 
 use self::dfg::DFGBuilder;
+type ItType<'a> = dyn Iterator<Item = Result<MutationContext>> + 'a;
 
 use super::{Mutator, OperatorAndByteOffset};
 
@@ -55,8 +58,8 @@ pub mod eggsy;
 pub mod rules;
 
 /// This mutator applies a random peephole transformation to the input Wasm module
+#[derive(Clone)]
 pub struct PeepholeMutator {
-    fuel: Cell<u32>,
     max_tree_depth: u32,
 }
 type EG = egg::EGraph<Lang, PeepholeMutationAnalysis>;
@@ -66,9 +69,8 @@ type MutationContext = (Function, u32);
 
 impl PeepholeMutator {
     /// Initializes a new PeepholeMutator with fuel
-    pub fn new(fuel: u32, max_depth: u32) -> Self {
+    pub fn new(max_depth: u32) -> Self {
         PeepholeMutator {
-            fuel: Cell::new(fuel),
             max_tree_depth: max_depth,
         }
     }
@@ -120,237 +122,173 @@ impl PeepholeMutator {
         Ok(Function::new(current_locals /*copy locals here*/))
     }
 
-    fn random_mutate(
-        &self,
-        config: &crate::WasmMutate,
-        rnd: &mut rand::prelude::SmallRng,
-        info: &crate::ModuleInfo,
-        rules: &[Rewrite<Lang, PeepholeMutationAnalysis>],
-    ) -> Result<Vec<MutationContext>> {
+    fn random_mutate<'a>(
+        &'a self,
+        config: &'a crate::WasmMutate,
+        rnd: &'a mut rand::prelude::SmallRng,
+        info: &'a crate::ModuleInfo,
+        rules: Vec<Rewrite<Lang, PeepholeMutationAnalysis>>,
+    ) -> Result<Box<ItType<'a>>> {
         let code_section = info.get_code_section();
         let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
         let function_count = sectionreader.get_count();
-        let mut functions: Vec<MutationContext> = vec![];
-
-        // This split strategy will avoid very often mutating the first function
-        // and very rarely mutating the last function
         let function_to_mutate = rnd.gen_range(0, function_count);
-        let all_readers = (0..function_count)
+        let reader = (0..function_count)
             .map(|_| sectionreader.read().unwrap())
-            .collect::<Vec<FunctionBody>>();
-        for fidx in (function_to_mutate..function_count).chain(0..function_to_mutate) {
-            let reader = all_readers[fidx as usize];
-            let operatorreader = reader.get_operators_reader()?;
-            let mut localsreader = reader.get_locals_reader()?;
-            let operators = operatorreader
-                .into_iter_with_offsets()
-                .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()?;
-            let operatorscount = operators.len();
-            let opcode_to_mutate = rnd.gen_range(0, operatorscount);
-            let locals = self.get_func_locals(info, fidx + info.imported_functions_count /* the function type is shifted by the imported functions*/, &mut localsreader)?;
+            .nth(function_to_mutate as usize)
+            .expect("Missing function boy reader");
 
-            for oidx in (opcode_to_mutate..operatorscount).chain(0..opcode_to_mutate) {
-                if let Err(e) = config.consume_fuel(1) {
-                    // If fuel is low, return collected functions
-                    match e {
-                        crate::Error::NoMutationsApplicable => {
-                            if functions.is_empty() {
-                                return Err(e);
-                            }
+        let operatorreader = reader.get_operators_reader()?;
+        let mut localsreader = reader.get_locals_reader()?;
+        let operators = operatorreader
+            .into_iter_with_offsets()
+            .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()?;
+        let operatorscount = operators.len();
+        let opcode_to_mutate = rnd.gen_range(0, operatorscount);
+        let locals = self.get_func_locals(
+            info,
+            function_to_mutate + info.imported_functions_count, /* the function type is shifted
+                                                                by the imported functions*/
+            &mut localsreader,
+        )?;
 
-                            return Ok(functions);
-                        }
-                        _ => return Err(e),
-                    }
-                }
-                let mut dfg = DFGBuilder::new();
-                let basicblock = dfg.get_bb_from_operator(oidx, &operators);
+        let mut dfg = DFGBuilder::new();
+        let basicblock = dfg.get_bb_from_operator(opcode_to_mutate, &operators);
 
-                let old_num_runs = NUM_RUNS.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
-                if old_num_runs % 4096 == 0 && log::log_enabled!(log::Level::Info) {
-                    let successful =
-                        NUM_SUCCESSFUL_MUTATIONS.load(core::sync::atomic::Ordering::Relaxed);
-                    let percent = successful as f64 / old_num_runs as f64 * 100.0;
-                    log::info!(
-                        "{} / {} ({:.2}%) mutated operators.",
-                        successful,
-                        old_num_runs,
-                        percent
-                    );
-                }
-
-                match basicblock {
-                    Some(basicblock) => {
-                        let minidfg = dfg.get_dfg(info, &operators, &basicblock, &locals);
-
-                        match minidfg {
-                            None => {
-                                continue;
-                            }
-                            Some(minidfg) => {
-                                if !minidfg.map.contains_key(&oidx) {
-                                    continue;
-                                }
-                                // Create an eterm expression from the basic block starting at oidx
-                                let start = minidfg.get_expr(oidx);
-
-                                // println!("start  {}", start);
-
-                                if !minidfg.is_subtree_consistent_from_root() {
-                                    debug!("{} is not consistent", start);
-                                    continue;
-                                }
-                                debug!(
-                                    "Trying to mutate \n{} at {} in fidx {}",
-                                    start.pretty(30),
-                                    oidx,
-                                    fidx
-                                );
-
-                                let analysis = PeepholeMutationAnalysis::new(
-                                    info.global_types.clone(),
-                                    locals.clone(),
-                                    info.types_map.clone(),
-                                    info.function_map.clone(),
-                                );
-                                let runner =
-                                    Runner::<Lang, PeepholeMutationAnalysis, ()>::new(analysis)
-                                        .with_iter_limit(1) // only one iterations, do not wait for eq saturation, increasing only by one it affects the execution time of the mutator by a lot
-                                        .with_expr(&start)
-                                        .run(rules);
-                                let mut egraph = runner.egraph;
-                                // In theory this will return the Id of the operator eterm
-                                let root = egraph.add_expr(&start);
-
-                                // Rec expr used in the egraph iterator
-                                let recexpr = RecExpr::default();
-                                let recexpr = RefCell::new(recexpr);
-                                // FIXME, to use another rand generator here
-                                // can break the consistency of the
-                                // deterministic generation. This will be
-                                // ideally fixed once the migration of all
-                                // mutator to be enumerator is completed
-                                let mut iterator_rnd = SmallRng::seed_from_u64(rnd.gen());
-                                let iterator_rnd = RefCell::new(&mut iterator_rnd);
-                                let iterator = lazy_expand(
-                                    root,
-                                    &egraph,
-                                    self.max_tree_depth,
-                                    &iterator_rnd,
-                                    &recexpr,
-                                );
-
-                                for _ in iterator {
-                                    let expr = recexpr.borrow();
-                                    if expr.to_string().eq(&start.to_string()) {
-                                        continue;
-                                    }
-                                    if self.fuel.get() == 0 {
-                                        break;
-                                    }
-                                    self.fuel.set(self.fuel.get() - 1);
-
-                                    debug!(
-                                        "Applied mutation {}\nfor\n{} after",
-                                        expr.pretty(35),
-                                        start.pretty(35),
-                                    );
-
-                                    let mut newfunc = self.copy_locals(reader)?;
-                                    Encoder::build_function(
-                                        info,
-                                        rnd,
-                                        oidx,
-                                        &expr,
-                                        &operators,
-                                        &basicblock,
-                                        &mut newfunc,
-                                        &minidfg,
-                                        &egraph,
-                                    )?;
-                                    println!("fidx {}", fidx);
-                                    functions.push((newfunc, fidx));
-                                }
-
-                                if log::log_enabled!(log::Level::Info) {
-                                    NUM_SUCCESSFUL_MUTATIONS
-                                        .fetch_add(1, core::sync::atomic::Ordering::Relaxed);
-                                }
-                            }
-                        }
-                    }
-                    None => {
-                        continue;
-                    }
-                }
+        let basicblock = match basicblock {
+            None => {
+                debug!(
+                    "Basic block cannot be constructed for {:?}",
+                    &operators[opcode_to_mutate]
+                );
+                return Err(crate::Error::NoMutationsApplicable);
             }
-        }
+            Some(basicblock) => basicblock,
+        };
+        let minidfg = dfg.get_dfg(info, &operators, &basicblock, &locals);
 
-        println!("func {:?}", functions);
-        if functions.is_empty() {
-            Err(crate::Error::NoMutationsApplicable)
-        } else {
-            Ok(functions)
+        let minidfg = match minidfg {
+            None => {
+                debug!("DFG cannot be constructed for {:?}", opcode_to_mutate);
+                return Err(crate::Error::NoMutationsApplicable);
+            }
+            Some(minidfg) => minidfg,
+        };
+
+        if !minidfg.map.contains_key(&opcode_to_mutate) {
+            return Err(crate::Error::NoMutationsApplicable);
         }
+        // Create an eterm expression from the basic block starting at oidx
+        let start = minidfg.get_expr(opcode_to_mutate);
+
+        if !minidfg.is_subtree_consistent_from_root() {
+            debug!("{} is not consistent", start);
+            return Err(crate::Error::NoMutationsApplicable);
+        };
+
+        debug!(
+            "Trying to mutate \n{} at {} in fidx {}",
+            start.pretty(30),
+            opcode_to_mutate,
+            function_to_mutate
+        );
+
+        let analysis = PeepholeMutationAnalysis::new(
+            info.global_types.clone(),
+            locals.clone(),
+            info.types_map.clone(),
+            info.function_map.clone(),
+        );
+        let runner = Runner::<Lang, PeepholeMutationAnalysis, ()>::new(analysis)
+            .with_iter_limit(1) // only one iterations, do not wait for eq saturation, increasing only by one it affects the execution time of the mutator by a lot
+            .with_expr(&start)
+            .run(&rules);
+        let mut egraph = runner.egraph;
+        // In theory this will return the Id of the operator eterm
+        let root = egraph.add_expr(&start);
+
+        let iterator = lazy_expand_aux(root, egraph.clone(), self.max_tree_depth, rnd.gen()).map(
+            move |expr| {
+                let mut newfunc = self.copy_locals(reader)?;
+                Encoder::build_function(
+                    info.clone(),
+                    rnd,
+                    opcode_to_mutate,
+                    &expr,
+                    &operators,
+                    &basicblock,
+                    &mut newfunc,
+                    &minidfg,
+                    &egraph,
+                )?;
+                Ok((newfunc, function_to_mutate))
+            },
+        );
+
+        return Ok(Box::new(iterator));
     }
 
     /// To separate the methods will allow us to test rule by rule
-    fn mutate_with_rules(
-        &self,
-        config: &crate::WasmMutate,
-        rnd: &mut rand::prelude::SmallRng,
-        info: &crate::ModuleInfo,
-        rules: &[Rewrite<Lang, PeepholeMutationAnalysis>],
-    ) -> Result<Vec<Result<Module>>> {
-        let functions = self.random_mutate(config, rnd, info, rules)?;
-
-        if functions.is_empty() {
-            return Err(crate::Error::NoMutationsApplicable);
-        }
-
-        let mut modules: Vec<Result<Module>> = vec![];
-
-        for (new_function, function_to_mutate) in functions {
-            let mut codes = CodeSection::new();
-            let code_section = info.get_code_section();
-            let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
-
-            // this mutator is applicable to internal functions, so
-            // it starts by randomly selecting an index between
-            // the imported functions and the total count, total=imported + internal
-            for fidx in 0..info.function_count {
-                let reader = sectionreader.read()?;
-                if fidx == function_to_mutate {
-                    debug!("Mutating function  idx {:?}", fidx);
-                    codes.function(&new_function);
-                } else {
-                    codes.raw(&code_section.data[reader.range().start..reader.range().end]);
-                }
+    fn mutate_with_rules<'a>(
+        &'a self,
+        config: &'a crate::WasmMutate,
+        rnd: &'a mut rand::prelude::SmallRng,
+        info: &'a crate::ModuleInfo,
+        rules: Vec<Rewrite<Lang, PeepholeMutationAnalysis>>,
+    ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
+        let functions = match self.random_mutate(config, rnd, info, rules) {
+            Err(e) => {
+                println!("Err {:?}", e);
+                return Err(e);
             }
+            Ok(it) => it,
+        };
 
-            let module = info.replace_section(info.code.unwrap(), &codes);
-            modules.push(Ok(module))
-        }
-        Ok(modules)
+        let modules = functions.map(move |context| match context {
+            Ok((new_function, function_to_mutate)) => {
+                let mut codes = CodeSection::new();
+                let code_section = info.get_code_section();
+                let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
+
+                // this mutator is applicable to internal functions, so
+                // it starts by randomly selecting an index between
+                // the imported functions and the total count, total=imported + internal
+                for fidx in 0..info.function_count {
+                    let reader = sectionreader.read()?;
+                    if fidx == function_to_mutate {
+                        debug!("Mutating function  idx {:?}", fidx);
+                        codes.function(&new_function);
+                    } else {
+                        codes.raw(&code_section.data[reader.range().start..reader.range().end]);
+                    }
+                }
+
+                let module = info.replace_section(info.code.unwrap(), &codes);
+                Ok(module)
+            }
+            Err(e) => Err(e),
+        });
+
+        return Ok(Box::new(modules));
     }
 }
 
 /// Meta mutator for peephole
 impl Mutator for PeepholeMutator {
-    fn mutate(
-        &self,
-        config: &crate::WasmMutate,
-        rnd: &mut rand::prelude::SmallRng,
-        info: &crate::ModuleInfo,
-    ) -> Result<Box<dyn Iterator<Item = Result<Module>>>> {
+    fn mutate<'a>(
+        &'a self,
+        config: &'a crate::WasmMutate,
+        rnd: &'a mut rand::prelude::SmallRng,
+        info: &'a crate::ModuleInfo,
+    ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         // Calculate here type related information for parameters, locals and returns
         // This information could be passed to the conditions to check for type correctness rewriting
         // Write the new rules in the rules.rs file
         let rules = self.get_rules(config);
-        let modules = self.mutate_with_rules(config, rnd, info, &rules)?;
 
-        log::info!("{} modules generated ", modules.len());
-        Ok(Box::new(modules.into_iter()))
+        let modules = self.mutate_with_rules(config, rnd, info, rules)?;
+
+        Ok(modules)
     }
 
     fn can_mutate<'a>(&self, _: &'a crate::WasmMutate, info: &crate::ModuleInfo) -> bool {
@@ -835,10 +773,11 @@ mod tests {
                 (memory (;0;) 0)
                 (export "\00" (memory 0)))
         "#;
-        let wasmmutate = WasmMutate::default();
+        let mut wasmmutate = WasmMutate::default();
+        wasmmutate.fuel(1);
         let original = &wat::parse_str(original).unwrap();
 
-        let mutator = PeepholeMutator::new(1, 1); // the string is empty
+        let mutator = PeepholeMutator::new(1);
 
         let info = ModuleInfo::new(original).unwrap();
         let can_mutate = mutator.can_mutate(&wasmmutate, &info);
@@ -848,12 +787,7 @@ mod tests {
         assert_eq!(can_mutate, true);
 
         for mutated in mutator
-            .mutate_with_rules(
-                &wasmmutate,
-                &mut rnd,
-                &info,
-                &mutator.get_rules(&wasmmutate),
-            )
+            .mutate_with_rules(&wasmmutate, &mut rnd, &info, mutator.get_rules(&wasmmutate))
             .unwrap()
         {
             let module = mutated.unwrap();
@@ -1454,65 +1388,17 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_multiple_functions() {
-        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("rule";  "?x" => "(i32.add ?x 0_i32)" if is_type("?x", PrimitiveTypeInfo::I32)),
-        ];
-
-        let original = r#"
-            (module
-                (type (;0;) (func (param i64 i32 f32)))
-                (func (;0;) (type 0) (param i64 i32 f32)
-                    i32.const 100
-                    i32.const 200
-                    i32.store offset=600 align=1
-                )
-                (func (;2;) (type 0) (param i64 i32 f32)
-                    i32.const 100
-                    i32.const 200
-                    i32.store offset=600 align=1
-                )
-                (memory (;0;) 0)
-                (export "\00" (memory 0)))
-        "#;
-        let wasmmutate = WasmMutate::default();
-        let original = &wat::parse_str(original).unwrap();
-
-        let mutator = PeepholeMutator::new(100, 1); // the string is empty
-
-        let info = ModuleInfo::new(original).unwrap();
-        let can_mutate = mutator.can_mutate(&wasmmutate, &info);
-
-        let mut rnd = SmallRng::seed_from_u64(0);
-
-        assert_eq!(can_mutate, true);
-        let mut funcs = vec![];
-        for (_, id) in mutator
-            .random_mutate(
-                &wasmmutate,
-                &mut rnd,
-                &info,
-                &mutator.get_rules(&wasmmutate),
-            )
-            .unwrap()
-        {
-            funcs.push(id)
-        }
-        assert!(funcs.contains(&0));
-        assert!(funcs.contains(&1))
-    }
-
     fn test_peephole_mutator(
         original: &str,
         rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>],
         expected: &str,
         seed: u64,
     ) {
-        let wasmmutate = WasmMutate::default();
+        let mut wasmmutate = WasmMutate::default();
+        wasmmutate.fuel(10);
         let original = &wat::parse_str(original).unwrap();
 
-        let mutator = PeepholeMutator::new(1, 1); // the string is empty
+        let mutator = PeepholeMutator::new(2); // the string is empty
 
         let info = ModuleInfo::new(original).unwrap();
         let can_mutate = mutator.can_mutate(&wasmmutate, &info);
@@ -1520,9 +1406,9 @@ mod tests {
         let mut rnd = SmallRng::seed_from_u64(seed);
 
         assert_eq!(can_mutate, true);
-
+        let mut found = false;
         for mutated in mutator
-            .mutate_with_rules(&wasmmutate, &mut rnd, &info, rules)
+            .mutate_with_rules(&wasmmutate, &mut rnd, &info, rules.to_vec())
             .unwrap()
         {
             let mut validator = wasmparser::Validator::new();
@@ -1532,7 +1418,12 @@ mod tests {
 
             let expected_bytes = &wat::parse_str(expected).unwrap();
             let expectedtext = wasmprinter::print_bytes(expected_bytes).unwrap();
-            assert_eq!(expectedtext, text);
+            if expectedtext == text {
+                found = true;
+            }
         }
+
+        // Assert that the passed mutation was found
+        assert!(found)
     }
 }

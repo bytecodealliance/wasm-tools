@@ -7,7 +7,6 @@
 //! tool. `wasm-mutate` can serve as a custom mutator for mutation-based
 //! fuzzing.
 #![cfg_attr(not(feature = "structopt"), deny(missing_docs))]
-
 mod error;
 pub(crate) mod info;
 pub(crate) mod module;
@@ -21,6 +20,7 @@ use info::ModuleInfo;
 use mutators::Mutator;
 use rand::seq::SliceRandom;
 use rand::{rngs::SmallRng, Rng, SeedableRng};
+use std::hash::Hasher;
 use std::{
     cell::{Cell, RefCell},
     rc::Rc,
@@ -171,55 +171,44 @@ impl WasmMutate {
     pub fn run<'a>(
         &'a self,
         input_wasm: &'a [u8],
-    ) -> Result<Box<dyn Iterator<Item = Vec<u8>> + 'a>> {
+    ) -> Result<Box<dyn Iterator<Item = Result<Vec<u8>>> + 'a>> {
         let mut rng = SmallRng::seed_from_u64(self.seed);
+        //let rng = Rc::new(RefCell::new(rng));
         let info = ModuleInfo::new(input_wasm)?;
-        let info = RefCell::new(info);
+        //let info = Rc::new(RefCell::new(info));
 
-        let refself = RefCell::new(self);
+        // let this = Rc::new(RefCell::new(*self));
 
-        let mut mutators: Vec<Box<dyn Mutator>> = vec![
-            Box::new(RenameExportMutator { max_name_size: 100 }),
-            Box::new(RemoveExportMutator),
-            Box::new(SnipMutator),
-            Box::new(FunctionBodyUnreachable),
-            Box::new(PeepholeMutator::new(
-                100, /* 1000 generated expressions only */
-                2,
-            )),
-            Box::new(CodemotionMutator),
+        let mutators: Vec<Box<dyn Mutator>> = vec![
+            //Box::new(RenameExportMutator { max_name_size: 100 }),
+            //Box::new(RemoveExportMutator),
+            //Box::new(SnipMutator),
+            //Box::new(FunctionBodyUnreachable),
+            Box::new(PeepholeMutator::new(2)),
+            //Box::new(CodemotionMutator),
         ];
 
-        mutators.shuffle(&mut rng);
-        let t: Box<dyn Iterator<Item = Vec<u8>>> = Box::new(
-            mutators
-                .into_iter()
-                .zip(std::iter::repeat((info, refself)))
-                .filter(move |(m, (info, refself))| {
-                    let info = info.borrow();
-                    m.can_mutate(&refself.borrow(), &info)
-                })
-                .map(move |(m, (info, refself))| {
-                    let info = &info.borrow();
-                    println!("Mutating with {}", m.name());
-                    m.mutate(&refself.borrow(), &mut rng, &info)
-                })
-                .filter(|mutated| {
-                    // log errors
-                    match mutated {
-                        Err(e) => println!("Error on mutation {:?}", e),
-                        Ok(_) => {}
-                    }
-                    mutated.is_ok()
-                })
-                .map(|t| t.unwrap())
-                .flat_map(|it| it)
-                .filter(|m| m.is_ok())
-                .map(|m| m.unwrap())
-                .map(|m| m.finish()),
-        );
+        let mut mutators: Vec<Box<dyn Mutator>> = mutators
+            .into_iter()
+            .filter(|m| m.can_mutate(self, &info))
+            .collect();
 
-        Ok(t)
+        while !mutators.is_empty() {
+            let i = rng.gen_range(0, mutators.len());
+            let mutator = mutators.swap_remove(i);
+            let iterator = mutator.mutate(self, &mut rng, &info)?.into_iter();
+
+            return Ok(Box::new(iterator.map(|m| -> Result<Vec<u8>> {
+                match m {
+                    Ok(m) => Ok(m.finish()),
+                    Err(e) => {
+                        println!("Error {:?}", e);
+                        Err(e)
+                    }
+                }
+            })));
+        }
+        return Err(crate::Error::NoMutationsApplicable);
     }
 }
 

@@ -28,7 +28,7 @@ enum TraversalEvent {
 impl Encoder {
     /// Reassembles the mutated function and return a `Function` entry
     pub fn build_function(
-        info: &ModuleInfo,
+        info: ModuleInfo,
         rnd: &mut rand::prelude::SmallRng,
         insertion_point: usize,
         expr: &RecExpr<Lang>,
@@ -58,7 +58,7 @@ impl Encoder {
                 } else {
                     dfg.get_expr(entry.operator_idx)
                 };
-                expr2wasm(info, rnd, &to_encode, newfunc, egraph)?;
+                expr2wasm(&info, rnd, &to_encode, newfunc, egraph)?;
             }
         }
 

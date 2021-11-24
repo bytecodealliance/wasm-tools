@@ -36,12 +36,12 @@ pub trait Mutator {
     /// * `config` instance of WasmMutate
     /// * `rnd` random number generator
     /// * `info` parsed lane AST of the input Wasm module
-    fn mutate(
-        &self,
-        config: &WasmMutate,
-        rnd: &mut SmallRng,
-        info: &ModuleInfo,
-    ) -> Result<Box<dyn Iterator<Item = Result<Module>>>>;
+    fn mutate<'a>(
+        &'a self,
+        config: &'a WasmMutate,
+        rnd: &'a mut SmallRng,
+        info: &'a ModuleInfo<'a>,
+    ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>>;
 
     /// Returns if this mutator can be applied with the info and the byte range in which it can be applied
     fn can_mutate<'a>(&self, config: &'a WasmMutate, info: &ModuleInfo) -> bool;
@@ -63,7 +63,7 @@ pub mod rename_export;
 pub mod snip_function;
 
 #[cfg(test)]
-pub(crate) fn match_mutation(original: &str, mutator: &dyn Mutator, expected: &str) {
+pub(crate) fn match_mutation(original: &str, mutator: &impl Mutator, expected: &str) {
     use rand::SeedableRng;
 
     let wasmmutate = WasmMutate::default();

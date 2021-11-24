@@ -1572,7 +1572,6 @@ impl egg::Language for Lang {
             Lang::Select(operands) => operands,
             Lang::MemoryGrow { by, .. } => std::slice::from_ref(by),
             Lang::MemorySize { .. } => &[],
-            //Lang::Select(operands) => operands,
         }
     }
 
@@ -2041,7 +2040,6 @@ impl egg::Language for Lang {
             "nop" => Ok(Lang::Nop),
             "container" => Ok(Lang::Container(children)),
             "select" => Ok(Lang::Select([children[0], children[1], children[2]])),
-            //"select" => Ok(Lang::Select([children[0], children[1], children[2]])),
             _ => Lang::parse_call(op_str, &children)
                 .or(Lang::parse_memory_sg(op_str, &children))
                 .or(Lang::parse_mem_op(op_str, &children))
