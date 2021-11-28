@@ -30,16 +30,8 @@ wasm-mutate = "0.1.0"
 You can mutate a WebAssembly binary by using the cli tool:
 
 ```bash
-./wasm-mutate original.wasm --seed 456828644046477751 -o out.wasm --preserve-semantics
+./wasm-mutate original.wasm --seed 0 -o out.wasm --preserve-semantics
 ```
-
-
-You can mutate a WebAssembly binary programmatically as well:
-
-```rust
-TODO
-```
-
 
 ## Features
 
@@ -54,58 +46,66 @@ TODO
   reuses the fuzzer's raw input strings. `wasm-mutate` works with the
   `LLVMFuzzerCustomMutator` hook and the
   `libfuzzer_sys::fuzz_mutator!` macro.
+  
   ### Example
+  
   ```rust
   #![no_main]
 
-    use libfuzzer_sys::fuzz_target;
-    use wasmparser::WasmFeatures;
+  use libfuzzer_sys::{fuzz_mutator, fuzz_target};
+  use std::io::{BufRead, Read, Write};
+  use wasmparser::WasmFeatures;
 
-    fuzz_target!(|bytes: &[u8]| {
-        let _ = env_logger::try_init();
+  fuzz_target!(|bytes: &[u8]| {
+      // Initialize the Wasm for example
+  });
 
-        let mut seed = 0;
-        let (wasm, _config) = match wasm_tools_fuzz::generate_valid_module(bytes, |config, u| {
-            seed = u.arbitrary()?;
-            Ok(())
-        }) {
-            Ok(m) => m,
-            Err(_) => return,
-        };
-        log::debug!("seed = {}", seed);
-        let mutated_wasm = wasm_mutate::WasmMutate::default()
-            .seed(seed)
-            .fuel(1000)
-            .preserve_semantics(true)
-            .run(&wasm);
-        let mutated_wasm = match mutated_wasm {
-            Ok(w) => {
-                w
-            }
-            Err(e) => match e {
-                wasm_mutate::Error::NoMutationsApplicable => return,
-                e => panic!("Unexpected mutation failure: {}", e),
-            },
-        };
+  fuzz_mutator!(|data: &mut [u8], size: usize, max_size: usize, seed: u32| {
+      // Generate a random Wasm module with `wasm-smith` as well as a RNG seed for
+      let wasm = &data[..size];
+      let features = WasmFeatures::default();
+      let mut validator = wasmparser::Validator::new();
+      validator.wasm_features(features);
+      let validation_result = validator.validate_all(&wasm);
 
-        if log::log_enabled!(log::Level::Debug) {
-            std::fs::write("mutated.wasm", &mutated_wasm).expect("should write `mutated.wasm` okay");
-            if let Ok(mutated_wat) = wasmprinter::print_bytes(&mutated_wasm) {
-                std::fs::write("mutated.wat", &mutated_wat).expect("should write `mutated.wat` okay");
-            }
-        }
+      // Mutate the data if its a valid Wasm file, otherwise, create a random one
+      let wasm = if validation_result.is_ok() {
+          wasm.to_vec()
+      } else {
+          let (w, _) = match wasm_tools_fuzz::generate_valid_module_from_seed(seed, |config, u| {
+              config.module_linking_enabled = false;
+              config.exceptions_enabled = false;
+              config.simd_enabled = false;
+              config.reference_types_enabled = false;
+              config.memory64_enabled = false;
+              config.max_memories = 1;
+              Ok(())
+          }) {
+              Ok(m) => m,
+              Err(_) => {
+                  return size;
+              }
+          };
+          w
+      };
 
-        let features = WasmFeatures::default();
-        let mut validator = wasmparser::Validator::new();
-        validator.wasm_features(features);
+      let mutated_wasm = wasm_mutate::WasmMutate::default()
+          .seed(seed.into())
+          .fuel(1000)
+          .preserve_semantics(true)
+          .run(&wasm);
 
-        let validation_result = validator.validate_all(&mutated_wasm);
-        log::debug!("validation result = {:?}", validation_result);
-        assert!(
-            validation_result.is_ok(),
-            "`wasm-mutate` should always produce a valid Wasm file"
-        );
-    });
+      let mutated_wasm = match mutated_wasm {
+          Ok(w) => w,
+          Err(_) => wasm,
+      };
+
+      // The mutated Wasm should still be valid, since the input Wasm was valid.
+      let newsize = mutated_wasm.len();
+      data[..newsize].copy_from_slice(&mutated_wasm[..newsize]);
+      newsize
+  });
+
 
   ```
 
@@ -113,7 +113,7 @@ TODO
   mutations to only those that shrink the size of the Wasm module. If it is used
   in this mode, `wasm-mutate` essentially becomes a Wasm test-case reducer. We
   are currently working to provide a prototype of this feature as a separate
-  binary. The following pseudo-Rust provdes the general picture of it as an
+  binary. The following pseudo-Rust provides the general picture of it as an
   standard hill-climbing algorithm.
 
   ```rust
@@ -124,7 +124,12 @@ TODO
             .reduce(true);
 
     while MAX_ITERATIONS > 0 {
-        wasm = wasmmutate.run(&wasm);
+        let new_wasm = wasmmutate.run(&wasm); 
+        wasm = if check_equivalence(new_wasm, wasm) {
+          wasm
+        } else{
+          panic!("No valid transformations")
+        }
         MAX_ITERATIONS -= 1;
     }
 

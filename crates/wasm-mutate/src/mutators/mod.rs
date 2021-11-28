@@ -1,4 +1,24 @@
 //! Mutator trait
+//!
+//! `wasm-mutate` in build on top of three main group or mutators:
+//! **top wasm module struct mutators**, [**code
+//! motion mutators**][super::CodemotionMutator] and [**peephole
+//! mutators**][super::PeepholeMutator].
+//!
+//! The former type is meant to change(mutate) the top structure of the input Wasm
+//! binary, like for example, [by renaming the name of an exported function][super::RenameExportMutator].
+//!
+//! The later two types make changes deeper on the code of the input Wasm binary,
+//! specifycally at the code section level of the binary. The code motion mutator
+//! parses the code and provides an AST which is transformed in a semantically
+//! equivalent way. We provide two concrete implementations using this type of
+//! mutator: [LoopUnrollMutator][codemotion::mutators::loop_unrolling::LoopUnrollMutator] and [IfComplementMutator][codemotion::mutators::if_complement::IfComplementMutator].
+//!
+//! The last group of mutators are the [**peephole
+//! mutators**][super::PeepholeMutator]. When it comes to the input Wasm binary code section, it
+//! iterates through the defined functions, and then each instruction of the
+//! functions is processed in order to construct an equivalent piece of code.
+//!
 use rand::prelude::SmallRng;
 use wasm_encoder::Module;
 use wasmparser::Operator;
@@ -6,8 +26,10 @@ use wasmparser::Operator;
 use super::Result;
 use crate::{ModuleInfo, WasmMutate};
 
-/// This trait is implemented for all mutators
-/// TODO extend and add example here
+/// This trait needs to be implemented for all mutators
+///
+/// Take a look to the implementation of the
+/// [RenameExportMutator][super::RenameExportMutator] implementation for a reference
 pub trait Mutator {
     /// Method where the mutation happpens
     ///
@@ -28,12 +50,12 @@ pub trait Mutator {
 /// Type helper to wrap operator and the byte offset in the code section of a Wasm module
 pub type OperatorAndByteOffset<'a> = (Operator<'a>, usize);
 
-pub(crate) mod codemotion;
-pub(crate) mod function_body_unreachable;
-pub(crate) mod peephole;
-pub(crate) mod remove_export;
-pub(crate) mod rename_export;
-pub(crate) mod snip_function;
+pub mod codemotion;
+pub mod function_body_unreachable;
+pub mod peephole;
+pub mod remove_export;
+pub mod rename_export;
+pub mod snip_function;
 
 #[cfg(test)]
 pub(crate) fn match_mutation(original: &str, mutator: &dyn Mutator, expected: &str) {

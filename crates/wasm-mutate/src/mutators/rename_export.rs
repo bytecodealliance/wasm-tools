@@ -7,14 +7,15 @@ use wasm_encoder::{Export, ExportSection, Module};
 use wasmparser::ExportSectionReader;
 
 /// RenameExportMutator generates a random renaming of prexisting exports.
-/// The export entry is selected randmonly and then a new `field` name is generated/
+/// The export entry is selected randmonly and then a new `field` name is generated
+///
 pub struct RenameExportMutator {
     /// The maximum length of the generated export entry
     pub max_name_size: u32,
 }
 
 impl RenameExportMutator {
-    // Copied and transformed from wasm-smith name generation
+    /// Copied and transformed from wasm-smith name generation
     fn limited_string(
         &self,
         config: &WasmMutate,

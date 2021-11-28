@@ -1,3 +1,7 @@
+//! Rewriting rules for the peephole mutator.
+//!
+//! New rewriting rules should be declared inside the [`get_rules`](/src/wasm_mutate/mutators/peephole/rules.rs.html#17) function
+//!
 use egg::{rewrite, Rewrite};
 
 use crate::{module::PrimitiveTypeInfo, WasmMutate};
@@ -8,8 +12,9 @@ use super::{
 };
 
 impl PeepholeMutator {
-    /// Returns the rewriting rules
-    /// Define new fules here for the peephole mutator
+    /// Returns the rewriting rules.
+    ///
+    /// Define new fules here for the peephole mutator.
     pub fn get_rules(&self, config: &WasmMutate) -> Vec<Rewrite<Lang, PeepholeMutationAnalysis>> {
         let mut rules = vec![
             rewrite!("unfold-2";  "?x" => "(i32.unfold ?x)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I32) ),

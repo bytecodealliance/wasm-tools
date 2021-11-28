@@ -8,6 +8,7 @@ use wasmparser::CodeSectionReader;
 
 use super::Mutator;
 
+/// Sets the body of a function to unreachable
 pub struct FunctionBodyUnreachable;
 
 impl Mutator for FunctionBodyUnreachable {

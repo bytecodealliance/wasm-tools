@@ -1,4 +1,23 @@
-//! This mutator applies a random peephole transformation to the input Wasm module
+//! This mutator applies a random peephole transformation to the input Wasm module.
+//!
+//! It builds a minimal DFG (Data Flow Graph) from a random operator selected
+//! from a random function inside the input Wasm. If this DFG is consistent and
+//! has no side-effects, and egraph is constructed with
+//! several hand-made rewriting rules. Random rewriting rules are selected and
+//! the DFG is replaced by a new one. The final step assembles all together with the
+//! new DFG, constructing a new equivalent Wasm binary.
+//!
+//!
+//! To contribute with this specific mutator you can augment the defined
+//! [rules][rules]. Those rewriting rules should be designed to
+//! preserve the semantic of the original DFG or, in other case, should follow the filter
+//! of the top config `preserve_semantics`.
+//!
+//! # Example
+//! ```ignore
+//! rules.extend(rewrite!("strength-reduction";  "(i32.shl ?x 1_i32)" <=> "(i32.mul ?x 2_i32)"));
+//! ```
+//!
 use crate::error::EitherType;
 use crate::module::PrimitiveTypeInfo;
 use crate::mutators::peephole::eggsy::analysis::PeepholeMutationAnalysis;
