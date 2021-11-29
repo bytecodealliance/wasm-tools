@@ -326,7 +326,12 @@ impl PeepholeMutator {
         let code_index = info.code;
         let global_index = info.globals;
 
-        let insert_globals_before = info.exports.or(info.start).or(info.elements).or(code_index);
+        let insert_globals_before = info
+            .exports
+            .or(info.start)
+            .or(info.elements)
+            .or(info.data_count)
+            .or(code_index);
 
         // If the mutator is in this staeg, then it passes the can_mutate flter,
         // which checks for code section existance
@@ -749,6 +754,65 @@ mod tests {
                 (data (;0;) ""))
             "#,
             11494877297919394048,
+        );
+    }
+
+    #[test]
+    fn test_peep_bug2() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
+            rewrite!("rule-1";  "(drop ?x)" => "(drop i32.rand)" if is_type("?x", PrimitiveTypeInfo::I32)),
+            rewrite!("rule-2";  "(drop ?x)" => "(drop i64.rand)" if is_type("?x", PrimitiveTypeInfo::I64)),
+        ];
+
+        test_peephole_mutator(
+            r#"
+            (module
+                (type (;0;) (func (param i64)))
+                (func (;0;) (type 0) (param i64)
+                  return
+                  local.get 0
+                  i32.const 8519742
+                  drop
+                  drop)
+                (func (;1;) (type 0) (param i64))
+                (func (;2;) (type 0) (param i64))
+                (func (;3;) (type 0) (param i64))
+                (func (;4;) (type 0) (param i64))
+                (func (;5;) (type 0) (param i64))
+                (func (;6;) (type 0) (param i64))
+                (func (;7;) (type 0) (param i64))
+                (func (;8;) (type 0) (param i64))
+                (func (;9;) (type 0) (param i64))
+                (func (;10;) (type 0) (param i64))
+                (func (;11;) (type 0) (param i64))
+                (global (;0;) (mut i32) i32.const 1090519039)
+                (data (;0;) ""))
+        "#,
+            &rules,
+            r#"
+            (module
+                (type (;0;) (func (param i64)))
+                (func (;0;) (type 0) (param i64)
+                  return
+                  i32.const 8519742
+                  drop
+                  i64.const -8169079056478566793
+                  drop)
+                (func (;1;) (type 0) (param i64))
+                (func (;2;) (type 0) (param i64))
+                (func (;3;) (type 0) (param i64))
+                (func (;4;) (type 0) (param i64))
+                (func (;5;) (type 0) (param i64))
+                (func (;6;) (type 0) (param i64))
+                (func (;7;) (type 0) (param i64))
+                (func (;8;) (type 0) (param i64))
+                (func (;9;) (type 0) (param i64))
+                (func (;10;) (type 0) (param i64))
+                (func (;11;) (type 0) (param i64))
+                (global (;0;) (mut i32) i32.const 1090519039)
+                (data (;0;) ""))
+            "#,
+            1,
         );
     }
 
