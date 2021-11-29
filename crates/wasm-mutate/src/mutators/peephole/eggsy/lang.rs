@@ -688,12 +688,8 @@ impl Lang {
                 i64::from_str(n).expect("Invalid integer parsing radix 10"),
             )),
             // Notice that the rewriting rules should be written in the integer representation of the float bits
-            "_f32" => Ok(Lang::F32(
-                u32::from_str(n).expect("Invalid integer parsing radix 10"),
-            )),
-            "_f64" => Ok(Lang::F64(
-                u64::from_str(n).expect("Invalid integer parsing radix 10"),
-            )),
+            "_f32" => Ok(Lang::F32(u32::from_str(n).expect("Invalid float parsing"))),
+            "_f64" => Ok(Lang::F64(u64::from_str(n).expect("Invalid float parsing"))),
             // Add other types here
             _ => Err(format!("Invalid type annotation for {:?}", op_str)),
         }
@@ -924,9 +920,111 @@ impl Lang {
     }
 }
 
+// To match memory like nodes by its inmediates
+macro_rules! match_mem {
+    ($l:ident, $self: ident, $other: ident) => {
+        if let (
+            Lang::$l {
+                static_offset,
+                align,
+                mem,
+                ..
+            },
+            Lang::$l {
+                static_offset: static_offset2,
+                align: align2,
+                mem: mem2,
+                ..
+            },
+        ) = ($self, $other)
+        {
+            return ::std::mem::discriminant($self) == ::std::mem::discriminant($other)
+                && static_offset == static_offset2
+                && align == align2
+                && mem == mem2;
+        }
+    };
+}
+
 impl egg::Language for Lang {
     fn matches(&self, other: &Self) -> bool {
-        ::std::mem::discriminant(self) == ::std::mem::discriminant(other)
+        match_mem!(I32Load, self, other);
+        match_mem!(I64Load, self, other);
+        match_mem!(F32Load, self, other);
+        match_mem!(F64Load, self, other);
+        match_mem!(I32Load8S, self, other);
+        match_mem!(I32Load8U, self, other);
+        match_mem!(I32Load16S, self, other);
+        match_mem!(I32Load16U, self, other);
+        match_mem!(I64Load8S, self, other);
+        match_mem!(I64Load8U, self, other);
+        match_mem!(I64Load16S, self, other);
+        match_mem!(I64Load16U, self, other);
+        match_mem!(I64Load32S, self, other);
+        match_mem!(I64Load32U, self, other);
+        match_mem!(I32Store, self, other);
+        match_mem!(I64Store, self, other);
+        match_mem!(F32Store, self, other);
+        match_mem!(F64Store, self, other);
+        match_mem!(I32Store8, self, other);
+        match_mem!(I32Store16, self, other);
+        match_mem!(I64Store8, self, other);
+        match_mem!(I64Store16, self, other);
+        match_mem!(I64Store32, self, other);
+
+        match (self, other) {
+            (Lang::I32(v), Lang::I32(v2)) => {
+                ::std::mem::discriminant(self) == ::std::mem::discriminant(other) && v == v2
+            }
+            (Lang::I64(v), Lang::I64(v2)) => {
+                ::std::mem::discriminant(self) == ::std::mem::discriminant(other) && v == v2
+            }
+            (Lang::F32(v), Lang::F32(v2)) => {
+                ::std::mem::discriminant(self) == ::std::mem::discriminant(other) && v == v2
+            }
+            (Lang::F64(v), Lang::F64(v2)) => {
+                ::std::mem::discriminant(self) == ::std::mem::discriminant(other) && v == v2
+            }
+            (Lang::GlobalGet(v), Lang::GlobalGet(v2)) => {
+                ::std::mem::discriminant(self) == ::std::mem::discriminant(other) && v == v2
+            }
+            (Lang::LocalGet(v), Lang::LocalGet(v2)) => {
+                ::std::mem::discriminant(self) == ::std::mem::discriminant(other) && v == v2
+            }
+            (Lang::GlobalSet(v, _), Lang::GlobalSet(v2, _))
+            | (Lang::LocalSet(v, _), Lang::LocalSet(v2, _))
+            | (Lang::LocalTee(v, _), Lang::LocalTee(v2, _)) => {
+                ::std::mem::discriminant(self) == ::std::mem::discriminant(other) && v == v2
+            }
+            (Lang::Call(v, _), Lang::Call(v2, _)) => {
+                ::std::mem::discriminant(self) == ::std::mem::discriminant(other) && v == v2
+            }
+            (Lang::Container(v), Lang::Container(v2)) => {
+                ::std::mem::discriminant(self) == ::std::mem::discriminant(other)
+                    && v.len() == v2.len()
+            }
+            (
+                Lang::MemorySize { mem, mem_byte, .. },
+                Lang::MemorySize {
+                    mem: mem2,
+                    mem_byte: mem_byte2,
+                    ..
+                },
+            )
+            | (
+                Lang::MemoryGrow { mem, mem_byte, .. },
+                Lang::MemoryGrow {
+                    mem: mem2,
+                    mem_byte: mem_byte2,
+                    ..
+                },
+            ) => {
+                ::std::mem::discriminant(self) == ::std::mem::discriminant(other)
+                    && mem == mem2
+                    && mem_byte == mem_byte2
+            }
+            _ => ::std::mem::discriminant(self) == ::std::mem::discriminant(other),
+        }
     }
 
     fn children(&self) -> &[Id] {
@@ -1764,5 +1862,50 @@ impl egg::Language for Lang {
 impl Default for Lang {
     fn default() -> Self {
         Lang::Undef
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{cell::RefCell, collections::HashMap, str::FromStr};
+
+    use egg::{rewrite, AstSize, Id, Language, RecExpr, Rewrite, Runner};
+    use rand::{prelude::SmallRng, SeedableRng};
+
+    use crate::mutators::peephole::eggsy::{
+        analysis::PeepholeMutationAnalysis, expr_enumerator::lazy_expand, lang::Lang,
+    };
+
+    #[test]
+    fn test_parsing() {
+        let a = "0_i32";
+
+        let parse = RecExpr::<Lang>::from_str(a).unwrap();
+    }
+
+    #[test]
+    fn test_parsing2() {
+        let pairs = vec![
+            [Lang::GlobalGet(0), Lang::GlobalGet(1)],
+            [
+                Lang::LocalSet(0, Id::from(0)),
+                Lang::LocalSet(1, Id::from(1)),
+            ],
+            [Lang::LocalGet(0), Lang::LocalGet(1)],
+            [
+                Lang::GlobalSet(0, Id::from(0)),
+                Lang::GlobalSet(1, Id::from(1)),
+            ],
+            [Lang::LocalGet(0), Lang::LocalGet(1)],
+        ];
+        for [l, r] in pairs {
+            println!(
+                "l {:?}, r {:?} matches ({}), it should be false",
+                l,
+                r,
+                l.matches(&r)
+            );
+            assert_eq!(l.matches(&r), false);
+        }
     }
 }

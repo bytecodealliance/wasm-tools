@@ -155,7 +155,14 @@ impl PeepholeMutator {
                                     debug!("{} is not consistent", start);
                                     continue;
                                 }
-                                debug!("Trying to mutate \n{} at {}", start.pretty(30), oidx);
+                                let range =
+                                    &operators[basicblock.range.start..basicblock.range.end];
+                                let mut s = String::from("");
+                                for (o, _) in range {
+                                    s.push_str(&format!("\t{:?}\n", o))
+                                }
+
+                                debug!("Trying to mutate \n{} at {}.", start.pretty(30), oidx,);
 
                                 let analysis = PeepholeMutationAnalysis::new(
                                     info.global_types.clone(),
@@ -169,6 +176,7 @@ impl PeepholeMutator {
                                         .with_expr(&start)
                                         .run(rules);
                                 let mut egraph = runner.egraph;
+                                //println!("egraph {:?}", egraph);
                                 // In theory this will return the Id of the operator eterm
                                 let root = egraph.add_expr(&start);
                                 let depth = 1;
@@ -200,11 +208,14 @@ impl PeepholeMutator {
                                     }
 
                                     debug!(
-                                        "Applied mutation {}\nfor\n{} after {} iterations",
+                                        "Applied mutation {}\nfor\n{} after {} iterations. Seed {}",
                                         expr.pretty(35),
                                         start.pretty(35),
-                                        it
+                                        it,
+                                        config.seed
                                     );
+
+                                    println!("{:?}", expr.as_ref());
 
                                     let mut newfunc = self.copy_locals(reader)?;
                                     let resource_request = Encoder::build_function(
@@ -284,6 +295,12 @@ impl PeepholeMutator {
                 new_global_section.raw(global);
                 start = current_pos;
             }
+        }
+        if resource_requests.len() > 0 {
+            debug!(
+                "Adding out of function resources allocation for {} resources",
+                resource_requests.len()
+            );
         }
         for resource in &resource_requests {
             match resource {
@@ -373,7 +390,7 @@ impl Mutator for PeepholeMutator {
         // Calculate here type related information for parameters, locals and returns
         // This information could be passed to the conditions to check for type correctness rewriting
         // Write the new rules in the rules.rs file
-        let rules = self.get_rules(config);
+        let rules = self.get_rules(config, &info);
         self.mutate_with_rules(config, rnd, info, &rules)
     }
 
@@ -935,7 +952,7 @@ mod tests {
                 &wasmmutate,
                 &mut rnd,
                 &info,
-                &mutator.get_rules(&wasmmutate),
+                &mutator.get_rules(&wasmmutate, &info),
             )
             .unwrap();
 
@@ -1443,7 +1460,7 @@ mod tests {
     #[test]
     fn test_peep_floats1() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("rule";  "1_f32" => "0_f32" )];
+            &[rewrite!("rule";  "1065353216_f32" => "0_f32" )];
 
         test_peephole_mutator(
             r#"

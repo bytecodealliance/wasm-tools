@@ -1,6 +1,6 @@
 use egg::{rewrite, Id, Rewrite, Subst};
 
-use crate::{module::PrimitiveTypeInfo, WasmMutate};
+use crate::{info::ModuleInfo, module::PrimitiveTypeInfo, WasmMutate};
 
 use super::{
     eggsy::{analysis::PeepholeMutationAnalysis, lang::Lang},
@@ -10,7 +10,11 @@ use super::{
 impl PeepholeMutator {
     /// Returns the rewriting rules
     /// Define new fules here for the peephole mutator
-    pub fn get_rules(&self, config: &WasmMutate) -> Vec<Rewrite<Lang, PeepholeMutationAnalysis>> {
+    pub fn get_rules(
+        &self,
+        config: &WasmMutate,
+        info: &ModuleInfo,
+    ) -> Vec<Rewrite<Lang, PeepholeMutationAnalysis>> {
         let mut rules = vec![
             rewrite!("unfold-2";  "?x" => "(i32.unfold ?x)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I32) ),
             rewrite!("unfold-3";  "?x" => "(i64.unfold ?x)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I64) ),
@@ -27,7 +31,7 @@ impl PeepholeMutator {
             rewrite!("or--12";  "(i64.or ?x -1_i64)" => "-1_i64" ),
             rewrite!("select-reduce";  "(select ?x ?y ?y)" => "?y"),
             // Custom use_of_globals
-            rewrite!("use_of_globals";  "?x" => "(use_of_global ?x)" if self.returns("?x")),
+            rewrite!("use_of_globals";  "?x" => "(use_of_global ?x)" if self.returns("?x") if self.global_count_less_than(info, /* modify this to allow more globals*/ 100000)),
         ];
         // Use a custom instruction-mutator for this
         // This specific rewriting rule has a condition, it should be appplied if the operand is a constant
@@ -188,5 +192,15 @@ impl PeepholeMutator {
                 Err(_) => false,
             }
         }
+    }
+
+    /// Condition that check for number of module globals
+    fn global_count_less_than(
+        &self,
+        info: &ModuleInfo,
+        allowed: usize,
+    ) -> impl Fn(&mut EG, Id, &Subst) -> bool {
+        let count = info.get_global_count();
+        move |egraph: &mut EG, _, subst| count < allowed
     }
 }
