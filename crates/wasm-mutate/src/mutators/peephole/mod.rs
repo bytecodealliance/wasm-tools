@@ -286,8 +286,6 @@ impl PeepholeMutator {
                 new_global_section.raw(global);
                 start = current_pos;
             }
-
-            println!("global {:?}", new_global_section);
         }
         for resource in &resource_requests {
             match resource {
