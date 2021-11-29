@@ -151,8 +151,6 @@ impl PeepholeMutator {
                                 // Create an eterm expression from the basic block starting at oidx
                                 let start = minidfg.get_expr(oidx);
 
-                                // println!("start  {}", start);
-
                                 if !minidfg.is_subtree_consistent_from_root() {
                                     debug!("{} is not consistent", start);
                                     continue;
@@ -1623,7 +1621,6 @@ mod tests {
         let mut validator = wasmparser::Validator::new();
         let mutated_bytes = &mutated.finish();
         let text = wasmprinter::print_bytes(mutated_bytes).unwrap();
-        println!("{}", text);
         crate::validate(&mut validator, mutated_bytes);
 
         let expected_bytes = &wat::parse_str(expected).unwrap();
