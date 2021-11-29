@@ -23,6 +23,7 @@ pub struct ModuleInfo<'a> {
     pub globals: Option<usize>,
     pub elements: Option<usize>,
     pub functions: Option<usize>,
+    pub data_count: Option<usize>,
     pub data: Option<usize>,
     pub code: Option<usize>,
     pub start: Option<usize>,
@@ -182,6 +183,7 @@ impl<'a> ModuleInfo<'a> {
                     info.section(id, range, input_wasm);
                 }
                 Payload::DataCountSection { count: _, range } => {
+                    info.data_count = Some(info.raw_sections.len());
                     info.section(SectionId::DataCount.into(), range, input_wasm);
                 }
                 Payload::Version { .. } => {}
