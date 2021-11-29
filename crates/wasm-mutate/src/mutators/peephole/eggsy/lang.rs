@@ -1815,15 +1815,23 @@ mod tests {
                 Lang::GlobalSet(0, Id::from(0)),
                 Lang::GlobalSet(1, Id::from(1)),
             ],
+            [
+                Lang::I32Load {
+                    mem: 1,
+                    align: 0,
+                    static_offset: 120,
+                    offset: Id::from(0),
+                },
+                Lang::I32Load {
+                    mem: 1,
+                    align: 0,
+                    static_offset: 0,
+                    offset: Id::from(0),
+                },
+            ],
             [Lang::LocalGet(0), Lang::LocalGet(1)],
         ];
         for [l, r] in pairs {
-            println!(
-                "l {:?}, r {:?} matches ({}), it should be false",
-                l,
-                r,
-                l.matches(&r)
-            );
             assert_eq!(l.matches(&r), false);
         }
     }
