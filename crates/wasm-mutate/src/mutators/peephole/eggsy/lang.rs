@@ -890,8 +890,7 @@ macro_rules! match_mem {
             },
         ) = ($self, $other)
         {
-            return ::std::mem::discriminant($self) == ::std::mem::discriminant($other)
-                && static_offset == static_offset2
+            return static_offset == static_offset2
                 && align == align2
                 && mem == mem2;
         }
@@ -925,35 +924,25 @@ impl egg::Language for Lang {
         match_mem!(I64Store32, self, other);
 
         match (self, other) {
-            (Lang::I32(v), Lang::I32(v2)) => {
-                ::std::mem::discriminant(self) == ::std::mem::discriminant(other) && v == v2
+            (Lang::I32(v), Lang::I32(v2)) => { v == v2
             }
-            (Lang::I64(v), Lang::I64(v2)) => {
-                ::std::mem::discriminant(self) == ::std::mem::discriminant(other) && v == v2
+            (Lang::I64(v), Lang::I64(v2)) => { v == v2
             }
-            (Lang::F32(v), Lang::F32(v2)) => {
-                ::std::mem::discriminant(self) == ::std::mem::discriminant(other) && v == v2
+            (Lang::F32(v), Lang::F32(v2)) => { v == v2
             }
-            (Lang::F64(v), Lang::F64(v2)) => {
-                ::std::mem::discriminant(self) == ::std::mem::discriminant(other) && v == v2
+            (Lang::F64(v), Lang::F64(v2)) => { v == v2
             }
-            (Lang::GlobalGet(v), Lang::GlobalGet(v2)) => {
-                ::std::mem::discriminant(self) == ::std::mem::discriminant(other) && v == v2
+            (Lang::GlobalGet(v), Lang::GlobalGet(v2)) => {v == v2
             }
-            (Lang::LocalGet(v), Lang::LocalGet(v2)) => {
-                ::std::mem::discriminant(self) == ::std::mem::discriminant(other) && v == v2
+            (Lang::LocalGet(v), Lang::LocalGet(v2)) => {v == v2
             }
             (Lang::GlobalSet(v, _), Lang::GlobalSet(v2, _))
             | (Lang::LocalSet(v, _), Lang::LocalSet(v2, _))
-            | (Lang::LocalTee(v, _), Lang::LocalTee(v2, _)) => {
-                ::std::mem::discriminant(self) == ::std::mem::discriminant(other) && v == v2
+            | (Lang::LocalTee(v, _), Lang::LocalTee(v2, _)) => { v == v2
             }
-            (Lang::Call(v, _), Lang::Call(v2, _)) => {
-                ::std::mem::discriminant(self) == ::std::mem::discriminant(other) && v == v2
+            (Lang::Call(v, _), Lang::Call(v2, _)) => {v == v2
             }
-            (Lang::Container(v), Lang::Container(v2)) => {
-                ::std::mem::discriminant(self) == ::std::mem::discriminant(other)
-                    && v.len() == v2.len()
+            (Lang::Container(v), Lang::Container(v2)) => {v.len() == v2.len()
             }
             _ => ::std::mem::discriminant(self) == ::std::mem::discriminant(other),
         }
