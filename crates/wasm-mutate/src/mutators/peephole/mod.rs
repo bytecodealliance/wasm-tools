@@ -215,8 +215,6 @@ impl PeepholeMutator {
                                         config.seed
                                     );
 
-                                    println!("{:?}", expr.as_ref());
-
                                     let mut newfunc = self.copy_locals(reader)?;
                                     let resource_request = Encoder::build_function(
                                         info,
