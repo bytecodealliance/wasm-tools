@@ -1291,7 +1291,7 @@ mod tests {
     #[test]
     fn test_peep_floats1() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("rule";  "1_f32" => "0_f32" )];
+            &[rewrite!("rule";  "1065353216_f32" => "0_f32" )];
 
         test_peephole_mutator(
             r#"
