@@ -11,8 +11,8 @@ use rand::{prelude::SmallRng, Rng};
 use std::cell::RefCell;
 use std::convert::TryFrom;
 use std::sync::atomic::AtomicU64;
-use wasm_encoder::{CodeSection, Function, Module, ValType};
-use wasmparser::{CodeSectionReader, FunctionBody, LocalsReader};
+use wasm_encoder::{CodeSection, Function, GlobalSection, Instruction, Module, Section, ValType};
+use wasmparser::{CodeSectionReader, FunctionBody, GlobalSectionReader, LocalsReader};
 
 // Hack to show debug messages in tests
 #[cfg(not(test))]
@@ -27,6 +27,7 @@ static NUM_RUNS: AtomicU64 = AtomicU64::new(0);
 static NUM_SUCCESSFUL_MUTATIONS: AtomicU64 = AtomicU64::new(0);
 
 use self::dfg::DFGBuilder;
+use self::eggsy::encoder::expr2wasm::ResourceRequest;
 
 use super::{Mutator, OperatorAndByteOffset};
 
@@ -38,8 +39,8 @@ pub mod rules;
 pub struct PeepholeMutator;
 type EG = egg::EGraph<Lang, PeepholeMutationAnalysis>;
 
-// Code mutator, function id, operator id
-type MutationContext = (Function, u32);
+// Code mutator, function id and the resources needed outside the function
+type MutationContext = (Function, u32, Vec<ResourceRequest>);
 
 impl PeepholeMutator {
     // Collect and unfold params and locals, [x, ty, y, ty2] -> [ty....ty, ty2...ty2]
@@ -208,7 +209,7 @@ impl PeepholeMutator {
                                     );
 
                                     let mut newfunc = self.copy_locals(reader)?;
-                                    Encoder::build_function(
+                                    let resource_request = Encoder::build_function(
                                         info,
                                         rnd,
                                         oidx,
@@ -224,7 +225,7 @@ impl PeepholeMutator {
                                         NUM_SUCCESSFUL_MUTATIONS
                                             .fetch_add(1, core::sync::atomic::Ordering::Relaxed);
                                     }
-                                    return Ok((newfunc, fidx));
+                                    return Ok((newfunc, fidx, resource_request));
                                 }
                             }
                         }
@@ -247,7 +248,8 @@ impl PeepholeMutator {
         info: &crate::ModuleInfo,
         rules: &[Rewrite<Lang, PeepholeMutationAnalysis>],
     ) -> Result<Module> {
-        let (new_function, function_to_mutate) = self.random_mutate(config, rnd, info, rules)?;
+        let (new_function, function_to_mutate, resource_requests) =
+            self.random_mutate(config, rnd, info, rules)?;
 
         let mut codes = CodeSection::new();
         let code_section = info.get_code_section();
@@ -265,56 +267,97 @@ impl PeepholeMutator {
                 codes.raw(&code_section.data[reader.range().start..reader.range().end]);
             }
         }
+        // Process the outside function needed resources
+        // Needed globals
+        let mut new_global_section = GlobalSection::new();
+        // Reparse and reencode global section
+        if let Some(_) = info.globals {
+            // If the global section was already there, try to copy it to the
+            // new raw section
+            let global_section = info.get_global_section();
+            let mut globalreader = GlobalSectionReader::new(global_section.data, 0)?;
+            let count = globalreader.get_count();
+            let mut start = globalreader.original_position();
 
-        let module = info.replace_section(info.code.unwrap(), &codes);
+            for _ in 0..count {
+                let _ = globalreader.read()?;
+                let current_pos = globalreader.original_position();
+                let global = &global_section.data[start..current_pos];
+                new_global_section.raw(global);
+                start = current_pos;
+            }
+
+            println!("global {:?}", new_global_section);
+        }
+        for resource in &resource_requests {
+            match resource {
+                ResourceRequest::Global {
+                    index: _,
+                    tpe,
+                    mutable: _,
+                } => {
+                    // Add to globals
+                    //todo!("{:?}", resource)
+                    new_global_section.global(
+                        wasm_encoder::GlobalType {
+                            mutable: true,
+                            val_type: match tpe {
+                                PrimitiveTypeInfo::I32 => ValType::I32,
+                                PrimitiveTypeInfo::I64 => ValType::I64,
+                                PrimitiveTypeInfo::F32 => ValType::F32,
+                                PrimitiveTypeInfo::F64 => ValType::F64,
+                                PrimitiveTypeInfo::Empty => {
+                                    unreachable!("Empty returning type is not valid for globals")
+                                }
+                            },
+                        },
+                        match tpe {
+                            PrimitiveTypeInfo::I32 => &Instruction::I32Const(0),
+                            PrimitiveTypeInfo::I64 => &Instruction::I64Const(0),
+                            PrimitiveTypeInfo::F32 => &Instruction::F32Const(0.0),
+                            PrimitiveTypeInfo::F64 => &Instruction::F64Const(0.0),
+                            PrimitiveTypeInfo::Empty => {
+                                unreachable!("Empty returning type is not valid for globals")
+                            }
+                        },
+                    );
+                }
+            }
+        }
+
+        let code_index = info.code;
+        let global_index = info.globals;
+
+        let insert_globals_before = info.exports.or(info.start).or(info.elements).or(code_index);
+
+        // If the mutator is in this staeg, then it passes the can_mutate flter,
+        // which checks for code section existance
+        let insert_globals_before = insert_globals_before.unwrap();
+        let module = info.replace_multiple_sections(Box::new(
+            move |index, _, module: &mut wasm_encoder::Module| {
+                if insert_globals_before == index && new_global_section.len() > 0 {
+                    // Insert the new globals here
+                    module.section(&new_global_section);
+                }
+                if index == code_index.unwrap() {
+                    // First the global section
+                    // Replace code section
+                    module.section(&codes);
+
+                    return true;
+                }
+                if let Some(gidx) = global_index {
+                    // return true since the global section is written by the
+                    // conditional position writer
+                    return gidx == index;
+                }
+                // False to say the underlying encoder to write the prexisting
+                // section
+                false
+            },
+        ));
+
         Ok(module)
-    }
-
-    /// Checks if a variable returns and specific type
-    fn is_type(
-        &self,
-        vari: &'static str,
-        t: PrimitiveTypeInfo,
-    ) -> impl Fn(&mut EG, Id, &Subst) -> bool {
-        move |egraph: &mut EG, _, subst| {
-            let var = vari.parse();
-            match var {
-                Ok(var) => {
-                    let eclass = &egraph[subst[var]];
-                    match &eclass.data {
-                        Some(d) => d.tpe == t,
-                        None => false,
-                    }
-                }
-                Err(_) => false,
-            }
-        }
-    }
-
-    /// Condition to apply the unfold operator
-    /// check that the var is a constant
-    fn is_const(&self, vari: &'static str) -> impl Fn(&mut EG, Id, &Subst) -> bool {
-        move |egraph: &mut EG, _, subst| {
-            let var = vari.parse();
-            match var {
-                Ok(var) => {
-                    let eclass = &egraph[subst[var]];
-                    if eclass.nodes.len() == 1 {
-                        let node = &eclass.nodes[0];
-                        match node {
-                            Lang::I32(_) => true,
-                            Lang::I64(_) => true,
-                            Lang::F32(_) => true,
-                            Lang::F64(_) => true,
-                            _ => false,
-                        }
-                    } else {
-                        false
-                    }
-                }
-                Err(_) => false,
-            }
-        }
     }
 }
 
@@ -1374,6 +1417,7 @@ mod tests {
         (module
             (memory 1)
             (global $0 i32 i32.const 0)
+            (global $1 i32 i32.const 1)
             (func (export "exported_func") (param i32) (result i32)
                 global.get 0
             )
@@ -1384,6 +1428,7 @@ mod tests {
             (module
                 (type (;0;) (func (param i32) (result i32)))
                 (global $0 i32 i32.const 0)
+                (global $1 i32 i32.const 1)
                 (func (;0;) (type 0) (param i32) (result i32)
                   global.get $0
                   i32.const 0
@@ -1431,6 +1476,66 @@ mod tests {
         );
     }
 
+    #[test]
+    fn test_use_global() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("rule";  "?x" => "(use_of_global ?x)")];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func") (result i32) (local i32 i32)
+                i32.const 10
+            )
+        )
+        "#,
+            rules,
+            r#"
+            (module
+                (type (;0;) (func (result i32)))
+                (func (;0;) (type 0) (result i32)
+                  (local i32 i32)
+                  i32.const 10
+                  global.set 0
+                  global.get 0)
+                (global (;0;) (mut i32) i32.const 0)
+                (export "exported_func" (func 0)))
+            "#,
+            4,
+        );
+    }
+
+    #[test]
+    fn test_use_global2() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("rule";  "?x" => "(use_of_global ?x)")];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (import "env" "t" (global $0 (mut i32)))
+            (func (export "exported_func") (result i32) (local i32 i32)
+                i32.const 10
+            )
+        )
+        "#,
+            rules,
+            r#"
+            (module
+                (type (;0;) (func (result i32)))
+                (import "env" "t" (global $0 (mut i32)))
+                (func (;0;) (type 0) (result i32)
+                  (local i32 i32)
+                  i32.const 10
+                  global.set 1
+                  global.get 1)
+                (global (;1;) (mut i32) i32.const 0)
+                (export "exported_func" (func 0)))
+            "#,
+            4,
+        );
+    }
+
     fn test_peephole_mutator(
         original: &str,
         rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>],
@@ -1456,6 +1561,7 @@ mod tests {
         let mut validator = wasmparser::Validator::new();
         let mutated_bytes = &mutated.finish();
         let text = wasmprinter::print_bytes(mutated_bytes).unwrap();
+        println!("{}", text);
         crate::validate(&mut validator, mutated_bytes);
 
         let expected_bytes = &wat::parse_str(expected).unwrap();

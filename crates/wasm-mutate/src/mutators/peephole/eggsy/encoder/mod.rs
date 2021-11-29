@@ -13,6 +13,8 @@ use egg::RecExpr;
 
 use wasm_encoder::Function;
 
+use self::expr2wasm::ResourceRequest;
+
 pub mod expr2wasm;
 pub mod rebuild;
 
@@ -37,12 +39,14 @@ impl Encoder {
         newfunc: &mut Function,
         dfg: &MiniDFG,
         egraph: &EG,
-    ) -> crate::Result<()> {
+    ) -> crate::Result<Vec<ResourceRequest>> {
         // Copy previous code
         let range = basicblock.range;
         let byterange = (&operators[0].1, &operators[range.start].1);
         let bytes = &info.get_code_section().data[*byterange.0..*byterange.1];
         newfunc.raw(bytes.iter().copied());
+
+        let mut allresources = vec![];
 
         // Write all entries in the minidfg in reverse order
         // The stack neutral will be preserved but the position of the changed operands not that much :(
@@ -58,7 +62,8 @@ impl Encoder {
                 } else {
                     dfg.get_expr(entry.operator_idx)
                 };
-                expr2wasm(info, rnd, &to_encode, newfunc, egraph)?;
+                let resources = expr2wasm(info, rnd, &to_encode, newfunc, egraph)?;
+                allresources.push(resources)
             }
         }
 
@@ -71,6 +76,6 @@ impl Encoder {
         let bytes = &info.get_code_section().data[*byterange.0..=*byterange.1];
 
         newfunc.raw(bytes.iter().copied());
-        Ok(())
+        Ok(allresources.concat())
     }
 }

@@ -350,6 +350,7 @@ pub(crate) fn build_expr_inner(
                     Lang::LocalGet(idx) => expr.add(Lang::LocalGet(*idx)),
                     Lang::GlobalGet(idx) => expr.add(Lang::GlobalGet(*idx)),
                     Lang::LocalSet(idx, _) => expr.add(Lang::LocalSet(*idx, operand(0))),
+                    Lang::UseGlobal(_) => expr.add(Lang::UseGlobal(operand(0))),
                     Lang::I64Store {
                         static_offset,
                         align,

@@ -340,6 +340,9 @@ pub enum Lang {
     UnfoldI32(Id),
     UnfoldI64(Id),
 
+    /// Propsoed from issue #391, use-of-global
+    UseGlobal(Id),
+
     /*
         Just a wrapper of multiple nodes, when encoding to Wasm it is written as nothing
         Its only responsability is to add stack neutral operations (if semantic equivalence is set)
@@ -660,6 +663,7 @@ impl Display for Lang {
             Lang::MemorySize { mem, mem_byte } => {
                 f.write_str(&format!("memory.size.{}.{}", mem, mem_byte))
             }
+            Lang::UseGlobal(_) => f.write_str("use_of_global"),
         }
     }
 }
@@ -1222,6 +1226,7 @@ impl egg::Language for Lang {
             Lang::Select(operands) => operands,
             Lang::MemoryGrow { by, .. } => std::slice::from_ref(by),
             Lang::MemorySize { .. } => &[],
+            Lang::UseGlobal(arg) => std::slice::from_ref(arg),
             //Lang::Select(operands) => operands,
         }
     }
@@ -1523,7 +1528,7 @@ impl egg::Language for Lang {
             Lang::Select(operands) => operands,
             Lang::MemoryGrow { by, .. } => std::slice::from_mut(by),
             Lang::MemorySize { .. } => &mut [],
-            //Lang::Select(operands) => operands,
+            Lang::UseGlobal(arg) => std::slice::from_mut(arg),
         }
     }
 
@@ -1695,6 +1700,7 @@ impl egg::Language for Lang {
             "nop" => Ok(Lang::Nop),
             "container" => Ok(Lang::Container(children)),
             "select" => Ok(Lang::Select([children[0], children[1], children[2]])),
+            "use_of_global" => Ok(Lang::UseGlobal(children[0])),
             //"select" => Ok(Lang::Select([children[0], children[1], children[2]])),
             _ => Lang::parse_call(op_str, &children)
                 .or(Lang::parse_memory_sg(op_str, &children))

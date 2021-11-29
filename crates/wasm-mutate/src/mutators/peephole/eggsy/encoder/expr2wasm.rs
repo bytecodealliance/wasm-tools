@@ -3,22 +3,45 @@ use std::num::Wrapping;
 use crate::error::EitherType;
 use crate::info::ModuleInfo;
 
+use crate::module::PrimitiveTypeInfo;
 use crate::mutators::peephole::eggsy::encoder::TraversalEvent;
 use crate::mutators::peephole::{Lang, EG};
 use egg::{Id, RecExpr};
 use rand::Rng;
 use wasm_encoder::{Function, Instruction, MemArg};
 
+/// Some custom nodes might need special resource allocation outside the
+/// function. Fore xample, if a new global is needed is should be added outside
+/// the construction of the function in the `expr2wasm` method.
+#[derive(Clone, Debug)]
+pub enum ResourceRequest {
+    /// Global resource request
+    Global {
+        /// Global index
+        index: usize,
+        /// Global type
+        tpe: PrimitiveTypeInfo,
+        /// If its mutable
+        mutable: bool,
+    },
+    // TODO add other needed resources here, for example, needed locals, needed
+    // memory etc. Notice that how this resources are translated to Wasm code,
+    // you need to change the code inside the `mutate_with_rules` of the
+    // PeepholeMutator trait
+}
+
 pub(crate) fn expr2wasm(
-    _info: &ModuleInfo,
+    info: &ModuleInfo,
     rnd: &mut rand::prelude::SmallRng,
     expr: &RecExpr<Lang>,
     newfunc: &mut Function,
-    _egraph: &EG,
-) -> crate::Result<()> {
+    egraph: &EG,
+) -> crate::Result<Vec<ResourceRequest>> {
     let nodes = expr.as_ref();
     // The last node is the root.
     let root = Id::from(nodes.len() - 1);
+    let mut global_idx = info.get_global_count() as u32;
+    let mut resources = vec![];
 
     struct Context {
         // Current visited node index in the tree traversing
@@ -201,6 +224,10 @@ pub(crate) fn expr2wasm(
                     | Lang::I64ExtendI32U(operands) => {
                         worklist.push(Context::new(operands[0], TraversalEvent::Exit));
                         worklist.push(Context::new(operands[0], TraversalEvent::Enter));
+                    }
+                    Lang::UseGlobal(operand) => {
+                        worklist.push(Context::new(*operand, TraversalEvent::Exit));
+                        worklist.push(Context::new(*operand, TraversalEvent::Enter));
                     }
                     Lang::LocalTee(_idx, operands) => {
                         worklist.push(Context::new(*operands, TraversalEvent::Exit));
@@ -643,7 +670,11 @@ pub(crate) fn expr2wasm(
                             }
                             _ => {
                                 return Err(crate::Error::UnsupportedType(EitherType::EggError(
-                                    format!("The current eterm cannot be unfolded {:?}", child,),
+                                    format!(
+                                        "The current eterm cannot be unfolded {:?}.\n expr {}",
+                                        child,
+                                        expr.to_string()
+                                    ),
                                 )))
                             }
                         }
@@ -663,7 +694,11 @@ pub(crate) fn expr2wasm(
                             }
                             _ => {
                                 return Err(crate::Error::UnsupportedType(EitherType::EggError(
-                                    format!("The current eterm cannot be unfolded {:?}", child,),
+                                    format!(
+                                        "The current eterm cannot be unfolded {:?}.\n expr {}",
+                                        child,
+                                        expr.to_string()
+                                    ),
                                 )))
                             }
                         }
@@ -1226,9 +1261,27 @@ pub(crate) fn expr2wasm(
                     Lang::MemorySize { mem, .. } => {
                         newfunc.instruction(&Instruction::MemorySize(*mem));
                     }
+                    Lang::UseGlobal(arg) => {
+                        let globaltpe = &egraph[*arg]
+                            .data
+                            .as_ref()
+                            .expect("Missing type information for use_of_global operator")
+                            .tpe;
+                        // Request a new global
+                        let request = ResourceRequest::Global {
+                            index: global_idx as usize,
+                            tpe: globaltpe.clone(),
+                            mutable: true,
+                        };
+                        resources.push(request);
+
+                        newfunc.instruction(&Instruction::GlobalSet(global_idx));
+                        newfunc.instruction(&Instruction::GlobalGet(global_idx));
+                        global_idx += 1;
+                    }
                 }
             }
         }
     }
-    Ok(())
+    Ok(resources)
 }
