@@ -40,6 +40,12 @@ pub(crate) fn expr2wasm(
         Context::new(root, TraversalEvent::Exit),
         Context::new(root, TraversalEvent::Enter),
     ];
+
+    let enqueue = |worklist: &mut Vec<_>, child| {
+        worklist.push(Context::new(child, TraversalEvent::Exit));
+        worklist.push(Context::new(child, TraversalEvent::Enter));
+    };
+
     // Enqueue the coding back nodes and infer types
     while let Some(context) = worklist.pop() {
         let rootlang = &nodes[usize::from(context.current_node)];
@@ -90,8 +96,7 @@ pub(crate) fn expr2wasm(
                     | Lang::F32Ge(operands)
                     | Lang::F64Ge(operands) => {
                         for operand in operands.iter().rev() {
-                            worklist.push(Context::new(*operand, TraversalEvent::Exit));
-                            worklist.push(Context::new(*operand, TraversalEvent::Enter));
+                            enqueue(&mut worklist, *operand);
                         }
                     }
                     Lang::I32Add(operands)
@@ -110,8 +115,7 @@ pub(crate) fn expr2wasm(
                     | Lang::I32RemS(operands)
                     | Lang::I32RemU(operands) => {
                         for operand in operands.iter().rev() {
-                            worklist.push(Context::new(*operand, TraversalEvent::Exit));
-                            worklist.push(Context::new(*operand, TraversalEvent::Enter));
+                            enqueue(&mut worklist, *operand);
                         }
                     }
                     Lang::I32Eq(operands)
@@ -135,9 +139,7 @@ pub(crate) fn expr2wasm(
                     | Lang::I64GeS(operands)
                     | Lang::I64GeU(operands) => {
                         for operand in operands.iter().rev() {
-                            // The type is one of the siblings
-                            worklist.push(Context::new(*operand, TraversalEvent::Exit));
-                            worklist.push(Context::new(*operand, TraversalEvent::Enter));
+                            enqueue(&mut worklist, *operand);
                         }
                     }
                     Lang::I32Clz(operands)
@@ -199,40 +201,31 @@ pub(crate) fn expr2wasm(
                     | Lang::I64ExtendI32S(operands)
                     | Lang::I64Extend8S(operands)
                     | Lang::I64ExtendI32U(operands) => {
-                        worklist.push(Context::new(operands[0], TraversalEvent::Exit));
-                        worklist.push(Context::new(operands[0], TraversalEvent::Enter));
+                        enqueue(&mut worklist, operands[0]);
                     }
-                    Lang::LocalTee(_idx, operands) => {
-                        worklist.push(Context::new(*operands, TraversalEvent::Exit));
-                        worklist.push(Context::new(*operands, TraversalEvent::Enter));
+                    Lang::LocalTee(_idx, operand) => {
+                        enqueue(&mut worklist, *operand);
                     }
-                    Lang::LocalSet(_idx, operands) => {
-                        // Skip operand 0 which is the symbol
-                        worklist.push(Context::new(*operands, TraversalEvent::Exit));
-                        worklist.push(Context::new(*operands, TraversalEvent::Enter));
+                    Lang::LocalSet(_idx, operand) => {
+                        enqueue(&mut worklist, *operand);
                     }
                     Lang::GlobalSet(_idx, operand) => {
-                        worklist.push(Context::new(*operand, TraversalEvent::Exit));
-                        worklist.push(Context::new(*operand, TraversalEvent::Enter));
+                        enqueue(&mut worklist, *operand);
                     }
                     Lang::Wrap(operands) => {
-                        worklist.push(Context::new(operands[0], TraversalEvent::Exit));
-                        worklist.push(Context::new(operands[0], TraversalEvent::Enter));
+                        enqueue(&mut worklist, operands[0]);
                     }
                     Lang::Drop(operands) => {
-                        worklist.push(Context::new(operands[0], TraversalEvent::Exit));
-                        worklist.push(Context::new(operands[0], TraversalEvent::Enter));
+                        enqueue(&mut worklist, operands[0]);
                     }
                     Lang::Call(_idx, operands) => {
                         for operand in operands.iter().rev() {
-                            worklist.push(Context::new(*operand, TraversalEvent::Exit));
-                            worklist.push(Context::new(*operand, TraversalEvent::Enter));
+                            enqueue(&mut worklist, *operand);
                         }
                     }
                     Lang::Container(operands) => {
                         for operand in operands.iter().rev() {
-                            worklist.push(Context::new(*operand, TraversalEvent::Exit));
-                            worklist.push(Context::new(*operand, TraversalEvent::Enter));
+                            enqueue(&mut worklist, *operand);
                         }
                     }
                     Lang::F32Load {
@@ -319,8 +312,7 @@ pub(crate) fn expr2wasm(
                         static_offset: _,
                         offset,
                     } => {
-                        worklist.push(Context::new(*offset, TraversalEvent::Exit));
-                        worklist.push(Context::new(*offset, TraversalEvent::Enter));
+                        enqueue(&mut worklist, *offset);
                     }
                     Lang::I32Store {
                         align: _,
@@ -376,11 +368,8 @@ pub(crate) fn expr2wasm(
                         static_offset: _,
                         value_and_offset,
                     } => {
-                        worklist.push(Context::new(value_and_offset[1], TraversalEvent::Exit));
-                        worklist.push(Context::new(value_and_offset[1], TraversalEvent::Enter));
-
-                        worklist.push(Context::new(value_and_offset[0], TraversalEvent::Exit));
-                        worklist.push(Context::new(value_and_offset[0], TraversalEvent::Enter));
+                        enqueue(&mut worklist, value_and_offset[1]);
+                        enqueue(&mut worklist, value_and_offset[0]);
                     }
                     _ => { /* Do nothing */ }
                 }
