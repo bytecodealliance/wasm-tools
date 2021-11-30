@@ -18,19 +18,17 @@ impl RenameExportMutator {
     /// Copied and transformed from wasm-smith name generation
     fn limited_string(
         &self,
-        config: &WasmMutate,
-        rnd: &mut SmallRng,
-        info: &ModuleInfo,
+        config: &mut WasmMutate,
         max_name_size: u32,
         result: &mut String,
     ) -> crate::Result<()> {
-        let size = rnd.gen_range(1, max_name_size);
+        let size = config.rng().gen_range(1, max_name_size);
         let mut str = vec![0u8; size as usize];
 
         if let Some(fillfunc) = &config.raw_mutate_func {
             fillfunc(&mut str)?;
         } else {
-            rnd.fill_bytes(&mut str);
+            config.rng().fill_bytes(&mut str);
         }
 
         match std::str::from_utf8(&str) {
@@ -45,25 +43,25 @@ impl RenameExportMutator {
                 result.push_str(s);
             }
         };
+
         // Add one symbol at a time until it is not contained in the export field names
-        while info.export_names.contains(result) {
-            let _ = &self.limited_string(config, rnd, info, 2, result)?;
+        while config.info().export_names.contains(result) {
+            let _ = &self.limited_string(config, 2, result)?;
         }
+
         Ok(())
     }
 }
 
 impl Mutator for RenameExportMutator {
-    fn mutate(
-        &self,
-        config: &WasmMutate,
-        rnd: &mut SmallRng,
-        info: &ModuleInfo,
-    ) -> Result<Box<dyn Iterator<Item = Result<Module>>>> {
+    fn mutate<'a>(
+        self,
+        config: &'a mut WasmMutate,
+    ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         let mut exports = ExportSection::new();
-        let mut reader = ExportSectionReader::new(info.get_exports_section().data, 0)?;
+        let mut reader = ExportSectionReader::new(config.info().get_exports_section().data, 0)?;
         let max_exports = reader.get_count() as u64;
-        let skip_at = rnd.gen_range(0, max_exports);
+        let skip_at = config.rng().gen_range(0, max_exports);
 
         for i in 0..max_exports {
             config.consume_fuel(1)?;
@@ -75,7 +73,7 @@ impl Mutator for RenameExportMutator {
                 String::from(export.field)
             } else {
                 let mut new_name = String::default();
-                self.limited_string(config, rnd, info, self.max_name_size, &mut new_name)?;
+                self.limited_string(config, self.max_name_size, &mut new_name)?;
                 log::debug!("Renaming export {:?} by {:?}", export, new_name);
                 new_name
             };
@@ -104,13 +102,16 @@ impl Mutator for RenameExportMutator {
                 }
             }
         }
-        Ok(Box::new(std::iter::once(Ok(
-            info.replace_section(info.exports.unwrap(), &exports)
-        ))))
+        Ok(Box::new(std::iter::once(Ok(config
+            .info()
+            .replace_section(
+                config.info().exports.unwrap(),
+                &exports,
+            )))))
     }
 
-    fn can_mutate<'a>(&self, config: &'a WasmMutate, info: &ModuleInfo) -> bool {
-        !config.preserve_semantics && info.has_exports() && info.exports_count > 0
+    fn can_mutate<'a>(&self, config: &'a WasmMutate) -> bool {
+        !config.preserve_semantics && config.info().has_exports() && config.info().exports_count > 0
     }
 }
 

@@ -36,7 +36,7 @@ use structopt::StructOpt;
 ///
 /// * 5: Constructing the Ast for code motion mutations fails
 #[derive(StructOpt)]
-struct Options {
+struct Options<'wasm> {
     /// The input WebAssembly binary that will be mutated.
     ///
     /// `stdin` is used if this argument is not supplied.
@@ -51,12 +51,12 @@ struct Options {
     output: Option<PathBuf>,
 
     #[structopt(flatten)]
-    wasm_mutate: wasm_mutate::WasmMutate,
+    wasm_mutate: wasm_mutate::WasmMutate<'wasm>,
 }
 
 fn main() -> anyhow::Result<()> {
     env_logger::init();
-    let opts = Options::from_args();
+    let mut opts = Options::from_args();
 
     let stdin = stdin();
     let (mut input, input_name): (Box<dyn Read>, _) = match &opts.input {
@@ -148,6 +148,5 @@ fn main() -> anyhow::Result<()> {
             std::process::exit(code);
         }
     }
-
     Ok(())
 }

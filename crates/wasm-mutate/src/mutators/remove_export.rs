@@ -8,19 +8,18 @@ use wasm_encoder::{Export, ExportSection, Module};
 use wasmparser::ExportSectionReader;
 
 /// Mutator that removes a random prexisting export
+#[derive(Clone, Copy)]
 pub struct RemoveExportMutator;
 
 impl Mutator for RemoveExportMutator {
-    fn mutate(
-        &self,
-        config: &WasmMutate,
-        rnd: &mut SmallRng,
-        info: &ModuleInfo,
-    ) -> Result<Box<dyn Iterator<Item = Result<Module>>>> {
+    fn mutate<'a>(
+        self,
+        config: &'a mut WasmMutate,
+    ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         let mut exports = ExportSection::new();
-        let mut reader = ExportSectionReader::new(info.get_exports_section().data, 0)?;
+        let mut reader = ExportSectionReader::new(config.info().get_exports_section().data, 0)?;
         let max_exports = reader.get_count() as u64;
-        let skip_at = rnd.gen_range(0, max_exports);
+        let skip_at = config.rng().gen_range(0, max_exports);
 
         (0..max_exports)
             .map(|i| {
@@ -57,13 +56,16 @@ impl Mutator for RemoveExportMutator {
                 Ok(())
             })
             .collect::<Result<Vec<_>>>()?;
-        Ok(Box::new(std::iter::once(Ok(
-            info.replace_section(info.exports.unwrap(), &exports)
-        ))))
+        Ok(Box::new(std::iter::once(Ok(config
+            .info()
+            .replace_section(
+                config.info().exports.unwrap(),
+                &exports,
+            )))))
     }
 
-    fn can_mutate<'a>(&self, config: &'a WasmMutate, info: &ModuleInfo) -> bool {
-        !config.preserve_semantics && info.has_exports() && info.exports_count > 0
+    fn can_mutate<'a>(&self, config: &'a WasmMutate) -> bool {
+        !config.preserve_semantics && config.info().has_exports() && config.info().exports_count > 0
     }
 }
 

@@ -5,6 +5,7 @@ use std::cell::RefCell;
 use crate::mutators::peephole::dfg::MiniDFG;
 use crate::mutators::peephole::eggsy::encoder::expr2wasm::expr2wasm;
 use crate::mutators::peephole::{Lang, EG};
+use crate::WasmMutate;
 use crate::{
     mutators::peephole::{dfg::BBlock, OperatorAndByteOffset},
     ModuleInfo,
@@ -28,8 +29,7 @@ enum TraversalEvent {
 impl Encoder {
     /// Reassembles the mutated function and return a `Function` entry
     pub fn build_function(
-        info: ModuleInfo,
-        rnd: &mut rand::prelude::SmallRng,
+        config: &mut WasmMutate,
         insertion_point: usize,
         expr: &RecExpr<Lang>,
         operators: &[OperatorAndByteOffset],
@@ -41,7 +41,7 @@ impl Encoder {
         // Copy previous code
         let range = basicblock.range;
         let byterange = (&operators[0].1, &operators[range.start].1);
-        let bytes = &info.get_code_section().data[*byterange.0..*byterange.1];
+        let bytes = &config.info().get_code_section().data[*byterange.0..*byterange.1];
         newfunc.raw(bytes.iter().copied());
 
         // Write all entries in the minidfg in reverse order
@@ -58,7 +58,7 @@ impl Encoder {
                 } else {
                     dfg.get_expr(entry.operator_idx)
                 };
-                expr2wasm(&info, rnd, &to_encode, newfunc, egraph)?;
+                expr2wasm(config, &to_encode, newfunc, egraph)?;
             }
         }
 
@@ -68,7 +68,7 @@ impl Encoder {
             &operators[range.end].1, // In the worst case the next instruction will be and end
             &operators[operators.len() - 1].1,
         );
-        let bytes = &info.get_code_section().data[*byterange.0..=*byterange.1];
+        let bytes = &config.info().get_code_section().data[*byterange.0..=*byterange.1];
 
         newfunc.raw(bytes.iter().copied());
         Ok(())

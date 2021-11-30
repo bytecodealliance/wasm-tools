@@ -205,12 +205,12 @@ impl<'a> ModuleInfo<'a> {
         });
     }
 
-    pub fn get_code_section(&self) -> RawSection {
+    pub fn get_code_section(&self) -> RawSection<'a> {
         self.raw_sections[self.code.unwrap()]
     }
 
-    pub fn get_exports_section(&self) -> &RawSection {
-        &self.raw_sections[self.exports.unwrap()]
+    pub fn get_exports_section(&self) -> RawSection<'a> {
+        self.raw_sections[self.exports.unwrap()]
     }
 
     pub fn has_exports(&self) -> bool {

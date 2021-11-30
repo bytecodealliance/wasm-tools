@@ -21,11 +21,13 @@ fn integration_test() {
     let wat = r#"
     (module
         
-        (func (export "exported_func") (result i32)
+        (func (export "exported_func")
+            nop
             i32.const 42
-        )
-        (func (export "exported_func2") (result i32)
-            i32.const 42
+            if 
+                i32.const 98
+                drop
+            end
         )
     )
     "#;

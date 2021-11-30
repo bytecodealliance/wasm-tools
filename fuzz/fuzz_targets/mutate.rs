@@ -33,7 +33,7 @@ fuzz_target!(|bytes: &[u8]| {
     // runs had successful mutations.
 
     let old_num_runs = NUM_RUNS.fetch_add(1, Ordering::Relaxed);
-    if old_num_runs % 4096 == 4095 && log::log_enabled!(log::Level::Info) {
+    if old_num_runs % 1000 == 999 && log::log_enabled!(log::Level::Info) {
         let successful = NUM_SUCCESSFUL_MUTATIONS.load(Ordering::Relaxed);
         let percent = successful as f64 / old_num_runs as f64 * 100.0;
         log::info!(
@@ -66,20 +66,8 @@ fuzz_target!(|bytes: &[u8]| {
                         if !found {
                             NUM_SUCCESSFUL_MUTATIONS.fetch_add(1, Ordering::Relaxed);
                             found = true;
-                        } else {
-                            NUM_SUCCESSFUL_MUTATIONS.fetch_add(1, Ordering::Relaxed);
-                            let old_num_runs = NUM_RUNS.fetch_add(1, Ordering::Relaxed);
-                            if old_num_runs % 4096 == 4095 && log::log_enabled!(log::Level::Info) {
-                                let successful = NUM_SUCCESSFUL_MUTATIONS.load(Ordering::Relaxed);
-                                let percent = successful as f64 / old_num_runs as f64 * 100.0;
-                                log::info!(
-                                    "{} / {} ({:.2}%) successful mutations.",
-                                    successful,
-                                    old_num_runs,
-                                    percent
-                                );
-                            }
                         }
+
                         let validation_result = validator.validate_all(&mutated_wasm);
                         log::debug!("validation result = {:?}", validation_result);
                         assert!(
