@@ -1,6 +1,8 @@
 //! Configuring the shape of generated Wasm modules.
 
+use crate::InstructionKind;
 use arbitrary::{Arbitrary, Result, Unstructured};
+use flagset::FlagSet;
 
 /// Configuration for a generated module.
 ///
@@ -318,6 +320,21 @@ pub trait Config: 'static + std::fmt::Debug {
     /// to memory or float-to-int bitcast instructions.
     fn canonicalize_nans(&self) -> bool {
         false
+    }
+
+    /// Returns the kinds of instructions allowed in the generated wasm
+    /// programs.
+    ///
+    /// The categories of instructions match the categories used by the
+    /// [WebAssembly
+    /// specification](https://webassembly.github.io/spec/core/syntax/instructions.html);
+    /// e.g., numeric, vector, control, memory, etc. Note that modifying this
+    /// setting is separate from the proposal flags; that is, if `simd_enabled()
+    /// == true` but `allowed_instruction_kinds()` does not include vector
+    /// instructions, the generated programs will not include these instructions
+    /// but could contain vector types.
+    fn allowed_instructions(&self) -> FlagSet<InstructionKind> {
+        FlagSet::full()
     }
 }
 
