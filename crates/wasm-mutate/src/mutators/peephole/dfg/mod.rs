@@ -1,3 +1,5 @@
+//! DFG extractor for Wasm functions. It converts Wasm operators to the [Lang]
+//! intermediate representation.
 use std::collections::HashMap;
 
 use egg::{Id, RecExpr};
@@ -19,6 +21,8 @@ pub struct DFGBuilder {
     parents: Vec<i32>,
 }
 
+/// Basic block of a Wasm's function defined as a range of operators in the
+///  Wasm function
 #[derive(Debug)]
 pub struct BBlock {
     pub(crate) range: Range,
@@ -41,19 +45,20 @@ pub struct StackEntry {
     pub operator_idx: usize,
 }
 
+/// DFG structre for a piece of Wasm's function
 #[derive(Clone, Default)]
 pub struct MiniDFG {
-    // Some of the operators have no stack entry
-    // This will help to decide or not to mutate the operators, avoiding egrapphp creation, etc
-    // Each (key, value) entry corresponds to the index of the instruction in
-    // the Wasm BasicBlock and the index of the stack entry in the `entries` field
+    /// Some of the operators have no stack entry
+    /// This will help to decide or not to mutate the operators, avoiding egrapphp creation, etc
+    /// Each (key, value) entry corresponds to the index of the instruction in
+    /// the Wasm BasicBlock and the index of the stack entry in the `entries` field
     pub map: HashMap<usize, usize>,
-    // Each stack entry represents a position in the operators stream
-    // containing its children
+    /// Each stack entry represents a position in the operators stream
+    /// containing its children
     pub entries: Vec<StackEntry>,
-    // For each stack entry we keep the parental relation, the ith value is the index of
-    // the ith instruction's parent instruction
-    // We write each stack entry having no parent, i.e. a root in the dfg
+    /// For each stack entry we keep the parental relation, the ith value is the index of
+    /// the ith instruction's parent instruction.
+    /// We write each stack entry having no parent, i.e. a root in the dfg
     pub parents: Vec<i32>,
 }
 
@@ -196,6 +201,7 @@ impl MiniDFG {
 }
 
 impl<'a> DFGBuilder {
+    /// Returns a new DFG builder
     pub fn new() -> Self {
         DFGBuilder {
             stack: Vec::new(),

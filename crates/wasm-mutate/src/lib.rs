@@ -6,7 +6,6 @@
 //! Wasm parser, validator, compiler, or any other Wasm-consuming
 //! tool. `wasm-mutate` can serve as a custom mutator for mutation-based
 //! fuzzing.
-
 #![cfg_attr(not(feature = "structopt"), deny(missing_docs))]
 
 mod error;

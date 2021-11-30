@@ -1,3 +1,20 @@
+//! This mutator applies a random mutation over the control flow AST of an input
+//! binary
+//!
+//! To extend `wasm-mutate` with another code motion mutator, the new mutator
+//! struct should implement the [AstMutator] trait and we strongly recommend the
+//! usage of the [ir::AstWriter] to define how the mutator writes the new AST back
+//! to Wasm.
+//!
+//! For and example take a look at  [IfComplementMutator][IfComplementMutator]
+//!
+//! Register the new mutator then in the meta [CodemotionMutator] logic.
+//! ```ignore
+//! let mutators: Vec<Box<dyn AstMutator>> = vec![
+//!    Box::new(IfComplementMutator),
+//! ];
+//! ```
+
 use crate::{
     module::map_type,
     mutators::{
@@ -22,9 +39,11 @@ use log::debug;
 #[cfg(test)]
 use std::println as debug;
 
-mod ir;
-mod mutators;
+pub mod ir;
+pub mod mutators;
 
+/// Code motion meta mutator, it groups all code motion mutators and select a
+/// valid random one when an input Wasm binary is passed to it.
 pub struct CodemotionMutator;
 
 impl CodemotionMutator {
@@ -105,6 +124,8 @@ impl CodemotionMutator {
 }
 /// Trait to be implemented by all code motion mutators
 pub trait AstMutator {
+    /// Transform the function AST in order to generate a new Wasm module
+    ///
     fn mutate<'a>(
         &self,
         config: &'a crate::WasmMutate,
@@ -116,6 +137,8 @@ pub trait AstMutator {
         input_wasm: &'a [u8],
     ) -> Result<Function>;
 
+    /// Checks if this mutator can be applied to the passed `ast`
+    ///
     fn can_mutate<'a>(
         &self,
         config: &'a crate::WasmMutate,

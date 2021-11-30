@@ -16,6 +16,11 @@ use crate::{
     },
 };
 
+/// This mutator selects a random `if` construction in a function and swap its branches.
+/// Since this mutator preserves the original semantic of the input Wasm,
+/// before the mutated if structure is encoded, a "negation" of the previous operand
+/// in the stack is written. The "negation" is encoded with a `i32.eqz` operator.
+///
 pub struct IfComplementMutator;
 
 #[derive(Default)]

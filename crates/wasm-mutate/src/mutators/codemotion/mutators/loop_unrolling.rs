@@ -20,6 +20,8 @@ use crate::{
     },
 };
 
+/// This mutator selects a random `loop` construction in a function and tries to unroll it.
+/// This mutator only works on empty-returning loops
 pub struct LoopUnrollMutator;
 
 #[derive(Default)]
@@ -167,6 +169,8 @@ impl AstWriter for LoopUnrollWriter {
 }
 
 impl LoopUnrollMutator {
+    /// Returns the indexes of empty return loop definitions inside the Wasm function
+    ///
     pub fn get_empty_returning_loops<'a>(&self, ast: &'a Ast) -> Vec<usize> {
         let nodes = ast.get_nodes();
         let mut loops = vec![];

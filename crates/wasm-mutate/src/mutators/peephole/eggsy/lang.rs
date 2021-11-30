@@ -1,347 +1,654 @@
+//! Nodes for intermediate representation of Wasm operators
+//!
 use egg::Id;
 use std::fmt::Display;
 use std::str::FromStr;
 
+/// Each "mutable" operator of Wasm is defined here plus articial operators with a
+/// a custom behavior.
+///
+/// You can define custom operators by adding a variant to this enum. Notice
+/// that custom operator nodes can only be created from rewriting rules and not
+/// form the direct translation of the Wasm binary. After you
+/// add a custom node, you need to also implement its parsing from a `string`
+/// and its encoding to Wasm. Lets assume for example that we want to implement
+/// a custom node that insert three `nop` operators when it is written back to Wasm.
+///
+/// * We firsts need to define the custom node ```ThreeNops``` as a variant of
+///   the [Lang] enum.
+/// * Then, we modify the `children`, `children_mut` and `from_op_str` methods
+/// the `impl egg::Language for Lang` as follows.
+///   ```ignore
+///    fn children(&self) -> &[Id] {
+///         ...
+///         Lang::ThreeNops => &[], // This variant has no children
+///         ...
+///    }
+///
+///    fn children_mut (&self) -> &[Id] {
+///         ...
+///         Lang::ThreeNops => &mut [], // This variant has no children
+///         ...
+///    }
+///
+///    fn from_op_str(op_str: &str, children: Vec<Id>) -> Result<Self, String> {
+///         ...
+///         "three_nops" => Ok(Lang::ThreeNops)
+///         ...
+///    }
+///
+///   ```
+/// * The custom node needs to translated to Wasm. To do so, you need to modify
+///   the `expr2wasm` function somehow as follow
+///   ```ignore
+///   Lang::ThreeNops  => {
+///     newfunc.instruction(&Instruction::Nop);
+///     newfunc.instruction(&Instruction::Nop);
+///     newfunc.instruction(&Instruction::Nop);
+///   }
+///   ```
+/// * The final step is to use this node in a rewriting rule. Inside the
+///   [`rules.rs`]() file
+///   ```ignore
+///   rewrite!("three-nops";  "?x" => "(container ?x three_nops)"),
+///   ```
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 pub enum Lang {
     // binops integers
+    /// i32.add operator
     I32Add([Id; 2]),
+    /// i64.add operator
     I64Add([Id; 2]),
+    /// i32.sub  operator
     I32Sub([Id; 2]),
+    /// i64.sub  operator
     I64Sub([Id; 2]),
+    /// i32.mul  operator
     I32Mul([Id; 2]),
+    /// i64.mul  operator
     I64Mul([Id; 2]),
+    /// i32.and  operator
     I32And([Id; 2]),
+    /// i64.and  operator
     I64And([Id; 2]),
+    /// i32.or  operator
     I32Or([Id; 2]),
+    /// i64.or  operator
     I64Or([Id; 2]),
+    /// i32.xor  operator
     I32Xor([Id; 2]),
+    /// i64.xor  operator
     I64Xor([Id; 2]),
+    /// i32.shl  operator
     I32Shl([Id; 2]),
+    /// i64.shl  operator
     I64Shl([Id; 2]),
+    /// i32.shru  operator
     I32ShrU([Id; 2]),
+    /// i64.shru  operator
     I64ShrU([Id; 2]),
+    /// i32.divu  operator
     I32DivU([Id; 2]),
+    /// i64.divu  operator
     I64DivU([Id; 2]),
+    /// i32.divs  operator
     I32DivS([Id; 2]),
+    /// i64.divs  operator
     I64DivS([Id; 2]),
+    /// i32.shrs  operator
     I32ShrS([Id; 2]),
+    /// i64.shrs  operator
     I64ShrS([Id; 2]),
+    /// i32.rotr  operator
     I32RotR([Id; 2]),
+    /// i64.rotr  operator
     I64RotR([Id; 2]),
+    /// i32.rotl  operator
     I32RotL([Id; 2]),
+    /// i64.rotl  operator
     I64RotL([Id; 2]),
+    /// i32.rems  operator
     I32RemS([Id; 2]),
+    /// i64.rems  operator
     I64RemS([Id; 2]),
+    /// i32.remu  operator
     I32RemU([Id; 2]),
+    /// i64.remu  operator
     I64RemU([Id; 2]),
+    /// i32.eq  operator
     I32Eq([Id; 2]),
+    /// i64.eq  operator
     I64Eq([Id; 2]),
+    /// i32.ne  operator
     I32Ne([Id; 2]),
+    /// i64.ne  operator
     I64Ne([Id; 2]),
+    /// i32.lts  operator
     I32LtS([Id; 2]),
+    /// i64.lts  operator
     I64LtS([Id; 2]),
+    /// i32.ltu  operator
     I32LtU([Id; 2]),
+    /// i64.ltu  operator
     I64LtU([Id; 2]),
+    /// i32.gts  operator
     I32GtS([Id; 2]),
+    /// i64.gts  operator
     I64GtS([Id; 2]),
+    /// i32.gtu  operator
     I32GtU([Id; 2]),
+    /// i64.gtu  operator
     I64GtU([Id; 2]),
+    /// i32.les  operator
     I32LeS([Id; 2]),
+    /// i64.les  operator
     I64LeS([Id; 2]),
+    /// i32.leu  operator
     I32LeU([Id; 2]),
+    /// i64.leu  operator
     I64LeU([Id; 2]),
+    /// i32.ges  operator
     I32GeS([Id; 2]),
+    /// i64.ges  operator
     I64GeS([Id; 2]),
+    /// i32.geu  operator
     I32GeU([Id; 2]),
+    /// i64.geu  operator
     I64GeU([Id; 2]),
     // binops floats
+    /// f32.add  operator
     F32Add([Id; 2]),
+    /// f64.add  operator
     F64Add([Id; 2]),
+    /// f32.sub  operator
     F32Sub([Id; 2]),
+    /// f64.sub  operator
     F64Sub([Id; 2]),
+    /// f32.mul  operator
     F32Mul([Id; 2]),
+    /// f64.mul  operator
     F64Mul([Id; 2]),
+    /// f32.div  operator
     F32Div([Id; 2]),
+    /// f64.div  operator
     F64Div([Id; 2]),
+    /// f32.min  operator
     F32Min([Id; 2]),
+    /// f64.min  operator
     F64Min([Id; 2]),
+    /// f32.max  operator
     F32Max([Id; 2]),
+    /// f64.max  operator
     F64Max([Id; 2]),
+    /// f32.copysign  operator
     F32Copysign([Id; 2]),
+    /// f64.copysign  operator
     F64Copysign([Id; 2]),
     // frelops
+    /// f32.eq  operator
     F32Eq([Id; 2]),
+    /// f64.eq  operator
     F64Eq([Id; 2]),
+    /// f32.ne  operator
     F32Ne([Id; 2]),
+    /// f64.ne  operator
     F64Ne([Id; 2]),
+    /// f32.lt  operator
     F32Lt([Id; 2]),
+    /// f64.lt  operator
     F64Lt([Id; 2]),
+    /// f32.gt  operator
     F32Gt([Id; 2]),
+    /// f64.gt  operator
     F64Gt([Id; 2]),
+    /// f32.le  operator
     F32Le([Id; 2]),
+    /// f64.le  operator
     F64Le([Id; 2]),
+    /// f32.ge  operator
     F32Ge([Id; 2]),
+    /// f64.ge  operator
     F64Ge([Id; 2]),
     // unops integers
+    /// i32.eqz  operator
     I32Eqz([Id; 1]),
+    /// i64.eqz  operator
     I64Eqz([Id; 1]),
 
+    /// i32.popcnt  operator
     I32Popcnt([Id; 1]),
+    /// i64.popcnt  operator
     I64Popcnt([Id; 1]),
+    /// i32.clz  operator
     I32Clz([Id; 1]),
+    /// i32.ctz  operator
     I32Ctz([Id; 1]),
+    /// i64.ctz  operator
     I64Ctz([Id; 1]),
+    /// i64.clz  operator
     I64Clz([Id; 1]),
 
     // unops floats
+    /// f32.abs  operator
     F32Abs([Id; 1]),
+    /// f64.abs  operator
     F64Abs([Id; 1]),
+    /// f32.neg  operator
     F32Neg([Id; 1]),
+    /// f64.neg  operator
     F64Neg([Id; 1]),
+    /// f32.sqrt  operator
     F32Sqrt([Id; 1]),
+    /// f64.sqrt  operator
     F64Sqrt([Id; 1]),
+    /// f32.ceil  operator
     F32Ceil([Id; 1]),
+    /// f64.ceil  operator
     F64Ceil([Id; 1]),
+    /// f32.floor  operator
     F32Floor([Id; 1]),
+    /// f64.floor  operator
     F64Floor([Id; 1]),
+    /// f32.trunc  operator
     F32Trunc([Id; 1]),
+    /// f64.trunc  operator
     F64trunc([Id; 1]),
+    /// f32.nearest  operator
     F32Nearest([Id; 1]),
+    /// f64.nearest  operator
     F64Nearest([Id; 1]),
 
     // Locals
     // Idx and value
+    /// local.tee operator
     LocalTee(u32, Id),
     // Idx and value
+    /// local.set operator
     LocalSet(u32, Id),
+    /// local.get operator
     LocalGet(u32),
 
     // Globals
     // Idx and value
+    /// global.set operator
     GlobalSet(u32, Id),
+    /// global.get operator
     GlobalGet(u32),
     // conversion operators
+    /// i32.wrap_i64 operator
     Wrap([Id; 1]),
 
     // conversion
+    /// i32.extend.8s operator
     I32Extend8S([Id; 1]),
+    /// i64.extend.8s operator
     I64Extend8S([Id; 1]),
+    /// i32.extend.16s operator
     I32Extend16S([Id; 1]),
+    /// i64.extend.16s operator
     I64Extend16S([Id; 1]),
+    /// i64.extend.32s operator
     I64Extend32S([Id; 1]),
+    /// i64.extendi.32s operator
     I64ExtendI32S([Id; 1]),
+    /// i64.extendi.32u operator
     I64ExtendI32U([Id; 1]),
+    /// i32.truncf.32s operator
     I32TruncF32S([Id; 1]),
+    /// i32.truncf.32u operator
     I32TruncF32U([Id; 1]),
+    /// i32.truncf.64s operator
     I32TruncF64S([Id; 1]),
+    /// i32.truncf.64u operator
     I32TruncF64U([Id; 1]),
+    /// i64.truncf.32s operator
     I64TruncF32S([Id; 1]),
+    /// i64.truncf.32u operator
     I64TruncF32U([Id; 1]),
+    /// i64.truncf.64s operator
     I64TruncF64S([Id; 1]),
+    /// i64.truncf.64u operator
     I64TruncF64U([Id; 1]),
+    /// f32.converti.32s operator
     F32ConvertI32S([Id; 1]),
+    /// f32.converti.32u operator
     F32ConvertI32U([Id; 1]),
+    /// f32.converti.64s operator
     F32ConvertI64S([Id; 1]),
+    /// f32.converti.64u operator
     F32ConvertI64U([Id; 1]),
+    /// f32.demote.f64 operator
     F32DemoteF64([Id; 1]),
+    /// f64.converti.32s operator
     F64ConvertI32S([Id; 1]),
+    /// f64.converti.32u operator
     F64ConvertI32U([Id; 1]),
+    /// f64.converti.64s operator
     F64ConvertI64S([Id; 1]),
+    /// f64.converti.64u operator
     F64ConvertI64U([Id; 1]),
+    /// f64.promote.f32 operator
     F64PromoteF32([Id; 1]),
+    /// i32.reinterpret.f32 operator
     I32ReinterpretF32([Id; 1]),
+    /// i64.reinterpret.f64 operator
     I64ReinterpretF64([Id; 1]),
+    /// f32.reinterpret.i32 operator
     F32ReinterpretI32([Id; 1]),
+    /// f64.reinterpret.i64 operator
     F64ReinterpretI64([Id; 1]),
+    /// i32.truncsatf.32s operator
     I32TruncSatF32S([Id; 1]),
+    /// i32.truncsatf.32u operator
     I32TruncSatF32U([Id; 1]),
+    /// i32.truncsatf.64s operator
     I32TruncSatF64S([Id; 1]),
+    /// i32.truncsatf.64u operator
     I32TruncSatF64U([Id; 1]),
+    /// i64.truncsatf.32s operator
     I64TruncSatF32S([Id; 1]),
+    /// i64.truncsatf.32u operator
     I64TruncSatF32U([Id; 1]),
+    /// i64.truncsatf.64s operator
     I64TruncSatF64S([Id; 1]),
+    /// i64.truncsatf.64u operator
     I64TruncSatF64U([Id; 1]),
 
     // The u32 argument should be the function index
+    /// call operator node
     Call(usize, Vec<Id>),
-
+    /// drop operator
     Drop([Id; 1]),
+    /// nop operator
     Nop,
     // Memory operations
     // loads
+    /// i32.load operator
     I32Load {
+        /// Inmediate static offset of the store operator
         static_offset: u64,
+        /// Inmediate align value of the store operator
         align: u8,
+        /// Inmediate mem value of the store operator
         mem: u32,
+        /// Dynamic offset node id
         offset: Id,
     },
+    /// i64.load operator
     I64Load {
+        /// Inmediate static offset of the store operator
         static_offset: u64,
+        /// Inmediate align value of the store operator
         align: u8,
+        /// Inmediate mem value of the store operator
         mem: u32,
+        /// Dynamic offset node id
         offset: Id,
     },
+    /// f32.load operator
     F32Load {
+        /// Inmediate static offset of the store operator
         static_offset: u64,
+        /// Inmediate align value of the store operator
         align: u8,
+        /// Inmediate mem value of the store operator
         mem: u32,
+        /// Dynamic offset node id
         offset: Id,
     },
+    /// f64.load operator
     F64Load {
+        /// Inmediate static offset of the store operator
         static_offset: u64,
+        /// Inmediate align value of the store operator
         align: u8,
+        /// Inmediate mem value of the store operator
         mem: u32,
+        /// Dynamic offset node id
         offset: Id,
     },
+    /// i32.load8_s operator
     I32Load8S {
+        /// Inmediate static offset of the store operator
         static_offset: u64,
+        /// Inmediate align value of the store operator
         align: u8,
+        /// Inmediate mem value of the store operator
         mem: u32,
+        /// Dynamic offset node id
         offset: Id,
     },
+    /// i32.load8_u operator
     I32Load8U {
+        /// Inmediate static offset of the store operator
         static_offset: u64,
+        /// Inmediate align value of the store operator
         align: u8,
+        /// Inmediate mem value of the store operator
         mem: u32,
+        /// Dynamic offset node id
         offset: Id,
     },
+    /// i32.load16_s operator
     I32Load16S {
+        /// Inmediate static offset of the store operator
         static_offset: u64,
+        /// Inmediate align value of the store operator
         align: u8,
+        /// Inmediate mem value of the store operator
         mem: u32,
+        /// Dynamic offset node id
         offset: Id,
     },
+    /// i32.load16_u operator
     I32Load16U {
+        /// Inmediate static offset of the store operator
         static_offset: u64,
+        /// Inmediate align value of the store operator
         align: u8,
+        /// Inmediate mem value of the store operator
         mem: u32,
+        /// Dynamic offset node id
         offset: Id,
     },
+    /// i64.load8_s operator
     I64Load8S {
+        /// Inmediate static offset of the store operator
         static_offset: u64,
+        /// Inmediate align value of the store operator
         align: u8,
+        /// Inmediate mem value of the store operator
         mem: u32,
+        /// Dynamic offset node id
         offset: Id,
     },
+    /// i64.load8_u operator
     I64Load8U {
+        /// Inmediate static offset of the store operator
         static_offset: u64,
+        /// Inmediate align value of the store operator
         align: u8,
+        /// Inmediate mem value of the store operator
         mem: u32,
+        /// Dynamic offset node id
         offset: Id,
     },
+    /// i64.load16_s operator
     I64Load16S {
+        /// Inmediate static offset of the store operator
         static_offset: u64,
+        /// Inmediate align value of the store operator
         align: u8,
+        /// Inmediate mem value of the store operator
         mem: u32,
+        /// Dynamic offset node id
         offset: Id,
     },
+    /// i64.load16_u operator
     I64Load16U {
+        /// Inmediate static offset of the store operator
         static_offset: u64,
+        /// Inmediate align value of the store operator
         align: u8,
+        /// Inmediate mem value of the store operator
         mem: u32,
+        /// Dynamic offset node id
         offset: Id,
     },
+    /// i64.load32_s operator
     I64Load32S {
+        /// Inmediate static offset of the store operator
         static_offset: u64,
+        /// Inmediate align value of the store operator
         align: u8,
+        /// Inmediate mem value of the store operator
         mem: u32,
+        /// Dynamic offset node id
         offset: Id,
     },
+    /// i64.load32_u operator
     I64Load32U {
+        /// Inmediate static offset of the store operator
         static_offset: u64,
+        /// Inmediate align value of the store operator
         align: u8,
+        /// Inmediate mem value of the store operator
         mem: u32,
+        /// Dynamic offset node id
         offset: Id,
     },
 
-    // store
+    /// i32.store operator
     I32Store {
+        /// Inmediate static offset of the store operator
         static_offset: u64,
+        /// Inmediate align value of the store operator
         align: u8,
+        /// Inmediate mem value of the store operator
         mem: u32,
+        /// Value and dynamic offset node Ids
         value_and_offset: [Id; 2],
     },
+    /// i64.store operator
     I64Store {
+        /// Inmediate static offset of the store operator
         static_offset: u64,
+        /// Inmediate align value of the store operator
         align: u8,
+        /// Inmediate mem value of the store operator
         mem: u32,
+        /// Value and dynamic offset node Ids
         value_and_offset: [Id; 2],
     },
+    /// f32.store operator
     F32Store {
+        /// Inmediate static offset of the store operator
         static_offset: u64,
+        /// Inmediate align value of the store operator
         align: u8,
+        /// Inmediate mem value of the store operator
         mem: u32,
+        /// Value and dynamic offset node Ids
         value_and_offset: [Id; 2],
     },
+    /// f64.store operator
     F64Store {
+        /// Inmediate static offset of the store operator
         static_offset: u64,
+        /// Inmediate align value of the store operator
         align: u8,
+        /// Inmediate mem value of the store operator
         mem: u32,
+        /// Value and dynamic offset node Ids
         value_and_offset: [Id; 2],
     },
+    /// i32.store8 operator
     I32Store8 {
+        /// Inmediate static offset of the store operator
         static_offset: u64,
+        /// Inmediate align value of the store operator
         align: u8,
+        /// Inmediate mem value of the store operator
         mem: u32,
+        /// Value and dynamic offset node Ids
         value_and_offset: [Id; 2],
     },
+    /// i32.store16 operator
     I32Store16 {
+        /// Inmediate static offset of the store operator
         static_offset: u64,
+        /// Inmediate align value of the store operator
         align: u8,
+        /// Inmediate mem value of the store operator
         mem: u32,
+        /// Value and dynamic offset node Ids
         value_and_offset: [Id; 2],
     },
+    /// i64.store8 operator
     I64Store8 {
+        /// Inmediate static offset of the store operator
         static_offset: u64,
+        /// Inmediate align value of the store operator
         align: u8,
+        /// Inmediate mem value of the store operator
         mem: u32,
+        /// Value and dynamic offset node Ids
         value_and_offset: [Id; 2],
     },
+    /// i64.store16 operator
     I64Store16 {
+        /// Inmediate static offset of the store operator
         static_offset: u64,
+        /// Inmediate align value of the store operator
         align: u8,
+        /// Inmediate mem value of the store operator
         mem: u32,
+        /// Value and dynamic offset node Ids
         value_and_offset: [Id; 2],
     },
+    /// i32.store32 operator
     I64Store32 {
+        /// Inmediate static offset of the store operator
         static_offset: u64,
+        /// Inmediate align value of the store operator
         align: u8,
+        /// Inmediate mem value of the store operator
         mem: u32,
+        /// Value and dynamic offset node Ids
         value_and_offset: [Id; 2],
     },
-    // TODO add the others
+    /// Add custom or others operator nodes below
 
-    // Custom mutation operations and instructions
-    //
-    /*
-        This operation represent a random number, if its used
-    */
+    /// Custom mutation operations and instructions
+    ///
+    /// This operation represent a random i32 integer
     RandI32,
+    /// This operation represent a random i64 integer
     RandI64,
-    /*
-        This instructions is used to define unknown operands, for example when the value can come from the join of several basic blocks in a dfg
-    */
+
+    /// This instructions is used to define unknown operands, for example when the value can come from the join of several basic blocks in a dfg
     Undef,
-    /*
-        Takes one constant operand and turn it into a sum of two random numbers whihch sum is the operand `i32.const x = i32.const r + i32.const (x - r) `
-    */
+    /// Takes one i32 constant operand and turn it into a sum of two random numbers whihch sum is the operand `i32.const x = i32.const r + i32.const (x - r) `
     UnfoldI32(Id),
+    /// Takes one i64 constant operand and turn it into a sum of two random numbers whihch sum is the operand `i64.const x = i64.const r + i64.const (x - r) `
     UnfoldI64(Id),
-    /*
-        Just a wrapper of multiple nodes, when encoding to Wasm it is written as nothing
-        Its only responsability is to add stack neutral operations (if semantic equivalence is set)
-        For example, lets assume we want to insert a nop operation after or before (or both) another node
-        `?x => (container nop ?x nop)`
-        `?x => (container (drop i32.rand) ?x) `
-    */
+
+    /// Just a wrapper of multiple nodes, when encoding to Wasm it is written as nothing
+    ///    Its only responsability is to add stack neutral operations (if semantic equivalence is set)
+    ///    For example, lets assume we want to insert a nop operation after or before (or both) another node
+    ///    `?x => (container nop ?x nop)`
+    ///    `?x => (container (drop i32.rand) ?x) `
     Container(Vec<Id>),
 
     // End of custom mutation operations and instructions
+    /// I32 constant node
     I32(i32),
+    /// I64 constant node
     I64(i64),
     // Save bits
+    /// F32 constant node
     F32(u32),
+    /// F64 constant node
     F64(u64),
 }
 
@@ -849,7 +1156,6 @@ impl Lang {
                 mem,
                 value_and_offset: [children[1], children[0]],
             }),
-            // TODO, add the other mem operations here
             _ => Err(format!("Invalid index based operation {:?}", op_str)),
         }
     }
@@ -1772,13 +2078,6 @@ mod tests {
     use rand::{prelude::SmallRng, SeedableRng};
 
     use crate::mutators::peephole::eggsy::{analysis::PeepholeMutationAnalysis, lang::Lang};
-
-    #[test]
-    fn test_parsing() {
-        let a = "0_i32";
-
-        let parse = RecExpr::<Lang>::from_str(a).unwrap();
-    }
 
     #[test]
     fn test_parsing2() {

@@ -1,3 +1,4 @@
+//! Helper to encode [Lang] expressions to Wasm
 use std::num::Wrapping;
 
 use crate::error::EitherType;
@@ -9,7 +10,11 @@ use egg::{Id, RecExpr};
 use rand::Rng;
 use wasm_encoder::{Function, Instruction, MemArg};
 
-pub(crate) fn expr2wasm(
+/// Encodes an expression in the [Lang][Lang] intermediate language to Wasm
+/// * `rnd`  Random generator
+/// * `expr` [Lang] expression to encode
+/// * `newfunc` Function stream in which the expression will be encoded
+pub fn expr2wasm(
     _info: &ModuleInfo,
     rnd: &mut rand::prelude::SmallRng,
     expr: &RecExpr<Lang>,

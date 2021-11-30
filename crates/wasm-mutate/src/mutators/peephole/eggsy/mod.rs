@@ -1,9 +1,12 @@
+//! Intermediate representation of Wasm operators to be used with the `egg`
+//! engine
+//!
 use std::{cmp::Ordering, collections::HashMap};
 
 use egg::{Analysis, CostFunction, EClass, EGraph, Id, Language, RecExpr};
 use rand::Rng;
 
-pub mod analysis;
+pub(crate) mod analysis;
 pub mod encoder;
 pub mod lang;
 

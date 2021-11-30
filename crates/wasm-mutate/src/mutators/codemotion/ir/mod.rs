@@ -1,3 +1,4 @@
+//! Parsing and econding for code motion mutators.
 use crate::{
     module::map_block_type,
     mutators::{codemotion::ir::parse_context::ParseContext, OperatorAndByteOffset},
@@ -6,8 +7,10 @@ use wasm_encoder::{Function, Instruction};
 use wasmparser::{Operator, Range, TypeOrFuncType};
 
 use self::parse_context::{Ast, Node, State};
+
+/// Encodes an AST back to a Wasm function
 pub struct AstBuilder;
-pub mod parse_context;
+pub(crate) mod parse_context;
 
 /// Encodes the Wasm Ast
 pub trait AstWriter {
