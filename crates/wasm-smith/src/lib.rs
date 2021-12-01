@@ -74,12 +74,13 @@ mod terminate;
 
 use crate::code_builder::CodeBuilderAllocations;
 use arbitrary::{Arbitrary, Result, Unstructured};
+use flagset::{flags, FlagSet};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::marker;
 use std::ops::Range;
 use std::rc::Rc;
-use std::str;
+use std::str::{self};
 use wasm_encoder::{BlockType, Export, GlobalType, ItemKind, MemoryType, TableType, ValType};
 
 pub use config::{Config, DefaultConfig, SwarmConfig};
@@ -2455,4 +2456,41 @@ enum LocalType {
 struct Outer {
     types: Vec<Type>,
     modules: Vec<Rc<ModuleType>>,
+}
+
+flags! {
+    /// Enumerate the categories of instructions defined in the [WebAssembly
+    /// specification](https://webassembly.github.io/spec/core/syntax/instructions.html).
+    #[allow(missing_docs)]
+    pub enum InstructionKind: u16 {
+        Numeric,
+        Vector,
+        Reference,
+        Parametric,
+        Variable,
+        Table,
+        Memory,
+        Control,
+    }
+}
+
+/// Parse a comma-separated list of instruction kinds into a `FlagSet`.
+pub fn parse_instruction_kinds(s: &str) -> std::result::Result<FlagSet<InstructionKind>, String> {
+    let mut kinds = FlagSet::<InstructionKind>::default();
+    for s in s.split(",") {
+        let matched = match s.to_lowercase().as_str() {
+            "numeric" => InstructionKind::Numeric,
+            "vector" => InstructionKind::Vector,
+            "reference" => InstructionKind::Reference,
+            "parametric" => InstructionKind::Parametric,
+            "variable" => InstructionKind::Variable,
+            "table" => InstructionKind::Table,
+            "memory" => InstructionKind::Memory,
+            "control" => InstructionKind::Control,
+            _ => return Err(format!("unknown instruction kind: {}", s)),
+        };
+        kinds |= matched;
+    }
+    println!("Parsed kinds: {:?}", kinds);
+    Ok(kinds)
 }

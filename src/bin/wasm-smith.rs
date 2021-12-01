@@ -1,11 +1,12 @@
 use anyhow::Context;
 use arbitrary::Arbitrary;
+use flagset::FlagSet;
 use std::fs;
 use std::io::{stdin, stdout, Read, Write};
 use std::path::PathBuf;
 use std::process;
 use structopt::StructOpt;
-use wasm_smith::{MaybeInvalidModule, Module};
+use wasm_smith::{parse_instruction_kinds, InstructionKind, MaybeInvalidModule, Module};
 
 /// A WebAssembly test case generator.
 ///
@@ -163,6 +164,14 @@ struct Config {
     memory64_enabled: Option<bool>,
     #[structopt(long = "canonicalize-nans")]
     canonicalize_nans: Option<bool>,
+    /// Limit what kinds of instructions are allowed.
+    ///
+    /// By default, all kinds are allowed; available kinds: numeric, vector,
+    /// reference, parametric, variable, table, memory, control. Specify
+    /// multiple kinds with a comma-separated list: e.g.,
+    /// `--allowed-instructions numeric,control,parametric`
+    #[structopt(long = "allowed-instructions", parse(try_from_str = parse_instruction_kinds))]
+    allowed_instructions: Option<FlagSet<InstructionKind>>,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -297,6 +306,7 @@ impl wasm_smith::Config for CliAndJsonConfig {
         (max_nesting_depth, usize, 1000),
         (max_type_size, u32, 1000),
         (canonicalize_nans, bool, false),
+        (allowed_instructions, FlagSet<InstructionKind>, FlagSet::default()),
     }
 
     fn max_memory_pages(&self, _is_64: bool) -> u64 {
