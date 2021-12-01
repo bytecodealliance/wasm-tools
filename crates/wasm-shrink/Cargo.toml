@@ -1,0 +1,23 @@
+[package]
+authors = ["Nick Fitzgerald <fitzgen@gmail.com>"]
+categories = ["command-line-utilities", "development-tools", "development-tools::testing", "wasm"]
+description = "A WebAssembly test case shrinker"
+edition = "2021"
+keywords = ["reducer", "reduce", "bug", "crash"]
+license = "Apache-2.0 WITH LLVM-exception"
+readme = "./README.md"
+repository = "https://github.com/bytecodealliance/wasm-tools"
+name = "wasm-shrink"
+version = "0.1.0"
+
+[dependencies]
+anyhow = "1"
+log = "0.4"
+rand = { version = "0.8.4", features = ["small_rng"] }
+structopt = { version = "0.3.25", optional = true }
+wasm-mutate = { version = "0.1.0", path = "../wasm-mutate" }
+wasmparser = { version = "0.81", path = "../wasmparser" }
+
+[dev-dependencies]
+wasmprinter = { version = "0.2", path = "../wasmprinter" }
+wat = { version = "1", path = "../wat" }

@@ -14,10 +14,13 @@ arbitrary = "1.0.0"
 env_logger = "0.8"
 flagset = "0.4"
 getopts = "0.2"
+is_executable = "1.0.1"
 log = "0.4"
 rayon = "1.0"
 structopt = "0.3.16"
+tempfile = "3.2.0"
 wasm-mutate = { path = "crates/wasm-mutate", features = ["structopt"] }
+wasm-shrink = { path = "crates/wasm-shrink", features = ["structopt"] }
 wasm-smith = { path = "crates/wasm-smith" }
 wasmparser = { path = "crates/wasmparser" }
 wasmparser-dump = { path = "crates/dump" }
