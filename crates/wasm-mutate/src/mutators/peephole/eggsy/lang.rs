@@ -1289,6 +1289,21 @@ impl egg::Language for Lang {
             | (Lang::LocalSet(v, _), Lang::LocalSet(v2, _))
             | (Lang::LocalTee(v, _), Lang::LocalTee(v2, _)) => v == v2,
             (Lang::Call(v, _), Lang::Call(v2, _)) => v == v2,
+            (
+                Lang::MemoryGrow { mem_byte, mem, .. },
+                Lang::MemoryGrow {
+                    mem_byte: mem_byte2,
+                    mem: mem2,
+                    ..
+                },
+            ) => mem == mem2 && mem_byte == mem_byte2,
+            (
+                Lang::MemorySize { mem_byte, mem },
+                Lang::MemorySize {
+                    mem_byte: mem_byte2,
+                    mem: mem2,
+                },
+            ) => mem == mem2 && mem_byte == mem_byte2,
             (Lang::Container(v), Lang::Container(v2)) => v.len() == v2.len(),
             _ => ::std::mem::discriminant(self) == ::std::mem::discriminant(other),
         }
