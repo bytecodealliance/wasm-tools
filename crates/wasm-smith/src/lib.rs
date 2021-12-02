@@ -81,7 +81,7 @@ use std::convert::TryFrom;
 use std::marker;
 use std::ops::Range;
 use std::rc::Rc;
-use std::str::{self};
+use std::str::{self, FromStr};
 use wasm_encoder::{BlockType, Export, GlobalType, ItemKind, MemoryType, TableType, ValType};
 
 pub use config::{Config, DefaultConfig, SwarmConfig};
@@ -2463,14 +2463,31 @@ struct Outer {
 /// emit. Usage:
 /// ```
 /// # use wasm_smith::{InstructionKinds, InstructionKind};
-/// InstructionKinds::new(InstructionKind::Numeric | InstructionKind::Memory);
+/// let kinds = InstructionKinds::new([InstructionKind::Numeric, InstructionKind::Memory]);
+/// assert!(kinds.contains(InstructionKind::Memory));
 /// ```
-#[derive(Clone, Copy, Debug, Default, Deserialize)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct InstructionKinds(pub(crate) FlagSet<InstructionKind>);
 impl InstructionKinds {
     /// Create a new container.
-    pub fn new(kinds: impl Into<FlagSet<InstructionKind>>) -> Self {
-        Self(kinds.into())
+    pub fn new<'a>(kinds: impl IntoIterator<Item = &'a InstructionKind>) -> Self {
+        Self(kinds.into_iter().fold(FlagSet::default(), |ks, k| ks | *k))
+    }
+
+    /// Include all [InstructionKind]s.
+    pub fn all() -> Self {
+        Self(FlagSet::full())
+    }
+
+    /// Include no [InstructionKind]s.
+    pub fn none() -> Self {
+        Self(FlagSet::default())
+    }
+
+    /// Check if the [InstructionKind] is contained in this set.
+    #[inline]
+    pub fn contains(&self, kind: InstructionKind) -> bool {
+        self.0.contains(kind)
     }
 }
 
@@ -2478,6 +2495,7 @@ flags! {
     /// Enumerate the categories of instructions defined in the [WebAssembly
     /// specification](https://webassembly.github.io/spec/core/syntax/instructions.html).
     #[allow(missing_docs)]
+    #[derive(Deserialize)]
     pub enum InstructionKind: u16 {
         Numeric,
         Vector,
@@ -2490,23 +2508,19 @@ flags! {
     }
 }
 
-/// Parse a comma-separated list of instruction kinds into a `FlagSet`.
-pub fn parse_instruction_kinds(s: &str) -> std::result::Result<InstructionKinds, String> {
-    let mut kinds = InstructionKinds::default();
-    for s in s.split(",") {
-        let matched = match s.to_lowercase().as_str() {
-            "numeric" => InstructionKind::Numeric,
-            "vector" => InstructionKind::Vector,
-            "reference" => InstructionKind::Reference,
-            "parametric" => InstructionKind::Parametric,
-            "variable" => InstructionKind::Variable,
-            "table" => InstructionKind::Table,
-            "memory" => InstructionKind::Memory,
-            "control" => InstructionKind::Control,
-            _ => return Err(format!("unknown instruction kind: {}", s)),
-        };
-        kinds.0 |= matched;
+impl FromStr for InstructionKind {
+    type Err = String;
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "numeric" => Ok(InstructionKind::Numeric),
+            "vector" => Ok(InstructionKind::Vector),
+            "reference" => Ok(InstructionKind::Reference),
+            "parametric" => Ok(InstructionKind::Parametric),
+            "variable" => Ok(InstructionKind::Variable),
+            "table" => Ok(InstructionKind::Table),
+            "memory" => Ok(InstructionKind::Memory),
+            "control" => Ok(InstructionKind::Control),
+            _ => Err(format!("unknown instruction kind: {}", s)),
+        }
     }
-    println!("Parsed kinds: {:?}", kinds);
-    Ok(kinds)
 }

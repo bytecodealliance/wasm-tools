@@ -23,6 +23,7 @@ macro_rules! instructions {
             fn(&mut Unstructured<'_>, &Module, &mut CodeBuilder) -> Result<Instruction>
         > {
             builder.allocs.options.clear();
+            let allowed_instructions = module.config.allowed_instructions();
             let mut cost = 0;
             // Unroll the loop that checks whether each instruction is valid in
             // the current context and, if it is valid, pushes it onto our
@@ -33,7 +34,7 @@ macro_rules! instructions {
             $(
                 let predicate: Option<fn(&Module, &mut CodeBuilder) -> bool> = $predicate;
                 if predicate.map_or(true, |f| f(module, builder))
-                    && module.config.allowed_instructions().0.contains($instruction_kind) {
+                    && allowed_instructions.contains($instruction_kind) {
                     builder.allocs.options.push(($generator_fn, cost));
                     cost += 1000 $(- $cost)?;
                 }

@@ -5,7 +5,7 @@ use std::io::{stdin, stdout, Read, Write};
 use std::path::PathBuf;
 use std::process;
 use structopt::StructOpt;
-use wasm_smith::{parse_instruction_kinds, InstructionKinds, MaybeInvalidModule, Module};
+use wasm_smith::{InstructionKind, InstructionKinds, MaybeInvalidModule, Module};
 
 /// A WebAssembly test case generator.
 ///
@@ -169,8 +169,8 @@ struct Config {
     /// reference, parametric, variable, table, memory, control. Specify
     /// multiple kinds with a comma-separated list: e.g.,
     /// `--allowed-instructions numeric,control,parametric`
-    #[structopt(long = "allowed-instructions", parse(try_from_str = parse_instruction_kinds))]
-    allowed_instructions: Option<InstructionKinds>,
+    #[structopt(long = "allowed-instructions", use_delimiter = true)]
+    allowed_instructions: Option<Vec<InstructionKind>>,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -305,7 +305,6 @@ impl wasm_smith::Config for CliAndJsonConfig {
         (max_nesting_depth, usize, 1000),
         (max_type_size, u32, 1000),
         (canonicalize_nans, bool, false),
-        (allowed_instructions, InstructionKinds, InstructionKinds::default()),
     }
 
     fn max_memory_pages(&self, _is_64: bool) -> u64 {
@@ -313,5 +312,17 @@ impl wasm_smith::Config for CliAndJsonConfig {
             .max_memory_pages
             .or(self.json.max_memory_pages)
             .unwrap_or(65536)
+    }
+
+    fn allowed_instructions(&self) -> InstructionKinds {
+        match self
+            .cli
+            .allowed_instructions
+            .as_ref()
+            .or(self.json.allowed_instructions.as_ref())
+        {
+            Some(ks) => InstructionKinds::new(ks),
+            None => InstructionKinds::all(),
+        }
     }
 }
