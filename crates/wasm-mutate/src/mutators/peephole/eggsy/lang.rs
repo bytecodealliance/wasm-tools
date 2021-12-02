@@ -1907,12 +1907,12 @@ impl egg::Language for Lang {
             Lang::MemoryGrow {
                 mem: _,
                 mem_byte: _,
-                by: _,
-            } => todo!(),
+                by,
+            } => std::slice::from_mut(by),
             Lang::MemorySize {
                 mem: _,
                 mem_byte: _,
-            } => todo!(),
+            } => &mut [],
         }
     }
 
