@@ -62,23 +62,25 @@ pub mod rename_export;
 pub mod snip_function;
 
 #[cfg(test)]
-pub(crate) fn match_mutation(original: &str, mutator: &impl Mutator, expected: &str) {
-    /* use rand::SeedableRng;
+pub(crate) fn match_mutation<T>(original: &str, mutator: T, expected: &str)
+where
+    T: Mutator + Copy,
+{
+    use rand::SeedableRng;
 
-    let wasmmutate = WasmMutate::default();
+    let mut wasmmutate = WasmMutate::default();
     let original = &wat::parse_str(original).unwrap();
 
     let info = ModuleInfo::new(original).unwrap();
-    let can_mutate = mutator.can_mutate(&wasmmutate, &info);
+    wasmmutate.info = Some(info);
+    let mut rnd = SmallRng::seed_from_u64(0);
+    wasmmutate.rng = Some(rnd);
+
+    let can_mutate = mutator.can_mutate(&wasmmutate);
 
     assert!(can_mutate);
 
-    let mut rnd = SmallRng::seed_from_u64(0);
-    let mutation = mutator
-        .mutate(&wasmmutate, &mut rnd, &info)
-        .unwrap()
-        .next()
-        .unwrap();
+    let mutation = mutator.mutate(&mut wasmmutate).unwrap().next().unwrap();
 
     let mutation_bytes = mutation.unwrap().finish();
 
@@ -91,5 +93,5 @@ pub(crate) fn match_mutation(original: &str, mutator: &impl Mutator, expected: &
     let expected = &wat::parse_str(expected).unwrap();
     let expected_text = wasmprinter::print_bytes(expected).unwrap();
 
-    assert_eq!(text, expected_text); */
+    assert_eq!(text, expected_text);
 }

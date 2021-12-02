@@ -91,7 +91,7 @@ mod tests {
             )
         )
         "#,
-            &SnipMutator,
+            SnipMutator,
             r#"
         (module
             (type (;0;) (func (result i64)))

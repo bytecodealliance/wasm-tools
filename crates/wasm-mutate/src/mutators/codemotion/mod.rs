@@ -190,20 +190,22 @@ mod tests {
     use rand::{rngs::SmallRng, SeedableRng};
 
     fn test_motion_mutator(original: &str, expected: &str, seed: u64) {
-        /* let wasmmutate = WasmMutate::default();
+        let mut wasmmutate = WasmMutate::default();
         let original = &wat::parse_str(original).unwrap();
 
         let mutator = CodemotionMutator; // the string is empty
 
-        let mut info = ModuleInfo::new(original).unwrap();
-        let can_mutate = mutator.can_mutate(&wasmmutate, &info);
-
         let mut rnd = SmallRng::seed_from_u64(seed);
+        let mut info = ModuleInfo::new(original).unwrap();
+        wasmmutate.info = Some(info);
+        wasmmutate.rng = Some(rnd);
+
+        let can_mutate = mutator.can_mutate(&wasmmutate);
 
         assert_eq!(can_mutate, true);
 
         let mutated = mutator
-            .mutate(&wasmmutate, &mut rnd, &mut info)
+            .mutate(&mut wasmmutate)
             .unwrap()
             .next()
             .unwrap()
@@ -215,7 +217,7 @@ mod tests {
         crate::validate(&mut validator, mutated_bytes);
         let expected_bytes = &wat::parse_str(expected).unwrap();
         let expectedtext = wasmprinter::print_bytes(expected_bytes).unwrap();
-        assert_eq!(expectedtext, text); */
+        assert_eq!(expectedtext, text);
     }
 
     #[test]

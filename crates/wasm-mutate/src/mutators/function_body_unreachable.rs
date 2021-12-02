@@ -69,7 +69,7 @@ mod tests {
                 )
             )
         "#,
-            &FunctionBodyUnreachable,
+            FunctionBodyUnreachable,
             r#"(module
               (type (;0;) (func (result i64)))
               (type (;1;) (func (result i32)))

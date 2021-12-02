@@ -83,7 +83,7 @@ mod tests {
                 )
             )
             "#,
-            &RemoveExportMutator,
+            RemoveExportMutator,
             r#"
                 (module  (type (;0;)
                  (func (result i32)))

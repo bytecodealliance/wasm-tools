@@ -132,7 +132,7 @@ mod tests {
             )
         )
         "#,
-            &RenameExportMutator { max_name_size: 2 }, // the string is empty,
+            RenameExportMutator { max_name_size: 2 }, // the string is empty,
             r#"(module
             (type (;0;) (func (result i32)))
             (func (;0;) (type 0) (result i32)

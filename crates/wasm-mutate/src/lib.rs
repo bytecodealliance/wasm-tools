@@ -32,6 +32,39 @@ use structopt::StructOpt;
 
 pub use error::{Error, Result};
 
+macro_rules! define_mutators {
+    (@count) => {0};
+    (@count $first: expr , $( $tail: expr ,) *) => { 1 + define_mutators!(@count $($tail , )*) };
+    (@expand $self:ident, $discriminator: ident, $start: expr, ) => {};
+    (@expand $self:ident, $discriminator: ident, $start: expr, $first: expr , $( $tail: expr ,) *) => {
+        if $discriminator == $start {
+            let m = $first;
+
+            if m.can_mutate($self) {
+                match m.mutate($self) {
+                    Ok(iter) => {
+                        return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))))
+                    }
+                    Err(e) => {
+                        log::info!("mutator failed: {}; will try again", e);
+                        return Err(e);
+                    }
+                }
+            }
+        };
+
+        define_mutators!(@expand $self, $discriminator, ($start + 1), $($tail ,)*)
+    };
+    ( $self: ident , ($first: expr , $( $tail: expr ,)*)) => {
+        {
+            let count = define_mutators!(@count $first , $($tail ,)*);
+            let discrminator:u32 = $self.rng().gen_range(0, count);
+            let start_at = 0;
+            define_mutators!(@expand $self, discrminator , 0 , $first , $($tail ,)*);
+        }
+    };
+}
+
 // NB: only add this doc comment if we are not building the CLI, since otherwise
 // it will override the main CLI's about text.
 #[cfg_attr(
@@ -71,6 +104,7 @@ let mutated_wasm = WasmMutate::default()
 "###
 )]
 #[cfg_attr(feature = "structopt", derive(StructOpt))]
+#[derive(Clone)]
 pub struct WasmMutate<'wasm> {
     /// The RNG seed used to choose which transformation to apply. Given the
     /// same input Wasm and same seed, `wasm-mutate` will always generate the
@@ -182,88 +216,19 @@ impl<'wasm> WasmMutate<'wasm> {
         self.info = Some(ModuleInfo::new(input_wasm)?);
         self.rng = Some(SmallRng::seed_from_u64(self.seed));
 
-        // FIXME, move this to a macro
-        match self.rng().gen::<u32>() % 1 {
-            0 => {
-                // Return from Peephole
-                let m = PeepholeMutator::new(3);
-
-                if m.can_mutate(&self) {
-                    match m.mutate(self) {
-                        Ok(iter) => {
-                            return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))))
-                        }
-                        Err(e) => {
-                            log::info!("mutator failed: {}; will try again", e);
-                            return Err(e);
-                        }
-                    }
-                }
-            }
-            1 => {
-                let m = RemoveExportMutator;
-
-                if m.can_mutate(&self) {
-                    match m.mutate(self) {
-                        Ok(iter) => {
-                            return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))))
-                        }
-                        Err(e) => {
-                            log::info!("mutator failed: {}; will try again", e);
-                            return Err(e);
-                        }
-                    }
-                }
-            }
-            2 => {
-                let m = RenameExportMutator { max_name_size: 100 };
-
-                if m.can_mutate(&self) {
-                    match m.mutate(self) {
-                        Ok(iter) => {
-                            return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))))
-                        }
-                        Err(e) => {
-                            log::info!("mutator failed: {}; will try again", e);
-                            return Err(e);
-                        }
-                    }
-                }
-            }
-            3 => {
-                let m = SnipMutator;
-
-                if m.can_mutate(&self) {
-                    match m.mutate(self) {
-                        Ok(iter) => {
-                            return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))))
-                        }
-                        Err(e) => {
-                            log::info!("mutator failed: {}; will try again", e);
-                            return Err(e);
-                        }
-                    }
-                }
-            }
-
-            4 => {
-                let m = CodemotionMutator;
-
-                if m.can_mutate(&self) {
-                    match m.mutate(self) {
-                        Ok(iter) => {
-                            return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))))
-                        }
-                        Err(e) => {
-                            log::info!("mutator failed: {}; will try again", e);
-                            return Err(e);
-                        }
-                    }
-                }
-            }
-            _ => unreachable!(),
-        };
-
+        // This macro just expands the logic to return an iterator form the
+        // mutators
+        define_mutators!(
+            self,
+            (
+                PeepholeMutator::new(3),
+                RemoveExportMutator,
+                RenameExportMutator { max_name_size: 100 },
+                SnipMutator,
+                CodemotionMutator,
+                FunctionBodyUnreachable,
+            )
+        );
         Err(crate::Error::NoMutationsApplicable)
     }
 
