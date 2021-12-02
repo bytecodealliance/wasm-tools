@@ -473,6 +473,7 @@ impl State {
         to_write.lock().unwrap().push(wasm.clone());
 
         let mut rng = SmallRng::seed_from_u64(seed);
+        let wasmcp = wasm.clone();
 
         while !self.timeout_reached.load(Relaxed) {
             let seed = rng.gen();
@@ -483,10 +484,9 @@ impl State {
             // Set a panic hook since some errors are not carried out, this looks more like a patch
             let self_clone = self.clone();
             let artifact_clone = artifact_folder.to_path_buf();
-            let data_clone = wasm.clone();
-            let wasmcp = wasm.clone();
             let finish_writing_wrap_clone2 = finish_writing_wrap.clone();
 
+            let data_clone = wasm.clone();
             panic::set_hook(Box::new(move |panic_info| {
                 // invoke the default handler and exit the process
                 println!("Internal undhandled panicking \n{:?}!", panic_info);
@@ -498,7 +498,7 @@ impl State {
             }));
 
             // First stage, generate and return the mutated
-            let y = |y| match wasmmutate.run(y) {
+            let it = match wasmmutate.run(&wasmcp) {
                 Ok(it) => it,
                 Err(e) => match e {
                     wasm_mutate::Error::NoMutationsApplicable => {
@@ -515,9 +515,6 @@ impl State {
                 },
             };
 
-            let it = y(&wasmcp);
-
-            println!("Iterators retrieved");
             for mutated in it {
                 let mut validator = wasmparser::Validator::new();
                 match mutated {

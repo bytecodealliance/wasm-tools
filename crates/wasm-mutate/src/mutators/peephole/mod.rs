@@ -225,7 +225,7 @@ impl PeepholeMutator {
                     config.info().function_map.clone(),
                 );
                 let runner = Runner::<Lang, PeepholeMutationAnalysis, ()>::new(analysis)
-                    //.with_iter_limit(1) // only one iterations, do not wait for eq saturation, increasing only by one it affects the execution time of the mutator by a lot
+                    .with_iter_limit(1) // only one iterations, do not wait for eq saturation, increasing only by one it affects the execution time of the mutator by a lot
                     .with_expr(&start)
                     .run(&rules);
                 let mut egraph = runner.egraph;

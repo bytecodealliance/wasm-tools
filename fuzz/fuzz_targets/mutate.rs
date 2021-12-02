@@ -65,23 +65,16 @@ fuzz_target!(|bytes: &[u8]| {
                     Ok(mutated_wasm) => {
                         // Increase ony once for the same input Wasm
                         if !found {
+                            // FIXME this metric is somehow undermeasuring the
+                            // effectiveness of the mutator now. Some modules
+                            // can have only one possible mutation meanwhile
+                            // others can have a lot and still each one of them
+                            // is counted as one if they have at least one
+                            // possible mutation
                             NUM_SUCCESSFUL_MUTATIONS.fetch_add(1, Ordering::Relaxed);
                             found = true;
-                        } else {
-                            // (i + N)/(T + N)
-                            /*  NUM_SUCCESSFUL_MUTATIONS.fetch_add(1, Ordering::Relaxed);
-                            let old_num_runs = NUM_RUNS.fetch_add(1, Ordering::Relaxed);
-                            if old_num_runs % 4096 == 4095 && log::log_enabled!(log::Level::Info) {
-                                let successful = NUM_SUCCESSFUL_MUTATIONS.load(Ordering::Relaxed);
-                                let percent = successful as f64 / old_num_runs as f64 * 100.0;
-                                log::info!(
-                                    "{} / {} ({:.2}%) successful mutations.",
-                                    successful,
-                                    old_num_runs,
-                                    percent
-                                );
-                            } */
                         }
+
                         let validation_result = validator.validate_all(&mutated_wasm);
                         log::debug!("validation result = {:?}", validation_result);
                         assert!(
