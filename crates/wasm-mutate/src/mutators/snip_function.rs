@@ -5,7 +5,7 @@ use crate::module::{PrimitiveTypeInfo, TypeInfo};
 use crate::{ModuleInfo, Result, WasmMutate};
 use rand::prelude::SmallRng;
 use rand::Rng;
-use wasm_encoder::{CodeSection, Function, Instruction, Module};
+use wasm_encoder::{CodeSection, Function, Instruction, Module, ValType};
 use wasmparser::CodeSectionReader;
 
 /// Mutator that replaces the body of a function with an empty body
@@ -45,7 +45,16 @@ impl Mutator for SnipMutator {
                                 PrimitiveTypeInfo::F64 => {
                                     f.instruction(&Instruction::F64Const(0.0));
                                 }
-                                _ => {
+                                PrimitiveTypeInfo::V128 => {
+                                    f.instruction(&Instruction::V128Const(0));
+                                }
+                                PrimitiveTypeInfo::FuncRef => {
+                                    f.instruction(&Instruction::RefNull(ValType::FuncRef));
+                                }
+                                PrimitiveTypeInfo::ExternRef => {
+                                    f.instruction(&Instruction::RefNull(ValType::ExternRef));
+                                }
+                                PrimitiveTypeInfo::Empty => {
                                     // Do nothing
                                 }
                             });

@@ -14,11 +14,9 @@ fuzz_target!(|bytes: &[u8]| {
     // use with `wasm-mutate`.
 
     let mut seed = 0;
-    let (wasm, _config) = match wasm_tools_fuzz::generate_valid_module(bytes, |config, u| {
+    let (wasm, config) = match wasm_tools_fuzz::generate_valid_module(bytes, |config, u| {
         config.module_linking_enabled = false;
         config.exceptions_enabled = false;
-        config.simd_enabled = false;
-        config.reference_types_enabled = false;
         config.memory64_enabled = false;
         config.max_memories = 1;
         seed = u.arbitrary()?;
@@ -71,7 +69,9 @@ fuzz_target!(|bytes: &[u8]| {
 
     // The mutated Wasm should still be valid, since the input Wasm was valid.
 
-    let features = WasmFeatures::default();
+    let mut features = WasmFeatures::default();
+    features.simd = config.simd_enabled;
+    features.relaxed_simd = config.relaxed_simd_enabled;
     let mut validator = wasmparser::Validator::new();
     validator.wasm_features(features);
 
