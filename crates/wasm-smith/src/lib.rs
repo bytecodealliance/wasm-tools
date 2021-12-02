@@ -2463,15 +2463,15 @@ struct Outer {
 /// emit. Usage:
 /// ```
 /// # use wasm_smith::{InstructionKinds, InstructionKind};
-/// let kinds = InstructionKinds::new([InstructionKind::Numeric, InstructionKind::Memory]);
+/// let kinds = InstructionKinds::new(&[InstructionKind::Numeric, InstructionKind::Memory]);
 /// assert!(kinds.contains(InstructionKind::Memory));
 /// ```
 #[derive(Clone, Copy, Debug, Default)]
 pub struct InstructionKinds(pub(crate) FlagSet<InstructionKind>);
 impl InstructionKinds {
     /// Create a new container.
-    pub fn new<'a>(kinds: impl IntoIterator<Item = &'a InstructionKind>) -> Self {
-        Self(kinds.into_iter().fold(FlagSet::default(), |ks, k| ks | *k))
+    pub fn new(kinds: &[InstructionKind]) -> Self {
+        Self(kinds.iter().fold(FlagSet::default(), |ks, k| ks | *k))
     }
 
     /// Include all [InstructionKind]s.
