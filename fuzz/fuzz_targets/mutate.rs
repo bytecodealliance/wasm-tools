@@ -33,7 +33,7 @@ fuzz_target!(|bytes: &[u8]| {
     // runs had successful mutations.
 
     let old_num_runs = NUM_RUNS.fetch_add(1, Ordering::Relaxed);
-    if old_num_runs % 100 == 99 && log::log_enabled!(log::Level::Info) {
+    if old_num_runs % 4096 == 4095 && log::log_enabled!(log::Level::Info) {
         let successful = NUM_SUCCESSFUL_MUTATIONS.load(Ordering::Relaxed);
         let percent = successful as f64 / old_num_runs as f64 * 100.0;
         log::info!(
@@ -55,7 +55,6 @@ fuzz_target!(|bytes: &[u8]| {
 
     match mutated_wasm_iterator {
         Ok(mut iterator) => {
-            let mut modcount = 0;
             while let Some(mutated_wasm) = iterator.next() {
                 let features = WasmFeatures::default();
                 let mut validator = wasmparser::Validator::new();
