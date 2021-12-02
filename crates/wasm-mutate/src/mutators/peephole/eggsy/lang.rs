@@ -617,6 +617,25 @@ pub enum Lang {
         /// Value and dynamic offset node Ids
         value_and_offset: [Id; 2],
     },
+    /// Select operator
+    Select([Id; 3]),
+    /// Memory grow operator
+    MemoryGrow {
+        /// immediate mem value
+        mem: u32,
+        /// immediate mem byte value
+        mem_byte: u8,
+        /// by node idx
+        by: Id,
+    },
+    /// Memory size operator
+    MemorySize {
+        /// immediate mem value
+        mem: u32,
+        /// immediate mem byte
+        mem_byte: u8,
+    },
+
     /// Add custom or others operator nodes below
 
     /// Custom mutation operations and instructions
@@ -1869,6 +1888,9 @@ impl egg::Language for Lang {
             Lang::F64(_) => &mut [],
             Lang::Nop => &mut [],
             Lang::Container(operands) => operands,
+            Lang::Select(operands) => operands,
+            Lang::MemoryGrow { mem, mem_byte, by } => todo!(),
+            Lang::MemorySize { mem, mem_byte } => todo!(),
         }
     }
 

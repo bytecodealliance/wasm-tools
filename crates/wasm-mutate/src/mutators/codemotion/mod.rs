@@ -44,6 +44,7 @@ pub mod mutators;
 
 /// Code motion meta mutator, it groups all code motion mutators and select a
 /// valid random one when an input Wasm binary is passed to it.
+#[derive(Clone, Copy)]
 pub struct CodemotionMutator;
 
 impl CodemotionMutator {
@@ -134,12 +135,7 @@ pub trait AstMutator {
 
     /// Checks if this mutator can be applied to the passed `ast`
     ///
-    fn can_mutate<'a>(
-        &self,
-        config: &'a crate::WasmMutate,
-        info: &crate::ModuleInfo,
-        ast: &Ast,
-    ) -> bool;
+    fn can_mutate<'a>(&self, config: &'a crate::WasmMutate, ast: &Ast) -> bool;
 }
 
 /// Meta mutator for peephole

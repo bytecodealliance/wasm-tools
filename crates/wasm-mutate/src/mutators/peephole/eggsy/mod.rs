@@ -1,7 +1,7 @@
 //! Intermediate representation of Wasm operators to be used with the `egg`
 //! engine
 //!
-use std::{cmp::Ordering, collections::HashMap};
+use std::{cmp::Ordering, collections::HashMap, cell::RefCell};
 
 use egg::{Analysis, CostFunction, EClass, EGraph, Id, Language, RecExpr};
 

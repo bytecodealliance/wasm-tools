@@ -16,8 +16,7 @@ use wasm_encoder::{Function, Instruction, MemArg};
 /// * `expr` [Lang] expression to encode
 /// * `newfunc` Function stream in which the expression will be encoded
 pub fn expr2wasm(
-    _info: &ModuleInfo,
-    rnd: &mut rand::prelude::SmallRng,
+    config: &mut WasmMutate,
     expr: &RecExpr<Lang>,
     newfunc: &mut Function,
     _egraph: &EG,
@@ -378,18 +377,12 @@ pub fn expr2wasm(
                         enqueue(&mut worklist, value_and_offset[0]);
                     }
                     Lang::Select([condition, consequent, alternative]) => {
-                        worklist.push(Context::new(*condition, TraversalEvent::Exit));
-                        worklist.push(Context::new(*condition, TraversalEvent::Enter));
-
-                        worklist.push(Context::new(*alternative, TraversalEvent::Exit));
-                        worklist.push(Context::new(*alternative, TraversalEvent::Enter));
-
-                        worklist.push(Context::new(*consequent, TraversalEvent::Exit));
-                        worklist.push(Context::new(*consequent, TraversalEvent::Enter));
+                        enqueue(&mut worklist, *condition);
+                        enqueue(&mut worklist, *alternative);
+                        enqueue(&mut worklist, *consequent);
                     }
                     Lang::MemoryGrow { by, .. } => {
-                        worklist.push(Context::new(*by, TraversalEvent::Exit));
-                        worklist.push(Context::new(*by, TraversalEvent::Enter));
+                        enqueue(&mut worklist, *by);
                     }
                     _ => { /* Do nothing */ }
                 }

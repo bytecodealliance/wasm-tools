@@ -25,7 +25,6 @@ use crate::mutators::peephole::eggsy::analysis::PeepholeMutationAnalysis;
 use crate::mutators::peephole::eggsy::encoder::Encoder;
 use crate::mutators::peephole::eggsy::expr_enumerator::lazy_expand_aux;
 use crate::mutators::peephole::eggsy::lang::Lang;
-use crate::{error::EitherType, mutators::peephole::eggsy::expr_enumerator::lazy_expand};
 use egg::{Id, RecExpr, Rewrite, Runner, Subst};
 use rand::SeedableRng;
 use rand::{prelude::SmallRng, Rng};
