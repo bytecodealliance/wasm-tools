@@ -2,7 +2,7 @@
 use std::num::Wrapping;
 
 use crate::error::EitherType;
-use crate::info::ModuleInfo;
+
 use crate::WasmMutate;
 
 use crate::mutators::peephole::eggsy::encoder::TraversalEvent;
@@ -633,8 +633,7 @@ pub fn expr2wasm(
                                 return Err(crate::Error::UnsupportedType(EitherType::EggError(
                                     format!(
                                         "The current eterm cannot be unfolded {:?}.\n expr {}",
-                                        child,
-                                        expr.to_string()
+                                        child, expr
                                     ),
                                 )))
                             }
@@ -657,8 +656,7 @@ pub fn expr2wasm(
                                 return Err(crate::Error::UnsupportedType(EitherType::EggError(
                                     format!(
                                         "The current eterm cannot be unfolded {:?}.\n expr {}",
-                                        child,
-                                        expr.to_string()
+                                        child, expr
                                     ),
                                 )))
                             }

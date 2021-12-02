@@ -1889,8 +1889,15 @@ impl egg::Language for Lang {
             Lang::Nop => &mut [],
             Lang::Container(operands) => operands,
             Lang::Select(operands) => operands,
-            Lang::MemoryGrow { mem, mem_byte, by } => todo!(),
-            Lang::MemorySize { mem, mem_byte } => todo!(),
+            Lang::MemoryGrow {
+                mem: _,
+                mem_byte: _,
+                by: _,
+            } => todo!(),
+            Lang::MemorySize {
+                mem: _,
+                mem_byte: _,
+            } => todo!(),
         }
     }
 
@@ -2129,12 +2136,9 @@ impl Default for Lang {
 
 #[cfg(test)]
 mod tests {
-    use std::{cell::RefCell, collections::HashMap, str::FromStr};
+    use egg::{Id, Language};
 
-    use egg::{rewrite, AstSize, Id, Language, RecExpr, Rewrite, Runner};
-    use rand::{prelude::SmallRng, SeedableRng};
-
-    use crate::mutators::peephole::eggsy::{analysis::PeepholeMutationAnalysis, lang::Lang};
+    use crate::mutators::peephole::eggsy::lang::Lang;
 
     #[test]
     fn test_parsing2() {

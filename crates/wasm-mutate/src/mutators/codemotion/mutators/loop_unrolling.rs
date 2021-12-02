@@ -195,7 +195,7 @@ impl LoopUnrollMutator {
 }
 
 impl AstMutator for LoopUnrollMutator {
-    fn can_mutate<'a>(&self, config: &crate::WasmMutate, ast: &Ast) -> bool {
+    fn can_mutate<'a>(&self, _config: &crate::WasmMutate, ast: &Ast) -> bool {
         let empty_returning_loops = self.get_empty_returning_loops(ast);
         !empty_returning_loops.is_empty()
     }

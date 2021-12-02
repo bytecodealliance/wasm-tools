@@ -1,7 +1,7 @@
 //! Mutator that replaces a function's body with an `unreachable` instruction.
 
-use crate::{ModuleInfo, Result, WasmMutate};
-use rand::prelude::SmallRng;
+use crate::{Result, WasmMutate};
+
 use rand::Rng;
 use wasm_encoder::{CodeSection, Function, Instruction, Module};
 use wasmparser::CodeSectionReader;

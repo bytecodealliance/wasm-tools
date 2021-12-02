@@ -1,8 +1,8 @@
 //! Mutator that removes a random prexisting export
 
 use super::Mutator;
-use crate::{ModuleInfo, Result, WasmMutate};
-use rand::prelude::SmallRng;
+use crate::{Result, WasmMutate};
+
 use rand::Rng;
 use wasm_encoder::{Export, ExportSection, Module};
 use wasmparser::ExportSectionReader;

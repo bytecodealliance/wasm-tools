@@ -1,15 +1,10 @@
 //! Helper methods for encoding eterm expressions to Wasm and back
 
-use std::cell::RefCell;
-
 use crate::mutators::peephole::dfg::MiniDFG;
 use crate::mutators::peephole::eggsy::encoder::expr2wasm::expr2wasm;
+use crate::mutators::peephole::{dfg::BBlock, OperatorAndByteOffset};
 use crate::mutators::peephole::{Lang, EG};
 use crate::WasmMutate;
-use crate::{
-    mutators::peephole::{dfg::BBlock, OperatorAndByteOffset},
-    ModuleInfo,
-};
 use egg::RecExpr;
 
 use wasm_encoder::Function;

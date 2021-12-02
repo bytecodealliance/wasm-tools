@@ -191,8 +191,8 @@ mod tests {
 
         let mutator = CodemotionMutator; // the string is empty
 
-        let mut rnd = SmallRng::seed_from_u64(seed);
-        let mut info = ModuleInfo::new(original).unwrap();
+        let rnd = SmallRng::seed_from_u64(seed);
+        let info = ModuleInfo::new(original).unwrap();
         wasmmutate.info = Some(info);
         wasmmutate.rng = Some(rnd);
 

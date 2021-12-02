@@ -19,12 +19,12 @@
 //! iterates through the defined functions, and then each instruction of the
 //! functions is processed in order to construct an equivalent piece of code.
 //!
-use rand::prelude::SmallRng;
+
 use wasm_encoder::Module;
 use wasmparser::Operator;
 
 use super::Result;
-use crate::{ModuleInfo, WasmMutate};
+use crate::WasmMutate;
 
 /// This trait needs to be implemented for all mutators
 ///
@@ -66,14 +66,16 @@ pub(crate) fn match_mutation<T>(original: &str, mutator: T, expected: &str)
 where
     T: Mutator + Copy,
 {
-    use rand::SeedableRng;
+    use rand::{prelude::SmallRng, SeedableRng};
+
+    use crate::info::ModuleInfo;
 
     let mut wasmmutate = WasmMutate::default();
     let original = &wat::parse_str(original).unwrap();
 
     let info = ModuleInfo::new(original).unwrap();
     wasmmutate.info = Some(info);
-    let mut rnd = SmallRng::seed_from_u64(0);
+    let rnd = SmallRng::seed_from_u64(0);
     wasmmutate.rng = Some(rnd);
 
     let can_mutate = mutator.can_mutate(&wasmmutate);

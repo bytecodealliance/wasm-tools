@@ -3162,7 +3162,7 @@ impl<'a> DFGBuilder {
                     self.parents[arg] = idx as i32;
                 }
                 Operator::MemorySize { mem, mem_byte } => {
-                    let idx = self.push_node(
+                    let _idx = self.push_node(
                         Lang::MemorySize {
                             mem: *mem,
                             mem_byte: *mem_byte,

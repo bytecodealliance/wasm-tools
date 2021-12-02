@@ -18,14 +18,9 @@ use crate::mutators::{
 };
 use info::ModuleInfo;
 use mutators::Mutator;
-use rand::seq::SliceRandom;
+
 use rand::{rngs::SmallRng, Rng, SeedableRng};
-use std::hash::Hasher;
-use std::{
-    cell::{Cell, RefCell},
-    rc::Rc,
-    sync::Arc,
-};
+use std::{cell::Cell, sync::Arc};
 
 #[cfg(feature = "structopt")]
 use structopt::StructOpt;

@@ -777,7 +777,7 @@ pub fn lazy_expand<'a>(
                         // FIXME
                         // Same as Call
                         let mut operands = vec![];
-                        let rec = recexpr.clone();
+                        let _rec = recexpr.clone();
                         for a in &arguments {
                             let na = lazy_expand(*a, eg.clone(), n, rnd.clone(), recexpr.clone())
                                 .next()
@@ -807,39 +807,27 @@ pub fn lazy_expand<'a>(
 
                         Box::new(t)
                     }
-                    i @ Lang::I32(_) => {
-                        Box::new(vec![recexpr.borrow_mut().add(i.clone())].into_iter())
-                    }
+                    i @ Lang::I32(_) => Box::new(vec![recexpr.borrow_mut().add(i)].into_iter()),
 
-                    i @ Lang::I64(_) => {
-                        Box::new(vec![recexpr.borrow_mut().add(i.clone())].into_iter())
-                    }
-                    i @ Lang::F32(_) => {
-                        Box::new(vec![recexpr.borrow_mut().add(i.clone())].into_iter())
-                    }
-                    i @ Lang::F64(_) => {
-                        Box::new(vec![recexpr.borrow_mut().add(i.clone())].into_iter())
-                    }
+                    i @ Lang::I64(_) => Box::new(vec![recexpr.borrow_mut().add(i)].into_iter()),
+                    i @ Lang::F32(_) => Box::new(vec![recexpr.borrow_mut().add(i)].into_iter()),
+                    i @ Lang::F64(_) => Box::new(vec![recexpr.borrow_mut().add(i)].into_iter()),
                     l @ Lang::LocalGet(_) => {
-                        Box::new(vec![recexpr.borrow_mut().add(l.clone())].into_iter())
+                        Box::new(vec![recexpr.borrow_mut().add(l)].into_iter())
                     }
                     g @ Lang::GlobalGet(_) => {
-                        Box::new(vec![recexpr.borrow_mut().add(g.clone())].into_iter())
+                        Box::new(vec![recexpr.borrow_mut().add(g)].into_iter())
                     }
-                    u @ Lang::Undef => {
-                        Box::new(vec![recexpr.borrow_mut().add(u.clone())].into_iter())
-                    }
-                    n @ Lang::Nop => {
-                        Box::new(vec![recexpr.borrow_mut().add(n.clone())].into_iter())
-                    }
+                    u @ Lang::Undef => Box::new(vec![recexpr.borrow_mut().add(u)].into_iter()),
+                    n @ Lang::Nop => Box::new(vec![recexpr.borrow_mut().add(n)].into_iter()),
                     r32 @ Lang::RandI32 => {
-                        Box::new(vec![recexpr.borrow_mut().add(r32.clone())].into_iter())
+                        Box::new(vec![recexpr.borrow_mut().add(r32)].into_iter())
                     }
                     r64 @ Lang::RandI64 => {
-                        Box::new(vec![recexpr.borrow_mut().add(r64.clone())].into_iter())
+                        Box::new(vec![recexpr.borrow_mut().add(r64)].into_iter())
                     }
                     ms @ Lang::MemorySize { .. } => {
-                        Box::new(vec![recexpr.borrow_mut().add(ms.clone())].into_iter())
+                        Box::new(vec![recexpr.borrow_mut().add(ms)].into_iter())
                     }
                 };
                 iter
@@ -859,17 +847,17 @@ pub fn lazy_expand_aux<'a>(
     let expr_buffer = RecExpr::default();
     let recexpr = Rc::new(RefCell::new(expr_buffer));
     // FIXME,
-    let mut r = SmallRng::seed_from_u64(seed);
+    let r = SmallRng::seed_from_u64(seed);
     let refrnd = Rc::new(RefCell::new(r));
     let recexprcp = recexpr.clone();
-    let recexprcp2 = recexpr.clone();
+    let recexprcp2 = recexpr;
     let eg = Rc::new(egraph);
-    let it = lazy_expand(id, eg.clone(), depth, refrnd, recexprcp).map(move |id| {
+    let it = lazy_expand(id, eg, depth, refrnd, recexprcp).map(move |_id| {
         let expr = RecExpr::from(recexprcp2.borrow().as_ref().to_vec());
         expr
     });
 
-    return Box::new(it);
+    Box::new(it)
 }
 
 #[cfg(test)]
@@ -934,7 +922,7 @@ mod tests {
 
         let _enumeration_start = std::time::Instant::now();
         let root = egraph.add_expr(&expr.parse().unwrap());
-        let mut rnd = SmallRng::seed_from_u64(0);
+        let rnd = SmallRng::seed_from_u64(0);
         let recexpr = RecExpr::default();
         let rnd = Rc::new(RefCell::new(rnd));
         let recexpr = Rc::new(RefCell::new(recexpr));

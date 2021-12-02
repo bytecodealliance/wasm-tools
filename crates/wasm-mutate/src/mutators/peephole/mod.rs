@@ -25,13 +25,9 @@ use crate::mutators::peephole::eggsy::analysis::PeepholeMutationAnalysis;
 use crate::mutators::peephole::eggsy::encoder::Encoder;
 use crate::mutators::peephole::eggsy::expr_enumerator::lazy_expand_aux;
 use crate::mutators::peephole::eggsy::lang::Lang;
-use egg::{Id, RecExpr, Rewrite, Runner, Subst};
-use rand::SeedableRng;
+use egg::{Rewrite, Runner};
 use rand::{prelude::SmallRng, Rng};
-use std::cell::{Cell, RefCell};
 use std::convert::TryFrom;
-use std::rc::Rc;
-use std::sync::atomic::AtomicU64;
 use wasm_encoder::{CodeSection, Function, Module, ValType};
 use wasmparser::{CodeSectionReader, FunctionBody, LocalsReader};
 
@@ -43,12 +39,7 @@ use std::println as debug;
 
 use crate::{module::map_type, ModuleInfo, Result, WasmMutate};
 
-// This is a performance counter for the number of operators that can be mutated
-static NUM_RUNS: AtomicU64 = AtomicU64::new(0);
-static NUM_SUCCESSFUL_MUTATIONS: AtomicU64 = AtomicU64::new(0);
-
 use self::dfg::DFGBuilder;
-type ItType<'a> = dyn Iterator<Item = Result<MutationContext>> + 'a;
 
 use super::{Mutator, OperatorAndByteOffset};
 
@@ -62,9 +53,6 @@ pub struct PeepholeMutator {
     max_tree_depth: u32,
 }
 type EG = egg::EGraph<Lang, PeepholeMutationAnalysis>;
-
-// Code mutator, function id, operator id
-type MutationContext = (Function, u32);
 
 impl PeepholeMutator {
     /// Initializes a new PeepholeMutator with fuel
@@ -155,7 +143,7 @@ impl PeepholeMutator {
                 function_to_mutate, operatorscount, opcode_to_mutate
             );
             let locals = self.get_func_locals(
-                &config.info(),
+                config.info(),
                 function_to_mutate + config.info().imported_functions_count, /* the function type is shifted
                                                                             by the imported functions*/
                 &mut localsreader,
@@ -181,7 +169,7 @@ impl PeepholeMutator {
                     }
                     Some(basicblock) => basicblock,
                 };
-                let minidfg = dfg.get_dfg(&config.info(), &operators, &basicblock, &locals);
+                let minidfg = dfg.get_dfg(config.info(), &operators, &basicblock, &locals);
 
                 let minidfg = match minidfg {
                     None => {
@@ -815,7 +803,7 @@ mod tests {
         let mut wasmmutate = WasmMutate::default();
         wasmmutate.fuel(3);
         wasmmutate.info = Some(info);
-        let mut rnd = SmallRng::seed_from_u64(0);
+        let rnd = SmallRng::seed_from_u64(0);
         wasmmutate.rng = Some(rnd);
 
         let mutator = PeepholeMutator::new(2);
@@ -1436,14 +1424,12 @@ mod tests {
         let mut wasmmutate = WasmMutate::default();
         wasmmutate.fuel(300);
         wasmmutate.info = Some(info);
-        let mut rnd = SmallRng::seed_from_u64(seed);
+        let rnd = SmallRng::seed_from_u64(seed);
         wasmmutate.rng = Some(rnd);
 
         let mutator = PeepholeMutator::new(3);
 
         let can_mutate = mutator.can_mutate(&wasmmutate);
-
-        let info = ModuleInfo::new(original).unwrap();
 
         assert_eq!(can_mutate, true);
         let mut found = false;
