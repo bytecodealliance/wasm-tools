@@ -80,7 +80,6 @@ fuzz_target!(|bytes: &[u8]| {
                             validation_result.is_ok(),
                             "`wasm-mutate` should always produce a valid Wasm file"
                         );
-                        modcount += 1;
                         #[cfg(feature = "wasmtime")]
                         eval::assert_same_evaluation(&wasm, &mutated_wasm);
                     }
@@ -90,7 +89,6 @@ fuzz_target!(|bytes: &[u8]| {
                     },
                 }
             }
-            // log::info!("{} modules", modcount);
         }
         Err(e) => match e {
             wasm_mutate::Error::NoMutationsApplicable => return,
