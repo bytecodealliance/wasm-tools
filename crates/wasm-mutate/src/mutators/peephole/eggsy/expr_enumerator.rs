@@ -1,3 +1,7 @@
+//! Lazy expansion of the egraph
+//!
+//! This modules provides the helpers and logic to lazyly iterate through the
+//! egraph, providing potentially infinite random expressions from an initial egraph
 use std::{cell::RefCell, rc::Rc};
 
 use crate::mutators::peephole::{
@@ -838,6 +842,8 @@ pub fn lazy_expand<'a>(
     t
 }
 
+/// Lazy expand helper
+///
 pub fn lazy_expand_aux<'a>(
     id: Id,
     egraph: EG,
