@@ -35,9 +35,12 @@ pub use error::{Error, Result};
 macro_rules! define_mutators {
     (@count) => {0};
     (@count $first: expr , $( $tail: expr ,) *) => { 1 + define_mutators!(@count $($tail , )*) };
-    (@expand $self:ident, $discriminator: ident, $start: expr, ) => {};
-    (@expand $self:ident, $discriminator: ident, $start: expr, $first: expr , $( $tail: expr ,) *) => {
+    (@expand $self:ident, $discriminator: ident, $start: expr, . , $( $rest: expr ,)*) => {};
+    // The dot (.) is the mark to avoid infinite recursion , something like and
+    // LR parser
+    (@expand $self:ident, $discriminator: ident, $start: expr, $first: expr , $( $head: expr ,)*  . , $( $rest: expr ,)*) => {
         if $discriminator == $start {
+            // Start by the current node
             let m = $first;
 
             if m.can_mutate($self) {
@@ -46,21 +49,52 @@ macro_rules! define_mutators {
                         return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))))
                     }
                     Err(e) => {
-                        log::info!("mutator failed: {}; will try again", e);
+                        log::info!("mutator {} failed: {}; will try again", m.name(), e);
                         return Err(e);
                     }
                 }
             }
+            // Follow the tail
+            $(
+                let m = $rest;
+
+                if m.can_mutate($self) {
+                    match m.mutate($self) {
+                        Ok(iter) => {
+                            return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))))
+                        }
+                        Err(e) => {
+                            log::info!("mutator {} failed: {}; will try again", m.name(), e);
+                            return Err(e);
+                        }
+                    }
+                }
+            )*
+            // Follow the head
+            $(
+                let m = $head;
+
+                if m.can_mutate($self) {
+                    match m.mutate($self) {
+                        Ok(iter) => {
+                            return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))))
+                        }
+                        Err(e) => {
+                            log::info!("mutator {} failed: {}; will try again", m.name(), e);
+                            return Err(e);
+                        }
+                    }
+                }
+            )*
         };
 
-        define_mutators!(@expand $self, $discriminator, ($start + 1), $($tail ,)*)
+        define_mutators!(@expand $self, $discriminator, ($start + 1), $($head ,)* ., $($rest ,)* $first, )
     };
-    ( $self: ident , ($first: expr , $( $tail: expr ,)*)) => {
+    ( $self: ident , ($first: expr , $( $tail: expr ,)* ) ) => {
         {
             let count = define_mutators!(@count $first , $($tail ,)*);
-            let discrminator:u32 = $self.rng().gen_range(0, count);
-            let start_at = 0;
-            define_mutators!(@expand $self, discrminator , 0 , $first , $($tail ,)*);
+            let discriminator:u32 = $self.rng().gen_range(0, count);
+            define_mutators!(@expand $self, discriminator , 0 , $first , $($tail ,)*  . , );
         }
     };
 }
@@ -218,10 +252,15 @@ impl<'wasm> WasmMutate<'wasm> {
 
         // This macro just expands the logic to return an iterator form the
         // mutators
+        // It simulates a circular checking of the mutators starting by a random
+        // one, returning the first one that can provides a mutation.
+        // All possible start indexes are calculated at compilation time, if N
+        // is the number of mutataros, N possible starting indexes are injected
+        // and compiled to the final code
         define_mutators!(
             self,
             (
-                PeepholeMutator::new(3),
+                PeepholeMutator::new(2),
                 RemoveExportMutator,
                 RenameExportMutator { max_name_size: 100 },
                 SnipMutator,

@@ -247,6 +247,9 @@ impl PeepholeMutator {
                     "Egraph built, nodes count {}",
                     egraph.total_number_of_nodes()
                 );
+                // At this point we spent some resource calculating basic block,
+                // and constructing the egraph
+                config.consume_fuel(1)?;
                 let iterator = lazy_expand_aux(
                     root,
                     egraph.clone(),
@@ -254,12 +257,8 @@ impl PeepholeMutator {
                     config.rng().gen(),
                 )
                 // Filter expression equal to the original one
-                .filter(move |expr| {
-                    debug!("Filtering {}", expr);
-                    !expr.to_string().eq(&startcmp.to_string())
-                })
+                .filter(move |expr| !expr.to_string().eq(&startcmp.to_string()))
                 .map(move |expr| {
-                    debug!("expr {}", expr);
                     let mut newfunc = self.copy_locals(reader)?;
                     Encoder::build_function(
                         config,
@@ -282,10 +281,6 @@ impl PeepholeMutator {
                     for fidx in 0..config.info().function_count {
                         let reader = sectionreader.read()?;
                         if fidx == function_to_mutate {
-                            debug!(
-                                "Mutating function  idx {:?} at instruction idx {}",
-                                fidx, opcode_to_mutate
-                            );
                             codes.function(&newfunc);
                         } else {
                             codes.raw(&code_section.data[reader.range().start..reader.range().end]);

@@ -47,7 +47,7 @@ fuzz_target!(|bytes: &[u8]| {
     // Mutate the Wasm with `wasm-mutate`. We always preserve semantics.
     let mut wasm_mutate = wasm_mutate::WasmMutate::default();
     wasm_mutate.seed(seed);
-    wasm_mutate.fuel(1000);
+    wasm_mutate.fuel(300);
     wasm_mutate.preserve_semantics(true);
 
     let mutated_wasm_iterator = wasm_mutate.run(&wasm);

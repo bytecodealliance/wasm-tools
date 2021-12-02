@@ -12,6 +12,11 @@ pub enum PrimitiveTypeInfo {
     F32,
     F64,
     Empty,
+    V128,
+    FuncRef,
+    ExternRef,
+    ExnRef,
+    Func,
 }
 
 #[derive(Debug, Clone)]
@@ -37,7 +42,11 @@ impl TryFrom<Type> for PrimitiveTypeInfo {
             wasmparser::Type::F32 => Ok(PrimitiveTypeInfo::F32),
             wasmparser::Type::F64 => Ok(PrimitiveTypeInfo::F64),
             Type::EmptyBlockType => Ok(PrimitiveTypeInfo::Empty),
-            _ => Err(super::Error::UnsupportedType(EitherType::Type(value))),
+            Type::V128 => Ok(PrimitiveTypeInfo::V128),
+            Type::FuncRef => Ok(PrimitiveTypeInfo::FuncRef),
+            Type::ExternRef => Ok(PrimitiveTypeInfo::ExternRef),
+            Type::ExnRef => Ok(PrimitiveTypeInfo::ExnRef),
+            Type::Func => Ok(PrimitiveTypeInfo::Func),
         }
     }
 }

@@ -484,6 +484,7 @@ impl State {
             let self_clone = self.clone();
             let artifact_clone = artifact_folder.to_path_buf();
             let data_clone = wasm.clone();
+            let wasmcp = wasm.clone();
             let finish_writing_wrap_clone2 = finish_writing_wrap.clone();
 
             panic::set_hook(Box::new(move |panic_info| {
@@ -496,13 +497,12 @@ impl State {
                 process::exit(1);
             }));
 
-            let wasmcp = wasm.clone();
             // First stage, generate and return the mutated
-            let it = match wasmmutate.run(&wasmcp) {
+            let y = |y| match wasmmutate.run(y) {
                 Ok(it) => it,
                 Err(e) => match e {
                     wasm_mutate::Error::NoMutationsApplicable => {
-                        Box::new(std::iter::once(wasm.clone()))
+                        Box::new(std::iter::once(Ok(wasm.clone())))
                     }
                     _ => {
                         // Stop writing worker
@@ -515,27 +515,39 @@ impl State {
                 },
             };
 
+            let it = y(&wasmcp);
+
             println!("Iterators retrieved");
             for mutated in it {
                 let mut validator = wasmparser::Validator::new();
-                match validator.validate_all(&mutated.clone()) {
-                    Ok(_) => {
-                        // send the bytes for storage and compilation to another worker
-                        to_write.lock().unwrap().push(mutated.clone());
-                        // FIXME, this will always set wasm to the result of the
-                        // last mutation
-                        wasm = mutated;
+                match mutated {
+                    Ok(mutated) => {
+                        match validator.validate_all(&mutated.clone()) {
+                            Ok(_) => {
+                                // send the bytes for storage and compilation to another worker
+                                to_write.lock().unwrap().push(mutated.clone());
+                                // FIXME, this will always set wasm to the result of the
+                                // last mutation
+                                wasm = mutated;
+                            }
+                            Err(_) => {
+                                // Stop writing worker
+                                finish_writing_wrap.store(true, SeqCst);
+                                let h1 = self.hash(&wasm);
+                                let h2 = self.hash(&mutated);
+                                self.save_crash(&wasm, Some(&mutated), seed, artifact_folder)?;
+                                anyhow::bail!(format!(
+                                    "All generated Wasm should be valid {} -> {}, seed {}",
+                                    h1, h2, seed
+                                ));
+                            }
+                        }
                     }
-                    Err(_) => {
+                    Err(e) => {
                         // Stop writing worker
                         finish_writing_wrap.store(true, SeqCst);
-                        let h1 = self.hash(&wasm);
-                        let h2 = self.hash(&mutated);
-                        self.save_crash(&wasm, Some(&mutated), seed, artifact_folder)?;
-                        anyhow::bail!(format!(
-                            "All generated Wasm should be valid {} -> {}, seed {}",
-                            h1, h2, seed
-                        ));
+                        self.save_crash(&wasm, None, seed, artifact_folder)?;
+                        anyhow::bail!(format!("Error during module writing {:?}", e));
                     }
                 }
             }
