@@ -473,18 +473,20 @@ impl State {
         to_write.lock().unwrap().push(wasm.clone());
 
         let mut rng = SmallRng::seed_from_u64(seed);
+        let wasmcp = wasm.clone();
 
         while !self.timeout_reached.load(Relaxed) {
             let seed = rng.gen();
             wasmmutate.seed(seed);
+            wasmmutate.fuel(1000);
             wasmmutate.preserve_semantics(true);
 
             // Set a panic hook since some errors are not carried out, this looks more like a patch
             let self_clone = self.clone();
             let artifact_clone = artifact_folder.to_path_buf();
-            let data_clone = wasm.clone();
             let finish_writing_wrap_clone2 = finish_writing_wrap.clone();
 
+            let data_clone = wasm.clone();
             panic::set_hook(Box::new(move |panic_info| {
                 // invoke the default handler and exit the process
                 println!("Internal undhandled panicking \n{:?}!", panic_info);
@@ -496,10 +498,12 @@ impl State {
             }));
 
             // First stage, generate and return the mutated
-            let mutated = match wasmmutate.run(&wasm) {
-                Ok(mutated) => mutated,
+            let it = match wasmmutate.run(&wasmcp) {
+                Ok(it) => it,
                 Err(e) => match e {
-                    wasm_mutate::Error::NoMutationsApplicable => wasm.clone(),
+                    wasm_mutate::Error::NoMutationsApplicable => {
+                        Box::new(std::iter::once(Ok(wasm.clone())))
+                    }
                     _ => {
                         // Stop writing worker
                         finish_writing_wrap.store(true, SeqCst);
@@ -511,23 +515,37 @@ impl State {
                 },
             };
 
-            let mut validator = wasmparser::Validator::new();
-            match validator.validate_all(&mutated.clone()) {
-                Ok(_) => {
-                    // send the bytes for storage and compilation to another worker
-                    to_write.lock().unwrap().push(mutated.clone());
-                    wasm = mutated;
-                }
-                Err(_) => {
-                    // Stop writing worker
-                    finish_writing_wrap.store(true, SeqCst);
-                    let h1 = self.hash(&wasm);
-                    let h2 = self.hash(&mutated);
-                    self.save_crash(&wasm, Some(&mutated), seed, artifact_folder)?;
-                    anyhow::bail!(format!(
-                        "All generated Wasm should be valid {} -> {}, seed {}",
-                        h1, h2, seed
-                    ));
+            for mutated in it {
+                let mut validator = wasmparser::Validator::new();
+                match mutated {
+                    Ok(mutated) => {
+                        match validator.validate_all(&mutated.clone()) {
+                            Ok(_) => {
+                                // send the bytes for storage and compilation to another worker
+                                to_write.lock().unwrap().push(mutated.clone());
+                                // FIXME, this will always set wasm to the result of the
+                                // last mutation
+                                wasm = mutated;
+                            }
+                            Err(_) => {
+                                // Stop writing worker
+                                finish_writing_wrap.store(true, SeqCst);
+                                let h1 = self.hash(&wasm);
+                                let h2 = self.hash(&mutated);
+                                self.save_crash(&wasm, Some(&mutated), seed, artifact_folder)?;
+                                anyhow::bail!(format!(
+                                    "All generated Wasm should be valid {} -> {}, seed {}",
+                                    h1, h2, seed
+                                ));
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        // Stop writing worker
+                        finish_writing_wrap.store(true, SeqCst);
+                        self.save_crash(&wasm, None, seed, artifact_folder)?;
+                        anyhow::bail!(format!("Error during module writing {:?}", e));
+                    }
                 }
             }
         }

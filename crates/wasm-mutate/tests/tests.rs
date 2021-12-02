@@ -17,24 +17,43 @@ fn validate(validator: &mut Validator, bytes: &[u8]) {
 
 #[test]
 fn integration_test() {
-    // From https://developer.mozilla.org/en-US/docs/WebAssembly/Text_format_to_wasm
+    let _ = env_logger::try_init();
     let wat = r#"
     (module
         
-        (func (export "exported_func") (result i32)
+        (func (export "exported_func")
+            nop
             i32.const 42
-        )
-        (func (export "exported_func2") (result i32)
-            i32.const 42
+            if 
+                i32.const 98
+                drop
+            end
         )
     )
     "#;
     let original = &wat::parse_str(wat).unwrap();
-    let mutator = WasmMutate::default();
+    let mut mutator = WasmMutate::default();
+    mutator.fuel(1000);
+    mutator.seed(0);
     // seed is zero, which means first mutator
+    let start = std::time::Instant::now();
+    let it = mutator.run(original).unwrap();
+    let mut count = 0;
+    for mutated in it.take(100) {
+        // Down here is the validation for the correct mutation
+        let mutated = mutated.unwrap();
+        let text = wasmprinter::print_bytes(&mutated).unwrap();
+        println!("{}", text);
+        let mut validator = Validator::new();
+        validate(&mut validator, &mutated);
+        count += 1;
+    }
 
-    let mutated = mutator.run(original).unwrap();
-    // Down here is the validation for the correct mutation
-    let mut validator = Validator::new();
-    validate(&mut validator, &mutated);
+    let elapsed = start.elapsed();
+    println!(
+        "Generate {} modules in {}.{:03} seconds",
+        count,
+        elapsed.as_secs(),
+        elapsed.subsec_millis()
+    );
 }

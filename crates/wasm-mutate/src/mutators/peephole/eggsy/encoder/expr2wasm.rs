@@ -2,7 +2,8 @@
 use std::num::Wrapping;
 
 use crate::error::EitherType;
-use crate::info::ModuleInfo;
+
+use crate::WasmMutate;
 
 use crate::mutators::peephole::eggsy::encoder::TraversalEvent;
 use crate::mutators::peephole::{Lang, EG};
@@ -15,8 +16,7 @@ use wasm_encoder::{Function, Instruction, MemArg};
 /// * `expr` [Lang] expression to encode
 /// * `newfunc` Function stream in which the expression will be encoded
 pub fn expr2wasm(
-    _info: &ModuleInfo,
-    rnd: &mut rand::prelude::SmallRng,
+    config: &mut WasmMutate,
     expr: &RecExpr<Lang>,
     newfunc: &mut Function,
     _egraph: &EG,
@@ -376,6 +376,14 @@ pub fn expr2wasm(
                         enqueue(&mut worklist, value_and_offset[1]);
                         enqueue(&mut worklist, value_and_offset[0]);
                     }
+                    Lang::Select([condition, consequent, alternative]) => {
+                        enqueue(&mut worklist, *condition);
+                        enqueue(&mut worklist, *alternative);
+                        enqueue(&mut worklist, *consequent);
+                    }
+                    Lang::MemoryGrow { by, .. } => {
+                        enqueue(&mut worklist, *by);
+                    }
                     _ => { /* Do nothing */ }
                 }
             }
@@ -602,10 +610,10 @@ pub fn expr2wasm(
                         newfunc.instruction(&Instruction::I64Load32_U(memarg));
                     }
                     Lang::RandI32 => {
-                        newfunc.instruction(&Instruction::I32Const(rnd.gen()));
+                        newfunc.instruction(&Instruction::I32Const(config.rng().gen()));
                     }
                     Lang::RandI64 => {
-                        newfunc.instruction(&Instruction::I64Const(rnd.gen()));
+                        newfunc.instruction(&Instruction::I64Const(config.rng().gen()));
                     }
                     Lang::Undef => { /* Do nothig */ }
                     Lang::UnfoldI32(value) => {
@@ -614,7 +622,7 @@ pub fn expr2wasm(
                             Lang::I32(value) => {
                                 // Getting type from eclass.
 
-                                let r: i32 = rnd.gen();
+                                let r: i32 = config.rng().gen();
                                 newfunc.instruction(&Instruction::I32Const(r));
                                 newfunc.instruction(&Instruction::I32Const(
                                     (Wrapping(*value as i32) - Wrapping(r)).0,
@@ -623,7 +631,10 @@ pub fn expr2wasm(
                             }
                             _ => {
                                 return Err(crate::Error::UnsupportedType(EitherType::EggError(
-                                    format!("The current eterm cannot be unfolded {:?}", child,),
+                                    format!(
+                                        "The current eterm cannot be unfolded {:?}.\n expr {}",
+                                        child, expr
+                                    ),
                                 )))
                             }
                         }
@@ -634,7 +645,7 @@ pub fn expr2wasm(
                             Lang::I64(value) => {
                                 // Getting type from eclass.
 
-                                let r: i64 = rnd.gen();
+                                let r: i64 = config.rng().gen();
                                 newfunc.instruction(&Instruction::I64Const(r));
                                 newfunc.instruction(&Instruction::I64Const(
                                     (Wrapping(*value) - Wrapping(r)).0,
@@ -643,7 +654,10 @@ pub fn expr2wasm(
                             }
                             _ => {
                                 return Err(crate::Error::UnsupportedType(EitherType::EggError(
-                                    format!("The current eterm cannot be unfolded {:?}", child,),
+                                    format!(
+                                        "The current eterm cannot be unfolded {:?}.\n expr {}",
+                                        child, expr
+                                    ),
                                 )))
                             }
                         }
@@ -1196,6 +1210,15 @@ pub fn expr2wasm(
                     }
                     Lang::Container(_) => {
                         // Do nothing
+                    }
+                    Lang::Select(_) => {
+                        newfunc.instruction(&Instruction::Select);
+                    }
+                    Lang::MemoryGrow { mem, .. } => {
+                        newfunc.instruction(&Instruction::MemoryGrow(*mem));
+                    }
+                    Lang::MemorySize { mem, .. } => {
+                        newfunc.instruction(&Instruction::MemorySize(*mem));
                     }
                 }
             }

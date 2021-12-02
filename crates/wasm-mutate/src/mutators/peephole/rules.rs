@@ -2,13 +2,13 @@
 //!
 //! New rewriting rules should be declared inside the [`get_rules`](/src/wasm_mutate/mutators/peephole/rules.rs.html#17) function
 //!
-use egg::{rewrite, Rewrite};
+use egg::{rewrite, Id, Rewrite, Subst};
 
 use crate::{module::PrimitiveTypeInfo, WasmMutate};
 
 use super::{
     eggsy::{analysis::PeepholeMutationAnalysis, lang::Lang},
-    PeepholeMutator,
+    PeepholeMutator, EG,
 };
 
 impl PeepholeMutator {
@@ -19,8 +19,6 @@ impl PeepholeMutator {
         let mut rules = vec![
             rewrite!("unfold-2";  "?x" => "(i32.unfold ?x)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I32) ),
             rewrite!("unfold-3";  "?x" => "(i64.unfold ?x)" if self.is_const("?x") if self.is_type("?x", PrimitiveTypeInfo::I64) ),
-            // TODO Pop out the offset
-
             // Rmove the full subtree of the drop
             rewrite!("drop1";  "(drop ?x)" => "(drop i32.rand)" if self.is_type("?x", PrimitiveTypeInfo::I32)),
             rewrite!("drop2";  "(drop ?x)" => "(drop i64.rand)" if self.is_type("?x", PrimitiveTypeInfo::I64)),
@@ -30,11 +28,19 @@ impl PeepholeMutator {
             rewrite!("container1"; "?x" => "(container nop ?x)"),
             rewrite!("container2"; "?x" => "(container (drop i32.rand) ?x)"),
             rewrite!("container3"; "?x" => "(container (drop i64.rand) ?x)"),
+            rewrite!("or--1";  "(i32.or ?x -1_i32)" => "-1_i32" ),
+            rewrite!("or--12";  "(i64.or ?x -1_i64)" => "-1_i64" ),
+            rewrite!("select-reduce";  "(select ?x ?y ?y)" => "?y"),
         ];
         // Use a custom instruction-mutator for this
         // This specific rewriting rule has a condition, it should be appplied if the operand is a constant
         rules.extend(rewrite!("strength-undo";  "(i32.shl ?x 1_i32)" <=> "(i32.mul ?x 2_i32)"));
         rules.extend(rewrite!("strength-undo01";  "(i64.shl ?x 1_i64)" <=> "(i64.mul ?x 2_i64)"));
+
+        // invert select
+        rules.extend(
+            rewrite!("select-invert";  "(select ?x ?y ?z)" <=> "(select (i32.eqz ?x) ?z ?y)"),
+        );
 
         rules.extend(rewrite!("strength-undo1";  "(i32.shl ?x 2_i32)" <=> "(i32.mul ?x 4_i32)"));
         rules.extend(rewrite!("strength-undo12";  "(i64.shl ?x 2_i64)" <=> "(i64.mul ?x 4_i64)"));
@@ -74,6 +80,22 @@ impl PeepholeMutator {
         rules
             .extend(rewrite!("associative-12";  "(i64.add ?x (i64.add ?y ?z))" <=> "(i64.add (i64.add ?x ?y) ?z)" ));
 
+        rules
+                .extend(rewrite!("associative-3";  "(i32.and ?x (i32.and ?y ?z))" <=> "(i32.and (i32.and ?x ?y) ?z)" ));
+        rules
+                .extend(rewrite!("associative-32";  "(i64.and ?x (i64.and ?y ?z))" <=> "(i64.and (i64.and ?x ?y) ?z)" ));
+
+        rules.extend(
+            rewrite!("and-repeated-1";  "(i32.and (i32.and ?x ?y) ?y)" <=> "(i32.and ?x ?y)" ),
+        );
+
+        rules.extend(
+            rewrite!("and-repeated-2";  "(i64.and (i64.and ?x ?y) ?y)" <=> "(i64.and ?x ?y)" ),
+        );
+
+        rules.extend(rewrite!("sub-0";  "(i32.sub ?x 0_i32)" <=> "?x" if self.is_type("?x", PrimitiveTypeInfo::I32) ));
+        rules.extend(rewrite!("sub-01";  "(i64.sub ?x 0_i64)" <=> "?x" if self.is_type("?x", PrimitiveTypeInfo::I64) ));
+
         rules.extend(rewrite!("idempotent-3";  "?x" <=> "(i32.mul ?x 1_i32)" if self.is_type("?x", PrimitiveTypeInfo::I32)));
         rules.extend(rewrite!("idempotent-31";  "?x" <=> "(i64.mul ?x 1_i64)" if self.is_type("?x", PrimitiveTypeInfo::I64)));
 
@@ -102,5 +124,52 @@ impl PeepholeMutator {
         }
 
         rules
+    }
+
+    /// Checks if a variable returns and specific type
+    fn is_type(
+        &self,
+        vari: &'static str,
+        t: PrimitiveTypeInfo,
+    ) -> impl Fn(&mut EG, Id, &Subst) -> bool {
+        move |egraph: &mut EG, _, subst| {
+            let var = vari.parse();
+            match var {
+                Ok(var) => {
+                    let eclass = &egraph[subst[var]];
+                    match &eclass.data {
+                        Some(d) => d.tpe == t,
+                        None => false,
+                    }
+                }
+                Err(_) => false,
+            }
+        }
+    }
+
+    /// Condition to apply the unfold operator
+    /// check that the var is a constant
+    fn is_const(&self, vari: &'static str) -> impl Fn(&mut EG, Id, &Subst) -> bool {
+        move |egraph: &mut EG, _, subst| {
+            let var = vari.parse();
+            match var {
+                Ok(var) => {
+                    let eclass = &egraph[subst[var]];
+                    if eclass.nodes.len() == 1 {
+                        let node = &eclass.nodes[0];
+                        match node {
+                            Lang::I32(_) => true,
+                            Lang::I64(_) => true,
+                            Lang::F32(_) => true,
+                            Lang::F64(_) => true,
+                            _ => false,
+                        }
+                    } else {
+                        false
+                    }
+                }
+                Err(_) => false,
+            }
+        }
     }
 }

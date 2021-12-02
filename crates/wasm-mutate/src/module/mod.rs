@@ -15,6 +15,8 @@ pub enum PrimitiveTypeInfo {
     FuncRef,
     ExternRef,
     Empty,
+    ExnRef,
+    Func,
 }
 
 #[derive(Debug, Clone)]
@@ -35,15 +37,16 @@ impl TryFrom<Type> for PrimitiveTypeInfo {
 
     fn try_from(value: Type) -> Result<Self, Self::Error> {
         match value {
-            wasmparser::Type::I32 => Ok(PrimitiveTypeInfo::I32),
-            wasmparser::Type::I64 => Ok(PrimitiveTypeInfo::I64),
-            wasmparser::Type::F32 => Ok(PrimitiveTypeInfo::F32),
-            wasmparser::Type::F64 => Ok(PrimitiveTypeInfo::F64),
-            wasmparser::Type::V128 => Ok(PrimitiveTypeInfo::V128),
-            wasmparser::Type::FuncRef => Ok(PrimitiveTypeInfo::FuncRef),
-            wasmparser::Type::ExternRef => Ok(PrimitiveTypeInfo::ExternRef),
+            Type::I32 => Ok(PrimitiveTypeInfo::I32),
+            Type::I64 => Ok(PrimitiveTypeInfo::I64),
+            Type::F32 => Ok(PrimitiveTypeInfo::F32),
+            Type::F64 => Ok(PrimitiveTypeInfo::F64),
+            Type::V128 => Ok(PrimitiveTypeInfo::V128),
+            Type::FuncRef => Ok(PrimitiveTypeInfo::FuncRef),
+            Type::ExternRef => Ok(PrimitiveTypeInfo::ExternRef),
             Type::EmptyBlockType => Ok(PrimitiveTypeInfo::Empty),
-            _ => Err(super::Error::UnsupportedType(EitherType::Type(value))),
+            Type::ExnRef => Ok(PrimitiveTypeInfo::ExnRef),
+            Type::Func => Ok(PrimitiveTypeInfo::Func),
         }
     }
 }

@@ -2,24 +2,29 @@
 
 use super::Mutator;
 use crate::module::{PrimitiveTypeInfo, TypeInfo};
-use crate::{ModuleInfo, Result, WasmMutate};
-use rand::prelude::SmallRng;
+use crate::{Result, WasmMutate};
+
 use rand::Rng;
 use wasm_encoder::{CodeSection, Function, Instruction, Module, ValType};
 use wasmparser::CodeSectionReader;
 
 /// Mutator that replaces the body of a function with an empty body
+#[derive(Clone, Copy)]
 pub struct SnipMutator;
 
 impl Mutator for SnipMutator {
-    fn mutate(&self, config: &WasmMutate, rnd: &mut SmallRng, info: &ModuleInfo) -> Result<Module> {
+    fn mutate<'a>(
+        self,
+        config: &'a mut WasmMutate,
+    ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         let mut codes = CodeSection::new();
-        let code_section = info.get_code_section();
+        let code_section = config.info().get_code_section();
         let mut reader = CodeSectionReader::new(code_section.data, 0)?;
         let count = reader.get_count();
-        let function_to_mutate = rnd.gen_range(0, count);
-        let ftype =
-            info.get_functype_idx((function_to_mutate + info.imported_functions_count) as usize);
+        let function_to_mutate = config.rng().gen_range(0, count);
+        let ftype = config.info().get_functype_idx(
+            (function_to_mutate + config.info().imported_functions_count) as usize,
+        );
 
         (0..count)
             .map(|i| {
@@ -54,8 +59,12 @@ impl Mutator for SnipMutator {
                                 PrimitiveTypeInfo::ExternRef => {
                                     f.instruction(&Instruction::RefNull(ValType::ExternRef));
                                 }
-                                PrimitiveTypeInfo::Empty => {
-                                    // Do nothing
+                                PrimitiveTypeInfo::ExnRef => {
+                                    // TODO: not supported in `wasm-encoder` yet.
+                                    f.instruction(&Instruction::Unreachable);
+                                }
+                                PrimitiveTypeInfo::Empty | PrimitiveTypeInfo::Func => {
+                                    unreachable!()
                                 }
                             });
                         }
@@ -71,11 +80,13 @@ impl Mutator for SnipMutator {
                 Ok(())
             })
             .collect::<Result<Vec<_>>>()?;
-        Ok(info.replace_section(info.code.unwrap(), &codes))
+        Ok(Box::new(std::iter::once(Ok(config
+            .info()
+            .replace_section(config.info().code.unwrap(), &codes)))))
     }
 
-    fn can_mutate<'a>(&self, config: &'a WasmMutate, info: &ModuleInfo) -> bool {
-        !config.preserve_semantics && info.has_code()
+    fn can_mutate<'a>(&self, config: &'a WasmMutate) -> bool {
+        !config.preserve_semantics && config.info().has_code()
     }
 }
 
@@ -93,7 +104,7 @@ mod tests {
             )
         )
         "#,
-            &SnipMutator,
+            SnipMutator,
             r#"
         (module
             (type (;0;) (func (result i64)))

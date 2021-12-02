@@ -332,17 +332,6 @@ impl<'a> DFGBuilder {
             .unwrap()
     }
 
-    /// Returns the status of the stack
-    /// Ideally this should be called after the DFG is contructed, to
-    /// for example, get the type of the basic block
-    pub fn get_stack_status(&self) -> Vec<StackEntry> {
-        return self
-            .stack
-            .iter()
-            .map(|idx| self.dfg_map[*idx].clone())
-            .collect::<Vec<_>>();
-    }
-
     /// This method should build lane dfg information
     /// It returns a map of operator indexes over the function operators,
     /// in which every key refers to a vector of ranges determining the operands
@@ -3133,6 +3122,56 @@ impl<'a> DFGBuilder {
                     );
 
                     self.parents[arg] = idx as i32;
+                }
+                Operator::Select => {
+                    let condition = self.pop_operand(idx, false);
+                    let alternative = self.pop_operand(idx, false);
+                    let consequent = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::Select([
+                            Id::from(condition),
+                            Id::from(consequent),
+                            Id::from(alternative),
+                        ]),
+                        idx,
+                        vec![condition, consequent, alternative],
+                        color,
+                        PrimitiveTypeInfo::I32,
+                    );
+
+                    self.parents[condition] = idx as i32;
+                    self.parents[consequent] = idx as i32;
+                    self.parents[alternative] = idx as i32;
+                }
+                Operator::MemoryGrow { mem, mem_byte } => {
+                    let arg = self.pop_operand(idx, false);
+
+                    let idx = self.push_node(
+                        Lang::MemoryGrow {
+                            mem: *mem,
+                            mem_byte: *mem_byte,
+                            by: Id::from(arg),
+                        },
+                        idx,
+                        vec![arg],
+                        color,
+                        PrimitiveTypeInfo::I32,
+                    );
+
+                    self.parents[arg] = idx as i32;
+                }
+                Operator::MemorySize { mem, mem_byte } => {
+                    let _idx = self.push_node(
+                        Lang::MemorySize {
+                            mem: *mem,
+                            mem_byte: *mem_byte,
+                        },
+                        idx,
+                        vec![],
+                        color,
+                        PrimitiveTypeInfo::I32,
+                    );
                 }
                 _ => {
                     // If the operator is not implemented, break the mutation of this Basic Block

@@ -1,13 +1,13 @@
 //! Intermediate representation of Wasm operators to be used with the `egg`
 //! engine
 //!
-use std::{cmp::Ordering, collections::HashMap};
+use std::{cell::RefCell, cmp::Ordering, collections::HashMap};
 
 use egg::{Analysis, CostFunction, EClass, EGraph, Id, Language, RecExpr};
-use rand::Rng;
 
 pub(crate) mod analysis;
 pub mod encoder;
+pub mod expr_enumerator;
 pub mod lang;
 
 use crate::mutators::peephole::eggsy::lang::Lang;
@@ -107,22 +107,14 @@ where
     }
 
     /// Do a pre-order traversal of the e-graph. As we visit each e-class, choose
-    /// one of its e-nodes at random and then do the same with its children,
-    /// etc. You can imagine this process as a kind of rolling wave function
-    /// collapse, where we choose a concrete expression out of the potentially
-    /// infinite number of equivalent expressions each e-class represents.
+    /// choose the smallest e-node (according to the cost function).
     ///
-    /// `worklist` constains the operands we still need to process. These are
-    /// currently a pair of the parent node and its operand e-class.
-    pub fn extract_random(
+    pub fn extract_smallest(
         &self,
-        rnd: &mut rand::prelude::SmallRng,
         eclass: Id,
-        max_depth: u32,
-        expression_builder: impl Fn(Id, &[L], &[Vec<Id>]) -> RecExpr<L>,
-        max_tries: u32,
-        oracle: impl Fn(RecExpr<L>) -> bool,
-    ) -> crate::Result<RecExpr<L>> // return the random tree, TODO, improve the way the tree is returned
+        recexpr: &RefCell<RecExpr<L>>,
+        expression_builder: impl Fn(Id, &[L], &[Vec<Id>], &mut RecExpr<L>) -> Id,
+    ) -> crate::Result<Id> // return the random tree, TODO, improve the way the tree is returned
     {
         // A map from a node's id to its actual node data.
         let mut id_to_node = vec![];
@@ -130,10 +122,9 @@ where
         let mut operands = vec![];
 
         // Select a random node in this e-class
-        let rootidx = rnd.gen_range(0, self.egraph[eclass].nodes.len());
+        let rootidx = self.costs[&eclass].1;
         let rootnode = &self.egraph[eclass].nodes[rootidx];
         // The operator index is the same in all eclass nodes
-
         id_to_node.push(self.egraph[eclass].nodes[rootidx].clone());
         operands.push(vec![]);
 
@@ -146,16 +137,10 @@ where
 
         // The RecExpr can be built directly here following the following rules
         // The childrens of a node are before in the array
+
         while let Some((parentidx, &node, depth)) = worklist.pop() {
-            let node_idx = if depth >= max_depth {
-                // look nearest leaf path, in this case, the best in AST size
-                self.costs[&node].1
-            } else {
-                rnd.gen_range(0, self.egraph[node].nodes.len())
-            };
-
+            let node_idx = self.costs[&node].1;
             let operand = Id::from(id_to_node.len());
-
             let operandidx = id_to_node.len();
             let last_node_id = parentidx; // id_to_node.len() - 1;
 
@@ -163,8 +148,6 @@ where
             operands.push(vec![]);
 
             operands[last_node_id].push(operand);
-
-            //let operand = &egraph[node].nodes[node_idx];
 
             worklist.extend(
                 self.egraph[node].nodes[node_idx]
@@ -175,19 +158,8 @@ where
             );
         }
         // Build the tree with the right language constructor
-        let expr = expression_builder(Id::from(0), &id_to_node, &operands);
-
-        if !oracle(expr.clone()) && max_tries > 0 {
-            return self.extract_random(
-                rnd,
-                eclass,
-                max_depth,
-                expression_builder,
-                max_tries - 1,
-                oracle,
-            );
-        };
-
+        let mut to_write_in = recexpr.borrow_mut();
+        let expr = expression_builder(Id::from(0), &id_to_node, &operands, &mut to_write_in);
         Ok(expr)
     }
 }
