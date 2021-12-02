@@ -1,12 +1,11 @@
 use anyhow::Context;
 use arbitrary::Arbitrary;
-use flagset::FlagSet;
 use std::fs;
 use std::io::{stdin, stdout, Read, Write};
 use std::path::PathBuf;
 use std::process;
 use structopt::StructOpt;
-use wasm_smith::{parse_instruction_kinds, InstructionKind, MaybeInvalidModule, Module};
+use wasm_smith::{parse_instruction_kinds, InstructionKinds, MaybeInvalidModule, Module};
 
 /// A WebAssembly test case generator.
 ///
@@ -171,7 +170,7 @@ struct Config {
     /// multiple kinds with a comma-separated list: e.g.,
     /// `--allowed-instructions numeric,control,parametric`
     #[structopt(long = "allowed-instructions", parse(try_from_str = parse_instruction_kinds))]
-    allowed_instructions: Option<FlagSet<InstructionKind>>,
+    allowed_instructions: Option<InstructionKinds>,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -306,7 +305,7 @@ impl wasm_smith::Config for CliAndJsonConfig {
         (max_nesting_depth, usize, 1000),
         (max_type_size, u32, 1000),
         (canonicalize_nans, bool, false),
-        (allowed_instructions, FlagSet<InstructionKind>, FlagSet::default()),
+        (allowed_instructions, InstructionKinds, InstructionKinds::default()),
     }
 
     fn max_memory_pages(&self, _is_64: bool) -> u64 {

@@ -33,7 +33,7 @@ macro_rules! instructions {
             $(
                 let predicate: Option<fn(&Module, &mut CodeBuilder) -> bool> = $predicate;
                 if predicate.map_or(true, |f| f(module, builder))
-                    && module.config.allowed_instructions().contains($instruction_kind) {
+                    && module.config.allowed_instructions().0.contains($instruction_kind) {
                     builder.allocs.options.push(($generator_fn, cost));
                     cost += 1000 $(- $cost)?;
                 }

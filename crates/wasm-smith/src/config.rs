@@ -1,6 +1,6 @@
 //! Configuring the shape of generated Wasm modules.
 
-use crate::InstructionKind;
+use crate::InstructionKinds;
 use arbitrary::{Arbitrary, Result, Unstructured};
 use flagset::FlagSet;
 
@@ -325,6 +325,14 @@ pub trait Config: 'static + std::fmt::Debug {
     /// Returns the kinds of instructions allowed in the generated wasm
     /// programs.
     ///
+    /// To configure which kinds of instructions are allowed, override with:
+    ///
+    /// ```ignore
+    /// fn allowed_instructions(&self) -> InstructionKinds {
+    ///    InstructionKinds::new(InstructionKind::Numeric | InstructionKind::Memory)
+    /// }
+    /// ```
+    ///
     /// The categories of instructions match the categories used by the
     /// [WebAssembly
     /// specification](https://webassembly.github.io/spec/core/syntax/instructions.html);
@@ -333,8 +341,8 @@ pub trait Config: 'static + std::fmt::Debug {
     /// == true` but `allowed_instruction_kinds()` does not include vector
     /// instructions, the generated programs will not include these instructions
     /// but could contain vector types.
-    fn allowed_instructions(&self) -> FlagSet<InstructionKind> {
-        FlagSet::full()
+    fn allowed_instructions(&self) -> InstructionKinds {
+        InstructionKinds::new(FlagSet::full())
     }
 }
 

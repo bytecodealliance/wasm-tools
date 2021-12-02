@@ -75,6 +75,7 @@ mod terminate;
 use crate::code_builder::CodeBuilderAllocations;
 use arbitrary::{Arbitrary, Result, Unstructured};
 use flagset::{flags, FlagSet};
+use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::marker;
@@ -2458,6 +2459,21 @@ struct Outer {
     modules: Vec<Rc<ModuleType>>,
 }
 
+/// A container for the kinds of instructions that wasm-smith is allowed to
+/// emit. Usage:
+/// ```
+/// # use wasm_smith::{InstructionKinds, InstructionKind};
+/// InstructionKinds::new(InstructionKind::Numeric | InstructionKind::Memory);
+/// ```
+#[derive(Clone, Copy, Debug, Default, Deserialize)]
+pub struct InstructionKinds(pub(crate) FlagSet<InstructionKind>);
+impl InstructionKinds {
+    /// Create a new container.
+    pub fn new(kinds: impl Into<FlagSet<InstructionKind>>) -> Self {
+        Self(kinds.into())
+    }
+}
+
 flags! {
     /// Enumerate the categories of instructions defined in the [WebAssembly
     /// specification](https://webassembly.github.io/spec/core/syntax/instructions.html).
@@ -2475,8 +2491,8 @@ flags! {
 }
 
 /// Parse a comma-separated list of instruction kinds into a `FlagSet`.
-pub fn parse_instruction_kinds(s: &str) -> std::result::Result<FlagSet<InstructionKind>, String> {
-    let mut kinds = FlagSet::<InstructionKind>::default();
+pub fn parse_instruction_kinds(s: &str) -> std::result::Result<InstructionKinds, String> {
+    let mut kinds = InstructionKinds::default();
     for s in s.split(",") {
         let matched = match s.to_lowercase().as_str() {
             "numeric" => InstructionKind::Numeric,
@@ -2489,7 +2505,7 @@ pub fn parse_instruction_kinds(s: &str) -> std::result::Result<FlagSet<Instructi
             "control" => InstructionKind::Control,
             _ => return Err(format!("unknown instruction kind: {}", s)),
         };
-        kinds |= matched;
+        kinds.0 |= matched;
     }
     println!("Parsed kinds: {:?}", kinds);
     Ok(kinds)

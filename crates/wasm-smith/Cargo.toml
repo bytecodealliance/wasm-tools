@@ -21,6 +21,7 @@ flagset = { version = "0.4", features = ["serde"] }
 leb128 = "0.2.4"
 wasm-encoder = { version = "0.8.0", path = "../wasm-encoder" }
 indexmap = "1.6"
+serde = { version = "1", features = ['derive'] }
 
 [dev-dependencies]
 criterion = "0.3.3"
