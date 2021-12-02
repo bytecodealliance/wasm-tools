@@ -149,13 +149,18 @@ impl PeepholeMutator {
                 .into_iter_with_offsets()
                 .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()?;
             let operatorscount = operators.len();
+
             let mut opcode_to_mutate = config.rng().gen_range(0, operatorscount);
+            debug!(
+                "Function idx {} with {} operators. Selecting {}",
+                function_to_mutate, operatorscount, opcode_to_mutate
+            );
             let locals = self.get_func_locals(
-            &config.info(),
-            function_to_mutate + config.info().imported_functions_count, /* the function type is shifted
-                                                                         by the imported functions*/
-            &mut localsreader,
-        )?;
+                &config.info(),
+                function_to_mutate + config.info().imported_functions_count, /* the function type is shifted
+                                                                            by the imported functions*/
+                &mut localsreader,
+            )?;
             let mut count = 0;
             loop {
                 config.consume_fuel(1)?;
@@ -229,6 +234,19 @@ impl PeepholeMutator {
                 let startcmp = start.clone();
                 // Since this construction is expensive then more fuel is consumed
                 let config4fuel = config.clone();
+
+                // If the number of nodes in the egraph is not large, then
+                // continue the search
+                if egraph.total_number_of_nodes() <= 1 {
+                    opcode_to_mutate = (opcode_to_mutate + 1) % operatorscount;
+                    count += 1;
+                    continue;
+                };
+
+                debug!(
+                    "Egraph built, nodes count {}",
+                    egraph.total_number_of_nodes()
+                );
                 let iterator = lazy_expand_aux(
                     root,
                     egraph.clone(),
@@ -236,8 +254,12 @@ impl PeepholeMutator {
                     config.rng().gen(),
                 )
                 // Filter expression equal to the original one
-                .filter(move |expr| !expr.to_string().eq(&startcmp.to_string()))
+                .filter(move |expr| {
+                    debug!("Filtering {}", expr);
+                    !expr.to_string().eq(&startcmp.to_string())
+                })
                 .map(move |expr| {
+                    debug!("expr {}", expr);
                     let mut newfunc = self.copy_locals(reader)?;
                     Encoder::build_function(
                         config,
@@ -276,7 +298,7 @@ impl PeepholeMutator {
                     Ok(module)
                 })
                 // Consume fuel for each returned expression and it is expensive
-                .take_while(move |_| config4fuel.consume_fuel(2).is_ok());
+                .take_while(move |_| config4fuel.consume_fuel(1).is_ok());
 
                 return Ok(Box::new(iterator));
             }
@@ -797,12 +819,12 @@ mod tests {
         let info = ModuleInfo::new(original).unwrap();
 
         let mut wasmmutate = WasmMutate::default();
-        wasmmutate.fuel(1);
+        wasmmutate.fuel(3);
         wasmmutate.info = Some(info);
         let mut rnd = SmallRng::seed_from_u64(0);
         wasmmutate.rng = Some(rnd);
 
-        let mutator = PeepholeMutator::new(1);
+        let mutator = PeepholeMutator::new(2);
 
         let can_mutate = mutator.can_mutate(&wasmmutate);
 
@@ -1030,7 +1052,7 @@ mod tests {
                             i32.and)
                             (data (;0;) ""))
                     "#,
-            1,
+            10,
         );
     }
     #[test]
@@ -1404,7 +1426,7 @@ mod tests {
                 (global $0 (mut i32) i32.const 0)
                 (export "exported_func" (func 0)))
         "#,
-            2,
+            4,
         );
     }
 
@@ -1418,16 +1440,14 @@ mod tests {
         let info = ModuleInfo::new(original).unwrap();
 
         let mut wasmmutate = WasmMutate::default();
-        wasmmutate.fuel(10);
+        wasmmutate.fuel(300);
         wasmmutate.info = Some(info);
-        let mut rnd = SmallRng::seed_from_u64(0);
+        let mut rnd = SmallRng::seed_from_u64(seed);
         wasmmutate.rng = Some(rnd);
 
-        let mutator = PeepholeMutator::new(1);
+        let mutator = PeepholeMutator::new(3);
 
         let can_mutate = mutator.can_mutate(&wasmmutate);
-
-        let mutator = PeepholeMutator::new(2); // the string is empty
 
         let info = ModuleInfo::new(original).unwrap();
 
@@ -1444,6 +1464,9 @@ mod tests {
 
             let expected_bytes = &wat::parse_str(expected).unwrap();
             let expectedtext = wasmprinter::print_bytes(expected_bytes).unwrap();
+
+            println!("{}", text);
+
             if expectedtext == text {
                 found = true;
             }

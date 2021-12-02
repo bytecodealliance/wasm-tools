@@ -34,12 +34,12 @@ fn integration_test() {
     let original = &wat::parse_str(wat).unwrap();
     let mut mutator = WasmMutate::default();
     mutator.fuel(1000);
-    mutator.seed(2);
+    mutator.seed(0);
     // seed is zero, which means first mutator
     let start = std::time::Instant::now();
     let it = mutator.run(original).unwrap();
     let mut count = 0;
-    for mutated in it.take(1000) {
+    for mutated in it.take(100) {
         // Down here is the validation for the correct mutation
         let mutated = mutated.unwrap();
         let text = wasmprinter::print_bytes(&mutated).unwrap();
@@ -56,6 +56,4 @@ fn integration_test() {
         elapsed.as_secs(),
         elapsed.subsec_millis()
     );
-
-    todo!();
 }
