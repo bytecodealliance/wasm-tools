@@ -57,13 +57,13 @@ impl TryFrom<TypeDef<'_>> for TypeInfo {
                 params: ft
                     .params
                     .iter()
-                    .map(|&t| PrimitiveTypeInfo::try_from(t).unwrap())
-                    .collect(),
+                    .map(|&t| PrimitiveTypeInfo::try_from(t))
+                    .collect::<Result<Vec<_>, _>>()?,
                 returns: ft
                     .returns
                     .iter()
-                    .map(|&t| PrimitiveTypeInfo::try_from(t).unwrap())
-                    .collect(),
+                    .map(|&t| PrimitiveTypeInfo::try_from(t))
+                    .collect::<Result<Vec<_>, _>>()?,
             })),
             _ => Err(super::Error::UnsupportedType(EitherType::TypeDef(format!(
                 "{:?}",
