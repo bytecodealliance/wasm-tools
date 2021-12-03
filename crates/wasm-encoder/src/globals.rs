@@ -49,6 +49,14 @@ impl GlobalSection {
         self.num_added += 1;
         self
     }
+
+    /// Add a raw byte slice into this code section as a global.
+    ///
+    pub fn raw(&mut self, data: &[u8]) -> &mut Self {
+        self.bytes.extend(data);
+        self.num_added += 1;
+        self
+    }
 }
 
 impl Section for GlobalSection {

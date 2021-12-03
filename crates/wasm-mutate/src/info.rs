@@ -23,8 +23,10 @@ pub struct ModuleInfo<'a> {
     pub globals: Option<usize>,
     pub elements: Option<usize>,
     pub functions: Option<usize>,
+    pub data_count: Option<usize>,
     pub data: Option<usize>,
     pub code: Option<usize>,
+    pub start: Option<usize>,
 
     pub is_start_defined: bool,
     pub function_count: u32,
@@ -149,8 +151,10 @@ impl<'a> ModuleInfo<'a> {
 
                     info.section(SectionId::Export.into(), reader.range(), input_wasm);
                 }
-                Payload::StartSection { func: _, range: _ } => {
+                Payload::StartSection { func: _, range } => {
                     info.is_start_defined = true;
+                    info.start = Some(info.raw_sections.len());
+                    info.section(SectionId::Start.into(), range, input_wasm);
                 }
                 Payload::ElementSection(reader) => {
                     info.elements = Some(info.raw_sections.len());
@@ -179,6 +183,7 @@ impl<'a> ModuleInfo<'a> {
                     info.section(id, range, input_wasm);
                 }
                 Payload::DataCountSection { count: _, range } => {
+                    info.data_count = Some(info.raw_sections.len());
                     info.section(SectionId::DataCount.into(), range, input_wasm);
                 }
                 Payload::Version { .. } => {}
@@ -235,6 +240,11 @@ impl<'a> ModuleInfo<'a> {
         self.global_types.len()
     }
 
+    /// Returns the global section bytes as a `RawSection` instance
+    pub fn get_global_section(&self) -> RawSection {
+        self.raw_sections[self.globals.unwrap()]
+    }
+
     pub fn replace_section(
         &self,
         i: usize,
@@ -245,6 +255,28 @@ impl<'a> ModuleInfo<'a> {
             if i == j {
                 module.section(new_section);
             } else {
+                module.section(s);
+            }
+        });
+        module
+    }
+
+    /// Replaces raw sections in the passed indexes and return a new module
+    ///
+    /// This method will be helpful to add more than one custom section. For
+    /// example, some code mutations might need to add a few globals. This
+    /// method can be used to write a new or custom global section before the
+    /// code section.
+    /// * `section_writer` this callback should write the custom section and
+    ///true if it was successful
+    pub fn replace_multiple_sections(
+        &self,
+        section_writer: Box<dyn Fn(usize, u8, &mut wasm_encoder::Module) -> bool>,
+    ) -> wasm_encoder::Module {
+        let mut module = wasm_encoder::Module::new();
+        self.raw_sections.iter().enumerate().for_each(|(j, s)| {
+            // Write if the section_writer did not write a custom section
+            if !section_writer(j, s.id, &mut module) {
                 module.section(s);
             }
         });
