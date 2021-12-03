@@ -12,6 +12,7 @@ version = "0.1.0"
 
 [dependencies]
 anyhow = "1"
+blake3 = "1.2.0"
 log = "0.4"
 rand = { version = "0.8.4", features = ["small_rng"] }
 structopt = { version = "0.3.25", optional = true }
@@ -19,5 +20,6 @@ wasm-mutate = { version = "0.1.0", path = "../wasm-mutate" }
 wasmparser = { version = "0.81", path = "../wasmparser" }
 
 [dev-dependencies]
+env_logger = "0.8"
 wasmprinter = { version = "0.2", path = "../wasmprinter" }
 wat = { version = "1", path = "../wat" }
