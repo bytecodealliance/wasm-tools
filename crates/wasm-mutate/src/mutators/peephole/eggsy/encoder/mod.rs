@@ -55,7 +55,7 @@ impl Encoder {
                 } else {
                     dfg.get_expr(entry.operator_idx)
                 };
-                resource_request.push(expr2wasm(config, &to_encode, newfunc, egraph)?);
+                resource_request.extend(expr2wasm(config, &to_encode, newfunc, egraph)?);
             }
         }
 
