@@ -246,7 +246,6 @@ impl PeepholeMutator {
                 // Filter expression equal to the original one
                 .filter(move |expr| !expr.to_string().eq(&startcmp.to_string()))
                 .map(move |expr| {
-                    debug!("Mutation \n{}\nfor\n{}", expr, start);
                     let mut newfunc = self.copy_locals(reader)?;
                     let needed_resources = Encoder::build_function(
                         config,
