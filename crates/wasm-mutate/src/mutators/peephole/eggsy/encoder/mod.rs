@@ -68,6 +68,6 @@ impl Encoder {
         let bytes = &config.info().get_code_section().data[*byterange.0..=*byterange.1];
 
         newfunc.raw(bytes.iter().copied());
-        Ok(resource_request.concat())
+        Ok(resource_request)
     }
 }
