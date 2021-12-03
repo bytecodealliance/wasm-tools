@@ -661,11 +661,17 @@ pub enum Lang {
     /// Propsoed custom mutator from issue #391, use-of-global
     F64UseGlobal(Id),
 
-    /// Just a wrapper of multiple nodes, when encoding to Wasm it is written as nothing
-    ///    Its only responsability is to add stack neutral operations (if semantic equivalence is set)
-    ///    For example, lets assume we want to insert a nop operation after or before (or both) another node
-    ///    `?x => (container nop ?x nop)`
-    ///    `?x => (container (drop i32.rand) ?x) `
+    /// Just a wrapper of multiple nodes, when encoding to Wasm it is written as
+    /// nothing. Its only responsibility is to express stack-neutral operations.
+    ///
+    /// For example, lets assume we want to insert a nop operation after or
+    /// before another node (or both). `container` allows us to do this with the
+    /// following rewrites:
+    ///
+    /// * Before: `?x => (container nop ?x)`
+    /// * After: `?x => (container ?x nop)`
+    /// * Before and after: `?x => (container nop ?x nop)`
+    /// * Stack-nuetral insertion: `?x => (container (drop i32.rand) ?x) `
     Container(Vec<Id>),
 
     // End of custom mutation operations and instructions
