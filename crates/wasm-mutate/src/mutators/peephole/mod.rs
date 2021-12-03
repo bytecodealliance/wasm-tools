@@ -305,12 +305,12 @@ impl PeepholeMutator {
                             ResourceRequest::Global {
                                 index: _,
                                 tpe,
-                                mutable: _,
+                                mutable,
                             } => {
                                 // Add to globals
                                 new_global_section.global(
                                     wasm_encoder::GlobalType {
-                                        mutable: true,
+                                        mutable: *mutable,
                                         val_type: match tpe {
                                             PrimitiveTypeInfo::I32 => ValType::I32,
                                             PrimitiveTypeInfo::I64 => ValType::I64,
