@@ -1267,7 +1267,6 @@ pub fn expr2wasm(
                         global_idx += 1;
                     }
                     Lang::I64UseGlobal(_) => {
-
                         let request = ResourceRequest::Global {
                             index: global_idx as usize,
                             tpe: PrimitiveTypeInfo::I64,
@@ -1278,9 +1277,8 @@ pub fn expr2wasm(
                         newfunc.instruction(&Instruction::GlobalSet(global_idx));
                         newfunc.instruction(&Instruction::GlobalGet(global_idx));
                         global_idx += 1;
-                    },
+                    }
                     Lang::F32UseGlobal(_) => {
-
                         let request = ResourceRequest::Global {
                             index: global_idx as usize,
                             tpe: PrimitiveTypeInfo::F32,
@@ -1291,9 +1289,8 @@ pub fn expr2wasm(
                         newfunc.instruction(&Instruction::GlobalSet(global_idx));
                         newfunc.instruction(&Instruction::GlobalGet(global_idx));
                         global_idx += 1;
-                    },
+                    }
                     Lang::F64UseGlobal(_) => {
-
                         let request = ResourceRequest::Global {
                             index: global_idx as usize,
                             tpe: PrimitiveTypeInfo::F64,
@@ -1304,7 +1301,7 @@ pub fn expr2wasm(
                         newfunc.instruction(&Instruction::GlobalSet(global_idx));
                         newfunc.instruction(&Instruction::GlobalGet(global_idx));
                         global_idx += 1;
-                    },
+                    }
                 }
             }
         }

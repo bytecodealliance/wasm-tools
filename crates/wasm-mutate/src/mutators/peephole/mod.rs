@@ -361,18 +361,15 @@ impl PeepholeMutator {
                             // Write if needed or if it wasm in the init Wasm 
                             && (new_global_section.len() > 0 || global_index.is_some() )
                             {
-                                println!("Inserting global section for {:?}", new_global_section);
                                 // Insert the new globals here
                                 module.section(&new_global_section);
                             }
                             if index == code_index.unwrap() {
-                                println!("Inserting code section");
                                 // Replace code section
                                 module.section(&codes);
 
                                 return true;
                             }
-                            println!("Inserting other section {}", index);
                             if let Some(gidx) = global_index {
                                 // return true since the global section is written by the
                                 // conditional position writer
@@ -383,8 +380,6 @@ impl PeepholeMutator {
                             false
                         },
                     );
-                    println!("info {:?}", config.info());
-                    println!("mod {:?}", module);
                     Ok(module)
                 })
                 // Consume fuel for each returned expression and it is expensive
@@ -1582,8 +1577,6 @@ mod tests {
 
             let expected_bytes = &wat::parse_str(expected).unwrap();
             let expectedtext = wasmprinter::print_bytes(expected_bytes).unwrap();
-
-            println!("{}", text);
 
             if expectedtext == text {
                 found = true;
