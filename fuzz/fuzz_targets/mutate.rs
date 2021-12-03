@@ -52,10 +52,12 @@ fuzz_target!(|bytes: &[u8]| {
     let mut found = false;
 
     let mut features = WasmFeatures::default();
+
     features.simd = config.simd_enabled;
     features.relaxed_simd = config.relaxed_simd_enabled;
-    let mut validator = wasmparser::Validator::new();
-    validator.wasm_features(features);
+    features.reference_types = config.reference_types_enabled;
+    features.module_linking = config.module_linking_enabled;
+    features.bulk_memory = config.bulk_memory_enabled;
 
     match mutated_wasm_iterator {
         Ok(mut iterator) => {
@@ -64,18 +66,25 @@ fuzz_target!(|bytes: &[u8]| {
                     Ok(mutated_wasm) => {
                         // Increase ony once for the same input Wasm
                         if !found {
-                            // FIXME this metric is somehow undermeasuring the
-                            // effectiveness of the mutator now. Some modules
-                            // can have only one possible mutation meanwhile
-                            // others can have a lot and still each one of them
-                            // is counted as one if they have at least one
-                            // possible mutation
                             NUM_SUCCESSFUL_MUTATIONS.fetch_add(1, Ordering::Relaxed);
                             found = true;
                         }
 
+                        let mut validator = wasmparser::Validator::new();
+                        validator.wasm_features(features);
+
                         let validation_result = validator.validate_all(&mutated_wasm);
+
                         log::debug!("validation result = {:?}", validation_result);
+
+                        if log::log_enabled!(log::Level::Debug) {
+                            std::fs::write("mutated.wasm", &mutated_wasm)
+                                .expect("should write `mutated.wasm` okay");
+                            if let Ok(mutated_wat) = wasmprinter::print_bytes(&mutated_wasm) {
+                                std::fs::write("mutated.wat", &mutated_wat)
+                                    .expect("should write `mutated.wat` okay");
+                            }
+                        }
                         assert!(
                             validation_result.is_ok(),
                             "`wasm-mutate` should always produce a valid Wasm file"
