@@ -308,7 +308,6 @@ impl PeepholeMutator {
                                 mutable: _,
                             } => {
                                 // Add to globals
-                                //todo!("{:?}", resource)
                                 new_global_section.global(
                                     wasm_encoder::GlobalType {
                                         mutable: true,
@@ -318,11 +317,7 @@ impl PeepholeMutator {
                                             PrimitiveTypeInfo::F32 => ValType::F32,
                                             PrimitiveTypeInfo::F64 => ValType::F64,
                                             PrimitiveTypeInfo::V128 => ValType::V128,
-                                            PrimitiveTypeInfo::FuncRef => ValType::FuncRef,
-                                            PrimitiveTypeInfo::ExternRef => ValType::ExternRef,
-                                            PrimitiveTypeInfo::ExnRef => ValType::ExternRef,
-                                            PrimitiveTypeInfo::Func => ValType::FuncRef,
-                                            PrimitiveTypeInfo::Empty => {
+                                            _ => {
                                                 unreachable!(
                                                     "Empty returning type is not valid for globals"
                                                 )
@@ -334,13 +329,8 @@ impl PeepholeMutator {
                                         PrimitiveTypeInfo::I64 => &Instruction::I64Const(0),
                                         PrimitiveTypeInfo::F32 => &Instruction::F32Const(0.0),
                                         PrimitiveTypeInfo::F64 => &Instruction::F64Const(0.0),
-
-                                        PrimitiveTypeInfo::V128 => todo!(),
-                                        PrimitiveTypeInfo::FuncRef => todo!(),
-                                        PrimitiveTypeInfo::ExternRef => todo!(),
-                                        PrimitiveTypeInfo::ExnRef => todo!(),
-                                        PrimitiveTypeInfo::Func => todo!(),
-                                        PrimitiveTypeInfo::Empty => {
+                                        PrimitiveTypeInfo::V128 => &Instruction::V128Const(0),
+                                        _ => {
                                             unreachable!(
                                                 "Empty returning type is not valid for globals"
                                             )
@@ -374,7 +364,6 @@ impl PeepholeMutator {
                                 module.section(&new_global_section);
                             }
                             if index == code_index.unwrap() {
-                                // First the global section
                                 // Replace code section
                                 module.section(&codes);
 
