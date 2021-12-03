@@ -3,6 +3,8 @@
 //!
 //! See the [`WasmShrink`][WasmShrink] type for details.
 
+use std::collections::HashSet;
+
 use anyhow::{Context, Result};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use wasm_mutate::WasmMutate;
@@ -202,6 +204,10 @@ impl WasmShrink {
 
         let mut rng = SmallRng::seed_from_u64(self.seed);
 
+        // Mutated Wasm test cases that we've already tested and found to be
+        // uninteresting.
+        let mut uninteresting = HashSet::new();
+
         loop {
             let mut new_smallest = None;
             let mut attempt = 0;
@@ -254,6 +260,16 @@ impl WasmShrink {
                         continue;
                     }
 
+                    let hash = blake3::hash(&mutated_wasm);
+                    if uninteresting.contains(&hash) {
+                        log::trace!(
+                            "Attempt #{}: already tested this candidate and found it uninteresting",
+                            attempt
+                        );
+                        attempt += 1;
+                        continue;
+                    }
+
                     log::trace!(
                         "Attempt #{}: testing candidate ({} bytes)",
                         attempt,
@@ -265,6 +281,9 @@ impl WasmShrink {
                         new_smallest = Some(mutated_wasm);
                         break 'attempts;
                     }
+
+                    // Uninteresting. Don't try it again.
+                    uninteresting.insert(hash);
                 }
             }
 
