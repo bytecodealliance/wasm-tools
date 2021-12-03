@@ -32,7 +32,10 @@ impl PeepholeMutator {
             rewrite!("or--12";  "(i64.or ?x -1_i64)" => "-1_i64" ),
             rewrite!("select-reduce";  "(select ?x ?y ?y)" => "?y"),
             // Custom use_of_globals
-            rewrite!("use_of_globals";  "?x" => "(use_of_global ?x)" if self.returns("?x") if self.global_count_less_than(config, /* modify this to allow more globals*/ 100000)),
+            rewrite!("use_of_globalsi32";  "?x" => "(i32.use_of_global ?x)" if self.is_type("?x", PrimitiveTypeInfo::I32) if self.global_count_less_than(config, /* modify this to allow more globals*/ 100000)),
+            rewrite!("use_of_globalsi64";  "?x" => "(i64.use_of_global ?x)" if self.is_type("?x", PrimitiveTypeInfo::I64) if self.global_count_less_than(config, /* modify this to allow more globals*/ 100000)),
+            rewrite!("use_of_globalsf32";  "?x" => "(f32.use_of_global ?x)" if self.is_type("?x", PrimitiveTypeInfo::F32) if self.global_count_less_than(config, /* modify this to allow more globals*/ 100000)),
+            rewrite!("use_of_globalsf64";  "?x" => "(f64.use_of_global ?x)" if self.is_type("?x", PrimitiveTypeInfo::F64) if self.global_count_less_than(config, /* modify this to allow more globals*/ 100000)),
         ];
         // Use a custom instruction-mutator for this
         // This specific rewriting rule has a condition, it should be appplied if the operand is a constant

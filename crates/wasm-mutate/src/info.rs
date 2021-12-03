@@ -9,7 +9,7 @@ use wasmparser::{Chunk, Parser, Payload, SectionReader};
 
 /// Provides module information for future usage during mutation
 /// an instance of ModuleInfo could be user to determine which mutation could be applied
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct ModuleInfo<'a> {
     // The following fields are offsets inside the `raw_sections` field.
     // The main idea is to maintain the order of the sections in the input Wasm.
@@ -268,11 +268,12 @@ impl<'a> ModuleInfo<'a> {
     /// method can be used to write a new or custom global section before the
     /// code section.
     /// * `section_writer` this callback should write the custom section and
-    ///true if it was successful
-    pub fn replace_multiple_sections(
-        &self,
-        section_writer: Box<dyn Fn(usize, u8, &mut wasm_encoder::Module) -> bool>,
-    ) -> wasm_encoder::Module {
+    ///   returns true if it was successful, if false is returned then the
+    ///   default section will be written to the module
+    pub fn replace_multiple_sections<P>(&self, section_writer: P) -> wasm_encoder::Module
+    where
+        P: Fn(usize, u8, &mut wasm_encoder::Module) -> bool,
+    {
         let mut module = wasm_encoder::Module::new();
         self.raw_sections.iter().enumerate().for_each(|(j, s)| {
             // Write if the section_writer did not write a custom section

@@ -253,10 +253,10 @@ impl PeepholeMutationAnalysis {
             }
             Lang::MemoryGrow { .. } => Ok(PrimitiveTypeInfo::I32),
             Lang::MemorySize { .. } => Ok(PrimitiveTypeInfo::I32),
-            Lang::UseGlobal(arg) => {
-                let tpe = eg[*arg].data.clone().expect("Missing operand type").tpe;
-                Ok(tpe)
-            }
+            Lang::I32UseGlobal(_) => Ok(PrimitiveTypeInfo::I32),
+            Lang::I64UseGlobal(_) => Ok(PrimitiveTypeInfo::I64),
+            Lang::F32UseGlobal(_) => Ok(PrimitiveTypeInfo::F32),
+            Lang::F64UseGlobal(_) => Ok(PrimitiveTypeInfo::F64),
         }
     }
 

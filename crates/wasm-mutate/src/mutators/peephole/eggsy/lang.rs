@@ -653,7 +653,13 @@ pub enum Lang {
     UnfoldI64(Id),
 
     /// Propsoed custom mutator from issue #391, use-of-global
-    UseGlobal(Id),
+    I32UseGlobal(Id),
+    /// Propsoed custom mutator from issue #391, use-of-global
+    I64UseGlobal(Id),
+    /// Propsoed custom mutator from issue #391, use-of-global
+    F32UseGlobal(Id),
+    /// Propsoed custom mutator from issue #391, use-of-global
+    F64UseGlobal(Id),
 
     /// Just a wrapper of multiple nodes, when encoding to Wasm it is written as nothing
     ///    Its only responsability is to add stack neutral operations (if semantic equivalence is set)
@@ -977,7 +983,10 @@ impl Display for Lang {
             Lang::MemorySize { mem, mem_byte } => {
                 f.write_str(&format!("memory.size.{}.{}", mem, mem_byte))
             }
-            Lang::UseGlobal(_) => f.write_str("use_of_global"),
+            Lang::I32UseGlobal(_) => f.write_str("i32.use_of_global"),
+            Lang::I64UseGlobal(_) => f.write_str("i64.use_of_global"),
+            Lang::F32UseGlobal(_) => f.write_str("f32.use_of_global"),
+            Lang::F64UseGlobal(_) => f.write_str("f64.use_of_global"),
         }
     }
 }
@@ -1610,7 +1619,10 @@ impl egg::Language for Lang {
             Lang::Select(operands) => operands,
             Lang::MemoryGrow { by, .. } => std::slice::from_ref(by),
             Lang::MemorySize { .. } => &[],
-            Lang::UseGlobal(arg) => std::slice::from_ref(arg),
+            Lang::I32UseGlobal(arg)
+            | Lang::I64UseGlobal(arg)
+            | Lang::F32UseGlobal(arg)
+            | Lang::F64UseGlobal(arg) => std::slice::from_ref(arg),
         }
     }
 
@@ -1918,7 +1930,10 @@ impl egg::Language for Lang {
                 mem: _,
                 mem_byte: _,
             } => &mut [],
-            Lang::UseGlobal(arg) => std::slice::from_mut(arg),
+            Lang::I32UseGlobal(arg)
+            | Lang::I64UseGlobal(arg)
+            | Lang::F32UseGlobal(arg)
+            | Lang::F64UseGlobal(arg) => std::slice::from_mut(arg),
         }
     }
 
@@ -2090,7 +2105,10 @@ impl egg::Language for Lang {
             "nop" => Ok(Lang::Nop),
             "container" => Ok(Lang::Container(children)),
             "select" => Ok(Lang::Select([children[0], children[1], children[2]])),
-            "use_of_global" => Ok(Lang::UseGlobal(children[0])),
+            "i32.use_of_global" => Ok(Lang::I32UseGlobal(children[0])),
+            "i64.use_of_global" => Ok(Lang::I64UseGlobal(children[0])),
+            "f32.use_of_global" => Ok(Lang::F32UseGlobal(children[0])),
+            "f64.use_of_global" => Ok(Lang::F64UseGlobal(children[0])),
             _ => Lang::parse_call(op_str, &children)
                 .or(Lang::parse_memory_sg(op_str, &children))
                 .or(Lang::parse_mem_op(op_str, &children))

@@ -40,7 +40,7 @@ pub fn expr2wasm(
     config: &mut WasmMutate,
     expr: &RecExpr<Lang>,
     newfunc: &mut Function,
-    egraph: &EG,
+    _egraph: &EG,
 ) -> crate::Result<Vec<ResourceRequest>> {
     let nodes = expr.as_ref();
     // The last node is the root.
@@ -411,8 +411,10 @@ pub fn expr2wasm(
                     Lang::MemoryGrow { by, .. } => {
                         enqueue(&mut worklist, *by);
                     }
-
-                    Lang::UseGlobal(operand) => {
+                    Lang::I32UseGlobal(operand)
+                    | Lang::I64UseGlobal(operand)
+                    | Lang::F32UseGlobal(operand)
+                    | Lang::F64UseGlobal(operand) => {
                         enqueue(&mut worklist, *operand);
                     }
                     _ => { /* Do nothing */ }
@@ -1251,16 +1253,11 @@ pub fn expr2wasm(
                     Lang::MemorySize { mem, .. } => {
                         newfunc.instruction(&Instruction::MemorySize(*mem));
                     }
-                    Lang::UseGlobal(arg) => {
-                        let globaltpe = &egraph[*arg]
-                            .data
-                            .as_ref()
-                            .expect("Missing type information for use_of_global operator")
-                            .tpe;
+                    Lang::I32UseGlobal(_) => {
                         // Request a new global
                         let request = ResourceRequest::Global {
                             index: global_idx as usize,
-                            tpe: globaltpe.clone(),
+                            tpe: PrimitiveTypeInfo::I32,
                             mutable: true,
                         };
                         resources.push(request);
@@ -1269,6 +1266,45 @@ pub fn expr2wasm(
                         newfunc.instruction(&Instruction::GlobalGet(global_idx));
                         global_idx += 1;
                     }
+                    Lang::I64UseGlobal(_) => {
+
+                        let request = ResourceRequest::Global {
+                            index: global_idx as usize,
+                            tpe: PrimitiveTypeInfo::I64,
+                            mutable: true,
+                        };
+                        resources.push(request);
+
+                        newfunc.instruction(&Instruction::GlobalSet(global_idx));
+                        newfunc.instruction(&Instruction::GlobalGet(global_idx));
+                        global_idx += 1;
+                    },
+                    Lang::F32UseGlobal(_) => {
+
+                        let request = ResourceRequest::Global {
+                            index: global_idx as usize,
+                            tpe: PrimitiveTypeInfo::F32,
+                            mutable: true,
+                        };
+                        resources.push(request);
+
+                        newfunc.instruction(&Instruction::GlobalSet(global_idx));
+                        newfunc.instruction(&Instruction::GlobalGet(global_idx));
+                        global_idx += 1;
+                    },
+                    Lang::F64UseGlobal(_) => {
+
+                        let request = ResourceRequest::Global {
+                            index: global_idx as usize,
+                            tpe: PrimitiveTypeInfo::F64,
+                            mutable: true,
+                        };
+                        resources.push(request);
+
+                        newfunc.instruction(&Instruction::GlobalSet(global_idx));
+                        newfunc.instruction(&Instruction::GlobalGet(global_idx));
+                        global_idx += 1;
+                    },
                 }
             }
         }

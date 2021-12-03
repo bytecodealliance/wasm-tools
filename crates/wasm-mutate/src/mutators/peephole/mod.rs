@@ -212,7 +212,7 @@ impl PeepholeMutator {
                     config.info().function_map.clone(),
                 );
                 let runner = Runner::<Lang, PeepholeMutationAnalysis, ()>::new(analysis)
-                    .with_iter_limit(1) // only one iterations, do not wait for eq saturation, increasing only by one it affects the execution time of the mutator by a lot
+                    .with_iter_limit(200) // FIXME, the iterations should consume fuel from the actual mutator. Be careful with inner set time limits that can lead us to non-deterministic behavior
                     .with_expr(&start)
                     .run(&rules);
                 let mut egraph = runner.egraph;
@@ -246,6 +246,7 @@ impl PeepholeMutator {
                 // Filter expression equal to the original one
                 .filter(move |expr| !expr.to_string().eq(&startcmp.to_string()))
                 .map(move |expr| {
+                    debug!("Mutation \n{}\nfor\n{}", expr, start);
                     let mut newfunc = self.copy_locals(reader)?;
                     let needed_resources = Encoder::build_function(
                         config,
@@ -318,9 +319,7 @@ impl PeepholeMutator {
                                             PrimitiveTypeInfo::F64 => ValType::F64,
                                             PrimitiveTypeInfo::V128 => ValType::V128,
                                             _ => {
-                                                unreachable!(
-                                                    "Empty returning type is not valid for globals"
-                                                )
+                                                unreachable!("Not valid for globals")
                                             }
                                         },
                                     },
@@ -331,9 +330,7 @@ impl PeepholeMutator {
                                         PrimitiveTypeInfo::F64 => &Instruction::F64Const(0.0),
                                         PrimitiveTypeInfo::V128 => &Instruction::V128Const(0),
                                         _ => {
-                                            unreachable!(
-                                                "Empty returning type is not valid for globals"
-                                            )
+                                            unreachable!("Not valid for globals")
                                         }
                                     },
                                 );
@@ -348,7 +345,8 @@ impl PeepholeMutator {
                     // section by respecting its relative order in the Wasm module
                     let insert_globals_before = config
                         .info()
-                        .exports
+                        .globals
+                        .or(config.info().exports)
                         .or(config.info().start)
                         .or(config.info().elements)
                         .or(config.info().data_count)
@@ -357,18 +355,24 @@ impl PeepholeMutator {
                     // If the mutator is in this staeg, then it passes the can_mutate flter,
                     // which checks for code section existance
                     let insert_globals_before = insert_globals_before.unwrap();
-                    let module = config.info().replace_multiple_sections(Box::new(
-                        move |index, _, module: &mut wasm_encoder::Module| {
-                            if insert_globals_before == index && new_global_section.len() > 0 {
+                    let module = config.info().replace_multiple_sections(
+                        move |index, _sectionid, module: &mut wasm_encoder::Module| {
+                            if insert_globals_before == index
+                            // Write if needed or if it wasm in the init Wasm 
+                            && (new_global_section.len() > 0 || global_index.is_some() )
+                            {
+                                println!("Inserting global section for {:?}", new_global_section);
                                 // Insert the new globals here
                                 module.section(&new_global_section);
                             }
                             if index == code_index.unwrap() {
+                                println!("Inserting code section");
                                 // Replace code section
                                 module.section(&codes);
 
                                 return true;
                             }
+                            println!("Inserting other section {}", index);
                             if let Some(gidx) = global_index {
                                 // return true since the global section is written by the
                                 // conditional position writer
@@ -378,7 +382,9 @@ impl PeepholeMutator {
                             // section
                             false
                         },
-                    ));
+                    );
+                    println!("info {:?}", config.info());
+                    println!("mod {:?}", module);
                     Ok(module)
                 })
                 // Consume fuel for each returned expression and it is expensive
@@ -1143,7 +1149,7 @@ mod tests {
     #[test]
     fn test_use_global() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("rule";  "?x" => "(use_of_global ?x)")];
+            &[rewrite!("rule";  "?x" => "(i32.use_of_global ?x)")];
 
         test_peephole_mutator(
             r#"
