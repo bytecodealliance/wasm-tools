@@ -1037,6 +1037,36 @@ mod tests {
             10,
         );
     }
+
+    #[test]
+    fn test_use_global() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("rule";  "?x" => "(use_of_global ?x)")];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func") (result i32) (local i32 i32)
+                i32.const 10
+            )
+        )
+        "#,
+            rules,
+            r#"
+            (module
+                (type (;0;) (func (result i32)))
+                (func (;0;) (type 0) (result i32)
+                  (local i32 i32)
+                  i32.const 10
+                  global.set 0
+                  global.get 0)
+                (global (;0;) (mut i32) i32.const 0)
+                (export "exported_func" (func 0)))
+            "#,
+            4,
+        );
+    }
+
     #[test]
     fn test_peep_idem3() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[

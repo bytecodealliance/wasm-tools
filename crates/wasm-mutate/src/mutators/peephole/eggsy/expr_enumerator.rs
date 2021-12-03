@@ -811,6 +811,15 @@ pub fn lazy_expand<'a>(
 
                         Box::new(t)
                     }
+                    Lang::UseGlobal(arg) => {
+                        let lcope = arg;
+                        let rec = recexpr.clone();
+
+                        let t = lazy_expand(lcope, eg, 0, rnd.clone(), recexpr.clone())
+                            .map(move |l| rec.borrow_mut().add(Lang::UseGlobal(l)));
+
+                        Box::new(t)
+                    }
                     i @ Lang::I32(_) => Box::new(vec![recexpr.borrow_mut().add(i)].into_iter()),
 
                     i @ Lang::I64(_) => Box::new(vec![recexpr.borrow_mut().add(i)].into_iter()),

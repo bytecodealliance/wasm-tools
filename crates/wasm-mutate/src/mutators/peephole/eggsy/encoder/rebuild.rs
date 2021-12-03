@@ -455,6 +455,7 @@ pub(crate) fn build_expr_inner(
                         mem_byte: *mem_byte,
                         by: operand(0),
                     }),
+                    Lang::UseGlobal(_) => expr.add(Lang::UseGlobal(operand(0))),
                     i32 @ Lang::I32(_) => expr.add((*i32).clone()),
                     i64 @ Lang::I64(_) => expr.add((*i64).clone()),
                     f32 @ Lang::F32(_) => expr.add((*f32).clone()),

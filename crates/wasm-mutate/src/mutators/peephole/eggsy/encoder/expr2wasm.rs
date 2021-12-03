@@ -5,11 +5,32 @@ use crate::error::EitherType;
 
 use crate::WasmMutate;
 
+use crate::module::PrimitiveTypeInfo;
 use crate::mutators::peephole::eggsy::encoder::TraversalEvent;
 use crate::mutators::peephole::{Lang, EG};
 use egg::{Id, RecExpr};
 use rand::Rng;
 use wasm_encoder::{Function, Instruction, MemArg};
+
+/// Some custom nodes might need special resource allocation outside the
+/// function. Fore xample, if a new global is needed is should be added outside
+/// the construction of the function in the `expr2wasm` method.
+#[derive(Clone, Debug)]
+pub enum ResourceRequest {
+    /// Global resource request
+    Global {
+        /// Global index
+        index: usize,
+        /// Global type
+        tpe: PrimitiveTypeInfo,
+        /// If its mutable
+        mutable: bool,
+    },
+    // TODO add other needed resources here, for example, needed locals, needed
+    // memory etc. Notice that how this resources are translated to Wasm code,
+    // you need to change the code inside the `mutate_with_rules` of the
+    // PeepholeMutator trait
+}
 
 /// Encodes an expression in the [Lang][Lang] intermediate language to Wasm
 /// * `rnd`  Random generator
@@ -19,8 +40,8 @@ pub fn expr2wasm(
     config: &mut WasmMutate,
     expr: &RecExpr<Lang>,
     newfunc: &mut Function,
-    _egraph: &EG,
-) -> crate::Result<()> {
+    egraph: &EG,
+) -> crate::Result<Vec<ResourceRequest>> {
     let nodes = expr.as_ref();
     // The last node is the root.
     let root = Id::from(nodes.len() - 1);
@@ -50,6 +71,12 @@ pub fn expr2wasm(
         worklist.push(Context::new(child, TraversalEvent::Exit));
         worklist.push(Context::new(child, TraversalEvent::Enter));
     };
+
+    // Resources out of the function body that the expr translation needs, for
+    // example, the creation of new globals
+    let mut resources = vec![];
+    // Next global idx
+    let mut global_idx = config.info().get_global_count() as u32;
 
     // Enqueue the coding back nodes and infer types
     while let Some(context) = worklist.pop() {
@@ -383,6 +410,10 @@ pub fn expr2wasm(
                     }
                     Lang::MemoryGrow { by, .. } => {
                         enqueue(&mut worklist, *by);
+                    }
+
+                    Lang::UseGlobal(operand) => {
+                        enqueue(&mut worklist, *operand);
                     }
                     _ => { /* Do nothing */ }
                 }
@@ -1220,9 +1251,27 @@ pub fn expr2wasm(
                     Lang::MemorySize { mem, .. } => {
                         newfunc.instruction(&Instruction::MemorySize(*mem));
                     }
+                    Lang::UseGlobal(arg) => {
+                        let globaltpe = &egraph[*arg]
+                            .data
+                            .as_ref()
+                            .expect("Missing type information for use_of_global operator")
+                            .tpe;
+                        // Request a new global
+                        let request = ResourceRequest::Global {
+                            index: global_idx as usize,
+                            tpe: globaltpe.clone(),
+                            mutable: true,
+                        };
+                        resources.push(request);
+
+                        newfunc.instruction(&Instruction::GlobalSet(global_idx));
+                        newfunc.instruction(&Instruction::GlobalGet(global_idx));
+                        global_idx += 1;
+                    }
                 }
             }
         }
     }
-    Ok(())
+    Ok(resources)
 }

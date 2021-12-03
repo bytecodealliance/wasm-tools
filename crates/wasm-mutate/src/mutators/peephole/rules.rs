@@ -31,6 +31,8 @@ impl PeepholeMutator {
             rewrite!("or--1";  "(i32.or ?x -1_i32)" => "-1_i32" ),
             rewrite!("or--12";  "(i64.or ?x -1_i64)" => "-1_i64" ),
             rewrite!("select-reduce";  "(select ?x ?y ?y)" => "?y"),
+            // Custom use_of_globals
+            rewrite!("use_of_globals";  "?x" => "(use_of_global ?x)" if self.returns("?x") if self.global_count_less_than(config, /* modify this to allow more globals*/ 100000)),
         ];
         // Use a custom instruction-mutator for this
         // This specific rewriting rule has a condition, it should be appplied if the operand is a constant
@@ -171,5 +173,35 @@ impl PeepholeMutator {
                 Err(_) => false,
             }
         }
+    }
+
+    /// Condition to check for returning non empty value
+    fn returns(&self, vari: &'static str) -> impl Fn(&mut EG, Id, &Subst) -> bool {
+        move |egraph: &mut EG, _, subst| {
+            let var = vari.parse();
+            match var {
+                Ok(var) => {
+                    let eclass = &egraph[subst[var]];
+                    match &eclass.data {
+                        Some(d) => match d.tpe {
+                            PrimitiveTypeInfo::Empty => false,
+                            _ => true,
+                        },
+                        None => false,
+                    }
+                }
+                Err(_) => false,
+            }
+        }
+    }
+
+    /// Condition that check for number of module globals
+    fn global_count_less_than(
+        &self,
+        config: &WasmMutate,
+        allowed: usize,
+    ) -> impl Fn(&mut EG, Id, &Subst) -> bool {
+        let count = config.info().get_global_count();
+        move |_egraph: &mut EG, _, _subst| count < allowed
     }
 }

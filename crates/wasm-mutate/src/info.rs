@@ -229,6 +229,12 @@ impl<'a> ModuleInfo<'a> {
         &self.types_map[functpeindex]
     }
 
+    /// Returns the number of globals used by the Wasm binary including imported
+    /// glboals
+    pub fn get_global_count(&self) -> usize {
+        self.global_types.len()
+    }
+
     pub fn replace_section(
         &self,
         i: usize,
