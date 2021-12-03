@@ -212,7 +212,7 @@ impl PeepholeMutator {
                     config.info().function_map.clone(),
                 );
                 let runner = Runner::<Lang, PeepholeMutationAnalysis, ()>::new(analysis)
-                    .with_iter_limit(200) // FIXME, the iterations should consume fuel from the actual mutator. Be careful with inner set time limits that can lead us to non-deterministic behavior
+                    .with_iter_limit(1) // FIXME, the iterations should consume fuel from the actual mutator. Be careful with inner set time limits that can lead us to non-deterministic behavior
                     .with_expr(&start)
                     .run(&rules);
                 let mut egraph = runner.egraph;
