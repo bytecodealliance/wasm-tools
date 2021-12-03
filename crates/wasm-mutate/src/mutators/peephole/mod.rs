@@ -237,152 +237,163 @@ impl PeepholeMutator {
                 // At this point we spent some resource calculating basic block,
                 // and constructing the egraph
                 config.consume_fuel(1)?;
-                let iterator = lazy_expand_aux(
-                    root,
-                    egraph.clone(),
-                    self.max_tree_depth,
-                    config.rng().gen(),
-                )
+                let iterator = if config.reduce {
+                    let mut extractor = egg::Extractor::new(&egraph, egg::AstSize);
+                    let (_best_cost, best_expr) = extractor.find_best(root);
+                    Box::new(std::iter::once(best_expr))
+                } else {
+                    lazy_expand_aux(
+                        root,
+                        egraph.clone(),
+                        self.max_tree_depth,
+                        config.rng().gen(),
+                    )
+                };
+
                 // Filter expression equal to the original one
-                .filter(move |expr| !expr.to_string().eq(&startcmp.to_string()))
-                .map(move |expr| {
-                    let mut newfunc = self.copy_locals(reader)?;
-                    let needed_resources = Encoder::build_function(
-                        config,
-                        opcode_to_mutate,
-                        &expr,
-                        &operators,
-                        &basicblock,
-                        &mut newfunc,
-                        &minidfg,
-                        &egraph,
-                    )?;
+                let iterator = iterator
+                    .filter(move |expr| !expr.to_string().eq(&startcmp.to_string()))
+                    .map(move |expr| {
+                        let mut newfunc = self.copy_locals(reader)?;
+                        let needed_resources = Encoder::build_function(
+                            config,
+                            opcode_to_mutate,
+                            &expr,
+                            &operators,
+                            &basicblock,
+                            &mut newfunc,
+                            &minidfg,
+                            &egraph,
+                        )?;
 
-                    let mut codes = CodeSection::new();
-                    let code_section = config.info().get_code_section();
-                    let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
+                        let mut codes = CodeSection::new();
+                        let code_section = config.info().get_code_section();
+                        let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
 
-                    // this mutator is applicable to internal functions, so
-                    // it starts by randomly selecting an index between
-                    // the imported functions and the total count, total=imported + internal
-                    for fidx in 0..config.info().function_count {
-                        let reader = sectionreader.read()?;
-                        if fidx == function_to_mutate {
-                            codes.function(&newfunc);
-                        } else {
-                            codes.raw(&code_section.data[reader.range().start..reader.range().end]);
+                        // this mutator is applicable to internal functions, so
+                        // it starts by randomly selecting an index between
+                        // the imported functions and the total count, total=imported + internal
+                        for fidx in 0..config.info().function_count {
+                            let reader = sectionreader.read()?;
+                            if fidx == function_to_mutate {
+                                codes.function(&newfunc);
+                            } else {
+                                codes.raw(
+                                    &code_section.data[reader.range().start..reader.range().end],
+                                );
+                            }
                         }
-                    }
 
-                    // Process the outside function needed resources
-                    // Needed globals
-                    let mut new_global_section = GlobalSection::new();
-                    // Reparse and reencode global section
-                    if let Some(_) = config.info().globals {
-                        // If the global section was already there, try to copy it to the
-                        // new raw section
-                        let global_section = config.info().get_global_section();
-                        let mut globalreader = GlobalSectionReader::new(global_section.data, 0)?;
-                        let count = globalreader.get_count();
-                        let mut start = globalreader.original_position();
+                        // Process the outside function needed resources
+                        // Needed globals
+                        let mut new_global_section = GlobalSection::new();
+                        // Reparse and reencode global section
+                        if let Some(_) = config.info().globals {
+                            // If the global section was already there, try to copy it to the
+                            // new raw section
+                            let global_section = config.info().get_global_section();
+                            let mut globalreader =
+                                GlobalSectionReader::new(global_section.data, 0)?;
+                            let count = globalreader.get_count();
+                            let mut start = globalreader.original_position();
 
-                        for _ in 0..count {
-                            let _ = globalreader.read()?;
-                            let current_pos = globalreader.original_position();
-                            let global = &global_section.data[start..current_pos];
-                            new_global_section.raw(global);
-                            start = current_pos;
+                            for _ in 0..count {
+                                let _ = globalreader.read()?;
+                                let current_pos = globalreader.original_position();
+                                let global = &global_section.data[start..current_pos];
+                                new_global_section.raw(global);
+                                start = current_pos;
+                            }
                         }
-                    }
-                    if needed_resources.len() > 0 {
-                        debug!(
-                            "Adding out of function resources allocation for {} resources",
-                            needed_resources.len()
-                        );
-                    }
-                    for resource in &needed_resources {
-                        match resource {
-                            ResourceRequest::Global {
-                                index: _,
-                                tpe,
-                                mutable,
-                            } => {
-                                // Add to globals
-                                new_global_section.global(
-                                    wasm_encoder::GlobalType {
-                                        mutable: *mutable,
-                                        val_type: match tpe {
-                                            PrimitiveTypeInfo::I32 => ValType::I32,
-                                            PrimitiveTypeInfo::I64 => ValType::I64,
-                                            PrimitiveTypeInfo::F32 => ValType::F32,
-                                            PrimitiveTypeInfo::F64 => ValType::F64,
-                                            PrimitiveTypeInfo::V128 => ValType::V128,
+                        if needed_resources.len() > 0 {
+                            debug!(
+                                "Adding out of function resources allocation for {} resources",
+                                needed_resources.len()
+                            );
+                        }
+                        for resource in &needed_resources {
+                            match resource {
+                                ResourceRequest::Global {
+                                    index: _,
+                                    tpe,
+                                    mutable,
+                                } => {
+                                    // Add to globals
+                                    new_global_section.global(
+                                        wasm_encoder::GlobalType {
+                                            mutable: *mutable,
+                                            val_type: match tpe {
+                                                PrimitiveTypeInfo::I32 => ValType::I32,
+                                                PrimitiveTypeInfo::I64 => ValType::I64,
+                                                PrimitiveTypeInfo::F32 => ValType::F32,
+                                                PrimitiveTypeInfo::F64 => ValType::F64,
+                                                PrimitiveTypeInfo::V128 => ValType::V128,
+                                                _ => {
+                                                    unreachable!("Not valid for globals")
+                                                }
+                                            },
+                                        },
+                                        match tpe {
+                                            PrimitiveTypeInfo::I32 => &Instruction::I32Const(0),
+                                            PrimitiveTypeInfo::I64 => &Instruction::I64Const(0),
+                                            PrimitiveTypeInfo::F32 => &Instruction::F32Const(0.0),
+                                            PrimitiveTypeInfo::F64 => &Instruction::F64Const(0.0),
+                                            PrimitiveTypeInfo::V128 => &Instruction::V128Const(0),
                                             _ => {
                                                 unreachable!("Not valid for globals")
                                             }
                                         },
-                                    },
-                                    match tpe {
-                                        PrimitiveTypeInfo::I32 => &Instruction::I32Const(0),
-                                        PrimitiveTypeInfo::I64 => &Instruction::I64Const(0),
-                                        PrimitiveTypeInfo::F32 => &Instruction::F32Const(0.0),
-                                        PrimitiveTypeInfo::F64 => &Instruction::F64Const(0.0),
-                                        PrimitiveTypeInfo::V128 => &Instruction::V128Const(0),
-                                        _ => {
-                                            unreachable!("Not valid for globals")
-                                        }
-                                    },
-                                );
+                                    );
+                                }
                             }
                         }
-                    }
 
-                    let code_index = config.info().code;
-                    let global_index = config.info().globals;
+                        let code_index = config.info().code;
+                        let global_index = config.info().globals;
 
-                    // This conditional placing enforces to write the global
-                    // section by respecting its relative order in the Wasm module
-                    let insert_globals_before = config
-                        .info()
-                        .globals
-                        .or(config.info().exports)
-                        .or(config.info().start)
-                        .or(config.info().elements)
-                        .or(config.info().data_count)
-                        .or(code_index);
+                        // This conditional placing enforces to write the global
+                        // section by respecting its relative order in the Wasm module
+                        let insert_globals_before = config
+                            .info()
+                            .globals
+                            .or(config.info().exports)
+                            .or(config.info().start)
+                            .or(config.info().elements)
+                            .or(config.info().data_count)
+                            .or(code_index);
 
-                    // If the mutator is in this staeg, then it passes the can_mutate flter,
-                    // which checks for code section existance
-                    let insert_globals_before = insert_globals_before.unwrap();
-                    let module = config.info().replace_multiple_sections(
-                        move |index, _sectionid, module: &mut wasm_encoder::Module| {
-                            if insert_globals_before == index
-                            // Write if needed or if it wasm in the init Wasm 
+                        // If the mutator is in this staeg, then it passes the can_mutate flter,
+                        // which checks for code section existance
+                        let insert_globals_before = insert_globals_before.unwrap();
+                        let module = config.info().replace_multiple_sections(
+                            move |index, _sectionid, module: &mut wasm_encoder::Module| {
+                                if insert_globals_before == index
+                            // Write if needed or if it wasm in the init Wasm
                             && (new_global_section.len() > 0 || global_index.is_some() )
-                            {
-                                // Insert the new globals here
-                                module.section(&new_global_section);
-                            }
-                            if index == code_index.unwrap() {
-                                // Replace code section
-                                module.section(&codes);
+                                {
+                                    // Insert the new globals here
+                                    module.section(&new_global_section);
+                                }
+                                if index == code_index.unwrap() {
+                                    // Replace code section
+                                    module.section(&codes);
 
-                                return true;
-                            }
-                            if let Some(gidx) = global_index {
-                                // return true since the global section is written by the
-                                // conditional position writer
-                                return gidx == index;
-                            }
-                            // False to say the underlying encoder to write the prexisting
-                            // section
-                            false
-                        },
-                    );
-                    Ok(module)
-                })
-                // Consume fuel for each returned expression and it is expensive
-                .take_while(move |_| config4fuel.consume_fuel(1).is_ok());
+                                    return true;
+                                }
+                                if let Some(gidx) = global_index {
+                                    // return true since the global section is written by the
+                                    // conditional position writer
+                                    return gidx == index;
+                                }
+                                // False to say the underlying encoder to write the prexisting
+                                // section
+                                false
+                            },
+                        );
+                        Ok(module)
+                    })
+                    // Consume fuel for each returned expression and it is expensive
+                    .take_while(move |_| config4fuel.consume_fuel(1).is_ok());
 
                 return Ok(Box::new(iterator));
             }
