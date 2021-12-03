@@ -31,6 +31,11 @@ impl PeepholeMutator {
             rewrite!("or--1";  "(i32.or ?x -1_i32)" => "-1_i32" ),
             rewrite!("or--12";  "(i64.or ?x -1_i64)" => "-1_i64" ),
             rewrite!("select-reduce";  "(select ?x ?y ?y)" => "?y"),
+            // Custom use_of_globals
+            rewrite!("use_of_globalsi32";  "?x" => "(i32.use_of_global ?x)" if self.is_type("?x", PrimitiveTypeInfo::I32) if self.global_count_less_than(config, /* modify this to allow more globals*/ 100000)),
+            rewrite!("use_of_globalsi64";  "?x" => "(i64.use_of_global ?x)" if self.is_type("?x", PrimitiveTypeInfo::I64) if self.global_count_less_than(config, /* modify this to allow more globals*/ 100000)),
+            rewrite!("use_of_globalsf32";  "?x" => "(f32.use_of_global ?x)" if self.is_type("?x", PrimitiveTypeInfo::F32) if self.global_count_less_than(config, /* modify this to allow more globals*/ 100000)),
+            rewrite!("use_of_globalsf64";  "?x" => "(f64.use_of_global ?x)" if self.is_type("?x", PrimitiveTypeInfo::F64) if self.global_count_less_than(config, /* modify this to allow more globals*/ 100000)),
         ];
         // Use a custom instruction-mutator for this
         // This specific rewriting rule has a condition, it should be appplied if the operand is a constant
@@ -171,5 +176,35 @@ impl PeepholeMutator {
                 Err(_) => false,
             }
         }
+    }
+
+    /// Condition to check for returning non empty value
+    fn returns(&self, vari: &'static str) -> impl Fn(&mut EG, Id, &Subst) -> bool {
+        move |egraph: &mut EG, _, subst| {
+            let var = vari.parse();
+            match var {
+                Ok(var) => {
+                    let eclass = &egraph[subst[var]];
+                    match &eclass.data {
+                        Some(d) => match d.tpe {
+                            PrimitiveTypeInfo::Empty => false,
+                            _ => true,
+                        },
+                        None => false,
+                    }
+                }
+                Err(_) => false,
+            }
+        }
+    }
+
+    /// Condition that check for number of module globals
+    fn global_count_less_than(
+        &self,
+        config: &WasmMutate,
+        allowed: usize,
+    ) -> impl Fn(&mut EG, Id, &Subst) -> bool {
+        let count = config.info().get_global_count();
+        move |_egraph: &mut EG, _, _subst| count < allowed
     }
 }

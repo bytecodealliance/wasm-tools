@@ -811,6 +811,66 @@ pub fn lazy_expand<'a>(
 
                         Box::new(t)
                     }
+                    Lang::I32UseGlobal(arg) => {
+                        let lcope = arg;
+                        let rec = recexpr.clone();
+
+                        let t = lazy_expand(
+                            lcope,
+                            eg,
+                            0, /* only one per mutator node */
+                            rnd.clone(),
+                            recexpr.clone(),
+                        )
+                        .map(move |l| rec.clone().borrow_mut().add(Lang::I32UseGlobal(l)));
+
+                        Box::new(t)
+                    }
+                    Lang::I64UseGlobal(arg) => {
+                        let lcope = arg;
+                        let rec = recexpr.clone();
+
+                        let t = lazy_expand(
+                            lcope,
+                            eg,
+                            0, /* only one per mutator node */
+                            rnd.clone(),
+                            recexpr.clone(),
+                        )
+                        .map(move |l| rec.clone().borrow_mut().add(Lang::I64UseGlobal(l)));
+
+                        Box::new(t)
+                    }
+                    Lang::F32UseGlobal(arg) => {
+                        let lcope = arg;
+                        let rec = recexpr.clone();
+
+                        let t = lazy_expand(
+                            lcope,
+                            eg,
+                            0, /* only one per mutator node */
+                            rnd.clone(),
+                            recexpr.clone(),
+                        )
+                        .map(move |l| rec.clone().borrow_mut().add(Lang::F32UseGlobal(l)));
+
+                        Box::new(t)
+                    }
+                    Lang::F64UseGlobal(arg) => {
+                        let lcope = arg;
+                        let rec = recexpr.clone();
+
+                        let t = lazy_expand(
+                            lcope,
+                            eg,
+                            0, /* only one per mutator node */
+                            rnd.clone(),
+                            recexpr.clone(),
+                        )
+                        .map(move |l| rec.clone().borrow_mut().add(Lang::F64UseGlobal(l)));
+
+                        Box::new(t)
+                    }
                     i @ Lang::I32(_) => Box::new(vec![recexpr.borrow_mut().add(i)].into_iter()),
 
                     i @ Lang::I64(_) => Box::new(vec![recexpr.borrow_mut().add(i)].into_iter()),

@@ -9,7 +9,7 @@ use wasmparser::{Chunk, Parser, Payload, SectionReader};
 
 /// Provides module information for future usage during mutation
 /// an instance of ModuleInfo could be user to determine which mutation could be applied
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct ModuleInfo<'a> {
     // The following fields are offsets inside the `raw_sections` field.
     // The main idea is to maintain the order of the sections in the input Wasm.
@@ -23,8 +23,10 @@ pub struct ModuleInfo<'a> {
     pub globals: Option<usize>,
     pub elements: Option<usize>,
     pub functions: Option<usize>,
+    pub data_count: Option<usize>,
     pub data: Option<usize>,
     pub code: Option<usize>,
+    pub start: Option<usize>,
 
     pub is_start_defined: bool,
     pub function_count: u32,
@@ -149,8 +151,10 @@ impl<'a> ModuleInfo<'a> {
 
                     info.section(SectionId::Export.into(), reader.range(), input_wasm);
                 }
-                Payload::StartSection { func: _, range: _ } => {
+                Payload::StartSection { func: _, range } => {
                     info.is_start_defined = true;
+                    info.start = Some(info.raw_sections.len());
+                    info.section(SectionId::Start.into(), range, input_wasm);
                 }
                 Payload::ElementSection(reader) => {
                     info.elements = Some(info.raw_sections.len());
@@ -179,6 +183,7 @@ impl<'a> ModuleInfo<'a> {
                     info.section(id, range, input_wasm);
                 }
                 Payload::DataCountSection { count: _, range } => {
+                    info.data_count = Some(info.raw_sections.len());
                     info.section(SectionId::DataCount.into(), range, input_wasm);
                 }
                 Payload::Version { .. } => {}
@@ -229,6 +234,17 @@ impl<'a> ModuleInfo<'a> {
         &self.types_map[functpeindex]
     }
 
+    /// Returns the number of globals used by the Wasm binary including imported
+    /// glboals
+    pub fn get_global_count(&self) -> usize {
+        self.global_types.len()
+    }
+
+    /// Returns the global section bytes as a `RawSection` instance
+    pub fn get_global_section(&self) -> RawSection {
+        self.raw_sections[self.globals.unwrap()]
+    }
+
     pub fn replace_section(
         &self,
         i: usize,
@@ -239,6 +255,29 @@ impl<'a> ModuleInfo<'a> {
             if i == j {
                 module.section(new_section);
             } else {
+                module.section(s);
+            }
+        });
+        module
+    }
+
+    /// Replaces raw sections in the passed indexes and return a new module
+    ///
+    /// This method will be helpful to add more than one custom section. For
+    /// example, some code mutations might need to add a few globals. This
+    /// method can be used to write a new or custom global section before the
+    /// code section.
+    /// * `section_writer` this callback should write the custom section and
+    ///   returns true if it was successful, if false is returned then the
+    ///   default section will be written to the module
+    pub fn replace_multiple_sections<P>(&self, section_writer: P) -> wasm_encoder::Module
+    where
+        P: Fn(usize, u8, &mut wasm_encoder::Module) -> bool,
+    {
+        let mut module = wasm_encoder::Module::new();
+        self.raw_sections.iter().enumerate().for_each(|(j, s)| {
+            // Write if the section_writer did not write a custom section
+            if !section_writer(j, s.id, &mut module) {
                 module.section(s);
             }
         });

@@ -5,11 +5,32 @@ use crate::error::EitherType;
 
 use crate::WasmMutate;
 
+use crate::module::PrimitiveTypeInfo;
 use crate::mutators::peephole::eggsy::encoder::TraversalEvent;
 use crate::mutators::peephole::{Lang, EG};
 use egg::{Id, RecExpr};
 use rand::Rng;
 use wasm_encoder::{Function, Instruction, MemArg};
+
+/// Some custom nodes might need special resource allocation outside the
+/// function. Fore xample, if a new global is needed is should be added outside
+/// the construction of the function in the `expr2wasm` method.
+#[derive(Clone, Debug)]
+pub enum ResourceRequest {
+    /// Global resource request
+    Global {
+        /// Global index
+        index: usize,
+        /// Global type
+        tpe: PrimitiveTypeInfo,
+        /// If its mutable
+        mutable: bool,
+    },
+    // TODO add other needed resources here, for example, needed locals, needed
+    // memory etc. Notice that how this resources are translated to Wasm code,
+    // you need to change the code inside the `mutate_with_rules` of the
+    // PeepholeMutator trait
+}
 
 /// Encodes an expression in the [Lang][Lang] intermediate language to Wasm
 /// * `rnd`  Random generator
@@ -20,7 +41,7 @@ pub fn expr2wasm(
     expr: &RecExpr<Lang>,
     newfunc: &mut Function,
     _egraph: &EG,
-) -> crate::Result<()> {
+) -> crate::Result<Vec<ResourceRequest>> {
     let nodes = expr.as_ref();
     // The last node is the root.
     let root = Id::from(nodes.len() - 1);
@@ -50,6 +71,12 @@ pub fn expr2wasm(
         worklist.push(Context::new(child, TraversalEvent::Exit));
         worklist.push(Context::new(child, TraversalEvent::Enter));
     };
+
+    // Resources out of the function body that the expr translation needs, for
+    // example, the creation of new globals
+    let mut resources = vec![];
+    // Next global idx
+    let mut global_idx = config.info().get_global_count() as u32;
 
     // Enqueue the coding back nodes and infer types
     while let Some(context) = worklist.pop() {
@@ -383,6 +410,12 @@ pub fn expr2wasm(
                     }
                     Lang::MemoryGrow { by, .. } => {
                         enqueue(&mut worklist, *by);
+                    }
+                    Lang::I32UseGlobal(operand)
+                    | Lang::I64UseGlobal(operand)
+                    | Lang::F32UseGlobal(operand)
+                    | Lang::F64UseGlobal(operand) => {
+                        enqueue(&mut worklist, *operand);
                     }
                     _ => { /* Do nothing */ }
                 }
@@ -1220,9 +1253,58 @@ pub fn expr2wasm(
                     Lang::MemorySize { mem, .. } => {
                         newfunc.instruction(&Instruction::MemorySize(*mem));
                     }
+                    Lang::I32UseGlobal(_) => {
+                        // Request a new global
+                        let request = ResourceRequest::Global {
+                            index: global_idx as usize,
+                            tpe: PrimitiveTypeInfo::I32,
+                            mutable: true,
+                        };
+                        resources.push(request);
+
+                        newfunc.instruction(&Instruction::GlobalSet(global_idx));
+                        newfunc.instruction(&Instruction::GlobalGet(global_idx));
+                        global_idx += 1;
+                    }
+                    Lang::I64UseGlobal(_) => {
+                        let request = ResourceRequest::Global {
+                            index: global_idx as usize,
+                            tpe: PrimitiveTypeInfo::I64,
+                            mutable: true,
+                        };
+                        resources.push(request);
+
+                        newfunc.instruction(&Instruction::GlobalSet(global_idx));
+                        newfunc.instruction(&Instruction::GlobalGet(global_idx));
+                        global_idx += 1;
+                    }
+                    Lang::F32UseGlobal(_) => {
+                        let request = ResourceRequest::Global {
+                            index: global_idx as usize,
+                            tpe: PrimitiveTypeInfo::F32,
+                            mutable: true,
+                        };
+                        resources.push(request);
+
+                        newfunc.instruction(&Instruction::GlobalSet(global_idx));
+                        newfunc.instruction(&Instruction::GlobalGet(global_idx));
+                        global_idx += 1;
+                    }
+                    Lang::F64UseGlobal(_) => {
+                        let request = ResourceRequest::Global {
+                            index: global_idx as usize,
+                            tpe: PrimitiveTypeInfo::F64,
+                            mutable: true,
+                        };
+                        resources.push(request);
+
+                        newfunc.instruction(&Instruction::GlobalSet(global_idx));
+                        newfunc.instruction(&Instruction::GlobalGet(global_idx));
+                        global_idx += 1;
+                    }
                 }
             }
         }
     }
-    Ok(())
+    Ok(resources)
 }

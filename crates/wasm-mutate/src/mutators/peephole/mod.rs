@@ -18,9 +18,9 @@
 //! rules.extend(rewrite!("strength-reduction";  "(i32.shl ?x 1_i32)" <=> "(i32.mul ?x 2_i32)"));
 //! ```
 //!
-use crate::error::EitherType;
 use crate::module::PrimitiveTypeInfo;
 use crate::mutators::peephole::eggsy::analysis::PeepholeMutationAnalysis;
+use crate::{error::EitherType, mutators::peephole::eggsy::encoder::expr2wasm::ResourceRequest};
 
 use crate::mutators::peephole::eggsy::encoder::Encoder;
 use crate::mutators::peephole::eggsy::expr_enumerator::lazy_expand_aux;
@@ -28,8 +28,8 @@ use crate::mutators::peephole::eggsy::lang::Lang;
 use egg::{Rewrite, Runner};
 use rand::{prelude::SmallRng, Rng};
 use std::convert::TryFrom;
-use wasm_encoder::{CodeSection, Function, Module, ValType};
-use wasmparser::{CodeSectionReader, FunctionBody, LocalsReader};
+use wasm_encoder::{CodeSection, Function, GlobalSection, Instruction, Module, ValType};
+use wasmparser::{CodeSectionReader, FunctionBody, GlobalSectionReader, LocalsReader};
 
 // Hack to show debug messages in tests
 #[cfg(not(test))]
@@ -212,7 +212,7 @@ impl PeepholeMutator {
                     config.info().function_map.clone(),
                 );
                 let runner = Runner::<Lang, PeepholeMutationAnalysis, ()>::new(analysis)
-                    .with_iter_limit(1) // only one iterations, do not wait for eq saturation, increasing only by one it affects the execution time of the mutator by a lot
+                    .with_iter_limit(1) // FIXME, the iterations should consume fuel from the actual mutator. Be careful with inner set time limits that can lead us to non-deterministic behavior
                     .with_expr(&start)
                     .run(&rules);
                 let mut egraph = runner.egraph;
@@ -247,7 +247,7 @@ impl PeepholeMutator {
                 .filter(move |expr| !expr.to_string().eq(&startcmp.to_string()))
                 .map(move |expr| {
                     let mut newfunc = self.copy_locals(reader)?;
-                    Encoder::build_function(
+                    let needed_resources = Encoder::build_function(
                         config,
                         opcode_to_mutate,
                         &expr,
@@ -274,9 +274,111 @@ impl PeepholeMutator {
                         }
                     }
 
-                    let module = config
+                    // Process the outside function needed resources
+                    // Needed globals
+                    let mut new_global_section = GlobalSection::new();
+                    // Reparse and reencode global section
+                    if let Some(_) = config.info().globals {
+                        // If the global section was already there, try to copy it to the
+                        // new raw section
+                        let global_section = config.info().get_global_section();
+                        let mut globalreader = GlobalSectionReader::new(global_section.data, 0)?;
+                        let count = globalreader.get_count();
+                        let mut start = globalreader.original_position();
+
+                        for _ in 0..count {
+                            let _ = globalreader.read()?;
+                            let current_pos = globalreader.original_position();
+                            let global = &global_section.data[start..current_pos];
+                            new_global_section.raw(global);
+                            start = current_pos;
+                        }
+                    }
+                    if needed_resources.len() > 0 {
+                        debug!(
+                            "Adding out of function resources allocation for {} resources",
+                            needed_resources.len()
+                        );
+                    }
+                    for resource in &needed_resources {
+                        match resource {
+                            ResourceRequest::Global {
+                                index: _,
+                                tpe,
+                                mutable,
+                            } => {
+                                // Add to globals
+                                new_global_section.global(
+                                    wasm_encoder::GlobalType {
+                                        mutable: *mutable,
+                                        val_type: match tpe {
+                                            PrimitiveTypeInfo::I32 => ValType::I32,
+                                            PrimitiveTypeInfo::I64 => ValType::I64,
+                                            PrimitiveTypeInfo::F32 => ValType::F32,
+                                            PrimitiveTypeInfo::F64 => ValType::F64,
+                                            PrimitiveTypeInfo::V128 => ValType::V128,
+                                            _ => {
+                                                unreachable!("Not valid for globals")
+                                            }
+                                        },
+                                    },
+                                    match tpe {
+                                        PrimitiveTypeInfo::I32 => &Instruction::I32Const(0),
+                                        PrimitiveTypeInfo::I64 => &Instruction::I64Const(0),
+                                        PrimitiveTypeInfo::F32 => &Instruction::F32Const(0.0),
+                                        PrimitiveTypeInfo::F64 => &Instruction::F64Const(0.0),
+                                        PrimitiveTypeInfo::V128 => &Instruction::V128Const(0),
+                                        _ => {
+                                            unreachable!("Not valid for globals")
+                                        }
+                                    },
+                                );
+                            }
+                        }
+                    }
+
+                    let code_index = config.info().code;
+                    let global_index = config.info().globals;
+
+                    // This conditional placing enforces to write the global
+                    // section by respecting its relative order in the Wasm module
+                    let insert_globals_before = config
                         .info()
-                        .replace_section(config.info().code.unwrap(), &codes);
+                        .globals
+                        .or(config.info().exports)
+                        .or(config.info().start)
+                        .or(config.info().elements)
+                        .or(config.info().data_count)
+                        .or(code_index);
+
+                    // If the mutator is in this staeg, then it passes the can_mutate flter,
+                    // which checks for code section existance
+                    let insert_globals_before = insert_globals_before.unwrap();
+                    let module = config.info().replace_multiple_sections(
+                        move |index, _sectionid, module: &mut wasm_encoder::Module| {
+                            if insert_globals_before == index
+                            // Write if needed or if it wasm in the init Wasm 
+                            && (new_global_section.len() > 0 || global_index.is_some() )
+                            {
+                                // Insert the new globals here
+                                module.section(&new_global_section);
+                            }
+                            if index == code_index.unwrap() {
+                                // Replace code section
+                                module.section(&codes);
+
+                                return true;
+                            }
+                            if let Some(gidx) = global_index {
+                                // return true since the global section is written by the
+                                // conditional position writer
+                                return gidx == index;
+                            }
+                            // False to say the underlying encoder to write the prexisting
+                            // section
+                            false
+                        },
+                    );
                     Ok(module)
                 })
                 // Consume fuel for each returned expression and it is expensive
@@ -1037,6 +1139,36 @@ mod tests {
             10,
         );
     }
+
+    #[test]
+    fn test_use_global() {
+        let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
+            &[rewrite!("rule";  "?x" => "(i32.use_of_global ?x)")];
+
+        test_peephole_mutator(
+            r#"
+        (module
+            (func (export "exported_func") (result i32) (local i32 i32)
+                i32.const 10
+            )
+        )
+        "#,
+            rules,
+            r#"
+            (module
+                (type (;0;) (func (result i32)))
+                (func (;0;) (type 0) (result i32)
+                  (local i32 i32)
+                  i32.const 10
+                  global.set 0
+                  global.get 0)
+                (global (;0;) (mut i32) i32.const 0)
+                (export "exported_func" (func 0)))
+            "#,
+            4,
+        );
+    }
+
     #[test]
     fn test_peep_idem3() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
@@ -1444,8 +1576,6 @@ mod tests {
 
             let expected_bytes = &wat::parse_str(expected).unwrap();
             let expectedtext = wasmprinter::print_bytes(expected_bytes).unwrap();
-
-            println!("{}", text);
 
             if expectedtext == text {
                 found = true;
