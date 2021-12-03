@@ -2,6 +2,7 @@ use anyhow::Result;
 use wasm_shrink::WasmShrink;
 
 fn wasm() -> Vec<u8> {
+    let _ = env_logger::try_init();
     wat::parse_str(
         r#"
             (module

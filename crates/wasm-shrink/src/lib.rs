@@ -163,6 +163,7 @@ impl WasmShrink {
             debug_assert!(
                 new.len() < old_best.len() || (new == EMPTY_WASM && *old_best == EMPTY_WASM)
             );
+            log::info!("New smallest Wasm found: {} bytes", new.len());
             on_new_smallest(&new)?;
             *old_best = new;
             Ok(())
@@ -203,30 +204,62 @@ impl WasmShrink {
 
         loop {
             let mut new_smallest = None;
+            let mut attempt = 0;
 
-            'attempts: for _ in 0..self.attempts {
+            'attempts: while attempt < self.attempts {
                 let mut mutate = WasmMutate::default();
                 mutate.reduce(true).seed(rng.gen());
 
                 let mutations = match mutate.run(&best) {
                     Ok(m) => m,
-                    Err(_) => {
+                    Err(e) => {
                         // This mutation failed, but another randomly chosen
                         // mutation might succeed, so keep attempting.
+                        log::trace!("Attempt #{}: mutation failed ({:?})", attempt, e);
+                        attempt += 1;
                         continue;
                     }
                 };
 
-                for mutated_wasm in mutations.filter_map(|w| w.ok()) {
-                    log::debug!("Testing candidate of size {}", mutated_wasm.len());
+                for mutated_wasm in mutations
+                    // NB: The only mutator that takes advantage of returning an
+                    // iterator with more than one item is the peephole mutator,
+                    // which doesn't help shrinking too much. Therefore, we only
+                    // take at most 10 elements.
+                    .take(std::cmp::min(self.attempts - attempt, 10) as usize)
+                {
+                    let mutated_wasm = match mutated_wasm {
+                        Ok(w) => w,
+                        Err(e) => {
+                            // This mutation failed, but another randomly chosen
+                            // mutation might succeed, so keep attempting.
+                            log::trace!("Attempt #{}: mutation failed ({:?})", attempt, e);
+                            attempt += 1;
+                            continue;
+                        }
+                    };
 
-                    // TODO: This "shouldn't" happen when we set
-                    // `.reduce(true)` on `WasmMutate`, but it does. This
-                    // should turn into a `debug_assert!` once we fix
-                    // `wasm-mutate`.
+                    // TODO: This "shouldn't" happen when we set `.reduce(true)`
+                    // on `WasmMutate`, but it does. This should turn into a
+                    // `debug_assert!` once we fix `wasm-mutate`.
                     if mutated_wasm.len() >= best.len() {
+                        log::trace!(
+                            "Attempt #{}: mutated Wasm ({} bytes) is not smaller than \
+                             best ({} bytes)",
+                            attempt,
+                            mutated_wasm.len(),
+                            best.len(),
+                        );
+                        attempt += 1;
                         continue;
                     }
+
+                    log::trace!(
+                        "Attempt #{}: testing candidate ({} bytes)",
+                        attempt,
+                        mutated_wasm.len()
+                    );
+                    attempt += 1;
 
                     if predicate(&mutated_wasm)?.is_interesting() {
                         new_smallest = Some(mutated_wasm);
