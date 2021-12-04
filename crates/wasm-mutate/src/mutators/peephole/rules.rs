@@ -571,26 +571,6 @@ impl PeepholeMutator {
         }
     }
 
-    /// Condition to check for returning non empty value
-    fn returns(&self, vari: &'static str) -> impl Fn(&mut EG, Id, &Subst) -> bool {
-        move |egraph: &mut EG, _, subst| {
-            let var = vari.parse();
-            match var {
-                Ok(var) => {
-                    let eclass = &egraph[subst[var]];
-                    match &eclass.data {
-                        Some(d) => match d.tpe {
-                            PrimitiveTypeInfo::Empty => false,
-                            _ => true,
-                        },
-                        None => false,
-                    }
-                }
-                Err(_) => false,
-            }
-        }
-    }
-
     /// Condition that check for number of module globals
     fn global_count_less_than(
         &self,
