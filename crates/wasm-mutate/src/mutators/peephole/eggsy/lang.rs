@@ -9,10 +9,10 @@ use std::str::FromStr;
 ///
 /// You can define custom operators by adding a variant to this enum. Notice
 /// that custom operator nodes can only be created from rewriting rules and not
-/// form the direct translation of the Wasm binary. After you
-/// add a custom node, you need to also implement its parsing from a `string`
-/// and its encoding to Wasm. Lets assume for example that we want to implement
-/// a custom node that insert three `nop` operators when it is written back to Wasm.
+/// form the direct translation of the Wasm binary. After you add a custom node,
+/// you need to also implement its parsing from a `string` and its encoding to
+/// Wasm. Let's assume for example that we want to implement a custom node that
+/// insert three `nop` operators when it is written back to Wasm.
 ///
 /// * We firsts need to define the custom node ```ThreeNops``` as a variant of
 ///   the [Lang] enum.
@@ -661,11 +661,17 @@ pub enum Lang {
     /// Propsoed custom mutator from issue #391, use-of-global
     F64UseGlobal(Id),
 
-    /// Just a wrapper of multiple nodes, when encoding to Wasm it is written as nothing
-    ///    Its only responsability is to add stack neutral operations (if semantic equivalence is set)
-    ///    For example, lets assume we want to insert a nop operation after or before (or both) another node
-    ///    `?x => (container nop ?x nop)`
-    ///    `?x => (container (drop i32.rand) ?x) `
+    /// Just a wrapper of multiple nodes, when encoding to Wasm it is written as
+    /// nothing. Its only responsibility is to express stack-neutral operations.
+    ///
+    /// For example, let's assume we want to insert a nop operation after or
+    /// before another node (or both). `container` allows us to do this with the
+    /// following rewrites:
+    ///
+    /// * Before: `?x => (container nop ?x)`
+    /// * After: `?x => (container ?x nop)`
+    /// * Before and after: `?x => (container nop ?x nop)`
+    /// * Stack-nuetral insertion: `?x => (container (drop i32.rand) ?x) `
     Container(Vec<Id>),
 
     // End of custom mutation operations and instructions
