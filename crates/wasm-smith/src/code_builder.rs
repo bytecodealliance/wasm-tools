@@ -1,4 +1,6 @@
-use super::{Elements, FuncType, Instruction, InstructionKind::*, Module, ValType};
+use super::{
+    Elements, FuncType, Instruction, InstructionKind::*, InstructionKinds, Module, ValType,
+};
 use arbitrary::{Result, Unstructured};
 use std::collections::{BTreeMap, BTreeSet};
 use std::convert::TryFrom;
@@ -18,6 +20,7 @@ macro_rules! instructions {
         fn choose_instruction(
             u: &mut Unstructured<'_>,
             module: &Module,
+            allowed_instructions: InstructionKinds,
             builder: &mut CodeBuilder,
         ) -> Option<
             fn(&mut Unstructured<'_>, &Module, &mut CodeBuilder) -> Result<Instruction>
@@ -33,7 +36,7 @@ macro_rules! instructions {
             $(
                 let predicate: Option<fn(&Module, &mut CodeBuilder) -> bool> = $predicate;
                 if predicate.map_or(true, |f| f(module, builder))
-                    && module.config.allowed_instructions().contains($instruction_kind) {
+                    && allowed_instructions.contains($instruction_kind) {
                     builder.allocs.options.push(($generator_fn, cost));
                     cost += 1000 $(- $cost)?;
                 }
@@ -820,6 +823,7 @@ impl CodeBuilder<'_> {
         module: &Module,
     ) -> Result<Vec<Instruction>> {
         let max_instructions = module.config.max_instructions();
+        let allowed_instructions = module.config.allowed_instructions();
         let mut instructions = vec![];
 
         while !self.allocs.controls.is_empty() {
@@ -830,7 +834,7 @@ impl CodeBuilder<'_> {
                 break;
             }
 
-            match choose_instruction(u, module, &mut self) {
+            match choose_instruction(u, module, allowed_instructions, &mut self) {
                 Some(f) => {
                     let inst = f(u, module, &mut self)?;
                     instructions.push(inst);
