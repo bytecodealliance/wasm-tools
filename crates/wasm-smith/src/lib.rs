@@ -75,8 +75,6 @@ mod terminate;
 use crate::code_builder::CodeBuilderAllocations;
 use arbitrary::{Arbitrary, Result, Unstructured};
 use flagset::{flags, FlagSet};
-#[cfg(feature = "_internal_cli")]
-use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::marker;
@@ -2499,7 +2497,7 @@ flags! {
     /// Enumerate the categories of instructions defined in the [WebAssembly
     /// specification](https://webassembly.github.io/spec/core/syntax/instructions.html).
     #[allow(missing_docs)]
-    #[cfg_attr(feature = "_internal_cli", derive(Deserialize))]
+    #[cfg_attr(feature = "_internal_cli", derive(serde::Deserialize))]
     pub enum InstructionKind: u16 {
         Numeric,
         Vector,
