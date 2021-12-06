@@ -2460,7 +2460,10 @@ struct Outer {
 }
 
 /// A container for the kinds of instructions that wasm-smith is allowed to
-/// emit. Usage:
+/// emit.
+///
+/// # Example
+///
 /// ```
 /// # use wasm_smith::{InstructionKinds, InstructionKind};
 /// let kinds = InstructionKinds::new(&[InstructionKind::Numeric, InstructionKind::Memory]);
