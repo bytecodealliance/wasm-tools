@@ -18,7 +18,7 @@ log = "0.4"
 rayon = "1.0"
 structopt = "0.3.16"
 wasm-mutate = { path = "crates/wasm-mutate", features = ["structopt"] }
-wasm-smith = { path = "crates/wasm-smith" }
+wasm-smith = { path = "crates/wasm-smith", features = ["_internal_cli"] }
 wasmparser = { path = "crates/wasmparser" }
 wasmparser-dump = { path = "crates/dump" }
 wasmprinter = { path = "crates/wasmprinter" }
