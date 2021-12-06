@@ -16,6 +16,7 @@ pub struct ModuleInfo<'a> {
     pub exports: Option<usize>,
     pub export_names: HashSet<String>,
 
+    // Indices of various sections within `self.raw_sections`.
     pub types: Option<usize>,
     pub imports: Option<usize>,
     pub tables: Option<usize>,
@@ -29,6 +30,7 @@ pub struct ModuleInfo<'a> {
     pub start: Option<usize>,
 
     pub is_start_defined: bool,
+    pub elements_count: u32,
     pub function_count: u32,
     pub exports_count: u32,
     pub imported_functions_count: u32,
@@ -158,6 +160,7 @@ impl<'a> ModuleInfo<'a> {
                 }
                 Payload::ElementSection(reader) => {
                     info.elements = Some(info.raw_sections.len());
+                    info.elements_count = reader.get_count();
                     info.section(SectionId::Element.into(), reader.range(), input_wasm);
                 }
                 Payload::DataSection(reader) => {
@@ -208,6 +211,10 @@ impl<'a> ModuleInfo<'a> {
             id,
             data: &full_wasm[range.start..range.end],
         });
+    }
+
+    pub fn get_elements_section(&self) -> RawSection<'a> {
+        self.raw_sections[self.elements.unwrap()]
     }
 
     pub fn get_code_section(&self) -> RawSection<'a> {
