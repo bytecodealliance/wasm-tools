@@ -19,12 +19,12 @@
 //! iterates through the defined functions, and then each instruction of the
 //! functions is processed in order to construct an equivalent piece of code.
 //!
-use rand::prelude::SmallRng;
+
 use wasm_encoder::Module;
 use wasmparser::Operator;
 
 use super::Result;
-use crate::{ModuleInfo, WasmMutate};
+use crate::WasmMutate;
 
 /// This trait needs to be implemented for all mutators
 ///
@@ -34,12 +34,16 @@ pub trait Mutator {
     /// Method where the mutation happpens
     ///
     /// * `config` instance of WasmMutate
-    /// * `rnd` random number generator
-    /// * `info` parsed lane AST of the input Wasm module
-    fn mutate(&self, config: &WasmMutate, rnd: &mut SmallRng, info: &ModuleInfo) -> Result<Module>;
+    fn mutate<'a>(
+        self,
+        config: &'a mut WasmMutate,
+    ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>>
+    where
+        Self: Copy;
 
-    /// Returns if this mutator can be applied with the info and the byte range in which it can be applied
-    fn can_mutate<'a>(&self, config: &'a WasmMutate, info: &ModuleInfo) -> bool;
+    /// Returns if this mutator can be applied with the info and the byte range
+    /// in which it can be applied
+    fn can_mutate(&self, config: &WasmMutate) -> bool;
 
     /// Provides the name of the mutator, mostly used for debugging purposes
     fn name(&self) -> String {
@@ -58,19 +62,27 @@ pub mod rename_export;
 pub mod snip_function;
 
 #[cfg(test)]
-pub(crate) fn match_mutation(original: &str, mutator: &dyn Mutator, expected: &str) {
-    use rand::SeedableRng;
+pub(crate) fn match_mutation<T>(original: &str, mutator: T, expected: &str)
+where
+    T: Mutator + Copy,
+{
+    use rand::{prelude::SmallRng, SeedableRng};
 
-    let wasmmutate = WasmMutate::default();
+    use crate::info::ModuleInfo;
+
+    let mut wasmmutate = WasmMutate::default();
     let original = &wat::parse_str(original).unwrap();
 
     let info = ModuleInfo::new(original).unwrap();
-    let can_mutate = mutator.can_mutate(&wasmmutate, &info);
+    wasmmutate.info = Some(info);
+    let rnd = SmallRng::seed_from_u64(0);
+    wasmmutate.rng = Some(rnd);
+
+    let can_mutate = mutator.can_mutate(&wasmmutate);
 
     assert!(can_mutate);
 
-    let mut rnd = SmallRng::seed_from_u64(0);
-    let mutation = mutator.mutate(&wasmmutate, &mut rnd, &info);
+    let mutation = mutator.mutate(&mut wasmmutate).unwrap().next().unwrap();
 
     let mutation_bytes = mutation.unwrap().finish();
 

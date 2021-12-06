@@ -2,25 +2,46 @@
 use std::num::Wrapping;
 
 use crate::error::EitherType;
-use crate::info::ModuleInfo;
 
+use crate::WasmMutate;
+
+use crate::module::PrimitiveTypeInfo;
 use crate::mutators::peephole::eggsy::encoder::TraversalEvent;
 use crate::mutators::peephole::{Lang, EG};
 use egg::{Id, RecExpr};
 use rand::Rng;
 use wasm_encoder::{Function, Instruction, MemArg};
 
+/// Some custom nodes might need special resource allocation outside the
+/// function. Fore xample, if a new global is needed is should be added outside
+/// the construction of the function in the `expr2wasm` method.
+#[derive(Clone, Debug)]
+pub enum ResourceRequest {
+    /// Global resource request
+    Global {
+        /// Global index
+        index: usize,
+        /// Global type
+        tpe: PrimitiveTypeInfo,
+        /// If its mutable
+        mutable: bool,
+    },
+    // TODO add other needed resources here, for example, needed locals, needed
+    // memory etc. Notice that how this resources are translated to Wasm code,
+    // you need to change the code inside the `mutate_with_rules` of the
+    // PeepholeMutator trait
+}
+
 /// Encodes an expression in the [Lang][Lang] intermediate language to Wasm
 /// * `rnd`  Random generator
 /// * `expr` [Lang] expression to encode
 /// * `newfunc` Function stream in which the expression will be encoded
 pub fn expr2wasm(
-    _info: &ModuleInfo,
-    rnd: &mut rand::prelude::SmallRng,
+    config: &mut WasmMutate,
     expr: &RecExpr<Lang>,
     newfunc: &mut Function,
     _egraph: &EG,
-) -> crate::Result<()> {
+) -> crate::Result<Vec<ResourceRequest>> {
     let nodes = expr.as_ref();
     // The last node is the root.
     let root = Id::from(nodes.len() - 1);
@@ -50,6 +71,12 @@ pub fn expr2wasm(
         worklist.push(Context::new(child, TraversalEvent::Exit));
         worklist.push(Context::new(child, TraversalEvent::Enter));
     };
+
+    // Resources out of the function body that the expr translation needs, for
+    // example, the creation of new globals
+    let mut resources = vec![];
+    // Next global idx
+    let mut global_idx = config.info().get_global_count() as u32;
 
     // Enqueue the coding back nodes and infer types
     while let Some(context) = worklist.pop() {
@@ -376,6 +403,20 @@ pub fn expr2wasm(
                         enqueue(&mut worklist, value_and_offset[1]);
                         enqueue(&mut worklist, value_and_offset[0]);
                     }
+                    Lang::Select([condition, consequent, alternative]) => {
+                        enqueue(&mut worklist, *condition);
+                        enqueue(&mut worklist, *alternative);
+                        enqueue(&mut worklist, *consequent);
+                    }
+                    Lang::MemoryGrow { by, .. } => {
+                        enqueue(&mut worklist, *by);
+                    }
+                    Lang::I32UseGlobal(operand)
+                    | Lang::I64UseGlobal(operand)
+                    | Lang::F32UseGlobal(operand)
+                    | Lang::F64UseGlobal(operand) => {
+                        enqueue(&mut worklist, *operand);
+                    }
                     _ => { /* Do nothing */ }
                 }
             }
@@ -602,10 +643,10 @@ pub fn expr2wasm(
                         newfunc.instruction(&Instruction::I64Load32_U(memarg));
                     }
                     Lang::RandI32 => {
-                        newfunc.instruction(&Instruction::I32Const(rnd.gen()));
+                        newfunc.instruction(&Instruction::I32Const(config.rng().gen()));
                     }
                     Lang::RandI64 => {
-                        newfunc.instruction(&Instruction::I64Const(rnd.gen()));
+                        newfunc.instruction(&Instruction::I64Const(config.rng().gen()));
                     }
                     Lang::Undef => { /* Do nothig */ }
                     Lang::UnfoldI32(value) => {
@@ -614,7 +655,7 @@ pub fn expr2wasm(
                             Lang::I32(value) => {
                                 // Getting type from eclass.
 
-                                let r: i32 = rnd.gen();
+                                let r: i32 = config.rng().gen();
                                 newfunc.instruction(&Instruction::I32Const(r));
                                 newfunc.instruction(&Instruction::I32Const(
                                     (Wrapping(*value as i32) - Wrapping(r)).0,
@@ -623,7 +664,10 @@ pub fn expr2wasm(
                             }
                             _ => {
                                 return Err(crate::Error::UnsupportedType(EitherType::EggError(
-                                    format!("The current eterm cannot be unfolded {:?}", child,),
+                                    format!(
+                                        "The current eterm cannot be unfolded {:?}.\n expr {}",
+                                        child, expr
+                                    ),
                                 )))
                             }
                         }
@@ -634,7 +678,7 @@ pub fn expr2wasm(
                             Lang::I64(value) => {
                                 // Getting type from eclass.
 
-                                let r: i64 = rnd.gen();
+                                let r: i64 = config.rng().gen();
                                 newfunc.instruction(&Instruction::I64Const(r));
                                 newfunc.instruction(&Instruction::I64Const(
                                     (Wrapping(*value) - Wrapping(r)).0,
@@ -643,7 +687,10 @@ pub fn expr2wasm(
                             }
                             _ => {
                                 return Err(crate::Error::UnsupportedType(EitherType::EggError(
-                                    format!("The current eterm cannot be unfolded {:?}", child,),
+                                    format!(
+                                        "The current eterm cannot be unfolded {:?}.\n expr {}",
+                                        child, expr
+                                    ),
                                 )))
                             }
                         }
@@ -1197,9 +1244,67 @@ pub fn expr2wasm(
                     Lang::Container(_) => {
                         // Do nothing
                     }
+                    Lang::Select(_) => {
+                        newfunc.instruction(&Instruction::Select);
+                    }
+                    Lang::MemoryGrow { mem, .. } => {
+                        newfunc.instruction(&Instruction::MemoryGrow(*mem));
+                    }
+                    Lang::MemorySize { mem, .. } => {
+                        newfunc.instruction(&Instruction::MemorySize(*mem));
+                    }
+                    Lang::I32UseGlobal(_) => {
+                        // Request a new global
+                        let request = ResourceRequest::Global {
+                            index: global_idx as usize,
+                            tpe: PrimitiveTypeInfo::I32,
+                            mutable: true,
+                        };
+                        resources.push(request);
+
+                        newfunc.instruction(&Instruction::GlobalSet(global_idx));
+                        newfunc.instruction(&Instruction::GlobalGet(global_idx));
+                        global_idx += 1;
+                    }
+                    Lang::I64UseGlobal(_) => {
+                        let request = ResourceRequest::Global {
+                            index: global_idx as usize,
+                            tpe: PrimitiveTypeInfo::I64,
+                            mutable: true,
+                        };
+                        resources.push(request);
+
+                        newfunc.instruction(&Instruction::GlobalSet(global_idx));
+                        newfunc.instruction(&Instruction::GlobalGet(global_idx));
+                        global_idx += 1;
+                    }
+                    Lang::F32UseGlobal(_) => {
+                        let request = ResourceRequest::Global {
+                            index: global_idx as usize,
+                            tpe: PrimitiveTypeInfo::F32,
+                            mutable: true,
+                        };
+                        resources.push(request);
+
+                        newfunc.instruction(&Instruction::GlobalSet(global_idx));
+                        newfunc.instruction(&Instruction::GlobalGet(global_idx));
+                        global_idx += 1;
+                    }
+                    Lang::F64UseGlobal(_) => {
+                        let request = ResourceRequest::Global {
+                            index: global_idx as usize,
+                            tpe: PrimitiveTypeInfo::F64,
+                            mutable: true,
+                        };
+                        resources.push(request);
+
+                        newfunc.instruction(&Instruction::GlobalSet(global_idx));
+                        newfunc.instruction(&Instruction::GlobalGet(global_idx));
+                        global_idx += 1;
+                    }
                 }
             }
         }
     }
-    Ok(())
+    Ok(resources)
 }

@@ -11,7 +11,12 @@ pub enum PrimitiveTypeInfo {
     I64,
     F32,
     F64,
+    V128,
+    FuncRef,
+    ExternRef,
     Empty,
+    ExnRef,
+    Func,
 }
 
 #[derive(Debug, Clone)]
@@ -32,12 +37,16 @@ impl TryFrom<Type> for PrimitiveTypeInfo {
 
     fn try_from(value: Type) -> Result<Self, Self::Error> {
         match value {
-            wasmparser::Type::I32 => Ok(PrimitiveTypeInfo::I32),
-            wasmparser::Type::I64 => Ok(PrimitiveTypeInfo::I64),
-            wasmparser::Type::F32 => Ok(PrimitiveTypeInfo::F32),
-            wasmparser::Type::F64 => Ok(PrimitiveTypeInfo::F64),
+            Type::I32 => Ok(PrimitiveTypeInfo::I32),
+            Type::I64 => Ok(PrimitiveTypeInfo::I64),
+            Type::F32 => Ok(PrimitiveTypeInfo::F32),
+            Type::F64 => Ok(PrimitiveTypeInfo::F64),
+            Type::V128 => Ok(PrimitiveTypeInfo::V128),
+            Type::FuncRef => Ok(PrimitiveTypeInfo::FuncRef),
+            Type::ExternRef => Ok(PrimitiveTypeInfo::ExternRef),
             Type::EmptyBlockType => Ok(PrimitiveTypeInfo::Empty),
-            _ => Err(super::Error::UnsupportedType(EitherType::Type(value))),
+            Type::ExnRef => Ok(PrimitiveTypeInfo::ExnRef),
+            Type::Func => Ok(PrimitiveTypeInfo::Func),
         }
     }
 }
@@ -51,13 +60,13 @@ impl TryFrom<TypeDef<'_>> for TypeInfo {
                 params: ft
                     .params
                     .iter()
-                    .map(|&t| PrimitiveTypeInfo::try_from(t).unwrap())
-                    .collect(),
+                    .map(|&t| PrimitiveTypeInfo::try_from(t))
+                    .collect::<Result<Vec<_>, _>>()?,
                 returns: ft
                     .returns
                     .iter()
-                    .map(|&t| PrimitiveTypeInfo::try_from(t).unwrap())
-                    .collect(),
+                    .map(|&t| PrimitiveTypeInfo::try_from(t))
+                    .collect::<Result<Vec<_>, _>>()?,
             })),
             _ => Err(super::Error::UnsupportedType(EitherType::TypeDef(format!(
                 "{:?}",
@@ -73,6 +82,9 @@ pub fn map_type(tpe: Type) -> super::Result<ValType> {
         Type::I64 => Ok(ValType::I64),
         Type::F32 => Ok(ValType::F32),
         Type::F64 => Ok(ValType::F64),
+        Type::V128 => Ok(ValType::V128),
+        Type::FuncRef => Ok(ValType::FuncRef),
+        Type::ExternRef => Ok(ValType::ExternRef),
         _ => Err(super::Error::UnsupportedType(EitherType::Type(tpe))),
     }
 }

@@ -1426,7 +1426,7 @@ impl Validator {
                 }
                 ElementKind::Passive | ElementKind::Declared => {
                     if !me.features.bulk_memory {
-                        return me.create_error("reference types must be enabled");
+                        return me.create_error("bulk memory must be enabled");
                     }
                 }
             }

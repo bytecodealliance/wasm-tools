@@ -36,7 +36,7 @@ use structopt::StructOpt;
 ///
 /// * 5: Constructing the Ast for code motion mutations fails
 #[derive(StructOpt)]
-struct Options {
+struct Options<'wasm> {
     /// The input WebAssembly binary that will be mutated.
     ///
     /// `stdin` is used if this argument is not supplied.
@@ -51,12 +51,12 @@ struct Options {
     output: Option<PathBuf>,
 
     #[structopt(flatten)]
-    wasm_mutate: wasm_mutate::WasmMutate,
+    wasm_mutate: wasm_mutate::WasmMutate<'wasm>,
 }
 
 fn main() -> anyhow::Result<()> {
     env_logger::init();
-    let opts = Options::from_args();
+    let mut opts = Options::from_args();
 
     let stdin = stdin();
     let (mut input, input_name): (Box<dyn Read>, _) = match &opts.input {
@@ -91,8 +91,8 @@ fn main() -> anyhow::Result<()> {
     input
         .read_to_end(&mut input_wasm)
         .with_context(|| format!("failed to read '{}'", input_name))?;
-
-    let output_wasm = match opts.wasm_mutate.run(&input_wasm) {
+    let it = opts.wasm_mutate.run(&input_wasm);
+    let mut output_wasm = match it {
         Ok(w) => w,
         Err(e) => {
             let code = match &e {
@@ -106,9 +106,47 @@ fn main() -> anyhow::Result<()> {
         }
     };
 
-    output
-        .write_all(&output_wasm)
-        .with_context(|| format!("failed to write to '{}'", output_name))?;
+    let mut first_good = Err(wasm_mutate::Error::NoMutationsApplicable);
 
+    while let Some(w) = output_wasm.next() {
+        match w {
+            Ok(w) => {
+                first_good = Ok(w);
+                break;
+            }
+            Err(e) => {
+                let code = match &e {
+                    wasm_mutate::Error::NoMutationsApplicable => {
+                        // Continue to the next one if its is type no mutation
+                        // otherwrise, raise an error
+                        continue;
+                    }
+                    wasm_mutate::Error::UnsupportedType(_) => 3,
+                    wasm_mutate::Error::Parse(_) => 4,
+                    wasm_mutate::Error::InvalidAstOperation(_) => 5,
+                };
+                eprintln!("{}", e);
+                std::process::exit(code);
+            }
+        }
+    }
+
+    match first_good {
+        Ok(w) => {
+            output
+                .write_all(&w)
+                .with_context(|| format!("failed to write to '{}'", output_name))?;
+        }
+        Err(e) => {
+            let code = match &e {
+                wasm_mutate::Error::NoMutationsApplicable => 2,
+                wasm_mutate::Error::UnsupportedType(_) => 3,
+                wasm_mutate::Error::Parse(_) => 4,
+                wasm_mutate::Error::InvalidAstOperation(_) => 5,
+            };
+            eprintln!("{}", e);
+            std::process::exit(code);
+        }
+    }
     Ok(())
 }

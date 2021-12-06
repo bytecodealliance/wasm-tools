@@ -14,11 +14,9 @@ fuzz_target!(|bytes: &[u8]| {
     // use with `wasm-mutate`.
 
     let mut seed = 0;
-    let (wasm, _config) = match wasm_tools_fuzz::generate_valid_module(bytes, |config, u| {
+    let (wasm, config) = match wasm_tools_fuzz::generate_valid_module(bytes, |config, u| {
         config.module_linking_enabled = false;
         config.exceptions_enabled = false;
-        config.simd_enabled = false;
-        config.reference_types_enabled = false;
         config.memory64_enabled = false;
         config.max_memories = 1;
         seed = u.arbitrary()?;
@@ -45,45 +43,67 @@ fuzz_target!(|bytes: &[u8]| {
     }
 
     // Mutate the Wasm with `wasm-mutate`. We always preserve semantics.
+    let mut wasm_mutate = wasm_mutate::WasmMutate::default();
+    wasm_mutate.seed(seed);
+    wasm_mutate.fuel(300);
+    wasm_mutate.preserve_semantics(true);
 
-    let mutated_wasm = wasm_mutate::WasmMutate::default()
-        .seed(seed)
-        .fuel(1000)
-        .preserve_semantics(true)
-        .run(&wasm);
-    let mutated_wasm = match mutated_wasm {
-        Ok(w) => {
-            NUM_SUCCESSFUL_MUTATIONS.fetch_add(1, Ordering::Relaxed);
-            w
+    let mutated_wasm_iterator = wasm_mutate.run(&wasm);
+    let mut found = false;
+
+    let mut features = WasmFeatures::default();
+
+    features.simd = config.simd_enabled;
+    features.relaxed_simd = config.relaxed_simd_enabled;
+    features.reference_types = config.reference_types_enabled;
+    features.module_linking = config.module_linking_enabled;
+    features.bulk_memory = config.bulk_memory_enabled;
+
+    match mutated_wasm_iterator {
+        Ok(mut iterator) => {
+            while let Some(mutated_wasm) = iterator.next() {
+                match mutated_wasm {
+                    Ok(mutated_wasm) => {
+                        // Increase ony once for the same input Wasm
+                        if !found {
+                            NUM_SUCCESSFUL_MUTATIONS.fetch_add(1, Ordering::Relaxed);
+                            found = true;
+                        }
+
+                        let mut validator = wasmparser::Validator::new();
+                        validator.wasm_features(features);
+
+                        let validation_result = validator.validate_all(&mutated_wasm);
+
+                        log::debug!("validation result = {:?}", validation_result);
+
+                        if log::log_enabled!(log::Level::Debug) {
+                            std::fs::write("mutated.wasm", &mutated_wasm)
+                                .expect("should write `mutated.wasm` okay");
+                            if let Ok(mutated_wat) = wasmprinter::print_bytes(&mutated_wasm) {
+                                std::fs::write("mutated.wat", &mutated_wat)
+                                    .expect("should write `mutated.wat` okay");
+                            }
+                        }
+                        assert!(
+                            validation_result.is_ok(),
+                            "`wasm-mutate` should always produce a valid Wasm file"
+                        );
+                        #[cfg(feature = "wasmtime")]
+                        eval::assert_same_evaluation(&wasm, &mutated_wasm);
+                    }
+                    Err(e) => match e {
+                        wasm_mutate::Error::NoMutationsApplicable => continue,
+                        e => panic!("Unexpected mutation failure: {}", e),
+                    },
+                }
+            }
         }
         Err(e) => match e {
             wasm_mutate::Error::NoMutationsApplicable => return,
             e => panic!("Unexpected mutation failure: {}", e),
         },
-    };
-
-    if log::log_enabled!(log::Level::Debug) {
-        std::fs::write("mutated.wasm", &mutated_wasm).expect("should write `mutated.wasm` okay");
-        if let Ok(mutated_wat) = wasmprinter::print_bytes(&mutated_wasm) {
-            std::fs::write("mutated.wat", &mutated_wat).expect("should write `mutated.wat` okay");
-        }
     }
-
-    // The mutated Wasm should still be valid, since the input Wasm was valid.
-
-    let features = WasmFeatures::default();
-    let mut validator = wasmparser::Validator::new();
-    validator.wasm_features(features);
-
-    let validation_result = validator.validate_all(&mutated_wasm);
-    log::debug!("validation result = {:?}", validation_result);
-    assert!(
-        validation_result.is_ok(),
-        "`wasm-mutate` should always produce a valid Wasm file"
-    );
-
-    #[cfg(feature = "wasmtime")]
-    eval::assert_same_evaluation(&wasm, &mutated_wasm);
 });
 
 #[cfg(feature = "wasmtime")]

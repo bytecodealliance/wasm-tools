@@ -1,7 +1,7 @@
 //! Mutator that replaces a function's body with an `unreachable` instruction.
 
-use crate::{ModuleInfo, Result, WasmMutate};
-use rand::prelude::SmallRng;
+use crate::{Result, WasmMutate};
+
 use rand::Rng;
 use wasm_encoder::{CodeSection, Function, Instruction, Module};
 use wasmparser::CodeSectionReader;
@@ -9,15 +9,19 @@ use wasmparser::CodeSectionReader;
 use super::Mutator;
 
 /// Sets the body of a function to unreachable
+#[derive(Clone, Copy)]
 pub struct FunctionBodyUnreachable;
 
 impl Mutator for FunctionBodyUnreachable {
-    fn mutate(&self, config: &WasmMutate, rnd: &mut SmallRng, info: &ModuleInfo) -> Result<Module> {
+    fn mutate<'a>(
+        self,
+        config: &mut WasmMutate<'a>,
+    ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         let mut codes = CodeSection::new();
-        let code_section = info.get_code_section();
+        let code_section = config.info().get_code_section();
         let mut reader = CodeSectionReader::new(code_section.data, 0)?;
         let count = reader.get_count();
-        let function_to_mutate = rnd.gen_range(0, count);
+        let function_to_mutate = config.rng().gen_range(0, count);
         (0..count)
             .map(|i| {
                 config.consume_fuel(1)?;
@@ -36,11 +40,13 @@ impl Mutator for FunctionBodyUnreachable {
                 Ok(())
             })
             .collect::<Result<Vec<_>>>()?;
-        Ok(info.replace_section(info.code.unwrap(), &codes))
+        Ok(Box::new(std::iter::once(Ok(config
+            .info()
+            .replace_section(config.info().code.unwrap(), &codes)))))
     }
 
-    fn can_mutate<'a>(&self, config: &'a WasmMutate, info: &ModuleInfo) -> bool {
-        !config.preserve_semantics && info.has_code()
+    fn can_mutate<'a>(&self, config: &'a WasmMutate) -> bool {
+        !config.preserve_semantics && config.info().has_code()
     }
 }
 
@@ -64,7 +70,7 @@ mod tests {
                 )
             )
         "#,
-            &FunctionBodyUnreachable,
+            FunctionBodyUnreachable,
             r#"(module
               (type (;0;) (func (result i64)))
               (type (;1;) (func (result i32)))

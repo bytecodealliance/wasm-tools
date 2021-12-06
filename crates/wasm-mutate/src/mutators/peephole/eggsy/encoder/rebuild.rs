@@ -6,8 +6,19 @@ use crate::mutators::peephole::Lang;
 use egg::{Id, RecExpr};
 
 /// Build RecExpr from tree information
+///
 pub fn build_expr(root: Id, id_to_node: &[Lang], operands: &[Vec<Id>]) -> RecExpr<Lang> {
     let mut expr = RecExpr::default();
+    build_expr_inner(root, id_to_node, operands, &mut expr);
+    expr
+}
+
+pub(crate) fn build_expr_inner(
+    root: Id,
+    id_to_node: &[Lang],
+    operands: &[Vec<Id>],
+    expr: &mut RecExpr<Lang>,
+) -> Id {
     // A map from the `Id`s we assigned to each sub-expression when extracting a
     // random expression to the `Id`s assigned to each sub-expression by the
     // `RecExpr`.
@@ -438,6 +449,16 @@ pub fn build_expr(root: Id, id_to_node: &[Lang], operands: &[Vec<Id>]) -> RecExp
                         mem: *mem,
                         value_and_offset: [operand(0), operand(1)],
                     }),
+                    Lang::Select(_) => expr.add(Lang::Select([operand(0), operand(1), operand(2)])),
+                    Lang::MemoryGrow { mem, mem_byte, .. } => expr.add(Lang::MemoryGrow {
+                        mem: *mem,
+                        mem_byte: *mem_byte,
+                        by: operand(0),
+                    }),
+                    Lang::I32UseGlobal(_) => expr.add(Lang::I32UseGlobal(operand(0))),
+                    Lang::I64UseGlobal(_) => expr.add(Lang::I64UseGlobal(operand(0))),
+                    Lang::F32UseGlobal(_) => expr.add(Lang::F32UseGlobal(operand(0))),
+                    Lang::F64UseGlobal(_) => expr.add(Lang::F64UseGlobal(operand(0))),
                     i32 @ Lang::I32(_) => expr.add((*i32).clone()),
                     i64 @ Lang::I64(_) => expr.add((*i64).clone()),
                     f32 @ Lang::F32(_) => expr.add((*f32).clone()),
@@ -446,6 +467,7 @@ pub fn build_expr(root: Id, id_to_node: &[Lang], operands: &[Vec<Id>]) -> RecExp
                     s @ Lang::RandI64 => expr.add((*s).clone()),
                     u @ Lang::Undef => expr.add((*u).clone()),
                     n @ Lang::Nop => expr.add((*n).clone()),
+                    ms @ Lang::MemorySize { .. } => expr.add((*ms).clone()),
                 };
                 // Copy the id to stack entries to a new one
                 let old_entry = node_to_id.insert(node, sub_expr_id);
@@ -453,5 +475,5 @@ pub fn build_expr(root: Id, id_to_node: &[Lang], operands: &[Vec<Id>]) -> RecExp
             }
         }
     }
-    expr
+    Id::from(expr.as_ref().len() - 1)
 }
