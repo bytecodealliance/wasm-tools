@@ -55,6 +55,7 @@ pub trait Mutator {
 pub type OperatorAndByteOffset<'a> = (Operator<'a>, usize);
 
 pub mod codemotion;
+pub mod data;
 pub mod elems;
 pub mod function_body_unreachable;
 pub mod peephole;

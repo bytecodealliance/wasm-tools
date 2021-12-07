@@ -31,6 +31,7 @@ pub struct ModuleInfo<'a> {
 
     pub is_start_defined: bool,
     pub elements_count: u32,
+    pub data_segments_count: u32,
     pub function_count: u32,
     pub exports_count: u32,
     pub imported_functions_count: u32,
@@ -165,6 +166,7 @@ impl<'a> ModuleInfo<'a> {
                 }
                 Payload::DataSection(reader) => {
                     info.data = Some(info.raw_sections.len());
+                    info.data_segments_count = reader.get_count();
                     info.section(SectionId::Data.into(), reader.range(), input_wasm);
                 }
                 Payload::CustomSection {
@@ -215,6 +217,10 @@ impl<'a> ModuleInfo<'a> {
 
     pub fn get_elements_section(&self) -> RawSection<'a> {
         self.raw_sections[self.elements.unwrap()]
+    }
+
+    pub fn get_data_section(&self) -> RawSection<'a> {
+        self.raw_sections[self.data.unwrap()]
     }
 
     pub fn get_code_section(&self) -> RawSection<'a> {
