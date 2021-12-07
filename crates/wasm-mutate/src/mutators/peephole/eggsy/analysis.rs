@@ -110,7 +110,6 @@ impl PeepholeMutationAnalysis {
 
                         Ok(ty.returns[0].clone())
                     }
-                    _ => unreachable!("Invalid function type {:?}", typeinfo),
                 }
             }
             Lang::I32Popcnt(_) => Ok(PrimitiveTypeInfo::I32),

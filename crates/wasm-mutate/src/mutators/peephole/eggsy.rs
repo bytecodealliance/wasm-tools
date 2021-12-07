@@ -1,18 +1,16 @@
 //! Intermediate representation of Wasm operators to be used with the `egg`
 //! engine
 //!
-use std::{cell::RefCell, cmp::Ordering, collections::HashMap};
 
-use egg::{Analysis, CostFunction, EClass, EGraph, Id, Language, RecExpr};
-
-pub(crate) mod analysis;
+pub mod analysis;
 pub mod encoder;
 pub mod expr_enumerator;
 pub mod lang;
 
-use crate::mutators::peephole::eggsy::lang::Lang;
+use self::{analysis::ClassData, lang::Lang};
+use egg::{Analysis, CostFunction, EClass, EGraph, Id, Language, RecExpr};
+use std::{cell::RefCell, cmp::Ordering, collections::HashMap};
 
-use self::analysis::ClassData;
 /// This struct is a wrapper of egg::Extractor
 /// The majority of the methods are copied and adapted to our needs
 pub struct RandomExtractor<'a, CF: CostFunction<L>, L: Language, N: Analysis<L>> {
@@ -108,7 +106,6 @@ where
 
     /// Do a pre-order traversal of the e-graph. As we visit each e-class, choose
     /// choose the smallest e-node (according to the cost function).
-    ///
     pub fn extract_smallest(
         &self,
         eclass: Id,

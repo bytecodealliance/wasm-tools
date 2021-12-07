@@ -12,8 +12,10 @@ use crate::mutators::OperatorAndByteOffset;
 
 use super::eggsy::encoder::rebuild::build_expr;
 
-/// It executes a minimal symbolic evaluation of the stack to detect operands location in the code for certain operators
-/// For example, i.add operator should know who are its operands
+/// It executes a minimal symbolic evaluation of the stack to detect operands
+/// location in the code for certain operators
+///
+/// For example, the `i32.add` operator should know who are its operands
 pub struct DFGBuilder {
     stack: Vec<usize>,
     dfg_map: Vec<StackEntry>,
@@ -21,8 +23,8 @@ pub struct DFGBuilder {
     parents: Vec<i32>,
 }
 
-/// Basic block of a Wasm's function defined as a range of operators in the
-///  Wasm function
+/// Basic block of a Wasm's function defined as a range of operators in the Wasm
+/// function
 #[derive(Debug)]
 pub struct BBlock {
     pub(crate) range: Range,
@@ -184,7 +186,6 @@ impl MiniDFG {
 
     /// Returns a RecExpr from the stack entry
     /// by cleaning spurious nodes
-    ///
     pub fn get_expr(&self, at: usize) -> RecExpr<Lang> {
         let root = self.map[&at];
         let enodes = self.entries[..=root]
@@ -395,7 +396,6 @@ impl<'a> DFGBuilder {
                             // Change the color
                             color += 1;
                         }
-                        _ => unreachable!("It should be a function type"),
                     }
                 }
                 Operator::LocalGet { local_index } => {

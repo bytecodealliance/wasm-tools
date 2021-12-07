@@ -8,9 +8,9 @@
 //! fuzzing.
 #![cfg_attr(not(feature = "structopt"), deny(missing_docs))]
 mod error;
-pub(crate) mod info;
-pub(crate) mod module;
-pub mod mutators;
+mod info;
+mod module;
+mod mutators;
 use crate::mutators::{
     codemotion::CodemotionMutator, elems::RemoveElemSegment,
     function_body_unreachable::FunctionBodyUnreachable, peephole::PeepholeMutator,
@@ -102,10 +102,10 @@ macro_rules! define_mutators {
     doc = r###"
 A WebAssembly test case mutator.
 
-This is the main entry point into this crate. It provides various methods
-for configuring what kinds of mutations might be applied to the input
-Wasm. Once configured, you can apply a transformation to the input Wasm via
-the [`run`][wasm_mutate::WasmMutate::run] method.
+This is the main entry point into this crate. It provides various methods for
+configuring what kinds of mutations might be applied to the input Wasm. Once
+configured, you can apply a transformation to the input Wasm via the
+[`run`][crate::WasmMutate::run] method.
 
 # Example
 
@@ -121,13 +121,23 @@ let input_wasm = wat::parse_str(r#"
            )
            "#)?;
 
-// Create a `WasmMutate` builder, configure its seed, and then run it on the
-// input Wasm!
-let mutated_wasm = WasmMutate::default()
+// Create a `WasmMutate` builder and configure it.
+let mut mutate = WasmMutate::default();
+mutate
+    // Set the RNG seed.
     .seed(42)
-    .run(&input_wasm)?;
+    // Allow mutations that change the semantics of the Wasm module.
+    .preserve_semantics(false)
+    // Use at most this much "fuel" when trying to mutate the Wasm module before
+    // giving up.
+    .fuel(1_000);
 
-// Feed `mutated_wasm` into your tests...
+// Run the configured `WasmMutate` to get a sequence of mutations of the input
+// Wasm!
+for mutated_wasm in mutate.run(&input_wasm)? {
+    let mutated_wasm = mutated_wasm?;
+    // Feed `mutated_wasm` into your tests...
+}
 # Ok(())
 # }
 ```

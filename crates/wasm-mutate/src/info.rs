@@ -229,11 +229,6 @@ impl<'a> ModuleInfo<'a> {
         self.exports != None
     }
 
-    /// Returns the type information based on its index `types[index]`
-    pub fn get_type_idx(&self, idx: usize) -> &TypeInfo {
-        &self.types_map[idx]
-    }
-
     /// Returns the function type based on the index of the function type
     /// `types[functions[idx]]`
     pub fn get_functype_idx(&self, idx: usize) -> &TypeInfo {

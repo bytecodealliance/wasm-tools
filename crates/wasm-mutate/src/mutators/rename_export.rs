@@ -6,10 +6,10 @@ use rand::{Rng, RngCore};
 use wasm_encoder::{Export, ExportSection, Module};
 use wasmparser::ExportSectionReader;
 
-/// RenameExportMutator generates a random renaming of prexisting exports.
-/// The export entry is selected randmonly and then a new `field` name is generated
+/// Generates a random renaming of pre-existing exports.
 ///
-///
+/// The export entry is selected randomly and then a new `field` name is
+/// generated.
 #[derive(Clone, Copy)]
 pub struct RenameExportMutator {
     /// The maximum length of the generated export entry

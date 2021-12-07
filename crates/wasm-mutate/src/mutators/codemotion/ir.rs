@@ -20,7 +20,6 @@ pub trait AstWriter {
     /// implementation unrolls the first iteration of a particular loop, override
     /// this method. For the other loops in the Wasm that your implementation is not
     /// mutating, you can call `write_loop_default`.
-    ///
     fn write_loop<'a>(
         &self,
         ast: &Ast,
@@ -38,7 +37,6 @@ pub trait AstWriter {
     ///
     /// This function is called by the defaut implementation
     /// of the `write_loop` method
-    ///
     fn write_loop_default<'a>(
         &self,
         ast: &Ast,
@@ -61,7 +59,6 @@ pub trait AstWriter {
     ///
     /// This function is called by the defaut implementation
     /// of the `write_block` method
-    ///
     fn write_block_default<'a>(
         &self,
         ast: &Ast,
@@ -107,7 +104,6 @@ pub trait AstWriter {
     /// implementation modifies a particular if/else, override
     /// this method. For the other if/else constructions in the Wasm that your implementation is not
     /// mutating, you can call `write_if_else_default`.
-    ///
     fn write_if_else<'a>(
         &self,
         ast: &Ast,
@@ -135,7 +131,6 @@ pub trait AstWriter {
     ///
     /// This function is called by the defaut implementation
     /// of the `write_if_else` method
-    ///
     fn write_if_else_default<'a>(
         &self,
         ast: &Ast,
@@ -170,7 +165,6 @@ pub trait AstWriter {
     /// implementation replaces the basic block with an unreachable instruction, override
     /// this method. For the other nodes in the Wasm that your implementation is not
     /// mutating, you can call `write_if_else_default`.
-    ///
     fn write_code<'a>(
         &self,
         _ast: &Ast,
@@ -194,7 +188,6 @@ pub trait AstWriter {
     ///
     /// This function is called by the defaut implementation
     /// of the `write_code` method
-    ///
     fn write_code_default<'a>(
         &self,
         ast: &Ast,
@@ -210,7 +203,6 @@ pub trait AstWriter {
     /// Encoding discriminator for the Ast nodes
     ///
     /// It calls the corresponding methods depending on the node type
-    ///
     fn write<'a>(
         &self,
         ast: &Ast,
@@ -266,13 +258,11 @@ impl AstWriter for Ast {
 
 impl AstBuilder {
     /// Returns an Ast from the operators collected from the Wasm function
-    ///
     pub fn build_ast<'a>(&self, operators: &'a [OperatorAndByteOffset]) -> crate::Result<Ast> {
         self.parse(operators)
     }
 
     /// Parsing algorith to construct the Ast
-    ///
     fn parse<'a>(&self, operators: &'a [OperatorAndByteOffset]) -> crate::Result<Ast> {
         let mut parse_context = ParseContext::default();
         // Push the first frame, the root

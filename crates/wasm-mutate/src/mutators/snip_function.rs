@@ -68,7 +68,6 @@ impl Mutator for SnipMutator {
                                 }
                             });
                         }
-                        _ => panic!("Unconsistent function type"),
                     };
 
                     f.instruction(&Instruction::End);

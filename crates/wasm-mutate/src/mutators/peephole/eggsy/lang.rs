@@ -1027,7 +1027,6 @@ impl Lang {
     /// Parses index operations written in the textual form
     /// local.(get|set|tee).$i
     /// global.(get|set).$i
-    ///
     pub fn parse_index_op(op_str: &str, children: &Vec<Id>) -> Result<Self, String> {
         let splat = op_str.split('.');
         let ops = splat.collect::<Vec<_>>();
@@ -1049,8 +1048,7 @@ impl Lang {
     }
 
     /// Parses index mem operations written in the textual form
-    /// (i32|i64|...).(store|load).$static_offset.$align.$mem
-    ///
+    /// `(i32|i64|...).(store|load).$static_offset.$align.$mem`.
     pub fn parse_mem_op(op_str: &str, children: &Vec<Id>) -> Result<Self, String> {
         let splat = op_str.split('.');
         let ops = splat.collect::<Vec<_>>();
@@ -1205,9 +1203,7 @@ impl Lang {
         }
     }
 
-    /// Parses call operators
-    /// call.$i
-    ///
+    /// Parses call operators: `call.$i`
     pub fn parse_call(op_str: &str, children: &Vec<Id>) -> Result<Self, String> {
         let splat = op_str.split('.');
         let ops = splat.collect::<Vec<_>>();
@@ -1222,9 +1218,7 @@ impl Lang {
         }
     }
 
-    /// Parses memory grow or size operator
-    /// memory.(grow|size).$mem.$membyte
-    ///
+    /// Parses memory grow or size operator: `memory.(grow|size).$mem.$membyte`
     pub fn parse_memory_sg(op_str: &str, children: &Vec<Id>) -> Result<Self, String> {
         let splat = op_str.split('.');
         let ops = splat.collect::<Vec<_>>();

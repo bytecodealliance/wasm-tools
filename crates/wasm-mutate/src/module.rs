@@ -28,8 +28,7 @@ pub struct FuncInfo {
 #[derive(Debug, Clone)]
 pub enum TypeInfo {
     Func(FuncInfo),
-    Instance(),
-    Module(),
+    // TODO: module linking support will require instance and module types.
 }
 
 impl TryFrom<Type> for PrimitiveTypeInfo {

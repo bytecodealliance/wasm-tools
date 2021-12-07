@@ -20,7 +20,7 @@
 //!
 use crate::module::PrimitiveTypeInfo;
 use crate::mutators::peephole::eggsy::analysis::PeepholeMutationAnalysis;
-use crate::{error::EitherType, mutators::peephole::eggsy::encoder::expr2wasm::ResourceRequest};
+use crate::mutators::peephole::eggsy::encoder::expr2wasm::ResourceRequest;
 
 use crate::mutators::peephole::eggsy::encoder::Encoder;
 use crate::mutators::peephole::eggsy::expr_enumerator::lazy_expand_aux;
@@ -87,9 +87,6 @@ impl PeepholeMutator {
 
                 Ok(all_locals)
             }
-            _ => Err(crate::Error::UnsupportedType(EitherType::TypeDef(
-                "The type for this function is not a function type definition".to_string(),
-            ))),
         }
     }
 
