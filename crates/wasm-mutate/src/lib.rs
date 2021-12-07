@@ -8,9 +8,9 @@
 //! fuzzing.
 #![cfg_attr(not(feature = "structopt"), deny(missing_docs))]
 mod error;
-pub(crate) mod info;
-pub(crate) mod module;
-pub mod mutators;
+mod info;
+mod module;
+mod mutators;
 use crate::mutators::{
     codemotion::CodemotionMutator, elems::RemoveElemSegment,
     function_body_unreachable::FunctionBodyUnreachable, peephole::PeepholeMutator,
