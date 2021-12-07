@@ -10,45 +10,13 @@ pub struct Ast {
     ifs: Vec<usize>,
     // indexeds of loop nodes
     loops: Vec<usize>,
-    // indexes of block nodes
-    blocks: Vec<usize>,
 }
 
 impl Ast {
-    /// Build a new empty Ast
-    ///
-    pub fn new(
-        root: usize,
-        nodes: Vec<Node>,
-        ifs: Vec<usize>,
-        loops: Vec<usize>,
-        blocks: Vec<usize>,
-    ) -> Self {
-        Ast {
-            root,
-            nodes,
-            ifs,
-            loops,
-            blocks,
-        }
-    }
-
     /// Returns true if the Ast has if-else nodes
     ///
     pub fn has_if(&self) -> bool {
         !self.ifs.is_empty()
-    }
-
-    /// Returns true if the Ast has loop nodes
-    ///
-    pub fn has_loop(&self) -> bool {
-        !self.loops.is_empty()
-    }
-
-    /// Returns true if the Ast has block nodes
-    ///
-    pub fn has_block(&self) -> bool {
-        !self.blocks.is_empty()
     }
 
     /// Returns the node indexes corresponding to if-else nodes
@@ -262,7 +230,6 @@ impl ParseContext {
             nodes: self.nodes,
             ifs: self.ifs,
             loops: self.loops,
-            blocks: self.blocks,
         }
     }
 }

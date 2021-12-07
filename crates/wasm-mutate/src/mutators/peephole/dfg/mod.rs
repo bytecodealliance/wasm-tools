@@ -395,7 +395,6 @@ impl<'a> DFGBuilder {
                             // Change the color
                             color += 1;
                         }
-                        _ => unreachable!("It should be a function type"),
                     }
                 }
                 Operator::LocalGet { local_index } => {
