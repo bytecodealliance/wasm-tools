@@ -12,9 +12,10 @@ pub(crate) mod info;
 pub(crate) mod module;
 pub mod mutators;
 use crate::mutators::{
-    codemotion::CodemotionMutator, function_body_unreachable::FunctionBodyUnreachable,
-    peephole::PeepholeMutator, remove_export::RemoveExportMutator,
-    rename_export::RenameExportMutator, snip_function::SnipMutator,
+    codemotion::CodemotionMutator, elems::RemoveElemSegment,
+    function_body_unreachable::FunctionBodyUnreachable, peephole::PeepholeMutator,
+    remove_export::RemoveExportMutator, rename_export::RenameExportMutator,
+    snip_function::SnipMutator,
 };
 use info::ModuleInfo;
 use mutators::Mutator;
@@ -261,8 +262,10 @@ impl<'wasm> WasmMutate<'wasm> {
                 SnipMutator,
                 CodemotionMutator,
                 FunctionBodyUnreachable,
+                RemoveElemSegment,
             )
         );
+
         Err(crate::Error::NoMutationsApplicable)
     }
 

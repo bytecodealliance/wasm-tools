@@ -24,6 +24,7 @@ pub struct Element<'a> {
     pub kind: ElementKind<'a>,
     pub items: ElementItems<'a>,
     pub ty: Type,
+    pub range: Range,
 }
 
 #[derive(Clone)]
@@ -181,6 +182,8 @@ impl<'a> ElementSectionReader<'a> {
     where
         'a: 'b,
     {
+        let elem_start = self.reader.original_position();
+
         let flags = self.reader.read_var_u32()?;
         if (flags & !0b111) != 0 {
             return Err(BinaryReaderError::new(
@@ -246,7 +249,16 @@ impl<'a> ElementSectionReader<'a> {
             data: &self.reader.buffer[data_start..data_end],
             exprs,
         };
-        Ok(Element { kind, items, ty })
+
+        let elem_end = self.reader.original_position();
+        let range = Range::new(elem_start, elem_end);
+
+        Ok(Element {
+            kind,
+            items,
+            ty,
+            range,
+        })
     }
 }
 

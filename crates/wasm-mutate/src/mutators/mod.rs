@@ -55,6 +55,7 @@ pub trait Mutator {
 pub type OperatorAndByteOffset<'a> = (Operator<'a>, usize);
 
 pub mod codemotion;
+pub mod elems;
 pub mod function_body_unreachable;
 pub mod peephole;
 pub mod remove_export;
@@ -95,5 +96,5 @@ where
     let expected = &wat::parse_str(expected).unwrap();
     let expected_text = wasmprinter::print_bytes(expected).unwrap();
 
-    assert_eq!(text, expected_text);
+    assert_eq!(text.trim(), expected_text.trim());
 }

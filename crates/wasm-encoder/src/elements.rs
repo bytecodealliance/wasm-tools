@@ -217,6 +217,13 @@ impl ElementSection {
             elements,
         })
     }
+
+    /// Copy a raw, already-encoded element segment into this elements section.
+    pub fn raw(&mut self, raw_bytes: &[u8]) -> &mut Self {
+        self.bytes.extend_from_slice(raw_bytes);
+        self.num_added += 1;
+        self
+    }
 }
 
 impl Section for ElementSection {
