@@ -15,12 +15,17 @@
 //! ];
 //! ```
 
+pub mod if_complement;
+pub mod ir;
+pub mod loop_unrolling;
+
+use self::ir::parse_context::Ast;
+use super::Mutator;
 use crate::{
     module::map_type,
     mutators::{
         codemotion::{
-            ir::AstBuilder,
-            mutators::{if_complement::IfComplementMutator, loop_unrolling::LoopUnrollMutator},
+            if_complement::IfComplementMutator, ir::AstBuilder, loop_unrolling::LoopUnrollMutator,
         },
         OperatorAndByteOffset,
     },
@@ -30,17 +35,11 @@ use rand::{prelude::SliceRandom, Rng};
 use wasm_encoder::{CodeSection, Function, Module, ValType};
 use wasmparser::{CodeSectionReader, FunctionBody};
 
-use self::ir::parse_context::Ast;
-
-use super::Mutator;
 // Hack to show debug messages in tests
 #[cfg(not(test))]
 use log::debug;
 #[cfg(test)]
 use std::println as debug;
-
-pub mod ir;
-pub mod mutators;
 
 /// Code motion meta mutator, it groups all code motion mutators and select a
 /// valid random one when an input Wasm binary is passed to it.
