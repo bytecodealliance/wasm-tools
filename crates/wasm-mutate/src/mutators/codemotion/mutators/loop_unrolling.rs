@@ -171,7 +171,6 @@ impl AstWriter for LoopUnrollWriter {
 
 impl LoopUnrollMutator {
     /// Returns the indexes of empty return loop definitions inside the Wasm function
-    ///
     pub fn get_empty_returning_loops<'a>(&self, ast: &'a Ast) -> Vec<usize> {
         let nodes = ast.get_nodes();
         let mut loops = vec![];

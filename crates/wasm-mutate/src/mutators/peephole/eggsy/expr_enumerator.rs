@@ -904,7 +904,6 @@ pub fn lazy_expand<'a>(
 }
 
 /// Lazy expand helper
-///
 pub fn lazy_expand_aux<'a>(
     id: Id,
     egraph: EG,

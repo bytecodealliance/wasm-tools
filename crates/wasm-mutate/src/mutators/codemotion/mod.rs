@@ -123,7 +123,6 @@ impl CodemotionMutator {
 /// Trait to be implemented by all code motion mutators
 pub trait AstMutator {
     /// Transform the function AST in order to generate a new Wasm module
-    ///
     fn mutate<'a>(
         &self,
         config: &'a mut WasmMutate,
@@ -134,7 +133,6 @@ pub trait AstMutator {
     ) -> Result<Function>;
 
     /// Checks if this mutator can be applied to the passed `ast`
-    ///
     fn can_mutate<'a>(&self, config: &'a crate::WasmMutate, ast: &Ast) -> bool;
 }
 

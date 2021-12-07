@@ -6,7 +6,6 @@ use crate::mutators::peephole::Lang;
 use egg::{Id, RecExpr};
 
 /// Build RecExpr from tree information
-///
 pub fn build_expr(root: Id, id_to_node: &[Lang], operands: &[Vec<Id>]) -> RecExpr<Lang> {
     let mut expr = RecExpr::default();
     build_expr_inner(root, id_to_node, operands, &mut expr);

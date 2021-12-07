@@ -14,31 +14,26 @@ pub struct Ast {
 
 impl Ast {
     /// Returns true if the Ast has if-else nodes
-    ///
     pub fn has_if(&self) -> bool {
         !self.ifs.is_empty()
     }
 
     /// Returns the node indexes corresponding to if-else nodes
-    ///
     pub fn get_ifs(&self) -> &[usize] {
         &self.ifs
     }
 
     /// Returns the node indexes corresponding to if-else nodes
-    ///
     pub fn get_loops(&self) -> &[usize] {
         &self.loops
     }
 
     /// Returns the `Root` node index of the Ast
-    ///
     pub fn get_root(&self) -> usize {
         self.root
     }
 
     /// Returns all Ast nodes
-    ///
     pub fn get_nodes(&self) -> Vec<Node> {
         self.nodes.clone()
     }
@@ -122,7 +117,6 @@ impl Default for ParseContext {
 
 impl ParseContext {
     /// Saves current parsed nodes in the stack
-    ///
     pub fn push_state(&mut self) {
         self.stack.push(self.current_parsing.clone());
         self.current_parsing = vec![]
@@ -130,7 +124,6 @@ impl ParseContext {
 
     /// Pops nodes previously parsed, set them as the current parsing
     /// and then returns a copy of the poped value
-    ///
     pub fn pop_state(&mut self) -> crate::Result<Vec<usize>> {
         match self.stack.pop() {
             Some(new_state) => {
@@ -144,7 +137,6 @@ impl ParseContext {
     }
 
     /// Push a node to the current parsing
-    ///
     pub fn push_node_to_current_parsing(&mut self, node: Node) -> usize {
         let id = self.nodes.len();
         self.nodes.push(node.clone());
@@ -165,16 +157,15 @@ impl ParseContext {
     }
 
     /// Push a new frame,
+    ///
     /// * `state` - `If`, `Else`, `Block`, or `Loop` frame type
     /// * `ty` - Returning type of the frame
     /// * `idx` - Instruction index
-    ///
     pub fn push_frame(&mut self, state: State, ty: Option<TypeOrFuncType>, idx: usize) {
         self.frames.push((state, ty, idx))
     }
 
     /// Pop frame from the current parsing
-    ///
     pub fn pop_frame(&mut self) -> crate::Result<(State, Option<TypeOrFuncType>, usize)> {
         match self.frames.pop() {
             Some(e) => Ok(e),
@@ -185,19 +176,16 @@ impl ParseContext {
     }
 
     /// Returns the nodes indexes already parsed in the current state
-    ///
     pub fn get_current_parsing(&self) -> Vec<usize> {
         self.current_parsing.clone()
     }
 
     /// Checks if the corrent code parsing has at least one instruction
-    ///
     pub fn current_code_is_empty(&self) -> bool {
         self.current_code_range.start == self.current_code_range.end
     }
 
     /// Pushes the current code parsing as a `Node::Code` instance
-    ///
     pub fn push_current_code_as_node(&mut self) -> usize {
         self.push_node_to_current_parsing(Node::Code {
             range: self.current_code_range,
@@ -205,14 +193,12 @@ impl ParseContext {
     }
 
     /// Resets the current code parsing
-    ///
     pub fn reset_code_range_at(&mut self, idx: usize) {
         self.current_code_range = Range::new(idx, idx);
     }
 
     /// Augmnents current code parsing to include the next instruction
     /// in the Wasm code
-    ///
     pub fn append_instruction_to_current_code(&mut self) {
         self.current_code_range.end += 1;
     }
@@ -221,7 +207,6 @@ impl ParseContext {
     /// parsed nodes in the current state.
     ///
     /// Returns a new Ast instance
-    ///
     pub fn finish(mut self) -> Ast {
         let roots = self.get_current_parsing();
         let root_id = self.push_node_to_current_parsing(Node::Root(roots));
