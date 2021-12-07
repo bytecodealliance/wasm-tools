@@ -1,3 +1,5 @@
+//! Mutators that operate on the elements section.
+
 use rand::Rng;
 use wasm_encoder::Module;
 
