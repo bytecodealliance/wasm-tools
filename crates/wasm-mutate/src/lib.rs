@@ -121,13 +121,23 @@ let input_wasm = wat::parse_str(r#"
            )
            "#)?;
 
-// Create a `WasmMutate` builder, configure its seed, and then run it on the
-// input Wasm!
-let mutated_wasm = WasmMutate::default()
+// Create a `WasmMutate` builder and configure it.
+let mut mutate = WasmMutate::default();
+mutate
+    // Set the RNG seed.
     .seed(42)
-    .run(&input_wasm)?;
+    // Allow mutations that change the semantics of the Wasm module.
+    .preserve_semantics(false)
+    // Use at most this much "fuel" when trying to mutate the Wasm module before
+    // giving up.
+    .fuel(1_000);
 
-// Feed `mutated_wasm` into your tests...
+// Run the configured `WasmMutate` to get a sequence of mutations of the input
+// Wasm!
+for mutated_wasm in mutate.run(&input_wasm)? {
+    let mutated_wasm = mutated_wasm?;
+    // Feed `mutated_wasm` into your tests...
+}
 # Ok(())
 # }
 ```
