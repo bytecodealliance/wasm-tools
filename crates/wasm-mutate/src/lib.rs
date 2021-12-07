@@ -102,10 +102,10 @@ macro_rules! define_mutators {
     doc = r###"
 A WebAssembly test case mutator.
 
-This is the main entry point into this crate. It provides various methods
-for configuring what kinds of mutations might be applied to the input
-Wasm. Once configured, you can apply a transformation to the input Wasm via
-the [`run`][wasm_mutate::WasmMutate::run] method.
+This is the main entry point into this crate. It provides various methods for
+configuring what kinds of mutations might be applied to the input Wasm. Once
+configured, you can apply a transformation to the input Wasm via the
+[`run`][crate::WasmMutate::run] method.
 
 # Example
 
