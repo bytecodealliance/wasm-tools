@@ -21,6 +21,7 @@
 //!
 
 pub mod codemotion;
+pub mod custom;
 pub mod data;
 pub mod elems;
 pub mod function_body_unreachable;
