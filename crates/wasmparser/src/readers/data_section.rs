@@ -22,6 +22,7 @@ use super::{
 pub struct Data<'a> {
     pub kind: DataKind<'a>,
     pub data: &'a [u8],
+    pub range: Range,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -95,6 +96,8 @@ impl<'a> DataSectionReader<'a> {
     where
         'a: 'b,
     {
+        let segment_start = self.reader.original_position();
+
         let flags = self.reader.read_var_u32()?;
         let kind = if !self.forbid_bulk_memory && flags == 1 {
             DataKind::Passive
@@ -126,7 +129,11 @@ impl<'a> DataSectionReader<'a> {
         self.verify_data_end(data_end)?;
         let data = &self.reader.buffer[self.reader.position..data_end];
         self.reader.skip_to(data_end);
-        Ok(Data { kind, data })
+
+        let segment_end = self.reader.original_position();
+        let range = Range::new(segment_start, segment_end);
+
+        Ok(Data { kind, data, range })
     }
 }
 
