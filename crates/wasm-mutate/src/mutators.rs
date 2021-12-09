@@ -31,19 +31,57 @@ pub mod rename_export;
 pub mod snip_function;
 pub mod start;
 
+use std::borrow::Cow;
+
 use super::Result;
 use crate::WasmMutate;
 use wasm_encoder::Module;
 use wasmparser::Operator;
 
-/// This trait needs to be implemented for all mutators
-///
-/// Take a look to the implementation of the
-/// [RenameExportMutator][super::RenameExportMutator] implementation for a reference
+/// A mutation that can be applied to a Wasm module to produce a new, mutated
+/// Wasm module.
 pub trait Mutator {
-    /// Method where the mutation happpens
+    /// Can this `Mutator` *probably* be applied to the the given Wasm and
+    /// configuration?
     ///
-    /// * `config` instance of WasmMutate
+    /// When checking Wasm applicability, these checks should be implemented as
+    /// quick, incomplete checks. For example, a mutator that removes a single
+    /// function at a time should *not* build the whole call graph to determine
+    /// if there are any functions that are dead code. Instead, it should just
+    /// check that the Wasm contains at least one function. (It can always
+    /// return an `Err` from the `mutate` method later, but we want to delay
+    /// expensive computations until if/when we've committed to applying a given
+    /// mutation).
+    ///
+    /// As an example of configuration checking, if a mutator adds new functions
+    /// to the Wasm, increasing the Wasm's size, it should check whether the
+    /// `WasmMutate` has been configured to only perform size-reducing
+    /// mutations, and if so return `false` here.
+    fn can_mutate(&self, config: &WasmMutate) -> bool;
+
+    /// Run this mutation.
+    ///
+    /// Rather than returning a single, mutated module, we allow for mutators to
+    /// return many.
+    ///
+    /// Mutators that return `Ok(iterator)` should always return an iterator
+    /// with at least one item. Mutators should never return an empty iterator,
+    /// instead they should return `Err(...)`.
+    ///
+    /// The iterators returned from this method must be *lazy*. Mutators should
+    /// *not* return `Ok(Box::new(vec![...].into_iter()))`. Only one mutation
+    /// should ever be computed at a time. Mutator implementations might find
+    /// `std::iter::from_fn` helpful.
+    ///
+    /// When should a mutator return a single item via `std::iter::once` versus
+    /// an iterator with many items? When the mutator builds up a bunch of state
+    /// that was expensive to build and can be reused, it should return an
+    /// iterator with many items that reuse that state. For example, the
+    /// peephole mutator's e-graph is expensive to build and should be reused.
+    /// If, however, the mutator doesn't build up state or its state is cheap to
+    /// recompute, then the mutator should return a single-item iterator with
+    /// `std::iter::once`, to give the fuzzer a chance to choose a new kind of
+    /// mutation.
     fn mutate<'a>(
         self,
         config: &'a mut WasmMutate,
@@ -51,12 +89,10 @@ pub trait Mutator {
     where
         Self: Copy;
 
-    /// Returns if this mutator can be applied with the info and the byte range
-    /// in which it can be applied
-    fn can_mutate(&self, config: &WasmMutate) -> bool;
-
-    /// Provides the name of the mutator, mostly used for debugging purposes
-    fn name(&self) -> String {
+    /// What is this mutator's name?
+    ///
+    /// This is only used for debugging and logging purposes.
+    fn name(&self) -> Cow<'static, str> {
         return std::any::type_name::<Self>().into();
     }
 }
