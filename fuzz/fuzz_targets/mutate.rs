@@ -56,10 +56,10 @@ fuzz_target!(|bytes: &[u8]| {
 
     let iterator = match wasm_mutate.run(&wasm) {
         Ok(iterator) => iterator,
-        Err(e) => match e.kind() {
-            wasm_mutate::ErrorKind::NoMutationsApplicable => return,
-            _ => panic!("Unexpected mutation failure: {}", e),
-        },
+        Err(e) => {
+            log::warn!("Failed to mutate the Wasm: {}", e);
+            return;
+        }
     };
 
     let mut features = WasmFeatures::default();
