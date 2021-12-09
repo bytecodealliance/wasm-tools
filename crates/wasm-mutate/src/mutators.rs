@@ -20,11 +20,21 @@
 //! functions is processed in order to construct an equivalent piece of code.
 //!
 
-use wasm_encoder::Module;
-use wasmparser::Operator;
+pub mod codemotion;
+pub mod custom;
+pub mod data;
+pub mod elems;
+pub mod function_body_unreachable;
+pub mod peephole;
+pub mod remove_export;
+pub mod rename_export;
+pub mod snip_function;
+pub mod start;
 
 use super::Result;
 use crate::WasmMutate;
+use wasm_encoder::Module;
+use wasmparser::Operator;
 
 /// This trait needs to be implemented for all mutators
 ///
@@ -53,15 +63,6 @@ pub trait Mutator {
 
 /// Type helper to wrap operator and the byte offset in the code section of a Wasm module
 pub type OperatorAndByteOffset<'a> = (Operator<'a>, usize);
-
-pub mod codemotion;
-pub mod data;
-pub mod elems;
-pub mod function_body_unreachable;
-pub mod peephole;
-pub mod remove_export;
-pub mod rename_export;
-pub mod snip_function;
 
 #[cfg(test)]
 pub(crate) fn match_mutation<T>(original: &str, mutator: T, expected: &str)
