@@ -12,10 +12,10 @@ mod info;
 mod module;
 mod mutators;
 use crate::mutators::{
-    codemotion::CodemotionMutator, data::RemoveDataSegment, elems::RemoveElemSegment,
-    function_body_unreachable::FunctionBodyUnreachable, peephole::PeepholeMutator,
-    remove_export::RemoveExportMutator, rename_export::RenameExportMutator,
-    snip_function::SnipMutator,
+    codemotion::CodemotionMutator, custom::RemoveCustomSection, data::RemoveDataSegment,
+    elems::RemoveElemSegment, function_body_unreachable::FunctionBodyUnreachable,
+    peephole::PeepholeMutator, remove_export::RemoveExportMutator,
+    rename_export::RenameExportMutator, snip_function::SnipMutator,
 };
 use info::ModuleInfo;
 use mutators::Mutator;
@@ -274,6 +274,7 @@ impl<'wasm> WasmMutate<'wasm> {
                 FunctionBodyUnreachable,
                 RemoveElemSegment,
                 RemoveDataSegment,
+                RemoveCustomSection,
             )
         );
 
