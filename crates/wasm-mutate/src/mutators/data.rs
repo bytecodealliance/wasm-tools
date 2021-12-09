@@ -1,6 +1,7 @@
 //! Mutators that add, edit, or remove data segments.
 
 use super::Mutator;
+use crate::Error;
 use rand::Rng;
 
 /// A mutator to remove data segments.
@@ -32,10 +33,8 @@ impl Mutator for RemoveDataSegment {
             if let wasmparser::DataKind::Passive = seg.kind {
                 // TODO: to support passive segments, we'll need to keep track
                 // of segment renumberings and then fixup the code section.
-                return Err(crate::Error::UnsupportedType(
-                    crate::error::EitherType::Operator(
-                        "Can't remove data segments when some are passive".into(),
-                    ),
+                return Err(Error::unsupported(
+                    "Can't remove data segments when some are passive",
                 ));
             }
 
@@ -60,7 +59,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_remove_elem_segment() {
+    fn test_remove_data_segment() {
         crate::mutators::match_mutation(
             r#"
                 (module

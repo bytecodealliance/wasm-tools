@@ -110,7 +110,7 @@ impl CodemotionMutator {
             }
         }
 
-        Err(Error::NoMutationsApplicable)
+        Err(Error::no_mutations_applicable())
     }
 }
 /// Trait to be implemented by all code motion mutators
@@ -177,6 +177,8 @@ mod tests {
     use rand::{rngs::SmallRng, SeedableRng};
 
     fn test_motion_mutator(original: &str, expected: &str, seed: u64) {
+        let _ = env_logger::try_init();
+
         let mut wasmmutate = WasmMutate::default();
         let original = &wat::parse_str(original).unwrap();
 

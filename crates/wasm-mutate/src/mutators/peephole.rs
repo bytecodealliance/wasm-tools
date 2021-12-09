@@ -36,11 +36,11 @@ use self::{
 use super::{Mutator, OperatorAndByteOffset};
 use crate::{
     module::{map_type, PrimitiveTypeInfo},
-    ModuleInfo, Result, WasmMutate,
+    Error, ModuleInfo, Result, WasmMutate,
 };
 use egg::{Rewrite, Runner};
 use rand::{prelude::SmallRng, Rng};
-use std::{borrow::Cow, convert::TryFrom, fmt::Debug};
+use std::{borrow::Cow, fmt::Debug};
 use wasm_encoder::{CodeSection, Function, GlobalSection, Instruction, Module, ValType};
 use wasmparser::{CodeSectionReader, FunctionBody, GlobalSectionReader, LocalsReader};
 
@@ -76,7 +76,7 @@ impl PeepholeMutator {
                 }
                 for _ in 0..localsreader.get_count() {
                     let (count, ty) = localsreader.read()?;
-                    let tymapped = PrimitiveTypeInfo::try_from(ty)?;
+                    let tymapped = PrimitiveTypeInfo::from(ty);
                     for _ in 0..count {
                         all_locals.push(tymapped.clone());
                     }
@@ -121,8 +121,9 @@ impl PeepholeMutator {
 
         loop {
             if visited_functions == function_count {
-                return Err(crate::Error::NoMutationsApplicable);
+                return Err(Error::no_mutations_applicable());
             }
+
             let reader = readers[function_to_mutate as usize];
             let operatorreader = reader.get_operators_reader()?;
             let mut localsreader = reader.get_locals_reader()?;

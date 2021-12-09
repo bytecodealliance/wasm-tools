@@ -500,8 +500,8 @@ impl State {
             // First stage, generate and return the mutated
             let it = match wasmmutate.run(&wasmcp) {
                 Ok(it) => it,
-                Err(e) => match e {
-                    wasm_mutate::Error::NoMutationsApplicable => {
+                Err(e) => match e.kind() {
+                    wasm_mutate::ErrorKind::NoMutationsApplicable => {
                         Box::new(std::iter::once(Ok(wasm.clone())))
                     }
                     _ => {

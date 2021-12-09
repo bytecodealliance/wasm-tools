@@ -42,67 +42,69 @@ fuzz_target!(|bytes: &[u8]| {
         );
     }
 
-    // Mutate the Wasm with `wasm-mutate`. We always preserve semantics.
+    // Mutate the Wasm with `wasm-mutate`. Assert that each mutation is still
+    // valid Wasm.
+
     let mut wasm_mutate = wasm_mutate::WasmMutate::default();
     wasm_mutate.seed(seed);
     wasm_mutate.fuel(300);
-    wasm_mutate.preserve_semantics(true);
+    wasm_mutate.preserve_semantics(
+        // If we are going to check that we get the same evaluated results
+        // before and after mutation, then we need to preserve semantics.
+        cfg!(feature = "wasmtime"),
+    );
 
-    let mutated_wasm_iterator = wasm_mutate.run(&wasm);
-    let mut found = false;
+    let iterator = match wasm_mutate.run(&wasm) {
+        Ok(iterator) => iterator,
+        Err(e) => match e.kind() {
+            wasm_mutate::ErrorKind::NoMutationsApplicable => return,
+            _ => panic!("Unexpected mutation failure: {}", e),
+        },
+    };
 
     let mut features = WasmFeatures::default();
-
     features.simd = config.simd_enabled;
     features.relaxed_simd = config.relaxed_simd_enabled;
     features.reference_types = config.reference_types_enabled;
     features.module_linking = config.module_linking_enabled;
     features.bulk_memory = config.bulk_memory_enabled;
 
-    match mutated_wasm_iterator {
-        Ok(mut iterator) => {
-            while let Some(mutated_wasm) = iterator.next() {
-                match mutated_wasm {
-                    Ok(mutated_wasm) => {
-                        // Increase ony once for the same input Wasm
-                        if !found {
-                            NUM_SUCCESSFUL_MUTATIONS.fetch_add(1, Ordering::Relaxed);
-                            found = true;
-                        }
+    for (i, mutated_wasm) in iterator.take(100).enumerate() {
+        let mutated_wasm = match mutated_wasm {
+            Ok(w) => w,
+            Err(e) => match e.kind() {
+                wasm_mutate::ErrorKind::NoMutationsApplicable => continue,
+                _ => panic!("Unexpected mutation failure: {}", e),
+            },
+        };
 
-                        let mut validator = wasmparser::Validator::new();
-                        validator.wasm_features(features);
+        // Increase ony once for the same input Wasm.
+        if i == 0 {
+            NUM_SUCCESSFUL_MUTATIONS.fetch_add(1, Ordering::Relaxed);
+        }
 
-                        let validation_result = validator.validate_all(&mutated_wasm);
+        let mut validator = wasmparser::Validator::new();
+        validator.wasm_features(features);
 
-                        log::debug!("validation result = {:?}", validation_result);
+        let validation_result = validator.validate_all(&mutated_wasm);
 
-                        if log::log_enabled!(log::Level::Debug) {
-                            std::fs::write("mutated.wasm", &mutated_wasm)
-                                .expect("should write `mutated.wasm` okay");
-                            if let Ok(mutated_wat) = wasmprinter::print_bytes(&mutated_wasm) {
-                                std::fs::write("mutated.wat", &mutated_wat)
-                                    .expect("should write `mutated.wat` okay");
-                            }
-                        }
-                        assert!(
-                            validation_result.is_ok(),
-                            "`wasm-mutate` should always produce a valid Wasm file"
-                        );
-                        #[cfg(feature = "wasmtime")]
-                        eval::assert_same_evaluation(&wasm, &mutated_wasm);
-                    }
-                    Err(e) => match e {
-                        wasm_mutate::Error::NoMutationsApplicable => continue,
-                        e => panic!("Unexpected mutation failure: {}", e),
-                    },
-                }
+        log::debug!("validation result = {:?}", validation_result);
+
+        if log::log_enabled!(log::Level::Debug) {
+            std::fs::write("mutated.wasm", &mutated_wasm)
+                .expect("should write `mutated.wasm` okay");
+            if let Ok(mutated_wat) = wasmprinter::print_bytes(&mutated_wasm) {
+                std::fs::write("mutated.wat", &mutated_wat)
+                    .expect("should write `mutated.wat` okay");
             }
         }
-        Err(e) => match e {
-            wasm_mutate::Error::NoMutationsApplicable => return,
-            e => panic!("Unexpected mutation failure: {}", e),
-        },
+        assert!(
+            validation_result.is_ok(),
+            "`wasm-mutate` should always produce a valid Wasm file"
+        );
+
+        #[cfg(feature = "wasmtime")]
+        eval::assert_same_evaluation(&wasm, &mutated_wasm);
     }
 });
 

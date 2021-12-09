@@ -1,6 +1,7 @@
 use crate::{
     module::{PrimitiveTypeInfo, TypeInfo},
     mutators::peephole::{eggsy::Lang, EG},
+    Error,
 };
 use egg::{Analysis, EGraph, Id};
 
@@ -105,7 +106,7 @@ impl PeepholeMutationAnalysis {
                         }
 
                         if ty.returns.len() > 1 {
-                            return Err(crate::Error::NoMutationsApplicable);
+                            return Err(Error::no_mutations_applicable());
                         }
 
                         Ok(ty.returns[0].clone())

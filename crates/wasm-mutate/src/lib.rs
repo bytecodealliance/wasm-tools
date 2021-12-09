@@ -6,11 +6,16 @@
 //! Wasm parser, validator, compiler, or any other Wasm-consuming
 //! tool. `wasm-mutate` can serve as a custom mutator for mutation-based
 //! fuzzing.
+
 #![cfg_attr(not(feature = "structopt"), deny(missing_docs))]
+
 mod error;
 mod info;
 mod module;
 mod mutators;
+
+pub use error::*;
+
 use crate::mutators::{
     codemotion::CodemotionMutator, custom::RemoveCustomSection, data::RemoveDataSegment,
     elems::RemoveElemSegment, function_body_unreachable::FunctionBodyUnreachable,
@@ -19,14 +24,11 @@ use crate::mutators::{
 };
 use info::ModuleInfo;
 use mutators::Mutator;
-
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use std::{cell::Cell, sync::Arc};
 
 #[cfg(feature = "structopt")]
 use structopt::StructOpt;
-
-pub use error::{Error, Result};
 
 macro_rules! define_mutators {
     (@count) => {0};
@@ -242,7 +244,7 @@ impl<'wasm> WasmMutate<'wasm> {
     pub(crate) fn consume_fuel(&self, qt: u64) -> Result<()> {
         if qt > self.fuel.get() {
             log::info!("Out of fuel");
-            return Err(crate::Error::NoMutationsApplicable); // Replace by a TimeoutError type
+            return Err(Error::out_of_fuel());
         }
         self.fuel.set(self.fuel.get() - qt);
         Ok(())
@@ -278,7 +280,7 @@ impl<'wasm> WasmMutate<'wasm> {
             )
         );
 
-        Err(crate::Error::NoMutationsApplicable)
+        Err(Error::no_mutations_applicable())
     }
 
     pub(crate) fn rng(&mut self) -> &mut SmallRng {

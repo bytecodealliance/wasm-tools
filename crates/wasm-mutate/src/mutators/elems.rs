@@ -1,11 +1,9 @@
 //! Mutators that operate on the elements section.
 
+use super::Mutator;
+use crate::{Error, Result};
 use rand::Rng;
 use wasm_encoder::Module;
-
-use crate::Result;
-
-use super::Mutator;
 
 /// A mutator that removes element segments.
 #[derive(Clone, Copy)]
@@ -36,10 +34,8 @@ impl Mutator for RemoveElemSegment {
             if let wasmparser::ElementKind::Passive = elem.kind {
                 // TODO: to support passive segments, we'll need to keep track
                 // of segment renumberings and then fixup the code section.
-                return Err(crate::Error::UnsupportedType(
-                    crate::error::EitherType::Operator(
-                        "Can't remove element segments when some are passive".into(),
-                    ),
+                return Err(Error::unsupported(
+                    "Can't remove element segments when some are passive",
                 ));
             }
 

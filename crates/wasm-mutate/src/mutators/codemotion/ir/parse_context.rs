@@ -1,3 +1,4 @@
+use crate::{Error, Result};
 use wasmparser::{Range, TypeOrFuncType};
 
 #[derive(Debug, Default)]
@@ -124,15 +125,13 @@ impl ParseContext {
 
     /// Pops nodes previously parsed, set them as the current parsing
     /// and then returns a copy of the poped value
-    pub fn pop_state(&mut self) -> crate::Result<Vec<usize>> {
+    pub fn pop_state(&mut self) -> Result<Vec<usize>> {
         match self.stack.pop() {
             Some(new_state) => {
                 self.current_parsing = new_state.clone();
                 Ok(new_state)
             }
-            None => Err(crate::Error::InvalidAstOperation(
-                "Parsing should not be empty".to_string(),
-            )),
+            None => Err(Error::other("`pop_state` on an empty stack")),
         }
     }
 
@@ -166,12 +165,10 @@ impl ParseContext {
     }
 
     /// Pop frame from the current parsing
-    pub fn pop_frame(&mut self) -> crate::Result<(State, Option<TypeOrFuncType>, usize)> {
+    pub fn pop_frame(&mut self) -> Result<(State, Option<TypeOrFuncType>, usize)> {
         match self.frames.pop() {
             Some(e) => Ok(e),
-            None => Err(crate::Error::InvalidAstOperation(
-                "Missing parent frame".to_string(),
-            )),
+            None => Err(Error::other("`pop_frame` on an empty frame stack")),
         }
     }
 
