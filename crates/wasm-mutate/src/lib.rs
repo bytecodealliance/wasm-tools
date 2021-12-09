@@ -45,7 +45,7 @@ macro_rules! define_mutators {
                         return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))))
                     }
                     Err(e) => {
-                        log::info!("mutator {} failed: {}; will try again", m.name(), e);
+                        log::debug!("mutator {} failed: {}; will try again", m.name(), e);
                         return Err(e);
                     }
                 }
@@ -60,7 +60,7 @@ macro_rules! define_mutators {
                             return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))))
                         }
                         Err(e) => {
-                            log::info!("mutator {} failed: {}; will try again", m.name(), e);
+                            log::debug!("mutator {} failed: {}; will try again", m.name(), e);
                             return Err(e);
                         }
                     }
@@ -76,7 +76,7 @@ macro_rules! define_mutators {
                             return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))))
                         }
                         Err(e) => {
-                            log::info!("mutator {} failed: {}; will try again", m.name(), e);
+                            log::debug!("mutator {} failed: {}; will try again", m.name(), e);
                             return Err(e);
                         }
                     }
@@ -241,7 +241,7 @@ impl<'wasm> WasmMutate<'wasm> {
 
     pub(crate) fn consume_fuel(&self, qt: u64) -> Result<()> {
         if qt > self.fuel.get() {
-            log::info!("Resource limits reached!");
+            log::info!("Out of fuel");
             return Err(crate::Error::NoMutationsApplicable); // Replace by a TimeoutError type
         }
         self.fuel.set(self.fuel.get() - qt);

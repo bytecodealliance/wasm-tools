@@ -18,16 +18,20 @@ impl Mutator for FunctionBodyUnreachable {
         config: &mut WasmMutate<'a>,
     ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         let mut codes = CodeSection::new();
+
         let code_section = config.info().get_code_section();
         let mut reader = CodeSectionReader::new(code_section.data, 0)?;
+
         let count = reader.get_count();
         let function_to_mutate = config.rng().gen_range(0, count);
+
         (0..count)
             .map(|i| {
                 config.consume_fuel(1)?;
+
                 let f = reader.read().unwrap();
                 if i == function_to_mutate {
-                    log::debug!("Changing function idx {:?}", i);
+                    log::trace!("Mutating function {}", i);
                     let locals = vec![];
                     let mut f = Function::new(locals);
                     f.instruction(&Instruction::Unreachable);
@@ -40,6 +44,7 @@ impl Mutator for FunctionBodyUnreachable {
                 Ok(())
             })
             .collect::<Result<Vec<_>>>()?;
+
         Ok(Box::new(std::iter::once(Ok(config
             .info()
             .replace_section(config.info().code.unwrap(), &codes)))))

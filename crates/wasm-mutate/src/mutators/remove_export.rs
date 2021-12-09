@@ -21,41 +21,40 @@ impl Mutator for RemoveExportMutator {
         let max_exports = reader.get_count() as u64;
         let skip_at = config.rng().gen_range(0, max_exports);
 
-        (0..max_exports)
-            .map(|i| {
-                config.consume_fuel(1)?;
-                let export = reader.read().unwrap();
-                if skip_at != i {
-                    // otherwise bypass
-                    match export.kind {
-                        wasmparser::ExternalKind::Function => {
-                            exports.export(export.field, Export::Function(export.index));
-                        }
-                        wasmparser::ExternalKind::Table => {
-                            exports.export(export.field, Export::Table(export.index));
-                        }
-                        wasmparser::ExternalKind::Memory => {
-                            exports.export(export.field, Export::Memory(export.index));
-                        }
-                        wasmparser::ExternalKind::Global => {
-                            exports.export(export.field, Export::Global(export.index));
-                        }
-                        wasmparser::ExternalKind::Module => {
-                            exports.export(export.field, Export::Module(export.index));
-                        }
-                        wasmparser::ExternalKind::Instance => {
-                            exports.export(export.field, Export::Instance(export.index));
-                        }
-                        _ => {
-                            panic!("Unknown export {:?}", export)
-                        }
-                    }
-                } else {
-                    log::debug!("Removing export {:?} idx {:?}", export, skip_at);
+        for i in 0..max_exports {
+            config.consume_fuel(1)?;
+            let export = reader.read().unwrap();
+
+            if skip_at == i {
+                log::trace!("Removing export {:?} at index {}", export, skip_at);
+                continue;
+            }
+
+            match export.kind {
+                wasmparser::ExternalKind::Function => {
+                    exports.export(export.field, Export::Function(export.index));
                 }
-                Ok(())
-            })
-            .collect::<Result<Vec<_>>>()?;
+                wasmparser::ExternalKind::Table => {
+                    exports.export(export.field, Export::Table(export.index));
+                }
+                wasmparser::ExternalKind::Memory => {
+                    exports.export(export.field, Export::Memory(export.index));
+                }
+                wasmparser::ExternalKind::Global => {
+                    exports.export(export.field, Export::Global(export.index));
+                }
+                wasmparser::ExternalKind::Module => {
+                    exports.export(export.field, Export::Module(export.index));
+                }
+                wasmparser::ExternalKind::Instance => {
+                    exports.export(export.field, Export::Instance(export.index));
+                }
+                _ => {
+                    panic!("Unknown export {:?}", export)
+                }
+            }
+        }
+
         Ok(Box::new(std::iter::once(Ok(config
             .info()
             .replace_section(

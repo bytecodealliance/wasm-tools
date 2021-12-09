@@ -35,12 +35,6 @@ use rand::{prelude::SliceRandom, Rng};
 use wasm_encoder::{CodeSection, Function, Module, ValType};
 use wasmparser::{CodeSectionReader, FunctionBody};
 
-// Hack to show debug messages in tests
-#[cfg(not(test))]
-use log::debug;
-#[cfg(test)]
-use std::println as debug;
-
 /// Code motion meta mutator, it groups all code motion mutators and select a
 /// valid random one when an input Wasm binary is passed to it.
 #[derive(Clone, Copy)]
@@ -156,7 +150,7 @@ impl Mutator for CodemotionMutator {
         for fidx in 0..config.info().function_count {
             let reader = sectionreader.read()?;
             if fidx == function_to_mutate {
-                debug!("Mutating function  idx {:?}", fidx);
+                log::trace!("Mutating function {}", fidx);
                 codes.function(&newfunc);
             } else {
                 codes.raw(&code_section.data[reader.range().start..reader.range().end]);

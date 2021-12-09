@@ -1,7 +1,6 @@
 use wasm_mutate::WasmMutate;
 use wasmparser::Validator;
 
-// Copied from wasm-smith
 fn validate(validator: &mut Validator, bytes: &[u8]) {
     let err = match validator.validate_all(bytes) {
         Ok(()) => return,
@@ -12,31 +11,34 @@ fn validate(validator: &mut Validator, bytes: &[u8]) {
         drop(std::fs::write("test.wat", &text));
     }
 
-    panic!("wasm failed to validate {:?}", err);
+    panic!("Wasm failed to validate: {:?}", err);
 }
 
 #[test]
 fn integration_test() {
     let _ = env_logger::try_init();
+
     let wat = r#"
-    (module
-        
-        (func (export "exported_func")
-            nop
-            i32.const 42
-            if 
-                i32.const 98
-                drop
-            end
+        (module
+            (func (export "exported_func")
+                nop
+                i32.const 42
+                if
+                    i32.const 98
+                    drop
+                end
+            )
         )
-    )
     "#;
     let original = &wat::parse_str(wat).unwrap();
+
     let mut mutator = WasmMutate::default();
     mutator.fuel(1000);
     mutator.seed(0);
+
     // seed is zero, which means first mutator
     let start = std::time::Instant::now();
+
     let it = mutator.run(original).unwrap();
     let mut count = 0;
     for mutated in it.take(100) {
