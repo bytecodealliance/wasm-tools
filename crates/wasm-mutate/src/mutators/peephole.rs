@@ -14,38 +14,35 @@
 //! of the top config `preserve_semantics`.
 //!
 //! # Example
+//!
 //! ```ignore
 //! rules.extend(rewrite!("strength-reduction";  "(i32.shl ?x 1_i32)" <=> "(i32.mul ?x 2_i32)"));
 //! ```
 //!
-use crate::module::PrimitiveTypeInfo;
-use crate::mutators::peephole::eggsy::analysis::PeepholeMutationAnalysis;
-use crate::mutators::peephole::eggsy::encoder::expr2wasm::ResourceRequest;
-
-use crate::mutators::peephole::eggsy::encoder::Encoder;
-use crate::mutators::peephole::eggsy::expr_enumerator::lazy_expand_aux;
-use crate::mutators::peephole::eggsy::lang::Lang;
-use egg::{Rewrite, Runner};
-use rand::{prelude::SmallRng, Rng};
-use std::convert::TryFrom;
-use wasm_encoder::{CodeSection, Function, GlobalSection, Instruction, Module, ValType};
-use wasmparser::{CodeSectionReader, FunctionBody, GlobalSectionReader, LocalsReader};
-
-// Hack to show debug messages in tests
-#[cfg(not(test))]
-use log::debug;
-#[cfg(test)]
-use std::println as debug;
-
-use crate::{module::map_type, ModuleInfo, Result, WasmMutate};
-
-use self::dfg::DFGBuilder;
-
-use super::{Mutator, OperatorAndByteOffset};
 
 pub mod dfg;
 pub mod eggsy;
 pub mod rules;
+
+use self::{
+    dfg::DFGBuilder,
+    eggsy::{
+        analysis::PeepholeMutationAnalysis,
+        encoder::{expr2wasm::ResourceRequest, Encoder},
+        expr_enumerator::lazy_expand_aux,
+        lang::Lang,
+    },
+};
+use super::{Mutator, OperatorAndByteOffset};
+use crate::{
+    module::{map_type, PrimitiveTypeInfo},
+    Error, ModuleInfo, Result, WasmMutate,
+};
+use egg::{Rewrite, Runner};
+use rand::{prelude::SmallRng, Rng};
+use std::{borrow::Cow, fmt::Debug};
+use wasm_encoder::{CodeSection, Function, GlobalSection, Instruction, Module, ValType};
+use wasmparser::{CodeSectionReader, FunctionBody, GlobalSectionReader, LocalsReader};
 
 /// This mutator applies a random peephole transformation to the input Wasm module
 #[derive(Clone, Copy)]
@@ -79,7 +76,7 @@ impl PeepholeMutator {
                 }
                 for _ in 0..localsreader.get_count() {
                     let (count, ty) = localsreader.read()?;
-                    let tymapped = PrimitiveTypeInfo::try_from(ty)?;
+                    let tymapped = PrimitiveTypeInfo::from(ty);
                     for _ in 0..count {
                         all_locals.push(tymapped.clone());
                     }
@@ -124,8 +121,9 @@ impl PeepholeMutator {
 
         loop {
             if visited_functions == function_count {
-                return Err(crate::Error::NoMutationsApplicable);
+                return Err(Error::no_mutations_applicable());
             }
+
             let reader = readers[function_to_mutate as usize];
             let operatorreader = reader.get_operators_reader()?;
             let mut localsreader = reader.get_locals_reader()?;
@@ -135,9 +133,11 @@ impl PeepholeMutator {
             let operatorscount = operators.len();
 
             let mut opcode_to_mutate = config.rng().gen_range(0, operatorscount);
-            debug!(
-                "Function idx {} with {} operators. Selecting {}",
-                function_to_mutate, operatorscount, opcode_to_mutate
+            log::trace!(
+                "Selecting operator {}/{} from function {}",
+                opcode_to_mutate,
+                operatorscount,
+                function_to_mutate,
             );
             let locals = self.get_func_locals(
                 config.info(),
@@ -156,8 +156,8 @@ impl PeepholeMutator {
 
                 let basicblock = match basicblock {
                     None => {
-                        debug!(
-                            "Basic block cannot be constructed for {:?}",
+                        log::trace!(
+                            "Basic block cannot be constructed for opcode {:?}",
                             &operators[opcode_to_mutate]
                         );
                         opcode_to_mutate = (opcode_to_mutate + 1) % operatorscount;
@@ -170,7 +170,7 @@ impl PeepholeMutator {
 
                 let minidfg = match minidfg {
                     None => {
-                        debug!("DFG cannot be constructed for {:?}", opcode_to_mutate);
+                        log::trace!("DFG cannot be constructed for opcode {}", opcode_to_mutate);
 
                         opcode_to_mutate = (opcode_to_mutate + 1) % operatorscount;
                         count += 1;
@@ -189,17 +189,19 @@ impl PeepholeMutator {
                 let start = minidfg.get_expr(opcode_to_mutate);
 
                 if !minidfg.is_subtree_consistent_from_root() {
-                    debug!("{} is not consistent", start);
+                    log::trace!("{} is not consistent", start);
                     opcode_to_mutate = (opcode_to_mutate + 1) % operatorscount;
                     count += 1;
                     continue;
                 };
 
-                debug!(
-                    "Trying to mutate \n{} at {} in fidx {}",
-                    start.pretty(30),
+                log::trace!(
+                    "Trying to mutate\n\
+                     {}\n\
+                     at opcode {} in function {}",
+                    start.pretty(30).trim(),
                     opcode_to_mutate,
-                    function_to_mutate
+                    function_to_mutate,
                 );
 
                 let analysis = PeepholeMutationAnalysis::new(
@@ -227,10 +229,11 @@ impl PeepholeMutator {
                     continue;
                 };
 
-                debug!(
-                    "Egraph built, nodes count {}",
+                log::trace!(
+                    "Egraph built, nodes count = {}",
                     egraph.total_number_of_nodes()
                 );
+
                 // At this point we spent some resource calculating basic block,
                 // and constructing the egraph
                 config.consume_fuel(1)?;
@@ -251,6 +254,8 @@ impl PeepholeMutator {
                 let iterator = iterator
                     .filter(move |expr| !expr.to_string().eq(&startcmp.to_string()))
                     .map(move |expr| {
+                        log::trace!("Yielding expression:\n{}", expr.pretty(60));
+
                         let mut newfunc = self.copy_locals(reader)?;
                         let needed_resources = Encoder::build_function(
                             config,
@@ -302,12 +307,11 @@ impl PeepholeMutator {
                                 start = current_pos;
                             }
                         }
+
                         if needed_resources.len() > 0 {
-                            debug!(
-                                "Adding out of function resources allocation for {} resources",
-                                needed_resources.len()
-                            );
+                            log::trace!("Adding {} additional resources", needed_resources.len());
                         }
+
                         for resource in &needed_resources {
                             match resource {
                                 ResourceRequest::Global {
@@ -430,12 +434,12 @@ impl Mutator for PeepholeMutator {
     }
 }
 
-use std::fmt::Debug;
 impl Debug for Box<dyn CodeMutator> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("Code mutator").finish()
     }
 }
+
 pub(crate) trait CodeMutator {
     fn mutate(
         &self,
@@ -457,8 +461,8 @@ pub(crate) trait CodeMutator {
     ) -> Result<bool>;
 
     /// Provides the name of the mutator, mostly used for debugging purposes
-    fn name(&self) -> String {
-        return format!("{:?}", std::any::type_name::<Self>());
+    fn name(&self) -> Cow<'static, str> {
+        std::any::type_name::<Self>().into()
     }
 }
 

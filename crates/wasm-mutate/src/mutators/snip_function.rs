@@ -26,59 +26,61 @@ impl Mutator for SnipMutator {
             (function_to_mutate + config.info().imported_functions_count) as usize,
         );
 
-        (0..count)
-            .map(|i| {
-                config.consume_fuel(1)?;
-                let f = reader.read().unwrap();
-                if i == function_to_mutate {
-                    log::debug!("Snip function idx {:?}", function_to_mutate);
-                    let locals = vec![];
-                    let mut f = Function::new(locals);
+        for i in 0..count {
+            config.consume_fuel(1)?;
+            let f = reader.read().unwrap();
 
-                    match ftype {
-                        TypeInfo::Func(t) => {
-                            t.returns.iter().for_each(|primitive| match primitive {
-                                PrimitiveTypeInfo::I32 => {
-                                    f.instruction(&Instruction::I32Const(0));
-                                }
-                                PrimitiveTypeInfo::I64 => {
-                                    f.instruction(&Instruction::I64Const(0));
-                                }
-                                PrimitiveTypeInfo::F32 => {
-                                    f.instruction(&Instruction::F32Const(0.0));
-                                }
-                                PrimitiveTypeInfo::F64 => {
-                                    f.instruction(&Instruction::F64Const(0.0));
-                                }
-                                PrimitiveTypeInfo::V128 => {
-                                    f.instruction(&Instruction::V128Const(0));
-                                }
-                                PrimitiveTypeInfo::FuncRef => {
-                                    f.instruction(&Instruction::RefNull(ValType::FuncRef));
-                                }
-                                PrimitiveTypeInfo::ExternRef => {
-                                    f.instruction(&Instruction::RefNull(ValType::ExternRef));
-                                }
-                                PrimitiveTypeInfo::ExnRef => {
-                                    // TODO: not supported in `wasm-encoder` yet.
-                                    f.instruction(&Instruction::Unreachable);
-                                }
-                                PrimitiveTypeInfo::Empty | PrimitiveTypeInfo::Func => {
-                                    unreachable!()
-                                }
-                            });
+            if i != function_to_mutate {
+                codes.raw(&code_section.data[f.range().start..f.range().end]);
+                continue;
+            }
+
+            log::trace!("Snipping function {}", function_to_mutate);
+
+            let locals = vec![];
+            let mut f = Function::new(locals);
+
+            match ftype {
+                TypeInfo::Func(t) => {
+                    for primitive in t.returns.iter() {
+                        match primitive {
+                            PrimitiveTypeInfo::I32 => {
+                                f.instruction(&Instruction::I32Const(0));
+                            }
+                            PrimitiveTypeInfo::I64 => {
+                                f.instruction(&Instruction::I64Const(0));
+                            }
+                            PrimitiveTypeInfo::F32 => {
+                                f.instruction(&Instruction::F32Const(0.0));
+                            }
+                            PrimitiveTypeInfo::F64 => {
+                                f.instruction(&Instruction::F64Const(0.0));
+                            }
+                            PrimitiveTypeInfo::V128 => {
+                                f.instruction(&Instruction::V128Const(0));
+                            }
+                            PrimitiveTypeInfo::FuncRef => {
+                                f.instruction(&Instruction::RefNull(ValType::FuncRef));
+                            }
+                            PrimitiveTypeInfo::ExternRef => {
+                                f.instruction(&Instruction::RefNull(ValType::ExternRef));
+                            }
+                            PrimitiveTypeInfo::ExnRef => {
+                                // TODO: not supported in `wasm-encoder` yet.
+                                f.instruction(&Instruction::Unreachable);
+                            }
+                            PrimitiveTypeInfo::Empty | PrimitiveTypeInfo::Func => {
+                                unreachable!()
+                            }
                         }
-                    };
-
-                    f.instruction(&Instruction::End);
-
-                    codes.function(&f);
-                } else {
-                    codes.raw(&code_section.data[f.range().start..f.range().end]);
+                    }
                 }
-                Ok(())
-            })
-            .collect::<Result<Vec<_>>>()?;
+            }
+
+            f.instruction(&Instruction::End);
+            codes.function(&f);
+        }
+
         Ok(Box::new(std::iter::once(Ok(config
             .info()
             .replace_section(config.info().code.unwrap(), &codes)))))

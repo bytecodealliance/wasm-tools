@@ -1,15 +1,13 @@
-//! Helper to encode [Lang] expressions to Wasm
-use std::num::Wrapping;
+//! Helper to encode [Lang] expressions to Wasm.
 
-use crate::error::EitherType;
-
-use crate::WasmMutate;
-
-use crate::module::PrimitiveTypeInfo;
-use crate::mutators::peephole::eggsy::encoder::TraversalEvent;
-use crate::mutators::peephole::{Lang, EG};
+use crate::{
+    module::PrimitiveTypeInfo,
+    mutators::peephole::{eggsy::encoder::TraversalEvent, Lang, EG},
+    Error, Result, WasmMutate,
+};
 use egg::{Id, RecExpr};
 use rand::Rng;
+use std::num::Wrapping;
 use wasm_encoder::{Function, Instruction, MemArg};
 
 /// Some custom nodes might need special resource allocation outside the
@@ -41,7 +39,7 @@ pub fn expr2wasm(
     expr: &RecExpr<Lang>,
     newfunc: &mut Function,
     _egraph: &EG,
-) -> crate::Result<Vec<ResourceRequest>> {
+) -> Result<Vec<ResourceRequest>> {
     let nodes = expr.as_ref();
     // The last node is the root.
     let root = Id::from(nodes.len() - 1);
@@ -663,12 +661,10 @@ pub fn expr2wasm(
                                 newfunc.instruction(&Instruction::I32Add);
                             }
                             _ => {
-                                return Err(crate::Error::UnsupportedType(EitherType::EggError(
-                                    format!(
-                                        "The current eterm cannot be unfolded {:?}.\n expr {}",
-                                        child, expr
-                                    ),
-                                )))
+                                return Err(Error::other(format!(
+                                    "The current eterm cannot be unfolded {:?}.\n expr {}",
+                                    child, expr
+                                )));
                             }
                         }
                     }
@@ -686,11 +682,9 @@ pub fn expr2wasm(
                                 newfunc.instruction(&Instruction::I64Add);
                             }
                             _ => {
-                                return Err(crate::Error::UnsupportedType(EitherType::EggError(
-                                    format!(
-                                        "The current eterm cannot be unfolded {:?}.\n expr {}",
-                                        child, expr
-                                    ),
+                                return Err(Error::other(format!(
+                                    "The current eterm cannot be unfolded {:?}.\n expr {}",
+                                    child, expr
                                 )))
                             }
                         }

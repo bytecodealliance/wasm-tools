@@ -20,6 +20,8 @@ look at the sub-crates:
 * [**`wast`**](crates/wast) - like `wat`, except provides an AST
 * [**`wasmprinter`**](crates/wasmprinter) - prints WebAssembly binaries in their
   string form
+* [**`wasm-mutate`**](crates/wasm-mutate) - a WebAssembly test case mutator
+* [**`wasm-shrink`**](crates/wasm-shrink) - a WebAssembly test case shrinker
 * [**`wasm-smith`**](crates/wasm-smith) - a WebAssembly test case generator
 * [**`wasm-encoder`**](crates/wasm-encoder) - a crate to generate a binary
   WebAssembly module

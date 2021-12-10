@@ -3,6 +3,7 @@ use std::fs;
 use std::io::{stdin, stdout, Read, Write};
 use std::path::PathBuf;
 use structopt::StructOpt;
+use wasm_mutate::{ErrorKind, Result};
 
 /// A WebAssembly test case mutator.
 ///
@@ -25,16 +26,18 @@ use structopt::StructOpt;
 ///
 /// * 1: An unexpected failure occurred.
 ///
-/// * 2: Failed to mutate the Wasm module with the given seed and mutation
+/// * 2: Failed to parse or validate the input Wasm module.
+///
+/// * 3: Failed to mutate the Wasm module with the given seed and mutation
 ///      constraints. (Happens rarely with reasonable constraints; try again
 ///      with a new seed or loosen your constraints.)
 ///
-/// * 3: The input Wasm module uses a Wasm feature or proposal that is not yet
+/// * 4: Ran out of fuel before successfully applying a mutation.
+///
+/// * 5: The input Wasm module uses a Wasm feature or proposal that is not yet
 ///      supported by `wasm-mutate`.
 ///
-/// * 4: The input is not a valid Wasm module.
-///
-/// * 5: Constructing the Ast for code motion mutations fails
+/// * 6: Other error.
 #[derive(StructOpt)]
 struct Options<'wasm> {
     /// The input WebAssembly binary that will be mutated.
@@ -91,62 +94,40 @@ fn main() -> anyhow::Result<()> {
     input
         .read_to_end(&mut input_wasm)
         .with_context(|| format!("failed to read '{}'", input_name))?;
-    let it = opts.wasm_mutate.run(&input_wasm);
-    let mut output_wasm = match it {
-        Ok(w) => w,
-        Err(e) => {
-            let code = match &e {
-                wasm_mutate::Error::NoMutationsApplicable => 2,
-                wasm_mutate::Error::UnsupportedType(_) => 3,
-                wasm_mutate::Error::Parse(_) => 4,
-                wasm_mutate::Error::InvalidAstOperation(_) => 5,
-            };
-            eprintln!("{}", e);
-            std::process::exit(code);
+
+    let mut output_wasms = unwrap_wasm_mutate_result(opts.wasm_mutate.run(&input_wasm)).take(100);
+    let wasm = loop {
+        if let Some(res) = output_wasms.next() {
+            match res {
+                Err(e) if matches!(e.kind(), ErrorKind::NoMutationsApplicable) => {
+                    // Try the next mutation.
+                    continue;
+                }
+                _ => break unwrap_wasm_mutate_result(res),
+            }
         }
     };
 
-    let mut first_good = Err(wasm_mutate::Error::NoMutationsApplicable);
+    output
+        .write_all(&wasm)
+        .with_context(|| format!("failed to write to '{}'", output_name))?;
 
-    while let Some(w) = output_wasm.next() {
-        match w {
-            Ok(w) => {
-                first_good = Ok(w);
-                break;
-            }
-            Err(e) => {
-                let code = match &e {
-                    wasm_mutate::Error::NoMutationsApplicable => {
-                        // Continue to the next one if its is type no mutation
-                        // otherwrise, raise an error
-                        continue;
-                    }
-                    wasm_mutate::Error::UnsupportedType(_) => 3,
-                    wasm_mutate::Error::Parse(_) => 4,
-                    wasm_mutate::Error::InvalidAstOperation(_) => 5,
-                };
-                eprintln!("{}", e);
-                std::process::exit(code);
-            }
-        }
-    }
+    Ok(())
+}
 
-    match first_good {
-        Ok(w) => {
-            output
-                .write_all(&w)
-                .with_context(|| format!("failed to write to '{}'", output_name))?;
-        }
+fn unwrap_wasm_mutate_result<T>(result: Result<T>) -> T {
+    match result {
+        Ok(x) => x,
         Err(e) => {
-            let code = match &e {
-                wasm_mutate::Error::NoMutationsApplicable => 2,
-                wasm_mutate::Error::UnsupportedType(_) => 3,
-                wasm_mutate::Error::Parse(_) => 4,
-                wasm_mutate::Error::InvalidAstOperation(_) => 5,
+            let code = match e.kind() {
+                ErrorKind::Parse(_) => 2,
+                ErrorKind::NoMutationsApplicable => 3,
+                ErrorKind::OutOfFuel => 4,
+                ErrorKind::Unsupported(_) => 5,
+                ErrorKind::Other(_) => 6,
             };
             eprintln!("{}", e);
             std::process::exit(code);
         }
     }
-    Ok(())
 }
