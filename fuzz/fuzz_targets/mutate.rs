@@ -91,9 +91,11 @@ fuzz_target!(|bytes: &[u8]| {
         log::debug!("validation result = {:?}", validation_result);
 
         if log::log_enabled!(log::Level::Debug) {
+            log::debug!("writing mutated Wasm to `mutated.wasm`");
             std::fs::write("mutated.wasm", &mutated_wasm)
                 .expect("should write `mutated.wasm` okay");
             if let Ok(mutated_wat) = wasmprinter::print_bytes(&mutated_wasm) {
+                log::debug!("writing mutated WAT to `mutated.wat`");
                 std::fs::write("mutated.wat", &mutated_wat)
                     .expect("should write `mutated.wat` okay");
             }

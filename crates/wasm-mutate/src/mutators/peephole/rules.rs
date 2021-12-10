@@ -489,7 +489,7 @@ impl PeepholeMutator {
                 // `x <=> x << 1`
                 rules.extend(rewrite!(
                     "i32.shl-1";
-                    "?x" <=> "(i32.shl ?x 1_i64)"
+                    "?x" <=> "(i32.shl ?x 1_i32)"
                         if self.is_type("?x", PrimitiveTypeInfo::I32)
                 ));
                 rules.extend(rewrite!(
@@ -501,7 +501,7 @@ impl PeepholeMutator {
                 // `x <=> x >> 1`
                 rules.extend(rewrite!(
                     "i32.shr_u-1";
-                    "?x" <=> "(i32.shr_u ?x 1_i64)"
+                    "?x" <=> "(i32.shr_u ?x 1_i32)"
                         if self.is_type("?x", PrimitiveTypeInfo::I32)
                 ));
                 rules.extend(rewrite!(
@@ -511,7 +511,7 @@ impl PeepholeMutator {
                 ));
                 rules.extend(rewrite!(
                     "i32.shr_s-1";
-                    "?x" <=> "(i32.shr_s ?x 1_i64)"
+                    "?x" <=> "(i32.shr_s ?x 1_i32)"
                         if self.is_type("?x", PrimitiveTypeInfo::I32)
                 ));
                 rules.extend(rewrite!(
