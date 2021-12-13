@@ -87,6 +87,7 @@ impl Mutator for RemoveItemMutator {
         // guaranteed to be a non-empty list due to the `can_mutate` guard.
         let i = config.rng().gen_range(0, items.len());
         let (item, idx) = items[i];
+        log::trace!("attempting to remove {:?} index {}", item, idx);
 
         let result = RemoveItem {
             item,
@@ -432,31 +433,6 @@ impl RemoveItem {
     /// * Finally our index is larger than the one being removed which means we
     ///   now decrement it by one to account for the removed item.
     fn remap(&mut self, item: Item, idx: u32) -> Result<u32> {
-        // If we're mapping a function item then we need to process referenced
-        // functions. The reason for this is that in the code section
-        // instructions such as `ref.func 0` are only valid if function 0 is
-        // otherwise referenced somewhere in the module via things like globals,
-        // exports, element segments, etc. This means that removal of a global
-        // funcref *could* make `ref.func 0` invalid where it was valid before.
-        // To prevent creating an invalid module this block guards against this
-        // by recognizing when we're in the code section and on seeing a
-        // `ref.func` instruction it'll return an error if the index isn't
-        // otherwise referenced (probably because we removed the one item that
-        // referenced it).
-        if let Item::Function = item {
-            match self.function_reference_action {
-                Funcref::Save => {
-                    self.referenced_functions.insert(idx);
-                }
-                Funcref::Skip => {}
-                Funcref::RequireReferenced => {
-                    if !self.referenced_functions.contains(&idx) {
-                        return Err(Error::no_mutations_applicable());
-                    }
-                }
-            }
-        }
-
         if item != self.item {
             // Different kind of item, no change
             Ok(idx)
@@ -749,7 +725,31 @@ impl RemoveItem {
             O::RefNull { ty } => I::RefNull(self.translate_type(ty)?),
             O::RefIsNull => I::RefIsNull,
             O::RefFunc { function_index } => {
-                I::RefFunc(self.remap(Item::Function, *function_index)?)
+                // The reason for this is that in the code section instructions
+                // such as `ref.func 0` are only valid if function 0 is
+                // otherwise referenced somewhere in the module via things like
+                // globals, exports, element segments, etc. This means that
+                // removal of a global funcref *could* make `ref.func 0`
+                // invalid where it was valid before.  To prevent creating an
+                // invalid module this block guards against this by recognizing
+                // when we're in the code section and on seeing a `ref.func`
+                // instruction it'll return an error if the index isn't
+                // otherwise referenced (probably because we removed the one
+                // item that referenced it).
+                let idx = *function_index;
+                match self.function_reference_action {
+                    Funcref::Save => {
+                        self.referenced_functions.insert(idx);
+                    }
+                    Funcref::Skip => {}
+                    Funcref::RequireReferenced => {
+                        if !self.referenced_functions.contains(&idx) {
+                            return Err(Error::no_mutations_applicable());
+                        }
+                    }
+                }
+
+                I::RefFunc(self.remap(Item::Function, idx)?)
             }
 
             O::I32Eqz => I::I32Eqz,
@@ -1338,21 +1338,232 @@ mod tests {
     use super::RemoveItemMutator;
 
     #[test]
-    fn test_remove_export_mutator() {
+    fn remove_type() {
         crate::mutators::match_mutation(
-            r#"
-            (module
-                (func (export "exported_func") (result i32)
-                    i32.const 42
-                )
-            )
-            "#,
-            &RemoveItemMutator,
-            r#"
-                (module  (type (;0;)
-                 (func (result i32)))
-                 (func (;0;) (type 0) (result i32)
-                    i32.const 42))"#,
+            r#"(module (type (func)))"#,
+            RemoveItemMutator,
+            r#"(module)"#,
+        );
+    }
+
+    #[test]
+    fn remove_function() {
+        crate::mutators::match_mutation(
+            r#"(module (func))"#,
+            RemoveItemMutator,
+            r#"(module (type (func)))"#,
+        );
+        crate::mutators::match_mutation(
+            r#"(module (import "" "" (func)))"#,
+            RemoveItemMutator,
+            r#"(module (type (func)))"#,
+        );
+    }
+
+    #[test]
+    fn remove_table() {
+        crate::mutators::match_mutation(
+            r#"(module (table 1 funcref))"#,
+            RemoveItemMutator,
+            r#"(module)"#,
+        );
+        crate::mutators::match_mutation(
+            r#"(module (import "" "" (table 1 funcref)))"#,
+            RemoveItemMutator,
+            r#"(module)"#,
+        );
+    }
+
+    #[test]
+    fn remove_memory() {
+        crate::mutators::match_mutation(r#"(module (memory 1))"#, RemoveItemMutator, r#"(module)"#);
+        crate::mutators::match_mutation(
+            r#"(module (import "" "" (memory 1)))"#,
+            RemoveItemMutator,
+            r#"(module)"#,
+        );
+    }
+
+    #[test]
+    fn remove_global() {
+        crate::mutators::match_mutation(
+            r#"(module (global i32 (i32.const 1)))"#,
+            RemoveItemMutator,
+            r#"(module)"#,
+        );
+        crate::mutators::match_mutation(
+            r#"(module (import "" "" (global i32)))"#,
+            RemoveItemMutator,
+            r#"(module)"#,
+        );
+    }
+
+    #[test]
+    fn remove_data() {
+        crate::mutators::match_mutation(
+            r#"(module (data "xxxx"))"#,
+            RemoveItemMutator,
+            r#"(module)"#,
+        );
+    }
+
+    #[test]
+    fn remove_elem() {
+        crate::mutators::match_mutation(
+            r#"(module
+                    (elem))"#,
+            RemoveItemMutator,
+            r#"(module)"#,
+        );
+    }
+
+    #[test]
+    fn renumber_functions() {
+        crate::mutators::match_mutation(
+            r#"(module
+                    (func)
+                    (func)
+                    (func (export "renumber")
+                        call 0
+                        call 3)
+                    (func)
+            )"#,
+            RemoveItemMutator,
+            r#"(module
+                    (func)
+                    (func (export "renumber") call 0 call 2)
+                    (func)
+            )"#,
+        );
+    }
+
+    #[test]
+    fn renumber_table() {
+        crate::mutators::match_mutation(
+            r#"(module
+                    (func (export "")
+                        i32.const 0
+                        i32.const 0
+                        i32.const 0
+                        table.copy 0 2
+                    )
+                    (table 1 funcref)
+                    (table 1 funcref)
+                    (table 1 funcref)
+            )"#,
+            RemoveItemMutator,
+            r#"(module
+                    (func (export "")
+                        i32.const 0
+                        i32.const 0
+                        i32.const 0
+                        table.copy 0 1
+                    )
+                    (table 1 funcref)
+                    (table 1 funcref)
+            )"#,
+        );
+    }
+
+    #[test]
+    fn renumber_memory() {
+        crate::mutators::match_mutation(
+            r#"(module
+                    (func (export "")
+                        i32.const 0
+                        i32.const 0
+                        i32.const 0
+                        memory.copy 0 2
+                    )
+                    (memory 1)
+                    (memory 1)
+                    (memory 1)
+            )"#,
+            RemoveItemMutator,
+            r#"(module
+                    (func (export "")
+                        i32.const 0
+                        i32.const 0
+                        i32.const 0
+                        memory.copy 0 1
+                    )
+                    (memory 1)
+                    (memory 1)
+            )"#,
+        );
+    }
+
+    #[test]
+    fn renumber_data() {
+        crate::mutators::match_mutation(
+            r#"(module
+                    (func (export "")
+                        data.drop 1
+                    )
+                    (data "a")
+                    (data "b")
+            )"#,
+            RemoveItemMutator,
+            r#"(module
+                    (func (export "")
+                        data.drop 0
+                    )
+                    (data "b")
+            )"#,
+        );
+    }
+
+    #[test]
+    fn renumber_elem() {
+        crate::mutators::match_mutation(
+            r#"(module
+                    (func (export "")
+                        elem.drop 1
+                    )
+                    (func)
+                    (elem func 0)
+                    (elem func 1)
+            )"#,
+            RemoveItemMutator,
+            r#"(module
+                    (func (export "")
+                        elem.drop 0
+                    )
+                    (func)
+                    (elem func 1)
+            )"#,
+        );
+    }
+
+    #[test]
+    fn renumber_type() {
+        crate::mutators::match_mutation(
+            r#"(module
+                    (type (func))
+                    (type (func (param i32)))
+                    (func (type 1))
+            )"#,
+            RemoveItemMutator,
+            r#"(module
+                    (type (func (param i32)))
+                    (func (type 0))
+            )"#,
+        );
+    }
+
+    #[test]
+    fn renumber_global() {
+        crate::mutators::match_mutation(
+            r#"(module
+                    (global i32 (i32.const 0))
+                    (global i32 (i32.const 1))
+                    (func (export "") (result i32) global.get 1)
+            )"#,
+            RemoveItemMutator,
+            r#"(module
+                    (global i32 (i32.const 1))
+                    (func (export "") (result i32) global.get 0)
+            )"#,
         );
     }
 }

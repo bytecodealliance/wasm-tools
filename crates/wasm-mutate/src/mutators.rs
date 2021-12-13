@@ -104,12 +104,16 @@ pub(crate) fn match_mutation<T>(original: &str, mutator: T, expected: &str)
 where
     T: Mutator + Copy,
 {
-    use rand::{prelude::SmallRng, SeedableRng};
-
     use crate::info::ModuleInfo;
+    use crate::ErrorKind;
+    use rand::{prelude::SmallRng, SeedableRng};
+    use wasmparser::WasmFeatures;
 
     let mut wasmmutate = WasmMutate::default();
     let original = &wat::parse_str(original).unwrap();
+
+    let expected = &wat::parse_str(expected).unwrap();
+    let expected_text = wasmprinter::print_bytes(expected).unwrap();
 
     let info = ModuleInfo::new(original).unwrap();
     wasmmutate.info = Some(info);
@@ -120,18 +124,36 @@ where
 
     assert!(can_mutate);
 
-    let mutation = mutator.mutate(&mut wasmmutate).unwrap().next().unwrap();
+    let attempts = 100;
 
-    let mutation_bytes = mutation.unwrap().finish();
+    for _ in 0..attempts {
+        let mutation = match mutator
+            .mutate(&mut wasmmutate)
+            .and_then(|mut mutation| mutation.next().unwrap())
+        {
+            Ok(mutation) => mutation,
+            Err(e) if matches!(e.kind(), ErrorKind::NoMutationsApplicable) => continue,
+            Err(e) => panic!("mutation error: {}", e),
+        };
 
-    let mut validator = wasmparser::Validator::new();
-    crate::validate(&mut validator, &mutation_bytes);
+        let mutation_bytes = mutation.finish();
 
-    // If it fails, it is probably an invalid
-    // reformatting expected
-    let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
-    let expected = &wat::parse_str(expected).unwrap();
-    let expected_text = wasmprinter::print_bytes(expected).unwrap();
+        let mut validator = wasmparser::Validator::new();
+        validator.wasm_features(WasmFeatures {
+            multi_memory: true,
+            ..WasmFeatures::default()
+        });
+        crate::validate(&mut validator, &mutation_bytes);
 
-    assert_eq!(text.trim(), expected_text.trim());
+        // If it fails, it is probably an invalid
+        // reformatting expected
+        let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
+        assert_eq!(text.trim(), expected_text.trim());
+        return;
+    }
+
+    panic!(
+        "never found any applicable mutations after {} attempts",
+        attempts
+    );
 }
