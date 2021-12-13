@@ -147,7 +147,7 @@ impl Mutator for CodemotionMutator {
         let code_section = config.info().get_code_section();
         let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
 
-        for fidx in 0..config.info().function_count {
+        for fidx in 0..config.info().num_local_functions() {
             let reader = sectionreader.read()?;
             if fidx == function_to_mutate {
                 log::trace!("Mutating function {}", fidx);
@@ -163,7 +163,7 @@ impl Mutator for CodemotionMutator {
     }
 
     fn can_mutate<'a>(&self, config: &'a WasmMutate) -> bool {
-        config.info().has_code() && config.info().function_count > 0
+        config.info().has_code() && config.info().num_local_functions() > 0
     }
 }
 

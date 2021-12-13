@@ -22,9 +22,9 @@ impl Mutator for SnipMutator {
         let mut reader = CodeSectionReader::new(code_section.data, 0)?;
         let count = reader.get_count();
         let function_to_mutate = config.rng().gen_range(0, count);
-        let ftype = config.info().get_functype_idx(
-            (function_to_mutate + config.info().imported_functions_count) as usize,
-        );
+        let ftype = config
+            .info()
+            .get_functype_idx(function_to_mutate + config.info().num_imported_functions());
 
         for i in 0..count {
             config.consume_fuel(1)?;

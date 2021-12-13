@@ -1560,8 +1560,8 @@ impl OperatorValidator {
             }
             Operator::F32x4FmaRelaxed
             | Operator::F32x4FmsRelaxed
-            | Operator::F64x4FmaRelaxed
-            | Operator::F64x4FmsRelaxed
+            | Operator::F64x2FmaRelaxed
+            | Operator::F64x2FmsRelaxed
             | Operator::F32x4MinRelaxed
             | Operator::F32x4MaxRelaxed
             | Operator::F64x2MinRelaxed

@@ -66,7 +66,7 @@ impl PeepholeMutator {
         funcidx: u32,
         localsreader: &mut LocalsReader,
     ) -> Result<Vec<PrimitiveTypeInfo>> {
-        let ftype = info.get_functype_idx(funcidx as usize);
+        let ftype = info.get_functype_idx(funcidx);
         match ftype {
             crate::module::TypeInfo::Func(tpe) => {
                 let mut all_locals = Vec::new();
@@ -141,7 +141,7 @@ impl PeepholeMutator {
             );
             let locals = self.get_func_locals(
                 config.info(),
-                function_to_mutate + config.info().imported_functions_count, /* the function type is shifted
+                function_to_mutate + config.info().num_imported_functions(), /* the function type is shifted
                                                                             by the imported functions*/
                 &mut localsreader,
             )?;
@@ -275,7 +275,7 @@ impl PeepholeMutator {
                         // this mutator is applicable to internal functions, so
                         // it starts by randomly selecting an index between
                         // the imported functions and the total count, total=imported + internal
-                        for fidx in 0..config.info().function_count {
+                        for fidx in 0..config.info().num_local_functions() {
                             let reader = sectionreader.read()?;
                             if fidx == function_to_mutate {
                                 codes.function(&newfunc);
@@ -430,7 +430,7 @@ impl Mutator for PeepholeMutator {
     }
 
     fn can_mutate<'a>(&self, config: &'a WasmMutate) -> bool {
-        config.info().has_code() && config.info().function_count > 0
+        config.info().has_code() && config.info().num_local_functions() > 0
     }
 }
 

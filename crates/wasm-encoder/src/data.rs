@@ -30,7 +30,7 @@ use super::*;
 ///
 /// let wasm_bytes = module.finish();
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct DataSection {
     bytes: Vec<u8>,
     num_added: u32,
@@ -64,10 +64,7 @@ pub enum DataSegmentMode<'a> {
 impl DataSection {
     /// Create a new data section encoder.
     pub fn new() -> DataSection {
-        DataSection {
-            bytes: vec![],
-            num_added: 0,
-        }
+        DataSection::default()
     }
 
     /// How many segments have been defined inside this section so far?

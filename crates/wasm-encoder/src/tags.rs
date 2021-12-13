@@ -19,7 +19,7 @@ use std::convert::TryFrom;
 ///
 /// let wasm_bytes = module.finish();
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct TagSection {
     bytes: Vec<u8>,
     num_added: u32,
@@ -28,10 +28,7 @@ pub struct TagSection {
 impl TagSection {
     /// Create a new tag section encoder.
     pub fn new() -> TagSection {
-        TagSection {
-            bytes: vec![],
-            num_added: 0,
-        }
+        TagSection::default()
     }
 
     /// How many tags have been defined inside this section so far?

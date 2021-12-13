@@ -20,7 +20,7 @@ use super::*;
 ///
 /// let wasm_bytes = module.finish();
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct FunctionSection {
     bytes: Vec<u8>,
     num_added: u32,
@@ -29,10 +29,7 @@ pub struct FunctionSection {
 impl FunctionSection {
     /// Construct a new function section encoder.
     pub fn new() -> FunctionSection {
-        FunctionSection {
-            bytes: vec![],
-            num_added: 0,
-        }
+        FunctionSection::default()
     }
 
     /// How many functions have been defined inside this section so far?

@@ -24,7 +24,7 @@ use std::convert::TryFrom;
 ///
 /// let wasm_bytes = module.finish();
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct ImportSection {
     bytes: Vec<u8>,
     num_added: u32,
@@ -33,10 +33,7 @@ pub struct ImportSection {
 impl ImportSection {
     /// Construct a new import section encoder.
     pub fn new() -> ImportSection {
-        ImportSection {
-            bytes: vec![],
-            num_added: 0,
-        }
+        ImportSection::default()
     }
 
     /// How many imports have been defined inside this section so far?

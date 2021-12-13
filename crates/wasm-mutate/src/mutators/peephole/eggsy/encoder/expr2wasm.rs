@@ -804,10 +804,10 @@ pub fn expr2wasm(
                         newfunc.instruction(&Instruction::I64Eq);
                     }
                     Lang::I32Ne(_) => {
-                        newfunc.instruction(&Instruction::I32Neq);
+                        newfunc.instruction(&Instruction::I32Ne);
                     }
                     Lang::I64Ne(_) => {
-                        newfunc.instruction(&Instruction::I64Neq);
+                        newfunc.instruction(&Instruction::I64Ne);
                     }
                     Lang::I32LtS(_) => {
                         newfunc.instruction(&Instruction::I32LtS);
@@ -1077,10 +1077,10 @@ pub fn expr2wasm(
                         newfunc.instruction(&Instruction::F64Eq);
                     }
                     Lang::F32Ne(_) => {
-                        newfunc.instruction(&Instruction::F32Neq);
+                        newfunc.instruction(&Instruction::F32Ne);
                     }
                     Lang::F64Ne(_) => {
-                        newfunc.instruction(&Instruction::F64Neq);
+                        newfunc.instruction(&Instruction::F64Ne);
                     }
                     Lang::F32Lt(_) => {
                         newfunc.instruction(&Instruction::F32Lt);

@@ -22,11 +22,10 @@
 
 pub mod codemotion;
 pub mod custom;
-pub mod data;
-pub mod elems;
 pub mod function_body_unreachable;
 pub mod peephole;
 pub mod remove_export;
+pub mod remove_item;
 pub mod rename_export;
 pub mod snip_function;
 pub mod start;

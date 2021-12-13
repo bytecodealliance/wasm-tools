@@ -143,7 +143,7 @@ instructions! {
     (None, f64_const, Numeric),
     (Some(i32_on_stack), i32_eqz, Numeric),
     (Some(i32_i32_on_stack), i32_eq, Numeric),
-    (Some(i32_i32_on_stack), i32_neq, Numeric),
+    (Some(i32_i32_on_stack), i32_ne, Numeric),
     (Some(i32_i32_on_stack), i32_lt_s, Numeric),
     (Some(i32_i32_on_stack), i32_lt_u, Numeric),
     (Some(i32_i32_on_stack), i32_gt_s, Numeric),
@@ -154,7 +154,7 @@ instructions! {
     (Some(i32_i32_on_stack), i32_ge_u, Numeric),
     (Some(i64_on_stack), i64_eqz, Numeric),
     (Some(i64_i64_on_stack), i64_eq, Numeric),
-    (Some(i64_i64_on_stack), i64_neq, Numeric),
+    (Some(i64_i64_on_stack), i64_ne, Numeric),
     (Some(i64_i64_on_stack), i64_lt_s, Numeric),
     (Some(i64_i64_on_stack), i64_lt_u, Numeric),
     (Some(i64_i64_on_stack), i64_gt_s, Numeric),
@@ -164,13 +164,13 @@ instructions! {
     (Some(i64_i64_on_stack), i64_ge_s, Numeric),
     (Some(i64_i64_on_stack), i64_ge_u, Numeric),
     (Some(f32_f32_on_stack), f32_eq, Numeric),
-    (Some(f32_f32_on_stack), f32_neq, Numeric),
+    (Some(f32_f32_on_stack), f32_ne, Numeric),
     (Some(f32_f32_on_stack), f32_lt, Numeric),
     (Some(f32_f32_on_stack), f32_gt, Numeric),
     (Some(f32_f32_on_stack), f32_le, Numeric),
     (Some(f32_f32_on_stack), f32_ge, Numeric),
     (Some(f64_f64_on_stack), f64_eq, Numeric),
-    (Some(f64_f64_on_stack), f64_neq, Numeric),
+    (Some(f64_f64_on_stack), f64_ne, Numeric),
     (Some(f64_f64_on_stack), f64_lt, Numeric),
     (Some(f64_f64_on_stack), f64_gt, Numeric),
     (Some(f64_f64_on_stack), f64_le, Numeric),
@@ -2155,10 +2155,10 @@ fn i32_eq(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result
     Ok(Instruction::I32Eq)
 }
 
-fn i32_neq(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
+fn i32_ne(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
-    Ok(Instruction::I32Neq)
+    Ok(Instruction::I32Ne)
 }
 
 fn i32_lt_s(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
@@ -2231,10 +2231,10 @@ fn i64_eq(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result
     Ok(Instruction::I64Eq)
 }
 
-fn i64_neq(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
+fn i64_ne(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I32]);
-    Ok(Instruction::I64Neq)
+    Ok(Instruction::I64Ne)
 }
 
 fn i64_lt_s(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
@@ -2295,10 +2295,10 @@ fn f32_eq(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result
     Ok(Instruction::F32Eq)
 }
 
-fn f32_neq(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
+fn f32_ne(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::I32]);
-    Ok(Instruction::F32Neq)
+    Ok(Instruction::F32Ne)
 }
 
 fn f32_lt(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
@@ -2335,10 +2335,10 @@ fn f64_eq(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result
     Ok(Instruction::F64Eq)
 }
 
-fn f64_neq(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
+fn f64_ne(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::I32]);
-    Ok(Instruction::F64Neq)
+    Ok(Instruction::F64Ne)
 }
 
 fn f64_lt(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {

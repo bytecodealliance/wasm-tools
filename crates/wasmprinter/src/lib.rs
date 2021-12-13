@@ -1560,8 +1560,8 @@ impl Printer {
             }
             F32x4FmaRelaxed => self.result.push_str("f32x4.fma_relaxed"),
             F32x4FmsRelaxed => self.result.push_str("f32x4.fms_relaxed"),
-            F64x4FmaRelaxed => self.result.push_str("f64x2.fma_relaxed"),
-            F64x4FmsRelaxed => self.result.push_str("f64x2.fms_relaxed"),
+            F64x2FmaRelaxed => self.result.push_str("f64x2.fma_relaxed"),
+            F64x2FmsRelaxed => self.result.push_str("f64x2.fms_relaxed"),
             I8x16LaneSelect => self.result.push_str("i8x16.laneselect"),
             I16x8LaneSelect => self.result.push_str("i16x8.laneselect"),
             I32x4LaneSelect => self.result.push_str("i32x4.laneselect"),

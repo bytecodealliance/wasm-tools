@@ -29,12 +29,19 @@ pub struct ModuleInfo<'a> {
     pub code: Option<usize>,
     pub start: Option<usize>,
 
-    pub is_start_defined: bool,
-    pub elements_count: u32,
-    pub data_segments_count: u32,
-    pub function_count: u32,
     pub exports_count: u32,
-    pub imported_functions_count: u32,
+    elements_count: u32,
+    data_segments_count: u32,
+    start_function: Option<u32>,
+    memory_count: u32,
+    table_count: u32,
+    tag_count: u32,
+
+    imported_functions_count: u32,
+    imported_globals_count: u32,
+    imported_memories_count: u32,
+    imported_tables_count: u32,
+    imported_tags_count: u32,
 
     // types for inner functions
     pub types_map: Vec<TypeInfo>,
@@ -65,12 +72,11 @@ impl<'a> ModuleInfo<'a> {
             };
             match payload {
                 Payload::CodeSectionStart {
-                    count,
+                    count: _,
                     range,
                     size: _,
                 } => {
                     info.code = Some(info.raw_sections.len());
-                    info.function_count = count;
                     info.section(SectionId::Code.into(), range, input_wasm);
                     parser.skip_section();
                     // update slice, bypass the section
@@ -95,22 +101,34 @@ impl<'a> ModuleInfo<'a> {
                     info.section(SectionId::Import.into(), reader.range(), input_wasm);
 
                     for _ in 0..reader.get_count() {
-                        reader.read().map(|ty| {
-                            match ty.ty {
-                                wasmparser::ImportSectionEntryType::Function(ty) => {
-                                    // Save imported functions
-                                    info.function_map.push(ty);
-                                    info.imported_functions_count += 1;
-                                }
-                                wasmparser::ImportSectionEntryType::Global(ty) => {
-                                    let ty = PrimitiveTypeInfo::try_from(ty.content_type).unwrap();
-                                    info.global_types.push(ty);
-                                }
-                                _ => {
-                                    // Do nothing
-                                }
+                        let ty = reader.read()?;
+                        match ty.ty {
+                            wasmparser::ImportSectionEntryType::Function(ty) => {
+                                // Save imported functions
+                                info.function_map.push(ty);
+                                info.imported_functions_count += 1;
                             }
-                        })?;
+                            wasmparser::ImportSectionEntryType::Global(ty) => {
+                                let ty = PrimitiveTypeInfo::try_from(ty.content_type).unwrap();
+                                info.global_types.push(ty);
+                                info.imported_globals_count += 1;
+                            }
+                            wasmparser::ImportSectionEntryType::Memory(_ty) => {
+                                info.memory_count += 1;
+                                info.imported_memories_count += 1;
+                            }
+                            wasmparser::ImportSectionEntryType::Table(_ty) => {
+                                info.table_count += 1;
+                                info.imported_tables_count += 1;
+                            }
+                            wasmparser::ImportSectionEntryType::Tag(_ty) => {
+                                info.tag_count += 1;
+                                info.imported_tags_count += 1;
+                            }
+                            _ => {
+                                // Do nothing
+                            }
+                        }
                     }
                 }
                 Payload::FunctionSection(mut reader) => {
@@ -125,10 +143,12 @@ impl<'a> ModuleInfo<'a> {
                 }
                 Payload::TableSection(reader) => {
                     info.tables = Some(info.raw_sections.len());
+                    info.table_count += reader.get_count();
                     info.section(SectionId::Table.into(), reader.range(), input_wasm);
                 }
                 Payload::MemorySection(reader) => {
                     info.memories = Some(info.raw_sections.len());
+                    info.memory_count += reader.get_count();
                     info.section(SectionId::Memory.into(), reader.range(), input_wasm);
                 }
                 Payload::GlobalSection(mut reader) => {
@@ -136,11 +156,10 @@ impl<'a> ModuleInfo<'a> {
                     info.section(SectionId::Global.into(), reader.range(), input_wasm);
 
                     for _ in 0..reader.get_count() {
-                        reader.read().map(|ty| {
-                            // We only need the type of the global, not necesarily if is mutable or not
-                            let ty = PrimitiveTypeInfo::try_from(ty.ty.content_type).unwrap();
-                            info.global_types.push(ty);
-                        })?;
+                        let ty = reader.read()?;
+                        // We only need the type of the global, not necesarily if is mutable or not
+                        let ty = PrimitiveTypeInfo::try_from(ty.ty.content_type).unwrap();
+                        info.global_types.push(ty);
                     }
                 }
                 Payload::ExportSection(mut reader) => {
@@ -154,9 +173,9 @@ impl<'a> ModuleInfo<'a> {
 
                     info.section(SectionId::Export.into(), reader.range(), input_wasm);
                 }
-                Payload::StartSection { func: _, range } => {
-                    info.is_start_defined = true;
+                Payload::StartSection { func, range } => {
                     info.start = Some(info.raw_sections.len());
+                    info.start_function = Some(func);
                     info.section(SectionId::Start.into(), range, input_wasm);
                 }
                 Payload::ElementSection(reader) => {
@@ -215,13 +234,13 @@ impl<'a> ModuleInfo<'a> {
         });
     }
 
-    pub fn get_elements_section(&self) -> RawSection<'a> {
-        self.raw_sections[self.elements.unwrap()]
-    }
+    // pub fn get_elements_section(&self) -> RawSection<'a> {
+    //     self.raw_sections[self.elements.unwrap()]
+    // }
 
-    pub fn get_data_section(&self) -> RawSection<'a> {
-        self.raw_sections[self.data.unwrap()]
-    }
+    // pub fn get_data_section(&self) -> RawSection<'a> {
+    //     self.raw_sections[self.data.unwrap()]
+    // }
 
     pub fn get_code_section(&self) -> RawSection<'a> {
         self.raw_sections[self.code.unwrap()]
@@ -237,8 +256,8 @@ impl<'a> ModuleInfo<'a> {
 
     /// Returns the function type based on the index of the function type
     /// `types[functions[idx]]`
-    pub fn get_functype_idx(&self, idx: usize) -> &TypeInfo {
-        let functpeindex = self.function_map[idx] as usize;
+    pub fn get_functype_idx(&self, idx: u32) -> &TypeInfo {
+        let functpeindex = self.function_map[idx as usize] as usize;
         &self.types_map[functpeindex]
     }
 
@@ -290,5 +309,77 @@ impl<'a> ModuleInfo<'a> {
             }
         });
         module
+    }
+
+    pub fn num_functions(&self) -> u32 {
+        self.function_map.len() as u32
+    }
+
+    pub fn num_local_functions(&self) -> u32 {
+        self.num_functions() - self.num_imported_functions()
+    }
+
+    pub fn num_imported_functions(&self) -> u32 {
+        self.imported_functions_count
+    }
+
+    pub fn num_tables(&self) -> u32 {
+        self.table_count
+    }
+
+    // pub fn num_local_tables(&self) -> u32 {
+    //     self.num_tables() - self.num_imported_tables()
+    // }
+
+    pub fn num_imported_tables(&self) -> u32 {
+        self.imported_tables_count
+    }
+
+    pub fn num_memories(&self) -> u32 {
+        self.memory_count
+    }
+
+    // pub fn num_local_memories(&self) -> u32 {
+    //     self.num_memories() - self.num_imported_memories()
+    // }
+
+    pub fn num_imported_memories(&self) -> u32 {
+        self.imported_memories_count
+    }
+
+    pub fn num_globals(&self) -> u32 {
+        self.global_types.len() as u32
+    }
+
+    // pub fn num_local_globals(&self) -> u32 {
+    //     self.num_globals() - self.num_imported_globals()
+    // }
+
+    pub fn num_imported_globals(&self) -> u32 {
+        self.imported_globals_count
+    }
+
+    pub fn num_tags(&self) -> u32 {
+        self.tag_count
+    }
+
+    // pub fn num_local_tags(&self) -> u32 {
+    //     self.num_tags() - self.num_imported_tags()
+    // }
+
+    pub fn num_imported_tags(&self) -> u32 {
+        self.imported_tags_count
+    }
+
+    pub fn num_data(&self) -> u32 {
+        self.data_segments_count
+    }
+
+    pub fn num_elements(&self) -> u32 {
+        self.elements_count
+    }
+
+    pub fn num_types(&self) -> u32 {
+        self.types_map.len() as u32
     }
 }

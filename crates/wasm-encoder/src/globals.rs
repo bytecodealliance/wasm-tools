@@ -21,7 +21,7 @@ use super::*;
 ///
 /// let wasm_bytes = module.finish();
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct GlobalSection {
     bytes: Vec<u8>,
     num_added: u32,
@@ -30,10 +30,7 @@ pub struct GlobalSection {
 impl GlobalSection {
     /// Create a new global section encoder.
     pub fn new() -> GlobalSection {
-        GlobalSection {
-            bytes: vec![],
-            num_added: 0,
-        }
+        GlobalSection::default()
     }
 
     /// How many globals have been defined inside this section so far?

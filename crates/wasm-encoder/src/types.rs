@@ -18,7 +18,7 @@ use std::convert::TryFrom;
 ///
 /// let wasm_bytes = module.finish();
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct TypeSection {
     bytes: Vec<u8>,
     num_added: u32,
@@ -27,10 +27,7 @@ pub struct TypeSection {
 impl TypeSection {
     /// Create a new type section encoder.
     pub fn new() -> TypeSection {
-        TypeSection {
-            bytes: vec![],
-            num_added: 0,
-        }
+        TypeSection::default()
     }
 
     /// How many types have been defined inside this section so far?
