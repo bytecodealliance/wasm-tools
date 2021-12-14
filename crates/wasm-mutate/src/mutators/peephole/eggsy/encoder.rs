@@ -46,9 +46,9 @@ impl Encoder {
         // The edges of the stackentries are always backward in the array, so, it consistent to
         // do the writing in reverse
         let mut resource_request = vec![];
-        for (entryidx, parentidx) in dfg.parents.iter().enumerate() {
+        for (entryidx, parent) in dfg.parents.iter().enumerate() {
             // It is a root, write then
-            if *parentidx == -1 {
+            if parent.is_none() {
                 let entry = &dfg.entries[entryidx];
                 let to_encode = if entry.operator_idx == insertion_point {
                     expr.clone()
