@@ -187,7 +187,7 @@ pub fn expr2wasm(
                     | Lang::F32Floor(operands)
                     | Lang::F64Floor(operands)
                     | Lang::F32Trunc(operands)
-                    | Lang::F64trunc(operands)
+                    | Lang::F64Trunc(operands)
                     | Lang::F32Nearest(operands)
                     | Lang::F64Nearest(operands)
                     | Lang::I32TruncF32S(operands)
@@ -902,7 +902,7 @@ pub fn expr2wasm(
                     Lang::F32Trunc(_) => {
                         newfunc.instruction(&Instruction::F32Trunc);
                     }
-                    Lang::F64trunc(_) => {
+                    Lang::F64Trunc(_) => {
                         newfunc.instruction(&Instruction::F64Trunc);
                     }
                     Lang::F32Nearest(_) => {

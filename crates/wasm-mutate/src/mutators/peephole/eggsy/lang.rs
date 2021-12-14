@@ -252,7 +252,7 @@ pub enum Lang {
     /// f32.trunc  operator
     F32Trunc([Id; 1]),
     /// f64.trunc  operator
-    F64trunc([Id; 1]),
+    F64Trunc([Id; 1]),
     /// f32.nearest  operator
     F32Nearest([Id; 1]),
     /// f64.nearest  operator
@@ -790,7 +790,7 @@ impl Display for Lang {
             Lang::F32Floor(_) => f.write_str("f32.floor"),
             Lang::F64Floor(_) => f.write_str("f64.floor"),
             Lang::F32Trunc(_) => f.write_str("f32.trunc"),
-            Lang::F64trunc(_) => f.write_str("f64.trunc"),
+            Lang::F64Trunc(_) => f.write_str("f64.trunc"),
             Lang::F32Nearest(_) => f.write_str("f32.nearest"),
             Lang::F64Nearest(_) => f.write_str("f64.nearest"),
             Lang::LocalGet(idx) => f.write_str(&format!("local.get.{}", idx)),
@@ -1429,7 +1429,7 @@ impl egg::Language for Lang {
             | Lang::F32Floor(operands)
             | Lang::F64Floor(operands)
             | Lang::F32Trunc(operands)
-            | Lang::F64trunc(operands)
+            | Lang::F64Trunc(operands)
             | Lang::F32Nearest(operands)
             | Lang::F64Nearest(operands)
             | Lang::I32TruncF32S(operands)
@@ -1731,7 +1731,7 @@ impl egg::Language for Lang {
             | Lang::F32Floor(operands)
             | Lang::F64Floor(operands)
             | Lang::F32Trunc(operands)
-            | Lang::F64trunc(operands)
+            | Lang::F64Trunc(operands)
             | Lang::F32Nearest(operands)
             | Lang::F64Nearest(operands)
             | Lang::I32TruncF32S(operands)
@@ -2053,7 +2053,7 @@ impl egg::Language for Lang {
             "f32.floor" => Ok(Lang::F32Floor([children[0]])),
             "f64.floor" => Ok(Lang::F64Floor([children[0]])),
             "f32.trunc" => Ok(Lang::F32Trunc([children[0]])),
-            "f64.trunc" => Ok(Lang::F64trunc([children[0]])),
+            "f64.trunc" => Ok(Lang::F64Trunc([children[0]])),
             "f32.nearest" => Ok(Lang::F32Nearest([children[0]])),
             "f64.nearest" => Ok(Lang::F64Nearest([children[0]])),
             // more conversion
