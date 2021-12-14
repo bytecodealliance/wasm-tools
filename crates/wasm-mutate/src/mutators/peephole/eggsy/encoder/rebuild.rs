@@ -311,7 +311,7 @@ pub(crate) fn build_expr_inner(
                     Lang::F32Floor(_) => expr.add(Lang::F32Floor([operand(0)])),
                     Lang::F64Floor(_) => expr.add(Lang::F64Floor([operand(0)])),
                     Lang::F32Trunc(_) => expr.add(Lang::F32Trunc([operand(0)])),
-                    Lang::F64trunc(_) => expr.add(Lang::F64trunc([operand(0)])),
+                    Lang::F64Trunc(_) => expr.add(Lang::F64Trunc([operand(0)])),
                     Lang::F32Nearest(_) => expr.add(Lang::F32Nearest([operand(0)])),
                     Lang::F64Nearest(_) => expr.add(Lang::F64Nearest([operand(0)])),
                     Lang::I32TruncF32S(_) => expr.add(Lang::I32TruncF32S([operand(0)])),

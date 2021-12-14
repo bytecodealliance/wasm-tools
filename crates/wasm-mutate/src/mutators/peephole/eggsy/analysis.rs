@@ -181,7 +181,7 @@ impl PeepholeMutationAnalysis {
             Lang::F32Floor(_) => Ok(PrimitiveTypeInfo::F32),
             Lang::F64Floor(_) => Ok(PrimitiveTypeInfo::F64),
             Lang::F32Trunc(_) => Ok(PrimitiveTypeInfo::F32),
-            Lang::F64trunc(_) => Ok(PrimitiveTypeInfo::F64),
+            Lang::F64Trunc(_) => Ok(PrimitiveTypeInfo::F64),
             Lang::F32Nearest(_) => Ok(PrimitiveTypeInfo::F32),
             Lang::F64Nearest(_) => Ok(PrimitiveTypeInfo::F64),
             Lang::I32TruncF32S(_) => Ok(PrimitiveTypeInfo::I32),

@@ -681,7 +681,7 @@ pub fn lazy_expand<'a>(
                     Lang::F32Floor([arg]) => unop!(F32Floor, arg, eg, rnd, n, recexpr),
                     Lang::F64Floor([arg]) => unop!(F64Floor, arg, eg, rnd, n, recexpr),
                     Lang::F32Trunc([arg]) => unop!(F32Trunc, arg, eg, rnd, n, recexpr),
-                    Lang::F64trunc([arg]) => unop!(F64trunc, arg, eg, rnd, n, recexpr),
+                    Lang::F64Trunc([arg]) => unop!(F64Trunc, arg, eg, rnd, n, recexpr),
                     Lang::F32Nearest([arg]) => unop!(F32Nearest, arg, eg, rnd, n, recexpr),
                     Lang::F64Nearest([arg]) => unop!(F64Nearest, arg, eg, rnd, n, recexpr),
                     Lang::Wrap([arg]) => unop!(Wrap, arg, eg, rnd, n, recexpr),
