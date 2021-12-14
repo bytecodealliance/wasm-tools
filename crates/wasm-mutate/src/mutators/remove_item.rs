@@ -1335,7 +1335,7 @@ impl RemoveItem {
 
 #[cfg(test)]
 mod tests {
-    use super::RemoveItemMutator;
+    use super::{Item, RemoveItemMutator};
 
     #[test]
     fn remove_type() {
@@ -1414,9 +1414,8 @@ mod tests {
     #[test]
     fn remove_elem() {
         crate::mutators::match_mutation(
-            r#"(module
-                    (elem))"#,
-            RemoveItemMutator(Item::Elem),
+            r#"(module (elem))"#,
+            RemoveItemMutator(Item::Element),
             r#"(module)"#,
         );
     }
