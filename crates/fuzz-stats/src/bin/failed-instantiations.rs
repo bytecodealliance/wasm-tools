@@ -43,6 +43,7 @@ impl State {
     fn new() -> State {
         let mut config = Config::new();
         config.wasm_multi_memory(true);
+        config.wasm_simd(true);
         State {
             engine: Engine::new(&config).unwrap(),
             print: true,

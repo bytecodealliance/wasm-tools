@@ -5,11 +5,7 @@ use wasmparser::{Validator, WasmFeatures};
 
 fn wasm_features() -> WasmFeatures {
     WasmFeatures {
-        multi_value: true,
         multi_memory: true,
-        bulk_memory: true,
-        reference_types: true,
-        simd: true,
         relaxed_simd: true,
         memory64: true,
         exceptions: true,

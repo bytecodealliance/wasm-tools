@@ -190,7 +190,6 @@ impl Default for WasmFeatures {
         WasmFeatures {
             // off-by-default features
             module_linking: false,
-            simd: false,
             relaxed_simd: false,
             threads: false,
             tail_call: false,
@@ -204,6 +203,7 @@ impl Default for WasmFeatures {
             bulk_memory: true,
             multi_value: true,
             reference_types: true,
+            simd: true,
         }
     }
 }
