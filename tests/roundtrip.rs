@@ -561,35 +561,21 @@ impl TestState {
         };
         for part in test.iter().filter_map(|t| t.to_str()) {
             match part {
-                "testsuite" | "missing-features" => {
+                "testsuite" => features = WasmFeatures::default(),
+                "missing-features" => {
                     features = WasmFeatures::default();
-                }
-                "wasmtime905.wast" => {
-                    features = WasmFeatures::default();
-                    features.bulk_memory = false;
+                    features.simd = false;
                     features.reference_types = false;
                 }
                 "threads" => {
                     features.threads = true;
-                    features.reference_types = false;
                     features.bulk_memory = false;
+                    features.reference_types = false;
                 }
                 "simd" => features.simd = true,
-                "reference-types" => {
-                    features.bulk_memory = true;
-                    features.reference_types = true;
-                }
-                "exception-handling" => {
-                    features.bulk_memory = true;
-                    features.reference_types = true;
-                    features.exceptions = true;
-                }
-                "bulk-memory-operations" => features.bulk_memory = true,
+                "exception-handling" => features.exceptions = true,
                 "tail-call" => features.tail_call = true,
-                "memory64" => {
-                    features.memory64 = true;
-                    features.bulk_memory = true;
-                }
+                "memory64" => features.memory64 = true,
                 "module-linking" => features.module_linking = true,
                 "extended-const" => features.extended_const = true,
                 _ => {}

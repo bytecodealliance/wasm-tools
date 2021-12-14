@@ -429,6 +429,7 @@ impl<'a> Arbitrary<'a> for SwarmConfig {
             min_uleb_size: u.int_in_range(0..=5)?,
             bulk_memory_enabled: reference_types_enabled || u.arbitrary()?,
             reference_types_enabled,
+            simd_enabled: u.arbitrary()?,
             max_aliases: u.int_in_range(0..=MAX_MAXIMUM)?,
             max_nesting_depth: u.int_in_range(0..=10)?,
 
@@ -451,7 +452,6 @@ impl<'a> Arbitrary<'a> for SwarmConfig {
             max_modules: 0,
             memory_offset_choices: (75, 24, 1),
             allow_start_export: true,
-            simd_enabled: false,
             relaxed_simd_enabled: false,
             exceptions_enabled: false,
             memory64_enabled: false,
