@@ -359,7 +359,7 @@ impl<'a> DFGBuilder {
 
             match operator {
                 Operator::Call { function_index } => {
-                    let typeinfo = info.get_functype_idx(*function_index as usize);
+                    let typeinfo = info.get_functype_idx(*function_index);
                     match typeinfo {
                         crate::module::TypeInfo::Func(tpe) => {
                             // Skip if it returns more than one value

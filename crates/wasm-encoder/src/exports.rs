@@ -26,7 +26,7 @@ use super::*;
 ///
 /// let wasm_bytes = module.finish();
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct ExportSection {
     bytes: Vec<u8>,
     num_added: u32,
@@ -35,10 +35,7 @@ pub struct ExportSection {
 impl ExportSection {
     /// Create a new export section encoder.
     pub fn new() -> ExportSection {
-        ExportSection {
-            bytes: vec![],
-            num_added: 0,
-        }
+        ExportSection::default()
     }
 
     /// How many exports have been defined inside this section so far?

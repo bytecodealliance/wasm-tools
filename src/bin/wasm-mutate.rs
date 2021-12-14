@@ -94,6 +94,8 @@ fn main() -> anyhow::Result<()> {
     input
         .read_to_end(&mut input_wasm)
         .with_context(|| format!("failed to read '{}'", input_name))?;
+    let input_wasm = wat::parse_bytes(&input_wasm)
+        .with_context(|| format!("failed to parse '{}'", input_name))?;
 
     let mut output_wasms = unwrap_wasm_mutate_result(opts.wasm_mutate.run(&input_wasm)).take(100);
     let wasm = loop {

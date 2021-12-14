@@ -362,6 +362,10 @@ impl V128 {
     pub fn bytes(&self) -> &[u8; 16] {
         &self.0
     }
+
+    pub fn i128(&self) -> i128 {
+        i128::from_le_bytes(self.0)
+    }
 }
 
 pub type SIMDLaneIndex = u8;
@@ -1256,8 +1260,8 @@ pub enum Operator<'a> {
     I32x4TruncSatF64x2UZeroRelaxed,
     F32x4FmaRelaxed,
     F32x4FmsRelaxed,
-    F64x4FmaRelaxed,
-    F64x4FmsRelaxed,
+    F64x2FmaRelaxed,
+    F64x2FmsRelaxed,
     I8x16LaneSelect,
     I16x8LaneSelect,
     I32x4LaneSelect,

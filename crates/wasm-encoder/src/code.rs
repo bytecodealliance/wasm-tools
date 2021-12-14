@@ -32,7 +32,7 @@ use std::borrow::Cow;
 ///
 /// let wasm_bytes = module.finish();
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct CodeSection {
     bytes: Vec<u8>,
     num_added: u32,
@@ -41,10 +41,7 @@ pub struct CodeSection {
 impl CodeSection {
     /// Create a new code section encoder.
     pub fn new() -> CodeSection {
-        CodeSection {
-            bytes: vec![],
-            num_added: 0,
-        }
+        CodeSection::default()
     }
 
     /// How many function bodies have been defined inside this section so far?
@@ -361,7 +358,7 @@ pub enum Instruction<'a> {
     F64Const(f64),
     I32Eqz,
     I32Eq,
-    I32Neq,
+    I32Ne,
     I32LtS,
     I32LtU,
     I32GtS,
@@ -372,7 +369,7 @@ pub enum Instruction<'a> {
     I32GeU,
     I64Eqz,
     I64Eq,
-    I64Neq,
+    I64Ne,
     I64LtS,
     I64LtU,
     I64GtS,
@@ -382,13 +379,13 @@ pub enum Instruction<'a> {
     I64GeS,
     I64GeU,
     F32Eq,
-    F32Neq,
+    F32Ne,
     F32Lt,
     F32Gt,
     F32Le,
     F32Ge,
     F64Eq,
-    F64Neq,
+    F64Ne,
     F64Lt,
     F64Gt,
     F64Le,
@@ -1022,7 +1019,7 @@ impl Instruction<'_> {
             }
             Instruction::I32Eqz => bytes.push(0x45),
             Instruction::I32Eq => bytes.push(0x46),
-            Instruction::I32Neq => bytes.push(0x47),
+            Instruction::I32Ne => bytes.push(0x47),
             Instruction::I32LtS => bytes.push(0x48),
             Instruction::I32LtU => bytes.push(0x49),
             Instruction::I32GtS => bytes.push(0x4A),
@@ -1033,7 +1030,7 @@ impl Instruction<'_> {
             Instruction::I32GeU => bytes.push(0x4F),
             Instruction::I64Eqz => bytes.push(0x50),
             Instruction::I64Eq => bytes.push(0x51),
-            Instruction::I64Neq => bytes.push(0x52),
+            Instruction::I64Ne => bytes.push(0x52),
             Instruction::I64LtS => bytes.push(0x53),
             Instruction::I64LtU => bytes.push(0x54),
             Instruction::I64GtS => bytes.push(0x55),
@@ -1043,13 +1040,13 @@ impl Instruction<'_> {
             Instruction::I64GeS => bytes.push(0x59),
             Instruction::I64GeU => bytes.push(0x5A),
             Instruction::F32Eq => bytes.push(0x5B),
-            Instruction::F32Neq => bytes.push(0x5C),
+            Instruction::F32Ne => bytes.push(0x5C),
             Instruction::F32Lt => bytes.push(0x5D),
             Instruction::F32Gt => bytes.push(0x5E),
             Instruction::F32Le => bytes.push(0x5F),
             Instruction::F32Ge => bytes.push(0x60),
             Instruction::F64Eq => bytes.push(0x61),
-            Instruction::F64Neq => bytes.push(0x62),
+            Instruction::F64Ne => bytes.push(0x62),
             Instruction::F64Lt => bytes.push(0x63),
             Instruction::F64Gt => bytes.push(0x64),
             Instruction::F64Le => bytes.push(0x65),

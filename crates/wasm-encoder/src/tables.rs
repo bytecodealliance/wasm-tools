@@ -19,7 +19,7 @@ use super::*;
 ///
 /// let wasm_bytes = module.finish();
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct TableSection {
     bytes: Vec<u8>,
     num_added: u32,
@@ -28,10 +28,7 @@ pub struct TableSection {
 impl TableSection {
     /// Construct a new table section encoder.
     pub fn new() -> TableSection {
-        TableSection {
-            bytes: vec![],
-            num_added: 0,
-        }
+        TableSection::default()
     }
 
     /// How many tables have been defined inside this section so far?

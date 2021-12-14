@@ -214,7 +214,9 @@ impl WasmShrink {
 
             'attempts: while attempt < self.attempts {
                 let mut mutate = WasmMutate::default();
-                mutate.reduce(true).seed(rng.gen());
+                let seed = rng.gen();
+                mutate.reduce(true).seed(seed);
+                log::trace!("Attempt #{}: seed: {}", attempt, seed);
 
                 let mutations = match mutate.run(&best) {
                     Ok(m) => m,
