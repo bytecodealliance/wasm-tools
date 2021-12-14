@@ -18,7 +18,7 @@ use wasmparser::*;
 /// Mutator that removes a random item in a wasm module (function, global,
 /// table, etc).
 #[derive(Copy, Clone)]
-pub struct RemoveItemMutator;
+pub struct RemoveItemMutator(pub Item);
 
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
 pub enum Item {
@@ -34,20 +34,7 @@ pub enum Item {
 
 impl Mutator for RemoveItemMutator {
     fn can_mutate(&self, config: &WasmMutate) -> bool {
-        // This heuristic is a bit of a lie in that just because an item is
-        // present doesn't mean that it's actually candidate for removal. The
-        // alternative would be to build up some sort of precise liveness set of
-        // all items which is a bit of a pain to do, so instead this mutator is
-        // generally always applicable and then might just frequently return a
-        // "no mutations applicable" error later
-        let info = config.info();
-        info.num_functions() > 0
-            || info.num_tables() > 0
-            || info.num_memories() > 0
-            || info.num_globals() > 0
-            || info.num_tags() > 0
-            || info.num_types() > 0
-            || (!config.preserve_semantics && (info.num_data() > 0 || info.num_elements() > 0))
+        self.0.can_mutate(config)
     }
 
     fn mutate<'a>(
@@ -57,47 +44,59 @@ impl Mutator for RemoveItemMutator {
     where
         Self: Copy,
     {
-        let info = config.info();
-
-        // Build a list of all possible items that could be removed, where an
-        // item is what kind of item it is as well as the index of the item
-        // itself.
-        //
-        // Note that regardless of whether semantics are being preserved these
-        // items are all considered for removal. The reason for this is that if
-        // an item is selected for removal but it's actually used somewhere then
-        // we'll bail out with a "not applicable" mutation error.
-        let mut items = Vec::new();
-        items.extend((0..info.num_functions()).map(|i| (Item::Function, i)));
-        items.extend((0..info.num_tables()).map(|i| (Item::Table, i)));
-        items.extend((0..info.num_tags()).map(|i| (Item::Tag, i)));
-        items.extend((0..info.num_types()).map(|i| (Item::Type, i)));
-        items.extend((0..info.num_memories()).map(|i| (Item::Memory, i)));
-        items.extend((0..info.num_globals()).map(|i| (Item::Global, i)));
-
-        // Note that data/elements can lead to traps and side-effectful
-        // initialization of imported tables/memories, so these are only
-        // considered for removal if we're not preserving semantics.
-        if !config.preserve_semantics {
-            items.extend((0..info.num_data()).map(|i| (Item::Data, i)));
-            items.extend((0..info.num_elements()).map(|i| (Item::Element, i)));
-        }
-
-        // Select one of the above items to be removed. Note that this should be
-        // guaranteed to be a non-empty list due to the `can_mutate` guard.
-        let i = config.rng().gen_range(0, items.len());
-        let (item, idx) = items[i];
-        log::trace!("attempting to remove {:?} index {}", item, idx);
+        let idx = self.0.choose_removal_index(config);
+        log::trace!("attempting to remove {:?} index {}", self.0, idx);
 
         let result = RemoveItem {
-            item,
+            item: self.0,
             idx,
             referenced_functions: HashSet::new(),
             function_reference_action: Funcref::Save,
         }
         .remove(config.info())?;
-        log::debug!("removed {:?} index {}", item, idx);
+        log::debug!("removed {:?} index {}", self.0, idx);
         Ok(Box::new(std::iter::once(Ok(result))))
+    }
+}
+
+impl Item {
+    fn can_mutate(&self, config: &WasmMutate) -> bool {
+        // This heuristic is a bit of a lie in that just because an item is
+        // present doesn't mean that it's actually candidate for removal. The
+        // alternative would be to build up some sort of precise liveness set of
+        // all items which is a bit of a pain to do, so instead this mutator is
+        // generally always applicable and then might just frequently return a
+        // "no mutations applicable" error later
+        let info = config.info();
+        match self {
+            Item::Function => info.num_functions() > 0,
+            Item::Table => info.num_tables() > 0,
+            Item::Memory => info.num_memories() > 0,
+            Item::Global => info.num_globals() > 0,
+            Item::Tag => info.num_tags() > 0,
+            Item::Type => info.num_types() > 0,
+
+            // Note that data/elements can lead to traps and side-effectful
+            // initialization of imported tables/memories, so these are only
+            // considered for removal if we're not preserving semantics.
+            Item::Data => !config.preserve_semantics && info.num_data() > 0,
+            Item::Element => !config.preserve_semantics && info.num_elements() > 0,
+        }
+    }
+
+    fn choose_removal_index(&self, config: &mut WasmMutate) -> u32 {
+        let info = config.info();
+        let max = match self {
+            Item::Function => info.num_functions(),
+            Item::Table => info.num_tables(),
+            Item::Memory => info.num_memories(),
+            Item::Global => info.num_globals(),
+            Item::Tag => info.num_tags(),
+            Item::Type => info.num_types(),
+            Item::Data => info.num_data(),
+            Item::Element => info.num_elements(),
+        };
+        config.rng().gen_range(0, max)
     }
 }
 
@@ -120,23 +119,23 @@ enum Funcref {
 
 impl RemoveItem {
     fn remove(&mut self, info: &ModuleInfo) -> Result<Module> {
-        const CUSTOM: u8 = wasm_encoder::SectionId::Custom as u8;
-        const TYPE: u8 = wasm_encoder::SectionId::Type as u8;
-        const IMPORT: u8 = wasm_encoder::SectionId::Import as u8;
-        const FUNCTION: u8 = wasm_encoder::SectionId::Function as u8;
-        const TABLE: u8 = wasm_encoder::SectionId::Table as u8;
-        const MEMORY: u8 = wasm_encoder::SectionId::Memory as u8;
-        const GLOBAL: u8 = wasm_encoder::SectionId::Global as u8;
-        const EXPORT: u8 = wasm_encoder::SectionId::Export as u8;
-        const START: u8 = wasm_encoder::SectionId::Start as u8;
-        const ELEMENT: u8 = wasm_encoder::SectionId::Element as u8;
-        const CODE: u8 = wasm_encoder::SectionId::Code as u8;
-        const DATA: u8 = wasm_encoder::SectionId::Data as u8;
-        const DATACOUNT: u8 = wasm_encoder::SectionId::DataCount as u8;
-        const TAG: u8 = wasm_encoder::SectionId::Tag as u8;
-        const MODULE: u8 = wasm_encoder::SectionId::Module as u8;
-        const INSTANCE: u8 = wasm_encoder::SectionId::Instance as u8;
-        const ALIAS: u8 = wasm_encoder::SectionId::Alias as u8;
+        const CUSTOM: u8 = SectionId::Custom as u8;
+        const TYPE: u8 = SectionId::Type as u8;
+        const IMPORT: u8 = SectionId::Import as u8;
+        const FUNCTION: u8 = SectionId::Function as u8;
+        const TABLE: u8 = SectionId::Table as u8;
+        const MEMORY: u8 = SectionId::Memory as u8;
+        const GLOBAL: u8 = SectionId::Global as u8;
+        const EXPORT: u8 = SectionId::Export as u8;
+        const START: u8 = SectionId::Start as u8;
+        const ELEMENT: u8 = SectionId::Element as u8;
+        const CODE: u8 = SectionId::Code as u8;
+        const DATA: u8 = SectionId::Data as u8;
+        const DATACOUNT: u8 = SectionId::DataCount as u8;
+        const TAG: u8 = SectionId::Tag as u8;
+        const MODULE: u8 = SectionId::Module as u8;
+        const INSTANCE: u8 = SectionId::Instance as u8;
+        const ALIAS: u8 = SectionId::Alias as u8;
 
         // This is the main workhorse loop of the module translation. This will
         // iterate over the original wasm sections, raw, and create the new
@@ -1341,7 +1340,7 @@ mod tests {
     fn remove_type() {
         crate::mutators::match_mutation(
             r#"(module (type (func)))"#,
-            RemoveItemMutator,
+            RemoveItemMutator(Item::Type),
             r#"(module)"#,
         );
     }
@@ -1350,12 +1349,12 @@ mod tests {
     fn remove_function() {
         crate::mutators::match_mutation(
             r#"(module (func))"#,
-            RemoveItemMutator,
+            RemoveItemMutator(Item::Function),
             r#"(module (type (func)))"#,
         );
         crate::mutators::match_mutation(
             r#"(module (import "" "" (func)))"#,
-            RemoveItemMutator,
+            RemoveItemMutator(Item::Function),
             r#"(module (type (func)))"#,
         );
     }
@@ -1364,22 +1363,26 @@ mod tests {
     fn remove_table() {
         crate::mutators::match_mutation(
             r#"(module (table 1 funcref))"#,
-            RemoveItemMutator,
+            RemoveItemMutator(Item::Table),
             r#"(module)"#,
         );
         crate::mutators::match_mutation(
             r#"(module (import "" "" (table 1 funcref)))"#,
-            RemoveItemMutator,
+            RemoveItemMutator(Item::Table),
             r#"(module)"#,
         );
     }
 
     #[test]
     fn remove_memory() {
-        crate::mutators::match_mutation(r#"(module (memory 1))"#, RemoveItemMutator, r#"(module)"#);
+        crate::mutators::match_mutation(
+            r#"(module (memory 1))"#,
+            RemoveItemMutator(Item::Memory),
+            r#"(module)"#,
+        );
         crate::mutators::match_mutation(
             r#"(module (import "" "" (memory 1)))"#,
-            RemoveItemMutator,
+            RemoveItemMutator(Item::Memory),
             r#"(module)"#,
         );
     }
@@ -1388,12 +1391,12 @@ mod tests {
     fn remove_global() {
         crate::mutators::match_mutation(
             r#"(module (global i32 (i32.const 1)))"#,
-            RemoveItemMutator,
+            RemoveItemMutator(Item::Global),
             r#"(module)"#,
         );
         crate::mutators::match_mutation(
             r#"(module (import "" "" (global i32)))"#,
-            RemoveItemMutator,
+            RemoveItemMutator(Item::Global),
             r#"(module)"#,
         );
     }
@@ -1402,7 +1405,7 @@ mod tests {
     fn remove_data() {
         crate::mutators::match_mutation(
             r#"(module (data "xxxx"))"#,
-            RemoveItemMutator,
+            RemoveItemMutator(Item::Data),
             r#"(module)"#,
         );
     }
@@ -1412,7 +1415,7 @@ mod tests {
         crate::mutators::match_mutation(
             r#"(module
                     (elem))"#,
-            RemoveItemMutator,
+            RemoveItemMutator(Item::Elem),
             r#"(module)"#,
         );
     }
@@ -1428,7 +1431,7 @@ mod tests {
                         call 3)
                     (func)
             )"#,
-            RemoveItemMutator,
+            RemoveItemMutator(Item::Function),
             r#"(module
                     (func)
                     (func (export "renumber") call 0 call 2)
@@ -1451,7 +1454,7 @@ mod tests {
                     (table 1 funcref)
                     (table 1 funcref)
             )"#,
-            RemoveItemMutator,
+            RemoveItemMutator(Item::Table),
             r#"(module
                     (func (export "")
                         i32.const 0
@@ -1479,7 +1482,7 @@ mod tests {
                     (memory 1)
                     (memory 1)
             )"#,
-            RemoveItemMutator,
+            RemoveItemMutator(Item::Memory),
             r#"(module
                     (func (export "")
                         i32.const 0
@@ -1503,7 +1506,7 @@ mod tests {
                     (data "a")
                     (data "b")
             )"#,
-            RemoveItemMutator,
+            RemoveItemMutator(Item::Data),
             r#"(module
                     (func (export "")
                         data.drop 0
@@ -1524,7 +1527,7 @@ mod tests {
                     (elem func 0)
                     (elem func 1)
             )"#,
-            RemoveItemMutator,
+            RemoveItemMutator(Item::Element),
             r#"(module
                     (func (export "")
                         elem.drop 0
@@ -1543,7 +1546,7 @@ mod tests {
                     (type (func (param i32)))
                     (func (type 1))
             )"#,
-            RemoveItemMutator,
+            RemoveItemMutator(Item::Type),
             r#"(module
                     (type (func (param i32)))
                     (func (type 0))
@@ -1559,7 +1562,7 @@ mod tests {
                     (global i32 (i32.const 1))
                     (func (export "") (result i32) global.get 1)
             )"#,
-            RemoveItemMutator,
+            RemoveItemMutator(Item::Global),
             r#"(module
                     (global i32 (i32.const 1))
                     (func (export "") (result i32) global.get 0)
