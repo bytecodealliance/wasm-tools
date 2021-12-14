@@ -234,14 +234,6 @@ impl<'a> ModuleInfo<'a> {
         });
     }
 
-    // pub fn get_elements_section(&self) -> RawSection<'a> {
-    //     self.raw_sections[self.elements.unwrap()]
-    // }
-
-    // pub fn get_data_section(&self) -> RawSection<'a> {
-    //     self.raw_sections[self.data.unwrap()]
-    // }
-
     pub fn get_code_section(&self) -> RawSection<'a> {
         self.raw_sections[self.code.unwrap()]
     }
@@ -327,10 +319,6 @@ impl<'a> ModuleInfo<'a> {
         self.table_count
     }
 
-    // pub fn num_local_tables(&self) -> u32 {
-    //     self.num_tables() - self.num_imported_tables()
-    // }
-
     pub fn num_imported_tables(&self) -> u32 {
         self.imported_tables_count
     }
@@ -338,10 +326,6 @@ impl<'a> ModuleInfo<'a> {
     pub fn num_memories(&self) -> u32 {
         self.memory_count
     }
-
-    // pub fn num_local_memories(&self) -> u32 {
-    //     self.num_memories() - self.num_imported_memories()
-    // }
 
     pub fn num_imported_memories(&self) -> u32 {
         self.imported_memories_count
@@ -351,10 +335,6 @@ impl<'a> ModuleInfo<'a> {
         self.global_types.len() as u32
     }
 
-    // pub fn num_local_globals(&self) -> u32 {
-    //     self.num_globals() - self.num_imported_globals()
-    // }
-
     pub fn num_imported_globals(&self) -> u32 {
         self.imported_globals_count
     }
@@ -362,10 +342,6 @@ impl<'a> ModuleInfo<'a> {
     pub fn num_tags(&self) -> u32 {
         self.tag_count
     }
-
-    // pub fn num_local_tags(&self) -> u32 {
-    //     self.num_tags() - self.num_imported_tags()
-    // }
 
     pub fn num_imported_tags(&self) -> u32 {
         self.imported_tags_count
