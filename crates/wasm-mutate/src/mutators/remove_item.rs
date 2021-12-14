@@ -146,6 +146,7 @@ impl RemoveItem {
                 CUSTOM => {
                     module.section(section);
                 }
+
                 TYPE => {
                     self.filter_out(
                         &mut module,
