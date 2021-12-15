@@ -1000,7 +1000,7 @@ impl Display for Lang {
 impl Lang {
     /// Parse type annotated integers in the form
     /// $i_(i32|i64)
-    pub fn parse_integer(op_str: &str) -> Result<Self, String> {
+    fn parse_integer(op_str: &str) -> Result<Self, String> {
         // Check for type annotation in the tail
         if op_str.len() < 4 {
             return Err(format!("Missing type annotation for integer {}", op_str));
@@ -1027,7 +1027,7 @@ impl Lang {
     /// Parses index operations written in the textual form
     /// local.(get|set|tee).$i
     /// global.(get|set).$i
-    pub fn parse_index_op(op_str: &str, children: &Vec<Id>) -> Result<Self, String> {
+    fn parse_index_op(op_str: &str, children: &Vec<Id>) -> Result<Self, String> {
         let splat = op_str.split('.');
         let ops = splat.collect::<Vec<_>>();
         if ops.len() != 3 {
@@ -1049,7 +1049,7 @@ impl Lang {
 
     /// Parses index mem operations written in the textual form
     /// `(i32|i64|...).(store|load).$static_offset.$align.$mem`.
-    pub fn parse_mem_op(op_str: &str, children: &Vec<Id>) -> Result<Self, String> {
+    fn parse_mem_op(op_str: &str, children: &Vec<Id>) -> Result<Self, String> {
         let splat = op_str.split('.');
         let ops = splat.collect::<Vec<_>>();
         if ops.len() != 5 {
@@ -1204,7 +1204,7 @@ impl Lang {
     }
 
     /// Parses call operators: `call.$i`
-    pub fn parse_call(op_str: &str, children: &Vec<Id>) -> Result<Self, String> {
+    fn parse_call(op_str: &str, children: &Vec<Id>) -> Result<Self, String> {
         let splat = op_str.split('.');
         let ops = splat.collect::<Vec<_>>();
         if ops.len() != 2 {
@@ -1219,7 +1219,7 @@ impl Lang {
     }
 
     /// Parses memory grow or size operator: `memory.(grow|size).$mem.$membyte`
-    pub fn parse_memory_sg(op_str: &str, children: &Vec<Id>) -> Result<Self, String> {
+    fn parse_memory_sg(op_str: &str, children: &Vec<Id>) -> Result<Self, String> {
         let splat = op_str.split('.');
         let ops = splat.collect::<Vec<_>>();
         if ops.len() != 4 {
@@ -1242,88 +1242,12 @@ impl Lang {
     }
 }
 
-// To match memory like nodes by its inmediates
-macro_rules! match_mem {
-    ($l:ident, $self: ident, $other: ident) => {
-        if let (
-            Lang::$l {
-                static_offset,
-                align,
-                mem,
-                ..
-            },
-            Lang::$l {
-                static_offset: static_offset2,
-                align: align2,
-                mem: mem2,
-                ..
-            },
-        ) = ($self, $other)
-        {
-            return static_offset == static_offset2 && align == align2 && mem == mem2;
-        }
-    };
-}
-
-impl egg::Language for Lang {
-    fn matches(&self, other: &Self) -> bool {
-        match_mem!(I32Load, self, other);
-        match_mem!(I64Load, self, other);
-        match_mem!(F32Load, self, other);
-        match_mem!(F64Load, self, other);
-        match_mem!(I32Load8S, self, other);
-        match_mem!(I32Load8U, self, other);
-        match_mem!(I32Load16S, self, other);
-        match_mem!(I32Load16U, self, other);
-        match_mem!(I64Load8S, self, other);
-        match_mem!(I64Load8U, self, other);
-        match_mem!(I64Load16S, self, other);
-        match_mem!(I64Load16U, self, other);
-        match_mem!(I64Load32S, self, other);
-        match_mem!(I64Load32U, self, other);
-        match_mem!(I32Store, self, other);
-        match_mem!(I64Store, self, other);
-        match_mem!(F32Store, self, other);
-        match_mem!(F64Store, self, other);
-        match_mem!(I32Store8, self, other);
-        match_mem!(I32Store16, self, other);
-        match_mem!(I64Store8, self, other);
-        match_mem!(I64Store16, self, other);
-        match_mem!(I64Store32, self, other);
-
-        match (self, other) {
-            (Lang::I32(v), Lang::I32(v2)) => v == v2,
-            (Lang::I64(v), Lang::I64(v2)) => v == v2,
-            (Lang::F32(v), Lang::F32(v2)) => v == v2,
-            (Lang::F64(v), Lang::F64(v2)) => v == v2,
-            (Lang::GlobalGet(v), Lang::GlobalGet(v2)) => v == v2,
-            (Lang::LocalGet(v), Lang::LocalGet(v2)) => v == v2,
-            (Lang::GlobalSet(v, _), Lang::GlobalSet(v2, _))
-            | (Lang::LocalSet(v, _), Lang::LocalSet(v2, _))
-            | (Lang::LocalTee(v, _), Lang::LocalTee(v2, _)) => v == v2,
-            (Lang::Call(v, _), Lang::Call(v2, _)) => v == v2,
-            (
-                Lang::MemoryGrow { mem_byte, mem, .. },
-                Lang::MemoryGrow {
-                    mem_byte: mem_byte2,
-                    mem: mem2,
-                    ..
-                },
-            ) => mem == mem2 && mem_byte == mem_byte2,
-            (
-                Lang::MemorySize { mem_byte, mem },
-                Lang::MemorySize {
-                    mem_byte: mem_byte2,
-                    mem: mem2,
-                },
-            ) => mem == mem2 && mem_byte == mem_byte2,
-            (Lang::Container(v), Lang::Container(v2)) => v.len() == v2.len(),
-            _ => ::std::mem::discriminant(self) == ::std::mem::discriminant(other),
-        }
-    }
-
-    fn children(&self) -> &[Id] {
-        match &self {
+macro_rules! get_children {
+    (
+        expr: $e:expr,
+        from_ref: $from_ref:ident,
+    ) => {
+        match $e {
             // binops
             Lang::I64Add(operands)
             | Lang::I32Sub(operands)
@@ -1462,10 +1386,10 @@ impl egg::Language for Lang {
             | Lang::I64TruncSatF32U(operands)
             | Lang::I64TruncSatF64S(operands)
             | Lang::I64TruncSatF64U(operands) => operands,
-            Lang::GlobalSet(_, val) | Lang::LocalTee(_, val) => std::slice::from_ref(val),
-            Lang::LocalSet(_, val) => std::slice::from_ref(val),
-            Lang::LocalGet(_) => &[],
-            Lang::GlobalGet(_) => &[],
+            Lang::GlobalSet(_, val) | Lang::LocalTee(_, val) => std::slice::$from_ref(val),
+            Lang::LocalSet(_, val) => std::slice::$from_ref(val),
+            Lang::LocalGet(_) => &mut [],
+            Lang::GlobalGet(_) => &mut [],
             Lang::Wrap(operands) => operands,
             Lang::Call(_, operands) => operands,
             Lang::I32Load {
@@ -1551,312 +1475,7 @@ impl egg::Language for Lang {
                 align: _,
                 mem: _,
                 offset,
-            } => std::slice::from_ref(offset),
-            Lang::I32Store {
-                value_and_offset,
-                static_offset: _,
-                align: _,
-                mem: _,
-            }
-            | Lang::I64Store {
-                value_and_offset,
-                static_offset: _,
-                align: _,
-                mem: _,
-            }
-            | Lang::F32Store {
-                value_and_offset,
-                static_offset: _,
-                align: _,
-                mem: _,
-            }
-            | Lang::F64Store {
-                value_and_offset,
-                static_offset: _,
-                align: _,
-                mem: _,
-            }
-            | Lang::I32Store8 {
-                value_and_offset,
-                static_offset: _,
-                align: _,
-                mem: _,
-            }
-            | Lang::I32Store16 {
-                value_and_offset,
-                static_offset: _,
-                align: _,
-                mem: _,
-            }
-            | Lang::I64Store8 {
-                value_and_offset,
-                static_offset: _,
-                align: _,
-                mem: _,
-            }
-            | Lang::I64Store16 {
-                value_and_offset,
-                static_offset: _,
-                align: _,
-                mem: _,
-            }
-            | Lang::I64Store32 {
-                value_and_offset,
-                static_offset: _,
-                align: _,
-                mem: _,
-            } => value_and_offset,
-            Lang::RandI32 => &[],
-            Lang::RandI64 => &[],
-            Lang::Undef => &[],
-            Lang::UnfoldI32(operand) | Lang::UnfoldI64(operand) => std::slice::from_ref(operand),
-            Lang::I32(_) => &[],
-            Lang::I64(_) => &[],
-            Lang::F32(_) => &[],
-            Lang::F64(_) => &[],
-            Lang::Nop => &[],
-            Lang::Container(operands) => operands,
-            Lang::Select(operands) => operands,
-            Lang::MemoryGrow { by, .. } => std::slice::from_ref(by),
-            Lang::MemorySize { .. } => &[],
-            Lang::I32UseGlobal(arg)
-            | Lang::I64UseGlobal(arg)
-            | Lang::F32UseGlobal(arg)
-            | Lang::F64UseGlobal(arg) => std::slice::from_ref(arg),
-        }
-    }
-
-    fn children_mut(&mut self) -> &mut [Id] {
-        match self {
-            Lang::I64Add(operands)
-            | Lang::I32Sub(operands)
-            | Lang::I64Sub(operands)
-            | Lang::I32Mul(operands)
-            | Lang::I64Mul(operands)
-            | Lang::I32And(operands)
-            | Lang::I64And(operands)
-            | Lang::I32Or(operands)
-            | Lang::I64Or(operands)
-            | Lang::I32Xor(operands)
-            | Lang::I64Xor(operands)
-            | Lang::I32Shl(operands)
-            | Lang::I64Shl(operands)
-            | Lang::I32ShrU(operands)
-            | Lang::I64ShrU(operands)
-            | Lang::I32DivU(operands)
-            | Lang::I64DivU(operands)
-            | Lang::I32DivS(operands)
-            | Lang::I64DivS(operands)
-            | Lang::I32ShrS(operands)
-            | Lang::I64ShrS(operands)
-            | Lang::I32RotR(operands)
-            | Lang::I64RotR(operands)
-            | Lang::I32RotL(operands)
-            | Lang::I64RotL(operands)
-            | Lang::I32RemS(operands)
-            | Lang::I64RemS(operands)
-            | Lang::I32RemU(operands)
-            | Lang::I64RemU(operands)
-            | Lang::I32Eq(operands)
-            | Lang::I64Eq(operands)
-            | Lang::I32Ne(operands)
-            | Lang::I64Ne(operands)
-            | Lang::I32LtS(operands)
-            | Lang::I64LtS(operands)
-            | Lang::I32LtU(operands)
-            | Lang::I64LtU(operands)
-            | Lang::I32GtS(operands)
-            | Lang::I64GtS(operands)
-            | Lang::I32GtU(operands)
-            | Lang::I64GtU(operands)
-            | Lang::I32LeS(operands)
-            | Lang::I64LeS(operands)
-            | Lang::I32LeU(operands)
-            | Lang::I64LeU(operands)
-            | Lang::I32GeS(operands)
-            | Lang::I64GeS(operands)
-            | Lang::I32GeU(operands)
-            | Lang::I64GeU(operands)
-            | Lang::I32Add(operands)
-            | Lang::F32Add(operands)
-            | Lang::F64Add(operands)
-            | Lang::F32Sub(operands)
-            | Lang::F64Sub(operands)
-            | Lang::F32Mul(operands)
-            | Lang::F64Mul(operands)
-            | Lang::F32Div(operands)
-            | Lang::F64Div(operands)
-            | Lang::F32Min(operands)
-            | Lang::F64Min(operands)
-            | Lang::F32Max(operands)
-            | Lang::F64Max(operands)
-            | Lang::F32Copysign(operands)
-            | Lang::F64Copysign(operands)
-            | Lang::F32Eq(operands)
-            | Lang::F64Eq(operands)
-            | Lang::F32Ne(operands)
-            | Lang::F64Ne(operands)
-            | Lang::F32Lt(operands)
-            | Lang::F64Lt(operands)
-            | Lang::F32Gt(operands)
-            | Lang::F64Gt(operands)
-            | Lang::F32Le(operands)
-            | Lang::F64Le(operands)
-            | Lang::F32Ge(operands)
-            | Lang::F64Ge(operands) => operands,
-
-            Lang::UnfoldI32(val) | Lang::UnfoldI64(val) | Lang::LocalTee(_, val) => {
-                std::slice::from_mut(val)
-            }
-            Lang::GlobalSet(_, val) | Lang::LocalSet(_, val) => std::slice::from_mut(val),
-            Lang::LocalGet(_) => &mut [],
-            Lang::GlobalGet(_) => &mut [],
-            Lang::Drop(operands)
-            | Lang::I32Popcnt(operands)
-            | Lang::I64Popcnt(operands)
-            | Lang::I32Eqz(operands)
-            | Lang::I64Eqz(operands)
-            | Lang::I32Clz(operands)
-            | Lang::I32Ctz(operands)
-            | Lang::I64Ctz(operands)
-            | Lang::I64Clz(operands)
-            | Lang::F32Abs(operands)
-            | Lang::F64Abs(operands)
-            | Lang::F32Neg(operands)
-            | Lang::F64Neg(operands)
-            | Lang::F32Sqrt(operands)
-            | Lang::F64Sqrt(operands)
-            | Lang::F32Ceil(operands)
-            | Lang::F64Ceil(operands)
-            | Lang::F32Floor(operands)
-            | Lang::F64Floor(operands)
-            | Lang::F32Trunc(operands)
-            | Lang::F64Trunc(operands)
-            | Lang::F32Nearest(operands)
-            | Lang::F64Nearest(operands)
-            | Lang::I32TruncF32S(operands)
-            | Lang::I32TruncF32U(operands)
-            | Lang::I32TruncF64S(operands)
-            | Lang::I32TruncF64U(operands)
-            | Lang::I64TruncF32S(operands)
-            | Lang::I64TruncF32U(operands)
-            | Lang::I64TruncF64S(operands)
-            | Lang::I64TruncF64U(operands)
-            | Lang::F32ConvertI32S(operands)
-            | Lang::F32ConvertI32U(operands)
-            | Lang::F32ConvertI64S(operands)
-            | Lang::F32ConvertI64U(operands)
-            | Lang::F32DemoteF64(operands)
-            | Lang::F64ConvertI32S(operands)
-            | Lang::F64ConvertI32U(operands)
-            | Lang::F64ConvertI64S(operands)
-            | Lang::F64ConvertI64U(operands)
-            | Lang::F64PromoteF32(operands)
-            | Lang::I32ReinterpretF32(operands)
-            | Lang::I64ReinterpretF64(operands)
-            | Lang::F32ReinterpretI32(operands)
-            | Lang::F64ReinterpretI64(operands)
-            | Lang::I32TruncSatF32S(operands)
-            | Lang::I32TruncSatF32U(operands)
-            | Lang::I32TruncSatF64S(operands)
-            | Lang::I32TruncSatF64U(operands)
-            | Lang::I64TruncSatF32S(operands)
-            | Lang::I64TruncSatF32U(operands)
-            | Lang::I64TruncSatF64S(operands)
-            | Lang::I64TruncSatF64U(operands)
-            | Lang::I32Extend8S(operands)
-            | Lang::I64Extend8S(operands)
-            | Lang::I32Extend16S(operands)
-            | Lang::I64Extend16S(operands)
-            | Lang::I64Extend32S(operands)
-            | Lang::I64ExtendI32S(operands)
-            | Lang::I64ExtendI32U(operands)
-            | Lang::Wrap(operands) => operands,
-            Lang::Call(_, operands) => operands,
-            Lang::I32Load {
-                offset,
-                static_offset: _,
-                align: _,
-                mem: _,
-            }
-            | Lang::I64Load {
-                offset,
-                static_offset: _,
-                align: _,
-                mem: _,
-            }
-            | Lang::F32Load {
-                static_offset: _,
-                align: _,
-                mem: _,
-                offset,
-            }
-            | Lang::F64Load {
-                static_offset: _,
-                align: _,
-                mem: _,
-                offset,
-            }
-            | Lang::I32Load8S {
-                static_offset: _,
-                align: _,
-                mem: _,
-                offset,
-            }
-            | Lang::I32Load8U {
-                static_offset: _,
-                align: _,
-                mem: _,
-                offset,
-            }
-            | Lang::I32Load16S {
-                static_offset: _,
-                align: _,
-                mem: _,
-                offset,
-            }
-            | Lang::I32Load16U {
-                static_offset: _,
-                align: _,
-                mem: _,
-                offset,
-            }
-            | Lang::I64Load8S {
-                static_offset: _,
-                align: _,
-                mem: _,
-                offset,
-            }
-            | Lang::I64Load8U {
-                static_offset: _,
-                align: _,
-                mem: _,
-                offset,
-            }
-            | Lang::I64Load16S {
-                static_offset: _,
-                align: _,
-                mem: _,
-                offset,
-            }
-            | Lang::I64Load16U {
-                static_offset: _,
-                align: _,
-                mem: _,
-                offset,
-            }
-            | Lang::I64Load32S {
-                static_offset: _,
-                align: _,
-                mem: _,
-                offset,
-            }
-            | Lang::I64Load32U {
-                static_offset: _,
-                align: _,
-                mem: _,
-                offset,
-            } => std::slice::from_mut(offset),
+            } => std::slice::$from_ref(offset),
             Lang::I32Store {
                 value_and_offset,
                 static_offset: _,
@@ -1914,6 +1533,7 @@ impl egg::Language for Lang {
             Lang::RandI32 => &mut [],
             Lang::RandI64 => &mut [],
             Lang::Undef => &mut [],
+            Lang::UnfoldI32(operand) | Lang::UnfoldI64(operand) => std::slice::$from_ref(operand),
             Lang::I32(_) => &mut [],
             Lang::I64(_) => &mut [],
             Lang::F32(_) => &mut [],
@@ -1921,28 +1541,38 @@ impl egg::Language for Lang {
             Lang::Nop => &mut [],
             Lang::Container(operands) => operands,
             Lang::Select(operands) => operands,
-            Lang::MemoryGrow {
-                mem: _,
-                mem_byte: _,
-                by,
-            } => std::slice::from_mut(by),
-            Lang::MemorySize {
-                mem: _,
-                mem_byte: _,
-            } => &mut [],
+            Lang::MemoryGrow { by, .. } => std::slice::$from_ref(by),
+            Lang::MemorySize { .. } => &mut [],
             Lang::I32UseGlobal(arg)
             | Lang::I64UseGlobal(arg)
             | Lang::F32UseGlobal(arg)
-            | Lang::F64UseGlobal(arg) => std::slice::from_mut(arg),
+            | Lang::F64UseGlobal(arg) => std::slice::$from_ref(arg),
+        }
+    }
+}
+
+impl egg::Language for Lang {
+    fn matches(&self, other: &Self) -> bool {
+        let mut me = self.clone();
+        let mut other = other.clone();
+        for slot in me.children_mut().iter_mut().chain(other.children_mut()) {
+            *slot = 0.into();
+        }
+        me == other
+    }
+
+    fn children(&self) -> &[Id] {
+        get_children! {
+            expr: self,
+            from_ref: from_ref,
         }
     }
 
-    fn for_each<F: FnMut(Id)>(&self, f: F) {
-        self.children().iter().copied().for_each(f)
-    }
-
-    fn for_each_mut<F: FnMut(&mut Id)>(&mut self, f: F) {
-        self.children_mut().iter_mut().for_each(f)
+    fn children_mut(&mut self) -> &mut [Id] {
+        get_children! {
+            expr: self,
+            from_ref: from_mut,
+        }
     }
 
     fn display_op(&self) -> &dyn std::fmt::Display {
@@ -2116,55 +1746,6 @@ impl egg::Language for Lang {
                 .or(Lang::parse_integer(op_str))
                 .or(Err(format!("Invalid token {:?}", op_str))),
         }
-    }
-
-    fn len(&self) -> usize {
-        self.children().len()
-    }
-
-    fn is_leaf(&self) -> bool {
-        self.children().is_empty()
-    }
-
-    fn update_children<F: FnMut(Id) -> Id>(&mut self, mut f: F) {
-        self.for_each_mut(|id| *id = f(*id))
-    }
-
-    fn map_children<F: FnMut(Id) -> Id>(mut self, f: F) -> Self {
-        self.update_children(f);
-        self
-    }
-
-    fn fold<F, T>(&self, init: T, mut f: F) -> T
-    where
-        F: FnMut(T, Id) -> T,
-        T: Clone,
-    {
-        let mut acc = init;
-        self.for_each(|id| acc = f(acc.clone(), id));
-        acc
-    }
-
-    fn to_recexpr<'a, F>(&self, mut child_recexpr: F) -> egg::RecExpr<Self>
-    where
-        Self: 'a,
-        F: FnMut(Id) -> &'a [Self],
-    {
-        fn build<L: egg::Language>(to: &mut egg::RecExpr<L>, from: &[L]) -> Id {
-            let last = from.last().unwrap().clone();
-            let new_node = last.map_children(|id| {
-                let i = usize::from(id) + 1;
-                build(to, &from[0..i])
-            });
-            to.add(new_node)
-        }
-
-        let mut expr = egg::RecExpr::default();
-        let node = self
-            .clone()
-            .map_children(|id| build(&mut expr, child_recexpr(id)));
-        expr.add(node);
-        expr
     }
 }
 
