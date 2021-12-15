@@ -15,7 +15,7 @@ pub fn u32(n: u32) -> impl ExactSizeIterator<Item = u8> {
 /// Encode a `u64` as a ULEB128.
 pub fn u64(n: u64) -> impl ExactSizeIterator<Item = u8> {
     let mut buf = [0; 10];
-    let n = leb128::write::unsigned(&mut &mut buf[..], n.into()).unwrap();
+    let n = leb128::write::unsigned(&mut &mut buf[..], n).unwrap();
     <_>::into_iter(buf).take(n)
 }
 
@@ -65,6 +65,6 @@ pub fn s64(x: i64) -> impl ExactSizeIterator<Item = u8> {
 }
 
 /// Encode a length-prefixed UTF-8 string.
-pub fn str<'a>(s: &'a str) -> impl Iterator<Item = u8> + 'a {
+pub fn str(s: &'_ str) -> impl Iterator<Item = u8> + '_ {
     u32(u32::try_from(s.len()).unwrap()).chain(s.as_bytes().iter().copied())
 }

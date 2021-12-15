@@ -35,6 +35,11 @@ impl TypeSection {
         self.num_added
     }
 
+    /// Determines if the section is empty.
+    pub fn is_empty(&self) -> bool {
+        self.num_added == 0
+    }
+
     /// Define a function type.
     pub fn function<P, R>(&mut self, params: P, results: R) -> &mut Self
     where
@@ -50,11 +55,11 @@ impl TypeSection {
 
         self.bytes
             .extend(encoders::u32(u32::try_from(params.len()).unwrap()));
-        self.bytes.extend(params.map(|ty| u8::from(ty)));
+        self.bytes.extend(params.map(u8::from));
 
         self.bytes
             .extend(encoders::u32(u32::try_from(results.len()).unwrap()));
-        self.bytes.extend(results.map(|ty| u8::from(ty)));
+        self.bytes.extend(results.map(u8::from));
 
         self.num_added += 1;
         self

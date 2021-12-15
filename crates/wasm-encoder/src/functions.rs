@@ -37,6 +37,11 @@ impl FunctionSection {
         self.num_added
     }
 
+    /// Determines if the section is empty.
+    pub fn is_empty(&self) -> bool {
+        self.num_added == 0
+    }
+
     /// Define a function that uses the given type.
     pub fn function(&mut self, type_index: u32) -> &mut Self {
         self.bytes.extend(encoders::u32(type_index));

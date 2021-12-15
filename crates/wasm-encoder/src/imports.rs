@@ -41,6 +41,11 @@ impl ImportSection {
         self.num_added
     }
 
+    /// Determines if the section is empty.
+    pub fn is_empty(&self) -> bool {
+        self.num_added == 0
+    }
+
     /// Define an import.
     pub fn import(
         &mut self,

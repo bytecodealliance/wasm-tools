@@ -38,6 +38,11 @@ impl GlobalSection {
         self.num_added
     }
 
+    /// Determines if the section is empty.
+    pub fn is_empty(&self) -> bool {
+        self.num_added == 0
+    }
+
     /// Define a global.
     pub fn global(&mut self, global_type: GlobalType, init_expr: &Instruction<'_>) -> &mut Self {
         global_type.encode(&mut self.bytes);

@@ -36,6 +36,11 @@ impl MemorySection {
         self.num_added
     }
 
+    /// Determines if the section is empty.
+    pub fn is_empty(&self) -> bool {
+        self.num_added == 0
+    }
+
     /// Define a memory.
     pub fn memory(&mut self, memory_type: MemoryType) -> &mut Self {
         memory_type.encode(&mut self.bytes);
@@ -64,7 +69,7 @@ impl Section for MemorySection {
 }
 
 /// A memory's type.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MemoryType {
     /// Minimum size, in pages, of this memory
     pub minimum: u64,

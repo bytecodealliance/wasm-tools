@@ -49,6 +49,11 @@ impl CodeSection {
         self.num_added
     }
 
+    /// Determines if the section is empty.
+    pub fn is_empty(&self) -> bool {
+        self.num_added == 0
+    }
+
     /// Write a function body into this code section.
     pub fn function(&mut self, func: &Function) -> &mut Self {
         func.encode(&mut self.bytes);

@@ -36,6 +36,11 @@ impl TableSection {
         self.num_added
     }
 
+    /// Determines if the section is empty.
+    pub fn is_empty(&self) -> bool {
+        self.num_added == 0
+    }
+
     /// Define a table.
     pub fn table(&mut self, table_type: TableType) -> &mut Self {
         table_type.encode(&mut self.bytes);
@@ -64,7 +69,7 @@ impl Section for TableSection {
 }
 
 /// A table's type.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TableType {
     /// The table's element type.
     pub element_type: ValType,

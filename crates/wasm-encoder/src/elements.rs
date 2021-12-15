@@ -102,6 +102,11 @@ impl ElementSection {
         self.num_added
     }
 
+    /// Determines if the section is empty.
+    pub fn is_empty(&self) -> bool {
+        self.num_added == 0
+    }
+
     /// Define an element segment.
     pub fn segment<'a>(&mut self, segment: ElementSegment<'a>) -> &mut Self {
         let expr_bit = match segment.elements {
@@ -113,7 +118,7 @@ impl ElementSection {
                 table: None,
                 offset,
             } => {
-                self.bytes.extend(encoders::u32(0x00 | expr_bit));
+                self.bytes.extend(encoders::u32(/* 0x00 | */ expr_bit));
                 offset.encode(&mut self.bytes);
                 Instruction::End.encode(&mut self.bytes);
             }

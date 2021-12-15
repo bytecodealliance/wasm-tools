@@ -201,6 +201,12 @@ impl Module {
     }
 }
 
+impl Default for Module {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Known section IDs.
 ///
 /// Useful for implementing the `Section` trait, or for setting

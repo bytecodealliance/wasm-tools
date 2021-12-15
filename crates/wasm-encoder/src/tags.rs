@@ -36,6 +36,11 @@ impl TagSection {
         self.num_added
     }
 
+    /// Determines if the section is empty.
+    pub fn is_empty(&self) -> bool {
+        self.num_added == 0
+    }
+
     /// Define a tag.
     pub fn tag(&mut self, tag_type: TagType) -> &mut Self {
         tag_type.encode(&mut self.bytes);
