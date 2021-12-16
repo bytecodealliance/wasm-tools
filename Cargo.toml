@@ -46,6 +46,7 @@ serde_json = "1.0"
 tempfile = "3.1"
 diff = "0.1"
 wasmparser-dump = { path = 'crates/dump' }
+wast = { path = 'crates/wast' }
 
 [[test]]
 name = "dump"
