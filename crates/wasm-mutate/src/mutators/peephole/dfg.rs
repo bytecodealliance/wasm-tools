@@ -826,12 +826,12 @@ impl<'a> DFGBuilder {
                     let consequent = self.pop_operand(idx, false);
                     self.push_node(
                         Lang::Select([
-                            Id::from(condition),
                             Id::from(consequent),
                             Id::from(alternative),
+                            Id::from(condition),
                         ]),
                         idx,
-                        vec![condition, consequent, alternative],
+                        vec![consequent, alternative, condition],
                         PrimitiveTypeInfo::I32,
                     );
                 }

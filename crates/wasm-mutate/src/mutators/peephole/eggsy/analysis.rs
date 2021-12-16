@@ -236,7 +236,7 @@ impl PeepholeMutationAnalysis {
             Lang::Nop => Ok(PrimitiveTypeInfo::Empty),
             // This node is not directly written to Wasm
             Lang::Container(_) => Ok(PrimitiveTypeInfo::Empty),
-            Lang::Select([_, consequent, alternative]) => {
+            Lang::Select([consequent, alternative, _]) => {
                 // Get from operands
                 let consequenttpe = eg[*consequent]
                     .data

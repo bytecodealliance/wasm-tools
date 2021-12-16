@@ -660,7 +660,7 @@ mod tests {
     #[test]
     fn test_peep_select() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("rule";  "(select ?x ?y ?z)" => "(select (i32.eqz ?x) ?z ?y)")];
+            &[rewrite!("rule";  "(select ?x ?y ?z)" => "(select ?y ?x (i32.eqz ?z))")];
 
         test_peephole_mutator(
             r#"

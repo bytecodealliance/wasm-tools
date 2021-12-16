@@ -29,7 +29,7 @@ impl PeepholeMutator {
                 rewrite!("i64.or-x-x"; "(i64.or ?x ?x)" => "?x"),
                 rewrite!("i32.and-x-x"; "(i32.and ?x ?x)" => "?x"),
                 rewrite!("i64.and-x-x"; "(i64.and ?x ?x)" => "?x"),
-                rewrite!("select-same-branches"; "(select ?x ?y ?y)" => "?y"),
+                rewrite!("select-same-branches"; "(select ?y ?y ?x)" => "?y"),
                 rewrite!("i32.sub-0"; "(i32.sub ?x 0_i32)" => "?x"),
                 rewrite!("i64.sub-0"; "(i64.sub ?x 0_i64)" => "?x"),
                 rewrite!("i32.mul-x-1"; "(i32.mul ?x 1_i32)" => "?x"),
@@ -79,7 +79,7 @@ impl PeepholeMutator {
                     if self.is_type("?x", PrimitiveTypeInfo::I64)
             ));
 
-            rules.push(rewrite!("select-same-branches"; "(select ?x ?y ?y)" => "?y"));
+            rules.push(rewrite!("select-same-branches"; "(select ?y ?y ?x)" => "?y"));
 
             rules.extend(rewrite!(
                 "i32.sub-0";
@@ -290,7 +290,7 @@ impl PeepholeMutator {
         // Invert a `select` condition and swap its consequent and alternative.
         if !config.reduce {
             rules.extend(
-                rewrite!("select-invert"; "(select ?x ?y ?z)" <=> "(select (i32.eqz ?x) ?z ?y)"),
+                rewrite!("select-invert"; "(select ?x ?y ?z)" <=> "(select ?y ?x (i32.eqz ?z))"),
             );
         }
 
