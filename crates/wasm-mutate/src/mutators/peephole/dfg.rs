@@ -2,12 +2,11 @@
 //! intermediate representation.
 use std::collections::HashMap;
 
-use egg::{Id, RecExpr};
+use egg::{Id, Language, RecExpr};
 use wasmparser::{Operator, Range};
 
 use crate::mutators::peephole::Lang;
-use crate::{module::PrimitiveTypeInfo, ModuleInfo};
-use PrimitiveTypeInfo::*;
+use crate::ModuleInfo;
 
 use crate::mutators::OperatorAndByteOffset;
 
@@ -43,10 +42,6 @@ pub struct BBlock {
 pub struct StackEntry {
     /// Lang enode operator mapping
     pub operator: Lang,
-    /// Node operand indexes
-    pub operands: Vec<usize>,
-    /// The stack entry return types
-    pub return_type: PrimitiveTypeInfo,
     /// Index in the MiniDFG entries collection
     pub entry_idx: usize,
     /// Color of the dfg part
@@ -83,9 +78,9 @@ impl MiniDFG {
         while let Some(entry) = worklist.pop() {
             colors.push(entry.color);
 
-            entry.operands.iter().for_each(|i| {
-                worklist.push(&self.entries[*i]);
-            });
+            for i in entry.operator.children() {
+                worklist.push(&self.entries[usize::from(*i)]);
+            }
         }
 
         // All nodes in the tree should have the same color
@@ -154,14 +149,14 @@ impl MiniDFG {
                 .as_str(),
             );
 
-            for (idx, op) in entry.operands.iter().enumerate() {
-                if idx < entry.operands.len() - 1 {
+            for (idx, op) in entry.operator.children().iter().enumerate() {
+                if idx < entry.operator.children().len() - 1 {
                     // Has no next child
                     let preffix = format!("{}{}", childrenpreffix, "├──");
                     let childrenpreffix = format!("{}{}", childrenpreffix, "│   ");
                     write_child(
                         minidfg,
-                        *op,
+                        usize::from(*op),
                         &preffix,
                         entryformatter,
                         &childrenpreffix,
@@ -172,7 +167,7 @@ impl MiniDFG {
                     let childrenpreffix = format!("{}{}", childrenpreffix, "    ");
                     write_child(
                         minidfg,
-                        *op,
+                        usize::from(*op),
                         &preffix,
                         entryformatter,
                         &childrenpreffix,
@@ -202,7 +197,13 @@ impl MiniDFG {
             .collect::<Vec<_>>();
         let operands = self.entries[..=root]
             .iter()
-            .map(|t| t.operands.iter().map(|i| Id::from(*i)).collect::<Vec<_>>())
+            .map(|t| {
+                t.operator
+                    .children()
+                    .iter()
+                    .map(|i| Id::from(*i))
+                    .collect::<Vec<_>>()
+            })
             .collect::<Vec<_>>();
 
         build_expr(Id::from(root), &enodes, &operands)
@@ -283,32 +284,26 @@ impl<'a> DFGBuilder {
         }
     }
 
-    fn push_node(
-        &mut self,
-        operator: Lang,
-        operator_idx: usize,
-        operands: Vec<usize>,
-        return_type: PrimitiveTypeInfo,
-    ) -> usize {
+    fn empty_node(&mut self, operator: Lang, operator_idx: usize) -> usize {
+        self.register_node(operator, operator_idx, false)
+    }
+
+    fn push_node(&mut self, operator: Lang, operator_idx: usize) -> usize {
+        self.register_node(operator, operator_idx, true)
+    }
+
+    fn register_node(&mut self, operator: Lang, operator_idx: usize, push_to_stack: bool) -> usize {
         let entry_idx = self.dfg_map.len();
 
-        let push_to_stack = if let PrimitiveTypeInfo::Empty = return_type {
-            // Avoid to push empty values on to the stack
-            false
-        } else {
-            true
-        };
-
         // Add the parent links for this node's operands.
-        for id in &operands {
-            debug_assert!(self.parents[*id].is_none());
-            self.parents[*id] = Some(entry_idx);
+        for id in operator.children() {
+            let id = usize::from(*id);
+            debug_assert!(self.parents[id].is_none());
+            self.parents[id] = Some(entry_idx);
         }
 
         let new_node = StackEntry {
             operator,
-            operands,
-            return_type,
             entry_idx,
             color: self.color,
             operator_idx,
@@ -319,6 +314,8 @@ impl<'a> DFGBuilder {
 
         if push_to_stack {
             self.stack.push(entry_idx)
+        } else {
+            self.new_color();
         }
 
         // Add the data flow link
@@ -336,9 +333,6 @@ impl<'a> DFGBuilder {
 
                 let leaf = StackEntry {
                     operator: Lang::Undef,
-                    operands: vec![],
-                    // Check if this can be inferred from the operator
-                    return_type: PrimitiveTypeInfo::Empty,
                     entry_idx,
                     color: UNDEF_COLOR,
                     operator_idx,
@@ -375,7 +369,6 @@ impl<'a> DFGBuilder {
         info: &ModuleInfo,
         operators: &'a [OperatorAndByteOffset],
         basicblock: &BBlock,
-        locals: &[PrimitiveTypeInfo],
     ) -> Option<MiniDFG> {
         // Create a DFG from the BB. Start from the first operator and simulate
         // the stack. If an operator is missing in the stack then it probably
@@ -404,18 +397,13 @@ impl<'a> DFGBuilder {
                             // reverse operands
                             operands.reverse();
                             // Add this as a new operator
-                            self.push_node(
+                            self.register_node(
                                 Lang::Call(
                                     *function_index as usize,
                                     operands.iter().map(|i| Id::from(*i)).collect::<Vec<_>>(),
                                 ),
                                 idx,
-                                operands.clone(),
-                                if tpe.returns.is_empty() {
-                                    PrimitiveTypeInfo::Empty
-                                } else {
-                                    tpe.returns[0].clone()
-                                },
+                                !tpe.returns.is_empty(),
                             );
 
                             self.new_color();
@@ -423,66 +411,39 @@ impl<'a> DFGBuilder {
                     }
                 }
                 Operator::LocalGet { local_index } => {
-                    self.push_node(
-                        Lang::LocalGet(*local_index),
-                        idx,
-                        vec![],
-                        locals[*local_index as usize].clone(),
-                    );
+                    self.push_node(Lang::LocalGet(*local_index), idx);
                 }
                 Operator::GlobalGet { global_index } => {
-                    let _idx = self.push_node(
-                        Lang::GlobalGet(*global_index),
-                        idx,
-                        vec![],
-                        info.global_types[*global_index as usize].clone(),
-                    );
+                    self.push_node(Lang::GlobalGet(*global_index), idx);
                 }
                 Operator::GlobalSet { global_index } => {
                     let child = self.pop_operand(idx, true);
-                    self.push_node(
-                        Lang::GlobalSet(*global_index, Id::from(child)),
-                        idx,
-                        vec![child],
-                        PrimitiveTypeInfo::Empty,
-                    );
-                    self.new_color();
+                    self.empty_node(Lang::GlobalSet(*global_index, Id::from(child)), idx);
                 }
                 Operator::I32Const { value } => {
-                    self.push_node(Lang::I32(*value), idx, vec![], PrimitiveTypeInfo::I32);
+                    self.push_node(Lang::I32(*value), idx);
                 }
                 Operator::I64Const { value } => {
-                    self.push_node(Lang::I64(*value), idx, vec![], PrimitiveTypeInfo::I64);
+                    self.push_node(Lang::I64(*value), idx);
                 }
                 Operator::F32Const { value } => {
-                    self.push_node(Lang::F32(value.bits()), idx, vec![], PrimitiveTypeInfo::I32);
+                    self.push_node(Lang::F32(value.bits()), idx);
                 }
                 Operator::F64Const { value } => {
-                    self.push_node(Lang::F64(value.bits()), idx, vec![], PrimitiveTypeInfo::I64);
+                    self.push_node(Lang::F64(value.bits()), idx);
                 }
                 Operator::LocalSet { local_index } => {
                     let val = self.pop_operand(idx, true);
-                    self.push_node(
-                        Lang::LocalSet(*local_index, Id::from(val)),
-                        idx,
-                        vec![val],
-                        PrimitiveTypeInfo::Empty,
-                    );
-                    self.new_color();
+                    self.empty_node(Lang::LocalSet(*local_index, Id::from(val)), idx);
                 }
                 Operator::LocalTee { local_index } => {
                     let val = self.pop_operand(idx, true);
-                    self.push_node(
-                        Lang::LocalTee(*local_index, Id::from(val)),
-                        idx,
-                        vec![val],
-                        locals[*local_index as usize].clone(),
-                    );
+                    self.push_node(Lang::LocalTee(*local_index, Id::from(val)), idx);
                     self.new_color();
                 }
 
                 Operator::I32Store { memarg } => {
-                    self.binop_cb(idx, Empty, |offset, value| Lang::I32Store {
+                    self.store(idx, |offset, value| Lang::I32Store {
                         value_and_offset: [offset, value],
                         static_offset: memarg.offset,
                         align: memarg.align,
@@ -491,7 +452,7 @@ impl<'a> DFGBuilder {
                     self.new_color();
                 }
                 Operator::I64Store { memarg } => {
-                    self.binop_cb(idx, Empty, |offset, value| Lang::I64Store {
+                    self.store(idx, |offset, value| Lang::I64Store {
                         value_and_offset: [offset, value],
                         static_offset: memarg.offset,
                         align: memarg.align,
@@ -500,7 +461,7 @@ impl<'a> DFGBuilder {
                     self.new_color();
                 }
                 Operator::F32Store { memarg } => {
-                    self.binop_cb(idx, Empty, |offset, value| Lang::F32Store {
+                    self.store(idx, |offset, value| Lang::F32Store {
                         value_and_offset: [offset, value],
                         static_offset: memarg.offset,
                         align: memarg.align,
@@ -509,7 +470,7 @@ impl<'a> DFGBuilder {
                     self.new_color();
                 }
                 Operator::F64Store { memarg } => {
-                    self.binop_cb(idx, Empty, |offset, value| Lang::F64Store {
+                    self.store(idx, |offset, value| Lang::F64Store {
                         value_and_offset: [offset, value],
                         static_offset: memarg.offset,
                         align: memarg.align,
@@ -518,7 +479,7 @@ impl<'a> DFGBuilder {
                     self.new_color();
                 }
                 Operator::I32Store8 { memarg } => {
-                    self.binop_cb(idx, Empty, |offset, value| Lang::I32Store8 {
+                    self.store(idx, |offset, value| Lang::I32Store8 {
                         value_and_offset: [offset, value],
                         static_offset: memarg.offset,
                         align: memarg.align,
@@ -527,7 +488,7 @@ impl<'a> DFGBuilder {
                     self.new_color();
                 }
                 Operator::I32Store16 { memarg } => {
-                    self.binop_cb(idx, Empty, |offset, value| Lang::I32Store16 {
+                    self.store(idx, |offset, value| Lang::I32Store16 {
                         value_and_offset: [offset, value],
                         static_offset: memarg.offset,
                         align: memarg.align,
@@ -536,7 +497,7 @@ impl<'a> DFGBuilder {
                     self.new_color();
                 }
                 Operator::I64Store8 { memarg } => {
-                    self.binop_cb(idx, Empty, |offset, value| Lang::I64Store8 {
+                    self.store(idx, |offset, value| Lang::I64Store8 {
                         value_and_offset: [offset, value],
                         static_offset: memarg.offset,
                         align: memarg.align,
@@ -545,7 +506,7 @@ impl<'a> DFGBuilder {
                     self.new_color();
                 }
                 Operator::I64Store16 { memarg } => {
-                    self.binop_cb(idx, Empty, |offset, value| Lang::I64Store16 {
+                    self.store(idx, |offset, value| Lang::I64Store16 {
                         value_and_offset: [offset, value],
                         static_offset: memarg.offset,
                         align: memarg.align,
@@ -554,7 +515,7 @@ impl<'a> DFGBuilder {
                     self.new_color();
                 }
                 Operator::I64Store32 { memarg } => {
-                    self.binop_cb(idx, Empty, |offset, value| Lang::I64Store32 {
+                    self.store(idx, |offset, value| Lang::I64Store32 {
                         value_and_offset: [offset, value],
                         static_offset: memarg.offset,
                         align: memarg.align,
@@ -564,261 +525,244 @@ impl<'a> DFGBuilder {
                 }
 
                 // All memory loads
-                Operator::I32Load { memarg } => self.unop_cb(idx, I32, |offset| Lang::I32Load {
+                Operator::I32Load { memarg } => self.unop_cb(idx, |offset| Lang::I32Load {
                     offset,
                     static_offset: memarg.offset,
                     align: memarg.align,
                     mem: memarg.memory,
                 }),
-                Operator::I64Load { memarg } => self.unop_cb(idx, I64, |offset| Lang::I64Load {
+                Operator::I64Load { memarg } => self.unop_cb(idx, |offset| Lang::I64Load {
                     offset,
                     static_offset: memarg.offset,
                     align: memarg.align,
                     mem: memarg.memory,
                 }),
-                Operator::F32Load { memarg } => self.unop_cb(idx, F32, |offset| Lang::F32Load {
+                Operator::F32Load { memarg } => self.unop_cb(idx, |offset| Lang::F32Load {
                     offset,
                     static_offset: memarg.offset,
                     align: memarg.align,
                     mem: memarg.memory,
                 }),
-                Operator::F64Load { memarg } => self.unop_cb(idx, F64, |offset| Lang::F64Load {
+                Operator::F64Load { memarg } => self.unop_cb(idx, |offset| Lang::F64Load {
                     offset,
                     static_offset: memarg.offset,
                     align: memarg.align,
                     mem: memarg.memory,
                 }),
-                Operator::I32Load8S { memarg } => {
-                    self.unop_cb(idx, I32, |offset| Lang::I32Load8S {
-                        offset,
-                        static_offset: memarg.offset,
-                        align: memarg.align,
-                        mem: memarg.memory,
-                    })
-                }
-                Operator::I32Load8U { memarg } => {
-                    self.unop_cb(idx, I32, |offset| Lang::I32Load8U {
-                        offset,
-                        static_offset: memarg.offset,
-                        align: memarg.align,
-                        mem: memarg.memory,
-                    })
-                }
-                Operator::I32Load16S { memarg } => {
-                    self.unop_cb(idx, I32, |offset| Lang::I32Load16S {
-                        offset,
-                        static_offset: memarg.offset,
-                        align: memarg.align,
-                        mem: memarg.memory,
-                    })
-                }
-                Operator::I32Load16U { memarg } => {
-                    self.unop_cb(idx, I32, |offset| Lang::I32Load16U {
-                        offset,
-                        static_offset: memarg.offset,
-                        align: memarg.align,
-                        mem: memarg.memory,
-                    })
-                }
-                Operator::I64Load8S { memarg } => {
-                    self.unop_cb(idx, I64, |offset| Lang::I64Load8S {
-                        offset,
-                        static_offset: memarg.offset,
-                        align: memarg.align,
-                        mem: memarg.memory,
-                    })
-                }
-                Operator::I64Load8U { memarg } => {
-                    self.unop_cb(idx, I64, |offset| Lang::I64Load8U {
-                        offset,
-                        static_offset: memarg.offset,
-                        align: memarg.align,
-                        mem: memarg.memory,
-                    })
-                }
-                Operator::I64Load16S { memarg } => {
-                    self.unop_cb(idx, I64, |offset| Lang::I64Load16S {
-                        offset,
-                        static_offset: memarg.offset,
-                        align: memarg.align,
-                        mem: memarg.memory,
-                    })
-                }
-                Operator::I64Load16U { memarg } => {
-                    self.unop_cb(idx, I64, |offset| Lang::I64Load16U {
-                        offset,
-                        static_offset: memarg.offset,
-                        align: memarg.align,
-                        mem: memarg.memory,
-                    })
-                }
-                Operator::I64Load32S { memarg } => {
-                    self.unop_cb(idx, I64, |offset| Lang::I64Load32S {
-                        offset,
-                        static_offset: memarg.offset,
-                        align: memarg.align,
-                        mem: memarg.memory,
-                    })
-                }
-                Operator::I64Load32U { memarg } => {
-                    self.unop_cb(idx, I64, |offset| Lang::I64Load32U {
-                        offset,
-                        static_offset: memarg.offset,
-                        align: memarg.align,
-                        mem: memarg.memory,
-                    })
-                }
+                Operator::I32Load8S { memarg } => self.unop_cb(idx, |offset| Lang::I32Load8S {
+                    offset,
+                    static_offset: memarg.offset,
+                    align: memarg.align,
+                    mem: memarg.memory,
+                }),
+                Operator::I32Load8U { memarg } => self.unop_cb(idx, |offset| Lang::I32Load8U {
+                    offset,
+                    static_offset: memarg.offset,
+                    align: memarg.align,
+                    mem: memarg.memory,
+                }),
+                Operator::I32Load16S { memarg } => self.unop_cb(idx, |offset| Lang::I32Load16S {
+                    offset,
+                    static_offset: memarg.offset,
+                    align: memarg.align,
+                    mem: memarg.memory,
+                }),
+                Operator::I32Load16U { memarg } => self.unop_cb(idx, |offset| Lang::I32Load16U {
+                    offset,
+                    static_offset: memarg.offset,
+                    align: memarg.align,
+                    mem: memarg.memory,
+                }),
+                Operator::I64Load8S { memarg } => self.unop_cb(idx, |offset| Lang::I64Load8S {
+                    offset,
+                    static_offset: memarg.offset,
+                    align: memarg.align,
+                    mem: memarg.memory,
+                }),
+                Operator::I64Load8U { memarg } => self.unop_cb(idx, |offset| Lang::I64Load8U {
+                    offset,
+                    static_offset: memarg.offset,
+                    align: memarg.align,
+                    mem: memarg.memory,
+                }),
+                Operator::I64Load16S { memarg } => self.unop_cb(idx, |offset| Lang::I64Load16S {
+                    offset,
+                    static_offset: memarg.offset,
+                    align: memarg.align,
+                    mem: memarg.memory,
+                }),
+                Operator::I64Load16U { memarg } => self.unop_cb(idx, |offset| Lang::I64Load16U {
+                    offset,
+                    static_offset: memarg.offset,
+                    align: memarg.align,
+                    mem: memarg.memory,
+                }),
+                Operator::I64Load32S { memarg } => self.unop_cb(idx, |offset| Lang::I64Load32S {
+                    offset,
+                    static_offset: memarg.offset,
+                    align: memarg.align,
+                    mem: memarg.memory,
+                }),
+                Operator::I64Load32U { memarg } => self.unop_cb(idx, |offset| Lang::I64Load32U {
+                    offset,
+                    static_offset: memarg.offset,
+                    align: memarg.align,
+                    mem: memarg.memory,
+                }),
 
-                Operator::I32Eqz => self.unop(idx, Lang::I32Eqz, I32),
-                Operator::I64Eqz => self.unop(idx, Lang::I64Eqz, I32),
+                Operator::I32Eqz => self.unop(idx, Lang::I32Eqz),
+                Operator::I64Eqz => self.unop(idx, Lang::I64Eqz),
 
-                Operator::F32Eq => self.binop(idx, Lang::F32Eq, I32),
-                Operator::F32Ne => self.binop(idx, Lang::F32Ne, I32),
-                Operator::F32Lt => self.binop(idx, Lang::F32Lt, I32),
-                Operator::F32Gt => self.binop(idx, Lang::F32Gt, I32),
-                Operator::F32Le => self.binop(idx, Lang::F32Le, I32),
-                Operator::F32Ge => self.binop(idx, Lang::F32Ge, I32),
+                Operator::F32Eq => self.binop(idx, Lang::F32Eq),
+                Operator::F32Ne => self.binop(idx, Lang::F32Ne),
+                Operator::F32Lt => self.binop(idx, Lang::F32Lt),
+                Operator::F32Gt => self.binop(idx, Lang::F32Gt),
+                Operator::F32Le => self.binop(idx, Lang::F32Le),
+                Operator::F32Ge => self.binop(idx, Lang::F32Ge),
 
-                Operator::F64Eq => self.binop(idx, Lang::F64Eq, I32),
-                Operator::F64Ne => self.binop(idx, Lang::F64Ne, I32),
-                Operator::F64Lt => self.binop(idx, Lang::F64Lt, I32),
-                Operator::F64Gt => self.binop(idx, Lang::F64Gt, I32),
-                Operator::F64Le => self.binop(idx, Lang::F64Le, I32),
-                Operator::F64Ge => self.binop(idx, Lang::F64Ge, I32),
+                Operator::F64Eq => self.binop(idx, Lang::F64Eq),
+                Operator::F64Ne => self.binop(idx, Lang::F64Ne),
+                Operator::F64Lt => self.binop(idx, Lang::F64Lt),
+                Operator::F64Gt => self.binop(idx, Lang::F64Gt),
+                Operator::F64Le => self.binop(idx, Lang::F64Le),
+                Operator::F64Ge => self.binop(idx, Lang::F64Ge),
 
-                Operator::I32Clz => self.unop(idx, Lang::I32Clz, I32),
-                Operator::I32Ctz => self.unop(idx, Lang::I32Ctz, I32),
-                Operator::I64Clz => self.unop(idx, Lang::I64Clz, I64),
-                Operator::I64Ctz => self.unop(idx, Lang::I64Ctz, I64),
+                Operator::I32Clz => self.unop(idx, Lang::I32Clz),
+                Operator::I32Ctz => self.unop(idx, Lang::I32Ctz),
+                Operator::I64Clz => self.unop(idx, Lang::I64Clz),
+                Operator::I64Ctz => self.unop(idx, Lang::I64Ctz),
 
-                Operator::F32Abs => self.unop(idx, Lang::F32Abs, F32),
-                Operator::F32Neg => self.unop(idx, Lang::F32Neg, F32),
-                Operator::F32Ceil => self.unop(idx, Lang::F32Ceil, F32),
-                Operator::F32Floor => self.unop(idx, Lang::F32Floor, F32),
-                Operator::F32Trunc => self.unop(idx, Lang::F32Trunc, F32),
-                Operator::F32Nearest => self.unop(idx, Lang::F32Nearest, F32),
-                Operator::F32Sqrt => self.unop(idx, Lang::F32Sqrt, F32),
-                Operator::F32Add => self.binop(idx, Lang::F32Add, F32),
-                Operator::F32Sub => self.binop(idx, Lang::F32Sub, F32),
-                Operator::F32Mul => self.binop(idx, Lang::F32Mul, F32),
-                Operator::F32Div => self.binop(idx, Lang::F32Div, F32),
-                Operator::F32Min => self.binop(idx, Lang::F32Min, F32),
-                Operator::F32Max => self.binop(idx, Lang::F32Max, F32),
-                Operator::F32Copysign => self.binop(idx, Lang::F32Copysign, F32),
+                Operator::F32Abs => self.unop(idx, Lang::F32Abs),
+                Operator::F32Neg => self.unop(idx, Lang::F32Neg),
+                Operator::F32Ceil => self.unop(idx, Lang::F32Ceil),
+                Operator::F32Floor => self.unop(idx, Lang::F32Floor),
+                Operator::F32Trunc => self.unop(idx, Lang::F32Trunc),
+                Operator::F32Nearest => self.unop(idx, Lang::F32Nearest),
+                Operator::F32Sqrt => self.unop(idx, Lang::F32Sqrt),
+                Operator::F32Add => self.binop(idx, Lang::F32Add),
+                Operator::F32Sub => self.binop(idx, Lang::F32Sub),
+                Operator::F32Mul => self.binop(idx, Lang::F32Mul),
+                Operator::F32Div => self.binop(idx, Lang::F32Div),
+                Operator::F32Min => self.binop(idx, Lang::F32Min),
+                Operator::F32Max => self.binop(idx, Lang::F32Max),
+                Operator::F32Copysign => self.binop(idx, Lang::F32Copysign),
 
-                Operator::F64Abs => self.unop(idx, Lang::F64Abs, F64),
-                Operator::F64Neg => self.unop(idx, Lang::F64Neg, F64),
-                Operator::F64Ceil => self.unop(idx, Lang::F64Ceil, F64),
-                Operator::F64Floor => self.unop(idx, Lang::F64Floor, F64),
-                Operator::F64Trunc => self.unop(idx, Lang::F64Trunc, F64),
-                Operator::F64Nearest => self.unop(idx, Lang::F64Nearest, F64),
-                Operator::F64Sqrt => self.unop(idx, Lang::F64Sqrt, F64),
-                Operator::F64Add => self.binop(idx, Lang::F64Add, F64),
-                Operator::F64Sub => self.binop(idx, Lang::F64Sub, F64),
-                Operator::F64Mul => self.binop(idx, Lang::F64Mul, F64),
-                Operator::F64Div => self.binop(idx, Lang::F64Div, F64),
-                Operator::F64Min => self.binop(idx, Lang::F64Min, F64),
-                Operator::F64Max => self.binop(idx, Lang::F64Max, F64),
-                Operator::F64Copysign => self.binop(idx, Lang::F64Copysign, F64),
+                Operator::F64Abs => self.unop(idx, Lang::F64Abs),
+                Operator::F64Neg => self.unop(idx, Lang::F64Neg),
+                Operator::F64Ceil => self.unop(idx, Lang::F64Ceil),
+                Operator::F64Floor => self.unop(idx, Lang::F64Floor),
+                Operator::F64Trunc => self.unop(idx, Lang::F64Trunc),
+                Operator::F64Nearest => self.unop(idx, Lang::F64Nearest),
+                Operator::F64Sqrt => self.unop(idx, Lang::F64Sqrt),
+                Operator::F64Add => self.binop(idx, Lang::F64Add),
+                Operator::F64Sub => self.binop(idx, Lang::F64Sub),
+                Operator::F64Mul => self.binop(idx, Lang::F64Mul),
+                Operator::F64Div => self.binop(idx, Lang::F64Div),
+                Operator::F64Min => self.binop(idx, Lang::F64Min),
+                Operator::F64Max => self.binop(idx, Lang::F64Max),
+                Operator::F64Copysign => self.binop(idx, Lang::F64Copysign),
 
-                Operator::I32TruncF32S => self.unop(idx, Lang::I32TruncF32S, I32),
-                Operator::I32TruncF32U => self.unop(idx, Lang::I32TruncF32U, I32),
-                Operator::I32TruncF64S => self.unop(idx, Lang::I32TruncF64S, I32),
-                Operator::I32TruncF64U => self.unop(idx, Lang::I32TruncF64U, I32),
-                Operator::I64TruncF32S => self.unop(idx, Lang::I64TruncF32S, I64),
-                Operator::I64TruncF32U => self.unop(idx, Lang::I64TruncF32U, I64),
-                Operator::I64TruncF64S => self.unop(idx, Lang::I64TruncF64S, I64),
-                Operator::I64TruncF64U => self.unop(idx, Lang::I64TruncF64U, I64),
-                Operator::F32ConvertI32S => self.unop(idx, Lang::F32ConvertI32S, F32),
-                Operator::F32ConvertI32U => self.unop(idx, Lang::F32ConvertI32U, F32),
-                Operator::F32ConvertI64S => self.unop(idx, Lang::F32ConvertI64S, F32),
-                Operator::F32ConvertI64U => self.unop(idx, Lang::F32ConvertI64U, F32),
-                Operator::F64ConvertI32S => self.unop(idx, Lang::F64ConvertI32S, F64),
-                Operator::F64ConvertI32U => self.unop(idx, Lang::F64ConvertI32U, F64),
-                Operator::F64ConvertI64S => self.unop(idx, Lang::F64ConvertI64S, F64),
-                Operator::F64ConvertI64U => self.unop(idx, Lang::F64ConvertI64U, F64),
-                Operator::F64PromoteF32 => self.unop(idx, Lang::F64PromoteF32, F64),
-                Operator::F32DemoteF64 => self.unop(idx, Lang::F32DemoteF64, F32),
-                Operator::I32ReinterpretF32 => self.unop(idx, Lang::I32ReinterpretF32, I32),
-                Operator::I64ReinterpretF64 => self.unop(idx, Lang::I64ReinterpretF64, I64),
-                Operator::F32ReinterpretI32 => self.unop(idx, Lang::F32ReinterpretI32, F32),
-                Operator::F64ReinterpretI64 => self.unop(idx, Lang::F64ReinterpretI64, F64),
-                Operator::I32TruncSatF32S => self.unop(idx, Lang::I32TruncSatF32S, I32),
-                Operator::I32TruncSatF32U => self.unop(idx, Lang::I32TruncSatF32U, I32),
-                Operator::I32TruncSatF64S => self.unop(idx, Lang::I32TruncSatF64S, I32),
-                Operator::I32TruncSatF64U => self.unop(idx, Lang::I32TruncSatF64U, I32),
-                Operator::I64TruncSatF32S => self.unop(idx, Lang::I64TruncSatF32S, I64),
-                Operator::I64TruncSatF32U => self.unop(idx, Lang::I64TruncSatF32U, I64),
-                Operator::I64TruncSatF64S => self.unop(idx, Lang::I64TruncSatF64S, I64),
-                Operator::I64TruncSatF64U => self.unop(idx, Lang::I64TruncSatF64U, I64),
+                Operator::I32TruncF32S => self.unop(idx, Lang::I32TruncF32S),
+                Operator::I32TruncF32U => self.unop(idx, Lang::I32TruncF32U),
+                Operator::I32TruncF64S => self.unop(idx, Lang::I32TruncF64S),
+                Operator::I32TruncF64U => self.unop(idx, Lang::I32TruncF64U),
+                Operator::I64TruncF32S => self.unop(idx, Lang::I64TruncF32S),
+                Operator::I64TruncF32U => self.unop(idx, Lang::I64TruncF32U),
+                Operator::I64TruncF64S => self.unop(idx, Lang::I64TruncF64S),
+                Operator::I64TruncF64U => self.unop(idx, Lang::I64TruncF64U),
+                Operator::F32ConvertI32S => self.unop(idx, Lang::F32ConvertI32S),
+                Operator::F32ConvertI32U => self.unop(idx, Lang::F32ConvertI32U),
+                Operator::F32ConvertI64S => self.unop(idx, Lang::F32ConvertI64S),
+                Operator::F32ConvertI64U => self.unop(idx, Lang::F32ConvertI64U),
+                Operator::F64ConvertI32S => self.unop(idx, Lang::F64ConvertI32S),
+                Operator::F64ConvertI32U => self.unop(idx, Lang::F64ConvertI32U),
+                Operator::F64ConvertI64S => self.unop(idx, Lang::F64ConvertI64S),
+                Operator::F64ConvertI64U => self.unop(idx, Lang::F64ConvertI64U),
+                Operator::F64PromoteF32 => self.unop(idx, Lang::F64PromoteF32),
+                Operator::F32DemoteF64 => self.unop(idx, Lang::F32DemoteF64),
+                Operator::I32ReinterpretF32 => self.unop(idx, Lang::I32ReinterpretF32),
+                Operator::I64ReinterpretF64 => self.unop(idx, Lang::I64ReinterpretF64),
+                Operator::F32ReinterpretI32 => self.unop(idx, Lang::F32ReinterpretI32),
+                Operator::F64ReinterpretI64 => self.unop(idx, Lang::F64ReinterpretI64),
+                Operator::I32TruncSatF32S => self.unop(idx, Lang::I32TruncSatF32S),
+                Operator::I32TruncSatF32U => self.unop(idx, Lang::I32TruncSatF32U),
+                Operator::I32TruncSatF64S => self.unop(idx, Lang::I32TruncSatF64S),
+                Operator::I32TruncSatF64U => self.unop(idx, Lang::I32TruncSatF64U),
+                Operator::I64TruncSatF32S => self.unop(idx, Lang::I64TruncSatF32S),
+                Operator::I64TruncSatF32U => self.unop(idx, Lang::I64TruncSatF32U),
+                Operator::I64TruncSatF64S => self.unop(idx, Lang::I64TruncSatF64S),
+                Operator::I64TruncSatF64U => self.unop(idx, Lang::I64TruncSatF64U),
 
-                Operator::I32Add => self.binop(idx, Lang::I32Add, I32),
-                Operator::I32Sub => self.binop(idx, Lang::I32Sub, I32),
-                Operator::I32Eq => self.binop(idx, Lang::I32Eq, I32),
-                Operator::I32Ne => self.binop(idx, Lang::I32Ne, I32),
-                Operator::I32LtS => self.binop(idx, Lang::I32LtS, I32),
-                Operator::I32LtU => self.binop(idx, Lang::I32LtU, I32),
-                Operator::I32GtS => self.binop(idx, Lang::I32GtS, I32),
-                Operator::I32GtU => self.binop(idx, Lang::I32GtU, I32),
-                Operator::I32LeS => self.binop(idx, Lang::I32LeS, I32),
-                Operator::I32LeU => self.binop(idx, Lang::I32LeU, I32),
-                Operator::I32GeS => self.binop(idx, Lang::I32GeS, I32),
-                Operator::I32GeU => self.binop(idx, Lang::I32GeU, I32),
-                Operator::I32Mul => self.binop(idx, Lang::I32Mul, I32),
-                Operator::I32DivS => self.binop(idx, Lang::I32DivS, I32),
-                Operator::I32DivU => self.binop(idx, Lang::I32DivU, I32),
-                Operator::I32RemS => self.binop(idx, Lang::I32RemS, I32),
-                Operator::I32RemU => self.binop(idx, Lang::I32RemU, I32),
-                Operator::I32Shl => self.binop(idx, Lang::I32Shl, I32),
-                Operator::I32ShrS => self.binop(idx, Lang::I32ShrS, I32),
-                Operator::I32ShrU => self.binop(idx, Lang::I32ShrU, I32),
-                Operator::I32Xor => self.binop(idx, Lang::I32Xor, I32),
-                Operator::I32Or => self.binop(idx, Lang::I32Or, I32),
-                Operator::I32And => self.binop(idx, Lang::I32And, I32),
-                Operator::I32Rotl => self.binop(idx, Lang::I32RotL, I32),
-                Operator::I32Rotr => self.binop(idx, Lang::I32RotR, I32),
+                Operator::I32Add => self.binop(idx, Lang::I32Add),
+                Operator::I32Sub => self.binop(idx, Lang::I32Sub),
+                Operator::I32Eq => self.binop(idx, Lang::I32Eq),
+                Operator::I32Ne => self.binop(idx, Lang::I32Ne),
+                Operator::I32LtS => self.binop(idx, Lang::I32LtS),
+                Operator::I32LtU => self.binop(idx, Lang::I32LtU),
+                Operator::I32GtS => self.binop(idx, Lang::I32GtS),
+                Operator::I32GtU => self.binop(idx, Lang::I32GtU),
+                Operator::I32LeS => self.binop(idx, Lang::I32LeS),
+                Operator::I32LeU => self.binop(idx, Lang::I32LeU),
+                Operator::I32GeS => self.binop(idx, Lang::I32GeS),
+                Operator::I32GeU => self.binop(idx, Lang::I32GeU),
+                Operator::I32Mul => self.binop(idx, Lang::I32Mul),
+                Operator::I32DivS => self.binop(idx, Lang::I32DivS),
+                Operator::I32DivU => self.binop(idx, Lang::I32DivU),
+                Operator::I32RemS => self.binop(idx, Lang::I32RemS),
+                Operator::I32RemU => self.binop(idx, Lang::I32RemU),
+                Operator::I32Shl => self.binop(idx, Lang::I32Shl),
+                Operator::I32ShrS => self.binop(idx, Lang::I32ShrS),
+                Operator::I32ShrU => self.binop(idx, Lang::I32ShrU),
+                Operator::I32Xor => self.binop(idx, Lang::I32Xor),
+                Operator::I32Or => self.binop(idx, Lang::I32Or),
+                Operator::I32And => self.binop(idx, Lang::I32And),
+                Operator::I32Rotl => self.binop(idx, Lang::I32RotL),
+                Operator::I32Rotr => self.binop(idx, Lang::I32RotR),
 
-                Operator::I64Add => self.binop(idx, Lang::I64Add, I64),
-                Operator::I64Sub => self.binop(idx, Lang::I64Sub, I64),
-                Operator::I64Eq => self.binop(idx, Lang::I64Eq, I64),
-                Operator::I64Ne => self.binop(idx, Lang::I64Ne, I64),
-                Operator::I64LtS => self.binop(idx, Lang::I64LtS, I64),
-                Operator::I64LtU => self.binop(idx, Lang::I64LtU, I64),
-                Operator::I64GtS => self.binop(idx, Lang::I64GtS, I64),
-                Operator::I64GtU => self.binop(idx, Lang::I64GtU, I64),
-                Operator::I64LeS => self.binop(idx, Lang::I64LeS, I64),
-                Operator::I64LeU => self.binop(idx, Lang::I64LeU, I64),
-                Operator::I64GeS => self.binop(idx, Lang::I64GeS, I64),
-                Operator::I64GeU => self.binop(idx, Lang::I64GeU, I64),
-                Operator::I64Mul => self.binop(idx, Lang::I64Mul, I64),
-                Operator::I64DivS => self.binop(idx, Lang::I64DivS, I64),
-                Operator::I64DivU => self.binop(idx, Lang::I64DivU, I64),
-                Operator::I64RemS => self.binop(idx, Lang::I64RemS, I64),
-                Operator::I64RemU => self.binop(idx, Lang::I64RemU, I64),
-                Operator::I64Shl => self.binop(idx, Lang::I64Shl, I64),
-                Operator::I64ShrS => self.binop(idx, Lang::I64ShrS, I64),
-                Operator::I64ShrU => self.binop(idx, Lang::I64ShrU, I64),
-                Operator::I64Xor => self.binop(idx, Lang::I64Xor, I64),
-                Operator::I64Or => self.binop(idx, Lang::I64Or, I64),
-                Operator::I64And => self.binop(idx, Lang::I64And, I64),
-                Operator::I64Rotl => self.binop(idx, Lang::I64RotL, I64),
-                Operator::I64Rotr => self.binop(idx, Lang::I64RotR, I64),
+                Operator::I64Add => self.binop(idx, Lang::I64Add),
+                Operator::I64Sub => self.binop(idx, Lang::I64Sub),
+                Operator::I64Eq => self.binop(idx, Lang::I64Eq),
+                Operator::I64Ne => self.binop(idx, Lang::I64Ne),
+                Operator::I64LtS => self.binop(idx, Lang::I64LtS),
+                Operator::I64LtU => self.binop(idx, Lang::I64LtU),
+                Operator::I64GtS => self.binop(idx, Lang::I64GtS),
+                Operator::I64GtU => self.binop(idx, Lang::I64GtU),
+                Operator::I64LeS => self.binop(idx, Lang::I64LeS),
+                Operator::I64LeU => self.binop(idx, Lang::I64LeU),
+                Operator::I64GeS => self.binop(idx, Lang::I64GeS),
+                Operator::I64GeU => self.binop(idx, Lang::I64GeU),
+                Operator::I64Mul => self.binop(idx, Lang::I64Mul),
+                Operator::I64DivS => self.binop(idx, Lang::I64DivS),
+                Operator::I64DivU => self.binop(idx, Lang::I64DivU),
+                Operator::I64RemS => self.binop(idx, Lang::I64RemS),
+                Operator::I64RemU => self.binop(idx, Lang::I64RemU),
+                Operator::I64Shl => self.binop(idx, Lang::I64Shl),
+                Operator::I64ShrS => self.binop(idx, Lang::I64ShrS),
+                Operator::I64ShrU => self.binop(idx, Lang::I64ShrU),
+                Operator::I64Xor => self.binop(idx, Lang::I64Xor),
+                Operator::I64Or => self.binop(idx, Lang::I64Or),
+                Operator::I64And => self.binop(idx, Lang::I64And),
+                Operator::I64Rotl => self.binop(idx, Lang::I64RotL),
+                Operator::I64Rotr => self.binop(idx, Lang::I64RotR),
 
-                Operator::Drop => self.unop(idx, Lang::Drop, Empty),
+                Operator::Drop => {
+                    let arg = self.pop_operand(idx, false);
+                    self.empty_node(Lang::Drop([Id::from(arg)]), idx);
+                }
 
                 // conversion between integers
-                Operator::I32WrapI64 => self.unop(idx, Lang::Wrap, I32),
-                Operator::I32Extend8S => self.unop(idx, Lang::I32Extend8S, I32),
-                Operator::I32Extend16S => self.unop(idx, Lang::I32Extend16S, I32),
+                Operator::I32WrapI64 => self.unop(idx, Lang::Wrap),
+                Operator::I32Extend8S => self.unop(idx, Lang::I32Extend8S),
+                Operator::I32Extend16S => self.unop(idx, Lang::I32Extend16S),
 
-                Operator::I64Extend8S => self.unop(idx, Lang::I64Extend8S, I64),
-                Operator::I64Extend16S => self.unop(idx, Lang::I64Extend16S, I64),
-                Operator::I64Extend32S => self.unop(idx, Lang::I64Extend32S, I64),
-                Operator::I64ExtendI32S => self.unop(idx, Lang::I64ExtendI32S, I64),
-                Operator::I64ExtendI32U => self.unop(idx, Lang::I64ExtendI32U, I64),
+                Operator::I64Extend8S => self.unop(idx, Lang::I64Extend8S),
+                Operator::I64Extend16S => self.unop(idx, Lang::I64Extend16S),
+                Operator::I64Extend32S => self.unop(idx, Lang::I64Extend32S),
+                Operator::I64ExtendI32S => self.unop(idx, Lang::I64ExtendI32S),
+                Operator::I64ExtendI32U => self.unop(idx, Lang::I64ExtendI32U),
 
-                Operator::I32Popcnt => self.unop(idx, Lang::I32Popcnt, I32),
-                Operator::I64Popcnt => self.unop(idx, Lang::I64Popcnt, I64),
+                Operator::I32Popcnt => self.unop(idx, Lang::I32Popcnt),
+                Operator::I64Popcnt => self.unop(idx, Lang::I64Popcnt),
 
                 Operator::Select => {
                     let condition = self.pop_operand(idx, false);
@@ -831,8 +775,6 @@ impl<'a> DFGBuilder {
                             Id::from(condition),
                         ]),
                         idx,
-                        vec![consequent, alternative, condition],
-                        PrimitiveTypeInfo::I32,
                     );
                 }
                 Operator::MemoryGrow { mem, mem_byte } => {
@@ -844,19 +786,15 @@ impl<'a> DFGBuilder {
                             by: Id::from(arg),
                         },
                         idx,
-                        vec![arg],
-                        PrimitiveTypeInfo::I32,
                     );
                 }
                 Operator::MemorySize { mem, mem_byte } => {
-                    let _idx = self.push_node(
+                    self.push_node(
                         Lang::MemorySize {
                             mem: *mem,
                             mem_byte: *mem_byte,
                         },
                         idx,
-                        vec![],
-                        PrimitiveTypeInfo::I32,
                     );
                 }
                 _ => {
@@ -873,32 +811,33 @@ impl<'a> DFGBuilder {
         })
     }
 
-    fn unop(&mut self, idx: usize, op: fn([Id; 1]) -> Lang, ty: PrimitiveTypeInfo) {
-        self.unop_cb(idx, ty, |id| op([id]))
+    fn unop(&mut self, idx: usize, op: fn([Id; 1]) -> Lang) {
+        self.unop_cb(idx, |id| op([id]))
     }
 
-    fn unop_cb(&mut self, idx: usize, ty: PrimitiveTypeInfo, op: impl Fn(Id) -> Lang) {
+    fn unop_cb(&mut self, idx: usize, op: impl Fn(Id) -> Lang) {
         let arg = self.pop_operand(idx, false);
-        self.push_node(op(Id::from(arg)), idx, vec![arg], ty);
+        self.push_node(op(Id::from(arg)), idx);
     }
 
-    fn binop(&mut self, idx: usize, op: fn([Id; 2]) -> Lang, ty: PrimitiveTypeInfo) {
-        self.binop_cb(idx, ty, |a, b| op([a, b]))
-    }
-
-    fn binop_cb(&mut self, idx: usize, ty: PrimitiveTypeInfo, op: impl Fn(Id, Id) -> Lang) {
+    fn binop(&mut self, idx: usize, op: fn([Id; 2]) -> Lang) {
         let leftidx = self.pop_operand(idx, false);
         let rightidx = self.pop_operand(idx, false);
 
         // The operands should not be the same
         assert_ne!(leftidx, rightidx);
 
-        self.push_node(
-            op(Id::from(rightidx), Id::from(leftidx)),
-            idx,
-            vec![rightidx, leftidx],
-            ty,
-        );
+        self.push_node(op([Id::from(rightidx), Id::from(leftidx)]), idx);
+    }
+
+    fn store(&mut self, idx: usize, op: impl Fn(Id, Id) -> Lang) {
+        let leftidx = self.pop_operand(idx, false);
+        let rightidx = self.pop_operand(idx, false);
+
+        // The operands should not be the same
+        assert_ne!(leftidx, rightidx);
+
+        self.empty_node(op(Id::from(rightidx), Id::from(leftidx)), idx);
     }
 }
 
@@ -1032,8 +971,7 @@ mod tests {
                     let bb = DFGBuilder::new()
                         .get_bb_from_operator(0, &operators)
                         .unwrap();
-                    let roots =
-                        DFGBuilder::new().get_dfg(&ModuleInfo::default(), &operators, &bb, &[]);
+                    let roots = DFGBuilder::new().get_dfg(&ModuleInfo::default(), &operators, &bb);
                     assert!(roots.is_some())
                 }
                 wasmparser::Payload::End => {
@@ -1113,8 +1051,7 @@ mod tests {
                     let bb = DFGBuilder::new()
                         .get_bb_from_operator(7, &operators)
                         .unwrap();
-                    let roots =
-                        DFGBuilder::new().get_dfg(&ModuleInfo::default(), &operators, &bb, &[]);
+                    let roots = DFGBuilder::new().get_dfg(&ModuleInfo::default(), &operators, &bb);
                     assert!(roots.is_some());
                 }
                 wasmparser::Payload::End => {
@@ -1169,7 +1106,7 @@ mod tests {
                     let bb = DFGBuilder::new()
                         .get_bb_from_operator(3, &operators)
                         .unwrap();
-                    let roots = DFGBuilder::new().get_dfg(&info, &operators, &bb, &[]);
+                    let roots = DFGBuilder::new().get_dfg(&info, &operators, &bb);
                     assert!(roots.is_some());
                 }
                 wasmparser::Payload::End => {

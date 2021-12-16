@@ -166,7 +166,7 @@ impl PeepholeMutator {
                     }
                     Some(basicblock) => basicblock,
                 };
-                let minidfg = dfg.get_dfg(config.info(), &operators, &basicblock, &locals);
+                let minidfg = dfg.get_dfg(config.info(), &operators, &basicblock);
 
                 let minidfg = match minidfg {
                     None => {
