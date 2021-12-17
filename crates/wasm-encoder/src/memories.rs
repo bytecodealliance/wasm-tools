@@ -27,8 +27,8 @@ pub struct MemorySection {
 
 impl MemorySection {
     /// Create a new memory section encoder.
-    pub fn new() -> MemorySection {
-        MemorySection::default()
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// How many memories have been defined inside this section so far?

@@ -27,8 +27,8 @@ pub struct TableSection {
 
 impl TableSection {
     /// Construct a new table section encoder.
-    pub fn new() -> TableSection {
-        TableSection::default()
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// How many tables have been defined inside this section so far?

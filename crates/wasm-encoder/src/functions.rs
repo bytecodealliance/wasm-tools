@@ -28,8 +28,8 @@ pub struct FunctionSection {
 
 impl FunctionSection {
     /// Construct a new function section encoder.
-    pub fn new() -> FunctionSection {
-        FunctionSection::default()
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// How many functions have been defined inside this section so far?

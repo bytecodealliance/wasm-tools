@@ -32,8 +32,8 @@ pub struct ImportSection {
 
 impl ImportSection {
     /// Construct a new import section encoder.
-    pub fn new() -> ImportSection {
-        ImportSection::default()
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// How many imports have been defined inside this section so far?

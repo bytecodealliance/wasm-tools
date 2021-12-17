@@ -63,8 +63,8 @@ pub enum DataSegmentMode<'a> {
 
 impl DataSection {
     /// Create a new data section encoder.
-    pub fn new() -> DataSection {
-        DataSection::default()
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// How many segments have been defined inside this section so far?

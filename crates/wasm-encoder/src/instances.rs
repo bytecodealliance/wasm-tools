@@ -32,11 +32,8 @@ pub struct InstanceSection {
 
 impl InstanceSection {
     /// Construct a new instance section encoder.
-    pub fn new() -> InstanceSection {
-        InstanceSection {
-            bytes: vec![],
-            num_added: 0,
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// How many instances have been defined inside this section so far?

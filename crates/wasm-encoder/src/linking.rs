@@ -44,7 +44,7 @@ pub struct LinkingSection {
 impl LinkingSection {
     /// Construct a new encoder for the linking custom section.
     pub fn new() -> Self {
-        LinkingSection { bytes: vec![] }
+        Self::default()
     }
 
     // TODO: `fn segment_info` for the `WASM_SEGMENT_INFO` linking subsection.

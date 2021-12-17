@@ -34,8 +34,8 @@ pub struct ExportSection {
 
 impl ExportSection {
     /// Create a new export section encoder.
-    pub fn new() -> ExportSection {
-        ExportSection::default()
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// How many exports have been defined inside this section so far?

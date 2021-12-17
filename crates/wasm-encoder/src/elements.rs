@@ -93,8 +93,8 @@ pub struct ElementSegment<'a> {
 
 impl ElementSection {
     /// Create a new element section encoder.
-    pub fn new() -> ElementSection {
-        ElementSection::default()
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// How many segments have been defined inside this section so far?

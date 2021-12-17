@@ -46,8 +46,8 @@ enum Subsection {
 
 impl NameSection {
     /// Creates a new blank `name` custom section.
-    pub fn new() -> NameSection {
-        NameSection { bytes: vec![] }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Appends a module name subsection to this section.

@@ -40,8 +40,8 @@ pub struct CodeSection {
 
 impl CodeSection {
     /// Create a new code section encoder.
-    pub fn new() -> CodeSection {
-        CodeSection::default()
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// How many function bodies have been defined inside this section so far?

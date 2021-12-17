@@ -26,8 +26,8 @@ pub struct TypeSection {
 
 impl TypeSection {
     /// Create a new type section encoder.
-    pub fn new() -> TypeSection {
-        TypeSection::default()
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// How many types have been defined inside this section so far?

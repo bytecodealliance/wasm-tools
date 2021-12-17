@@ -29,11 +29,8 @@ pub struct ModuleSection {
 
 impl ModuleSection {
     /// Create a new code section encoder.
-    pub fn new() -> ModuleSection {
-        ModuleSection {
-            bytes: vec![],
-            num_added: 0,
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// How many modules have been defined inside this section so far?

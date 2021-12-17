@@ -29,11 +29,8 @@ pub struct AliasSection {
 
 impl AliasSection {
     /// Construct a new alias section encoder.
-    pub fn new() -> AliasSection {
-        AliasSection {
-            bytes: vec![],
-            num_added: 0,
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// How many aliases have been defined inside this section so far?

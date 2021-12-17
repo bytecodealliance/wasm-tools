@@ -27,8 +27,8 @@ pub struct TagSection {
 
 impl TagSection {
     /// Create a new tag section encoder.
-    pub fn new() -> TagSection {
-        TagSection::default()
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// How many tags have been defined inside this section so far?
