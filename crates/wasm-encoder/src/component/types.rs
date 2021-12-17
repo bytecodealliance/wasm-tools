@@ -30,7 +30,6 @@ const INTERFACE_TYPE_F32: u8 = 0x68;
 const INTERFACE_TYPE_F64: u8 = 0x67;
 const INTERFACE_TYPE_CHAR: u8 = 0x66;
 const INTERFACE_TYPE_STRING: u8 = 0x65;
-const INTERFACE_TYPE_UNIT: u8 = 0x64;
 
 const ALIAS_TYPE_INSTANCE_EXPORT: u8 = 0x00;
 const ALIAS_TYPE_OUTER: u8 = 0x01;
@@ -347,8 +346,6 @@ pub enum InterfaceType {
     Char,
     /// The type is a string.
     String,
-    /// The type is the unit type.
-    Unit,
     /// The type is a compound interface type.
     ///
     /// The value is a type index to a compound type.
@@ -371,7 +368,6 @@ impl InterfaceType {
             Self::F64 => bytes.push(INTERFACE_TYPE_F64),
             Self::Char => bytes.push(INTERFACE_TYPE_CHAR),
             Self::String => bytes.push(INTERFACE_TYPE_STRING),
-            Self::Unit => bytes.push(INTERFACE_TYPE_UNIT),
             Self::Compound(index) => bytes.extend(encoders::u32(*index)),
         }
     }
