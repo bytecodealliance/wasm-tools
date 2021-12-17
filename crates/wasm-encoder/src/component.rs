@@ -38,11 +38,11 @@ const TYPE_REF_MEMORY: u8 = 0x04;
 const TYPE_REF_GLOBAL: u8 = 0x05;
 const TYPE_REF_ADAPTER_FUNCTION: u8 = 0x06;
 
-const CANONICAL_OPTION_UTF8: u8 = 0x01;
-const CANONICAL_OPTION_UTF16: u8 = 0x02;
-const CANONICAL_OPTION_COMPACT_UTF16: u8 = 0x03;
-const CANONICAL_OPTION_WITH_REALLOC: u8 = 0x04;
-const CANONICAL_OPTION_WITH_FREE: u8 = 0x05;
+const CANONICAL_OPTION_UTF8: u8 = 0x00;
+const CANONICAL_OPTION_UTF16: u8 = 0x01;
+const CANONICAL_OPTION_COMPACT_UTF16: u8 = 0x02;
+const CANONICAL_OPTION_WITH_REALLOC: u8 = 0x03;
+const CANONICAL_OPTION_WITH_FREE: u8 = 0x04;
 
 /// A WebAssembly component section.
 ///
@@ -169,7 +169,7 @@ pub enum SectionId {
     Alias = 5,
     /// The section is an export section.
     Export = 6,
-    /// THe section is a function section.
+    /// The section is a function section.
     Function = 7,
     /// The section is an adapter function section.
     AdapterFunction = 8,

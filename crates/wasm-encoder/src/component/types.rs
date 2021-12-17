@@ -17,9 +17,6 @@ const COMPOUND_INTERFACE_TYPE_OPTIONAL: u8 = 0x74;
 const COMPOUND_INTERFACE_TYPE_EXPECTED: u8 = 0x73;
 const COMPOUND_INTERFACE_TYPE_NAMED: u8 = 0x72;
 
-const EXPECTED_OK: u8 = 0x00;
-const EXPECTED_OK_ERR: u8 = 0x01;
-
 const INTERFACE_TYPE_BOOL: u8 = 0x71;
 const INTERFACE_TYPE_S8: u8 = 0x70;
 const INTERFACE_TYPE_U8: u8 = 0x6f;
@@ -34,13 +31,6 @@ const INTERFACE_TYPE_F64: u8 = 0x67;
 const INTERFACE_TYPE_CHAR: u8 = 0x66;
 const INTERFACE_TYPE_STRING: u8 = 0x65;
 const INTERFACE_TYPE_UNIT: u8 = 0x64;
-
-const INSTANCE_DEFINITION_KIND: u8 = 0x00;
-const MODULE_DEFINITION_KIND: u8 = 0x01;
-const FUNCTION_DEFINITION_KIND: u8 = 0x02;
-const TABLE_DEFINITION_KIND: u8 = 0x03;
-const MEMORY_DEFINITION_KIND: u8 = 0x04;
-const GLOBAL_DEFINITION_KIND: u8 = 0x05;
 
 const ALIAS_TYPE_INSTANCE_EXPORT: u8 = 0x00;
 const ALIAS_TYPE_OUTER: u8 = 0x01;
@@ -74,19 +64,6 @@ pub enum DefinitionKind {
     Memory,
     /// The definition is a global.
     Global,
-}
-
-impl DefinitionKind {
-    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
-        match self {
-            Self::Instance => bytes.push(INSTANCE_DEFINITION_KIND),
-            Self::Module => bytes.push(MODULE_DEFINITION_KIND),
-            Self::Function => bytes.push(FUNCTION_DEFINITION_KIND),
-            Self::Table => bytes.push(TABLE_DEFINITION_KIND),
-            Self::Memory => bytes.push(MEMORY_DEFINITION_KIND),
-            Self::Global => bytes.push(GLOBAL_DEFINITION_KIND),
-        }
-    }
 }
 
 /// Represents an index for an outer alias.
@@ -147,7 +124,7 @@ impl Alias<'_> {
                 bytes.push(ALIAS_TYPE_INSTANCE_EXPORT);
                 bytes.extend(encoders::u32(*instance));
                 bytes.extend(encoders::str(name));
-                kind.encode(bytes);
+                bytes.push(*kind as u8);
             }
             Self::Outer { count, index } => {
                 bytes.push(ALIAS_TYPE_OUTER);
@@ -408,7 +385,7 @@ pub enum CompoundInterfaceType<'a> {
     /// A record interface type.
     Record(&'a [(&'a str, InterfaceType)]),
     /// A variant interface type.
-    Variant(&'a [(&'a str, InterfaceType)]),
+    Variant(&'a [(&'a str, Option<InterfaceType>)]),
     /// A tuple interface type.
     Tuple(&'a [InterfaceType]),
     /// A flags interface type.
@@ -424,7 +401,7 @@ pub enum CompoundInterfaceType<'a> {
     /// If `error` is `None`, then the error type is unit.
     Expected {
         /// The type representing success.
-        ok: InterfaceType,
+        ok: Option<InterfaceType>,
         /// The type representing failure.
         error: Option<InterfaceType>,
     },
@@ -455,7 +432,12 @@ impl CompoundInterfaceType<'_> {
                 bytes.extend(encoders::u32(u32::try_from(cases.len()).unwrap()));
                 for (name, ty) in *cases {
                     bytes.extend(encoders::str(name));
-                    ty.encode(bytes);
+                    if let Some(ty) = ty {
+                        bytes.push(0x01);
+                        ty.encode(bytes);
+                    } else {
+                        bytes.push(0x00);
+                    }
                 }
             }
             Self::Tuple(types) => {
@@ -492,13 +474,17 @@ impl CompoundInterfaceType<'_> {
             }
             Self::Expected { ok, error } => {
                 bytes.push(COMPOUND_INTERFACE_TYPE_EXPECTED);
-                if let Some(error) = error {
-                    bytes.push(EXPECTED_OK_ERR);
+                if let Some(ok) = ok {
+                    bytes.push(0x01);
                     ok.encode(bytes);
+                } else {
+                    bytes.push(0x00);
+                }
+                if let Some(error) = error {
+                    bytes.push(0x01);
                     error.encode(bytes);
                 } else {
-                    bytes.push(EXPECTED_OK);
-                    ok.encode(bytes);
+                    bytes.push(0x00);
                 }
             }
             Self::Named(named) => {
