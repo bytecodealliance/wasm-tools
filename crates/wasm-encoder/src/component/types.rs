@@ -216,11 +216,12 @@ impl<'a> TypeEncoder<'a> {
     }
 
     /// Define an adapter function type.
-    pub fn adapter_function(self, params: &[InterfaceType], results: &[InterfaceType]) {
+    pub fn adapter_function(self, params: &[(&str, InterfaceType)], results: &[InterfaceType]) {
         self.0.push(TYPE_ADAPTER_FUNCTION);
         self.0
             .extend(encoders::u32(u32::try_from(params.len()).unwrap()));
-        for param in params {
+        for (name, param) in params {
+            self.0.extend(encoders::str(name));
             param.encode(self.0);
         }
         self.0
@@ -406,10 +407,19 @@ impl CompoundTypeEncoder<'_> {
 /// # Example
 ///
 /// ```rust
-/// use wasm_encoder::component::{Component, TypeSection};
+/// use wasm_encoder::component::{Component, TypeSection, InterfaceType};
 ///
 /// let mut types = TypeSection::new();
+///
 /// types.function(&[], &[]);
+///
+/// // list<u8>
+/// let mut encoder = types.compound();
+/// encoder.list(InterfaceType::U8);
+///
+/// // record { foo: list<u8> }
+/// let mut encoder = types.compound();
+/// encoder.record(&[("foo", InterfaceType::Compound(1))]);
 ///
 /// let mut component = Component::new();
 /// component.section(&types);
@@ -465,7 +475,7 @@ impl TypeSection {
     /// Define an adapter function type.
     pub fn adapter_function(
         &mut self,
-        params: &[InterfaceType],
+        params: &[(&str, InterfaceType)],
         results: &[InterfaceType],
     ) -> &mut Self {
         let encoder = TypeEncoder(&mut self.bytes);
