@@ -1,23 +1,19 @@
-//! Encoders for WebAssembly components.
+//! Encoders for WebAssembly module adapters.
 //!
 //! This is an implementation of the in-progress [component
 //! model proposal](https://github.com/WebAssembly/component-model/).
 
 use crate::{encoders, GlobalType, MemoryType, RawSection, Section, TableType};
 
-mod adapters;
 mod aliases;
 mod exports;
-mod functions;
 mod imports;
 mod instances;
 mod modules;
 mod types;
 
-pub use adapters::*;
 pub use aliases::*;
 pub use exports::*;
-pub use functions::*;
 pub use imports::*;
 pub use instances::*;
 pub use modules::*;
@@ -36,22 +32,15 @@ const TYPE_REF_FUNCTION: u8 = 0x02;
 const TYPE_REF_TABLE: u8 = 0x03;
 const TYPE_REF_MEMORY: u8 = 0x04;
 const TYPE_REF_GLOBAL: u8 = 0x05;
-const TYPE_REF_ADAPTER_FUNCTION: u8 = 0x06;
 
-const CANONICAL_OPTION_UTF8: u8 = 0x00;
-const CANONICAL_OPTION_UTF16: u8 = 0x01;
-const CANONICAL_OPTION_COMPACT_UTF16: u8 = 0x02;
-const CANONICAL_OPTION_WITH_REALLOC: u8 = 0x03;
-const CANONICAL_OPTION_WITH_FREE: u8 = 0x04;
-
-/// A WebAssembly component section.
+/// A WebAssembly adapter module section.
 ///
-/// This trait marks sections that can be written to a `Component`.
+/// This trait marks sections that can be written to an `AdapterModule`.
 ///
 /// Various builders defined in this crate already implement this trait, but you
 /// can also implement it yourself for your own custom section builders, or use
 /// `RawSection` to use a bunch of raw bytes as a section.
-pub trait ComponentSection {
+pub trait AdapterModuleSection {
     /// This section's id.
     ///
     /// See `SectionId` for known section ids.
@@ -63,7 +52,7 @@ pub trait ComponentSection {
         S: Extend<u8>;
 }
 
-impl ComponentSection for RawSection<'_> {
+impl AdapterModuleSection for RawSection<'_> {
     fn id(&self) -> u8 {
         self.id
     }
@@ -76,37 +65,37 @@ impl ComponentSection for RawSection<'_> {
     }
 }
 
-/// Represents a WebAssembly component that is being encoded.
+/// Represents a WebAssembly adapter module that is being encoded.
 #[derive(Clone, Debug)]
-pub struct Component {
-    bytes: Vec<u8>,
+pub struct AdapterModule {
+    pub(crate) bytes: Vec<u8>,
 }
 
-impl Component {
-    /// Begin writing a new `Component`.
+impl AdapterModule {
+    /// Begin writing a new `AdapterModule`.
     pub fn new() -> Self {
         Self {
             bytes: vec![
                 0x00, 0x61, 0x73, 0x6D, // magic (`\0asm`)
-                0x0a, 0x00, 0x02, 0x00, // version
+                0x0a, 0x00, 0x01, 0x00, // version
             ],
         }
     }
 
-    /// Finish writing this component and extract ownership of the encoded bytes.
+    /// Finish writing this adapter module and extract ownership of the encoded bytes.
     pub fn finish(self) -> Vec<u8> {
         self.bytes
     }
 
-    /// Write a section into this component.
-    pub fn section(&mut self, section: &impl ComponentSection) -> &mut Self {
+    /// Write a section into this adapter module.
+    pub fn section(&mut self, section: &impl AdapterModuleSection) -> &mut Self {
         self.bytes.push(section.id());
         section.encode(&mut self.bytes);
         self
     }
 }
 
-impl Default for Component {
+impl Default for AdapterModule {
     fn default() -> Self {
         Self::new()
     }
@@ -114,7 +103,7 @@ impl Default for Component {
 
 /// Known component section IDs.
 ///
-/// Useful for implementing the `ComponentSection` trait, or for setting
+/// Useful for implementing the `AdapterModuleSection` trait, or for setting
 /// `RawSection::id`.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 #[repr(u8)]
@@ -133,10 +122,6 @@ pub enum SectionId {
     Alias = 5,
     /// The section is an export section.
     Export = 6,
-    /// The section is a function section.
-    Function = 7,
-    /// The section is an adapter function section.
-    AdapterFunction = 8,
 }
 
 impl From<SectionId> for u8 {
@@ -218,11 +203,6 @@ pub enum TypeRef {
     Memory(MemoryType),
     /// The definition is a core wasm global.
     Global(GlobalType),
-    /// The definition is an adapter function.
-    ///
-    /// The value is an index in the types index space.
-    /// The index must be to an adapter function type.
-    AdapterFunction(u32),
 }
 
 impl TypeRef {
@@ -252,10 +232,6 @@ impl TypeRef {
                 bytes.push(TYPE_REF_GLOBAL);
                 ty.encode(bytes);
             }
-            Self::AdapterFunction(index) => {
-                bytes.push(TYPE_REF_ADAPTER_FUNCTION);
-                bytes.extend(encoders::u32(*index));
-            }
         }
     }
 }
@@ -278,49 +254,16 @@ impl From<GlobalType> for TypeRef {
     }
 }
 
-/// Represents options for canonical functions and adapter functions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CanonicalOption {
-    /// The string types in the function signature are UTF-8 encoded.
-    UTF8,
-    /// The string types in the function signature are UTF-16 encoded.
-    UTF16,
-    /// The string types in the function signature are compact UTF-16 encoded.
-    CompactUTF16,
-    /// Specifies the function to use to reallocate memory.
-    WithRealloc(u32),
-    /// Specifies the function to use to free memory.
-    WithFree(u32),
-}
-
-impl CanonicalOption {
-    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
-        match self {
-            Self::UTF8 => bytes.push(CANONICAL_OPTION_UTF8),
-            Self::UTF16 => bytes.push(CANONICAL_OPTION_UTF16),
-            Self::CompactUTF16 => bytes.push(CANONICAL_OPTION_COMPACT_UTF16),
-            Self::WithRealloc(index) => {
-                bytes.push(CANONICAL_OPTION_WITH_REALLOC);
-                bytes.extend(encoders::u32(*index));
-            }
-            Self::WithFree(index) => {
-                bytes.push(CANONICAL_OPTION_WITH_FREE);
-                bytes.extend(encoders::u32(*index));
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
 
     #[test]
-    fn it_encodes_an_empty_component() {
-        let bytes = Component::new().finish();
+    fn it_encodes_an_adapter_module() {
+        let bytes = AdapterModule::new().finish();
         assert_eq!(
             bytes,
-            [0x00, 'a' as u8, 's' as u8, 'm' as u8, 0x0a, 0x00, 0x02, 0x00]
+            [0x00, 'a' as u8, 's' as u8, 'm' as u8, 0x0a, 0x00, 0x01, 0x00]
         );
     }
 }

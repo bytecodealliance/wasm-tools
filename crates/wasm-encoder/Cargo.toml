@@ -22,4 +22,7 @@ wasmparser = { path = "../wasmparser" }
 
 [features]
 default = []
+# The feature to support encoding of WebAssembly components.
+# Currently the component model spec is being worked on, so support is gated
+# behind this feature because the API may have substantial breaking changes.
 component-model = []

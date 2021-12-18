@@ -1,4 +1,4 @@
-use super::{ComponentSection, SectionId};
+use super::{AdapterModuleSection, SectionId};
 use crate::encoders;
 
 const ALIAS_KIND_INSTANCE_EXPORT: u8 = 0x00;
@@ -23,21 +23,21 @@ pub enum ExportKind {
     Global,
 }
 
-/// An encoder for the component alias section.
+/// An encoder for the adapter module alias section.
 ///
 /// # Example
 ///
 /// ```rust
-/// use wasm_encoder::component::{Component, AliasSection, ExportKind};
+/// use wasm_encoder::adapter::{AdapterModule, AliasSection, ExportKind};
 ///
 /// let mut aliases = AliasSection::new();
 /// aliases.outer_type(0, 2);
 /// aliases.instance_export(0, ExportKind::Function, "foo");
 ///
-/// let mut component = Component::new();
-/// component.section(&aliases);
+/// let mut module = AdapterModule::new();
+/// module.section(&aliases);
 ///
-/// let bytes = component.finish();
+/// let bytes = module.finish();
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct AliasSection {
@@ -46,7 +46,7 @@ pub struct AliasSection {
 }
 
 impl AliasSection {
-    /// Create a new component alias section encoder.
+    /// Create a new adapter module alias section encoder.
     pub fn new() -> Self {
         Self::default()
     }
@@ -92,7 +92,7 @@ impl AliasSection {
     }
 }
 
-impl ComponentSection for AliasSection {
+impl AdapterModuleSection for AliasSection {
     fn id(&self) -> u8 {
         SectionId::Alias.into()
     }

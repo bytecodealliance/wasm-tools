@@ -1,22 +1,21 @@
-use super::{Component, ComponentSection, SectionId};
-use crate::{adapter::AdapterModule, encoders, Module};
+use super::{AdapterModule, AdapterModuleSection, SectionId};
+use crate::{encoders, Module};
 
-/// An encoder for the component module section.
+/// An encoder for the adapter module `module` section.
 ///
 /// # Example
 ///
 /// ```rust
-/// use wasm_encoder::{Module, adapter::AdapterModule, component::{Component, ModuleSection}};
+/// use wasm_encoder::{Module, adapter::{AdapterModule, ModuleSection}};
 ///
 /// let mut modules = ModuleSection::new();
 /// modules.module(&Module::new());
 /// modules.adapter(&AdapterModule::new());
-/// modules.component(&Component::new());
 ///
-/// let mut component = Component::new();
-/// component.section(&modules);
+/// let mut module = AdapterModule::new();
+/// module.section(&modules);
 ///
-/// let bytes = component.finish();
+/// let bytes = module.finish();
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct ModuleSection {
@@ -25,7 +24,7 @@ pub struct ModuleSection {
 }
 
 impl ModuleSection {
-    /// Create a new component module section encoder.
+    /// Create a new adapter module `module` section encoder.
     pub fn new() -> Self {
         Self::default()
     }
@@ -59,19 +58,9 @@ impl ModuleSection {
         self.num_added += 1;
         self
     }
-
-    /// Writes a component into this module section.
-    pub fn component(&mut self, component: &Component) -> &mut Self {
-        self.bytes.extend(
-            encoders::u32(u32::try_from(component.bytes.len()).unwrap())
-                .chain(component.bytes.iter().copied()),
-        );
-        self.num_added += 1;
-        self
-    }
 }
 
-impl ComponentSection for ModuleSection {
+impl AdapterModuleSection for ModuleSection {
     fn id(&self) -> u8 {
         SectionId::Module.into()
     }

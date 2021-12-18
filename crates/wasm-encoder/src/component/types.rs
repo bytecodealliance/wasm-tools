@@ -1,4 +1,7 @@
-use super::{ComponentSection, SectionId, TypeRef};
+use super::{
+    ComponentSection, SectionId, TypeRef, ALIAS_KIND_OUTER, ALIAS_KIND_OUTER_MODULE,
+    ALIAS_KIND_OUTER_TYPE,
+};
 use crate::{encoders, ValType};
 
 const TYPE_INSTANCE: u8 = 0x7f;
@@ -31,12 +34,6 @@ const INTERFACE_TYPE_F64: u8 = 0x67;
 const INTERFACE_TYPE_CHAR: u8 = 0x66;
 const INTERFACE_TYPE_STRING: u8 = 0x65;
 
-const ALIAS_TYPE_INSTANCE_EXPORT: u8 = 0x00;
-const ALIAS_TYPE_OUTER: u8 = 0x01;
-
-const OUTER_ALIAS_MODULE: u8 = 0x01;
-const OUTER_ALIAS_TYPE: u8 = 0x06;
-
 const INSTANCE_TYPEDEF_TYPE: u8 = 0x01;
 const INSTANCE_TYPEDEF_ALIAS: u8 = 0x05;
 const INSTANCE_TYPEDEF_EXPORT: u8 = 0x06;
@@ -52,17 +49,17 @@ const MODULE_TYPEDEF_IMPORT: u8 = 0x02;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DefinitionKind {
     /// The definition is an instance.
-    Instance,
+    Instance = 0,
     /// The definition is a module.
-    Module,
+    Module = 1,
     /// The definition is a function.
-    Function,
+    Function = 2,
     /// The definition is a table.
-    Table,
+    Table = 3,
     /// The definition is a memory.
-    Memory,
+    Memory = 4,
     /// The definition is a global.
-    Global,
+    Global = 5,
 }
 
 /// Represents an index for an outer alias.
@@ -79,241 +76,164 @@ impl OuterAliasIndex {
         match self {
             Self::Module(index) => {
                 bytes.extend(encoders::u32(*index));
-                bytes.push(OUTER_ALIAS_MODULE);
+                bytes.push(ALIAS_KIND_OUTER_MODULE);
             }
             Self::Type(index) => {
                 bytes.extend(encoders::u32(*index));
-                bytes.push(OUTER_ALIAS_TYPE);
+                bytes.push(ALIAS_KIND_OUTER_TYPE);
             }
         }
     }
 }
 
-/// Represents an alias.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Alias<'a> {
-    /// The alias is to an instance export.
-    InstanceExport {
-        /// The index of the instance being aliased.
-        instance: u32,
-        /// The name of the export.
-        name: &'a str,
-        /// The kind of the definition being aliased.
-        kind: DefinitionKind,
-    },
-    /// The alias is to an index in an outer module.
-    Outer {
-        /// The count of the outer module.
-        ///
-        /// The count starts at 0 which denotes the current module.
-        count: u32,
-        /// The index from the outer module's index space being aliased.
-        index: OuterAliasIndex,
-    },
+/// Represents an instance type.
+#[derive(Debug, Clone, Default)]
+pub struct InstanceType {
+    bytes: Vec<u8>,
+    num_added: u32,
 }
 
-impl Alias<'_> {
+impl InstanceType {
+    /// Creates a new instance type.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Define a type in this instance type.
+    #[must_use = "the encoder must be used to encode the type"]
+    pub fn ty(&mut self) -> TypeEncoder {
+        self.bytes.push(INSTANCE_TYPEDEF_TYPE);
+        self.num_added += 1;
+        TypeEncoder(&mut self.bytes)
+    }
+
+    /// Defines an alias to an outer module in the instance type.
+    pub fn alias_outer_module(&mut self, count: u32, index: OuterAliasIndex) -> &mut Self {
+        self.bytes.push(INSTANCE_TYPEDEF_ALIAS);
+        self.bytes.push(ALIAS_KIND_OUTER);
+        self.bytes.extend(encoders::u32(count));
+        index.encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines an export in the instance type.
+    pub fn export(&mut self, name: &str, ty: TypeRef) -> &mut Self {
+        self.bytes.push(INSTANCE_TYPEDEF_EXPORT);
+        self.bytes.extend(encoders::str(name));
+        ty.encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+
     pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
-        match self {
-            Self::InstanceExport {
-                instance,
-                name,
-                kind,
-            } => {
-                bytes.push(ALIAS_TYPE_INSTANCE_EXPORT);
-                bytes.extend(encoders::u32(*instance));
-                bytes.extend(encoders::str(name));
-                bytes.push(*kind as u8);
-            }
-            Self::Outer { count, index } => {
-                bytes.push(ALIAS_TYPE_OUTER);
-                bytes.extend(encoders::u32(*count));
-                index.encode(bytes);
-            }
-        }
+        bytes.extend(encoders::u32(self.num_added));
+        bytes.extend(self.bytes.iter().copied());
     }
 }
 
-/// Represents a named interface type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct NamedInterfaceType<'a> {
-    name: &'a str,
-    ty: InterfaceType,
+/// Represents a module type.
+#[derive(Debug, Clone, Default)]
+pub struct ModuleType {
+    bytes: Vec<u8>,
+    num_added: u32,
 }
 
-impl NamedInterfaceType<'_> {
+impl ModuleType {
+    /// Creates a new module type.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Define a type in this module type.
+    #[must_use = "the encoder must be used to encode the type"]
+    pub fn ty(&mut self) -> TypeEncoder {
+        self.bytes.push(MODULE_TYPEDEF_TYPE);
+        self.num_added += 1;
+        TypeEncoder(&mut self.bytes)
+    }
+
+    /// Defines an alias to an outer module in the module type.
+    pub fn alias_outer_module(&mut self, count: u32, index: OuterAliasIndex) -> &mut Self {
+        self.bytes.push(MODULE_TYPEDEF_ALIAS);
+        self.bytes.push(ALIAS_KIND_OUTER_MODULE);
+        self.bytes.extend(encoders::u32(count));
+        index.encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines an export in the module type.
+    pub fn export(&mut self, name: &str, ty: TypeRef) -> &mut Self {
+        self.bytes.push(MODULE_TYPEDEF_EXPORT);
+        self.bytes.extend(encoders::str(name));
+        ty.encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines an import in the module type.
+    pub fn import(&mut self, name: &str, ty: TypeRef) -> &mut Self {
+        self.bytes.push(MODULE_TYPEDEF_IMPORT);
+        self.bytes.extend(encoders::str(name));
+        ty.encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+
     pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
-        bytes.extend(encoders::str(self.name));
-        self.ty.encode(bytes);
+        bytes.extend(encoders::u32(self.num_added));
+        bytes.extend(self.bytes.iter().copied());
     }
 }
 
-/// Represents results of an adapter function.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AdapterFunctionResults<'a> {
-    /// The adapter function returns zero results.
-    None,
-    /// The adapter function returns one unnamed result.
-    Single(InterfaceType),
-    /// The function returns multiple named results.
-    ///
-    /// The length of the slice must be greater than one.
-    Multiple(&'a [NamedInterfaceType<'a>]),
-}
+/// Used to encode types.
+#[derive(Debug)]
+pub struct TypeEncoder<'a>(&'a mut Vec<u8>);
 
-impl AdapterFunctionResults<'_> {
-    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
-        match self {
-            Self::None => bytes.push(0x00),
-            Self::Single(ty) => {
-                bytes.push(0x01);
-                ty.encode(bytes);
-            }
-            Self::Multiple(types) => {
-                assert!(types.len() > 1);
-                bytes.extend(encoders::u32(types.len() as u32));
-                for ty in *types {
-                    ty.encode(bytes);
-                }
-            }
+impl<'a> TypeEncoder<'a> {
+    /// Define an instance type.
+    pub fn instance(self, ty: &InstanceType) {
+        self.0.push(TYPE_INSTANCE);
+        ty.encode(self.0);
+    }
+
+    /// Define a module type.
+    pub fn module(self, ty: &ModuleType) {
+        self.0.push(TYPE_MODULE);
+        ty.encode(self.0);
+    }
+
+    /// Define a function type.
+    pub fn function(self, params: &[ValType], results: &[ValType]) {
+        self.0.push(TYPE_FUNCTION);
+        self.0
+            .extend(encoders::u32(u32::try_from(params.len()).unwrap()));
+        self.0.extend(params.iter().map(|p| u8::from(*p)));
+        self.0
+            .extend(encoders::u32(u32::try_from(results.len()).unwrap()));
+        self.0.extend(results.iter().map(|r| u8::from(*r)));
+    }
+
+    /// Define an adapter function type.
+    pub fn adapter_function(self, params: &[InterfaceType], results: &[InterfaceType]) {
+        self.0.push(TYPE_ADAPTER_FUNCTION);
+        self.0
+            .extend(encoders::u32(u32::try_from(params.len()).unwrap()));
+        for param in params {
+            param.encode(self.0);
+        }
+        self.0
+            .extend(encoders::u32(u32::try_from(results.len()).unwrap()));
+        for result in results {
+            result.encode(self.0);
         }
     }
-}
 
-/// Represents a type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Type<'a> {
-    /// The type is an instance.
-    Instance(&'a [InstanceTypeDef<'a>]),
-    /// The type is a module.
-    Module(&'a [ModuleTypeDef<'a>]),
-    /// The type is a core wasm function.
-    Function {
-        /// The parameters of the function.
-        params: &'a [ValType],
-        /// The results of the function.
-        results: &'a [ValType],
-    },
-    /// The type is an adapter function.
-    AdapterFunction {
-        /// The parameters of the function.
-        params: &'a [NamedInterfaceType<'a>],
-        /// The results of the function.
-        results: AdapterFunctionResults<'a>,
-    },
-    /// The type is a compound interface type.
-    CompoundInterfaceType(CompoundInterfaceType<'a>),
-}
-
-impl Type<'_> {
-    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
-        match self {
-            Self::Instance(defs) => {
-                bytes.push(TYPE_INSTANCE);
-                bytes.extend(encoders::u32(u32::try_from(defs.len()).unwrap()));
-                for def in *defs {
-                    def.encode(bytes);
-                }
-            }
-            Self::Module(defs) => {
-                bytes.push(TYPE_MODULE);
-                bytes.extend(encoders::u32(u32::try_from(defs.len()).unwrap()));
-                for def in *defs {
-                    def.encode(bytes);
-                }
-            }
-            Self::Function { params, results } => {
-                bytes.push(TYPE_FUNCTION);
-
-                bytes.extend(encoders::u32(u32::try_from(params.len()).unwrap()));
-                bytes.extend(params.iter().map(|ty| u8::from(*ty)));
-
-                bytes.extend(encoders::u32(u32::try_from(results.len()).unwrap()));
-                bytes.extend(results.iter().map(|ty| u8::from(*ty)));
-            }
-            Self::AdapterFunction { params, results } => {
-                bytes.push(TYPE_ADAPTER_FUNCTION);
-
-                bytes.extend(encoders::u32(u32::try_from(params.len()).unwrap()));
-                for param in *params {
-                    param.encode(bytes);
-                }
-
-                results.encode(bytes);
-            }
-            Self::CompoundInterfaceType(ty) => {
-                ty.encode(bytes);
-            }
-        }
-    }
-}
-
-/// Represents an instance type definition.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum InstanceTypeDef<'a> {
-    /// The definition is for a type.
-    Type(Type<'a>),
-    /// The definition is for an alias.
-    Alias(Alias<'a>),
-    /// The definition is for an export.
-    Export(&'a str, TypeRef),
-}
-
-impl InstanceTypeDef<'_> {
-    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
-        match self {
-            Self::Type(ty) => {
-                bytes.push(INSTANCE_TYPEDEF_TYPE);
-                ty.encode(bytes)
-            }
-            Self::Alias(alias) => {
-                bytes.push(INSTANCE_TYPEDEF_ALIAS);
-                alias.encode(bytes);
-            }
-            Self::Export(name, ty) => {
-                bytes.push(INSTANCE_TYPEDEF_EXPORT);
-                bytes.extend(encoders::str(name));
-                ty.encode(bytes);
-            }
-        }
-    }
-}
-
-/// Represents a module type definition.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ModuleTypeDef<'a> {
-    /// The definition is for a type.
-    Type(Type<'a>),
-    /// The definition is for an alias.
-    Alias(Alias<'a>),
-    /// The definition is for an export.
-    Export(&'a str, TypeRef),
-    /// The definition is for an import.
-    Import(&'a str, TypeRef),
-}
-
-impl ModuleTypeDef<'_> {
-    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
-        match self {
-            Self::Type(ty) => {
-                bytes.push(MODULE_TYPEDEF_TYPE);
-                ty.encode(bytes)
-            }
-            Self::Alias(alias) => {
-                bytes.push(MODULE_TYPEDEF_ALIAS);
-                alias.encode(bytes);
-            }
-            Self::Export(name, ty) => {
-                bytes.push(MODULE_TYPEDEF_EXPORT);
-                bytes.extend(encoders::str(name));
-                ty.encode(bytes);
-            }
-            Self::Import(name, ty) => {
-                bytes.push(MODULE_TYPEDEF_IMPORT);
-                bytes.extend(encoders::str(name));
-                ty.encode(bytes);
-            }
-        }
+    /// Define a compound type.
+    #[must_use = "the encoder must be used to encode the type"]
+    pub fn compound(self) -> CompoundTypeEncoder<'a> {
+        CompoundTypeEncoder(self.0)
     }
 }
 
@@ -373,121 +293,111 @@ impl InterfaceType {
     }
 }
 
-/// Represents a compound interface type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CompoundInterfaceType<'a> {
-    /// A list interface type.
-    List(InterfaceType),
-    /// A record interface type.
-    Record(&'a [(&'a str, InterfaceType)]),
-    /// A variant interface type.
-    Variant(&'a [(&'a str, Option<InterfaceType>)]),
-    /// A tuple interface type.
-    Tuple(&'a [InterfaceType]),
-    /// A flags interface type.
-    Flags(&'a [&'a str]),
-    /// An enumeration interface type.
-    Enum(&'a [&'a str]),
-    /// A union interface type.
-    Union(&'a [InterfaceType]),
-    /// An optional interface type.
-    Optional(InterfaceType),
-    /// An expected interface type.
-    ///
-    /// If `error` is `None`, then the error type is unit.
-    Expected {
-        /// The type representing success.
-        ok: Option<InterfaceType>,
-        /// The type representing failure.
-        error: Option<InterfaceType>,
-    },
-    /// A named interface type.
-    ///
-    /// Named types are either part of a type's declaration (i.e. a record)
-    /// or may be a type alias.
-    Named(NamedInterfaceType<'a>),
-}
+/// Used for encoding compound interface types.
+#[derive(Debug)]
+pub struct CompoundTypeEncoder<'a>(&'a mut Vec<u8>);
 
-impl CompoundInterfaceType<'_> {
-    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
-        match self {
-            Self::List(ty) => {
-                bytes.push(COMPOUND_INTERFACE_TYPE_LIST);
-                ty.encode(bytes);
-            }
-            Self::Record(fields) => {
-                bytes.push(COMPOUND_INTERFACE_TYPE_RECORD);
-                bytes.extend(encoders::u32(u32::try_from(fields.len()).unwrap()));
-                for (name, ty) in *fields {
-                    bytes.extend(encoders::str(name));
-                    ty.encode(bytes);
-                }
-            }
-            Self::Variant(cases) => {
-                bytes.push(COMPOUND_INTERFACE_TYPE_VARIANT);
-                bytes.extend(encoders::u32(u32::try_from(cases.len()).unwrap()));
-                for (name, ty) in *cases {
-                    bytes.extend(encoders::str(name));
-                    if let Some(ty) = ty {
-                        bytes.push(0x01);
-                        ty.encode(bytes);
-                    } else {
-                        bytes.push(0x00);
-                    }
-                }
-            }
-            Self::Tuple(types) => {
-                bytes.push(COMPOUND_INTERFACE_TYPE_TUPLE);
-                bytes.extend(encoders::u32(u32::try_from(types.len()).unwrap()));
-                for ty in *types {
-                    ty.encode(bytes);
-                }
-            }
-            Self::Flags(names) => {
-                bytes.push(COMPOUND_INTERFACE_TYPE_FLAGS);
-                bytes.extend(encoders::u32(u32::try_from(names.len()).unwrap()));
-                for name in *names {
-                    bytes.extend(encoders::str(name));
-                }
-            }
-            Self::Enum(tags) => {
-                bytes.push(COMPOUND_INTERFACE_TYPE_ENUM);
-                bytes.extend(encoders::u32(u32::try_from(tags.len()).unwrap()));
-                for tag in *tags {
-                    bytes.extend(encoders::str(tag));
-                }
-            }
-            Self::Union(types) => {
-                bytes.push(COMPOUND_INTERFACE_TYPE_UNION);
-                bytes.extend(encoders::u32(u32::try_from(types.len()).unwrap()));
-                for ty in *types {
-                    ty.encode(bytes);
-                }
-            }
-            Self::Optional(ty) => {
-                bytes.push(COMPOUND_INTERFACE_TYPE_OPTIONAL);
-                ty.encode(bytes);
-            }
-            Self::Expected { ok, error } => {
-                bytes.push(COMPOUND_INTERFACE_TYPE_EXPECTED);
-                if let Some(ok) = ok {
-                    bytes.push(0x01);
-                    ok.encode(bytes);
-                } else {
-                    bytes.push(0x00);
-                }
-                if let Some(error) = error {
-                    bytes.push(0x01);
-                    error.encode(bytes);
-                } else {
-                    bytes.push(0x00);
-                }
-            }
-            Self::Named(named) => {
-                bytes.push(COMPOUND_INTERFACE_TYPE_NAMED);
-                named.encode(bytes);
+impl CompoundTypeEncoder<'_> {
+    /// Define a list type.
+    pub fn list(self, ty: InterfaceType) {
+        self.0.push(COMPOUND_INTERFACE_TYPE_LIST);
+        ty.encode(self.0);
+    }
+
+    /// Define a record type.
+    pub fn record(self, fields: &[(&str, InterfaceType)]) {
+        self.0.push(COMPOUND_INTERFACE_TYPE_RECORD);
+        self.0
+            .extend(encoders::u32(fields.len().try_into().unwrap()));
+        for (name, ty) in fields {
+            self.0.extend(encoders::str(name));
+            ty.encode(self.0);
+        }
+    }
+
+    /// Define a variant type.
+    pub fn variant(self, cases: &[(&str, Option<InterfaceType>)]) {
+        self.0.push(COMPOUND_INTERFACE_TYPE_VARIANT);
+        self.0
+            .extend(encoders::u32(cases.len().try_into().unwrap()));
+        for (name, ty) in cases {
+            self.0.extend(encoders::str(name));
+            if let Some(ty) = ty {
+                self.0.push(0x01);
+                ty.encode(self.0);
+            } else {
+                self.0.push(0x00);
             }
         }
+    }
+
+    /// Define a tuple type.
+    pub fn tuple(self, types: &[InterfaceType]) {
+        self.0.push(COMPOUND_INTERFACE_TYPE_TUPLE);
+        self.0
+            .extend(encoders::u32(types.len().try_into().unwrap()));
+        for ty in types {
+            ty.encode(self.0);
+        }
+    }
+
+    /// Define a flags type.
+    pub fn flags(self, names: &[&str]) {
+        self.0.push(COMPOUND_INTERFACE_TYPE_FLAGS);
+        self.0
+            .extend(encoders::u32(names.len().try_into().unwrap()));
+        for name in names {
+            self.0.extend(encoders::str(name));
+        }
+    }
+
+    /// Define an enum type.
+    pub fn enum_type(self, tags: &[&str]) {
+        self.0.push(COMPOUND_INTERFACE_TYPE_ENUM);
+        self.0.extend(encoders::u32(tags.len().try_into().unwrap()));
+        for tag in tags {
+            self.0.extend(encoders::str(tag));
+        }
+    }
+
+    /// Define a union type.
+    pub fn union(self, types: &[InterfaceType]) {
+        self.0.push(COMPOUND_INTERFACE_TYPE_UNION);
+        self.0
+            .extend(encoders::u32(types.len().try_into().unwrap()));
+        for ty in types {
+            ty.encode(self.0);
+        }
+    }
+
+    /// Define an optional type.
+    pub fn optional(self, ty: InterfaceType) {
+        self.0.push(COMPOUND_INTERFACE_TYPE_OPTIONAL);
+        ty.encode(self.0);
+    }
+
+    /// Define an expected type.
+    pub fn expected(self, ok: Option<InterfaceType>, error: Option<InterfaceType>) {
+        self.0.push(COMPOUND_INTERFACE_TYPE_EXPECTED);
+        if let Some(ok) = ok {
+            self.0.push(0x01);
+            ok.encode(self.0);
+        } else {
+            self.0.push(0x00);
+        }
+        if let Some(error) = error {
+            self.0.push(0x01);
+            error.encode(self.0);
+        } else {
+            self.0.push(0x00);
+        }
+    }
+
+    /// Define a named type.
+    pub fn named(self, name: &str, ty: InterfaceType) {
+        self.0.push(COMPOUND_INTERFACE_TYPE_NAMED);
+        self.0.extend(encoders::str(name));
+        ty.encode(self.0);
     }
 }
 
@@ -496,10 +406,10 @@ impl CompoundInterfaceType<'_> {
 /// # Example
 ///
 /// ```rust
-/// use wasm_encoder::component::{Component, TypeSection, Type};
+/// use wasm_encoder::component::{Component, TypeSection};
 ///
 /// let mut types = TypeSection::new();
-/// types.ty(Type::Function { params: &[], results: &[] });
+/// types.function(&[], &[]);
 ///
 /// let mut component = Component::new();
 /// component.section(&types);
@@ -528,11 +438,48 @@ impl TypeSection {
         self.num_added == 0
     }
 
-    /// Define a type in the type section.
-    pub fn ty(&mut self, ty: Type) -> &mut Self {
-        ty.encode(&mut self.bytes);
+    /// Define an instance type in this type section.
+    pub fn instance(&mut self, ty: &InstanceType) -> &mut Self {
+        let encoder = TypeEncoder(&mut self.bytes);
+        encoder.instance(ty);
         self.num_added += 1;
         self
+    }
+
+    /// Define a module type in this type section.
+    pub fn module(&mut self, ty: &ModuleType) -> &mut Self {
+        let encoder = TypeEncoder(&mut self.bytes);
+        encoder.module(ty);
+        self.num_added += 1;
+        self
+    }
+
+    /// Define a function type in this type section.
+    pub fn function(&mut self, params: &[ValType], results: &[ValType]) -> &mut Self {
+        let encoder = TypeEncoder(&mut self.bytes);
+        encoder.function(params, results);
+        self.num_added += 1;
+        self
+    }
+
+    /// Define an adapter function type.
+    pub fn adapter_function(
+        &mut self,
+        params: &[InterfaceType],
+        results: &[InterfaceType],
+    ) -> &mut Self {
+        let encoder = TypeEncoder(&mut self.bytes);
+        encoder.adapter_function(params, results);
+        self.num_added += 1;
+        self
+    }
+
+    /// Define a compound type.
+    #[must_use = "the encoder must be used to encode the type"]
+    pub fn compound(&mut self) -> CompoundTypeEncoder<'_> {
+        let encoder = CompoundTypeEncoder(&mut self.bytes);
+        self.num_added += 1;
+        encoder
     }
 }
 
