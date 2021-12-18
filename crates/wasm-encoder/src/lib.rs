@@ -108,11 +108,8 @@ pub use tables::*;
 pub use tags::*;
 pub use types::*;
 
-//#[cfg(feature = "component-model")]
 pub mod adapter;
-//#[cfg(feature = "component-model")]
 pub mod component;
-
 pub mod encoders;
 
 use std::convert::TryFrom;
