@@ -302,7 +302,7 @@ impl<'a> ExpressionParser<'a> {
         // If we made it this far then we're at `If::End` which means that there
         // were too many s-expressions inside the `(if)` and we don't want to
         // parse anything else.
-        Err(parser.error("too many payloads inside of `(if)`"))
+        Err(parser.error("unexpected token: too many payloads inside of `(if)`"))
     }
 
     /// Handles parsing of a `try` statement. A `try` statement is simpler
@@ -389,7 +389,7 @@ impl<'a> ExpressionParser<'a> {
             return Err(parser.error("unexpected items after `catch`"));
         }
 
-        Err(parser.error("too many payloads inside of `(try)`"))
+        Err(parser.error("unexpected token: too many payloads inside of `(try)`"))
     }
 }
 

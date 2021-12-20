@@ -1,5 +1,5 @@
 ;; --enable-exceptions --enable-multi-value
-(module 
+(module
   (type (func (param i32 i64)))
   (type (func (param i32)))
   (tag (import "m" "t") (type 0))
@@ -29,7 +29,7 @@
   (module
     (type (func))
     (func throw 0))
-  "unknown tag: tag index out of bounds")
+  "unknown tag 0: tag index out of bounds")
 
 (assert_invalid
   (module
@@ -44,4 +44,4 @@
 (assert_invalid
   (module
     (func block try catch_all rethrow 1 end end))
-  "rethrow target was not a `catch` block")
+  "target was not a `catch` block")
