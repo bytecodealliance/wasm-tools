@@ -577,6 +577,7 @@ impl TestState {
                 "tail-call" => features.tail_call = true,
                 "memory64" => features.memory64 = true,
                 "module-linking" => features.module_linking = true,
+                "multi-memory" => features.multi_memory = true,
                 "extended-const" => features.extended_const = true,
                 _ => {}
             }

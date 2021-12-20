@@ -1310,7 +1310,8 @@ impl<'a> MemArg<'a> {
         }
 
         let memory = parser
-            .parse::<Option<ast::ItemRef<'a, kw::memory>>>()?
+            .parse::<Option<ast::IndexOrRef<'a, kw::memory>>>()?
+            .map(|i| i.0)
             .unwrap_or(idx_zero(parser.prev_span(), kw::memory));
         let offset = parse_u64("offset", parser)?.unwrap_or(0);
         let align = match parse_u32("align", parser)? {
@@ -1349,8 +1350,44 @@ pub struct LoadOrStoreLane<'a> {
 
 impl<'a> LoadOrStoreLane<'a> {
     fn parse(parser: Parser<'a>, default_align: u32) -> Result<Self> {
+        // This is sort of funky. The first integer we see could be the lane
+        // index, but it could also be the memory index. To determine what it is
+        // then if we see a second integer we need to look further.
+        let has_memarg = parser.step(|c| match c.integer() {
+            Some((_, after_int)) => {
+                // Two integers in a row? That means that the first one is the
+                // memory index and the second must be the lane index.
+                if after_int.integer().is_some() {
+                    return Ok((true, c));
+                }
+
+                // If the first integer is trailed by `offset=...` or
+                // `align=...` then this is definitely a memarg.
+                if let Some((kw, _)) = after_int.keyword() {
+                    if kw.starts_with("offset=") || kw.starts_with("align=") {
+                        return Ok((true, c));
+                    }
+                }
+
+                // Otherwise the first integer was trailed by something that
+                // didn't look like a memarg, so this must be the lane index.
+                Ok((false, c))
+            }
+
+            // Not an integer here? That must mean that this must be the memarg
+            // first followed by the trailing index.
+            None => Ok((true, c)),
+        })?;
         Ok(LoadOrStoreLane {
-            memarg: MemArg::parse(parser, default_align)?,
+            memarg: if has_memarg {
+                MemArg::parse(parser, default_align)?
+            } else {
+                MemArg {
+                    align: default_align,
+                    offset: 0,
+                    memory: idx_zero(parser.prev_span(), kw::memory),
+                }
+            },
             lane: LaneArg::parse(parser)?,
         })
     }
@@ -1475,11 +1512,14 @@ pub struct MemoryInit<'a> {
 
 impl<'a> Parse<'a> for MemoryInit<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let data = parser.parse()?;
-        let mem = parser
-            .parse::<Option<ast::IndexOrRef<_>>>()?
-            .map(|i| i.0)
-            .unwrap_or(idx_zero(parser.prev_span(), kw::memory));
+        let prev_span = parser.prev_span();
+        let (data, mem) =
+            if parser.peek::<ast::ItemRef<kw::memory>>() || parser.peek2::<ast::Index>() {
+                let memory = parser.parse::<ast::IndexOrRef<_>>()?.0;
+                (parser.parse()?, memory)
+            } else {
+                (parser.parse()?, idx_zero(prev_span, kw::memory))
+            };
         Ok(MemoryInit { data, mem })
     }
 }

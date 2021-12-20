@@ -550,7 +550,7 @@
 (module
   (module $m (memory $m (export "x") 1))
   (instance $i (instantiate $m))
-  (func unreachable memory.init $data (memory $i "x"))
+  (func unreachable memory.init (memory $i "x") $data)
   (data $data "x")
 )
 (module

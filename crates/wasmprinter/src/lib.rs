@@ -1080,11 +1080,11 @@ impl Printer {
 
             MemoryInit { segment, mem } => {
                 self.result.push_str("memory.init ");
-                self.print_data_idx(*segment)?;
                 if *mem != 0 {
-                    self.result.push_str(" ");
                     self.print_memory_idx(*mem)?;
+                    self.result.push_str(" ");
                 }
+                self.print_data_idx(*segment)?;
             }
             DataDrop { segment } => {
                 self.result.push_str("data.drop ");
