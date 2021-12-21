@@ -165,7 +165,7 @@ pub fn lazy_expand<'a>(
         let count = nodes.len();
         // For each eclass, at least one node exists
         let split_at = rnd.borrow_mut().gen_range(0, count);
-        let indices = (0..split_at).into_iter().chain(split_at..count);
+        let indices = (split_at..count).into_iter().chain(0..split_at);
         let t = indices
             .map(move |i| nodes[i].clone())
             .map(move |l| {
