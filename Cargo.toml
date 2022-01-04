@@ -1,9 +1,15 @@
 [package]
 name = "wasm-tools"
-version = "0.1.0"
+version = "1.0.0"
 authors = ["The Wasmtime Project Developers"]
 edition = "2018"
-publish = false
+description = "CLI tools for interoperating with WebAssembly files"
+license = "Apache-2.0 WITH LLVM-exception"
+documentation = "https://github.com/bytecodealliance/wasm-tools"
+categories = ["wasm"]
+keywords = ["webassembly", "wasm"]
+repository = "https://github.com/bytecodealliance/wasm-totols"
+readme = "README.md"
 
 [workspace]
 members = ['fuzz', 'crates/wasm-encoder', 'crates/fuzz-stats', 'crates/wasm-mutate-stats']
