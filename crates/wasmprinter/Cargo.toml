@@ -1,6 +1,6 @@
 [package]
 name = "wasmprinter"
-version = "0.2.31"
+version = "0.2.32"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 edition = "2018"
 license = "Apache-2.0 WITH LLVM-exception"
@@ -14,7 +14,7 @@ Rust converter from the WebAssembly binary format to the text format.
 
 [dependencies]
 anyhow = "1.0"
-wasmparser = { path = '../wasmparser', version = '0.81' }
+wasmparser = { path = '../wasmparser', version = '0.82.0' }
 
 [dev-dependencies]
 diff = "0.1"

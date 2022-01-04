@@ -8,7 +8,7 @@ license = "Apache-2.0 WITH LLVM-exception"
 readme = "./README.md"
 repository = "https://github.com/bytecodealliance/wasm-tools"
 name = "wasm-shrink"
-version = "0.1.0"
+version = "0.1.1"
 
 [dependencies]
 anyhow = "1"
@@ -16,10 +16,10 @@ blake3 = "1.2.0"
 log = "0.4"
 rand = { version = "0.8.4", features = ["small_rng"] }
 clap = { version = "3.0", optional = true, features = ['derive'] }
-wasm-mutate = { version = "0.1.0", path = "../wasm-mutate" }
-wasmparser = { version = "0.81", path = "../wasmparser" }
+wasm-mutate = { version = "0.1.1", path = "../wasm-mutate" }
+wasmparser = { version = "0.82.0", path = "../wasmparser" }
 
 [dev-dependencies]
 env_logger = "0.8"
-wasmprinter = { version = "0.2", path = "../wasmprinter" }
-wat = { version = "1", path = "../wat" }
+wasmprinter = { path = "../wasmprinter" }
+wat = { path = "../wat" }

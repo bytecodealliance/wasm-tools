@@ -1,6 +1,6 @@
 [package]
 name = "wasm-tools"
-version = "1.0.0"
+version = "1.0.1"
 authors = ["The Wasmtime Project Developers"]
 edition = "2018"
 description = "CLI tools for interoperating with WebAssembly files"
@@ -20,30 +20,30 @@ env_logger = "0.8"
 log = "0.4"
 clap = { version = "3.0", features = ['derive'] }
 tempfile = "3.2.0"
-wat = { path = "crates/wat", optional = true, version = '1.0' }
+wat = { path = "crates/wat", optional = true, version = '1.0.41' }
 
 # Dependencies of `validate`
-wasmparser = { path = "crates/wasmparser", optional = true, version = '0.81' }
+wasmparser = { path = "crates/wasmparser", optional = true, version = '0.82.0' }
 rayon = { version = "1.0", optional = true }
 
 # Dependencies of `print`
-wasmprinter = { path = "crates/wasmprinter", optional = true, version = '0.2' }
+wasmprinter = { path = "crates/wasmprinter", optional = true, version = '0.2.32' }
 
 # Dependencies of `smith`
 arbitrary = { version = "1.0.0", optional = true }
 serde = { version = "1", features = ['derive'], optional = true }
 serde_json = { version = "1", optional = true }
-wasm-smith = { path = "crates/wasm-smith", features = ["_internal_cli"], optional = true, version = '0.4' }
+wasm-smith = { path = "crates/wasm-smith", features = ["_internal_cli"], optional = true, version = '0.9.0' }
 
 # Dependencies of `shrink`
-wasm-shrink = { path = "crates/wasm-shrink", features = ["clap"], optional = true, version = '0.1' }
+wasm-shrink = { path = "crates/wasm-shrink", features = ["clap"], optional = true, version = '0.1.1' }
 is_executable = { version = "1.0.1", optional = true }
 
 # Dependencies of `mutate`
-wasm-mutate = { path = "crates/wasm-mutate", features = ["clap"], optional = true, version = '0.1' }
+wasm-mutate = { path = "crates/wasm-mutate", features = ["clap"], optional = true, version = '0.1.1' }
 
 # Dependencies of `dump`
-wasmparser-dump = { path = "crates/dump", optional = true, version = '0.1' }
+wasmparser-dump = { path = "crates/dump", optional = true, version = '0.1.0' }
 
 [dev-dependencies]
 anyhow = "1.0"
