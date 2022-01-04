@@ -15,10 +15,13 @@ use wasmparser::{Parser, ValidPayload, Validator, WasmFeatures};
 /// Examples:
 ///
 /// ```sh
+/// # Validate `foo.wasm` with the default Wasm feature proposals.
 /// $ wasm-tools validate foo.wasm
 ///
+/// # Validate `fancy.wasm` with all Wasm feature proposals enabled.
 /// $ wasm-tools validate --features all fancy.wasm
 ///
+/// # Validate `mvp.wasm` without any Wasm feature proposals enabled.
 /// $ wasm-tools validate --features=-all mvp.wasm
 /// ```
 #[derive(StructOpt)]
