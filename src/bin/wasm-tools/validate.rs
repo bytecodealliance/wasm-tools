@@ -2,7 +2,6 @@ use anyhow::{anyhow, Result};
 use rayon::prelude::*;
 use std::path::PathBuf;
 use std::time::Instant;
-use structopt::StructOpt;
 use wasmparser::{Parser, ValidPayload, Validator, WasmFeatures};
 
 /// Validate a WebAssembly binary
@@ -24,14 +23,14 @@ use wasmparser::{Parser, ValidPayload, Validator, WasmFeatures};
 /// # Validate `mvp.wasm` without any Wasm feature proposals enabled.
 /// $ wasm-tools validate --features=-all mvp.wasm
 /// ```
-#[derive(StructOpt)]
+#[derive(clap::Parser)]
 pub struct Opts {
     /// Comma-separated list of WebAssembly features to enable during validation.
     ///
     /// The placeholder "all" can be used to enable all wasm features. If a "-"
     /// character is present in front of a feature it will disable that feature.
     /// For example "all,-simd" would enable everything but simd.
-    #[structopt(long, short = "f", parse(try_from_str = parse_features))]
+    #[clap(long, short = 'f', parse(try_from_str = parse_features))]
     features: Option<WasmFeatures>,
 
     /// Input WebAssembly file to validate.

@@ -18,7 +18,7 @@ static EMPTY_WASM: &'static [u8] = &[
 ];
 
 #[cfg_attr(
-    not(feature = "structopt"),
+    not(feature = "clap"),
     doc = r###"
 Shrink a Wasm file while maintaining a property of interest (such as
 triggering a compiler bug).
@@ -63,22 +63,22 @@ let shrunken_wasm = info.output;
 ```
 "###
 )]
-#[cfg_attr(feature = "structopt", derive(structopt::StructOpt))]
+#[cfg_attr(feature = "clap", derive(clap::Parser))]
 pub struct WasmShrink {
     /// The number of shrink attempts to try before considering a Wasm module as
     /// small as it will ever get.
-    #[cfg_attr(feature = "structopt", structopt(short, long, default_value = "1000"))]
+    #[cfg_attr(feature = "clap", clap(short, long, default_value = "1000"))]
     attempts: u32,
 
     /// Allow shrinking the input down to an empty Wasm module.
     ///
     /// This is usually not desired and typically reflects a bug in the
     /// predicate script.
-    #[cfg_attr(feature = "structopt", structopt(long))]
+    #[cfg_attr(feature = "clap", clap(long))]
     allow_empty: bool,
 
     /// The RNG seed for choosing which size-reducing mutation to attempt next.
-    #[cfg_attr(feature = "structopt", structopt(short, long, default_value = "42"))]
+    #[cfg_attr(feature = "clap", clap(short, long, default_value = "42"))]
     seed: u64,
 }
 

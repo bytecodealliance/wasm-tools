@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-structopt = { optional = true, version = "0.3" }
+clap = { optional = true, version = "3.0", features = ['derive'] }
 thiserror = "1.0.28"
 wasmparser = { version = "0.81", path = "../wasmparser" }
 wasm-encoder = { version = "0.8.0", path = "../wasm-encoder"}

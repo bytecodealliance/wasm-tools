@@ -7,7 +7,7 @@
 //! tool. `wasm-mutate` can serve as a custom mutator for mutation-based
 //! fuzzing.
 
-#![cfg_attr(not(feature = "structopt"), deny(missing_docs))]
+#![cfg_attr(not(feature = "clap"), deny(missing_docs))]
 
 mod error;
 mod info;
@@ -31,8 +31,8 @@ use mutators::Mutator;
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use std::{cell::Cell, sync::Arc};
 
-#[cfg(feature = "structopt")]
-use structopt::StructOpt;
+#[cfg(feature = "clap")]
+use clap::Parser;
 
 macro_rules! define_mutators {
     (@count) => {0};
@@ -104,7 +104,7 @@ macro_rules! define_mutators {
 // NB: only add this doc comment if we are not building the CLI, since otherwise
 // it will override the main CLI's about text.
 #[cfg_attr(
-    not(feature = "structopt"),
+    not(feature = "clap"),
     doc = r###"
 A WebAssembly test case mutator.
 
@@ -149,36 +149,36 @@ for mutated_wasm in mutate.run(&input_wasm)? {
 ```
 "###
 )]
-#[cfg_attr(feature = "structopt", derive(StructOpt))]
+#[cfg_attr(feature = "clap", derive(Parser))]
 #[derive(Clone)]
 pub struct WasmMutate<'wasm> {
     /// The RNG seed used to choose which transformation to apply. Given the
     /// same input Wasm and same seed, `wasm-mutate` will always generate the
     /// same output Wasm.
-    #[cfg_attr(feature = "structopt", structopt(short, long))]
+    #[cfg_attr(feature = "clap", clap(short, long))]
     seed: u64,
 
     /// Only perform semantics-preserving transformations on the Wasm module.
-    #[cfg_attr(feature = "structopt", structopt(long))]
+    #[cfg_attr(feature = "clap", clap(long))]
     preserve_semantics: bool,
 
     /// Fuel to control the time of the mutation.
-    #[cfg_attr(feature = "structopt", structopt(skip = Cell::new(u64::MAX)))]
+    #[cfg_attr(feature = "clap", clap(skip = Cell::new(u64::MAX)))]
     fuel: Cell<u64>,
     /// Only perform size-reducing transformations on the Wasm module. This
     /// allows `wasm-mutate` to be used as a test case reducer.
-    #[cfg_attr(feature = "structopt", structopt(long))]
+    #[cfg_attr(feature = "clap", clap(long))]
     reduce: bool,
 
     // Note: this is only exposed via the programmatic interface, not via the
     // CLI.
-    #[cfg_attr(feature = "structopt", structopt(skip = None))]
+    #[cfg_attr(feature = "clap", clap(skip = None))]
     raw_mutate_func: Option<Arc<dyn Fn(&mut Vec<u8>) -> Result<()>>>,
 
-    #[cfg_attr(feature = "structopt", structopt(skip = None))]
+    #[cfg_attr(feature = "clap", clap(skip = None))]
     rng: Option<SmallRng>,
 
-    #[cfg_attr(feature = "structopt", structopt(skip = None))]
+    #[cfg_attr(feature = "clap", clap(skip = None))]
     info: Option<ModuleInfo<'wasm>>,
 }
 
