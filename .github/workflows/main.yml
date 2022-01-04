@@ -100,11 +100,20 @@ jobs:
     - run: cargo install cargo-fuzz
     - run: cargo fuzz build
 
-  check_wasm_smith_benches:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - run: cargo check --benches -p wasm-smith
+      - run: cargo check --no-default-features
+      - run: cargo check --no-default-features --features print
+      - run: cargo check --no-default-features --features parse
+      - run: cargo check --no-default-features --features validate
+      - run: cargo check --no-default-features --features smith
+      - run: cargo check --no-default-features --features shrink
+      - run: cargo check --no-default-features --features mutate
+      - run: cargo check --no-default-features --features dump
+      - run: cargo check --no-default-features --features objdump
 
   # Make sure running tests without wabt is supported
   test_no_wabt:

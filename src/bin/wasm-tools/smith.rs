@@ -1,4 +1,4 @@
-use anyhow::Context;
+use anyhow::{Context, Result};
 use arbitrary::Arbitrary;
 use std::fs;
 use std::io::{stdin, stdout, Read, Write};
@@ -34,7 +34,7 @@ use wasm_smith::{InstructionKind, InstructionKinds, MaybeInvalidModule, Module};
 /// * 2: Failed to generate a Webassembly module from the input seed. (Happens
 ///      rarely; try again with a new input.)
 #[derive(StructOpt)]
-struct Options {
+pub struct Opts {
     /// The arbitrary input seed.
     ///
     /// `stdin` is used if this argument is not supplied.
@@ -173,81 +173,84 @@ struct Config {
     allowed_instructions: Option<Vec<InstructionKind>>,
 }
 
-fn main() -> anyhow::Result<()> {
-    let opts = Options::from_args();
+impl Opts {
+    pub fn run(&self) -> Result<()> {
+        let stdin = stdin();
+        let (mut input, input_name): (Box<dyn Read>, _) = match &self.input {
+            Some(f) => {
+                let input = Box::new(
+                    fs::File::open(f)
+                        .with_context(|| format!("failed to open '{}'", f.display()))?,
+                );
+                (input, f.display().to_string())
+            }
+            None => {
+                let input = Box::new(stdin.lock());
+                (input, "<stdin>".to_string())
+            }
+        };
 
-    let stdin = stdin();
-    let (mut input, input_name): (Box<dyn Read>, _) = match &opts.input {
-        Some(f) => {
-            let input = Box::new(
-                fs::File::open(f).with_context(|| format!("failed to open '{}'", f.display()))?,
-            );
-            (input, f.display().to_string())
-        }
-        None => {
-            let input = Box::new(stdin.lock());
-            (input, "<stdin>".to_string())
-        }
-    };
+        let stdout = stdout();
+        let (mut output, output_name): (Box<dyn Write>, _) = match &self.output {
+            Some(f) => {
+                let output = Box::new(
+                    fs::File::create(f)
+                        .with_context(|| format!("failed to create '{}'", f.display()))?,
+                );
+                (output, f.display().to_string())
+            }
+            None => {
+                let output = Box::new(stdout.lock());
+                (output, "<stdout>".to_string())
+            }
+        };
 
-    let stdout = stdout();
-    let (mut output, output_name): (Box<dyn Write>, _) = match &opts.output {
-        Some(f) => {
-            let output = Box::new(
-                fs::File::create(f)
-                    .with_context(|| format!("failed to create '{}'", f.display()))?,
-            );
-            (output, f.display().to_string())
-        }
-        None => {
-            let output = Box::new(stdout.lock());
-            (output, "<stdout>".to_string())
-        }
-    };
+        let mut seed = vec![];
+        input
+            .read_to_end(&mut seed)
+            .with_context(|| format!("failed to read '{}'", input_name))?;
 
-    let mut seed = vec![];
-    input
-        .read_to_end(&mut seed)
-        .with_context(|| format!("failed to read '{}'", input_name))?;
-
-    let mut u = arbitrary::Unstructured::new(&seed);
-    let wasm_bytes = if opts.maybe_invalid {
-        MaybeInvalidModule::arbitrary(&mut u)
-            .unwrap_or_else(|e| {
+        let mut u = arbitrary::Unstructured::new(&seed);
+        let wasm_bytes = if self.maybe_invalid {
+            MaybeInvalidModule::arbitrary(&mut u)
+                .unwrap_or_else(|e| {
+                    eprintln!("error: failed to generate module: {}", e);
+                    process::exit(2);
+                })
+                .to_bytes()
+        } else {
+            let json = match &self.config {
+                Some(path) => {
+                    let json = std::fs::read_to_string(&path).with_context(|| {
+                        format!("failed to read json config: {}", path.display())
+                    })?;
+                    serde_json::from_str(&json).with_context(|| {
+                        format!("failed to decode json config: {}", path.display())
+                    })?
+                }
+                None => Config::default(),
+            };
+            let config = CliAndJsonConfig {
+                json,
+                cli: self.module_config.clone(),
+            };
+            let mut module = Module::new(config, &mut u).unwrap_or_else(|e| {
                 eprintln!("error: failed to generate module: {}", e);
                 process::exit(2);
-            })
-            .to_bytes()
-    } else {
-        let json = match &opts.config {
-            Some(path) => {
-                let json = std::fs::read_to_string(&path)
-                    .with_context(|| format!("failed to read json config: {}", path.display()))?;
-                serde_json::from_str(&json)
-                    .with_context(|| format!("failed to decode json config: {}", path.display()))?
+            });
+            if self.ensure_termination {
+                module.ensure_termination(self.fuel.unwrap_or(100));
             }
-            None => Config::default(),
+            module.to_bytes()
         };
-        let config = CliAndJsonConfig {
-            json,
-            cli: opts.module_config.clone(),
-        };
-        let mut module = Module::new(config, &mut u).unwrap_or_else(|e| {
-            eprintln!("error: failed to generate module: {}", e);
-            process::exit(2);
-        });
-        if opts.ensure_termination {
-            module.ensure_termination(opts.fuel.unwrap_or(100));
-        }
-        module.to_bytes()
-    };
 
-    output
-        .write_all(&wasm_bytes)
-        .with_context(|| format!("failed to write to '{}'", output_name))?;
+        output
+            .write_all(&wasm_bytes)
+            .with_context(|| format!("failed to write to '{}'", output_name))?;
 
-    drop(output);
-    Ok(())
+        drop(output);
+        Ok(())
+    }
 }
 
 macro_rules! fields {

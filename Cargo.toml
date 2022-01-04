@@ -10,25 +10,34 @@ members = ['fuzz', 'crates/wasm-encoder', 'crates/fuzz-stats', 'crates/wasm-muta
 
 [dependencies]
 anyhow = "1.0"
-arbitrary = "1.0.0"
 env_logger = "0.8"
-flagset = "0.4"
-getopts = "0.2"
-is_executable = "1.0.1"
 log = "0.4"
-rayon = "1.0"
 structopt = "0.3.16"
 tempfile = "3.2.0"
-wasm-mutate = { path = "crates/wasm-mutate", features = ["structopt"] }
-wasm-shrink = { path = "crates/wasm-shrink", features = ["structopt"] }
-wasm-smith = { path = "crates/wasm-smith", features = ["_internal_cli"] }
-wasmparser = { path = "crates/wasmparser" }
-wasmparser-dump = { path = "crates/dump" }
-wasmprinter = { path = "crates/wasmprinter" }
-wast = { path = "crates/wast" }
-wat = { path = "crates/wat" }
-serde_json = "1"
-serde = { version = "1", features = ['derive'] }
+wat = { path = "crates/wat", optional = true }
+
+# Dependencies of `validate`
+wasmparser = { path = "crates/wasmparser", optional = true }
+rayon = { version = "1.0", optional = true }
+
+# Dependencies of `print`
+wasmprinter = { path = "crates/wasmprinter", optional = true }
+
+# Dependencies of `smith`
+arbitrary = { version = "1.0.0", optional = true }
+serde = { version = "1", features = ['derive'], optional = true }
+serde_json = { version = "1", optional = true }
+wasm-smith = { path = "crates/wasm-smith", features = ["_internal_cli"], optional = true }
+
+# Dependencies of `shrink`
+wasm-shrink = { path = "crates/wasm-shrink", features = ["structopt"], optional = true}
+is_executable = { version = "1.0.1", optional = true }
+
+# Dependencies of `mutate`
+wasm-mutate = { path = "crates/wasm-mutate", features = ["structopt"], optional = true }
+
+# Dependencies of `dump`
+wasmparser-dump = { path = "crates/dump", optional = true }
 
 [dev-dependencies]
 anyhow = "1.0"
@@ -37,6 +46,7 @@ serde_json = "1.0"
 tempfile = "3.1"
 diff = "0.1"
 wasmparser-dump = { path = 'crates/dump' }
+wast = { path = 'crates/wast' }
 
 [[test]]
 name = "dump"
@@ -45,3 +55,17 @@ harness = false
 [[test]]
 name = "roundtrip"
 harness = false
+
+[features]
+# By default, all subcommands are built
+default = ['shrink', 'smith', 'mutate', 'validate', 'print', 'parse', 'dump', 'objdump']
+
+# Each subcommand is gated behind a feature and lists the dependencies it needs
+validate = ['wasmparser', 'rayon', 'wat']
+print = ['wasmprinter']
+parse = ['wat']
+smith = ['wasm-smith', 'arbitrary', 'serde', 'serde_json']
+shrink = ['wasm-shrink', 'is_executable', 'wat', 'wasmprinter']
+mutate = ['wasm-mutate', 'wat']
+dump = ['wasmparser-dump', 'wat']
+objdump = ['wasmparser', 'wat']

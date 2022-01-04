@@ -23,7 +23,7 @@ use wasm_shrink::{IsInteresting, WasmShrink};
 ///
 /// $ wasm-shrink compile.sh crasher.wasm -o shrunken.wasm
 #[derive(StructOpt)]
-struct Options {
+pub struct Opts {
     /// The output file path to write the shrunken Wasm file to.
     ///
     /// By default, a file path based on the input will be generated.
@@ -40,98 +40,93 @@ struct Options {
     input: PathBuf,
 }
 
-fn main() -> Result<()> {
-    env_logger::init();
-
-    let options = Options::from_args();
-
-    // Prerequisites for the predicate.
-    anyhow::ensure!(
-        options.predicate.is_file(),
-        "The predicate script '{}' does not exist.",
-        options.predicate.display()
-    );
-    anyhow::ensure!(
-        options.predicate.is_executable(),
-        "The predicate script '{}' is not executable.",
-        options.predicate.display()
-    );
-
-    let input = wat::parse_file(&options.input).with_context(|| {
-        format!(
-            "Failed to read input Wasm file: {}",
-            options.input.display()
-        )
-    })?;
-    let initial_size = input.len();
-
-    let output = options
-        .output
-        .clone()
-        .unwrap_or_else(|| options.input.with_extension("shrunken.wasm"));
-    log::info!("Will write shrunken Wasm file to: {}", output.display());
-
-    let predicate = make_predicate(&options.predicate);
-
-    let on_new_smallest = |new_smallest: &[u8]| {
-        // Write the Wasm to a temp file and then move that to the output path
-        // as a second, atomic step. This ensures that the output is always a
-        // valid, interesting, shrunken Wasm file, even in the presence of the
-        // user doing `Ctrl-C`.
-        let tmp = tempfile::NamedTempFile::new().context("Failed to create a temporary file")?;
-        std::fs::write(tmp.path(), new_smallest)
-            .with_context(|| format!("Failed to write to file: {}", tmp.path().display()))?;
-        std::fs::rename(tmp.path(), &output).with_context(|| {
-            format!(
-                "Failed to rename {} to {}",
-                tmp.path().display(),
-                output.display()
-            )
-        })?;
-
-        println!(
-            "{} bytes ({:.02}% smaller)",
-            new_smallest.len(),
-            (100.0 - (new_smallest.len() as f64 / initial_size as f64 * 100.0))
+impl Opts {
+    pub fn run(self) -> Result<()> {
+        // Prerequisites for the predicate.
+        anyhow::ensure!(
+            self.predicate.is_file(),
+            "The predicate script '{}' does not exist.",
+            self.predicate.display()
+        );
+        anyhow::ensure!(
+            self.predicate.is_executable(),
+            "The predicate script '{}' is not executable.",
+            self.predicate.display()
         );
 
-        // Now write the WAT disassembly as well.
-        match wasmprinter::print_bytes(new_smallest) {
-            Err(e) => {
-                // Ignore disassembly errors, since this isn't critical for
-                // shrinking.
-                log::warn!("Error disassembling the shrunken Wasm into WAT: {}", e);
+        let input = wat::parse_file(&self.input)
+            .with_context(|| format!("Failed to read input Wasm file: {}", self.input.display()))?;
+        let initial_size = input.len();
+
+        let output = self
+            .output
+            .clone()
+            .unwrap_or_else(|| self.input.with_extension("shrunken.wasm"));
+        log::info!("Will write shrunken Wasm file to: {}", output.display());
+
+        let predicate = make_predicate(&self.predicate);
+
+        let on_new_smallest = |new_smallest: &[u8]| {
+            // Write the Wasm to a temp file and then move that to the output path
+            // as a second, atomic step. This ensures that the output is always a
+            // valid, interesting, shrunken Wasm file, even in the presence of the
+            // user doing `Ctrl-C`.
+            let tmp =
+                tempfile::NamedTempFile::new().context("Failed to create a temporary file")?;
+            std::fs::write(tmp.path(), new_smallest)
+                .with_context(|| format!("Failed to write to file: {}", tmp.path().display()))?;
+            std::fs::rename(tmp.path(), &output).with_context(|| {
+                format!(
+                    "Failed to rename {} to {}",
+                    tmp.path().display(),
+                    output.display()
+                )
+            })?;
+
+            println!(
+                "{} bytes ({:.02}% smaller)",
+                new_smallest.len(),
+                (100.0 - (new_smallest.len() as f64 / initial_size as f64 * 100.0))
+            );
+
+            // Now write the WAT disassembly as well.
+            match wasmprinter::print_bytes(new_smallest) {
+                Err(e) => {
+                    // Ignore disassembly errors, since this isn't critical for
+                    // shrinking.
+                    log::warn!("Error disassembling the shrunken Wasm into WAT: {}", e);
+                }
+                Ok(wat) => {
+                    let wat_path = output.with_extension("wat");
+                    log::info!("Writing WAT disassembly to {}", wat_path.display());
+                    std::fs::write(&wat_path, wat).with_context(|| {
+                        format!("Failed to write WAT disassembly to {}", wat_path.display())
+                    })?;
+                }
             }
-            Ok(wat) => {
-                let wat_path = output.with_extension("wat");
-                log::info!("Writing WAT disassembly to {}", wat_path.display());
-                std::fs::write(&wat_path, wat).with_context(|| {
-                    format!("Failed to write WAT disassembly to {}", wat_path.display())
-                })?;
-            }
-        }
 
-        Ok(())
-    };
+            Ok(())
+        };
 
-    let shrunken = options.shrink.run(input, predicate, on_new_smallest)?;
+        let shrunken = self.shrink.run(input, predicate, on_new_smallest)?;
 
-    let wat = wasmprinter::print_bytes(&shrunken.output)
-        .unwrap_or_else(|e| format!("<error disassembling WAT: {}>", e));
+        let wat = wasmprinter::print_bytes(&shrunken.output)
+            .unwrap_or_else(|e| format!("<error disassembling WAT: {}>", e));
 
-    println!(
-        "\n\
+        println!(
+            "\n\
          {} :: {} bytes ({:.02}% smaller)\n\
          ================================================================================\n\
          {}\n\
          ================================================================================",
-        output.display(),
-        shrunken.output.len(),
-        100.0 - (shrunken.output.len() as f64 / initial_size as f64 * 100.0),
-        wat.trim(),
-    );
+            output.display(),
+            shrunken.output.len(),
+            100.0 - (shrunken.output.len() as f64 / initial_size as f64 * 100.0),
+            wat.trim(),
+        );
 
-    Ok(())
+        Ok(())
+    }
 }
 
 struct OutputIsInteresting(std::process::Output);
