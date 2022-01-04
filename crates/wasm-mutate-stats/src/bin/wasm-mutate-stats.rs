@@ -1,4 +1,5 @@
 use anyhow::Context;
+use clap::Parser;
 use core::sync::atomic::Ordering::{Relaxed, SeqCst};
 use rand::Rng;
 use rand::{rngs::SmallRng, SeedableRng};
@@ -12,7 +13,6 @@ use std::sync::Mutex;
 use std::time::Duration;
 use std::{collections::HashMap, sync::Arc};
 use std::{panic, process};
-use structopt::StructOpt;
 use wasm_mutate::WasmMutate;
 use wasmtime::{Config, Engine, OptLevel};
 
@@ -20,6 +20,7 @@ use wasmtime::{Config, Engine, OptLevel};
 enum ParsingOptLevelError {
     Parsing(String),
 }
+
 impl Display for ParsingOptLevelError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -27,6 +28,8 @@ impl Display for ParsingOptLevelError {
         }
     }
 }
+
+impl std::error::Error for ParsingOptLevelError {}
 
 /// Parses the list of optimizations to set in wasmtime
 fn parse_optimization_types(s: &str) -> Result<OptLevel, ParsingOptLevelError> {
@@ -66,25 +69,25 @@ fn parse_optimization_types(s: &str) -> Result<OptLevel, ParsingOptLevelError> {
 /// checking preservation for O0(No optimizations) and O2(size and speed optimization), using architecture
 /// triple `x86_64-apple-darwin`.
 ///
-#[derive(StructOpt)]
+#[derive(Parser)]
 struct Options {
     /// The input folder that contains the Wasm binaries.
     input: PathBuf,
     /// The timeout, 0 to wait for keyboard interrupt
     timeout: u64,
     /// The seed of the random mutation, 0 by default
-    #[structopt(short = "s", long = "seed")]
+    #[clap(short = 's', long = "seed")]
     seed: u64,
     /// List of engine configurations.
     /// Allowed values: [O0, O2, Os]
     /// If it is not set, the default configuration of wasmtime will be used
-    #[structopt(short = "c", long = "compilation-configs", parse(try_from_str=parse_optimization_types) )]
+    #[clap(short = 'c', long = "compilation-configs", parse(try_from_str=parse_optimization_types) )]
     configs: Option<Vec<OptLevel>>,
     /// Target triple during compilation, e.g. "x86_64-apple-darwin"
-    #[structopt(short = "a", long = "triple")]
+    #[clap(short = 'a', long = "triple")]
     triple: Option<String>,
     /// Only generate report, if this option is set, it will skip the generation
-    #[structopt(short = "k", long = "skip")]
+    #[clap(short = 'k', long = "skip")]
     skip_generation: bool,
 }
 
@@ -107,7 +110,7 @@ fn main() -> anyhow::Result<()> {
     // Init logs
     env_logger::init();
 
-    let opts = Options::from_args();
+    let opts = Options::parse();
     let timeout = opts.timeout;
     let seed = opts.seed;
 
