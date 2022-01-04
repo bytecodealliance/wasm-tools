@@ -1,10 +1,10 @@
 use anyhow::{Context, Result};
 use arbitrary::Arbitrary;
+use clap::Parser;
 use std::fs;
 use std::io::{stdin, stdout, Read, Write};
 use std::path::PathBuf;
 use std::process;
-use structopt::StructOpt;
 use wasm_smith::{InstructionKind, InstructionKinds, MaybeInvalidModule, Module};
 
 /// A WebAssembly test case generator.
@@ -33,19 +33,19 @@ use wasm_smith::{InstructionKind, InstructionKinds, MaybeInvalidModule, Module};
 ///
 /// * 2: Failed to generate a Webassembly module from the input seed. (Happens
 ///      rarely; try again with a new input.)
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub struct Opts {
     /// The arbitrary input seed.
     ///
     /// `stdin` is used if this argument is not supplied.
-    #[structopt(parse(from_os_str))]
+    #[clap(parse(from_os_str))]
     input: Option<PathBuf>,
 
     /// The output file path, where the generated WebAssembly module is
     /// placed.
     ///
     /// `stdout` is used if this argument is not supplied.
-    #[structopt(short = "o", long = "output", parse(from_os_str))]
+    #[clap(short = 'o', long = "output", parse(from_os_str))]
     output: Option<PathBuf>,
 
     /// Ensure that execution of generated Wasm modules will always terminate.
@@ -54,114 +54,114 @@ pub struct Opts {
     /// and in function prologues. When the fuel reaches 0, a trap is raised to
     /// terminate execution. Control the default amount of fuel with the
     /// `--fuel` flag.
-    #[structopt(short = "t", long = "ensure-termination")]
+    #[clap(short = 't', long = "ensure-termination")]
     ensure_termination: bool,
 
     /// Indicates that the generated module may contain invalid wasm functions,
     /// taken raw from the input DNA.
-    #[structopt(long = "maybe-invalid")]
+    #[clap(long = "maybe-invalid")]
     maybe_invalid: bool,
 
     /// The default amount of fuel used with `--ensure-termination`.
     ///
     /// This is roughly the number of loop iterations and function calls that
     /// will be executed before a trap is raised to prevent infinite loops.
-    #[structopt(short = "f", long = "fuel")]
+    #[clap(short = 'f', long = "fuel")]
     fuel: Option<u32>,
 
     /// JSON configuration file with settings to control the wasm output.
-    #[structopt(short = "c", long = "config", parse(from_os_str))]
+    #[clap(short = 'c', long = "config", parse(from_os_str))]
     config: Option<PathBuf>,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     module_config: Config,
 }
 
-#[derive(Default, Debug, StructOpt, Clone, serde::Deserialize)]
+#[derive(Default, Debug, Parser, Clone, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
 struct Config {
-    #[structopt(long = "min-types")]
+    #[clap(long = "min-types")]
     min_types: Option<usize>,
-    #[structopt(long = "max-types")]
+    #[clap(long = "max-types")]
     max_types: Option<usize>,
-    #[structopt(long = "min-imports")]
+    #[clap(long = "min-imports")]
     min_imports: Option<usize>,
-    #[structopt(long = "max-imports")]
+    #[clap(long = "max-imports")]
     max_imports: Option<usize>,
-    #[structopt(long = "min-tags")]
+    #[clap(long = "min-tags")]
     min_tags: Option<usize>,
-    #[structopt(long = "max-tags")]
+    #[clap(long = "max-tags")]
     max_tags: Option<usize>,
-    #[structopt(long = "min-funcs")]
+    #[clap(long = "min-funcs")]
     min_funcs: Option<usize>,
-    #[structopt(long = "max-funcs")]
+    #[clap(long = "max-funcs")]
     max_funcs: Option<usize>,
-    #[structopt(long = "min-globals")]
+    #[clap(long = "min-globals")]
     min_globals: Option<usize>,
-    #[structopt(long = "max-globals")]
+    #[clap(long = "max-globals")]
     max_globals: Option<usize>,
-    #[structopt(long = "min-exports")]
+    #[clap(long = "min-exports")]
     min_exports: Option<usize>,
-    #[structopt(long = "max-exports")]
+    #[clap(long = "max-exports")]
     max_exports: Option<usize>,
-    #[structopt(long = "min-element-segments")]
+    #[clap(long = "min-element-segments")]
     min_element_segments: Option<usize>,
-    #[structopt(long = "max-element-segments")]
+    #[clap(long = "max-element-segments")]
     max_element_segments: Option<usize>,
-    #[structopt(long = "min-data-segments")]
+    #[clap(long = "min-data-segments")]
     min_data_segments: Option<usize>,
-    #[structopt(long = "max-data-segments")]
+    #[clap(long = "max-data-segments")]
     max_data_segments: Option<usize>,
-    #[structopt(long = "max-instructions")]
+    #[clap(long = "max-instructions")]
     max_instructions: Option<usize>,
-    #[structopt(long = "min-memories")]
+    #[clap(long = "min-memories")]
     min_memories: Option<u32>,
-    #[structopt(long = "max-memories")]
+    #[clap(long = "max-memories")]
     max_memories: Option<usize>,
-    #[structopt(long = "min-tables")]
+    #[clap(long = "min-tables")]
     min_tables: Option<u32>,
-    #[structopt(long = "max-tables")]
+    #[clap(long = "max-tables")]
     max_tables: Option<usize>,
-    #[structopt(long = "max-memory-pages")]
+    #[clap(long = "max-memory-pages")]
     max_memory_pages: Option<u64>,
-    #[structopt(long = "memory-max-size-required")]
+    #[clap(long = "memory-max-size-required")]
     memory_max_size_required: Option<bool>,
-    #[structopt(long = "max-instances")]
+    #[clap(long = "max-instances")]
     max_instances: Option<usize>,
-    #[structopt(long = "max-modules")]
+    #[clap(long = "max-modules")]
     max_modules: Option<usize>,
-    #[structopt(long = "min-uleb-size")]
+    #[clap(long = "min-uleb-size")]
     min_uleb_size: Option<u8>,
-    #[structopt(long = "bulk-memory")]
+    #[clap(long = "bulk-memory")]
     #[serde(rename = "bulk-memory")]
     bulk_memory_enabled: Option<bool>,
-    #[structopt(long = "reference-types")]
+    #[clap(long = "reference-types")]
     #[serde(rename = "reference-types")]
     reference_types_enabled: Option<bool>,
-    #[structopt(long = "simd")]
+    #[clap(long = "simd")]
     #[serde(rename = "simd")]
     simd_enabled: Option<bool>,
-    #[structopt(long = "relaxed-simd")]
+    #[clap(long = "relaxed-simd")]
     #[serde(rename = "relaxed-simd")]
     relaxed_simd_enabled: Option<bool>,
-    #[structopt(long = "exception-handling")]
+    #[clap(long = "exception-handling")]
     #[serde(rename = "exception-handling")]
     exceptions_enabled: Option<bool>,
-    #[structopt(long = "module-linking")]
+    #[clap(long = "module-linking")]
     #[serde(rename = "module-linking")]
     module_linking_enabled: Option<bool>,
-    #[structopt(long = "allow-start")]
+    #[clap(long = "allow-start")]
     #[serde(rename = "allow-start")]
     allow_start_export: Option<bool>,
-    #[structopt(long = "max-aliases")]
+    #[clap(long = "max-aliases")]
     max_aliases: Option<usize>,
-    #[structopt(long = "max-nesting-depth")]
+    #[clap(long = "max-nesting-depth")]
     max_nesting_depth: Option<usize>,
-    #[structopt(long = "max-type-size")]
+    #[clap(long = "max-type-size")]
     max_type_size: Option<u32>,
-    #[structopt(long = "memory64")]
+    #[clap(long = "memory64")]
     memory64_enabled: Option<bool>,
-    #[structopt(long = "canonicalize-nans")]
+    #[clap(long = "canonicalize-nans")]
     canonicalize_nans: Option<bool>,
     /// Limit what kinds of instructions are allowed.
     ///
@@ -169,7 +169,7 @@ struct Config {
     /// reference, parametric, variable, table, memory, control. Specify
     /// multiple kinds with a comma-separated list: e.g.,
     /// `--allowed-instructions numeric,control,parametric`
-    #[structopt(long = "allowed-instructions", use_delimiter = true)]
+    #[clap(long = "allowed-instructions", use_delimiter = true)]
     allowed_instructions: Option<Vec<InstructionKind>>,
 }
 

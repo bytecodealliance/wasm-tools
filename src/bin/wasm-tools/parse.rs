@@ -1,12 +1,12 @@
 use anyhow::{Context, Result};
+use clap::Parser;
 use std::path::PathBuf;
-use structopt::StructOpt;
 
 /// Parse the WebAssembly text format.
 ///
 /// This subcommand will parse the provided input as the WebAssembly text format
 /// and optionally write the binary form to a provided file.
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub struct Opts {
     /// Input WebAssembly text file to parse.
     input: PathBuf,
@@ -15,7 +15,7 @@ pub struct Opts {
     ///
     /// If this is not provided then the input is simply parsed for validity and
     /// the output is not placed anywhere.
-    #[structopt(short = "o", long)]
+    #[clap(short = 'o', long)]
     output: Option<PathBuf>,
 }
 

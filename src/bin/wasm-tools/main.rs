@@ -1,5 +1,5 @@
 use anyhow::Result;
-use structopt::StructOpt;
+use clap::Parser;
 
 macro_rules! subcommands {
     ($(($name:ident, $string:tt))*) => {
@@ -8,13 +8,13 @@ macro_rules! subcommands {
             mod $name;
         )*
 
-        #[derive(StructOpt)]
-            #[allow(non_camel_case_types)]
+        #[derive(Parser)]
+        #[allow(non_camel_case_types)]
         enum WasmTools {
             $(
                 #[cfg(feature = $string)]
                 $name {
-                    #[structopt(flatten)]
+                    #[clap(flatten)]
                     opts: $name::Opts,
                 },
             )*
@@ -46,5 +46,5 @@ subcommands! {
 
 fn main() -> Result<()> {
     env_logger::init();
-    WasmTools::from_args().run()
+    <WasmTools as Parser>::parse().run()
 }

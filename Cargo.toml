@@ -18,7 +18,7 @@ members = ['fuzz', 'crates/wasm-encoder', 'crates/fuzz-stats', 'crates/wasm-muta
 anyhow = "1.0"
 env_logger = "0.8"
 log = "0.4"
-structopt = "0.3.16"
+clap = { version = "3.0", features = ['derive'] }
 tempfile = "3.2.0"
 wat = { path = "crates/wat", optional = true }
 
@@ -36,11 +36,11 @@ serde_json = { version = "1", optional = true }
 wasm-smith = { path = "crates/wasm-smith", features = ["_internal_cli"], optional = true }
 
 # Dependencies of `shrink`
-wasm-shrink = { path = "crates/wasm-shrink", features = ["structopt"], optional = true}
+wasm-shrink = { path = "crates/wasm-shrink", features = ["clap"], optional = true}
 is_executable = { version = "1.0.1", optional = true }
 
 # Dependencies of `mutate`
-wasm-mutate = { path = "crates/wasm-mutate", features = ["structopt"], optional = true }
+wasm-mutate = { path = "crates/wasm-mutate", features = ["clap"], optional = true }
 
 # Dependencies of `dump`
 wasmparser-dump = { path = "crates/dump", optional = true }

@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
+use clap::Parser;
 use is_executable::IsExecutable;
 use std::path::{Path, PathBuf};
-use structopt::StructOpt;
 use wasm_shrink::{IsInteresting, WasmShrink};
 
 /// Shrink a Wasm file while maintaining a property of interest (such as triggering
@@ -22,15 +22,15 @@ use wasm_shrink::{IsInteresting, WasmShrink};
 /// the crash and save it at `shrunken.wasm` with the following command:
 ///
 /// $ wasm-shrink compile.sh crasher.wasm -o shrunken.wasm
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub struct Opts {
     /// The output file path to write the shrunken Wasm file to.
     ///
     /// By default, a file path based on the input will be generated.
-    #[structopt(short, long)]
+    #[clap(short, long)]
     output: Option<PathBuf>,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     shrink: WasmShrink,
 
     /// The interestingness predicate script.

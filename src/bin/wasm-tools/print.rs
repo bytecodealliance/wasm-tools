@@ -1,9 +1,9 @@
 use anyhow::{Context, Result};
+use clap::Parser;
 use std::path::PathBuf;
-use structopt::StructOpt;
 
 /// Print the textual form of a WebAssembly binary.
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub struct Opts {
     /// Input WebAssembly file to print.
     input: PathBuf,
@@ -11,7 +11,7 @@ pub struct Opts {
     /// An optional output file to place the output into.
     ///
     /// If not specified then the wasm file is printed to standard output.
-    #[structopt(short = "o", long)]
+    #[clap(short = 'o', long)]
     output: Option<PathBuf>,
 }
 

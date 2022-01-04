@@ -1,12 +1,11 @@
 use anyhow::Result;
 use std::path::PathBuf;
-use structopt::StructOpt;
 
 /// Debugging utility to dump information about a wasm binary.
 ///
 /// This can be useful to figure out precisely how each byte of a wasm binary is
 /// classified or where particular constructs are at particular offsets.
-#[derive(StructOpt)]
+#[derive(clap::Parser)]
 pub struct Opts {
     /// Input WebAssembly file to dump information about.
     input: PathBuf,

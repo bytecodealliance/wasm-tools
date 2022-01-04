@@ -7,7 +7,7 @@ repository = "https://github.com/bytecodealliance/wasm-tools"
 description = "A WebAssembly test case mutator"
 
 [dependencies]
-structopt = { optional = true, version = "0.3" }
+clap = { optional = true, version = "3.0", features = ['derive'] }
 thiserror = "1.0.28"
 wasmparser = { version = "0.81", path = "../wasmparser" }
 wasm-encoder = { version = "0.8.0", path = "../wasm-encoder"}

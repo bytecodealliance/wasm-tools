@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
+use clap::Parser;
 use std::fs;
 use std::io::{stdin, stdout, Read, Write};
 use std::path::PathBuf;
-use structopt::StructOpt;
 use wasm_mutate::ErrorKind;
 
 /// A WebAssembly test case mutator.
@@ -38,22 +38,22 @@ use wasm_mutate::ErrorKind;
 ///      supported by `wasm-mutate`.
 ///
 /// * 6: Other error.
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub struct Opts {
     /// The input WebAssembly binary that will be mutated.
     ///
     /// `stdin` is used if this argument is not supplied.
-    #[structopt(parse(from_os_str))]
+    #[clap(parse(from_os_str))]
     input: Option<PathBuf>,
 
     /// The output file path, where the new, mutated WebAssembly module is
     /// placed.
     ///
     /// `stdout` is used if this argument is not supplied.
-    #[structopt(short, long, parse(from_os_str))]
+    #[clap(short, long, parse(from_os_str))]
     output: Option<PathBuf>,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     wasm_mutate: wasm_mutate::WasmMutate<'static>,
 }
 
