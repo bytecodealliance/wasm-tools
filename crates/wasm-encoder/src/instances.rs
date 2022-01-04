@@ -24,7 +24,7 @@ use super::*;
 ///
 /// let wasm_bytes = module.finish();
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct InstanceSection {
     bytes: Vec<u8>,
     num_added: u32,
@@ -32,16 +32,18 @@ pub struct InstanceSection {
 
 impl InstanceSection {
     /// Construct a new instance section encoder.
-    pub fn new() -> InstanceSection {
-        InstanceSection {
-            bytes: vec![],
-            num_added: 0,
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// How many instances have been defined inside this section so far?
     pub fn len(&self) -> u32 {
         self.num_added
+    }
+
+    /// Determines if the section is empty.
+    pub fn is_empty(&self) -> bool {
+        self.num_added == 0
     }
 
     /// Define an instantiation of the given module with the given items as

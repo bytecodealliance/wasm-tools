@@ -27,13 +27,18 @@ pub struct TagSection {
 
 impl TagSection {
     /// Create a new tag section encoder.
-    pub fn new() -> TagSection {
-        TagSection::default()
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// How many tags have been defined inside this section so far?
     pub fn len(&self) -> u32 {
         self.num_added
+    }
+
+    /// Determines if the section is empty.
+    pub fn is_empty(&self) -> bool {
+        self.num_added == 0
     }
 
     /// Define a tag.

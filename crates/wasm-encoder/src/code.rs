@@ -40,13 +40,18 @@ pub struct CodeSection {
 
 impl CodeSection {
     /// Create a new code section encoder.
-    pub fn new() -> CodeSection {
-        CodeSection::default()
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// How many function bodies have been defined inside this section so far?
     pub fn len(&self) -> u32 {
         self.num_added
+    }
+
+    /// Determines if the section is empty.
+    pub fn is_empty(&self) -> bool {
+        self.num_added == 0
     }
 
     /// Write a function body into this code section.

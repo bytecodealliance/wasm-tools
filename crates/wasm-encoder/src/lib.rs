@@ -108,6 +108,8 @@ pub use tables::*;
 pub use tags::*;
 pub use types::*;
 
+pub mod adapter;
+pub mod component;
 pub mod encoders;
 
 use std::convert::TryFrom;
@@ -198,6 +200,12 @@ impl Module {
     /// bytes.
     pub fn finish(self) -> Vec<u8> {
         self.bytes
+    }
+}
+
+impl Default for Module {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

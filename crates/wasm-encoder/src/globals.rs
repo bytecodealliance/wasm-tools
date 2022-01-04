@@ -29,13 +29,18 @@ pub struct GlobalSection {
 
 impl GlobalSection {
     /// Create a new global section encoder.
-    pub fn new() -> GlobalSection {
-        GlobalSection::default()
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// How many globals have been defined inside this section so far?
     pub fn len(&self) -> u32 {
         self.num_added
+    }
+
+    /// Determines if the section is empty.
+    pub fn is_empty(&self) -> bool {
+        self.num_added == 0
     }
 
     /// Define a global.

@@ -36,7 +36,7 @@ use std::convert::TryInto;
 /// module.section(&linking);
 /// let wasm_bytes = module.finish();
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct LinkingSection {
     bytes: Vec<u8>,
 }
@@ -44,7 +44,7 @@ pub struct LinkingSection {
 impl LinkingSection {
     /// Construct a new encoder for the linking custom section.
     pub fn new() -> Self {
-        LinkingSection { bytes: vec![] }
+        Self::default()
     }
 
     // TODO: `fn segment_info` for the `WASM_SEGMENT_INFO` linking subsection.
@@ -97,7 +97,7 @@ const WASM_SYMBOL_TABLE: u8 = 8;
 /// A subsection of the [linking custom section][crate::LinkingSection] that
 /// provides extra information about the symbols present in this Wasm object
 /// file.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct SymbolTable {
     bytes: Vec<u8>,
     num_added: u32,

@@ -63,13 +63,18 @@ pub enum DataSegmentMode<'a> {
 
 impl DataSection {
     /// Create a new data section encoder.
-    pub fn new() -> DataSection {
-        DataSection::default()
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// How many segments have been defined inside this section so far?
     pub fn len(&self) -> u32 {
         self.num_added
+    }
+
+    /// Determines if the section is empty.
+    pub fn is_empty(&self) -> bool {
+        self.num_added == 0
     }
 
     /// Define an active data segment.
@@ -111,12 +116,7 @@ impl DataSection {
     }
 
     /// Define an active data segment.
-    pub fn active<'a, D>(
-        &mut self,
-        memory_index: u32,
-        offset: &Instruction<'a>,
-        data: D,
-    ) -> &mut Self
+    pub fn active<D>(&mut self, memory_index: u32, offset: &Instruction, data: D) -> &mut Self
     where
         D: IntoIterator<Item = u8>,
         D::IntoIter: ExactSizeIterator,
@@ -133,7 +133,7 @@ impl DataSection {
     /// Define a passive data segment.
     ///
     /// Passive data segments are part of the bulk memory proposal.
-    pub fn passive<'a, D>(&mut self, data: D) -> &mut Self
+    pub fn passive<D>(&mut self, data: D) -> &mut Self
     where
         D: IntoIterator<Item = u8>,
         D::IntoIter: ExactSizeIterator,

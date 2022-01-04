@@ -26,13 +26,18 @@ pub struct TypeSection {
 
 impl TypeSection {
     /// Create a new type section encoder.
-    pub fn new() -> TypeSection {
-        TypeSection::default()
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// How many types have been defined inside this section so far?
     pub fn len(&self) -> u32 {
         self.num_added
+    }
+
+    /// Determines if the section is empty.
+    pub fn is_empty(&self) -> bool {
+        self.num_added == 0
     }
 
     /// Define a function type.
@@ -50,11 +55,11 @@ impl TypeSection {
 
         self.bytes
             .extend(encoders::u32(u32::try_from(params.len()).unwrap()));
-        self.bytes.extend(params.map(|ty| u8::from(ty)));
+        self.bytes.extend(params.map(u8::from));
 
         self.bytes
             .extend(encoders::u32(u32::try_from(results.len()).unwrap()));
-        self.bytes.extend(results.map(|ty| u8::from(ty)));
+        self.bytes.extend(results.map(u8::from));
 
         self.num_added += 1;
         self

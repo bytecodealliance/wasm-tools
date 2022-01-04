@@ -27,13 +27,18 @@ pub struct TableSection {
 
 impl TableSection {
     /// Construct a new table section encoder.
-    pub fn new() -> TableSection {
-        TableSection::default()
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// How many tables have been defined inside this section so far?
     pub fn len(&self) -> u32 {
         self.num_added
+    }
+
+    /// Determines if the section is empty.
+    pub fn is_empty(&self) -> bool {
+        self.num_added == 0
     }
 
     /// Define a table.
@@ -64,7 +69,7 @@ impl Section for TableSection {
 }
 
 /// A table's type.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TableType {
     /// The table's element type.
     pub element_type: ValType,

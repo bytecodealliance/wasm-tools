@@ -21,7 +21,7 @@ use super::*;
 ///
 /// let wasm_bytes = module.finish();
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct NameSection {
     bytes: Vec<u8>,
 }
@@ -46,8 +46,8 @@ enum Subsection {
 
 impl NameSection {
     /// Creates a new blank `name` custom section.
-    pub fn new() -> NameSection {
-        NameSection { bytes: vec![] }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Appends a module name subsection to this section.
@@ -178,7 +178,7 @@ impl Section for NameSection {
 ///
 /// This is used in conjunction with [`NameSection::functions`] and simlar
 /// methods.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct NameMap {
     bytes: Vec<u8>,
     count: u32,
@@ -221,7 +221,7 @@ impl NameMap {
 /// [`NameMap`] which has one level of indirection.
 ///
 /// This naming map is used with [`NameSection::locals`], for example.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct IndirectNameMap {
     bytes: Vec<u8>,
     count: u32,

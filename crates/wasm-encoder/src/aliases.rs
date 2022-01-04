@@ -21,7 +21,7 @@ use super::*;
 ///
 /// let wasm_bytes = module.finish();
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct AliasSection {
     bytes: Vec<u8>,
     num_added: u32,
@@ -29,16 +29,18 @@ pub struct AliasSection {
 
 impl AliasSection {
     /// Construct a new alias section encoder.
-    pub fn new() -> AliasSection {
-        AliasSection {
-            bytes: vec![],
-            num_added: 0,
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// How many aliases have been defined inside this section so far?
     pub fn len(&self) -> u32 {
         self.num_added
+    }
+
+    /// Determines if the section is empty.
+    pub fn is_empty(&self) -> bool {
+        self.num_added == 0
     }
 
     /// Define an alias that references the export of a defined instance.

@@ -27,13 +27,18 @@ pub struct MemorySection {
 
 impl MemorySection {
     /// Create a new memory section encoder.
-    pub fn new() -> MemorySection {
-        MemorySection::default()
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// How many memories have been defined inside this section so far?
     pub fn len(&self) -> u32 {
         self.num_added
+    }
+
+    /// Determines if the section is empty.
+    pub fn is_empty(&self) -> bool {
+        self.num_added == 0
     }
 
     /// Define a memory.
@@ -64,7 +69,7 @@ impl Section for MemorySection {
 }
 
 /// A memory's type.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MemoryType {
     /// Minimum size, in pages, of this memory
     pub minimum: u64,

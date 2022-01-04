@@ -1,25 +1,21 @@
-use super::*;
+use super::{AdapterModule, AdapterModuleSection, SectionId};
+use crate::{encoders, Module};
 
-/// An encoder for the module section.
-///
-/// Note that this is part of the [module linking proposal][proposal] and is
-/// not currently part of stable WebAssembly.
-///
-/// [proposal]: https://github.com/webassembly/module-linking
+/// An encoder for the adapter module `module` section.
 ///
 /// # Example
 ///
-/// ```
-/// use wasm_encoder::{ModuleSection, Module};
+/// ```rust
+/// use wasm_encoder::{Module, adapter::{AdapterModule, ModuleSection}};
 ///
 /// let mut modules = ModuleSection::new();
 /// modules.module(&Module::new());
-/// modules.module(&Module::new());
+/// modules.adapter(&AdapterModule::new());
 ///
-/// let mut module = Module::new();
+/// let mut module = AdapterModule::new();
 /// module.section(&modules);
 ///
-/// let wasm_bytes = module.finish();
+/// let bytes = module.finish();
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct ModuleSection {
@@ -28,12 +24,12 @@ pub struct ModuleSection {
 }
 
 impl ModuleSection {
-    /// Create a new code section encoder.
+    /// Create a new adapter module `module` section encoder.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// How many modules have been defined inside this section so far?
+    /// The number of modules in the section.
     pub fn len(&self) -> u32 {
         self.num_added
     }
@@ -43,8 +39,18 @@ impl ModuleSection {
         self.num_added == 0
     }
 
-    /// Writes a module into this module code section.
+    /// Writes a module into this module section.
     pub fn module(&mut self, module: &Module) -> &mut Self {
+        self.bytes.extend(
+            encoders::u32(u32::try_from(module.bytes.len()).unwrap())
+                .chain(module.bytes.iter().copied()),
+        );
+        self.num_added += 1;
+        self
+    }
+
+    /// Writes an adapter module into this module section.
+    pub fn adapter(&mut self, module: &AdapterModule) -> &mut Self {
         self.bytes.extend(
             encoders::u32(u32::try_from(module.bytes.len()).unwrap())
                 .chain(module.bytes.iter().copied()),
@@ -54,7 +60,7 @@ impl ModuleSection {
     }
 }
 
-impl Section for ModuleSection {
+impl AdapterModuleSection for ModuleSection {
     fn id(&self) -> u8 {
         SectionId::Module.into()
     }

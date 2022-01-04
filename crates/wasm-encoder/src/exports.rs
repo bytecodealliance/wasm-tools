@@ -34,13 +34,18 @@ pub struct ExportSection {
 
 impl ExportSection {
     /// Create a new export section encoder.
-    pub fn new() -> ExportSection {
-        ExportSection::default()
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// How many exports have been defined inside this section so far?
     pub fn len(&self) -> u32 {
         self.num_added
+    }
+
+    /// Determines if the section is empty.
+    pub fn is_empty(&self) -> bool {
+        self.num_added == 0
     }
 
     /// Define an export.
