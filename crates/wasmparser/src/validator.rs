@@ -736,7 +736,7 @@ impl Validator {
         }
         let ty = self.func_type_at(ty.type_index)?;
         if ty.returns.len() > 0 {
-            return self.create_error("invalid result arity for exception type");
+            return self.create_error("invalid exception type: non-empty tag result type");
         }
         Ok(())
     }

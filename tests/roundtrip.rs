@@ -126,16 +126,16 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         // `@custom` in ways the spec doesn't specify, so we skip it.
         "test/parse/annotations.txt",
         // this has syntax of an element segment `(elem $e 0)` which isn't used
-        // anywhere else, and I'm not entirely certain if it's vaild, and for now I
-        // don't feel like filing an issue or adding parsing for this.
+        // anywhere else, and I'm not entirely certain if it's vaild, and for
+        // now I don't feel like filing an issue or adding parsing for this.
         "roundtrip/table-init-index.txt",
-        "dump/reference-types.txt",
-        "interp/reference-types.txt",
-        "expr/reference-types.txt",
-        // TODO: this proposal needs to be merged with the upstream spec to pick
-        // up a fix to this test case since otherwise this test asserts that
-        // something is invalid which the spec asserts is valid.
-        "exception-handling/unreached-invalid.wast",
+        // I don't really have any idea what's going on with the expected syntax
+        // errors and expected error messages in these tests. They seem like
+        // they're from left field considering other conventions, so let's just
+        // ignore these until the proposal is further along.
+        "exception-handling/try_delegate.wast",
+        "exception-handling/try_catch.wast",
+        "exception-handling/throw.wast",
     ];
     if broken.iter().any(|x| test.ends_with(x)) {
         return true;
@@ -577,6 +577,7 @@ impl TestState {
                 "tail-call" => features.tail_call = true,
                 "memory64" => features.memory64 = true,
                 "module-linking" => features.module_linking = true,
+                "multi-memory" => features.multi_memory = true,
                 "extended-const" => features.extended_const = true,
                 _ => {}
             }

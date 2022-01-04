@@ -665,7 +665,7 @@ impl OperatorValidator {
                 // targets an actual `catch` to get the exception.
                 let (_, kind) = self.jump(relative_depth)?;
                 if kind != FrameKind::Catch && kind != FrameKind::CatchAll {
-                    bail_op_err!("rethrow target was not a `catch` block");
+                    bail_op_err!("invalid rethrow label: target was not a `catch` block");
                 }
                 self.unreachable();
             }
@@ -2052,9 +2052,9 @@ fn func_type_at<T: WasmModuleResources>(
 }
 
 fn tag_at<T: WasmModuleResources>(resources: &T, at: u32) -> OperatorValidatorResult<&T::FuncType> {
-    resources
-        .tag_at(at)
-        .ok_or_else(|| OperatorValidatorError::new("unknown tag: tag index out of bounds"))
+    resources.tag_at(at).ok_or_else(|| {
+        OperatorValidatorError::new(format!("unknown tag {}: tag index out of bounds", at))
+    })
 }
 
 enum Either<A, B> {

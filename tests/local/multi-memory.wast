@@ -64,7 +64,7 @@
     i32.const 0
     i32.const 0
     i32.const 0
-    memory.init $seg $b
+    memory.init $b $seg
 
     memory.size $a drop
     memory.size $b drop
