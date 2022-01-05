@@ -10,17 +10,19 @@ pub(crate) const ALIAS_KIND_OUTER_TYPE: u8 = 0x06;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExportKind {
     /// The alias is to an instance.
-    Instance,
+    Instance = 0x00,
     /// The alias is to a module.
-    Module,
+    Module = 0x01,
     /// The alias is to a function.
-    Function,
+    Function = 0x02,
     /// The alias is to a table.
-    Table,
+    Table = 0x03,
     /// The alias is to a memory.
-    Memory,
+    Memory = 0x04,
     /// The alias is to a global.
-    Global,
+    Global = 0x05,
+    /// The alias is to an adapter function.
+    AdapterFunction = 0x06,
 }
 
 /// An encoder for the component alias section.
