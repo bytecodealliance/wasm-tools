@@ -29,6 +29,7 @@ const INDEX_REF_FUNCTION: u8 = 0x02;
 const INDEX_REF_TABLE: u8 = 0x03;
 const INDEX_REF_MEMORY: u8 = 0x04;
 const INDEX_REF_GLOBAL: u8 = 0x05;
+const INDEX_REF_ADAPTER_FUNCTION: u8 = 0x06;
 
 const TYPE_REF_INSTANCE: u8 = 0x00;
 const TYPE_REF_MODULE: u8 = 0x01;
@@ -161,6 +162,8 @@ pub enum IndexRef {
     Memory(u32),
     /// The reference is to a global in the global section.
     Global(u32),
+    /// The reference is to an adapter function in the adapter function section.
+    AdapterFunction(u32),
 }
 
 impl IndexRef {
@@ -188,6 +191,10 @@ impl IndexRef {
             }
             IndexRef::Global(index) => {
                 bytes.push(INDEX_REF_GLOBAL);
+                bytes.extend(encoders::u32(*index));
+            }
+            IndexRef::AdapterFunction(index) => {
+                bytes.push(INDEX_REF_ADAPTER_FUNCTION);
                 bytes.extend(encoders::u32(*index));
             }
         }

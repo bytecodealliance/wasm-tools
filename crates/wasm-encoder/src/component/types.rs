@@ -9,6 +9,9 @@ const TYPE_MODULE: u8 = 0x7e;
 const TYPE_FUNCTION: u8 = 0x7d;
 const TYPE_ADAPTER_FUNCTION: u8 = 0x7c;
 
+const NAMED_TYPES: u8 = 0x00;
+const UNNAMED_TYPES: u8 = 0x01;
+
 const COMPOUND_INTERFACE_TYPE_LIST: u8 = 0x7b;
 const COMPOUND_INTERFACE_TYPE_RECORD: u8 = 0x7a;
 const COMPOUND_INTERFACE_TYPE_VARIANT: u8 = 0x79;
@@ -216,18 +219,46 @@ impl<'a> TypeEncoder<'a> {
     }
 
     /// Define an adapter function type.
-    pub fn adapter_function(self, params: &[(&str, InterfaceType)], results: &[InterfaceType]) {
+    ///
+    /// # Panics
+    ///
+    /// This function panics if the given results are not all unnamed (i.e. `None`) or
+    /// all named (i.e. `Some`).
+    pub fn adapter_function(
+        self,
+        params: &[(&str, InterfaceType)],
+        results: &[(Option<&str>, InterfaceType)],
+    ) {
         self.0.push(TYPE_ADAPTER_FUNCTION);
+
+        // For now, parameters always have names
+        self.0.push(NAMED_TYPES);
         self.0
             .extend(encoders::u32(u32::try_from(params.len()).unwrap()));
         for (name, param) in params {
             self.0.extend(encoders::str(name));
             param.encode(self.0);
         }
+
+        // Determine if the results are named or unnamed
+        match results
+            .iter()
+            .fold(None, |named, (name, _)| match (named, name.is_some()) {
+                (Some(true), true) | (Some(false), false) => named,
+                (None, v) => Some(v),
+                _ => panic!("results must either all be named or all unnamed"),
+            }) {
+            Some(true) => self.0.push(NAMED_TYPES),
+            Some(false) | None => self.0.push(UNNAMED_TYPES),
+        }
+
         self.0
             .extend(encoders::u32(u32::try_from(results.len()).unwrap()));
-        for result in results {
-            result.encode(self.0);
+        for (name, ty) in results {
+            if let Some(name) = name {
+                self.0.extend(encoders::str(name));
+            }
+            ty.encode(self.0);
         }
     }
 
@@ -473,10 +504,15 @@ impl TypeSection {
     }
 
     /// Define an adapter function type.
+    ///
+    /// # Panics
+    ///
+    /// This function panics if the given results are not all unnamed (i.e. `None`) or
+    /// all named (i.e. `Some`).
     pub fn adapter_function(
         &mut self,
         params: &[(&str, InterfaceType)],
-        results: &[InterfaceType],
+        results: &[(Option<&str>, InterfaceType)],
     ) -> &mut Self {
         let encoder = TypeEncoder(&mut self.bytes);
         encoder.adapter_function(params, results);
