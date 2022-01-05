@@ -10,6 +10,7 @@ categories = ["wasm"]
 keywords = ["webassembly", "wasm"]
 repository = "https://github.com/bytecodealliance/wasm-totols"
 readme = "README.md"
+exclude = ['tests/wabt', 'tests/testsuite', 'publish.rs']
 
 [workspace]
 members = ['fuzz', 'crates/wasm-encoder', 'crates/fuzz-stats', 'crates/wasm-mutate-stats']
