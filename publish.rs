@@ -114,10 +114,9 @@ fn main() {
             println!("");
             println!("===================================================================");
             println!("");
-            println!("Don't forget to push a git tag for this release!");
+            println!("Don't forget to push tags for this release!");
             println!("");
-            println!("    $ git tag vX.Y.Z");
-            println!("    $ git push git@github.com:bytecodealliance/wasmtime.git vX.Y.Z");
+            println!("    $ git push --tags");
         }
 
         "diff" => {
