@@ -3,8 +3,10 @@ name = "wasmparser-dump"
 version = "0.1.0"
 authors = ["The Wasmtime Project Developers"]
 edition = "2018"
-publish = false
+license = "Apache-2.0 WITH LLVM-exception"
+repository = "https://github.com/bytecodealliance/wasm-tools"
+description = "Utility to dump debug information about the wasm binary format"
 
 [dependencies]
 anyhow = "1"
-wasmparser = { path = "../wasmparser" }
+wasmparser = { path = "../wasmparser", version = "0.82.0" }
