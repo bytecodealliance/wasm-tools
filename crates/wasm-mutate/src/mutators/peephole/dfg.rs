@@ -191,22 +191,8 @@ impl MiniDFG {
     /// by cleaning spurious nodes
     pub fn get_expr(&self, at: usize) -> RecExpr<Lang> {
         let root = self.map[&at];
-        let enodes = self.entries[..=root]
-            .iter()
-            .map(|t| t.operator.clone())
-            .collect::<Vec<_>>();
-        let operands = self.entries[..=root]
-            .iter()
-            .map(|t| {
-                t.operator
-                    .children()
-                    .iter()
-                    .map(|i| Id::from(*i))
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-
-        build_expr(Id::from(root), &enodes, &operands)
+        let entries = &self.entries[..=root];
+        build_expr(Id::from(root), |id| &entries[usize::from(id)].operator)
     }
 }
 
