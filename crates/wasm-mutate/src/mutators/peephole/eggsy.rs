@@ -110,7 +110,7 @@ where
         &self,
         eclass: Id,
         recexpr: &RefCell<RecExpr<L>>,
-        expression_builder: impl Fn(Id, &[L], &[Vec<Id>], &mut RecExpr<L>) -> Id,
+        expression_builder: impl for<'b> Fn(Id, &mut RecExpr<L>, &dyn Fn(Id) -> (&'b L, &'b [Id])) -> Id,
     ) -> crate::Result<Id> // return the random tree, TODO, improve the way the tree is returned
     {
         // A map from a node's id to its actual node data.
@@ -156,7 +156,9 @@ where
         }
         // Build the tree with the right language constructor
         let mut to_write_in = recexpr.borrow_mut();
-        let expr = expression_builder(Id::from(0), &id_to_node, &operands, &mut to_write_in);
+        let expr = expression_builder(Id::from(0), &mut to_write_in, &|id| {
+            (&id_to_node[usize::from(id)], &operands[usize::from(id)])
+        });
         Ok(expr)
     }
 }

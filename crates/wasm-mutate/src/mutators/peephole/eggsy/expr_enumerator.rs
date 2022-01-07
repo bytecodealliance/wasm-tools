@@ -53,7 +53,7 @@ pub fn lazy_expand<'a>(
         let cf = AstSize;
         let extractor = RandomExtractor::new(&egraph, cf);
         let shorter = extractor
-            .extract_smallest(id, &recexpr, build_expr_inner)
+            .extract_smallest(id, &recexpr, |a, b, c| build_expr_inner(a, b, c))
             .unwrap();
 
         return Box::new(vec![shorter].into_iter());
