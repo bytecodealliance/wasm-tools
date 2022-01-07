@@ -23,12 +23,17 @@
 pub mod codemotion;
 pub mod custom;
 pub mod function_body_unreachable;
+pub mod modify_data;
 pub mod peephole;
 pub mod remove_export;
 pub mod remove_item;
 pub mod rename_export;
 pub mod snip_function;
 pub mod start;
+
+mod translate;
+pub use self::translate::Item;
+use self::translate::{DefaultTranslator, Translator};
 
 use std::borrow::Cow;
 

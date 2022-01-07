@@ -17,14 +17,10 @@ mod mutators;
 pub use error::*;
 
 use crate::mutators::{
-    codemotion::CodemotionMutator,
-    custom::RemoveCustomSection,
-    function_body_unreachable::FunctionBodyUnreachable,
-    peephole::PeepholeMutator,
-    remove_export::RemoveExportMutator,
-    remove_item::{Item, RemoveItemMutator},
-    rename_export::RenameExportMutator,
-    snip_function::SnipMutator,
+    codemotion::CodemotionMutator, custom::RemoveCustomSection,
+    function_body_unreachable::FunctionBodyUnreachable, modify_data::ModifyDataMutator,
+    peephole::PeepholeMutator, remove_export::RemoveExportMutator, remove_item::RemoveItemMutator,
+    rename_export::RenameExportMutator, snip_function::SnipMutator, Item,
 };
 use info::ModuleInfo;
 use mutators::Mutator;
@@ -287,6 +283,7 @@ impl<'wasm> WasmMutate<'wasm> {
                 RemoveItemMutator(Item::Data),
                 RemoveItemMutator(Item::Element),
                 RemoveItemMutator(Item::Tag),
+                ModifyDataMutator,
             )
         );
 
