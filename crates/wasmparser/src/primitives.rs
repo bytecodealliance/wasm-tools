@@ -15,6 +15,7 @@
 
 use std::error::Error;
 use std::fmt;
+use std::prelude::v1::*;
 use std::result;
 
 #[derive(Debug, Clone)]

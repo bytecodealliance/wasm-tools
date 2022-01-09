@@ -1,3 +1,9 @@
+> This is a fork of the `wasmparser` crate by the
+> [Bytecode Alliance](https://bytecodealliance.org/)
+> with the sole purpose to add `no_std` support.
+>
+> This crate will be deprecated as soon as `wasmparser` crate itself supports `no_std`.
+
 # The WebAssembly binary file decoder in Rust
 
 **A [Bytecode Alliance](https://bytecodealliance.org/) project**

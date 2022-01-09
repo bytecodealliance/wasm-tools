@@ -7,6 +7,7 @@ use crate::{GlobalSectionReader, MemorySectionReader, TableSectionReader};
 use std::convert::TryInto;
 use std::fmt;
 use std::iter;
+use std::prelude::v1::*;
 
 /// An incremental parser of a binary WebAssembly module.
 ///

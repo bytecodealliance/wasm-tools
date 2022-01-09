@@ -24,6 +24,7 @@ use crate::{FunctionBody, Parser, Payload};
 use std::collections::{HashMap, HashSet};
 use std::mem;
 use std::sync::Arc;
+use std::prelude::v1::*;
 
 /// Test whether the given buffer contains a valid WebAssembly module,
 /// analogous to [`WebAssembly.validate`][js] in the JS API.
