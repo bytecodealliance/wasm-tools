@@ -223,11 +223,6 @@ impl FuncType {
     pub fn returns(&self) -> &[Type] {
         &self.params_results[self.len_params..]
     }
-
-    /// Returns the pair of parameter and result types of the function type.
-    pub fn params_returns(&self) -> (&[Type], &[Type]) {
-        self.params_results.split_at(self.len_params)
-    }
 }
 
 #[derive(Debug, Clone)]
