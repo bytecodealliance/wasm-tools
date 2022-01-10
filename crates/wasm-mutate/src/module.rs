@@ -53,12 +53,12 @@ impl TryFrom<TypeDef<'_>> for TypeInfo {
         match value {
             TypeDef::Func(ft) => Ok(TypeInfo::Func(FuncInfo {
                 params: ft
-                    .params
+                    .params()
                     .iter()
                     .map(|&t| PrimitiveTypeInfo::from(t))
                     .collect(),
                 returns: ft
-                    .returns
+                    .returns()
                     .iter()
                     .map(|&t| PrimitiveTypeInfo::from(t))
                     .collect(),
