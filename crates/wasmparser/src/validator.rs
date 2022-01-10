@@ -374,7 +374,7 @@ impl Validator {
             } => self.code_section_start(*count, range)?,
             CodeSectionEntry(body) => {
                 let func_validator = self.code_section_entry()?;
-                return Ok(ValidPayload::Func(func_validator, body.clone()));
+                return Ok(ValidPayload::Func(func_validator, *body));
             }
             ModuleSectionStart {
                 count,
@@ -649,11 +649,11 @@ impl Validator {
             }
             ImportSectionEntryType::Table(t) => {
                 self.table_type(t)?;
-                Ok(EntityType::Table(t.clone()))
+                Ok(EntityType::Table(*t))
             }
             ImportSectionEntryType::Memory(t) => {
                 self.memory_type(t)?;
-                Ok(EntityType::Memory(t.clone()))
+                Ok(EntityType::Memory(*t))
             }
             ImportSectionEntryType::Tag(t) => {
                 self.tag_type(t)?;
@@ -661,7 +661,7 @@ impl Validator {
             }
             ImportSectionEntryType::Global(t) => {
                 self.global_type(t)?;
-                Ok(EntityType::Global(t.clone()))
+                Ok(EntityType::Global(*t))
             }
             ImportSectionEntryType::Module(type_index) => {
                 self.module_type_at(*type_index)?;
@@ -840,7 +840,6 @@ impl Validator {
 
     /// Validates [`Payload::ModuleSectionStart`](crate::Payload)
     pub fn module_section_start(&mut self, count: u32, range: &Range) -> Result<()> {
-        drop(count);
         if !self.features.module_linking {
             return self.create_error("module linking proposal not enabled");
         }
@@ -863,7 +862,7 @@ impl Validator {
     /// are fed into this validator.
     pub fn module_section_entry(&mut self) {
         // Start a new module...
-        let prev = mem::replace(&mut self.cur, Module::default());
+        let prev = mem::take(&mut self.cur);
         // ... and record the current module as its parent.
         self.parents.push(prev);
     }
@@ -899,11 +898,11 @@ impl Validator {
                         self.cur.state.assert_mut().func_types.push(ty);
                     }
                     (EntityType::Table(ty), ExternalKind::Table) => {
-                        let ty = ty.clone();
+                        let ty = *ty;
                         self.cur.state.assert_mut().tables.push(ty);
                     }
                     (EntityType::Memory(ty), ExternalKind::Memory) => {
-                        let ty = ty.clone();
+                        let ty = *ty;
                         self.cur.state.assert_mut().memories.push(ty);
                     }
                     (EntityType::Tag(ty), ExternalKind::Tag) => {
@@ -911,7 +910,7 @@ impl Validator {
                         self.cur.state.assert_mut().tags.push(ty);
                     }
                     (EntityType::Global(ty), ExternalKind::Global) => {
-                        let ty = ty.clone();
+                        let ty = *ty;
                         let state = self.cur.state.assert_mut();
                         state.num_imported_globals += 1;
                         state.globals.push(ty);
@@ -1364,15 +1363,15 @@ impl Validator {
             }
             ExternalKind::Table => {
                 check("table", self.cur.state.tables.len())?;
-                EntityType::Table(self.cur.state.tables[index as usize].clone())
+                EntityType::Table(self.cur.state.tables[index as usize])
             }
             ExternalKind::Memory => {
                 check("memory", self.cur.state.memories.len())?;
-                EntityType::Memory(self.cur.state.memories[index as usize].clone())
+                EntityType::Memory(self.cur.state.memories[index as usize])
             }
             ExternalKind::Global => {
                 check("global", self.cur.state.globals.len())?;
-                EntityType::Global(self.cur.state.globals[index as usize].clone())
+                EntityType::Global(self.cur.state.globals[index as usize])
             }
             ExternalKind::Tag => {
                 check("tag", self.cur.state.tags.len())?;
@@ -1792,7 +1791,7 @@ mod arc {
                 return None;
             }
             debug_assert!(Arc::get_mut(&mut self.arc).is_some());
-            Some(unsafe { &mut *(&*self.arc as *const T as *mut T) })
+            Some(self.assert_mut())
         }
 
         pub fn assert_mut(&mut self) -> &mut T {

@@ -1553,7 +1553,7 @@ impl<'a> BinaryReader<'a> {
                 value: self.read_v128()?,
             },
             0x0d => {
-                let mut lanes = [0 as SIMDLaneIndex; 16];
+                let mut lanes: [SIMDLaneIndex; 16] = [0; 16];
                 for lane in &mut lanes {
                     *lane = self.read_lane_index(32)?
                 }
@@ -1982,7 +1982,7 @@ impl<'a> BrTable<'a> {
     ///     assert_eq!(targets, [1, 2]);
     /// }
     /// ```
-    pub fn targets<'b>(&'b self) -> impl Iterator<Item = Result<u32>> + 'b {
+    pub fn targets(&self) -> impl Iterator<Item = Result<u32>> + '_ {
         let mut reader = self.reader.clone();
         (0..self.cnt).map(move |i| {
             let label = reader.read_var_u32()?;

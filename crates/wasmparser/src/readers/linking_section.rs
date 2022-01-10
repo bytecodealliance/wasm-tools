@@ -42,7 +42,7 @@ impl<'a> LinkingSectionReader<'a> {
     where
         'a: 'b,
     {
-        Ok(self.reader.read_linking_type()?)
+        self.reader.read_linking_type()
     }
 }
 
