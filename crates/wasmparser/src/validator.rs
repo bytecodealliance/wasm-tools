@@ -1800,7 +1800,9 @@ mod arc {
                 // As soon as `Arc::get_mut_unchecked` we should
                 // make use of it instead.
                 #[allow(clippy::cast_ref_to_mut)]
-                unsafe { &mut *(&*self.arc as *const T as *mut T) }
+                unsafe {
+                    &mut *(&*self.arc as *const T as *mut T)
+                },
             )
         }
 
