@@ -17,6 +17,7 @@
 use std::error::Error;
 
 use std::fmt;
+use std::fmt::Debug;
 use std::prelude::v1::*;
 use std::result;
 
@@ -180,7 +181,7 @@ pub enum TypeDef<'a> {
 /// The parameters and results are ordered and merged in a single
 /// allocation starting with parameter types in order and following
 /// with the result types in order.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct FuncType {
     /// The ordered and merged parameters and results of the function type.
     params_results: Box<[Type]>,
@@ -190,6 +191,15 @@ pub struct FuncType {
     /// the head of the vector. The rest of the allocation is made up
     /// of result types.
     len_params: usize,
+}
+
+impl Debug for FuncType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FuncType")
+            .field("params", &self.params())
+            .field("returns", &self.returns())
+            .finish()
+    }
 }
 
 impl FuncType {
