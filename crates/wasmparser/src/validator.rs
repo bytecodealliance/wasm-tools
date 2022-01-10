@@ -1791,7 +1791,17 @@ mod arc {
                 return None;
             }
             debug_assert!(Arc::get_mut(&mut self.arc).is_some());
-            Some(self.assert_mut())
+            Some(
+                // # Safety
+                //
+                // This operation is safe since the API asserts that
+                // `self.owned` is only ever `true` if there is just
+                // one owner of the `Arc`.
+                // As soon as `Arc::get_mut_unchecked` we should
+                // make use of it instead.
+                #[allow(clippy::cast_ref_to_mut)]
+                unsafe { &mut *(&*self.arc as *const T as *mut T) }
+            )
         }
 
         pub fn assert_mut(&mut self) -> &mut T {
