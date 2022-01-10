@@ -575,10 +575,10 @@ impl Validator {
     fn type_def(&mut self, def: crate::TypeDef<'_>) -> Result<()> {
         let def = match def {
             crate::TypeDef::Func(t) => {
-                for ty in t.params.iter().chain(t.returns.iter()) {
+                for ty in t.params().iter().chain(t.returns().iter()) {
                     self.value_type(*ty)?;
                 }
-                if t.returns.len() > 1 && !self.features.multi_value {
+                if t.returns().len() > 1 && !self.features.multi_value {
                     return self
                         .create_error("invalid result arity: func type returns multiple values");
                 }
@@ -735,7 +735,7 @@ impl Validator {
             return self.create_error("exceptions proposal not enabled");
         }
         let ty = self.func_type_at(ty.type_index)?;
-        if ty.returns.len() > 0 {
+        if ty.returns().len() > 0 {
             return self.create_error("invalid exception type: non-empty tag result type");
         }
         Ok(())
@@ -1395,7 +1395,7 @@ impl Validator {
         self.offset = range.start;
         self.update_order(Order::Start)?;
         let ty = self.get_func_type(func)?;
-        if !ty.params.is_empty() || !ty.returns.is_empty() {
+        if !ty.params().is_empty() || !ty.returns().is_empty() {
             return self.create_error("invalid start function type");
         }
         Ok(())
@@ -1949,7 +1949,7 @@ impl EntityType {
             | EntityType::Module(i)
             | EntityType::Instance(i)
             | EntityType::Tag(i) => match &list[*i] {
-                TypeDef::Func(f) => 1 + (f.params.len() + f.returns.len()) as u32,
+                TypeDef::Func(f) => 1 + (f.params().len() + f.returns().len()) as u32,
                 TypeDef::Module(m) => m.imports_size + m.exports_size,
                 TypeDef::Instance(i) => i.type_size,
             },
