@@ -237,10 +237,7 @@ impl<'a> BinaryReader<'a> {
         for _ in 0..returns_len {
             returns.push(self.read_type()?);
         }
-        Ok(FuncType {
-            params: params.into_boxed_slice(),
-            returns: returns.into_boxed_slice(),
-        })
+        Ok(FuncType::new(params, returns))
     }
 
     pub(crate) fn read_module_type(&mut self) -> Result<ModuleType<'a>> {

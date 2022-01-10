@@ -392,7 +392,7 @@ impl Printer {
     /// Returns the number of parameters, useful for local index calculations
     /// later.
     fn print_functype(&mut self, ty: &FuncType, names_for: Option<u32>) -> Result<u32> {
-        if ty.params.len() > 0 {
+        if ty.params().len() > 0 {
             self.result.push_str(" ");
         }
 
@@ -400,7 +400,7 @@ impl Printer {
         // Note that named parameters must be alone in a `param` block, so
         // we need to be careful to terminate previous param blocks and open
         // a new one if that's the case with a named parameter.
-        for (i, param) in ty.params.iter().enumerate() {
+        for (i, param) in ty.params().iter().enumerate() {
             let local_names = &self.state.local_names;
             let name = names_for.and_then(|n| local_names.get(&(n, i as u32)));
             params.start_local(name, &mut self.result);
@@ -408,15 +408,15 @@ impl Printer {
             params.end_local(&mut self.result);
         }
         params.finish(&mut self.result);
-        if ty.returns.len() > 0 {
+        if ty.returns().len() > 0 {
             self.result.push_str(" (result");
-            for result in ty.returns.iter() {
+            for result in ty.returns().iter() {
                 self.result.push_str(" ");
                 self.print_valtype(*result)?;
             }
             self.result.push_str(")");
         }
-        Ok(ty.params.len() as u32)
+        Ok(ty.params().len() as u32)
     }
 
     fn print_valtype(&mut self, ty: Type) -> Result<()> {

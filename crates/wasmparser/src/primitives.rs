@@ -173,10 +173,56 @@ pub enum TypeDef<'a> {
     Module(ModuleType<'a>),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+/// A function type containing the function parameter and result types.
+///
+/// # Note
+///
+/// The parameters and results are ordered and merged in a single
+/// allocation starting with parameter types in order and following
+/// with the result types in order.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FuncType {
-    pub params: Box<[Type]>,
-    pub returns: Box<[Type]>,
+    /// The ordered and merged parameters and results of the function type.
+    params_results: Box<[Type]>,
+    /// The number of inputs.
+    ///
+    /// The `len_params` field denotes how many inputs there are in
+    /// the head of the vector. The rest of the allocation is made up
+    /// of result types.
+    len_params: usize,
+}
+
+impl FuncType {
+    /// Creates a new function type.
+    pub fn new<I, O>(inputs: I, outputs: O) -> Self
+    where
+        I: IntoIterator<Item = Type>,
+        O: IntoIterator<Item = Type>,
+        I::IntoIter: ExactSizeIterator,
+    {
+        let inputs = inputs.into_iter();
+        let len_params = inputs.len();
+        let inputs_outputs = inputs.chain(outputs).collect::<Vec<_>>().into_boxed_slice();
+        Self {
+            params_results: inputs_outputs,
+            len_params,
+        }
+    }
+
+    /// Returns the parameter types of the function type.
+    pub fn params(&self) -> &[Type] {
+        &self.params_results[..self.len_params]
+    }
+
+    /// Returns the result types of the function type.
+    pub fn returns(&self) -> &[Type] {
+        &self.params_results[self.len_params..]
+    }
+
+    /// Returns the pair of parameter and result types of the function type.
+    pub fn params_returns(&self) -> (&[Type], &[Type]) {
+        self.params_results.split_at(self.len_params)
+    }
 }
 
 #[derive(Debug, Clone)]

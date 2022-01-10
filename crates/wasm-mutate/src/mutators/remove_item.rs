@@ -454,11 +454,11 @@ impl RemoveItem {
         match ty {
             TypeDef::Func(f) => {
                 s.function(
-                    f.params
+                    f.params()
                         .iter()
                         .map(|t| self.translate_type(t))
                         .collect::<Result<Vec<_>>>()?,
-                    f.returns
+                    f.returns()
                         .iter()
                         .map(|t| self.translate_type(t))
                         .collect::<Result<Vec<_>>>()?,
