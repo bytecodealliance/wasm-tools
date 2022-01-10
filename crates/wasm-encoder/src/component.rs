@@ -7,6 +7,7 @@ use crate::{encoders, GlobalType, MemoryType, RawSection, Section, TableType};
 
 mod adapters;
 mod aliases;
+mod custom;
 mod exports;
 mod functions;
 mod imports;
@@ -16,6 +17,7 @@ mod types;
 
 pub use adapters::*;
 pub use aliases::*;
+pub use custom::*;
 pub use exports::*;
 pub use functions::*;
 pub use imports::*;
