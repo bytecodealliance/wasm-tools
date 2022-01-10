@@ -200,17 +200,16 @@ impl Debug for FuncType {
 
 impl FuncType {
     /// Creates a new function type.
-    pub fn new<I, O>(inputs: I, outputs: O) -> Self
+    pub fn new<I, O>(params: I, results: O) -> Self
     where
         I: IntoIterator<Item = Type>,
         O: IntoIterator<Item = Type>,
-        I::IntoIter: ExactSizeIterator,
     {
-        let inputs = inputs.into_iter();
-        let len_params = inputs.len();
-        let inputs_outputs = inputs.chain(outputs).collect::<Vec<_>>().into_boxed_slice();
+        let mut params_results = params.into_iter().collect::<Vec<_>>();
+        let len_params = params_results.len();
+        params_results.extend(results);
         Self {
-            params_results: inputs_outputs,
+            params_results: params_results.into_boxed_slice(),
             len_params,
         }
     }
