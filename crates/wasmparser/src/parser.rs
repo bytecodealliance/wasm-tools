@@ -690,10 +690,7 @@ impl Parser {
     /// no action needs to be taken with the returned parser. The parser will be
     /// automatically switched to internally and more payloads will continue to
     /// get returned.
-    pub fn parse_all(
-        self,
-        mut data: &[u8],
-    ) -> impl Iterator<Item = Result<Payload>> {
+    pub fn parse_all(self, mut data: &[u8]) -> impl Iterator<Item = Result<Payload>> {
         let mut stack = Vec::new();
         let mut cur = self;
         let mut done = false;
