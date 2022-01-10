@@ -75,7 +75,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: Install Rust
       run: rustup update stable && rustup default stable && rustup component add clippy
-    - run: cargo clippy -- -D warnings
+    - run: cargo clippy --package wasmparser -- -D warnings
 
   rustfmt:
     name: Rustfmt
