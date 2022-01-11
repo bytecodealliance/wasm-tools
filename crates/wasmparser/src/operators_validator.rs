@@ -581,7 +581,7 @@ impl OperatorValidator {
         operator: &Operator,
         resources: &impl WasmModuleResources,
     ) -> OperatorValidatorResult<()> {
-        if self.control.len() == 0 {
+        if self.control.is_empty() {
             bail_op_err!("operators remaining after end of function");
         }
         match *operator {
@@ -704,14 +704,10 @@ impl OperatorValidator {
                 // now, but it's used to allow for `if` statements that are
                 // missing an `else` block which have the same parameter/return
                 // types on the block (since that's valid).
-                match frame.kind {
-                    FrameKind::If => {
-                        self.push_ctrl(FrameKind::Else, frame.block_type, resources)?;
-                        frame = self.pop_ctrl(resources)?;
-                    }
-                    _ => (),
+                if frame.kind == FrameKind::If {
+                    self.push_ctrl(FrameKind::Else, frame.block_type, resources)?;
+                    frame = self.pop_ctrl(resources)?;
                 }
-
                 for ty in results(frame.block_type, resources)? {
                     self.push_operand(ty)?;
                 }
@@ -749,7 +745,7 @@ impl OperatorValidator {
                             "type mismatch: br_table target labels have different number of types"
                         );
                     }
-                    debug_assert!(self.br_table_tmp.len() == 0);
+                    debug_assert!(self.br_table_tmp.is_empty());
                     for ty in tys.rev() {
                         let ty = self.pop_operand(Some(ty))?;
                         self.br_table_tmp.push(ty);
@@ -792,11 +788,15 @@ impl OperatorValidator {
                 let ty1 = self.pop_operand(None)?;
                 let ty2 = self.pop_operand(None)?;
                 fn is_num(ty: Option<Type>) -> bool {
-                    match ty {
-                        Some(Type::I32) | Some(Type::I64) | Some(Type::F32) | Some(Type::F64)
-                        | Some(Type::V128) | None => true,
-                        _ => false,
-                    }
+                    matches!(
+                        ty,
+                        Some(Type::I32)
+                            | Some(Type::I64)
+                            | Some(Type::F32)
+                            | Some(Type::F64)
+                            | Some(Type::V128)
+                            | None
+                    )
                 }
                 if !is_num(ty1) || !is_num(ty2) {
                     bail_op_err!("type mismatch: select only takes integral types")
@@ -2035,7 +2035,7 @@ impl OperatorValidator {
     }
 
     pub fn finish(&mut self) -> OperatorValidatorResult<()> {
-        if self.control.len() != 0 {
+        if !self.control.is_empty() {
             bail_op_err!("control frames remain at end of function");
         }
         Ok(())
@@ -2105,20 +2105,20 @@ where
 trait PreciseIterator: ExactSizeIterator + DoubleEndedIterator {}
 impl<T: ExactSizeIterator + DoubleEndedIterator> PreciseIterator for T {}
 
-fn params<'a>(
+fn params(
     ty: TypeOrFuncType,
-    resources: &'a impl WasmModuleResources,
-) -> OperatorValidatorResult<impl PreciseIterator<Item = Type> + 'a> {
+    resources: &impl WasmModuleResources,
+) -> OperatorValidatorResult<impl PreciseIterator<Item = Type> + '_> {
     Ok(match ty {
         TypeOrFuncType::FuncType(t) => Either::A(func_type_at(resources, t)?.inputs()),
         TypeOrFuncType::Type(_) => Either::B(None.into_iter()),
     })
 }
 
-fn results<'a>(
+fn results(
     ty: TypeOrFuncType,
-    resources: &'a impl WasmModuleResources,
-) -> OperatorValidatorResult<impl PreciseIterator<Item = Type> + 'a> {
+    resources: &impl WasmModuleResources,
+) -> OperatorValidatorResult<impl PreciseIterator<Item = Type> + '_> {
     Ok(match ty {
         TypeOrFuncType::FuncType(t) => Either::A(func_type_at(resources, t)?.outputs()),
         TypeOrFuncType::Type(Type::EmptyBlockType) => Either::B(None.into_iter()),
@@ -2126,11 +2126,11 @@ fn results<'a>(
     })
 }
 
-fn label_types<'a>(
+fn label_types(
     ty: TypeOrFuncType,
-    resources: &'a impl WasmModuleResources,
+    resources: &impl WasmModuleResources,
     kind: FrameKind,
-) -> OperatorValidatorResult<impl PreciseIterator<Item = Type> + 'a> {
+) -> OperatorValidatorResult<impl PreciseIterator<Item = Type> + '_> {
     Ok(match kind {
         FrameKind::Loop => Either::A(params(ty, resources)?),
         _ => Either::B(results(ty, resources)?),
