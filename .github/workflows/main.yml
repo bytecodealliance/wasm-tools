@@ -68,15 +68,6 @@ jobs:
     - run: cargo build --manifest-path crates/wast/Cargo.toml --no-default-features
     - run: cargo build --manifest-path crates/wast/Cargo.toml --no-default-features --features wasm-module
 
-  clippy:
-    name: Clippy
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: Install Rust
-      run: rustup update stable && rustup default stable && rustup component add clippy
-    - run: cargo clippy --package wasmparser -- -D warnings
-
   rustfmt:
     name: Rustfmt
     runs-on: ubuntu-latest
