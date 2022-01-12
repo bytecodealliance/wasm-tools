@@ -16,7 +16,7 @@
 //! # Example
 //!
 //! ```ignore
-//! rules.extend(rewrite!("strength-reduction";  "(i32.shl ?x 1_i32)" <=> "(i32.mul ?x 2_i32)"));
+//! rules.extend(rewrite!("strength-reduction";  "(i32.shl ?x i32.const.1)" <=> "(i32.mul ?x i32.const.2)"));
 //! ```
 //!
 
@@ -30,7 +30,7 @@ use self::{
         analysis::PeepholeMutationAnalysis,
         encoder::{expr2wasm::ResourceRequest, Encoder},
         expr_enumerator::lazy_expand_aux,
-        lang::Lang,
+        lang::{Lang, MemArg},
     },
 };
 use super::{Mutator, OperatorAndByteOffset};
@@ -697,7 +697,7 @@ mod tests {
     #[test]
     fn test_peep_wrap() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("strength-undo";  "?x" => "(i32.add ?x 0_i32)" if is_type("?x", PrimitiveTypeInfo::I32)),
+            rewrite!("strength-undo";  "?x" => "(i32.add ?x i32.const.0)" if is_type("?x", PrimitiveTypeInfo::I32)),
         ];
 
         test_peephole_mutator(
@@ -740,7 +740,7 @@ mod tests {
     #[test]
     fn test_peep_irelop1() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("strength-undo";  "(i64.eqz ?x)" => "(i64.eq ?x 0_i64)")];
+            &[rewrite!("strength-undo";  "(i64.eqz ?x)" => "(i64.eq ?x i64.const.0)")];
 
         test_peephole_mutator(
             r#"
@@ -770,7 +770,7 @@ mod tests {
     #[test]
     fn test_peep_bug1() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("strength-undo";  "?x" => "(i32.shl ?x 0_i32)" if is_type("?x", PrimitiveTypeInfo::I32)),
+            rewrite!("strength-undo";  "?x" => "(i32.shl ?x i32.const.0)" if is_type("?x", PrimitiveTypeInfo::I32)),
         ];
 
         test_peephole_mutator(
@@ -940,7 +940,7 @@ mod tests {
     #[test]
     fn test_mem_store1() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("rule";  "(i32.store.600.0.0 ?value ?offset)" => "(i32.store.0.0.0 ?value (i32.add ?offset 600_i32))" ),
+            rewrite!("rule";  "(i32.store.600.0.0 ?value ?offset)" => "(i32.store.0.0.0 ?value (i32.add ?offset i32.const.600))" ),
         ];
 
         test_peephole_mutator(
@@ -961,9 +961,9 @@ mod tests {
                 (type (;0;) (func (param i64 i32 f32)))
                 (func (;0;) (type 0) (param i64 i32 f32)
                   i32.const 100
+                  i32.const 200
                   i32.const 600
                   i32.add
-                  i32.const 200
                   i32.store align=1)
                 (memory (;0;) 0)
                 (export "\00" (memory 0)))
@@ -975,7 +975,7 @@ mod tests {
     #[test]
     fn test_peep_shl0() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("strength-undo3";  "(i64.shr_u ?x ?y)" => "(i64.shl (i64.shr_u ?x ?y) 0_i64)" ),
+            rewrite!("strength-undo3";  "(i64.shr_u ?x ?y)" => "(i64.shl (i64.shr_u ?x ?y) i64.const.0)" ),
         ];
 
         test_peephole_mutator(
@@ -1184,7 +1184,7 @@ mod tests {
     #[test]
     fn test_peep_idem3() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("idempotent-3";  "?x" => "(i32.add ?x 0_i32)" if is_type("?x", PrimitiveTypeInfo::I32)),
+            rewrite!("idempotent-3";  "?x" => "(i32.add ?x i32.const.0)" if is_type("?x", PrimitiveTypeInfo::I32)),
         ];
 
         test_peephole_mutator(
@@ -1213,8 +1213,8 @@ mod tests {
     #[test]
     fn test_peep_idem4() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("idempotent-4";  "?x" => "(i32.mul ?x 1_i32)" if is_type("?x", PrimitiveTypeInfo::I32)),
-            rewrite!("idempotent-4";  "?x" => "(i64.mul ?x 1_i32)" if is_type("?x", PrimitiveTypeInfo::I64)),
+            rewrite!("idempotent-4";  "?x" => "(i32.mul ?x i32.const.1)" if is_type("?x", PrimitiveTypeInfo::I32)),
+            rewrite!("idempotent-4";  "?x" => "(i64.mul ?x i32.const.1)" if is_type("?x", PrimitiveTypeInfo::I64)),
         ];
 
         test_peephole_mutator(
@@ -1302,7 +1302,7 @@ mod tests {
     #[test]
     fn test_peep_locals3() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("type1-1";  "(local.set.1 100_i32)" => "(local.set.1 0_i32)" )];
+            &[rewrite!("type1-1";  "(local.set.1 i32.const.100)" => "(local.set.1 i32.const.0)" )];
 
         test_peephole_mutator(
             r#"
@@ -1332,7 +1332,7 @@ mod tests {
     #[test]
     fn test_peep_functions() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("type1-1";  "(call.0 ?x ?y)" => "(call.0 1_i64 11_i32) " )];
+            &[rewrite!("type1-1";  "(call.0 ?x ?y)" => "(call.0 i64.const.1 i32.const.11) " )];
 
         test_peephole_mutator(
             r#"
@@ -1465,7 +1465,7 @@ mod tests {
     #[test]
     fn test_peep_floats1() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("rule";  "1065353216_f32" => "0_f32" )];
+            &[rewrite!("rule";  "f32.const.1065353216" => "f32.const.0" )];
 
         test_peephole_mutator(
             r#"
@@ -1491,7 +1491,7 @@ mod tests {
     #[test]
     fn test_peep_globals1() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("mem-load-shift";  "?x" => "(i32.add ?x 0_i32)" if is_type("?x", PrimitiveTypeInfo::I32)),
+            rewrite!("mem-load-shift";  "?x" => "(i32.add ?x i32.const.0)" if is_type("?x", PrimitiveTypeInfo::I32)),
         ];
 
         test_peephole_mutator(
@@ -1523,7 +1523,7 @@ mod tests {
     #[test]
     fn test_peep_globals2() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("rule";  "?x" => "(i32.add ?x 0_i32)" if is_type("?x", PrimitiveTypeInfo::I32)),
+            rewrite!("rule";  "?x" => "(i32.add ?x i32.const.0)" if is_type("?x", PrimitiveTypeInfo::I32)),
         ];
 
         test_peephole_mutator(

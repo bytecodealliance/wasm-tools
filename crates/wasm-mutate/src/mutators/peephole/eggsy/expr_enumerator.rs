@@ -220,15 +220,15 @@ mod tests {
     #[test]
     fn test_rec_iterator() {
         let rules: &[Rewrite<Lang, PeepholeMutationAnalysis>] = &[
-            rewrite!("rule";  "?x" => "(i32.add ?x 0_i32)"),
+            rewrite!("rule";  "?x" => "(i32.add ?x i32.const.0)"),
             rewrite!("rule2";  "(i32.add ?y ?x)" => "(i32.add ?x ?y)"),
-            rewrite!("rule2";  "0_i32" => "(i32.sub 500_i32 500_i32)"),
+            rewrite!("rule2";  "i32.const.0" => "(i32.sub i32.const.50 i32.const.500)"),
             //rewrite!("rule3";  "?x" => "(i32.mul ?x 1_i32)"),
             //rewrite!("rule4";  "0_i32" => "(i32.unfold 0_i32)"),
             //rewrite!("rule5";  "1_i32" => "(i32.unfold 1_i32)"),
         ];
 
-        let expr = "(i32.add 100_i32 200_i32)";
+        let expr = "(i32.add i32.const.100 i32.const.200)";
 
         let analysis = PeepholeMutationAnalysis::new(vec![], vec![], vec![], vec![]);
         let runner = Runner::<Lang, PeepholeMutationAnalysis, ()>::new(analysis)

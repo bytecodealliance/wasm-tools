@@ -2,13 +2,13 @@
 
 use crate::{
     module::PrimitiveTypeInfo,
-    mutators::peephole::{eggsy::encoder::TraversalEvent, Lang, EG},
+    mutators::peephole::{eggsy::encoder::TraversalEvent, Lang, MemArg, EG},
     Error, Result, WasmMutate,
 };
 use egg::{Id, Language, RecExpr};
 use rand::Rng;
 use std::num::Wrapping;
-use wasm_encoder::{Function, Instruction, MemArg};
+use wasm_encoder::{Function, Instruction};
 
 /// Some custom nodes might need special resource allocation outside the
 /// function. Fore xample, if a new global is needed is should be added outside
@@ -115,201 +115,47 @@ pub fn expr2wasm(
                     Lang::Drop(_) => {
                         newfunc.instruction(&Instruction::Drop);
                     }
-                    Lang::I32Load {
-                        align,
-                        mem,
-                        static_offset,
-                        offset: _,
-                    } => {
-                        let memarg = MemArg {
-                            offset: *static_offset,
-                            align: *align as u32,
-                            memory_index: *mem,
-                        };
-
-                        newfunc.instruction(&Instruction::I32Load(memarg));
+                    Lang::I32Load(memarg, _) => {
+                        newfunc.instruction(&Instruction::I32Load(memarg.into()));
                     }
-                    Lang::I64Load {
-                        align,
-                        mem,
-                        static_offset,
-                        offset: _,
-                    } => {
-                        let memarg = MemArg {
-                            offset: *static_offset,
-                            align: *align as u32,
-                            memory_index: *mem,
-                        };
-
-                        newfunc.instruction(&Instruction::I64Load(memarg));
+                    Lang::I64Load(memarg, _) => {
+                        newfunc.instruction(&Instruction::I64Load(memarg.into()));
                     }
-                    Lang::F32Load {
-                        align,
-                        mem,
-                        static_offset,
-                        offset: _,
-                    } => {
-                        let memarg = MemArg {
-                            offset: *static_offset,
-                            align: *align as u32,
-                            memory_index: *mem,
-                        };
-
-                        newfunc.instruction(&Instruction::F32Load(memarg));
+                    Lang::F32Load(memarg, _) => {
+                        newfunc.instruction(&Instruction::F32Load(memarg.into()));
                     }
-                    Lang::F64Load {
-                        align,
-                        mem,
-                        static_offset,
-                        offset: _,
-                    } => {
-                        let memarg = MemArg {
-                            offset: *static_offset,
-                            align: *align as u32,
-                            memory_index: *mem,
-                        };
-
-                        newfunc.instruction(&Instruction::F64Load(memarg));
+                    Lang::F64Load(memarg, _) => {
+                        newfunc.instruction(&Instruction::F64Load(memarg.into()));
                     }
-                    Lang::I32Load8S {
-                        align,
-                        mem,
-                        static_offset,
-                        offset: _,
-                    } => {
-                        let memarg = MemArg {
-                            offset: *static_offset,
-                            align: *align as u32,
-                            memory_index: *mem,
-                        };
-
-                        newfunc.instruction(&Instruction::I32Load8_S(memarg));
+                    Lang::I32Load8U(memarg, _) => {
+                        newfunc.instruction(&Instruction::I32Load8_U(memarg.into()));
                     }
-                    Lang::I32Load8U {
-                        align,
-                        mem,
-                        static_offset,
-                        offset: _,
-                    } => {
-                        let memarg = MemArg {
-                            offset: *static_offset,
-                            align: *align as u32,
-                            memory_index: *mem,
-                        };
-
-                        newfunc.instruction(&Instruction::I32Load8_U(memarg));
+                    Lang::I32Load8S(memarg, _) => {
+                        newfunc.instruction(&Instruction::I32Load8_S(memarg.into()));
                     }
-                    Lang::I32Load16S {
-                        align,
-                        mem,
-                        static_offset,
-                        offset: _,
-                    } => {
-                        let memarg = MemArg {
-                            offset: *static_offset,
-                            align: *align as u32,
-                            memory_index: *mem,
-                        };
-
-                        newfunc.instruction(&Instruction::I32Load16_S(memarg));
+                    Lang::I32Load16U(memarg, _) => {
+                        newfunc.instruction(&Instruction::I32Load16_U(memarg.into()));
                     }
-                    Lang::I32Load16U {
-                        align,
-                        mem,
-                        static_offset,
-                        offset: _,
-                    } => {
-                        let memarg = MemArg {
-                            offset: *static_offset,
-                            align: *align as u32,
-                            memory_index: *mem,
-                        };
-
-                        newfunc.instruction(&Instruction::I32Load16_U(memarg));
+                    Lang::I32Load16S(memarg, _) => {
+                        newfunc.instruction(&Instruction::I32Load16_S(memarg.into()));
                     }
-                    Lang::I64Load8S {
-                        align,
-                        mem,
-                        static_offset,
-                        offset: _,
-                    } => {
-                        let memarg = MemArg {
-                            offset: *static_offset,
-                            align: *align as u32,
-                            memory_index: *mem,
-                        };
-
-                        newfunc.instruction(&Instruction::I64Load8_S(memarg));
+                    Lang::I64Load8U(memarg, _) => {
+                        newfunc.instruction(&Instruction::I64Load8_U(memarg.into()));
                     }
-                    Lang::I64Load8U {
-                        align,
-                        mem,
-                        static_offset,
-                        offset: _,
-                    } => {
-                        let memarg = MemArg {
-                            offset: *static_offset,
-                            align: *align as u32,
-                            memory_index: *mem,
-                        };
-
-                        newfunc.instruction(&Instruction::I64Load8_U(memarg));
+                    Lang::I64Load8S(memarg, _) => {
+                        newfunc.instruction(&Instruction::I64Load8_S(memarg.into()));
                     }
-                    Lang::I64Load16S {
-                        align,
-                        mem,
-                        static_offset,
-                        offset: _,
-                    } => {
-                        let memarg = MemArg {
-                            offset: *static_offset,
-                            align: *align as u32,
-                            memory_index: *mem,
-                        };
-
-                        newfunc.instruction(&Instruction::I64Load16_S(memarg));
+                    Lang::I64Load16U(memarg, _) => {
+                        newfunc.instruction(&Instruction::I64Load16_U(memarg.into()));
                     }
-                    Lang::I64Load16U {
-                        align,
-                        mem,
-                        static_offset,
-                        offset: _,
-                    } => {
-                        let memarg = MemArg {
-                            offset: *static_offset,
-                            align: *align as u32,
-                            memory_index: *mem,
-                        };
-
-                        newfunc.instruction(&Instruction::I64Load16_U(memarg));
+                    Lang::I64Load16S(memarg, _) => {
+                        newfunc.instruction(&Instruction::I64Load16_S(memarg.into()));
                     }
-                    Lang::I64Load32S {
-                        align,
-                        mem,
-                        static_offset,
-                        offset: _,
-                    } => {
-                        let memarg = MemArg {
-                            offset: *static_offset,
-                            align: *align as u32,
-                            memory_index: *mem,
-                        };
-
-                        newfunc.instruction(&Instruction::I64Load32_S(memarg));
+                    Lang::I64Load32U(memarg, _) => {
+                        newfunc.instruction(&Instruction::I64Load32_U(memarg.into()));
                     }
-                    Lang::I64Load32U {
-                        align,
-                        mem,
-                        static_offset,
-                        offset: _,
-                    } => {
-                        let memarg = MemArg {
-                            offset: *static_offset,
-                            align: *align as u32,
-                            memory_index: *mem,
-                        };
-
-                        newfunc.instruction(&Instruction::I64Load32_U(memarg));
+                    Lang::I64Load32S(memarg, _) => {
+                        newfunc.instruction(&Instruction::I64Load32_S(memarg.into()));
                     }
                     Lang::RandI32 => {
                         newfunc.instruction(&Instruction::I32Const(config.rng().gen()));
@@ -777,131 +623,32 @@ pub fn expr2wasm(
                     Lang::F64Ge(_) => {
                         newfunc.instruction(&Instruction::F64Ge);
                     }
-                    Lang::I32Store {
-                        align,
-                        mem,
-                        static_offset,
-                        value_and_offset: _,
-                    } => {
-                        let memarg = MemArg {
-                            offset: *static_offset,
-                            align: *align as u32,
-                            memory_index: *mem,
-                        };
-
-                        newfunc.instruction(&Instruction::I32Store(memarg));
+                    Lang::I32Store(memarg, _) => {
+                        newfunc.instruction(&Instruction::I32Store(memarg.into()));
                     }
-                    Lang::I64Store {
-                        align,
-                        mem,
-                        static_offset,
-                        value_and_offset: _,
-                    } => {
-                        let memarg = MemArg {
-                            offset: *static_offset,
-                            align: *align as u32,
-                            memory_index: *mem,
-                        };
-
-                        newfunc.instruction(&Instruction::I64Store(memarg));
+                    Lang::I64Store(memarg, _) => {
+                        newfunc.instruction(&Instruction::I64Store(memarg.into()));
                     }
-                    Lang::F32Store {
-                        align,
-                        mem,
-                        static_offset,
-                        value_and_offset: _,
-                    } => {
-                        let memarg = MemArg {
-                            offset: *static_offset,
-                            align: *align as u32,
-                            memory_index: *mem,
-                        };
-
-                        newfunc.instruction(&Instruction::F32Store(memarg));
+                    Lang::F32Store(memarg, _) => {
+                        newfunc.instruction(&Instruction::F32Store(memarg.into()));
                     }
-                    Lang::F64Store {
-                        align,
-                        mem,
-                        static_offset,
-                        value_and_offset: _,
-                    } => {
-                        let memarg = MemArg {
-                            offset: *static_offset,
-                            align: *align as u32,
-                            memory_index: *mem,
-                        };
-
-                        newfunc.instruction(&Instruction::F64Store(memarg));
+                    Lang::F64Store(memarg, _) => {
+                        newfunc.instruction(&Instruction::F64Store(memarg.into()));
                     }
-                    Lang::I32Store8 {
-                        align,
-                        mem,
-                        static_offset,
-                        value_and_offset: _,
-                    } => {
-                        let memarg = MemArg {
-                            offset: *static_offset,
-                            align: *align as u32,
-                            memory_index: *mem,
-                        };
-
-                        newfunc.instruction(&Instruction::I32Store8(memarg));
+                    Lang::I32Store8(memarg, _) => {
+                        newfunc.instruction(&Instruction::I32Store8(memarg.into()));
                     }
-                    Lang::I32Store16 {
-                        align,
-                        mem,
-                        static_offset,
-                        value_and_offset: _,
-                    } => {
-                        let memarg = MemArg {
-                            offset: *static_offset,
-                            align: *align as u32,
-                            memory_index: *mem,
-                        };
-
-                        newfunc.instruction(&Instruction::I32Store16(memarg));
+                    Lang::I32Store16(memarg, _) => {
+                        newfunc.instruction(&Instruction::I32Store16(memarg.into()));
                     }
-                    Lang::I64Store8 {
-                        align,
-                        mem,
-                        static_offset,
-                        value_and_offset: _,
-                    } => {
-                        let memarg = MemArg {
-                            offset: *static_offset,
-                            align: *align as u32,
-                            memory_index: *mem,
-                        };
-
-                        newfunc.instruction(&Instruction::I64Store8(memarg));
+                    Lang::I64Store8(memarg, _) => {
+                        newfunc.instruction(&Instruction::I64Store8(memarg.into()));
                     }
-                    Lang::I64Store16 {
-                        align,
-                        mem,
-                        static_offset,
-                        value_and_offset: _,
-                    } => {
-                        let memarg = MemArg {
-                            offset: *static_offset,
-                            align: *align as u32,
-                            memory_index: *mem,
-                        };
-
-                        newfunc.instruction(&Instruction::I64Store16(memarg));
+                    Lang::I64Store16(memarg, _) => {
+                        newfunc.instruction(&Instruction::I64Store16(memarg.into()));
                     }
-                    Lang::I64Store32 {
-                        align,
-                        mem,
-                        static_offset,
-                        value_and_offset: _,
-                    } => {
-                        let memarg = MemArg {
-                            offset: *static_offset,
-                            align: *align as u32,
-                            memory_index: *mem,
-                        };
-
-                        newfunc.instruction(&Instruction::I64Store32(memarg));
+                    Lang::I64Store32(memarg, _) => {
+                        newfunc.instruction(&Instruction::I64Store32(memarg.into()));
                     }
                     Lang::Nop => {
                         newfunc.instruction(&Instruction::Nop);
@@ -912,10 +659,10 @@ pub fn expr2wasm(
                     Lang::Select(_) => {
                         newfunc.instruction(&Instruction::Select);
                     }
-                    Lang::MemoryGrow { mem, .. } => {
+                    Lang::MemoryGrow(mem, _) => {
                         newfunc.instruction(&Instruction::MemoryGrow(*mem));
                     }
-                    Lang::MemorySize { mem, .. } => {
+                    Lang::MemorySize(mem) => {
                         newfunc.instruction(&Instruction::MemorySize(*mem));
                     }
                     Lang::I32UseGlobal(_) => {
@@ -972,4 +719,14 @@ pub fn expr2wasm(
         }
     }
     Ok(resources)
+}
+
+impl From<&MemArg> for wasm_encoder::MemArg {
+    fn from(arg: &MemArg) -> wasm_encoder::MemArg {
+        wasm_encoder::MemArg {
+            offset: arg.static_offset,
+            align: arg.align.into(),
+            memory_index: arg.mem,
+        }
+    }
 }

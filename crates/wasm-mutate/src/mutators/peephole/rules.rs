@@ -23,38 +23,38 @@ impl PeepholeMutator {
         if config.reduce {
             // NB: these only go one way when we are reducing.
             rules.extend(vec![
-                rewrite!("i32.or--1"; "(i32.or ?x -1_i32)" => "-1_i32"),
-                rewrite!("i64.or--1"; "(i64.or ?x -1_i64)" => "-1_i64"),
+                rewrite!("i32.or--1"; "(i32.or ?x i32.const.-1)" => "i32.const.-1"),
+                rewrite!("i64.or--1"; "(i64.or ?x -i64.const.1)" => "-i64.const.1"),
                 rewrite!("i32.or-x-x"; "(i32.or ?x ?x)" => "?x"),
                 rewrite!("i64.or-x-x"; "(i64.or ?x ?x)" => "?x"),
                 rewrite!("i32.and-x-x"; "(i32.and ?x ?x)" => "?x"),
                 rewrite!("i64.and-x-x"; "(i64.and ?x ?x)" => "?x"),
                 rewrite!("select-same-branches"; "(select ?y ?y ?x)" => "?y"),
-                rewrite!("i32.sub-0"; "(i32.sub ?x 0_i32)" => "?x"),
-                rewrite!("i64.sub-0"; "(i64.sub ?x 0_i64)" => "?x"),
-                rewrite!("i32.mul-x-1"; "(i32.mul ?x 1_i32)" => "?x"),
-                rewrite!("i64.mul-x-1"; "(i64.mul ?x 1_i64)" => "?x"),
-                rewrite!("f32.mul-x-1"; "(f32.mul ?x 1_f32)" => "?x"),
-                rewrite!("f64.mul-x-1"; "(f64.mul ?x 1_f64)" => "?x"),
-                rewrite!("i32.add-x-0"; "(i32.add ?x 0_i32)" => "?x"),
-                rewrite!("i64.add-x-0"; "(i64.add ?x 0_i64)" => "?x"),
-                rewrite!("f32-add-x-0"; "(f32.add ?x 0_f32)" => "?x"),
-                rewrite!("f64.add-x-0"; "(f64.add ?x 0_f64)" => "?x"),
-                rewrite!("i32.xor-x-0"; "(i32.xor ?x 0_i32)" => "?x"),
-                rewrite!("i64.xor-x-0"; "(i64.xor ?x 0_i64)" => "?x"),
-                rewrite!("i32.eq-x-0"; "(i32.eq ?x 0_i32)" => "(i32.eqz ?x)"),
-                rewrite!("i64.eq-x-0"; "(i64.eq ?x 0_i64)" => "(i64.eqz ?x)"),
-                rewrite!("i32.shl-by-0"; "(i32.shl ?x 0_i32)" => "?x"),
-                rewrite!("i64.shl-by-0"; "(i64.shl ?x 0_i64)" => "?x"),
-                rewrite!("i32.shr_u-by-0"; "(i32.shr_u ?x 0_i32)" => "?x"),
-                rewrite!("i64.shr_u-by-0"; "(i64.shr_u ?x 0_i64)" => "?x"),
-                rewrite!("i32.shr_s-by-0"; "(i32.shr_s ?x 0_i32)" => "?x"),
-                rewrite!("i64.shr_s-by-0"; "(i64.shr_s ?x 0_i64)" => "?x"),
+                rewrite!("i32.sub-0"; "(i32.sub ?x i32.const.0)" => "?x"),
+                rewrite!("i64.sub-0"; "(i64.sub ?x i64.const.0)" => "?x"),
+                rewrite!("i32.mul-x-1"; "(i32.mul ?x i32.const.1)" => "?x"),
+                rewrite!("i64.mul-x-1"; "(i64.mul ?x i64.const.1)" => "?x"),
+                rewrite!("f32.mul-x-1"; "(f32.mul ?x f32.const.1)" => "?x"),
+                rewrite!("f64.mul-x-1"; "(f64.mul ?x f64.const.1)" => "?x"),
+                rewrite!("i32.add-x-0"; "(i32.add ?x i32.const.0)" => "?x"),
+                rewrite!("i64.add-x-0"; "(i64.add ?x i64.const.0)" => "?x"),
+                rewrite!("f32-add-x-0"; "(f32.add ?x f32.const.0)" => "?x"),
+                rewrite!("f64.add-x-0"; "(f64.add ?x f64.const.0)" => "?x"),
+                rewrite!("i32.xor-x-0"; "(i32.xor ?x i32.const.0)" => "?x"),
+                rewrite!("i64.xor-x-0"; "(i64.xor ?x i64.const.0)" => "?x"),
+                rewrite!("i32.eq-x-0"; "(i32.eq ?x i32.const.0)" => "(i32.eqz ?x)"),
+                rewrite!("i64.eq-x-0"; "(i64.eq ?x i64.const.0)" => "(i64.eqz ?x)"),
+                rewrite!("i32.shl-by-0"; "(i32.shl ?x i32.const.0)" => "?x"),
+                rewrite!("i64.shl-by-0"; "(i64.shl ?x i64.const.0)" => "?x"),
+                rewrite!("i32.shr_u-by-0"; "(i32.shr_u ?x i32.const.0)" => "?x"),
+                rewrite!("i64.shr_u-by-0"; "(i64.shr_u ?x i64.const.0)" => "?x"),
+                rewrite!("i32.shr_s-by-0"; "(i32.shr_s ?x i32.const.0)" => "?x"),
+                rewrite!("i64.shr_s-by-0"; "(i64.shr_s ?x i64.const.0)" => "?x"),
             ]);
         } else {
             rules.extend(vec![
-                rewrite!("i32.or--1"; "(i32.or ?x -1_i32)" => "-1_i32"),
-                rewrite!("i64.or--1"; "(i64.or ?x -1_i64)" => "-1_i64"),
+                rewrite!("i32.or--1"; "(i32.or ?x i32.const.-1)" => "i32.const.-1"),
+                rewrite!("i64.or--1"; "(i64.or ?x i64.const.-1)" => "i64.const.-1"),
             ]);
 
             rules.extend(rewrite!(
@@ -83,110 +83,110 @@ impl PeepholeMutator {
 
             rules.extend(rewrite!(
                 "i32.sub-0";
-                "(i32.sub ?x 0_i32)" <=> "?x"
+                "(i32.sub ?x i32.const.0)" <=> "?x"
                     if self.is_type("?x", PrimitiveTypeInfo::I32)
             ));
             rules.extend(rewrite!(
                 "i64.sub-0";
-                "(i64.sub ?x 0_i64)" <=> "?x"
+                "(i64.sub ?x i64.const.0)" <=> "?x"
                     if self.is_type("?x", PrimitiveTypeInfo::I64)
             ));
 
             rules.extend(rewrite!(
                 "i32.mul-x-1";
-                "?x" <=> "(i32.mul ?x 1_i32)"
+                "?x" <=> "(i32.mul ?x i32.const.1)"
                     if self.is_type("?x", PrimitiveTypeInfo::I32)
             ));
             rules.extend(rewrite!(
                 "i64.mul-x-1";
-                "?x" <=> "(i64.mul ?x 1_i64)"
+                "?x" <=> "(i64.mul ?x i64.const.1)"
                     if self.is_type("?x", PrimitiveTypeInfo::I64)
             ));
 
             rules.extend(rewrite!(
                 "f32.mul-x-1";
-                "?x" <=> "(f32.mul ?x 1_f32)"
+                "?x" <=> "(f32.mul ?x f32.const.1)"
                     if self.is_type("?x", PrimitiveTypeInfo::F32)
             ));
             rules.extend(rewrite!(
                 "f64.mul-x-1";
-                "?x" <=> "(f64.mul ?x 1_f64)"
+                "?x" <=> "(f64.mul ?x f64.const.1)"
                     if self.is_type("?x", PrimitiveTypeInfo::F64)
             ));
 
             rules.extend(rewrite!(
                 "i32.add-x-0";
-                "?x" <=> "(i32.add ?x 0_i32)"
+                "?x" <=> "(i32.add ?x i32.const.0)"
                     if self.is_type("?x", PrimitiveTypeInfo::I32)
             ));
             rules.extend(rewrite!(
                 "i64.add-x-0";
-                "?x" <=> "(i64.add ?x 0_i64)"
+                "?x" <=> "(i64.add ?x i64.const.0)"
                     if self.is_type("?x", PrimitiveTypeInfo::I64)
             ));
             rules.extend(rewrite!(
                 "f32-add-x-0";
-                "?x" <=> "(f32.add ?x 0_f32)"
+                "?x" <=> "(f32.add ?x f32.const.0)"
                     if self.is_type("?x", PrimitiveTypeInfo::F32)
             ));
             rules.extend(rewrite!(
                 "f64.add-x-0";
-                "?x" <=> "(f64.add ?x 0_f64)"
+                "?x" <=> "(f64.add ?x f64.const.0)"
                     if self.is_type("?x", PrimitiveTypeInfo::F64)
             ));
 
             rules.extend(rewrite!(
                 "i32.xor-x-0";
-                "?x" <=> "(i32.xor ?x 0_i32)"
+                "?x" <=> "(i32.xor ?x i32.const.0)"
                     if self.is_type("?x", PrimitiveTypeInfo::I32)
             ));
             rules.extend(rewrite!(
                 "i64.xor-x-0";
-                "?x" <=> "(i64.xor ?x 0_i64)"
+                "?x" <=> "(i64.xor ?x i64.const.0)"
                     if self.is_type("?x", PrimitiveTypeInfo::I64)
             ));
 
             rules.extend(rewrite!(
                 "i32.eq-x-0";
-                "(i32.eq ?x 0_i32)" <=> "(i32.eqz ?x)"
+                "(i32.eq ?x i32.const.0)" <=> "(i32.eqz ?x)"
                     if self.is_type("?x", PrimitiveTypeInfo::I32)
             ));
             rules.extend(rewrite!(
                 "i64.eq-x-0";
-                "(i64.eq ?x 0_i64)" <=> "(i64.eqz ?x)"
+                "(i64.eq ?x i64.const.0)" <=> "(i64.eqz ?x)"
                     if self.is_type("?x", PrimitiveTypeInfo::I64)
             ));
 
             rules.extend(rewrite!(
                 "i32.shl-by-0";
-                "(i32.shl ?x 0_i32)" <=> "?x"
+                "(i32.shl ?x i32.const.0)" <=> "?x"
                     if self.is_type("?x", PrimitiveTypeInfo::I32)
             ));
             rules.extend(rewrite!(
                 "i64.shl-by-0";
-                "(i64.shl ?x 0_i64)" <=> "?x"
+                "(i64.shl ?x i64.const.0)" <=> "?x"
                     if self.is_type("?x", PrimitiveTypeInfo::I64)
             ));
 
             rules.extend(rewrite!(
                 "i32.shr_u-by-0";
-                "(i32.shr_u ?x 0_i32)" <=> "?x"
+                "(i32.shr_u ?x i32.const.0)" <=> "?x"
                     if self.is_type("?x", PrimitiveTypeInfo::I32)
             ));
             rules.extend(rewrite!(
                 "i64.shr_u-by-0";
-                "(i64.shr_u ?x 0_i64)" <=> "?x"
+                "(i64.shr_u ?x i64.const.0)" <=> "?x"
                     if self.is_type("?x", PrimitiveTypeInfo::I64)
             ));
 
             rules.extend(rewrite!(
                 "i32.shr_s-by-0";
-                "(i32.shr_s ?x 0_i32)" <=> "?x"
+                "(i32.shr_s ?x i32.const.0)" <=> "?x"
                     if self.is_type("?x", PrimitiveTypeInfo::I32)
             ));
             rules.extend(rewrite!(
                 "i64.shr_s-by-0";
-                "(i64.shr_s ?x 0_i64)" <=> "?x"
+                "(i64.shr_s ?x i64.const.0)" <=> "?x"
                     if self.is_type("?x", PrimitiveTypeInfo::I64)
             ));
         }
@@ -279,12 +279,24 @@ impl PeepholeMutator {
 
         // Undoing `x * 2 ==> x << 1` strength reduction, etc...
         if !config.reduce {
-            rules.extend(rewrite!("i32.mul-by-2"; "(i32.shl ?x 1_i32)" <=> "(i32.mul ?x 2_i32)"));
-            rules.extend(rewrite!("i64.mul-by-2"; "(i64.shl ?x 1_i64)" <=> "(i64.mul ?x 2_i64)"));
-            rules.extend(rewrite!("i32.mul-by-4"; "(i32.shl ?x 2_i32)" <=> "(i32.mul ?x 4_i32)"));
-            rules.extend(rewrite!("i64.mul-by-4"; "(i64.shl ?x 2_i64)" <=> "(i64.mul ?x 4_i64)"));
-            rules.extend(rewrite!("i32.mul-by-8"; "(i32.shl ?x 3_i32)" <=> "(i32.mul ?x 8_i32)"));
-            rules.extend(rewrite!("i64.mul-by-8"; "(i64.shl ?x 3_i64)" <=> "(i64.mul ?x 8_i64)"));
+            rules.extend(
+                rewrite!("i32.mul-by-2"; "(i32.shl ?x i32.const.1)" <=> "(i32.mul ?x i32.const.2)"),
+            );
+            rules.extend(
+                rewrite!("i64.mul-by-2"; "(i64.shl ?x i64.const.1)" <=> "(i64.mul ?x i64.const.2)"),
+            );
+            rules.extend(
+                rewrite!("i32.mul-by-4"; "(i32.shl ?x i32.const.2)" <=> "(i32.mul ?x i32.const.4)"),
+            );
+            rules.extend(
+                rewrite!("i64.mul-by-4"; "(i64.shl ?x i64.const.2)" <=> "(i64.mul ?x i64.const.4)"),
+            );
+            rules.extend(
+                rewrite!("i32.mul-by-8"; "(i32.shl ?x i32.const.3)" <=> "(i32.mul ?x i32.const.8)"),
+            );
+            rules.extend(
+                rewrite!("i64.mul-by-8"; "(i64.shl ?x i64.const.3)" <=> "(i64.mul ?x i64.const.8)"),
+            );
         }
 
         // Invert a `select` condition and swap its consequent and alternative.
@@ -296,8 +308,8 @@ impl PeepholeMutator {
 
         // Convert `x + x` into `x * 2`.
         if !config.reduce {
-            rules.extend(rewrite!("i32.add-x-x"; "(i32.add ?x ?x)" <=> "(i32.mul ?x 2_i32)"));
-            rules.extend(rewrite!("i64.add-x-x"; "(i64.add ?x ?x)" <=> "(i64.mul ?x 2_i64)"));
+            rules.extend(rewrite!("i32.add-x-x"; "(i32.add ?x ?x)" <=> "(i32.mul ?x i32.const.2)"));
+            rules.extend(rewrite!("i64.add-x-x"; "(i64.add ?x ?x)" <=> "(i64.mul ?x i64.const.2)"));
         }
 
         // Mess with dropped subexpressions.
@@ -315,12 +327,12 @@ impl PeepholeMutator {
                 ),
                 rewrite!(
                     "f32.drop-x";
-                    "(drop ?x)" => "(drop 0_f32)"
+                    "(drop ?x)" => "(drop f32.const.0)"
                         if self.is_type("?x", PrimitiveTypeInfo::F32)
                 ),
                 rewrite!(
                     "f64.drop-x";
-                    "(drop ?x)" => "(drop 0_f32)"
+                    "(drop ?x)" => "(drop f32.const.0)"
                         if self.is_type("?x", PrimitiveTypeInfo::F64)
                 ),
             ]);
@@ -395,22 +407,22 @@ impl PeepholeMutator {
             rules.extend(vec![
                 rewrite!(
                     "replace-with-i32-1";
-                    "?x" => "1_i32"
+                    "?x" => "i32.const.1"
                         if self.is_type("?x", PrimitiveTypeInfo::I32)
                 ),
                 rewrite!(
                     "replace-with-i64-1";
-                    "?x" => "1_i64"
+                    "?x" => "i64.const.1"
                         if self.is_type("?x", PrimitiveTypeInfo::I64)
                 ),
                 rewrite!(
                     "replace-with-i32-0";
-                    "?x" => "0_i32"
+                    "?x" => "i32.const.0"
                         if self.is_type("?x", PrimitiveTypeInfo::I32)
                 ),
                 rewrite!(
                     "replace-with-i64-0";
-                    "?x" => "0_i64"
+                    "?x" => "i64.const.0"
                         if self.is_type("?x", PrimitiveTypeInfo::I64)
                 ),
                 rewrite!(
@@ -429,94 +441,94 @@ impl PeepholeMutator {
                 // `x <=> x + 1`
                 rules.extend(rewrite!(
                     "i32.add-1";
-                    "?x" <=> "(i32.add ?x 1_i32)"
+                    "?x" <=> "(i32.add ?x i32.const.1)"
                         if self.is_type("?x", PrimitiveTypeInfo::I32)
                 ));
                 rules.extend(rewrite!(
                     "i64.add-1";
-                    "?x" <=> "(i64.add ?x 1_i64)"
+                    "?x" <=> "(i64.add ?x i64.const.1)"
                         if self.is_type("?x", PrimitiveTypeInfo::I64)
                 ));
 
                 // `x <=> x - 1`
                 rules.extend(rewrite!(
                     "i32.sub-1";
-                    "?x" <=> "(i32.sub ?x 1_i32)"
+                    "?x" <=> "(i32.sub ?x i32.const.1)"
                         if self.is_type("?x", PrimitiveTypeInfo::I32)
                 ));
                 rules.extend(rewrite!(
                     "i64.sub-1";
-                    "?x" <=> "(i64.sub ?x 1_i64)"
+                    "?x" <=> "(i64.sub ?x i64.const.1)"
                         if self.is_type("?x", PrimitiveTypeInfo::I64)
                 ));
 
                 // `x <=> x & 1`
                 rules.extend(rewrite!(
                     "i32.and-1";
-                    "?x" <=> "(i32.and ?x 1_i32)"
+                    "?x" <=> "(i32.and ?x i32.const.1)"
                         if self.is_type("?x", PrimitiveTypeInfo::I32)
                 ));
                 rules.extend(rewrite!(
                     "i64.and-1";
-                    "?x" <=> "(i64.and ?x 1_i64)"
+                    "?x" <=> "(i64.and ?x i64.const.1)"
                         if self.is_type("?x", PrimitiveTypeInfo::I64)
                 ));
 
                 // `x <=> x | 1`
                 rules.extend(rewrite!(
                     "i32.or-1";
-                    "?x" <=> "(i32.or ?x 1_i32)"
+                    "?x" <=> "(i32.or ?x i32.const.1)"
                         if self.is_type("?x", PrimitiveTypeInfo::I32)
                 ));
                 rules.extend(rewrite!(
                     "i64.or-1";
-                    "?x" <=> "(i64.or ?x 1_i64)"
+                    "?x" <=> "(i64.or ?x i64.const.1)"
                         if self.is_type("?x", PrimitiveTypeInfo::I64)
                 ));
 
                 // `x <=> x ^ 1`
                 rules.extend(rewrite!(
                     "i32.xor-1";
-                    "?x" <=> "(i32.xor ?x 1_i32)"
+                    "?x" <=> "(i32.xor ?x i32.const.1)"
                         if self.is_type("?x", PrimitiveTypeInfo::I32)
                 ));
                 rules.extend(rewrite!(
                     "i64.xor-1";
-                    "?x" <=> "(i64.xor ?x 1_i64)"
+                    "?x" <=> "(i64.xor ?x i64.const.1)"
                         if self.is_type("?x", PrimitiveTypeInfo::I64)
                 ));
 
                 // `x <=> x << 1`
                 rules.extend(rewrite!(
                     "i32.shl-1";
-                    "?x" <=> "(i32.shl ?x 1_i32)"
+                    "?x" <=> "(i32.shl ?x i32.const.1)"
                         if self.is_type("?x", PrimitiveTypeInfo::I32)
                 ));
                 rules.extend(rewrite!(
                     "i64.shl-1";
-                    "?x" <=> "(i64.shl ?x 1_i64)"
+                    "?x" <=> "(i64.shl ?x i64.const.1)"
                         if self.is_type("?x", PrimitiveTypeInfo::I64)
                 ));
 
                 // `x <=> x >> 1`
                 rules.extend(rewrite!(
                     "i32.shr_u-1";
-                    "?x" <=> "(i32.shr_u ?x 1_i32)"
+                    "?x" <=> "(i32.shr_u ?x i32.const.1)"
                         if self.is_type("?x", PrimitiveTypeInfo::I32)
                 ));
                 rules.extend(rewrite!(
                     "i64.shr_u-1";
-                    "?x" <=> "(i64.shr_u ?x 1_i64)"
+                    "?x" <=> "(i64.shr_u ?x i64.const.1)"
                         if self.is_type("?x", PrimitiveTypeInfo::I64)
                 ));
                 rules.extend(rewrite!(
                     "i32.shr_s-1";
-                    "?x" <=> "(i32.shr_s ?x 1_i32)"
+                    "?x" <=> "(i32.shr_s ?x i32.const.1)"
                         if self.is_type("?x", PrimitiveTypeInfo::I32)
                 ));
                 rules.extend(rewrite!(
                     "i64.shr_s-1";
-                    "?x" <=> "(i64.shr_s ?x 1_i64)"
+                    "?x" <=> "(i64.shr_s ?x i64.const.1)"
                         if self.is_type("?x", PrimitiveTypeInfo::I64)
                 ));
             }

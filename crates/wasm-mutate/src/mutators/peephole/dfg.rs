@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use egg::{Id, Language, RecExpr};
 use wasmparser::{Operator, Range};
 
-use crate::mutators::peephole::Lang;
+use crate::mutators::peephole::{Lang, MemArg};
 use crate::ModuleInfo;
 
 use crate::mutators::OperatorAndByteOffset;
@@ -385,7 +385,7 @@ impl<'a> DFGBuilder {
                             // Add this as a new operator
                             self.register_node(
                                 Lang::Call(
-                                    *function_index as usize,
+                                    *function_index,
                                     operands.iter().map(|i| Id::from(*i)).collect::<Vec<_>>(),
                                 ),
                                 idx,
@@ -428,173 +428,31 @@ impl<'a> DFGBuilder {
                     self.new_color();
                 }
 
-                Operator::I32Store { memarg } => {
-                    self.store(idx, |offset, value| Lang::I32Store {
-                        value_and_offset: [offset, value],
-                        static_offset: memarg.offset,
-                        align: memarg.align,
-                        mem: memarg.memory,
-                    });
-                    self.new_color();
-                }
-                Operator::I64Store { memarg } => {
-                    self.store(idx, |offset, value| Lang::I64Store {
-                        value_and_offset: [offset, value],
-                        static_offset: memarg.offset,
-                        align: memarg.align,
-                        mem: memarg.memory,
-                    });
-                    self.new_color();
-                }
-                Operator::F32Store { memarg } => {
-                    self.store(idx, |offset, value| Lang::F32Store {
-                        value_and_offset: [offset, value],
-                        static_offset: memarg.offset,
-                        align: memarg.align,
-                        mem: memarg.memory,
-                    });
-                    self.new_color();
-                }
-                Operator::F64Store { memarg } => {
-                    self.store(idx, |offset, value| Lang::F64Store {
-                        value_and_offset: [offset, value],
-                        static_offset: memarg.offset,
-                        align: memarg.align,
-                        mem: memarg.memory,
-                    });
-                    self.new_color();
-                }
-                Operator::I32Store8 { memarg } => {
-                    self.store(idx, |offset, value| Lang::I32Store8 {
-                        value_and_offset: [offset, value],
-                        static_offset: memarg.offset,
-                        align: memarg.align,
-                        mem: memarg.memory,
-                    });
-                    self.new_color();
-                }
-                Operator::I32Store16 { memarg } => {
-                    self.store(idx, |offset, value| Lang::I32Store16 {
-                        value_and_offset: [offset, value],
-                        static_offset: memarg.offset,
-                        align: memarg.align,
-                        mem: memarg.memory,
-                    });
-                    self.new_color();
-                }
-                Operator::I64Store8 { memarg } => {
-                    self.store(idx, |offset, value| Lang::I64Store8 {
-                        value_and_offset: [offset, value],
-                        static_offset: memarg.offset,
-                        align: memarg.align,
-                        mem: memarg.memory,
-                    });
-                    self.new_color();
-                }
-                Operator::I64Store16 { memarg } => {
-                    self.store(idx, |offset, value| Lang::I64Store16 {
-                        value_and_offset: [offset, value],
-                        static_offset: memarg.offset,
-                        align: memarg.align,
-                        mem: memarg.memory,
-                    });
-                    self.new_color();
-                }
-                Operator::I64Store32 { memarg } => {
-                    self.store(idx, |offset, value| Lang::I64Store32 {
-                        value_and_offset: [offset, value],
-                        static_offset: memarg.offset,
-                        align: memarg.align,
-                        mem: memarg.memory,
-                    });
-                    self.new_color();
-                }
+                Operator::I32Store { memarg } => self.store(idx, memarg, Lang::I32Store),
+                Operator::I64Store { memarg } => self.store(idx, memarg, Lang::I64Store),
+                Operator::F32Store { memarg } => self.store(idx, memarg, Lang::F32Store),
+                Operator::F64Store { memarg } => self.store(idx, memarg, Lang::F64Store),
+                Operator::I32Store8 { memarg } => self.store(idx, memarg, Lang::I32Store8),
+                Operator::I32Store16 { memarg } => self.store(idx, memarg, Lang::I32Store16),
+                Operator::I64Store8 { memarg } => self.store(idx, memarg, Lang::I64Store8),
+                Operator::I64Store16 { memarg } => self.store(idx, memarg, Lang::I64Store16),
+                Operator::I64Store32 { memarg } => self.store(idx, memarg, Lang::I64Store32),
 
                 // All memory loads
-                Operator::I32Load { memarg } => self.unop_cb(idx, |offset| Lang::I32Load {
-                    offset,
-                    static_offset: memarg.offset,
-                    align: memarg.align,
-                    mem: memarg.memory,
-                }),
-                Operator::I64Load { memarg } => self.unop_cb(idx, |offset| Lang::I64Load {
-                    offset,
-                    static_offset: memarg.offset,
-                    align: memarg.align,
-                    mem: memarg.memory,
-                }),
-                Operator::F32Load { memarg } => self.unop_cb(idx, |offset| Lang::F32Load {
-                    offset,
-                    static_offset: memarg.offset,
-                    align: memarg.align,
-                    mem: memarg.memory,
-                }),
-                Operator::F64Load { memarg } => self.unop_cb(idx, |offset| Lang::F64Load {
-                    offset,
-                    static_offset: memarg.offset,
-                    align: memarg.align,
-                    mem: memarg.memory,
-                }),
-                Operator::I32Load8S { memarg } => self.unop_cb(idx, |offset| Lang::I32Load8S {
-                    offset,
-                    static_offset: memarg.offset,
-                    align: memarg.align,
-                    mem: memarg.memory,
-                }),
-                Operator::I32Load8U { memarg } => self.unop_cb(idx, |offset| Lang::I32Load8U {
-                    offset,
-                    static_offset: memarg.offset,
-                    align: memarg.align,
-                    mem: memarg.memory,
-                }),
-                Operator::I32Load16S { memarg } => self.unop_cb(idx, |offset| Lang::I32Load16S {
-                    offset,
-                    static_offset: memarg.offset,
-                    align: memarg.align,
-                    mem: memarg.memory,
-                }),
-                Operator::I32Load16U { memarg } => self.unop_cb(idx, |offset| Lang::I32Load16U {
-                    offset,
-                    static_offset: memarg.offset,
-                    align: memarg.align,
-                    mem: memarg.memory,
-                }),
-                Operator::I64Load8S { memarg } => self.unop_cb(idx, |offset| Lang::I64Load8S {
-                    offset,
-                    static_offset: memarg.offset,
-                    align: memarg.align,
-                    mem: memarg.memory,
-                }),
-                Operator::I64Load8U { memarg } => self.unop_cb(idx, |offset| Lang::I64Load8U {
-                    offset,
-                    static_offset: memarg.offset,
-                    align: memarg.align,
-                    mem: memarg.memory,
-                }),
-                Operator::I64Load16S { memarg } => self.unop_cb(idx, |offset| Lang::I64Load16S {
-                    offset,
-                    static_offset: memarg.offset,
-                    align: memarg.align,
-                    mem: memarg.memory,
-                }),
-                Operator::I64Load16U { memarg } => self.unop_cb(idx, |offset| Lang::I64Load16U {
-                    offset,
-                    static_offset: memarg.offset,
-                    align: memarg.align,
-                    mem: memarg.memory,
-                }),
-                Operator::I64Load32S { memarg } => self.unop_cb(idx, |offset| Lang::I64Load32S {
-                    offset,
-                    static_offset: memarg.offset,
-                    align: memarg.align,
-                    mem: memarg.memory,
-                }),
-                Operator::I64Load32U { memarg } => self.unop_cb(idx, |offset| Lang::I64Load32U {
-                    offset,
-                    static_offset: memarg.offset,
-                    align: memarg.align,
-                    mem: memarg.memory,
-                }),
+                Operator::I32Load { memarg } => self.load(idx, memarg, Lang::I32Load),
+                Operator::I64Load { memarg } => self.load(idx, memarg, Lang::I64Load),
+                Operator::F32Load { memarg } => self.load(idx, memarg, Lang::F32Load),
+                Operator::F64Load { memarg } => self.load(idx, memarg, Lang::F64Load),
+                Operator::I32Load8S { memarg } => self.load(idx, memarg, Lang::I32Load8S),
+                Operator::I32Load8U { memarg } => self.load(idx, memarg, Lang::I32Load8U),
+                Operator::I32Load16S { memarg } => self.load(idx, memarg, Lang::I32Load16S),
+                Operator::I32Load16U { memarg } => self.load(idx, memarg, Lang::I32Load16U),
+                Operator::I64Load8S { memarg } => self.load(idx, memarg, Lang::I64Load8S),
+                Operator::I64Load8U { memarg } => self.load(idx, memarg, Lang::I64Load8U),
+                Operator::I64Load16S { memarg } => self.load(idx, memarg, Lang::I64Load16S),
+                Operator::I64Load16U { memarg } => self.load(idx, memarg, Lang::I64Load16U),
+                Operator::I64Load32S { memarg } => self.load(idx, memarg, Lang::I64Load32S),
+                Operator::I64Load32U { memarg } => self.load(idx, memarg, Lang::I64Load32U),
 
                 Operator::I32Eqz => self.unop(idx, Lang::I32Eqz),
                 Operator::I64Eqz => self.unop(idx, Lang::I64Eqz),
@@ -763,25 +621,12 @@ impl<'a> DFGBuilder {
                         idx,
                     );
                 }
-                Operator::MemoryGrow { mem, mem_byte } => {
+                Operator::MemoryGrow { mem, mem_byte: _ } => {
                     let arg = self.pop_operand(idx, false);
-                    self.push_node(
-                        Lang::MemoryGrow {
-                            mem: *mem,
-                            mem_byte: *mem_byte,
-                            by: Id::from(arg),
-                        },
-                        idx,
-                    );
+                    self.push_node(Lang::MemoryGrow(*mem, Id::from(arg)), idx);
                 }
-                Operator::MemorySize { mem, mem_byte } => {
-                    self.push_node(
-                        Lang::MemorySize {
-                            mem: *mem,
-                            mem_byte: *mem_byte,
-                        },
-                        idx,
-                    );
+                Operator::MemorySize { mem, mem_byte: _ } => {
+                    self.push_node(Lang::MemorySize(*mem), idx);
                 }
                 _ => {
                     // If the operator is not implemented, break the mutation of this Basic Block
@@ -801,6 +646,15 @@ impl<'a> DFGBuilder {
         self.unop_cb(idx, |id| op([id]))
     }
 
+    fn load(
+        &mut self,
+        idx: usize,
+        memarg: &wasmparser::MemoryImmediate,
+        op: fn(MemArg, Id) -> Lang,
+    ) {
+        self.unop_cb(idx, |id| op(memarg.into(), id))
+    }
+
     fn unop_cb(&mut self, idx: usize, op: impl Fn(Id) -> Lang) {
         let arg = self.pop_operand(idx, false);
         self.push_node(op(Id::from(arg)), idx);
@@ -816,14 +670,22 @@ impl<'a> DFGBuilder {
         self.push_node(op([Id::from(rightidx), Id::from(leftidx)]), idx);
     }
 
-    fn store(&mut self, idx: usize, op: impl Fn(Id, Id) -> Lang) {
+    fn store(
+        &mut self,
+        idx: usize,
+        memarg: &wasmparser::MemoryImmediate,
+        op: fn(MemArg, [Id; 2]) -> Lang,
+    ) {
         let leftidx = self.pop_operand(idx, false);
         let rightidx = self.pop_operand(idx, false);
 
         // The operands should not be the same
         assert_ne!(leftidx, rightidx);
 
-        self.empty_node(op(Id::from(rightidx), Id::from(leftidx)), idx);
+        self.empty_node(
+            op(memarg.into(), [Id::from(rightidx), Id::from(leftidx)]),
+            idx,
+        );
     }
 }
 
@@ -836,6 +698,16 @@ impl std::fmt::Debug for MiniDFG {
 impl std::fmt::Display for MiniDFG {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Debug::fmt(self, f)
+    }
+}
+
+impl From<&wasmparser::MemoryImmediate> for MemArg {
+    fn from(mem: &wasmparser::MemoryImmediate) -> MemArg {
+        MemArg {
+            align: mem.align,
+            mem: mem.memory,
+            static_offset: mem.offset,
+        }
     }
 }
 
