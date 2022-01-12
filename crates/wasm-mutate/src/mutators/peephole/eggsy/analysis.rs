@@ -262,8 +262,8 @@ impl PeepholeMutationAnalysis {
 
     /// Returns the function type based on the index of the function type
     /// `types[functions[idx]]`
-    pub fn get_functype_idx(&self, idx: usize) -> &TypeInfo {
-        let functpeindex = self.function_map[idx] as usize;
+    pub fn get_functype_idx(&self, idx: u32) -> &TypeInfo {
+        let functpeindex = self.function_map[idx as usize] as usize;
         &self.types_map[functpeindex]
     }
 }
