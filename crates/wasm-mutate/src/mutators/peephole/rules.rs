@@ -24,7 +24,7 @@ impl PeepholeMutator {
             // NB: these only go one way when we are reducing.
             rules.extend(vec![
                 rewrite!("i32.or--1"; "(i32.or ?x i32.const.-1)" => "i32.const.-1"),
-                rewrite!("i64.or--1"; "(i64.or ?x -i64.const.1)" => "-i64.const.1"),
+                rewrite!("i64.or--1"; "(i64.or ?x i64.const.-1)" => "i64.const.-1"),
                 rewrite!("i32.or-x-x"; "(i32.or ?x ?x)" => "?x"),
                 rewrite!("i64.or-x-x"; "(i64.or ?x ?x)" => "?x"),
                 rewrite!("i32.and-x-x"; "(i32.and ?x ?x)" => "?x"),
