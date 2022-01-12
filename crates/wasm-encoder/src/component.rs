@@ -44,8 +44,9 @@ const TYPE_REF_ADAPTER_FUNCTION: u8 = 0x06;
 const CANONICAL_OPTION_UTF8: u8 = 0x00;
 const CANONICAL_OPTION_UTF16: u8 = 0x01;
 const CANONICAL_OPTION_COMPACT_UTF16: u8 = 0x02;
-const CANONICAL_OPTION_WITH_REALLOC: u8 = 0x03;
-const CANONICAL_OPTION_WITH_FREE: u8 = 0x04;
+const CANONICAL_OPTION_MEMORY: u8 = 0x03;
+const CANONICAL_OPTION_REALLOC: u8 = 0x04;
+const CANONICAL_OPTION_FREE: u8 = 0x05;
 
 /// A WebAssembly component section.
 ///
@@ -296,10 +297,12 @@ pub enum CanonicalOption {
     UTF16,
     /// The string types in the function signature are compact UTF-16 encoded.
     CompactUTF16,
+    /// Specifies the memory to use.
+    Memory(u32),
     /// Specifies the function to use to reallocate memory.
-    WithRealloc(u32),
+    Realloc(u32),
     /// Specifies the function to use to free memory.
-    WithFree(u32),
+    Free(u32),
 }
 
 impl CanonicalOption {
@@ -308,12 +311,16 @@ impl CanonicalOption {
             Self::UTF8 => bytes.push(CANONICAL_OPTION_UTF8),
             Self::UTF16 => bytes.push(CANONICAL_OPTION_UTF16),
             Self::CompactUTF16 => bytes.push(CANONICAL_OPTION_COMPACT_UTF16),
-            Self::WithRealloc(index) => {
-                bytes.push(CANONICAL_OPTION_WITH_REALLOC);
+            Self::Memory(index) => {
+                bytes.push(CANONICAL_OPTION_MEMORY);
                 bytes.extend(encoders::u32(*index));
             }
-            Self::WithFree(index) => {
-                bytes.push(CANONICAL_OPTION_WITH_FREE);
+            Self::Realloc(index) => {
+                bytes.push(CANONICAL_OPTION_REALLOC);
+                bytes.extend(encoders::u32(*index));
+            }
+            Self::Free(index) => {
+                bytes.push(CANONICAL_OPTION_FREE);
                 bytes.extend(encoders::u32(*index));
             }
         }

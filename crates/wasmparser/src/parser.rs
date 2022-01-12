@@ -8,6 +8,9 @@ use std::convert::TryInto;
 use std::fmt;
 use std::iter;
 
+const WASM_EXPERIMENTAL_VERSION: u32 = 0xd;
+pub(crate) const WASM_MODULE_VERSION: u32 = 0x1;
+
 /// An incremental parser of a binary WebAssembly module.
 ///
 /// This type is intended to be used to incrementally parse a WebAssembly module
@@ -17,14 +20,14 @@ use std::iter;
 /// This primary function for a parser is the [`Parser::parse`] function which
 /// will incrementally consume input. You can also use the [`Parser::parse_all`]
 /// function to parse a module that is entirely resident in memory.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Parser {
     state: State,
     offset: u64,
     max_size: u64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 enum State {
     ModuleHeader,
     SectionStart,
@@ -251,11 +254,15 @@ impl Parser {
     ///
     /// Reports errors and ranges relative to `offset` provided, where `offset`
     /// is some logical offset within the input stream that we're parsing.
-    pub fn new(offset: u64) -> Parser {
-        Parser {
+    pub fn new(offset: u64) -> Self {
+        Self::new_with_max_size(offset, u64::max_value())
+    }
+
+    pub(crate) fn new_with_max_size(offset: u64, max_size: u64) -> Self {
+        Self {
             state: State::ModuleHeader,
             offset,
-            max_size: u64::max_value(),
+            max_size,
         }
     }
 
@@ -447,10 +454,16 @@ impl Parser {
         match self.state {
             State::ModuleHeader => {
                 let start = reader.original_position();
-                let num = reader.read_file_header()?;
+                let version = reader.read_module_version()?;
+                if version != WASM_MODULE_VERSION && version != WASM_EXPERIMENTAL_VERSION {
+                    return Err(BinaryReaderError::new(
+                        "Bad version number",
+                        reader.original_position() - 4,
+                    ));
+                }
                 self.state = State::SectionStart;
                 Ok(Version {
-                    num,
+                    num: version,
                     range: Range {
                         start,
                         end: reader.original_position(),
@@ -495,7 +508,9 @@ impl Parser {
                         // Note that if this fails we can't read any more bytes,
                         // so clear the "we'd succeed if we got this many more
                         // bytes" because we can't recover from "eof" at this point.
-                        let name = content.read_string().map_err(clear_hint)?;
+                        let name = content
+                            .read_string()
+                            .map_err(BinaryReaderError::clear_hint)?;
                         Ok(Payload::CustomSection {
                             name,
                             data_offset: content.original_position(),
@@ -726,8 +741,8 @@ impl Parser {
                 // Afterwards we turn the loop again to recurse in parsing the
                 // nested module.
                 Payload::ModuleSectionEntry { parser, range: _ } => {
-                    stack.push(cur.clone());
-                    cur = parser.clone();
+                    stack.push(cur);
+                    cur = *parser;
                 }
 
                 _ => {}
@@ -802,7 +817,7 @@ impl Parser {
     }
 }
 
-fn usize_to_u64(a: usize) -> u64 {
+pub(crate) fn usize_to_u64(a: usize) -> u64 {
     a.try_into().unwrap()
 }
 
@@ -821,7 +836,7 @@ fn section<'a, T>(
     // clear the hint for "need this many more bytes" here because we already
     // read all the bytes, so it's not possible to read more bytes if this
     // fails.
-    let reader = ctor(payload, offset).map_err(clear_hint)?;
+    let reader = ctor(payload, offset).map_err(BinaryReaderError::clear_hint)?;
     Ok(variant(reader))
 }
 
@@ -830,7 +845,7 @@ fn section<'a, T>(
 ///
 /// This means that `len` bytes must be resident in memory at the time of this
 /// reading.
-fn subreader<'a>(reader: &mut BinaryReader<'a>, len: u32) -> Result<BinaryReader<'a>> {
+pub(crate) fn subreader<'a>(reader: &mut BinaryReader<'a>, len: u32) -> Result<BinaryReader<'a>> {
     let offset = reader.original_position();
     let payload = reader.read_bytes(len as usize)?;
     Ok(BinaryReader::new_with_offset(payload, offset))
@@ -846,7 +861,9 @@ fn single_u32<'a>(reader: &mut BinaryReader<'a>, len: u32, desc: &str) -> Result
     // We can't recover from "unexpected eof" here because our entire section is
     // already resident in memory, so clear the hint for how many more bytes are
     // expected.
-    let index = content.read_var_u32().map_err(clear_hint)?;
+    let index = content
+        .read_var_u32()
+        .map_err(BinaryReaderError::clear_hint)?;
     if !content.eof() {
         return Err(BinaryReaderError::new(
             format!("Unexpected content in the {} section", desc),
@@ -861,7 +878,7 @@ fn single_u32<'a>(reader: &mut BinaryReader<'a>, len: u32, desc: &str) -> Result
 /// This will update `*len` with the number of bytes consumed, and it will cause
 /// a failure to be returned instead of the number of bytes consumed exceeds
 /// what `*len` currently is.
-fn delimited<'a, T>(
+pub(crate) fn delimited<'a, T>(
     reader: &mut BinaryReader<'a>,
     len: &mut u32,
     f: impl FnOnce(&mut BinaryReader<'a>) -> Result<T>,
@@ -953,11 +970,6 @@ impl fmt::Debug for Payload<'_> {
             End => f.write_str("End"),
         }
     }
-}
-
-fn clear_hint(mut err: BinaryReaderError) -> BinaryReaderError {
-    err.inner.needed_hint = None;
-    err
 }
 
 #[cfg(test)]

@@ -388,7 +388,7 @@ impl Validator {
             UnknownSection { id, range, .. } => self.unknown_section(*id, range)?,
             ModuleSectionEntry { parser, .. } => {
                 self.module_section_entry();
-                return Ok(ValidPayload::Submodule(parser.clone()));
+                return Ok(ValidPayload::Submodule(*parser));
             }
         }
         Ok(ValidPayload::Ok)

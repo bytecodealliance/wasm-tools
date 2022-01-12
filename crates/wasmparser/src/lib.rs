@@ -33,6 +33,7 @@ pub use crate::readers::*;
 pub use crate::validator::*;
 
 mod binary_reader;
+pub mod component;
 mod limits;
 mod module_resources;
 mod operators_validator;

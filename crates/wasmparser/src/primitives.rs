@@ -25,6 +25,13 @@ pub struct BinaryReaderError {
     pub(crate) inner: Box<BinaryReaderErrorInner>,
 }
 
+impl BinaryReaderError {
+    pub(crate) fn clear_hint(mut self) -> Self {
+        self.inner.needed_hint = None;
+        self
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct BinaryReaderErrorInner {
     pub(crate) message: String,

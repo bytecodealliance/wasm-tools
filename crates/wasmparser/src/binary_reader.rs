@@ -37,8 +37,6 @@ fn is_name_prefix(name: &str, prefix: &'static str) -> bool {
 }
 
 const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
-const WASM_EXPERIMENTAL_VERSION: u32 = 0xd;
-const WASM_SUPPORTED_VERSION: u32 = 0x1;
 
 /// Bytecode range in the WebAssembly module.
 #[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -1864,7 +1862,7 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    pub(crate) fn read_file_header(&mut self) -> Result<u32> {
+    pub(crate) fn read_module_version(&mut self) -> Result<u32> {
         let magic_number = self.read_bytes(4)?;
         if magic_number != WASM_MAGIC_NUMBER {
             return Err(BinaryReaderError::new(
@@ -1872,14 +1870,8 @@ impl<'a> BinaryReader<'a> {
                 self.original_position() - 4,
             ));
         }
-        let version = self.read_u32()?;
-        if version != WASM_SUPPORTED_VERSION && version != WASM_EXPERIMENTAL_VERSION {
-            return Err(BinaryReaderError::new(
-                "Bad version number",
-                self.original_position() - 4,
-            ));
-        }
-        Ok(version)
+
+        self.read_u32()
     }
 
     pub(crate) fn read_name_type(&mut self) -> Result<NameType> {
