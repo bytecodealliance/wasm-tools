@@ -111,7 +111,7 @@ impl IndexRef {
 /// This primary function for a parser is the [`Parser::parse`] function which
 /// will incrementally consume input. You can also use the [`Parser::parse_all`]
 /// function to parse a component that is entirely resident in memory.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct Parser {
     state: State,
     offset: u64,
@@ -576,8 +576,8 @@ impl Parser {
                     subparser,
                     range: _,
                 } => {
-                    stack.push(cur);
-                    cur = *subparser;
+                    stack.push(cur.clone());
+                    cur = subparser.clone();
                 }
 
                 _ => {}
@@ -650,7 +650,7 @@ impl Parser {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 enum State {
     /// The header is being parsed.
     Header,
@@ -868,7 +868,7 @@ impl fmt::Debug for Payload<'_> {
 
 /// Represents the possible sub-parsers that can be returned while
 /// parsing a WebAssembly component's module section.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum SubParser {
     /// The subparser for a WebAssembly module.
     Module(crate::Parser),

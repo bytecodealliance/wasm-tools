@@ -20,14 +20,14 @@ pub(crate) const WASM_MODULE_VERSION: u32 = 0x1;
 /// This primary function for a parser is the [`Parser::parse`] function which
 /// will incrementally consume input. You can also use the [`Parser::parse_all`]
 /// function to parse a module that is entirely resident in memory.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Parser {
     state: State,
     offset: u64,
     max_size: u64,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 enum State {
     ModuleHeader,
     SectionStart,
@@ -741,8 +741,8 @@ impl Parser {
                 // Afterwards we turn the loop again to recurse in parsing the
                 // nested module.
                 Payload::ModuleSectionEntry { parser, range: _ } => {
-                    stack.push(cur);
-                    cur = *parser;
+                    stack.push(cur.clone());
+                    cur = parser.clone();
                 }
 
                 _ => {}
