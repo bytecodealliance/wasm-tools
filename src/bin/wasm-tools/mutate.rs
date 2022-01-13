@@ -75,17 +75,17 @@ impl Opts {
         };
 
         let stdout = stdout();
-        let (mut output, output_name): (Box<dyn Write>, _) = match &self.output {
+        let (mut output, output_name, output_wat): (Box<dyn Write>, _, _) = match &self.output {
             Some(f) => {
                 let output = Box::new(
                     fs::File::create(f)
                         .with_context(|| format!("failed to create '{}'", f.display()))?,
                 );
-                (output, f.display().to_string())
+                (output, f.display().to_string(), false)
             }
             None => {
                 let output = Box::new(stdout.lock());
-                (output, "<stdout>".to_string())
+                (output, "<stdout>".to_string(), true)
             }
         };
 
@@ -106,19 +106,29 @@ impl Opts {
         let mut output_wasms =
             unwrap_wasm_mutate_result(self.wasm_mutate.run(input_wasm)).take(100);
         let wasm = loop {
-            if let Some(res) = output_wasms.next() {
-                match res {
-                    Err(e) if matches!(e.kind(), ErrorKind::NoMutationsApplicable) => {
-                        // Try the next mutation.
-                        continue;
-                    }
-                    _ => break unwrap_wasm_mutate_result(res),
+            let res = match output_wasms.next() {
+                Some(res) => res,
+                None => {
+                    eprintln!("no mutations found");
+                    std::process::exit(3);
                 }
+            };
+            match res {
+                Err(e) if matches!(e.kind(), ErrorKind::NoMutationsApplicable) => {
+                    // Try the next mutation.
+                    continue;
+                }
+                _ => break unwrap_wasm_mutate_result(res),
             }
         };
 
+        let output_bytes = if output_wat {
+            wasmprinter::print_bytes(&wasm)?.into_bytes()
+        } else {
+            wasm
+        };
         output
-            .write_all(&wasm)
+            .write_all(&output_bytes)
             .with_context(|| format!("failed to write to '{}'", output_name))?;
 
         Ok(())

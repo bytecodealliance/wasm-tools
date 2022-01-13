@@ -638,6 +638,20 @@ lang! {
         /// Memory size operator
         MemorySize(u32) = "memory.size",
 
+        MemoryInit(MemoryInit, [Id; 3]) = "memory.init",
+        DataDrop(u32) = "data.drop",
+        MemoryCopy(MemoryCopy, [Id; 3]) = "memory.copy",
+        MemoryFill(u32, [Id; 3]) = "memory.fill",
+
+        TableInit(TableInit, [Id; 3]) = "table.init",
+        ElemDrop(u32) = "elem.drop",
+        TableCopy(TableCopy, [Id; 3]) = "table.copy",
+        TableFill(u32, [Id; 3]) = "table.fill",
+        TableGet(u32, Id) = "table.get",
+        TableSet(u32, [Id; 2]) = "table.set",
+        TableGrow(u32, [Id; 2]) = "table.grow",
+        TableSize(u32) = "table.size",
+
         /// Add custom or others operator nodes below
 
         /// Custom mutation operations and instructions
@@ -790,6 +804,114 @@ impl Children for Vec<Id> {
     }
     fn as_slice_mut(&mut self) -> &mut [Id] {
         self
+    }
+}
+
+fn parse_pair<T: FromStr, U: FromStr>(s: &str) -> Result<(T, U), String>
+where
+    T::Err: fmt::Display,
+    U::Err: fmt::Display,
+{
+    let mut parts = s.split('.');
+    let t = parts
+        .next()
+        .ok_or_else(|| format!("expected more static instr info"))?
+        .parse::<T>()
+        .map_err(|e| e.to_string())?;
+    let u = parts
+        .next()
+        .ok_or_else(|| format!("expected more static instr info"))?
+        .parse::<U>()
+        .map_err(|e| e.to_string())?;
+
+    if parts.next().is_some() {
+        return Err(format!("too much info after instruction"));
+    }
+
+    Ok((t, u))
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
+pub struct TableCopy {
+    pub src: u32,
+    pub dst: u32,
+}
+
+impl fmt::Display for TableCopy {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}.{}", self.src, self.dst)
+    }
+}
+
+impl FromStr for TableCopy {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<TableCopy, String> {
+        let (src, dst) = parse_pair(s)?;
+        Ok(TableCopy { src, dst })
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
+pub struct MemoryCopy {
+    pub src: u32,
+    pub dst: u32,
+}
+
+impl fmt::Display for MemoryCopy {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}.{}", self.src, self.dst)
+    }
+}
+
+impl FromStr for MemoryCopy {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<MemoryCopy, String> {
+        let (src, dst) = parse_pair(s)?;
+        Ok(MemoryCopy { src, dst })
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
+pub struct TableInit {
+    pub table: u32,
+    pub segment: u32,
+}
+
+impl fmt::Display for TableInit {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}.{}", self.table, self.segment)
+    }
+}
+
+impl FromStr for TableInit {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<TableInit, String> {
+        let (table, segment) = parse_pair(s)?;
+        Ok(TableInit { table, segment })
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
+pub struct MemoryInit {
+    pub memory: u32,
+    pub segment: u32,
+}
+
+impl fmt::Display for MemoryInit {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}.{}", self.memory, self.segment)
+    }
+}
+
+impl FromStr for MemoryInit {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<MemoryInit, String> {
+        let (memory, segment) = parse_pair(s)?;
+        Ok(MemoryInit { memory, segment })
     }
 }
 

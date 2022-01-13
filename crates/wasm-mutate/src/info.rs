@@ -49,6 +49,7 @@ pub struct ModuleInfo<'a> {
     // function idx to type idx
     pub function_map: Vec<u32>,
     pub global_types: Vec<PrimitiveTypeInfo>,
+    pub table_elem_types: Vec<PrimitiveTypeInfo>,
 
     // raw_sections
     pub raw_sections: Vec<RawSection<'a>>,
@@ -117,9 +118,10 @@ impl<'a> ModuleInfo<'a> {
                                 info.memory_count += 1;
                                 info.imported_memories_count += 1;
                             }
-                            wasmparser::ImportSectionEntryType::Table(_ty) => {
+                            wasmparser::ImportSectionEntryType::Table(ty) => {
                                 info.table_count += 1;
                                 info.imported_tables_count += 1;
+                                info.table_elem_types.push(ty.element_type.into());
                             }
                             wasmparser::ImportSectionEntryType::Tag(_ty) => {
                                 info.tag_count += 1;
@@ -141,10 +143,16 @@ impl<'a> ModuleInfo<'a> {
                         })?;
                     }
                 }
-                Payload::TableSection(reader) => {
+                Payload::TableSection(mut reader) => {
                     info.tables = Some(info.raw_sections.len());
                     info.table_count += reader.get_count();
                     info.section(SectionId::Table.into(), reader.range(), input_wasm);
+
+                    for _ in 0..reader.get_count() {
+                        let ty = reader.read()?;
+                        let ty = PrimitiveTypeInfo::try_from(ty.element_type).unwrap();
+                        info.table_elem_types.push(ty);
+                    }
                 }
                 Payload::MemorySection(reader) => {
                     info.memories = Some(info.raw_sections.len());

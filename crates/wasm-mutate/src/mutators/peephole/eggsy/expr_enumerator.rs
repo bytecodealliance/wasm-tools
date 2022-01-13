@@ -180,14 +180,13 @@ pub fn lazy_expand_aux<'a>(
 
 #[cfg(test)]
 mod tests {
-    use std::{cell::RefCell, collections::HashMap, rc::Rc};
-
-    use egg::{rewrite, AstSize, RecExpr, Rewrite, Runner};
-    use rand::{prelude::SmallRng, SeedableRng};
-
     use crate::mutators::peephole::eggsy::{
         analysis::PeepholeMutationAnalysis, expr_enumerator::lazy_expand, lang::Lang,
     };
+    use crate::ModuleInfo;
+    use egg::{rewrite, AstSize, RecExpr, Rewrite, Runner};
+    use rand::{prelude::SmallRng, SeedableRng};
+    use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
     #[derive(Clone, Copy, Debug)]
     struct Mimi {
@@ -230,7 +229,9 @@ mod tests {
 
         let expr = "(i32.add i32.const.100 i32.const.200)";
 
-        let analysis = PeepholeMutationAnalysis::new(vec![], vec![], vec![], vec![]);
+        let empty_wasm = wat::parse_str("(module)").unwrap();
+        let info = ModuleInfo::new(&empty_wasm).unwrap();
+        let analysis = PeepholeMutationAnalysis::new(&info, vec![]);
         let runner = Runner::<Lang, PeepholeMutationAnalysis, ()>::new(analysis)
             .with_iter_limit(1) // only one iterations, do not wait for eq saturation, increasing only by one it affects the execution time of the mutator by a lot
             .with_expr(&expr.parse().unwrap())

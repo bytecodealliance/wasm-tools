@@ -155,7 +155,7 @@ pub struct WasmMutate<'wasm> {
     /// The RNG seed used to choose which transformation to apply. Given the
     /// same input Wasm and same seed, `wasm-mutate` will always generate the
     /// same output Wasm.
-    #[cfg_attr(feature = "clap", clap(short, long))]
+    #[cfg_attr(feature = "clap", clap(short, long, default_value = "42"))]
     seed: u64,
 
     /// Only perform semantics-preserving transformations on the Wasm module.

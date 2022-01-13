@@ -665,6 +665,54 @@ pub fn expr2wasm(
                     Lang::MemorySize(mem) => {
                         newfunc.instruction(&Instruction::MemorySize(*mem));
                     }
+                    Lang::MemoryInit(init, _) => {
+                        newfunc.instruction(&Instruction::MemoryInit {
+                            mem: init.memory,
+                            data: init.segment,
+                        });
+                    }
+                    Lang::MemoryCopy(cp, _) => {
+                        newfunc.instruction(&Instruction::MemoryCopy {
+                            src: cp.src,
+                            dst: cp.dst,
+                        });
+                    }
+                    Lang::MemoryFill(mem, _) => {
+                        newfunc.instruction(&Instruction::MemoryFill(*mem));
+                    }
+                    Lang::DataDrop(idx) => {
+                        newfunc.instruction(&Instruction::DataDrop(*idx));
+                    }
+                    Lang::TableInit(init, _) => {
+                        newfunc.instruction(&Instruction::TableInit {
+                            table: init.table,
+                            segment: init.segment,
+                        });
+                    }
+                    Lang::TableCopy(cp, _) => {
+                        newfunc.instruction(&Instruction::TableCopy {
+                            src: cp.src,
+                            dst: cp.dst,
+                        });
+                    }
+                    Lang::TableFill(table, _) => {
+                        newfunc.instruction(&Instruction::TableFill { table: *table });
+                    }
+                    Lang::ElemDrop(idx) => {
+                        newfunc.instruction(&Instruction::ElemDrop { segment: *idx });
+                    }
+                    Lang::TableGrow(table, _) => {
+                        newfunc.instruction(&Instruction::TableGrow { table: *table });
+                    }
+                    Lang::TableSize(table) => {
+                        newfunc.instruction(&Instruction::TableSize { table: *table });
+                    }
+                    Lang::TableGet(table, _) => {
+                        newfunc.instruction(&Instruction::TableGet { table: *table });
+                    }
+                    Lang::TableSet(table, _) => {
+                        newfunc.instruction(&Instruction::TableSet { table: *table });
+                    }
                     Lang::I32UseGlobal(_) => {
                         // Request a new global
                         let request = ResourceRequest::Global {
