@@ -53,6 +53,10 @@ pub struct Opts {
     #[clap(short, long, parse(from_os_str))]
     output: Option<PathBuf>,
 
+    /// Output the text format of WebAssembly instead of the binary format.
+    #[clap(short = 't', long)]
+    wat: bool,
+
     #[clap(flatten)]
     wasm_mutate: wasm_mutate::WasmMutate<'static>,
 }
@@ -75,17 +79,17 @@ impl Opts {
         };
 
         let stdout = stdout();
-        let (mut output, output_name, output_wat): (Box<dyn Write>, _, _) = match &self.output {
+        let (mut output, output_name): (Box<dyn Write>, _) = match &self.output {
             Some(f) => {
                 let output = Box::new(
                     fs::File::create(f)
                         .with_context(|| format!("failed to create '{}'", f.display()))?,
                 );
-                (output, f.display().to_string(), false)
+                (output, f.display().to_string())
             }
             None => {
                 let output = Box::new(stdout.lock());
-                (output, "<stdout>".to_string(), true)
+                (output, "<stdout>".to_string())
             }
         };
 
@@ -122,7 +126,7 @@ impl Opts {
             }
         };
 
-        let output_bytes = if output_wat {
+        let output_bytes = if self.wat {
             wasmprinter::print_bytes(&wasm)?.into_bytes()
         } else {
             wasm
