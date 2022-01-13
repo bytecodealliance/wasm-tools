@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use egg::{Id, Language, RecExpr};
 use wasmparser::{Operator, Range};
 
-use crate::mutators::peephole::{Lang, MemArg};
+use crate::mutators::peephole::{Lang, MemArg, MemoryCopy, MemoryInit, TableCopy, TableInit};
 use crate::ModuleInfo;
 
 use crate::mutators::OperatorAndByteOffset;
@@ -628,6 +628,116 @@ impl<'a> DFGBuilder {
                 Operator::MemorySize { mem, mem_byte: _ } => {
                     self.push_node(Lang::MemorySize(*mem), idx);
                 }
+                Operator::TableGrow { table } => {
+                    let elem = self.pop_operand(idx, false);
+                    let size = self.pop_operand(idx, false);
+                    self.push_node(
+                        Lang::TableGrow(*table, [Id::from(size), Id::from(elem)]),
+                        idx,
+                    );
+                }
+                Operator::TableSize { table } => {
+                    self.push_node(Lang::TableSize(*table), idx);
+                }
+
+                Operator::DataDrop { segment } => {
+                    self.empty_node(Lang::DataDrop(*segment), idx);
+                }
+
+                Operator::ElemDrop { segment } => {
+                    self.empty_node(Lang::ElemDrop(*segment), idx);
+                }
+
+                Operator::MemoryInit { mem, segment } => {
+                    let a = Id::from(self.pop_operand(idx, false));
+                    let b = Id::from(self.pop_operand(idx, false));
+                    let c = Id::from(self.pop_operand(idx, false));
+                    self.empty_node(
+                        Lang::MemoryInit(
+                            MemoryInit {
+                                memory: *mem,
+                                segment: *segment,
+                            },
+                            [c, b, a],
+                        ),
+                        idx,
+                    );
+                }
+                Operator::MemoryCopy { src, dst } => {
+                    let a = Id::from(self.pop_operand(idx, false));
+                    let b = Id::from(self.pop_operand(idx, false));
+                    let c = Id::from(self.pop_operand(idx, false));
+                    self.empty_node(
+                        Lang::MemoryCopy(
+                            MemoryCopy {
+                                src: *src,
+                                dst: *dst,
+                            },
+                            [c, b, a],
+                        ),
+                        idx,
+                    );
+                }
+
+                Operator::MemoryFill { mem } => {
+                    let a = Id::from(self.pop_operand(idx, false));
+                    let b = Id::from(self.pop_operand(idx, false));
+                    let c = Id::from(self.pop_operand(idx, false));
+                    self.empty_node(Lang::MemoryFill(*mem, [c, b, a]), idx);
+                }
+
+                Operator::TableInit { table, segment } => {
+                    let a = Id::from(self.pop_operand(idx, false));
+                    let b = Id::from(self.pop_operand(idx, false));
+                    let c = Id::from(self.pop_operand(idx, false));
+                    self.empty_node(
+                        Lang::TableInit(
+                            TableInit {
+                                table: *table,
+                                segment: *segment,
+                            },
+                            [c, b, a],
+                        ),
+                        idx,
+                    );
+                }
+                Operator::TableCopy {
+                    src_table,
+                    dst_table,
+                } => {
+                    let a = Id::from(self.pop_operand(idx, false));
+                    let b = Id::from(self.pop_operand(idx, false));
+                    let c = Id::from(self.pop_operand(idx, false));
+                    self.empty_node(
+                        Lang::TableCopy(
+                            TableCopy {
+                                src: *src_table,
+                                dst: *dst_table,
+                            },
+                            [c, b, a],
+                        ),
+                        idx,
+                    );
+                }
+
+                Operator::TableFill { table } => {
+                    let a = Id::from(self.pop_operand(idx, false));
+                    let b = Id::from(self.pop_operand(idx, false));
+                    let c = Id::from(self.pop_operand(idx, false));
+                    self.empty_node(Lang::MemoryFill(*table, [c, b, a]), idx);
+                }
+
+                Operator::TableGet { table } => {
+                    let arg = Id::from(self.pop_operand(idx, false));
+                    self.push_node(Lang::TableGet(*table, arg), idx);
+                }
+
+                Operator::TableSet { table } => {
+                    let arg1 = Id::from(self.pop_operand(idx, false));
+                    let arg2 = Id::from(self.pop_operand(idx, false));
+                    self.push_node(Lang::TableSet(*table, [arg2, arg1]), idx);
+                }
+
                 _ => {
                     // If the operator is not implemented, break the mutation of this Basic Block
                     return None;

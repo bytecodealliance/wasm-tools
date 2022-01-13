@@ -30,7 +30,7 @@ use self::{
         analysis::PeepholeMutationAnalysis,
         encoder::{expr2wasm::ResourceRequest, Encoder},
         expr_enumerator::lazy_expand_aux,
-        lang::{Lang, MemArg},
+        lang::*,
     },
 };
 use super::{Mutator, OperatorAndByteOffset};
@@ -204,12 +204,7 @@ impl PeepholeMutator {
                     function_to_mutate,
                 );
 
-                let analysis = PeepholeMutationAnalysis::new(
-                    config.info().global_types.clone(),
-                    locals.clone(),
-                    config.info().types_map.clone(),
-                    config.info().function_map.clone(),
-                );
+                let analysis = PeepholeMutationAnalysis::new(config.info(), locals.clone());
                 let runner = Runner::<Lang, PeepholeMutationAnalysis, ()>::new(analysis)
                     .with_iter_limit(1) // FIXME, the iterations should consume fuel from the actual mutator. Be careful with inner set time limits that can lead us to non-deterministic behavior
                     .with_expr(&start)

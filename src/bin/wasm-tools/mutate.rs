@@ -53,6 +53,10 @@ pub struct Opts {
     #[clap(short, long, parse(from_os_str))]
     output: Option<PathBuf>,
 
+    /// Output the text format of WebAssembly instead of the binary format.
+    #[clap(short = 't', long)]
+    wat: bool,
+
     #[clap(flatten)]
     wasm_mutate: wasm_mutate::WasmMutate<'static>,
 }
@@ -106,19 +110,29 @@ impl Opts {
         let mut output_wasms =
             unwrap_wasm_mutate_result(self.wasm_mutate.run(input_wasm)).take(100);
         let wasm = loop {
-            if let Some(res) = output_wasms.next() {
-                match res {
-                    Err(e) if matches!(e.kind(), ErrorKind::NoMutationsApplicable) => {
-                        // Try the next mutation.
-                        continue;
-                    }
-                    _ => break unwrap_wasm_mutate_result(res),
+            let res = match output_wasms.next() {
+                Some(res) => res,
+                None => {
+                    eprintln!("no mutations found");
+                    std::process::exit(3);
                 }
+            };
+            match res {
+                Err(e) if matches!(e.kind(), ErrorKind::NoMutationsApplicable) => {
+                    // Try the next mutation.
+                    continue;
+                }
+                _ => break unwrap_wasm_mutate_result(res),
             }
         };
 
+        let output_bytes = if self.wat {
+            wasmprinter::print_bytes(&wasm)?.into_bytes()
+        } else {
+            wasm
+        };
         output
-            .write_all(&wasm)
+            .write_all(&output_bytes)
             .with_context(|| format!("failed to write to '{}'", output_name))?;
 
         Ok(())

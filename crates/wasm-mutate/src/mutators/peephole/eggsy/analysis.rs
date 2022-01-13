@@ -1,7 +1,7 @@
 use crate::{
     module::{PrimitiveTypeInfo, TypeInfo},
     mutators::peephole::{eggsy::Lang, EG},
-    Error,
+    Error, ModuleInfo,
 };
 use egg::{Analysis, EGraph, Id};
 
@@ -15,27 +15,24 @@ pub struct PeepholeMutationAnalysis {
     global_types: Vec<PrimitiveTypeInfo>,
     /// Module information for function locals
     locals: Vec<PrimitiveTypeInfo>,
-
     /// Information from the ModuleInfo
     /// types for functions
     types_map: Vec<TypeInfo>,
     /// function idx to type idx
     function_map: Vec<u32>,
+    /// table index to the type of element it has
+    table_types: Vec<PrimitiveTypeInfo>,
 }
 
 impl PeepholeMutationAnalysis {
     /// Returns a new analysis from the given DFG
-    pub fn new(
-        global_types: Vec<PrimitiveTypeInfo>,
-        locals: Vec<PrimitiveTypeInfo>,
-        types_map: Vec<TypeInfo>,
-        function_map: Vec<u32>,
-    ) -> Self {
+    pub fn new(info: &ModuleInfo<'_>, locals: Vec<PrimitiveTypeInfo>) -> Self {
         PeepholeMutationAnalysis {
-            global_types,
             locals,
-            types_map,
-            function_map,
+            global_types: info.global_types.clone(),
+            types_map: info.types_map.clone(),
+            function_map: info.function_map.clone(),
+            table_types: info.table_elem_types.clone(),
         }
     }
 
@@ -97,9 +94,8 @@ impl PeepholeMutationAnalysis {
             Lang::LocalTee(idx, _) => Ok(self.locals[*idx as usize].clone()),
             Lang::Wrap(_) => Ok(PrimitiveTypeInfo::I32),
             Lang::Call(idx, _) => {
-                let typeinfo = self.get_functype_idx(*idx);
-
-                match typeinfo {
+                let type_idx = self.function_map[*idx as usize];
+                match &self.types_map[type_idx as usize] {
                     TypeInfo::Func(ty) => {
                         if ty.returns.is_empty() {
                             return Ok(PrimitiveTypeInfo::Empty);
@@ -253,18 +249,26 @@ impl PeepholeMutationAnalysis {
             }
             Lang::MemoryGrow { .. } => Ok(PrimitiveTypeInfo::I32),
             Lang::MemorySize { .. } => Ok(PrimitiveTypeInfo::I32),
+            Lang::MemoryInit { .. } => Ok(PrimitiveTypeInfo::Empty),
+            Lang::DataDrop(_) => Ok(PrimitiveTypeInfo::Empty),
+            Lang::MemoryCopy { .. } => Ok(PrimitiveTypeInfo::Empty),
+            Lang::MemoryFill { .. } => Ok(PrimitiveTypeInfo::Empty),
+            Lang::TableGrow { .. } => Ok(PrimitiveTypeInfo::I32),
+            Lang::TableSize { .. } => Ok(PrimitiveTypeInfo::I32),
+            Lang::TableInit { .. } => Ok(PrimitiveTypeInfo::Empty),
+            Lang::ElemDrop(_) => Ok(PrimitiveTypeInfo::Empty),
+            Lang::TableCopy { .. } => Ok(PrimitiveTypeInfo::Empty),
+            Lang::TableFill { .. } => Ok(PrimitiveTypeInfo::Empty),
+            Lang::TableSet(..) => Ok(PrimitiveTypeInfo::Empty),
+            Lang::TableGet(idx, _) => {
+                let ty = self.table_types[*idx as usize].clone();
+                Ok(ty)
+            }
             Lang::I32UseGlobal(_) => Ok(PrimitiveTypeInfo::I32),
             Lang::I64UseGlobal(_) => Ok(PrimitiveTypeInfo::I64),
             Lang::F32UseGlobal(_) => Ok(PrimitiveTypeInfo::F32),
             Lang::F64UseGlobal(_) => Ok(PrimitiveTypeInfo::F64),
         }
-    }
-
-    /// Returns the function type based on the index of the function type
-    /// `types[functions[idx]]`
-    pub fn get_functype_idx(&self, idx: u32) -> &TypeInfo {
-        let functpeindex = self.function_map[idx as usize] as usize;
-        &self.types_map[functpeindex]
     }
 }
 
