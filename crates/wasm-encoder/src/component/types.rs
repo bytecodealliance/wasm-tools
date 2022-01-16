@@ -65,11 +65,9 @@ pub enum DefinitionKind {
     Global = 5,
 }
 
-/// Represents an index for an outer alias.
+/// Represents an index for an outer alias in instance and module type definitions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OuterAliasIndex {
-    /// The index is a module index.
-    Module(u32),
     /// The index is a type index.
     Type(u32),
 }
@@ -77,10 +75,6 @@ pub enum OuterAliasIndex {
 impl OuterAliasIndex {
     pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
         match self {
-            Self::Module(index) => {
-                bytes.extend(encoders::u32(*index));
-                bytes.push(ALIAS_KIND_OUTER_MODULE);
-            }
             Self::Type(index) => {
                 bytes.extend(encoders::u32(*index));
                 bytes.push(ALIAS_KIND_OUTER_TYPE);

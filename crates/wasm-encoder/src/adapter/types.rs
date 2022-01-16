@@ -1,15 +1,9 @@
-use super::{AdapterModuleSection, SectionId, TypeRef};
+use super::{AdapterModuleSection, SectionId, TypeRef, ALIAS_KIND_OUTER, ALIAS_KIND_OUTER_TYPE};
 use crate::{encoders, ValType};
 
 const TYPE_INSTANCE: u8 = 0x7f;
 const TYPE_MODULE: u8 = 0x7e;
 const TYPE_FUNCTION: u8 = 0x7d;
-
-const ALIAS_TYPE_INSTANCE_EXPORT: u8 = 0x00;
-const ALIAS_TYPE_OUTER: u8 = 0x01;
-
-const OUTER_ALIAS_MODULE: u8 = 0x01;
-const OUTER_ALIAS_TYPE: u8 = 0x06;
 
 const INSTANCE_TYPEDEF_TYPE: u8 = 0x01;
 const INSTANCE_TYPEDEF_ALIAS: u8 = 0x05;
@@ -39,11 +33,9 @@ pub enum DefinitionKind {
     Global = 5,
 }
 
-/// Represents an index for an outer alias.
+/// Represents an index for an outer alias in instance and module type definitions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OuterAliasIndex {
-    /// The index is a module index.
-    Module(u32),
     /// The index is a type index.
     Type(u32),
 }
@@ -51,13 +43,9 @@ pub enum OuterAliasIndex {
 impl OuterAliasIndex {
     pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
         match self {
-            Self::Module(index) => {
-                bytes.extend(encoders::u32(*index));
-                bytes.push(OUTER_ALIAS_MODULE);
-            }
             Self::Type(index) => {
                 bytes.extend(encoders::u32(*index));
-                bytes.push(OUTER_ALIAS_TYPE);
+                bytes.push(ALIAS_KIND_OUTER_TYPE);
             }
         }
     }
@@ -84,26 +72,10 @@ impl InstanceType {
         TypeEncoder(&mut self.bytes)
     }
 
-    /// Defines an alias to an instance export in the instance type.
-    pub fn alias_instance_export(
-        &mut self,
-        instance: u32,
-        name: &str,
-        kind: DefinitionKind,
-    ) -> &mut Self {
-        self.bytes.push(INSTANCE_TYPEDEF_ALIAS);
-        self.bytes.push(ALIAS_TYPE_INSTANCE_EXPORT);
-        self.bytes.extend(encoders::u32(instance));
-        self.bytes.extend(encoders::str(name));
-        self.bytes.push(kind as u8);
-        self.num_added += 1;
-        self
-    }
-
     /// Defines an alias to an outer module in the instance type.
     pub fn alias_outer_module(&mut self, count: u32, index: OuterAliasIndex) -> &mut Self {
         self.bytes.push(INSTANCE_TYPEDEF_ALIAS);
-        self.bytes.push(ALIAS_TYPE_OUTER);
+        self.bytes.push(ALIAS_KIND_OUTER);
         self.bytes.extend(encoders::u32(count));
         index.encode(&mut self.bytes);
         self.num_added += 1;
@@ -146,26 +118,10 @@ impl ModuleType {
         TypeEncoder(&mut self.bytes)
     }
 
-    /// Defines an alias to an instance export in the module type.
-    pub fn alias_instance_export(
-        &mut self,
-        instance: u32,
-        name: &str,
-        kind: DefinitionKind,
-    ) -> &mut Self {
-        self.bytes.push(MODULE_TYPEDEF_ALIAS);
-        self.bytes.push(ALIAS_TYPE_INSTANCE_EXPORT);
-        self.bytes.extend(encoders::u32(instance));
-        self.bytes.extend(encoders::str(name));
-        self.bytes.push(kind as u8);
-        self.num_added += 1;
-        self
-    }
-
     /// Defines an alias to an outer module in the module type.
     pub fn alias_outer_module(&mut self, count: u32, index: OuterAliasIndex) -> &mut Self {
         self.bytes.push(MODULE_TYPEDEF_ALIAS);
-        self.bytes.push(ALIAS_TYPE_OUTER);
+        self.bytes.push(ALIAS_KIND_OUTER);
         self.bytes.extend(encoders::u32(count));
         index.encode(&mut self.bytes);
         self.num_added += 1;

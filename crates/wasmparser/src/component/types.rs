@@ -3,7 +3,7 @@ use crate::{
     SectionIteratorLimited, SectionReader, SectionWithLimitedItems, TableType,
 };
 
-use super::{ALIAS_KIND_OUTER, ALIAS_KIND_OUTER_MODULE, ALIAS_KIND_OUTER_TYPE};
+use super::{ALIAS_KIND_OUTER, ALIAS_KIND_OUTER_TYPE};
 
 const TYPE_INSTANCE: u32 = 0x7f;
 const TYPE_MODULE: u32 = 0x7e;
@@ -102,8 +102,6 @@ impl TypeRef {
 /// Represents an index for an outer alias.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OuterAliasIndex {
-    /// The index is a module index.
-    Module(u32),
     /// The index is a type index.
     Type(u32),
 }
@@ -112,11 +110,10 @@ impl OuterAliasIndex {
     fn new(reader: &mut BinaryReader) -> Result<Self> {
         let index = reader.read_var_u32()?;
         Ok(match reader.read_u8()? {
-            ALIAS_KIND_OUTER_MODULE => Self::Module(index),
             ALIAS_KIND_OUTER_TYPE => Self::Type(index),
             _ => {
                 return Err(BinaryReaderError::new(
-                    "expected a module or type alias for instance type definition",
+                    "expected an alias to a type for type definition",
                     reader.original_position() - 1,
                 ))
             }
@@ -595,7 +592,7 @@ mod test {
             ALIAS_KIND_OUTER as u8,
             6,
             101,
-            ALIAS_KIND_OUTER_MODULE as u8,
+            ALIAS_KIND_OUTER_TYPE as u8,
             INSTANCE_TYPEDEF_EXPORT as u8,
             3,
             b'f',
@@ -621,7 +618,7 @@ mod test {
                     defs[1],
                     InstanceTypeDef::Alias {
                         count: 6,
-                        index: OuterAliasIndex::Module(101)
+                        index: OuterAliasIndex::Type(101)
                     }
                 );
                 assert_eq!(
