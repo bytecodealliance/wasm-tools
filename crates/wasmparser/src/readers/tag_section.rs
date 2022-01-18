@@ -18,6 +18,7 @@ use super::{
     TagType,
 };
 
+/// A reader for the core WebAssembly tag section (exception handling proposal).
 #[derive(Clone)]
 pub struct TagSectionReader<'a> {
     reader: BinaryReader<'a>,
@@ -25,16 +26,19 @@ pub struct TagSectionReader<'a> {
 }
 
 impl<'a> TagSectionReader<'a> {
+    /// Constructs a new `TagSectionReader` for the given data and offset.
     pub fn new(data: &'a [u8], offset: usize) -> Result<TagSectionReader<'a>> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
         Ok(TagSectionReader { reader, count })
     }
 
+    /// Gets the original position of the section reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
+    /// Gets the count of items in the section.
     pub fn get_count(&self) -> u32 {
         self.count
     }

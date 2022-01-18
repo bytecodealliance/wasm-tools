@@ -30,7 +30,7 @@ use crate::{BinaryReaderError, Result, WasmFeatures, WasmFuncType, WasmModuleRes
 /// temporary placeholder value. This can be converted into a proper
 /// `BinaryReaderError` via the `set_offset` method, which replaces the
 /// placeholder offset with an actual offset.
-pub(crate) struct OperatorValidatorError(pub(crate) BinaryReaderError);
+pub(crate) struct OperatorValidatorError(pub BinaryReaderError);
 
 /// Create an `OperatorValidatorError` with a format string.
 macro_rules! format_op_err {

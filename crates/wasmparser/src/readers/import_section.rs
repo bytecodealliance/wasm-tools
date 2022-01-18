@@ -18,13 +18,18 @@ use crate::{
     SectionWithLimitedItems,
 };
 
+/// Represents a core WebAssembly import.
 #[derive(Debug, Copy, Clone)]
 pub struct Import<'a> {
+    /// The module being imported from.
     pub module: &'a str,
+    /// The name of the imported item.
     pub field: Option<&'a str>,
+    /// The type of the imported item.
     pub ty: ImportSectionEntryType,
 }
 
+/// A reader for a core WebAssembly's import section.
 #[derive(Clone)]
 pub struct ImportSectionReader<'a> {
     reader: BinaryReader<'a>,
@@ -32,16 +37,19 @@ pub struct ImportSectionReader<'a> {
 }
 
 impl<'a> ImportSectionReader<'a> {
+    /// Constructs a new `ImportSectionReader` for the given data and offset.
     pub fn new(data: &'a [u8], offset: usize) -> Result<ImportSectionReader<'a>> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
         Ok(ImportSectionReader { reader, count })
     }
 
+    /// Gets the original position of the section reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
+    /// Gets the count of items in the section.
     pub fn get_count(&self) -> u32 {
         self.count
     }

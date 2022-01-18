@@ -3,6 +3,7 @@ use crate::{
     SectionReader, SectionWithLimitedItems,
 };
 
+/// A reader for a core WebAssembly instance section.
 #[derive(Clone)]
 pub struct InstanceSectionReader<'a> {
     reader: BinaryReader<'a>,
@@ -10,20 +11,24 @@ pub struct InstanceSectionReader<'a> {
 }
 
 impl<'a> InstanceSectionReader<'a> {
+    /// Constructs a new `InstanceSectionReader` for the given data and offset.
     pub fn new(data: &'a [u8], offset: usize) -> Result<InstanceSectionReader<'a>> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
         Ok(InstanceSectionReader { reader, count })
     }
 
+    /// Gets the original position of the section reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
+    /// Gets the count of items in the section.
     pub fn get_count(&self) -> u32 {
         self.count
     }
 
+    /// Reads an item from the section.
     pub fn read(&mut self) -> Result<Instance<'a>> {
         let instance = Instance::new(
             &self.reader.buffer[self.reader.position..],
@@ -74,6 +79,7 @@ impl<'a> IntoIterator for InstanceSectionReader<'a> {
     }
 }
 
+/// Represents a core WebAssembly instance (module linking proposal).
 #[derive(Clone)]
 pub struct Instance<'a> {
     reader: BinaryReader<'a>,
@@ -81,6 +87,7 @@ pub struct Instance<'a> {
 }
 
 impl<'a> Instance<'a> {
+    /// Constructs a new `Instance` for the given data and offset.
     pub fn new(data: &'a [u8], offset: usize) -> Result<Instance<'a>> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         if reader.read_u8()? != 0 {
@@ -93,14 +100,17 @@ impl<'a> Instance<'a> {
         Ok(Instance { module, reader })
     }
 
+    /// Gets the original position of the instance.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
+    /// Gets the module index associated with the instance.
     pub fn module(&self) -> u32 {
         self.module
     }
 
+    /// Gets a reader of the instance's instantiation arguments.
     pub fn args(&self) -> Result<InstanceArgsReader<'a>> {
         let mut reader = self.reader.clone();
         let count = reader.read_var_u32()?;
@@ -112,6 +122,7 @@ impl<'a> Instance<'a> {
     }
 }
 
+/// A reader for an instance's instantiation arguments.
 #[derive(Clone)]
 pub struct InstanceArgsReader<'a> {
     reader: BinaryReader<'a>,
@@ -119,18 +130,24 @@ pub struct InstanceArgsReader<'a> {
     remaining: u32,
 }
 
+/// Represents an argument for a module instantiation.
 #[derive(Clone, Copy, Debug)]
 pub struct InstanceArg<'a> {
+    /// The import name for the argument.
     pub name: &'a str,
+    /// The import kind for the argument.
     pub kind: ExternalKind,
+    /// The item index to import for the new instance.
     pub index: u32,
 }
 
 impl<'a> InstanceArgsReader<'a> {
+    /// Gets the original position of the instance argument reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
+    /// Reads an argument from the reader.
     pub fn read(&mut self) -> Result<InstanceArg<'a>> {
         self.remaining -= 1;
         Ok(InstanceArg {

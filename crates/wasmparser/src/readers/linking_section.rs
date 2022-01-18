@@ -18,26 +18,31 @@ use super::{
     SectionWithLimitedItems,
 };
 
+/// Represents a reader for a linking custom section.
 pub struct LinkingSectionReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,
 }
 
 impl<'a> LinkingSectionReader<'a> {
+    /// Constructs a new `LinkingSectionReader` for the given data and offset.
     pub fn new(data: &'a [u8], offset: usize) -> Result<LinkingSectionReader<'a>> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
         Ok(LinkingSectionReader { reader, count })
     }
 
+    /// Gets the count of items in the section.
     pub fn get_count(&self) -> u32 {
         self.count
     }
 
+    /// Gets the original position of the reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
+    /// Reads an item from the section.
     pub fn read<'b>(&mut self) -> Result<LinkingType>
     where
         'a: 'b,

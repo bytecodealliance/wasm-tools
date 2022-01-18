@@ -1,4 +1,4 @@
-//! Mutator that removes a random prexisting export
+//! Mutator that removes a random preexisting export
 
 use super::Mutator;
 use crate::{Result, WasmMutate};
@@ -7,7 +7,7 @@ use rand::Rng;
 use wasm_encoder::{Export, ExportSection, Module};
 use wasmparser::ExportSectionReader;
 
-/// Mutator that removes a random prexisting export
+/// Mutator that removes a random preexisting export
 #[derive(Clone, Copy)]
 pub struct RemoveExportMutator;
 

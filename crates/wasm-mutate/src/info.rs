@@ -165,7 +165,7 @@ impl<'a> ModuleInfo<'a> {
 
                     for _ in 0..reader.get_count() {
                         let ty = reader.read()?;
-                        // We only need the type of the global, not necesarily if is mutable or not
+                        // We only need the type of the global, not necessarily if is mutable or not
                         let ty = PrimitiveTypeInfo::try_from(ty.ty.content_type).unwrap();
                         info.global_types.push(ty);
                     }

@@ -18,6 +18,7 @@ use crate::{
     SectionWithLimitedItems, TypeDef,
 };
 
+/// A reader for the core WebAssembly type section.
 #[derive(Clone)]
 pub struct TypeSectionReader<'a> {
     reader: BinaryReader<'a>,
@@ -25,16 +26,19 @@ pub struct TypeSectionReader<'a> {
 }
 
 impl<'a> TypeSectionReader<'a> {
+    /// Constructs a new `TypeSectionReader` for the given data and offset.
     pub fn new(data: &'a [u8], offset: usize) -> Result<TypeSectionReader<'a>> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
         Ok(TypeSectionReader { reader, count })
     }
 
+    /// Gets the original position of the reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
+    /// Gets a count of items in the section.
     pub fn get_count(&self) -> u32 {
         self.count
     }

@@ -398,7 +398,7 @@ impl Validator {
         Err(BinaryReaderError::new(msg.into(), self.offset))
     }
 
-    /// Validates [`Payload::Version`](crate::Payload)
+    /// Validates [`Payload::Version`](crate::Payload).
     pub fn version(&mut self, num: u32, range: &Range) -> Result<()> {
         self.offset = range.start;
         if self.cur.order != Order::Initial {
@@ -560,7 +560,7 @@ impl Validator {
         Ok(())
     }
 
-    /// Validates [`Payload::TypeSection`](crate::Payload)
+    /// Validates [`Payload::TypeSection`](crate::Payload).
     pub fn type_section(&mut self, section: &crate::TypeSectionReader<'_>) -> Result<()> {
         let order = self.header_order(Order::Type);
         self.check_max(
@@ -757,7 +757,7 @@ impl Validator {
         Ok(())
     }
 
-    /// Validates [`Payload::ImportSection`](crate::Payload)
+    /// Validates [`Payload::ImportSection`](crate::Payload).
     pub fn import_section(&mut self, section: &crate::ImportSectionReader<'_>) -> Result<()> {
         let order = self.header_order(Order::Import);
         self.section(order, section, |me, item| me.import(item))?;
@@ -838,7 +838,7 @@ impl Validator {
         Ok(())
     }
 
-    /// Validates [`Payload::ModuleSectionStart`](crate::Payload)
+    /// Validates [`Payload::ModuleSectionStart`](crate::Payload).
     pub fn module_section_start(&mut self, count: u32, range: &Range) -> Result<()> {
         if !self.features.module_linking {
             return self.create_error("module linking proposal not enabled");
@@ -867,7 +867,7 @@ impl Validator {
         self.parents.push(prev);
     }
 
-    /// Validates [`Payload::AliasSection`](crate::Payload)
+    /// Validates [`Payload::AliasSection`](crate::Payload).
     pub fn alias_section(&mut self, section: &crate::AliasSectionReader<'_>) -> Result<()> {
         if !self.features.module_linking {
             return self.create_error("module linking proposal not enabled");
@@ -967,7 +967,7 @@ impl Validator {
         Ok(())
     }
 
-    /// Validates [`Payload::InstanceSection`](crate::Payload)
+    /// Validates [`Payload::InstanceSection`](crate::Payload).
     pub fn instance_section(&mut self, section: &crate::InstanceSectionReader<'_>) -> Result<()> {
         if !self.features.module_linking {
             return self.create_error("module linking proposal not enabled");
@@ -1129,7 +1129,7 @@ impl Validator {
         Ok(())
     }
 
-    /// Validates [`Payload::FunctionSection`](crate::Payload)
+    /// Validates [`Payload::FunctionSection`](crate::Payload).
     pub fn function_section(&mut self, section: &crate::FunctionSectionReader<'_>) -> Result<()> {
         self.cur.expected_code_bodies = Some(section.get_count());
         self.check_max(
@@ -1157,7 +1157,7 @@ impl Validator {
         }
     }
 
-    /// Validates [`Payload::TableSection`](crate::Payload)
+    /// Validates [`Payload::TableSection`](crate::Payload).
     pub fn table_section(&mut self, section: &crate::TableSectionReader<'_>) -> Result<()> {
         self.check_max(
             self.cur.state.tables.len(),
@@ -1180,6 +1180,7 @@ impl Validator {
         }
     }
 
+    /// Validates [`Payload::MemorySection`](crate::Payload).
     pub fn memory_section(&mut self, section: &crate::MemorySectionReader<'_>) -> Result<()> {
         self.check_max(
             self.cur.state.memories.len(),
@@ -1194,6 +1195,7 @@ impl Validator {
         })
     }
 
+    /// Validates [`Payload::TagSection`](crate::Payload).
     pub fn tag_section(&mut self, section: &crate::TagSectionReader<'_>) -> Result<()> {
         if !self.features.exceptions {
             return self.create_error("exceptions proposal not enabled");
@@ -1212,7 +1214,7 @@ impl Validator {
         })
     }
 
-    /// Validates [`Payload::GlobalSection`](crate::Payload)
+    /// Validates [`Payload::GlobalSection`](crate::Payload).
     pub fn global_section(&mut self, section: &crate::GlobalSectionReader<'_>) -> Result<()> {
         self.check_max(
             self.cur.state.globals.len(),
@@ -1318,7 +1320,7 @@ impl Validator {
         Ok(())
     }
 
-    /// Validates [`Payload::ExportSection`](crate::Payload)
+    /// Validates [`Payload::ExportSection`](crate::Payload).
     pub fn export_section(&mut self, section: &crate::ExportSectionReader<'_>) -> Result<()> {
         self.section(Order::Export, section, |me, e| {
             if let ExternalKind::Type = e.kind {
@@ -1389,7 +1391,7 @@ impl Validator {
         })
     }
 
-    /// Validates [`Payload::StartSection`](crate::Payload)
+    /// Validates [`Payload::StartSection`](crate::Payload).
     pub fn start_section(&mut self, func: u32, range: &Range) -> Result<()> {
         self.offset = range.start;
         self.update_order(Order::Start)?;
@@ -1400,7 +1402,7 @@ impl Validator {
         Ok(())
     }
 
-    /// Validates [`Payload::ElementSection`](crate::Payload)
+    /// Validates [`Payload::ElementSection`](crate::Payload).
     pub fn element_section(&mut self, section: &crate::ElementSectionReader<'_>) -> Result<()> {
         self.section(Order::Element, section, |me, e| {
             match e.ty {
@@ -1455,7 +1457,7 @@ impl Validator {
         })
     }
 
-    /// Validates [`Payload::DataCountSection`](crate::Payload)
+    /// Validates [`Payload::DataCountSection`](crate::Payload).
     pub fn data_count_section(&mut self, count: u32, range: &Range) -> Result<()> {
         self.offset = range.start;
         self.update_order(Order::DataCount)?;

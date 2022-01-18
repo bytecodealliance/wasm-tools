@@ -3,27 +3,44 @@ use crate::{
     SectionWithLimitedItems,
 };
 
-pub struct ModuleSectionReader<'a> {
-    reader: BinaryReader<'a>,
-    count: u32,
-}
-
+/// Represents a nested module from the module section.
 #[derive(Debug)]
 pub struct NestedModule<'a> {
     reader: BinaryReader<'a>,
 }
 
+impl<'a> NestedModule<'a> {
+    /// Gets the raw bytes of the nested module.
+    pub fn raw_bytes(&self) -> (usize, &'a [u8]) {
+        (self.reader.original_position(), self.reader.buffer)
+    }
+
+    /// Gets the original position of the nested module.
+    pub fn original_position(&self) -> usize {
+        self.reader.original_position()
+    }
+}
+
+/// A reader for a core WebAssembly's module section (module linking proposal).
+pub struct ModuleSectionReader<'a> {
+    reader: BinaryReader<'a>,
+    count: u32,
+}
+
 impl<'a> ModuleSectionReader<'a> {
+    /// Constructs a new `ModuleSectionReader` for the given data and offset.
     pub fn new(data: &'a [u8], offset: usize) -> Result<ModuleSectionReader<'a>> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
         Ok(ModuleSectionReader { reader, count })
     }
 
+    /// Gets the original position of the section reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
+    /// Gets the count of items in the section.
     pub fn get_count(&self) -> u32 {
         self.count
     }
@@ -38,6 +55,7 @@ impl<'a> ModuleSectionReader<'a> {
         Ok(())
     }
 
+    /// Reads an item from the module section.
     pub fn read(&mut self) -> Result<NestedModule<'a>> {
         let size = self.reader.read_var_u32()? as usize;
         let module_start = self.reader.position;
@@ -82,15 +100,5 @@ impl<'a> IntoIterator for ModuleSectionReader<'a> {
 
     fn into_iter(self) -> Self::IntoIter {
         SectionIteratorLimited::new(self)
-    }
-}
-
-impl<'a> NestedModule<'a> {
-    pub fn raw_bytes(&self) -> (usize, &'a [u8]) {
-        (self.reader.original_position(), self.reader.buffer)
-    }
-
-    pub fn original_position(&self) -> usize {
-        self.reader.original_position()
     }
 }

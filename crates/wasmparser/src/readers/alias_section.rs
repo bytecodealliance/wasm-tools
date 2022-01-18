@@ -3,44 +3,60 @@ use crate::{
     SectionReader, SectionWithLimitedItems,
 };
 
+/// A reader for a core WebAssembly module's alias section.
 #[derive(Clone)]
 pub struct AliasSectionReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,
 }
 
+/// Represents an alias in a core WebAssembly module's alias section.
 #[derive(Clone, Debug)]
 pub enum Alias<'a> {
+    /// The alias is to an outer module's type.
     OuterType {
+        /// The relative depth of the outer module.
         relative_depth: u32,
+        /// The index of the type in the outer module.
         index: u32,
     },
+    /// The alias is to an outer module's module.
     OuterModule {
+        /// The relative depth of the outer module.
         relative_depth: u32,
+        /// The index of the module in the outer module.
         index: u32,
     },
+    /// The alias is to an export from an instance.
     InstanceExport {
+        /// The index of the instance.
         instance: u32,
+        /// The export kind being aliased.
         kind: ExternalKind,
+        /// The name of the export being aliased.
         export: &'a str,
     },
 }
 
 impl<'a> AliasSectionReader<'a> {
+    /// Constructs a new `AliasSectionReader` for the given data and offset.
     pub fn new(data: &'a [u8], offset: usize) -> Result<AliasSectionReader<'a>> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
         Ok(AliasSectionReader { reader, count })
     }
 
+    /// Gets the original position of the reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
+    /// Gets the count of items in the section.
     pub fn get_count(&self) -> u32 {
         self.count
     }
 
+    /// Reads an item from the section.
     pub fn read(&mut self) -> Result<Alias<'a>> {
         Ok(match self.reader.read_u8()? {
             0x00 => Alias::InstanceExport {

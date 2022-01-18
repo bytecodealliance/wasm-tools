@@ -23,9 +23,9 @@
 //! this is not the right library for you. You could however, build such
 //! a data-structure using this library.
 
-pub use crate::binary_reader::BinaryReader;
-pub use crate::binary_reader::Range;
+#![deny(missing_docs)]
 
+pub use crate::binary_reader::{BinaryReader, BinaryReaderError, Range, Result};
 pub use crate::module_resources::*;
 pub use crate::parser::*;
 pub use crate::primitives::*;

@@ -18,6 +18,7 @@ use super::{
     SectionReader, SectionWithLimitedItems, Type,
 };
 
+/// Represents a WebAssembly function body.
 #[derive(Debug, Clone, Copy)]
 pub struct FunctionBody<'a> {
     offset: usize,
@@ -26,6 +27,7 @@ pub struct FunctionBody<'a> {
 }
 
 impl<'a> FunctionBody<'a> {
+    /// Constructs a new `FunctionBody` for the given data and offset.
     pub fn new(offset: usize, data: &'a [u8]) -> Self {
         Self {
             offset,
@@ -34,10 +36,12 @@ impl<'a> FunctionBody<'a> {
         }
     }
 
+    /// Whether or not to allow 64-bit memory arguments.
     pub fn allow_memarg64(&mut self, allow: bool) {
         self.allow_memarg64 = allow;
     }
 
+    /// Gets a binary reader for this function body.
     pub fn get_binary_reader<'b>(&self) -> BinaryReader<'b>
     where
         'a: 'b,
@@ -56,6 +60,7 @@ impl<'a> FunctionBody<'a> {
         Ok(())
     }
 
+    /// Gets the locals reader for this function body.
     pub fn get_locals_reader<'b>(&self) -> Result<LocalsReader<'b>>
     where
         'a: 'b,
@@ -65,6 +70,7 @@ impl<'a> FunctionBody<'a> {
         Ok(LocalsReader { reader, count })
     }
 
+    /// Gets the operators reader for this function body.
     pub fn get_operators_reader<'b>(&self) -> Result<OperatorsReader<'b>>
     where
         'a: 'b,
@@ -77,6 +83,7 @@ impl<'a> FunctionBody<'a> {
         Ok(reader)
     }
 
+    /// Gets the range of the function body.
     pub fn range(&self) -> Range {
         Range {
             start: self.offset,
@@ -85,30 +92,29 @@ impl<'a> FunctionBody<'a> {
     }
 }
 
+/// A reader for a function body's locals.
 pub struct LocalsReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,
 }
 
 impl<'a> LocalsReader<'a> {
+    /// Gets the count of locals in the function body.
     pub fn get_count(&self) -> u32 {
         self.count
     }
 
+    /// Gets the original position of the reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
+    /// Reads an item from the reader.
     pub fn read(&mut self) -> Result<(u32, Type)> {
         let count = self.reader.read_var_u32()?;
         let value_type = self.reader.read_type()?;
         Ok((count, value_type))
     }
-}
-
-pub struct CodeSectionReader<'a> {
-    reader: BinaryReader<'a>,
-    count: u32,
 }
 
 impl<'a> IntoIterator for LocalsReader<'a> {
@@ -124,6 +130,7 @@ impl<'a> IntoIterator for LocalsReader<'a> {
     }
 }
 
+/// An iterator over locals in a function body.
 pub struct LocalsIterator<'a> {
     reader: LocalsReader<'a>,
     left: u32,
@@ -147,17 +154,26 @@ impl<'a> Iterator for LocalsIterator<'a> {
     }
 }
 
+/// A reader for a core WebAssembly module's code section.
+pub struct CodeSectionReader<'a> {
+    reader: BinaryReader<'a>,
+    count: u32,
+}
+
 impl<'a> CodeSectionReader<'a> {
+    /// Constructs a new `CodeSectionReader` for the given data and offset.
     pub fn new(data: &'a [u8], offset: usize) -> Result<CodeSectionReader<'a>> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
         Ok(CodeSectionReader { reader, count })
     }
 
+    /// Gets the original position of the reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
+    /// Gets the count of items in the section.
     pub fn get_count(&self) -> u32 {
         self.count
     }

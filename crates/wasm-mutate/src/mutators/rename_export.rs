@@ -1,4 +1,4 @@
-//! Mutator that generates a random renaming of a prexisting export
+//! Mutator that generates a random renaming of a preexisting export
 use super::Mutator;
 use crate::{Result, WasmMutate};
 use rand::Rng;

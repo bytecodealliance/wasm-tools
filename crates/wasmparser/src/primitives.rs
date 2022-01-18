@@ -13,79 +13,20 @@
  * limitations under the License.
  */
 
-use std::error::Error;
-use std::fmt;
-use std::result;
-
-#[derive(Debug, Clone)]
-pub struct BinaryReaderError {
-    // Wrap the actual error data in a `Box` so that the error is just one
-    // word. This means that we can continue returning small `Result`s in
-    // registers.
-    pub(crate) inner: Box<BinaryReaderErrorInner>,
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct BinaryReaderErrorInner {
-    pub(crate) message: String,
-    pub(crate) offset: usize,
-    pub(crate) needed_hint: Option<usize>,
-}
-
-pub type Result<T, E = BinaryReaderError> = result::Result<T, E>;
-
-impl Error for BinaryReaderError {}
-
-impl fmt::Display for BinaryReaderError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{} (at offset {})",
-            self.inner.message, self.inner.offset
-        )
-    }
-}
-
-impl BinaryReaderError {
-    pub(crate) fn new(message: impl Into<String>, offset: usize) -> Self {
-        let message = message.into();
-        BinaryReaderError {
-            inner: Box::new(BinaryReaderErrorInner {
-                message,
-                offset,
-                needed_hint: None,
-            }),
-        }
-    }
-
-    pub(crate) fn eof(offset: usize, needed_hint: usize) -> Self {
-        BinaryReaderError {
-            inner: Box::new(BinaryReaderErrorInner {
-                message: "Unexpected EOF".to_string(),
-                offset,
-                needed_hint: Some(needed_hint),
-            }),
-        }
-    }
-
-    /// Get this error's message.
-    pub fn message(&self) -> &str {
-        &self.inner.message
-    }
-
-    /// Get the offset within the Wasm binary where the error occured.
-    pub fn offset(&self) -> usize {
-        self.inner.offset
-    }
-}
-
+/// Represents known custom section kinds.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CustomSectionKind {
+    /// The custom section is not known.
     Unknown,
+    /// The name custom section.
     Name,
+    /// The producers custom section.
     Producers,
+    /// The source mapping URL custom section.
     SourceMappingURL,
+    /// The reloc custom section.
     Reloc,
+    /// The linking custom section.
     Linking,
 }
 
@@ -94,27 +35,47 @@ pub enum CustomSectionKind {
 /// [here]: https://webassembly.github.io/spec/core/binary/modules.html#sections
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SectionCode<'a> {
+    /// The custom section.
     Custom {
+        /// The name of the custom section.
         name: &'a str,
+        /// The kind of the custom section.
         kind: CustomSectionKind,
     },
-    Type,       // Function signature declarations
-    Alias,      // Aliased indices from nested/parent modules
-    Import,     // Import declarations
-    Module,     // Module declarations
-    Instance,   // Instance definitions
-    Function,   // Function declarations
-    Table,      // Indirect function table and other tables
-    Memory,     // Memory attributes
-    Global,     // Global declarations
-    Export,     // Exports
-    Start,      // Start function declaration
-    Element,    // Elements section
-    ModuleCode, // Module definitions
-    Code,       // Function bodies (code)
-    Data,       // Data segments
-    DataCount,  // Count of passive data segments
-    Tag,        // Tag declarations
+    /// The type section.
+    Type,
+    /// The module-linking alias section.
+    Alias,
+    /// The import section.
+    Import,
+    /// The module-linking module section.
+    Module,
+    /// The module-linking instance section.
+    Instance,
+    /// The function section.
+    Function,
+    /// The table section.
+    Table,
+    /// The memory section.
+    Memory,
+    /// The global section.
+    Global,
+    /// The export section.
+    Export,
+    /// The start section.
+    Start,
+    /// The element section.
+    Element,
+    /// The module code section.
+    ModuleCode,
+    /// The code section.
+    Code,
+    /// The data section.
+    Data,
+    /// The passive data count section.
+    DataCount,
+    /// The tag section.
+    Tag,
 }
 
 /// Types as defined [here].
@@ -122,12 +83,19 @@ pub enum SectionCode<'a> {
 /// [here]: https://webassembly.github.io/spec/core/syntax/types.html#types
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Type {
+    /// The type is i32.
     I32,
+    /// The type is i64.
     I64,
+    /// The type is f32.
     F32,
+    /// The type is f64.
     F64,
+    /// The type is v128.
     V128,
+    /// The type is a function reference.
     FuncRef,
+    /// The type is an extern reference.
     ExternRef,
 }
 
@@ -136,7 +104,7 @@ pub enum Type {
 pub enum BlockType {
     /// The block produces consumes nor produces any values.
     Empty,
-    /// The block produces a singular value of the given type ([] -> [t]).
+    /// The block produces a singular value of the given type ([] -> \[t]).
     Type(Type),
     /// The block is described by a function type.
     ///
@@ -149,48 +117,73 @@ pub enum BlockType {
 /// [here]: https://webassembly.github.io/spec/core/syntax/types.html#external-types
 #[derive(Debug, Copy, Clone)]
 pub enum ExternalKind {
+    /// The external kind is a function.
     Function,
+    /// The external kind if a table.
     Table,
+    /// The external kind is a memory.
     Memory,
+    /// The external kind is a tag.
     Tag,
+    /// The external kind is a global.
     Global,
+    /// The external kind is a type.
     Type,
+    /// The external kind is a module.
     Module,
+    /// The external kind is an instance.
     Instance,
 }
 
+/// Represents a defined type.
 #[derive(Debug, Clone)]
 pub enum TypeDef<'a> {
+    /// The type is a function type.
     Func(FuncType),
+    /// The type is an instance type.
     Instance(InstanceType<'a>),
+    /// The type is a module type.
     Module(ModuleType<'a>),
 }
 
+/// Represents a type of a function.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct FuncType {
+    /// The function parameter types.
     pub params: Box<[Type]>,
+    /// The function result types.
     pub returns: Box<[Type]>,
 }
 
+/// Represents a type of an instance.
 #[derive(Debug, Clone)]
 pub struct InstanceType<'a> {
+    /// The exports of the instance type.
     pub exports: Box<[ExportType<'a>]>,
 }
 
+/// Represents a type of a module.
 #[derive(Debug, Clone)]
 pub struct ModuleType<'a> {
+    /// The imports of the module type.
     pub imports: Box<[crate::Import<'a>]>,
+    /// The exports of the module type.
     pub exports: Box<[ExportType<'a>]>,
 }
 
+/// Represents an export's type.
 #[derive(Debug, Clone)]
 pub struct ExportType<'a> {
+    /// The name of the export.
     pub name: &'a str,
+    /// The type of the export.
     pub ty: ImportSectionEntryType,
 }
 
+/// Represents a table's type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct TableType {
+    /// The table's element type.
     pub element_type: Type,
     /// Initial size of this table, in elements.
     pub initial: u32,
@@ -198,6 +191,7 @@ pub struct TableType {
     pub maximum: Option<u32>,
 }
 
+/// Represents a memory's type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct MemoryType {
     /// Whether or not this is a 64-bit memory, using i64 as an index. If this
@@ -227,12 +221,8 @@ pub struct MemoryType {
     pub maximum: Option<u64>,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct TagType {
-    pub type_index: u32,
-}
-
 impl MemoryType {
+    /// Gets the index type for the memory.
     pub fn index_type(&self) -> Type {
         if self.memory64 {
             Type::I64
@@ -242,28 +232,52 @@ impl MemoryType {
     }
 }
 
+/// Represents a tag's type.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct TagType {
+    /// The type index of the tag.
+    pub type_index: u32,
+}
+
+/// Represents a global's type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct GlobalType {
+    /// The global's type.
     pub content_type: Type,
+    /// Whether or not the global is mutable.
     pub mutable: bool,
 }
 
+/// Represents a reference to a type.
 #[derive(Debug, Copy, Clone)]
 pub enum ImportSectionEntryType {
+    /// The type is a function.
+    ///
+    /// The value is a type index.
     Function(u32),
+    /// The type is a table.
     Table(TableType),
+    /// The type is a memory.
     Memory(MemoryType),
+    /// The type is a tag.
     Tag(TagType),
+    /// The type is a global.
     Global(GlobalType),
+    /// The type is a module.
+    ///
+    /// The value is a type index.
     Module(u32),
+    /// The type is an instance.
+    ///
+    /// The value is a type index.
     Instance(u32),
 }
 
+/// Represents a memory immediate in a WebAssembly memory instruction.
 #[derive(Debug, Copy, Clone)]
 pub struct MemoryImmediate {
     /// Alignment, stored as `n` where the actual alignment is `2^n`
     pub align: u8,
-
     /// A fixed byte-offset that this memory immediate specifies.
     ///
     /// Note that the memory64 proposal can specify a full 64-bit byte offset
@@ -271,7 +285,6 @@ pub struct MemoryImmediate {
     /// memory immediates for 32-bit memories are guaranteed to be at most
     /// `u32::MAX` whereas 64-bit memories can use the full 64-bits.
     pub offset: u64,
-
     /// The index of the memory this immediate points to.
     ///
     /// Note that this points within the module's own memory index space, and
@@ -280,33 +293,52 @@ pub struct MemoryImmediate {
     pub memory: u32,
 }
 
+/// Represents a name for an index from the names section.
 #[derive(Debug, Copy, Clone)]
 pub struct Naming<'a> {
+    /// The index being named.
     pub index: u32,
+    /// The name for the index.
     pub name: &'a str,
 }
 
+/// Represents the type of name.
 #[derive(Debug, Copy, Clone)]
 pub enum NameType {
+    /// The name is for a module.
     Module,
+    /// The name is for a function.
     Function,
+    /// The name is for a local.
     Local,
+    /// The name is for a label.
     Label,
+    /// The name is for a type.
     Type,
+    /// The name is for a table.
     Table,
+    /// The name is for a memory.
     Memory,
+    /// The name is for a global.
     Global,
+    /// The name is for an element segment.
     Element,
+    /// The name is for a data segment.
     Data,
+    /// The name is unknown.
     Unknown(u32),
 }
 
+/// Represents a linking type.
 #[derive(Debug, Copy, Clone)]
 pub enum LinkingType {
+    /// The linking uses a stack pointer.
     StackPointer(u32),
 }
 
+/// Represents a relocation type.
 #[derive(Debug, Copy, Clone)]
+#[allow(missing_docs)]
 pub enum RelocType {
     FunctionIndexLEB,
     TableIndexSLEB,
@@ -334,6 +366,7 @@ pub struct BrTable<'a> {
 pub struct Ieee32(pub(crate) u32);
 
 impl Ieee32 {
+    /// Gets the underlying bits of the 32-bit float.
     pub fn bits(self) -> u32 {
         self.0
     }
@@ -347,30 +380,36 @@ impl Ieee32 {
 pub struct Ieee64(pub(crate) u64);
 
 impl Ieee64 {
+    /// Gets the underlying bits of the 64-bit float.
     pub fn bits(self) -> u64 {
         self.0
     }
 }
 
+/// Represents a 128-bit vector value.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct V128(pub(crate) [u8; 16]);
 
 impl V128 {
+    /// Gets the bytes of the vector value.
     pub fn bytes(&self) -> &[u8; 16] {
         &self.0
     }
 
+    /// Gets a signed 128-bit integer value from the vector's bytes.
     pub fn i128(&self) -> i128 {
         i128::from_le_bytes(self.0)
     }
 }
 
+/// Represents a SIMD lane index.
 pub type SIMDLaneIndex = u8;
 
 /// Instructions as defined [here].
 ///
 /// [here]: https://webassembly.github.io/spec/core/binary/instructions.html
 #[derive(Debug, Clone)]
+#[allow(missing_docs)]
 pub enum Operator<'a> {
     Unreachable,
     Nop,

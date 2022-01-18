@@ -17,6 +17,7 @@ use super::{
     BinaryReader, Range, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
 };
 
+/// A reader for a core WebAssembly module's function section.
 #[derive(Clone)]
 pub struct FunctionSectionReader<'a> {
     reader: BinaryReader<'a>,
@@ -24,16 +25,19 @@ pub struct FunctionSectionReader<'a> {
 }
 
 impl<'a> FunctionSectionReader<'a> {
+    /// Constructs a new `FunctionSectionReader` for the given data and offset.
     pub fn new(data: &'a [u8], offset: usize) -> Result<FunctionSectionReader<'a>> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
         Ok(FunctionSectionReader { reader, count })
     }
 
+    /// Gets the original position of the section reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
+    /// Gets the count of items in the section.
     pub fn get_count(&self) -> u32 {
         self.count
     }

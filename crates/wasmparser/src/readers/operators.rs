@@ -15,6 +15,7 @@
 
 use super::{BinaryReader, BinaryReaderError, Operator, Result};
 
+/// A reader for a core WebAssembly function's operators.
 #[derive(Clone)]
 pub struct OperatorsReader<'a> {
     pub(crate) reader: BinaryReader<'a>,
@@ -30,18 +31,24 @@ impl<'a> OperatorsReader<'a> {
         }
     }
 
+    /// Determines if the reader is at the end of the operators.
     pub fn eof(&self) -> bool {
         self.reader.eof()
     }
 
+    /// Gets the original position of the reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
+    /// Whether or not to allow memory64 arguments.
     pub fn allow_memarg64(&mut self, allow: bool) {
         self.reader.allow_memarg64(allow);
     }
 
+    /// Ensures the reader is at the end.
+    ///
+    /// This function returns an error if there is extra data after the operators.
     pub fn ensure_end(&self) -> Result<()> {
         if self.eof() {
             return Ok(());
@@ -52,6 +59,7 @@ impl<'a> OperatorsReader<'a> {
         ))
     }
 
+    /// Reads an operator from the reader.
     pub fn read<'b>(&mut self) -> Result<Operator<'b>>
     where
         'a: 'b,
@@ -59,6 +67,7 @@ impl<'a> OperatorsReader<'a> {
         self.reader.read_operator()
     }
 
+    /// Converts to an iterator of operators paired with offsets.
     pub fn into_iter_with_offsets<'b>(self) -> OperatorsIteratorWithOffsets<'b>
     where
         'a: 'b,
@@ -69,6 +78,7 @@ impl<'a> OperatorsReader<'a> {
         }
     }
 
+    /// Reads an operator with its offset.
     pub fn read_with_offset<'b>(&mut self) -> Result<(Operator<'b>, usize)>
     where
         'a: 'b,
@@ -77,6 +87,7 @@ impl<'a> OperatorsReader<'a> {
         Ok((self.read()?, pos))
     }
 
+    /// Gets a binary reader from this operators reader.
     pub fn get_binary_reader(&self) -> BinaryReader<'a> {
         self.reader.clone()
     }
@@ -113,6 +124,7 @@ impl<'a> IntoIterator for OperatorsReader<'a> {
     }
 }
 
+/// An iterator over a function's operators.
 pub struct OperatorsIterator<'a> {
     reader: OperatorsReader<'a>,
     err: bool,
@@ -131,6 +143,7 @@ impl<'a> Iterator for OperatorsIterator<'a> {
     }
 }
 
+/// An iterator over a function's operators with offsets.
 pub struct OperatorsIteratorWithOffsets<'a> {
     reader: OperatorsReader<'a>,
     err: bool,

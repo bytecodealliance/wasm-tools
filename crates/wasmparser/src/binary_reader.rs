@@ -15,14 +15,15 @@
 
 use crate::limits::*;
 use crate::primitives::{
-    BinaryReaderError, BlockType, BrTable, CustomSectionKind, ExternalKind, FuncType, GlobalType,
-    Ieee32, Ieee64, LinkingType, MemoryImmediate, MemoryType, NameType, Operator, RelocType,
-    Result, SIMDLaneIndex, SectionCode, TableType, Type, V128,
+    BlockType, BrTable, CustomSectionKind, ExternalKind, FuncType, GlobalType, Ieee32, Ieee64,
+    LinkingType, MemoryImmediate, MemoryType, NameType, Operator, RelocType, SIMDLaneIndex,
+    SectionCode, TableType, Type, V128,
 };
 use crate::{
     ExportType, Import, ImportSectionEntryType, InitExpr, InstanceType, ModuleType, TagType,
 };
 use std::convert::TryInto;
+use std::error::Error;
 use std::fmt;
 use std::str;
 
@@ -60,6 +61,70 @@ impl Range {
     /// Returns a new slice between `start` and `end - 1` from `data`.
     pub fn slice<'a>(&self, data: &'a [u8]) -> &'a [u8] {
         &data[self.start..self.end]
+    }
+}
+
+/// A binary reader for WebAssembly modules.
+#[derive(Debug, Clone)]
+pub struct BinaryReaderError {
+    // Wrap the actual error data in a `Box` so that the error is just one
+    // word. This means that we can continue returning small `Result`s in
+    // registers.
+    pub(crate) inner: Box<BinaryReaderErrorInner>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct BinaryReaderErrorInner {
+    pub(crate) message: String,
+    pub(crate) offset: usize,
+    pub(crate) needed_hint: Option<usize>,
+}
+
+/// The result for `BinaryReader` operations.
+pub type Result<T, E = BinaryReaderError> = std::result::Result<T, E>;
+
+impl Error for BinaryReaderError {}
+
+impl fmt::Display for BinaryReaderError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} (at offset {})",
+            self.inner.message, self.inner.offset
+        )
+    }
+}
+
+impl BinaryReaderError {
+    pub(crate) fn new(message: impl Into<String>, offset: usize) -> Self {
+        let message = message.into();
+        BinaryReaderError {
+            inner: Box::new(BinaryReaderErrorInner {
+                message,
+                offset,
+                needed_hint: None,
+            }),
+        }
+    }
+
+    pub(crate) fn eof(offset: usize, needed_hint: usize) -> Self {
+        BinaryReaderError {
+            inner: Box::new(BinaryReaderErrorInner {
+                message: "Unexpected EOF".to_string(),
+                offset,
+                needed_hint: Some(needed_hint),
+            }),
+        }
+    }
+
+    /// Get this error's message.
+    pub fn message(&self) -> &str {
+        &self.inner.message
+    }
+
+    /// Get the offset within the Wasm binary where the error occurred.
+    pub fn offset(&self) -> usize {
+        self.inner.offset
     }
 }
 
@@ -103,10 +168,12 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
+    /// Gets the original position of the binary reader.
     pub fn original_position(&self) -> usize {
         self.original_offset + self.position
     }
 
+    /// Whether or not to allow memory64 arguments in functions.
     pub fn allow_memarg64(&mut self, allow: bool) {
         self.allow_memarg64 = allow;
     }
@@ -173,6 +240,7 @@ impl<'a> BinaryReader<'a> {
         Ok(b)
     }
 
+    /// Reads a core WebAssembly type from the binary reader.
     pub fn read_type(&mut self) -> Result<Type> {
         let code = self.read_var_i7()?;
         match code {

@@ -18,14 +18,20 @@ use super::{
     SectionWithLimitedItems,
 };
 
+/// Represnts a relocation entry.
 #[derive(Debug, Copy, Clone)]
 pub struct Reloc {
+    /// The relocation type.
     pub ty: RelocType,
+    /// The relocation offset.
     pub offset: u32,
+    /// The relocation index.
     pub index: u32,
+    /// The relocation addend.
     pub addend: Option<u32>,
 }
 
+/// A reader for the relocations custom section.
 pub struct RelocSectionReader<'a> {
     reader: BinaryReader<'a>,
     section_code: SectionCode<'a>,
@@ -33,6 +39,7 @@ pub struct RelocSectionReader<'a> {
 }
 
 impl<'a> RelocSectionReader<'a> {
+    /// Constructs a new `RelocSectionReader` for the given data and offset.
     pub fn new(data: &'a [u8], offset: usize) -> Result<RelocSectionReader<'a>> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
 
@@ -48,10 +55,12 @@ impl<'a> RelocSectionReader<'a> {
         })
     }
 
+    /// Gets a count of items in the section.
     pub fn get_count(&self) -> u32 {
         self.count
     }
 
+    /// Gets the section code from the section.
     pub fn get_section_code<'b>(&self) -> SectionCode<'b>
     where
         'a: 'b,
@@ -59,10 +68,12 @@ impl<'a> RelocSectionReader<'a> {
         self.section_code
     }
 
+    /// Gets the original position of the reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
+    /// Reads an item from the reader.
     pub fn read(&mut self) -> Result<Reloc> {
         let ty = self.reader.read_reloc_type()?;
         let offset = self.reader.read_var_u32()?;
