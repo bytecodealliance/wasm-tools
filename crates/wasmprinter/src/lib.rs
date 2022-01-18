@@ -428,8 +428,6 @@ impl Printer {
             Type::V128 => self.result.push_str("v128"),
             Type::FuncRef => self.result.push_str("funcref"),
             Type::ExternRef => self.result.push_str("externref"),
-            Type::ExnRef => self.result.push_str("exnref"),
-            _ => bail!("unimplemented {:?}", ty),
         }
         Ok(())
     }
@@ -438,7 +436,6 @@ impl Printer {
         match ty {
             Type::FuncRef => self.result.push_str("func"),
             Type::ExternRef => self.result.push_str("extern"),
-            Type::ExnRef => self.result.push_str("exn"),
             _ => bail!("invalid reference type {:?}", ty),
         }
         Ok(())
@@ -1599,7 +1596,7 @@ impl Printer {
         Ok(())
     }
 
-    fn print_blockty(&mut self, ty: &TypeOrFuncType, cur_depth: u32) -> Result<()> {
+    fn print_blockty(&mut self, ty: &BlockType, cur_depth: u32) -> Result<()> {
         if let Some(name) = self
             .state
             .label_names
@@ -1609,13 +1606,13 @@ impl Printer {
             name.write(&mut self.result);
         }
         match ty {
-            TypeOrFuncType::Type(Type::EmptyBlockType) => {}
-            TypeOrFuncType::Type(t) => {
+            BlockType::Empty => {}
+            BlockType::Type(t) => {
                 self.result.push_str(" (result ");
                 self.print_valtype(*t)?;
                 self.result.push_str(")");
             }
-            TypeOrFuncType::FuncType(idx) => {
+            BlockType::FuncType(idx) => {
                 self.print_functype_idx(*idx, false, None)?;
             }
         }

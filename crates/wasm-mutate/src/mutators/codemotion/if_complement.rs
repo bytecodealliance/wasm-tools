@@ -39,7 +39,7 @@ impl IfComplementWriter {
         newfunc: &mut wasm_encoder::Function,
         operators: &Vec<crate::mutators::OperatorAndByteOffset>,
         input_wasm: &'a [u8],
-        ty: &wasmparser::TypeOrFuncType,
+        ty: &wasmparser::BlockType,
     ) -> crate::Result<()> {
         // negate the value on the stack
         newfunc.instruction(&Instruction::I32Eqz);
@@ -75,7 +75,7 @@ impl AstWriter for IfComplementWriter {
         newfunc: &mut wasm_encoder::Function,
         operators: &Vec<crate::mutators::OperatorAndByteOffset>,
         input_wasm: &'a [u8],
-        ty: &wasmparser::TypeOrFuncType,
+        ty: &wasmparser::BlockType,
     ) -> crate::Result<()> {
         if self.if_to_mutate == nodeidx {
             self.write_complement(

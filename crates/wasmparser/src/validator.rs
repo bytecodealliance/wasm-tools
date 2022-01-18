@@ -1651,13 +1651,6 @@ impl WasmFeatures {
                     Err("reference types support is not enabled")
                 }
             }
-            Type::ExnRef => {
-                if self.exceptions {
-                    Ok(())
-                } else {
-                    Err("exceptions support is not enabled")
-                }
-            }
             Type::V128 => {
                 if self.simd {
                     Ok(())
@@ -1665,7 +1658,6 @@ impl WasmFeatures {
                     Err("SIMD support is not enabled")
                 }
             }
-            _ => Err("invalid value type"),
         }
     }
 }

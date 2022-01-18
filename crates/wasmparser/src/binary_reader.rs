@@ -13,20 +13,18 @@
  * limitations under the License.
  */
 
-use std::convert::TryInto;
-use std::fmt;
-use std::str;
-
 use crate::limits::*;
-
 use crate::primitives::{
-    BinaryReaderError, BrTable, CustomSectionKind, ExternalKind, FuncType, GlobalType, Ieee32,
-    Ieee64, LinkingType, MemoryImmediate, MemoryType, NameType, Operator, RelocType, Result,
-    SIMDLaneIndex, SectionCode, TableType, Type, TypeOrFuncType, V128,
+    BinaryReaderError, BlockType, BrTable, CustomSectionKind, ExternalKind, FuncType, GlobalType,
+    Ieee32, Ieee64, LinkingType, MemoryImmediate, MemoryType, NameType, Operator, RelocType,
+    Result, SIMDLaneIndex, SectionCode, TableType, Type, V128,
 };
 use crate::{
     ExportType, Import, ImportSectionEntryType, InitExpr, InstanceType, ModuleType, TagType,
 };
+use std::convert::TryInto;
+use std::fmt;
+use std::str;
 
 fn is_name(name: &str, expected: &'static str) -> bool {
     name == expected
@@ -146,7 +144,7 @@ impl<'a> BinaryReader<'a> {
         let b = self.read_u8()?;
         if (b & 0xFE) != 0 {
             return Err(BinaryReaderError::new(
-                "Invalid var_u1",
+                "invalid var_u1",
                 self.original_position() - 1,
             ));
         }
@@ -157,7 +155,7 @@ impl<'a> BinaryReader<'a> {
         let b = self.read_u8()?;
         if (b & 0x80) != 0 {
             return Err(BinaryReaderError::new(
-                "Invalid var_i7",
+                "invalid var_i7",
                 self.original_position() - 1,
             ));
         }
@@ -168,7 +166,7 @@ impl<'a> BinaryReader<'a> {
         let b = self.read_u8()?;
         if (b & 0x80) != 0 {
             return Err(BinaryReaderError::new(
-                "Invalid var_u7",
+                "invalid var_u7",
                 self.original_position() - 1,
             ));
         }
@@ -185,11 +183,8 @@ impl<'a> BinaryReader<'a> {
             -0x05 => Ok(Type::V128),
             -0x10 => Ok(Type::FuncRef),
             -0x11 => Ok(Type::ExternRef),
-            -0x18 => Ok(Type::ExnRef),
-            -0x20 => Ok(Type::Func),
-            -0x40 => Ok(Type::EmptyBlockType),
             _ => Err(BinaryReaderError::new(
-                "Invalid type",
+                "invalid type",
                 self.original_position() - 1,
             )),
         }
@@ -207,7 +202,7 @@ impl<'a> BinaryReader<'a> {
             6 => Ok(ExternalKind::Instance),
             7 => Ok(ExternalKind::Type),
             _ => Err(BinaryReaderError::new(
-                "Invalid external kind",
+                "invalid external kind",
                 self.original_position() - 1,
             )),
         }
@@ -1073,17 +1068,22 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    fn read_blocktype(&mut self) -> Result<TypeOrFuncType> {
+    fn read_blocktype(&mut self) -> Result<BlockType> {
         let position = self.position;
-        if let Ok(ty) = self.read_type() {
-            Ok(TypeOrFuncType::Type(ty))
+        if self.read_u8()? == 0x40 {
+            Ok(BlockType::Empty)
         } else {
             self.position = position;
-            let idx = self.read_var_s33()?;
-            if idx < 0 || idx > (std::u32::MAX as i64) {
-                return Err(BinaryReaderError::new("invalid function type", position));
+            if let Ok(ty) = self.read_type() {
+                Ok(BlockType::Type(ty))
+            } else {
+                self.position = position;
+                let idx = self.read_var_s33()?;
+                if idx < 0 || idx > (std::u32::MAX as i64) {
+                    return Err(BinaryReaderError::new("invalid function type", position));
+                }
+                Ok(BlockType::FuncType(idx as u32))
             }
-            Ok(TypeOrFuncType::FuncType(idx as u32))
         }
     }
 

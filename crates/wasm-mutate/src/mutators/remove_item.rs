@@ -13,7 +13,12 @@ use crate::{ModuleInfo, Result, WasmMutate};
 use rand::Rng;
 use std::collections::HashSet;
 use wasm_encoder::*;
-use wasmparser::*;
+use wasmparser::{
+    BinaryReader, CodeSectionReader, DataSectionReader, ElementSectionReader, ExportSectionReader,
+    ExternalKind, FunctionSectionReader, GlobalSectionReader, ImportSectionEntryType,
+    ImportSectionReader, MemorySectionReader, Operator, SectionReader, TableSectionReader,
+    TagSectionReader, TypeSectionReader,
+};
 
 /// Mutator that removes a random item in a wasm module (function, global,
 /// table, etc).
@@ -257,8 +262,6 @@ impl RemoveItem {
                 }
 
                 EXPORT => {
-                    use wasm_encoder::Export;
-
                     let mut result = ExportSection::new();
                     for item in ExportSectionReader::new(section.data, 0)? {
                         let item = item?;

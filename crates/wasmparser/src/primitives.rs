@@ -129,21 +129,18 @@ pub enum Type {
     V128,
     FuncRef,
     ExternRef,
-    ExnRef,
-    Func,
-    EmptyBlockType,
 }
 
-/// Either a value type or a function type.
+/// Represents a block type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum TypeOrFuncType {
-    /// A value type.
-    ///
-    /// When used as the type for a block, this type is the optional result
-    /// type: `[] -> [t?]`.
+pub enum BlockType {
+    /// The block produces consumes nor produces any values.
+    Empty,
+    /// The block produces a singular value of the given type ([] -> [t]).
     Type(Type),
-
-    /// A function type (referenced as an index into the types section).
+    /// The block is described by a function type.
+    ///
+    /// The index is to a function type in the types section.
     FuncType(u32),
 }
 
@@ -378,17 +375,17 @@ pub enum Operator<'a> {
     Unreachable,
     Nop,
     Block {
-        ty: TypeOrFuncType,
+        ty: BlockType,
     },
     Loop {
-        ty: TypeOrFuncType,
+        ty: BlockType,
     },
     If {
-        ty: TypeOrFuncType,
+        ty: BlockType,
     },
     Else,
     Try {
-        ty: TypeOrFuncType,
+        ty: BlockType,
     },
     Catch {
         index: u32,
