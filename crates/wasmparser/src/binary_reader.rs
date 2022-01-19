@@ -17,11 +17,9 @@ use crate::limits::*;
 use crate::primitives::{
     BlockType, BrTable, CustomSectionKind, ExternalKind, FuncType, GlobalType, Ieee32, Ieee64,
     LinkingType, MemoryImmediate, MemoryType, NameType, Operator, RelocType, SIMDLaneIndex,
-    SectionCode, TableType, Type, V128,
+    SectionCode, TableType, TagKind, Type, V128,
 };
-use crate::{
-    ExportType, Import, ImportSectionEntryType, InitExpr, InstanceType, ModuleType, TagType,
-};
+use crate::{ExportType, Import, InitExpr, InstanceType, ModuleType, TagType, TypeRef};
 use std::convert::TryInto;
 use std::error::Error;
 use std::fmt;
@@ -349,25 +347,25 @@ impl<'a> BinaryReader<'a> {
             Some(field)
         };
 
-        let ty = self.read_import_desc()?;
+        let ty = self.read_type_ref()?;
         Ok(Import { module, field, ty })
     }
 
     pub(crate) fn read_export_type(&mut self) -> Result<ExportType<'a>> {
         let name = self.read_string()?;
-        let ty = self.read_import_desc()?;
+        let ty = self.read_type_ref()?;
         Ok(ExportType { name, ty })
     }
 
-    pub(crate) fn read_import_desc(&mut self) -> Result<ImportSectionEntryType> {
+    pub(crate) fn read_type_ref(&mut self) -> Result<TypeRef> {
         Ok(match self.read_external_kind()? {
-            ExternalKind::Function => ImportSectionEntryType::Function(self.read_var_u32()?),
-            ExternalKind::Table => ImportSectionEntryType::Table(self.read_table_type()?),
-            ExternalKind::Memory => ImportSectionEntryType::Memory(self.read_memory_type()?),
-            ExternalKind::Tag => ImportSectionEntryType::Tag(self.read_tag_type()?),
-            ExternalKind::Global => ImportSectionEntryType::Global(self.read_global_type()?),
-            ExternalKind::Module => ImportSectionEntryType::Module(self.read_var_u32()?),
-            ExternalKind::Instance => ImportSectionEntryType::Instance(self.read_var_u32()?),
+            ExternalKind::Function => TypeRef::Function(self.read_var_u32()?),
+            ExternalKind::Table => TypeRef::Table(self.read_table_type()?),
+            ExternalKind::Memory => TypeRef::Memory(self.read_memory_type()?),
+            ExternalKind::Tag => TypeRef::Tag(self.read_tag_type()?),
+            ExternalKind::Global => TypeRef::Global(self.read_global_type()?),
+            ExternalKind::Module => TypeRef::Module(self.read_var_u32()?),
+            ExternalKind::Instance => TypeRef::Instance(self.read_var_u32()?),
             ExternalKind::Type => {
                 return Err(BinaryReaderError::new(
                     "cannot import types",
@@ -445,8 +443,10 @@ impl<'a> BinaryReader<'a> {
                 self.original_position() - 1,
             ));
         }
-        let type_index = self.read_var_u32()?;
-        Ok(TagType { type_index })
+        Ok(TagType {
+            kind: TagKind::Exception,
+            func_type_idx: self.read_var_u32()?,
+        })
     }
 
     pub(crate) fn read_global_type(&mut self) -> Result<GlobalType> {

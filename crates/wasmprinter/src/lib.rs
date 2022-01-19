@@ -459,13 +459,13 @@ impl Printer {
             }
             self.print_import(&import, true)?;
             match import.ty {
-                ImportSectionEntryType::Function(_) => self.state.func += 1,
-                ImportSectionEntryType::Module(_) => self.state.module += 1,
-                ImportSectionEntryType::Instance(_) => self.state.instance += 1,
-                ImportSectionEntryType::Table(_) => self.state.table += 1,
-                ImportSectionEntryType::Memory(_) => self.state.memory += 1,
-                ImportSectionEntryType::Tag(_) => self.state.tag += 1,
-                ImportSectionEntryType::Global(_) => self.state.global += 1,
+                TypeRef::Function(_) => self.state.func += 1,
+                TypeRef::Module(_) => self.state.module += 1,
+                TypeRef::Instance(_) => self.state.instance += 1,
+                TypeRef::Table(_) => self.state.table += 1,
+                TypeRef::Memory(_) => self.state.memory += 1,
+                TypeRef::Tag(_) => self.state.tag += 1,
+                TypeRef::Global(_) => self.state.global += 1,
             }
         }
         Ok(())
@@ -485,8 +485,8 @@ impl Printer {
         Ok(())
     }
 
-    fn print_import_ty(&mut self, ty: &ImportSectionEntryType, index: bool) -> Result<()> {
-        use ImportSectionEntryType::*;
+    fn print_import_ty(&mut self, ty: &TypeRef, index: bool) -> Result<()> {
+        use TypeRef::*;
         match ty {
             Function(f) => {
                 self.start_group("func");
@@ -552,7 +552,7 @@ impl Printer {
         if index {
             write!(self.result, "(;{};)", self.state.tag)?;
         }
-        self.print_functype_idx(ty.type_index, true, None)?;
+        self.print_functype_idx(ty.func_type_idx, true, None)?;
         Ok(())
     }
 

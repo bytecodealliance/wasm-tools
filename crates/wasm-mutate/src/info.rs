@@ -104,26 +104,26 @@ impl<'a> ModuleInfo<'a> {
                     for _ in 0..reader.get_count() {
                         let ty = reader.read()?;
                         match ty.ty {
-                            wasmparser::ImportSectionEntryType::Function(ty) => {
+                            wasmparser::TypeRef::Function(ty) => {
                                 // Save imported functions
                                 info.function_map.push(ty);
                                 info.imported_functions_count += 1;
                             }
-                            wasmparser::ImportSectionEntryType::Global(ty) => {
+                            wasmparser::TypeRef::Global(ty) => {
                                 let ty = PrimitiveTypeInfo::try_from(ty.content_type).unwrap();
                                 info.global_types.push(ty);
                                 info.imported_globals_count += 1;
                             }
-                            wasmparser::ImportSectionEntryType::Memory(_ty) => {
+                            wasmparser::TypeRef::Memory(_ty) => {
                                 info.memory_count += 1;
                                 info.imported_memories_count += 1;
                             }
-                            wasmparser::ImportSectionEntryType::Table(ty) => {
+                            wasmparser::TypeRef::Table(ty) => {
                                 info.table_count += 1;
                                 info.imported_tables_count += 1;
                                 info.table_elem_types.push(ty.element_type.into());
                             }
-                            wasmparser::ImportSectionEntryType::Tag(_ty) => {
+                            wasmparser::TypeRef::Tag(_ty) => {
                                 info.tag_count += 1;
                                 info.imported_tags_count += 1;
                             }

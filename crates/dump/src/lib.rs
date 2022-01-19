@@ -66,31 +66,31 @@ impl<'a> Dump<'a> {
                 Payload::ImportSection(s) => self.section(s, "import", |me, end, imp| {
                     write!(me.state, "import ")?;
                     match imp.ty {
-                        ImportSectionEntryType::Function(_) => {
+                        TypeRef::Function(_) => {
                             write!(me.state, "[func {}]", i.funcs)?;
                             i.funcs += 1;
                         }
-                        ImportSectionEntryType::Memory(_) => {
+                        TypeRef::Memory(_) => {
                             write!(me.state, "[memory {}]", i.memories)?;
                             i.memories += 1;
                         }
-                        ImportSectionEntryType::Tag(_) => {
+                        TypeRef::Tag(_) => {
                             write!(me.state, "[tag {}]", i.tags)?;
                             i.tags += 1;
                         }
-                        ImportSectionEntryType::Table(_) => {
+                        TypeRef::Table(_) => {
                             write!(me.state, "[table {}]", i.tables)?;
                             i.tables += 1;
                         }
-                        ImportSectionEntryType::Global(_) => {
+                        TypeRef::Global(_) => {
                             write!(me.state, "[global {}]", i.globals)?;
                             i.globals += 1;
                         }
-                        ImportSectionEntryType::Instance(_) => {
+                        TypeRef::Instance(_) => {
                             write!(me.state, "[instance {}]", i.instances)?;
                             i.instances += 1;
                         }
-                        ImportSectionEntryType::Module(_) => {
+                        TypeRef::Module(_) => {
                             write!(me.state, "[module {}]", i.modules)?;
                             i.modules += 1;
                         }

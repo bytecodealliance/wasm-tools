@@ -14,8 +14,8 @@
  */
 
 use crate::{
-    BinaryReader, ImportSectionEntryType, Range, Result, SectionIteratorLimited, SectionReader,
-    SectionWithLimitedItems,
+    BinaryReader, Range, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
+    TypeRef,
 };
 
 /// Represents a core WebAssembly import.
@@ -26,7 +26,7 @@ pub struct Import<'a> {
     /// The name of the imported item.
     pub field: Option<&'a str>,
     /// The type of the imported item.
-    pub ty: ImportSectionEntryType,
+    pub ty: TypeRef,
 }
 
 /// A reader for a core WebAssembly's import section.

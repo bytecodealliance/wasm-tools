@@ -49,10 +49,10 @@ impl<'a> TagSectionReader<'a> {
     /// ```
     /// use wasmparser::TagSectionReader;
     /// # let data: &[u8] = &[0x01, 0x00, 0x01];
-    /// let mut tag_reader = TagSectionReader::new(data, 0).unwrap();
-    /// for _ in 0..tag_reader.get_count() {
-    ///     let et = tag_reader.read().expect("tag_type");
-    ///     println!("Tag: {:?}", et);
+    /// let mut reader = TagSectionReader::new(data, 0).unwrap();
+    /// for _ in 0..reader.get_count() {
+    ///     let ty = reader.read().expect("tag type");
+    ///     println!("Tag type: {:?}", ty);
     /// }
     /// ```
     pub fn read(&mut self) -> Result<TagType> {

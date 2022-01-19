@@ -177,7 +177,7 @@ pub struct ExportType<'a> {
     /// The name of the export.
     pub name: &'a str,
     /// The type of the export.
-    pub ty: ImportSectionEntryType,
+    pub ty: TypeRef,
 }
 
 /// Represents a table's type.
@@ -232,13 +232,6 @@ impl MemoryType {
     }
 }
 
-/// Represents a tag's type.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct TagType {
-    /// The type index of the tag.
-    pub type_index: u32,
-}
-
 /// Represents a global's type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct GlobalType {
@@ -248,29 +241,49 @@ pub struct GlobalType {
     pub mutable: bool,
 }
 
-/// Represents a reference to a type.
-#[derive(Debug, Copy, Clone)]
-pub enum ImportSectionEntryType {
-    /// The type is a function.
-    ///
-    /// The value is a type index.
-    Function(u32),
-    /// The type is a table.
-    Table(TableType),
-    /// The type is a memory.
-    Memory(MemoryType),
-    /// The type is a tag.
-    Tag(TagType),
-    /// The type is a global.
-    Global(GlobalType),
-    /// The type is a module.
-    ///
-    /// The value is a type index.
-    Module(u32),
+/// Represents a tag kind.
+#[derive(Clone, Copy, Debug)]
+pub enum TagKind {
+    /// The tag is an exception type.
+    Exception,
+}
+
+/// A tag's type.
+#[derive(Clone, Copy, Debug)]
+pub struct TagType {
+    /// The kind of tag
+    pub kind: TagKind,
+    /// The function type this tag uses.
+    pub func_type_idx: u32,
+}
+
+/// Represents a reference to a type definition.
+#[derive(Debug, Clone, Copy)]
+pub enum TypeRef {
     /// The type is an instance.
     ///
-    /// The value is a type index.
+    /// The value is an index in the types index space.
     Instance(u32),
+    /// The type is a module.
+    ///
+    /// The value is an index in the types index space.
+    Module(u32),
+    /// The type is a core wasm function.
+    ///
+    /// The value is an index in the types index space.
+    Function(u32),
+    /// The type is a core wasm table.
+    Table(TableType),
+    /// The type is a core wasm memory.
+    Memory(MemoryType),
+    /// The type is a core wasm global.
+    Global(GlobalType),
+    /// The type is a tag.
+    ///
+    /// This variant is only used for the exception handling proposal.
+    ///
+    /// The value is an index in the types index space.
+    Tag(TagType),
 }
 
 /// Represents a memory immediate in a WebAssembly memory instruction.

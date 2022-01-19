@@ -15,9 +15,9 @@ use std::collections::HashSet;
 use wasm_encoder::*;
 use wasmparser::{
     BinaryReader, CodeSectionReader, DataSectionReader, ElementSectionReader, ExportSectionReader,
-    ExternalKind, FunctionSectionReader, GlobalSectionReader, ImportSectionEntryType,
-    ImportSectionReader, MemorySectionReader, Operator, SectionReader, TableSectionReader,
-    TagSectionReader, TypeSectionReader,
+    ExternalKind, FunctionSectionReader, GlobalSectionReader, ImportSectionReader,
+    MemorySectionReader, Operator, SectionReader, TableSectionReader, TagSectionReader,
+    TypeSectionReader,
 };
 
 /// Mutator that removes a random item in a wasm module (function, global,
@@ -161,7 +161,7 @@ impl RemoveItem {
                     for item in ImportSectionReader::new(section.data, 0)? {
                         let item = item?;
                         match &item.ty {
-                            ImportSectionEntryType::Function(ty) => {
+                            wasmparser::TypeRef::Function(ty) => {
                                 if self.item != Item::Function || self.idx != function {
                                     let ty = self.remap(Item::Type, *ty)?;
                                     result.import(
@@ -172,36 +172,35 @@ impl RemoveItem {
                                 }
                                 function += 1;
                             }
-                            ImportSectionEntryType::Table(ty) => {
+                            wasmparser::TypeRef::Table(ty) => {
                                 if self.item != Item::Table || self.idx != table {
                                     let ty = self.translate_table_type(ty)?;
                                     result.import(item.module, item.field.unwrap(), ty);
                                 }
                                 table += 1;
                             }
-                            ImportSectionEntryType::Memory(ty) => {
+                            wasmparser::TypeRef::Memory(ty) => {
                                 if self.item != Item::Memory || self.idx != memory {
                                     let ty = self.translate_memory_type(ty)?;
                                     result.import(item.module, item.field.unwrap(), ty);
                                 }
                                 memory += 1;
                             }
-                            ImportSectionEntryType::Global(ty) => {
+                            wasmparser::TypeRef::Global(ty) => {
                                 if self.item != Item::Global || self.idx != global {
                                     let ty = self.translate_global_type(ty)?;
                                     result.import(item.module, item.field.unwrap(), ty);
                                 }
                                 global += 1;
                             }
-                            ImportSectionEntryType::Tag(ty) => {
+                            wasmparser::TypeRef::Tag(ty) => {
                                 if self.item != Item::Tag || self.idx != tag {
                                     let ty = self.translate_tag_type(ty)?;
                                     result.import(item.module, item.field.unwrap(), ty);
                                 }
                                 tag += 1;
                             }
-                            ImportSectionEntryType::Instance(_)
-                            | ImportSectionEntryType::Module(_) => {
+                            wasmparser::TypeRef::Instance(_) | wasmparser::TypeRef::Module(_) => {
                                 return Err(Error::no_mutations_applicable())
                             }
                         }

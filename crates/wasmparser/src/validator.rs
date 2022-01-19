@@ -16,7 +16,7 @@
 use crate::limits::*;
 use crate::operators_validator::OperatorValidator;
 use crate::WasmModuleResources;
-use crate::{Alias, ExternalKind, Import, ImportSectionEntryType};
+use crate::{Alias, ExternalKind, Import, TypeRef};
 use crate::{BinaryReaderError, GlobalType, MemoryType, Range, Result, TableType, TagType, Type};
 use crate::{DataKind, ElementItem, ElementKind, InitExpr, Instance, Operator};
 use crate::{FuncType, SectionReader, SectionWithLimitedItems};
@@ -641,35 +641,37 @@ impl Validator {
         }
     }
 
-    fn import_entry_type(&self, import_type: &ImportSectionEntryType) -> Result<EntityType> {
+    fn import_entry_type(&self, import_type: &TypeRef) -> Result<EntityType> {
         match import_type {
-            ImportSectionEntryType::Function(type_index) => {
+            TypeRef::Function(type_index) => {
                 self.func_type_at(*type_index)?;
                 Ok(EntityType::Func(self.cur.state.types[*type_index as usize]))
             }
-            ImportSectionEntryType::Table(t) => {
+            TypeRef::Table(t) => {
                 self.table_type(t)?;
                 Ok(EntityType::Table(*t))
             }
-            ImportSectionEntryType::Memory(t) => {
+            TypeRef::Memory(t) => {
                 self.memory_type(t)?;
                 Ok(EntityType::Memory(*t))
             }
-            ImportSectionEntryType::Tag(t) => {
+            TypeRef::Tag(t) => {
                 self.tag_type(t)?;
-                Ok(EntityType::Tag(self.cur.state.types[t.type_index as usize]))
+                Ok(EntityType::Tag(
+                    self.cur.state.types[t.func_type_idx as usize],
+                ))
             }
-            ImportSectionEntryType::Global(t) => {
+            TypeRef::Global(t) => {
                 self.global_type(t)?;
                 Ok(EntityType::Global(*t))
             }
-            ImportSectionEntryType::Module(type_index) => {
+            TypeRef::Module(type_index) => {
                 self.module_type_at(*type_index)?;
                 Ok(EntityType::Module(
                     self.cur.state.types[*type_index as usize],
                 ))
             }
-            ImportSectionEntryType::Instance(type_index) => {
+            TypeRef::Instance(type_index) => {
                 self.instance_type_at(*type_index)?;
                 Ok(EntityType::Instance(
                     self.cur.state.types[*type_index as usize],
@@ -734,7 +736,7 @@ impl Validator {
         if !self.features.exceptions {
             return self.create_error("exceptions proposal not enabled");
         }
-        let ty = self.func_type_at(ty.type_index)?;
+        let ty = self.func_type_at(ty.func_type_idx)?;
         if ty.returns.len() > 0 {
             return self.create_error("invalid exception type: non-empty tag result type");
         }
@@ -800,35 +802,35 @@ impl Validator {
             }
         }
         let (len, max, desc) = match entry.ty {
-            ImportSectionEntryType::Function(type_index) => {
+            TypeRef::Function(type_index) => {
                 let ty = state.types[type_index as usize];
                 state.func_types.push(ty);
                 (state.func_types.len(), MAX_WASM_FUNCTIONS, "funcs")
             }
-            ImportSectionEntryType::Table(ty) => {
+            TypeRef::Table(ty) => {
                 state.tables.push(ty);
                 (state.tables.len(), self.max_tables(), "tables")
             }
-            ImportSectionEntryType::Memory(ty) => {
+            TypeRef::Memory(ty) => {
                 state.memories.push(ty);
                 (state.memories.len(), self.max_memories(), "memories")
             }
-            ImportSectionEntryType::Tag(ty) => {
-                let ty = state.types[ty.type_index as usize];
+            TypeRef::Tag(ty) => {
+                let ty = state.types[ty.func_type_idx as usize];
                 state.tags.push(ty);
                 (state.tags.len(), MAX_WASM_TAGS, "tags")
             }
-            ImportSectionEntryType::Global(ty) => {
+            TypeRef::Global(ty) => {
                 state.globals.push(ty);
                 state.num_imported_globals += 1;
                 (state.globals.len(), MAX_WASM_GLOBALS, "globals")
             }
-            ImportSectionEntryType::Instance(type_idx) => {
+            TypeRef::Instance(type_idx) => {
                 let index = state.types[type_idx as usize];
                 state.instances.push(index);
                 (state.instances.len(), MAX_WASM_INSTANCES, "instances")
             }
-            ImportSectionEntryType::Module(type_index) => {
+            TypeRef::Module(type_index) => {
                 let index = state.types[type_index as usize];
                 state.submodules.push(index);
                 (state.submodules.len(), MAX_WASM_MODULES, "modules")
@@ -1209,7 +1211,7 @@ impl Validator {
         self.section(Order::Tag, section, |me, ty| {
             me.tag_type(&ty)?;
             let state = me.cur.state.assert_mut();
-            state.tags.push(state.types[ty.type_index as usize]);
+            state.tags.push(state.types[ty.func_type_idx as usize]);
             Ok(())
         })
     }

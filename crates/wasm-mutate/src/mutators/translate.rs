@@ -158,7 +158,7 @@ pub fn global_type(
 pub fn tag_type(t: &mut dyn Translator, ty: &wasmparser::TagType) -> Result<wasm_encoder::TagType> {
     Ok(wasm_encoder::TagType {
         kind: TagKind::Exception,
-        func_type_idx: t.remap(Item::Type, ty.type_index)?,
+        func_type_idx: t.remap(Item::Type, ty.func_type_idx)?,
     })
 }
 
