@@ -2,6 +2,8 @@ use super::*;
 
 /// An encoder for the start section.
 ///
+/// Start sections are only supported for modules.
+///
 /// # Example
 ///
 /// Note: this doesn't actually define the function at index 0, its type, or its
@@ -25,9 +27,9 @@ pub struct StartSection {
     pub function_index: u32,
 }
 
-impl Section for StartSection {
-    fn id(&self) -> u8 {
-        SectionId::Start.into()
+impl Section<ModuleSectionId> for StartSection {
+    fn id(&self) -> ModuleSectionId {
+        ModuleSectionId::Start
     }
 
     fn encode<S>(&self, sink: &mut S)

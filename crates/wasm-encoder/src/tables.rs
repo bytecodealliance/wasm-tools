@@ -2,6 +2,8 @@ use super::*;
 
 /// An encoder for the table section.
 ///
+/// Start sections are only supported for modules.
+///
 /// # Example
 ///
 /// ```
@@ -31,7 +33,7 @@ impl TableSection {
         Self::default()
     }
 
-    /// How many tables have been defined inside this section so far?
+    /// The number of tables in the section.
     pub fn len(&self) -> u32 {
         self.num_added
     }
@@ -49,9 +51,9 @@ impl TableSection {
     }
 }
 
-impl Section for TableSection {
-    fn id(&self) -> u8 {
-        SectionId::Table.into()
+impl Section<ModuleSectionId> for TableSection {
+    fn id(&self) -> ModuleSectionId {
+        ModuleSectionId::Table
     }
 
     fn encode<S>(&self, sink: &mut S)

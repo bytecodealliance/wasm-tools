@@ -2,6 +2,8 @@ use super::*;
 
 /// An encoder for the global section.
 ///
+/// Global sections are only supported for modules.
+///
 /// # Example
 ///
 /// ```
@@ -33,7 +35,7 @@ impl GlobalSection {
         Self::default()
     }
 
-    /// How many globals have been defined inside this section so far?
+    /// The number of globals in the section.
     pub fn len(&self) -> u32 {
         self.num_added
     }
@@ -60,9 +62,9 @@ impl GlobalSection {
     }
 }
 
-impl Section for GlobalSection {
-    fn id(&self) -> u8 {
-        SectionId::Global.into()
+impl Section<ModuleSectionId> for GlobalSection {
+    fn id(&self) -> ModuleSectionId {
+        ModuleSectionId::Global
     }
 
     fn encode<S>(&self, sink: &mut S)

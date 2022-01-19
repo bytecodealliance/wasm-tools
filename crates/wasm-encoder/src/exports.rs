@@ -1,44 +1,108 @@
-use super::*;
+use crate::{
+    encoders, AdapterModuleSectionId, ComponentSectionId, ModuleSectionId, Section,
+    SectionEncodingFormat,
+};
+
+/// Represents an export of a local item (by index).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Export {
+    /// The export is a function.
+    Function(u32),
+    /// The export is a table.
+    Table(u32),
+    /// The export is a memory.
+    Memory(u32),
+    /// The export is a global.
+    Global(u32),
+    /// The export is a tag.
+    ///
+    /// This variant is used with the exception handling proposal.
+    Tag(u32),
+    /// The export is an instance.
+    ///
+    /// This variant is used for adapter modules and components.
+    Instance(u32),
+    /// The export is a module.
+    ///
+    /// This variant is used for adapter modules and components.
+    Module(u32),
+    /// The export is an adapter function.
+    ///
+    /// This variant is used for components.
+    AdapterFunction(u32),
+}
+
+impl Export {
+    pub(crate) fn encode(&self, format: SectionEncodingFormat, bytes: &mut Vec<u8>) {
+        let (ty, index) = match format {
+            SectionEncodingFormat::Module => match self {
+                Self::Function(i) => (0x00, *i),
+                Self::Table(i) => (0x01, *i),
+                Self::Memory(i) => (0x02, *i),
+                Self::Global(i) => (0x03, *i),
+                Self::Tag(i) => (0x04, *i),
+                _ => panic!("cannot encode {:?} for a WebAssembly module", self),
+            },
+            SectionEncodingFormat::AdapterModule => match self {
+                Self::Instance(i) => (0x00, *i),
+                Self::Module(i) => (0x01, *i),
+                Self::Function(i) => (0x02, *i),
+                Self::Table(i) => (0x03, *i),
+                Self::Memory(i) => (0x04, *i),
+                Self::Global(i) => (0x05, *i),
+                _ => panic!("cannot encode {:?} for a WebAssembly adapter module", self),
+            },
+            SectionEncodingFormat::Component => match self {
+                Self::Instance(i) => (0x00, *i),
+                Self::Module(i) => (0x01, *i),
+                Self::Function(i) => (0x02, *i),
+                Self::Table(i) => (0x03, *i),
+                Self::Memory(i) => (0x04, *i),
+                Self::Global(i) => (0x05, *i),
+                Self::AdapterFunction(i) => (0x06, *i),
+                _ => panic!("cannot encode {:?} for a WebAssembly component", self),
+            },
+        };
+
+        bytes.push(ty);
+        bytes.extend(encoders::u32(index));
+    }
+}
 
 /// An encoder for the export section.
 ///
 /// # Example
 ///
-/// ```
-/// use wasm_encoder::{
-///     Export, ExportSection, TableSection, TableType, Module, ValType,
-/// };
+/// ```rust
+/// use wasm_encoder::{Module, ExportSection, SectionEncodingFormat, Export};
 ///
-/// let mut tables = TableSection::new();
-/// tables.table(TableType {
-///     element_type: ValType::FuncRef,
-///     minimum: 128,
-///     maximum: None,
-/// });
-///
-/// let mut exports = ExportSection::new();
-/// exports.export("my-table", Export::Table(0));
+/// // This assumes there is a function at index 0 to export
+/// let mut exports = ExportSection::new(SectionEncodingFormat::Module);
+/// exports.export("foo", Export::Function(0));
 ///
 /// let mut module = Module::new();
-/// module
-///     .section(&tables)
-///     .section(&exports);
+/// module.section(&exports);
 ///
-/// let wasm_bytes = module.finish();
+/// let bytes = module.finish();
 /// ```
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Debug)]
 pub struct ExportSection {
     bytes: Vec<u8>,
     num_added: u32,
+    format: SectionEncodingFormat,
 }
 
 impl ExportSection {
     /// Create a new export section encoder.
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(format: SectionEncodingFormat) -> Self {
+        Self {
+            bytes: Vec::new(),
+            num_added: 0,
+            format,
+        }
     }
 
-    /// How many exports have been defined inside this section so far?
+    /// The number of exports in the section.
     pub fn len(&self) -> u32 {
         self.num_added
     }
@@ -48,24 +112,16 @@ impl ExportSection {
         self.num_added == 0
     }
 
-    /// Define an export.
+    /// Define an export in the export section.
     pub fn export(&mut self, name: &str, export: Export) -> &mut Self {
         self.bytes.extend(encoders::str(name));
-        export.encode(&mut self.bytes);
+        export.encode(self.format, &mut self.bytes);
         self.num_added += 1;
         self
     }
-}
 
-impl Section for ExportSection {
-    fn id(&self) -> u8 {
-        SectionId::Export.into()
-    }
-
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, format: SectionEncodingFormat, sink: &mut impl Extend<u8>) {
+        assert_eq!(self.format, format, "export section format mismatch");
         let num_added = encoders::u32(self.num_added);
         let n = num_added.len();
         sink.extend(
@@ -76,81 +132,41 @@ impl Section for ExportSection {
     }
 }
 
-/// A WebAssembly export.
-#[derive(Clone, Copy, Debug)]
-pub enum Export {
-    /// An export of the `n`th function.
-    Function(u32),
-    /// An export of the `n`th table.
-    Table(u32),
-    /// An export of the `n`th memory.
-    Memory(u32),
-    /// An export of the `n`th global.
-    Global(u32),
-    /// An export of the `n`th tag.
-    Tag(u32),
-    /// An export of the `n`th instance.
-    ///
-    /// Note that this is part of the [module linking proposal][proposal] and is
-    /// not currently part of stable WebAssembly.
-    ///
-    /// [proposal]: https://github.com/webassembly/module-linking
-    Instance(u32),
-    /// An export of the `n`th module.
-    ///
-    /// Note that this is part of the [module linking proposal][proposal] and is
-    /// not currently part of stable WebAssembly.
-    ///
-    /// [proposal]: https://github.com/webassembly/module-linking
-    Module(u32),
-}
+impl Section<ModuleSectionId> for ExportSection {
+    fn id(&self) -> ModuleSectionId {
+        ModuleSectionId::Export
+    }
 
-impl Export {
-    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
-        let idx = match *self {
-            Export::Function(x) => {
-                bytes.push(ItemKind::Function as u8);
-                x
-            }
-            Export::Table(x) => {
-                bytes.push(ItemKind::Table as u8);
-                x
-            }
-            Export::Memory(x) => {
-                bytes.push(ItemKind::Memory as u8);
-                x
-            }
-            Export::Global(x) => {
-                bytes.push(ItemKind::Global as u8);
-                x
-            }
-            Export::Tag(x) => {
-                bytes.push(ItemKind::Tag as u8);
-                x
-            }
-            Export::Instance(x) => {
-                bytes.push(ItemKind::Instance as u8);
-                x
-            }
-            Export::Module(x) => {
-                bytes.push(ItemKind::Module as u8);
-                x
-            }
-        };
-        bytes.extend(encoders::u32(idx));
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        self.encode(SectionEncodingFormat::Module, sink);
     }
 }
 
-/// Kinds of WebAssembly items
-#[allow(missing_docs)]
-#[repr(u8)]
-#[derive(Clone, Copy, Debug)]
-pub enum ItemKind {
-    Function = 0x00,
-    Table = 0x01,
-    Memory = 0x02,
-    Global = 0x03,
-    Tag = 0x04,
-    Module = 0x05,
-    Instance = 0x06,
+impl Section<AdapterModuleSectionId> for ExportSection {
+    fn id(&self) -> AdapterModuleSectionId {
+        AdapterModuleSectionId::Export
+    }
+
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        self.encode(SectionEncodingFormat::AdapterModule, sink);
+    }
+}
+
+impl Section<ComponentSectionId> for ExportSection {
+    fn id(&self) -> ComponentSectionId {
+        ComponentSectionId::Export
+    }
+
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        self.encode(SectionEncodingFormat::Component, sink);
+    }
 }

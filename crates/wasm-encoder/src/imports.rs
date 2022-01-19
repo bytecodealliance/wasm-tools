@@ -1,17 +1,19 @@
-use super::*;
-use std::convert::TryFrom;
+use crate::{
+    encoders, AdapterModuleSectionId, ComponentSectionId, ModuleSectionId, Section,
+    SectionEncodingFormat, TypeRef,
+};
 
 /// An encoder for the import section.
 ///
 /// # Example
 ///
-/// ```
-/// use wasm_encoder::{Module, ImportSection, MemoryType};
+/// ```rust
+/// use wasm_encoder::{MemoryType, Module, ImportSection, SectionEncodingFormat};
 ///
-/// let mut imports = ImportSection::new();
+/// let mut imports = ImportSection::new(SectionEncodingFormat::Module);
 /// imports.import(
-///     "env",
-///     Some("memory"),
+///     Some("env"),
+///     "memory",
 ///     MemoryType {
 ///         minimum: 1,
 ///         maximum: None,
@@ -22,21 +24,26 @@ use std::convert::TryFrom;
 /// let mut module = Module::new();
 /// module.section(&imports);
 ///
-/// let wasm_bytes = module.finish();
+/// let bytes = module.finish();
 /// ```
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Debug)]
 pub struct ImportSection {
     bytes: Vec<u8>,
     num_added: u32,
+    format: SectionEncodingFormat,
 }
 
 impl ImportSection {
-    /// Construct a new import section encoder.
-    pub fn new() -> Self {
-        Self::default()
+    /// Create a new import section encoder.
+    pub fn new(format: SectionEncodingFormat) -> Self {
+        Self {
+            bytes: Vec::new(),
+            num_added: 0,
+            format,
+        }
     }
 
-    /// How many imports have been defined inside this section so far?
+    /// The number of imports in the section.
     pub fn len(&self) -> u32 {
         self.num_added
     }
@@ -46,36 +53,38 @@ impl ImportSection {
         self.num_added == 0
     }
 
-    /// Define an import.
+    /// Define an import in the import section.
+    ///
+    /// When encoding modules, the import's module name is required.
+    /// When encoding adapter modules and components, the import's module name must be `None`.
     pub fn import(
         &mut self,
-        module: &str,
-        name: Option<&str>,
-        ty: impl Into<EntityType>,
+        module: Option<&str>,
+        name: &str,
+        ty: impl Into<TypeRef>,
     ) -> &mut Self {
-        self.bytes.extend(encoders::str(module));
-        match name {
-            Some(name) => self.bytes.extend(encoders::str(name)),
-            None => {
-                self.bytes.push(0x00);
-                self.bytes.push(0xff);
+        match self.format {
+            SectionEncodingFormat::Module => {
+                // The module name is required
+                let module = module.expect("module name is required for module encoding");
+                self.bytes.extend(encoders::str(module));
+                self.bytes.extend(encoders::str(name));
+            }
+            SectionEncodingFormat::AdapterModule | SectionEncodingFormat::Component => {
+                assert!(
+                    module.is_none(),
+                    "module name cannot be provided for adapter module or component encoding"
+                );
+                self.bytes.extend(encoders::str(name));
             }
         }
-        ty.into().encode(&mut self.bytes);
+        ty.into().encode(self.format, &mut self.bytes);
         self.num_added += 1;
         self
     }
-}
 
-impl Section for ImportSection {
-    fn id(&self) -> u8 {
-        SectionId::Import.into()
-    }
-
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, format: SectionEncodingFormat, sink: &mut impl Extend<u8>) {
+        assert_eq!(self.format, format, "import section format mismatch");
         let num_added = encoders::u32(self.num_added);
         let n = num_added.len();
         sink.extend(
@@ -86,84 +95,41 @@ impl Section for ImportSection {
     }
 }
 
-/// The type of an entity.
-#[derive(Clone, Copy, Debug)]
-pub enum EntityType {
-    /// The `n`th type, which is a function.
-    Function(u32),
-    /// A table type.
-    Table(TableType),
-    /// A memory type.
-    Memory(MemoryType),
-    /// A global type.
-    Global(GlobalType),
-    /// A tag type.
-    Tag(TagType),
-    /// The `n`th type, which is an instance.
-    Instance(u32),
-    /// The `n`th type, which is a module.
-    Module(u32),
-}
+impl Section<ModuleSectionId> for ImportSection {
+    fn id(&self) -> ModuleSectionId {
+        ModuleSectionId::Import
+    }
 
-// NB: no `impl From<u32> for ImportType` because instances and modules also use
-// `u32` indices in module linking, so we would have to remove that impl when
-// adding support for module linking anyways.
-
-impl From<TableType> for EntityType {
-    fn from(t: TableType) -> Self {
-        EntityType::Table(t)
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        self.encode(SectionEncodingFormat::Module, sink);
     }
 }
 
-impl From<MemoryType> for EntityType {
-    fn from(m: MemoryType) -> Self {
-        EntityType::Memory(m)
+impl Section<AdapterModuleSectionId> for ImportSection {
+    fn id(&self) -> AdapterModuleSectionId {
+        AdapterModuleSectionId::Import
+    }
+
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        self.encode(SectionEncodingFormat::AdapterModule, sink);
     }
 }
 
-impl From<GlobalType> for EntityType {
-    fn from(g: GlobalType) -> Self {
-        EntityType::Global(g)
+impl Section<ComponentSectionId> for ImportSection {
+    fn id(&self) -> ComponentSectionId {
+        ComponentSectionId::Import
     }
-}
 
-impl From<TagType> for EntityType {
-    fn from(t: TagType) -> Self {
-        EntityType::Tag(t)
-    }
-}
-
-impl EntityType {
-    pub(crate) fn encode(&self, dst: &mut Vec<u8>) {
-        match self {
-            EntityType::Function(x) => {
-                dst.push(0x00);
-                dst.extend(encoders::u32(*x));
-            }
-            EntityType::Table(ty) => {
-                dst.push(0x01);
-                ty.encode(dst);
-            }
-            EntityType::Memory(ty) => {
-                dst.push(0x02);
-                ty.encode(dst);
-            }
-            EntityType::Global(ty) => {
-                dst.push(0x03);
-                ty.encode(dst);
-            }
-            EntityType::Tag(ty) => {
-                dst.push(0x04);
-                ty.encode(dst);
-            }
-            EntityType::Module(ty) => {
-                dst.push(0x05);
-                dst.extend(encoders::u32(*ty));
-            }
-            EntityType::Instance(ty) => {
-                dst.push(0x06);
-                dst.extend(encoders::u32(*ty));
-            }
-        }
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        self.encode(SectionEncodingFormat::Component, sink);
     }
 }

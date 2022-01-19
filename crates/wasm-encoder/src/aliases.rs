@@ -1,39 +1,82 @@
-use super::*;
+use crate::{encoders, AdapterModuleSectionId, ComponentSectionId, Section, SectionEncodingFormat};
+
+const ALIAS_KIND_INSTANCE_EXPORT: u8 = 0x00;
+pub(crate) const ALIAS_KIND_OUTER: u8 = 0x01;
+const ALIAS_KIND_OUTER_MODULE: u8 = 0x01;
+pub(crate) const ALIAS_KIND_OUTER_TYPE: u8 = 0x06;
+
+/// Represents the expected export kind for an alias.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AliasExportKind {
+    /// The alias is to an instance.
+    Instance = 0x00,
+    /// The alias is to a module.
+    Module = 0x01,
+    /// The alias is to a function.
+    Function = 0x02,
+    /// The alias is to a table.
+    Table = 0x03,
+    /// The alias is to a memory.
+    Memory = 0x04,
+    /// The alias is to a global.
+    Global = 0x05,
+    /// The alias is to an adapter function.
+    AdapterFunction = 0x06,
+}
+
+impl AliasExportKind {
+    fn encode(&self, format: SectionEncodingFormat, bytes: &mut Vec<u8>) {
+        match (format, self) {
+            (SectionEncodingFormat::Module, _) => panic!("aliases cannot be encoded for a module"),
+            (SectionEncodingFormat::AdapterModule, Self::AdapterFunction) => {
+                panic!("aliases to adapter function exports can only be encoded in components")
+            }
+            _ => {}
+        }
+        bytes.push(*self as u8);
+    }
+}
 
 /// An encoder for the alias section.
 ///
-/// Note that this is part of the [module linking proposal][proposal] and is not
-/// currently part of stable WebAssembly.
-///
-/// [proposal]: https://github.com/webassembly/module-linking
+/// Alias sections are only supported for adapter modules and components.
 ///
 /// # Example
 ///
-/// ```
-/// use wasm_encoder::{Module, AliasSection, ItemKind};
+/// ```rust
+/// use wasm_encoder::{Component, AliasSection, SectionEncodingFormat, AliasExportKind};
 ///
-/// let mut aliases = AliasSection::new();
+/// let mut aliases = AliasSection::new(SectionEncodingFormat::Component);
 /// aliases.outer_type(0, 2);
-/// aliases.instance_export(0, ItemKind::Function, "foo");
+/// aliases.instance_export(0, AliasExportKind::Function, "foo");
 ///
-/// let mut module = Module::new();
-/// module.section(&aliases);
+/// let mut component = Component::new();
+/// component.section(&aliases);
 ///
-/// let wasm_bytes = module.finish();
+/// let bytes = component.finish();
 /// ```
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct AliasSection {
     bytes: Vec<u8>,
     num_added: u32,
+    format: SectionEncodingFormat,
 }
 
 impl AliasSection {
-    /// Construct a new alias section encoder.
-    pub fn new() -> Self {
-        Self::default()
+    /// Create a new alias section encoder.
+    pub fn new(format: SectionEncodingFormat) -> Self {
+        if format == SectionEncodingFormat::Module {
+            panic!("alias sections are not supported for module encoding");
+        }
+
+        Self {
+            bytes: Vec::default(),
+            num_added: 0,
+            format,
+        }
     }
 
-    /// How many aliases have been defined inside this section so far?
+    /// The number of aliases in the section.
     pub fn len(&self) -> u32 {
         self.num_added
     }
@@ -47,47 +90,39 @@ impl AliasSection {
     pub fn instance_export(
         &mut self,
         instance: u32,
-        kind: crate::ItemKind,
+        kind: AliasExportKind,
         name: &str,
     ) -> &mut Self {
-        self.bytes.push(0x00);
+        self.bytes.push(ALIAS_KIND_INSTANCE_EXPORT);
         self.bytes.extend(encoders::u32(instance));
-        self.bytes.push(kind as u8);
         self.bytes.extend(encoders::str(name));
+        kind.encode(self.format, &mut self.bytes);
         self.num_added += 1;
         self
     }
 
     /// Define an alias that references an outer module's type.
-    pub fn outer_type(&mut self, depth: u32, ty: u32) -> &mut Self {
-        self.bytes.push(0x01);
-        self.bytes.extend(encoders::u32(depth));
-        self.bytes.push(0x07);
+    pub fn outer_type(&mut self, count: u32, ty: u32) -> &mut Self {
+        self.bytes.push(ALIAS_KIND_OUTER);
+        self.bytes.extend(encoders::u32(count));
         self.bytes.extend(encoders::u32(ty));
+        self.bytes.push(ALIAS_KIND_OUTER_TYPE);
         self.num_added += 1;
         self
     }
 
     /// Define an alias that references an outer module's module.
-    pub fn outer_module(&mut self, depth: u32, module: u32) -> &mut Self {
-        self.bytes.push(0x01);
-        self.bytes.extend(encoders::u32(depth));
-        self.bytes.push(ItemKind::Module as u8);
+    pub fn outer_module(&mut self, count: u32, module: u32) -> &mut Self {
+        self.bytes.push(ALIAS_KIND_OUTER);
+        self.bytes.extend(encoders::u32(count));
         self.bytes.extend(encoders::u32(module));
+        self.bytes.push(ALIAS_KIND_OUTER_MODULE);
         self.num_added += 1;
         self
     }
-}
 
-impl Section for AliasSection {
-    fn id(&self) -> u8 {
-        SectionId::Alias.into()
-    }
-
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, format: SectionEncodingFormat, sink: &mut impl Extend<u8>) {
+        assert_eq!(self.format, format, "alias section format mismatch");
         let num_added = encoders::u32(self.num_added);
         let n = num_added.len();
         sink.extend(
@@ -95,5 +130,31 @@ impl Section for AliasSection {
                 .chain(num_added)
                 .chain(self.bytes.iter().copied()),
         );
+    }
+}
+
+impl Section<AdapterModuleSectionId> for AliasSection {
+    fn id(&self) -> AdapterModuleSectionId {
+        AdapterModuleSectionId::Alias
+    }
+
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        self.encode(SectionEncodingFormat::AdapterModule, sink);
+    }
+}
+
+impl Section<ComponentSectionId> for AliasSection {
+    fn id(&self) -> ComponentSectionId {
+        ComponentSectionId::Alias
+    }
+
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        self.encode(SectionEncodingFormat::Component, sink);
     }
 }

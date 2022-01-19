@@ -1,12 +1,52 @@
-use super::{CanonicalOption, ComponentSection, SectionId};
-use crate::encoders;
+use crate::{encoders, ComponentSectionId, Section};
 
-/// An encoder for the component adapter function section.
+const CANONICAL_OPTION_UTF8: u8 = 0x00;
+const CANONICAL_OPTION_UTF16: u8 = 0x01;
+const CANONICAL_OPTION_COMPACT_UTF16: u8 = 0x02;
+const CANONICAL_OPTION_WITH_REALLOC: u8 = 0x03;
+const CANONICAL_OPTION_WITH_FREE: u8 = 0x04;
+
+/// Represents options for canonical functions and adapter functions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CanonicalOption {
+    /// The string types in the function signature are UTF-8 encoded.
+    UTF8,
+    /// The string types in the function signature are UTF-16 encoded.
+    UTF16,
+    /// The string types in the function signature are compact UTF-16 encoded.
+    CompactUTF16,
+    /// Specifies the function to use to reallocate memory.
+    WithRealloc(u32),
+    /// Specifies the function to use to free memory.
+    WithFree(u32),
+}
+
+impl CanonicalOption {
+    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
+        match self {
+            Self::UTF8 => bytes.push(CANONICAL_OPTION_UTF8),
+            Self::UTF16 => bytes.push(CANONICAL_OPTION_UTF16),
+            Self::CompactUTF16 => bytes.push(CANONICAL_OPTION_COMPACT_UTF16),
+            Self::WithRealloc(index) => {
+                bytes.push(CANONICAL_OPTION_WITH_REALLOC);
+                bytes.extend(encoders::u32(*index));
+            }
+            Self::WithFree(index) => {
+                bytes.push(CANONICAL_OPTION_WITH_FREE);
+                bytes.extend(encoders::u32(*index));
+            }
+        }
+    }
+}
+
+/// An encoder for the adapter function section.
+///
+/// Adapter function sections are only supported for components.
 ///
 /// # Example
 ///
 /// ```rust
-/// use wasm_encoder::component::{Component, AdapterFunctionSection, CanonicalOption};
+/// use wasm_encoder::{Component, AdapterFunctionSection, CanonicalOption};
 ///
 /// // This assumes there is an adapter function type with
 /// // index 0 and a target function with index 0.
@@ -25,7 +65,7 @@ pub struct AdapterFunctionSection {
 }
 
 impl AdapterFunctionSection {
-    /// Create a new component adapter function section encoder.
+    /// Create a new adapter function section encoder.
     pub fn new() -> Self {
         Self::default()
     }
@@ -62,9 +102,9 @@ impl AdapterFunctionSection {
     }
 }
 
-impl ComponentSection for AdapterFunctionSection {
-    fn id(&self) -> u8 {
-        SectionId::AdapterFunction.into()
+impl Section<ComponentSectionId> for AdapterFunctionSection {
+    fn id(&self) -> ComponentSectionId {
+        ComponentSectionId::AdapterFunction
     }
 
     fn encode<S>(&self, sink: &mut S)

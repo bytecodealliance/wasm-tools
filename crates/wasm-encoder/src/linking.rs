@@ -60,9 +60,9 @@ impl LinkingSection {
     }
 }
 
-impl Section for LinkingSection {
-    fn id(&self) -> u8 {
-        SectionId::Custom.into()
+impl Section<ModuleSectionId> for LinkingSection {
+    fn id(&self) -> ModuleSectionId {
+        ModuleSectionId::Custom
     }
 
     fn encode<S>(&self, sink: &mut S)

@@ -9,15 +9,8 @@ pub struct CustomSection<'a> {
     pub data: &'a [u8],
 }
 
-impl Section for CustomSection<'_> {
-    fn id(&self) -> u8 {
-        SectionId::Custom.into()
-    }
-
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+impl CustomSection<'_> {
+    fn encode(&self, sink: &mut impl Extend<u8>) {
         let name_len = encoders::u32(u32::try_from(self.name.len()).unwrap());
         let n = name_len.len();
 
@@ -27,6 +20,45 @@ impl Section for CustomSection<'_> {
                 .chain(self.name.as_bytes().iter().copied())
                 .chain(self.data.iter().copied()),
         );
+    }
+}
+
+impl Section<ModuleSectionId> for CustomSection<'_> {
+    fn id(&self) -> ModuleSectionId {
+        ModuleSectionId::Custom
+    }
+
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        self.encode(sink);
+    }
+}
+
+impl Section<AdapterModuleSectionId> for CustomSection<'_> {
+    fn id(&self) -> AdapterModuleSectionId {
+        AdapterModuleSectionId::Custom
+    }
+
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        self.encode(sink);
+    }
+}
+
+impl Section<ComponentSectionId> for CustomSection<'_> {
+    fn id(&self) -> ComponentSectionId {
+        ComponentSectionId::Custom
+    }
+
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        self.encode(sink);
     }
 }
 

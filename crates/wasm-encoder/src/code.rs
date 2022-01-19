@@ -3,18 +3,20 @@ use std::borrow::Cow;
 
 /// An encoder for the code section.
 ///
+/// Code sections are only supported for modules.
+///
 /// # Example
 ///
 /// ```
 /// use wasm_encoder::{
 ///     CodeSection, Function, FunctionSection, Instruction, Module,
-///     TypeSection, ValType
+///     SectionEncodingFormat, TypeSection, ValType
 /// };
 ///
-/// let mut types = TypeSection::new();
+/// let mut types = TypeSection::new(SectionEncodingFormat::Module);
 /// types.function(vec![], vec![ValType::I32]);
 ///
-/// let mut functions = FunctionSection::new();
+/// let mut functions = FunctionSection::new(SectionEncodingFormat::Module);
 /// let type_index = 0;
 /// functions.function(type_index);
 ///
@@ -44,7 +46,7 @@ impl CodeSection {
         Self::default()
     }
 
-    /// How many function bodies have been defined inside this section so far?
+    /// The number of functions in the section.
     pub fn len(&self) -> u32 {
         self.num_added
     }
@@ -94,9 +96,9 @@ impl CodeSection {
     }
 }
 
-impl Section for CodeSection {
-    fn id(&self) -> u8 {
-        SectionId::Code.into()
+impl Section<ModuleSectionId> for CodeSection {
+    fn id(&self) -> ModuleSectionId {
+        ModuleSectionId::Code
     }
 
     fn encode<S>(&self, sink: &mut S)

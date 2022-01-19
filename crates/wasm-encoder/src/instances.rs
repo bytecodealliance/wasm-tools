@@ -1,42 +1,55 @@
-use super::*;
+use crate::{
+    encoders, AdapterModuleSectionId, ComponentSectionId, Export, Section, SectionEncodingFormat,
+};
+
+const INSTANCE_KIND_INSTANTIATION: u8 = 0x00;
+const INSTANCE_KIND_EXPORTS: u8 = 0x01;
 
 /// An encoder for the instance section.
 ///
-/// Note that this is part of the [module linking proposal][proposal] and is not
-/// currently part of stable WebAssembly.
-///
-/// [proposal]: https://github.com/webassembly/module-linking
+/// Instance sections are only supported for adapter modules and components.
 ///
 /// # Example
 ///
-/// ```
-/// use wasm_encoder::{Module, InstanceSection, Export};
+/// ```rust
+/// use wasm_encoder::{Component, InstanceSection, SectionEncodingFormat, Export};
 ///
-/// let mut instances = InstanceSection::new();
-/// instances.instantiate(0, vec![
+/// // This assumes there is a module with index 0, a function with index 0,
+/// // a module with index 2, and a global with index 0.
+/// let mut instances = InstanceSection::new(SectionEncodingFormat::Component);
+/// instances.instantiate(0, [
 ///     ("x", Export::Function(0)),
 ///     ("", Export::Module(2)),
 ///     ("foo", Export::Global(0)),
 /// ]);
 ///
-/// let mut module = Module::new();
-/// module.section(&instances);
+/// let mut component = Component::new();
+/// component.section(&instances);
 ///
-/// let wasm_bytes = module.finish();
+/// let bytes = component.finish();
 /// ```
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct InstanceSection {
     bytes: Vec<u8>,
     num_added: u32,
+    format: SectionEncodingFormat,
 }
 
 impl InstanceSection {
-    /// Construct a new instance section encoder.
-    pub fn new() -> Self {
-        Self::default()
+    /// Create a new instance section encoder.
+    pub fn new(format: SectionEncodingFormat) -> Self {
+        if format == SectionEncodingFormat::Module {
+            panic!("instance sections are not supported for module encoding");
+        }
+
+        Self {
+            bytes: Vec::new(),
+            num_added: 0,
+            format,
+        }
     }
 
-    /// How many instances have been defined inside this section so far?
+    /// The number of instances in the section.
     pub fn len(&self) -> u32 {
         self.num_added
     }
@@ -46,7 +59,7 @@ impl InstanceSection {
         self.num_added == 0
     }
 
-    /// Define an instantiation of the given module with the given items as
+    /// Define an instantiation of the given module with the given
     /// arguments to the instantiation.
     pub fn instantiate<'a, I>(&mut self, module: u32, args: I) -> &mut Self
     where
@@ -55,28 +68,41 @@ impl InstanceSection {
     {
         let args = args.into_iter();
 
-        self.bytes.push(0x00);
+        self.bytes.push(INSTANCE_KIND_INSTANTIATION);
         self.bytes.extend(encoders::u32(module));
+
         self.bytes
             .extend(encoders::u32(u32::try_from(args.len()).unwrap()));
         for (name, export) in args {
             self.bytes.extend(encoders::str(name));
-            export.encode(&mut self.bytes);
+            export.encode(self.format, &mut self.bytes);
         }
-        self.num_added += 1;
+
         self
     }
-}
 
-impl Section for InstanceSection {
-    fn id(&self) -> u8 {
-        SectionId::Instance.into()
+    /// Define an instance by exporting the given exports.
+    pub fn exports<'a, E>(&mut self, exports: E) -> &mut Self
+    where
+        E: IntoIterator<Item = (&'a str, Export)>,
+        E::IntoIter: ExactSizeIterator,
+    {
+        let exports = exports.into_iter();
+
+        self.bytes.push(INSTANCE_KIND_EXPORTS);
+
+        self.bytes
+            .extend(encoders::u32(u32::try_from(exports.len()).unwrap()));
+        for (name, export) in exports {
+            self.bytes.extend(encoders::str(name));
+            export.encode(self.format, &mut self.bytes);
+        }
+
+        self
     }
 
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, format: SectionEncodingFormat, sink: &mut impl Extend<u8>) {
+        assert_eq!(self.format, format, "instance section format mismatch");
         let num_added = encoders::u32(self.num_added);
         let n = num_added.len();
         sink.extend(
@@ -84,5 +110,31 @@ impl Section for InstanceSection {
                 .chain(num_added)
                 .chain(self.bytes.iter().copied()),
         );
+    }
+}
+
+impl Section<AdapterModuleSectionId> for InstanceSection {
+    fn id(&self) -> AdapterModuleSectionId {
+        AdapterModuleSectionId::Instance
+    }
+
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        self.encode(SectionEncodingFormat::AdapterModule, sink);
+    }
+}
+
+impl Section<ComponentSectionId> for InstanceSection {
+    fn id(&self) -> ComponentSectionId {
+        ComponentSectionId::Instance
+    }
+
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        self.encode(SectionEncodingFormat::Component, sink);
     }
 }

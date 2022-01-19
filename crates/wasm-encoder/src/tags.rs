@@ -31,7 +31,7 @@ impl TagSection {
         Self::default()
     }
 
-    /// How many tags have been defined inside this section so far?
+    /// The number of tags in the section.
     pub fn len(&self) -> u32 {
         self.num_added
     }
@@ -49,9 +49,9 @@ impl TagSection {
     }
 }
 
-impl Section for TagSection {
-    fn id(&self) -> u8 {
-        SectionId::Tag.into()
+impl Section<ModuleSectionId> for TagSection {
+    fn id(&self) -> ModuleSectionId {
+        ModuleSectionId::Tag
     }
 
     fn encode<S>(&self, sink: &mut S)
@@ -70,13 +70,13 @@ impl Section for TagSection {
 
 #[allow(missing_docs)]
 #[repr(u8)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TagKind {
     Exception = 0x0,
 }
 
 /// A tag's type.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TagType {
     /// The kind of tag
     pub kind: TagKind,
