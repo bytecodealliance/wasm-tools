@@ -27,7 +27,7 @@ impl Mutator for RemoveStartSection {
             if i == start_section_index {
                 continue;
             }
-            module.section(section);
+            module.raw(section);
         }
 
         Ok(Box::new(std::iter::once(Ok(module))))

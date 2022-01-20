@@ -107,23 +107,20 @@ enum Funcref {
 
 impl RemoveItem {
     fn remove(&mut self, info: &ModuleInfo) -> Result<Module> {
-        const CUSTOM: u8 = SectionId::Custom as u8;
-        const TYPE: u8 = SectionId::Type as u8;
-        const IMPORT: u8 = SectionId::Import as u8;
-        const FUNCTION: u8 = SectionId::Function as u8;
-        const TABLE: u8 = SectionId::Table as u8;
-        const MEMORY: u8 = SectionId::Memory as u8;
-        const GLOBAL: u8 = SectionId::Global as u8;
-        const EXPORT: u8 = SectionId::Export as u8;
-        const START: u8 = SectionId::Start as u8;
-        const ELEMENT: u8 = SectionId::Element as u8;
-        const CODE: u8 = SectionId::Code as u8;
-        const DATA: u8 = SectionId::Data as u8;
-        const DATACOUNT: u8 = SectionId::DataCount as u8;
-        const TAG: u8 = SectionId::Tag as u8;
-        const MODULE: u8 = SectionId::Module as u8;
-        const INSTANCE: u8 = SectionId::Instance as u8;
-        const ALIAS: u8 = SectionId::Alias as u8;
+        const CUSTOM: u8 = ModuleSectionId::Custom as u8;
+        const TYPE: u8 = ModuleSectionId::Type as u8;
+        const IMPORT: u8 = ModuleSectionId::Import as u8;
+        const FUNCTION: u8 = ModuleSectionId::Function as u8;
+        const TABLE: u8 = ModuleSectionId::Table as u8;
+        const MEMORY: u8 = ModuleSectionId::Memory as u8;
+        const GLOBAL: u8 = ModuleSectionId::Global as u8;
+        const EXPORT: u8 = ModuleSectionId::Export as u8;
+        const START: u8 = ModuleSectionId::Start as u8;
+        const ELEMENT: u8 = ModuleSectionId::Element as u8;
+        const CODE: u8 = ModuleSectionId::Code as u8;
+        const DATA: u8 = ModuleSectionId::Data as u8;
+        const DATACOUNT: u8 = ModuleSectionId::DataCount as u8;
+        const TAG: u8 = ModuleSectionId::Tag as u8;
 
         // This is the main workhorse loop of the module translation. This will
         // iterate over the original wasm sections, raw, and create the new
@@ -132,7 +129,7 @@ impl RemoveItem {
         for section in info.raw_sections.iter() {
             match section.id {
                 CUSTOM => {
-                    module.section(section);
+                    module.raw(section);
                 }
 
                 TYPE => {
@@ -142,6 +139,7 @@ impl RemoveItem {
                         TypeSectionReader::new(section.data, 0)?,
                         Item::Type,
                         |me, ty, section| me.translate_type_def(ty, section),
+                        TypeSection::new(SectionEncodingFormat::Module),
                     )?;
                 }
 
@@ -150,7 +148,7 @@ impl RemoveItem {
                 // `filter_out` helper can't be used and we have to process
                 // everything manually here.
                 IMPORT => {
-                    let mut result = ImportSection::default();
+                    let mut result = ImportSection::new(SectionEncodingFormat::Module);
                     let mut function = 0;
                     let mut global = 0;
                     let mut table = 0;
@@ -163,9 +161,9 @@ impl RemoveItem {
                                 if self.item != Item::Function || self.idx != function {
                                     let ty = self.remap(Item::Type, *ty)?;
                                     result.import(
-                                        item.module,
-                                        item.field,
-                                        EntityType::Function(ty),
+                                        Some(item.module),
+                                        item.field.unwrap(),
+                                        TypeRef::Function(ty),
                                     );
                                 }
                                 function += 1;
@@ -173,28 +171,28 @@ impl RemoveItem {
                             ImportSectionEntryType::Table(ty) => {
                                 if self.item != Item::Table || self.idx != table {
                                     let ty = self.translate_table_type(ty)?;
-                                    result.import(item.module, item.field, ty);
+                                    result.import(Some(item.module), item.field.unwrap(), ty);
                                 }
                                 table += 1;
                             }
                             ImportSectionEntryType::Memory(ty) => {
                                 if self.item != Item::Memory || self.idx != memory {
                                     let ty = self.translate_memory_type(ty)?;
-                                    result.import(item.module, item.field, ty);
+                                    result.import(Some(item.module), item.field.unwrap(), ty);
                                 }
                                 memory += 1;
                             }
                             ImportSectionEntryType::Global(ty) => {
                                 if self.item != Item::Global || self.idx != global {
                                     let ty = self.translate_global_type(ty)?;
-                                    result.import(item.module, item.field, ty);
+                                    result.import(Some(item.module), item.field.unwrap(), ty);
                                 }
                                 global += 1;
                             }
                             ImportSectionEntryType::Tag(ty) => {
                                 if self.item != Item::Tag || self.idx != tag {
                                     let ty = self.translate_tag_type(ty)?;
-                                    result.import(item.module, item.field, ty);
+                                    result.import(Some(item.module), item.field.unwrap(), ty);
                                 }
                                 tag += 1;
                             }
@@ -218,6 +216,7 @@ impl RemoveItem {
                             section.function(idx);
                             Ok(())
                         },
+                        FunctionSection::new(SectionEncodingFormat::Module),
                     )?;
                 }
 
@@ -232,6 +231,7 @@ impl RemoveItem {
                             section.table(ty);
                             Ok(())
                         },
+                        TableSection::new(),
                     )?;
                 }
 
@@ -246,6 +246,7 @@ impl RemoveItem {
                             section.memory(ty);
                             Ok(())
                         },
+                        MemorySection::new(),
                     )?;
                 }
 
@@ -256,13 +257,14 @@ impl RemoveItem {
                         GlobalSectionReader::new(section.data, 0)?,
                         Item::Global,
                         |me, ty, section| me.translate_global(ty, section),
+                        GlobalSection::new(),
                     )?;
                 }
 
                 EXPORT => {
                     use wasm_encoder::Export;
 
-                    let mut result = ExportSection::default();
+                    let mut result = ExportSection::new(SectionEncodingFormat::Module);
                     for item in ExportSectionReader::new(section.data, 0)? {
                         let item = item?;
                         let e = match &item.kind {
@@ -303,6 +305,7 @@ impl RemoveItem {
                         ElementSectionReader::new(section.data, 0)?,
                         Item::Element,
                         |me, ty, section| me.translate_element(ty, section),
+                        ElementSection::new(),
                     )?;
                 }
 
@@ -317,6 +320,7 @@ impl RemoveItem {
                         CodeSectionReader::new(section.data, 0)?,
                         Item::Function,
                         |me, body, section| me.translate_code(body, section),
+                        CodeSection::new(),
                     )?;
                 }
 
@@ -327,6 +331,7 @@ impl RemoveItem {
                         DataSectionReader::new(section.data, 0)?,
                         Item::Data,
                         |me, ty, section| me.translate_data(ty, section),
+                        DataSection::new(),
                     )?;
                 }
 
@@ -354,11 +359,9 @@ impl RemoveItem {
                             section.tag(ty);
                             Ok(())
                         },
+                        TagSection::new(),
                     )?;
                 }
-
-                // Module linking is not supported at this time.
-                MODULE | INSTANCE | ALIAS => return Err(Error::no_mutations_applicable()),
 
                 id => panic!("unknown id: {}", id),
             }
@@ -385,12 +388,12 @@ impl RemoveItem {
         mut section: S,
         section_item: Item,
         encode: impl Fn(&mut Self, S::Item, &mut T) -> Result<()>,
+        mut result: T,
     ) -> Result<()>
     where
         S: SectionReader,
-        T: Default + Section,
+        T: Section<ModuleSectionId>,
     {
-        let mut result = T::default();
         let mut index = offset;
         while !section.eof() {
             let item = section.read()?;
