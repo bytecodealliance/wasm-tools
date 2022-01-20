@@ -724,7 +724,7 @@ impl<'a> DFGBuilder {
                     let a = Id::from(self.pop_operand(idx, false));
                     let b = Id::from(self.pop_operand(idx, false));
                     let c = Id::from(self.pop_operand(idx, false));
-                    self.empty_node(Lang::MemoryFill(*table, [c, b, a]), idx);
+                    self.empty_node(Lang::TableFill(*table, [c, b, a]), idx);
                 }
 
                 Operator::TableGet { table } => {
