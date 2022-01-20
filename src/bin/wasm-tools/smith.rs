@@ -147,9 +147,6 @@ struct Config {
     #[clap(long = "exception-handling")]
     #[serde(rename = "exception-handling")]
     exceptions_enabled: Option<bool>,
-    #[clap(long = "module-linking")]
-    #[serde(rename = "module-linking")]
-    module_linking_enabled: Option<bool>,
     #[clap(long = "allow-start")]
     #[serde(rename = "allow-start")]
     allow_start_export: Option<bool>,
@@ -302,7 +299,6 @@ impl wasm_smith::Config for CliAndJsonConfig {
         (simd_enabled, bool, false),
         (relaxed_simd_enabled, bool, false),
         (exceptions_enabled, bool, false),
-        (module_linking_enabled, bool, false),
         (allow_start_export, bool, true),
         (max_aliases, usize, 1000),
         (max_nesting_depth, usize, 1000),

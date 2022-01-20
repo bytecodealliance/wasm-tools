@@ -18,7 +18,7 @@ fuzz_target!(|m: &[u8]| {
         multi_memory: config.max_memories > 1,
         bulk_memory: true,
         reference_types: true,
-        module_linking: config.module_linking_enabled,
+        module_linking: false,
         simd: config.simd_enabled,
         relaxed_simd: config.relaxed_simd_enabled,
         memory64: config.memory64_enabled,
