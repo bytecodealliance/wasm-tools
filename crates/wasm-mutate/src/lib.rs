@@ -17,14 +17,10 @@ mod mutators;
 pub use error::*;
 
 use crate::mutators::{
-    codemotion::CodemotionMutator,
-    custom::RemoveCustomSection,
-    function_body_unreachable::FunctionBodyUnreachable,
-    peephole::PeepholeMutator,
-    remove_export::RemoveExportMutator,
-    remove_item::{Item, RemoveItemMutator},
-    rename_export::RenameExportMutator,
-    snip_function::SnipMutator,
+    codemotion::CodemotionMutator, custom::RemoveCustomSection,
+    function_body_unreachable::FunctionBodyUnreachable, modify_data::ModifyDataMutator,
+    peephole::PeepholeMutator, remove_export::RemoveExportMutator, remove_item::RemoveItemMutator,
+    rename_export::RenameExportMutator, snip_function::SnipMutator, Item,
 };
 use info::ModuleInfo;
 use mutators::Mutator;
@@ -173,7 +169,7 @@ pub struct WasmMutate<'wasm> {
     // Note: this is only exposed via the programmatic interface, not via the
     // CLI.
     #[cfg_attr(feature = "clap", clap(skip = None))]
-    raw_mutate_func: Option<Arc<dyn Fn(&mut Vec<u8>) -> Result<()>>>,
+    raw_mutate_func: Option<Arc<dyn Fn(&mut Vec<u8>, usize) -> Result<()>>>,
 
     #[cfg_attr(feature = "clap", clap(skip = None))]
     rng: Option<SmallRng>,
@@ -239,7 +235,7 @@ impl<'wasm> WasmMutate<'wasm> {
     /// to get raw bytes from `libFuzzer`, for example.
     pub fn raw_mutate_func(
         &mut self,
-        raw_mutate_func: Option<Arc<dyn Fn(&mut Vec<u8>) -> Result<()>>>,
+        raw_mutate_func: Option<Arc<dyn Fn(&mut Vec<u8>, usize) -> Result<()>>>,
     ) -> &mut Self {
         self.raw_mutate_func = raw_mutate_func;
         self
@@ -259,8 +255,7 @@ impl<'wasm> WasmMutate<'wasm> {
         &'a mut self,
         input_wasm: &'wasm [u8],
     ) -> Result<Box<dyn Iterator<Item = Result<Vec<u8>>> + 'a>> {
-        self.info = Some(ModuleInfo::new(input_wasm)?);
-        self.rng = Some(SmallRng::seed_from_u64(self.seed));
+        self.setup(input_wasm)?;
 
         // This macro just expands the logic to return an iterator form the
         // mutators
@@ -287,10 +282,19 @@ impl<'wasm> WasmMutate<'wasm> {
                 RemoveItemMutator(Item::Data),
                 RemoveItemMutator(Item::Element),
                 RemoveItemMutator(Item::Tag),
+                ModifyDataMutator {
+                    max_data_size: 10 << 20, // 10MB
+                },
             )
         );
 
         Err(Error::no_mutations_applicable())
+    }
+
+    fn setup(&mut self, input_wasm: &'wasm [u8]) -> Result<()> {
+        self.info = Some(ModuleInfo::new(input_wasm)?);
+        self.rng = Some(SmallRng::seed_from_u64(self.seed));
+        Ok(())
     }
 
     pub(crate) fn rng(&mut self) -> &mut SmallRng {
@@ -299,6 +303,46 @@ impl<'wasm> WasmMutate<'wasm> {
 
     pub(crate) fn info(&self) -> &ModuleInfo<'wasm> {
         self.info.as_ref().unwrap()
+    }
+
+    fn raw_mutate(&mut self, data: &mut Vec<u8>, max_size: usize) -> Result<()> {
+        // If a raw mutation function is configured then that's prioritized.
+        if let Some(mutate) = &self.raw_mutate_func {
+            return mutate(data, max_size);
+        }
+
+        // If no raw mutation function is configured then we apply a naive
+        // default heuristic. For now that heuristic is to simply replace a
+        // subslice of data with a random slice of other data.
+        //
+        // First up start/end indices are picked.
+        let a = self.rng().gen_range(0, data.len() + 1);
+        let b = self.rng().gen_range(0, data.len() + 1);
+        let start = a.min(b);
+        let end = a.max(b);
+
+        // Next a length of the replacement is chosen. Note that the replacement
+        // is always smaller than the input if reduction is requested, otherwise
+        // we choose some arbitrary length of bytes to insert.
+        let max_size = if self.reduce || self.rng().gen() {
+            0
+        } else {
+            max_size
+        };
+        let len = self
+            .rng()
+            .gen_range(0, end - start + max_size.saturating_sub(data.len()) + 1);
+
+        // With parameters chosen the `Vec::splice` method is used to replace
+        // the data in the input.
+        data.splice(
+            start..end,
+            self.rng()
+                .sample_iter(rand::distributions::Standard)
+                .take(len),
+        );
+
+        Ok(())
     }
 }
 

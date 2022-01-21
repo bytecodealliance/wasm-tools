@@ -250,6 +250,10 @@ impl<'a> ModuleInfo<'a> {
         self.raw_sections[self.exports.unwrap()]
     }
 
+    pub fn get_data_section(&self) -> RawSection<'a> {
+        self.raw_sections[self.data.unwrap()]
+    }
+
     pub fn has_exports(&self) -> bool {
         self.exports != None
     }

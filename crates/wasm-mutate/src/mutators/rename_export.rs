@@ -2,7 +2,7 @@
 use super::Mutator;
 use crate::{Result, WasmMutate};
 
-use rand::{Rng, RngCore};
+use rand::Rng;
 use wasm_encoder::{Export, ExportSection, Module};
 use wasmparser::ExportSectionReader;
 
@@ -13,45 +13,28 @@ use wasmparser::ExportSectionReader;
 #[derive(Clone, Copy)]
 pub struct RenameExportMutator {
     /// The maximum length of the generated export entry
-    pub max_name_size: u32,
+    pub max_name_size: usize,
 }
 
 impl RenameExportMutator {
     /// Copied and transformed from wasm-smith name generation
-    fn limited_string(
-        &self,
-        config: &mut WasmMutate,
-        max_name_size: u32,
-        result: &mut String,
-    ) -> crate::Result<()> {
-        let size = config.rng().gen_range(1, max_name_size);
-        let mut str = vec![0u8; size as usize];
+    fn limited_string(&self, config: &mut WasmMutate, original: &str) -> crate::Result<String> {
+        loop {
+            let mut bytes = original.as_bytes().to_vec();
+            config.raw_mutate(&mut bytes, self.max_name_size)?;
 
-        if let Some(fillfunc) = &config.raw_mutate_func {
-            fillfunc(&mut str)?;
-        } else {
-            config.rng().fill_bytes(&mut str);
-        }
-
-        match std::str::from_utf8(&str) {
-            Ok(s) => result.push_str(s),
-            Err(e) => {
-                let i = e.valid_up_to();
-                let valid = &str[0..i];
-                let s = unsafe {
-                    debug_assert!(std::str::from_utf8(valid).is_ok());
-                    std::str::from_utf8_unchecked(valid)
-                };
-                result.push_str(s);
+            match std::str::from_utf8(&bytes) {
+                Ok(_) => {}
+                Err(e) => {
+                    let i = e.valid_up_to();
+                    bytes.drain(i..);
+                }
+            };
+            if bytes.len() > self.max_name_size {
+                continue;
             }
-        };
-
-        // Add one symbol at a time until it is not contained in the export field names
-        while config.info().export_names.contains(result) {
-            let _ = &self.limited_string(config, 2, result)?;
+            return Ok(String::from_utf8(bytes).unwrap());
         }
-
-        Ok(())
     }
 }
 
@@ -74,8 +57,7 @@ impl Mutator for RenameExportMutator {
                 // otherwise bypass
                 String::from(export.field)
             } else {
-                let mut new_name = String::default();
-                self.limited_string(config, self.max_name_size, &mut new_name)?;
+                let new_name = self.limited_string(config, export.field)?;
                 log::debug!("Renaming export {:?} by {:?}", export, new_name);
                 new_name
             };
@@ -119,14 +101,21 @@ impl Mutator for RenameExportMutator {
 
 #[cfg(test)]
 mod tests {
-
     use super::RenameExportMutator;
+    use crate::WasmMutate;
+    use std::sync::Arc;
 
     #[test]
     fn test_rename_export_mutator() {
         // From https://developer.mozilla.org/en-US/docs/WebAssembly/Text_format_to_wasm
 
-        crate::mutators::match_mutation(
+        let mut config = WasmMutate::default();
+        config.raw_mutate_func(Some(Arc::new(|data, _| {
+            assert_eq!(data, b"exported_func");
+            *data = Vec::new();
+            Ok(())
+        })));
+        config.match_mutation(
             r#"
         (module
             (func (export "exported_func") (result i32)
