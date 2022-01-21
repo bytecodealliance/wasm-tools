@@ -297,6 +297,45 @@ impl<'wasm> WasmMutate<'wasm> {
     pub(crate) fn info(&self) -> &ModuleInfo<'wasm> {
         self.info.as_ref().unwrap()
     }
+
+    fn raw_mutate(&mut self, data: &mut Vec<u8>) -> Result<()> {
+        // If a raw mutation function is configured then that's prioritized.
+        if let Some(mutate) = &self.raw_mutate_func {
+            return mutate(data);
+        }
+
+        // If no raw mutation function is configured then we apply a naive
+        // default heuristic. For now that heuristic is to simply replace a
+        // subslice of data with a random slice of other data.
+        //
+        // First up start/end indices are picked.
+        let start = self.rng().gen_range(0, data.len() + 1);
+        let end = if start == data.len() {
+            data.len()
+        } else {
+            self.rng().gen_range(start, data.len() + 1)
+        };
+
+        // Next a length of the replacement is chosen. Note that the replacement
+        // is always smaller than the input if reduction is requested, otherwise
+        // we choose some arbitrary length of bytes to insert.
+        let len = if self.reduce || self.rng().gen() {
+            self.rng().gen_range(0, end - start + 1)
+        } else {
+            self.rng().gen_range(0, 100)
+        };
+
+        // With parameters chosen the `Vec::splice` method is used to replace
+        // the data in the input.
+        data.splice(
+            start..end,
+            self.rng()
+                .sample_iter(rand::distributions::Standard)
+                .take(len),
+        );
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

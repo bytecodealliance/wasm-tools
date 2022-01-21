@@ -2,7 +2,7 @@
 use super::Mutator;
 use crate::{Result, WasmMutate};
 
-use rand::{Rng, RngCore};
+use rand::Rng;
 use wasm_encoder::{Export, ExportSection, Module};
 use wasmparser::ExportSectionReader;
 
@@ -27,11 +27,7 @@ impl RenameExportMutator {
         let size = config.rng().gen_range(1, max_name_size);
         let mut str = vec![0u8; size as usize];
 
-        if let Some(fillfunc) = &config.raw_mutate_func {
-            fillfunc(&mut str)?;
-        } else {
-            config.rng().fill_bytes(&mut str);
-        }
+        config.raw_mutate(&mut str)?;
 
         match std::str::from_utf8(&str) {
             Ok(s) => result.push_str(s),

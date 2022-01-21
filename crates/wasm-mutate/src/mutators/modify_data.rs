@@ -42,11 +42,10 @@ impl Mutator for ModifyDataMutator {
             };
             // If this is the correct data segment apply the mutation,
             // otherwise preserve the data.
-            let data = if i == data_to_modify {
-                self.mutate_data(config, data.data)
-            } else {
-                data.data.to_vec()
-            };
+            let mut data = data.data.to_vec();
+            if i == data_to_modify {
+                config.raw_mutate(&mut data)?;
+            }
             new_section.segment(DataSegment { mode, data });
         }
 
@@ -62,39 +61,6 @@ impl Mutator for ModifyDataMutator {
         // Modifying a data segment doesn't preserve the semantics of the
         // original module and also only works if there's actually some data.
         !config.preserve_semantics && config.info().num_data() > 0
-    }
-}
-
-impl ModifyDataMutator {
-    fn mutate_data(&self, config: &mut WasmMutate, data: &[u8]) -> Vec<u8> {
-        // If reduction is configured then we never add data, otherwise
-        // arbitrarily choose to add or remove data.
-        if config.reduce || config.rng().gen() {
-            if data.len() > 0 {
-                // Remove a random subslice of data, if there's actually some
-                // data.
-                let start = config.rng().gen_range(0, data.len());
-                let end = config.rng().gen_range(start, data.len());
-                data[start..end].to_vec()
-            } else {
-                Vec::new()
-            }
-        } else {
-            // Insert some random bytes.
-            let start = config.rng().gen_range(0, data.len());
-            let len = config.rng().gen_range(0, 100);
-            data[0..start]
-                .iter()
-                .copied()
-                .chain(
-                    config
-                        .rng()
-                        .sample_iter(rand::distributions::Standard)
-                        .take(len),
-                )
-                .chain(data[start..].iter().copied())
-                .collect()
-        }
     }
 }
 
