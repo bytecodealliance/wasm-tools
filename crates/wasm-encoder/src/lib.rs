@@ -26,27 +26,27 @@
 //!
 //! ```
 //! use wasm_encoder::{
-//!     CodeSection, Export, ExportSection, SectionEncodingFormat, Function, FunctionSection, Instruction,
+//!     CodeSection, Export, ExportSection, Function, FunctionSection, Instruction,
 //!     Module, TypeSection, ValType,
 //! };
 //!
 //! let mut module = Module::new();
 //!
 //! // Encode the type section.
-//! let mut types = TypeSection::new(SectionEncodingFormat::Module);
+//! let mut types = TypeSection::new();
 //! let params = vec![ValType::I32, ValType::I32];
 //! let results = vec![ValType::I32];
 //! types.function(params, results);
 //! module.section(&types);
 //!
 //! // Encode the function section.
-//! let mut functions = FunctionSection::new(SectionEncodingFormat::Module);
+//! let mut functions = FunctionSection::new();
 //! let type_index = 0;
 //! functions.function(type_index);
 //! module.section(&functions);
 //!
 //! // Encode the export section.
-//! let mut exports = ExportSection::new(SectionEncodingFormat::Module);
+//! let mut exports = ExportSection::new();
 //! exports.export("f", Export::Function(0));
 //! module.section(&exports);
 //!
@@ -114,14 +114,29 @@ pub mod encoders;
 
 use std::convert::TryFrom;
 
-/// A WebAssembly section.
+/// A WebAssembly module section.
 ///
 /// Various builders defined in this crate already implement this trait, but you
 /// can also implement it yourself for your own custom section builders, or use
 /// `RawSection` to use a bunch of raw bytes as a section.
-pub trait Section<I: SectionId> {
+pub trait Section {
     /// Gets the section's identifier.
-    fn id(&self) -> I;
+    fn id(&self) -> ModuleSectionId;
+
+    /// Write this section's header and data into the given sink.
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>;
+}
+
+/// A WebAssembly component section.
+///
+/// Various builders defined in this crate already implement this trait, but you
+/// can also implement it yourself for your own custom section builders, or use
+/// `RawSection` to use a bunch of raw bytes as a section.
+pub trait ComponentSection {
+    /// Gets the section's identifier.
+    fn id(&self) -> ComponentSectionId;
 
     /// Write this section's header and data into the given sink.
     fn encode<S>(&self, sink: &mut S)
@@ -131,7 +146,7 @@ pub trait Section<I: SectionId> {
 
 /// A section made up of uninterpreted, raw bytes.
 ///
-/// Allows you to splat any data into module, adapter module, or component.
+/// Allows you to splat any data into module or component.
 #[derive(Clone, Copy, Debug)]
 pub struct RawSection<'a> {
     /// The id for this section.
@@ -168,7 +183,7 @@ impl Module {
     /// only defined once. While this is a potential footgun, it also allows you
     /// to use this crate to easily construct test cases for bad Wasm module
     /// encodings.
-    pub fn section(&mut self, section: &impl Section<ModuleSectionId>) -> &mut Self {
+    pub fn section(&mut self, section: &impl Section) -> &mut Self {
         self.bytes.push(section.id().into());
         section.encode(&mut self.bytes);
         self
@@ -202,52 +217,6 @@ impl Default for Module {
     }
 }
 
-/// Represents a WebAssembly adapter module that is being encoded.
-///
-/// Unlike core WebAssembly modules, the sections of an adapter module
-/// may appear in any order and may be repeated.
-#[derive(Clone, Debug)]
-pub struct AdapterModule {
-    pub(crate) bytes: Vec<u8>,
-}
-
-impl AdapterModule {
-    /// Begin writing a new `AdapterModule`.
-    pub fn new() -> Self {
-        Self {
-            bytes: vec![
-                0x00, 0x61, 0x73, 0x6D, // magic (`\0asm`)
-                0x0a, 0x00, 0x01, 0x00, // version
-            ],
-        }
-    }
-
-    /// Finish writing this adapter module and extract ownership of the encoded bytes.
-    pub fn finish(self) -> Vec<u8> {
-        self.bytes
-    }
-
-    /// Write a section into this adapter module.
-    pub fn section(&mut self, section: &impl Section<AdapterModuleSectionId>) -> &mut Self {
-        self.bytes.push(section.id().into());
-        section.encode(&mut self.bytes);
-        self
-    }
-
-    /// Write a raw section to this adapter module.
-    pub fn raw(&mut self, section: &RawSection) -> &mut Self {
-        self.bytes.push(section.id);
-        self.bytes.extend_from_slice(section.data);
-        self
-    }
-}
-
-impl Default for AdapterModule {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 /// Represents a WebAssembly component that is being encoded.
 ///
 /// Unlike core WebAssembly modules, the sections of a component
@@ -274,7 +243,7 @@ impl Component {
     }
 
     /// Write a section to this component.
-    pub fn section(&mut self, section: &impl Section<ComponentSectionId>) -> &mut Self {
+    pub fn section(&mut self, section: &impl ComponentSection) -> &mut Self {
         self.bytes.push(section.id().into());
         section.encode(&mut self.bytes);
         self
@@ -293,9 +262,6 @@ impl Default for Component {
         Self::new()
     }
 }
-
-/// Marker trait for section identifiers.
-pub trait SectionId: Copy + Into<u8> {}
 
 /// Known section identifiers of WebAssembly modules.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -340,39 +306,6 @@ impl From<ModuleSectionId> for u8 {
     }
 }
 
-impl SectionId for ModuleSectionId {}
-
-/// Known section identifiers of WebAssembly module adapters.
-///
-/// These sections are supported by the module linking proposal.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
-#[repr(u8)]
-pub enum AdapterModuleSectionId {
-    /// The section is a custom section.
-    Custom = 0,
-    /// The section is a type section.
-    Type = 1,
-    /// The section is an import section.
-    Import = 2,
-    /// The section is a module section.
-    Module = 3,
-    /// The section is an instance section.
-    Instance = 4,
-    /// The section is an alias section.
-    Alias = 5,
-    /// The section is an export section.
-    Export = 6,
-}
-
-impl From<AdapterModuleSectionId> for u8 {
-    #[inline]
-    fn from(id: AdapterModuleSectionId) -> u8 {
-        id as u8
-    }
-}
-
-impl SectionId for AdapterModuleSectionId {}
-
 /// Known section identifiers of WebAssembly components.
 ///
 /// These sections are supported by the component model proposal.
@@ -406,16 +339,9 @@ impl From<ComponentSectionId> for u8 {
     }
 }
 
-impl SectionId for ComponentSectionId {}
-
-/// Represents possible encoding formats for certain sections.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum SectionEncodingFormat {
-    /// The section will be encoded for a WebAssembly module.
+enum EncodingFormat {
     Module,
-    /// The section will be encoded for a WebAssembly module adapter.
-    AdapterModule,
-    /// The section will be encoded for a WebAssembly component.
     Component,
 }
 
@@ -436,11 +362,11 @@ pub enum TypeRef {
     Tag(TagType),
     /// The reference is to an instance type.
     ///
-    /// This variant is used for adapter modules and components.
+    /// This variant is used for components.
     Instance(u32),
     /// The reference is a module type.
     ///
-    /// This variant is used for adapter modules and components.
+    /// This variant is used for components.
     Module(u32),
     /// The reference is an adapter function type.
     ///
@@ -449,89 +375,40 @@ pub enum TypeRef {
 }
 
 impl TypeRef {
-    pub(crate) fn encode(&self, format: SectionEncodingFormat, bytes: &mut Vec<u8>) {
-        match format {
-            SectionEncodingFormat::Module => match self {
-                Self::Function(i) => {
-                    bytes.push(0x00);
-                    bytes.extend(encoders::u32(*i));
-                }
-                Self::Table(t) => {
-                    bytes.push(0x01);
-                    t.encode(bytes);
-                }
-                Self::Memory(t) => {
-                    bytes.push(0x02);
-                    t.encode(bytes);
-                }
-                Self::Global(t) => {
-                    bytes.push(0x03);
-                    t.encode(bytes);
-                }
-                Self::Tag(t) => {
-                    bytes.push(0x04);
-                    t.encode(bytes);
-                }
-                _ => panic!("cannot encode {:?} for a WebAssembly module", self),
-            },
-            SectionEncodingFormat::AdapterModule => match self {
-                Self::Instance(i) => {
-                    bytes.push(0x00);
-                    bytes.extend(encoders::u32(*i));
-                }
-                Self::Module(i) => {
-                    bytes.push(0x01);
-                    bytes.extend(encoders::u32(*i));
-                }
-                Self::Function(i) => {
-                    bytes.push(0x02);
-                    bytes.extend(encoders::u32(*i));
-                }
-                Self::Table(t) => {
-                    bytes.push(0x03);
-                    t.encode(bytes);
-                }
-                Self::Memory(t) => {
-                    bytes.push(0x04);
-                    t.encode(bytes);
-                }
-                Self::Global(t) => {
-                    bytes.push(0x05);
-                    t.encode(bytes);
-                }
-                _ => panic!("cannot encode {:?} for a WebAssembly adapter module", self),
-            },
-            SectionEncodingFormat::Component => match self {
-                Self::Instance(i) => {
-                    bytes.push(0x00);
-                    bytes.extend(encoders::u32(*i));
-                }
-                Self::Module(i) => {
-                    bytes.push(0x01);
-                    bytes.extend(encoders::u32(*i));
-                }
-                Self::Function(i) => {
-                    bytes.push(0x02);
-                    bytes.extend(encoders::u32(*i));
-                }
-                Self::Table(t) => {
-                    bytes.push(0x03);
-                    t.encode(bytes);
-                }
-                Self::Memory(t) => {
-                    bytes.push(0x04);
-                    t.encode(bytes);
-                }
-                Self::Global(t) => {
-                    bytes.push(0x05);
-                    t.encode(bytes);
-                }
-                Self::AdapterFunction(i) => {
-                    bytes.push(0x06);
-                    bytes.extend(encoders::u32(*i));
-                }
-                _ => panic!("cannot encode {:?} for a WebAssembly component", self),
-            },
+    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
+        match self {
+            Self::Function(i) => {
+                bytes.push(0x00);
+                bytes.extend(encoders::u32(*i));
+            }
+            Self::Table(t) => {
+                bytes.push(0x01);
+                t.encode(bytes);
+            }
+            Self::Memory(t) => {
+                bytes.push(0x02);
+                t.encode(bytes);
+            }
+            Self::Global(t) => {
+                bytes.push(0x03);
+                t.encode(bytes);
+            }
+            Self::Tag(t) => {
+                bytes.push(0x04);
+                t.encode(bytes);
+            }
+            Self::Instance(i) => {
+                bytes.push(0x05);
+                bytes.extend(encoders::u32(*i));
+            }
+            Self::Module(i) => {
+                bytes.push(0x06);
+                bytes.extend(encoders::u32(*i));
+            }
+            Self::AdapterFunction(i) => {
+                bytes.push(0x07);
+                bytes.extend(encoders::u32(*i));
+            }
         }
     }
 }
@@ -570,15 +447,6 @@ mod test {
         assert_eq!(
             bytes,
             [0x00, 'a' as u8, 's' as u8, 'm' as u8, 0x01, 0x00, 0x00, 0x00]
-        );
-    }
-
-    #[test]
-    fn it_encodes_an_empty_adapter_module() {
-        let bytes = AdapterModule::new().finish();
-        assert_eq!(
-            bytes,
-            [0x00, 'a' as u8, 's' as u8, 'm' as u8, 0x0a, 0x00, 0x01, 0x00]
         );
     }
 

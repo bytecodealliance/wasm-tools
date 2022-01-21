@@ -230,7 +230,7 @@ impl ElementSection {
     }
 }
 
-impl Section<ModuleSectionId> for ElementSection {
+impl Section for ElementSection {
     fn id(&self) -> ModuleSectionId {
         ModuleSectionId::Element
     }

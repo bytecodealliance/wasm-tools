@@ -1,4 +1,4 @@
-use crate::{encoders, AdapterModuleSectionId, ComponentSectionId, Section, SectionEncodingFormat};
+use crate::{encoders, ComponentSection, ComponentSectionId};
 
 const ALIAS_KIND_INSTANCE_EXPORT: u8 = 0x00;
 pub(crate) const ALIAS_KIND_OUTER: u8 = 0x01;
@@ -24,29 +24,16 @@ pub enum AliasExportKind {
     AdapterFunction = 0x06,
 }
 
-impl AliasExportKind {
-    fn encode(&self, format: SectionEncodingFormat, bytes: &mut Vec<u8>) {
-        match (format, self) {
-            (SectionEncodingFormat::Module, _) => panic!("aliases cannot be encoded for a module"),
-            (SectionEncodingFormat::AdapterModule, Self::AdapterFunction) => {
-                panic!("aliases to adapter function exports can only be encoded in components")
-            }
-            _ => {}
-        }
-        bytes.push(*self as u8);
-    }
-}
-
 /// An encoder for the alias section.
 ///
-/// Alias sections are only supported for adapter modules and components.
+/// Alias sections are only supported for components.
 ///
 /// # Example
 ///
 /// ```rust
-/// use wasm_encoder::{Component, AliasSection, SectionEncodingFormat, AliasExportKind};
+/// use wasm_encoder::{Component, AliasSection, AliasExportKind};
 ///
-/// let mut aliases = AliasSection::new(SectionEncodingFormat::Component);
+/// let mut aliases = AliasSection::new();
 /// aliases.outer_type(0, 2);
 /// aliases.instance_export(0, AliasExportKind::Function, "foo");
 ///
@@ -55,25 +42,16 @@ impl AliasExportKind {
 ///
 /// let bytes = component.finish();
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct AliasSection {
     bytes: Vec<u8>,
     num_added: u32,
-    format: SectionEncodingFormat,
 }
 
 impl AliasSection {
     /// Create a new alias section encoder.
-    pub fn new(format: SectionEncodingFormat) -> Self {
-        if format == SectionEncodingFormat::Module {
-            panic!("alias sections are not supported for module encoding");
-        }
-
-        Self {
-            bytes: Vec::default(),
-            num_added: 0,
-            format,
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// The number of aliases in the section.
@@ -96,7 +74,7 @@ impl AliasSection {
         self.bytes.push(ALIAS_KIND_INSTANCE_EXPORT);
         self.bytes.extend(encoders::u32(instance));
         self.bytes.extend(encoders::str(name));
-        kind.encode(self.format, &mut self.bytes);
+        self.bytes.push(kind as u8);
         self.num_added += 1;
         self
     }
@@ -120,33 +98,9 @@ impl AliasSection {
         self.num_added += 1;
         self
     }
-
-    fn encode(&self, format: SectionEncodingFormat, sink: &mut impl Extend<u8>) {
-        assert_eq!(self.format, format, "alias section format mismatch");
-        let num_added = encoders::u32(self.num_added);
-        let n = num_added.len();
-        sink.extend(
-            encoders::u32(u32::try_from(n + self.bytes.len()).unwrap())
-                .chain(num_added)
-                .chain(self.bytes.iter().copied()),
-        );
-    }
 }
 
-impl Section<AdapterModuleSectionId> for AliasSection {
-    fn id(&self) -> AdapterModuleSectionId {
-        AdapterModuleSectionId::Alias
-    }
-
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        self.encode(SectionEncodingFormat::AdapterModule, sink);
-    }
-}
-
-impl Section<ComponentSectionId> for AliasSection {
+impl ComponentSection for AliasSection {
     fn id(&self) -> ComponentSectionId {
         ComponentSectionId::Alias
     }
@@ -155,6 +109,12 @@ impl Section<ComponentSectionId> for AliasSection {
     where
         S: Extend<u8>,
     {
-        self.encode(SectionEncodingFormat::Component, sink);
+        let num_added = encoders::u32(self.num_added);
+        let n = num_added.len();
+        sink.extend(
+            encoders::u32(u32::try_from(n + self.bytes.len()).unwrap())
+                .chain(num_added)
+                .chain(self.bytes.iter().copied()),
+        );
     }
 }

@@ -1,4 +1,4 @@
-use crate::{encoders, ComponentSectionId, Section};
+use crate::{encoders, ComponentSection, ComponentSectionId};
 
 const CANONICAL_OPTION_UTF8: u8 = 0x00;
 const CANONICAL_OPTION_UTF16: u8 = 0x01;
@@ -102,7 +102,7 @@ impl AdapterFunctionSection {
     }
 }
 
-impl Section<ComponentSectionId> for AdapterFunctionSection {
+impl ComponentSection for AdapterFunctionSection {
     fn id(&self) -> ComponentSectionId {
         ComponentSectionId::AdapterFunction
     }

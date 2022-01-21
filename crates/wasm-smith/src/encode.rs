@@ -36,8 +36,7 @@ impl Module {
     }
 
     fn encode_types(&self, module: &mut wasm_encoder::Module, types: &[Type]) {
-        let mut section =
-            wasm_encoder::TypeSection::new(wasm_encoder::SectionEncodingFormat::Module);
+        let mut section = wasm_encoder::TypeSection::new();
         for ty in types {
             match ty {
                 Type::Func(ty) => {
@@ -53,10 +52,9 @@ impl Module {
         module: &mut wasm_encoder::Module,
         imports: &[(String, String, EntityType)],
     ) {
-        let mut section =
-            wasm_encoder::ImportSection::new(wasm_encoder::SectionEncodingFormat::Module);
+        let mut section = wasm_encoder::ImportSection::new();
         for (module, name, ty) in imports {
-            section.import(Some(module), &name, translate_entity_type(ty));
+            section.import(module, &name, translate_entity_type(ty));
         }
         module.section(&section);
     }
@@ -79,8 +77,7 @@ impl Module {
         if self.num_defined_funcs == 0 {
             return;
         }
-        let mut funcs =
-            wasm_encoder::FunctionSection::new(wasm_encoder::SectionEncodingFormat::Module);
+        let mut funcs = wasm_encoder::FunctionSection::new();
         for (ty, _) in self.funcs[self.funcs.len() - self.num_defined_funcs..].iter() {
             funcs.function(ty.unwrap());
         }
@@ -125,8 +122,7 @@ impl Module {
         if self.exports.is_empty() {
             return;
         }
-        let mut exports =
-            wasm_encoder::ExportSection::new(wasm_encoder::SectionEncodingFormat::Module);
+        let mut exports = wasm_encoder::ExportSection::new();
         for (name, export) in &self.exports {
             exports.export(name, *export);
         }

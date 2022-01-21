@@ -27,7 +27,7 @@ pub struct StartSection {
     pub function_index: u32,
 }
 
-impl Section<ModuleSectionId> for StartSection {
+impl Section for StartSection {
     fn id(&self) -> ModuleSectionId {
         ModuleSectionId::Start
     }

@@ -1,6 +1,6 @@
 use crate::{
-    encoders, AdapterModuleSectionId, ComponentSectionId, ModuleSectionId, Section,
-    SectionEncodingFormat, TypeRef, ALIAS_KIND_OUTER, ALIAS_KIND_OUTER_TYPE,
+    encoders, ComponentSection, ComponentSectionId, EncodingFormat, ModuleSectionId, Section,
+    TypeRef, ALIAS_KIND_OUTER, ALIAS_KIND_OUTER_TYPE,
 };
 
 const COMPOUND_INTERFACE_TYPE_LIST: u8 = 0x7b;
@@ -72,27 +72,18 @@ impl From<ValType> for u8 {
 }
 
 /// Represents an instance type.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct InstanceType {
     bytes: Vec<u8>,
     num_added: u32,
-    format: SectionEncodingFormat,
 }
 
 impl InstanceType {
     /// Creates a new instance type.
     ///
-    /// Instance types can only be defined in adapter module and component type sections.
-    pub fn new(format: SectionEncodingFormat) -> Self {
-        if format == SectionEncodingFormat::Module {
-            panic!("instance types cannot be encoded for a module");
-        }
-
-        Self {
-            bytes: Vec::new(),
-            num_added: 0,
-            format,
-        }
+    /// Instance types can only be used when encoding components.
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Define a type in this instance type.
@@ -103,7 +94,7 @@ impl InstanceType {
         self.bytes.push(INSTANCE_TYPEDEF_TYPE);
         self.num_added += 1;
         TypeEncoder {
-            format: self.format,
+            format: EncodingFormat::Component,
             bytes: &mut self.bytes,
         }
     }
@@ -123,7 +114,7 @@ impl InstanceType {
     pub fn export(&mut self, name: &str, ty: TypeRef) -> &mut Self {
         self.bytes.push(INSTANCE_TYPEDEF_EXPORT);
         self.bytes.extend(encoders::str(name));
-        ty.encode(self.format, &mut self.bytes);
+        ty.encode(&mut self.bytes);
         self.num_added += 1;
         self
     }
@@ -135,27 +126,18 @@ impl InstanceType {
 }
 
 /// Represents a module type.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ModuleType {
     bytes: Vec<u8>,
     num_added: u32,
-    format: SectionEncodingFormat,
 }
 
 impl ModuleType {
     /// Creates a new module type.
     ///
-    /// Module types can only be defined in adapter module and component type sections.
-    pub fn new(format: SectionEncodingFormat) -> Self {
-        if format == SectionEncodingFormat::Module {
-            panic!("module types cannot be encoded for a module");
-        }
-
-        Self {
-            bytes: Vec::new(),
-            num_added: 0,
-            format,
-        }
+    /// Module types can only be used when encoding components.
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Define a type in this module type.
@@ -166,7 +148,7 @@ impl ModuleType {
         self.bytes.push(MODULE_TYPEDEF_TYPE);
         self.num_added += 1;
         TypeEncoder {
-            format: self.format,
+            format: EncodingFormat::Component,
             bytes: &mut self.bytes,
         }
     }
@@ -186,7 +168,7 @@ impl ModuleType {
     pub fn export(&mut self, name: &str, ty: TypeRef) -> &mut Self {
         self.bytes.push(MODULE_TYPEDEF_EXPORT);
         self.bytes.extend(encoders::str(name));
-        ty.encode(self.format, &mut self.bytes);
+        ty.encode(&mut self.bytes);
         self.num_added += 1;
         self
     }
@@ -195,7 +177,7 @@ impl ModuleType {
     pub fn import(&mut self, name: &str, ty: TypeRef) -> &mut Self {
         self.bytes.push(MODULE_TYPEDEF_IMPORT);
         self.bytes.extend(encoders::str(name));
-        ty.encode(self.format, &mut self.bytes);
+        ty.encode(&mut self.bytes);
         self.num_added += 1;
         self
     }
@@ -209,7 +191,7 @@ impl ModuleType {
 /// Used to encode types.
 #[derive(Debug)]
 pub struct TypeEncoder<'a> {
-    format: SectionEncodingFormat,
+    format: EncodingFormat,
     bytes: &'a mut Vec<u8>,
 }
 
@@ -237,9 +219,10 @@ impl<'a> TypeEncoder<'a> {
         let params = params.into_iter();
         let results = results.into_iter();
 
+        // FIXME: this needs to be fixed prior to merging
         let header = match self.format {
-            SectionEncodingFormat::Module => 0x60,
-            SectionEncodingFormat::AdapterModule | SectionEncodingFormat::Component => 0x7d,
+            EncodingFormat::Module => 0x60,
+            EncodingFormat::Component => 0x7d,
         };
 
         self.bytes.push(header);
@@ -255,10 +238,6 @@ impl<'a> TypeEncoder<'a> {
     ///
     /// This method can only be used for encoding components.
     pub fn adapter_function(self, params: &[(&str, InterfaceType)], result: Option<InterfaceType>) {
-        if self.format != SectionEncodingFormat::Component {
-            panic!("adapter functions can only be encoded for components");
-        }
-
         self.bytes.push(0x7c);
 
         self.bytes
@@ -286,10 +265,6 @@ impl<'a> TypeEncoder<'a> {
     /// The returned encoder must be finished before adding another type.
     #[must_use = "the encoder must be used to encode the type"]
     pub fn compound(self) -> CompoundTypeEncoder<'a> {
-        if self.format != SectionEncodingFormat::Component {
-            panic!("compound types can only be encoded for components");
-        }
-
         CompoundTypeEncoder(self.bytes)
     }
 }
@@ -463,9 +438,9 @@ impl CompoundTypeEncoder<'_> {
 /// # Example
 ///
 /// ```rust
-/// use wasm_encoder::{Module, TypeSection, SectionEncodingFormat, ValType};
+/// use wasm_encoder::{Module, TypeSection, ValType};
 ///
-/// let mut types = TypeSection::new(SectionEncodingFormat::Module);
+/// let mut types = TypeSection::new();
 ///
 /// types.function([ValType::I32, ValType::I32], [ValType::I64]);
 ///
@@ -474,21 +449,17 @@ impl CompoundTypeEncoder<'_> {
 ///
 /// let bytes = module.finish();
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct TypeSection {
     bytes: Vec<u8>,
     num_added: u32,
-    format: SectionEncodingFormat,
+    format: Option<EncodingFormat>,
 }
 
 impl TypeSection {
     /// Create a new component type section encoder.
-    pub fn new(format: SectionEncodingFormat) -> Self {
-        Self {
-            bytes: Vec::new(),
-            num_added: 0,
-            format,
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// The number of types in the section.
@@ -502,6 +473,8 @@ impl TypeSection {
     }
 
     /// Define a function type in this type section.
+    ///
+    /// This method can only be used when encoding modules.
     pub fn function<P, R>(&mut self, params: P, results: R) -> &mut Self
     where
         P: IntoIterator<Item = ValType>,
@@ -509,8 +482,14 @@ impl TypeSection {
         R: IntoIterator<Item = ValType>,
         R::IntoIter: ExactSizeIterator,
     {
+        assert_eq!(
+            *self.format.get_or_insert(EncodingFormat::Module),
+            EncodingFormat::Module,
+            "cannot encode a function type for a WebAssembly component"
+        );
+
         let encoder = TypeEncoder {
-            format: self.format,
+            format: EncodingFormat::Module,
             bytes: &mut self.bytes,
         };
         encoder.function(params, results);
@@ -520,10 +499,16 @@ impl TypeSection {
 
     /// Define an instance type in this type section.
     ///
-    /// This method can only be used for encoding adapter modules and components.
+    /// This method can only be used for encoding components.
     pub fn instance(&mut self, ty: &InstanceType) -> &mut Self {
+        assert_eq!(
+            *self.format.get_or_insert(EncodingFormat::Component),
+            EncodingFormat::Component,
+            "cannot encode an instance type for a WebAssembly module"
+        );
+
         let encoder = TypeEncoder {
-            format: self.format,
+            format: EncodingFormat::Component,
             bytes: &mut self.bytes,
         };
         encoder.instance(ty);
@@ -533,10 +518,16 @@ impl TypeSection {
 
     /// Define a module type in this type section.
     ///
-    /// This method can only be used for encoding adapter modules and components.
+    /// This method can only be used for encoding components.
     pub fn module(&mut self, ty: &ModuleType) -> &mut Self {
+        assert_eq!(
+            *self.format.get_or_insert(EncodingFormat::Component),
+            EncodingFormat::Component,
+            "cannot encode a module type for a WebAssembly module"
+        );
+
         let encoder = TypeEncoder {
-            format: self.format,
+            format: EncodingFormat::Component,
             bytes: &mut self.bytes,
         };
         encoder.module(ty);
@@ -552,8 +543,14 @@ impl TypeSection {
         params: &[(&str, InterfaceType)],
         result: Option<InterfaceType>,
     ) -> &mut Self {
+        assert_eq!(
+            *self.format.get_or_insert(EncodingFormat::Component),
+            EncodingFormat::Component,
+            "cannot encode an adapter function type for a WebAssembly module"
+        );
+
         let encoder = TypeEncoder {
-            format: self.format,
+            format: EncodingFormat::Component,
             bytes: &mut self.bytes,
         };
         encoder.adapter_function(params, result);
@@ -568,17 +565,25 @@ impl TypeSection {
     /// The returned encoder must be finished before adding another type.
     #[must_use = "the encoder must be used to encode the type"]
     pub fn compound(&mut self) -> CompoundTypeEncoder<'_> {
-        if self.format != SectionEncodingFormat::Component {
-            panic!("compound types can only be encoded for components");
-        }
+        assert_eq!(
+            *self.format.get_or_insert(EncodingFormat::Component),
+            EncodingFormat::Component,
+            "cannot encode a compound type for a WebAssembly module"
+        );
 
         let encoder = CompoundTypeEncoder(&mut self.bytes);
         self.num_added += 1;
         encoder
     }
 
-    fn encode(&self, format: SectionEncodingFormat, sink: &mut impl Extend<u8>) {
-        assert_eq!(self.format, format, "type section format mismatch");
+    fn encode(&self, expected: EncodingFormat, sink: &mut impl Extend<u8>) {
+        match self.format {
+            Some(format) => {
+                assert_eq!(format, expected, "type section format mismatch");
+            }
+            None => assert_eq!(self.num_added, 0),
+        }
+
         let num_added = encoders::u32(self.num_added);
         let n = num_added.len();
         sink.extend(
@@ -589,7 +594,7 @@ impl TypeSection {
     }
 }
 
-impl Section<ModuleSectionId> for TypeSection {
+impl Section for TypeSection {
     fn id(&self) -> ModuleSectionId {
         ModuleSectionId::Type
     }
@@ -598,24 +603,11 @@ impl Section<ModuleSectionId> for TypeSection {
     where
         S: Extend<u8>,
     {
-        self.encode(SectionEncodingFormat::Module, sink);
+        self.encode(EncodingFormat::Module, sink);
     }
 }
 
-impl Section<AdapterModuleSectionId> for TypeSection {
-    fn id(&self) -> AdapterModuleSectionId {
-        AdapterModuleSectionId::Type
-    }
-
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        self.encode(SectionEncodingFormat::AdapterModule, sink);
-    }
-}
-
-impl Section<ComponentSectionId> for TypeSection {
+impl ComponentSection for TypeSection {
     fn id(&self) -> ComponentSectionId {
         ComponentSectionId::Type
     }
@@ -624,6 +616,6 @@ impl Section<ComponentSectionId> for TypeSection {
     where
         S: Extend<u8>,
     {
-        self.encode(SectionEncodingFormat::Component, sink);
+        self.encode(EncodingFormat::Component, sink);
     }
 }

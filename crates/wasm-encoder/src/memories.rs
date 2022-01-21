@@ -51,7 +51,7 @@ impl MemorySection {
     }
 }
 
-impl Section<ModuleSectionId> for MemorySection {
+impl Section for MemorySection {
     fn id(&self) -> ModuleSectionId {
         ModuleSectionId::Memory
     }

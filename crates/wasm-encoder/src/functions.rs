@@ -7,9 +7,9 @@ use super::*;
 /// # Example
 ///
 /// ```
-/// use wasm_encoder::{Module, FunctionSection, SectionEncodingFormat, ValType};
+/// use wasm_encoder::{Module, FunctionSection, ValType};
 ///
-/// let mut functions = FunctionSection::new(SectionEncodingFormat::Module);
+/// let mut functions = FunctionSection::new();
 /// let type_index = 0;
 /// functions.function(type_index);
 ///
@@ -22,21 +22,17 @@ use super::*;
 ///
 /// let wasm_bytes = module.finish();
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct FunctionSection {
     bytes: Vec<u8>,
     num_added: u32,
-    format: SectionEncodingFormat,
+    format: Option<EncodingFormat>,
 }
 
 impl FunctionSection {
     /// Construct a new function section encoder.
-    pub fn new(format: SectionEncodingFormat) -> Self {
-        Self {
-            bytes: Vec::default(),
-            num_added: 0,
-            format,
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// The number of functions in the section.
@@ -53,9 +49,11 @@ impl FunctionSection {
     ///
     /// This method is only supported for encoding modules.
     pub fn function(&mut self, type_index: u32) -> &mut Self {
-        if self.format != SectionEncodingFormat::Module {
-            panic!("functions can only be encoded for modules");
-        }
+        assert_eq!(
+            *self.format.get_or_insert(EncodingFormat::Module),
+            EncodingFormat::Module,
+            "cannot encode a function for a WebAssembly component"
+        );
         self.bytes.extend(encoders::u32(type_index));
         self.num_added += 1;
         self
@@ -70,9 +68,11 @@ impl FunctionSection {
         options: &[CanonicalOption],
         target_index: u32,
     ) -> &mut Self {
-        if self.format != SectionEncodingFormat::Module {
-            panic!("canonical functions can only be encoded for components");
-        }
+        assert_eq!(
+            *self.format.get_or_insert(EncodingFormat::Component),
+            EncodingFormat::Component,
+            "cannot encode a canonical function for a WebAssembly module"
+        );
         self.bytes.extend(encoders::u32(type_index));
         self.bytes.push(0x00); // This byte is a placeholder for future cases.
         self.bytes
@@ -84,8 +84,14 @@ impl FunctionSection {
         self
     }
 
-    fn encode(&self, format: SectionEncodingFormat, sink: &mut impl Extend<u8>) {
-        assert_eq!(self.format, format, "function section format mismatch");
+    fn encode(&self, expected: EncodingFormat, sink: &mut impl Extend<u8>) {
+        match self.format {
+            Some(format) => {
+                assert_eq!(format, expected, "function section format mismatch");
+            }
+            None => assert_eq!(self.num_added, 0),
+        }
+
         let num_added = encoders::u32(self.num_added);
         let n = num_added.len();
         sink.extend(
@@ -96,7 +102,7 @@ impl FunctionSection {
     }
 }
 
-impl Section<ModuleSectionId> for FunctionSection {
+impl Section for FunctionSection {
     fn id(&self) -> ModuleSectionId {
         ModuleSectionId::Function
     }
@@ -105,11 +111,11 @@ impl Section<ModuleSectionId> for FunctionSection {
     where
         S: Extend<u8>,
     {
-        self.encode(SectionEncodingFormat::Module, sink)
+        self.encode(EncodingFormat::Module, sink)
     }
 }
 
-impl Section<ComponentSectionId> for FunctionSection {
+impl ComponentSection for FunctionSection {
     fn id(&self) -> ComponentSectionId {
         ComponentSectionId::Function
     }
@@ -118,6 +124,6 @@ impl Section<ComponentSectionId> for FunctionSection {
     where
         S: Extend<u8>,
     {
-        self.encode(SectionEncodingFormat::Component, sink)
+        self.encode(EncodingFormat::Component, sink)
     }
 }

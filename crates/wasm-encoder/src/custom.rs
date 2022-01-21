@@ -23,7 +23,7 @@ impl CustomSection<'_> {
     }
 }
 
-impl Section<ModuleSectionId> for CustomSection<'_> {
+impl Section for CustomSection<'_> {
     fn id(&self) -> ModuleSectionId {
         ModuleSectionId::Custom
     }
@@ -36,20 +36,7 @@ impl Section<ModuleSectionId> for CustomSection<'_> {
     }
 }
 
-impl Section<AdapterModuleSectionId> for CustomSection<'_> {
-    fn id(&self) -> AdapterModuleSectionId {
-        AdapterModuleSectionId::Custom
-    }
-
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        self.encode(sink);
-    }
-}
-
-impl Section<ComponentSectionId> for CustomSection<'_> {
+impl ComponentSection for CustomSection<'_> {
     fn id(&self) -> ComponentSectionId {
         ComponentSectionId::Custom
     }

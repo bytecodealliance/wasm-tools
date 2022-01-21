@@ -139,7 +139,6 @@ impl RemoveItem {
                         TypeSectionReader::new(section.data, 0)?,
                         Item::Type,
                         |me, ty, section| me.translate_type_def(ty, section),
-                        TypeSection::new(SectionEncodingFormat::Module),
                     )?;
                 }
 
@@ -148,7 +147,7 @@ impl RemoveItem {
                 // `filter_out` helper can't be used and we have to process
                 // everything manually here.
                 IMPORT => {
-                    let mut result = ImportSection::new(SectionEncodingFormat::Module);
+                    let mut result = ImportSection::new();
                     let mut function = 0;
                     let mut global = 0;
                     let mut table = 0;
@@ -161,7 +160,7 @@ impl RemoveItem {
                                 if self.item != Item::Function || self.idx != function {
                                     let ty = self.remap(Item::Type, *ty)?;
                                     result.import(
-                                        Some(item.module),
+                                        item.module,
                                         item.field.unwrap(),
                                         TypeRef::Function(ty),
                                     );
@@ -171,28 +170,28 @@ impl RemoveItem {
                             ImportSectionEntryType::Table(ty) => {
                                 if self.item != Item::Table || self.idx != table {
                                     let ty = self.translate_table_type(ty)?;
-                                    result.import(Some(item.module), item.field.unwrap(), ty);
+                                    result.import(item.module, item.field.unwrap(), ty);
                                 }
                                 table += 1;
                             }
                             ImportSectionEntryType::Memory(ty) => {
                                 if self.item != Item::Memory || self.idx != memory {
                                     let ty = self.translate_memory_type(ty)?;
-                                    result.import(Some(item.module), item.field.unwrap(), ty);
+                                    result.import(item.module, item.field.unwrap(), ty);
                                 }
                                 memory += 1;
                             }
                             ImportSectionEntryType::Global(ty) => {
                                 if self.item != Item::Global || self.idx != global {
                                     let ty = self.translate_global_type(ty)?;
-                                    result.import(Some(item.module), item.field.unwrap(), ty);
+                                    result.import(item.module, item.field.unwrap(), ty);
                                 }
                                 global += 1;
                             }
                             ImportSectionEntryType::Tag(ty) => {
                                 if self.item != Item::Tag || self.idx != tag {
                                     let ty = self.translate_tag_type(ty)?;
-                                    result.import(Some(item.module), item.field.unwrap(), ty);
+                                    result.import(item.module, item.field.unwrap(), ty);
                                 }
                                 tag += 1;
                             }
@@ -216,7 +215,6 @@ impl RemoveItem {
                             section.function(idx);
                             Ok(())
                         },
-                        FunctionSection::new(SectionEncodingFormat::Module),
                     )?;
                 }
 
@@ -231,7 +229,6 @@ impl RemoveItem {
                             section.table(ty);
                             Ok(())
                         },
-                        TableSection::new(),
                     )?;
                 }
 
@@ -246,7 +243,6 @@ impl RemoveItem {
                             section.memory(ty);
                             Ok(())
                         },
-                        MemorySection::new(),
                     )?;
                 }
 
@@ -257,14 +253,13 @@ impl RemoveItem {
                         GlobalSectionReader::new(section.data, 0)?,
                         Item::Global,
                         |me, ty, section| me.translate_global(ty, section),
-                        GlobalSection::new(),
                     )?;
                 }
 
                 EXPORT => {
                     use wasm_encoder::Export;
 
-                    let mut result = ExportSection::new(SectionEncodingFormat::Module);
+                    let mut result = ExportSection::new();
                     for item in ExportSectionReader::new(section.data, 0)? {
                         let item = item?;
                         let e = match &item.kind {
@@ -305,7 +300,6 @@ impl RemoveItem {
                         ElementSectionReader::new(section.data, 0)?,
                         Item::Element,
                         |me, ty, section| me.translate_element(ty, section),
-                        ElementSection::new(),
                     )?;
                 }
 
@@ -320,7 +314,6 @@ impl RemoveItem {
                         CodeSectionReader::new(section.data, 0)?,
                         Item::Function,
                         |me, body, section| me.translate_code(body, section),
-                        CodeSection::new(),
                     )?;
                 }
 
@@ -331,7 +324,6 @@ impl RemoveItem {
                         DataSectionReader::new(section.data, 0)?,
                         Item::Data,
                         |me, ty, section| me.translate_data(ty, section),
-                        DataSection::new(),
                     )?;
                 }
 
@@ -359,7 +351,6 @@ impl RemoveItem {
                             section.tag(ty);
                             Ok(())
                         },
-                        TagSection::new(),
                     )?;
                 }
 
@@ -388,12 +379,12 @@ impl RemoveItem {
         mut section: S,
         section_item: Item,
         encode: impl Fn(&mut Self, S::Item, &mut T) -> Result<()>,
-        mut result: T,
     ) -> Result<()>
     where
         S: SectionReader,
-        T: Section<ModuleSectionId>,
+        T: Default + Section,
     {
+        let mut result = T::default();
         let mut index = offset;
         while !section.eof() {
             let item = section.read()?;

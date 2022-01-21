@@ -60,7 +60,7 @@ impl LinkingSection {
     }
 }
 
-impl Section<ModuleSectionId> for LinkingSection {
+impl Section for LinkingSection {
     fn id(&self) -> ModuleSectionId {
         ModuleSectionId::Custom
     }

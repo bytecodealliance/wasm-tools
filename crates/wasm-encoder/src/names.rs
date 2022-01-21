@@ -153,7 +153,7 @@ impl NameSection {
     }
 }
 
-impl Section<ModuleSectionId> for NameSection {
+impl Section for NameSection {
     fn id(&self) -> ModuleSectionId {
         ModuleSectionId::Custom
     }

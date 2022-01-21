@@ -154,7 +154,7 @@ impl DataSection {
     }
 }
 
-impl Section<ModuleSectionId> for DataSection {
+impl Section for DataSection {
     fn id(&self) -> ModuleSectionId {
         ModuleSectionId::Data
     }
@@ -180,7 +180,7 @@ pub struct DataCountSection {
     pub count: u32,
 }
 
-impl Section<ModuleSectionId> for DataCountSection {
+impl Section for DataCountSection {
     fn id(&self) -> ModuleSectionId {
         ModuleSectionId::DataCount
     }

@@ -3,7 +3,7 @@
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|bytes: &[u8]| {
-    let (bytes, _config) = match wasm_tools_fuzz::generate_valid_module(bytes, |config, _u| Ok(()))
+    let (bytes, _config) = match wasm_tools_fuzz::generate_valid_module(bytes, |_config, _u| Ok(()))
     {
         Ok(m) => m,
         Err(_) => return,

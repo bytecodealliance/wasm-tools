@@ -276,7 +276,7 @@ impl<'a> ModuleInfo<'a> {
     pub fn replace_section(
         &self,
         i: usize,
-        new_section: &impl wasm_encoder::Section<wasm_encoder::ModuleSectionId>,
+        new_section: &impl wasm_encoder::Section,
     ) -> wasm_encoder::Module {
         let mut module = wasm_encoder::Module::new();
         self.raw_sections.iter().enumerate().for_each(|(j, s)| {

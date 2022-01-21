@@ -1,9 +1,8 @@
 //! Mutator that generates a random renaming of a prexisting export
 use super::Mutator;
 use crate::{Result, WasmMutate};
-
 use rand::Rng;
-use wasm_encoder::{Export, ExportSection, Module, SectionEncodingFormat};
+use wasm_encoder::{Export, ExportSection, Module};
 use wasmparser::ExportSectionReader;
 
 /// Generates a random renaming of pre-existing exports.
@@ -48,7 +47,7 @@ impl Mutator for RenameExportMutator {
         self,
         config: &'a mut WasmMutate,
     ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
-        let mut exports = ExportSection::new(SectionEncodingFormat::Module);
+        let mut exports = ExportSection::new();
         let mut reader = ExportSectionReader::new(config.info().get_exports_section().data, 0)?;
         let max_exports = reader.get_count() as u64;
         let skip_at = config.rng().gen_range(0, max_exports);

@@ -62,7 +62,7 @@ impl GlobalSection {
     }
 }
 
-impl Section<ModuleSectionId> for GlobalSection {
+impl Section for GlobalSection {
     fn id(&self) -> ModuleSectionId {
         ModuleSectionId::Global
     }

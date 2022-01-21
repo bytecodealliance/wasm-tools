@@ -10,13 +10,13 @@ use std::borrow::Cow;
 /// ```
 /// use wasm_encoder::{
 ///     CodeSection, Function, FunctionSection, Instruction, Module,
-///     SectionEncodingFormat, TypeSection, ValType
+///     TypeSection, ValType
 /// };
 ///
-/// let mut types = TypeSection::new(SectionEncodingFormat::Module);
+/// let mut types = TypeSection::new();
 /// types.function(vec![], vec![ValType::I32]);
 ///
-/// let mut functions = FunctionSection::new(SectionEncodingFormat::Module);
+/// let mut functions = FunctionSection::new();
 /// let type_index = 0;
 /// functions.function(type_index);
 ///
@@ -96,7 +96,7 @@ impl CodeSection {
     }
 }
 
-impl Section<ModuleSectionId> for CodeSection {
+impl Section for CodeSection {
     fn id(&self) -> ModuleSectionId {
         ModuleSectionId::Code
     }

@@ -49,7 +49,7 @@ impl TagSection {
     }
 }
 
-impl Section<ModuleSectionId> for TagSection {
+impl Section for TagSection {
     fn id(&self) -> ModuleSectionId {
         ModuleSectionId::Tag
     }

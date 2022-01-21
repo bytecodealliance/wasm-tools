@@ -51,7 +51,7 @@ impl TableSection {
     }
 }
 
-impl Section<ModuleSectionId> for TableSection {
+impl Section for TableSection {
     fn id(&self) -> ModuleSectionId {
         ModuleSectionId::Table
     }
