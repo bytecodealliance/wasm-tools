@@ -1,4 +1,4 @@
-use crate::{encoders, ComponentSection, ComponentSectionId, EncodingFormat, Section, SectionId};
+use crate::{encoders, ComponentSection, ComponentSectionId, Section, SectionId};
 
 /// Represents an export of a local item (by index).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -67,7 +67,6 @@ impl Export {
 pub struct ExportSection {
     bytes: Vec<u8>,
     num_added: u32,
-    uses_component_exports: bool,
 }
 
 impl ExportSection {
@@ -88,30 +87,13 @@ impl ExportSection {
 
     /// Define an export in the export section.
     pub fn export(&mut self, name: &str, export: Export) -> &mut Self {
-        self.uses_component_exports |= match export {
-            Export::Function(_)
-            | Export::Table(_)
-            | Export::Memory(_)
-            | Export::Global(_)
-            | Export::Tag(_) => false,
-            Export::Instance(_) | Export::Module(_) | Export::AdapterFunction(_) => true,
-        };
-
         self.bytes.extend(encoders::str(name));
         export.encode(&mut self.bytes);
         self.num_added += 1;
         self
     }
 
-    fn encode(&self, expected: EncodingFormat, sink: &mut impl Extend<u8>) {
-        if self.uses_component_exports {
-            assert_eq!(
-                expected,
-                EncodingFormat::Component,
-                "export section format mismatch"
-            );
-        }
-
+    fn encode(&self, sink: &mut impl Extend<u8>) {
         let num_added = encoders::u32(self.num_added);
         let n = num_added.len();
         sink.extend(
@@ -131,7 +113,7 @@ impl Section for ExportSection {
     where
         S: Extend<u8>,
     {
-        self.encode(EncodingFormat::Module, sink);
+        self.encode(sink);
     }
 }
 
@@ -144,6 +126,6 @@ impl ComponentSection for ExportSection {
     where
         S: Extend<u8>,
     {
-        self.encode(EncodingFormat::Component, sink);
+        self.encode(sink);
     }
 }

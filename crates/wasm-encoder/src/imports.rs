@@ -1,6 +1,4 @@
-use crate::{
-    encoders, ComponentSection, ComponentSectionId, EncodingFormat, Section, SectionId, TypeRef,
-};
+use crate::{encoders, ComponentSection, ComponentSectionId, Section, SectionId, TypeRef};
 
 /// An encoder for the import section.
 ///
@@ -29,7 +27,6 @@ use crate::{
 pub struct ImportSection {
     bytes: Vec<u8>,
     num_added: u32,
-    format: Option<EncodingFormat>,
 }
 
 impl ImportSection {
@@ -52,27 +49,9 @@ impl ImportSection {
     ///
     /// This method is only supported for encoding modules.
     pub fn import(&mut self, module: &str, field: &str, ty: impl Into<TypeRef>) -> &mut Self {
-        assert_eq!(
-            *self.format.get_or_insert(EncodingFormat::Module),
-            EncodingFormat::Module,
-            "cannot encode an import for a WebAssembly component"
-        );
-
-        let ty = ty.into();
-        match ty {
-            TypeRef::Function(_)
-            | TypeRef::Table(_)
-            | TypeRef::Memory(_)
-            | TypeRef::Global(_)
-            | TypeRef::Tag(_) => {}
-            TypeRef::Instance(_) | TypeRef::Module(_) | TypeRef::AdapterFunction(_) => {
-                panic!("cannot encode component import types in a module")
-            }
-        };
-
         self.bytes.extend(encoders::str(module));
         self.bytes.extend(encoders::str(field));
-        ty.encode(&mut self.bytes);
+        ty.into().encode(&mut self.bytes);
         self.num_added += 1;
         self
     }
@@ -81,25 +60,13 @@ impl ImportSection {
     ///
     /// This method is only supported for encoding components.
     pub fn import_by_name(&mut self, name: &str, ty: impl Into<TypeRef>) -> &mut Self {
-        assert_eq!(
-            *self.format.get_or_insert(EncodingFormat::Module),
-            EncodingFormat::Module,
-            "cannot encode an named import for a WebAssembly module"
-        );
         self.bytes.extend(encoders::str(name));
         ty.into().encode(&mut self.bytes);
         self.num_added += 1;
         self
     }
 
-    fn encode(&self, expected: EncodingFormat, sink: &mut impl Extend<u8>) {
-        match self.format {
-            Some(format) => {
-                assert_eq!(format, expected, "import section format mismatch");
-            }
-            None => assert_eq!(self.num_added, 0),
-        }
-
+    fn encode(&self, sink: &mut impl Extend<u8>) {
         let num_added = encoders::u32(self.num_added);
         let n = num_added.len();
         sink.extend(
@@ -119,7 +86,7 @@ impl Section for ImportSection {
     where
         S: Extend<u8>,
     {
-        self.encode(EncodingFormat::Module, sink);
+        self.encode(sink);
     }
 }
 
@@ -132,6 +99,6 @@ impl ComponentSection for ImportSection {
     where
         S: Extend<u8>,
     {
-        self.encode(EncodingFormat::Component, sink);
+        self.encode(sink);
     }
 }

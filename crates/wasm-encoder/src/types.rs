@@ -1,6 +1,6 @@
 use crate::{
-    encoders, ComponentSection, ComponentSectionId, EncodingFormat, Section, SectionId, TypeRef,
-    ALIAS_KIND_OUTER, ALIAS_KIND_OUTER_TYPE,
+    encoders, ComponentSection, ComponentSectionId, Section, SectionId, TypeRef, ALIAS_KIND_OUTER,
+    ALIAS_KIND_OUTER_TYPE,
 };
 
 const COMPOUND_INTERFACE_TYPE_LIST: u8 = 0x7b;
@@ -93,10 +93,7 @@ impl InstanceType {
     pub fn ty(&mut self) -> TypeEncoder {
         self.bytes.push(INSTANCE_TYPEDEF_TYPE);
         self.num_added += 1;
-        TypeEncoder {
-            format: EncodingFormat::Component,
-            bytes: &mut self.bytes,
-        }
+        TypeEncoder(&mut self.bytes)
     }
 
     /// Defines an alias to an outer module's type in the instance type.
@@ -147,10 +144,7 @@ impl ModuleType {
     pub fn ty(&mut self) -> TypeEncoder {
         self.bytes.push(MODULE_TYPEDEF_TYPE);
         self.num_added += 1;
-        TypeEncoder {
-            format: EncodingFormat::Component,
-            bytes: &mut self.bytes,
-        }
+        TypeEncoder(&mut self.bytes)
     }
 
     /// Defines an alias to an outer module's type in the module type.
@@ -190,22 +184,19 @@ impl ModuleType {
 
 /// Used to encode types.
 #[derive(Debug)]
-pub struct TypeEncoder<'a> {
-    format: EncodingFormat,
-    bytes: &'a mut Vec<u8>,
-}
+pub struct TypeEncoder<'a>(&'a mut Vec<u8>);
 
 impl<'a> TypeEncoder<'a> {
     /// Define an instance type.
     pub fn instance(self, ty: &InstanceType) {
-        self.bytes.push(0x7f);
-        ty.encode(self.bytes);
+        self.0.push(0x7f);
+        ty.encode(self.0);
     }
 
     /// Define a module type.
     pub fn module(self, ty: &ModuleType) {
-        self.bytes.push(0x7e);
-        ty.encode(self.bytes);
+        self.0.push(0x7e);
+        ty.encode(self.0);
     }
 
     /// Define a function type.
@@ -219,41 +210,36 @@ impl<'a> TypeEncoder<'a> {
         let params = params.into_iter();
         let results = results.into_iter();
 
-        // FIXME: this needs to be fixed prior to merging
-        let header = match self.format {
-            EncodingFormat::Module => 0x60,
-            EncodingFormat::Component => 0x7d,
-        };
-
-        self.bytes.push(header);
-        self.bytes
+        // FIXME: this needs to be fixed for component encoding prior to merging
+        self.0.push(0x60);
+        self.0
             .extend(encoders::u32(u32::try_from(params.len()).unwrap()));
-        self.bytes.extend(params.map(u8::from));
-        self.bytes
+        self.0.extend(params.map(u8::from));
+        self.0
             .extend(encoders::u32(u32::try_from(results.len()).unwrap()));
-        self.bytes.extend(results.map(u8::from));
+        self.0.extend(results.map(u8::from));
     }
 
     /// Define an adapter function type.
     ///
     /// This method can only be used for encoding components.
     pub fn adapter_function(self, params: &[(&str, InterfaceType)], result: Option<InterfaceType>) {
-        self.bytes.push(0x7c);
+        self.0.push(0x7c);
 
-        self.bytes
+        self.0
             .extend(encoders::u32(u32::try_from(params.len()).unwrap()));
         for (name, param) in params {
-            self.bytes.extend(encoders::str(name));
-            param.encode(self.bytes);
+            self.0.extend(encoders::str(name));
+            param.encode(self.0);
         }
 
         match result {
             Some(result) => {
-                self.bytes.push(1);
-                result.encode(self.bytes);
+                self.0.push(1);
+                result.encode(self.0);
             }
             None => {
-                self.bytes.push(0);
+                self.0.push(0);
             }
         }
     }
@@ -265,7 +251,7 @@ impl<'a> TypeEncoder<'a> {
     /// The returned encoder must be finished before adding another type.
     #[must_use = "the encoder must be used to encode the type"]
     pub fn compound(self) -> CompoundTypeEncoder<'a> {
-        CompoundTypeEncoder(self.bytes)
+        CompoundTypeEncoder(self.0)
     }
 }
 
@@ -453,7 +439,6 @@ impl CompoundTypeEncoder<'_> {
 pub struct TypeSection {
     bytes: Vec<u8>,
     num_added: u32,
-    format: Option<EncodingFormat>,
 }
 
 impl TypeSection {
@@ -482,16 +467,7 @@ impl TypeSection {
         R: IntoIterator<Item = ValType>,
         R::IntoIter: ExactSizeIterator,
     {
-        assert_eq!(
-            *self.format.get_or_insert(EncodingFormat::Module),
-            EncodingFormat::Module,
-            "cannot encode a function type for a WebAssembly component"
-        );
-
-        let encoder = TypeEncoder {
-            format: EncodingFormat::Module,
-            bytes: &mut self.bytes,
-        };
+        let encoder = TypeEncoder(&mut self.bytes);
         encoder.function(params, results);
         self.num_added += 1;
         self
@@ -501,16 +477,7 @@ impl TypeSection {
     ///
     /// This method can only be used for encoding components.
     pub fn instance(&mut self, ty: &InstanceType) -> &mut Self {
-        assert_eq!(
-            *self.format.get_or_insert(EncodingFormat::Component),
-            EncodingFormat::Component,
-            "cannot encode an instance type for a WebAssembly module"
-        );
-
-        let encoder = TypeEncoder {
-            format: EncodingFormat::Component,
-            bytes: &mut self.bytes,
-        };
+        let encoder = TypeEncoder(&mut self.bytes);
         encoder.instance(ty);
         self.num_added += 1;
         self
@@ -520,16 +487,7 @@ impl TypeSection {
     ///
     /// This method can only be used for encoding components.
     pub fn module(&mut self, ty: &ModuleType) -> &mut Self {
-        assert_eq!(
-            *self.format.get_or_insert(EncodingFormat::Component),
-            EncodingFormat::Component,
-            "cannot encode a module type for a WebAssembly module"
-        );
-
-        let encoder = TypeEncoder {
-            format: EncodingFormat::Component,
-            bytes: &mut self.bytes,
-        };
+        let encoder = TypeEncoder(&mut self.bytes);
         encoder.module(ty);
         self.num_added += 1;
         self
@@ -543,16 +501,7 @@ impl TypeSection {
         params: &[(&str, InterfaceType)],
         result: Option<InterfaceType>,
     ) -> &mut Self {
-        assert_eq!(
-            *self.format.get_or_insert(EncodingFormat::Component),
-            EncodingFormat::Component,
-            "cannot encode an adapter function type for a WebAssembly module"
-        );
-
-        let encoder = TypeEncoder {
-            format: EncodingFormat::Component,
-            bytes: &mut self.bytes,
-        };
+        let encoder = TypeEncoder(&mut self.bytes);
         encoder.adapter_function(params, result);
         self.num_added += 1;
         self
@@ -565,25 +514,12 @@ impl TypeSection {
     /// The returned encoder must be finished before adding another type.
     #[must_use = "the encoder must be used to encode the type"]
     pub fn compound(&mut self) -> CompoundTypeEncoder<'_> {
-        assert_eq!(
-            *self.format.get_or_insert(EncodingFormat::Component),
-            EncodingFormat::Component,
-            "cannot encode a compound type for a WebAssembly module"
-        );
-
         let encoder = CompoundTypeEncoder(&mut self.bytes);
         self.num_added += 1;
         encoder
     }
 
-    fn encode(&self, expected: EncodingFormat, sink: &mut impl Extend<u8>) {
-        match self.format {
-            Some(format) => {
-                assert_eq!(format, expected, "type section format mismatch");
-            }
-            None => assert_eq!(self.num_added, 0),
-        }
-
+    fn encode(&self, sink: &mut impl Extend<u8>) {
         let num_added = encoders::u32(self.num_added);
         let n = num_added.len();
         sink.extend(
@@ -603,7 +539,7 @@ impl Section for TypeSection {
     where
         S: Extend<u8>,
     {
-        self.encode(EncodingFormat::Module, sink);
+        self.encode(sink);
     }
 }
 
@@ -616,6 +552,6 @@ impl ComponentSection for TypeSection {
     where
         S: Extend<u8>,
     {
-        self.encode(EncodingFormat::Component, sink);
+        self.encode(sink);
     }
 }

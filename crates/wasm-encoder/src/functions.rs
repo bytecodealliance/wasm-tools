@@ -26,7 +26,6 @@ use super::*;
 pub struct FunctionSection {
     bytes: Vec<u8>,
     num_added: u32,
-    format: Option<EncodingFormat>,
 }
 
 impl FunctionSection {
@@ -49,11 +48,6 @@ impl FunctionSection {
     ///
     /// This method is only supported for encoding modules.
     pub fn function(&mut self, type_index: u32) -> &mut Self {
-        assert_eq!(
-            *self.format.get_or_insert(EncodingFormat::Module),
-            EncodingFormat::Module,
-            "cannot encode a function for a WebAssembly component"
-        );
         self.bytes.extend(encoders::u32(type_index));
         self.num_added += 1;
         self
@@ -68,11 +62,6 @@ impl FunctionSection {
         options: &[CanonicalOption],
         target_index: u32,
     ) -> &mut Self {
-        assert_eq!(
-            *self.format.get_or_insert(EncodingFormat::Component),
-            EncodingFormat::Component,
-            "cannot encode a canonical function for a WebAssembly module"
-        );
         self.bytes.extend(encoders::u32(type_index));
         self.bytes.push(0x00); // This byte is a placeholder for future cases.
         self.bytes
@@ -84,14 +73,7 @@ impl FunctionSection {
         self
     }
 
-    fn encode(&self, expected: EncodingFormat, sink: &mut impl Extend<u8>) {
-        match self.format {
-            Some(format) => {
-                assert_eq!(format, expected, "function section format mismatch");
-            }
-            None => assert_eq!(self.num_added, 0),
-        }
-
+    fn encode(&self, sink: &mut impl Extend<u8>) {
         let num_added = encoders::u32(self.num_added);
         let n = num_added.len();
         sink.extend(
@@ -111,7 +93,7 @@ impl Section for FunctionSection {
     where
         S: Extend<u8>,
     {
-        self.encode(EncodingFormat::Module, sink)
+        self.encode(sink)
     }
 }
 
@@ -124,6 +106,6 @@ impl ComponentSection for FunctionSection {
     where
         S: Extend<u8>,
     {
-        self.encode(EncodingFormat::Component, sink)
+        self.encode(sink)
     }
 }

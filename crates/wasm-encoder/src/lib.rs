@@ -352,12 +352,6 @@ impl From<ComponentSectionId> for u8 {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum EncodingFormat {
-    Module,
-    Component,
-}
-
 /// Represents a reference to a type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TypeRef {
