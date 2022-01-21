@@ -169,7 +169,7 @@ pub struct WasmMutate<'wasm> {
     // Note: this is only exposed via the programmatic interface, not via the
     // CLI.
     #[cfg_attr(feature = "clap", clap(skip = None))]
-    raw_mutate_func: Option<Arc<dyn Fn(&mut Vec<u8>) -> Result<()>>>,
+    raw_mutate_func: Option<Arc<dyn Fn(&mut Vec<u8>, usize) -> Result<()>>>,
 
     #[cfg_attr(feature = "clap", clap(skip = None))]
     rng: Option<SmallRng>,
@@ -235,7 +235,7 @@ impl<'wasm> WasmMutate<'wasm> {
     /// to get raw bytes from `libFuzzer`, for example.
     pub fn raw_mutate_func(
         &mut self,
-        raw_mutate_func: Option<Arc<dyn Fn(&mut Vec<u8>) -> Result<()>>>,
+        raw_mutate_func: Option<Arc<dyn Fn(&mut Vec<u8>, usize) -> Result<()>>>,
     ) -> &mut Self {
         self.raw_mutate_func = raw_mutate_func;
         self
@@ -282,7 +282,9 @@ impl<'wasm> WasmMutate<'wasm> {
                 RemoveItemMutator(Item::Data),
                 RemoveItemMutator(Item::Element),
                 RemoveItemMutator(Item::Tag),
-                ModifyDataMutator,
+                ModifyDataMutator {
+                    max_data_size: 10 << 20, // 10MB
+                },
             )
         );
 
@@ -303,10 +305,10 @@ impl<'wasm> WasmMutate<'wasm> {
         self.info.as_ref().unwrap()
     }
 
-    fn raw_mutate(&mut self, data: &mut Vec<u8>) -> Result<()> {
+    fn raw_mutate(&mut self, data: &mut Vec<u8>, max_size: usize) -> Result<()> {
         // If a raw mutation function is configured then that's prioritized.
         if let Some(mutate) = &self.raw_mutate_func {
-            return mutate(data);
+            return mutate(data, max_size);
         }
 
         // If no raw mutation function is configured then we apply a naive
@@ -314,21 +316,22 @@ impl<'wasm> WasmMutate<'wasm> {
         // subslice of data with a random slice of other data.
         //
         // First up start/end indices are picked.
-        let start = self.rng().gen_range(0, data.len() + 1);
-        let end = if start == data.len() {
-            data.len()
-        } else {
-            self.rng().gen_range(start, data.len() + 1)
-        };
+        let a = self.rng().gen_range(0, data.len() + 1);
+        let b = self.rng().gen_range(0, data.len() + 1);
+        let start = a.min(b);
+        let end = a.max(b);
 
         // Next a length of the replacement is chosen. Note that the replacement
         // is always smaller than the input if reduction is requested, otherwise
         // we choose some arbitrary length of bytes to insert.
-        let len = if self.reduce || self.rng().gen() {
-            self.rng().gen_range(0, end - start + 1)
+        let max_size = if self.reduce || self.rng().gen() {
+            0
         } else {
-            self.rng().gen_range(0, 100)
+            max_size
         };
+        let len = self
+            .rng()
+            .gen_range(0, end - start + max_size.saturating_sub(data.len()) + 1);
 
         // With parameters chosen the `Vec::splice` method is used to replace
         // the data in the input.

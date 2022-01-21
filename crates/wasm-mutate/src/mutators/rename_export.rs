@@ -21,7 +21,7 @@ impl RenameExportMutator {
     fn limited_string(&self, config: &mut WasmMutate, original: &str) -> crate::Result<String> {
         loop {
             let mut bytes = original.as_bytes().to_vec();
-            config.raw_mutate(&mut bytes)?;
+            config.raw_mutate(&mut bytes, self.max_name_size)?;
 
             match std::str::from_utf8(&bytes) {
                 Ok(_) => {}
@@ -110,7 +110,7 @@ mod tests {
         // From https://developer.mozilla.org/en-US/docs/WebAssembly/Text_format_to_wasm
 
         let mut config = WasmMutate::default();
-        config.raw_mutate_func(Some(Arc::new(|data| {
+        config.raw_mutate_func(Some(Arc::new(|data, _| {
             assert_eq!(data, b"exported_func");
             *data = Vec::new();
             Ok(())

@@ -8,7 +8,9 @@ use wasmparser::{DataKind, DataSectionReader};
 
 /// Mutator that modifies a data segment, either adding or removing bytes.
 #[derive(Clone, Copy)]
-pub struct ModifyDataMutator;
+pub struct ModifyDataMutator {
+    pub max_data_size: usize,
+}
 
 impl Mutator for ModifyDataMutator {
     fn mutate<'a>(
@@ -44,7 +46,7 @@ impl Mutator for ModifyDataMutator {
             // otherwise preserve the data.
             let mut data = data.data.to_vec();
             if i == data_to_modify {
-                config.raw_mutate(&mut data)?;
+                config.raw_mutate(&mut data, self.max_data_size)?;
             }
             new_section.segment(DataSegment { mode, data });
         }
@@ -73,14 +75,14 @@ mod tests {
     #[test]
     fn test_remove_export_mutator() {
         let mut config = WasmMutate::default();
-        config.raw_mutate_func(Some(Arc::new(|data| {
+        config.raw_mutate_func(Some(Arc::new(|data, _| {
             assert_eq!(data, b"x");
             *data = "y".to_string().into_bytes();
             Ok(())
         })));
         config.match_mutation(
             r#"(module (data "x"))"#,
-            ModifyDataMutator,
+            ModifyDataMutator { max_data_size: 100 },
             r#"(module (data "y"))"#,
         );
     }
