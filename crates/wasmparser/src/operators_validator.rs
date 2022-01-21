@@ -1558,11 +1558,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;
             }
-            Operator::F32x4FmaRelaxed
-            | Operator::F32x4FmsRelaxed
-            | Operator::F64x2FmaRelaxed
-            | Operator::F64x2FmsRelaxed
-            | Operator::F32x4MinRelaxed
+            Operator::F32x4MinRelaxed
             | Operator::F32x4MaxRelaxed
             | Operator::F64x2MinRelaxed
             | Operator::F64x2MaxRelaxed => {
@@ -1741,7 +1737,11 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;
             }
-            Operator::I8x16LaneSelect
+            Operator::F32x4FmaRelaxed
+            | Operator::F32x4FmsRelaxed
+            | Operator::F64x2FmaRelaxed
+            | Operator::F64x2FmsRelaxed
+            | Operator::I8x16LaneSelect
             | Operator::I16x8LaneSelect
             | Operator::I32x4LaneSelect
             | Operator::I64x2LaneSelect => {

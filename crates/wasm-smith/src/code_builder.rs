@@ -535,10 +535,10 @@ instructions! {
     (Some(simd_v128_on_stack_relaxed), i32x4_trunc_sat_f32x4u_relaxed, Vector),
     (Some(simd_v128_on_stack_relaxed), i32x4_trunc_sat_f64x2s_zero_relaxed, Vector),
     (Some(simd_v128_on_stack_relaxed), i32x4_trunc_sat_f64x2u_zero_relaxed, Vector),
-    (Some(simd_v128_v128_on_stack_relaxed), f32x4_fma_relaxed, Vector),
-    (Some(simd_v128_v128_on_stack_relaxed), f32x4_fms_relaxed, Vector),
-    (Some(simd_v128_v128_on_stack_relaxed), f64x2_fma_relaxed, Vector),
-    (Some(simd_v128_v128_on_stack_relaxed), f64x2_fms_relaxed, Vector),
+    (Some(simd_v128_v128_v128_on_stack_relaxed), f32x4_fma_relaxed, Vector),
+    (Some(simd_v128_v128_v128_on_stack_relaxed), f32x4_fms_relaxed, Vector),
+    (Some(simd_v128_v128_v128_on_stack_relaxed), f64x2_fma_relaxed, Vector),
+    (Some(simd_v128_v128_v128_on_stack_relaxed), f64x2_fms_relaxed, Vector),
     (Some(simd_v128_v128_on_stack_relaxed), f32x4_min_relaxed, Vector),
     (Some(simd_v128_v128_on_stack_relaxed), f32x4_max_relaxed, Vector),
     (Some(simd_v128_v128_on_stack_relaxed), f64x2_min_relaxed, Vector),
@@ -3931,10 +3931,10 @@ simd_unop!(
     I32x4TruncSatF64x2UZeroRelaxed,
     i32x4_trunc_sat_f64x2u_zero_relaxed
 );
-simd_binop!(F32x4FmaRelaxed, f32x4_fma_relaxed);
-simd_binop!(F32x4FmsRelaxed, f32x4_fms_relaxed);
-simd_binop!(F64x2FmaRelaxed, f64x2_fma_relaxed);
-simd_binop!(F64x2FmsRelaxed, f64x2_fms_relaxed);
+simd_ternop!(F32x4FmaRelaxed, f32x4_fma_relaxed);
+simd_ternop!(F32x4FmsRelaxed, f32x4_fms_relaxed);
+simd_ternop!(F64x2FmaRelaxed, f64x2_fma_relaxed);
+simd_ternop!(F64x2FmsRelaxed, f64x2_fms_relaxed);
 simd_ternop!(I8x16LaneSelect, i8x16_laneselect);
 simd_ternop!(I16x8LaneSelect, i16x8_laneselect);
 simd_ternop!(I32x4LaneSelect, i32x4_laneselect);
