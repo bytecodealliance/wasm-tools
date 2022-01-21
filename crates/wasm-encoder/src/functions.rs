@@ -103,8 +103,8 @@ impl FunctionSection {
 }
 
 impl Section for FunctionSection {
-    fn id(&self) -> ModuleSectionId {
-        ModuleSectionId::Function
+    fn id(&self) -> SectionId {
+        SectionId::Function
     }
 
     fn encode<S>(&self, sink: &mut S)

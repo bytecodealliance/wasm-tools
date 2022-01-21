@@ -155,8 +155,8 @@ impl DataSection {
 }
 
 impl Section for DataSection {
-    fn id(&self) -> ModuleSectionId {
-        ModuleSectionId::Data
+    fn id(&self) -> SectionId {
+        SectionId::Data
     }
 
     fn encode<S>(&self, sink: &mut S)
@@ -181,8 +181,8 @@ pub struct DataCountSection {
 }
 
 impl Section for DataCountSection {
-    fn id(&self) -> ModuleSectionId {
-        ModuleSectionId::DataCount
+    fn id(&self) -> SectionId {
+        SectionId::DataCount
     }
 
     fn encode<S>(&self, sink: &mut S)

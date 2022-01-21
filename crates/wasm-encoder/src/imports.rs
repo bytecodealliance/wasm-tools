@@ -1,6 +1,5 @@
 use crate::{
-    encoders, ComponentSection, ComponentSectionId, EncodingFormat, ModuleSectionId, Section,
-    TypeRef,
+    encoders, ComponentSection, ComponentSectionId, EncodingFormat, Section, SectionId, TypeRef,
 };
 
 /// An encoder for the import section.
@@ -112,8 +111,8 @@ impl ImportSection {
 }
 
 impl Section for ImportSection {
-    fn id(&self) -> ModuleSectionId {
-        ModuleSectionId::Import
+    fn id(&self) -> SectionId {
+        SectionId::Import
     }
 
     fn encode<S>(&self, sink: &mut S)

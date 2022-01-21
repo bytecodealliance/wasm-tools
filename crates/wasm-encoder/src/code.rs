@@ -97,8 +97,8 @@ impl CodeSection {
 }
 
 impl Section for CodeSection {
-    fn id(&self) -> ModuleSectionId {
-        ModuleSectionId::Code
+    fn id(&self) -> SectionId {
+        SectionId::Code
     }
 
     fn encode<S>(&self, sink: &mut S)

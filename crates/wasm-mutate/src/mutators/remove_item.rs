@@ -107,20 +107,20 @@ enum Funcref {
 
 impl RemoveItem {
     fn remove(&mut self, info: &ModuleInfo) -> Result<Module> {
-        const CUSTOM: u8 = ModuleSectionId::Custom as u8;
-        const TYPE: u8 = ModuleSectionId::Type as u8;
-        const IMPORT: u8 = ModuleSectionId::Import as u8;
-        const FUNCTION: u8 = ModuleSectionId::Function as u8;
-        const TABLE: u8 = ModuleSectionId::Table as u8;
-        const MEMORY: u8 = ModuleSectionId::Memory as u8;
-        const GLOBAL: u8 = ModuleSectionId::Global as u8;
-        const EXPORT: u8 = ModuleSectionId::Export as u8;
-        const START: u8 = ModuleSectionId::Start as u8;
-        const ELEMENT: u8 = ModuleSectionId::Element as u8;
-        const CODE: u8 = ModuleSectionId::Code as u8;
-        const DATA: u8 = ModuleSectionId::Data as u8;
-        const DATACOUNT: u8 = ModuleSectionId::DataCount as u8;
-        const TAG: u8 = ModuleSectionId::Tag as u8;
+        const CUSTOM: u8 = SectionId::Custom as u8;
+        const TYPE: u8 = SectionId::Type as u8;
+        const IMPORT: u8 = SectionId::Import as u8;
+        const FUNCTION: u8 = SectionId::Function as u8;
+        const TABLE: u8 = SectionId::Table as u8;
+        const MEMORY: u8 = SectionId::Memory as u8;
+        const GLOBAL: u8 = SectionId::Global as u8;
+        const EXPORT: u8 = SectionId::Export as u8;
+        const START: u8 = SectionId::Start as u8;
+        const ELEMENT: u8 = SectionId::Element as u8;
+        const CODE: u8 = SectionId::Code as u8;
+        const DATA: u8 = SectionId::Data as u8;
+        const DATACOUNT: u8 = SectionId::DataCount as u8;
+        const TAG: u8 = SectionId::Tag as u8;
 
         // This is the main workhorse loop of the module translation. This will
         // iterate over the original wasm sections, raw, and create the new

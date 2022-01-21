@@ -1,6 +1,6 @@
 use crate::{
-    encoders, ComponentSection, ComponentSectionId, EncodingFormat, ModuleSectionId, Section,
-    TypeRef, ALIAS_KIND_OUTER, ALIAS_KIND_OUTER_TYPE,
+    encoders, ComponentSection, ComponentSectionId, EncodingFormat, Section, SectionId, TypeRef,
+    ALIAS_KIND_OUTER, ALIAS_KIND_OUTER_TYPE,
 };
 
 const COMPOUND_INTERFACE_TYPE_LIST: u8 = 0x7b;
@@ -595,8 +595,8 @@ impl TypeSection {
 }
 
 impl Section for TypeSection {
-    fn id(&self) -> ModuleSectionId {
-        ModuleSectionId::Type
+    fn id(&self) -> SectionId {
+        SectionId::Type
     }
 
     fn encode<S>(&self, sink: &mut S)

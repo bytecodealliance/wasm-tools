@@ -15,7 +15,7 @@ impl Mutator for RemoveCustomSection {
             .info()
             .raw_sections
             .iter()
-            .any(|s| s.id == wasm_encoder::ModuleSectionId::Custom as u8)
+            .any(|s| s.id == wasm_encoder::SectionId::Custom as u8)
     }
 
     fn mutate<'a>(
@@ -31,7 +31,7 @@ impl Mutator for RemoveCustomSection {
             .iter()
             .enumerate()
             .filter_map(|(i, s)| {
-                if s.id == wasm_encoder::ModuleSectionId::Custom as u8 {
+                if s.id == wasm_encoder::SectionId::Custom as u8 {
                     Some(i)
                 } else {
                     None

@@ -1,6 +1,4 @@
-use crate::{
-    encoders, ComponentSection, ComponentSectionId, EncodingFormat, ModuleSectionId, Section,
-};
+use crate::{encoders, ComponentSection, ComponentSectionId, EncodingFormat, Section, SectionId};
 
 /// Represents an export of a local item (by index).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -125,8 +123,8 @@ impl ExportSection {
 }
 
 impl Section for ExportSection {
-    fn id(&self) -> ModuleSectionId {
-        ModuleSectionId::Export
+    fn id(&self) -> SectionId {
+        SectionId::Export
     }
 
     fn encode<S>(&self, sink: &mut S)

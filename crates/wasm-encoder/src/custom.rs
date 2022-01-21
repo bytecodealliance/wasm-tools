@@ -24,8 +24,8 @@ impl CustomSection<'_> {
 }
 
 impl Section for CustomSection<'_> {
-    fn id(&self) -> ModuleSectionId {
-        ModuleSectionId::Custom
+    fn id(&self) -> SectionId {
+        SectionId::Custom
     }
 
     fn encode<S>(&self, sink: &mut S)

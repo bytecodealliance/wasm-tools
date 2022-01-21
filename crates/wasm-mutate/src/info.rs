@@ -4,7 +4,7 @@ use crate::{
 };
 use std::collections::HashSet;
 use std::convert::TryFrom;
-use wasm_encoder::{ModuleSectionId, RawSection};
+use wasm_encoder::{RawSection, SectionId};
 use wasmparser::{Chunk, Parser, Payload, SectionReader};
 
 /// Provides module information for future usage during mutation
@@ -78,7 +78,7 @@ impl<'a> ModuleInfo<'a> {
                     size: _,
                 } => {
                     info.code = Some(info.raw_sections.len());
-                    info.section(ModuleSectionId::Code.into(), range, input_wasm);
+                    info.section(SectionId::Code.into(), range, input_wasm);
                     parser.skip_section();
                     // update slice, bypass the section
                     wasm = &input_wasm[range.end..];
@@ -87,7 +87,7 @@ impl<'a> ModuleInfo<'a> {
                 }
                 Payload::TypeSection(mut reader) => {
                     info.types = Some(info.raw_sections.len());
-                    info.section(ModuleSectionId::Type.into(), reader.range(), input_wasm);
+                    info.section(SectionId::Type.into(), reader.range(), input_wasm);
 
                     // Save function types
                     for _ in 0..reader.get_count() {
@@ -99,7 +99,7 @@ impl<'a> ModuleInfo<'a> {
                 }
                 Payload::ImportSection(mut reader) => {
                     info.imports = Some(info.raw_sections.len());
-                    info.section(ModuleSectionId::Import.into(), reader.range(), input_wasm);
+                    info.section(SectionId::Import.into(), reader.range(), input_wasm);
 
                     for _ in 0..reader.get_count() {
                         let ty = reader.read()?;
@@ -135,7 +135,7 @@ impl<'a> ModuleInfo<'a> {
                 }
                 Payload::FunctionSection(mut reader) => {
                     info.functions = Some(info.raw_sections.len());
-                    info.section(ModuleSectionId::Function.into(), reader.range(), input_wasm);
+                    info.section(SectionId::Function.into(), reader.range(), input_wasm);
 
                     for _ in 0..reader.get_count() {
                         reader.read().map(|ty| {
@@ -146,7 +146,7 @@ impl<'a> ModuleInfo<'a> {
                 Payload::TableSection(mut reader) => {
                     info.tables = Some(info.raw_sections.len());
                     info.table_count += reader.get_count();
-                    info.section(ModuleSectionId::Table.into(), reader.range(), input_wasm);
+                    info.section(SectionId::Table.into(), reader.range(), input_wasm);
 
                     for _ in 0..reader.get_count() {
                         let ty = reader.read()?;
@@ -157,11 +157,11 @@ impl<'a> ModuleInfo<'a> {
                 Payload::MemorySection(reader) => {
                     info.memories = Some(info.raw_sections.len());
                     info.memory_count += reader.get_count();
-                    info.section(ModuleSectionId::Memory.into(), reader.range(), input_wasm);
+                    info.section(SectionId::Memory.into(), reader.range(), input_wasm);
                 }
                 Payload::GlobalSection(mut reader) => {
                     info.globals = Some(info.raw_sections.len());
-                    info.section(ModuleSectionId::Global.into(), reader.range(), input_wasm);
+                    info.section(SectionId::Global.into(), reader.range(), input_wasm);
 
                     for _ in 0..reader.get_count() {
                         let ty = reader.read()?;
@@ -179,22 +179,22 @@ impl<'a> ModuleInfo<'a> {
                         info.export_names.insert(entry.field.into());
                     }
 
-                    info.section(ModuleSectionId::Export.into(), reader.range(), input_wasm);
+                    info.section(SectionId::Export.into(), reader.range(), input_wasm);
                 }
                 Payload::StartSection { func, range } => {
                     info.start = Some(info.raw_sections.len());
                     info.start_function = Some(func);
-                    info.section(ModuleSectionId::Start.into(), range, input_wasm);
+                    info.section(SectionId::Start.into(), range, input_wasm);
                 }
                 Payload::ElementSection(reader) => {
                     info.elements = Some(info.raw_sections.len());
                     info.elements_count = reader.get_count();
-                    info.section(ModuleSectionId::Element.into(), reader.range(), input_wasm);
+                    info.section(SectionId::Element.into(), reader.range(), input_wasm);
                 }
                 Payload::DataSection(reader) => {
                     info.data = Some(info.raw_sections.len());
                     info.data_segments_count = reader.get_count();
-                    info.section(ModuleSectionId::Data.into(), reader.range(), input_wasm);
+                    info.section(SectionId::Data.into(), reader.range(), input_wasm);
                 }
                 Payload::CustomSection {
                     name: _,
@@ -202,7 +202,7 @@ impl<'a> ModuleInfo<'a> {
                     data: _,
                     range,
                 } => {
-                    info.section(ModuleSectionId::Custom.into(), range, input_wasm);
+                    info.section(SectionId::Custom.into(), range, input_wasm);
                 }
                 Payload::UnknownSection {
                     id,
@@ -213,7 +213,7 @@ impl<'a> ModuleInfo<'a> {
                 }
                 Payload::DataCountSection { count: _, range } => {
                     info.data_count = Some(info.raw_sections.len());
-                    info.section(ModuleSectionId::DataCount.into(), range, input_wasm);
+                    info.section(SectionId::DataCount.into(), range, input_wasm);
                 }
                 Payload::Version { .. } => {}
                 Payload::End => {

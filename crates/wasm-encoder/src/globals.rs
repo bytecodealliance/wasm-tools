@@ -63,8 +63,8 @@ impl GlobalSection {
 }
 
 impl Section for GlobalSection {
-    fn id(&self) -> ModuleSectionId {
-        ModuleSectionId::Global
+    fn id(&self) -> SectionId {
+        SectionId::Global
     }
 
     fn encode<S>(&self, sink: &mut S)

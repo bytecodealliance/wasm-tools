@@ -154,8 +154,8 @@ impl NameSection {
 }
 
 impl Section for NameSection {
-    fn id(&self) -> ModuleSectionId {
-        ModuleSectionId::Custom
+    fn id(&self) -> SectionId {
+        SectionId::Custom
     }
 
     fn encode<S>(&self, sink: &mut S)

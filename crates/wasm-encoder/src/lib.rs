@@ -121,7 +121,7 @@ use std::convert::TryFrom;
 /// `RawSection` to use a bunch of raw bytes as a section.
 pub trait Section {
     /// Gets the section's identifier.
-    fn id(&self) -> ModuleSectionId;
+    fn id(&self) -> SectionId;
 
     /// Write this section's header and data into the given sink.
     fn encode<S>(&self, sink: &mut S)
@@ -266,7 +266,7 @@ impl Default for Component {
 /// Known section identifiers of WebAssembly modules.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 #[repr(u8)]
-pub enum ModuleSectionId {
+pub enum SectionId {
     /// The custom section.
     Custom = 0,
     /// The type section.
@@ -299,9 +299,9 @@ pub enum ModuleSectionId {
     Tag = 13,
 }
 
-impl From<ModuleSectionId> for u8 {
+impl From<SectionId> for u8 {
     #[inline]
-    fn from(id: ModuleSectionId) -> u8 {
+    fn from(id: SectionId) -> u8 {
         id as u8
     }
 }
