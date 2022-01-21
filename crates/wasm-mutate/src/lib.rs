@@ -255,8 +255,7 @@ impl<'wasm> WasmMutate<'wasm> {
         &'a mut self,
         input_wasm: &'wasm [u8],
     ) -> Result<Box<dyn Iterator<Item = Result<Vec<u8>>> + 'a>> {
-        self.info = Some(ModuleInfo::new(input_wasm)?);
-        self.rng = Some(SmallRng::seed_from_u64(self.seed));
+        self.setup(input_wasm)?;
 
         // This macro just expands the logic to return an iterator form the
         // mutators
@@ -288,6 +287,12 @@ impl<'wasm> WasmMutate<'wasm> {
         );
 
         Err(Error::no_mutations_applicable())
+    }
+
+    fn setup(&mut self, input_wasm: &'wasm [u8]) -> Result<()> {
+        self.info = Some(ModuleInfo::new(input_wasm)?);
+        self.rng = Some(SmallRng::seed_from_u64(self.seed));
+        Ok(())
     }
 
     pub(crate) fn rng(&mut self) -> &mut SmallRng {

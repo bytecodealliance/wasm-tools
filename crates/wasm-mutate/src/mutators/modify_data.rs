@@ -67,13 +67,21 @@ impl Mutator for ModifyDataMutator {
 #[cfg(test)]
 mod tests {
     use super::ModifyDataMutator;
+    use crate::WasmMutate;
+    use std::sync::Arc;
 
     #[test]
     fn test_remove_export_mutator() {
-        crate::mutators::match_mutation(
+        let mut config = WasmMutate::default();
+        config.raw_mutate_func(Some(Arc::new(|data| {
+            assert_eq!(data, b"x");
+            *data = "y".to_string().into_bytes();
+            Ok(())
+        })));
+        config.match_mutation(
             r#"(module (data "x"))"#,
             ModifyDataMutator,
-            r#"(module (data ""))"#,
+            r#"(module (data "y"))"#,
         );
     }
 }

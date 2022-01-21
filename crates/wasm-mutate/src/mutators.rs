@@ -105,60 +105,65 @@ pub trait Mutator {
 pub type OperatorAndByteOffset<'a> = (Operator<'a>, usize);
 
 #[cfg(test)]
-pub(crate) fn match_mutation<T>(original: &str, mutator: T, expected: &str)
+fn match_mutation<T>(original: &str, mutator: T, expected: &str)
 where
     T: Mutator + Copy,
 {
-    use crate::info::ModuleInfo;
-    use crate::ErrorKind;
-    use rand::{prelude::SmallRng, SeedableRng};
-    use wasmparser::WasmFeatures;
+    WasmMutate::default().match_mutation(original, mutator, expected)
+}
 
-    let mut wasmmutate = WasmMutate::default();
-    let original = &wat::parse_str(original).unwrap();
+impl WasmMutate<'_> {
+    #[cfg(test)]
+    fn match_mutation<T>(&mut self, original: &str, mutator: T, expected: &str)
+    where
+        T: Mutator + Copy,
+    {
+        use crate::ErrorKind;
+        use wasmparser::WasmFeatures;
 
-    let expected = &wat::parse_str(expected).unwrap();
-    let expected_text = wasmprinter::print_bytes(expected).unwrap();
+        let original = &wat::parse_str(original).unwrap();
 
-    let info = ModuleInfo::new(original).unwrap();
-    wasmmutate.info = Some(info);
-    let rnd = SmallRng::seed_from_u64(0);
-    wasmmutate.rng = Some(rnd);
+        let expected = &wat::parse_str(expected).unwrap();
+        let expected_text = wasmprinter::print_bytes(expected).unwrap();
 
-    let can_mutate = mutator.can_mutate(&wasmmutate);
+        let mut config = self.clone();
+        config.setup(&original).unwrap();
 
-    assert!(can_mutate);
+        let can_mutate = mutator.can_mutate(&config);
 
-    let attempts = 100;
+        assert!(can_mutate);
 
-    for _ in 0..attempts {
-        let mutation = match mutator
-            .mutate(&mut wasmmutate)
-            .and_then(|mut mutation| mutation.next().unwrap())
-        {
-            Ok(mutation) => mutation,
-            Err(e) if matches!(e.kind(), ErrorKind::NoMutationsApplicable) => continue,
-            Err(e) => panic!("mutation error: {}", e),
-        };
+        let attempts = 100;
 
-        let mutation_bytes = mutation.finish();
+        for _ in 0..attempts {
+            let mutation = match mutator
+                .mutate(&mut config)
+                .and_then(|mut mutation| mutation.next().unwrap())
+            {
+                Ok(mutation) => mutation,
+                Err(e) if matches!(e.kind(), ErrorKind::NoMutationsApplicable) => continue,
+                Err(e) => panic!("mutation error: {}", e),
+            };
 
-        let mut validator = wasmparser::Validator::new();
-        validator.wasm_features(WasmFeatures {
-            multi_memory: true,
-            ..WasmFeatures::default()
-        });
-        crate::validate(&mut validator, &mutation_bytes);
+            let mutation_bytes = mutation.finish();
 
-        // If it fails, it is probably an invalid
-        // reformatting expected
-        let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
-        assert_eq!(text.trim(), expected_text.trim());
-        return;
+            let mut validator = wasmparser::Validator::new();
+            validator.wasm_features(WasmFeatures {
+                multi_memory: true,
+                ..WasmFeatures::default()
+            });
+            crate::validate(&mut validator, &mutation_bytes);
+
+            // If it fails, it is probably an invalid
+            // reformatting expected
+            let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
+            assert_eq!(text.trim(), expected_text.trim());
+            return;
+        }
+
+        panic!(
+            "never found any applicable mutations after {} attempts",
+            attempts
+        );
     }
-
-    panic!(
-        "never found any applicable mutations after {} attempts",
-        attempts
-    );
 }
