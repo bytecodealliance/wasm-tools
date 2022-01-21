@@ -103,8 +103,8 @@ impl FunctionSection {
 }
 
 impl Section for FunctionSection {
-    fn id(&self) -> SectionId {
-        SectionId::Function
+    fn id(&self) -> u8 {
+        SectionId::Function.into()
     }
 
     fn encode<S>(&self, sink: &mut S)
@@ -116,8 +116,8 @@ impl Section for FunctionSection {
 }
 
 impl ComponentSection for FunctionSection {
-    fn id(&self) -> ComponentSectionId {
-        ComponentSectionId::Function
+    fn id(&self) -> u8 {
+        ComponentSectionId::Function.into()
     }
 
     fn encode<S>(&self, sink: &mut S)

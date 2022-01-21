@@ -52,8 +52,8 @@ impl TableSection {
 }
 
 impl Section for TableSection {
-    fn id(&self) -> SectionId {
-        SectionId::Table
+    fn id(&self) -> u8 {
+        SectionId::Table.into()
     }
 
     fn encode<S>(&self, sink: &mut S)

@@ -283,7 +283,7 @@ impl<'a> ModuleInfo<'a> {
             if i == j {
                 module.section(new_section);
             } else {
-                module.raw(s);
+                module.section(s);
             }
         });
         module
@@ -306,7 +306,7 @@ impl<'a> ModuleInfo<'a> {
         self.raw_sections.iter().enumerate().for_each(|(j, s)| {
             // Write if the section_writer did not write a custom section
             if !section_writer(j, s.id, &mut module) {
-                module.raw(s);
+                module.section(s);
             }
         });
         module

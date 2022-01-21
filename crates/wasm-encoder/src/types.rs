@@ -595,8 +595,8 @@ impl TypeSection {
 }
 
 impl Section for TypeSection {
-    fn id(&self) -> SectionId {
-        SectionId::Type
+    fn id(&self) -> u8 {
+        SectionId::Type.into()
     }
 
     fn encode<S>(&self, sink: &mut S)
@@ -608,8 +608,8 @@ impl Section for TypeSection {
 }
 
 impl ComponentSection for TypeSection {
-    fn id(&self) -> ComponentSectionId {
-        ComponentSectionId::Type
+    fn id(&self) -> u8 {
+        ComponentSectionId::Type.into()
     }
 
     fn encode<S>(&self, sink: &mut S)

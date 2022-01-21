@@ -28,8 +28,8 @@ pub struct StartSection {
 }
 
 impl Section for StartSection {
-    fn id(&self) -> SectionId {
-        SectionId::Start
+    fn id(&self) -> u8 {
+        SectionId::Start.into()
     }
 
     fn encode<S>(&self, sink: &mut S)

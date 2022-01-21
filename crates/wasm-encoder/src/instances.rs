@@ -92,8 +92,8 @@ impl InstanceSection {
 }
 
 impl ComponentSection for InstanceSection {
-    fn id(&self) -> ComponentSectionId {
-        ComponentSectionId::Instance
+    fn id(&self) -> u8 {
+        ComponentSectionId::Instance.into()
     }
 
     fn encode<S>(&self, sink: &mut S)

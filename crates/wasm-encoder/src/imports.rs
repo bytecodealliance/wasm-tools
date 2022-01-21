@@ -111,8 +111,8 @@ impl ImportSection {
 }
 
 impl Section for ImportSection {
-    fn id(&self) -> SectionId {
-        SectionId::Import
+    fn id(&self) -> u8 {
+        SectionId::Import.into()
     }
 
     fn encode<S>(&self, sink: &mut S)
@@ -124,8 +124,8 @@ impl Section for ImportSection {
 }
 
 impl ComponentSection for ImportSection {
-    fn id(&self) -> ComponentSectionId {
-        ComponentSectionId::Import
+    fn id(&self) -> u8 {
+        ComponentSectionId::Import.into()
     }
 
     fn encode<S>(&self, sink: &mut S)

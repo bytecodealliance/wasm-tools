@@ -50,8 +50,8 @@ impl TagSection {
 }
 
 impl Section for TagSection {
-    fn id(&self) -> SectionId {
-        SectionId::Tag
+    fn id(&self) -> u8 {
+        SectionId::Tag.into()
     }
 
     fn encode<S>(&self, sink: &mut S)

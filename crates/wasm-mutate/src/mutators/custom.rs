@@ -46,7 +46,7 @@ impl Mutator for RemoveCustomSection {
             if i == section_index_to_remove {
                 continue;
             }
-            module.raw(section);
+            module.section(section);
         }
         Ok(Box::new(std::iter::once(Ok(module))))
     }

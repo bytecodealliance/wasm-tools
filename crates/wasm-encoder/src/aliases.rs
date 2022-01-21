@@ -101,8 +101,8 @@ impl AliasSection {
 }
 
 impl ComponentSection for AliasSection {
-    fn id(&self) -> ComponentSectionId {
-        ComponentSectionId::Alias
+    fn id(&self) -> u8 {
+        ComponentSectionId::Alias.into()
     }
 
     fn encode<S>(&self, sink: &mut S)

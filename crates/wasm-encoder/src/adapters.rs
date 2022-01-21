@@ -103,8 +103,8 @@ impl AdapterFunctionSection {
 }
 
 impl ComponentSection for AdapterFunctionSection {
-    fn id(&self) -> ComponentSectionId {
-        ComponentSectionId::AdapterFunction
+    fn id(&self) -> u8 {
+        ComponentSectionId::AdapterFunction.into()
     }
 
     fn encode<S>(&self, sink: &mut S)

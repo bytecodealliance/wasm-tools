@@ -121,7 +121,7 @@ use std::convert::TryFrom;
 /// `RawSection` to use a bunch of raw bytes as a section.
 pub trait Section {
     /// Gets the section's identifier.
-    fn id(&self) -> SectionId;
+    fn id(&self) -> u8;
 
     /// Write this section's header and data into the given sink.
     fn encode<S>(&self, sink: &mut S)
@@ -136,7 +136,7 @@ pub trait Section {
 /// `RawSection` to use a bunch of raw bytes as a section.
 pub trait ComponentSection {
     /// Gets the section's identifier.
-    fn id(&self) -> ComponentSectionId;
+    fn id(&self) -> u8;
 
     /// Write this section's header and data into the given sink.
     fn encode<S>(&self, sink: &mut S)
@@ -153,6 +153,36 @@ pub struct RawSection<'a> {
     pub id: u8,
     /// The raw data for this section.
     pub data: &'a [u8],
+}
+
+impl Section for RawSection<'_> {
+    fn id(&self) -> u8 {
+        self.id
+    }
+
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        sink.extend(
+            encoders::u32(u32::try_from(self.data.len()).unwrap()).chain(self.data.iter().copied()),
+        );
+    }
+}
+
+impl ComponentSection for RawSection<'_> {
+    fn id(&self) -> u8 {
+        self.id
+    }
+
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        sink.extend(
+            encoders::u32(u32::try_from(self.data.len()).unwrap()).chain(self.data.iter().copied()),
+        );
+    }
 }
 
 /// A Wasm module that is being encoded.
@@ -184,18 +214,8 @@ impl Module {
     /// to use this crate to easily construct test cases for bad Wasm module
     /// encodings.
     pub fn section(&mut self, section: &impl Section) -> &mut Self {
-        self.bytes.push(section.id().into());
+        self.bytes.push(section.id());
         section.encode(&mut self.bytes);
-        self
-    }
-
-    /// Write a raw section to this module.
-    pub fn raw(&mut self, section: &RawSection) -> &mut Self {
-        self.bytes.push(section.id);
-        self.bytes.extend(
-            encoders::u32(u32::try_from(section.data.len()).unwrap())
-                .chain(section.data.iter().copied()),
-        );
         self
     }
 
@@ -244,15 +264,8 @@ impl Component {
 
     /// Write a section to this component.
     pub fn section(&mut self, section: &impl ComponentSection) -> &mut Self {
-        self.bytes.push(section.id().into());
+        self.bytes.push(section.id());
         section.encode(&mut self.bytes);
-        self
-    }
-
-    /// Write a raw section to this component.
-    pub fn raw(&mut self, section: &RawSection) -> &mut Self {
-        self.bytes.push(section.id);
-        self.bytes.extend_from_slice(section.data);
         self
     }
 }

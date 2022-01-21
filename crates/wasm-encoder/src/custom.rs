@@ -24,8 +24,8 @@ impl CustomSection<'_> {
 }
 
 impl Section for CustomSection<'_> {
-    fn id(&self) -> SectionId {
-        SectionId::Custom
+    fn id(&self) -> u8 {
+        SectionId::Custom.into()
     }
 
     fn encode<S>(&self, sink: &mut S)
@@ -37,8 +37,8 @@ impl Section for CustomSection<'_> {
 }
 
 impl ComponentSection for CustomSection<'_> {
-    fn id(&self) -> ComponentSectionId {
-        ComponentSectionId::Custom
+    fn id(&self) -> u8 {
+        ComponentSectionId::Custom.into()
     }
 
     fn encode<S>(&self, sink: &mut S)

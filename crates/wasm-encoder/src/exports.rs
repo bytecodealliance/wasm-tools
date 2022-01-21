@@ -123,8 +123,8 @@ impl ExportSection {
 }
 
 impl Section for ExportSection {
-    fn id(&self) -> SectionId {
-        SectionId::Export
+    fn id(&self) -> u8 {
+        SectionId::Export.into()
     }
 
     fn encode<S>(&self, sink: &mut S)
@@ -136,8 +136,8 @@ impl Section for ExportSection {
 }
 
 impl ComponentSection for ExportSection {
-    fn id(&self) -> ComponentSectionId {
-        ComponentSectionId::Export
+    fn id(&self) -> u8 {
+        ComponentSectionId::Export.into()
     }
 
     fn encode<S>(&self, sink: &mut S)

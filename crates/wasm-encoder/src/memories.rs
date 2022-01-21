@@ -52,8 +52,8 @@ impl MemorySection {
 }
 
 impl Section for MemorySection {
-    fn id(&self) -> SectionId {
-        SectionId::Memory
+    fn id(&self) -> u8 {
+        SectionId::Memory.into()
     }
 
     fn encode<S>(&self, sink: &mut S)

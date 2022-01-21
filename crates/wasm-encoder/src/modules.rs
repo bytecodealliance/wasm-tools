@@ -64,8 +64,8 @@ impl ModuleSection {
 }
 
 impl ComponentSection for ModuleSection {
-    fn id(&self) -> ComponentSectionId {
-        ComponentSectionId::Module
+    fn id(&self) -> u8 {
+        ComponentSectionId::Module.into()
     }
 
     fn encode<S>(&self, sink: &mut S)

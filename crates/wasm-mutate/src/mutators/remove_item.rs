@@ -129,7 +129,7 @@ impl RemoveItem {
         for section in info.raw_sections.iter() {
             match section.id {
                 CUSTOM => {
-                    module.raw(section);
+                    module.section(section);
                 }
 
                 TYPE => {
