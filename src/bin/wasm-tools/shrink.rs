@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use is_executable::IsExecutable;
 use std::path::{Path, PathBuf};
+use tempfile::NamedTempFile;
 use wasm_shrink::{IsInteresting, WasmShrink};
 
 /// Shrink a Wasm file while maintaining a property of interest (such as triggering
@@ -71,8 +72,11 @@ impl Opts {
             // as a second, atomic step. This ensures that the output is always a
             // valid, interesting, shrunken Wasm file, even in the presence of the
             // user doing `Ctrl-C`.
-            let tmp =
-                tempfile::NamedTempFile::new().context("Failed to create a temporary file")?;
+            let tmp = match output.parent() {
+                Some(parent) => NamedTempFile::new_in(parent),
+                None => NamedTempFile::new(),
+            };
+            let tmp = tmp.context("Failed to create a temporary file")?;
             std::fs::write(tmp.path(), new_smallest)
                 .with_context(|| format!("Failed to write to file: {}", tmp.path().display()))?;
             std::fs::rename(tmp.path(), &output).with_context(|| {
@@ -164,7 +168,7 @@ fn make_predicate<'a>(
     predicate_script: &'a Path,
 ) -> impl FnMut(&[u8]) -> Result<OutputIsInteresting> + 'a {
     move |wasm| {
-        let tmp = tempfile::NamedTempFile::new().context("Failed to create a temporary file.")?;
+        let tmp = NamedTempFile::new().context("Failed to create a temporary file.")?;
         std::fs::write(tmp.path(), wasm).with_context(|| {
             format!(
                 "Failed to write to temporary file: {}",
