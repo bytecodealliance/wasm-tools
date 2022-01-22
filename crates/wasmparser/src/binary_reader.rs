@@ -13,9 +13,10 @@
  * limitations under the License.
  */
 
-use std::convert::TryInto;
-use std::fmt;
-use std::str;
+use core::convert::TryInto;
+use core::fmt;
+use core::str;
+use alloc::{vec::Vec, format, boxed::Box};
 
 use crate::limits::*;
 
@@ -1080,7 +1081,7 @@ impl<'a> BinaryReader<'a> {
         } else {
             self.position = position;
             let idx = self.read_var_s33()?;
-            if idx < 0 || idx > (std::u32::MAX as i64) {
+            if idx < 0 || idx > (core::u32::MAX as i64) {
                 return Err(BinaryReaderError::new("invalid function type", position));
             }
             Ok(TypeOrFuncType::FuncType(idx as u32))

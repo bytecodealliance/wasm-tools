@@ -14,8 +14,9 @@
  */
 
 use std::error::Error;
-use std::fmt;
-use std::result;
+use core::fmt;
+use core::result;
+use alloc::{boxed::Box, string::String};
 
 #[derive(Debug, Clone)]
 pub struct BinaryReaderError {

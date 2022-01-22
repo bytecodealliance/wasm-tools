@@ -14,7 +14,7 @@
  */
 
 use crate::{FuncType, GlobalType, MemoryType, TableType, Type};
-use std::ops::Range;
+use core::ops::Range;
 
 /// Types that qualify as Wasm function types for validation purposes.
 pub trait WasmFuncType {
@@ -261,7 +261,7 @@ where
     }
 }
 
-impl<T> WasmModuleResources for std::sync::Arc<T>
+impl<T> WasmModuleResources for alloc::sync::Arc<T>
 where
     T: WasmModuleResources,
 {

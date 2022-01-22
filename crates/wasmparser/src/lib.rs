@@ -23,6 +23,8 @@
 //! this is not the right library for you. You could however, build such
 //! a data-structure using this library.
 
+extern crate alloc;
+
 pub use crate::binary_reader::BinaryReader;
 pub use crate::binary_reader::Range;
 

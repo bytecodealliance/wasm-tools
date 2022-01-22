@@ -25,6 +25,7 @@
 use crate::limits::MAX_WASM_FUNCTION_LOCALS;
 use crate::primitives::{MemoryImmediate, Operator, SIMDLaneIndex, Type, TypeOrFuncType};
 use crate::{BinaryReaderError, Result, WasmFeatures, WasmFuncType, WasmModuleResources};
+use alloc::{format, string::String, vec::Vec, vec};
 
 /// A wrapper around a `BinaryReaderError` where the inner error's offset is a
 /// temporary placeholder value. This can be converted into a proper
@@ -49,7 +50,7 @@ macro_rules! bail_op_err {
 impl OperatorValidatorError {
     /// Create a new `OperatorValidatorError` with a placeholder offset.
     pub(crate) fn new(message: impl Into<String>) -> Self {
-        let offset = std::usize::MAX;
+        let offset = core::usize::MAX;
         let e = BinaryReaderError::new(message, offset);
         OperatorValidatorError(e)
     }
@@ -57,13 +58,13 @@ impl OperatorValidatorError {
     /// Convert this `OperatorValidatorError` into a `BinaryReaderError` by
     /// supplying an actual offset to replace the internal placeholder offset.
     pub(crate) fn set_offset(mut self, offset: usize) -> BinaryReaderError {
-        debug_assert_eq!(self.0.inner.offset, std::usize::MAX);
+        debug_assert_eq!(self.0.inner.offset, core::usize::MAX);
         self.0.inner.offset = offset;
         self.0
     }
 }
 
-type OperatorValidatorResult<T> = std::result::Result<T, OperatorValidatorError>;
+type OperatorValidatorResult<T> = core::result::Result<T, OperatorValidatorError>;
 
 pub(crate) struct OperatorValidator {
     // The total number of locals that this function contains
