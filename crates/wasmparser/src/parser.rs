@@ -4,10 +4,10 @@ use crate::{BinaryReader, BinaryReaderError, FunctionBody, Range, Result};
 use crate::{DataSectionReader, ElementSectionReader, ExportSectionReader};
 use crate::{FunctionSectionReader, ImportSectionReader, TypeSectionReader};
 use crate::{GlobalSectionReader, MemorySectionReader, TableSectionReader};
+use alloc::{format, vec::Vec};
 use core::convert::TryInto;
 use core::fmt;
 use core::iter;
-use alloc::{format, vec::Vec};
 
 /// An incremental parser of a binary WebAssembly module.
 ///

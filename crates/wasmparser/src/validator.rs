@@ -21,7 +21,13 @@ use crate::{BinaryReaderError, GlobalType, MemoryType, Range, Result, TableType,
 use crate::{DataKind, ElementItem, ElementKind, InitExpr, Instance, Operator};
 use crate::{FuncType, SectionReader, SectionWithLimitedItems};
 use crate::{FunctionBody, Parser, Payload};
-use alloc::{vec::Vec, string::String, format, sync::Arc, collections::{BTreeMap, BTreeSet}};
+use alloc::{
+    collections::{BTreeMap, BTreeSet},
+    format,
+    string::String,
+    sync::Arc,
+    vec::Vec,
+};
 use core::mem;
 
 /// Test whether the given buffer contains a valid WebAssembly module,
@@ -1776,8 +1782,8 @@ impl WasmModuleResources for ValidatorResources {
 }
 
 mod arc {
-    use core::ops::Deref;
     use alloc::sync::Arc;
+    use core::ops::Deref;
 
     pub struct MaybeOwned<T> {
         owned: bool,

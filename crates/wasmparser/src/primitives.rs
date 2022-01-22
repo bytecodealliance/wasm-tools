@@ -13,10 +13,10 @@
  * limitations under the License.
  */
 
-use std::error::Error;
+use alloc::{boxed::Box, string::String};
 use core::fmt;
 use core::result;
-use alloc::{boxed::Box, string::String};
+use std::error::Error;
 
 #[derive(Debug, Clone)]
 pub struct BinaryReaderError {
