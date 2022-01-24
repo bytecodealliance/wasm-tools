@@ -33,7 +33,11 @@ impl RenameExportMutator {
             if bytes.len() > self.max_name_size {
                 continue;
             }
-            return Ok(String::from_utf8(bytes).unwrap());
+            let ret = String::from_utf8(bytes).unwrap();
+            if config.info().export_names.contains(&ret) {
+                continue;
+            }
+            return Ok(ret);
         }
     }
 }
