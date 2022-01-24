@@ -751,23 +751,23 @@ pub enum Instruction<'a> {
     F64x2ConvertLowI32x4U,
     F32x4DemoteF64x2Zero,
     F64x2PromoteLowF32x4,
-    I8x16SwizzleRelaxed,
-    I32x4TruncSatF32x4SRelaxed,
-    I32x4TruncSatF32x4URelaxed,
-    I32x4TruncSatF64x2SZeroRelaxed,
-    I32x4TruncSatF64x2UZeroRelaxed,
-    F32x4FmaRelaxed,
-    F32x4FmsRelaxed,
-    F64x2FmaRelaxed,
-    F64x2FmsRelaxed,
+    I8x16RelaxedSwizzle,
+    I32x4RelaxedTruncSatF32x4S,
+    I32x4RelaxedTruncSatF32x4U,
+    I32x4RelaxedTruncSatF64x2SZero,
+    I32x4RelaxedTruncSatF64x2UZero,
+    F32x4Fma,
+    F32x4Fms,
+    F64x2Fma,
+    F64x2Fms,
     I8x16LaneSelect,
     I16x8LaneSelect,
     I32x4LaneSelect,
     I64x2LaneSelect,
-    F32x4MinRelaxed,
-    F32x4MaxRelaxed,
-    F64x2MinRelaxed,
-    F64x2MaxRelaxed,
+    F32x4RelaxedMin,
+    F32x4RelaxedMax,
+    F64x2RelaxedMin,
+    F64x2RelaxedMax,
 }
 
 impl Instruction<'_> {
@@ -2244,39 +2244,39 @@ impl Instruction<'_> {
                 bytes.push(0xFD);
                 bytes.extend(encoders::u32(0xDB));
             }
-            Instruction::I8x16SwizzleRelaxed => {
+            Instruction::I8x16RelaxedSwizzle => {
                 bytes.push(0xFD);
                 bytes.extend(encoders::u32(0xA2));
             }
-            Instruction::I32x4TruncSatF32x4SRelaxed => {
+            Instruction::I32x4RelaxedTruncSatF32x4S => {
                 bytes.push(0xFD);
                 bytes.extend(encoders::u32(0xA5));
             }
-            Instruction::I32x4TruncSatF32x4URelaxed => {
+            Instruction::I32x4RelaxedTruncSatF32x4U => {
                 bytes.push(0xFD);
                 bytes.extend(encoders::u32(0xA6));
             }
-            Instruction::I32x4TruncSatF64x2SZeroRelaxed => {
+            Instruction::I32x4RelaxedTruncSatF64x2SZero => {
                 bytes.push(0xFD);
                 bytes.extend(encoders::u32(0xC5));
             }
-            Instruction::I32x4TruncSatF64x2UZeroRelaxed => {
+            Instruction::I32x4RelaxedTruncSatF64x2UZero => {
                 bytes.push(0xFD);
                 bytes.extend(encoders::u32(0xC6));
             }
-            Instruction::F32x4FmaRelaxed => {
+            Instruction::F32x4Fma => {
                 bytes.push(0xFD);
                 bytes.extend(encoders::u32(0xAF));
             }
-            Instruction::F32x4FmsRelaxed => {
+            Instruction::F32x4Fms => {
                 bytes.push(0xFD);
                 bytes.extend(encoders::u32(0xB0));
             }
-            Instruction::F64x2FmaRelaxed => {
+            Instruction::F64x2Fma => {
                 bytes.push(0xFD);
                 bytes.extend(encoders::u32(0xCF));
             }
-            Instruction::F64x2FmsRelaxed => {
+            Instruction::F64x2Fms => {
                 bytes.push(0xFD);
                 bytes.extend(encoders::u32(0xD0));
             }
@@ -2296,19 +2296,19 @@ impl Instruction<'_> {
                 bytes.push(0xFD);
                 bytes.extend(encoders::u32(0xD3));
             }
-            Instruction::F32x4MinRelaxed => {
+            Instruction::F32x4RelaxedMin => {
                 bytes.push(0xFD);
                 bytes.extend(encoders::u32(0xB4));
             }
-            Instruction::F32x4MaxRelaxed => {
+            Instruction::F32x4RelaxedMax => {
                 bytes.push(0xFD);
                 bytes.extend(encoders::u32(0xE2));
             }
-            Instruction::F64x2MinRelaxed => {
+            Instruction::F64x2RelaxedMin => {
                 bytes.push(0xFD);
                 bytes.extend(encoders::u32(0xD4));
             }
-            Instruction::F64x2MaxRelaxed => {
+            Instruction::F64x2RelaxedMax => {
                 bytes.push(0xFD);
                 bytes.extend(encoders::u32(0xEE));
             }
