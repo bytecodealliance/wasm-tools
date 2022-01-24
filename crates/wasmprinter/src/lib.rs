@@ -1549,27 +1549,27 @@ impl Printer {
             I32x4ExtAddPairwiseI16x8S => self.result.push_str("i32x4.extadd_pairwise_i16x8_s"),
             I32x4ExtAddPairwiseI16x8U => self.result.push_str("i32x4.extadd_pairwise_i16x8_u"),
 
-            I8x16SwizzleRelaxed => self.result.push_str("i8x16.relaxed_swizzle"),
-            I32x4TruncSatF32x4SRelaxed => self.result.push_str("i32x4.relaxed_trunc_f32x4_s"),
-            I32x4TruncSatF32x4URelaxed => self.result.push_str("i32x4.relaxed_trunc_f32x4_u"),
-            I32x4TruncSatF64x2SZeroRelaxed => {
+            I8x16RelaxedSwizzle => self.result.push_str("i8x16.relaxed_swizzle"),
+            I32x4RelaxedTruncSatF32x4S => self.result.push_str("i32x4.relaxed_trunc_f32x4_s"),
+            I32x4RelaxedTruncSatF32x4U => self.result.push_str("i32x4.relaxed_trunc_f32x4_u"),
+            I32x4RelaxedTruncSatF64x2SZero => {
                 self.result.push_str("i32x4.relaxed_trunc_f64x2_s_zero")
             }
-            I32x4TruncSatF64x2UZeroRelaxed => {
+            I32x4RelaxedTruncSatF64x2UZero => {
                 self.result.push_str("i32x4.relaxed_trunc_f64x2_u_zero")
             }
-            F32x4FmaRelaxed => self.result.push_str("f32x4.fma"),
-            F32x4FmsRelaxed => self.result.push_str("f32x4.fms"),
-            F64x2FmaRelaxed => self.result.push_str("f64x2.fma"),
-            F64x2FmsRelaxed => self.result.push_str("f64x2.fms"),
+            F32x4Fma => self.result.push_str("f32x4.fma"),
+            F32x4Fms => self.result.push_str("f32x4.fms"),
+            F64x2Fma => self.result.push_str("f64x2.fma"),
+            F64x2Fms => self.result.push_str("f64x2.fms"),
             I8x16LaneSelect => self.result.push_str("i8x16.laneselect"),
             I16x8LaneSelect => self.result.push_str("i16x8.laneselect"),
             I32x4LaneSelect => self.result.push_str("i32x4.laneselect"),
             I64x2LaneSelect => self.result.push_str("i64x2.laneselect"),
-            F32x4MinRelaxed => self.result.push_str("f32x4.relaxed_min"),
-            F32x4MaxRelaxed => self.result.push_str("f32x4.relaxed_max"),
-            F64x2MinRelaxed => self.result.push_str("f64x2.relaxed_min"),
-            F64x2MaxRelaxed => self.result.push_str("f64x2.relaxed_max"),
+            F32x4RelaxedMin => self.result.push_str("f32x4.relaxed_min"),
+            F32x4RelaxedMax => self.result.push_str("f32x4.relaxed_max"),
+            F64x2RelaxedMin => self.result.push_str("f64x2.relaxed_min"),
+            F64x2RelaxedMax => self.result.push_str("f64x2.relaxed_max"),
         }
         Ok(())
     }

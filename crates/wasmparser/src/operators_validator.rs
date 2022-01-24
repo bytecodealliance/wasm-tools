@@ -1558,10 +1558,10 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;
             }
-            Operator::F32x4MinRelaxed
-            | Operator::F32x4MaxRelaxed
-            | Operator::F64x2MinRelaxed
-            | Operator::F64x2MaxRelaxed => {
+            Operator::F32x4RelaxedMin
+            | Operator::F32x4RelaxedMax
+            | Operator::F64x2RelaxedMin
+            | Operator::F64x2RelaxedMax => {
                 self.check_relaxed_simd_enabled()?;
                 self.pop_operand(Some(Type::V128))?;
                 self.pop_operand(Some(Type::V128))?;
@@ -1722,10 +1722,10 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;
             }
-            Operator::I32x4TruncSatF32x4SRelaxed
-            | Operator::I32x4TruncSatF32x4URelaxed
-            | Operator::I32x4TruncSatF64x2SZeroRelaxed
-            | Operator::I32x4TruncSatF64x2UZeroRelaxed => {
+            Operator::I32x4RelaxedTruncSatF32x4S
+            | Operator::I32x4RelaxedTruncSatF32x4U
+            | Operator::I32x4RelaxedTruncSatF64x2SZero
+            | Operator::I32x4RelaxedTruncSatF64x2UZero => {
                 self.check_relaxed_simd_enabled()?;
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;
@@ -1737,10 +1737,10 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;
             }
-            Operator::F32x4FmaRelaxed
-            | Operator::F32x4FmsRelaxed
-            | Operator::F64x2FmaRelaxed
-            | Operator::F64x2FmsRelaxed
+            Operator::F32x4Fma
+            | Operator::F32x4Fms
+            | Operator::F64x2Fma
+            | Operator::F64x2Fms
             | Operator::I8x16LaneSelect
             | Operator::I16x8LaneSelect
             | Operator::I32x4LaneSelect
@@ -1787,7 +1787,7 @@ impl OperatorValidator {
                 self.pop_operand(Some(Type::V128))?;
                 self.push_operand(Type::V128)?;
             }
-            Operator::I8x16SwizzleRelaxed => {
+            Operator::I8x16RelaxedSwizzle => {
                 self.check_relaxed_simd_enabled()?;
                 self.pop_operand(Some(Type::V128))?;
                 self.pop_operand(Some(Type::V128))?;
