@@ -68,10 +68,16 @@ impl Opts {
         let predicate = make_predicate(&self.predicate);
 
         let on_new_smallest = |new_smallest: &[u8]| {
-            // Write the Wasm to a temp file and then move that to the output path
-            // as a second, atomic step. This ensures that the output is always a
-            // valid, interesting, shrunken Wasm file, even in the presence of the
-            // user doing `Ctrl-C`.
+            // Write the Wasm to a temp file and then move that to the output
+            // path as a second, atomic step. This ensures that the output is
+            // always a valid, interesting, shrunken Wasm file, even in the
+            // presence of the user doing `Ctrl-C`.
+            //
+            // Note that to have the highest likelihood of the rename to succeed
+            // the temporary file is placed in the same directory as the
+            // destination. This attempts to avoid possibilities where the
+            // system tmp directory is not on the same filesystem as the
+            // destination, which would prevent a rename.
             let tmp = match output.parent() {
                 Some(parent) => NamedTempFile::new_in(parent),
                 None => NamedTempFile::new(),
