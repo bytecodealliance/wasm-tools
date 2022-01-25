@@ -20,6 +20,7 @@ impl RenameExportMutator {
     /// Copied and transformed from wasm-smith name generation
     fn limited_string(&self, config: &mut WasmMutate, original: &str) -> crate::Result<String> {
         loop {
+            config.consume_fuel(1)?;
             let mut bytes = original.as_bytes().to_vec();
             config.raw_mutate(&mut bytes, self.max_name_size)?;
 
@@ -34,7 +35,7 @@ impl RenameExportMutator {
                 continue;
             }
             let ret = String::from_utf8(bytes).unwrap();
-            if config.info().export_names.contains(&ret) {
+            if ret != original && config.info().export_names.contains(&ret) {
                 continue;
             }
             return Ok(ret);
