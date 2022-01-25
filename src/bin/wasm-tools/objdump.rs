@@ -4,7 +4,7 @@ use wasmparser::{Parser, Payload::*};
 
 /// Dumps information about sections in a WebAssembly file.
 ///
-/// This is a relatively incomplete subocmmand and is generally intended to just
+/// This is a relatively incomplete subcommand and is generally intended to just
 /// help poke around an object file.
 #[derive(clap::Parser)]
 pub struct Opts {
