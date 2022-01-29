@@ -4,6 +4,8 @@ use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 /// A nested WebAssembly nested module to be created as part of a module.
 #[derive(Debug)]
 pub struct NestedModule<'a> {
+    /// Is this a component module, rather than a core module?
+    pub is_component: bool,
     /// Where this `nested module` was defined.
     pub span: ast::Span,
     /// An identifier that this nested module is resolved with (optionally) for name
@@ -51,7 +53,11 @@ impl<'a> Parse<'a> for NestedModule<'a> {
             return Err(parser.error("module nesting too deep"));
         }
 
-        let span = parser.parse::<kw::module>()?.0;
+        let (span, is_component) = if parser.peek::<kw::component>() {
+            (parser.parse::<kw::component>()?.0, true)
+        } else {
+            (parser.parse::<kw::module>()?.0, false)
+        };
         let id = parser.parse()?;
         let name = parser.parse()?;
         let exports = parser.parse()?;
@@ -70,6 +76,7 @@ impl<'a> Parse<'a> for NestedModule<'a> {
         };
 
         Ok(NestedModule {
+            is_component,
             span,
             id,
             name,

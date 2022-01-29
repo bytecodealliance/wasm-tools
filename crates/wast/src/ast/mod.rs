@@ -350,6 +350,7 @@ pub mod kw {
     custom_keyword!(catch);
     custom_keyword!(catch_all);
     custom_keyword!(code);
+    custom_keyword!(component);
     custom_keyword!(data);
     custom_keyword!(dataref);
     custom_keyword!(declare);

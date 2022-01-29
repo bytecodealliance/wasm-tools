@@ -3,7 +3,7 @@ use crate::parser::{Parse, Parser, Result};
 
 pub use crate::resolve::Names;
 
-/// A `*.wat` file parser, or a parser for one parenthesized module.
+/// A `*.wat` file parser, or a parser for one parenthesized core module.
 ///
 /// This is the top-level type which you'll frequently parse when working with
 /// this crate. A `*.wat` file is either one `module` s-expression or a sequence
@@ -23,6 +23,7 @@ impl<'a> Parse<'a> for Wat<'a> {
         let module = if !parser.peek2::<kw::module>() {
             let fields = ModuleField::parse_remaining(parser)?;
             Module {
+                is_component: false,
                 span: ast::Span { offset: 0 },
                 id: None,
                 name: None,
@@ -36,9 +37,45 @@ impl<'a> Parse<'a> for Wat<'a> {
     }
 }
 
+/// A `*.cat` file parser, or a parser for one parenthesized component module.
+///
+/// This is the top-level type which you'll frequently parse when working with
+/// this crate. A `*.cat` file is either one `component` s-expression or a
+/// sequence of s-expressions that are module fields.
+#[derive(Debug)]
+pub struct Cat<'a> {
+    #[allow(missing_docs)]
+    pub module: Module<'a>,
+}
+
+impl<'a> Parse<'a> for Cat<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        if !parser.has_meaningful_tokens() {
+            return Err(parser.error("expected at least one component field"));
+        }
+        let _r = parser.register_annotation("custom");
+        let module = if !parser.peek2::<kw::component>() {
+            let fields = ModuleField::parse_remaining(parser)?;
+            Module {
+                is_component: true,
+                span: ast::Span { offset: 0 },
+                id: None,
+                name: None,
+                kind: ModuleKind::Text(fields),
+            }
+        } else {
+            parser.parens(|parser| parser.parse())?
+        };
+        module.validate(parser)?;
+        Ok(Cat { module })
+    }
+}
+
 /// A parsed WebAssembly module.
 #[derive(Debug)]
 pub struct Module<'a> {
+    /// Is this a component module, rather than a core module?
+    pub is_component: bool,
     /// Where this `module` was defined
     pub span: ast::Span,
     /// An optional identifier this module is known by
@@ -135,7 +172,12 @@ impl<'a> Module<'a> {
 impl<'a> Parse<'a> for Module<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let _r = parser.register_annotation("custom");
-        let span = parser.parse::<kw::module>()?.0;
+
+        let (span, is_component) = if parser.peek::<kw::component>() {
+            (parser.parse::<kw::component>()?.0, true)
+        } else {
+            (parser.parse::<kw::module>()?.0, false)
+        };
         let id = parser.parse()?;
         let name = parser.parse()?;
 
@@ -150,6 +192,7 @@ impl<'a> Parse<'a> for Module<'a> {
             ModuleKind::Text(ModuleField::parse_remaining(parser)?)
         };
         Ok(Module {
+            is_component,
             span,
             id,
             name,
@@ -231,7 +274,7 @@ impl<'a> Parse<'a> for ModuleField<'a> {
         if parser.peek::<kw::instance>() {
             return Ok(ModuleField::Instance(parser.parse()?));
         }
-        if parser.peek::<kw::module>() {
+        if parser.peek::<kw::module>() || parser.peek::<kw::component>() {
             return Ok(ModuleField::NestedModule(parser.parse()?));
         }
         if parser.peek::<kw::alias>() {
