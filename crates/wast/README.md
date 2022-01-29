@@ -29,6 +29,7 @@ types to parse anything that looks like a WebAssembly s-expression.
 
 * Need to parse a `*.wat` file?
 * Need to parse a `*.wast` file?
+* Need to parse a `*.cat` file?
 * Need to run test suite assertions from the official wasm test suite?
 * Want to write an extension do the WebAssembly text format?
 
@@ -38,12 +39,12 @@ interface if all you'd like to do is convert `*.wat` to `*.wasm`.
 
 ## Cargo features
 
-By default this crate enables and exports support necessary to parse `*.wat` and
-`*.wast` files, or in other words entire wasm modules. If you're using this
-crate, however, to parse simply an s-expression wasm-related format (like
-`*.witx` or `*.wit` perhaps) then you can disable the default set of features to
-only include a lexer, the parsing framework, and a few basic token-related
-parsers.
+By default this crate enables and exports support necessary to parse `*.wat`,
+`*.wast`, and `*.cat` files, or in other words entire wasm modules. If you're
+using this crate, however, to parse simply an s-expression wasm-related format
+(like `*.witx` or `*.wit` perhaps) then you can disable the default set of
+features to only include a lexer, the parsing framework, and a few basic
+token-related parsers.
 
 ```toml
 [dependencies]
