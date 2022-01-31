@@ -42,7 +42,7 @@ macro_rules! define_mutators {
             let m = $first;
 
             if m.can_mutate($self) {
-                match m.mutate($self) {
+                match m.clone().mutate($self) {
                     Ok(iter) => {
                         return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))))
                     }
@@ -57,7 +57,7 @@ macro_rules! define_mutators {
                 let m = $rest;
 
                 if m.can_mutate($self) {
-                    match m.mutate($self) {
+                    match m.clone().mutate($self) {
                         Ok(iter) => {
                             return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))))
                         }
@@ -73,7 +73,7 @@ macro_rules! define_mutators {
                 let m = $head;
 
                 if m.can_mutate($self) {
-                    match m.mutate($self) {
+                    match m.clone().mutate($self) {
                         Ok(iter) => {
                             return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))))
                         }

@@ -169,44 +169,12 @@ impl Mutator for CodemotionMutator {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        info::ModuleInfo,
-        mutators::{codemotion::CodemotionMutator, Mutator},
-        WasmMutate,
-    };
-    use rand::{rngs::SmallRng, SeedableRng};
+    use crate::{mutators::codemotion::CodemotionMutator, WasmMutate};
 
     fn test_motion_mutator(original: &str, expected: &str, seed: u64) {
-        let _ = env_logger::try_init();
-
-        let mut wasmmutate = WasmMutate::default();
-        let original = &wat::parse_str(original).unwrap();
-
-        let mutator = CodemotionMutator; // the string is empty
-
-        let rnd = SmallRng::seed_from_u64(seed);
-        let info = ModuleInfo::new(original).unwrap();
-        wasmmutate.info = Some(info);
-        wasmmutate.rng = Some(rnd);
-
-        let can_mutate = mutator.can_mutate(&wasmmutate);
-
-        assert_eq!(can_mutate, true);
-
-        let mutated = mutator
-            .mutate(&mut wasmmutate)
-            .unwrap()
-            .next()
-            .unwrap()
-            .unwrap();
-
-        let mut validator = wasmparser::Validator::new();
-        let mutated_bytes = &mutated.finish();
-        let text = wasmprinter::print_bytes(mutated_bytes).unwrap();
-        crate::validate(&mut validator, mutated_bytes);
-        let expected_bytes = &wat::parse_str(expected).unwrap();
-        let expectedtext = wasmprinter::print_bytes(expected_bytes).unwrap();
-        assert_eq!(expectedtext, text);
+        let mut config = WasmMutate::default();
+        config.seed(seed);
+        config.match_mutation(original, CodemotionMutator, expected);
     }
 
     #[test]
@@ -319,6 +287,8 @@ mod tests {
                 end
                 if (result i32)
                     i32.const 50
+                else
+                    unreachable
                 end
             )
         )
