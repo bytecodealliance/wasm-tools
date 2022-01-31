@@ -11,7 +11,7 @@ clap = { optional = true, version = "3.0", features = ['derive'] }
 thiserror = "1.0.28"
 wasmparser = { version = "0.82.0", path = "../wasmparser" }
 wasm-encoder = { version = "0.9.0", path = "../wasm-encoder"}
-rand = { version = "0.7.3", features = ["small_rng"] }
+rand = { version = "0.8.0", features = ["small_rng"] }
 log = "0.4.14"
 egg = "0.6.0"
 
@@ -19,4 +19,4 @@ egg = "0.6.0"
 anyhow = "1"
 wat = { path = "../wat" }
 wasmprinter = { path = "../wasmprinter" }
-env_logger = "0.8"
+env_logger = "0.9"

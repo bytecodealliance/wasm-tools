@@ -66,7 +66,7 @@ impl CodemotionMutator {
 
         let mut sectionreader = CodeSectionReader::new(original_code_section.data, 0)?;
         let function_count = sectionreader.get_count();
-        let function_to_mutate = config.rng().gen_range(0, function_count);
+        let function_to_mutate = config.rng().gen_range(0..function_count);
 
         // This split strategy will avoid very often mutating the first function
         // and very rarely mutating the last function

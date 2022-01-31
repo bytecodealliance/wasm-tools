@@ -23,7 +23,7 @@ impl Mutator for FunctionBodyUnreachable {
         let mut reader = CodeSectionReader::new(code_section.data, 0)?;
 
         let count = reader.get_count();
-        let function_to_mutate = config.rng().gen_range(0, count);
+        let function_to_mutate = config.rng().gen_range(0..count);
 
         (0..count)
             .map(|i| {

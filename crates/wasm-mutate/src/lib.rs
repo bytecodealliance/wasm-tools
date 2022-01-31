@@ -91,7 +91,7 @@ macro_rules! define_mutators {
     ( $self: ident , ($first: expr , $( $tail: expr ,)* ) ) => {
         {
             let count = define_mutators!(@count $first , $($tail ,)*);
-            let discriminator:u32 = $self.rng().gen_range(0, count);
+            let discriminator:u32 = $self.rng().gen_range(0..count);
             define_mutators!(@expand $self, discriminator , 0 , $first , $($tail ,)*  . , );
         }
     };
@@ -316,8 +316,8 @@ impl<'wasm> WasmMutate<'wasm> {
         // subslice of data with a random slice of other data.
         //
         // First up start/end indices are picked.
-        let a = self.rng().gen_range(0, data.len() + 1);
-        let b = self.rng().gen_range(0, data.len() + 1);
+        let a = self.rng().gen_range(0..=data.len());
+        let b = self.rng().gen_range(0..=data.len());
         let start = a.min(b);
         let end = a.max(b);
 
@@ -331,7 +331,7 @@ impl<'wasm> WasmMutate<'wasm> {
         };
         let len = self
             .rng()
-            .gen_range(0, end - start + max_size.saturating_sub(data.len()) + 1);
+            .gen_range(0..=end - start + max_size.saturating_sub(data.len()));
 
         // With parameters chosen the `Vec::splice` method is used to replace
         // the data in the input.

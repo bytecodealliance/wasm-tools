@@ -20,6 +20,6 @@ wasm-mutate = { version = "0.1.1", path = "../wasm-mutate" }
 wasmparser = { version = "0.82.0", path = "../wasmparser" }
 
 [dev-dependencies]
-env_logger = "0.8"
+env_logger = "0.9"
 wasmprinter = { path = "../wasmprinter" }
 wat = { path = "../wat" }

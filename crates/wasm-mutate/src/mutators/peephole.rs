@@ -111,7 +111,7 @@ impl PeepholeMutator {
         let code_section = config.info().get_code_section();
         let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
         let function_count = sectionreader.get_count();
-        let mut function_to_mutate = config.rng().gen_range(0, function_count);
+        let mut function_to_mutate = config.rng().gen_range(0..function_count);
 
         let mut visited_functions = 0;
 
@@ -132,7 +132,7 @@ impl PeepholeMutator {
                 .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()?;
             let operatorscount = operators.len();
 
-            let mut opcode_to_mutate = config.rng().gen_range(0, operatorscount);
+            let mut opcode_to_mutate = config.rng().gen_range(0..operatorscount);
             log::trace!(
                 "Selecting operator {}/{} from function {}",
                 opcode_to_mutate,
