@@ -62,6 +62,7 @@ impl PeepholeMutator {
         }
     }
 
+    #[cfg(test)]
     pub fn new_with_rules(
         max_tree_depth: u32,
         rules: Vec<Rewrite<Lang, PeepholeMutationAnalysis>>,
