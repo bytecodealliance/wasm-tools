@@ -351,6 +351,9 @@ impl<'a> Encode for ValType<'a> {
             ValType::Ref(ty) => {
                 ty.encode(e);
             }
+            ValType::InterType(_ity) => {
+                todo!("Encode for InterType")
+            }
         }
     }
 }
@@ -780,7 +783,7 @@ impl Encode for Vec<Local<'_>> {
                     continue;
                 }
             }
-            locals_compressed.push((1, local.ty));
+            locals_compressed.push((1, local.ty.clone()));
         }
         locals_compressed.encode(e);
     }

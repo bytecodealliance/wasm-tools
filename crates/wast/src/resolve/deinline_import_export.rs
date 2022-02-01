@@ -166,7 +166,7 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                                 span: g.span,
                                 id: g.id,
                                 name: None,
-                                kind: ItemKind::Global(g.ty),
+                                kind: ItemKind::Global(g.ty.clone()),
                             },
                         });
                     }

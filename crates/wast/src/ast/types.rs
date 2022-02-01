@@ -4,7 +4,7 @@ use std::mem;
 
 /// The value types for a wasm module.
 #[allow(missing_docs)]
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum ValType<'a> {
     I32,
     I64,
@@ -13,6 +13,7 @@ pub enum ValType<'a> {
     V128,
     Ref(RefType<'a>),
     Rtt(Option<u32>, ast::Index<'a>),
+    InterType(InterType),
 }
 
 impl<'a> Parse<'a> for ValType<'a> {
@@ -45,6 +46,8 @@ impl<'a> Parse<'a> for ValType<'a> {
                     Err(l.error())
                 }
             })
+        } else if l.peek::<InterType>() {
+            Ok(ValType::InterType(parser.parse()?))
         } else {
             Err(l.error())
         }
@@ -63,6 +66,244 @@ impl<'a> Peek for ValType<'a> {
     }
     fn display() -> &'static str {
         "valtype"
+    }
+}
+
+/// An interface-types type.
+#[allow(missing_docs)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub enum InterType {
+    Bool,
+    S8,
+    U8,
+    S16,
+    U16,
+    S32,
+    U32,
+    S64,
+    U64,
+    Float32,
+    Float64,
+    Char,
+    String,
+    Record(Record),
+    Variant(Variant),
+    List(List),
+    Tuple(Tuple),
+    Flags(Flags),
+    Enum(Enum),
+    Union(Union),
+    Optional(Optional),
+    Expected(Expected),
+    Named(Named),
+}
+
+impl<'a> Parse<'a> for InterType {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let mut l = parser.lookahead1();
+        if l.peek::<kw::r#bool>() {
+            parser.parse::<kw::r#bool>()?;
+            Ok(InterType::Bool)
+        } else if l.peek::<kw::r#bool>() {
+            parser.parse::<kw::r#bool>()?;
+            Ok(InterType::Bool)
+        } else if l.peek::<kw::s8>() {
+            parser.parse::<kw::s8>()?;
+            Ok(InterType::S8)
+        } else if l.peek::<kw::r#u8>() {
+            parser.parse::<kw::r#u8>()?;
+            Ok(InterType::U8)
+        } else if l.peek::<kw::s16>() {
+            parser.parse::<kw::s16>()?;
+            Ok(InterType::S16)
+        } else if l.peek::<kw::r#u16>() {
+            parser.parse::<kw::r#u16>()?;
+            Ok(InterType::U16)
+        } else if l.peek::<kw::s32>() {
+            parser.parse::<kw::s32>()?;
+            Ok(InterType::S32)
+        } else if l.peek::<kw::r#u32>() {
+            parser.parse::<kw::r#u32>()?;
+            Ok(InterType::U32)
+        } else if l.peek::<kw::s64>() {
+            parser.parse::<kw::s64>()?;
+            Ok(InterType::S64)
+        } else if l.peek::<kw::r#u64>() {
+            parser.parse::<kw::r#u64>()?;
+            Ok(InterType::U64)
+        } else if l.peek::<kw::float32>() {
+            parser.parse::<kw::float32>()?;
+            Ok(InterType::Float32)
+        } else if l.peek::<kw::float64>() {
+            parser.parse::<kw::float64>()?;
+            Ok(InterType::Float64)
+        } else if l.peek::<kw::r#char>() {
+            parser.parse::<kw::r#char>()?;
+            Ok(InterType::Char)
+        } else if l.peek::<kw::string>() {
+            parser.parse::<kw::string>()?;
+            Ok(InterType::String)
+        } else if l.peek::<kw::record>() {
+            let record = parser.parse::<Record>()?;
+            Ok(InterType::Record(record))
+        } else if l.peek::<kw::variant>() {
+            let variant = parser.parse::<Variant>()?;
+            Ok(InterType::Variant(variant))
+        } else if l.peek::<kw::tuple>() {
+            let tuple = parser.parse::<Tuple>()?;
+            Ok(InterType::Tuple(tuple))
+        } else if l.peek::<kw::flags>() {
+            let flags = parser.parse::<Flags>()?;
+            Ok(InterType::Flags(flags))
+        } else if l.peek::<kw::r#enum>() {
+            let r#enum = parser.parse::<Enum>()?;
+            Ok(InterType::Enum(r#enum))
+        } else if l.peek::<kw::union>() {
+            let union = parser.parse::<Union>()?;
+            Ok(InterType::Union(union))
+        } else if l.peek::<kw::optional>() {
+            let optional = parser.parse::<Optional>()?;
+            Ok(InterType::Optional(optional))
+        } else if l.peek::<kw::expected>() {
+            let expected = parser.parse::<Expected>()?;
+            Ok(InterType::Expected(expected))
+        } else if l.peek::<kw::named>() {
+            let named = parser.parse::<Named>()?;
+            Ok(InterType::Named(named))
+        } else {
+            Err(l.error())
+        }
+    }
+}
+
+impl Peek for InterType {
+    fn peek(cursor: Cursor<'_>) -> bool {
+        kw::r#bool::peek(cursor) ||
+                  kw::s8::peek(cursor) ||
+                  kw::r#u8::peek(cursor) ||
+                  kw::s16::peek(cursor) ||
+                  kw::r#u16::peek(cursor) ||
+                  kw::s32::peek(cursor) ||
+                  kw::r#u32::peek(cursor) ||
+                  kw::s64::peek(cursor) ||
+                  kw::r#u64::peek(cursor) ||
+                  kw::float32::peek(cursor) ||
+                  kw::float64::peek(cursor) ||
+                  kw::r#char::peek(cursor) ||
+                  kw::string::peek(cursor) ||
+                  kw::record::peek(cursor) ||
+                  kw::variant::peek(cursor) ||
+                  kw::list::peek(cursor) ||
+                  kw::tuple::peek(cursor) ||
+                  kw::flags::peek(cursor) ||
+                  kw::r#enum::peek(cursor) ||
+                  kw::union::peek(cursor) ||
+                  kw::optional::peek(cursor) ||
+                  kw::expected::peek(cursor) ||
+                  kw::named::peek(cursor)
+    }
+    fn display() -> &'static str {
+        "intertype"
+    }
+}
+
+/// An interface-types record, aka a struct.
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct Record { fields: Vec<(String, InterType)>, }
+
+impl<'a> Parse<'a> for Record {
+    fn parse(_parser: Parser<'a>) -> Result<Self> {
+        todo!("Parse for Record")
+    }
+}
+
+/// An interface-types variant, aka a discriminated union with named arms.
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct Variant { arms: Vec<(String, InterType)>, }
+
+impl<'a> Parse<'a> for Variant {
+    fn parse(_parser: Parser<'a>) -> Result<Self> {
+        todo!("Parse for Variant")
+    }
+}
+
+/// An interface-types list, aka a fixed-size array.
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct List { element: Box<InterType> }
+
+impl<'a> Parse<'a> for List {
+    fn parse(_parser: Parser<'a>) -> Result<Self> {
+        todo!("Parse for List")
+    }
+}
+
+/// An interface-types tuple, aka a record with anonymous fields.
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct Tuple { fields: Vec<InterType> }
+
+impl<'a> Parse<'a> for Tuple {
+    fn parse(_parser: Parser<'a>) -> Result<Self> {
+        todo!("Parse for Tuple")
+    }
+}
+
+/// An interface-types flags, aka a fixed-sized bitfield with named fields.
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct Flags { flag_names: Vec<String> }
+
+impl<'a> Parse<'a> for Flags {
+    fn parse(_parser: Parser<'a>) -> Result<Self> {
+        todo!("Parse for Flags")
+    }
+}
+
+/// An interface-types enum, aka a discriminated union with unit arms.
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct Enum { arms: Vec<String> }
+
+impl<'a> Parse<'a> for Enum {
+    fn parse(_parser: Parser<'a>) -> Result<Self> {
+        todo!("Parse for Enum")
+    }
+}
+
+/// An interface-types union, aka a discriminated union with anonymous arms.
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct Union { arms: Vec<InterType> }
+
+impl<'a> Parse<'a> for Union {
+    fn parse(_parser: Parser<'a>) -> Result<Self> {
+        todo!("Parse for Union")
+    }
+}
+
+/// An interface-types optional, aka an option.
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct Optional { element: Box<InterType> }
+
+impl<'a> Parse<'a> for Optional {
+    fn parse(_parser: Parser<'a>) -> Result<Self> {
+        todo!("Parse for Optional")
+    }
+}
+
+/// An interface-types expected, aka an result.
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct Expected { ok: Box<InterType>, err: Box<InterType> }
+
+impl<'a> Parse<'a> for Expected {
+    fn parse(_parser: Parser<'a>) -> Result<Self> {
+        todo!("Parse for Expected")
+    }
+}
+
+/// An interface-types named type, aka a newtype that adds a name.
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct Named { name: String, types: Box<InterType> }
+
+impl<'a> Parse<'a> for Named {
+    fn parse(_parser: Parser<'a>) -> Result<Self> {
+        todo!("Parse for Named")
     }
 }
 
@@ -262,7 +503,7 @@ impl<'a> Peek for RefType<'a> {
 
 /// The types of values that may be used in a struct or array.
 #[allow(missing_docs)]
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum StorageType<'a> {
     I8,
     I16,
@@ -287,7 +528,7 @@ impl<'a> Parse<'a> for StorageType<'a> {
 }
 
 /// Type for a `global` in a wasm module
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct GlobalType<'a> {
     /// The element type of this `global`
     pub ty: ValType<'a>,

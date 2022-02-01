@@ -114,7 +114,7 @@ impl<'a> Resolver<'a> {
                 // `call_indirect`.
                 match &i.def {
                     TypeDef::Func(f) => {
-                        let params = f.params.iter().map(|p| p.2).collect();
+                        let params = f.params.iter().map(|p| p.2.clone()).collect();
                         let results = f.results.clone();
                         self.type_info.push(TypeInfo::Func { params, results });
                     }

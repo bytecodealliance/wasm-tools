@@ -62,7 +62,7 @@ macro_rules! custom_keyword {
         }
 
         impl $crate::parser::Peek for $name {
-            fn peek(cursor: $crate::parser::Cursor<'_>) -> bool {
+            fn peek(cursor: $crate::parser::Cursor<'_>) -> std::primitive::bool {
                 if let Some((kw, _rest)) = cursor.keyword() {
                     kw == $kw
                 } else {
@@ -349,6 +349,7 @@ pub mod kw {
     custom_keyword!(block);
     custom_keyword!(catch);
     custom_keyword!(catch_all);
+    custom_keyword!(char);
     custom_keyword!(code);
     custom_keyword!(component);
     custom_keyword!(data);
@@ -359,6 +360,7 @@ pub mod kw {
     custom_keyword!(elem);
     custom_keyword!(end);
     custom_keyword!(tag);
+    custom_keyword!(expected);
     custom_keyword!(export);
     custom_keyword!(r#extern = "extern");
     custom_keyword!(externref);
@@ -370,6 +372,9 @@ pub mod kw {
     custom_keyword!(f64x2);
     custom_keyword!(field);
     custom_keyword!(first);
+    custom_keyword!(float32);
+    custom_keyword!(float64);
+    custom_keyword!(flags);
     custom_keyword!(func);
     custom_keyword!(funcref);
     custom_keyword!(get);
@@ -390,38 +395,57 @@ pub mod kw {
     custom_keyword!(invoke);
     custom_keyword!(item);
     custom_keyword!(last);
+    custom_keyword!(list);
     custom_keyword!(local);
     custom_keyword!(memory);
     custom_keyword!(module);
     custom_keyword!(modulecode);
+    custom_keyword!(named);
     custom_keyword!(nan_arithmetic = "nan:arithmetic");
     custom_keyword!(nan_canonical = "nan:canonical");
     custom_keyword!(null);
     custom_keyword!(nullref);
     custom_keyword!(offset);
+    custom_keyword!(optional);
     custom_keyword!(outer);
     custom_keyword!(param);
     custom_keyword!(parent);
     custom_keyword!(passive);
     custom_keyword!(quote);
+    custom_keyword!(r#bool = "bool");
+    custom_keyword!(r#enum = "enum");
     custom_keyword!(r#else = "else");
     custom_keyword!(r#if = "if");
     custom_keyword!(r#loop = "loop");
     custom_keyword!(r#mut = "mut");
     custom_keyword!(r#type = "type");
     custom_keyword!(r#ref = "ref");
+    custom_keyword!(record);
     custom_keyword!(ref_func = "ref.func");
     custom_keyword!(ref_null = "ref.null");
     custom_keyword!(register);
     custom_keyword!(result);
     custom_keyword!(rtt);
+    custom_keyword!(s8);
+    custom_keyword!(s16);
+    custom_keyword!(s32);
+    custom_keyword!(s64);
     custom_keyword!(shared);
     custom_keyword!(start);
+    custom_keyword!(string);
     custom_keyword!(r#struct = "struct");
     custom_keyword!(table);
     custom_keyword!(then);
+    custom_keyword!(tuple);
     custom_keyword!(r#try = "try");
+    custom_keyword!(u8);
+    custom_keyword!(u16);
+    custom_keyword!(u32);
+    custom_keyword!(u64);
+    custom_keyword!(union);
     custom_keyword!(v128);
+    custom_keyword!(value);
+    custom_keyword!(variant);
 }
 
 /// Common annotations used to parse WebAssembly text files.

@@ -295,7 +295,7 @@ impl<'a> TypeReference<'a> for FunctionType<'a> {
     type Key = FuncKey<'a>;
 
     fn key(&self) -> Self::Key {
-        let params = self.params.iter().map(|p| p.2).collect();
+        let params = self.params.iter().map(|p| p.2.clone()).collect();
         let results = self.results.clone();
         (params, results)
     }
@@ -310,7 +310,7 @@ impl<'a> TypeKey<'a> for FuncKey<'a> {
 
     fn to_def(&self, _span: Span) -> TypeDef<'a> {
         TypeDef::Func(FunctionType {
-            params: self.0.iter().map(|t| (None, None, *t)).collect(),
+            params: self.0.iter().map(|t| (None, None, t.clone())).collect(),
             results: self.1.clone(),
         })
     }
