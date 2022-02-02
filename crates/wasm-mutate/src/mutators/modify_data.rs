@@ -21,7 +21,7 @@ impl Mutator for ModifyDataMutator {
         let mut reader = DataSectionReader::new(config.info().get_data_section().data, 0)?;
 
         // Select an arbitrary data segment to modify.
-        let data_to_modify = config.rng().gen_range(0, reader.get_count());
+        let data_to_modify = config.rng().gen_range(0..reader.get_count());
 
         // Iterate over all data segments in the old data section and re-add
         // them to the `new_section` one-by-one.

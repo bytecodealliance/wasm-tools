@@ -84,7 +84,7 @@ impl Item {
             Item::Data => info.num_data(),
             Item::Element => info.num_elements(),
         };
-        config.rng().gen_range(0, max)
+        config.rng().gen_range(0..max)
     }
 }
 

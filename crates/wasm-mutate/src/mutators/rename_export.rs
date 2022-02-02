@@ -51,7 +51,7 @@ impl Mutator for RenameExportMutator {
         let mut exports = ExportSection::new();
         let mut reader = ExportSectionReader::new(config.info().get_exports_section().data, 0)?;
         let max_exports = reader.get_count() as u64;
-        let skip_at = config.rng().gen_range(0, max_exports);
+        let skip_at = config.rng().gen_range(0..max_exports);
 
         for i in 0..max_exports {
             config.consume_fuel(1)?;

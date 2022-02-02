@@ -21,7 +21,7 @@ impl Mutator for SnipMutator {
         let code_section = config.info().get_code_section();
         let mut reader = CodeSectionReader::new(code_section.data, 0)?;
         let count = reader.get_count();
-        let function_to_mutate = config.rng().gen_range(0, count);
+        let function_to_mutate = config.rng().gen_range(0..count);
         let ftype = config
             .info()
             .get_functype_idx(function_to_mutate + config.info().num_imported_functions());

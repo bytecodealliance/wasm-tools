@@ -26,7 +26,7 @@ serde = { version = "1", features = ['derive'], optional = true }
 [dev-dependencies]
 criterion = "0.3.3"
 libfuzzer-sys = "0.4.0"
-rand = { version = "0.7.3", features = ["small_rng"] }
+rand = { version = "0.8.0", features = ["small_rng"] }
 wasmparser = { path = "../wasmparser" }
 wasmprinter = { path = "../wasmprinter" }
 

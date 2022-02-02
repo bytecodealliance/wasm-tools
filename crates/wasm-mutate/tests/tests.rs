@@ -1,4 +1,4 @@
-use wasm_mutate::WasmMutate;
+use wasm_mutate::{ErrorKind, WasmMutate};
 use wasmparser::Validator;
 
 fn validate(validator: &mut Validator, bytes: &[u8]) {
@@ -38,17 +38,25 @@ fn integration_test() {
 
     // seed is zero, which means first mutator
     let start = std::time::Instant::now();
-
-    let it = mutator.run(original).unwrap();
     let mut count = 0;
-    for mutated in it.take(100) {
-        // Down here is the validation for the correct mutation
-        let mutated = mutated.unwrap();
-        let text = wasmprinter::print_bytes(&mutated).unwrap();
-        println!("{}", text);
-        let mut validator = Validator::new();
-        validate(&mut validator, &mutated);
-        count += 1;
+
+    for _ in 0..100 {
+        let it = match mutator.run(original) {
+            Ok(it) => it,
+            Err(e) => match e.kind() {
+                ErrorKind::NoMutationsApplicable => continue,
+                _ => panic!("{}", e),
+            },
+        };
+        for mutated in it.take(100) {
+            // Down here is the validation for the correct mutation
+            let mutated = mutated.unwrap();
+            let text = wasmprinter::print_bytes(&mutated).unwrap();
+            println!("{}", text);
+            let mut validator = Validator::new();
+            validate(&mut validator, &mutated);
+            count += 1;
+        }
     }
 
     let elapsed = start.elapsed();
