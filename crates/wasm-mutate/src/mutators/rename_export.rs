@@ -79,12 +79,6 @@ impl Mutator for RenameExportMutator {
                 wasmparser::ExternalKind::Global => {
                     exports.export(new_name.as_str(), Export::Global(export.index));
                 }
-                wasmparser::ExternalKind::Module => {
-                    exports.export(new_name.as_str(), Export::Module(export.index));
-                }
-                wasmparser::ExternalKind::Instance => {
-                    exports.export(new_name.as_str(), Export::Instance(export.index));
-                }
                 _ => {
                     panic!("Unknown export {:?}", export)
                 }

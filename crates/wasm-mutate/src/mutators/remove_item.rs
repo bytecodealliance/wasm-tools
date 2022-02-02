@@ -162,7 +162,7 @@ impl RemoveItem {
                                     result.import(
                                         item.module,
                                         item.field.unwrap(),
-                                        TypeRef::Function(ty),
+                                        EntityType::Function(ty),
                                     );
                                 }
                                 function += 1;

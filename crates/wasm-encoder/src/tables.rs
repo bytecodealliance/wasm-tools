@@ -2,7 +2,7 @@ use super::*;
 
 /// An encoder for the table section.
 ///
-/// Start sections are only supported for modules.
+/// Table sections are only supported for modules.
 ///
 /// # Example
 ///

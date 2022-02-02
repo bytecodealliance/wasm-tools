@@ -584,15 +584,6 @@ impl Module {
                 EntityType::Func(u32::max_value(), ty.clone())
             }
             Export::Tag(idx) => EntityType::Tag(self.tags[idx as usize].clone()),
-            Export::Module(_) => {
-                unimplemented!("support for the module linking proposal is not implemented");
-            }
-            Export::Instance(_) => {
-                unimplemented!("support for the module linking proposal is not implemented");
-            }
-            Export::AdapterFunction(_) => {
-                unimplemented!("support for the component model proposal is not implemented");
-            }
         }
     }
 

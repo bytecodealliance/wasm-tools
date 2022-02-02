@@ -1,6 +1,6 @@
-use crate::{encoders, ComponentSection, ComponentSectionId, Section, SectionId};
+use crate::{encoders, ComponentArg, ComponentSection, ComponentSectionId, Section, SectionId};
 
-/// Represents an export of a local item (by index).
+/// Represents an export from a WebAssembly module.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Export {
     /// The export is a function.
@@ -15,18 +15,6 @@ pub enum Export {
     ///
     /// This variant is used with the exception handling proposal.
     Tag(u32),
-    /// The export is an instance.
-    ///
-    /// This variant is used for components.
-    Instance(u32),
-    /// The export is a module.
-    ///
-    /// This variant is used for components.
-    Module(u32),
-    /// The export is an adapter function.
-    ///
-    /// This variant is used for components.
-    AdapterFunction(u32),
 }
 
 impl Export {
@@ -37,9 +25,6 @@ impl Export {
             Self::Memory(i) => (0x02, *i),
             Self::Global(i) => (0x03, *i),
             Self::Tag(i) => (0x04, *i),
-            Self::Instance(i) => (0x05, *i),
-            Self::Module(i) => (0x06, *i),
-            Self::AdapterFunction(i) => (0x07, *i),
         };
 
         bytes.push(ty);
@@ -47,14 +32,13 @@ impl Export {
     }
 }
 
-/// An encoder for the export section.
+/// An encoder for the export section of WebAssembly module.
 ///
 /// # Example
 ///
 /// ```rust
 /// use wasm_encoder::{Module, ExportSection, Export};
 ///
-/// // This assumes there is a function at index 0 to export
 /// let mut exports = ExportSection::new();
 /// exports.export("foo", Export::Function(0));
 ///
@@ -92,16 +76,6 @@ impl ExportSection {
         self.num_added += 1;
         self
     }
-
-    fn encode(&self, sink: &mut impl Extend<u8>) {
-        let num_added = encoders::u32(self.num_added);
-        let n = num_added.len();
-        sink.extend(
-            encoders::u32(u32::try_from(n + self.bytes.len()).unwrap())
-                .chain(num_added)
-                .chain(self.bytes.iter().copied()),
-        );
-    }
 }
 
 impl Section for ExportSection {
@@ -113,11 +87,67 @@ impl Section for ExportSection {
     where
         S: Extend<u8>,
     {
-        self.encode(sink);
+        let num_added = encoders::u32(self.num_added);
+        let n = num_added.len();
+        sink.extend(
+            encoders::u32(u32::try_from(n + self.bytes.len()).unwrap())
+                .chain(num_added)
+                .chain(self.bytes.iter().copied()),
+        );
     }
 }
 
-impl ComponentSection for ExportSection {
+/// Represents an export for a WebAssembly component.
+pub type ComponentExport<'a> = ComponentArg<'a>;
+
+/// An encoder for the export section of WebAssembly component.
+///
+/// # Example
+///
+/// ```rust
+/// use wasm_encoder::{Component, ComponentExportSection, ComponentExport};
+///
+/// // This exports an instance named "foo" that exports a function named "bar".
+/// let mut exports = ComponentExportSection::new();
+/// exports.export("foo", [("bar", ComponentExport::Function(0))]);
+///
+/// let mut component = Component::new();
+/// component.section(&exports);
+///
+/// let bytes = component.finish();
+/// ```
+#[derive(Clone, Debug, Default)]
+pub struct ComponentExportSection {
+    bytes: Vec<u8>,
+    num_added: u32,
+}
+
+impl ComponentExportSection {
+    /// Create a new component export section encoder.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// The number of exports in the section.
+    pub fn len(&self) -> u32 {
+        self.num_added
+    }
+
+    /// Determines if the section is empty.
+    pub fn is_empty(&self) -> bool {
+        self.num_added == 0
+    }
+
+    /// Define an export in the export section.
+    pub fn export<'a>(&mut self, name: &str, export: impl Into<ComponentExport<'a>>) -> &mut Self {
+        self.bytes.extend(encoders::str(name));
+        export.into().encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+}
+
+impl ComponentSection for ComponentExportSection {
     fn id(&self) -> u8 {
         ComponentSectionId::Export.into()
     }
@@ -126,6 +156,12 @@ impl ComponentSection for ExportSection {
     where
         S: Extend<u8>,
     {
-        self.encode(sink);
+        let num_added = encoders::u32(self.num_added);
+        let n = num_added.len();
+        sink.extend(
+            encoders::u32(u32::try_from(n + self.bytes.len()).unwrap())
+                .chain(num_added)
+                .chain(self.bytes.iter().copied()),
+        );
     }
 }

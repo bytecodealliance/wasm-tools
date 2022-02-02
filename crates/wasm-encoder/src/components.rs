@@ -1,33 +1,33 @@
-use crate::{encoders, ComponentSection, ComponentSectionId, Module};
+use crate::{encoders, Component, ComponentSection, ComponentSectionId};
 
-/// An encoder for the module section of WebAssembly components.
+/// An encoder for the component section of WebAssembly components.
 ///
 /// # Example
 ///
 /// ```rust
-/// use wasm_encoder::{Module, Component, ModuleSection};
+/// use wasm_encoder::{Component, NestedComponentSection};
 ///
-/// let mut modules = ModuleSection::new();
-/// modules.module(&Module::new());
+/// let mut components = NestedComponentSection::new();
+/// components.component(&Component::new());
 ///
 /// let mut component = Component::new();
-/// component.section(&modules);
+/// component.section(&components);
 ///
 /// let bytes = component.finish();
 /// ```
 #[derive(Clone, Debug, Default)]
-pub struct ModuleSection {
+pub struct NestedComponentSection {
     bytes: Vec<u8>,
     num_added: u32,
 }
 
-impl ModuleSection {
-    /// Create a new module section encoder.
+impl NestedComponentSection {
+    /// Create a new component section encoder.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// The number of modules in the section.
+    /// The number of components in the section.
     pub fn len(&self) -> u32 {
         self.num_added
     }
@@ -37,22 +37,22 @@ impl ModuleSection {
         self.num_added == 0
     }
 
-    /// Writes a module into this module section.
+    /// Writes a component into this component section.
     ///
-    /// The given module must be fully formed.
-    pub fn module(&mut self, module: &Module) -> &mut Self {
+    /// The given component must be fully formed.
+    pub fn component(&mut self, component: &Component) -> &mut Self {
         self.bytes.extend(
-            encoders::u32(u32::try_from(module.bytes.len()).unwrap())
-                .chain(module.bytes.iter().copied()),
+            encoders::u32(u32::try_from(component.bytes.len()).unwrap())
+                .chain(component.bytes.iter().copied()),
         );
         self.num_added += 1;
         self
     }
 }
 
-impl ComponentSection for ModuleSection {
+impl ComponentSection for NestedComponentSection {
     fn id(&self) -> u8 {
-        ComponentSectionId::Module.into()
+        ComponentSectionId::Component.into()
     }
 
     fn encode<S>(&self, sink: &mut S)

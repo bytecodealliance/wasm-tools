@@ -70,9 +70,9 @@
 
 #![deny(missing_docs, missing_debug_implementations)]
 
-mod adapters;
 mod aliases;
 mod code;
+mod components;
 mod custom;
 mod data;
 mod elements;
@@ -90,9 +90,9 @@ mod tables;
 mod tags;
 mod types;
 
-pub use adapters::*;
 pub use aliases::*;
 pub use code::*;
+pub use components::*;
 pub use custom::*;
 pub use data::*;
 pub use elements::*;
@@ -252,7 +252,7 @@ impl Component {
         Self {
             bytes: vec![
                 0x00, 0x61, 0x73, 0x6D, // magic (`\0asm`)
-                0x0a, 0x00, 0x02, 0x00, // version
+                0x0a, 0x00, 0x01, 0x00, // version
             ],
         }
     }
@@ -331,18 +331,20 @@ pub enum ComponentSectionId {
     Type = 1,
     /// The section is an import section.
     Import = 2,
-    /// The section is a module section.
-    Module = 3,
-    /// The section is an instance section.
-    Instance = 4,
-    /// The section is an alias section.
-    Alias = 5,
-    /// The section is an export section.
-    Export = 6,
     /// The section is a function section.
-    Function = 7,
-    /// The section is an adapter function section.
-    AdapterFunction = 8,
+    Function = 3,
+    /// The section is a module section.
+    Module = 4,
+    /// The section is a component section.
+    Component = 5,
+    /// The section is an instance section.
+    Instance = 6,
+    /// The section is an export section.
+    Export = 7,
+    /// The section is a start section.
+    Start = 8,
+    /// The section is an alias section.
+    Alias = 9,
 }
 
 impl From<ComponentSectionId> for u8 {
@@ -352,37 +354,27 @@ impl From<ComponentSectionId> for u8 {
     }
 }
 
-/// Represents a reference to a type.
+/// The type of an entity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TypeRef {
-    /// The reference is to a function type.
+pub enum EntityType {
+    /// A function type.
+    ///
+    /// The value is an index into the types section.
     Function(u32),
-    /// The reference is to a table type.
+    /// A table type.
     Table(TableType),
-    /// The reference is to a memory type.
+    /// A memory type.
     Memory(MemoryType),
-    /// The reference is to a global type.
+    /// A global type.
     Global(GlobalType),
-    /// The reference is to a tag type.
+    /// A tag type.
     ///
     /// This variant is used with the exception handling proposal.
     Tag(TagType),
-    /// The reference is to an instance type.
-    ///
-    /// This variant is used for components.
-    Instance(u32),
-    /// The reference is a module type.
-    ///
-    /// This variant is used for components.
-    Module(u32),
-    /// The reference is an adapter function type.
-    ///
-    /// This variant is used for components.
-    AdapterFunction(u32),
 }
 
-impl TypeRef {
-    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
+impl EntityType {
+    fn encode(&self, bytes: &mut Vec<u8>) {
         match self {
             Self::Function(i) => {
                 bytes.push(0x00);
@@ -404,41 +396,29 @@ impl TypeRef {
                 bytes.push(0x04);
                 t.encode(bytes);
             }
-            Self::Instance(i) => {
-                bytes.push(0x05);
-                bytes.extend(encoders::u32(*i));
-            }
-            Self::Module(i) => {
-                bytes.push(0x06);
-                bytes.extend(encoders::u32(*i));
-            }
-            Self::AdapterFunction(i) => {
-                bytes.push(0x07);
-                bytes.extend(encoders::u32(*i));
-            }
         }
     }
 }
 
-impl From<TableType> for TypeRef {
+impl From<TableType> for EntityType {
     fn from(t: TableType) -> Self {
         Self::Table(t)
     }
 }
 
-impl From<MemoryType> for TypeRef {
+impl From<MemoryType> for EntityType {
     fn from(t: MemoryType) -> Self {
         Self::Memory(t)
     }
 }
 
-impl From<GlobalType> for TypeRef {
+impl From<GlobalType> for EntityType {
     fn from(t: GlobalType) -> Self {
         Self::Global(t)
     }
 }
 
-impl From<TagType> for TypeRef {
+impl From<TagType> for EntityType {
     fn from(t: TagType) -> Self {
         Self::Tag(t)
     }
@@ -462,7 +442,7 @@ mod test {
         let bytes = Component::new().finish();
         assert_eq!(
             bytes,
-            [0x00, 'a' as u8, 's' as u8, 'm' as u8, 0x0a, 0x00, 0x02, 0x00]
+            [0x00, 'a' as u8, 's' as u8, 'm' as u8, 0x0a, 0x00, 0x01, 0x00]
         );
     }
 }

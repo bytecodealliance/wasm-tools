@@ -1,32 +1,52 @@
 use crate::{encoders, ComponentSection, ComponentSectionId};
 
 const ALIAS_KIND_INSTANCE_EXPORT: u8 = 0x00;
-pub(crate) const ALIAS_KIND_OUTER: u8 = 0x01;
-const ALIAS_KIND_OUTER_MODULE: u8 = 0x01;
-pub(crate) const ALIAS_KIND_OUTER_TYPE: u8 = 0x06;
+const ALIAS_KIND_INSTANCE_CORE_EXPORT: u8 = 0x01;
+pub(crate) const ALIAS_KIND_OUTER: u8 = 0x02;
+const ALIAS_KIND_OUTER_MODULE: u8 = 0x00;
+const ALIAS_KIND_OUTER_COMPONENT: u8 = 0x01;
+pub(crate) const ALIAS_KIND_OUTER_TYPE: u8 = 0x05;
 
 /// Represents the expected export kind for an alias.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AliasExportKind {
-    /// The alias is to an instance.
-    Instance = 0x00,
     /// The alias is to a module.
-    Module = 0x01,
+    Module,
+    /// The alias is to a component.
+    Component,
+    /// The alias is to an instance.
+    Instance,
     /// The alias is to a function.
-    Function = 0x02,
+    Function,
+    /// The alias is to a value.
+    Value,
     /// The alias is to a table.
-    Table = 0x03,
+    Table,
     /// The alias is to a memory.
-    Memory = 0x04,
+    Memory,
     /// The alias is to a global.
-    Global = 0x05,
-    /// The alias is to an adapter function.
-    AdapterFunction = 0x06,
+    Global,
 }
 
-/// An encoder for the alias section.
-///
-/// Alias sections are only supported for components.
+impl AliasExportKind {
+    fn encode(&self, bytes: &mut Vec<u8>) {
+        let (preamble, value) = match self {
+            AliasExportKind::Module => (ALIAS_KIND_INSTANCE_EXPORT, 0x00),
+            AliasExportKind::Component => (ALIAS_KIND_INSTANCE_EXPORT, 0x01),
+            AliasExportKind::Instance => (ALIAS_KIND_INSTANCE_EXPORT, 0x02),
+            AliasExportKind::Function => (ALIAS_KIND_INSTANCE_EXPORT, 0x03),
+            AliasExportKind::Value => (ALIAS_KIND_INSTANCE_EXPORT, 0x04),
+            AliasExportKind::Table => (ALIAS_KIND_INSTANCE_CORE_EXPORT, 0x01),
+            AliasExportKind::Memory => (ALIAS_KIND_INSTANCE_CORE_EXPORT, 0x02),
+            AliasExportKind::Global => (ALIAS_KIND_INSTANCE_CORE_EXPORT, 0x03),
+        };
+
+        bytes.push(preamble);
+        bytes.push(value);
+    }
+}
+
+/// An encoder for the alias section of WebAssembly component.
 ///
 /// # Example
 ///
@@ -71,30 +91,45 @@ impl AliasSection {
         kind: AliasExportKind,
         name: &str,
     ) -> &mut Self {
-        self.bytes.push(ALIAS_KIND_INSTANCE_EXPORT);
+        kind.encode(&mut self.bytes);
         self.bytes.extend(encoders::u32(instance));
         self.bytes.extend(encoders::str(name));
-        self.bytes.push(kind as u8);
         self.num_added += 1;
         self
     }
 
-    /// Define an alias that references an outer module's type.
-    pub fn outer_type(&mut self, count: u32, ty: u32) -> &mut Self {
+    /// Define an alias to an outer type.
+    ///
+    /// The count starts at 0 to represent the current component.
+    pub fn outer_type(&mut self, count: u32, index: u32) -> &mut Self {
         self.bytes.push(ALIAS_KIND_OUTER);
-        self.bytes.extend(encoders::u32(count));
-        self.bytes.extend(encoders::u32(ty));
         self.bytes.push(ALIAS_KIND_OUTER_TYPE);
+        self.bytes.extend(encoders::u32(count));
+        self.bytes.extend(encoders::u32(index));
         self.num_added += 1;
         self
     }
 
-    /// Define an alias that references an outer module's module.
-    pub fn outer_module(&mut self, count: u32, module: u32) -> &mut Self {
+    /// Define an alias to an outer module.
+    ///
+    /// The count starts at 0 to represent the current component.
+    pub fn outer_module(&mut self, count: u32, index: u32) -> &mut Self {
         self.bytes.push(ALIAS_KIND_OUTER);
-        self.bytes.extend(encoders::u32(count));
-        self.bytes.extend(encoders::u32(module));
         self.bytes.push(ALIAS_KIND_OUTER_MODULE);
+        self.bytes.extend(encoders::u32(count));
+        self.bytes.extend(encoders::u32(index));
+        self.num_added += 1;
+        self
+    }
+
+    /// Define an alias to an outer component.
+    ///
+    /// The count starts at 0 to represent the current component.
+    pub fn outer_component(&mut self, count: u32, index: u32) -> &mut Self {
+        self.bytes.push(ALIAS_KIND_OUTER);
+        self.bytes.push(ALIAS_KIND_OUTER_COMPONENT);
+        self.bytes.extend(encoders::u32(count));
+        self.bytes.extend(encoders::u32(index));
         self.num_added += 1;
         self
     }

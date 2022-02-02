@@ -229,13 +229,13 @@ impl Module {
     }
 }
 
-fn translate_entity_type(ty: &EntityType) -> wasm_encoder::TypeRef {
+fn translate_entity_type(ty: &EntityType) -> wasm_encoder::EntityType {
     match ty {
-        EntityType::Tag(t) => wasm_encoder::TypeRef::Tag(wasm_encoder::TagType {
+        EntityType::Tag(t) => wasm_encoder::EntityType::Tag(wasm_encoder::TagType {
             kind: wasm_encoder::TagKind::Exception,
             func_type_idx: t.func_type_idx,
         }),
-        EntityType::Func(f, _) => wasm_encoder::TypeRef::Function(*f),
+        EntityType::Func(f, _) => wasm_encoder::EntityType::Function(*f),
         EntityType::Table(ty) => (*ty).into(),
         EntityType::Memory(m) => (*m).into(),
         EntityType::Global(g) => (*g).into(),
