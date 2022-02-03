@@ -23,8 +23,6 @@ struct Indices {
     tables: u32,
     memories: u32,
     tags: u32,
-    modules: u32,
-    instances: u32,
     types: u32,
 }
 
@@ -54,8 +52,12 @@ impl<'a> Dump<'a> {
 
         for item in Parser::new(0).parse_all(self.bytes) {
             match item? {
-                Payload::Version { num, range } => {
-                    write!(self.state, "version {}", num)?;
+                Payload::Version {
+                    num,
+                    encoding,
+                    range,
+                } => {
+                    write!(self.state, "version {} ({:?})", num, encoding)?;
                     self.print(range.end)?;
                 }
                 Payload::TypeSection(s) => self.section(s, "type", |me, end, t| {
@@ -66,7 +68,7 @@ impl<'a> Dump<'a> {
                 Payload::ImportSection(s) => self.section(s, "import", |me, end, imp| {
                     write!(me.state, "import ")?;
                     match imp.ty {
-                        TypeRef::Function(_) => {
+                        TypeRef::Func(_) => {
                             write!(me.state, "[func {}]", i.funcs)?;
                             i.funcs += 1;
                         }
@@ -85,14 +87,6 @@ impl<'a> Dump<'a> {
                         TypeRef::Global(_) => {
                             write!(me.state, "[global {}]", i.globals)?;
                             i.globals += 1;
-                        }
-                        TypeRef::Instance(_) => {
-                            write!(me.state, "[instance {}]", i.instances)?;
-                            i.instances += 1;
-                        }
-                        TypeRef::Module(_) => {
-                            write!(me.state, "[module {}]", i.modules)?;
-                            i.modules += 1;
                         }
                     }
                     write!(me.state, " {:?}", imp)?;
@@ -131,40 +125,6 @@ impl<'a> Dump<'a> {
                     me.print(g.init_expr.get_binary_reader().original_position())?;
                     me.print_ops(g.init_expr.get_operators_reader())
                 })?,
-                Payload::AliasSection(s) => self.section(s, "alias", |me, end, a| {
-                    write!(me.state, "[alias] {:?}", a)?;
-                    match a {
-                        Alias::InstanceExport { kind, .. } => match kind {
-                            ExternalKind::Function => i.funcs += 1,
-                            ExternalKind::Global => i.globals += 1,
-                            ExternalKind::Module => i.modules += 1,
-                            ExternalKind::Table => i.tables += 1,
-                            ExternalKind::Instance => i.instances += 1,
-                            ExternalKind::Memory => i.memories += 1,
-                            ExternalKind::Tag => i.tags += 1,
-                            ExternalKind::Type => i.types += 1,
-                        },
-                        Alias::OuterType { .. } => i.types += 1,
-                        Alias::OuterModule { .. } => i.modules += 1,
-                    }
-                    me.print(end)
-                })?,
-                Payload::InstanceSection(s) => {
-                    self.section(s, "instance", |me, _end, instance| {
-                        write!(
-                            me.state,
-                            "[instance {}] instantiate module:{}",
-                            i.instances,
-                            instance.module()
-                        )?;
-                        me.print(instance.original_position())?;
-                        i.instances += 1;
-                        me.print_iter(instance.args()?, |me, end, arg| {
-                            write!(me.state, "[instantiate arg] {:?}", arg)?;
-                            me.print(end)
-                        })
-                    })?
-                }
                 Payload::StartSection { func, range } => {
                     write!(self.state, "start section")?;
                     self.print(range.start)?;
@@ -257,19 +217,16 @@ impl<'a> Dump<'a> {
                     self.print_ops(body.get_operators_reader()?)?;
                 }
 
-                Payload::ModuleSectionStart { count, range, size } => {
-                    write!(self.state, "module section")?;
-                    self.print(range.start)?;
-                    write!(self.state, "{} count", count)?;
-                    self.print(range.end - size as usize)?;
-                }
-                Payload::ModuleSectionEntry { parser: _, range } => {
-                    write!(self.state, "inline module size")?;
-                    self.print(range.start)?;
-                    self.nesting += 1;
-                    stack.push(i);
-                    i = Indices::default();
-                }
+                // Component sections
+                Payload::ComponentTypeSection(_) => todo!("component-model"),
+                Payload::ComponentImportSection(_) => todo!("component-model"),
+                Payload::ComponentFunctionSection(_) => todo!("component-model"),
+                Payload::ModuleSection { .. } => todo!("component-model"),
+                Payload::ComponentSection { .. } => todo!("component-model"),
+                Payload::InstanceSection(_) => todo!("component-model"),
+                Payload::ComponentExportSection(_) => todo!("component-model"),
+                Payload::ComponentStartSection { .. } => todo!("component-model"),
+                Payload::AliasSection(_) => todo!("component-model"),
 
                 Payload::CustomSection {
                     name,

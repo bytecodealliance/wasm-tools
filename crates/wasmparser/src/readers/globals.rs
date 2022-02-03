@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-use super::{
+use crate::{
     BinaryReader, GlobalType, InitExpr, Range, Result, SectionIteratorLimited, SectionReader,
     SectionWithLimitedItems,
 };
@@ -27,7 +27,7 @@ pub struct Global<'a> {
     pub init_expr: InitExpr<'a>,
 }
 
-/// A reader for a core WebAssembly module's global section.
+/// A reader for the global section of a WebAssembly module.
 #[derive(Clone)]
 pub struct GlobalSectionReader<'a> {
     reader: BinaryReader<'a>,

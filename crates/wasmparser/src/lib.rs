@@ -16,7 +16,7 @@
 //! A simple event-driven library for parsing WebAssembly binary files
 //! (or streams).
 //!
-//! The parser library reports events as they happend and only stores
+//! The parser library reports events as they happen and only stores
 //! parsing information for a brief period of time, making it very fast
 //! and memory-efficient. The event-driven model, however, has some drawbacks.
 //! If you need random access to the entire WebAssembly data-structure,
@@ -28,7 +28,6 @@
 pub use crate::binary_reader::{BinaryReader, BinaryReaderError, Range, Result};
 pub use crate::module_resources::*;
 pub use crate::parser::*;
-pub use crate::primitives::*;
 pub use crate::readers::*;
 pub use crate::validator::*;
 
@@ -37,6 +36,5 @@ mod limits;
 mod module_resources;
 mod operators_validator;
 mod parser;
-mod primitives;
 mod readers;
 mod validator;

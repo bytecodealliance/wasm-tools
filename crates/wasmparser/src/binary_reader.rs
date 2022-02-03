@@ -13,13 +13,15 @@
  * limitations under the License.
  */
 
-use crate::limits::*;
-use crate::primitives::{
-    BlockType, BrTable, CustomSectionKind, ExternalKind, FuncType, GlobalType, Ieee32, Ieee64,
-    LinkingType, MemoryImmediate, MemoryType, NameType, Operator, RelocType, SIMDLaneIndex,
-    SectionCode, TableType, TagKind, Type, V128,
+use crate::{
+    limits::*, Alias, AliasKind, BlockType, BrTable, CanonicalOption, ComponentExport,
+    ComponentExportKind, ComponentFuncType, ComponentFunction, ComponentImport, ComponentType,
+    CompoundType, CustomSectionKind, Export, ExternalKind, FuncType, GlobalType, Ieee32, Ieee64,
+    Import, InitExpr, Instance, InstanceType, InterfaceType, LinkingType, MemoryImmediate,
+    MemoryType, ModuleArg, ModuleArgKind, ModuleType, NameType, Operator, RelocType, SIMDLaneIndex,
+    SectionCode, TableType, TagKind, TagType, Type, TypeRef, V128,
 };
-use crate::{ExportType, Import, InitExpr, InstanceType, ModuleType, TagType, TypeRef};
+use crate::{ComponentTypeDef, TypeDef};
 use std::convert::TryInto;
 use std::error::Error;
 use std::fmt;
@@ -34,8 +36,6 @@ fn is_name_prefix(name: &str, prefix: &'static str) -> bool {
 }
 
 const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
-const WASM_EXPERIMENTAL_VERSION: u32 = 0xd;
-const WASM_SUPPORTED_VERSION: u32 = 0x1;
 
 /// Bytecode range in the WebAssembly module.
 #[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -259,14 +259,11 @@ impl<'a> BinaryReader<'a> {
     pub(crate) fn read_external_kind(&mut self) -> Result<ExternalKind> {
         let code = self.read_u8()?;
         match code {
-            0 => Ok(ExternalKind::Function),
+            0 => Ok(ExternalKind::Func),
             1 => Ok(ExternalKind::Table),
             2 => Ok(ExternalKind::Memory),
             3 => Ok(ExternalKind::Global),
             4 => Ok(ExternalKind::Tag),
-            5 => Ok(ExternalKind::Module),
-            6 => Ok(ExternalKind::Instance),
-            7 => Ok(ExternalKind::Type),
             _ => Err(BinaryReaderError::new(
                 "invalid external kind",
                 self.original_position() - 1,
@@ -303,75 +300,431 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
+    pub(crate) fn read_type_def(&mut self) -> Result<TypeDef> {
+        Ok(match self.read_u8()? {
+            0x60 => TypeDef::Func(self.read_func_type()?),
+            x => {
+                return Err(BinaryReaderError::new(
+                    format!("invalid leading byte (0x{:x}) for type", x),
+                    self.original_position() - 1,
+                ))
+            }
+        })
+    }
+
+    pub(crate) fn read_component_type_def(&mut self) -> Result<ComponentTypeDef<'a>> {
+        Ok(match self.read_u8()? {
+            0x4f => ComponentTypeDef::Module(
+                (0..self.read_var_u32()?)
+                    .map(|_| self.read_module_type())
+                    .collect::<Result<_>>()?,
+            ),
+            0x4e => ComponentTypeDef::Component(
+                (0..self.read_var_u32()?)
+                    .map(|_| self.read_component_type())
+                    .collect::<Result<_>>()?,
+            ),
+            0x4d => ComponentTypeDef::Instance(
+                (0..self.read_var_u32()?)
+                    .map(|_| self.read_instance_type())
+                    .collect::<Result<_>>()?,
+            ),
+            0x4c => ComponentTypeDef::Function(ComponentFuncType {
+                params: (0..self.read_var_u32()?)
+                    .map(|_| Ok((self.read_string()?, self.read_interface_type()?)))
+                    .collect::<Result<_>>()?,
+                result: self.read_interface_type()?,
+            }),
+            0x4b => ComponentTypeDef::Value(self.read_interface_type()?),
+            // Delegate all other values to `read_compound_type`.
+            x => ComponentTypeDef::Compound(self.read_compound_type(x)?),
+        })
+    }
+
     pub(crate) fn read_module_type(&mut self) -> Result<ModuleType<'a>> {
-        let pos = self.original_position();
-        let imports_len = self.read_var_u32()? as usize;
-        if imports_len > MAX_WASM_IMPORTS {
-            return Err(BinaryReaderError::new("imports size is out of bounds", pos));
-        }
-        Ok(ModuleType {
-            imports: (0..imports_len)
-                .map(|_| self.read_import())
-                .collect::<Result<_>>()?,
-            exports: self.read_export_types()?,
+        Ok(match self.read_u8()? {
+            0x01 => ModuleType::Type(self.read_type_def()?),
+            0x02 => ModuleType::Import(self.read_import()?),
+            0x07 => ModuleType::Export(self.read_export()?),
+            0x09 => todo!("can module types really alias outer types?"),
+            x => {
+                return Err(BinaryReaderError::new(
+                    format!(
+                        "invalid leading byte (0x{:x}) for module type definition",
+                        x
+                    ),
+                    self.original_position() - 1,
+                ))
+            }
+        })
+    }
+
+    pub(crate) fn read_component_type(&mut self) -> Result<ComponentType<'a>> {
+        Ok(match self.read_u8()? {
+            0x01 => ComponentType::Type(self.read_component_type_def()?),
+            0x02 => ComponentType::Import(self.read_component_import()?),
+            0x07 => ComponentType::Export(self.read_var_u32()?),
+            0x09 => {
+                let offset = self.original_position();
+                let alias = self.read_alias()?;
+                match alias {
+                    Alias::OuterType { count, index } => ComponentType::OuterType { count, index },
+                    _ => return Err(BinaryReaderError::new(
+                        "only aliases to outer types are supported in component type definitions",
+                        offset,
+                    )),
+                }
+            }
+            x => {
+                return Err(BinaryReaderError::new(
+                    format!(
+                        "invalid leading byte (0x{:x}) for component type definition",
+                        x
+                    ),
+                    self.original_position() - 1,
+                ))
+            }
         })
     }
 
     pub(crate) fn read_instance_type(&mut self) -> Result<InstanceType<'a>> {
-        Ok(InstanceType {
-            exports: self.read_export_types()?,
+        Ok(match self.read_u8()? {
+            0x01 => InstanceType::Type(self.read_component_type_def()?),
+            0x07 => InstanceType::Export(self.read_var_u32()?),
+            0x09 => {
+                let offset = self.original_position();
+                let alias = self.read_alias()?;
+                match alias {
+                    Alias::OuterType { count, index } => InstanceType::OuterType { count, index },
+                    _ => return Err(BinaryReaderError::new(
+                        "only aliases to outer types are supported in instance type definitions",
+                        offset,
+                    )),
+                }
+            }
+            x => {
+                return Err(BinaryReaderError::new(
+                    format!(
+                        "invalid leading byte (0x{:x}) for instance type definition",
+                        x
+                    ),
+                    self.original_position() - 1,
+                ))
+            }
         })
     }
 
-    fn read_export_types(&mut self) -> Result<Box<[ExportType<'a>]>> {
-        let pos = self.original_position();
-        let exports_len = self.read_var_u32()? as usize;
-        if exports_len > MAX_WASM_EXPORTS {
-            return Err(BinaryReaderError::new("exports size is out of bound", pos));
-        }
-        (0..exports_len).map(|_| self.read_export_type()).collect()
+    pub(crate) fn read_interface_type(&mut self) -> Result<InterfaceType> {
+        let position = self.position;
+        Ok(match self.read_u8()? {
+            0x7f => InterfaceType::Unit,
+            0x7e => InterfaceType::Bool,
+            0x7d => InterfaceType::S8,
+            0x7c => InterfaceType::U8,
+            0x7b => InterfaceType::S16,
+            0x7a => InterfaceType::U16,
+            0x79 => InterfaceType::S32,
+            0x78 => InterfaceType::U32,
+            0x77 => InterfaceType::S64,
+            0x76 => InterfaceType::U64,
+            0x75 => InterfaceType::F32,
+            0x74 => InterfaceType::F64,
+            0x73 => InterfaceType::Char,
+            0x72 => InterfaceType::String,
+            x if x >= 0x80 => {
+                self.position = position;
+                InterfaceType::Compound(self.read_var_u32()?)
+            }
+            x => {
+                return Err(BinaryReaderError::new(
+                    format!("invalid leading byte (0x{:x}) for interface type", x),
+                    self.original_position() - 1,
+                ))
+            }
+        })
+    }
+
+    pub(crate) fn read_compound_type(&mut self, leading: u32) -> Result<CompoundType<'a>> {
+        Ok(match leading {
+            0x71 => CompoundType::Record(
+                (0..self.read_var_u32()?)
+                    .map(|_| Ok((self.read_string()?, self.read_interface_type()?)))
+                    .collect::<Result<_>>()?,
+            ),
+            0x70 => {
+                let cases = (0..self.read_var_u32()?)
+                    .map(|_| Ok((self.read_string()?, self.read_interface_type()?)))
+                    .collect::<Result<_>>()?;
+
+                let default = match self.read_u8()? {
+                    0x00 => None,
+                    0x01 => Some(self.read_var_u32()?),
+                    x => {
+                        return Err(BinaryReaderError::new(
+                            format!("invalid leading byte (0x{:x}) for variant default", x),
+                            self.original_position() - 1,
+                        ))
+                    }
+                };
+
+                CompoundType::Variant { cases, default }
+            }
+            0x6f => CompoundType::List(self.read_interface_type()?),
+            0x6e => CompoundType::Tuple(
+                (0..self.read_var_u32()?)
+                    .map(|_| self.read_interface_type())
+                    .collect::<Result<_>>()?,
+            ),
+            0x6d => CompoundType::Flags(
+                (0..self.read_var_u32()?)
+                    .map(|_| self.read_string())
+                    .collect::<Result<_>>()?,
+            ),
+            0x6c => CompoundType::Enum(
+                (0..self.read_var_u32()?)
+                    .map(|_| self.read_string())
+                    .collect::<Result<_>>()?,
+            ),
+            0x6b => CompoundType::Union(
+                (0..self.read_var_u32()?)
+                    .map(|_| self.read_interface_type())
+                    .collect::<Result<_>>()?,
+            ),
+            0x6a => CompoundType::Optional(self.read_interface_type()?),
+            0x69 => CompoundType::Expected {
+                ok: self.read_interface_type()?,
+                error: self.read_interface_type()?,
+            },
+            x => {
+                return Err(BinaryReaderError::new(
+                    format!("invalid leading byte (0x{:x}) for type", x),
+                    self.original_position() - 1,
+                ))
+            }
+        })
+    }
+
+    pub(crate) fn read_export(&mut self) -> Result<Export<'a>> {
+        Ok(Export {
+            name: self.read_string()?,
+            kind: self.read_external_kind()?,
+            index: self.read_var_u32()?,
+        })
+    }
+
+    pub(crate) fn read_component_export(&mut self) -> Result<ComponentExport<'a>> {
+        let name = self.read_string()?;
+        Ok(match self.read_u8()? {
+            0x00 => {
+                let offset = self.original_position();
+                let kind = self.read_u8()?;
+                let index = self.read_var_u32()?;
+                let kind = match kind {
+                    0x00 => ComponentExportKind::Module(index),
+                    0x01 => ComponentExportKind::Component(index),
+                    0x02 => ComponentExportKind::Instance(index),
+                    0x03 => ComponentExportKind::Function(index),
+                    0x04 => ComponentExportKind::Value(index),
+                    x => {
+                        return Err(BinaryReaderError::new(
+                            format!("invalid leading byte (0x{:x}) for export kind", x),
+                            offset,
+                        ))
+                    }
+                };
+                ComponentExport { name, kind }
+            }
+            0x01 => ComponentExport {
+                name,
+                kind: ComponentExportKind::Exports(
+                    (0..self.read_var_u32()?)
+                        .map(|_| self.read_component_export())
+                        .collect::<Result<_>>()?,
+                ),
+            },
+            x => {
+                return Err(BinaryReaderError::new(
+                    format!("invalid leading byte (0x{:x}) for export", x),
+                    self.original_position() - 1,
+                ))
+            }
+        })
     }
 
     pub(crate) fn read_import(&mut self) -> Result<Import<'a>> {
-        let module = self.read_string()?;
-        let field = self.read_string()?;
-
-        // For the `field`, figure out if we're the experimental encoding of
-        // single-level imports for the module linking proposal (a single-byte
-        // string which is 0xc0, which is invalid utf-8) or if we have a second
-        // level of import.
-        let field = if field.is_empty() && self.buffer.get(self.position) == Some(&0xff) {
-            self.position += 1;
-            None
-        } else {
-            Some(field)
-        };
-
-        let ty = self.read_type_ref()?;
-        Ok(Import { module, field, ty })
+        Ok(Import {
+            module: self.read_string()?,
+            name: self.read_string()?,
+            ty: self.read_type_ref()?,
+        })
     }
 
-    pub(crate) fn read_export_type(&mut self) -> Result<ExportType<'a>> {
+    pub(crate) fn read_component_import(&mut self) -> Result<ComponentImport<'a>> {
+        Ok(ComponentImport {
+            name: self.read_string()?,
+            ty: self.read_var_u32()?,
+        })
+    }
+
+    pub(crate) fn read_component_func(&mut self) -> Result<ComponentFunction> {
+        Ok(match self.read_u8()? {
+            0x00 => ComponentFunction::Lift {
+                type_index: self.read_var_u32()?,
+                options: (0..self.read_var_u32()?)
+                    .map(|_| self.read_canonical_option())
+                    .collect::<Result<_>>()?,
+                func_index: self.read_var_u32()?,
+            },
+            0x01 => ComponentFunction::Lower {
+                options: (0..self.read_var_u32()?)
+                    .map(|_| self.read_canonical_option())
+                    .collect::<Result<_>>()?,
+                func_index: self.read_var_u32()?,
+            },
+            x => {
+                return Err(BinaryReaderError::new(
+                    format!("invalid leading byte (0x{:x}) for component function", x),
+                    self.original_position() - 1,
+                ))
+            }
+        })
+    }
+
+    pub(crate) fn read_canonical_option(&mut self) -> Result<CanonicalOption> {
+        Ok(match self.read_u8()? {
+            0x00 => CanonicalOption::UTF8,
+            0x01 => CanonicalOption::UTF16,
+            0x02 => CanonicalOption::CompactUTF16,
+            0x03 => CanonicalOption::Into(self.read_var_u32()?),
+            x => {
+                return Err(BinaryReaderError::new(
+                    format!("invalid leading byte (0x{:x}) for canonical option", x),
+                    self.original_position() - 1,
+                ))
+            }
+        })
+    }
+
+    pub(crate) fn read_instance(&mut self) -> Result<Instance<'a>> {
+        Ok(match self.read_u8()? {
+            0x00 => Instance::Module(
+                (0..self.read_var_u32()?)
+                    .map(|_| self.read_module_arg())
+                    .collect::<Result<_>>()?,
+            ),
+            0x01 => Instance::Component(
+                (0..self.read_var_u32()?)
+                    .map(|_| self.read_component_export())
+                    .collect::<Result<_>>()?,
+            ),
+            x => {
+                return Err(BinaryReaderError::new(
+                    format!("invalid leading byte (0x{:x}) for instance", x),
+                    self.original_position() - 1,
+                ))
+            }
+        })
+    }
+
+    pub(crate) fn read_module_arg(&mut self) -> Result<ModuleArg<'a>> {
         let name = self.read_string()?;
-        let ty = self.read_type_ref()?;
-        Ok(ExportType { name, ty })
+
+        let kind = match self.read_u8()? {
+            0x00 => match self.read_u8()? {
+                0x02 => ModuleArgKind::Instance(self.read_var_u32()?),
+                x => {
+                    return Err(BinaryReaderError::new(
+                        format!("invalid leading byte (0x{:x}) for module argument", x),
+                        self.original_position() - 1,
+                    ))
+                }
+            },
+            0x01 => ModuleArgKind::Exports(
+                (0..self.read_var_u32()?)
+                    .map(|_| self.read_export())
+                    .collect::<Result<_>>()?,
+            ),
+            x => {
+                return Err(BinaryReaderError::new(
+                    format!("invalid leading byte (0x{:x}) for module arg", x),
+                    self.original_position() - 1,
+                ))
+            }
+        };
+
+        Ok(ModuleArg { name, kind })
+    }
+
+    pub(crate) fn read_alias(&mut self) -> Result<Alias<'a>> {
+        let preamble = self.read_u8()?;
+
+        Ok(match preamble {
+            0x00 | 0x01 => {
+                let offset = self.original_position();
+                let kind = self.read_u8()?;
+                let instance = self.read_u8()?;
+                let name = self.read_string()?;
+
+                let kind = match (preamble, kind) {
+                    (0x00, 0x00) => AliasKind::Module,
+                    (0x00, 0x01) => AliasKind::Component,
+                    (0x00, 0x02) => AliasKind::Instance,
+                    (0x00, 0x03) => AliasKind::Function,
+                    (0x00, 0x04) => AliasKind::Value,
+                    (0x01, 0x01) => AliasKind::Table,
+                    (0x01, 0x02) => AliasKind::Memory,
+                    (0x01, 0x03) => AliasKind::Global,
+                    (_, x) => {
+                        return Err(BinaryReaderError::new(
+                            format!(
+                                "invalid leading byte (0x{:x}) for instance export alias kind",
+                                x
+                            ),
+                            offset,
+                        ))
+                    }
+                };
+
+                Alias::InstanceExport {
+                    kind,
+                    instance,
+                    name,
+                }
+            }
+            0x02 => {
+                let offset = self.original_position();
+                let kind = self.read_u8()?;
+                let count = self.read_var_u32()?;
+                let index = self.read_var_u32()?;
+
+                match kind {
+                    0x00 => Alias::OuterModule { count, index },
+                    0x02 => Alias::OuterComponent { count, index },
+                    0x05 => Alias::OuterType { count, index },
+                    x => {
+                        return Err(BinaryReaderError::new(
+                            format!("invalid leading byte (0x{:x}) for outer alias", x),
+                            offset,
+                        ))
+                    }
+                }
+            }
+            x => {
+                return Err(BinaryReaderError::new(
+                    format!("invalid leading byte (0x{:x}) for alias", x),
+                    self.original_position() - 1,
+                ))
+            }
+        })
     }
 
     pub(crate) fn read_type_ref(&mut self) -> Result<TypeRef> {
         Ok(match self.read_external_kind()? {
-            ExternalKind::Function => TypeRef::Function(self.read_var_u32()?),
+            ExternalKind::Func => TypeRef::Func(self.read_var_u32()?),
             ExternalKind::Table => TypeRef::Table(self.read_table_type()?),
             ExternalKind::Memory => TypeRef::Memory(self.read_memory_type()?),
             ExternalKind::Tag => TypeRef::Tag(self.read_tag_type()?),
             ExternalKind::Global => TypeRef::Global(self.read_global_type()?),
-            ExternalKind::Module => TypeRef::Module(self.read_var_u32()?),
-            ExternalKind::Instance => TypeRef::Instance(self.read_var_u32()?),
-            ExternalKind::Type => {
-                return Err(BinaryReaderError::new(
-                    "cannot import types",
-                    self.original_position() - 1,
-                ))
-            }
         })
     }
 
@@ -520,11 +873,7 @@ impl<'a> BinaryReader<'a> {
             11 => Ok(SectionCode::Data),
             12 => Ok(SectionCode::DataCount),
             13 => Ok(SectionCode::Tag),
-            14 => Ok(SectionCode::Module),
-            15 => Ok(SectionCode::Instance),
-            16 => Ok(SectionCode::Alias),
-            17 => Ok(SectionCode::ModuleCode),
-            _ => Err(BinaryReaderError::new("Invalid section code", offset)),
+            _ => Err(BinaryReaderError::new("invalid section code", offset)),
         }
     }
 
@@ -634,7 +983,7 @@ impl<'a> BinaryReader<'a> {
         let result = (self.read_u8()? << 7) | (byte & 0x7F);
         if result >= 0x100 {
             return Err(BinaryReaderError::new(
-                "Invalid var_u8",
+                "invalid var_u8",
                 self.original_position() - 1,
             ));
         }
@@ -663,7 +1012,7 @@ impl<'a> BinaryReader<'a> {
             if shift >= 25 && (byte >> (32 - shift)) != 0 {
                 // The continuation bit or unused bits are set.
                 return Err(BinaryReaderError::new(
-                    "Invalid var_u32",
+                    "invalid var_u32",
                     self.original_position() - 1,
                 ));
             }
@@ -697,7 +1046,7 @@ impl<'a> BinaryReader<'a> {
             if shift >= 57 && (byte >> (64 - shift)) != 0 {
                 // The continuation bit or unused bits are set.
                 return Err(BinaryReaderError::new(
-                    "Invalid var_u64",
+                    "invalid var_u64",
                     self.original_position() - 1,
                 ));
             }
@@ -722,7 +1071,7 @@ impl<'a> BinaryReader<'a> {
             }
         }
         Err(BinaryReaderError::new(
-            "Invalid var_32",
+            "invalid var_32",
             self.original_position() - 1,
         ))
     }
@@ -788,7 +1137,7 @@ impl<'a> BinaryReader<'a> {
                 let sign_and_unused_bit = (byte << 1) as i8 >> (32 - shift);
                 if continuation_bit || (sign_and_unused_bit != 0 && sign_and_unused_bit != -1) {
                     return Err(BinaryReaderError::new(
-                        "Invalid var_i32",
+                        "invalid var_i32",
                         self.original_position() - 1,
                     ));
                 }
@@ -825,7 +1174,7 @@ impl<'a> BinaryReader<'a> {
                 let sign_and_unused_bit = (byte << 1) as i8 >> (33 - shift);
                 if continuation_bit || (sign_and_unused_bit != 0 && sign_and_unused_bit != -1) {
                     return Err(BinaryReaderError::new(
-                        "Invalid var_s33",
+                        "invalid var_s33",
                         self.original_position() - 1,
                     ));
                 }
@@ -856,7 +1205,7 @@ impl<'a> BinaryReader<'a> {
                 let sign_and_unused_bit = ((byte << 1) as i8) >> (64 - shift);
                 if continuation_bit || (sign_and_unused_bit != 0 && sign_and_unused_bit != -1) {
                     return Err(BinaryReaderError::new(
-                        "Invalid var_i64",
+                        "invalid var_i64",
                         self.original_position() - 1,
                     ));
                 }
@@ -1129,7 +1478,7 @@ impl<'a> BinaryReader<'a> {
 
             _ => {
                 return Err(BinaryReaderError::new(
-                    format!("Unknown 0xfe subopcode: 0x{:x}", code),
+                    format!("unknown 0xfe subopcode: 0x{:x}", code),
                     self.original_position() - 1,
                 ));
             }
@@ -1483,7 +1832,7 @@ impl<'a> BinaryReader<'a> {
 
             _ => {
                 return Err(BinaryReaderError::new(
-                    format!("Unknown opcode: 0x{:x}", code),
+                    format!("unknown opcode: 0x{:x}", code),
                     self.original_position() - 1,
                 ));
             }
@@ -1554,7 +1903,7 @@ impl<'a> BinaryReader<'a> {
 
             _ => {
                 return Err(BinaryReaderError::new(
-                    format!("Unknown 0xfc subopcode: 0x{:x}", code),
+                    format!("unknown 0xfc subopcode: 0x{:x}", code),
                     self.original_position() - 1,
                 ));
             }
@@ -1925,29 +2274,22 @@ impl<'a> BinaryReader<'a> {
 
             _ => {
                 return Err(BinaryReaderError::new(
-                    format!("Unknown 0xfd subopcode: 0x{:x}", code),
+                    format!("unknown 0xfd subopcode: 0x{:x}", code),
                     self.original_position() - 1,
                 ));
             }
         })
     }
 
-    pub(crate) fn read_file_header(&mut self) -> Result<u32> {
+    pub(crate) fn read_header_version(&mut self) -> Result<u32> {
         let magic_number = self.read_bytes(4)?;
         if magic_number != WASM_MAGIC_NUMBER {
             return Err(BinaryReaderError::new(
-                "Bad magic number",
+                "bad magic number",
                 self.original_position() - 4,
             ));
         }
-        let version = self.read_u32()?;
-        if version != WASM_SUPPORTED_VERSION && version != WASM_EXPERIMENTAL_VERSION {
-            return Err(BinaryReaderError::new(
-                "Bad version number",
-                self.original_position() - 4,
-            ));
-        }
-        Ok(version)
+        self.read_u32()
     }
 
     pub(crate) fn read_name_type(&mut self) -> Result<NameType> {
@@ -1973,7 +2315,7 @@ impl<'a> BinaryReader<'a> {
             1 => LinkingType::StackPointer(self.read_var_u32()?),
             _ => {
                 return Err(BinaryReaderError::new(
-                    "Invalid linking type",
+                    "invalid linking type",
                     self.original_position() - 1,
                 ));
             }
@@ -1992,7 +2334,7 @@ impl<'a> BinaryReader<'a> {
             6 => Ok(RelocType::TypeIndexLEB),
             7 => Ok(RelocType::GlobalIndexLEB),
             _ => Err(BinaryReaderError::new(
-                "Invalid reloc type",
+                "invalid reloc type",
                 self.original_position() - 1,
             )),
         }

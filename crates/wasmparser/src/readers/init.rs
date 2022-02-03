@@ -13,9 +13,9 @@
  * limitations under the License.
  */
 
-use super::{BinaryReader, OperatorsReader};
+use crate::{BinaryReader, OperatorsReader};
 
-/// Represents a core WebAssembly initialization expression.
+/// Represents an initialization expression.
 #[derive(Debug, Copy, Clone)]
 pub struct InitExpr<'a> {
     offset: usize,

@@ -13,23 +13,24 @@
  * limitations under the License.
  */
 
-use super::{
-    BinaryReader, Range, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
+use crate::{
+    BinaryReader, MemoryType, Range, Result, SectionIteratorLimited, SectionReader,
+    SectionWithLimitedItems,
 };
 
-/// A reader for a core WebAssembly module's function section.
+/// A reader for the memory section of a WebAssembly module.
 #[derive(Clone)]
-pub struct FunctionSectionReader<'a> {
+pub struct MemorySectionReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,
 }
 
-impl<'a> FunctionSectionReader<'a> {
-    /// Constructs a new `FunctionSectionReader` for the given data and offset.
-    pub fn new(data: &'a [u8], offset: usize) -> Result<FunctionSectionReader<'a>> {
+impl<'a> MemorySectionReader<'a> {
+    /// Constructs a new `MemorySectionReader` for the given data and offset.
+    pub fn new(data: &'a [u8], offset: usize) -> Result<MemorySectionReader<'a>> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
-        Ok(FunctionSectionReader { reader, count })
+        Ok(MemorySectionReader { reader, count })
     }
 
     /// Gets the original position of the section reader.
@@ -42,49 +43,48 @@ impl<'a> FunctionSectionReader<'a> {
         self.count
     }
 
-    /// Reads function type index from the function section.
+    /// Reads content of the memory section.
     ///
     /// # Examples
-    ///
     /// ```
-    /// use wasmparser::FunctionSectionReader;
-    /// # let data: &[u8] = &[0x01, 0x00];
-    /// let mut function_reader = FunctionSectionReader::new(data, 0).unwrap();
-    /// for _ in 0..function_reader.get_count() {
-    ///     let ty = function_reader.read().expect("function type index");
-    ///     println!("Function type index: {}", ty);
+    /// use wasmparser::MemorySectionReader;
+    /// # let data: &[u8] = &[0x01, 0x00, 0x02];
+    /// let mut memory_reader = MemorySectionReader::new(data, 0).unwrap();
+    /// for _ in 0..memory_reader.get_count() {
+    ///     let memory = memory_reader.read().expect("memory");
+    ///     println!("Memory: {:?}", memory);
     /// }
     /// ```
-    pub fn read(&mut self) -> Result<u32> {
-        self.reader.read_var_u32()
+    pub fn read(&mut self) -> Result<MemoryType> {
+        self.reader.read_memory_type()
     }
 }
 
-impl<'a> SectionReader for FunctionSectionReader<'a> {
-    type Item = u32;
+impl<'a> SectionReader for MemorySectionReader<'a> {
+    type Item = MemoryType;
     fn read(&mut self) -> Result<Self::Item> {
-        FunctionSectionReader::read(self)
+        MemorySectionReader::read(self)
     }
     fn eof(&self) -> bool {
         self.reader.eof()
     }
     fn original_position(&self) -> usize {
-        FunctionSectionReader::original_position(self)
+        MemorySectionReader::original_position(self)
     }
     fn range(&self) -> Range {
         self.reader.range()
     }
 }
 
-impl<'a> SectionWithLimitedItems for FunctionSectionReader<'a> {
+impl<'a> SectionWithLimitedItems for MemorySectionReader<'a> {
     fn get_count(&self) -> u32 {
-        FunctionSectionReader::get_count(self)
+        MemorySectionReader::get_count(self)
     }
 }
 
-impl<'a> IntoIterator for FunctionSectionReader<'a> {
-    type Item = Result<u32>;
-    type IntoIter = SectionIteratorLimited<FunctionSectionReader<'a>>;
+impl<'a> IntoIterator for MemorySectionReader<'a> {
+    type Item = Result<MemoryType>;
+    type IntoIter = SectionIteratorLimited<MemorySectionReader<'a>>;
 
     fn into_iter(self) -> Self::IntoIter {
         SectionIteratorLimited::new(self)

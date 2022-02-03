@@ -23,8 +23,6 @@ impl Opts {
 
                 TypeSection(s) => printer.section(s, "types"),
                 ImportSection(s) => printer.section(s, "imports"),
-                AliasSection(s) => printer.section(s, "aliases"),
-                InstanceSection(s) => printer.section(s, "instances"),
                 FunctionSection(s) => printer.section(s, "functions"),
                 TableSection(s) => printer.section(s, "tables"),
                 MemorySection(s) => printer.section(s, "memories"),
@@ -35,13 +33,18 @@ impl Opts {
                 ElementSection(s) => printer.section(s, "elements"),
                 DataCountSection { range, .. } => printer.section_raw(range, 1, "data count"),
                 DataSection(s) => printer.section(s, "data"),
-
                 CodeSectionStart { range, count, .. } => printer.section_raw(range, count, "code"),
+                CodeSectionEntry(_) => {}
 
-                ModuleSectionStart { range, count, .. } => {
-                    printer.section_raw(range, count, "modules");
-                    printer.module_code_counts.push((0, count));
-                }
+                ComponentTypeSection(_) => todo!("component-model"),
+                ComponentImportSection(_) => todo!("component-model"),
+                ComponentFunctionSection(_) => todo!("component-model"),
+                ModuleSection { .. } => todo!("component-model"),
+                ComponentSection { .. } => todo!("component-model"),
+                InstanceSection(_) => todo!("component-model"),
+                ComponentExportSection(_) => todo!("component-model"),
+                ComponentStartSection { .. } => todo!("component-model"),
+                AliasSection(_) => todo!("component-model"),
 
                 CustomSection {
                     name,
@@ -57,8 +60,6 @@ impl Opts {
                     &format!("custom {:?}", name),
                 ),
 
-                CodeSectionEntry(_) => {}
-                ModuleSectionEntry { .. } => {}
                 UnknownSection { .. } => {}
 
                 End => printer.end(),

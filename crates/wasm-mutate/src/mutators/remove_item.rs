@@ -161,47 +161,40 @@ impl RemoveItem {
                     for item in ImportSectionReader::new(section.data, 0)? {
                         let item = item?;
                         match &item.ty {
-                            wasmparser::TypeRef::Function(ty) => {
+                            wasmparser::TypeRef::Func(ty) => {
                                 if self.item != Item::Function || self.idx != function {
                                     let ty = self.remap(Item::Type, *ty)?;
-                                    result.import(
-                                        item.module,
-                                        item.field.unwrap(),
-                                        EntityType::Function(ty),
-                                    );
+                                    result.import(item.module, item.name, EntityType::Function(ty));
                                 }
                                 function += 1;
                             }
                             wasmparser::TypeRef::Table(ty) => {
                                 if self.item != Item::Table || self.idx != table {
                                     let ty = self.translate_table_type(ty)?;
-                                    result.import(item.module, item.field.unwrap(), ty);
+                                    result.import(item.module, item.name, ty);
                                 }
                                 table += 1;
                             }
                             wasmparser::TypeRef::Memory(ty) => {
                                 if self.item != Item::Memory || self.idx != memory {
                                     let ty = self.translate_memory_type(ty)?;
-                                    result.import(item.module, item.field.unwrap(), ty);
+                                    result.import(item.module, item.name, ty);
                                 }
                                 memory += 1;
                             }
                             wasmparser::TypeRef::Global(ty) => {
                                 if self.item != Item::Global || self.idx != global {
                                     let ty = self.translate_global_type(ty)?;
-                                    result.import(item.module, item.field.unwrap(), ty);
+                                    result.import(item.module, item.name, ty);
                                 }
                                 global += 1;
                             }
                             wasmparser::TypeRef::Tag(ty) => {
                                 if self.item != Item::Tag || self.idx != tag {
                                     let ty = self.translate_tag_type(ty)?;
-                                    result.import(item.module, item.field.unwrap(), ty);
+                                    result.import(item.module, item.name, ty);
                                 }
                                 tag += 1;
-                            }
-                            wasmparser::TypeRef::Instance(_) | wasmparser::TypeRef::Module(_) => {
-                                return Err(Error::no_mutations_applicable())
                             }
                         }
                     }
@@ -265,7 +258,7 @@ impl RemoveItem {
                     for item in ExportSectionReader::new(section.data, 0)? {
                         let item = item?;
                         let e = match &item.kind {
-                            ExternalKind::Function => {
+                            ExternalKind::Func => {
                                 Export::Function(self.remap(Item::Function, item.index)?)
                             }
                             ExternalKind::Table => {
@@ -278,11 +271,8 @@ impl RemoveItem {
                             ExternalKind::Global => {
                                 Export::Global(self.remap(Item::Global, item.index)?)
                             }
-                            ExternalKind::Type | ExternalKind::Instance | ExternalKind::Module => {
-                                return Err(Error::no_mutations_applicable())
-                            }
                         };
-                        result.export(item.field, e);
+                        result.export(item.name, e);
                     }
                     module.section(&result);
                 }

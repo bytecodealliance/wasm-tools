@@ -49,8 +49,6 @@ pub struct Printer {
 #[derive(Default)]
 struct ModuleState {
     func: u32,
-    module: u32,
-    instance: u32,
     memory: u32,
     tag: u32,
     global: u32,
@@ -67,7 +65,6 @@ struct ModuleState {
     element_names: HashMap<u32, Naming>,
     data_names: HashMap<u32, Naming>,
     module_name: Option<Naming>,
-    implicit_instances_seen: HashSet<String>,
 }
 
 struct Naming {
@@ -144,13 +141,6 @@ impl Printer {
             };
             match payload {
                 Payload::CodeSectionEntry(f) => code.push(f),
-                Payload::ModuleSectionStart { size, .. } => {
-                    pre_parser.skip_section();
-                    bytes = match bytes.get(size as usize..) {
-                        Some(rest) => rest,
-                        None => bail!("unexpected eof reading module section"),
-                    };
-                }
                 Payload::CustomSection {
                     name: "name",
                     data_offset,
@@ -227,17 +217,16 @@ impl Printer {
                 Payload::CodeSectionEntry(_) => unreachable!(),
 
                 Payload::DataSection(s) => self.print_data(s)?,
-                Payload::AliasSection(s) => self.print_aliases(s)?,
-                Payload::InstanceSection(s) => self.print_instances(s)?,
 
-                Payload::ModuleSectionStart { .. } => {}
-                Payload::ModuleSectionEntry { parser, .. } => {
-                    self.newline();
-                    self.start_group("module");
-                    self.print_contents(parser, wasm, &format!(" (;{};)", self.state.module))?;
-                    self.end_group();
-                    self.state.module += 1;
-                }
+                Payload::ComponentTypeSection(_) => todo!("component-model"),
+                Payload::ComponentImportSection(_) => todo!("component-model"),
+                Payload::ComponentFunctionSection(_) => todo!("component-model"),
+                Payload::ModuleSection { .. } => todo!("component-model"),
+                Payload::ComponentSection { .. } => todo!("component-model"),
+                Payload::InstanceSection(_) => todo!("component-model"),
+                Payload::ComponentExportSection(_) => todo!("component-model"),
+                Payload::ComponentStartSection { .. } => todo!("component-model"),
+                Payload::AliasSection(_) => todo!("component-model"),
 
                 // not part of the text format
                 Payload::Version { .. } | Payload::DataCountSection { .. } => {}
@@ -330,35 +319,6 @@ impl Printer {
                     self.print_functype(&ty, None)?;
                     Some(ty)
                 }
-                TypeDef::Module(ty) => {
-                    self.newline();
-                    self.start_group("module");
-                    for import in ty.imports.iter() {
-                        self.print_import(import, false)?;
-                    }
-                    for export in ty.exports.iter() {
-                        self.newline();
-                        self.start_group("export ");
-                        self.print_str(export.name)?;
-                        self.result.push_str(" ");
-                        self.print_import_ty(&export.ty, false)?;
-                        self.end_group();
-                    }
-                    None
-                }
-                TypeDef::Instance(ty) => {
-                    self.newline();
-                    self.start_group("instance");
-                    for export in ty.exports.iter() {
-                        self.newline();
-                        self.start_group("export ");
-                        self.print_str(export.name)?;
-                        self.result.push_str(" ");
-                        self.print_import_ty(&export.ty, false)?;
-                        self.end_group();
-                    }
-                    None
-                }
             };
             self.end_group(); // inner type
             self.end_group(); // `type` itself
@@ -444,24 +404,9 @@ impl Printer {
     fn print_imports(&mut self, parser: ImportSectionReader<'_>) -> Result<()> {
         for import in parser {
             let import = import?;
-
-            // Handle the module linking proposal here where the first time we
-            // see the module-name of a two-level import that translates to an
-            // implicit instance we need to account for in our numbering.
-            if import.field.is_some() {
-                if self
-                    .state
-                    .implicit_instances_seen
-                    .insert(import.module.to_string())
-                {
-                    self.state.instance += 1;
-                }
-            }
             self.print_import(&import, true)?;
             match import.ty {
-                TypeRef::Function(_) => self.state.func += 1,
-                TypeRef::Module(_) => self.state.module += 1,
-                TypeRef::Instance(_) => self.state.instance += 1,
+                TypeRef::Func(_) => self.state.func += 1,
                 TypeRef::Table(_) => self.state.table += 1,
                 TypeRef::Memory(_) => self.state.memory += 1,
                 TypeRef::Tag(_) => self.state.tag += 1,
@@ -475,10 +420,8 @@ impl Printer {
         self.newline();
         self.start_group("import ");
         self.print_str(import.module)?;
-        if let Some(field) = import.field {
-            self.result.push_str(" ");
-            self.print_str(field)?;
-        }
+        self.result.push_str(" ");
+        self.print_str(import.name)?;
         self.result.push_str(" ");
         self.print_import_ty(&import.ty, index)?;
         self.end_group();
@@ -488,25 +431,11 @@ impl Printer {
     fn print_import_ty(&mut self, ty: &TypeRef, index: bool) -> Result<()> {
         use TypeRef::*;
         match ty {
-            Function(f) => {
+            Func(f) => {
                 self.start_group("func");
                 if index {
                     self.result.push_str(" ");
                     self.print_cur_func_name()?;
-                }
-                self.print_type_ref(*f)?;
-            }
-            Module(f) => {
-                self.start_group("module");
-                if index {
-                    write!(self.result, " (;{};)", self.state.module)?;
-                }
-                self.print_type_ref(*f)?;
-            }
-            Instance(f) => {
-                self.start_group("instance");
-                if index {
-                    write!(self.result, " (;{};)", self.state.instance)?;
                 }
                 self.print_type_ref(*f)?;
             }
@@ -1626,7 +1555,7 @@ impl Printer {
             let export = export?;
             self.newline();
             self.start_group("export ");
-            self.print_str(export.field)?;
+            self.print_str(export.name)?;
             self.result.push_str(" ");
             self.print_external(export.kind, export.index)?;
             self.end_group(); // export
@@ -1637,7 +1566,7 @@ impl Printer {
     fn print_external(&mut self, kind: ExternalKind, index: u32) -> Result<()> {
         self.result.push_str("(");
         match kind {
-            ExternalKind::Function => {
+            ExternalKind::Func => {
                 self.result.push_str("func ");
                 self.print_func_idx(index)?;
             }
@@ -1654,12 +1583,6 @@ impl Printer {
                 self.print_memory_idx(index)?;
             }
             ExternalKind::Tag => write!(self.result, "tag {}", index)?,
-            ExternalKind::Module => write!(self.result, "module {}", index)?,
-            ExternalKind::Instance => write!(self.result, "instance {}", index)?,
-            ExternalKind::Type => {
-                self.result.push_str("type ");
-                self.print_type_idx(index)?;
-            }
         }
         self.result.push_str(")");
         Ok(())
@@ -1861,118 +1784,6 @@ impl Printer {
                 }
             }
             self.print_bytes(data.data)?;
-            self.end_group();
-        }
-        Ok(())
-    }
-
-    fn print_instances(&mut self, instances: InstanceSectionReader) -> Result<()> {
-        for instance in instances.into_iter() {
-            let instance = instance?;
-            self.newline();
-            self.start_group("instance");
-            write!(self.result, " (;{};)", self.state.instance)?;
-            self.newline();
-            self.start_group("instantiate");
-            write!(self.result, " {}", instance.module())?;
-            for arg in instance.args()? {
-                let arg = arg?;
-                self.newline();
-                self.start_group("import ");
-                self.print_str(arg.name)?;
-                self.result.push_str(" ");
-                self.print_external(arg.kind, arg.index)?;
-                self.end_group();
-            }
-            self.end_group(); // instantiate
-            self.end_group(); // instance
-            self.state.instance += 1;
-        }
-        Ok(())
-    }
-
-    fn print_aliases(&mut self, aliases: AliasSectionReader) -> Result<()> {
-        for alias in aliases {
-            let alias = alias?;
-            self.newline();
-            self.start_group("alias ");
-            match alias {
-                Alias::InstanceExport {
-                    instance,
-                    kind,
-                    export,
-                } => {
-                    write!(self.result, "{} ", instance)?;
-                    self.print_str(export)?;
-                    self.result.push_str(" ");
-                    match kind {
-                        ExternalKind::Function => self.start_group("func"),
-                        ExternalKind::Table => self.start_group("table"),
-                        ExternalKind::Memory => self.start_group("memory"),
-                        ExternalKind::Tag => self.start_group("tag"),
-                        ExternalKind::Global => self.start_group("global"),
-                        ExternalKind::Instance => self.start_group("instance"),
-                        ExternalKind::Module => self.start_group("module"),
-                        ExternalKind::Type => self.start_group("type"),
-                    }
-                    self.result.push_str(" ");
-                    match kind {
-                        ExternalKind::Function => {
-                            self.print_cur_func_name()?;
-                            self.state.func += 1;
-                        }
-                        ExternalKind::Table => {
-                            self.print_cur_table_name()?;
-                            self.state.table += 1;
-                        }
-                        ExternalKind::Memory => {
-                            self.print_cur_memory_name()?;
-                            self.state.memory += 1;
-                        }
-                        ExternalKind::Tag => {
-                            write!(self.result, "(;{};)", self.state.tag)?;
-                            self.state.tag += 1;
-                        }
-                        ExternalKind::Global => {
-                            self.print_cur_global_name()?;
-                            self.state.global += 1;
-                        }
-                        ExternalKind::Instance => {
-                            write!(self.result, "(;{};)", self.state.instance)?;
-                            self.state.instance += 1;
-                        }
-                        ExternalKind::Module => {
-                            write!(self.result, "(;{};)", self.state.module)?;
-                            self.state.module += 1;
-                        }
-                        ExternalKind::Type => {
-                            self.print_cur_type_name()?;
-                            self.state.types.push(None);
-                        }
-                    }
-                    self.end_group();
-                }
-                Alias::OuterType {
-                    relative_depth,
-                    index,
-                } => {
-                    write!(self.result, "outer {} {} (type ", relative_depth, index)?;
-                    self.print_cur_type_name()?;
-                    self.result.push_str(")");
-                    self.state.types.push(None);
-                }
-                Alias::OuterModule {
-                    relative_depth,
-                    index,
-                } => {
-                    write!(
-                        self.result,
-                        "outer {} {} (module (;{};))",
-                        relative_depth, index, self.state.module,
-                    )?;
-                    self.state.module += 1;
-                }
-            }
             self.end_group();
         }
         Ok(())

@@ -2,7 +2,6 @@
 
 use super::Mutator;
 use crate::{Result, WasmMutate};
-
 use rand::Rng;
 use wasm_encoder::{Export, ExportSection, Module};
 use wasmparser::ExportSectionReader;
@@ -31,17 +30,17 @@ impl Mutator for RemoveExportMutator {
             }
 
             match export.kind {
-                wasmparser::ExternalKind::Function => {
-                    exports.export(export.field, Export::Function(export.index));
+                wasmparser::ExternalKind::Func => {
+                    exports.export(export.name, Export::Function(export.index));
                 }
                 wasmparser::ExternalKind::Table => {
-                    exports.export(export.field, Export::Table(export.index));
+                    exports.export(export.name, Export::Table(export.index));
                 }
                 wasmparser::ExternalKind::Memory => {
-                    exports.export(export.field, Export::Memory(export.index));
+                    exports.export(export.name, Export::Memory(export.index));
                 }
                 wasmparser::ExternalKind::Global => {
-                    exports.export(export.field, Export::Global(export.index));
+                    exports.export(export.name, Export::Global(export.index));
                 }
                 _ => {
                     panic!("Unknown export {:?}", export)

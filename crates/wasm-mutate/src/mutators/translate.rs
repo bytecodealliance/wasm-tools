@@ -117,9 +117,6 @@ pub fn type_def(t: &mut dyn Translator, ty: TypeDef, s: &mut TypeSection) -> Res
             );
             Ok(())
         }
-
-        // Module linking is not supported at this time.
-        TypeDef::Instance(_) | TypeDef::Module(_) => Err(Error::no_mutations_applicable()),
     }
 }
 

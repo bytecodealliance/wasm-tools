@@ -15,33 +15,22 @@
 
 use crate::{
     BinaryReader, Range, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
-    TypeRef,
+    TableType,
 };
 
-/// Represents a core WebAssembly import.
-#[derive(Debug, Copy, Clone)]
-pub struct Import<'a> {
-    /// The module being imported from.
-    pub module: &'a str,
-    /// The name of the imported item.
-    pub field: Option<&'a str>,
-    /// The type of the imported item.
-    pub ty: TypeRef,
-}
-
-/// A reader for a core WebAssembly's import section.
+/// A reader for the table section of a WebAssembly module.
 #[derive(Clone)]
-pub struct ImportSectionReader<'a> {
+pub struct TableSectionReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,
 }
 
-impl<'a> ImportSectionReader<'a> {
-    /// Constructs a new `ImportSectionReader` for the given data and offset.
-    pub fn new(data: &'a [u8], offset: usize) -> Result<ImportSectionReader<'a>> {
+impl<'a> TableSectionReader<'a> {
+    /// Constructs a new `TableSectionReader` for the given data and offset.
+    pub fn new(data: &'a [u8], offset: usize) -> Result<TableSectionReader<'a>> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
-        Ok(ImportSectionReader { reader, count })
+        Ok(TableSectionReader { reader, count })
     }
 
     /// Gets the original position of the section reader.
@@ -54,51 +43,49 @@ impl<'a> ImportSectionReader<'a> {
         self.count
     }
 
-    /// Reads content of the import section.
+    /// Reads content of the table section.
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::ImportSectionReader;
-    /// # let data: &[u8] = &[0x01, 0x01, 0x41, 0x01, 0x66, 0x00, 0x00];
-    /// let mut import_reader = ImportSectionReader::new(data, 0).unwrap();
-    /// for _ in 0..import_reader.get_count() {
-    ///     let import = import_reader.read().expect("import");
-    ///     println!("Import: {:?}", import);
+    /// use wasmparser::TableSectionReader;
+    ///
+    /// # let data: &[u8] = &[0x01, 0x70, 0x01, 0x01, 0x01];
+    /// let mut table_reader = TableSectionReader::new(data, 0).unwrap();
+    /// for _ in 0..table_reader.get_count() {
+    ///     let table = table_reader.read().expect("table");
+    ///     println!("Table: {:?}", table);
     /// }
     /// ```
-    pub fn read<'b>(&mut self) -> Result<Import<'b>>
-    where
-        'a: 'b,
-    {
-        self.reader.read_import()
+    pub fn read(&mut self) -> Result<TableType> {
+        self.reader.read_table_type()
     }
 }
 
-impl<'a> SectionReader for ImportSectionReader<'a> {
-    type Item = Import<'a>;
+impl<'a> SectionReader for TableSectionReader<'a> {
+    type Item = TableType;
     fn read(&mut self) -> Result<Self::Item> {
-        ImportSectionReader::read(self)
+        TableSectionReader::read(self)
     }
     fn eof(&self) -> bool {
         self.reader.eof()
     }
     fn original_position(&self) -> usize {
-        ImportSectionReader::original_position(self)
+        TableSectionReader::original_position(self)
     }
     fn range(&self) -> Range {
         self.reader.range()
     }
 }
 
-impl<'a> SectionWithLimitedItems for ImportSectionReader<'a> {
+impl<'a> SectionWithLimitedItems for TableSectionReader<'a> {
     fn get_count(&self) -> u32 {
-        ImportSectionReader::get_count(self)
+        TableSectionReader::get_count(self)
     }
 }
 
-impl<'a> IntoIterator for ImportSectionReader<'a> {
-    type Item = Result<Import<'a>>;
-    type IntoIter = SectionIteratorLimited<ImportSectionReader<'a>>;
+impl<'a> IntoIterator for TableSectionReader<'a> {
+    type Item = Result<TableType>;
+    type IntoIter = SectionIteratorLimited<TableSectionReader<'a>>;
 
     fn into_iter(self) -> Self::IntoIter {
         SectionIteratorLimited::new(self)

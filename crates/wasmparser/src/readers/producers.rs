@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-use super::{
+use crate::{
     BinaryReader, Range, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
 };
 
@@ -122,7 +122,7 @@ impl<'a> ProducersField<'a> {
     }
 }
 
-/// A reader for the producers custom section.
+/// A reader for the producers custom section of a WebAssembly module.
 pub struct ProducersSectionReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,

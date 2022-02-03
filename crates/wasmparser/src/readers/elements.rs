@@ -13,11 +13,10 @@
  * limitations under the License.
  */
 
-use super::{
-    BinaryReader, BinaryReaderError, InitExpr, Range, Result, SectionIteratorLimited,
+use crate::{
+    BinaryReader, BinaryReaderError, ExternalKind, InitExpr, Range, Result, SectionIteratorLimited,
     SectionReader, SectionWithLimitedItems, Type,
 };
-use crate::ExternalKind;
 
 /// Represents a core WebAssembly element segment.
 #[derive(Clone)]
@@ -158,7 +157,7 @@ impl<'a> Iterator for ElementItemsIterator<'a> {
     }
 }
 
-/// A reader for a core WebAssembly module's element section.
+/// A reader for the element section of a WebAssembly module.
 #[derive(Clone)]
 pub struct ElementSectionReader<'a> {
     reader: BinaryReader<'a>,
@@ -247,7 +246,7 @@ impl<'a> ElementSectionReader<'a> {
                 self.reader.read_type()?
             } else {
                 match self.reader.read_external_kind()? {
-                    ExternalKind::Function => Type::FuncRef,
+                    ExternalKind::Func => Type::FuncRef,
                     _ => {
                         return Err(BinaryReaderError::new(
                             "only the function external type is supported in elem segment",

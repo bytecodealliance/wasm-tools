@@ -13,12 +13,82 @@
  * limitations under the License.
  */
 
-use super::{
-    BinaryReader, Range, RelocType, Result, SectionCode, SectionIteratorLimited, SectionReader,
-    SectionWithLimitedItems,
+use crate::{
+    BinaryReader, Range, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
 };
 
-/// Represnts a relocation entry.
+/// Represents a relocation type.
+#[derive(Debug, Copy, Clone)]
+#[allow(missing_docs)]
+pub enum RelocType {
+    FunctionIndexLEB,
+    TableIndexSLEB,
+    TableIndexI32,
+    GlobalAddrLEB,
+    GlobalAddrSLEB,
+    GlobalAddrI32,
+    TypeIndexLEB,
+    GlobalIndexLEB,
+}
+
+/// Represents known custom section kinds.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum CustomSectionKind {
+    /// The custom section is not known.
+    Unknown,
+    /// The name custom section.
+    Name,
+    /// The producers custom section.
+    Producers,
+    /// The source mapping URL custom section.
+    SourceMappingURL,
+    /// The reloc custom section.
+    Reloc,
+    /// The linking custom section.
+    Linking,
+}
+
+/// Section code as defined [here].
+///
+/// [here]: https://webassembly.github.io/spec/core/binary/modules.html#sections
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum SectionCode<'a> {
+    /// The custom section.
+    Custom {
+        /// The name of the custom section.
+        name: &'a str,
+        /// The kind of the custom section.
+        kind: CustomSectionKind,
+    },
+    /// The type section.
+    Type,
+    /// The import section.
+    Import,
+    /// The function section.
+    Function,
+    /// The table section.
+    Table,
+    /// The memory section.
+    Memory,
+    /// The global section.
+    Global,
+    /// The export section.
+    Export,
+    /// The start section.
+    Start,
+    /// The element section.
+    Element,
+    /// The code section.
+    Code,
+    /// The data section.
+    Data,
+    /// The passive data count section.
+    DataCount,
+    /// The tag section.
+    Tag,
+}
+
+/// Represents a relocation entry.
 #[derive(Debug, Copy, Clone)]
 pub struct Reloc {
     /// The relocation type.
@@ -31,7 +101,7 @@ pub struct Reloc {
     pub addend: Option<u32>,
 }
 
-/// A reader for the relocations custom section.
+/// A reader for the relocations custom section of a WebAssembly module.
 pub struct RelocSectionReader<'a> {
     reader: BinaryReader<'a>,
     section_code: SectionCode<'a>,

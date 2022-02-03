@@ -313,7 +313,7 @@ impl WasmShrink {
             reference_types: true,
             multi_value: true,
             bulk_memory: true,
-            module_linking: false,
+            component_model: false,
             simd: true,
             threads: true,
             tail_call: true,

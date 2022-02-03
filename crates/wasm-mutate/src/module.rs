@@ -41,10 +41,10 @@ impl From<Type> for PrimitiveTypeInfo {
     }
 }
 
-impl TryFrom<TypeDef<'_>> for TypeInfo {
+impl TryFrom<TypeDef> for TypeInfo {
     type Error = Error;
 
-    fn try_from(value: TypeDef<'_>) -> Result<Self> {
+    fn try_from(value: TypeDef) -> Result<Self> {
         match value {
             TypeDef::Func(ft) => Ok(TypeInfo::Func(FuncInfo {
                 params: ft
@@ -58,7 +58,6 @@ impl TryFrom<TypeDef<'_>> for TypeInfo {
                     .map(|&t| PrimitiveTypeInfo::from(t))
                     .collect(),
             })),
-            _ => Err(Error::unsupported(format!("{:?}", value))),
         }
     }
 }

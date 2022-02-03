@@ -13,12 +13,12 @@
  * limitations under the License.
  */
 
-use super::{
+use crate::{
     BinaryReader, Range, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
     TagType,
 };
 
-/// A reader for the core WebAssembly tag section (exception handling proposal).
+/// A reader for the tags section of a WebAssembly module.
 #[derive(Clone)]
 pub struct TagSectionReader<'a> {
     reader: BinaryReader<'a>,

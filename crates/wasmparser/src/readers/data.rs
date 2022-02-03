@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-use super::{
+use crate::{
     BinaryReader, BinaryReaderError, InitExpr, Range, Result, SectionIteratorLimited,
     SectionReader, SectionWithLimitedItems,
 };
@@ -43,7 +43,7 @@ pub enum DataKind<'a> {
     },
 }
 
-/// A reader for a core WebAssembly module's data section.
+/// A reader for the data section of a WebAssembly module.
 #[derive(Clone)]
 pub struct DataSectionReader<'a> {
     reader: BinaryReader<'a>,
@@ -81,7 +81,7 @@ impl<'a> DataSectionReader<'a> {
     fn verify_data_end(&self, end: usize) -> Result<()> {
         if self.reader.buffer.len() < end {
             return Err(BinaryReaderError::new(
-                "Data segment extends past end of the data section",
+                "data segment extends past end of the data section",
                 self.reader.original_offset + self.reader.buffer.len(),
             ));
         }

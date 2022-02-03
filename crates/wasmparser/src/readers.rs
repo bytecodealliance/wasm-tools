@@ -13,51 +13,173 @@
  * limitations under the License.
  */
 
-use super::{
-    BinaryReader, BinaryReaderError, ExternalKind, GlobalType, LinkingType, MemoryType, NameType,
-    Naming, Operator, Range, RelocType, Result, SectionCode, TableType, TagType, Type,
-};
+use crate::{BinaryReaderError, Range, Result};
 
-pub use self::alias_section::*;
-pub use self::code_section::*;
-pub use self::data_section::*;
-pub use self::element_section::*;
-pub use self::export_section::*;
-pub use self::function_section::*;
-pub use self::global_section::*;
-pub use self::import_section::*;
-pub use self::init_expr::*;
-pub use self::instance_section::*;
-pub use self::linking_section::*;
-pub use self::memory_section::*;
-pub use self::module_section::*;
-pub use self::name_section::*;
+pub use self::aliases::*;
+pub use self::code::*;
+pub use self::data::*;
+pub use self::elements::*;
+pub use self::exports::*;
+pub use self::functions::*;
+pub use self::globals::*;
+pub use self::imports::*;
+pub use self::init::*;
+pub use self::instances::*;
+pub use self::linking::*;
+pub use self::memories::*;
+pub use self::names::*;
 pub use self::operators::*;
-pub use self::producers_section::*;
-pub use self::reloc_section::*;
-pub use self::section_reader::*;
-pub use self::table_section::*;
-pub use self::tag_section::*;
-pub use self::type_section::*;
+pub use self::producers::*;
+pub use self::relocs::*;
+pub use self::tables::*;
+pub use self::tags::*;
+pub use self::types::*;
 
-mod alias_section;
-mod code_section;
-mod data_section;
-mod element_section;
-mod export_section;
-mod function_section;
-mod global_section;
-mod import_section;
-mod init_expr;
-mod instance_section;
-mod linking_section;
-mod memory_section;
-mod module_section;
-mod name_section;
+mod aliases;
+mod code;
+mod data;
+mod elements;
+mod exports;
+mod functions;
+mod globals;
+mod imports;
+mod init;
+mod instances;
+mod linking;
+mod memories;
+mod names;
 mod operators;
-mod producers_section;
-mod reloc_section;
-mod section_reader;
-mod table_section;
-mod tag_section;
-mod type_section;
+mod producers;
+mod relocs;
+mod tables;
+mod tags;
+mod types;
+
+/// A trait implemented by section readers.
+pub trait SectionReader {
+    /// The item returned by the reader.
+    type Item;
+
+    /// Reads an item from the section.
+    fn read(&mut self) -> Result<Self::Item>;
+
+    /// Determines if the reader is at end-of-section.
+    fn eof(&self) -> bool;
+
+    /// Gets the original position of the reader.
+    fn original_position(&self) -> usize;
+
+    /// Gets the range of the reader.
+    fn range(&self) -> Range;
+
+    /// Ensures the reader is at the end of the section.
+    ///
+    /// This methods returns an error if there is more data in the section
+    /// than what is described by the section's header.
+    fn ensure_end(&self) -> Result<()> {
+        if self.eof() {
+            return Ok(());
+        }
+        Err(BinaryReaderError::new(
+            "unexpected data at the end of the section",
+            self.original_position(),
+        ))
+    }
+}
+
+/// Implemented by sections with a limited number of items.
+pub trait SectionWithLimitedItems {
+    /// Gets the count of the items in the section.
+    fn get_count(&self) -> u32;
+}
+
+/// An iterator over items in a section.
+pub struct SectionIterator<R>
+where
+    R: SectionReader,
+{
+    reader: R,
+    err: bool,
+}
+
+impl<R> SectionIterator<R>
+where
+    R: SectionReader,
+{
+    /// Constructs a new `SectionIterator` for the given section reader.
+    pub fn new(reader: R) -> SectionIterator<R> {
+        SectionIterator { reader, err: false }
+    }
+}
+
+impl<R> Iterator for SectionIterator<R>
+where
+    R: SectionReader,
+{
+    type Item = Result<R::Item>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.err || self.reader.eof() {
+            return None;
+        }
+        let result = self.reader.read();
+        self.err = result.is_err();
+        Some(result)
+    }
+}
+
+/// An iterator over a limited section iterator.
+pub struct SectionIteratorLimited<R>
+where
+    R: SectionReader + SectionWithLimitedItems,
+{
+    reader: R,
+    left: u32,
+    end: bool,
+}
+
+impl<R> SectionIteratorLimited<R>
+where
+    R: SectionReader + SectionWithLimitedItems,
+{
+    /// Constructs a new `SectionIteratorLimited` for the given limited section reader.
+    pub fn new(reader: R) -> SectionIteratorLimited<R> {
+        let left = reader.get_count();
+        SectionIteratorLimited {
+            reader,
+            left,
+            end: false,
+        }
+    }
+}
+
+impl<R> Iterator for SectionIteratorLimited<R>
+where
+    R: SectionReader + SectionWithLimitedItems,
+{
+    type Item = Result<R::Item>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.end {
+            return None;
+        }
+        if self.left == 0 {
+            return match self.reader.ensure_end() {
+                Ok(()) => None,
+                Err(err) => {
+                    self.end = true;
+                    Some(Err(err))
+                }
+            };
+        }
+        let result = self.reader.read();
+        self.end = result.is_err();
+        self.left -= 1;
+        Some(result)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let count = self.reader.get_count() as usize;
+        (count, Some(count))
+    }
+}

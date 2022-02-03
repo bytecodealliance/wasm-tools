@@ -13,10 +13,43 @@
  * limitations under the License.
  */
 
-use super::{
-    BinaryReader, BinaryReaderError, NameType, Naming, Range, Result, SectionIterator,
-    SectionReader,
-};
+use crate::{BinaryReader, BinaryReaderError, Range, Result, SectionIterator, SectionReader};
+
+/// Represents a name for an index from the names section.
+#[derive(Debug, Copy, Clone)]
+pub struct Naming<'a> {
+    /// The index being named.
+    pub index: u32,
+    /// The name for the index.
+    pub name: &'a str,
+}
+
+/// Represents the type of name.
+#[derive(Debug, Copy, Clone)]
+pub enum NameType {
+    /// The name is for a module.
+    Module,
+    /// The name is for a function.
+    Function,
+    /// The name is for a local.
+    Local,
+    /// The name is for a label.
+    Label,
+    /// The name is for a type.
+    Type,
+    /// The name is for a table.
+    Table,
+    /// The name is for a memory.
+    Memory,
+    /// The name is for a global.
+    Global,
+    /// The name is for an element segment.
+    Element,
+    /// The name is for a data segment.
+    Data,
+    /// The name is unknown.
+    Unknown(u32),
+}
 
 /// Represents a single name in the names custom section.
 #[derive(Debug, Copy, Clone)]
@@ -227,7 +260,7 @@ pub enum Name<'a> {
     },
 }
 
-/// A reader for the core WebAssembly name section.
+/// A reader for the name custom section of a WebAssembly module.
 pub struct NameSectionReader<'a> {
     reader: BinaryReader<'a>,
 }
@@ -243,7 +276,7 @@ impl<'a> NameSectionReader<'a> {
     fn verify_section_end(&self, end: usize) -> Result<()> {
         if self.reader.buffer.len() < end {
             return Err(BinaryReaderError::new(
-                "Name entry extends past end of the code section",
+                "name entry extends past end of the code section",
                 self.reader.original_offset + self.reader.buffer.len(),
             ));
         }

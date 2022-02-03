@@ -13,12 +13,18 @@
  * limitations under the License.
  */
 
-use super::{
-    BinaryReader, LinkingType, Range, Result, SectionIteratorLimited, SectionReader,
-    SectionWithLimitedItems,
+use crate::{
+    BinaryReader, Range, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
 };
 
-/// Represents a reader for a linking custom section.
+/// Represents a linking type.
+#[derive(Debug, Copy, Clone)]
+pub enum LinkingType {
+    /// The linking uses a stack pointer.
+    StackPointer(u32),
+}
+
+/// A reader for the linking custom section of a WebAssembly module.
 pub struct LinkingSectionReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,

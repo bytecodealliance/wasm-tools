@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-use super::{
+use crate::{
     BinaryReader, BinaryReaderError, OperatorsReader, Range, Result, SectionIteratorLimited,
     SectionReader, SectionWithLimitedItems, Type,
 };
@@ -154,7 +154,7 @@ impl<'a> Iterator for LocalsIterator<'a> {
     }
 }
 
-/// A reader for a core WebAssembly module's code section.
+/// A reader for the code section of a WebAssembly module.
 pub struct CodeSectionReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,
@@ -181,7 +181,7 @@ impl<'a> CodeSectionReader<'a> {
     fn verify_body_end(&self, end: usize) -> Result<()> {
         if self.reader.buffer.len() < end {
             return Err(BinaryReaderError::new(
-                "Function body extends past end of the code section",
+                "function body extends past end of the code section",
                 self.reader.original_offset + self.reader.buffer.len(),
             ));
         }

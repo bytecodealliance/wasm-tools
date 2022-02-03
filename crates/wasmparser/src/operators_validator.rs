@@ -22,9 +22,10 @@
 // confusing it's recomended to read over that section to see how it maps to
 // the various methods here.
 
-use crate::limits::MAX_WASM_FUNCTION_LOCALS;
-use crate::primitives::{BlockType, MemoryImmediate, Operator, SIMDLaneIndex, Type};
-use crate::{BinaryReaderError, Result, WasmFeatures, WasmFuncType, WasmModuleResources};
+use crate::{
+    limits::MAX_WASM_FUNCTION_LOCALS, BinaryReaderError, BlockType, MemoryImmediate, Operator,
+    Result, SIMDLaneIndex, Type, WasmFeatures, WasmFuncType, WasmModuleResources,
+};
 
 /// A wrapper around a `BinaryReaderError` where the inner error's offset is a
 /// temporary placeholder value. This can be converted into a proper

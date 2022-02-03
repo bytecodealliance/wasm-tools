@@ -104,7 +104,7 @@ impl<'a> ModuleInfo<'a> {
                     for _ in 0..reader.get_count() {
                         let ty = reader.read()?;
                         match ty.ty {
-                            wasmparser::TypeRef::Function(ty) => {
+                            wasmparser::TypeRef::Func(ty) => {
                                 // Save imported functions
                                 info.function_map.push(ty);
                                 info.imported_functions_count += 1;
@@ -126,9 +126,6 @@ impl<'a> ModuleInfo<'a> {
                             wasmparser::TypeRef::Tag(_ty) => {
                                 info.tag_count += 1;
                                 info.imported_tags_count += 1;
-                            }
-                            _ => {
-                                // Do nothing
                             }
                         }
                     }
@@ -176,7 +173,7 @@ impl<'a> ModuleInfo<'a> {
 
                     for _ in 0..reader.get_count() {
                         let entry = reader.read()?;
-                        info.export_names.insert(entry.field.into());
+                        info.export_names.insert(entry.name.into());
                     }
 
                     info.section(SectionId::Export.into(), reader.range(), input_wasm);
