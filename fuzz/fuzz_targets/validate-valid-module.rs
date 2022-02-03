@@ -14,7 +14,7 @@ fuzz_target!(|m: &[u8]| {
     // validation.
     let mut validator = wasmparser::Validator::new();
     validator.wasm_features(wasmparser::WasmFeatures {
-        multi_value: true,
+        multi_value: config.multi_value_enabled,
         multi_memory: config.max_memories > 1,
         bulk_memory: true,
         reference_types: true,

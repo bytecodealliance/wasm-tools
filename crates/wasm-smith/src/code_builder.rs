@@ -806,13 +806,13 @@ impl CodeBuilder<'_> {
             Box::new(|_| Ok(BlockType::Empty)),
             Box::new(|u| Ok(BlockType::Result(module.arbitrary_valtype(u)?))),
         ];
-
-        for (i, ty) in module.func_types() {
-            if self.types_on_stack(&ty.params) {
-                options.push(Box::new(move |_| Ok(BlockType::FunctionType(i as u32))));
+        if module.config.multi_value_enabled() {
+            for (i, ty) in module.func_types() {
+                if self.types_on_stack(&ty.params) {
+                    options.push(Box::new(move |_| Ok(BlockType::FunctionType(i as u32))));
+                }
             }
         }
-
         let f = u.choose(&options)?;
         f(u)
     }
