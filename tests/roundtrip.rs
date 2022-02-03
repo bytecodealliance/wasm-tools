@@ -566,6 +566,7 @@ impl TestState {
                     features = WasmFeatures::default();
                     features.simd = false;
                     features.reference_types = false;
+                    features.multi_value = false;
                 }
                 "threads" => {
                     features.threads = true;
