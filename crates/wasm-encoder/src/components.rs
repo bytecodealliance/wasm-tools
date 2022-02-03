@@ -1,23 +1,23 @@
-use crate::{encoders, ComponentSection, ComponentSectionId, Module};
+use crate::{encoders, Component, ComponentSection, ComponentSectionId};
 
-/// An encoder for the module section of WebAssembly components.
+/// An encoder for the component section of WebAssembly components.
 ///
 /// # Example
 ///
 /// ```rust
-/// use wasm_encoder::{Module, Component, ModuleSection};
+/// use wasm_encoder::{Component, NestedComponentSection};
 ///
 /// let mut component = Component::new();
-/// component.section(&ModuleSection(Module::new()));
+/// component.section(&NestedComponentSection(Component::new()));
 ///
 /// let bytes = component.finish();
 /// ```
 #[derive(Clone, Debug, Default)]
-pub struct ModuleSection(pub Module);
+pub struct NestedComponentSection(pub Component);
 
-impl ComponentSection for ModuleSection {
+impl ComponentSection for NestedComponentSection {
     fn id(&self) -> u8 {
-        ComponentSectionId::Module.into()
+        ComponentSectionId::Component.into()
     }
 
     fn encode<S>(&self, sink: &mut S)

@@ -60,9 +60,7 @@ fn smoke_test_swarm_config() {
             let wasm_bytes = module.to_bytes();
 
             let mut validator = Validator::new();
-            let mut features = wasm_features();
-            features.module_linking = module.config().module_linking_enabled();
-            validator.wasm_features(features);
+            validator.wasm_features(wasm_features());
             validate(&mut validator, &wasm_bytes);
         }
     }

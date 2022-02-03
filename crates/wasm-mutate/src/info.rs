@@ -204,9 +204,6 @@ impl<'a> ModuleInfo<'a> {
                 } => {
                     info.section(SectionId::Custom.into(), range, input_wasm);
                 }
-                Payload::AliasSection(reader) => {
-                    info.section(SectionId::Alias.into(), reader.range(), input_wasm);
-                }
                 Payload::UnknownSection {
                     id,
                     contents: _,

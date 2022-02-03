@@ -2,6 +2,8 @@ use super::*;
 
 /// An encoder for the table section.
 ///
+/// Table sections are only supported for modules.
+///
 /// # Example
 ///
 /// ```
@@ -31,7 +33,7 @@ impl TableSection {
         Self::default()
     }
 
-    /// How many tables have been defined inside this section so far?
+    /// The number of tables in the section.
     pub fn len(&self) -> u32 {
         self.num_added
     }

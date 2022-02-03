@@ -2,6 +2,8 @@ use super::*;
 
 /// An encoder for the memory section.
 ///
+/// Memory sections are only supported for modules.
+///
 /// # Example
 ///
 /// ```
@@ -31,7 +33,7 @@ impl MemorySection {
         Self::default()
     }
 
-    /// How many memories have been defined inside this section so far?
+    /// The number of memories in the section.
     pub fn len(&self) -> u32 {
         self.num_added
     }

@@ -31,9 +31,6 @@ impl Module {
             match init {
                 InitialSection::Type(types) => self.encode_types(module, types),
                 InitialSection::Import(imports) => self.encode_imports(module, imports),
-                InitialSection::Alias(aliases) => self.encode_aliases(module, aliases),
-                InitialSection::Instance(list) => self.encode_instances(module, list),
-                InitialSection::Module(list) => self.encode_modules(module, list),
             }
         }
     }
@@ -45,24 +42,6 @@ impl Module {
                 Type::Func(ty) => {
                     section.function(ty.params.iter().cloned(), ty.results.iter().cloned());
                 }
-                Type::Module(ty) => {
-                    section.module(
-                        ty.imports.iter().map(|(module, name, ty)| {
-                            (module.as_str(), name.as_deref(), translate_entity_type(ty))
-                        }),
-                        ty.exports
-                            .exports
-                            .iter()
-                            .map(|(name, ty)| (name.as_str(), translate_entity_type(ty))),
-                    );
-                }
-                Type::Instance(ty) => {
-                    section.instance(
-                        ty.exports
-                            .iter()
-                            .map(|(name, ty)| (name.as_str(), translate_entity_type(ty))),
-                    );
-                }
             }
         }
         module.section(&section);
@@ -71,56 +50,11 @@ impl Module {
     fn encode_imports(
         &self,
         module: &mut wasm_encoder::Module,
-        imports: &[(String, Option<String>, EntityType)],
+        imports: &[(String, String, EntityType)],
     ) {
         let mut section = wasm_encoder::ImportSection::new();
         for (module, name, ty) in imports {
-            section.import(module, name.as_deref(), translate_entity_type(ty));
-        }
-        module.section(&section);
-    }
-
-    fn encode_aliases(&self, module: &mut wasm_encoder::Module, imports: &[Alias]) {
-        let mut section = wasm_encoder::AliasSection::new();
-        for alias in imports {
-            match alias {
-                Alias::InstanceExport {
-                    instance,
-                    kind,
-                    name,
-                } => {
-                    section.instance_export(*instance, *kind, name);
-                }
-                Alias::OuterType { depth, index } => {
-                    section.outer_type(*depth, *index);
-                }
-                Alias::OuterModule { depth, index } => {
-                    section.outer_module(*depth, *index);
-                }
-            }
-        }
-        module.section(&section);
-    }
-
-    fn encode_instances(&self, module: &mut wasm_encoder::Module, list: &[Instance]) {
-        let mut section = wasm_encoder::InstanceSection::new();
-        for instance in list {
-            section.instantiate(
-                instance.module,
-                instance
-                    .args
-                    .iter()
-                    .map(|(name, export)| (name.as_str(), *export)),
-            );
-        }
-        module.section(&section);
-    }
-
-    fn encode_modules(&self, module: &mut wasm_encoder::Module, list: &[Self]) {
-        let mut section = wasm_encoder::ModuleSection::new();
-        for module in list {
-            let encoded = module.encoded();
-            section.module(&encoded);
+            section.import(module, &name, translate_entity_type(ty));
         }
         module.section(&section);
     }
@@ -302,8 +236,6 @@ fn translate_entity_type(ty: &EntityType) -> wasm_encoder::EntityType {
             func_type_idx: t.func_type_idx,
         }),
         EntityType::Func(f, _) => wasm_encoder::EntityType::Function(*f),
-        EntityType::Instance(i, _) => wasm_encoder::EntityType::Instance(*i),
-        EntityType::Module(i, _) => wasm_encoder::EntityType::Module(*i),
         EntityType::Table(ty) => (*ty).into(),
         EntityType::Memory(m) => (*m).into(),
         EntityType::Global(g) => (*g).into(),

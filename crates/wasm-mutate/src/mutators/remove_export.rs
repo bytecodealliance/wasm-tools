@@ -43,12 +43,6 @@ impl Mutator for RemoveExportMutator {
                 wasmparser::ExternalKind::Global => {
                     exports.export(export.field, Export::Global(export.index));
                 }
-                wasmparser::ExternalKind::Module => {
-                    exports.export(export.field, Export::Module(export.index));
-                }
-                wasmparser::ExternalKind::Instance => {
-                    exports.export(export.field, Export::Instance(export.index));
-                }
                 _ => {
                     panic!("Unknown export {:?}", export)
                 }

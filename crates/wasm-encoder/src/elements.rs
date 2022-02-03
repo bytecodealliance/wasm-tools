@@ -2,6 +2,8 @@ use super::*;
 
 /// An encoder for the element section.
 ///
+/// Element sections are only supported for modules.
+///
 /// # Example
 ///
 /// ```
@@ -97,7 +99,7 @@ impl ElementSection {
         Self::default()
     }
 
-    /// How many segments have been defined inside this section so far?
+    /// The number of element segments in the section.
     pub fn len(&self) -> u32 {
         self.num_added
     }

@@ -121,9 +121,6 @@ impl RemoveItem {
         const DATA: u8 = SectionId::Data as u8;
         const DATACOUNT: u8 = SectionId::DataCount as u8;
         const TAG: u8 = SectionId::Tag as u8;
-        const MODULE: u8 = SectionId::Module as u8;
-        const INSTANCE: u8 = SectionId::Instance as u8;
-        const ALIAS: u8 = SectionId::Alias as u8;
 
         // This is the main workhorse loop of the module translation. This will
         // iterate over the original wasm sections, raw, and create the new
@@ -150,7 +147,7 @@ impl RemoveItem {
                 // `filter_out` helper can't be used and we have to process
                 // everything manually here.
                 IMPORT => {
-                    let mut result = ImportSection::default();
+                    let mut result = ImportSection::new();
                     let mut function = 0;
                     let mut global = 0;
                     let mut table = 0;
@@ -164,7 +161,7 @@ impl RemoveItem {
                                     let ty = self.remap(Item::Type, *ty)?;
                                     result.import(
                                         item.module,
-                                        item.field,
+                                        item.field.unwrap(),
                                         EntityType::Function(ty),
                                     );
                                 }
@@ -173,28 +170,28 @@ impl RemoveItem {
                             ImportSectionEntryType::Table(ty) => {
                                 if self.item != Item::Table || self.idx != table {
                                     let ty = self.translate_table_type(ty)?;
-                                    result.import(item.module, item.field, ty);
+                                    result.import(item.module, item.field.unwrap(), ty);
                                 }
                                 table += 1;
                             }
                             ImportSectionEntryType::Memory(ty) => {
                                 if self.item != Item::Memory || self.idx != memory {
                                     let ty = self.translate_memory_type(ty)?;
-                                    result.import(item.module, item.field, ty);
+                                    result.import(item.module, item.field.unwrap(), ty);
                                 }
                                 memory += 1;
                             }
                             ImportSectionEntryType::Global(ty) => {
                                 if self.item != Item::Global || self.idx != global {
                                     let ty = self.translate_global_type(ty)?;
-                                    result.import(item.module, item.field, ty);
+                                    result.import(item.module, item.field.unwrap(), ty);
                                 }
                                 global += 1;
                             }
                             ImportSectionEntryType::Tag(ty) => {
                                 if self.item != Item::Tag || self.idx != tag {
                                     let ty = self.translate_tag_type(ty)?;
-                                    result.import(item.module, item.field, ty);
+                                    result.import(item.module, item.field.unwrap(), ty);
                                 }
                                 tag += 1;
                             }
@@ -262,7 +259,7 @@ impl RemoveItem {
                 EXPORT => {
                     use wasm_encoder::Export;
 
-                    let mut result = ExportSection::default();
+                    let mut result = ExportSection::new();
                     for item in ExportSectionReader::new(section.data, 0)? {
                         let item = item?;
                         let e = match &item.kind {
@@ -356,9 +353,6 @@ impl RemoveItem {
                         },
                     )?;
                 }
-
-                // Module linking is not supported at this time.
-                MODULE | INSTANCE | ALIAS => return Err(Error::no_mutations_applicable()),
 
                 id => panic!("unknown id: {}", id),
             }

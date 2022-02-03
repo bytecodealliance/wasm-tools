@@ -3,6 +3,8 @@ use std::borrow::Cow;
 
 /// An encoder for the code section.
 ///
+/// Code sections are only supported for modules.
+///
 /// # Example
 ///
 /// ```
@@ -44,7 +46,7 @@ impl CodeSection {
         Self::default()
     }
 
-    /// How many function bodies have been defined inside this section so far?
+    /// The number of functions in the section.
     pub fn len(&self) -> u32 {
         self.num_added
     }

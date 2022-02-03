@@ -1,17 +1,16 @@
-use super::*;
-use std::convert::TryFrom;
+use crate::{encoders, ComponentSection, ComponentSectionId, EntityType, Section, SectionId};
 
-/// An encoder for the import section.
+/// An encoder for the import section of WebAssembly modules.
 ///
 /// # Example
 ///
-/// ```
-/// use wasm_encoder::{Module, ImportSection, MemoryType};
+/// ```rust
+/// use wasm_encoder::{MemoryType, Module, ImportSection};
 ///
 /// let mut imports = ImportSection::new();
 /// imports.import(
 ///     "env",
-///     Some("memory"),
+///     "memory",
 ///     MemoryType {
 ///         minimum: 1,
 ///         maximum: None,
@@ -22,21 +21,21 @@ use std::convert::TryFrom;
 /// let mut module = Module::new();
 /// module.section(&imports);
 ///
-/// let wasm_bytes = module.finish();
+/// let bytes = module.finish();
 /// ```
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct ImportSection {
     bytes: Vec<u8>,
     num_added: u32,
 }
 
 impl ImportSection {
-    /// Construct a new import section encoder.
+    /// Create a new import section encoder.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// How many imports have been defined inside this section so far?
+    /// The number of imports in the section.
     pub fn len(&self) -> u32 {
         self.num_added
     }
@@ -46,21 +45,10 @@ impl ImportSection {
         self.num_added == 0
     }
 
-    /// Define an import.
-    pub fn import(
-        &mut self,
-        module: &str,
-        name: Option<&str>,
-        ty: impl Into<EntityType>,
-    ) -> &mut Self {
+    /// Define an import in the import section.
+    pub fn import(&mut self, module: &str, field: &str, ty: impl Into<EntityType>) -> &mut Self {
         self.bytes.extend(encoders::str(module));
-        match name {
-            Some(name) => self.bytes.extend(encoders::str(name)),
-            None => {
-                self.bytes.push(0x00);
-                self.bytes.push(0xff);
-            }
-        }
+        self.bytes.extend(encoders::str(field));
         ty.into().encode(&mut self.bytes);
         self.num_added += 1;
         self
@@ -86,84 +74,67 @@ impl Section for ImportSection {
     }
 }
 
-/// The type of an entity.
-#[derive(Clone, Copy, Debug)]
-pub enum EntityType {
-    /// The `n`th type, which is a function.
-    Function(u32),
-    /// A table type.
-    Table(TableType),
-    /// A memory type.
-    Memory(MemoryType),
-    /// A global type.
-    Global(GlobalType),
-    /// A tag type.
-    Tag(TagType),
-    /// The `n`th type, which is an instance.
-    Instance(u32),
-    /// The `n`th type, which is a module.
-    Module(u32),
+/// An encoder for the import section of WebAssembly components.
+///
+/// # Example
+///
+/// ```rust
+/// use wasm_encoder::{Component, ComponentImportSection};
+///
+/// let mut imports = ComponentImportSection::new();
+/// imports.import("f", 0);
+///
+/// let mut component = Component::new();
+/// component.section(&imports);
+///
+/// let bytes = component.finish();
+/// ```
+#[derive(Clone, Debug, Default)]
+pub struct ComponentImportSection {
+    bytes: Vec<u8>,
+    num_added: u32,
 }
 
-// NB: no `impl From<u32> for ImportType` because instances and modules also use
-// `u32` indices in module linking, so we would have to remove that impl when
-// adding support for module linking anyways.
+impl ComponentImportSection {
+    /// Create a new component import section encoder.
+    pub fn new() -> Self {
+        Self::default()
+    }
 
-impl From<TableType> for EntityType {
-    fn from(t: TableType) -> Self {
-        EntityType::Table(t)
+    /// The number of imports in the section.
+    pub fn len(&self) -> u32 {
+        self.num_added
+    }
+
+    /// Determines if the section is empty.
+    pub fn is_empty(&self) -> bool {
+        self.num_added == 0
+    }
+
+    /// Define an import in the component import section.
+    pub fn import(&mut self, name: &str, ty: u32) -> &mut Self {
+        self.bytes.extend(encoders::str(name));
+        self.bytes.extend(encoders::u32(ty));
+        self.num_added += 1;
+        self
     }
 }
 
-impl From<MemoryType> for EntityType {
-    fn from(m: MemoryType) -> Self {
-        EntityType::Memory(m)
+impl ComponentSection for ComponentImportSection {
+    fn id(&self) -> u8 {
+        ComponentSectionId::Import.into()
     }
-}
 
-impl From<GlobalType> for EntityType {
-    fn from(g: GlobalType) -> Self {
-        EntityType::Global(g)
-    }
-}
-
-impl From<TagType> for EntityType {
-    fn from(t: TagType) -> Self {
-        EntityType::Tag(t)
-    }
-}
-
-impl EntityType {
-    pub(crate) fn encode(&self, dst: &mut Vec<u8>) {
-        match self {
-            EntityType::Function(x) => {
-                dst.push(0x00);
-                dst.extend(encoders::u32(*x));
-            }
-            EntityType::Table(ty) => {
-                dst.push(0x01);
-                ty.encode(dst);
-            }
-            EntityType::Memory(ty) => {
-                dst.push(0x02);
-                ty.encode(dst);
-            }
-            EntityType::Global(ty) => {
-                dst.push(0x03);
-                ty.encode(dst);
-            }
-            EntityType::Tag(ty) => {
-                dst.push(0x04);
-                ty.encode(dst);
-            }
-            EntityType::Module(ty) => {
-                dst.push(0x05);
-                dst.extend(encoders::u32(*ty));
-            }
-            EntityType::Instance(ty) => {
-                dst.push(0x06);
-                dst.extend(encoders::u32(*ty));
-            }
-        }
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        let num_added = encoders::u32(self.num_added);
+        let n = num_added.len();
+        sink.extend(
+            encoders::u32(u32::try_from(n + self.bytes.len()).unwrap())
+                .chain(num_added)
+                .chain(self.bytes.iter().copied()),
+        );
     }
 }

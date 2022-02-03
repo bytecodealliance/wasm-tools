@@ -2,6 +2,8 @@ use super::*;
 
 /// An encoder for the data section.
 ///
+/// Data sections are only supported for modules.
+///
 /// # Example
 ///
 /// ```
@@ -67,7 +69,7 @@ impl DataSection {
         Self::default()
     }
 
-    /// How many segments have been defined inside this section so far?
+    /// The number of data segments in the section.
     pub fn len(&self) -> u32 {
         self.num_added
     }
@@ -77,7 +79,7 @@ impl DataSection {
         self.num_added == 0
     }
 
-    /// Define an active data segment.
+    /// Define a data segment.
     pub fn segment<D>(&mut self, segment: DataSegment<D>) -> &mut Self
     where
         D: IntoIterator<Item = u8>,

@@ -1,7 +1,6 @@
 //! Mutator that generates a random renaming of a prexisting export
 use super::Mutator;
 use crate::{Result, WasmMutate};
-
 use rand::Rng;
 use wasm_encoder::{Export, ExportSection, Module};
 use wasmparser::ExportSectionReader;
@@ -79,12 +78,6 @@ impl Mutator for RenameExportMutator {
                 }
                 wasmparser::ExternalKind::Global => {
                     exports.export(new_name.as_str(), Export::Global(export.index));
-                }
-                wasmparser::ExternalKind::Module => {
-                    exports.export(new_name.as_str(), Export::Module(export.index));
-                }
-                wasmparser::ExternalKind::Instance => {
-                    exports.export(new_name.as_str(), Export::Instance(export.index));
                 }
                 _ => {
                     panic!("Unknown export {:?}", export)
