@@ -585,7 +585,12 @@ impl Module {
             params.push(self.arbitrary_valtype(u)?);
             Ok(true)
         })?;
-        arbitrary_loop(u, 0, 20, |u| {
+        let max_results = if self.config.multi_value_enabled() {
+            20
+        } else {
+            1
+        };
+        arbitrary_loop(u, 0, max_results, |u| {
             results.push(self.arbitrary_valtype(u)?);
             Ok(true)
         })?;
