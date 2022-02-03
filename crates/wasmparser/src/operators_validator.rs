@@ -484,24 +484,14 @@ impl OperatorValidator {
                 self.check_reference_types_enabled()
             }
             TypeOrFuncType::Type(Type::V128) => self.check_simd_enabled(),
-            TypeOrFuncType::FuncType(idx) => {
-                let ty = func_type_at(&resources, idx)?;
-                if !self.features.multi_value {
-                    if ty.len_outputs() > 1 {
-                        return Err(OperatorValidatorError::new(
-                            "blocks, loops, and ifs may only return at most one \
-                             value when multi-value is not enabled",
-                        ));
-                    }
-                    if ty.len_inputs() > 0 {
-                        return Err(OperatorValidatorError::new(
-                            "blocks, loops, and ifs accept no parameters \
-                             when multi-value is not enabled",
-                        ));
-                    }
-                }
-                Ok(())
+            TypeOrFuncType::FuncType(_) if !self.features.multi_value => {
+                return Err(OperatorValidatorError::new(
+                    "blocks, loops, and ifs may only produce a resulttype when multi-value is not \
+                    enabled",
+                ));
             }
+
+            TypeOrFuncType::FuncType(idx) => func_type_at(&resources, idx).map(|_| ()),
             _ => Err(OperatorValidatorError::new("invalid block return type")),
         }
     }
