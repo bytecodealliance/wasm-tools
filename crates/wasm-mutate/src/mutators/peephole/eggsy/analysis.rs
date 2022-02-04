@@ -1,6 +1,9 @@
 use crate::{
     module::{PrimitiveTypeInfo, TypeInfo},
-    mutators::peephole::{eggsy::Lang, EG},
+    mutators::peephole::{
+        eggsy::{lang::RefType, Lang},
+        EG,
+    },
     Error, ModuleInfo,
 };
 use egg::{Analysis, EGraph, Id};
@@ -270,6 +273,8 @@ impl PeepholeMutationAnalysis {
             Lang::I64UseGlobal(_) => Ok(PrimitiveTypeInfo::I64),
             Lang::F32UseGlobal(_) => Ok(PrimitiveTypeInfo::F32),
             Lang::F64UseGlobal(_) => Ok(PrimitiveTypeInfo::F64),
+            Lang::RefNull(RefType::Func) => Ok(PrimitiveTypeInfo::FuncRef),
+            Lang::RefNull(RefType::Extern) => Ok(PrimitiveTypeInfo::ExternRef),
         }
     }
 }

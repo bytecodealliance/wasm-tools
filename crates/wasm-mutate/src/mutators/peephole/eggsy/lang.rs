@@ -4,6 +4,7 @@ use egg::Id;
 use std::convert::TryInto;
 use std::fmt::{self, Display};
 use std::str::FromStr;
+use wasm_encoder::ValType;
 
 /// This is a macro used to define the `Lang` enum.
 ///
@@ -704,12 +705,49 @@ lang! {
         F32(u32) = "f32.const",
         /// F64 constant node
         F64(u64) = "f64.const",
+        /// constant ref.null node
+        RefNull(RefType) = "ref.null",
     }
 }
 
 impl Default for Lang {
     fn default() -> Self {
         Lang::Undef
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
+pub enum RefType {
+    Func,
+    Extern,
+}
+
+impl From<RefType> for ValType {
+    fn from(rt: RefType) -> Self {
+        match rt {
+            RefType::Func => ValType::FuncRef,
+            RefType::Extern => ValType::ExternRef,
+        }
+    }
+}
+
+impl FromStr for RefType {
+    type Err = Box<dyn std::error::Error + Send + Sync>;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "func" => Ok(RefType::Func),
+            "extern" => Ok(RefType::Extern),
+            s => Err(format!("{} is not a valid reference type", s).into()),
+        }
+    }
+}
+
+impl fmt::Display for RefType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            RefType::Func => "func",
+            RefType::Extern => "extern",
+        })
     }
 }
 
@@ -921,7 +959,7 @@ impl FromStr for MemoryInit {
 
 #[cfg(test)]
 mod tests {
-    use super::{Lang, MemArg};
+    use super::{Lang, MemArg, RefType};
     use egg::{Id, Language};
 
     #[test]
@@ -956,6 +994,7 @@ mod tests {
                 ),
             ],
             [Lang::LocalGet(0), Lang::LocalGet(1)],
+            [Lang::RefNull(RefType::Func), Lang::RefNull(RefType::Extern)],
         ];
         for [l, r] in pairs {
             assert_eq!(l.matches(&r), false);

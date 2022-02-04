@@ -465,6 +465,16 @@ impl PeepholeMutator {
                     "?x" => "f64.rand"
                         if self.is_type("?x", PrimitiveTypeInfo::F64)
                 ),
+                rewrite!(
+                    "replace-with-ref-null-func";
+                    "?x" => "ref.null.func"
+                        if self.is_type("?x", PrimitiveTypeInfo::FuncRef)
+                ),
+                rewrite!(
+                    "replace-with-ref-null-extern";
+                    "?x" => "ref.null.extern"
+                        if self.is_type("?x", PrimitiveTypeInfo::ExternRef)
+                ),
             ]);
 
             if !config.reduce {

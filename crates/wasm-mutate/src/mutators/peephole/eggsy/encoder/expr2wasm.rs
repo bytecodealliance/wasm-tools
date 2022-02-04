@@ -772,6 +772,9 @@ pub fn expr2wasm(
                         newfunc.instruction(&Instruction::GlobalGet(global_idx));
                         global_idx += 1;
                     }
+                    &Lang::RefNull(valtype) => {
+                        newfunc.instruction(&Instruction::RefNull(valtype.into()));
+                    }
                 }
             }
         }
