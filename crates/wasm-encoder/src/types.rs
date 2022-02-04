@@ -32,7 +32,6 @@ const INTERFACE_TYPE_STRING: u8 = 0x72;
 const MODULE_TYPEDEF_TYPE: u8 = 0x01;
 const MODULE_TYPEDEF_IMPORT: u8 = 0x02;
 const MODULE_TYPEDEF_EXPORT: u8 = 0x07;
-const MODULE_TYPEDEF_ALIAS: u8 = 0x09;
 
 const COMPONENT_TYPEDEF_TYPE: u8 = 0x01;
 const COMPONENT_TYPEDEF_IMPORT: u8 = 0x02;
@@ -207,17 +206,6 @@ impl ModuleType {
         self.bytes.push(MODULE_TYPEDEF_EXPORT);
         self.bytes.extend(encoders::str(name));
         ty.encode(&mut self.bytes);
-        self.num_added += 1;
-        self
-    }
-
-    /// Defines an alias to an outer type in this module type.
-    pub fn alias_outer_type(&mut self, count: u32, index: u32) -> &mut Self {
-        self.bytes.push(MODULE_TYPEDEF_ALIAS);
-        self.bytes.push(ALIAS_KIND_OUTER);
-        self.bytes.push(ALIAS_KIND_OUTER_TYPE);
-        self.bytes.extend(encoders::u32(count));
-        self.bytes.extend(encoders::u32(index));
         self.num_added += 1;
         self
     }
