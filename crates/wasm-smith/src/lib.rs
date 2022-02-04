@@ -57,10 +57,82 @@
 // Needed for the `instructions!` macro in `src/code_builder.rs`.
 #![recursion_limit = "512"]
 
+mod component;
 mod config;
 mod core;
 
 pub use crate::core::{
     ConfiguredModule, InstructionKind, InstructionKinds, MaybeInvalidModule, Module,
 };
+use arbitrary::{Result, Unstructured};
+pub use component::{Component, ConfiguredComponent};
 pub use config::{Config, DefaultConfig, SwarmConfig};
+
+use std::{collections::HashSet, str};
+
+/// Do something an arbitrary number of times.
+///
+/// The callback can return `false` to exit the loop early.
+pub(crate) fn arbitrary_loop<'a>(
+    u: &mut Unstructured<'a>,
+    min: usize,
+    max: usize,
+    mut f: impl FnMut(&mut Unstructured<'a>) -> Result<bool>,
+) -> Result<()> {
+    assert!(max >= min);
+    for _ in 0..min {
+        if !f(u)? {
+            break;
+        }
+    }
+    for _ in 0..(max - min) {
+        let keep_going = u.arbitrary().unwrap_or(false);
+        if !keep_going {
+            break;
+        }
+
+        if !f(u)? {
+            break;
+        }
+    }
+
+    Ok(())
+}
+
+// Mirror what happens in `Arbitrary for String`, but do so with a clamped size.
+pub(crate) fn limited_str<'a>(max_size: usize, u: &mut Unstructured<'a>) -> Result<&'a str> {
+    let size = u.arbitrary_len::<u8>()?;
+    let size = std::cmp::min(size, max_size);
+    match str::from_utf8(&u.peek_bytes(size).unwrap()) {
+        Ok(s) => {
+            u.bytes(size).unwrap();
+            Ok(s.into())
+        }
+        Err(e) => {
+            let i = e.valid_up_to();
+            let valid = u.bytes(i).unwrap();
+            let s = unsafe {
+                debug_assert!(str::from_utf8(valid).is_ok());
+                str::from_utf8_unchecked(valid)
+            };
+            Ok(s)
+        }
+    }
+}
+
+pub(crate) fn limited_string(max_size: usize, u: &mut Unstructured) -> Result<String> {
+    Ok(limited_str(max_size, u)?.into())
+}
+
+pub(crate) fn unique_string(
+    max_size: usize,
+    names: &mut HashSet<String>,
+    u: &mut Unstructured,
+) -> Result<String> {
+    let mut name = limited_string(max_size, u)?;
+    while names.contains(&name) {
+        name.push_str(&format!("{}", names.len()));
+    }
+    names.insert(name.clone());
+    Ok(name)
+}

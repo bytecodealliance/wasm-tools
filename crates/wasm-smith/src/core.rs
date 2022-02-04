@@ -4,7 +4,7 @@ mod code_builder;
 mod encode;
 mod terminate;
 
-use crate::{Config, DefaultConfig};
+use crate::{arbitrary_loop, limited_string, unique_string, Config, DefaultConfig};
 use arbitrary::{Arbitrary, Result, Unstructured};
 use code_builder::CodeBuilderAllocations;
 use flagset::{flags, FlagSet};
@@ -70,6 +70,7 @@ pub struct Module {
     /// All types locally defined in this module (available in the type index
     /// space).
     types: Vec<LocalType>,
+
     /// Indices within `types` that are function types.
     func_types: Vec<u32>,
 
@@ -231,11 +232,11 @@ impl<'a> Arbitrary<'a> for MaybeInvalidModule {
 #[derive(Debug)]
 enum InitialSection {
     Type(Vec<Type>),
-    Import(Vec<(String, String, EntityType)>),
+    Import(Vec<Import>),
 }
 
 #[derive(Clone, Debug)]
-enum Type {
+pub(crate) enum Type {
     Func(Rc<FuncType>),
 }
 
@@ -246,7 +247,10 @@ pub(crate) struct FuncType {
 }
 
 #[derive(Clone, Debug)]
-enum EntityType {
+pub(crate) struct Import(pub(crate) String, pub(crate) String, pub(crate) EntityType);
+
+#[derive(Clone, Debug)]
+pub(crate) enum EntityType {
     Global(GlobalType),
     Table(TableType),
     Memory(MemoryType),
@@ -255,7 +259,7 @@ enum EntityType {
 }
 
 #[derive(Clone, Debug)]
-struct TagType {
+pub(crate) struct TagType {
     func_type_idx: u32,
     func_type: Rc<FuncType>,
 }
@@ -386,17 +390,7 @@ impl Module {
     }
 
     fn arbitrary_func_type(&mut self, u: &mut Unstructured) -> Result<Rc<FuncType>> {
-        let mut params = vec![];
-        let mut results = vec![];
-        arbitrary_loop(u, 0, 20, |u| {
-            params.push(self.arbitrary_valtype(u)?);
-            Ok(true)
-        })?;
-        arbitrary_loop(u, 0, 20, |u| {
-            results.push(self.arbitrary_valtype(u)?);
-            Ok(true)
-        })?;
-        Ok(Rc::new(FuncType { params, results }))
+        arbitrary_func_type(u, &self.valtypes)
     }
 
     fn can_add_local_or_import_tag(&self) -> bool {
@@ -499,7 +493,7 @@ impl Module {
             }
 
             self.num_imports += 1;
-            imports.push((module, name, ty));
+            imports.push(Import(module, name, ty));
             Ok(true)
         })?;
         if !imports.is_empty() || u.arbitrary()? {
@@ -1151,6 +1145,27 @@ impl Module {
     }
 }
 
+pub(crate) fn arbitrary_func_type(
+    u: &mut Unstructured,
+    valtypes: &[ValType],
+) -> Result<Rc<FuncType>> {
+    let mut params = vec![];
+    let mut results = vec![];
+    arbitrary_loop(u, 0, 20, |u| {
+        params.push(arbitrary_valtype(u, valtypes)?);
+        Ok(true)
+    })?;
+    arbitrary_loop(u, 0, 20, |u| {
+        results.push(arbitrary_valtype(u, valtypes)?);
+        Ok(true)
+    })?;
+    Ok(Rc::new(FuncType { params, results }))
+}
+
+fn arbitrary_valtype(u: &mut Unstructured, valtypes: &[ValType]) -> Result<ValType> {
+    Ok(*u.choose(valtypes)?)
+}
+
 /// This function generates a number between `min` and `max`, favoring values
 /// between `min` and `max_inbounds`.
 ///
@@ -1274,66 +1289,6 @@ fn arbitrary_offset(u: &mut Unstructured, min: u64, max: u64, size: usize) -> Re
     } else {
         gradually_grow(u, 0, min - size, max)
     }
-}
-
-pub(crate) fn arbitrary_loop(
-    u: &mut Unstructured,
-    min: usize,
-    max: usize,
-    mut f: impl FnMut(&mut Unstructured) -> Result<bool>,
-) -> Result<()> {
-    assert!(max >= min);
-    for _ in 0..min {
-        if !f(u)? {
-            break;
-        }
-    }
-    for _ in 0..(max - min) {
-        let keep_going = u.arbitrary().unwrap_or(false);
-        if !keep_going {
-            break;
-        }
-
-        if !f(u)? {
-            break;
-        }
-    }
-
-    Ok(())
-}
-
-// Mirror what happens in `Arbitrary for String`, but do so with a clamped size.
-fn limited_string(max_size: usize, u: &mut Unstructured) -> Result<String> {
-    let size = u.arbitrary_len::<u8>()?;
-    let size = std::cmp::min(size, max_size);
-    match str::from_utf8(&u.peek_bytes(size).unwrap()) {
-        Ok(s) => {
-            u.bytes(size).unwrap();
-            Ok(s.into())
-        }
-        Err(e) => {
-            let i = e.valid_up_to();
-            let valid = u.bytes(i).unwrap();
-            let s = unsafe {
-                debug_assert!(str::from_utf8(valid).is_ok());
-                str::from_utf8_unchecked(valid)
-            };
-            Ok(s.into())
-        }
-    }
-}
-
-fn unique_string(
-    max_size: usize,
-    names: &mut HashSet<String>,
-    u: &mut Unstructured,
-) -> Result<String> {
-    let mut name = limited_string(max_size, u)?;
-    while names.contains(&name) {
-        name.push_str(&format!("{}", names.len()));
-    }
-    names.insert(name.clone());
-    Ok(name)
 }
 
 fn unique_import_strings(max_size: usize, u: &mut Unstructured) -> Result<(String, String)> {

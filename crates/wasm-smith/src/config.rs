@@ -328,6 +328,13 @@ pub trait Config: 'static + std::fmt::Debug {
     fn allowed_instructions(&self) -> InstructionKinds {
         InstructionKinds::all()
     }
+
+    /// Returns whether we should generate custom sections or not.
+    ///
+    /// This is false by default.
+    fn generate_custom_sections(&self) -> bool {
+        false
+    }
 }
 
 /// The default configuration.
