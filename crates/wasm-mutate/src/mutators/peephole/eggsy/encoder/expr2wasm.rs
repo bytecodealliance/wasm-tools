@@ -163,6 +163,16 @@ pub fn expr2wasm(
                     Lang::RandI64 => {
                         newfunc.instruction(&Instruction::I64Const(config.rng().gen()));
                     }
+                    Lang::RandF32 => {
+                        newfunc.instruction(&Instruction::F32Const(f32::from_bits(
+                            config.rng().gen(),
+                        )));
+                    }
+                    Lang::RandF64 => {
+                        newfunc.instruction(&Instruction::F64Const(f64::from_bits(
+                            config.rng().gen(),
+                        )));
+                    }
                     Lang::Undef => { /* Do nothig */ }
                     Lang::UnfoldI32(value) => {
                         let child = &nodes[usize::from(*value)];

@@ -416,6 +416,16 @@ impl PeepholeMutator {
                         if self.is_type("?x", PrimitiveTypeInfo::I64)
                 ),
                 rewrite!(
+                    "replace-with-f32-1.0";
+                    "?x" => "f32.const.1065353216"
+                        if self.is_type("?x", PrimitiveTypeInfo::F32)
+                ),
+                rewrite!(
+                    "replace-with-f64-1.0";
+                    "?x" => "f64.const.4607182418800017408"
+                        if self.is_type("?x", PrimitiveTypeInfo::F64)
+                ),
+                rewrite!(
                     "replace-with-i32-0";
                     "?x" => "i32.const.0"
                         if self.is_type("?x", PrimitiveTypeInfo::I32)
@@ -426,6 +436,16 @@ impl PeepholeMutator {
                         if self.is_type("?x", PrimitiveTypeInfo::I64)
                 ),
                 rewrite!(
+                    "replace-with-f32-0";
+                    "?x" => "f32.const.0"
+                        if self.is_type("?x", PrimitiveTypeInfo::F32)
+                ),
+                rewrite!(
+                    "replace-with-f64-0";
+                    "?x" => "f64.const.0"
+                        if self.is_type("?x", PrimitiveTypeInfo::F64)
+                ),
+                rewrite!(
                     "replace-with-i32.rand";
                     "?x" => "i32.rand"
                         if self.is_type("?x", PrimitiveTypeInfo::I32)
@@ -434,6 +454,16 @@ impl PeepholeMutator {
                     "replace-with-i64.rand";
                     "?x" => "i64.rand"
                         if self.is_type("?x", PrimitiveTypeInfo::I64)
+                ),
+                rewrite!(
+                    "replace-with-f32.rand";
+                    "?x" => "f32.rand"
+                        if self.is_type("?x", PrimitiveTypeInfo::F32)
+                ),
+                rewrite!(
+                    "replace-with-f64.rand";
+                    "?x" => "f64.rand"
+                        if self.is_type("?x", PrimitiveTypeInfo::F64)
                 ),
             ]);
 

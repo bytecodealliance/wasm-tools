@@ -656,10 +656,14 @@ lang! {
 
         /// Custom mutation operations and instructions
         ///
-        /// This operation represent a random i32 integer
+        /// This operation represents a random i32 integer
         RandI32 = "i32.rand",
-        /// This operation represent a random i64 integer
+        /// This operation represents a random i64 integer
         RandI64 = "i64.rand",
+        /// This operation represents a random f32
+        RandF32 = "f32.rand",
+        /// This operation represents a random f64
+        RandF64 = "f64.rand",
 
         /// This instructions is used to define unknown operands, for example when the value can come from the join of several basic blocks in a dfg
         Undef = "undef",
