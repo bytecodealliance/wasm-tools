@@ -1791,7 +1791,7 @@ mod arc {
                 return None;
             }
             debug_assert!(Arc::get_mut(&mut self.arc).is_some());
-            Some(unsafe { &mut *(&*self.arc as *const T as *mut T) })
+            Some(unsafe { &mut *(Arc::as_ptr(&self.arc) as *mut T) })
         }
 
         pub fn assert_mut(&mut self) -> &mut T {
