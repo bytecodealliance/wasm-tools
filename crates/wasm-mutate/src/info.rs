@@ -387,6 +387,10 @@ impl<'a> ModuleInfo<'a> {
         self.imported_globals_count
     }
 
+    pub fn num_local_globals(&self) -> u32 {
+        self.global_types.len() as u32 - self.imported_globals_count
+    }
+
     pub fn num_tags(&self) -> u32 {
         self.tag_count
     }

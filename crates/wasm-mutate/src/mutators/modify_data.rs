@@ -1,3 +1,4 @@
+use super::translate::InitExprContext;
 use super::Mutator;
 use crate::{Result, WasmMutate};
 
@@ -34,7 +35,11 @@ impl Mutator for ModifyDataMutator {
                     memory_index,
                     init_expr,
                 } => {
-                    offset = DefaultTranslator.translate_init_expr(init_expr)?;
+                    offset = DefaultTranslator.translate_init_expr(
+                        init_expr,
+                        &wasmparser::Type::I32,
+                        InitExprContext::DataOffset,
+                    )?;
                     DataSegmentMode::Active {
                         memory_index: *memory_index,
                         offset: &offset,
