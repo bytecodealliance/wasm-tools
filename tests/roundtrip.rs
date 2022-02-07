@@ -141,6 +141,11 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         return true;
     }
 
+    // todo!("component-model")
+    if test.to_str().unwrap().contains("component-model") {
+        return true;
+    }
+
     // TODO: the gc proposal isn't implemented yet
     if test.iter().any(|p| p == "gc") {
         return true;
@@ -634,7 +639,7 @@ fn error_matches(error: &str, message: &str) -> bool {
     }
 
     if message == "bad magic" {
-        return error.contains("Bad magic number");
+        return error.contains("bad magic number");
     }
 
     return false;
