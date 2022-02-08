@@ -494,9 +494,8 @@ impl<'a> Component<'a> {
 
     fn arbitrary_union_type(&mut self, u: &mut Unstructured<'a>) -> Result<UnionType> {
         let mut variants = vec![];
-        let mut variant_names = HashSet::new();
         arbitrary_loop(u, 0, 100, |u| {
-            variants.push(crate::unique_string(100, &mut variant_names, u)?);
+            variants.push(self.arbitrary_value_type(u)?);
             Ok(true)
         })?;
         Ok(UnionType { variants })
@@ -755,7 +754,7 @@ struct EnumType {
 
 #[derive(Clone, Debug)]
 struct UnionType {
-    variants: Vec<String>,
+    variants: Vec<ValueType>,
 }
 
 #[derive(Clone, Debug)]
