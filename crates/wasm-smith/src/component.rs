@@ -106,20 +106,9 @@ impl<'a> Component<'a> {
     }
 
     fn build(&mut self, u: &mut Unstructured<'a>) -> Result<()> {
-        self.core_valtypes.push(ValType::I32);
-        self.core_valtypes.push(ValType::I64);
-        self.core_valtypes.push(ValType::F32);
-        self.core_valtypes.push(ValType::F64);
-        if self.config.simd_enabled() {
-            self.core_valtypes.push(ValType::V128);
-        }
-        if self.config.reference_types_enabled() {
-            self.core_valtypes.push(ValType::ExternRef);
-            self.core_valtypes.push(ValType::FuncRef);
-        }
+        self.core_valtypes = crate::core::configured_valtypes(&*self.config);
 
         let mut choices: Vec<fn(&mut Component<'a>, &mut Unstructured<'a>) -> Result<()>> = vec![];
-
         loop {
             // Keep going while the fuzzer tells us to / has more data for us.
             if !u.arbitrary()? {

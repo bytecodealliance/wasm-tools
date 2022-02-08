@@ -316,17 +316,7 @@ enum DataSegmentKind {
 
 impl Module {
     fn build(&mut self, u: &mut Unstructured, allow_invalid: bool) -> Result<()> {
-        self.valtypes.push(ValType::I32);
-        self.valtypes.push(ValType::I64);
-        self.valtypes.push(ValType::F32);
-        self.valtypes.push(ValType::F64);
-        if self.config.simd_enabled() {
-            self.valtypes.push(ValType::V128);
-        }
-        if self.config.reference_types_enabled() {
-            self.valtypes.push(ValType::ExternRef);
-            self.valtypes.push(ValType::FuncRef);
-        }
+        self.valtypes = configured_valtypes(&*self.config);
         self.arbitrary_initial_sections(u)?;
         self.arbitrary_tags(u)?;
         self.arbitrary_funcs(u)?;
@@ -1143,6 +1133,22 @@ impl Module {
             }
         }
     }
+}
+
+pub(crate) fn configured_valtypes(config: &dyn Config) -> Vec<ValType> {
+    let mut valtypes = Vec::with_capacity(7);
+    valtypes.push(ValType::I32);
+    valtypes.push(ValType::I64);
+    valtypes.push(ValType::F32);
+    valtypes.push(ValType::F64);
+    if config.simd_enabled() {
+        valtypes.push(ValType::V128);
+    }
+    if config.reference_types_enabled() {
+        valtypes.push(ValType::ExternRef);
+        valtypes.push(ValType::FuncRef);
+    }
+    valtypes
 }
 
 pub(crate) fn arbitrary_func_type(
