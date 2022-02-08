@@ -317,18 +317,30 @@ impl<'a> Component<'a> {
         u: &mut Unstructured<'a>,
         exports: &mut HashSet<String>,
     ) -> Result<InstanceTypeDef> {
-        match u.int_in_range(0..=2)? {
-            // Export.
-            0 if !self.current_type_scope().is_empty() => Ok(InstanceTypeDef::Export {
-                name: crate::unique_string(100, exports, u)?,
-                ty: u.int_in_range(
-                    0..=u32::try_from(self.current_type_scope().len()).unwrap() - 1,
-                )?,
-            }),
+        let mut choices: Vec<
+            fn(
+                &mut Component<'a>,
+                &mut HashSet<String>,
+                &mut Unstructured<'a>,
+            ) -> Result<InstanceTypeDef>,
+        > = Vec::with_capacity(3);
 
-            // Outer type alias.
-            1 if self.types_scopes.iter().any(|scope| !scope.is_empty()) => {
-                let alias = self.arbitrary_outer_type_alias(u)?;
+        // Export.
+        if !self.current_type_scope().is_empty() {
+            choices.push(|me, exports, u| {
+                Ok(InstanceTypeDef::Export {
+                    name: crate::unique_string(100, exports, u)?,
+                    ty: u.int_in_range(
+                        0..=u32::try_from(me.current_type_scope().len()).unwrap() - 1,
+                    )?,
+                })
+            });
+        }
+
+        // Outer type alias.
+        if self.types_scopes.iter().any(|scope| !scope.is_empty()) {
+            choices.push(|me, _exports, u| {
+                let alias = me.arbitrary_outer_type_alias(u)?;
                 let (count, i) = match alias {
                     Alias::Outer {
                         count,
@@ -337,17 +349,20 @@ impl<'a> Component<'a> {
                     } => (count, i),
                     _ => unreachable!(),
                 };
-                let ty = self.outer_type(count, i).clone();
-                self.current_type_scope_mut().push(ty);
+                let ty = me.outer_type(count, i).clone();
+                me.current_type_scope_mut().push(ty);
                 Ok(InstanceTypeDef::Alias(alias))
-            }
-
-            // Type definition.
-            _ => {
-                let ty = self.arbitrary_type(u)?;
-                Ok(InstanceTypeDef::Type(ty))
-            }
+            });
         }
+
+        // Type definition.
+        choices.push(|me, _exports, u| {
+            let ty = me.arbitrary_type(u)?;
+            Ok(InstanceTypeDef::Type(ty))
+        });
+
+        let f = u.choose(&choices)?;
+        f(self, exports, u)
     }
 
     fn arbitrary_outer_type_alias(&mut self, u: &mut Unstructured<'a>) -> Result<Alias> {
