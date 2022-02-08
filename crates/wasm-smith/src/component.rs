@@ -128,9 +128,11 @@ impl<'a> Component<'a> {
 
             choices.clear();
             choices.push(Self::arbitrary_custom_section);
-            if self.types.len() < self.config.max_types() {
-                choices.push(Self::arbitrary_type_section);
-            }
+
+            // NB: we add this as a choice even if we've already generated our
+            // maximum number of types so that we can exercise adding empty type
+            // sections to the end of the module.
+            choices.push(Self::arbitrary_type_section);
 
             // TODO FITZGEN
             //
