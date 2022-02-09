@@ -37,7 +37,7 @@ pub struct Component {
     // Stack of types scopes that are currently available. The last entry is the
     // current scope. We can add aliases to anything in the current scope or
     // parent scopes.
-    types_scopes: Vec<Vec<Rc<Type>>>,
+    types_scopes: Vec<TypesScope>,
 
     // All the sections we've generated thus far for the component.
     sections: Vec<Section>,
@@ -52,6 +52,46 @@ pub struct Component {
     // been generated. This changes the behavior of various
     // `arbitrary_<section>` methods to always fill in their minimums.
     fill_minimums: bool,
+}
+
+#[derive(Debug, Default)]
+struct TypesScope {
+    // All types in this index space, regardless of kind.
+    types: Vec<Rc<Type>>,
+
+    // The indices of all the entries in `types` that are module types.
+    module_types: Vec<u32>,
+
+    // The indices of all the entries in `types` that are component types.
+    component_types: Vec<u32>,
+
+    // The indices of all the entries in `types` that are instance types.
+    instance_types: Vec<u32>,
+
+    // The indices of all the entries in `types` that are func types.
+    func_types: Vec<u32>,
+
+    // The indices of all the entries in `types` that are value types.
+    value_types: Vec<u32>,
+
+    // The indices of all the entries in `types` that are compound types.
+    compound_types: Vec<u32>,
+}
+
+impl TypesScope {
+    fn push(&mut self, ty: Rc<Type>) {
+        let kind_list = match &*ty {
+            Type::Module(_) => &mut self.module_types,
+            Type::Component(_) => &mut self.component_types,
+            Type::Instance(_) => &mut self.instance_types,
+            Type::Func(_) => &mut self.func_types,
+            Type::Value(_) => &mut self.value_types,
+            Type::Compound(_) => &mut self.compound_types,
+        };
+        let ty_idx = u32::try_from(self.types.len()).unwrap();
+        kind_list.push(ty_idx);
+        self.types.push(ty);
+    }
 }
 
 impl<'a> Arbitrary<'a> for Component {
@@ -98,7 +138,7 @@ impl Component {
         Component {
             config,
             core_valtypes: vec![],
-            types_scopes: vec![vec![]],
+            types_scopes: vec![Default::default()],
             sections: vec![],
             types: vec![],
             fill_minimums: false,
@@ -242,26 +282,26 @@ impl Component {
     }
 
     fn with_types_scope<T>(&mut self, f: impl FnOnce(&mut Self) -> Result<T>) -> Result<T> {
-        self.types_scopes.push(vec![]);
+        self.types_scopes.push(Default::default());
         let result = f(self);
         self.types_scopes.pop();
         result
     }
 
-    fn current_type_scope(&self) -> &[Rc<Type>] {
+    fn current_type_scope(&self) -> &TypesScope {
         self.types_scopes.last().unwrap()
     }
 
-    fn current_type_scope_mut(&mut self) -> &mut Vec<Rc<Type>> {
+    fn current_type_scope_mut(&mut self) -> &mut TypesScope {
         self.types_scopes.last_mut().unwrap()
     }
 
-    fn outer_types_scope(&self, count: u32) -> &[Rc<Type>] {
+    fn outer_types_scope(&self, count: u32) -> &TypesScope {
         &self.types_scopes[self.types_scopes.len() - 1 - usize::try_from(count).unwrap()]
     }
 
     fn outer_type(&self, count: u32, i: u32) -> &Rc<Type> {
-        &self.outer_types_scope(count)[usize::try_from(i).unwrap()]
+        &self.outer_types_scope(count).types[usize::try_from(i).unwrap()]
     }
 
     fn arbitrary_component_type(&mut self, u: &mut Unstructured) -> Result<ComponentType> {
@@ -271,14 +311,14 @@ impl Component {
 
         self.with_types_scope(|me| {
             arbitrary_loop(u, 0, 100, |u| {
-                if !me.current_type_scope().is_empty() && u.arbitrary()? {
+                if !me.current_type_scope().types.is_empty() && u.int_in_range::<u8>(0..=3)? == 0 {
                     // Imports.
                     let name = crate::unique_string(100, &mut imports, u)?;
-                    let ty = u.int_in_range(0..=me.current_type_scope().len() - 1)?;
+                    let ty = u.int_in_range(0..=me.current_type_scope().types.len() - 1)?;
                     let ty = u32::try_from(ty).unwrap();
                     defs.push(ComponentTypeDef::Import(Import { name, ty }));
                 } else {
-                    // Instance type definitions.
+                    // Type definitions, exports, and aliases.
                     let def = me.arbitrary_instance_type_def(u, &mut exports)?;
                     defs.push(ComponentTypeDef::Instance(def));
                 }
@@ -313,19 +353,23 @@ impl Component {
         > = Vec::with_capacity(3);
 
         // Export.
-        if !self.current_type_scope().is_empty() {
+        if !self.current_type_scope().types.is_empty() {
             choices.push(|me, exports, u| {
                 Ok(InstanceTypeDef::Export {
                     name: crate::unique_string(100, exports, u)?,
                     ty: u.int_in_range(
-                        0..=u32::try_from(me.current_type_scope().len()).unwrap() - 1,
+                        0..=u32::try_from(me.current_type_scope().types.len()).unwrap() - 1,
                     )?,
                 })
             });
         }
 
         // Outer type alias.
-        if self.types_scopes.iter().any(|scope| !scope.is_empty()) {
+        if self
+            .types_scopes
+            .iter()
+            .any(|scope| !scope.types.is_empty())
+        {
             choices.push(|me, _exports, u| {
                 let alias = me.arbitrary_outer_type_alias(u)?;
                 let (count, i) = match alias {
@@ -358,7 +402,7 @@ impl Component {
             .iter()
             .rev()
             .enumerate()
-            .filter(|(_, scope)| !scope.is_empty())
+            .filter(|(_, scope)| !scope.types.is_empty())
             .collect();
         assert!(
             !non_empty_types_scopes.is_empty(),
@@ -367,9 +411,9 @@ impl Component {
 
         let (count, scope) = u.choose(&non_empty_types_scopes)?;
         let count = u32::try_from(*count).unwrap();
-        assert!(!scope.is_empty());
+        assert!(!scope.types.is_empty());
 
-        let max_type_in_scope = u32::try_from(scope.len() - 1).unwrap();
+        let max_type_in_scope = u32::try_from(scope.types.len() - 1).unwrap();
         let i = u.int_in_range(0..=max_type_in_scope)?;
 
         Ok(Alias::Outer {
@@ -393,30 +437,33 @@ impl Component {
     }
 
     fn arbitrary_value_type(&mut self, u: &mut Unstructured) -> Result<ValueType> {
-        let num_choices = if self.current_type_scope().is_empty() {
+        Ok(ValueType(self.arbitrary_inter_type(u)?))
+    }
+
+    fn arbitrary_inter_type(&mut self, u: &mut Unstructured) -> Result<InterType> {
+        let num_choices = if self.current_type_scope().compound_types.is_empty() {
             13
         } else {
             14
         };
         match u.int_in_range(0..=num_choices)? {
-            0 => Ok(ValueType::Unit),
-            1 => Ok(ValueType::Bool),
-            2 => Ok(ValueType::S8),
-            3 => Ok(ValueType::U8),
-            4 => Ok(ValueType::S16),
-            5 => Ok(ValueType::U16),
-            6 => Ok(ValueType::S32),
-            7 => Ok(ValueType::U32),
-            8 => Ok(ValueType::S64),
-            9 => Ok(ValueType::U64),
-            10 => Ok(ValueType::F32),
-            11 => Ok(ValueType::F64),
-            12 => Ok(ValueType::Char),
-            13 => Ok(ValueType::String),
-            14 => {
-                let max_type = u32::try_from(self.current_type_scope().len() - 1).unwrap();
-                Ok(ValueType::Indexed(u.int_in_range(0..=max_type)?))
-            }
+            0 => Ok(InterType::Unit),
+            1 => Ok(InterType::Bool),
+            2 => Ok(InterType::S8),
+            3 => Ok(InterType::U8),
+            4 => Ok(InterType::S16),
+            5 => Ok(InterType::U16),
+            6 => Ok(InterType::S32),
+            7 => Ok(InterType::U32),
+            8 => Ok(InterType::S64),
+            9 => Ok(InterType::U64),
+            10 => Ok(InterType::F32),
+            11 => Ok(InterType::F64),
+            12 => Ok(InterType::Char),
+            13 => Ok(InterType::String),
+            14 => Ok(InterType::Compound(
+                *u.choose(&self.current_type_scope().compound_types)?,
+            )),
             _ => unreachable!(),
         }
     }
@@ -691,8 +738,11 @@ struct NamedType {
 }
 
 #[derive(Clone, Debug)]
-enum ValueType {
-    Indexed(u32),
+struct ValueType(InterType);
+
+#[derive(Clone, Debug)]
+enum InterType {
+    Compound(u32),
     Unit,
     Bool,
     S8,
