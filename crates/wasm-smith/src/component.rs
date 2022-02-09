@@ -3,7 +3,7 @@
 
 #![allow(unused_variables, dead_code)] // TODO FITZGEN
 
-use crate::{arbitrary_loop, limited_str, Config, DefaultConfig};
+use crate::{arbitrary_loop, Config, DefaultConfig};
 use arbitrary::{Arbitrary, Result, Unstructured};
 use std::convert::TryFrom;
 use std::{
@@ -28,7 +28,7 @@ use wasm_encoder::ValType;
 /// and use [`ConfiguredComponent<YourConfigType>`][crate::ConfiguredComponent]
 /// instead of plain `Component`.
 #[derive(Debug)]
-pub struct Component<'a> {
+pub struct Component {
     config: Rc<dyn Config>,
 
     // The set of core `valtype`s that we are configured to generate.
@@ -40,7 +40,7 @@ pub struct Component<'a> {
     types_scopes: Vec<Vec<Rc<Type>>>,
 
     // All the sections we've generated thus far for the component.
-    sections: Vec<Section<'a>>,
+    sections: Vec<Section>,
 
     // An indirect list of all types generated in this component. Each entry is
     // of the form `(i, j)` where `sections[i]` is guaranteed to be a
@@ -54,7 +54,7 @@ pub struct Component<'a> {
     fill_minimums: bool,
 }
 
-impl<'a> Arbitrary<'a> for Component<'a> {
+impl<'a> Arbitrary<'a> for Component {
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         Ok(ConfiguredComponent::<DefaultConfig>::arbitrary(u)?.component)
     }
@@ -67,14 +67,14 @@ impl<'a> Arbitrary<'a> for Component<'a> {
 ///
 /// For details on configuring, see the [`Config`][crate::Config] trait.
 #[derive(Debug)]
-pub struct ConfiguredComponent<'a, C> {
+pub struct ConfiguredComponent<C> {
     /// The generated component, controlled by the configuration of `C` in the
     /// `Arbitrary` implementation.
-    pub component: Component<'a>,
+    pub component: Component,
     _marker: marker::PhantomData<C>,
 }
 
-impl<'a, C> Arbitrary<'a> for ConfiguredComponent<'a, C>
+impl<'a, C> Arbitrary<'a> for ConfiguredComponent<C>
 where
     C: Config + Arbitrary<'a>,
 {
@@ -86,9 +86,9 @@ where
     }
 }
 
-impl<'a> Component<'a> {
+impl Component {
     /// Construct a new `Component` using the given configuration.
-    pub fn new(config: impl Config, u: &mut Unstructured<'a>) -> Result<Self> {
+    pub fn new(config: impl Config, u: &mut Unstructured) -> Result<Self> {
         let mut component = Component::empty(Rc::new(config));
         component.build(u)?;
         Ok(component)
@@ -105,10 +105,10 @@ impl<'a> Component<'a> {
         }
     }
 
-    fn build(&mut self, u: &mut Unstructured<'a>) -> Result<()> {
+    fn build(&mut self, u: &mut Unstructured) -> Result<()> {
         self.core_valtypes = crate::core::configured_valtypes(&*self.config);
 
-        let mut choices: Vec<fn(&mut Component<'a>, &mut Unstructured<'a>) -> Result<()>> = vec![];
+        let mut choices: Vec<fn(&mut Component, &mut Unstructured) -> Result<()>> = vec![];
         loop {
             // Keep going while the fuzzer tells us to / has more data for us.
             if !u.arbitrary()? {
@@ -147,12 +147,12 @@ impl<'a> Component<'a> {
         Ok(())
     }
 
-    fn arbitrary_custom_section(&mut self, u: &mut Unstructured<'a>) -> Result<()> {
+    fn arbitrary_custom_section(&mut self, u: &mut Unstructured) -> Result<()> {
         self.sections.push(Section::Custom(u.arbitrary()?));
         Ok(())
     }
 
-    fn arbitrary_type_section(&mut self, u: &mut Unstructured<'a>) -> Result<()> {
+    fn arbitrary_type_section(&mut self, u: &mut Unstructured) -> Result<()> {
         self.sections
             .push(Section::Type(TypeSection { types: vec![] }));
 
@@ -180,7 +180,7 @@ impl<'a> Component<'a> {
         Ok(())
     }
 
-    fn arbitrary_type(&mut self, u: &mut Unstructured<'a>) -> Result<Type> {
+    fn arbitrary_type(&mut self, u: &mut Unstructured) -> Result<Type> {
         match u.int_in_range::<u8>(0..=5)? {
             0 => Ok(Type::Module(self.arbitrary_module_type(u)?)),
             1 => Ok(Type::Component(self.arbitrary_component_type(u)?)),
@@ -192,7 +192,7 @@ impl<'a> Component<'a> {
         }
     }
 
-    fn arbitrary_module_type(&mut self, u: &mut Unstructured<'a>) -> Result<ModuleType> {
+    fn arbitrary_module_type(&mut self, u: &mut Unstructured) -> Result<ModuleType> {
         // TODO: this currently only supports function type definitions,
         // function imports, and function exports.
 
@@ -264,7 +264,7 @@ impl<'a> Component<'a> {
         &self.outer_types_scope(count)[usize::try_from(i).unwrap()]
     }
 
-    fn arbitrary_component_type(&mut self, u: &mut Unstructured<'a>) -> Result<ComponentType> {
+    fn arbitrary_component_type(&mut self, u: &mut Unstructured) -> Result<ComponentType> {
         let mut defs = vec![];
         let mut imports = HashSet::new();
         let mut exports = HashSet::new();
@@ -289,7 +289,7 @@ impl<'a> Component<'a> {
         Ok(ComponentType { defs })
     }
 
-    fn arbitrary_instance_type(&mut self, u: &mut Unstructured<'a>) -> Result<InstanceType> {
+    fn arbitrary_instance_type(&mut self, u: &mut Unstructured) -> Result<InstanceType> {
         let mut defs = vec![];
         let mut exports = HashSet::new();
 
@@ -305,15 +305,11 @@ impl<'a> Component<'a> {
 
     fn arbitrary_instance_type_def(
         &mut self,
-        u: &mut Unstructured<'a>,
+        u: &mut Unstructured,
         exports: &mut HashSet<String>,
     ) -> Result<InstanceTypeDef> {
         let mut choices: Vec<
-            fn(
-                &mut Component<'a>,
-                &mut HashSet<String>,
-                &mut Unstructured<'a>,
-            ) -> Result<InstanceTypeDef>,
+            fn(&mut Component, &mut HashSet<String>, &mut Unstructured) -> Result<InstanceTypeDef>,
         > = Vec::with_capacity(3);
 
         // Export.
@@ -356,7 +352,7 @@ impl<'a> Component<'a> {
         f(self, exports, u)
     }
 
-    fn arbitrary_outer_type_alias(&mut self, u: &mut Unstructured<'a>) -> Result<Alias> {
+    fn arbitrary_outer_type_alias(&mut self, u: &mut Unstructured) -> Result<Alias> {
         let non_empty_types_scopes: Vec<_> = self
             .types_scopes
             .iter()
@@ -383,7 +379,7 @@ impl<'a> Component<'a> {
         })
     }
 
-    fn arbitrary_func_type(&mut self, u: &mut Unstructured<'a>) -> Result<FuncType> {
+    fn arbitrary_func_type(&mut self, u: &mut Unstructured) -> Result<FuncType> {
         let mut params = vec![];
         let mut param_names = HashSet::new();
         arbitrary_loop(u, 0, 20, |u| {
@@ -396,7 +392,7 @@ impl<'a> Component<'a> {
         Ok(FuncType { params, result })
     }
 
-    fn arbitrary_value_type(&mut self, u: &mut Unstructured<'a>) -> Result<ValueType> {
+    fn arbitrary_value_type(&mut self, u: &mut Unstructured) -> Result<ValueType> {
         let num_choices = if self.current_type_scope().is_empty() {
             13
         } else {
@@ -427,7 +423,7 @@ impl<'a> Component<'a> {
 
     fn arbitrary_named_type(
         &mut self,
-        u: &mut Unstructured<'a>,
+        u: &mut Unstructured,
         names: &mut HashSet<String>,
     ) -> Result<NamedType> {
         let name = crate::unique_string(100, names, u)?;
@@ -435,7 +431,7 @@ impl<'a> Component<'a> {
         Ok(NamedType { name, ty })
     }
 
-    fn arbitrary_record_type(&mut self, u: &mut Unstructured<'a>) -> Result<RecordType> {
+    fn arbitrary_record_type(&mut self, u: &mut Unstructured) -> Result<RecordType> {
         let mut fields = vec![];
         let mut field_names = HashSet::new();
         arbitrary_loop(u, 0, 100, |u| {
@@ -445,7 +441,7 @@ impl<'a> Component<'a> {
         Ok(RecordType { fields })
     }
 
-    fn arbitrary_variant_type(&mut self, u: &mut Unstructured<'a>) -> Result<VariantType> {
+    fn arbitrary_variant_type(&mut self, u: &mut Unstructured) -> Result<VariantType> {
         let mut cases = vec![];
         let mut case_names = HashSet::new();
         arbitrary_loop(u, 0, 100, |u| {
@@ -463,13 +459,13 @@ impl<'a> Component<'a> {
         Ok(VariantType { cases, default })
     }
 
-    fn arbitrary_list_type(&mut self, u: &mut Unstructured<'a>) -> Result<ListType> {
+    fn arbitrary_list_type(&mut self, u: &mut Unstructured) -> Result<ListType> {
         Ok(ListType {
             elem_ty: self.arbitrary_value_type(u)?,
         })
     }
 
-    fn arbitrary_tuple_type(&mut self, u: &mut Unstructured<'a>) -> Result<TupleType> {
+    fn arbitrary_tuple_type(&mut self, u: &mut Unstructured) -> Result<TupleType> {
         let mut fields = vec![];
         arbitrary_loop(u, 0, 100, |u| {
             fields.push(self.arbitrary_value_type(u)?);
@@ -478,7 +474,7 @@ impl<'a> Component<'a> {
         Ok(TupleType { fields })
     }
 
-    fn arbitrary_flags_type(&mut self, u: &mut Unstructured<'a>) -> Result<FlagsType> {
+    fn arbitrary_flags_type(&mut self, u: &mut Unstructured) -> Result<FlagsType> {
         let mut fields = vec![];
         let mut field_names = HashSet::new();
         arbitrary_loop(u, 0, 100, |u| {
@@ -488,7 +484,7 @@ impl<'a> Component<'a> {
         Ok(FlagsType { fields })
     }
 
-    fn arbitrary_enum_type(&mut self, u: &mut Unstructured<'a>) -> Result<EnumType> {
+    fn arbitrary_enum_type(&mut self, u: &mut Unstructured) -> Result<EnumType> {
         let mut variants = vec![];
         let mut variant_names = HashSet::new();
         arbitrary_loop(u, 0, 100, |u| {
@@ -498,7 +494,7 @@ impl<'a> Component<'a> {
         Ok(EnumType { variants })
     }
 
-    fn arbitrary_union_type(&mut self, u: &mut Unstructured<'a>) -> Result<UnionType> {
+    fn arbitrary_union_type(&mut self, u: &mut Unstructured) -> Result<UnionType> {
         let mut variants = vec![];
         arbitrary_loop(u, 0, 100, |u| {
             variants.push(self.arbitrary_value_type(u)?);
@@ -507,20 +503,20 @@ impl<'a> Component<'a> {
         Ok(UnionType { variants })
     }
 
-    fn arbitrary_optional_type(&mut self, u: &mut Unstructured<'a>) -> Result<OptionalType> {
+    fn arbitrary_optional_type(&mut self, u: &mut Unstructured) -> Result<OptionalType> {
         Ok(OptionalType {
             inner_ty: self.arbitrary_value_type(u)?,
         })
     }
 
-    fn arbitrary_expected_type(&mut self, u: &mut Unstructured<'a>) -> Result<ExpectedType> {
+    fn arbitrary_expected_type(&mut self, u: &mut Unstructured) -> Result<ExpectedType> {
         Ok(ExpectedType {
             ok_ty: self.arbitrary_value_type(u)?,
             err_ty: self.arbitrary_value_type(u)?,
         })
     }
 
-    fn arbitrary_compound_type(&mut self, u: &mut Unstructured<'a>) -> Result<CompoundType> {
+    fn arbitrary_compound_type(&mut self, u: &mut Unstructured) -> Result<CompoundType> {
         match u.int_in_range(0..=9)? {
             0 => Ok(CompoundType::Record(self.arbitrary_record_type(u)?)),
             1 => Ok(CompoundType::Variant(self.arbitrary_variant_type(u)?)),
@@ -538,42 +534,42 @@ impl<'a> Component<'a> {
         }
     }
 
-    fn arbitrary_import_section(&mut self, u: &mut Unstructured<'a>) -> Result<()> {
+    fn arbitrary_import_section(&mut self, u: &mut Unstructured) -> Result<()> {
         todo!()
     }
 
-    fn arbitrary_func_section(&mut self, u: &mut Unstructured<'a>) -> Result<()> {
+    fn arbitrary_func_section(&mut self, u: &mut Unstructured) -> Result<()> {
         todo!()
     }
 
-    fn arbitrary_core_section(&mut self, u: &mut Unstructured<'a>) -> Result<()> {
+    fn arbitrary_core_section(&mut self, u: &mut Unstructured) -> Result<()> {
         todo!()
     }
 
-    fn arbitrary_component_section(&mut self, u: &mut Unstructured<'a>) -> Result<()> {
+    fn arbitrary_component_section(&mut self, u: &mut Unstructured) -> Result<()> {
         todo!()
     }
 
-    fn arbitrary_instance_section(&mut self, u: &mut Unstructured<'a>) -> Result<()> {
+    fn arbitrary_instance_section(&mut self, u: &mut Unstructured) -> Result<()> {
         todo!()
     }
 
-    fn arbitrary_export_section(&mut self, u: &mut Unstructured<'a>) -> Result<()> {
+    fn arbitrary_export_section(&mut self, u: &mut Unstructured) -> Result<()> {
         todo!()
     }
 
-    fn arbitrary_start_section(&mut self, u: &mut Unstructured<'a>) -> Result<()> {
+    fn arbitrary_start_section(&mut self, u: &mut Unstructured) -> Result<()> {
         todo!()
     }
 
-    fn arbitrary_alias_section(&mut self, u: &mut Unstructured<'a>) -> Result<()> {
+    fn arbitrary_alias_section(&mut self, u: &mut Unstructured) -> Result<()> {
         todo!()
     }
 }
 
 #[derive(Debug)]
-enum Section<'a> {
-    Custom(CustomSection<'a>),
+enum Section {
+    Custom(CustomSection),
     Type(TypeSection),
     Import(ImportSection),
     Func(FuncSection),
@@ -586,14 +582,14 @@ enum Section<'a> {
 }
 
 #[derive(Debug)]
-struct CustomSection<'a> {
-    name: &'a str,
-    data: &'a [u8],
+struct CustomSection {
+    name: String,
+    data: Vec<u8>,
 }
 
-impl<'a> Arbitrary<'a> for CustomSection<'a> {
+impl<'a> Arbitrary<'a> for CustomSection {
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        let name = limited_str(1_000, u)?;
+        let name = crate::limited_string(1_000, u)?;
         let data = u.arbitrary()?;
         Ok(CustomSection { name, data })
     }
