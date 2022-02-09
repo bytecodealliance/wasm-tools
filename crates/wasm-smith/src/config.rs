@@ -609,6 +609,10 @@ impl Config for SwarmConfig {
         self.memory64_enabled
     }
 
+    fn max_type_size(&self) -> u32 {
+        self.max_type_size
+    }
+
     fn canonicalize_nans(&self) -> bool {
         self.canonicalize_nans
     }
