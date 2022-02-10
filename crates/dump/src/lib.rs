@@ -266,7 +266,7 @@ impl<'a> Dump<'a> {
                     write!(self.dst, "-| ... {} bytes of data\n", contents.len())?;
                     self.cur += contents.len();
                 }
-                Payload::End => {
+                Payload::End(_) => {
                     self.nesting -= 1;
                     if self.nesting > 0 {
                         i = stack.pop().unwrap();

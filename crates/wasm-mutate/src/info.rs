@@ -213,7 +213,7 @@ impl<'a> ModuleInfo<'a> {
                     info.section(SectionId::DataCount.into(), range, input_wasm);
                 }
                 Payload::Version { .. } => {}
-                Payload::End => {
+                Payload::End(_) => {
                     break;
                 }
                 _ => todo!("{:?} not implemented", payload),

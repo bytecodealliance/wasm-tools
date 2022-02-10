@@ -540,7 +540,7 @@ impl TestState {
                         bytes.drain(start..offset);
                         return bytes;
                     }
-                    Payload::End => break,
+                    Payload::End(_) => break,
                     _ => {}
                 }
             }

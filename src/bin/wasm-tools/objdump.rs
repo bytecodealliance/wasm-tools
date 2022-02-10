@@ -62,7 +62,7 @@ impl Opts {
 
                 UnknownSection { .. } => {}
 
-                End => printer.end(),
+                End(_) => printer.end(),
             }
         }
 

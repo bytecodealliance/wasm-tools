@@ -19,7 +19,7 @@
 //
 // That algorithm is followed pretty closely here, namely `push_operand`,
 // `pop_operand`, `push_ctrl`, and `pop_ctrl`. If anything here is a bit
-// confusing it's recomended to read over that section to see how it maps to
+// confusing it's recommended to read over that section to see how it maps to
 // the various methods here.
 
 use crate::{
@@ -200,7 +200,7 @@ impl OperatorValidator {
             }
             // If `Ok` is returned we found the index exactly, or if `Err` is
             // returned the position is the one which is the least index
-            // greater thatn `idx`, which is still the type of `idx` according
+            // greater that `idx`, which is still the type of `idx` according
             // to our "compressed" representation. In both cases we access the
             // list at index `i`.
             Ok(i) | Err(i) => Ok(self.locals[i].1),

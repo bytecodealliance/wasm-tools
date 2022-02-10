@@ -151,7 +151,7 @@ impl Printer {
                     // Ignore any error associated with the name section.
                     drop(self.register_names(reader));
                 }
-                Payload::End => break,
+                Payload::End(_) => break,
                 _ => {}
             }
         }
@@ -231,7 +231,7 @@ impl Printer {
                 // not part of the text format
                 Payload::Version { .. } | Payload::DataCountSection { .. } => {}
 
-                Payload::End => break,
+                Payload::End(_) => break,
 
                 Payload::UnknownSection { id, .. } => bail!("found unknown section `{}`", id),
             }

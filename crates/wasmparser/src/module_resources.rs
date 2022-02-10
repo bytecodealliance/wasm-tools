@@ -186,7 +186,7 @@ impl<'a, T> Clone for WasmFuncTypeOutputs<'a, T> {
     }
 }
 
-/// Types  that qualify as Wasm valiation database.
+/// Types that qualify as Wasm validation database.
 ///
 /// # Note
 ///

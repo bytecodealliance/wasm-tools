@@ -265,7 +265,9 @@ pub enum Payload<'a> {
     },
 
     /// The end of the WebAssembly module or component was reached.
-    End,
+    ///
+    /// The value is number of bytes consumed by the entire parse.
+    End(usize),
 }
 
 impl Parser {
@@ -402,7 +404,7 @@ impl Parser {
     ///             // Once we've reached the end of a parser we either resume
     ///             // at the parent parser or we break out of the loop because
     ///             // we're done.
-    ///             End => {
+    ///             End(_) => {
     ///                 if let Some(parent_parser) = stack.pop() {
     ///                     parser = parent_parser;
     ///                 } else {
@@ -495,7 +497,7 @@ impl Parser {
                 // that means we reached the end of the data since it's
                 // just a bunch of sections concatenated after the header.
                 if eof && reader.bytes_remaining() == 0 {
-                    return Ok(Payload::End);
+                    return Ok(Payload::End(reader.original_position()));
                 }
 
                 let id = reader.read_var_u7()? as u8;
@@ -753,7 +755,7 @@ impl Parser {
                     stack.push(cur.clone());
                     cur = parser.clone();
                 }
-                Payload::End => match stack.pop() {
+                Payload::End(_) => match stack.pop() {
                     Some(p) => cur = p,
                     None => done = true,
                 },
@@ -807,7 +809,7 @@ impl Parser {
     ///                 parser.skip_section();
     ///                 wasm = &wasm[size as usize..];
     ///             }
-    ///             End => break,
+    ///             End(_) => break,
     ///             _ => {}
     ///         }
     ///     }
@@ -1006,7 +1008,7 @@ impl fmt::Debug for Payload<'_> {
                 .field("range", range)
                 .finish(),
 
-            End => f.write_str("End"),
+            End(offset) => f.debug_tuple("End").field(offset).finish(),
         }
     }
 }
@@ -1103,7 +1105,7 @@ mod tests {
             parser_after_header().parse(&[], true),
             Ok(Chunk::Parsed {
                 consumed: 0,
-                payload: Payload::End,
+                payload: Payload::End(8),
             }),
         );
     }
@@ -1112,7 +1114,7 @@ mod tests {
     fn type_section() {
         assert!(parser_after_header().parse(&[1], true).is_err());
         assert!(parser_after_header().parse(&[1, 0], false).is_err());
-        // assert!(parser_after_header().parse(&[8, 2], true).is_err());
+        assert!(parser_after_header().parse(&[8, 2], true).is_err());
         assert_matches!(
             parser_after_header().parse(&[1], false),
             Ok(Chunk::NeedMoreData(1)),
@@ -1209,7 +1211,7 @@ mod tests {
             p.parse(&[], true),
             Ok(Chunk::Parsed {
                 consumed: 0,
-                payload: Payload::End,
+                payload: Payload::End(11),
             }),
         );
         let mut p = parser_after_header();
@@ -1231,7 +1233,7 @@ mod tests {
             p.parse(&[], true),
             Ok(Chunk::Parsed {
                 consumed: 0,
-                payload: Payload::End,
+                payload: Payload::End(12),
             }),
         );
 
