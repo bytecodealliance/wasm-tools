@@ -127,11 +127,11 @@ impl Type {
             Type::Func(func_ty) => {
                 enc.function(
                     func_ty.params.iter().map(|p| translate_named_type(p)),
-                    translate_inter_type(func_ty.result),
+                    func_ty.result,
                 );
             }
             Type::Value(val_ty) => {
-                enc.value(translate_inter_type(val_ty.0));
+                enc.value(val_ty.0);
             }
             Type::Compound(comp_ty) => {
                 comp_ty.encode(enc.compound());
@@ -150,10 +150,10 @@ impl CompoundType {
                 enc.variant(ty.cases.iter().map(|f| translate_named_type(f)), ty.default);
             }
             CompoundType::List(ty) => {
-                enc.list(translate_inter_type(ty.elem_ty));
+                enc.list(ty.elem_ty);
             }
             CompoundType::Tuple(ty) => {
-                enc.tuple(ty.fields.iter().map(|ty| translate_inter_type(*ty)));
+                enc.tuple(ty.fields.iter().copied());
             }
             CompoundType::Flags(ty) => {
                 enc.flags(ty.fields.iter().map(|f| f.as_str()));
@@ -162,41 +162,18 @@ impl CompoundType {
                 enc.enum_type(ty.variants.iter().map(|v| v.as_str()));
             }
             CompoundType::Union(ty) => {
-                enc.union(ty.variants.iter().map(|ty| translate_inter_type(*ty)));
+                enc.union(ty.variants.iter().copied());
             }
             CompoundType::Optional(ty) => {
-                enc.optional(translate_inter_type(ty.inner_ty));
+                enc.optional(ty.inner_ty);
             }
             CompoundType::Expected(ty) => {
-                enc.expected(
-                    translate_inter_type(ty.ok_ty),
-                    translate_inter_type(ty.err_ty),
-                );
+                enc.expected(ty.ok_ty, ty.err_ty);
             }
         }
     }
 }
 
-fn translate_named_type(ty: &NamedType) -> (&str, wasm_encoder::InterfaceType) {
-    (&ty.name, translate_inter_type(ty.ty))
-}
-
-fn translate_inter_type(ty: InterType) -> wasm_encoder::InterfaceType {
-    match ty {
-        InterType::Compound(i) => wasm_encoder::InterfaceType::Compound(i),
-        InterType::Unit => wasm_encoder::InterfaceType::Unit,
-        InterType::Bool => wasm_encoder::InterfaceType::Bool,
-        InterType::S8 => wasm_encoder::InterfaceType::S8,
-        InterType::U8 => wasm_encoder::InterfaceType::U8,
-        InterType::S16 => wasm_encoder::InterfaceType::S16,
-        InterType::U16 => wasm_encoder::InterfaceType::U16,
-        InterType::S32 => wasm_encoder::InterfaceType::S32,
-        InterType::U32 => wasm_encoder::InterfaceType::U32,
-        InterType::S64 => wasm_encoder::InterfaceType::S64,
-        InterType::U64 => wasm_encoder::InterfaceType::U64,
-        InterType::F32 => wasm_encoder::InterfaceType::F32,
-        InterType::F64 => wasm_encoder::InterfaceType::F64,
-        InterType::Char => wasm_encoder::InterfaceType::Char,
-        InterType::String => wasm_encoder::InterfaceType::String,
-    }
+fn translate_named_type(ty: &NamedType) -> (&str, InterfaceType) {
+    (&ty.name, ty.ty)
 }

@@ -11,7 +11,7 @@ use std::{
     marker,
     rc::Rc,
 };
-use wasm_encoder::ValType;
+use wasm_encoder::{InterfaceType, ValType};
 
 mod encode;
 
@@ -435,37 +435,37 @@ impl Component {
             Ok(true)
         })?;
 
-        let result = self.arbitrary_inter_type(u)?;
+        let result = self.arbitrary_interface_type(u)?;
 
         Ok(FuncType { params, result })
     }
 
     fn arbitrary_value_type(&mut self, u: &mut Unstructured) -> Result<ValueType> {
-        Ok(ValueType(self.arbitrary_inter_type(u)?))
+        Ok(ValueType(self.arbitrary_interface_type(u)?))
     }
 
-    fn arbitrary_inter_type(&mut self, u: &mut Unstructured) -> Result<InterType> {
+    fn arbitrary_interface_type(&mut self, u: &mut Unstructured) -> Result<InterfaceType> {
         let num_choices = if self.current_type_scope().compound_types.is_empty() {
             13
         } else {
             14
         };
         match u.int_in_range(0..=num_choices)? {
-            0 => Ok(InterType::Unit),
-            1 => Ok(InterType::Bool),
-            2 => Ok(InterType::S8),
-            3 => Ok(InterType::U8),
-            4 => Ok(InterType::S16),
-            5 => Ok(InterType::U16),
-            6 => Ok(InterType::S32),
-            7 => Ok(InterType::U32),
-            8 => Ok(InterType::S64),
-            9 => Ok(InterType::U64),
-            10 => Ok(InterType::F32),
-            11 => Ok(InterType::F64),
-            12 => Ok(InterType::Char),
-            13 => Ok(InterType::String),
-            14 => Ok(InterType::Compound(
+            0 => Ok(InterfaceType::Unit),
+            1 => Ok(InterfaceType::Bool),
+            2 => Ok(InterfaceType::S8),
+            3 => Ok(InterfaceType::U8),
+            4 => Ok(InterfaceType::S16),
+            5 => Ok(InterfaceType::U16),
+            6 => Ok(InterfaceType::S32),
+            7 => Ok(InterfaceType::U32),
+            8 => Ok(InterfaceType::S64),
+            9 => Ok(InterfaceType::U64),
+            10 => Ok(InterfaceType::F32),
+            11 => Ok(InterfaceType::F64),
+            12 => Ok(InterfaceType::Char),
+            13 => Ok(InterfaceType::String),
+            14 => Ok(InterfaceType::Compound(
                 *u.choose(&self.current_type_scope().compound_types)?,
             )),
             _ => unreachable!(),
@@ -478,7 +478,7 @@ impl Component {
         names: &mut HashSet<String>,
     ) -> Result<NamedType> {
         let name = crate::unique_string(100, names, u)?;
-        let ty = self.arbitrary_inter_type(u)?;
+        let ty = self.arbitrary_interface_type(u)?;
         Ok(NamedType { name, ty })
     }
 
@@ -512,14 +512,14 @@ impl Component {
 
     fn arbitrary_list_type(&mut self, u: &mut Unstructured) -> Result<ListType> {
         Ok(ListType {
-            elem_ty: self.arbitrary_inter_type(u)?,
+            elem_ty: self.arbitrary_interface_type(u)?,
         })
     }
 
     fn arbitrary_tuple_type(&mut self, u: &mut Unstructured) -> Result<TupleType> {
         let mut fields = vec![];
         arbitrary_loop(u, 0, 100, |u| {
-            fields.push(self.arbitrary_inter_type(u)?);
+            fields.push(self.arbitrary_interface_type(u)?);
             Ok(true)
         })?;
         Ok(TupleType { fields })
@@ -548,7 +548,7 @@ impl Component {
     fn arbitrary_union_type(&mut self, u: &mut Unstructured) -> Result<UnionType> {
         let mut variants = vec![];
         arbitrary_loop(u, 0, 100, |u| {
-            variants.push(self.arbitrary_inter_type(u)?);
+            variants.push(self.arbitrary_interface_type(u)?);
             Ok(true)
         })?;
         Ok(UnionType { variants })
@@ -556,14 +556,14 @@ impl Component {
 
     fn arbitrary_optional_type(&mut self, u: &mut Unstructured) -> Result<OptionalType> {
         Ok(OptionalType {
-            inner_ty: self.arbitrary_inter_type(u)?,
+            inner_ty: self.arbitrary_interface_type(u)?,
         })
     }
 
     fn arbitrary_expected_type(&mut self, u: &mut Unstructured) -> Result<ExpectedType> {
         Ok(ExpectedType {
-            ok_ty: self.arbitrary_inter_type(u)?,
-            err_ty: self.arbitrary_inter_type(u)?,
+            ok_ty: self.arbitrary_interface_type(u)?,
+            err_ty: self.arbitrary_interface_type(u)?,
         })
     }
 
@@ -741,36 +741,17 @@ enum InstanceTypeDef {
 #[derive(Clone, Debug)]
 struct FuncType {
     params: Vec<NamedType>,
-    result: InterType,
+    result: InterfaceType,
 }
 
 #[derive(Clone, Debug)]
 struct NamedType {
     name: String,
-    ty: InterType,
+    ty: InterfaceType,
 }
 
 #[derive(Clone, Debug)]
-struct ValueType(InterType);
-
-#[derive(Clone, Copy, Debug)]
-enum InterType {
-    Compound(u32),
-    Unit,
-    Bool,
-    S8,
-    U8,
-    S16,
-    U16,
-    S32,
-    U32,
-    S64,
-    U64,
-    F32,
-    F64,
-    Char,
-    String,
-}
+struct ValueType(InterfaceType);
 
 #[derive(Clone, Debug)]
 enum CompoundType {
@@ -798,12 +779,12 @@ struct VariantType {
 
 #[derive(Clone, Debug)]
 struct ListType {
-    elem_ty: InterType,
+    elem_ty: InterfaceType,
 }
 
 #[derive(Clone, Debug)]
 struct TupleType {
-    fields: Vec<InterType>,
+    fields: Vec<InterfaceType>,
 }
 
 #[derive(Clone, Debug)]
@@ -818,18 +799,18 @@ struct EnumType {
 
 #[derive(Clone, Debug)]
 struct UnionType {
-    variants: Vec<InterType>,
+    variants: Vec<InterfaceType>,
 }
 
 #[derive(Clone, Debug)]
 struct OptionalType {
-    inner_ty: InterType,
+    inner_ty: InterfaceType,
 }
 
 #[derive(Clone, Debug)]
 struct ExpectedType {
-    ok_ty: InterType,
-    err_ty: InterType,
+    ok_ty: InterfaceType,
+    err_ty: InterfaceType,
 }
 
 #[derive(Debug)]
