@@ -565,7 +565,7 @@ impl Component {
     }
 
     fn arbitrary_compound_type(&mut self, u: &mut Unstructured) -> Result<CompoundType> {
-        match u.int_in_range(0..=9)? {
+        match u.int_in_range(0..=8)? {
             0 => Ok(CompoundType::Record(self.arbitrary_record_type(u)?)),
             1 => Ok(CompoundType::Variant(self.arbitrary_variant_type(u)?)),
             2 => Ok(CompoundType::List(self.arbitrary_list_type(u)?)),
@@ -575,9 +575,6 @@ impl Component {
             6 => Ok(CompoundType::Union(self.arbitrary_union_type(u)?)),
             7 => Ok(CompoundType::Optional(self.arbitrary_optional_type(u)?)),
             8 => Ok(CompoundType::Expected(self.arbitrary_expected_type(u)?)),
-            9 => Ok(CompoundType::Named(
-                self.arbitrary_named_type(u, &mut HashSet::new())?,
-            )),
             _ => unreachable!(),
         }
     }
@@ -783,7 +780,6 @@ enum CompoundType {
     Union(UnionType),
     Optional(OptionalType),
     Expected(ExpectedType),
-    Named(NamedType),
 }
 
 #[derive(Clone, Debug)]
