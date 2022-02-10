@@ -10,7 +10,8 @@ fn smoke_test_component() {
         rng.fill_bytes(&mut buf);
         let u = Unstructured::new(&buf);
         if let Ok(component) = Component::arbitrary_take_rest(u) {
-            // TODO: encode to binary and validate.
+            let component = component.to_bytes();
+            // TODO: validate.
             drop(component);
         }
     }

@@ -1,7 +1,7 @@
 //! Generating arbitary core Wasm modules.
 
 mod code_builder;
-mod encode;
+pub(crate) mod encode;
 mod terminate;
 
 use crate::{arbitrary_loop, limited_string, unique_string, Config, DefaultConfig};
@@ -242,8 +242,8 @@ pub(crate) enum Type {
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct FuncType {
-    params: Vec<ValType>,
-    results: Vec<ValType>,
+    pub(crate) params: Vec<ValType>,
+    pub(crate) results: Vec<ValType>,
 }
 
 #[derive(Clone, Debug)]

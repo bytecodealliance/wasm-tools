@@ -13,6 +13,8 @@ use std::{
 };
 use wasm_encoder::ValType;
 
+mod encode;
+
 /// A pseudo-random WebAssembly [component].
 ///
 /// Construct instances of this type with [the `Arbitrary`
@@ -213,23 +215,24 @@ impl Component {
             };
             self.types.push((section_idx, section.types.len()));
             section.types.push(ty.clone());
-            self.current_type_scope_mut().push(Rc::new(ty));
+            self.current_type_scope_mut().push(ty);
             Ok(true)
         })?;
 
         Ok(())
     }
 
-    fn arbitrary_type(&mut self, u: &mut Unstructured) -> Result<Type> {
-        match u.int_in_range::<u8>(0..=5)? {
-            0 => Ok(Type::Module(self.arbitrary_module_type(u)?)),
-            1 => Ok(Type::Component(self.arbitrary_component_type(u)?)),
-            2 => Ok(Type::Instance(self.arbitrary_instance_type(u)?)),
-            3 => Ok(Type::Func(self.arbitrary_func_type(u)?)),
-            4 => Ok(Type::Value(self.arbitrary_value_type(u)?)),
-            5 => Ok(Type::Compound(self.arbitrary_compound_type(u)?)),
+    fn arbitrary_type(&mut self, u: &mut Unstructured) -> Result<Rc<Type>> {
+        let ty = match u.int_in_range::<u8>(0..=5)? {
+            0 => Type::Module(self.arbitrary_module_type(u)?),
+            1 => Type::Component(self.arbitrary_component_type(u)?),
+            2 => Type::Instance(self.arbitrary_instance_type(u)?),
+            3 => Type::Func(self.arbitrary_func_type(u)?),
+            4 => Type::Value(self.arbitrary_value_type(u)?),
+            5 => Type::Compound(self.arbitrary_compound_type(u)?),
             _ => unreachable!(),
-        }
+        };
+        Ok(Rc::new(ty))
     }
 
     fn arbitrary_module_type(&mut self, u: &mut Unstructured) -> Result<ModuleType> {
@@ -389,7 +392,7 @@ impl Component {
         // Type definition.
         choices.push(|me, _exports, u| {
             let ty = me.arbitrary_type(u)?;
-            me.current_type_scope_mut().push(Rc::new(ty.clone()));
+            me.current_type_scope_mut().push(ty.clone());
             Ok(InstanceTypeDef::Type(ty))
         });
 
@@ -432,7 +435,7 @@ impl Component {
             Ok(true)
         })?;
 
-        let result = self.arbitrary_value_type(u)?;
+        let result = self.arbitrary_inter_type(u)?;
 
         Ok(FuncType { params, result })
     }
@@ -475,7 +478,7 @@ impl Component {
         names: &mut HashSet<String>,
     ) -> Result<NamedType> {
         let name = crate::unique_string(100, names, u)?;
-        let ty = self.arbitrary_value_type(u)?;
+        let ty = self.arbitrary_inter_type(u)?;
         Ok(NamedType { name, ty })
     }
 
@@ -509,14 +512,14 @@ impl Component {
 
     fn arbitrary_list_type(&mut self, u: &mut Unstructured) -> Result<ListType> {
         Ok(ListType {
-            elem_ty: self.arbitrary_value_type(u)?,
+            elem_ty: self.arbitrary_inter_type(u)?,
         })
     }
 
     fn arbitrary_tuple_type(&mut self, u: &mut Unstructured) -> Result<TupleType> {
         let mut fields = vec![];
         arbitrary_loop(u, 0, 100, |u| {
-            fields.push(self.arbitrary_value_type(u)?);
+            fields.push(self.arbitrary_inter_type(u)?);
             Ok(true)
         })?;
         Ok(TupleType { fields })
@@ -545,7 +548,7 @@ impl Component {
     fn arbitrary_union_type(&mut self, u: &mut Unstructured) -> Result<UnionType> {
         let mut variants = vec![];
         arbitrary_loop(u, 0, 100, |u| {
-            variants.push(self.arbitrary_value_type(u)?);
+            variants.push(self.arbitrary_inter_type(u)?);
             Ok(true)
         })?;
         Ok(UnionType { variants })
@@ -553,14 +556,14 @@ impl Component {
 
     fn arbitrary_optional_type(&mut self, u: &mut Unstructured) -> Result<OptionalType> {
         Ok(OptionalType {
-            inner_ty: self.arbitrary_value_type(u)?,
+            inner_ty: self.arbitrary_inter_type(u)?,
         })
     }
 
     fn arbitrary_expected_type(&mut self, u: &mut Unstructured) -> Result<ExpectedType> {
         Ok(ExpectedType {
-            ok_ty: self.arbitrary_value_type(u)?,
-            err_ty: self.arbitrary_value_type(u)?,
+            ok_ty: self.arbitrary_inter_type(u)?,
+            err_ty: self.arbitrary_inter_type(u)?,
         })
     }
 
@@ -642,7 +645,7 @@ impl<'a> Arbitrary<'a> for CustomSection {
 
 #[derive(Debug)]
 struct TypeSection {
-    types: Vec<Type>,
+    types: Vec<Rc<Type>>,
 }
 
 #[derive(Clone, Debug)]
@@ -708,7 +711,7 @@ struct ComponentType {
 #[derive(Clone, Debug)]
 enum ComponentTypeDef {
     Import(Import),
-    Type(Type),
+    Type(Rc<Type>),
     Export { name: String, ty: u32 },
     Alias(Alias),
 }
@@ -730,7 +733,7 @@ struct InstanceType {
 
 #[derive(Clone, Debug)]
 enum InstanceTypeDef {
-    Type(Type),
+    Type(Rc<Type>),
     Export { name: String, ty: u32 },
     Alias(Alias),
 }
@@ -738,19 +741,19 @@ enum InstanceTypeDef {
 #[derive(Clone, Debug)]
 struct FuncType {
     params: Vec<NamedType>,
-    result: ValueType,
+    result: InterType,
 }
 
 #[derive(Clone, Debug)]
 struct NamedType {
     name: String,
-    ty: ValueType,
+    ty: InterType,
 }
 
 #[derive(Clone, Debug)]
 struct ValueType(InterType);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 enum InterType {
     Compound(u32),
     Unit,
@@ -795,12 +798,12 @@ struct VariantType {
 
 #[derive(Clone, Debug)]
 struct ListType {
-    elem_ty: ValueType,
+    elem_ty: InterType,
 }
 
 #[derive(Clone, Debug)]
 struct TupleType {
-    fields: Vec<ValueType>,
+    fields: Vec<InterType>,
 }
 
 #[derive(Clone, Debug)]
@@ -815,18 +818,18 @@ struct EnumType {
 
 #[derive(Clone, Debug)]
 struct UnionType {
-    variants: Vec<ValueType>,
+    variants: Vec<InterType>,
 }
 
 #[derive(Clone, Debug)]
 struct OptionalType {
-    inner_ty: ValueType,
+    inner_ty: InterType,
 }
 
 #[derive(Clone, Debug)]
 struct ExpectedType {
-    ok_ty: ValueType,
-    err_ty: ValueType,
+    ok_ty: InterType,
+    err_ty: InterType,
 }
 
 #[derive(Debug)]
