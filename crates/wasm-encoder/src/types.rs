@@ -12,7 +12,6 @@ const COMPOUND_INTERFACE_TYPE_ENUM: u8 = 0x6c;
 const COMPOUND_INTERFACE_TYPE_UNION: u8 = 0x6b;
 const COMPOUND_INTERFACE_TYPE_OPTIONAL: u8 = 0x6a;
 const COMPOUND_INTERFACE_TYPE_EXPECTED: u8 = 0x69;
-const COMPOUND_INTERFACE_TYPE_NAMED: u8 = 0x68;
 
 const INTERFACE_TYPE_UNIT: u8 = 0x7f;
 const INTERFACE_TYPE_BOOL: u8 = 0x7e;
@@ -535,13 +534,6 @@ impl CompoundTypeEncoder<'_> {
         self.0.push(COMPOUND_INTERFACE_TYPE_EXPECTED);
         ok.encode(self.0);
         error.encode(self.0);
-    }
-
-    /// Define a named type.
-    pub fn named(self, name: &str, ty: InterfaceType) {
-        self.0.push(COMPOUND_INTERFACE_TYPE_NAMED);
-        self.0.extend(encoders::str(name));
-        ty.encode(self.0);
     }
 }
 
