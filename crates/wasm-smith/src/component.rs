@@ -320,7 +320,7 @@ impl Component {
                 } else {
                     // Type definitions, exports, and aliases.
                     let def = me.arbitrary_instance_type_def(u, &mut exports)?;
-                    defs.push(ComponentTypeDef::Instance(def));
+                    defs.push(def.into());
                 }
                 Ok(true)
             })
@@ -389,6 +389,7 @@ impl Component {
         // Type definition.
         choices.push(|me, _exports, u| {
             let ty = me.arbitrary_type(u)?;
+            me.current_type_scope_mut().push(Rc::new(ty.clone()));
             Ok(InstanceTypeDef::Type(ty))
         });
 
@@ -709,8 +710,20 @@ struct ComponentType {
 
 #[derive(Clone, Debug)]
 enum ComponentTypeDef {
-    Instance(InstanceTypeDef),
     Import(Import),
+    Type(Type),
+    Export { name: String, ty: u32 },
+    Alias(Alias),
+}
+
+impl From<InstanceTypeDef> for ComponentTypeDef {
+    fn from(def: InstanceTypeDef) -> Self {
+        match def {
+            InstanceTypeDef::Type(t) => ComponentTypeDef::Type(t),
+            InstanceTypeDef::Export { name, ty } => ComponentTypeDef::Export { name, ty },
+            InstanceTypeDef::Alias(a) => ComponentTypeDef::Alias(a),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
