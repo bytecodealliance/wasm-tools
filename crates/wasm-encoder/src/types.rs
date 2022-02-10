@@ -575,27 +575,30 @@ impl ComponentTypeSection {
         self.num_added == 0
     }
 
+    /// Encode a type into this section.
+    ///
+    /// The returned encoder must be finished before adding another type.
+    #[must_use = "the encoder must be used to encode the type"]
+    pub fn ty(&mut self) -> TypeEncoder<'_> {
+        self.num_added += 1;
+        TypeEncoder(&mut self.bytes)
+    }
+
     /// Define a module type in this type section.
     pub fn module(&mut self, ty: &ModuleType) -> &mut Self {
-        let encoder = TypeEncoder(&mut self.bytes);
-        encoder.module(ty);
-        self.num_added += 1;
+        self.ty().module(ty);
         self
     }
 
     /// Define a component type in this type section.
     pub fn component(&mut self, ty: &ComponentType) -> &mut Self {
-        let encoder = TypeEncoder(&mut self.bytes);
-        encoder.component(ty);
-        self.num_added += 1;
+        self.ty().component(ty);
         self
     }
 
     /// Define an instance type in this type section.
     pub fn instance(&mut self, ty: &InstanceType) -> &mut Self {
-        let encoder = TypeEncoder(&mut self.bytes);
-        encoder.instance(ty);
-        self.num_added += 1;
+        self.ty().instance(ty);
         self
     }
 
@@ -605,17 +608,13 @@ impl ComponentTypeSection {
         P: IntoIterator<Item = (&'a str, InterfaceType)>,
         P::IntoIter: ExactSizeIterator,
     {
-        let encoder = TypeEncoder(&mut self.bytes);
-        encoder.function(params, result);
-        self.num_added += 1;
+        self.ty().function(params, result);
         self
     }
 
     /// Define a value type in this type section.
     pub fn value(&mut self, ty: InterfaceType) -> &mut Self {
-        let encoder = TypeEncoder(&mut self.bytes);
-        encoder.value(ty);
-        self.num_added += 1;
+        self.ty().value(ty);
         self
     }
 
@@ -624,9 +623,7 @@ impl ComponentTypeSection {
     /// The returned encoder must be finished before adding another type.
     #[must_use = "the encoder must be used to encode the type"]
     pub fn compound(&mut self) -> CompoundTypeEncoder<'_> {
-        let encoder = CompoundTypeEncoder(&mut self.bytes);
-        self.num_added += 1;
-        encoder
+        self.ty().compound()
     }
 }
 
