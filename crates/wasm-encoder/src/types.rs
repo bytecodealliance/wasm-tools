@@ -450,7 +450,12 @@ pub struct CompoundTypeEncoder<'a>(&'a mut Vec<u8>);
 
 impl CompoundTypeEncoder<'_> {
     /// Define a record type.
-    pub fn record(self, fields: &[(&str, InterfaceType)]) {
+    pub fn record<'a, F>(self, fields: F)
+    where
+        F: IntoIterator<Item = (&'a str, InterfaceType)>,
+        F::IntoIter: ExactSizeIterator,
+    {
+        let fields = fields.into_iter();
         self.0.push(COMPOUND_INTERFACE_TYPE_RECORD);
         self.0
             .extend(encoders::u32(fields.len().try_into().unwrap()));
@@ -461,7 +466,12 @@ impl CompoundTypeEncoder<'_> {
     }
 
     /// Define a variant type.
-    pub fn variant(self, cases: &[(&str, InterfaceType)], default: Option<u32>) {
+    pub fn variant<'a, C>(self, cases: C, default: Option<u32>)
+    where
+        C: IntoIterator<Item = (&'a str, InterfaceType)>,
+        C::IntoIter: ExactSizeIterator,
+    {
+        let cases = cases.into_iter();
         self.0.push(COMPOUND_INTERFACE_TYPE_VARIANT);
         self.0
             .extend(encoders::u32(cases.len().try_into().unwrap()));
@@ -485,7 +495,12 @@ impl CompoundTypeEncoder<'_> {
     }
 
     /// Define a tuple type.
-    pub fn tuple(self, types: &[InterfaceType]) {
+    pub fn tuple<I>(self, types: I)
+    where
+        I: IntoIterator<Item = InterfaceType>,
+        I::IntoIter: ExactSizeIterator,
+    {
+        let types = types.into_iter();
         self.0.push(COMPOUND_INTERFACE_TYPE_TUPLE);
         self.0
             .extend(encoders::u32(types.len().try_into().unwrap()));
@@ -495,7 +510,12 @@ impl CompoundTypeEncoder<'_> {
     }
 
     /// Define a flags type.
-    pub fn flags(self, names: &[&str]) {
+    pub fn flags<'a, I>(self, names: I)
+    where
+        I: IntoIterator<Item = &'a str>,
+        I::IntoIter: ExactSizeIterator,
+    {
+        let names = names.into_iter();
         self.0.push(COMPOUND_INTERFACE_TYPE_FLAGS);
         self.0
             .extend(encoders::u32(names.len().try_into().unwrap()));
@@ -505,7 +525,12 @@ impl CompoundTypeEncoder<'_> {
     }
 
     /// Define an enum type.
-    pub fn enum_type(self, tags: &[&str]) {
+    pub fn enum_type<'a, I>(self, tags: I)
+    where
+        I: IntoIterator<Item = &'a str>,
+        I::IntoIter: ExactSizeIterator,
+    {
+        let tags = tags.into_iter();
         self.0.push(COMPOUND_INTERFACE_TYPE_ENUM);
         self.0.extend(encoders::u32(tags.len().try_into().unwrap()));
         for tag in tags {
@@ -514,7 +539,12 @@ impl CompoundTypeEncoder<'_> {
     }
 
     /// Define a union type.
-    pub fn union(self, types: &[InterfaceType]) {
+    pub fn union<I>(self, types: I)
+    where
+        I: IntoIterator<Item = InterfaceType>,
+        I::IntoIter: ExactSizeIterator,
+    {
+        let types = types.into_iter();
         self.0.push(COMPOUND_INTERFACE_TYPE_UNION);
         self.0
             .extend(encoders::u32(types.len().try_into().unwrap()));
