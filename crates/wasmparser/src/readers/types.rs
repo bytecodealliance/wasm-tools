@@ -14,8 +14,8 @@
  */
 
 use crate::{
-    BinaryReader, ComponentImport, Export, Import, Range, Result, SectionIteratorLimited,
-    SectionReader, SectionWithLimitedItems,
+    BinaryReader, ComponentImport, Import, Range, Result, SectionIteratorLimited, SectionReader,
+    SectionWithLimitedItems, TypeRef,
 };
 
 /// Represents the types of values in a WebAssembly module.
@@ -210,7 +210,7 @@ impl<'a> IntoIterator for TypeSectionReader<'a> {
     /// # let data: &[u8] = &[0x01, 0x60, 0x00, 0x00];
     /// let mut reader = TypeSectionReader::new(data, 0).unwrap();
     /// for ty in reader {
-    ///     println!("Type {:?}", ty);
+    ///     println!("Type {:?}", ty.expect("type"));
     /// }
     /// ```
     fn into_iter(self) -> Self::IntoIter {
@@ -241,7 +241,12 @@ pub enum ModuleType<'a> {
     /// The module type definition is for a type.
     Type(TypeDef),
     /// The module type definition is for an export.
-    Export(Export<'a>),
+    Export {
+        /// The name of the exported item.
+        name: &'a str,
+        /// The type of the exported
+        ty: TypeRef,
+    },
     /// The module type definition is for an import.
     Import(Import<'a>),
 }
@@ -259,9 +264,12 @@ pub enum ComponentType<'a> {
         index: u32,
     },
     /// The component type definition is for an export.
-    ///
-    /// The value is the type index in the component type's type index space.
-    Export(u32),
+    Export {
+        /// The name of the exported item.
+        name: &'a str,
+        /// The type index of the exported item.
+        ty: u32,
+    },
     /// The component type definition is for an import.
     Import(ComponentImport<'a>),
 }
@@ -279,9 +287,12 @@ pub enum InstanceType<'a> {
         index: u32,
     },
     /// The instance type definition is for an export.
-    ///
-    /// The value is the type index in the instance type's type index space.
-    Export(u32),
+    Export {
+        /// The name of the exported item.
+        name: &'a str,
+        /// The type index of the exported item.
+        ty: u32,
+    },
 }
 
 /// Represents a type of a function in a WebAssembly component.
@@ -439,11 +450,11 @@ impl<'a> IntoIterator for ComponentTypeSectionReader<'a> {
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::TypeSectionReader;
+    /// use wasmparser::ComponentTypeSectionReader;
     /// # let data: &[u8] = &[0x01, 0x4c, 0x01, 0x03, b'f', b'o', b'o', 0x72, 0x72];
-    /// let mut reader = TypeSectionReader::new(data, 0).unwrap();
+    /// let mut reader = ComponentTypeSectionReader::new(data, 0).unwrap();
     /// for ty in reader {
-    ///     println!("Type {:?}", ty);
+    ///     println!("Type {:?}", ty.expect("type"));
     /// }
     /// ```
     fn into_iter(self) -> Self::IntoIter {

@@ -26,6 +26,8 @@ pub enum AliasExportKind {
     Memory,
     /// The alias is to a global.
     Global,
+    /// The alias is to a tag.
+    Tag,
 }
 
 impl AliasExportKind {
@@ -39,6 +41,7 @@ impl AliasExportKind {
             AliasExportKind::Table => (ALIAS_KIND_INSTANCE_CORE_EXPORT, 0x01),
             AliasExportKind::Memory => (ALIAS_KIND_INSTANCE_CORE_EXPORT, 0x02),
             AliasExportKind::Global => (ALIAS_KIND_INSTANCE_CORE_EXPORT, 0x03),
+            AliasExportKind::Tag => (ALIAS_KIND_INSTANCE_CORE_EXPORT, 0x04),
         };
 
         bytes.push(preamble);

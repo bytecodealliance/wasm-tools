@@ -345,7 +345,10 @@ impl<'a> BinaryReader<'a> {
         Ok(match self.read_u8()? {
             0x01 => ModuleType::Type(self.read_type_def()?),
             0x02 => ModuleType::Import(self.read_import()?),
-            0x07 => ModuleType::Export(self.read_export()?),
+            0x07 => ModuleType::Export {
+                name: self.read_string()?,
+                ty: self.read_type_ref()?,
+            },
             0x09 => todo!("can module types really alias outer types?"),
             x => {
                 return Err(BinaryReaderError::new(
@@ -363,7 +366,10 @@ impl<'a> BinaryReader<'a> {
         Ok(match self.read_u8()? {
             0x01 => ComponentType::Type(self.read_component_type_def()?),
             0x02 => ComponentType::Import(self.read_component_import()?),
-            0x07 => ComponentType::Export(self.read_var_u32()?),
+            0x07 => ComponentType::Export {
+                name: self.read_string()?,
+                ty: self.read_var_u32()?,
+            },
             0x09 => {
                 let offset = self.original_position();
                 let alias = self.read_alias()?;
@@ -390,7 +396,10 @@ impl<'a> BinaryReader<'a> {
     pub(crate) fn read_instance_type(&mut self) -> Result<InstanceType<'a>> {
         Ok(match self.read_u8()? {
             0x01 => InstanceType::Type(self.read_component_type_def()?),
-            0x07 => InstanceType::Export(self.read_var_u32()?),
+            0x07 => InstanceType::Export {
+                name: self.read_string()?,
+                ty: self.read_var_u32()?,
+            },
             0x09 => {
                 let offset = self.original_position();
                 let alias = self.read_alias()?;
@@ -607,12 +616,27 @@ impl<'a> BinaryReader<'a> {
 
     pub(crate) fn read_instance(&mut self) -> Result<Instance<'a>> {
         Ok(match self.read_u8()? {
-            0x00 => Instance::Module(
-                (0..self.read_var_u32()?)
-                    .map(|_| self.read_module_arg())
-                    .collect::<Result<_>>()?,
-            ),
-            0x01 => Instance::Component(
+            0x00 => match self.read_u8()? {
+                0x00 => Instance::Module {
+                    index: self.read_var_u32()?,
+                    args: (0..self.read_var_u32()?)
+                        .map(|_| self.read_module_arg())
+                        .collect::<Result<_>>()?,
+                },
+                0x01 => Instance::Component {
+                    index: self.read_var_u32()?,
+                    args: (0..self.read_var_u32()?)
+                        .map(|_| self.read_component_export())
+                        .collect::<Result<_>>()?,
+                },
+                x => {
+                    return Err(BinaryReaderError::new(
+                        format!("invalid leading byte (0x{:x}) for instance", x),
+                        self.original_position() - 1,
+                    ))
+                }
+            },
+            0x01 => Instance::Exports(
                 (0..self.read_var_u32()?)
                     .map(|_| self.read_component_export())
                     .collect::<Result<_>>()?,
@@ -674,6 +698,7 @@ impl<'a> BinaryReader<'a> {
                     (0x01, 0x01) => AliasKind::Table,
                     (0x01, 0x02) => AliasKind::Memory,
                     (0x01, 0x03) => AliasKind::Global,
+                    (0x01, 0x04) => AliasKind::Tag,
                     (_, x) => {
                         return Err(BinaryReaderError::new(
                             format!(

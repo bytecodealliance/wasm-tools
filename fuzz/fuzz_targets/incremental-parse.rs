@@ -66,7 +66,7 @@ fuzz_target!(|data: Vec<Vec<u8>>| {
             .expect("full parse stopped early")
             .expect("full parse failed but incremental succeeded");
         match (payload, expected_payload) {
-            (End, End) => match stack.pop() {
+            (End(_), End(_)) => match stack.pop() {
                 Some(p) => parser = p,
                 None => {
                     log::debug!("no more parsers");

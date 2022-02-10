@@ -1,6 +1,6 @@
 use crate::{
-    BinaryReader, ComponentExport, Export, Range, Result, SectionIteratorLimited, SectionReader,
-    SectionWithLimitedItems,
+    BinaryReader, ComponentExport, ComponentExportKind, Export, Range, Result,
+    SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
 };
 
 /// Represents the kind of argument when instantiating a WebAssembly module.
@@ -9,7 +9,7 @@ pub enum ModuleArgKind<'a> {
     /// The argument is an instance.
     Instance(u32),
     /// The argument is an instance based on exports of local items.
-    Exports(Vec<Export<'a>>),
+    Exports(Box<[Export<'a>]>),
 }
 
 /// Represents an argument to instantiating a WebAssembly component.
@@ -24,13 +24,28 @@ pub struct ModuleArg<'a> {
 /// Represents an argument to instantiating a WebAssembly component.
 pub type ComponentArg<'a> = ComponentExport<'a>;
 
+/// Represents the argument type for instantiating a WebAssembly component.
+pub type ComponentArgKind<'a> = ComponentExportKind<'a>;
+
 /// Represents an instance in a WebAssembly component.
 #[derive(Debug, Clone)]
 pub enum Instance<'a> {
     /// The instance is from instantiating a WebAssembly module.
-    Module(Box<[ModuleArg<'a>]>),
+    Module {
+        /// The module index.
+        index: u32,
+        /// The module's instantiation arguments.
+        args: Box<[ModuleArg<'a>]>,
+    },
     /// The instance is from instantiating a WebAssembly component.
-    Component(Box<[ComponentArg<'a>]>),
+    Component {
+        /// The component index.
+        index: u32,
+        /// The component's instantiation arguments.
+        args: Box<[ComponentArg<'a>]>,
+    },
+    /// The instance is from exporting local items.
+    Exports(Box<[ComponentExport<'a>]>),
 }
 
 /// A reader for the instance section of a WebAssembly component.
@@ -63,7 +78,7 @@ impl<'a> InstanceSectionReader<'a> {
     /// # Examples
     /// ```
     /// use wasmparser::InstanceSectionReader;
-    /// let data: &[u8] = &[0x01, 0x00, 0x00, 0x01, 0x03, b'f', b'o', b'o', 0x00, 0x02, 0x00];
+    /// # let data: &[u8] = &[0x01, 0x00, 0x00, 0x00, 0x01, 0x03, b'f', b'o', b'o', 0x00, 0x02, 0x00];
     /// let mut reader = InstanceSectionReader::new(data, 0).unwrap();
     /// for _ in 0..reader.get_count() {
     ///     let instance = reader.read().expect("instance");
@@ -108,12 +123,13 @@ impl<'a> IntoIterator for InstanceSectionReader<'a> {
     /// Implements iterator over the instance section.
     ///
     /// # Examples
+    ///
     /// ```
     /// use wasmparser::InstanceSectionReader;
-    /// # let data: &[u8] = &[0x01, 0x00, 0x00, 0x01, 0x03, b'f', b'o', b'o', 0x00, 0x02, 0x00];
+    /// # let data: &[u8] = &[0x01, 0x00, 0x00, 0x00, 0x01, 0x03, b'f', b'o', b'o', 0x00, 0x02, 0x00];
     /// let mut reader = InstanceSectionReader::new(data, 0).unwrap();
     /// for inst in reader {
-    ///     println!("Instance {:?}", inst);
+    ///     println!("Instance {:?}", inst.expect("instance"));
     /// }
     /// ```
     fn into_iter(self) -> Self::IntoIter {

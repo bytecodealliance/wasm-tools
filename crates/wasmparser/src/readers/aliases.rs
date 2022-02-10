@@ -21,6 +21,8 @@ pub enum AliasKind {
     Memory,
     /// The alias is to a global.
     Global,
+    /// The alias is to a tag.
+    Tag,
 }
 
 /// Represents an alias in a WebAssembly component.

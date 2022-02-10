@@ -13,14 +13,16 @@
  * limitations under the License.
  */
 
-use crate::ExternalKind;
 use crate::{
-    limits::*, operators_validator::OperatorValidator, BinaryReaderError, DataKind, ElementItem,
-    ElementKind, Encoding, FuncType, FunctionBody, GlobalType, Import, InitExpr, MemoryType,
-    Operator, Parser, Payload, Range, Result, SectionReader, SectionWithLimitedItems, TableType,
-    TagType, Type, TypeRef, WasmModuleResources, WASM_COMPONENT_VERSION, WASM_MODULE_VERSION,
+    limits::*, operators_validator::OperatorValidator, BinaryReaderError, CanonicalOption,
+    DataKind, ElementItem, ElementKind, Encoding, ExternalKind, FuncType, FunctionBody, GlobalType,
+    InitExpr, MemoryType, Operator, Parser, Payload, Range, Result, SectionReader,
+    SectionWithLimitedItems, TableType, TagType, Type, TypeRef, WasmModuleResources,
+    WASM_COMPONENT_VERSION, WASM_MODULE_VERSION,
 };
 use std::collections::{HashMap, HashSet};
+use std::mem;
+use std::rc::Rc;
 use std::sync::Arc;
 
 /// Test whether the given buffer contains a valid WebAssembly module or component,
@@ -70,8 +72,55 @@ fn check_max(cur_len: usize, amt_added: u32, max: usize, desc: &str, offset: usi
 fn check_value_type(ty: Type, features: &WasmFeatures, offset: usize) -> Result<()> {
     match features.check_value_type(ty) {
         Ok(()) => Ok(()),
-        Err(e) => return Err(BinaryReaderError::new(e, offset)),
+        Err(e) => Err(BinaryReaderError::new(e, offset)),
     }
+}
+
+fn check_options(options: &[CanonicalOption], offset: usize) -> Result<()> {
+    fn display(option: CanonicalOption) -> &'static str {
+        match option {
+            CanonicalOption::UTF8 => "utf8",
+            CanonicalOption::UTF16 => "utf16",
+            CanonicalOption::CompactUTF16 => "compact-utf16",
+            CanonicalOption::Into(_) => "into",
+        }
+    }
+
+    let mut encoding = None;
+    let mut into = None;
+
+    for option in options {
+        match option {
+            CanonicalOption::UTF8 | CanonicalOption::UTF16 | CanonicalOption::CompactUTF16 => {
+                match encoding {
+                    Some(existing) => {
+                        return Err(BinaryReaderError::new(
+                            format!(
+                                "canonical option `{}` conflicts with option `{}`",
+                                display(existing),
+                                display(*option)
+                            ),
+                            offset,
+                        ))
+                    }
+                    None => encoding = Some(*option),
+                }
+            }
+            CanonicalOption::Into(i) => {
+                into = match into {
+                    None => Some(*i),
+                    Some(_) => {
+                        return Err(BinaryReaderError::new(
+                            "canonical option `into` is specified more than once",
+                            offset,
+                        ))
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
 }
 
 /// Validator for a WebAssembly binary module or component.
@@ -105,8 +154,8 @@ pub struct Validator {
     state: State,
 
     /// With the component model enabled, this stores the pushed states
-    /// of parent validators.
-    parents: Vec<State>,
+    /// of parent components.
+    parents: Vec<ComponentState>,
 
     /// Enabled WebAssembly feature flags, dictating what's valid and what
     /// isn't.
@@ -115,16 +164,18 @@ pub struct Validator {
 
 enum State {
     /// A version has not yet been parsed.
-    Unparsed,
+    ///
+    /// The value is the expected encoding for the header.
+    Unparsed(Option<Encoding>),
     /// A module header has been parsed.
     Module(ModuleState),
     /// A component header has been parsed.
-    Component(ComponentState),
+    Component(Box<ComponentState>),
 }
 
 impl Default for State {
     fn default() -> Self {
-        Self::Unparsed
+        Self::Unparsed(None)
     }
 }
 
@@ -290,7 +341,7 @@ impl ModuleTypeSpace {
                         offset,
                     ));
                 }
-                TypeDef::Func(t)
+                TypeDef::Func(Arc::new(t))
             }
         };
 
@@ -312,7 +363,7 @@ impl ModuleTypeSpace {
         }
     }
 
-    fn func_type_at(&self, type_index: u32, offset: usize) -> Result<&FuncType> {
+    fn func_type_at(&self, type_index: u32, offset: usize) -> Result<&Arc<FuncType>> {
         match self.get(type_index, offset)? {
             TypeDef::Func(item) => Ok(item),
         }
@@ -477,19 +528,27 @@ struct Module {
     functions: Vec<u32>, // has indexes into the module type space
     tags: Vec<TagType>,
     function_references: HashSet<u32>,
-    exports: HashMap<String, EntityType>,
+    imports: HashMap<(String, String), Vec<TypeRef>>,
+    exports: HashMap<String, TypeRef>,
     num_imported_globals: u32,
     num_imported_functions: u32,
 }
 
 impl Module {
-    fn import(&mut self, entry: Import<'_>, features: &WasmFeatures, offset: usize) -> Result<()> {
-        self.types.check_type_ref(&entry.ty, features, offset)?;
-        let (len, max, desc) = match entry.ty {
+    fn import(
+        &mut self,
+        import: crate::Import,
+        features: &WasmFeatures,
+        has_parent: bool,
+        offset: usize,
+    ) -> Result<()> {
+        self.types.check_type_ref(&import.ty, features, offset)?;
+
+        let (len, max, desc) = match import.ty {
             TypeRef::Func(type_index) => {
                 self.functions.push(type_index);
                 self.num_imported_functions += 1;
-                (self.functions.len(), MAX_WASM_FUNCTIONS, "funcs")
+                (self.functions.len(), MAX_WASM_FUNCTIONS, "functions")
             }
             TypeRef::Table(ty) => {
                 self.tables.push(ty);
@@ -509,11 +568,38 @@ impl Module {
                 (self.globals.len(), MAX_WASM_GLOBALS, "globals")
             }
         };
+
         check_max(len, 0, max, desc, offset)?;
+
+        // If the module is defined as part of a component, imports must be unique
+        if has_parent {
+            if self
+                .imports
+                .insert(
+                    (import.module.to_string(), import.name.to_string()),
+                    vec![import.ty],
+                )
+                .is_some()
+            {
+                return Err(BinaryReaderError::new(
+                    format!(
+                        "duplicate import name `{}:{}` already defined",
+                        import.module, import.name
+                    ),
+                    offset,
+                ));
+            }
+        } else {
+            self.imports
+                .entry((import.module.to_string(), import.name.to_string()))
+                .or_default()
+                .push(import.ty);
+        }
+
         Ok(())
     }
 
-    fn entity_type(&mut self, kind: ExternalKind, index: u32, offset: usize) -> Result<EntityType> {
+    fn get_type_ref(&mut self, kind: ExternalKind, index: u32, offset: usize) -> Result<TypeRef> {
         let check = |ty: &str, index: u32, total: usize| {
             if index as usize >= total {
                 Err(BinaryReaderError::new(
@@ -528,32 +614,33 @@ impl Module {
                 Ok(())
             }
         };
+
         Ok(match kind {
             ExternalKind::Func => {
                 check("function", index, self.functions.len())?;
                 self.function_references.insert(index);
-                EntityType::Func(index as usize)
+                TypeRef::Func(index)
             }
             ExternalKind::Table => {
                 check("table", index, self.tables.len())?;
-                EntityType::Table(self.tables[index as usize])
+                TypeRef::Table(self.tables[index as usize])
             }
             ExternalKind::Memory => {
                 check("memory", index, self.memories.len())?;
-                EntityType::Memory(self.memories[index as usize])
+                TypeRef::Memory(self.memories[index as usize])
             }
             ExternalKind::Global => {
                 check("global", index, self.globals.len())?;
-                EntityType::Global(self.globals[index as usize])
+                TypeRef::Global(self.globals[index as usize])
             }
             ExternalKind::Tag => {
                 check("tag", index, self.tags.len())?;
-                EntityType::Tag(self.tags[index as usize])
+                TypeRef::Tag(self.tags[index as usize])
             }
         })
     }
 
-    fn get_func_type(&self, func_idx: u32, offset: usize) -> Result<&FuncType> {
+    fn get_func_type(&self, func_idx: u32, offset: usize) -> Result<&Arc<FuncType>> {
         match self.functions.get(func_idx as usize) {
             Some(t) => self.types.func_type_at(*t, offset),
             None => Err(BinaryReaderError::new(
@@ -623,9 +710,7 @@ impl WasmModuleResources for Module {
 
     fn tag_at(&self, at: u32) -> Option<&Self::FuncType> {
         let ty = self.tags.get(at as usize)?;
-        match &self.types.0[ty.func_type_idx as usize] {
-            TypeDef::Func(f) => Some(f),
-        }
+        self.func_type_at(ty.func_type_idx)
     }
 
     fn global_at(&self, at: u32) -> Option<GlobalType> {
@@ -639,10 +724,7 @@ impl WasmModuleResources for Module {
     }
 
     fn type_of_function(&self, at: u32) -> Option<&Self::FuncType> {
-        let i = *self.functions.get(at as usize)?;
-        match &self.types.0[i as usize] {
-            TypeDef::Func(f) => Some(f),
-        }
+        self.func_type_at(*self.functions.get(at as usize)?)
     }
 
     fn element_type_at(&self, at: u32) -> Option<Type> {
@@ -662,8 +744,1393 @@ impl WasmModuleResources for Module {
     }
 }
 
+// The function index space may have both core and component functions
+// This is used to distinguish between the possible types of functions.
+#[derive(Clone)]
+enum FuncIndexType {
+    Component(ComponentFuncType),
+    Core(Arc<FuncType>),
+}
+
+// The instance index space may have both module, component, and "export" instances.
+// This is used to distinguish between the possible types of instance.
+#[derive(Clone)]
+enum InstanceIndexType {
+    Component(InstanceType),
+    Module(ModuleInstanceType),
+}
+
+#[derive(Clone, PartialEq, Eq)]
+enum InterfaceType {
+    Unit,
+    Bool,
+    S8,
+    U8,
+    S16,
+    U16,
+    S32,
+    U32,
+    S64,
+    U64,
+    F32,
+    F64,
+    Char,
+    String,
+    Compound(Rc<CompoundType>),
+}
+
+impl InterfaceType {
+    fn new(ty: crate::InterfaceType, types: &ComponentTypeSpace, offset: usize) -> Result<Self> {
+        Ok(match ty {
+            crate::InterfaceType::Unit => Self::Unit,
+            crate::InterfaceType::Bool => Self::Bool,
+            crate::InterfaceType::S8 => Self::S8,
+            crate::InterfaceType::U8 => Self::U8,
+            crate::InterfaceType::S16 => Self::S16,
+            crate::InterfaceType::U16 => Self::U16,
+            crate::InterfaceType::S32 => Self::S32,
+            crate::InterfaceType::U32 => Self::U32,
+            crate::InterfaceType::S64 => Self::S64,
+            crate::InterfaceType::U64 => Self::U64,
+            crate::InterfaceType::F32 => Self::F32,
+            crate::InterfaceType::F64 => Self::F64,
+            crate::InterfaceType::Char => Self::Char,
+            crate::InterfaceType::String => Self::String,
+            crate::InterfaceType::Compound(idx) => {
+                Self::Compound(types.compound_type_at(idx, offset)?.clone())
+            }
+        })
+    }
+
+    fn push_wasm_types(&self, types: &mut Vec<Type>) -> Result<()> {
+        match self {
+            Self::Unit => {}
+            Self::Bool
+            | Self::S8
+            | Self::U8
+            | Self::S16
+            | Self::U16
+            | Self::S32
+            | Self::U32
+            | Self::Char => {
+                types.push(Type::I32);
+            }
+            Self::S64 | Self::U64 => {
+                types.push(Type::I64);
+            }
+            Self::F32 => types.push(Type::F32),
+            Self::F64 => types.push(Type::F64),
+            Self::String => types.extend([Type::I32, Type::I32]),
+            Self::Compound(ct) => match ct.as_ref() {
+                CompoundType::Record(fields) => {
+                    for ty in fields.iter() {
+                        ty.push_wasm_types(types)?;
+                    }
+                }
+                CompoundType::Variant(cases) => {
+                    Self::push_variant_types(cases.iter(), types)?;
+                }
+                CompoundType::List(_) => {
+                    types.extend([Type::I32, Type::I32]);
+                }
+                CompoundType::Tuple(tys) => {
+                    for ty in tys.iter() {
+                        ty.push_wasm_types(types)?;
+                    }
+                }
+                CompoundType::Flags(size) => {
+                    if *size <= 32 {
+                        types.push(Type::I32);
+                    } else if *size <= 64 {
+                        types.push(Type::I64);
+                    } else {
+                        for _ in 0..(*size + 31) / 32 {
+                            types.push(Type::I32);
+                        }
+                    }
+                }
+                CompoundType::Enum(size) => {
+                    if *size < u32::max_value() as usize {
+                        types.push(Type::I32);
+                    } else {
+                        types.push(Type::I64);
+                    }
+                }
+                CompoundType::Union(tys) => {
+                    Self::push_variant_types(tys.iter(), types)?;
+                }
+                CompoundType::Optional(ty) => {
+                    Self::push_variant_types([ty].into_iter(), types)?;
+                }
+                CompoundType::Expected(ok, error) => {
+                    Self::push_variant_types([ok, error].into_iter(), types)?;
+                }
+            },
+        }
+
+        Ok(())
+    }
+
+    fn push_variant_types<'a>(
+        cases: impl ExactSizeIterator<Item = &'a InterfaceType>,
+        types: &mut Vec<Type>,
+    ) -> Result<()> {
+        if cases.len() < u32::max_value() as usize {
+            types.push(Type::I32);
+        } else {
+            types.push(Type::I64);
+        }
+
+        let start = types.len();
+        let mut temp = Vec::new();
+
+        for ty in cases {
+            ty.push_wasm_types(&mut temp)?;
+
+            for (i, ty) in temp.drain(..).enumerate() {
+                match types.get_mut(start + i) {
+                    Some(prev) => *prev = Self::unify_wasm_type(*prev, ty),
+                    None => types.push(ty),
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn unify_wasm_type(a: Type, b: Type) -> Type {
+        use Type::*;
+
+        match (a, b) {
+            (I64, _) | (_, I64) | (I32, F64) | (F64, I32) => I64,
+            (I32, I32) | (I32, F32) | (F32, I32) => I32,
+            (F32, F32) => F32,
+            (F64, F64) | (F32, F64) | (F64, F32) => F64,
+            _ => panic!("unexpected wasm type for canonical ABI"),
+        }
+    }
+}
+
+#[derive(Clone)]
+enum ComponentEntityType {
+    Module(ModuleType),
+    Component(ComponentType),
+    Instance(InstanceType),
+    Func(ComponentFuncType),
+    Value(InterfaceType),
+}
+
+impl ComponentEntityType {
+    fn from_type_def(def: ComponentTypeDef, desc: &str, offset: usize) -> Result<Self> {
+        Ok(match def {
+            ComponentTypeDef::Module(ty) => Self::Module(ty),
+            ComponentTypeDef::Component(ty) => Self::Component(ty),
+            ComponentTypeDef::Instance(ty) => Self::Instance(ty),
+            ComponentTypeDef::Func(ty) => Self::Func(ty),
+            ComponentTypeDef::Value(ty) => Self::Value(ty),
+            ComponentTypeDef::Compound(_) => {
+                return Err(BinaryReaderError::new(
+                    format!("{} of compound types are not supported", desc),
+                    offset,
+                ))
+            }
+        })
+    }
+
+    fn is_subtype_of(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Module(ty), Self::Module(other_ty)) => ty.is_subtype_of(other_ty),
+            (Self::Component(ty), Self::Component(other_ty)) => ty.is_subtype_of(other_ty),
+            (Self::Instance(ty), Self::Instance(other_ty)) => ty.is_subtype_of(other_ty),
+            (Self::Func(ty), Self::Func(other_ty)) => ty == other_ty,
+            (Self::Value(ty), Self::Value(other_ty)) => ty == other_ty,
+            _ => false,
+        }
+    }
+
+    fn desc(&self) -> &'static str {
+        match self {
+            Self::Module(_) => "module",
+            Self::Component(_) => "component",
+            Self::Instance(_) => "instance",
+            Self::Func(_) => "function",
+            Self::Value(_) => "value",
+        }
+    }
+}
+
 #[derive(Default)]
-struct ComponentState {}
+struct ComponentState {
+    types: ComponentTypeSpace,
+    modules: Vec<ModuleType>,
+    components: Vec<ComponentType>,
+    instances: Vec<InstanceIndexType>,
+    functions: Vec<FuncIndexType>,
+    values: Vec<(InterfaceType, bool)>,
+    memories: Vec<MemoryType>,
+    tables: Vec<TableType>,
+    globals: Vec<GlobalType>,
+    tags: Vec<Arc<FuncType>>,
+    has_start: bool,
+    imports: HashMap<String, ComponentEntityType>,
+    exports: HashMap<String, ComponentEntityType>,
+}
+
+impl ComponentState {
+    fn import(&mut self, import: crate::ComponentImport, offset: usize) -> Result<()> {
+        let ty = self.types.get(import.ty, offset)?;
+        let (len, max, desc) = match ty {
+            ComponentTypeDef::Module(mt) => {
+                self.modules.push(mt.clone());
+                (self.modules.len(), MAX_WASM_MODULES, "modules")
+            }
+            ComponentTypeDef::Component(ct) => {
+                self.components.push(ct.clone());
+                (self.components.len(), MAX_WASM_COMPONENTS, "components")
+            }
+            ComponentTypeDef::Instance(it) => {
+                self.instances
+                    .push(InstanceIndexType::Component(it.clone()));
+                (self.instances.len(), MAX_WASM_INSTANCES, "instances")
+            }
+            ComponentTypeDef::Func(ft) => {
+                self.functions.push(FuncIndexType::Component(ft.clone()));
+                (self.functions.len(), MAX_WASM_FUNCTIONS, "functions")
+            }
+            ComponentTypeDef::Value(it) => {
+                self.values.push((it.clone(), false));
+                (self.values.len(), MAX_WASM_VALUES, "values")
+            }
+            ComponentTypeDef::Compound(_) => {
+                // TODO: check with spec authors to see if this behavior is correct
+                return Err(BinaryReaderError::new(
+                    "imports of compound types are not supported",
+                    offset,
+                ));
+            }
+        };
+
+        check_max(len, 0, max, desc, offset)?;
+
+        if self
+            .imports
+            .insert(
+                import.name.to_string(),
+                ComponentEntityType::from_type_def(ty.clone(), "import", offset)?,
+            )
+            .is_some()
+        {
+            return Err(BinaryReaderError::new(
+                format!("duplicate import name `{}` already defined", import.name),
+                offset,
+            ));
+        }
+
+        Ok(())
+    }
+
+    fn instantiate_module(
+        &self,
+        module_index: u32,
+        module_args: &[crate::ModuleArg],
+        offset: usize,
+    ) -> Result<ModuleInstanceType> {
+        fn insert_arg<'a>(
+            module: &'a str,
+            name: &'a str,
+            arg: EntityType,
+            args: &mut HashMap<(&'a str, &'a str), EntityType>,
+            offset: usize,
+        ) -> Result<()> {
+            if args.insert((module, name), arg).is_some() {
+                return Err(BinaryReaderError::new(
+                    format!(
+                        "duplicate instantiation argument name `{}::{}` already defined",
+                        module, name
+                    ),
+                    offset,
+                ));
+            }
+
+            Ok(())
+        }
+
+        let module_type = self.module_at(module_index, offset)?;
+        let mut args = HashMap::new();
+
+        // Populate the arguments
+        for module_arg in module_args {
+            match &module_arg.kind {
+                crate::ModuleArgKind::Instance(idx) => {
+                    let instance_type = self.module_instance_at(*idx, offset)?;
+                    for (name, ty) in instance_type.exports.iter() {
+                        insert_arg(module_arg.name, name, ty.clone(), &mut args, offset)?;
+                    }
+                }
+                crate::ModuleArgKind::Exports(exports) => {
+                    for export in exports.iter() {
+                        insert_arg(
+                            module_arg.name,
+                            export.name,
+                            EntityType::from_export(self, export, offset)?,
+                            &mut args,
+                            offset,
+                        )?;
+                    }
+                }
+            }
+        }
+
+        // Validate the arguments
+        for ((module, name), b) in module_type.imports.iter() {
+            match args.get(&(module.as_str(), name.as_str())) {
+                Some(a) => {
+                    let desc = match (a, b) {
+                        (EntityType::Func(_), EntityType::Func(_)) => "function",
+                        (EntityType::Table(_), EntityType::Table(_)) => "table",
+                        (EntityType::Memory(_), EntityType::Memory(_)) => "memory",
+                        (EntityType::Global(_), EntityType::Global(_)) => "global",
+                        (EntityType::Tag(_), EntityType::Tag(_)) => "tag",
+                        _ => {
+                            return Err(BinaryReaderError::new(
+                                format!(
+                                "expected module instantiation argument `{}::{}` to be of type `{}`",
+                                module,
+                                name,
+                                b.desc()
+                            ),
+                                offset,
+                            ))
+                        }
+                    };
+
+                    if !a.is_subtype_of(b) {
+                        return Err(BinaryReaderError::new(
+                            format!(
+                                "{} type mismatch for module instantiation argument `{}::{}`",
+                                desc, module, name
+                            ),
+                            offset,
+                        ));
+                    }
+                }
+                None => {
+                    return Err(BinaryReaderError::new(
+                        format!(
+                            "missing module instantiation argument named `{}::{}`",
+                            module, name
+                        ),
+                        offset,
+                    ));
+                }
+            }
+        }
+
+        Ok(ModuleInstanceType {
+            exports: module_type.exports.clone(),
+        })
+    }
+
+    fn instantiate_component(
+        &mut self,
+        component_index: u32,
+        component_args: &[crate::ComponentArg],
+        offset: usize,
+    ) -> Result<InstanceType> {
+        fn insert_arg<'a>(
+            name: &'a str,
+            arg: ComponentEntityType,
+            args: &mut HashMap<&'a str, ComponentEntityType>,
+            offset: usize,
+        ) -> Result<()> {
+            if args.insert(name, arg).is_some() {
+                return Err(BinaryReaderError::new(
+                    format!(
+                        "duplicate instantiation argument name `{}` already defined",
+                        name
+                    ),
+                    offset,
+                ));
+            }
+
+            Ok(())
+        }
+
+        let ty = self.component_at(component_index, offset)?.clone();
+        let mut args = HashMap::new();
+
+        // Populate the arguments
+        for component_arg in component_args {
+            match &component_arg.kind {
+                crate::ComponentArgKind::Module(idx) => {
+                    insert_arg(
+                        component_arg.name,
+                        ComponentEntityType::Module(self.module_at(*idx, offset)?.clone()),
+                        &mut args,
+                        offset,
+                    )?;
+                }
+                crate::ComponentArgKind::Component(idx) => {
+                    insert_arg(
+                        component_arg.name,
+                        ComponentEntityType::Component(self.component_at(*idx, offset)?.clone()),
+                        &mut args,
+                        offset,
+                    )?;
+                }
+                crate::ComponentArgKind::Instance(idx) => {
+                    insert_arg(
+                        component_arg.name,
+                        ComponentEntityType::Instance(
+                            self.component_instance_at(*idx, offset)?.clone(),
+                        ),
+                        &mut args,
+                        offset,
+                    )?;
+                }
+                crate::ComponentArgKind::Function(idx) => {
+                    insert_arg(
+                        component_arg.name,
+                        ComponentEntityType::Func(
+                            self.component_function_at(*idx, offset)?.clone(),
+                        ),
+                        &mut args,
+                        offset,
+                    )?;
+                }
+                crate::ComponentArgKind::Value(idx) => {
+                    insert_arg(
+                        component_arg.name,
+                        ComponentEntityType::Value(self.value_at(*idx, offset)?.clone()),
+                        &mut args,
+                        offset,
+                    )?;
+                }
+                crate::ComponentArgKind::Exports(exports) => {
+                    insert_arg(
+                        component_arg.name,
+                        ComponentEntityType::Instance(
+                            self.instantiate_exports(exports.as_ref(), offset)?,
+                        ),
+                        &mut args,
+                        offset,
+                    )?;
+                }
+            }
+        }
+
+        // Validate the arguments
+        for (name, b) in ty.imports.iter() {
+            match args.get(name.as_str()) {
+                Some(a) => {
+                    let desc = match (a, b) {
+                        (ComponentEntityType::Module(_), ComponentEntityType::Module(_)) => {
+                            "module"
+                        }
+                        (ComponentEntityType::Component(_), ComponentEntityType::Component(_)) => {
+                            "component"
+                        }
+                        (ComponentEntityType::Instance(_), ComponentEntityType::Instance(_)) => {
+                            "instance"
+                        }
+                        (ComponentEntityType::Func(_), ComponentEntityType::Func(_)) => "function",
+                        (ComponentEntityType::Value(_), ComponentEntityType::Value(_)) => "value",
+                        _ => {
+                            return Err(BinaryReaderError::new(
+                                format!(
+                                "expected component instantiation argument `{}` to be of type `{}`",
+                                name,
+                                b.desc()
+                            ),
+                                offset,
+                            ))
+                        }
+                    };
+
+                    if !a.is_subtype_of(b) {
+                        return Err(BinaryReaderError::new(
+                            format!(
+                                "{} type mismatch for component instantiation argument `{}`",
+                                desc, name
+                            ),
+                            offset,
+                        ));
+                    }
+                }
+                None => {
+                    return Err(BinaryReaderError::new(
+                        format!("missing component instantiation argument named `{}`", name),
+                        offset,
+                    ))
+                }
+            }
+        }
+
+        Ok(InstanceType {
+            exports: ty.exports,
+        })
+    }
+
+    fn instantiate_exports(
+        &mut self,
+        exports: &[crate::ComponentExport],
+        offset: usize,
+    ) -> Result<InstanceType> {
+        fn insert_export(
+            name: &str,
+            export: ComponentEntityType,
+            exports: &mut HashMap<String, ComponentEntityType>,
+            offset: usize,
+        ) -> Result<()> {
+            if exports.insert(name.to_string(), export).is_some() {
+                return Err(BinaryReaderError::new(
+                    format!(
+                        "duplicate instantiation export name `{}` already defined",
+                        name
+                    ),
+                    offset,
+                ));
+            }
+
+            Ok(())
+        }
+
+        let mut inst_exports = HashMap::new();
+        for export in exports {
+            match &export.kind {
+                crate::ComponentExportKind::Module(idx) => {
+                    insert_export(
+                        export.name,
+                        ComponentEntityType::Module(self.module_at(*idx, offset)?.clone()),
+                        &mut inst_exports,
+                        offset,
+                    )?;
+                }
+                crate::ComponentExportKind::Component(idx) => {
+                    insert_export(
+                        export.name,
+                        ComponentEntityType::Component(self.component_at(*idx, offset)?.clone()),
+                        &mut inst_exports,
+                        offset,
+                    )?;
+                }
+                crate::ComponentExportKind::Instance(idx) => {
+                    insert_export(
+                        export.name,
+                        ComponentEntityType::Instance(
+                            self.component_instance_at(*idx, offset)?.clone(),
+                        ),
+                        &mut inst_exports,
+                        offset,
+                    )?;
+                }
+                crate::ComponentExportKind::Function(idx) => {
+                    insert_export(
+                        export.name,
+                        ComponentEntityType::Func(
+                            self.component_function_at(*idx, offset)?.clone(),
+                        ),
+                        &mut inst_exports,
+                        offset,
+                    )?;
+                }
+                crate::ComponentExportKind::Value(idx) => {
+                    insert_export(
+                        export.name,
+                        ComponentEntityType::Value(self.value_at(*idx, offset)?.clone()),
+                        &mut inst_exports,
+                        offset,
+                    )?;
+                }
+                crate::ComponentExportKind::Exports(exports) => {
+                    insert_export(
+                        export.name,
+                        ComponentEntityType::Instance(
+                            self.instantiate_exports(exports.as_ref(), offset)?,
+                        ),
+                        &mut inst_exports,
+                        offset,
+                    )?;
+                }
+            }
+        }
+
+        Ok(InstanceType {
+            exports: Rc::new(inst_exports),
+        })
+    }
+
+    fn alias_instance_export(
+        &mut self,
+        kind: crate::AliasKind,
+        idx: u32,
+        name: &str,
+        offset: usize,
+    ) -> Result<()> {
+        macro_rules! push_module_export {
+            ($expected:path, $collection:ident, $ty:literal) => {{
+                match self.module_instance_export(idx, name, offset)?.clone() {
+                    $expected(ty) => {
+                        self.$collection.push(ty);
+                        Ok(())
+                    }
+                    _ => {
+                        return Err(BinaryReaderError::new(
+                            format!("export `{}` for instance {} is not a {}", name, idx, $ty),
+                            offset,
+                        ))
+                    }
+                }
+            }};
+        }
+
+        macro_rules! push_component_export {
+            ($expected:path, $collection:ident, $ty:literal) => {{
+                match self.component_instance_export(idx, name, offset)?.clone() {
+                    $expected(ty) => {
+                        self.$collection.push(ty);
+                        Ok(())
+                    }
+                    _ => {
+                        return Err(BinaryReaderError::new(
+                            format!("export `{}` for instance {} is not a {}", name, idx, $ty),
+                            offset,
+                        ))
+                    }
+                }
+            }};
+        }
+
+        match kind {
+            crate::AliasKind::Module => {
+                push_component_export!(ComponentEntityType::Module, modules, "module")
+            }
+            crate::AliasKind::Component => {
+                push_component_export!(ComponentEntityType::Component, components, "component")
+            }
+            crate::AliasKind::Instance => {
+                match self.component_instance_export(idx, name, offset)?.clone() {
+                    ComponentEntityType::Instance(ty) => {
+                        self.instances.push(InstanceIndexType::Component(ty));
+                        Ok(())
+                    }
+                    _ => {
+                        return Err(BinaryReaderError::new(
+                            format!("export `{}` for instance {} is not an instance", name, idx),
+                            offset,
+                        ))
+                    }
+                }
+            }
+            crate::AliasKind::Value => {
+                match self.component_instance_export(idx, name, offset)?.clone() {
+                    ComponentEntityType::Value(ty) => {
+                        self.values.push((ty, false));
+                        Ok(())
+                    }
+                    _ => {
+                        return Err(BinaryReaderError::new(
+                            format!("export `{}` for instance {} is not a value", name, idx),
+                            offset,
+                        ))
+                    }
+                }
+            }
+            crate::AliasKind::Function => {
+                self.functions
+                    .push(self.instance_exported_function(idx, name, offset)?);
+                Ok(())
+            }
+            crate::AliasKind::Table => {
+                push_module_export!(EntityType::Table, tables, "table")
+            }
+            crate::AliasKind::Memory => {
+                push_module_export!(EntityType::Memory, memories, "memory")
+            }
+            crate::AliasKind::Global => {
+                push_module_export!(EntityType::Global, globals, "global")
+            }
+            crate::AliasKind::Tag => {
+                push_module_export!(EntityType::Tag, tags, "tag")
+            }
+        }
+    }
+
+    fn alias_module(
+        &mut self,
+        count: u32,
+        index: u32,
+        parents: &[Self],
+        offset: usize,
+    ) -> Result<()> {
+        let count = count as usize;
+        let ty = if count == 0 {
+            self.module_at(index, offset)?.clone()
+        } else {
+            if count > parents.len() {
+                return Err(BinaryReaderError::new(
+                    format!("invalid outer alias count of {}", count),
+                    offset,
+                ));
+            }
+
+            parents[parents.len() - count]
+                .module_at(index, offset)?
+                .clone()
+        };
+
+        self.modules.push(ty);
+
+        Ok(())
+    }
+
+    fn alias_component(
+        &mut self,
+        count: u32,
+        index: u32,
+        parents: &[Self],
+        offset: usize,
+    ) -> Result<()> {
+        let count = count as usize;
+        let ty = if count == 0 {
+            self.component_at(index, offset)?.clone()
+        } else {
+            if count > parents.len() {
+                return Err(BinaryReaderError::new(
+                    format!("invalid outer alias count of {}", count),
+                    offset,
+                ));
+            }
+
+            parents[parents.len() - count]
+                .component_at(index, offset)?
+                .clone()
+        };
+
+        self.components.push(ty);
+
+        Ok(())
+    }
+
+    fn function_at(&self, idx: u32, offset: usize) -> Result<&FuncIndexType> {
+        match self.functions.get(idx as usize) {
+            Some(f) => Ok(f),
+            None => Err(BinaryReaderError::new(
+                format!("unknown function {}: function index out of bounds", idx),
+                offset,
+            )),
+        }
+    }
+
+    fn component_function_at(&self, idx: u32, offset: usize) -> Result<&ComponentFuncType> {
+        match self.function_at(idx, offset)? {
+            FuncIndexType::Component(c) => Ok(c),
+            FuncIndexType::Core(_) => Err(BinaryReaderError::new(
+                format!("function {} is not a component function", idx),
+                offset,
+            )),
+        }
+    }
+
+    fn core_function_at(&self, idx: u32, offset: usize) -> Result<&Arc<FuncType>> {
+        match self.function_at(idx, offset)? {
+            FuncIndexType::Core(c) => Ok(c),
+            FuncIndexType::Component(_) => Err(BinaryReaderError::new(
+                format!("function {} is not a core WebAssembly function", idx),
+                offset,
+            )),
+        }
+    }
+
+    fn module_at(&self, idx: u32, offset: usize) -> Result<&ModuleType> {
+        match self.modules.get(idx as usize) {
+            Some(m) => Ok(m),
+            None => Err(BinaryReaderError::new(
+                format!("unknown module {}: module index out of bounds", idx),
+                offset,
+            )),
+        }
+    }
+
+    fn component_at(&self, idx: u32, offset: usize) -> Result<&ComponentType> {
+        match self.components.get(idx as usize) {
+            Some(c) => Ok(c),
+            None => Err(BinaryReaderError::new(
+                format!("unknown component {}: component index out of bounds", idx),
+                offset,
+            )),
+        }
+    }
+
+    fn instance_at(&self, idx: u32, offset: usize) -> Result<&InstanceIndexType> {
+        match self.instances.get(idx as usize) {
+            Some(i) => Ok(i),
+            None => Err(BinaryReaderError::new(
+                format!("unknown instance {}: instance index out of bounds", idx),
+                offset,
+            )),
+        }
+    }
+
+    fn module_instance_at(&self, idx: u32, offset: usize) -> Result<&ModuleInstanceType> {
+        match self.instance_at(idx, offset)? {
+            InstanceIndexType::Module(m) => Ok(m),
+            _ => Err(BinaryReaderError::new(
+                format!("instance {} is not a module instance", idx),
+                offset,
+            )),
+        }
+    }
+
+    fn component_instance_at(&self, idx: u32, offset: usize) -> Result<&InstanceType> {
+        match self.instance_at(idx, offset)? {
+            InstanceIndexType::Component(c) => Ok(c),
+            _ => Err(BinaryReaderError::new(
+                format!("instance {} is not a component instance", idx),
+                offset,
+            )),
+        }
+    }
+
+    fn instance_exported_function(
+        &self,
+        idx: u32,
+        name: &str,
+        offset: usize,
+    ) -> Result<FuncIndexType> {
+        match self.instance_at(idx, offset)? {
+            InstanceIndexType::Component(ty) => {
+                if let Some(ty) = ty.exports.get(name) {
+                    match ty {
+                        ComponentEntityType::Func(ty) => {
+                            return Ok(FuncIndexType::Component(ty.clone()))
+                        }
+                        _ => {
+                            return Err(BinaryReaderError::new(
+                                format!("export `{}` for instance {} is not a function", name, idx),
+                                offset,
+                            ))
+                        }
+                    }
+                }
+            }
+            InstanceIndexType::Module(ty) => {
+                if let Some(ty) = ty.exports.get(name) {
+                    match ty {
+                        EntityType::Func(ty) => return Ok(FuncIndexType::Core(ty.clone())),
+                        _ => {
+                            return Err(BinaryReaderError::new(
+                                format!("export `{}` for instance {} is not a function", name, idx),
+                                offset,
+                            ))
+                        }
+                    }
+                }
+            }
+        }
+
+        Err(BinaryReaderError::new(
+            format!("instance {} has no export named `{}`", idx, name),
+            offset,
+        ))
+    }
+
+    fn module_instance_export(&self, idx: u32, name: &str, offset: usize) -> Result<&EntityType> {
+        match self.module_instance_at(idx, offset)?.exports.get(name) {
+            Some(export) => Ok(export),
+            None => {
+                return Err(BinaryReaderError::new(
+                    format!("instance {} has no export named `{}`", idx, name),
+                    offset,
+                ))
+            }
+        }
+    }
+
+    fn component_instance_export(
+        &self,
+        idx: u32,
+        name: &str,
+        offset: usize,
+    ) -> Result<&ComponentEntityType> {
+        match self.component_instance_at(idx, offset)?.exports.get(name) {
+            Some(export) => Ok(export),
+            None => {
+                return Err(BinaryReaderError::new(
+                    format!("instance {} has no export named `{}`", idx, name),
+                    offset,
+                ))
+            }
+        }
+    }
+
+    fn value_at(&mut self, idx: u32, offset: usize) -> Result<&InterfaceType> {
+        match self.values.get_mut(idx as usize) {
+            Some((ty, used)) if !*used => {
+                *used = true;
+                Ok(ty)
+            }
+            Some(_) => Err(BinaryReaderError::new(
+                format!("value {} cannot be used more than once", idx),
+                offset,
+            )),
+            None => Err(BinaryReaderError::new(
+                format!("unknown value {}: value index out of bounds", idx),
+                offset,
+            )),
+        }
+    }
+
+    fn memory_at(&self, idx: u32, offset: usize) -> Result<&MemoryType> {
+        match self.memories.get(idx as usize) {
+            Some(m) => Ok(m),
+            None => Err(BinaryReaderError::new(
+                format!("unknown memory {}: memory index out of bounds", idx),
+                offset,
+            )),
+        }
+    }
+
+    fn table_at(&self, idx: u32, offset: usize) -> Result<&TableType> {
+        match self.tables.get(idx as usize) {
+            Some(m) => Ok(m),
+            None => Err(BinaryReaderError::new(
+                format!("unknown table {}: table index out of bounds", idx),
+                offset,
+            )),
+        }
+    }
+
+    fn global_at(&self, idx: u32, offset: usize) -> Result<&GlobalType> {
+        match self.globals.get(idx as usize) {
+            Some(g) => Ok(g),
+            None => Err(BinaryReaderError::new(
+                format!("unknown global {}: global index out of bounds", idx),
+                offset,
+            )),
+        }
+    }
+
+    fn tag_at(&self, idx: u32, offset: usize) -> Result<&Arc<FuncType>> {
+        match self.tags.get(idx as usize) {
+            Some(t) => Ok(t),
+            None => Err(BinaryReaderError::new(
+                format!("unknown tag {}: tag index out of bounds", idx),
+                offset,
+            )),
+        }
+    }
+}
+
+#[derive(Default)]
+struct ComponentTypeSpace(Vec<ComponentTypeDef>);
+
+impl ComponentTypeSpace {
+    fn type_def(
+        &mut self,
+        def: crate::ComponentTypeDef,
+        features: &WasmFeatures,
+        parents: &[ComponentState],
+        offset: usize,
+    ) -> Result<()> {
+        let def = match def {
+            crate::ComponentTypeDef::Module(defs) => {
+                ComponentTypeDef::Module(Self::module_type(defs.as_ref(), features, offset)?)
+            }
+            crate::ComponentTypeDef::Component(defs) => ComponentTypeDef::Component(
+                Self::component_type(defs.as_ref(), features, parents, offset)?,
+            ),
+            crate::ComponentTypeDef::Instance(defs) => ComponentTypeDef::Instance(
+                Self::instance_type(defs.as_ref(), features, parents, offset)?,
+            ),
+            crate::ComponentTypeDef::Function(ty) => {
+                ComponentTypeDef::Func(self.function_type(ty, offset)?)
+            }
+            crate::ComponentTypeDef::Value(ty) => {
+                ComponentTypeDef::Value(InterfaceType::new(ty, self, offset)?)
+            }
+            crate::ComponentTypeDef::Compound(ct) => {
+                ComponentTypeDef::Compound(Rc::new(self.compound_type(ct, offset)?))
+            }
+        };
+
+        self.0.push(def);
+
+        Ok(())
+    }
+
+    fn alias_type(
+        &mut self,
+        count: u32,
+        index: u32,
+        parents: &[ComponentState],
+        offset: usize,
+    ) -> Result<()> {
+        let count = count as usize;
+        let ty = if count == 0 {
+            self.get(index, offset)?.clone()
+        } else {
+            if count > parents.len() {
+                return Err(BinaryReaderError::new(
+                    format!("invalid outer alias count of {}", count),
+                    offset,
+                ));
+            }
+
+            parents[parents.len() - count]
+                .types
+                .get(index, offset)?
+                .clone()
+        };
+
+        self.0.push(ty);
+
+        Ok(())
+    }
+
+    fn module_type(
+        defs: &[crate::ModuleType],
+        features: &WasmFeatures,
+        offset: usize,
+    ) -> Result<ModuleType> {
+        let mut types = ModuleTypeSpace::default();
+        let mut imports = HashMap::new();
+        let mut exports = HashMap::new();
+
+        for def in defs {
+            match def {
+                crate::ModuleType::Type(ty) => {
+                    types.type_def(ty.clone(), features, offset)?;
+                }
+                crate::ModuleType::Export { name, ty } => {
+                    types.check_type_ref(ty, features, offset)?;
+                    if exports
+                        .insert(
+                            name.to_string(),
+                            EntityType::from_type_ref(&types, *ty, offset)?,
+                        )
+                        .is_some()
+                    {
+                        return Err(BinaryReaderError::new(
+                            format!("duplicate export name `{}` already defined", name),
+                            offset,
+                        ));
+                    }
+                }
+                crate::ModuleType::Import(i) => {
+                    types.check_type_ref(&i.ty, features, offset)?;
+
+                    if imports
+                        .insert(
+                            (i.module.to_string(), i.name.to_string()),
+                            EntityType::from_type_ref(&types, i.ty, offset)?,
+                        )
+                        .is_some()
+                    {
+                        return Err(BinaryReaderError::new(
+                            format!(
+                                "duplicate import name `{}::{}` already defined",
+                                i.module, i.name
+                            ),
+                            offset,
+                        ));
+                    }
+                }
+            };
+        }
+
+        Ok(ModuleType {
+            imports: Rc::new(imports),
+            exports: Rc::new(exports),
+        })
+    }
+
+    fn component_type(
+        defs: &[crate::ComponentType],
+        features: &WasmFeatures,
+        parents: &[ComponentState],
+        offset: usize,
+    ) -> Result<ComponentType> {
+        let mut types = ComponentTypeSpace::default();
+        let mut imports = HashMap::new();
+        let mut exports = HashMap::new();
+
+        for def in defs {
+            match def {
+                crate::ComponentType::Type(ty) => {
+                    types.type_def(ty.clone(), features, parents, offset)?;
+                }
+                crate::ComponentType::Export { name, ty } => {
+                    if exports
+                        .insert(
+                            name.to_string(),
+                            ComponentEntityType::from_type_def(
+                                types.get(*ty, offset)?.clone(),
+                                "export",
+                                offset,
+                            )?,
+                        )
+                        .is_some()
+                    {
+                        return Err(BinaryReaderError::new(
+                            format!("duplicate export name `{}` already defined", name),
+                            offset,
+                        ));
+                    }
+                }
+                crate::ComponentType::Import(i) => {
+                    if imports
+                        .insert(
+                            i.name.to_string(),
+                            ComponentEntityType::from_type_def(
+                                types.get(i.ty, offset)?.clone(),
+                                "import",
+                                offset,
+                            )?,
+                        )
+                        .is_some()
+                    {
+                        return Err(BinaryReaderError::new(
+                            format!("duplicate import name `{}` already defined", i.name),
+                            offset,
+                        ));
+                    }
+                }
+                crate::ComponentType::OuterType { count, index } => {
+                    let ty = if *count == 0 {
+                        types.get(*index, offset)?.clone()
+                    } else {
+                        let count = *count as usize;
+                        if count > parents.len() {
+                            return Err(BinaryReaderError::new(
+                                format!("invalid outer alias count of {}", count),
+                                offset,
+                            ));
+                        }
+
+                        parents[parents.len() - count]
+                            .types
+                            .get(*index, offset)?
+                            .clone()
+                    };
+
+                    types.0.push(ty);
+                }
+            };
+        }
+
+        Ok(ComponentType {
+            imports: Rc::new(imports),
+            exports: Rc::new(exports),
+        })
+    }
+
+    fn instance_type(
+        defs: &[crate::InstanceType],
+        features: &WasmFeatures,
+        parents: &[ComponentState],
+        offset: usize,
+    ) -> Result<InstanceType> {
+        let mut types = ComponentTypeSpace::default();
+        let mut exports = HashMap::new();
+
+        for def in defs {
+            match def {
+                crate::InstanceType::Type(ty) => {
+                    types.type_def(ty.clone(), features, parents, offset)?;
+                }
+                crate::InstanceType::Export { name, ty } => {
+                    if exports
+                        .insert(
+                            name.to_string(),
+                            ComponentEntityType::from_type_def(
+                                types.get(*ty, offset)?.clone(),
+                                "export",
+                                offset,
+                            )?,
+                        )
+                        .is_some()
+                    {
+                        return Err(BinaryReaderError::new(
+                            format!("duplicate export name `{}` already defined", name),
+                            offset,
+                        ));
+                    }
+                }
+                crate::InstanceType::OuterType { count, index } => {
+                    let ty = if *count == 0 {
+                        types.get(*index, offset)?.clone()
+                    } else {
+                        let count = *count as usize;
+                        if count > parents.len() {
+                            return Err(BinaryReaderError::new(
+                                format!("invalid outer alias count of {}", count),
+                                offset,
+                            ));
+                        }
+
+                        parents[parents.len() - count]
+                            .types
+                            .get(*index, offset)?
+                            .clone()
+                    };
+
+                    types.0.push(ty);
+                }
+            };
+        }
+
+        Ok(InstanceType {
+            exports: Rc::new(exports),
+        })
+    }
+
+    fn function_type(
+        &self,
+        ty: crate::ComponentFuncType,
+        offset: usize,
+    ) -> Result<ComponentFuncType> {
+        let mut core_params = Vec::new();
+        let mut core_returns = Vec::new();
+
+        let params = ty
+            .params
+            .iter()
+            .map(|(name, ty)| {
+                Self::check_name(name, "function parameter", offset)?;
+                let ty = InterfaceType::new(*ty, self, offset)?;
+                ty.push_wasm_types(&mut core_params)?;
+                Ok((name.to_string(), ty))
+            })
+            .collect::<Result<_>>()?;
+
+        let result = InterfaceType::new(ty.result, self, offset)?;
+        result.push_wasm_types(&mut core_returns)?;
+
+        Ok(ComponentFuncType {
+            params,
+            result,
+            core_type: Arc::new(FuncType {
+                params: core_params.into_boxed_slice(),
+                returns: core_returns.into_boxed_slice(),
+            }),
+        })
+    }
+
+    fn check_name(name: &str, desc: &str, offset: usize) -> Result<()> {
+        if name.is_empty() {
+            return Err(BinaryReaderError::new(
+                format!("{} name cannot be empty", desc),
+                offset,
+            ));
+        }
+
+        Ok(())
+    }
+
+    fn compound_type(&self, ct: crate::CompoundType, offset: usize) -> Result<CompoundType> {
+        Ok(match ct {
+            crate::CompoundType::Record(fields) => CompoundType::Record(
+                fields
+                    .iter()
+                    .map(|(name, ty)| {
+                        Self::check_name(name, "record field", offset)?;
+                        InterfaceType::new(*ty, self, offset)
+                    })
+                    .collect::<Result<_>>()?,
+            ),
+            crate::CompoundType::Variant { cases, default } => {
+                if let Some(default) = default {
+                    if default >= cases.len() as u32 {
+                        return Err(BinaryReaderError::new(
+                            format!("variant default index {} is out of bounds", default),
+                            offset,
+                        ));
+                    }
+                }
+                CompoundType::Variant(
+                    cases
+                        .iter()
+                        .map(|(name, ty)| {
+                            Self::check_name(name, "variant case", offset)?;
+                            InterfaceType::new(*ty, self, offset)
+                        })
+                        .collect::<Result<_>>()?,
+                )
+            }
+            crate::CompoundType::List(ty) => {
+                CompoundType::List(InterfaceType::new(ty, self, offset)?)
+            }
+            crate::CompoundType::Tuple(types) => CompoundType::Tuple(
+                types
+                    .iter()
+                    .map(|ty| InterfaceType::new(*ty, self, offset))
+                    .collect::<Result<_>>()?,
+            ),
+            crate::CompoundType::Flags(names) => {
+                for name in names.iter() {
+                    Self::check_name(name, "flag", offset)?
+                }
+
+                CompoundType::Flags(names.len())
+            }
+            crate::CompoundType::Enum(names) => {
+                for name in names.iter() {
+                    Self::check_name(name, "enum tag", offset)?
+                }
+
+                CompoundType::Enum(names.len())
+            }
+            crate::CompoundType::Union(types) => CompoundType::Union(
+                types
+                    .iter()
+                    .map(|ty| InterfaceType::new(*ty, self, offset))
+                    .collect::<Result<_>>()?,
+            ),
+            crate::CompoundType::Optional(ty) => {
+                CompoundType::Optional(InterfaceType::new(ty, self, offset)?)
+            }
+            crate::CompoundType::Expected { ok, error } => CompoundType::Expected(
+                InterfaceType::new(ok, self, offset)?,
+                InterfaceType::new(error, self, offset)?,
+            ),
+        })
+    }
+
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn get(&self, idx: u32, offset: usize) -> Result<&ComponentTypeDef> {
+        match self.0.get(idx as usize) {
+            Some(t) => Ok(t),
+            None => Err(BinaryReaderError::new(
+                format!("unknown type {}: type index out of bounds", idx),
+                offset,
+            )),
+        }
+    }
+
+    fn compound_type_at(&self, idx: u32, offset: usize) -> Result<&Rc<CompoundType>> {
+        match self.get(idx, offset)? {
+            ComponentTypeDef::Compound(ct) => Ok(ct),
+            _ => Err(BinaryReaderError::new(
+                format!("type index {} is not a compound type", idx),
+                offset,
+            )),
+        }
+    }
+
+    fn function_type_at(&self, idx: u32, offset: usize) -> Result<&ComponentFuncType> {
+        match self.get(idx, offset)? {
+            ComponentTypeDef::Func(ft) => Ok(ft),
+            _ => Err(BinaryReaderError::new(
+                format!("type index {} is not a function type", idx),
+                offset,
+            )),
+        }
+    }
+}
 
 /// Flags for features that are enabled for validation.
 #[derive(Hash, Debug, Copy, Clone)]
@@ -719,6 +2186,10 @@ impl Default for WasmFeatures {
     }
 }
 
+// Section order for WebAssembly modules.
+//
+// Component sections are unordered and allow for duplicates,
+// so this isn't used for components.
 #[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Debug)]
 enum Order {
     AfterHeader,
@@ -743,17 +2214,209 @@ impl Default for Order {
     }
 }
 
+#[derive(Clone)]
 enum TypeDef {
-    Func(FuncType),
+    Func(Arc<FuncType>),
 }
 
 #[derive(Clone)]
 enum EntityType {
-    Global(GlobalType),
-    Memory(MemoryType),
+    Func(Arc<FuncType>),
     Table(TableType),
-    Func(usize), // pointer into `validator.types`
-    Tag(TagType),
+    Memory(MemoryType),
+    Global(GlobalType),
+    Tag(Arc<FuncType>),
+}
+
+impl EntityType {
+    fn from_type_ref(types: &ModuleTypeSpace, tr: TypeRef, offset: usize) -> Result<Self> {
+        match tr {
+            TypeRef::Func(idx) => Ok(EntityType::Func(types.func_type_at(idx, offset)?.clone())),
+            TypeRef::Table(ty) => Ok(EntityType::Table(ty)),
+            TypeRef::Memory(ty) => Ok(EntityType::Memory(ty)),
+            TypeRef::Global(ty) => Ok(EntityType::Global(ty)),
+            TypeRef::Tag(ty) => Ok(EntityType::Tag(
+                types.func_type_at(ty.func_type_idx, offset)?.clone(),
+            )),
+        }
+    }
+
+    fn from_export(state: &ComponentState, export: &crate::Export, offset: usize) -> Result<Self> {
+        Ok(match export.kind {
+            ExternalKind::Func => Self::Func(state.core_function_at(export.index, offset)?.clone()),
+            ExternalKind::Table => Self::Table(*state.table_at(export.index, offset)?),
+            ExternalKind::Memory => Self::Memory(*state.memory_at(export.index, offset)?),
+            ExternalKind::Global => Self::Global(*state.global_at(export.index, offset)?),
+            ExternalKind::Tag => Self::Tag(state.tag_at(export.index, offset)?.clone()),
+        })
+    }
+
+    fn is_subtype_of(&self, b: &Self) -> bool {
+        macro_rules! limits_match {
+            ($a:expr, $b:expr) => {{
+                let a = $a;
+                let b = $b;
+                a.initial >= b.initial
+                    && match b.maximum {
+                        Some(b_max) => match a.maximum {
+                            Some(a_max) => a_max <= b_max,
+                            None => false,
+                        },
+                        None => true,
+                    }
+            }};
+        }
+
+        match (self, b) {
+            (EntityType::Func(a), EntityType::Func(b)) => a == b,
+            (EntityType::Table(a), EntityType::Table(b)) => {
+                a.element_type == b.element_type && limits_match!(a, b)
+            }
+            (EntityType::Memory(a), EntityType::Memory(b)) => {
+                a.shared == b.shared && a.memory64 == b.memory64 && limits_match!(a, b)
+            }
+            (EntityType::Global(a), EntityType::Global(b)) => a == b,
+            (EntityType::Tag(a), EntityType::Tag(b)) => a == b,
+            _ => false,
+        }
+    }
+
+    fn desc(&self) -> &'static str {
+        match self {
+            Self::Func(_) => "function",
+            Self::Table(_) => "table",
+            Self::Memory(_) => "memory",
+            Self::Global(_) => "global",
+            Self::Tag(_) => "tag",
+        }
+    }
+}
+
+#[derive(Clone)]
+struct ModuleType {
+    imports: Rc<HashMap<(String, String), EntityType>>,
+    exports: Rc<HashMap<String, EntityType>>,
+}
+
+impl ModuleType {
+    fn is_subtype_of(&self, other: &Self) -> bool {
+        self.imports
+            .iter()
+            .all(|(k, ty)| match other.imports.get(k) {
+                Some(other) => ty.is_subtype_of(other),
+                None => false,
+            })
+            && other
+                .exports
+                .iter()
+                .all(|(k, other)| match self.exports.get(k) {
+                    Some(ty) => ty.is_subtype_of(other),
+                    None => false,
+                })
+    }
+}
+
+#[derive(Clone)]
+struct ModuleInstanceType {
+    exports: Rc<HashMap<String, EntityType>>,
+}
+
+#[derive(Clone)]
+struct ComponentType {
+    imports: Rc<HashMap<String, ComponentEntityType>>,
+    exports: Rc<HashMap<String, ComponentEntityType>>,
+}
+
+impl ComponentType {
+    fn is_subtype_of(&self, other: &Self) -> bool {
+        self.imports
+            .iter()
+            .all(|(k, ty)| match other.imports.get(k) {
+                Some(other) => ty.is_subtype_of(other),
+                None => false,
+            })
+            && other
+                .exports
+                .iter()
+                .all(|(k, other)| match self.exports.get(k) {
+                    Some(ty) => ty.is_subtype_of(other),
+                    None => false,
+                })
+    }
+}
+
+#[derive(Clone)]
+struct InstanceType {
+    exports: Rc<HashMap<String, ComponentEntityType>>,
+}
+
+impl InstanceType {
+    fn is_subtype_of(&self, other: &Self) -> bool {
+        other
+            .exports
+            .iter()
+            .all(|(k, other)| match self.exports.get(k) {
+                Some(ty) => ty.is_subtype_of(other),
+                None => false,
+            })
+    }
+}
+
+#[derive(Clone, Eq)]
+struct ComponentFuncType {
+    params: Rc<[(String, InterfaceType)]>,
+    result: InterfaceType,
+    core_type: Arc<FuncType>,
+}
+
+impl PartialEq for ComponentFuncType {
+    fn eq(&self, other: &Self) -> bool {
+        self.params
+            .iter()
+            .map(|(_, ty)| ty)
+            .eq(other.params.iter().map(|(_, ty)| ty))
+            && self.result.eq(&other.result)
+    }
+}
+
+#[derive(Clone, Eq)]
+enum CompoundType {
+    Record(Box<[InterfaceType]>),
+    Variant(Box<[InterfaceType]>),
+    List(InterfaceType),
+    Tuple(Box<[InterfaceType]>),
+    Flags(usize),
+    Enum(usize),
+    Union(Box<[InterfaceType]>),
+    Optional(InterfaceType),
+    Expected(InterfaceType, InterfaceType),
+}
+
+impl PartialEq for CompoundType {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Record(l), Self::Record(r))
+            | (Self::Variant(l), Self::Variant(r))
+            | (Self::Tuple(l), Self::Tuple(r))
+            | (Self::Union(l), Self::Union(r)) => l == r,
+
+            (Self::List(l), Self::List(r)) => l == r,
+            (Self::Flags(l), Self::Flags(r)) | (Self::Enum(l), Self::Enum(r)) => l == r,
+            (Self::Optional(l), Self::Optional(r)) => l == r,
+            (Self::Expected(lo, le), Self::Expected(ro, re)) => lo == ro && le == re,
+            _ => false,
+        }
+    }
+}
+
+#[derive(Clone)]
+enum ComponentTypeDef {
+    Module(ModuleType),
+    Component(ComponentType),
+    Instance(InstanceType),
+    Func(ComponentFuncType),
+    Value(InterfaceType),
+    Compound(Rc<CompoundType>),
 }
 
 /// Possible return values from [`Validator::payload`].
@@ -853,15 +2516,17 @@ impl Validator {
             DataSection(s) => self.data_section(s)?,
 
             // Component sections
-            ComponentTypeSection(_) => todo!("component-model"),
-            ComponentImportSection(_) => todo!("component-model"),
-            ComponentFunctionSection(_) => todo!("component-model"),
-            ModuleSection { .. } => todo!("component-model"),
-            ComponentSection { .. } => todo!("component-model"),
-            InstanceSection(_) => todo!("component-model"),
-            ComponentExportSection(_) => todo!("component-model"),
-            ComponentStartSection { .. } => todo!("component-model"),
-            AliasSection(_) => todo!("component-model"),
+            ComponentTypeSection(s) => self.component_type_section(s)?,
+            ComponentImportSection(s) => self.component_import_section(s)?,
+            ComponentFunctionSection(s) => self.component_function_section(s)?,
+            ModuleSection { range, .. } => self.module_section(range)?,
+            ComponentSection { range, .. } => self.component_section(range)?,
+            InstanceSection(s) => self.instance_section(s)?,
+            ComponentExportSection(s) => self.component_export_section(s)?,
+            ComponentStartSection { func, args, range } => {
+                self.component_start_section(*func, args, range)?
+            }
+            AliasSection(s) => self.alias_section(s)?,
 
             End(offset) => self.end(*offset)?,
 
@@ -874,7 +2539,22 @@ impl Validator {
     /// Validates [`Payload::Version`](crate::Payload).
     pub fn version(&mut self, num: u32, encoding: Encoding, range: &Range) -> Result<()> {
         match &self.state {
-            State::Unparsed => {}
+            State::Unparsed(expected) => {
+                if let Some(expected) = expected {
+                    if *expected != encoding {
+                        return Err(BinaryReaderError::new(
+                            format!(
+                                "expected a version header for a {}",
+                                match expected {
+                                    Encoding::Module => "module",
+                                    Encoding::Component => "component",
+                                }
+                            ),
+                            range.start,
+                        ));
+                    }
+                }
+            }
             _ => {
                 return Err(BinaryReaderError::new(
                     "wasm version header out of order",
@@ -893,7 +2573,7 @@ impl Validator {
                     ));
                 }
 
-                State::Component(ComponentState::default())
+                State::Component(Box::new(ComponentState::default()))
             }
             _ => {
                 return Err(BinaryReaderError::new(
@@ -911,7 +2591,7 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn type_section(&mut self, section: &crate::TypeSectionReader<'_>) -> Result<()> {
         let features = self.features;
-        self.module_section(Order::Type, section, "type", |state, item, offset| {
+        self.ensure_module_section(Order::Type, section, "type", |state, item, offset| {
             check_max(
                 state.module.types.len(),
                 section.get_count(),
@@ -933,8 +2613,20 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn import_section(&mut self, section: &crate::ImportSectionReader<'_>) -> Result<()> {
         let features = self.features;
-        self.module_section(Order::Import, section, "import", |state, item, offset| {
-            state.module.assert_mut().import(item, &features, offset)
+        let has_parent = !self.parents.is_empty();
+        self.ensure_module_section(Order::Import, section, "import", |state, item, offset| {
+            check_max(
+                state.module.imports.len(),
+                section.get_count(),
+                MAX_WASM_IMPORTS,
+                "imports",
+                offset,
+            )?;
+
+            state
+                .module
+                .assert_mut()
+                .import(item, &features, has_parent, offset)
         })
     }
 
@@ -942,13 +2634,13 @@ impl Validator {
     ///
     /// This method should only be called when parsing a module.
     pub fn function_section(&mut self, section: &crate::FunctionSectionReader<'_>) -> Result<()> {
-        self.module_section(Order::Function, section, "function", |state, ty, offset| {
+        self.ensure_module_section(Order::Function, section, "function", |state, ty, offset| {
             state.expected_code_bodies = Some(section.get_count());
             check_max(
                 state.module.functions.len(),
                 section.get_count(),
                 MAX_WASM_FUNCTIONS,
-                "funcs",
+                "functions",
                 offset,
             )?;
 
@@ -966,7 +2658,7 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn table_section(&mut self, section: &crate::TableSectionReader<'_>) -> Result<()> {
         let features = self.features;
-        self.module_section(Order::Table, section, "table", |state, ty, offset| {
+        self.ensure_module_section(Order::Table, section, "table", |state, ty, offset| {
             check_max(
                 state.module.tables.len(),
                 section.get_count(),
@@ -987,7 +2679,7 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn memory_section(&mut self, section: &crate::MemorySectionReader<'_>) -> Result<()> {
         let features = self.features;
-        self.module_section(Order::Memory, section, "memory", |state, ty, offset| {
+        self.ensure_module_section(Order::Memory, section, "memory", |state, ty, offset| {
             check_max(
                 state.module.memories.len(),
                 section.get_count(),
@@ -1015,7 +2707,7 @@ impl Validator {
             ));
         }
 
-        self.module_section(Order::Tag, section, "tag", |state, ty, offset| {
+        self.ensure_module_section(Order::Tag, section, "tag", |state, ty, offset| {
             check_max(
                 state.module.tags.len(),
                 section.get_count(),
@@ -1036,7 +2728,7 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn global_section(&mut self, section: &crate::GlobalSectionReader<'_>) -> Result<()> {
         let features = self.features;
-        self.module_section(Order::Global, section, "global", |state, g, offset| {
+        self.ensure_module_section(Order::Global, section, "global", |state, g, offset| {
             check_max(
                 state.module.globals.len(),
                 section.get_count(),
@@ -1059,10 +2751,18 @@ impl Validator {
     ///
     /// This method should only be called when parsing a module.
     pub fn export_section(&mut self, section: &crate::ExportSectionReader<'_>) -> Result<()> {
-        self.module_section(Order::Export, section, "export", |state, e, offset| {
+        self.ensure_module_section(Order::Export, section, "export", |state, e, offset| {
+            check_max(
+                state.module.exports.len(),
+                section.get_count(),
+                MAX_WASM_EXPORTS,
+                "exports",
+                offset,
+            )?;
+
             let module = state.module.assert_mut();
-            let ty = module.entity_type(e.kind, e.index, offset)?;
-            match module.exports.insert(e.name.to_string(), ty) {
+            let tr = module.get_type_ref(e.kind, e.index, offset)?;
+            match module.exports.insert(e.name.to_string(), tr) {
                 Some(_) => Err(BinaryReaderError::new(
                     format!("duplicate export name `{}` already defined", e.name),
                     offset,
@@ -1097,7 +2797,7 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn element_section(&mut self, section: &crate::ElementSectionReader<'_>) -> Result<()> {
         let features = self.features;
-        self.module_section(Order::Element, section, "element", |state, e, offset| {
+        self.ensure_module_section(Order::Element, section, "element", |state, e, offset| {
             match e.ty {
                 Type::FuncRef => {}
                 Type::ExternRef if features.reference_types => {}
@@ -1255,13 +2955,15 @@ impl Validator {
     }
 
     /// Validates [`Payload::DataSection`](crate::Payload).
+    ///
+    /// This method should only be called when parsing a module.
     pub fn data_section(&mut self, section: &crate::DataSectionReader<'_>) -> Result<()> {
         let mut section = section.clone();
         let count = section.get_count();
         section.forbid_bulk_memory(!self.features.bulk_memory);
 
         let features = self.features;
-        self.module_section(Order::Data, &section, "data", |state, d, offset| {
+        self.ensure_module_section(Order::Data, &section, "data", |state, d, offset| {
             check_max(0, count, MAX_WASM_DATA_SEGMENTS, "data segments", offset)?;
 
             state.data_found = count;
@@ -1279,6 +2981,309 @@ impl Validator {
         })
     }
 
+    /// Validates [`Payload::ComponentTypeSection`](crate::Payload).
+    ///
+    /// This method should only be called when parsing a component.
+    pub fn component_type_section(
+        &mut self,
+        section: &crate::ComponentTypeSectionReader,
+    ) -> Result<()> {
+        let features = self.features;
+        self.ensure_component_section(section, "type", |state, parents, ty, offset| {
+            check_max(
+                state.types.len(),
+                section.get_count(),
+                MAX_WASM_TYPES,
+                "types",
+                offset,
+            )?;
+
+            state.types.type_def(ty, &features, parents, offset)
+        })
+    }
+
+    /// Validates [`Payload::ComponentImportSection`](crate::Payload).
+    ///
+    /// This method should only be called when parsing a component.
+    pub fn component_import_section(
+        &mut self,
+        section: &crate::ComponentImportSectionReader,
+    ) -> Result<()> {
+        self.ensure_component_section(section, "import", |state, _, import, offset| {
+            check_max(
+                state.imports.len(),
+                section.get_count(),
+                MAX_WASM_IMPORTS,
+                "imports",
+                offset,
+            )?;
+
+            state.import(import, offset)
+        })
+    }
+
+    /// Validates [`Payload::ComponentFunctionSection`](crate::Payload).
+    ///
+    /// This method should only be called when parsing a component.
+    pub fn component_function_section(
+        &mut self,
+        section: &crate::ComponentFunctionSectionReader,
+    ) -> Result<()> {
+        self.ensure_component_section(section, "function", |state, _, func, offset| {
+            check_max(
+                state.functions.len(),
+                section.get_count(),
+                MAX_WASM_FUNCTIONS,
+                "functions",
+                offset,
+            )?;
+
+            match func {
+                crate::ComponentFunction::Lift {
+                    type_index,
+                    func_index,
+                    options,
+                } => {
+                    let ty = state.types.function_type_at(type_index, offset)?;
+                    let core_ty = state.core_function_at(func_index, offset)?;
+
+                    if ty.core_type != *core_ty {
+                        return Err(BinaryReaderError::new(
+                            "lowered function type does not match core function type",
+                            offset,
+                        ));
+                    }
+
+                    check_options(&options, offset)?;
+                    state.functions.push(FuncIndexType::Component(ty.clone()));
+                }
+                crate::ComponentFunction::Lower {
+                    func_index,
+                    options,
+                } => {
+                    let ty = state.types.function_type_at(func_index, offset)?;
+                    check_options(&options, offset)?;
+
+                    state
+                        .functions
+                        .push(FuncIndexType::Core(ty.core_type.clone()));
+                }
+            }
+
+            Ok(())
+        })
+    }
+
+    /// Validates [`Payload::ModuleSection`](crate::Payload).
+    ///
+    /// This method should only be called when parsing a component.
+    pub fn module_section(&mut self, range: &Range) -> Result<()> {
+        {
+            let (state, _) = self.component_state("module", range.start)?;
+            check_max(
+                state.modules.len(),
+                1,
+                MAX_WASM_MODULES,
+                "modules",
+                range.start,
+            )?;
+        }
+
+        match mem::replace(&mut self.state, State::Unparsed(Some(Encoding::Module))) {
+            State::Component(state) => self.parents.push(*state),
+            _ => unreachable!(),
+        }
+
+        Ok(())
+    }
+
+    /// Validates [`Payload::ComponentSection`](crate::Payload).
+    ///
+    /// This method should only be called when parsing a component.
+    pub fn component_section(&mut self, range: &Range) -> Result<()> {
+        {
+            let (state, _) = self.component_state("component", range.start)?;
+            check_max(
+                state.components.len(),
+                1,
+                MAX_WASM_COMPONENTS,
+                "components",
+                range.start,
+            )?;
+        }
+
+        match mem::replace(&mut self.state, State::Unparsed(Some(Encoding::Component))) {
+            State::Component(state) => self.parents.push(*state),
+            _ => unreachable!(),
+        }
+
+        Ok(())
+    }
+
+    /// Validates [`Payload::InstanceSection`](crate::Payload).
+    ///
+    /// This method should only be called when parsing a component.
+    pub fn instance_section(&mut self, section: &crate::InstanceSectionReader) -> Result<()> {
+        self.ensure_component_section(section, "instance", |state, _, instance, offset| {
+            check_max(
+                state.instances.len(),
+                section.get_count(),
+                MAX_WASM_INSTANCES,
+                "instances",
+                offset,
+            )?;
+
+            let instance = match instance {
+                crate::Instance::Module { index, args } => InstanceIndexType::Module(
+                    state.instantiate_module(index, args.as_ref(), offset)?,
+                ),
+                crate::Instance::Component { index, args } => InstanceIndexType::Component(
+                    state.instantiate_component(index, args.as_ref(), offset)?,
+                ),
+                crate::Instance::Exports(exports) => InstanceIndexType::Component(
+                    state.instantiate_exports(exports.as_ref(), offset)?,
+                ),
+            };
+
+            state.instances.push(instance);
+
+            Ok(())
+        })
+    }
+
+    /// Validates [`Payload::ComponentExportSection`](crate::Payload).
+    ///
+    /// This method should only be called when parsing a component.
+    pub fn component_export_section(
+        &mut self,
+        section: &crate::ComponentExportSectionReader,
+    ) -> Result<()> {
+        self.ensure_component_section(section, "export", |state, _, export, offset| {
+            check_max(
+                state.exports.len(),
+                section.get_count(),
+                MAX_WASM_EXPORTS,
+                "exports",
+                offset,
+            )?;
+
+            let ty = match export.kind {
+                crate::ComponentExportKind::Module(idx) => {
+                    ComponentEntityType::Module(state.module_at(idx, offset)?.clone())
+                }
+                crate::ComponentExportKind::Component(idx) => {
+                    ComponentEntityType::Component(state.component_at(idx, offset)?.clone())
+                }
+                crate::ComponentExportKind::Instance(idx) => {
+                    ComponentEntityType::Instance(state.component_instance_at(idx, offset)?.clone())
+                }
+                crate::ComponentExportKind::Function(idx) => {
+                    ComponentEntityType::Func(state.component_function_at(idx, offset)?.clone())
+                }
+                crate::ComponentExportKind::Value(idx) => {
+                    ComponentEntityType::Value(state.value_at(idx, offset)?.clone())
+                }
+                crate::ComponentExportKind::Exports(exports) => ComponentEntityType::Instance(
+                    state.instantiate_exports(exports.as_ref(), offset)?,
+                ),
+            };
+
+            if state.exports.insert(export.name.to_string(), ty).is_some() {
+                return Err(BinaryReaderError::new(
+                    format!("duplicate export name `{}` already defined", export.name),
+                    offset,
+                ));
+            }
+
+            Ok(())
+        })
+    }
+
+    /// Validates [`Payload::ComponentStartSection`](crate::Payload).
+    ///
+    /// This method should only be called when parsing a component.
+    pub fn component_start_section(
+        &mut self,
+        func_index: u32,
+        args: &[u32],
+        range: &Range,
+    ) -> Result<()> {
+        let (state, _) = self.component_state("start", range.start)?;
+
+        if state.has_start {
+            return Err(BinaryReaderError::new(
+                "component cannot have more than one start function",
+                range.start,
+            ));
+        }
+
+        let ft = state
+            .component_function_at(func_index, range.start)?
+            .clone();
+
+        if ft.params.len() != args.len() {
+            return Err(BinaryReaderError::new(
+                format!(
+                    "component start function requires {} arguments but was given {}",
+                    ft.params.len(),
+                    args.len()
+                ),
+                range.start,
+            ));
+        }
+
+        for (i, ((_, ty), arg)) in ft.params.iter().zip(args).enumerate() {
+            if ty != state.value_at(*arg, range.start)? {
+                return Err(BinaryReaderError::new(
+                    format!(
+                        "value type mismatch for component start function argument {}",
+                        i
+                    ),
+                    range.start,
+                ));
+            }
+        }
+
+        match ft.result {
+            InterfaceType::Unit => {}
+            ty => {
+                state.values.push((ty, false));
+            }
+        }
+
+        state.has_start = true;
+
+        Ok(())
+    }
+
+    /// Validates [`Payload::AliasSection`](crate::Payload).
+    ///
+    /// This method should only be called when parsing a component.
+    pub fn alias_section(&mut self, section: &crate::AliasSectionReader) -> Result<()> {
+        self.ensure_component_section(
+            section,
+            "alias",
+            |state, parents, alias, offset| -> Result<(), BinaryReaderError> {
+                match alias {
+                    crate::Alias::InstanceExport {
+                        kind,
+                        instance,
+                        name,
+                    } => state.alias_instance_export(kind, instance, name, offset),
+                    crate::Alias::OuterModule { count, index } => {
+                        state.alias_module(count, index, parents, offset)
+                    }
+                    crate::Alias::OuterComponent { count, index } => {
+                        state.alias_component(count, index, parents, offset)
+                    }
+                    crate::Alias::OuterType { count, index } => {
+                        state.types.alias_type(count, index, parents, offset)
+                    }
+                }
+            },
+        )
+    }
+
     /// Validates [`Payload::UnknownSection`](crate::Payload).
     ///
     /// Currently always returns an error.
@@ -1291,19 +3296,21 @@ impl Validator {
 
     /// Validates [`Payload::End`](crate::Payload).
     pub fn end(&mut self, offset: usize) -> Result<()> {
-        match &mut self.state {
-            State::Unparsed => Err(BinaryReaderError::new(
-                "cannot call end before a header has been parsed",
+        match std::mem::replace(&mut self.state, State::Unparsed(None)) {
+            State::Unparsed(_) => Err(BinaryReaderError::new(
+                "cannot call `end` before a header has been parsed",
                 offset,
             )),
-            State::Module(state) => Self::end_module(state, offset),
-            State::Component(_) => todo!(),
+            State::Module(state) => self.end_module(state, offset),
+            State::Component(state) => self.end_component(state),
         }
     }
 
-    fn end_module(state: &ModuleState, offset: usize) -> Result<()> {
+    fn end_module(&mut self, state: ModuleState, offset: usize) -> Result<()> {
+        let module = &state.module;
+
         // Ensure that the data count section, if any, was correct.
-        if let Some(data_count) = state.module.data_count {
+        if let Some(data_count) = module.data_count {
             if data_count != state.data_found {
                 return Err(BinaryReaderError::new(
                     "data count section and passive data mismatch",
@@ -1322,12 +3329,59 @@ impl Validator {
             }
         }
 
+        // If there's a parent component, we'll push a module to the parent state
+        if let Some(mut parent) = self.parents.pop() {
+            let imports = module
+                .imports
+                .iter()
+                .map(|(k, v)| {
+                    assert_eq!(v.len(), 1);
+                    Ok((
+                        k.clone(),
+                        EntityType::from_type_ref(&module.types, v[0], offset)?,
+                    ))
+                })
+                .collect::<Result<_>>()?;
+
+            let exports = module
+                .exports
+                .iter()
+                .map(|(k, v)| {
+                    Ok((
+                        k.clone(),
+                        EntityType::from_type_ref(&module.types, *v, offset)?,
+                    ))
+                })
+                .collect::<Result<_>>()?;
+
+            parent.modules.push(ModuleType {
+                imports: Rc::new(imports),
+                exports: Rc::new(exports),
+            });
+
+            self.state = State::Component(Box::new(parent));
+        }
+
+        Ok(())
+    }
+
+    fn end_component(&mut self, state: Box<ComponentState>) -> Result<()> {
+        // If there's a parent component, we'll push a component to the parent state
+        if let Some(mut parent) = self.parents.pop() {
+            parent.components.push(ComponentType {
+                imports: Rc::new(state.imports),
+                exports: Rc::new(state.exports),
+            });
+
+            self.state = State::Component(Box::new(parent));
+        }
+
         Ok(())
     }
 
     fn module_state(&mut self, section: &str, offset: usize) -> Result<&mut ModuleState> {
         match &mut self.state {
-            State::Unparsed => Err(BinaryReaderError::new(
+            State::Unparsed(_) => Err(BinaryReaderError::new(
                 "unexpected section before header was parsed",
                 offset,
             )),
@@ -1342,7 +3396,28 @@ impl Validator {
         }
     }
 
-    fn module_section<T>(
+    fn component_state(
+        &mut self,
+        section: &str,
+        offset: usize,
+    ) -> Result<(&mut ComponentState, &[ComponentState])> {
+        match &mut self.state {
+            State::Unparsed(_) => Err(BinaryReaderError::new(
+                "unexpected section before header was parsed",
+                offset,
+            )),
+            State::Module(_) => Err(BinaryReaderError::new(
+                format!(
+                    "component {} sections are not supported when parsing WebAssembly modules",
+                    section
+                ),
+                offset,
+            )),
+            State::Component(state) => Ok((state, &self.parents)),
+        }
+    }
+
+    fn ensure_module_section<T>(
         &mut self,
         order: Order,
         section: &T,
@@ -1362,6 +3437,43 @@ impl Validator {
             let offset = section.original_position();
             let item = section.read()?;
             validate_item(state, item, offset)?;
+        }
+
+        section.ensure_end()?;
+
+        Ok(())
+    }
+
+    fn ensure_component_section<T>(
+        &mut self,
+        section: &T,
+        name: &str,
+        mut validate_item: impl FnMut(
+            &mut ComponentState,
+            &[ComponentState],
+            T::Item,
+            usize,
+        ) -> Result<()>,
+    ) -> Result<()>
+    where
+        T: SectionReader + Clone + SectionWithLimitedItems,
+    {
+        let offset = section.range().start;
+
+        if !self.features.component_model {
+            return Err(BinaryReaderError::new(
+                "component model feature is not enabled",
+                offset,
+            ));
+        }
+
+        let (state, parents) = self.component_state(name, offset)?;
+
+        let mut section = section.clone();
+        for _ in 0..section.get_count() {
+            let offset = section.original_position();
+            let item = section.read()?;
+            validate_item(state, parents, item, offset)?;
         }
 
         section.ensure_end()?;
@@ -1438,6 +3550,16 @@ impl WasmModuleResources for ValidatorResources {
         self.0.is_function_referenced(idx)
     }
 }
+
+const _: () = {
+    fn assert_send<T: Send>() {}
+
+    // Assert that `ValidatorResources` is Send so function validation
+    // can be parallelizable
+    fn assert() {
+        assert_send::<ValidatorResources>();
+    }
+};
 
 mod arc {
     use std::ops::Deref;

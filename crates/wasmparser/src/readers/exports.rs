@@ -137,7 +137,7 @@ pub enum ComponentExportKind<'a> {
     /// The export is a value.
     Value(u32),
     /// The export is an instance based on exports of local items.
-    Exports(Vec<ComponentExport<'a>>),
+    Exports(Box<[ComponentExport<'a>]>),
 }
 
 /// Represents an export in a WebAssembly component.
