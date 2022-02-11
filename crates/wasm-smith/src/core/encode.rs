@@ -225,7 +225,7 @@ impl Module {
     }
 }
 
-fn translate_entity_type(ty: &EntityType) -> wasm_encoder::EntityType {
+pub(crate) fn translate_entity_type(ty: &EntityType) -> wasm_encoder::EntityType {
     match ty {
         EntityType::Tag(t) => wasm_encoder::EntityType::Tag(wasm_encoder::TagType {
             kind: wasm_encoder::TagKind::Exception,
