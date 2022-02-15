@@ -571,6 +571,7 @@ impl TestState {
                     features.reference_types = false;
                     features.multi_value = false;
                     features.sign_extension = false;
+                    features.saturating_float_to_int = false;
                 }
                 "threads" => {
                     features.threads = true;
