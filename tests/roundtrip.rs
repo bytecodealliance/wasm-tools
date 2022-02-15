@@ -558,6 +558,9 @@ impl TestState {
             multi_memory: true,
             memory64: true,
             extended_const: true,
+            saturating_float_to_int: true,
+            sign_extension: true,
+            mutable_global: true,
         };
         for part in test.iter().filter_map(|t| t.to_str()) {
             match part {
@@ -567,6 +570,9 @@ impl TestState {
                     features.simd = false;
                     features.reference_types = false;
                     features.multi_value = false;
+                    features.sign_extension = false;
+                    features.saturating_float_to_int = false;
+                    features.mutable_global = false;
                 }
                 "threads" => {
                     features.threads = true;

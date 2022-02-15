@@ -220,6 +220,9 @@ fn validate_benchmark(c: &mut Criterion) {
             memory64: true,
             extended_const: true,
             deterministic_only: false,
+            mutable_global: true,
+            saturating_float_to_int: true,
+            sign_extension: true,
         });
         return ret;
     }

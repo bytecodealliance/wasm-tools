@@ -1180,27 +1180,57 @@ impl OperatorValidator {
                 self.push_operand(Type::F64)?;
             }
             Operator::I32TruncSatF32S | Operator::I32TruncSatF32U => {
+                if !self.features.saturating_float_to_int {
+                    return Err(OperatorValidatorError::new(
+                        "saturating float to int conversions support is not enabled",
+                    ));
+                }
                 self.pop_operand(Some(Type::F32))?;
                 self.push_operand(Type::I32)?;
             }
             Operator::I32TruncSatF64S | Operator::I32TruncSatF64U => {
+                if !self.features.saturating_float_to_int {
+                    return Err(OperatorValidatorError::new(
+                        "saturating float to int conversions support is not enabled",
+                    ));
+                }
                 self.pop_operand(Some(Type::F64))?;
                 self.push_operand(Type::I32)?;
             }
             Operator::I64TruncSatF32S | Operator::I64TruncSatF32U => {
+                if !self.features.saturating_float_to_int {
+                    return Err(OperatorValidatorError::new(
+                        "saturating float to int conversions support is not enabled",
+                    ));
+                }
                 self.pop_operand(Some(Type::F32))?;
                 self.push_operand(Type::I64)?;
             }
             Operator::I64TruncSatF64S | Operator::I64TruncSatF64U => {
+                if !self.features.saturating_float_to_int {
+                    return Err(OperatorValidatorError::new(
+                        "saturating float to int conversions support is not enabled",
+                    ));
+                }
                 self.pop_operand(Some(Type::F64))?;
                 self.push_operand(Type::I64)?;
             }
             Operator::I32Extend16S | Operator::I32Extend8S => {
+                if !self.features.sign_extension {
+                    return Err(OperatorValidatorError::new(
+                        "sign extension operations support is not enabled",
+                    ));
+                }
                 self.pop_operand(Some(Type::I32))?;
                 self.push_operand(Type::I32)?;
             }
 
             Operator::I64Extend32S | Operator::I64Extend16S | Operator::I64Extend8S => {
+                if !self.features.sign_extension {
+                    return Err(OperatorValidatorError::new(
+                        "sign extension operations support is not enabled",
+                    ));
+                }
                 self.pop_operand(Some(Type::I64))?;
                 self.push_operand(Type::I64)?;
             }
