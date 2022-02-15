@@ -207,7 +207,9 @@ impl Component {
         let max = self.config.max_types() - self.types.len();
 
         arbitrary_loop(u, min, max, |u| {
-            let ty = self.arbitrary_type(u)?;
+            let mut type_fuel = self.config.max_type_size();
+            let ty = self.arbitrary_type(u, &mut type_fuel)?;
+
             let section_idx = self.sections.len() - 1;
             let section = match self.sections.last_mut().unwrap() {
                 Section::Type(section) => section,
@@ -215,6 +217,7 @@ impl Component {
             };
             self.types.push((section_idx, section.types.len()));
             section.types.push(ty.clone());
+
             self.current_type_scope_mut().push(ty);
             Ok(true)
         })?;
@@ -222,20 +225,29 @@ impl Component {
         Ok(())
     }
 
-    fn arbitrary_type(&mut self, u: &mut Unstructured) -> Result<Rc<Type>> {
+    fn arbitrary_type(&mut self, u: &mut Unstructured, type_fuel: &mut u32) -> Result<Rc<Type>> {
+        *type_fuel = type_fuel.saturating_sub(1);
+        if *type_fuel == 0 {
+            return Ok(Rc::new(Type::Value(self.arbitrary_value_type(u)?)));
+        }
+
         let ty = match u.int_in_range::<u8>(0..=5)? {
-            0 => Type::Module(self.arbitrary_module_type(u)?),
-            1 => Type::Component(self.arbitrary_component_type(u)?),
-            2 => Type::Instance(self.arbitrary_instance_type(u)?),
-            3 => Type::Func(self.arbitrary_func_type(u)?),
+            0 => Type::Module(self.arbitrary_module_type(u, type_fuel)?),
+            1 => Type::Component(self.arbitrary_component_type(u, type_fuel)?),
+            2 => Type::Instance(self.arbitrary_instance_type(u, type_fuel)?),
+            3 => Type::Func(self.arbitrary_func_type(u, type_fuel)?),
             4 => Type::Value(self.arbitrary_value_type(u)?),
-            5 => Type::Compound(self.arbitrary_compound_type(u)?),
+            5 => Type::Compound(self.arbitrary_compound_type(u, type_fuel)?),
             _ => unreachable!(),
         };
         Ok(Rc::new(ty))
     }
 
-    fn arbitrary_module_type(&mut self, u: &mut Unstructured) -> Result<ModuleType> {
+    fn arbitrary_module_type(
+        &mut self,
+        u: &mut Unstructured,
+        type_fuel: &mut u32,
+    ) -> Result<ModuleType> {
         // TODO: this currently only supports function type definitions,
         // function imports, and function exports.
 
@@ -245,6 +257,11 @@ impl Component {
         let mut exports = HashSet::new();
 
         arbitrary_loop(u, 0, 100, |u| {
+            *type_fuel = type_fuel.saturating_sub(1);
+            if *type_fuel == 0 {
+                return Ok(false);
+            }
+
             match u.int_in_range::<u8>(0..=2)? {
                 // Import.
                 0 if !types.is_empty() => {
@@ -307,13 +324,22 @@ impl Component {
         &self.outer_types_scope(count).types[usize::try_from(i).unwrap()]
     }
 
-    fn arbitrary_component_type(&mut self, u: &mut Unstructured) -> Result<ComponentType> {
+    fn arbitrary_component_type(
+        &mut self,
+        u: &mut Unstructured,
+        type_fuel: &mut u32,
+    ) -> Result<ComponentType> {
         let mut defs = vec![];
         let mut imports = HashSet::new();
         let mut exports = HashSet::new();
 
         self.with_types_scope(|me| {
             arbitrary_loop(u, 0, 100, |u| {
+                *type_fuel = type_fuel.saturating_sub(1);
+                if *type_fuel == 0 {
+                    return Ok(false);
+                }
+
                 if !me.current_type_scope().types.is_empty() && u.int_in_range::<u8>(0..=3)? == 0 {
                     // Imports.
                     let name = crate::unique_string(100, &mut imports, u)?;
@@ -322,7 +348,7 @@ impl Component {
                     defs.push(ComponentTypeDef::Import(Import { name, ty }));
                 } else {
                     // Type definitions, exports, and aliases.
-                    let def = me.arbitrary_instance_type_def(u, &mut exports)?;
+                    let def = me.arbitrary_instance_type_def(u, &mut exports, type_fuel)?;
                     defs.push(def.into());
                 }
                 Ok(true)
@@ -332,13 +358,22 @@ impl Component {
         Ok(ComponentType { defs })
     }
 
-    fn arbitrary_instance_type(&mut self, u: &mut Unstructured) -> Result<InstanceType> {
+    fn arbitrary_instance_type(
+        &mut self,
+        u: &mut Unstructured,
+        type_fuel: &mut u32,
+    ) -> Result<InstanceType> {
         let mut defs = vec![];
         let mut exports = HashSet::new();
 
         self.with_types_scope(|me| {
             arbitrary_loop(u, 0, 100, |u| {
-                defs.push(me.arbitrary_instance_type_def(u, &mut exports)?);
+                *type_fuel = type_fuel.saturating_sub(1);
+                if *type_fuel == 0 {
+                    return Ok(false);
+                }
+
+                defs.push(me.arbitrary_instance_type_def(u, &mut exports, type_fuel)?);
                 Ok(true)
             })
         })?;
@@ -350,14 +385,20 @@ impl Component {
         &mut self,
         u: &mut Unstructured,
         exports: &mut HashSet<String>,
+        type_fuel: &mut u32,
     ) -> Result<InstanceTypeDef> {
         let mut choices: Vec<
-            fn(&mut Component, &mut HashSet<String>, &mut Unstructured) -> Result<InstanceTypeDef>,
+            fn(
+                &mut Component,
+                &mut HashSet<String>,
+                &mut Unstructured,
+                &mut u32,
+            ) -> Result<InstanceTypeDef>,
         > = Vec::with_capacity(3);
 
         // Export.
         if !self.current_type_scope().types.is_empty() {
-            choices.push(|me, exports, u| {
+            choices.push(|me, exports, u, _type_fuel| {
                 Ok(InstanceTypeDef::Export {
                     name: crate::unique_string(100, exports, u)?,
                     ty: u.int_in_range(
@@ -373,7 +414,7 @@ impl Component {
             .iter()
             .any(|scope| !scope.types.is_empty())
         {
-            choices.push(|me, _exports, u| {
+            choices.push(|me, _exports, u, _type_fuel| {
                 let alias = me.arbitrary_outer_type_alias(u)?;
                 let (count, i) = match alias {
                     Alias::Outer {
@@ -390,14 +431,14 @@ impl Component {
         }
 
         // Type definition.
-        choices.push(|me, _exports, u| {
-            let ty = me.arbitrary_type(u)?;
+        choices.push(|me, _exports, u, type_fuel| {
+            let ty = me.arbitrary_type(u, type_fuel)?;
             me.current_type_scope_mut().push(ty.clone());
             Ok(InstanceTypeDef::Type(ty))
         });
 
         let f = u.choose(&choices)?;
-        f(self, exports, u)
+        f(self, exports, u, type_fuel)
     }
 
     fn arbitrary_outer_type_alias(&mut self, u: &mut Unstructured) -> Result<Alias> {
@@ -427,10 +468,19 @@ impl Component {
         })
     }
 
-    fn arbitrary_func_type(&mut self, u: &mut Unstructured) -> Result<FuncType> {
+    fn arbitrary_func_type(
+        &mut self,
+        u: &mut Unstructured,
+        type_fuel: &mut u32,
+    ) -> Result<FuncType> {
         let mut params = vec![];
         let mut param_names = HashSet::new();
         arbitrary_loop(u, 0, 20, |u| {
+            *type_fuel = type_fuel.saturating_sub(1);
+            if *type_fuel == 0 {
+                return Ok(false);
+            }
+
             params.push(self.arbitrary_named_type(u, &mut param_names)?);
             Ok(true)
         })?;
@@ -482,20 +532,38 @@ impl Component {
         Ok(NamedType { name, ty })
     }
 
-    fn arbitrary_record_type(&mut self, u: &mut Unstructured) -> Result<RecordType> {
+    fn arbitrary_record_type(
+        &mut self,
+        u: &mut Unstructured,
+        type_fuel: &mut u32,
+    ) -> Result<RecordType> {
         let mut fields = vec![];
         let mut field_names = HashSet::new();
         arbitrary_loop(u, 0, 100, |u| {
+            *type_fuel = type_fuel.saturating_sub(1);
+            if *type_fuel == 0 {
+                return Ok(false);
+            }
+
             fields.push(self.arbitrary_named_type(u, &mut field_names)?);
             Ok(true)
         })?;
         Ok(RecordType { fields })
     }
 
-    fn arbitrary_variant_type(&mut self, u: &mut Unstructured) -> Result<VariantType> {
+    fn arbitrary_variant_type(
+        &mut self,
+        u: &mut Unstructured,
+        type_fuel: &mut u32,
+    ) -> Result<VariantType> {
         let mut cases = vec![];
         let mut case_names = HashSet::new();
         arbitrary_loop(u, 0, 100, |u| {
+            *type_fuel = type_fuel.saturating_sub(1);
+            if *type_fuel == 0 {
+                return Ok(false);
+            }
+
             cases.push(self.arbitrary_named_type(u, &mut case_names)?);
             Ok(true)
         })?;
@@ -516,38 +584,74 @@ impl Component {
         })
     }
 
-    fn arbitrary_tuple_type(&mut self, u: &mut Unstructured) -> Result<TupleType> {
+    fn arbitrary_tuple_type(
+        &mut self,
+        u: &mut Unstructured,
+        type_fuel: &mut u32,
+    ) -> Result<TupleType> {
         let mut fields = vec![];
         arbitrary_loop(u, 0, 100, |u| {
+            *type_fuel = type_fuel.saturating_sub(1);
+            if *type_fuel == 0 {
+                return Ok(false);
+            }
+
             fields.push(self.arbitrary_interface_type(u)?);
             Ok(true)
         })?;
         Ok(TupleType { fields })
     }
 
-    fn arbitrary_flags_type(&mut self, u: &mut Unstructured) -> Result<FlagsType> {
+    fn arbitrary_flags_type(
+        &mut self,
+        u: &mut Unstructured,
+        type_fuel: &mut u32,
+    ) -> Result<FlagsType> {
         let mut fields = vec![];
         let mut field_names = HashSet::new();
         arbitrary_loop(u, 0, 100, |u| {
+            *type_fuel = type_fuel.saturating_sub(1);
+            if *type_fuel == 0 {
+                return Ok(false);
+            }
+
             fields.push(crate::unique_string(100, &mut field_names, u)?);
             Ok(true)
         })?;
         Ok(FlagsType { fields })
     }
 
-    fn arbitrary_enum_type(&mut self, u: &mut Unstructured) -> Result<EnumType> {
+    fn arbitrary_enum_type(
+        &mut self,
+        u: &mut Unstructured,
+        type_fuel: &mut u32,
+    ) -> Result<EnumType> {
         let mut variants = vec![];
         let mut variant_names = HashSet::new();
         arbitrary_loop(u, 0, 100, |u| {
+            *type_fuel = type_fuel.saturating_sub(1);
+            if *type_fuel == 0 {
+                return Ok(false);
+            }
+
             variants.push(crate::unique_string(100, &mut variant_names, u)?);
             Ok(true)
         })?;
         Ok(EnumType { variants })
     }
 
-    fn arbitrary_union_type(&mut self, u: &mut Unstructured) -> Result<UnionType> {
+    fn arbitrary_union_type(
+        &mut self,
+        u: &mut Unstructured,
+        type_fuel: &mut u32,
+    ) -> Result<UnionType> {
         let mut variants = vec![];
         arbitrary_loop(u, 0, 100, |u| {
+            *type_fuel = type_fuel.saturating_sub(1);
+            if *type_fuel == 0 {
+                return Ok(false);
+            }
+
             variants.push(self.arbitrary_interface_type(u)?);
             Ok(true)
         })?;
@@ -567,15 +671,29 @@ impl Component {
         })
     }
 
-    fn arbitrary_compound_type(&mut self, u: &mut Unstructured) -> Result<CompoundType> {
+    fn arbitrary_compound_type(
+        &mut self,
+        u: &mut Unstructured,
+        type_fuel: &mut u32,
+    ) -> Result<CompoundType> {
         match u.int_in_range(0..=8)? {
-            0 => Ok(CompoundType::Record(self.arbitrary_record_type(u)?)),
-            1 => Ok(CompoundType::Variant(self.arbitrary_variant_type(u)?)),
+            0 => Ok(CompoundType::Record(
+                self.arbitrary_record_type(u, type_fuel)?,
+            )),
+            1 => Ok(CompoundType::Variant(
+                self.arbitrary_variant_type(u, type_fuel)?,
+            )),
             2 => Ok(CompoundType::List(self.arbitrary_list_type(u)?)),
-            3 => Ok(CompoundType::Tuple(self.arbitrary_tuple_type(u)?)),
-            4 => Ok(CompoundType::Flags(self.arbitrary_flags_type(u)?)),
-            5 => Ok(CompoundType::Enum(self.arbitrary_enum_type(u)?)),
-            6 => Ok(CompoundType::Union(self.arbitrary_union_type(u)?)),
+            3 => Ok(CompoundType::Tuple(
+                self.arbitrary_tuple_type(u, type_fuel)?,
+            )),
+            4 => Ok(CompoundType::Flags(
+                self.arbitrary_flags_type(u, type_fuel)?,
+            )),
+            5 => Ok(CompoundType::Enum(self.arbitrary_enum_type(u, type_fuel)?)),
+            6 => Ok(CompoundType::Union(
+                self.arbitrary_union_type(u, type_fuel)?,
+            )),
             7 => Ok(CompoundType::Optional(self.arbitrary_optional_type(u)?)),
             8 => Ok(CompoundType::Expected(self.arbitrary_expected_type(u)?)),
             _ => unreachable!(),
