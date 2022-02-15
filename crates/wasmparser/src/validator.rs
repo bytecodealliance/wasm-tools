@@ -1336,17 +1336,14 @@ impl Validator {
             if let ExternalKind::Type = e.kind {
                 return me.create_error("cannot export types");
             }
+            let ty = me.check_external_kind("exported", e.kind, e.index)?;
             if !me.features.mutable_global {
-                if let ExternalKind::Global = e.kind {
-                    let global_type = me.global_at(e.index).unwrap_or_else(|| {
-                        panic!("unexpected missing global variable at index {}", e.index)
-                    });
+                if let EntityType::Global(global_type) = ty {
                     if global_type.mutable {
                         return me.create_error("mutable global support is not enabled");
                     }
                 }
             }
-            let ty = me.check_external_kind("exported", e.kind, e.index)?;
             let state = me.cur.state.assert_mut();
             state
                 .exports
