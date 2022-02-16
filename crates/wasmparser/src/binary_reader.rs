@@ -16,12 +16,12 @@
 use crate::{
     limits::*, Alias, AliasKind, BlockType, BrTable, CanonicalOption, ComponentExport,
     ComponentExportKind, ComponentFuncType, ComponentFunction, ComponentImport, ComponentType,
-    CompoundType, CustomSectionKind, Export, ExternalKind, FuncType, GlobalType, Ieee32, Ieee64,
-    Import, InitExpr, Instance, InstanceType, InterfaceType, LinkingType, MemoryImmediate,
-    MemoryType, ModuleArg, ModuleArgKind, ModuleType, NameType, Operator, RelocType, SIMDLaneIndex,
-    SectionCode, TableType, TagKind, TagType, Type, TypeRef, V128,
+    ComponentTypeDef, CompoundType, CustomSectionKind, Export, ExternalKind, FuncType, GlobalType,
+    Ieee32, Ieee64, Import, InitExpr, Instance, InstanceType, InterfaceType, LinkingType,
+    MemoryImmediate, MemoryType, ModuleArg, ModuleArgKind, ModuleType, NameType, Operator,
+    RelocType, SIMDLaneIndex, SectionCode, TableType, TagKind, TagType, Type, TypeDef, TypeRef,
+    V128,
 };
-use crate::{ComponentTypeDef, TypeDef};
 use std::convert::TryInto;
 use std::error::Error;
 use std::fmt;
@@ -349,7 +349,6 @@ impl<'a> BinaryReader<'a> {
                 name: self.read_string()?,
                 ty: self.read_type_ref()?,
             },
-            0x09 => todo!("can module types really alias outer types?"),
             x => {
                 return Err(BinaryReaderError::new(
                     format!(
