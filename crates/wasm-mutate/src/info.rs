@@ -253,6 +253,11 @@ impl<'a> ModuleInfo<'a> {
         });
     }
 
+    pub fn get_type_section(&self) -> Option<RawSection<'a>> {
+        let idx = self.types?;
+        Some(self.raw_sections[idx])
+    }
+
     pub fn get_code_section(&self) -> RawSection<'a> {
         self.raw_sections[self.code.unwrap()]
     }
@@ -287,6 +292,26 @@ impl<'a> ModuleInfo<'a> {
         self.raw_sections[self.globals.unwrap()]
     }
 
+    /// Insert a new section as the `i`th section in the Wasm module.
+    pub fn insert_section(
+        &self,
+        i: usize,
+        new_section: &impl wasm_encoder::Section,
+    ) -> wasm_encoder::Module {
+        let mut module = wasm_encoder::Module::new();
+        self.raw_sections.iter().enumerate().for_each(|(j, s)| {
+            if i == j {
+                module.section(new_section);
+            }
+            module.section(s);
+        });
+        if self.raw_sections.len() == i {
+            module.section(new_section);
+        }
+        module
+    }
+
+    /// Replace the `i`th section in this module with the given new section.
     pub fn replace_section(
         &self,
         i: usize,
