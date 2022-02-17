@@ -522,7 +522,7 @@ impl Parser {
                     return Ok(Payload::End(reader.original_position()));
                 }
 
-                let id = reader.read_var_u7()? as u8;
+                let id = reader.read_u7()? as u8;
                 let len_pos = reader.position;
                 let mut len = reader.read_var_u32()?;
 

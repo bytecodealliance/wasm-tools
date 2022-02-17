@@ -114,7 +114,7 @@ impl<'a> RelocSectionReader<'a> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
 
         let section_id_position = reader.position;
-        let section_id = reader.read_var_u7()?;
+        let section_id = reader.read_u7()?;
         let section_code = reader.read_section_code(section_id, section_id_position)?;
 
         let count = reader.read_var_u32()?;

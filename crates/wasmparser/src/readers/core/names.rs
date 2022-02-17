@@ -48,7 +48,9 @@ pub enum NameType {
     /// The name is for a data segment.
     Data,
     /// The name is unknown.
-    Unknown(u32),
+    ///
+    /// The value is the unknown section identifier.
+    Unknown(u8),
 }
 
 /// Represents a single name in the names custom section.
@@ -251,7 +253,7 @@ pub enum Name<'a> {
     /// An unknown [name subsection](https://webassembly.github.io/spec/core/appendix/custom.html#subsections).
     Unknown {
         /// The identifier for this subsection.
-        ty: u32,
+        ty: u8,
         /// The contents of this subsection.
         data: &'a [u8],
         /// The range of bytes, relative to the start of the original data
