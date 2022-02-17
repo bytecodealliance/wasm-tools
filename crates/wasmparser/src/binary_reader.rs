@@ -219,17 +219,6 @@ impl<'a> BinaryReader<'a> {
         Ok(b)
     }
 
-    fn read_var_i7(&mut self) -> Result<i32> {
-        let b = self.read_u8()?;
-        if (b & 0x80) != 0 {
-            return Err(BinaryReaderError::new(
-                "invalid var_i7",
-                self.original_position() - 1,
-            ));
-        }
-        Ok((b << 25) as i32 >> 25)
-    }
-
     pub(crate) fn read_var_u7(&mut self) -> Result<u32> {
         let b = self.read_u8()?;
         if (b & 0x80) != 0 {
@@ -243,18 +232,14 @@ impl<'a> BinaryReader<'a> {
 
     /// Reads a core WebAssembly type from the binary reader.
     pub fn read_type(&mut self) -> Result<Type> {
-        let code = self.read_var_i7()?;
-        match code {
-            -0x01 => Ok(Type::I32),
-            -0x02 => Ok(Type::I64),
-            -0x03 => Ok(Type::F32),
-            -0x04 => Ok(Type::F64),
-            -0x05 => Ok(Type::V128),
-            -0x10 => Ok(Type::FuncRef),
-            -0x11 => Ok(Type::ExternRef),
-            _ => Err(BinaryReaderError::new(
+        match Self::type_from_byte(self.peek()?) {
+            Some(ty) => {
+                self.position += 1;
+                Ok(ty)
+            }
+            None => Err(BinaryReaderError::new(
                 "invalid type",
-                self.original_position() - 1,
+                self.original_position(),
             )),
         }
     }
@@ -1571,25 +1556,43 @@ impl<'a> BinaryReader<'a> {
         Ok(self.buffer[self.position])
     }
 
+    fn type_from_byte(byte: u8) -> Option<Type> {
+        match byte {
+            0x7F => Some(Type::I32),
+            0x7E => Some(Type::I64),
+            0x7D => Some(Type::F32),
+            0x7C => Some(Type::F64),
+            0x7B => Some(Type::V128),
+            0x70 => Some(Type::FuncRef),
+            0x6F => Some(Type::ExternRef),
+            _ => None,
+        }
+    }
+
     fn read_block_type(&mut self) -> Result<BlockType> {
+        let b = self.peek()?;
+
         // Check for empty block
-        if self.peek()? == 0x40 {
+        if b == 0x40 {
             self.position += 1;
             return Ok(BlockType::Empty);
         }
 
         // Check for a block type of form [] -> [t].
-        let position = self.position;
-        if let Ok(ty) = self.read_type() {
+        if let Some(ty) = Self::type_from_byte(b) {
+            self.position += 1;
             return Ok(BlockType::Type(ty));
         }
 
-        // Retry the read with an index
-        self.position = position;
+        // Not empty or a singular type, so read the function type index
         let idx = self.read_var_s33()?;
         if idx < 0 || idx > (std::u32::MAX as i64) {
-            return Err(BinaryReaderError::new("invalid function type", position));
+            return Err(BinaryReaderError::new(
+                "invalid function type",
+                self.original_position(),
+            ));
         }
+
         Ok(BlockType::FuncType(idx as u32))
     }
 
