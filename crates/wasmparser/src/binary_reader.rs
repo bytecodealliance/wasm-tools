@@ -773,7 +773,7 @@ impl<'a> BinaryReader<'a> {
 
                 match kind {
                     0x00 => Alias::OuterModule { count, index },
-                    0x02 => Alias::OuterComponent { count, index },
+                    0x01 => Alias::OuterComponent { count, index },
                     0x05 => Alias::OuterType { count, index },
                     x => {
                         return Err(BinaryReaderError::new(
