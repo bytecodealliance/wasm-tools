@@ -398,7 +398,7 @@ impl ComponentState {
             crate::Instance::Component { index, args } => InstanceIndexType::Component(
                 self.instantiate_component(index, args.as_ref(), offset)?,
             ),
-            crate::Instance::Exports(exports) => {
+            crate::Instance::FromExports(exports) => {
                 InstanceIndexType::Component(self.instantiate_exports(exports.as_ref(), offset)?)
             }
         };

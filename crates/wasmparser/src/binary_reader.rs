@@ -275,24 +275,12 @@ impl<'a> BinaryReader<'a> {
     }
 
     pub(crate) fn read_func_type(&mut self) -> Result<FuncType> {
-        let params_len = self.read_var_u32()? as usize;
-        if params_len > MAX_WASM_FUNCTION_PARAMS {
-            return Err(BinaryReaderError::new(
-                "function params size is out of bound",
-                self.original_position() - 1,
-            ));
-        }
+        let params_len = self.read_size(MAX_WASM_FUNCTION_PARAMS, "function params")?;
         let mut params: Vec<Type> = Vec::with_capacity(params_len);
         for _ in 0..params_len {
             params.push(self.read_type()?);
         }
-        let returns_len = self.read_var_u32()? as usize;
-        if returns_len > MAX_WASM_FUNCTION_RETURNS {
-            return Err(BinaryReaderError::new(
-                "function returns size is out of bound",
-                self.original_position() - 1,
-            ));
-        }
+        let returns_len = self.read_size(MAX_WASM_FUNCTION_RETURNS, "function returns")?;
         let mut returns: Vec<Type> = Vec::with_capacity(returns_len);
         for _ in 0..returns_len {
             returns.push(self.read_type()?);
@@ -317,27 +305,41 @@ impl<'a> BinaryReader<'a> {
 
     pub(crate) fn read_component_type_def(&mut self) -> Result<ComponentTypeDef<'a>> {
         Ok(match self.read_u8()? {
-            0x4f => ComponentTypeDef::Module(
-                (0..self.read_var_u32()?)
-                    .map(|_| self.read_module_type())
-                    .collect::<Result<_>>()?,
-            ),
-            0x4e => ComponentTypeDef::Component(
-                (0..self.read_var_u32()?)
-                    .map(|_| self.read_component_type())
-                    .collect::<Result<_>>()?,
-            ),
-            0x4d => ComponentTypeDef::Instance(
-                (0..self.read_var_u32()?)
-                    .map(|_| self.read_instance_type())
-                    .collect::<Result<_>>()?,
-            ),
-            0x4c => ComponentTypeDef::Function(ComponentFuncType {
-                params: (0..self.read_var_u32()?)
+            0x4f => {
+                let size = self.read_size(MAX_WASM_MODULE_TYPEDEFS, "module definition")?;
+                ComponentTypeDef::Module(
+                    (0..size)
+                        .map(|_| self.read_module_type())
+                        .collect::<Result<_>>()?,
+                )
+            }
+            0x4e => {
+                let size = self.read_size(MAX_WASM_COMPONENT_TYPEDEFS, "component definition")?;
+                ComponentTypeDef::Component(
+                    (0..size)
+                        .map(|_| self.read_component_type())
+                        .collect::<Result<_>>()?,
+                )
+            }
+            0x4d => {
+                let size = self.read_size(MAX_WASM_INSTANCE_TYPEDEFS, "instance definition")?;
+                ComponentTypeDef::Instance(
+                    (0..size)
+                        .map(|_| self.read_instance_type())
+                        .collect::<Result<_>>()?,
+                )
+            }
+            0x4c => {
+                let params_size =
+                    self.read_size(MAX_WASM_FUNCTION_PARAMS, "function parameters")?;
+                let params = (0..params_size)
                     .map(|_| Ok((self.read_string()?, self.read_interface_type()?)))
-                    .collect::<Result<_>>()?,
-                result: self.read_interface_type()?,
-            }),
+                    .collect::<Result<_>>()?;
+                ComponentTypeDef::Function(ComponentFuncType {
+                    params,
+                    result: self.read_interface_type()?,
+                })
+            }
             0x4b => ComponentTypeDef::Value(self.read_interface_type()?),
             // Delegate all other values to `read_compound_type`.
             x => ComponentTypeDef::Compound(self.read_compound_type(x)?),
@@ -456,13 +458,17 @@ impl<'a> BinaryReader<'a> {
 
     pub(crate) fn read_compound_type(&mut self, leading: u32) -> Result<CompoundType<'a>> {
         Ok(match leading {
-            0x71 => CompoundType::Record(
-                (0..self.read_var_u32()?)
-                    .map(|_| Ok((self.read_string()?, self.read_interface_type()?)))
-                    .collect::<Result<_>>()?,
-            ),
+            0x71 => {
+                let size = self.read_size(MAX_WASM_RECORD_FIELDS, "record field")?;
+                CompoundType::Record(
+                    (0..size)
+                        .map(|_| Ok((self.read_string()?, self.read_interface_type()?)))
+                        .collect::<Result<_>>()?,
+                )
+            }
             0x70 => {
-                let cases = (0..self.read_var_u32()?)
+                let cases_size = self.read_size(MAX_WASM_VARIANT_CASES, "variant cases")?;
+                let cases = (0..cases_size)
                     .map(|_| Ok((self.read_string()?, self.read_interface_type()?)))
                     .collect::<Result<_>>()?;
 
@@ -480,26 +486,38 @@ impl<'a> BinaryReader<'a> {
                 CompoundType::Variant { cases, default }
             }
             0x6f => CompoundType::List(self.read_interface_type()?),
-            0x6e => CompoundType::Tuple(
-                (0..self.read_var_u32()?)
-                    .map(|_| self.read_interface_type())
-                    .collect::<Result<_>>()?,
-            ),
-            0x6d => CompoundType::Flags(
-                (0..self.read_var_u32()?)
-                    .map(|_| self.read_string())
-                    .collect::<Result<_>>()?,
-            ),
-            0x6c => CompoundType::Enum(
-                (0..self.read_var_u32()?)
-                    .map(|_| self.read_string())
-                    .collect::<Result<_>>()?,
-            ),
-            0x6b => CompoundType::Union(
-                (0..self.read_var_u32()?)
-                    .map(|_| self.read_interface_type())
-                    .collect::<Result<_>>()?,
-            ),
+            0x6e => {
+                let size = self.read_size(MAX_WASM_TUPLE_TYPES, "tuple types")?;
+                CompoundType::Tuple(
+                    (0..size)
+                        .map(|_| self.read_interface_type())
+                        .collect::<Result<_>>()?,
+                )
+            }
+            0x6d => {
+                let size = self.read_size(MAX_WASM_FLAG_NAMES, "flag names")?;
+                CompoundType::Flags(
+                    (0..size)
+                        .map(|_| self.read_string())
+                        .collect::<Result<_>>()?,
+                )
+            }
+            0x6c => {
+                let size = self.read_size(MAX_WASM_ENUM_CASES, "enum cases")?;
+                CompoundType::Enum(
+                    (0..size)
+                        .map(|_| self.read_string())
+                        .collect::<Result<_>>()?,
+                )
+            }
+            0x6b => {
+                let size = self.read_size(MAX_WASM_UNION_TYPES, "union types")?;
+                CompoundType::Union(
+                    (0..size)
+                        .map(|_| self.read_interface_type())
+                        .collect::<Result<_>>()?,
+                )
+            }
             0x6a => CompoundType::Optional(self.read_interface_type()?),
             0x69 => CompoundType::Expected {
                 ok: self.read_interface_type()?,
@@ -544,14 +562,18 @@ impl<'a> BinaryReader<'a> {
                 };
                 ComponentExport { name, kind }
             }
-            0x01 => ComponentExport {
-                name,
-                kind: ComponentExportKind::Exports(
-                    (0..self.read_var_u32()?)
-                        .map(|_| self.read_component_export())
-                        .collect::<Result<_>>()?,
-                ),
-            },
+            0x01 => {
+                let size =
+                    self.read_size(MAX_WASM_INSTANTIATION_EXPORTS, "instantiation exports")?;
+                ComponentExport {
+                    name,
+                    kind: ComponentExportKind::Exports(
+                        (0..size)
+                            .map(|_| self.read_component_export())
+                            .collect::<Result<_>>()?,
+                    ),
+                }
+            }
             x => {
                 return Err(BinaryReaderError::new(
                     format!("invalid leading byte (0x{:x}) for export", x),
@@ -578,19 +600,27 @@ impl<'a> BinaryReader<'a> {
 
     pub(crate) fn read_component_func(&mut self) -> Result<ComponentFunction> {
         Ok(match self.read_u8()? {
-            0x00 => ComponentFunction::Lift {
-                type_index: self.read_var_u32()?,
-                options: (0..self.read_var_u32()?)
-                    .map(|_| self.read_canonical_option())
-                    .collect::<Result<_>>()?,
-                func_index: self.read_var_u32()?,
-            },
-            0x01 => ComponentFunction::Lower {
-                options: (0..self.read_var_u32()?)
-                    .map(|_| self.read_canonical_option())
-                    .collect::<Result<_>>()?,
-                func_index: self.read_var_u32()?,
-            },
+            0x00 => {
+                let type_index = self.read_var_u32()?;
+                let options_size = self.read_size(MAX_WASM_FUNCTION_OPTIONS, "function options")?;
+                ComponentFunction::Lift {
+                    type_index,
+                    options: (0..options_size)
+                        .map(|_| self.read_canonical_option())
+                        .collect::<Result<_>>()?,
+                    func_index: self.read_var_u32()?,
+                }
+            }
+            0x01 => {
+                let options_size = self.read_size(MAX_WASM_FUNCTION_OPTIONS, "function options")?;
+
+                ComponentFunction::Lower {
+                    options: (0..options_size)
+                        .map(|_| self.read_canonical_option())
+                        .collect::<Result<_>>()?,
+                    func_index: self.read_var_u32()?,
+                }
+            }
             x => {
                 return Err(BinaryReaderError::new(
                     format!("invalid leading byte (0x{:x}) for component function", x),
@@ -618,18 +648,28 @@ impl<'a> BinaryReader<'a> {
     pub(crate) fn read_instance(&mut self) -> Result<Instance<'a>> {
         Ok(match self.read_u8()? {
             0x00 => match self.read_u8()? {
-                0x00 => Instance::Module {
-                    index: self.read_var_u32()?,
-                    args: (0..self.read_var_u32()?)
-                        .map(|_| self.read_module_arg())
-                        .collect::<Result<_>>()?,
-                },
-                0x01 => Instance::Component {
-                    index: self.read_var_u32()?,
-                    args: (0..self.read_var_u32()?)
-                        .map(|_| self.read_component_export())
-                        .collect::<Result<_>>()?,
-                },
+                0x00 => {
+                    let index = self.read_var_u32()?;
+                    let args_size =
+                        self.read_size(MAX_WASM_INSTANTIATION_ARGS, "instantiation arguments")?;
+                    Instance::Module {
+                        index,
+                        args: (0..args_size)
+                            .map(|_| self.read_module_arg())
+                            .collect::<Result<_>>()?,
+                    }
+                }
+                0x01 => {
+                    let index = self.read_var_u32()?;
+                    let args_size =
+                        self.read_size(MAX_WASM_INSTANTIATION_ARGS, "instantiation arguments")?;
+                    Instance::Component {
+                        index,
+                        args: (0..args_size)
+                            .map(|_| self.read_component_export())
+                            .collect::<Result<_>>()?,
+                    }
+                }
                 x => {
                     return Err(BinaryReaderError::new(
                         format!("invalid leading byte (0x{:x}) for instance", x),
@@ -637,11 +677,15 @@ impl<'a> BinaryReader<'a> {
                     ))
                 }
             },
-            0x01 => Instance::Exports(
-                (0..self.read_var_u32()?)
-                    .map(|_| self.read_component_export())
-                    .collect::<Result<_>>()?,
-            ),
+            0x01 => {
+                let size =
+                    self.read_size(MAX_WASM_INSTANTIATION_EXPORTS, "instantiation exports")?;
+                Instance::FromExports(
+                    (0..size)
+                        .map(|_| self.read_component_export())
+                        .collect::<Result<_>>()?,
+                )
+            }
             x => {
                 return Err(BinaryReaderError::new(
                     format!("invalid leading byte (0x{:x}) for instance", x),
@@ -664,11 +708,15 @@ impl<'a> BinaryReader<'a> {
                     ))
                 }
             },
-            0x01 => ModuleArgKind::Exports(
-                (0..self.read_var_u32()?)
-                    .map(|_| self.read_export())
-                    .collect::<Result<_>>()?,
-            ),
+            0x01 => {
+                let size =
+                    self.read_size(MAX_WASM_INSTANTIATION_EXPORTS, "instantiation exports")?;
+                ModuleArgKind::Exports(
+                    (0..size)
+                        .map(|_| self.read_export())
+                        .collect::<Result<_>>()?,
+                )
+            }
             x => {
                 return Err(BinaryReaderError::new(
                     format!("invalid leading byte (0x{:x}) for module arg", x),
@@ -835,6 +883,19 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
+    // Reads a variable-length 32-bit size from the byte stream while checking
+    // against a limit.
+    fn read_size(&mut self, limit: usize, desc: &str) -> Result<usize> {
+        let size = self.read_var_u32()? as usize;
+        if size > limit {
+            return Err(BinaryReaderError::new(
+                format!("{} size is out of bounds", desc),
+                self.original_position() - 4,
+            ));
+        }
+        Ok(size)
+    }
+
     fn read_first_byte_and_var_u32(&mut self) -> Result<(u8, u32)> {
         let pos = self.position;
         let val = self.read_var_u32()?;
@@ -904,13 +965,7 @@ impl<'a> BinaryReader<'a> {
     }
 
     fn read_br_table(&mut self) -> Result<BrTable<'a>> {
-        let cnt = self.read_var_u32()?;
-        if cnt > MAX_WASM_BR_TABLE_SIZE {
-            return Err(BinaryReaderError::new(
-                "br_table size is out of bound",
-                self.original_position() - 1,
-            ));
-        }
+        let cnt = self.read_size(MAX_WASM_BR_TABLE_SIZE, "br_table")?;
         let start = self.position;
         for _ in 0..cnt {
             self.skip_var_32()?;
@@ -919,7 +974,7 @@ impl<'a> BinaryReader<'a> {
         let default = self.read_var_u32()?;
         Ok(BrTable {
             reader: BinaryReader::new_with_offset(&self.buffer[start..end], start),
-            cnt,
+            cnt: cnt as u32,
             default,
         })
     }

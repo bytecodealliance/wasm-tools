@@ -45,7 +45,7 @@ pub enum Instance<'a> {
         args: Box<[ComponentArg<'a>]>,
     },
     /// The instance is from exporting local items.
-    Exports(Box<[ComponentExport<'a>]>),
+    FromExports(Box<[ComponentExport<'a>]>),
 }
 
 /// A reader for the instance section of a WebAssembly component.

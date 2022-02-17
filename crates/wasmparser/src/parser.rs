@@ -1,3 +1,4 @@
+use crate::limits::MAX_WASM_MODULE_SIZE;
 use crate::{
     AliasSectionReader, ComponentExportSectionReader, ComponentFunctionSectionReader,
     ComponentImportSectionReader, ComponentTypeSectionReader, InstanceSectionReader,
@@ -617,6 +618,16 @@ impl Parser {
                         ComponentFunctionSection,
                     ),
                     (Encoding::Component, 4) | (Encoding::Component, 5) => {
+                        if len as usize > MAX_WASM_MODULE_SIZE {
+                            return Err(BinaryReaderError::new(
+                                format!(
+                                    "{} section is too large",
+                                    if id == 4 { "module" } else { "component " }
+                                ),
+                                len_pos,
+                            ));
+                        }
+
                         let range = Range {
                             start: reader.original_position(),
                             end: reader.original_position() + len as usize,
