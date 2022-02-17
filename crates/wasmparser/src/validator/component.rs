@@ -308,7 +308,7 @@ impl ComponentState {
             crate::ComponentExportKind::Value(idx) => {
                 ComponentEntityType::Value(self.value_at(idx, offset)?.clone())
             }
-            crate::ComponentExportKind::Exports(exports) => {
+            crate::ComponentExportKind::InstanceFromExports(exports) => {
                 ComponentEntityType::Instance(self.instantiate_exports(exports.as_ref(), offset)?)
             }
         };
@@ -654,7 +654,7 @@ impl ComponentState {
                         offset,
                     )?;
                 }
-                crate::ComponentArgKind::Exports(exports) => {
+                crate::ComponentArgKind::InstanceFromExports(exports) => {
                     insert_arg(
                         component_arg.name,
                         ComponentEntityType::Instance(
@@ -790,7 +790,7 @@ impl ComponentState {
                         offset,
                     )?;
                 }
-                crate::ComponentExportKind::Exports(exports) => {
+                crate::ComponentExportKind::InstanceFromExports(exports) => {
                     insert_export(
                         export.name,
                         ComponentEntityType::Instance(

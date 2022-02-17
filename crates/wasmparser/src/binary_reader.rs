@@ -567,7 +567,7 @@ impl<'a> BinaryReader<'a> {
                     self.read_size(MAX_WASM_INSTANTIATION_EXPORTS, "instantiation exports")?;
                 ComponentExport {
                     name,
-                    kind: ComponentExportKind::Exports(
+                    kind: ComponentExportKind::InstanceFromExports(
                         (0..size)
                             .map(|_| self.read_component_export())
                             .collect::<Result<_>>()?,
