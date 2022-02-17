@@ -7,7 +7,7 @@
     <strong>wasm-mutate is a new tool for fuzzing Wasm compilers, runtimes, validators, and other Wasm-consuming programs.</strong>
   </p>
 
-  <!-- TODO add proper links --> 
+  <!-- TODO add proper links -->
   <p>
     <a href="https://crates.io/crates/wasm-mutate"><img src="https://img.shields.io/crates/v/wasm-mutate.svg?style=flat-square" alt="Crates.io version" /></a>
     <a href="https://crates.io/crates/wasm-mutate"><img src="https://img.shields.io/crates/d/wasm-mutate.svg?style=flat-square" alt="Download" /></a>
@@ -24,7 +24,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-wasm-mutate = "0.1.0"
+wasm-mutate = "0.2.0"
 ```
 
 You can mutate a WebAssembly binary by using the cli tool:
@@ -46,9 +46,9 @@ You can mutate a WebAssembly binary by using the cli tool:
   reuses the fuzzer's raw input strings. `wasm-mutate` works with the
   `LLVMFuzzerCustomMutator` hook and the
   `libfuzzer_sys::fuzz_mutator!` macro.
-  
+
   ### Example
-  
+
   ```rust
   #![no_main]
 
@@ -124,7 +124,7 @@ You can mutate a WebAssembly binary by using the cli tool:
             .reduce(true);
 
     while MAX_ITERATIONS > 0 {
-        let new_wasm = wasmmutate.run(&wasm); 
+        let new_wasm = wasmmutate.run(&wasm);
         wasm = if check_equivalence(new_wasm, wasm) {
           wasm
         } else{
@@ -151,4 +151,3 @@ shall be licensed as above, without any additional terms or conditions.
 ### Special contribution
 
 * Javier Cabrera Arteaga (Phd. student at KTH)
-
