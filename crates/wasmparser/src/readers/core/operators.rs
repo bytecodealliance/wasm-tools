@@ -1032,7 +1032,11 @@ impl<'a> OperatorsReader<'a> {
         self.reader.original_position()
     }
 
-    /// Whether or not to allow memory64 arguments.
+    /// Whether or not to allow 64-bit memory arguments in the
+    /// the operators being read.
+    ///
+    /// This is intended to be `true` when support for the memory64
+    /// WebAssembly proposal is also enabled.
     pub fn allow_memarg64(&mut self, allow: bool) {
         self.reader.allow_memarg64(allow);
     }

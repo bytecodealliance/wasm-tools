@@ -171,7 +171,10 @@ impl<'a> BinaryReader<'a> {
         self.original_offset + self.position
     }
 
-    /// Whether or not to allow memory64 arguments in functions.
+    /// Whether or not to allow 64-bit memory arguments in functions.
+    ///
+    /// This is intended to be `true` when support for the memory64
+    /// WebAssembly proposal is also enabled.
     pub fn allow_memarg64(&mut self, allow: bool) {
         self.allow_memarg64 = allow;
     }
@@ -423,8 +426,7 @@ impl<'a> BinaryReader<'a> {
     }
 
     pub(crate) fn read_interface_type(&mut self) -> Result<InterfaceType> {
-        let position = self.position;
-        Ok(match self.read_u8()? {
+        let ty = match self.peek()? {
             0x7f => InterfaceType::Unit,
             0x7e => InterfaceType::Bool,
             0x7d => InterfaceType::S8,
@@ -439,17 +441,17 @@ impl<'a> BinaryReader<'a> {
             0x74 => InterfaceType::F64,
             0x73 => InterfaceType::Char,
             0x72 => InterfaceType::String,
-            x if x >= 0x80 => {
-                self.position = position;
-                InterfaceType::Compound(self.read_var_u32()?)
+            _ => {
+                // All other values are interpreted as a compound type index.
+                // The index is SLEB128 encoded, so use `read_var_s33` read it cast as u32.
+                // The cast here is safe as `read_var_s33` guarantees the encoding can't be
+                // above `u32::MAX`.
+                return Ok(InterfaceType::Compound(self.read_var_s33()? as u32));
             }
-            x => {
-                return Err(BinaryReaderError::new(
-                    format!("invalid leading byte (0x{:x}) for interface type", x),
-                    self.original_position() - 1,
-                ))
-            }
-        })
+        };
+
+        self.position += 1;
+        Ok(ty)
     }
 
     pub(crate) fn read_compound_type(&mut self, leading: u32) -> Result<CompoundType<'a>> {
@@ -1509,23 +1511,31 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    fn read_blocktype(&mut self) -> Result<BlockType> {
-        let position = self.position;
-        if self.read_u8()? == 0x40 {
-            Ok(BlockType::Empty)
-        } else {
-            self.position = position;
-            if let Ok(ty) = self.read_type() {
-                Ok(BlockType::Type(ty))
-            } else {
-                self.position = position;
-                let idx = self.read_var_s33()?;
-                if idx < 0 || idx > (std::u32::MAX as i64) {
-                    return Err(BinaryReaderError::new("invalid function type", position));
-                }
-                Ok(BlockType::FuncType(idx as u32))
-            }
+    fn peek(&self) -> Result<u8> {
+        self.ensure_has_byte()?;
+        Ok(self.buffer[self.position])
+    }
+
+    fn read_block_type(&mut self) -> Result<BlockType> {
+        // Check for empty block
+        if self.peek()? == 0x40 {
+            self.position += 1;
+            return Ok(BlockType::Empty);
         }
+
+        // Check for a block type of form [] -> [t].
+        let position = self.position;
+        if let Ok(ty) = self.read_type() {
+            return Ok(BlockType::Type(ty));
+        }
+
+        // Retry the read with an index
+        self.position = position;
+        let idx = self.read_var_s33()?;
+        if idx < 0 || idx > (std::u32::MAX as i64) {
+            return Err(BinaryReaderError::new("invalid function type", position));
+        }
+        Ok(BlockType::FuncType(idx as u32))
     }
 
     /// Reads the next available `Operator`.
@@ -1538,17 +1548,17 @@ impl<'a> BinaryReader<'a> {
             0x00 => Operator::Unreachable,
             0x01 => Operator::Nop,
             0x02 => Operator::Block {
-                ty: self.read_blocktype()?,
+                ty: self.read_block_type()?,
             },
             0x03 => Operator::Loop {
-                ty: self.read_blocktype()?,
+                ty: self.read_block_type()?,
             },
             0x04 => Operator::If {
-                ty: self.read_blocktype()?,
+                ty: self.read_block_type()?,
             },
             0x05 => Operator::Else,
             0x06 => Operator::Try {
-                ty: self.read_blocktype()?,
+                ty: self.read_block_type()?,
             },
             0x07 => Operator::Catch {
                 index: self.read_var_u32()?,
