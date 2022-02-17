@@ -334,30 +334,23 @@ impl<'a> BinaryReader<'a> {
                 name: self.read_string()?,
                 ty: self.read_type_ref()?,
             },
-            x => return self.invalid_leading_byte(x, "module type definition"),
+            x => return self.invalid_leading_byte(x, "type definition"),
         })
     }
 
     pub(crate) fn read_component_type(&mut self) -> Result<ComponentType<'a>> {
-        Ok(match self.read_u8()? {
-            0x01 => ComponentType::Type(self.read_component_type_def()?),
-            0x02 => ComponentType::Import(self.read_component_import()?),
-            0x07 => ComponentType::Export {
-                name: self.read_string()?,
-                ty: self.read_var_u32()?,
-            },
-            0x09 => {
-                let offset = self.original_position();
-                let alias = self.read_alias()?;
-                match alias {
-                    Alias::OuterType { count, index } => ComponentType::OuterType { count, index },
-                    _ => return Err(BinaryReaderError::new(
-                        "only aliases to outer types are supported in component type definitions",
-                        offset,
-                    )),
-                }
-            }
-            x => return self.invalid_leading_byte(x, "component type definition"),
+        // Component types are effectively instance types with the additional
+        // variant of imports; check for imports here or delegate to
+        // `read_instance_type` with the appropriate conversions.
+        if self.peek()? == 0x02 {
+            self.position += 1;
+            return Ok(ComponentType::Import(self.read_component_import()?));
+        }
+
+        Ok(match self.read_instance_type()? {
+            InstanceType::Type(t) => ComponentType::Type(t),
+            InstanceType::OuterType { count, index } => ComponentType::OuterType { count, index },
+            InstanceType::Export { name, ty } => ComponentType::Export { name, ty },
         })
     }
 
@@ -373,13 +366,15 @@ impl<'a> BinaryReader<'a> {
                 let alias = self.read_alias()?;
                 match alias {
                     Alias::OuterType { count, index } => InstanceType::OuterType { count, index },
-                    _ => return Err(BinaryReaderError::new(
-                        "only aliases to outer types are supported in instance type definitions",
-                        offset,
-                    )),
+                    _ => {
+                        return Err(BinaryReaderError::new(
+                            "only aliases to outer types are supported in type definitions",
+                            offset,
+                        ))
+                    }
                 }
             }
-            x => return self.invalid_leading_byte(x, "instance type definition"),
+            x => return self.invalid_leading_byte(x, "type definition"),
         })
     }
 
