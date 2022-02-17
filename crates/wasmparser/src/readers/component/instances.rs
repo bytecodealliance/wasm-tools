@@ -9,7 +9,7 @@ pub enum ModuleArgKind<'a> {
     /// The argument is an instance.
     Instance(u32),
     /// The argument is an instance based on exports of local items.
-    Exports(Box<[Export<'a>]>),
+    InstanceFromExports(Box<[Export<'a>]>),
 }
 
 /// Represents an argument to instantiating a WebAssembly component.

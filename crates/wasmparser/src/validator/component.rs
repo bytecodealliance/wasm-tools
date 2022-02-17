@@ -515,7 +515,7 @@ impl ComponentState {
                         insert_arg(module_arg.name, name, ty.clone(), &mut args, offset)?;
                     }
                 }
-                crate::ModuleArgKind::Exports(exports) => {
+                crate::ModuleArgKind::InstanceFromExports(exports) => {
                     for export in exports.iter() {
                         insert_arg(
                             module_arg.name,

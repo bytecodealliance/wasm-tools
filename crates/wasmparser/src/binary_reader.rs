@@ -711,7 +711,7 @@ impl<'a> BinaryReader<'a> {
             0x01 => {
                 let size =
                     self.read_size(MAX_WASM_INSTANTIATION_EXPORTS, "instantiation exports")?;
-                ModuleArgKind::Exports(
+                ModuleArgKind::InstanceFromExports(
                     (0..size)
                         .map(|_| self.read_export())
                         .collect::<Result<_>>()?,
