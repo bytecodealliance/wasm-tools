@@ -162,6 +162,16 @@ pub enum Payload<'a> {
     ComponentFunctionSection(crate::ComponentFunctionSectionReader<'a>),
     /// A component module section was received and the provided parser can be
     /// used to parse the nested module.
+    ///
+    /// This variant is special in that it returns a sub-`Parser`. Upon
+    /// receiving a `ModuleSection` it is expected that the returned
+    /// `Parser` will be used instead of the parent `Parser` until the parse has
+    /// finished. You'll need to feed data into the `Parser` returned until it
+    /// returns `Payload::End`. After that you'll switch back to the parent
+    /// parser to resume parsing the rest of the current component.
+    ///
+    /// Note that binaries will not be parsed correctly if you feed the data for
+    /// a nested module into the parent [`Parser`].
     ModuleSection {
         /// The parser for the nested module.
         parser: Parser,
@@ -171,6 +181,16 @@ pub enum Payload<'a> {
     },
     /// A component section from a WebAssembly component was received and the
     /// provided parser can be used to parse the nested component.
+    ///
+    /// This variant is special in that it returns a sub-`Parser`. Upon
+    /// receiving a `ComponentSection` it is expected that the returned
+    /// `Parser` will be used instead of the parent `Parser` until the parse has
+    /// finished. You'll need to feed data into the `Parser` returned until it
+    /// returns `Payload::End`. After that you'll switch back to the parent
+    /// parser to resume parsing the rest of the current component.
+    ///
+    /// Note that binaries will not be parsed correctly if you feed the data for
+    /// a nested component into the parent [`Parser`].
     ComponentSection {
         /// The parser for the nested component.
         parser: Parser,
