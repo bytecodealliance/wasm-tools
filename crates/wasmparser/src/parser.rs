@@ -38,7 +38,7 @@ pub struct Parser {
     state: State,
     offset: u64,
     max_size: u64,
-    encoding: Option<Encoding>,
+    encoding: Encoding,
 }
 
 #[derive(Debug, Clone)]
@@ -280,7 +280,8 @@ impl Parser {
             state: State::Header,
             offset,
             max_size: u64::max_value(),
-            encoding: None,
+            // Assume the encoding is a module until we know otherwise
+            encoding: Encoding::Module,
         }
     }
 
@@ -473,8 +474,8 @@ impl Parser {
                 let start = reader.original_position();
                 let num = reader.read_header_version()?;
                 self.encoding = match num {
-                    WASM_EXPERIMENTAL_VERSION | WASM_MODULE_VERSION => Some(Encoding::Module),
-                    WASM_COMPONENT_VERSION => Some(Encoding::Component),
+                    WASM_EXPERIMENTAL_VERSION | WASM_MODULE_VERSION => Encoding::Module,
+                    WASM_COMPONENT_VERSION => Encoding::Component,
                     _ => {
                         return Err(BinaryReaderError::new(
                             "bad version number",
@@ -485,7 +486,7 @@ impl Parser {
                 self.state = State::SectionStart;
                 Ok(Version {
                     num,
-                    encoding: self.encoding.expect("encoding must be set"),
+                    encoding: self.encoding,
                     range: Range {
                         start,
                         end: reader.original_position(),
@@ -538,7 +539,7 @@ impl Parser {
                     });
                 }
 
-                match (self.encoding.expect("header must have been parsed"), id) {
+                match (self.encoding, id) {
                     // Module sections
                     (Encoding::Module, 1) => {
                         section(reader, len, TypeSectionReader::new, TypeSection)
