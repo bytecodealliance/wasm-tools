@@ -233,6 +233,11 @@ impl<'wasm> WasmMutate<'wasm> {
     ///
     /// You can override this to use `libFuzzer`'s `LLVMFuzzerMutate` function
     /// to get raw bytes from `libFuzzer`, for example.
+    ///
+    /// The function is given the raw data buffer and the maximum size the
+    /// mutated data should be. After mutating the data, the function should
+    /// `resize` the data to its final, mutated size, which should be less than
+    /// or equal to the maximum size.
     pub fn raw_mutate_func(
         &mut self,
         raw_mutate_func: Option<Arc<dyn Fn(&mut Vec<u8>, usize) -> Result<()>>>,
