@@ -187,6 +187,7 @@ impl Default for WasmFeatures {
             exceptions: false,
             memory64: false,
             extended_const: false,
+            component_model: false,
             deterministic_only: cfg!(feature = "deterministic"),
 
             // on-by-default features
@@ -194,7 +195,6 @@ impl Default for WasmFeatures {
             multi_value: true,
             reference_types: true,
             simd: true,
-            component_model: false,
         }
     }
 }
