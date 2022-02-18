@@ -308,6 +308,9 @@ impl ComponentState {
             crate::ComponentExportKind::Value(idx) => {
                 ComponentEntityType::Value(self.value_at(idx, offset)?.clone())
             }
+            crate::ComponentExportKind::Type(ty) => {
+                ComponentEntityType::Type(InterfaceType::new(ty, &self.types, offset)?)
+            }
             crate::ComponentExportKind::InstanceFromExports(exports) => {
                 ComponentEntityType::Instance(self.instantiate_exports(exports.as_ref(), offset)?)
             }
@@ -786,6 +789,14 @@ impl ComponentState {
                     insert_export(
                         export.name,
                         ComponentEntityType::Value(self.value_at(*idx, offset)?.clone()),
+                        &mut inst_exports,
+                        offset,
+                    )?;
+                }
+                crate::ComponentExportKind::Type(ty) => {
+                    insert_export(
+                        export.name,
+                        ComponentEntityType::Type(InterfaceType::new(*ty, &self.types, offset)?),
                         &mut inst_exports,
                         offset,
                     )?;
@@ -1758,6 +1769,7 @@ enum ComponentEntityType {
     Instance(InstanceType),
     Func(ComponentFuncType),
     Value(InterfaceType),
+    Type(InterfaceType),
 }
 
 impl ComponentEntityType {
@@ -1784,6 +1796,7 @@ impl ComponentEntityType {
             (Self::Instance(ty), Self::Instance(other_ty)) => ty.is_subtype_of(other_ty),
             (Self::Func(ty), Self::Func(other_ty)) => ty == other_ty,
             (Self::Value(ty), Self::Value(other_ty)) => ty == other_ty,
+            (Self::Type(ty), Self::Type(other_ty)) => ty == other_ty,
             _ => false,
         }
     }
@@ -1795,6 +1808,7 @@ impl ComponentEntityType {
             Self::Instance(_) => "instance",
             Self::Func(_) => "function",
             Self::Value(_) => "value",
+            Self::Type(_) => "type",
         }
     }
 }

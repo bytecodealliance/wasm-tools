@@ -22,6 +22,7 @@ use crate::{
     RelocType, SIMDLaneIndex, SectionCode, TableType, TagKind, TagType, Type, TypeDef, TypeRef,
     V128,
 };
+use crate::{ComponentArg, ComponentArgKind};
 use std::convert::TryInto;
 use std::error::Error;
 use std::fmt;
@@ -481,36 +482,62 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
+    fn read_component_arg_kind(&mut self) -> Result<ComponentArgKind<'a>> {
+        Ok(match self.read_u8()? {
+            0x00 => ComponentArgKind::Module(self.read_var_u32()?),
+            0x01 => ComponentArgKind::Component(self.read_var_u32()?),
+            0x02 => ComponentArgKind::Instance(self.read_var_u32()?),
+            0x03 => ComponentArgKind::Function(self.read_var_u32()?),
+            0x04 => ComponentArgKind::Value(self.read_var_u32()?),
+            x => return self.invalid_leading_byte(x, "component argument kind"),
+        })
+    }
+
+    fn read_instantiation_exports(&mut self) -> Result<Box<[ComponentExport<'a>]>> {
+        let size = self.read_size(MAX_WASM_INSTANTIATION_EXPORTS, "instantiation exports")?;
+        (0..size)
+            .map(|_| self.read_component_export())
+            .collect::<Result<_>>()
+    }
+
+    fn read_component_arg(&mut self) -> Result<ComponentArg<'a>> {
+        let name = self.read_string()?;
+        Ok(match self.read_u8()? {
+            0x00 => ComponentArg {
+                name,
+                kind: self.read_component_arg_kind()?,
+            },
+            0x01 => ComponentArg {
+                name,
+                kind: ComponentArgKind::InstanceFromExports(self.read_instantiation_exports()?),
+            },
+            x => return self.invalid_leading_byte(x, "component argument"),
+        })
+    }
+
     pub(crate) fn read_component_export(&mut self) -> Result<ComponentExport<'a>> {
         let name = self.read_string()?;
         Ok(match self.read_u8()? {
             0x00 => {
-                let offset = self.original_position();
-                let kind = self.read_u8()?;
-                let index = self.read_var_u32()?;
-                let kind = match kind {
-                    0x00 => ComponentExportKind::Module(index),
-                    0x01 => ComponentExportKind::Component(index),
-                    0x02 => ComponentExportKind::Instance(index),
-                    0x03 => ComponentExportKind::Function(index),
-                    0x04 => ComponentExportKind::Value(index),
-                    x => return Err(Self::invalid_leading_byte_error(x, "export kind", offset)),
-                };
-                ComponentExport { name, kind }
-            }
-            0x01 => {
-                let size =
-                    self.read_size(MAX_WASM_INSTANTIATION_EXPORTS, "instantiation exports")?;
-                ComponentExport {
-                    name,
-                    kind: ComponentExportKind::InstanceFromExports(
-                        (0..size)
-                            .map(|_| self.read_component_export())
-                            .collect::<Result<_>>()?,
-                    ),
+                // Check for type exports
+                if self.peek()? == 0x05 {
+                    self.position += 1;
+                    ComponentExport {
+                        name,
+                        kind: ComponentExportKind::Type(self.read_interface_type()?),
+                    }
+                } else {
+                    ComponentExport {
+                        name,
+                        kind: self.read_component_arg_kind()?.into(),
+                    }
                 }
             }
-            x => return self.invalid_leading_byte(x, "export"),
+            0x01 => ComponentExport {
+                name,
+                kind: ComponentExportKind::InstanceFromExports(self.read_instantiation_exports()?),
+            },
+            x => return self.invalid_leading_byte(x, "component export"),
         })
     }
 
@@ -587,21 +614,13 @@ impl<'a> BinaryReader<'a> {
                     Instance::Component {
                         index,
                         args: (0..args_size)
-                            .map(|_| self.read_component_export())
+                            .map(|_| self.read_component_arg())
                             .collect::<Result<_>>()?,
                     }
                 }
                 x => return self.invalid_leading_byte(x, "instance"),
             },
-            0x01 => {
-                let size =
-                    self.read_size(MAX_WASM_INSTANTIATION_EXPORTS, "instantiation exports")?;
-                Instance::FromExports(
-                    (0..size)
-                        .map(|_| self.read_component_export())
-                        .collect::<Result<_>>()?,
-                )
-            }
+            0x01 => Instance::FromExports(self.read_instantiation_exports()?),
             x => return self.invalid_leading_byte(x, "instance"),
         })
     }

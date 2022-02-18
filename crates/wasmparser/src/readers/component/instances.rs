@@ -1,6 +1,6 @@
 use crate::{
-    BinaryReader, ComponentExport, ComponentExportKind, Export, Range, Result,
-    SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
+    BinaryReader, ComponentExport, Export, Range, Result, SectionIteratorLimited, SectionReader,
+    SectionWithLimitedItems,
 };
 
 /// Represents the kind of argument when instantiating a WebAssembly module.
@@ -21,11 +21,31 @@ pub struct ModuleArg<'a> {
     pub kind: ModuleArgKind<'a>,
 }
 
-/// Represents an argument to instantiating a WebAssembly component.
-pub type ComponentArg<'a> = ComponentExport<'a>;
+/// Represents the kind of argument when instantiating a WebAssembly component.
+#[derive(Debug, Clone)]
+pub enum ComponentArgKind<'a> {
+    /// The argument is a module.
+    Module(u32),
+    /// The argument is a component.
+    Component(u32),
+    /// The argument is an instance.
+    Instance(u32),
+    /// The argument is a function.
+    Function(u32),
+    /// The argument is a value.
+    Value(u32),
+    /// The argument is an instance based on exports of local items.
+    InstanceFromExports(Box<[ComponentExport<'a>]>),
+}
 
-/// Represents the argument type for instantiating a WebAssembly component.
-pub type ComponentArgKind<'a> = ComponentExportKind<'a>;
+/// Represents an argument to instantiating a WebAssembly component.
+#[derive(Debug, Clone)]
+pub struct ComponentArg<'a> {
+    /// The name of the component argument.
+    pub name: &'a str,
+    /// The kind of the component argument.
+    pub kind: ComponentArgKind<'a>,
+}
 
 /// Represents an instance in a WebAssembly component.
 #[derive(Debug, Clone)]
