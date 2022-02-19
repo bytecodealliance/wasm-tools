@@ -304,9 +304,7 @@ impl Validator {
             ComponentSection { range, .. } => self.component_section(range)?,
             InstanceSection(s) => self.instance_section(s)?,
             ComponentExportSection(s) => self.component_export_section(s)?,
-            ComponentStartSection { func, args, range } => {
-                self.component_start_section(*func, args, range)?
-            }
+            ComponentStartSection(s) => self.component_start_section(s)?,
             AliasSection(s) => self.alias_section(s)?,
 
             End(offset) => self.end(*offset)?,
@@ -867,12 +865,12 @@ impl Validator {
     /// This method should only be called when parsing a component.
     pub fn component_start_section(
         &mut self,
-        func_index: u32,
-        args: &[u32],
-        range: &Range,
+        section: &crate::ComponentStartSectionReader,
     ) -> Result<()> {
+        let range = section.range();
         let (state, _) = self.component_state("start", range.start)?;
-        state.add_start(func_index, args, range.start)
+        let f = section.clone().read()?;
+        state.add_start(f.func_index, &f.arguments, range.start)
     }
 
     /// Validates [`Payload::AliasSection`](crate::Payload).

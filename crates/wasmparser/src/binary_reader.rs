@@ -15,12 +15,12 @@
 
 use crate::{
     limits::*, Alias, AliasKind, BlockType, BrTable, CanonicalOption, ComponentExport,
-    ComponentExportKind, ComponentFuncType, ComponentFunction, ComponentImport, ComponentType,
-    ComponentTypeDef, CompoundType, CustomSectionKind, Export, ExternalKind, FuncType, GlobalType,
-    Ieee32, Ieee64, Import, InitExpr, Instance, InstanceType, InterfaceType, LinkingType,
-    MemoryImmediate, MemoryType, ModuleArg, ModuleArgKind, ModuleType, NameType, Operator,
-    RelocType, SIMDLaneIndex, SectionCode, TableType, TagKind, TagType, Type, TypeDef, TypeRef,
-    V128,
+    ComponentExportKind, ComponentFuncType, ComponentFunction, ComponentImport,
+    ComponentStartFunction, ComponentType, ComponentTypeDef, CompoundType, CustomSectionKind,
+    Export, ExternalKind, FuncType, GlobalType, Ieee32, Ieee64, Import, InitExpr, Instance,
+    InstanceType, InterfaceType, LinkingType, MemoryImmediate, MemoryType, ModuleArg,
+    ModuleArgKind, ModuleType, NameType, Operator, RelocType, SIMDLaneIndex, SectionCode,
+    TableType, TagKind, TagType, Type, TypeDef, TypeRef, V128,
 };
 use crate::{ComponentArg, ComponentArgKind};
 use std::convert::TryInto;
@@ -243,6 +243,17 @@ impl<'a> BinaryReader<'a> {
                 self.original_position(),
             )),
         }
+    }
+
+    pub(crate) fn read_component_start(&mut self) -> Result<ComponentStartFunction> {
+        let func_index = self.read_var_u32()?;
+        let size = self.read_size(MAX_WASM_START_ARGS, "start function arguments")?;
+        Ok(ComponentStartFunction {
+            func_index,
+            arguments: (0..size)
+                .map(|_| self.read_var_u32())
+                .collect::<Result<_>>()?,
+        })
     }
 
     pub(crate) fn read_external_kind(&mut self) -> Result<ExternalKind> {

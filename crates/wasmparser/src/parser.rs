@@ -1,7 +1,8 @@
 use crate::limits::MAX_WASM_MODULE_SIZE;
 use crate::{
     AliasSectionReader, ComponentExportSectionReader, ComponentFunctionSectionReader,
-    ComponentImportSectionReader, ComponentTypeSectionReader, InstanceSectionReader,
+    ComponentImportSectionReader, ComponentStartSectionReader, ComponentTypeSectionReader,
+    InstanceSectionReader,
 };
 use crate::{
     BinaryReader, BinaryReaderError, DataSectionReader, ElementSectionReader, ExportSectionReader,
@@ -204,18 +205,9 @@ pub enum Payload<'a> {
     /// A component export section was received, and the provided reader can be
     /// used to parse the contents of the export section.
     ComponentExportSection(crate::ComponentExportSectionReader<'a>),
-    /// A component start section was received.
-    ComponentStartSection {
-        /// The start function index.
-        func: u32,
-        /// The argument values to pass to the start function.
-        ///
-        /// The argument values are referenced by index.
-        args: Box<[u32]>,
-        /// The range of bytes for the section, specified in
-        /// offsets relative to the start of the byte stream.
-        range: Range,
-    },
+    /// A component start section was received, and the provided reader can be
+    /// used to parse the contents of the start section.
+    ComponentStartSection(crate::ComponentStartSectionReader<'a>),
     /// A component alias section was received and the provided reader can be
     /// used to parse the contents of the alias section.
     AliasSection(crate::AliasSectionReader<'a>),
@@ -673,16 +665,12 @@ impl Parser {
                         ComponentExportSectionReader::new,
                         ComponentExportSection,
                     ),
-                    (Encoding::Component, 8) => Ok(ComponentStartSection {
-                        func: reader.read_var_u32()?,
-                        args: (0..reader.read_var_u32()?)
-                            .map(|_| reader.read_var_u32())
-                            .collect::<Result<_>>()?,
-                        range: Range {
-                            start: reader.original_position(),
-                            end: reader.original_position() + len as usize,
-                        },
-                    }),
+                    (Encoding::Component, 8) => section(
+                        reader,
+                        len,
+                        ComponentStartSectionReader::new,
+                        ComponentStartSection,
+                    ),
                     (Encoding::Component, 9) => {
                         section(reader, len, AliasSectionReader::new, AliasSection)
                     }
@@ -1014,11 +1002,9 @@ impl fmt::Debug for Payload<'_> {
                 .debug_tuple("ComponentExportSection")
                 .field(&"...")
                 .finish(),
-            ComponentStartSection { func, args, range } => f
-                .debug_struct("ComponentStartSection")
-                .field("func", func)
-                .field("values", args)
-                .field("range", range)
+            ComponentStartSection(_) => f
+                .debug_tuple("ComponentStartSection")
+                .field(&"...")
                 .finish(),
             AliasSection(_) => f.debug_tuple("AliasSection").field(&"...").finish(),
 
