@@ -24,7 +24,7 @@ fn check_value_type(ty: Type, features: &WasmFeatures, offset: usize) -> Result<
 // so this isn't used for components.
 #[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Debug)]
 pub enum Order {
-    AfterHeader,
+    Initial,
     Type,
     Import,
     Function,
@@ -42,7 +42,7 @@ pub enum Order {
 
 impl Default for Order {
     fn default() -> Order {
-        Order::AfterHeader
+        Order::Initial
     }
 }
 
