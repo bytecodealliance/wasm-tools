@@ -359,14 +359,22 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn add_module(&mut self, module: &Module) -> Result<()> {
+    pub fn add_module(&mut self, module: &Module, offset: usize) -> Result<()> {
         let imports = module
             .imports()
-            .map(|(k, v)| {
-                assert_eq!(v.len(), 1);
-                (k.clone(), v[0].clone())
+            .map(|((module, name), v)| {
+                if v.len() != 1 {
+                    return Err(BinaryReaderError::new(
+                        format!(
+                            "module has a duplicate import name `{}:{}` that is not allowed in components",
+                            module, name
+                        ),
+                        offset,
+                    ));
+                }
+                Ok(((module.clone(), name.clone()), v[0].clone()))
             })
-            .collect();
+            .collect::<Result<_>>()?;
 
         let exports = module
             .exports()

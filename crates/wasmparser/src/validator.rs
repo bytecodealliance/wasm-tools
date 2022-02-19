@@ -428,7 +428,6 @@ impl Validator {
     ///
     /// This method should only be called when parsing a module.
     pub fn import_section(&mut self, section: &crate::ImportSectionReader<'_>) -> Result<()> {
-        let has_parent = !self.parents.is_empty();
         self.ensure_module_section(
             Order::Import,
             section,
@@ -438,7 +437,7 @@ impl Validator {
                 state
                     .module
                     .assert_mut()
-                    .add_import(import, features, has_parent, offset)
+                    .add_import(import, features, offset)
             },
         )
     }
@@ -940,7 +939,7 @@ impl Validator {
 
                 // If there's a parent component, we'll add a module to the parent state
                 if let Some(mut parent) = self.parents.pop() {
-                    parent.add_module(&state.module)?;
+                    parent.add_module(&state.module, offset)?;
                     self.state = State::Component(Box::new(parent));
                 }
             }

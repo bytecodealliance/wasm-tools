@@ -461,7 +461,6 @@ impl Module {
         &mut self,
         import: crate::Import,
         features: &WasmFeatures,
-        has_parent: bool,
         offset: usize,
     ) -> Result<()> {
         let entity = self.types.check_type_ref(&import.ty, features, offset)?;
@@ -493,30 +492,10 @@ impl Module {
 
         check_max(len, 0, max, desc, offset)?;
 
-        // If the module is defined as part of a component, imports must be unique
-        if has_parent {
-            if self
-                .imports
-                .insert(
-                    (import.module.to_string(), import.name.to_string()),
-                    vec![entity],
-                )
-                .is_some()
-            {
-                return Err(BinaryReaderError::new(
-                    format!(
-                        "duplicate import name `{}:{}` already defined",
-                        import.module, import.name
-                    ),
-                    offset,
-                ));
-            }
-        } else {
-            self.imports
-                .entry((import.module.to_string(), import.name.to_string()))
-                .or_default()
-                .push(entity);
-        }
+        self.imports
+            .entry((import.module.to_string(), import.name.to_string()))
+            .or_default()
+            .push(entity);
 
         Ok(())
     }
