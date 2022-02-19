@@ -367,6 +367,7 @@ impl ModuleState {
     }
 
     pub fn set_expected_code_bodies(&mut self, num: u32) {
+        debug_assert!(self.expected_code_bodies.is_none());
         self.expected_code_bodies = Some(num);
     }
 

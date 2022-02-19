@@ -376,7 +376,15 @@ impl Validator {
             Order::Type,
             section,
             "type",
-            |state| Some((state.module.type_count(), MAX_WASM_TYPES, "types")),
+            |state, count, offset| {
+                check_max(
+                    state.module.type_count(),
+                    count,
+                    MAX_WASM_TYPES,
+                    "types",
+                    offset,
+                )
+            },
             |state, def, offset| state.module.assert_mut().add_type(def, &features, offset),
         )
     }
@@ -391,7 +399,7 @@ impl Validator {
             Order::Import,
             section,
             "import",
-            |_| None, // add_import will check limits
+            |_, _, _| Ok(()), // add_import will check limits
             |state, import, offset| {
                 state
                     .module
@@ -409,17 +417,17 @@ impl Validator {
             Order::Function,
             section,
             "function",
-            |state| {
-                Some((
+            |state, count, offset| {
+                state.set_expected_code_bodies(section.get_count());
+                check_max(
                     state.module.function_count(),
+                    count,
                     MAX_WASM_FUNCTIONS,
                     "functions",
-                ))
+                    offset,
+                )
             },
-            |state, ty, offset| {
-                state.set_expected_code_bodies(section.get_count());
-                state.module.assert_mut().add_function(ty, offset)
-            },
+            |state, ty, offset| state.module.assert_mut().add_function(ty, offset),
         )
     }
 
@@ -432,12 +440,14 @@ impl Validator {
             Order::Table,
             section,
             "table",
-            |state| {
-                Some((
+            |state, count, offset| {
+                check_max(
                     state.module.table_count(),
+                    count,
                     state.module.max_tables(&features),
                     "tables",
-                ))
+                    offset,
+                )
             },
             |state, ty, offset| state.module.assert_mut().add_table(ty, &features, offset),
         )
@@ -452,12 +462,14 @@ impl Validator {
             Order::Memory,
             section,
             "memory",
-            |state| {
-                Some((
+            |state, count, offset| {
+                check_max(
                     state.module.memory_count(),
+                    count,
                     state.module.max_memories(&features),
                     "memories",
-                ))
+                    offset,
+                )
             },
             |state, ty, offset| state.module.assert_mut().add_memory(ty, &features, offset),
         )
@@ -479,7 +491,15 @@ impl Validator {
             Order::Tag,
             section,
             "tag",
-            |state| Some((state.module.tag_count(), MAX_WASM_TAGS, "tags")),
+            |state, count, offset| {
+                check_max(
+                    state.module.tag_count(),
+                    count,
+                    MAX_WASM_TAGS,
+                    "tags",
+                    offset,
+                )
+            },
             |state, ty, offset| state.module.assert_mut().add_tag(ty, &features, offset),
         )
     }
@@ -493,7 +513,15 @@ impl Validator {
             Order::Global,
             section,
             "global",
-            |state| Some((state.module.global_count(), MAX_WASM_GLOBALS, "globals")),
+            |state, count, offset| {
+                check_max(
+                    state.module.global_count(),
+                    count,
+                    MAX_WASM_GLOBALS,
+                    "globals",
+                    offset,
+                )
+            },
             |state, global, offset| {
                 state
                     .module
@@ -511,7 +539,15 @@ impl Validator {
             Order::Export,
             section,
             "export",
-            |state| Some((state.module.export_count(), MAX_WASM_EXPORTS, "exports")),
+            |state, count, offset| {
+                check_max(
+                    state.module.export_count(),
+                    count,
+                    MAX_WASM_EXPORTS,
+                    "exports",
+                    offset,
+                )
+            },
             |state, e, offset| state.module.assert_mut().add_export(&e, offset),
         )
     }
@@ -544,12 +580,14 @@ impl Validator {
             Order::Element,
             section,
             "element",
-            |state| {
-                Some((
+            |state, count, offset| {
+                check_max(
                     state.module.element_count() as usize,
+                    count,
                     MAX_WASM_ELEMENT_SEGMENTS,
                     "element segments",
-                ))
+                    offset,
+                )
             },
             |state, e, offset| {
                 state
@@ -653,12 +691,14 @@ impl Validator {
             Order::Data,
             &section,
             "data",
-            |state| {
-                Some((
+            |state, count, offset| {
+                check_max(
                     state.module.data_count() as usize,
+                    count,
                     MAX_WASM_DATA_SEGMENTS,
                     "data segments",
-                ))
+                    offset,
+                )
             },
             |state, d, offset| {
                 state.set_data_segment_count(count);
@@ -678,7 +718,9 @@ impl Validator {
         self.ensure_component_section(
             section,
             "type",
-            |state| Some((state.type_count(), MAX_WASM_TYPES, "types")),
+            |state, count, offset| {
+                check_max(state.type_count(), count, MAX_WASM_TYPES, "types", offset)
+            },
             |state, parents, ty, offset| state.add_type(ty, &features, parents, offset),
         )
     }
@@ -693,7 +735,7 @@ impl Validator {
         self.ensure_component_section(
             section,
             "import",
-            |_| None, // add_import will check limits
+            |_, _, _| Ok(()), // add_import will check limits
             |state, _, import, offset| state.add_import(import, offset),
         )
     }
@@ -708,7 +750,15 @@ impl Validator {
         self.ensure_component_section(
             section,
             "function",
-            |state| Some((state.function_count(), MAX_WASM_FUNCTIONS, "functions")),
+            |state, count, offset| {
+                check_max(
+                    state.function_count(),
+                    count,
+                    MAX_WASM_FUNCTIONS,
+                    "functions",
+                    offset,
+                )
+            },
             |state, _, func, offset| match func {
                 crate::ComponentFunction::Lift {
                     type_index,
@@ -776,7 +826,15 @@ impl Validator {
         self.ensure_component_section(
             section,
             "instance",
-            |state| Some((state.instance_count(), MAX_WASM_INSTANCES, "instances")),
+            |state, count, offset| {
+                check_max(
+                    state.instance_count(),
+                    count,
+                    MAX_WASM_INSTANCES,
+                    "instances",
+                    offset,
+                )
+            },
             |state, _, instance, offset| state.add_instance(instance, offset),
         )
     }
@@ -791,7 +849,15 @@ impl Validator {
         self.ensure_component_section(
             section,
             "export",
-            |state| Some((state.export_count(), MAX_WASM_EXPORTS, "exports")),
+            |state, count, offset| {
+                check_max(
+                    state.export_count(),
+                    count,
+                    MAX_WASM_EXPORTS,
+                    "exports",
+                    offset,
+                )
+            },
             |state, _, export, offset| state.add_export(export, offset),
         )
     }
@@ -816,7 +882,7 @@ impl Validator {
         self.ensure_component_section(
             section,
             "alias",
-            |_| None, // maximums checked via `add_alias`
+            |_, _, _| Ok(()), // maximums checked via `add_alias`
             |state, parents, alias, offset| -> Result<(), BinaryReaderError> {
                 state.add_alias(alias, parents, offset)
             },
@@ -906,7 +972,7 @@ impl Validator {
         order: Order,
         section: &T,
         name: &str,
-        limit_check: impl FnOnce(&ModuleState) -> Option<(usize, usize, &str)>,
+        validate_section: impl FnOnce(&mut ModuleState, u32, usize) -> Result<()>,
         mut validate_item: impl FnMut(&mut ModuleState, T::Item, usize) -> Result<()>,
     ) -> Result<()>
     where
@@ -917,9 +983,7 @@ impl Validator {
 
         state.update_order(order, offset)?;
 
-        if let Some((len, max, desc)) = limit_check(state) {
-            check_max(len, section.get_count(), max, desc, offset)?;
-        }
+        validate_section(state, section.get_count(), offset)?;
 
         let mut section = section.clone();
         for _ in 0..section.get_count() {
@@ -937,7 +1001,7 @@ impl Validator {
         &mut self,
         section: &T,
         name: &str,
-        limit_check: impl FnOnce(&ComponentState) -> Option<(usize, usize, &str)>,
+        validate_section: impl FnOnce(&mut ComponentState, u32, usize) -> Result<()>,
         mut validate_item: impl FnMut(
             &mut ComponentState,
             &[ComponentState],
@@ -958,9 +1022,7 @@ impl Validator {
         }
 
         let (state, parents) = self.component_state(name, offset)?;
-        if let Some((len, max, desc)) = limit_check(state) {
-            check_max(len, section.get_count(), max, desc, offset)?;
-        }
+        validate_section(state, section.get_count(), offset)?;
 
         let mut section = section.clone();
         for _ in 0..section.get_count() {
