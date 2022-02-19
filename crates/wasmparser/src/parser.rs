@@ -287,7 +287,8 @@ pub enum Payload<'a> {
 
     /// The end of the WebAssembly module or component was reached.
     ///
-    /// The value is number of bytes consumed by the entire parse.
+    /// The value is the offset in the input byte stream where the end
+    /// was reached.
     End(usize),
 }
 
@@ -1093,10 +1094,30 @@ mod tests {
             p.parse(b"\0asm\x01\0\0\0", false),
             Ok(Chunk::Parsed {
                 consumed: 8,
-                payload: Payload::Version { num: 1, .. },
+                payload: Payload::Version {
+                    num: WASM_MODULE_VERSION,
+                    encoding: Encoding::Module,
+                    ..
+                },
             }),
         );
-        return p;
+        p
+    }
+
+    fn parser_after_component_header() -> Parser {
+        let mut p = Parser::default();
+        assert_matches!(
+            p.parse(b"\0asm\x0a\0\x01\0", false),
+            Ok(Chunk::Parsed {
+                consumed: 8,
+                payload: Payload::Version {
+                    num: WASM_COMPONENT_VERSION,
+                    encoding: Encoding::Component,
+                    ..
+                },
+            }),
+        );
+        p
     }
 
     #[test]
@@ -1325,6 +1346,91 @@ mod tests {
         assert_eq!(
             p.parse(&[0], false).unwrap_err().message(),
             "trailing bytes at end of section",
+        );
+    }
+
+    #[test]
+    fn single_module() {
+        let mut p = parser_after_component_header();
+        assert_matches!(p.parse(&[4], false), Ok(Chunk::NeedMoreData(1)));
+
+        // A module that's 8 bytes in length
+        let mut sub = match p.parse(&[4, 8], false) {
+            Ok(Chunk::Parsed {
+                consumed: 2,
+                payload: Payload::ModuleSection { parser, .. },
+            }) => parser,
+            other => panic!("bad parse {:?}", other),
+        };
+
+        // Parse the header of the submodule with the sub-parser.
+        assert_matches!(sub.parse(&[], false), Ok(Chunk::NeedMoreData(4)));
+        assert_matches!(sub.parse(b"\0asm", false), Ok(Chunk::NeedMoreData(4)));
+        assert_matches!(
+            sub.parse(b"\0asm\x01\0\0\0", false),
+            Ok(Chunk::Parsed {
+                consumed: 8,
+                payload: Payload::Version {
+                    num: 1,
+                    encoding: Encoding::Module,
+                    ..
+                },
+            }),
+        );
+
+        // The sub-parser should be byte-limited so the next byte shouldn't get
+        // consumed, it's intended for the parent parser.
+        assert_matches!(
+            sub.parse(&[10], false),
+            Ok(Chunk::Parsed {
+                consumed: 0,
+                payload: Payload::End(18),
+            }),
+        );
+
+        // The parent parser should now be back to resuming, and we simulate it
+        // being done with bytes to ensure that it's safely at the end,
+        // completing the module code section.
+        assert_matches!(p.parse(&[], false), Ok(Chunk::NeedMoreData(1)));
+        assert_matches!(
+            p.parse(&[], true),
+            Ok(Chunk::Parsed {
+                consumed: 0,
+                payload: Payload::End(18),
+            }),
+        );
+    }
+
+    #[test]
+    fn nested_section_too_big() {
+        let mut p = parser_after_component_header();
+
+        // A module that's 10 bytes in length
+        let mut sub = match p.parse(&[4, 10], false) {
+            Ok(Chunk::Parsed {
+                consumed: 2,
+                payload: Payload::ModuleSection { parser, .. },
+            }) => parser,
+            other => panic!("bad parse {:?}", other),
+        };
+
+        // use 8 bytes to parse the header, leaving 2 remaining bytes in our
+        // module.
+        assert_matches!(
+            sub.parse(b"\0asm\x01\0\0\0", false),
+            Ok(Chunk::Parsed {
+                consumed: 8,
+                payload: Payload::Version { num: 1, .. },
+            }),
+        );
+
+        // We can't parse a section which declares its bigger than the outer
+        // module. This is a custom section, one byte big, with one content byte. The
+        // content byte, however, lives outside of the parent's module code
+        // section.
+        assert_eq!(
+            sub.parse(&[0, 1, 0], false).unwrap_err().message(),
+            "section too large",
         );
     }
 }
