@@ -205,10 +205,6 @@ impl ComponentState {
         self.types.len()
     }
 
-    pub fn import_count(&self) -> usize {
-        self.imports.len()
-    }
-
     pub fn function_count(&self) -> usize {
         self.functions.len()
     }
@@ -264,9 +260,8 @@ impl ComponentState {
                 (self.values.len(), MAX_WASM_VALUES, "values")
             }
             ComponentTypeDef::Compound(_) => {
-                // TODO: check with spec authors to see if this behavior is correct
                 return Err(BinaryReaderError::new(
-                    "imports of compound types are not supported",
+                    "cannot import compound types",
                     offset,
                 ));
             }
@@ -469,12 +464,21 @@ impl ComponentState {
                 name,
             } => self.alias_instance_export(kind, instance, name, offset),
             crate::Alias::OuterModule { count, index } => {
+                check_max(self.modules.len(), 1, MAX_WASM_MODULES, "modules", offset)?;
                 self.alias_module(count, index, parents, offset)
             }
             crate::Alias::OuterComponent { count, index } => {
+                check_max(
+                    self.components.len(),
+                    1,
+                    MAX_WASM_COMPONENTS,
+                    "components",
+                    offset,
+                )?;
                 self.alias_component(count, index, parents, offset)
             }
             crate::Alias::OuterType { count, index } => {
+                check_max(self.types.len(), 1, MAX_WASM_TYPES, "types", offset)?;
                 self.types.alias_type(count, index, parents, offset)
             }
         }
@@ -862,12 +866,27 @@ impl ComponentState {
 
         match kind {
             crate::AliasKind::Module => {
+                check_max(self.modules.len(), 1, MAX_WASM_MODULES, "modules", offset)?;
                 push_component_export!(ComponentEntityType::Module, modules, "module")
             }
             crate::AliasKind::Component => {
+                check_max(
+                    self.components.len(),
+                    1,
+                    MAX_WASM_COMPONENTS,
+                    "components",
+                    offset,
+                )?;
                 push_component_export!(ComponentEntityType::Component, components, "component")
             }
             crate::AliasKind::Instance => {
+                check_max(
+                    self.instances.len(),
+                    1,
+                    MAX_WASM_INSTANCES,
+                    "instances",
+                    offset,
+                )?;
                 match self.component_instance_export(idx, name, offset)?.clone() {
                     ComponentEntityType::Instance(ty) => {
                         self.instances.push(InstanceIndexType::Component(ty));
@@ -882,6 +901,7 @@ impl ComponentState {
                 }
             }
             crate::AliasKind::Value => {
+                check_max(self.values.len(), 1, MAX_WASM_VALUES, "values", offset)?;
                 match self.component_instance_export(idx, name, offset)?.clone() {
                     ComponentEntityType::Value(ty) => {
                         self.values.push((ty, false));
@@ -896,20 +916,37 @@ impl ComponentState {
                 }
             }
             crate::AliasKind::Function => {
+                check_max(
+                    self.functions.len(),
+                    1,
+                    MAX_WASM_FUNCTIONS,
+                    "functions",
+                    offset,
+                )?;
                 self.functions
                     .push(self.instance_exported_function(idx, name, offset)?);
                 Ok(())
             }
             crate::AliasKind::Table => {
+                check_max(self.tables.len(), 1, MAX_WASM_TABLES, "tables", offset)?;
                 push_module_export!(EntityType::Table, tables, "table")
             }
             crate::AliasKind::Memory => {
+                check_max(
+                    self.memories.len(),
+                    1,
+                    MAX_WASM_MEMORIES,
+                    "memories",
+                    offset,
+                )?;
                 push_module_export!(EntityType::Memory, memories, "memory")
             }
             crate::AliasKind::Global => {
+                check_max(self.globals.len(), 1, MAX_WASM_GLOBALS, "globals", offset)?;
                 push_module_export!(EntityType::Global, globals, "global")
             }
             crate::AliasKind::Tag => {
+                check_max(self.tags.len(), 1, MAX_WASM_TAGS, "tags", offset)?;
                 push_module_export!(EntityType::Tag, tags, "tag")
             }
         }

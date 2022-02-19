@@ -15,7 +15,8 @@
 
 use crate::{
     limits::*, BinaryReaderError, Encoding, FunctionBody, Parser, Payload, Range, Result,
-    SectionReader, SectionWithLimitedItems, Type, WASM_COMPONENT_VERSION, WASM_MODULE_VERSION,
+    SectionReader, SectionWithLimitedItems, Type, WasmModuleResources, WASM_COMPONENT_VERSION,
+    WASM_MODULE_VERSION,
 };
 use std::mem;
 
@@ -371,17 +372,13 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn type_section(&mut self, section: &crate::TypeSectionReader<'_>) -> Result<()> {
         let features = self.features;
-        self.ensure_module_section(Order::Type, section, "type", |state, def, offset| {
-            check_max(
-                state.module.type_count(),
-                section.get_count(),
-                MAX_WASM_TYPES,
-                "types",
-                offset,
-            )?;
-
-            state.module.assert_mut().add_type(def, &features, offset)
-        })
+        self.ensure_module_section(
+            Order::Type,
+            section,
+            "type",
+            |state| Some((state.module.type_count(), MAX_WASM_TYPES, "types")),
+            |state, def, offset| state.module.assert_mut().add_type(def, &features, offset),
+        )
     }
 
     /// Validates [`Payload::ImportSection`](crate::Payload).
@@ -390,40 +387,40 @@ impl Validator {
     pub fn import_section(&mut self, section: &crate::ImportSectionReader<'_>) -> Result<()> {
         let features = self.features;
         let has_parent = !self.parents.is_empty();
-        self.ensure_module_section(Order::Import, section, "import", |state, import, offset| {
-            check_max(
-                state.module.import_count(),
-                section.get_count(),
-                MAX_WASM_IMPORTS,
-                "imports",
-                offset,
-            )?;
-
-            state
-                .module
-                .assert_mut()
-                .add_import(import, &features, has_parent, offset)
-        })
+        self.ensure_module_section(
+            Order::Import,
+            section,
+            "import",
+            |_| None, // add_import will check limits
+            |state, import, offset| {
+                state
+                    .module
+                    .assert_mut()
+                    .add_import(import, &features, has_parent, offset)
+            },
+        )
     }
 
     /// Validates [`Payload::FunctionSection`](crate::Payload).
     ///
     /// This method should only be called when parsing a module.
     pub fn function_section(&mut self, section: &crate::FunctionSectionReader<'_>) -> Result<()> {
-        self.ensure_module_section(Order::Function, section, "function", |state, ty, offset| {
-            check_max(
-                state.module.function_count(),
-                section.get_count(),
-                MAX_WASM_FUNCTIONS,
-                "functions",
-                offset,
-            )?;
-
-            state.set_expected_code_bodies(section.get_count());
-            state.module.assert_mut().add_function(ty, offset)?;
-
-            Ok(())
-        })
+        self.ensure_module_section(
+            Order::Function,
+            section,
+            "function",
+            |state| {
+                Some((
+                    state.module.function_count(),
+                    MAX_WASM_FUNCTIONS,
+                    "functions",
+                ))
+            },
+            |state, ty, offset| {
+                state.set_expected_code_bodies(section.get_count());
+                state.module.assert_mut().add_function(ty, offset)
+            },
+        )
     }
 
     /// Validates [`Payload::TableSection`](crate::Payload).
@@ -431,17 +428,19 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn table_section(&mut self, section: &crate::TableSectionReader<'_>) -> Result<()> {
         let features = self.features;
-        self.ensure_module_section(Order::Table, section, "table", |state, ty, offset| {
-            check_max(
-                state.module.table_count(),
-                section.get_count(),
-                state.module.max_tables(&features),
-                "tables",
-                offset,
-            )?;
-
-            state.module.assert_mut().add_table(ty, &features, offset)
-        })
+        self.ensure_module_section(
+            Order::Table,
+            section,
+            "table",
+            |state| {
+                Some((
+                    state.module.table_count(),
+                    state.module.max_tables(&features),
+                    "tables",
+                ))
+            },
+            |state, ty, offset| state.module.assert_mut().add_table(ty, &features, offset),
+        )
     }
 
     /// Validates [`Payload::MemorySection`](crate::Payload).
@@ -449,17 +448,19 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn memory_section(&mut self, section: &crate::MemorySectionReader<'_>) -> Result<()> {
         let features = self.features;
-        self.ensure_module_section(Order::Memory, section, "memory", |state, ty, offset| {
-            check_max(
-                state.module.memory_count(),
-                section.get_count(),
-                state.module.max_memories(&features),
-                "memories",
-                offset,
-            )?;
-
-            state.module.assert_mut().add_memory(ty, &features, offset)
-        })
+        self.ensure_module_section(
+            Order::Memory,
+            section,
+            "memory",
+            |state| {
+                Some((
+                    state.module.memory_count(),
+                    state.module.max_memories(&features),
+                    "memories",
+                ))
+            },
+            |state, ty, offset| state.module.assert_mut().add_memory(ty, &features, offset),
+        )
     }
 
     /// Validates [`Payload::TagSection`](crate::Payload).
@@ -474,17 +475,13 @@ impl Validator {
             ));
         }
 
-        self.ensure_module_section(Order::Tag, section, "tag", |state, ty, offset| {
-            check_max(
-                state.module.tag_count(),
-                section.get_count(),
-                MAX_WASM_TAGS,
-                "tags",
-                offset,
-            )?;
-
-            state.module.assert_mut().add_tag(ty, &features, offset)
-        })
+        self.ensure_module_section(
+            Order::Tag,
+            section,
+            "tag",
+            |state| Some((state.module.tag_count(), MAX_WASM_TAGS, "tags")),
+            |state, ty, offset| state.module.assert_mut().add_tag(ty, &features, offset),
+        )
     }
 
     /// Validates [`Payload::GlobalSection`](crate::Payload).
@@ -492,37 +489,31 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn global_section(&mut self, section: &crate::GlobalSectionReader<'_>) -> Result<()> {
         let features = self.features;
-        self.ensure_module_section(Order::Global, section, "global", |state, global, offset| {
-            check_max(
-                state.module.global_count(),
-                section.get_count(),
-                MAX_WASM_GLOBALS,
-                "globals",
-                offset,
-            )?;
-
-            state
-                .module
-                .assert_mut()
-                .add_global(global, &features, offset)
-        })
+        self.ensure_module_section(
+            Order::Global,
+            section,
+            "global",
+            |state| Some((state.module.global_count(), MAX_WASM_GLOBALS, "globals")),
+            |state, global, offset| {
+                state
+                    .module
+                    .assert_mut()
+                    .add_global(global, &features, offset)
+            },
+        )
     }
 
     /// Validates [`Payload::ExportSection`](crate::Payload).
     ///
     /// This method should only be called when parsing a module.
     pub fn export_section(&mut self, section: &crate::ExportSectionReader<'_>) -> Result<()> {
-        self.ensure_module_section(Order::Export, section, "export", |state, e, offset| {
-            check_max(
-                state.module.export_count(),
-                section.get_count(),
-                MAX_WASM_EXPORTS,
-                "exports",
-                offset,
-            )?;
-
-            state.module.assert_mut().add_export(&e, offset)
-        })
+        self.ensure_module_section(
+            Order::Export,
+            section,
+            "export",
+            |state| Some((state.module.export_count(), MAX_WASM_EXPORTS, "exports")),
+            |state, e, offset| state.module.assert_mut().add_export(&e, offset),
+        )
     }
 
     /// Validates [`Payload::StartSection`](crate::Payload).
@@ -549,12 +540,24 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn element_section(&mut self, section: &crate::ElementSectionReader<'_>) -> Result<()> {
         let features = self.features;
-        self.ensure_module_section(Order::Element, section, "element", |state, e, offset| {
-            state
-                .module
-                .assert_mut()
-                .add_element_segment(e, &features, offset)
-        })
+        self.ensure_module_section(
+            Order::Element,
+            section,
+            "element",
+            |state| {
+                Some((
+                    state.module.element_count() as usize,
+                    MAX_WASM_ELEMENT_SEGMENTS,
+                    "element segments",
+                ))
+            },
+            |state, e, offset| {
+                state
+                    .module
+                    .assert_mut()
+                    .add_element_segment(e, &features, offset)
+            },
+        )
     }
 
     /// Validates [`Payload::DataCountSection`](crate::Payload).
@@ -646,11 +649,22 @@ impl Validator {
         section.forbid_bulk_memory(!self.features.bulk_memory);
 
         let features = self.features;
-        self.ensure_module_section(Order::Data, &section, "data", |state, d, offset| {
-            check_max(0, count, MAX_WASM_DATA_SEGMENTS, "data segments", offset)?;
-            state.set_data_segment_count(count);
-            state.module.check_data_segment(d, &features, offset)
-        })
+        self.ensure_module_section(
+            Order::Data,
+            &section,
+            "data",
+            |state| {
+                Some((
+                    state.module.data_count() as usize,
+                    MAX_WASM_DATA_SEGMENTS,
+                    "data segments",
+                ))
+            },
+            |state, d, offset| {
+                state.set_data_segment_count(count);
+                state.module.check_data_segment(d, &features, offset)
+            },
+        )
     }
 
     /// Validates [`Payload::ComponentTypeSection`](crate::Payload).
@@ -661,17 +675,12 @@ impl Validator {
         section: &crate::ComponentTypeSectionReader,
     ) -> Result<()> {
         let features = self.features;
-        self.ensure_component_section(section, "type", |state, parents, ty, offset| {
-            check_max(
-                state.type_count(),
-                section.get_count(),
-                MAX_WASM_TYPES,
-                "types",
-                offset,
-            )?;
-
-            state.add_type(ty, &features, parents, offset)
-        })
+        self.ensure_component_section(
+            section,
+            "type",
+            |state| Some((state.type_count(), MAX_WASM_TYPES, "types")),
+            |state, parents, ty, offset| state.add_type(ty, &features, parents, offset),
+        )
     }
 
     /// Validates [`Payload::ComponentImportSection`](crate::Payload).
@@ -681,17 +690,12 @@ impl Validator {
         &mut self,
         section: &crate::ComponentImportSectionReader,
     ) -> Result<()> {
-        self.ensure_component_section(section, "import", |state, _, import, offset| {
-            check_max(
-                state.import_count(),
-                section.get_count(),
-                MAX_WASM_IMPORTS,
-                "imports",
-                offset,
-            )?;
-
-            state.add_import(import, offset)
-        })
+        self.ensure_component_section(
+            section,
+            "import",
+            |_| None, // add_import will check limits
+            |state, _, import, offset| state.add_import(import, offset),
+        )
     }
 
     /// Validates [`Payload::ComponentFunctionSection`](crate::Payload).
@@ -701,16 +705,11 @@ impl Validator {
         &mut self,
         section: &crate::ComponentFunctionSectionReader,
     ) -> Result<()> {
-        self.ensure_component_section(section, "function", |state, _, func, offset| {
-            check_max(
-                state.function_count(),
-                section.get_count(),
-                MAX_WASM_FUNCTIONS,
-                "functions",
-                offset,
-            )?;
-
-            match func {
+        self.ensure_component_section(
+            section,
+            "function",
+            |state| Some((state.function_count(), MAX_WASM_FUNCTIONS, "functions")),
+            |state, _, func, offset| match func {
                 crate::ComponentFunction::Lift {
                     type_index,
                     func_index,
@@ -720,8 +719,8 @@ impl Validator {
                     func_index,
                     options,
                 } => state.lower_function(func_index, options.as_ref(), offset),
-            }
-        })
+            },
+        )
     }
 
     /// Validates [`Payload::ModuleSection`](crate::Payload).
@@ -774,17 +773,12 @@ impl Validator {
     ///
     /// This method should only be called when parsing a component.
     pub fn instance_section(&mut self, section: &crate::InstanceSectionReader) -> Result<()> {
-        self.ensure_component_section(section, "instance", |state, _, instance, offset| {
-            check_max(
-                state.instance_count(),
-                section.get_count(),
-                MAX_WASM_INSTANCES,
-                "instances",
-                offset,
-            )?;
-
-            state.add_instance(instance, offset)
-        })
+        self.ensure_component_section(
+            section,
+            "instance",
+            |state| Some((state.instance_count(), MAX_WASM_INSTANCES, "instances")),
+            |state, _, instance, offset| state.add_instance(instance, offset),
+        )
     }
 
     /// Validates [`Payload::ComponentExportSection`](crate::Payload).
@@ -794,17 +788,12 @@ impl Validator {
         &mut self,
         section: &crate::ComponentExportSectionReader,
     ) -> Result<()> {
-        self.ensure_component_section(section, "export", |state, _, export, offset| {
-            check_max(
-                state.export_count(),
-                section.get_count(),
-                MAX_WASM_EXPORTS,
-                "exports",
-                offset,
-            )?;
-
-            state.add_export(export, offset)
-        })
+        self.ensure_component_section(
+            section,
+            "export",
+            |state| Some((state.export_count(), MAX_WASM_EXPORTS, "exports")),
+            |state, _, export, offset| state.add_export(export, offset),
+        )
     }
 
     /// Validates [`Payload::ComponentStartSection`](crate::Payload).
@@ -827,6 +816,7 @@ impl Validator {
         self.ensure_component_section(
             section,
             "alias",
+            |_| None, // maximums checked via `add_alias`
             |state, parents, alias, offset| -> Result<(), BinaryReaderError> {
                 state.add_alias(alias, parents, offset)
             },
@@ -916,6 +906,7 @@ impl Validator {
         order: Order,
         section: &T,
         name: &str,
+        limit_check: impl FnOnce(&ModuleState) -> Option<(usize, usize, &str)>,
         mut validate_item: impl FnMut(&mut ModuleState, T::Item, usize) -> Result<()>,
     ) -> Result<()>
     where
@@ -925,6 +916,10 @@ impl Validator {
         let state = self.module_state(name, offset)?;
 
         state.update_order(order, offset)?;
+
+        if let Some((len, max, desc)) = limit_check(state) {
+            check_max(len, section.get_count(), max, desc, offset)?;
+        }
 
         let mut section = section.clone();
         for _ in 0..section.get_count() {
@@ -942,6 +937,7 @@ impl Validator {
         &mut self,
         section: &T,
         name: &str,
+        limit_check: impl FnOnce(&ComponentState) -> Option<(usize, usize, &str)>,
         mut validate_item: impl FnMut(
             &mut ComponentState,
             &[ComponentState],
@@ -962,6 +958,9 @@ impl Validator {
         }
 
         let (state, parents) = self.component_state(name, offset)?;
+        if let Some((len, max, desc)) = limit_check(state) {
+            check_max(len, section.get_count(), max, desc, offset)?;
+        }
 
         let mut section = section.clone();
         for _ in 0..section.get_count() {

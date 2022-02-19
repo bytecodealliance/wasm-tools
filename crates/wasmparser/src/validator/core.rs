@@ -415,10 +415,6 @@ impl Module {
         self.types.len()
     }
 
-    pub fn import_count(&self) -> usize {
-        self.imports.len()
-    }
-
     pub fn function_count(&self) -> usize {
         self.functions.len()
     }
