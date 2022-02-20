@@ -343,7 +343,7 @@ impl ModuleState {
         if let Some(data_count) = self.module.data_count {
             if data_count != self.data_segment_count {
                 return Err(BinaryReaderError::new(
-                    "data count section and passive data mismatch",
+                    "data count section and data section mismatch",
                     offset,
                 ));
             }
