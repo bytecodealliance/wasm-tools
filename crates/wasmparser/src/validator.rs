@@ -115,7 +115,7 @@ enum State {
     /// A module header has been parsed.
     Module(ModuleState),
     /// A component header has been parsed.
-    Component(Box<ComponentState>),
+    Component(ComponentState),
 }
 
 impl State {
@@ -388,7 +388,7 @@ impl Validator {
                     ));
                 }
 
-                State::Component(Box::new(ComponentState::default()))
+                State::Component(ComponentState::default())
             }
             _ => {
                 return Err(BinaryReaderError::new(
@@ -825,7 +825,7 @@ impl Validator {
         }
 
         match mem::replace(&mut self.state, State::Unparsed(Some(Encoding::Module))) {
-            State::Component(state) => self.parents.push(*state),
+            State::Component(state) => self.parents.push(state),
             _ => unreachable!(),
         }
 
@@ -848,7 +848,7 @@ impl Validator {
         }
 
         match mem::replace(&mut self.state, State::Unparsed(Some(Encoding::Component))) {
-            State::Component(state) => self.parents.push(*state),
+            State::Component(state) => self.parents.push(state),
             _ => unreachable!(),
         }
 
@@ -952,14 +952,14 @@ impl Validator {
                 // If there's a parent component, we'll add a module to the parent state
                 if let Some(mut parent) = self.parents.pop() {
                     parent.add_module(&state.module, offset)?;
-                    self.state = State::Component(Box::new(parent));
+                    self.state = State::Component(parent);
                 }
             }
             State::Component(state) => {
                 // If there's a parent component, we'll add a component to the parent state
                 if let Some(mut parent) = self.parents.pop() {
-                    parent.add_component(*state);
-                    self.state = State::Component(Box::new(parent));
+                    parent.add_component(state);
+                    self.state = State::Component(parent);
                 }
             }
         }
