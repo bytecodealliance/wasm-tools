@@ -201,30 +201,6 @@ pub struct ComponentState {
 }
 
 impl ComponentState {
-    pub fn type_count(&self) -> usize {
-        self.types.len()
-    }
-
-    pub fn function_count(&self) -> usize {
-        self.functions.len()
-    }
-
-    pub fn module_count(&self) -> usize {
-        self.modules.len()
-    }
-
-    pub fn component_count(&self) -> usize {
-        self.components.len()
-    }
-
-    pub fn instance_count(&self) -> usize {
-        self.instances.len()
-    }
-
-    pub fn export_count(&self) -> usize {
-        self.exports.len()
-    }
-
     pub fn add_type(
         &mut self,
         def: crate::ComponentTypeDef,
@@ -1607,7 +1583,7 @@ impl ComponentTypeSpace {
         })
     }
 
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.0.len()
     }
 

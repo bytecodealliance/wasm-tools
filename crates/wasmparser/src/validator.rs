@@ -754,7 +754,7 @@ impl Validator {
             "type",
             |state, count, offset| {
                 state.types.0.reserve(count as usize);
-                check_max(state.type_count(), count, MAX_WASM_TYPES, "types", offset)
+                check_max(state.types.len(), count, MAX_WASM_TYPES, "types", offset)
             },
             |state, features, parents, ty, offset| state.add_type(ty, features, parents, offset),
         )
@@ -788,7 +788,7 @@ impl Validator {
             |state, count, offset| {
                 state.functions.reserve(count as usize);
                 check_max(
-                    state.function_count(),
+                    state.functions.len(),
                     count,
                     MAX_WASM_FUNCTIONS,
                     "functions",
@@ -816,7 +816,7 @@ impl Validator {
         {
             let state = self.state.component("module", range.start)?;
             check_max(
-                state.module_count(),
+                state.modules.len(),
                 1,
                 MAX_WASM_MODULES,
                 "modules",
@@ -839,7 +839,7 @@ impl Validator {
         {
             let state = self.state.component("component", range.start)?;
             check_max(
-                state.component_count(),
+                state.components.len(),
                 1,
                 MAX_WASM_COMPONENTS,
                 "components",
@@ -865,7 +865,7 @@ impl Validator {
             |state, count, offset| {
                 state.instances.reserve(count as usize);
                 check_max(
-                    state.instance_count(),
+                    state.instances.len(),
                     count,
                     MAX_WASM_INSTANCES,
                     "instances",
@@ -889,7 +889,7 @@ impl Validator {
             |state, count, offset| {
                 state.exports.reserve(count as usize);
                 check_max(
-                    state.export_count(),
+                    state.exports.len(),
                     count,
                     MAX_WASM_EXPORTS,
                     "exports",
