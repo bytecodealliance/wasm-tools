@@ -410,8 +410,9 @@ impl Validator {
             section,
             "type",
             |state, _, count, offset| {
+                state.module.assert_mut().types.0.reserve(count as usize);
                 check_max(
-                    state.module.type_count(),
+                    state.module.types.len(),
                     count,
                     MAX_WASM_TYPES,
                     "types",
@@ -451,9 +452,11 @@ impl Validator {
             section,
             "function",
             |state, _, count, offset| {
-                state.set_expected_code_bodies(section.get_count());
+                state.module.assert_mut().functions.reserve(count as usize);
+                debug_assert!(state.expected_code_bodies.is_none());
+                state.expected_code_bodies = Some(count);
                 check_max(
-                    state.module.function_count(),
+                    state.module.functions.len(),
                     count,
                     MAX_WASM_FUNCTIONS,
                     "functions",
@@ -474,8 +477,9 @@ impl Validator {
             section,
             "table",
             |state, _, count, offset| {
+                state.module.assert_mut().tables.reserve(count as usize);
                 check_max(
-                    state.module.table_count(),
+                    state.module.tables.len(),
                     count,
                     state.module.max_tables(&features),
                     "tables",
@@ -495,8 +499,9 @@ impl Validator {
             section,
             "memory",
             |state, features, count, offset| {
+                state.module.assert_mut().memories.reserve(count as usize);
                 check_max(
-                    state.module.memory_count(),
+                    state.module.memories.len(),
                     count,
                     state.module.max_memories(features),
                     "memories",
@@ -525,8 +530,9 @@ impl Validator {
             section,
             "tag",
             |state, _, count, offset| {
+                state.module.assert_mut().tags.reserve(count as usize);
                 check_max(
-                    state.module.tag_count(),
+                    state.module.tags.len(),
                     count,
                     MAX_WASM_TAGS,
                     "tags",
@@ -546,8 +552,9 @@ impl Validator {
             section,
             "global",
             |state, _, count, offset| {
+                state.module.assert_mut().globals.reserve(count as usize);
                 check_max(
-                    state.module.global_count(),
+                    state.module.globals.len(),
                     count,
                     MAX_WASM_GLOBALS,
                     "globals",
@@ -572,8 +579,9 @@ impl Validator {
             section,
             "export",
             |state, _, count, offset| {
+                state.module.assert_mut().exports.reserve(count as usize);
                 check_max(
-                    state.module.export_count(),
+                    state.module.exports.len(),
                     count,
                     MAX_WASM_EXPORTS,
                     "exports",
@@ -656,7 +664,7 @@ impl Validator {
         let state = self.module_state("code", offset)?;
         state.update_order(Order::Code, offset)?;
 
-        match state.take_expected_code_bodies() {
+        match state.expected_code_bodies.take() {
             Some(n) if n == count => {}
             Some(_) => {
                 return Err(BinaryReaderError::new(
@@ -721,7 +729,7 @@ impl Validator {
             &section,
             "data",
             |state, _, count, offset| {
-                state.set_data_segment_count(count);
+                state.data_segment_count = count;
                 check_max(
                     state.module.data_count() as usize,
                     count,
@@ -745,6 +753,7 @@ impl Validator {
             section,
             "type",
             |state, count, offset| {
+                state.types.0.reserve(count as usize);
                 check_max(state.type_count(), count, MAX_WASM_TYPES, "types", offset)
             },
             |state, features, parents, ty, offset| state.add_type(ty, features, parents, offset),
@@ -777,6 +786,7 @@ impl Validator {
             section,
             "function",
             |state, count, offset| {
+                state.functions.reserve(count as usize);
                 check_max(
                     state.function_count(),
                     count,
@@ -853,6 +863,7 @@ impl Validator {
             section,
             "instance",
             |state, count, offset| {
+                state.instances.reserve(count as usize);
                 check_max(
                     state.instance_count(),
                     count,
@@ -876,6 +887,7 @@ impl Validator {
             section,
             "export",
             |state, count, offset| {
+                state.exports.reserve(count as usize);
                 check_max(
                     state.export_count(),
                     count,

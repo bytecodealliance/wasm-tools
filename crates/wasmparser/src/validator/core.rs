@@ -103,7 +103,7 @@ impl EntityType {
 }
 
 #[derive(Default)]
-pub struct ModuleTypeSpace(Vec<TypeDef>);
+pub struct ModuleTypeSpace(pub Vec<TypeDef>);
 
 impl ModuleTypeSpace {
     pub fn type_def(
@@ -314,14 +314,14 @@ pub struct ModuleState {
     order: Order,
 
     /// The number of data segments in the data section (if present).
-    data_segment_count: u32,
+    pub(crate) data_segment_count: u32,
 
     /// The number of functions we expect to be defined in the code section, or
     /// basically the length of the function section if it was found. The next
     /// index is where we are, in the code section index space, for the next
     /// entry in the code section (used to figure out what type is next for the
     /// function being validated).
-    expected_code_bodies: Option<u32>,
+    pub(crate) expected_code_bodies: Option<u32>,
 
     /// When parsing the code section, represents the current index in the section.
     code_section_index: Option<usize>,
@@ -362,25 +362,12 @@ impl ModuleState {
         Ok(())
     }
 
-    pub fn set_data_segment_count(&mut self, count: u32) {
-        self.data_segment_count = count;
-    }
-
-    pub fn set_expected_code_bodies(&mut self, num: u32) {
-        debug_assert!(self.expected_code_bodies.is_none());
-        self.expected_code_bodies = Some(num);
-    }
-
-    pub fn take_expected_code_bodies(&mut self) -> Option<u32> {
-        self.expected_code_bodies.take()
-    }
-
     pub fn next_code_entry_type(&mut self, offset: usize) -> Result<u32> {
         let index = self
             .code_section_index
             .get_or_insert(self.module.num_imported_functions as usize);
 
-        if *index >= self.module.function_count() {
+        if *index >= self.module.functions.len() {
             return Err(BinaryReaderError::new(
                 "code section entry exceeds number of functions",
                 offset,
@@ -396,58 +383,22 @@ impl ModuleState {
 
 #[derive(Default)]
 pub struct Module {
-    types: ModuleTypeSpace,
-    tables: Vec<TableType>,
-    memories: Vec<MemoryType>,
-    globals: Vec<GlobalType>,
-    element_types: Vec<Type>,
-    data_count: Option<u32>,
-    functions: Vec<u32>, // has indexes into the module type space
-    tags: Vec<TagType>,
-    function_references: HashSet<u32>,
-    imports: HashMap<(String, String), Vec<EntityType>>,
-    exports: HashMap<String, EntityType>,
+    pub types: ModuleTypeSpace,
+    pub tables: Vec<TableType>,
+    pub memories: Vec<MemoryType>,
+    pub globals: Vec<GlobalType>,
+    pub element_types: Vec<Type>,
+    pub data_count: Option<u32>,
+    pub functions: Vec<u32>, // has indexes into the module type space
+    pub tags: Vec<TagType>,
+    pub function_references: HashSet<u32>,
+    pub imports: HashMap<(String, String), Vec<EntityType>>,
+    pub exports: HashMap<String, EntityType>,
     num_imported_globals: u32,
     num_imported_functions: u32,
 }
 
 impl Module {
-    pub fn type_count(&self) -> usize {
-        self.types.len()
-    }
-
-    pub fn function_count(&self) -> usize {
-        self.functions.len()
-    }
-
-    pub fn table_count(&self) -> usize {
-        self.tables.len()
-    }
-
-    pub fn memory_count(&self) -> usize {
-        self.memories.len()
-    }
-
-    pub fn global_count(&self) -> usize {
-        self.globals.len()
-    }
-
-    pub fn tag_count(&self) -> usize {
-        self.tags.len()
-    }
-
-    pub fn export_count(&self) -> usize {
-        self.exports.len()
-    }
-
-    pub fn imports(&self) -> impl Iterator<Item = (&(String, String), &Vec<EntityType>)> {
-        self.imports.iter()
-    }
-
-    pub fn exports(&self) -> impl Iterator<Item = (&String, &EntityType)> {
-        self.exports.iter()
-    }
-
     pub fn add_type(
         &mut self,
         def: crate::TypeDef,

@@ -57,7 +57,7 @@ fn check_options(options: &[CanonicalOption], offset: usize) -> Result<()> {
 }
 
 #[derive(Clone)]
-struct ModuleType {
+pub struct ModuleType {
     imports: Rc<HashMap<(String, String), EntityType>>,
     exports: Rc<HashMap<String, EntityType>>,
 }
@@ -81,12 +81,12 @@ impl ModuleType {
 }
 
 #[derive(Clone)]
-struct ModuleInstanceType {
+pub struct ModuleInstanceType {
     exports: Rc<HashMap<String, EntityType>>,
 }
 
 #[derive(Clone)]
-struct ComponentType {
+pub struct ComponentType {
     imports: Rc<HashMap<String, ComponentEntityType>>,
     exports: Rc<HashMap<String, ComponentEntityType>>,
 }
@@ -110,7 +110,7 @@ impl ComponentType {
 }
 
 #[derive(Clone)]
-struct InstanceType {
+pub struct InstanceType {
     exports: Rc<HashMap<String, ComponentEntityType>>,
 }
 
@@ -127,7 +127,7 @@ impl InstanceType {
 }
 
 #[derive(Clone, Eq)]
-struct ComponentFuncType {
+pub struct ComponentFuncType {
     params: Rc<[(String, InterfaceType)]>,
     result: InterfaceType,
     core_type: Arc<FuncType>,
@@ -144,7 +144,7 @@ impl PartialEq for ComponentFuncType {
 }
 
 #[derive(Clone, Eq)]
-enum CompoundType {
+pub enum CompoundType {
     Record(Box<[InterfaceType]>),
     Variant(Box<[InterfaceType]>),
     List(InterfaceType),
@@ -174,7 +174,7 @@ impl PartialEq for CompoundType {
 }
 
 #[derive(Clone)]
-enum ComponentTypeDef {
+pub enum ComponentTypeDef {
     Module(ModuleType),
     Component(ComponentType),
     Instance(InstanceType),
@@ -185,19 +185,19 @@ enum ComponentTypeDef {
 
 #[derive(Default)]
 pub struct ComponentState {
-    types: ComponentTypeSpace,
-    modules: Vec<ModuleType>,
-    components: Vec<ComponentType>,
-    instances: Vec<InstanceIndexType>,
-    functions: Vec<FuncIndexType>,
-    values: Vec<(InterfaceType, bool)>,
-    memories: Vec<MemoryType>,
-    tables: Vec<TableType>,
-    globals: Vec<GlobalType>,
+    pub types: ComponentTypeSpace,
+    pub modules: Vec<ModuleType>,
+    pub components: Vec<ComponentType>,
+    pub instances: Vec<InstanceIndexType>,
+    pub functions: Vec<FuncIndexType>,
+    pub values: Vec<(InterfaceType, bool)>,
+    pub memories: Vec<MemoryType>,
+    pub tables: Vec<TableType>,
+    pub globals: Vec<GlobalType>,
     tags: Vec<Arc<FuncType>>,
     has_start: bool,
     imports: HashMap<String, ComponentEntityType>,
-    exports: HashMap<String, ComponentEntityType>,
+    pub exports: HashMap<String, ComponentEntityType>,
 }
 
 impl ComponentState {
@@ -361,7 +361,8 @@ impl ComponentState {
 
     pub fn add_module(&mut self, module: &Module, offset: usize) -> Result<()> {
         let imports = module
-            .imports()
+            .imports
+            .iter()
             .map(|((module, name), v)| {
                 if v.len() != 1 {
                     return Err(BinaryReaderError::new(
@@ -377,7 +378,8 @@ impl ComponentState {
             .collect::<Result<_>>()?;
 
         let exports = module
-            .exports()
+            .exports
+            .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
 
@@ -1239,7 +1241,7 @@ impl ComponentState {
 }
 
 #[derive(Default)]
-struct ComponentTypeSpace(Vec<ComponentTypeDef>);
+pub struct ComponentTypeSpace(pub Vec<ComponentTypeDef>);
 
 impl ComponentTypeSpace {
     fn type_def(
@@ -1643,7 +1645,7 @@ impl ComponentTypeSpace {
 // The function index space may have both core and component functions
 // This is used to distinguish between the possible types of functions.
 #[derive(Clone)]
-enum FuncIndexType {
+pub enum FuncIndexType {
     Component(ComponentFuncType),
     Core(Arc<FuncType>),
 }
@@ -1651,13 +1653,13 @@ enum FuncIndexType {
 // The instance index space may have both module, component, and "export" instances.
 // This is used to distinguish between the possible types of instance.
 #[derive(Clone)]
-enum InstanceIndexType {
+pub enum InstanceIndexType {
     Component(InstanceType),
     Module(ModuleInstanceType),
 }
 
 #[derive(Clone, PartialEq, Eq)]
-enum InterfaceType {
+pub enum InterfaceType {
     Unit,
     Bool,
     S8,
@@ -1808,7 +1810,7 @@ impl InterfaceType {
 }
 
 #[derive(Clone)]
-enum ComponentEntityType {
+pub enum ComponentEntityType {
     Module(ModuleType),
     Component(ComponentType),
     Instance(InstanceType),
