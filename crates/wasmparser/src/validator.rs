@@ -597,7 +597,7 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn start_section(&mut self, func: u32, range: &Range) -> Result<()> {
         let offset = range.start;
-        let state = self.module_state("start", offset)?;
+        let state = self.state.module("start", offset)?;
         state.update_order(Order::Start, offset)?;
 
         let ty = state.module.get_func_type(func, offset)?;
@@ -642,7 +642,7 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn data_count_section(&mut self, count: u32, range: &Range) -> Result<()> {
         let offset = range.start;
-        let state = self.module_state("data count", offset)?;
+        let state = self.state.module("data count", offset)?;
         state.update_order(Order::DataCount, offset)?;
 
         if count > MAX_WASM_DATA_SEGMENTS as u32 {
@@ -661,7 +661,7 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn code_section_start(&mut self, count: u32, range: &Range) -> Result<()> {
         let offset = range.start;
-        let state = self.module_state("code", offset)?;
+        let state = self.state.module("code", offset)?;
         state.update_order(Order::Code, offset)?;
 
         match state.expected_code_bodies.take() {
@@ -706,7 +706,7 @@ impl Validator {
         body: &crate::FunctionBody,
     ) -> Result<FuncValidator<ValidatorResources>> {
         let offset = body.range().start;
-        let state = self.module_state("code", offset)?;
+        let state = self.state.module("code", offset)?;
 
         Ok(FuncValidator::new(
             state.next_code_entry_type(offset)? as u32,
@@ -965,23 +965,6 @@ impl Validator {
         }
 
         Ok(())
-    }
-
-    fn module_state(&mut self, section: &str, offset: usize) -> Result<&mut ModuleState> {
-        match &mut self.state {
-            State::Unparsed(_) => Err(BinaryReaderError::new(
-                "unexpected section before header was parsed",
-                offset,
-            )),
-            State::Module(state) => Ok(state),
-            State::Component(_) => Err(BinaryReaderError::new(
-                format!(
-                    "module {} sections are not supported when parsing WebAssembly components",
-                    section
-                ),
-                offset,
-            )),
-        }
     }
 
     fn ensure_module_section<T>(
