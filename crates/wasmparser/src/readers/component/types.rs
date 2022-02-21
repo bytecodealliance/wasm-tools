@@ -29,7 +29,7 @@ pub enum ModuleType<'a> {
     Export {
         /// The name of the exported item.
         name: &'a str,
-        /// The type of the exported
+        /// The type of the exported item.
         ty: TypeRef,
     },
     /// The module type definition is for an import.

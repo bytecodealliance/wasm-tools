@@ -14,11 +14,11 @@
  */
 
 use crate::{
-    limits::*, BinaryReaderError, Encoding, FunctionBody, Parser, Payload, Range, Result,
-    SectionReader, SectionWithLimitedItems, Type, WasmModuleResources, WASM_COMPONENT_VERSION,
-    WASM_MODULE_VERSION,
+    limits::*, BinaryReaderError, Encoding, FuncType, FunctionBody, Parser, Payload, Range, Result,
+    SectionReader, SectionWithLimitedItems, Type, WASM_COMPONENT_VERSION, WASM_MODULE_VERSION,
 };
 use std::mem;
+use std::sync::Arc;
 
 /// Test whether the given buffer contains a valid WebAssembly module or component,
 /// analogous to [`WebAssembly.validate`][js] in the JS API.
@@ -68,6 +68,64 @@ fn check_max(cur_len: usize, amt_added: u32, max: usize, desc: &str, offset: usi
     Ok(())
 }
 
+/// A unified type definition for validating WebAssembly modules and components.
+enum TypeDef {
+    // Module type definitions
+    Func(FuncType),
+
+    // Component type definitions
+    Module(ModuleType),
+    Component(ComponentType),
+    Instance(InstanceType),
+    ComponentFunc(ComponentFuncType),
+    Value(InterfaceType),
+    Compound(CompoundType),
+}
+
+impl TypeDef {
+    fn unwrap_func_type(&self) -> &FuncType {
+        match self {
+            TypeDef::Func(ty) => ty,
+            _ => panic!("expected function type"),
+        }
+    }
+
+    fn unwrap_module_type(&self) -> &ModuleType {
+        match self {
+            TypeDef::Module(ty) => ty,
+            _ => panic!("expected module type"),
+        }
+    }
+
+    fn unwrap_component_type(&self) -> &ComponentType {
+        match self {
+            TypeDef::Component(ty) => ty,
+            _ => panic!("expected component type"),
+        }
+    }
+
+    fn unwrap_instance_type(&self) -> &InstanceType {
+        match self {
+            TypeDef::Instance(ty) => ty,
+            _ => panic!("expected instance type"),
+        }
+    }
+
+    fn unwrap_component_func_type(&self) -> &ComponentFuncType {
+        match self {
+            TypeDef::ComponentFunc(ty) => ty,
+            _ => panic!("expected component function type"),
+        }
+    }
+
+    fn unwrap_compound_type(&self) -> &CompoundType {
+        match self {
+            TypeDef::Compound(ty) => ty,
+            _ => panic!("expected compound type"),
+        }
+    }
+}
+
 /// Validator for a WebAssembly binary module or component.
 ///
 /// This structure encapsulates state necessary to validate a WebAssembly
@@ -97,6 +155,9 @@ fn check_max(cur_len: usize, amt_added: u32, max: usize, desc: &str, offset: usi
 pub struct Validator {
     /// The current state of the validator.
     state: State,
+
+    /// The global type space used by the validator and any sub-validators.
+    types: SnapshotList<TypeDef>,
 
     /// With the component model enabled, this stores the pushed states
     /// of parent components.
@@ -409,8 +470,9 @@ impl Validator {
             Order::Type,
             section,
             "type",
-            |state, _, count, offset| {
-                state.module.assert_mut().types.0.reserve(count as usize);
+            |state, _, types, count, offset| {
+                types.reserve(count as usize);
+                state.module.assert_mut().types.reserve(count as usize);
                 check_max(
                     state.module.types.len(),
                     count,
@@ -419,8 +481,11 @@ impl Validator {
                     offset,
                 )
             },
-            |state, features, def, offset| {
-                state.module.assert_mut().add_type(def, features, offset)
+            |state, features, types, def, offset| {
+                state
+                    .module
+                    .assert_mut()
+                    .add_type(def, features, types, offset)
             },
         )
     }
@@ -433,12 +498,12 @@ impl Validator {
             Order::Import,
             section,
             "import",
-            |_, _, _, _| Ok(()), // add_import will check limits
-            |state, features, import, offset| {
+            |_, _, _, _, _| Ok(()), // add_import will check limits
+            |state, features, types, import, offset| {
                 state
                     .module
                     .assert_mut()
-                    .add_import(import, features, offset)
+                    .add_import(import, features, types, offset)
             },
         )
     }
@@ -451,7 +516,7 @@ impl Validator {
             Order::Function,
             section,
             "function",
-            |state, _, count, offset| {
+            |state, _, _, count, offset| {
                 state.module.assert_mut().functions.reserve(count as usize);
                 debug_assert!(state.expected_code_bodies.is_none());
                 state.expected_code_bodies = Some(count);
@@ -463,7 +528,7 @@ impl Validator {
                     offset,
                 )
             },
-            |state, _, ty, offset| state.module.assert_mut().add_function(ty, offset),
+            |state, _, types, ty, offset| state.module.assert_mut().add_function(ty, types, offset),
         )
     }
 
@@ -476,7 +541,7 @@ impl Validator {
             Order::Table,
             section,
             "table",
-            |state, _, count, offset| {
+            |state, _, _, count, offset| {
                 state.module.assert_mut().tables.reserve(count as usize);
                 check_max(
                     state.module.tables.len(),
@@ -486,7 +551,9 @@ impl Validator {
                     offset,
                 )
             },
-            |state, features, ty, offset| state.module.assert_mut().add_table(ty, features, offset),
+            |state, features, _, ty, offset| {
+                state.module.assert_mut().add_table(ty, features, offset)
+            },
         )
     }
 
@@ -498,7 +565,7 @@ impl Validator {
             Order::Memory,
             section,
             "memory",
-            |state, features, count, offset| {
+            |state, features, _, count, offset| {
                 state.module.assert_mut().memories.reserve(count as usize);
                 check_max(
                     state.module.memories.len(),
@@ -508,7 +575,7 @@ impl Validator {
                     offset,
                 )
             },
-            |state, features, ty, offset| {
+            |state, features, _, ty, offset| {
                 state.module.assert_mut().add_memory(ty, features, offset)
             },
         )
@@ -529,7 +596,7 @@ impl Validator {
             Order::Tag,
             section,
             "tag",
-            |state, _, count, offset| {
+            |state, _, _, count, offset| {
                 state.module.assert_mut().tags.reserve(count as usize);
                 check_max(
                     state.module.tags.len(),
@@ -539,7 +606,12 @@ impl Validator {
                     offset,
                 )
             },
-            |state, features, ty, offset| state.module.assert_mut().add_tag(ty, features, offset),
+            |state, features, types, ty, offset| {
+                state
+                    .module
+                    .assert_mut()
+                    .add_tag(ty, features, types, offset)
+            },
         )
     }
 
@@ -551,7 +623,7 @@ impl Validator {
             Order::Global,
             section,
             "global",
-            |state, _, count, offset| {
+            |state, _, _, count, offset| {
                 state.module.assert_mut().globals.reserve(count as usize);
                 check_max(
                     state.module.globals.len(),
@@ -561,11 +633,8 @@ impl Validator {
                     offset,
                 )
             },
-            |state, features, global, offset| {
-                state
-                    .module
-                    .assert_mut()
-                    .add_global(global, features, offset)
+            |state, features, types, global, offset| {
+                state.add_global(global, features, types, offset)
             },
         )
     }
@@ -578,7 +647,7 @@ impl Validator {
             Order::Export,
             section,
             "export",
-            |state, _, count, offset| {
+            |state, _, _, count, offset| {
                 state.module.assert_mut().exports.reserve(count as usize);
                 check_max(
                     state.module.exports.len(),
@@ -588,7 +657,11 @@ impl Validator {
                     offset,
                 )
             },
-            |state, _, e, offset| state.module.assert_mut().add_export(&e, offset),
+            |state, _, _, e, offset| {
+                let module = state.module.assert_mut();
+                let ty = module.export_to_entity_type(&e, offset)?;
+                module.add_export(e.name, ty, offset)
+            },
         )
     }
 
@@ -600,7 +673,7 @@ impl Validator {
         let state = self.state.module("start", offset)?;
         state.update_order(Order::Start, offset)?;
 
-        let ty = state.module.get_func_type(func, offset)?;
+        let ty = state.module.get_func_type(func, &self.types, offset)?;
         if !ty.params.is_empty() || !ty.returns.is_empty() {
             return Err(BinaryReaderError::new(
                 "invalid start function type",
@@ -619,20 +692,17 @@ impl Validator {
             Order::Element,
             section,
             "element",
-            |state, _, count, offset| {
+            |state, _, _, count, offset| {
                 check_max(
-                    state.module.element_count() as usize,
+                    state.module.element_types.len(),
                     count,
                     MAX_WASM_ELEMENT_SEGMENTS,
                     "element segments",
                     offset,
                 )
             },
-            |state, features, e, offset| {
-                state
-                    .module
-                    .assert_mut()
-                    .add_element_segment(e, features, offset)
+            |state, features, types, e, offset| {
+                state.add_element_segment(e, features, types, offset)
             },
         )
     }
@@ -652,7 +722,7 @@ impl Validator {
             ));
         }
 
-        state.module.assert_mut().set_data_count(count);
+        state.module.assert_mut().data_count = Some(count);
         Ok(())
     }
 
@@ -682,6 +752,9 @@ impl Validator {
                 ))
             }
         }
+
+        // Take a snapshot of the types when we start the code section.
+        state.module.assert_mut().snapshot = Some(Arc::new(self.types.commit()));
 
         Ok(())
     }
@@ -728,17 +801,17 @@ impl Validator {
             Order::Data,
             &section,
             "data",
-            |state, _, count, offset| {
+            |state, _, _, count, offset| {
                 state.data_segment_count = count;
                 check_max(
-                    state.module.data_count() as usize,
+                    state.module.data_count.unwrap_or(0) as usize,
                     count,
                     MAX_WASM_DATA_SEGMENTS,
                     "data segments",
                     offset,
                 )
             },
-            |state, features, d, offset| state.module.check_data_segment(d, features, offset),
+            |state, features, types, d, offset| state.add_data_segment(d, features, types, offset),
         )
     }
 
@@ -752,11 +825,14 @@ impl Validator {
         self.ensure_component_section(
             section,
             "type",
-            |state, count, offset| {
-                state.types.0.reserve(count as usize);
+            |state, types, count, offset| {
+                types.reserve(count as usize);
+                state.types.reserve(count as usize);
                 check_max(state.types.len(), count, MAX_WASM_TYPES, "types", offset)
             },
-            |state, features, parents, ty, offset| state.add_type(ty, features, parents, offset),
+            |state, features, types, parents, ty, offset| {
+                state.add_type(ty, features, parents, types, offset)
+            },
         )
     }
 
@@ -770,8 +846,8 @@ impl Validator {
         self.ensure_component_section(
             section,
             "import",
-            |_, _, _| Ok(()), // add_import will check limits
-            |state, _, _, import, offset| state.add_import(import, offset),
+            |_, _, _, _| Ok(()), // add_import will check limits
+            |state, _, types, _, import, offset| state.add_import(import, types, offset),
         )
     }
 
@@ -785,7 +861,7 @@ impl Validator {
         self.ensure_component_section(
             section,
             "function",
-            |state, count, offset| {
+            |state, _, count, offset| {
                 state.functions.reserve(count as usize);
                 check_max(
                     state.functions.len(),
@@ -795,16 +871,16 @@ impl Validator {
                     offset,
                 )
             },
-            |state, _, _, func, offset| match func {
+            |state, _, types, _, func, offset| match func {
                 crate::ComponentFunction::Lift {
                     type_index,
                     func_index,
                     options,
-                } => state.lift_function(type_index, func_index, options.as_ref(), offset),
+                } => state.lift_function(type_index, func_index, options.to_vec(), types, offset),
                 crate::ComponentFunction::Lower {
                     func_index,
                     options,
-                } => state.lower_function(func_index, options.as_ref(), offset),
+                } => state.lower_function(func_index, options.to_vec(), types, offset),
             },
         )
     }
@@ -862,7 +938,7 @@ impl Validator {
         self.ensure_component_section(
             section,
             "instance",
-            |state, count, offset| {
+            |state, _, count, offset| {
                 state.instances.reserve(count as usize);
                 check_max(
                     state.instances.len(),
@@ -872,7 +948,7 @@ impl Validator {
                     offset,
                 )
             },
-            |state, _, _, instance, offset| state.add_instance(instance, offset),
+            |state, _, types, _, instance, offset| state.add_instance(instance, types, offset),
         )
     }
 
@@ -886,7 +962,7 @@ impl Validator {
         self.ensure_component_section(
             section,
             "export",
-            |state, count, offset| {
+            |state, _, count, offset| {
                 state.exports.reserve(count as usize);
                 check_max(
                     state.exports.len(),
@@ -896,7 +972,10 @@ impl Validator {
                     offset,
                 )
             },
-            |state, _, _, export, offset| state.add_export(export, offset),
+            |state, _, types, _, export, offset| {
+                let ty = state.export_to_entity_type(&export, types, offset)?;
+                state.add_export(export.name, ty, offset)
+            },
         )
     }
 
@@ -910,7 +989,7 @@ impl Validator {
         let range = section.range();
         let state = self.state.component("start", range.start)?;
         let f = section.clone().read()?;
-        state.add_start(f.func_index, &f.arguments, range.start)
+        state.add_start(f.func_index, &f.arguments, &self.types, range.start)
     }
 
     /// Validates [`Payload::AliasSection`](crate::Payload).
@@ -920,9 +999,9 @@ impl Validator {
         self.ensure_component_section(
             section,
             "alias",
-            |_, _, _| Ok(()), // maximums checked via `add_alias`
-            |state, _, parents, alias, offset| -> Result<(), BinaryReaderError> {
-                state.add_alias(alias, parents, offset)
+            |_, _, _, _| Ok(()), // maximums checked via `add_alias`
+            |state, _, types, parents, alias, offset| -> Result<(), BinaryReaderError> {
+                state.add_alias(alias, parents, types, offset)
             },
         )
     }
@@ -951,14 +1030,14 @@ impl Validator {
 
                 // If there's a parent component, we'll add a module to the parent state
                 if let Some(mut parent) = self.parents.pop() {
-                    parent.add_module(&state.module, offset)?;
+                    parent.add_module(&state.module, &mut self.types, offset)?;
                     self.state = State::Component(parent);
                 }
             }
             State::Component(state) => {
                 // If there's a parent component, we'll add a component to the parent state
                 if let Some(mut parent) = self.parents.pop() {
-                    parent.add_component(state);
+                    parent.add_component(state, &mut self.types);
                     self.state = State::Component(parent);
                 }
             }
@@ -972,8 +1051,20 @@ impl Validator {
         order: Order,
         section: &T,
         name: &str,
-        validate_section: impl FnOnce(&mut ModuleState, &WasmFeatures, u32, usize) -> Result<()>,
-        mut validate_item: impl FnMut(&mut ModuleState, &WasmFeatures, T::Item, usize) -> Result<()>,
+        validate_section: impl FnOnce(
+            &mut ModuleState,
+            &WasmFeatures,
+            &mut SnapshotList<TypeDef>,
+            u32,
+            usize,
+        ) -> Result<()>,
+        mut validate_item: impl FnMut(
+            &mut ModuleState,
+            &WasmFeatures,
+            &mut SnapshotList<TypeDef>,
+            T::Item,
+            usize,
+        ) -> Result<()>,
     ) -> Result<()>
     where
         T: SectionReader + Clone + SectionWithLimitedItems,
@@ -983,13 +1074,19 @@ impl Validator {
 
         state.update_order(order, offset)?;
 
-        validate_section(state, &self.features, section.get_count(), offset)?;
+        validate_section(
+            state,
+            &self.features,
+            &mut self.types,
+            section.get_count(),
+            offset,
+        )?;
 
         let mut section = section.clone();
         for _ in 0..section.get_count() {
             let offset = section.original_position();
             let item = section.read()?;
-            validate_item(state, &self.features, item, offset)?;
+            validate_item(state, &self.features, &mut self.types, item, offset)?;
         }
 
         section.ensure_end()?;
@@ -1001,10 +1098,16 @@ impl Validator {
         &mut self,
         section: &T,
         name: &str,
-        validate_section: impl FnOnce(&mut ComponentState, u32, usize) -> Result<()>,
+        validate_section: impl FnOnce(
+            &mut ComponentState,
+            &mut SnapshotList<TypeDef>,
+            u32,
+            usize,
+        ) -> Result<()>,
         mut validate_item: impl FnMut(
             &mut ComponentState,
             &WasmFeatures,
+            &mut SnapshotList<TypeDef>,
             &[ComponentState],
             T::Item,
             usize,
@@ -1023,17 +1126,153 @@ impl Validator {
         }
 
         let state = self.state.component(name, offset)?;
-        validate_section(state, section.get_count(), offset)?;
+        validate_section(state, &mut self.types, section.get_count(), offset)?;
 
         let mut section = section.clone();
         for _ in 0..section.get_count() {
             let offset = section.original_position();
             let item = section.read()?;
-            validate_item(state, &self.features, &self.parents, item, offset)?;
+            validate_item(
+                state,
+                &self.features,
+                &mut self.types,
+                &self.parents,
+                item,
+                offset,
+            )?;
         }
 
         section.ensure_end()?;
 
         Ok(())
+    }
+}
+
+/// This is a type which mirrors a subset of the `Vec<T>` API, but is intended
+/// to be able to be cheaply snapshotted and cloned.
+///
+/// When each module's code sections start we "commit" the current list of types
+/// in the global list of types. This means that the temporary `cur` vec here is
+/// pushed onto `snapshots` and wrapped up in an `Arc`. At that point we clone
+/// this entire list (which is then O(modules), not O(types in all modules)) and
+/// pass out as a context to each function validator.
+///
+/// Otherwise, though, this type behaves as if it were a large `Vec<T>`, but
+/// it's represented by lists of contiguous chunks.
+pub struct SnapshotList<T> {
+    // All previous snapshots, the "head" of the list that this type represents.
+    // The first entry in this pair is the starting index for all elements
+    // contained in the list, and the second element is the list itself. Note
+    // the `Arc` wrapper around sub-lists, which makes cloning time for this
+    // `SnapshotList` O(snapshots) rather than O(snapshots_total), which for
+    // us in this context means the number of modules, not types.
+    //
+    // Note that this list is sorted least-to-greatest in order of the index for
+    // binary searching.
+    snapshots: Vec<(usize, Arc<Vec<T>>)>,
+
+    // This is the total length of all lists in the `snapshots` array.
+    snapshots_total: usize,
+
+    // The current list of types for the current snapshot that are being built.
+    cur: Vec<T>,
+}
+
+impl<T> SnapshotList<T> {
+    /// Same as `<&[T]>::get`
+    fn get(&self, index: usize) -> Option<&T> {
+        // Check to see if this index falls on our local list
+        if index >= self.snapshots_total {
+            return self.cur.get(index - self.snapshots_total);
+        }
+        // ... and failing that we do a binary search to figure out which bucket
+        // it's in. Note the `i-1` in the `Err` case because if we don't find an
+        // exact match the type is located in the previous bucket.
+        let i = match self.snapshots.binary_search_by_key(&index, |(i, _)| *i) {
+            Ok(i) => i,
+            Err(i) => i - 1,
+        };
+        let (len, list) = &self.snapshots[i];
+        Some(&list[index - len])
+    }
+
+    /// Same as `<&mut [T]>::get_mut`, except only works for indexes into the
+    /// current snapshot being built.
+    ///
+    /// # Panics
+    ///
+    /// Panics if an index is passed in which falls within the
+    /// previously-snapshotted list of types. This should never happen in our
+    /// context and the panic is intended to weed out possible bugs in
+    /// wasmparser.
+    fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+        if index >= self.snapshots_total {
+            return self.cur.get_mut(index - self.snapshots_total);
+        }
+        panic!("cannot get a mutable reference in snapshotted part of list")
+    }
+
+    /// Same as `Vec::push`
+    fn push(&mut self, val: T) {
+        self.cur.push(val);
+    }
+
+    /// Same as `<[T]>::len`
+    fn len(&self) -> usize {
+        self.cur.len() + self.snapshots_total
+    }
+
+    /// Reserve space for an additional count of items.
+    fn reserve(&mut self, additional: usize) {
+        self.cur.reserve(additional);
+    }
+
+    /// Commits previously pushed types into this snapshot vector, and returns a
+    /// clone of this list.
+    ///
+    /// The returned `SnapshotList` can be used to access all the same types as
+    /// this list itself. This list also is not changed (from an external
+    /// perspective) and can continue to access all the same types.
+    fn commit(&mut self) -> SnapshotList<T> {
+        // If the current chunk has new elements, commit them in to an
+        // `Arc`-wrapped vector in the snapshots list. Note the `shrink_to_fit`
+        // ahead of time to hopefully keep memory usage lower than it would
+        // otherwise be.
+        let len = self.cur.len();
+        if len > 0 {
+            self.cur.shrink_to_fit();
+            self.snapshots
+                .push((self.snapshots_total, Arc::new(mem::take(&mut self.cur))));
+            self.snapshots_total += len;
+        }
+        SnapshotList {
+            snapshots: self.snapshots.clone(),
+            snapshots_total: self.snapshots_total,
+            cur: Vec::new(),
+        }
+    }
+}
+
+impl<T> std::ops::Index<usize> for SnapshotList<T> {
+    type Output = T;
+
+    fn index(&self, index: usize) -> &T {
+        self.get(index).unwrap()
+    }
+}
+
+impl<T> std::ops::IndexMut<usize> for SnapshotList<T> {
+    fn index_mut(&mut self, index: usize) -> &mut T {
+        self.get_mut(index).unwrap()
+    }
+}
+
+impl<T> Default for SnapshotList<T> {
+    fn default() -> SnapshotList<T> {
+        SnapshotList {
+            snapshots: Vec::new(),
+            snapshots_total: 0,
+            cur: Vec::new(),
+        }
     }
 }
