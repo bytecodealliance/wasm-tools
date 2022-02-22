@@ -506,15 +506,16 @@ impl Validator {
             section,
             "type",
             |state, _, types, count, offset| {
-                types.reserve(count as usize);
-                state.module.assert_mut().types.reserve(count as usize);
                 check_max(
                     state.module.types.len(),
                     count,
                     MAX_WASM_TYPES,
                     "types",
                     offset,
-                )
+                )?;
+                types.reserve(count as usize);
+                state.module.assert_mut().types.reserve(count as usize);
+                Ok(())
             },
             |state, features, types, def, offset| {
                 state
@@ -552,16 +553,17 @@ impl Validator {
             section,
             "function",
             |state, _, _, count, offset| {
-                state.module.assert_mut().functions.reserve(count as usize);
-                debug_assert!(state.expected_code_bodies.is_none());
-                state.expected_code_bodies = Some(count);
                 check_max(
                     state.module.functions.len(),
                     count,
                     MAX_WASM_FUNCTIONS,
                     "functions",
                     offset,
-                )
+                )?;
+                state.module.assert_mut().functions.reserve(count as usize);
+                debug_assert!(state.expected_code_bodies.is_none());
+                state.expected_code_bodies = Some(count);
+                Ok(())
             },
             |state, _, types, ty, offset| state.module.assert_mut().add_function(ty, types, offset),
         )
@@ -577,14 +579,15 @@ impl Validator {
             section,
             "table",
             |state, _, _, count, offset| {
-                state.module.assert_mut().tables.reserve(count as usize);
                 check_max(
                     state.module.tables.len(),
                     count,
                     state.module.max_tables(&features),
                     "tables",
                     offset,
-                )
+                )?;
+                state.module.assert_mut().tables.reserve(count as usize);
+                Ok(())
             },
             |state, features, _, ty, offset| {
                 state.module.assert_mut().add_table(ty, features, offset)
@@ -601,14 +604,15 @@ impl Validator {
             section,
             "memory",
             |state, features, _, count, offset| {
-                state.module.assert_mut().memories.reserve(count as usize);
                 check_max(
                     state.module.memories.len(),
                     count,
                     state.module.max_memories(features),
                     "memories",
                     offset,
-                )
+                )?;
+                state.module.assert_mut().memories.reserve(count as usize);
+                Ok(())
             },
             |state, features, _, ty, offset| {
                 state.module.assert_mut().add_memory(ty, features, offset)
@@ -632,14 +636,15 @@ impl Validator {
             section,
             "tag",
             |state, _, _, count, offset| {
-                state.module.assert_mut().tags.reserve(count as usize);
                 check_max(
                     state.module.tags.len(),
                     count,
                     MAX_WASM_TAGS,
                     "tags",
                     offset,
-                )
+                )?;
+                state.module.assert_mut().tags.reserve(count as usize);
+                Ok(())
             },
             |state, features, types, ty, offset| {
                 state
@@ -659,14 +664,15 @@ impl Validator {
             section,
             "global",
             |state, _, _, count, offset| {
-                state.module.assert_mut().globals.reserve(count as usize);
                 check_max(
                     state.module.globals.len(),
                     count,
                     MAX_WASM_GLOBALS,
                     "globals",
                     offset,
-                )
+                )?;
+                state.module.assert_mut().globals.reserve(count as usize);
+                Ok(())
             },
             |state, features, types, global, offset| {
                 state.add_global(global, features, types, offset)
@@ -683,14 +689,15 @@ impl Validator {
             section,
             "export",
             |state, _, _, count, offset| {
-                state.module.assert_mut().exports.reserve(count as usize);
                 check_max(
                     state.module.exports.len(),
                     count,
                     MAX_WASM_EXPORTS,
                     "exports",
                     offset,
-                )
+                )?;
+                state.module.assert_mut().exports.reserve(count as usize);
+                Ok(())
             },
             |state, _, _, e, offset| {
                 let module = state.module.assert_mut();
@@ -735,7 +742,13 @@ impl Validator {
                     MAX_WASM_ELEMENT_SEGMENTS,
                     "element segments",
                     offset,
-                )
+                )?;
+                state
+                    .module
+                    .assert_mut()
+                    .element_types
+                    .reserve(count as usize);
+                Ok(())
             },
             |state, features, types, e, offset| {
                 state.add_element_segment(e, features, types, offset)
@@ -865,10 +878,11 @@ impl Validator {
             section,
             "type",
             |components, types, count, offset| {
-                types.reserve(count as usize);
                 let current = components.last_mut().unwrap();
+                check_max(current.types.len(), count, MAX_WASM_TYPES, "types", offset)?;
+                types.reserve(count as usize);
                 current.types.reserve(count as usize);
-                check_max(current.types.len(), count, MAX_WASM_TYPES, "types", offset)
+                Ok(())
             },
             |components, types, features, ty, offset| {
                 ComponentState::add_type(components, ty, features, types, offset)
@@ -908,14 +922,15 @@ impl Validator {
             "function",
             |components, _, count, offset| {
                 let current = components.last_mut().unwrap();
-                current.functions.reserve(count as usize);
                 check_max(
                     current.functions.len(),
                     count,
                     MAX_WASM_FUNCTIONS,
                     "functions",
                     offset,
-                )
+                )?;
+                current.functions.reserve(count as usize);
+                Ok(())
             },
             |components, types, _, func, offset| {
                 let current = components.last_mut().unwrap();
@@ -994,14 +1009,15 @@ impl Validator {
             "instance",
             |components, _, count, offset| {
                 let current = components.last_mut().unwrap();
-                current.instances.reserve(count as usize);
                 check_max(
                     current.instances.len(),
                     count,
                     MAX_WASM_INSTANCES,
                     "instances",
                     offset,
-                )
+                )?;
+                current.instances.reserve(count as usize);
+                Ok(())
             },
             |components, types, _, instance, offset| {
                 components
@@ -1024,14 +1040,15 @@ impl Validator {
             "export",
             |components, _, count, offset| {
                 let current = components.last_mut().unwrap();
-                current.exports.reserve(count as usize);
                 check_max(
                     current.exports.len(),
                     count,
                     MAX_WASM_EXPORTS,
                     "exports",
                     offset,
-                )
+                )?;
+                current.exports.reserve(count as usize);
+                Ok(())
             },
             |components, types, _, export, offset| {
                 let current = components.last_mut().unwrap();
