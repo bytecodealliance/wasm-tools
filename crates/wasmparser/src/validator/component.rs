@@ -319,38 +319,49 @@ pub struct ComponentState {
 
 impl ComponentState {
     pub(super) fn add_type(
-        &mut self,
+        components: &mut Vec<Self>,
         def: crate::ComponentTypeDef,
         features: &WasmFeatures,
-        parents: &[Self],
         types: &mut SnapshotList<TypeDef>,
         offset: usize,
     ) -> Result<()> {
+        assert!(!components.is_empty());
         let def = match def {
-            crate::ComponentTypeDef::Module(defs) => TypeDef::Module(self.create_module_type(
-                defs.into_vec(),
-                features,
-                types,
-                offset,
-            )?),
+            crate::ComponentTypeDef::Module(defs) => {
+                TypeDef::Module(components.last_mut().unwrap().create_module_type(
+                    defs.into_vec(),
+                    features,
+                    types,
+                    offset,
+                )?)
+            }
             crate::ComponentTypeDef::Component(defs) => TypeDef::Component(
-                self.create_component_type(defs.into_vec(), features, parents, types, offset)?,
+                Self::create_component_type(components, defs.into_vec(), features, types, offset)?,
             ),
             crate::ComponentTypeDef::Instance(defs) => TypeDef::Instance(
-                self.create_instance_type(defs.into_vec(), features, parents, types, offset)?,
+                Self::create_instance_type(components, defs.into_vec(), features, types, offset)?,
             ),
-            crate::ComponentTypeDef::Function(ty) => {
-                TypeDef::ComponentFunc(self.create_function_type(ty, types, offset)?)
-            }
-            crate::ComponentTypeDef::Value(ty) => {
-                TypeDef::Value(self.create_interface_type(ty, types, offset)?)
-            }
-            crate::ComponentTypeDef::Compound(ct) => {
-                TypeDef::Compound(self.create_compound_type(ct, types, offset)?)
-            }
+            crate::ComponentTypeDef::Function(ty) => TypeDef::ComponentFunc(
+                components
+                    .last_mut()
+                    .unwrap()
+                    .create_function_type(ty, types, offset)?,
+            ),
+            crate::ComponentTypeDef::Value(ty) => TypeDef::Value(
+                components
+                    .last_mut()
+                    .unwrap()
+                    .create_interface_type(ty, types, offset)?,
+            ),
+            crate::ComponentTypeDef::Compound(ct) => TypeDef::Compound(
+                components
+                    .last_mut()
+                    .unwrap()
+                    .create_compound_type(ct, types, offset)?,
+            ),
         };
 
-        self.types.push(types.len());
+        components.last_mut().unwrap().types.push(types.len());
         types.push(def);
 
         Ok(())
@@ -473,6 +484,10 @@ impl ComponentState {
         module.validate_for_module_type(offset)?;
 
         self.modules.push(types.len());
+
+        // We have to clone the module's imports and exports here
+        // because we cannot take the data out of the `MaybeOwned`
+        // as it might be shared with a function validator.
         types.push(TypeDef::Module(ModuleType {
             imports: module.imports.clone(),
             exports: module.exports.clone(),
@@ -565,64 +580,52 @@ impl ComponentState {
     }
 
     pub(super) fn add_alias(
-        &mut self,
+        components: &mut Vec<Self>,
         alias: crate::Alias,
-        parents: &[Self],
         types: &SnapshotList<TypeDef>,
         offset: usize,
     ) -> Result<()> {
+        assert!(!components.is_empty());
         match alias {
             crate::Alias::InstanceExport {
                 kind,
                 instance,
                 name,
-            } => self.alias_instance_export(kind, instance, name, types, offset),
+            } => components
+                .last_mut()
+                .unwrap()
+                .alias_instance_export(kind, instance, name, types, offset),
             crate::Alias::OuterModule { count, index } => {
-                check_max(self.modules.len(), 1, MAX_WASM_MODULES, "modules", offset)?;
-                self.alias_module(count, index, parents, offset)
+                check_max(
+                    components.last().unwrap().modules.len(),
+                    1,
+                    MAX_WASM_MODULES,
+                    "modules",
+                    offset,
+                )?;
+                Self::alias_module(components, count, index, offset)
             }
             crate::Alias::OuterComponent { count, index } => {
                 check_max(
-                    self.components.len(),
+                    components.last().unwrap().components.len(),
                     1,
                     MAX_WASM_COMPONENTS,
                     "components",
                     offset,
                 )?;
-                self.alias_component(count, index, parents, offset)
+                Self::alias_component(components, count, index, offset)
             }
             crate::Alias::OuterType { count, index } => {
-                check_max(self.types.len(), 1, MAX_WASM_TYPES, "types", offset)?;
-                self.alias_type(count, index, parents, offset)
+                check_max(
+                    components.last().unwrap().types.len(),
+                    1,
+                    MAX_WASM_TYPES,
+                    "types",
+                    offset,
+                )?;
+                Self::alias_type(components, count, index, offset)
             }
         }
-    }
-
-    fn alias_type(
-        &mut self,
-        count: u32,
-        index: u32,
-        parents: &[ComponentState],
-        offset: usize,
-    ) -> Result<()> {
-        let count = count as usize;
-        let ty = if count == 0 {
-            self.type_at(index, offset)?
-        } else {
-            if count > parents.len() {
-                return Err(BinaryReaderError::new(
-                    format!("invalid outer alias count of {}", count),
-                    offset,
-                ));
-            }
-
-            let parent = &parents[parents.len() - count];
-            parent.type_at(index, offset)?
-        };
-
-        self.types.push(ty);
-
-        Ok(())
     }
 
     pub(super) fn export_to_entity_type(
@@ -770,37 +773,40 @@ impl ComponentState {
     }
 
     fn create_component_type(
-        &self,
+        components: &mut Vec<Self>,
         defs: Vec<crate::ComponentType>,
         features: &WasmFeatures,
-        parents: &[ComponentState],
         types: &mut SnapshotList<TypeDef>,
         offset: usize,
     ) -> Result<ComponentType> {
-        let mut state = ComponentState::default();
-
-        // TODO: the state should be pushed on parents for recursive component types
+        components.push(ComponentState::default());
 
         for def in defs {
             match def {
                 crate::ComponentType::Type(ty) => {
-                    state.add_type(ty, features, parents, types, offset)?;
+                    Self::add_type(components, ty, features, types, offset)?;
                 }
                 crate::ComponentType::Export { name, ty } => {
-                    state.add_export(
+                    let component = components.last_mut().unwrap();
+                    component.add_export(
                         name,
-                        self.type_index_to_entity_type(ty, types, "exported", offset)?,
+                        component.type_index_to_entity_type(ty, types, "exported", offset)?,
                         offset,
                     )?;
                 }
                 crate::ComponentType::Import(import) => {
-                    state.add_import(import, types, offset)?;
+                    components
+                        .last_mut()
+                        .unwrap()
+                        .add_import(import, types, offset)?;
                 }
                 crate::ComponentType::OuterType { count, index } => {
-                    state.alias_type(count, index, parents, offset)?;
+                    Self::alias_type(components, count, index, offset)?;
                 }
             };
         }
+
+        let state = components.pop().unwrap();
 
         Ok(ComponentType {
             imports: state.imports,
@@ -809,34 +815,34 @@ impl ComponentState {
     }
 
     fn create_instance_type(
-        &self,
+        components: &mut Vec<Self>,
         defs: Vec<crate::InstanceType>,
         features: &WasmFeatures,
-        parents: &[ComponentState],
         types: &mut SnapshotList<TypeDef>,
         offset: usize,
     ) -> Result<InstanceType> {
-        let mut state = ComponentState::default();
-
-        // TODO: the state should be pushed on parents for recursive instance types
+        components.push(ComponentState::default());
 
         for def in defs {
             match def {
                 crate::InstanceType::Type(ty) => {
-                    state.add_type(ty, features, parents, types, offset)?;
+                    Self::add_type(components, ty, features, types, offset)?;
                 }
                 crate::InstanceType::Export { name, ty } => {
-                    state.add_export(
+                    let component = components.last_mut().unwrap();
+                    component.add_export(
                         name,
-                        self.type_index_to_entity_type(ty, types, "exported", offset)?,
+                        component.type_index_to_entity_type(ty, types, "exported", offset)?,
                         offset,
                     )?;
                 }
                 crate::InstanceType::OuterType { count, index } => {
-                    state.alias_type(count, index, parents, offset)?;
+                    Self::alias_type(components, count, index, offset)?;
                 }
             };
         }
+
+        let state = components.pop().unwrap();
 
         Ok(InstanceType {
             exports: state.exports,
@@ -1470,61 +1476,46 @@ impl ComponentState {
     }
 
     fn alias_module(
-        &mut self,
+        components: &mut Vec<Self>,
         count: u32,
         index: u32,
-        parents: &[Self],
         offset: usize,
     ) -> Result<()> {
-        let count = count as usize;
-        let ty = if count == 0 {
-            self.module_at(index, offset)?;
-            self.modules[index as usize]
-        } else {
-            if count > parents.len() {
-                return Err(BinaryReaderError::new(
-                    format!("invalid outer alias count of {}", count),
-                    offset,
-                ));
-            }
-
-            let parent = &parents[parents.len() - count];
-            parent.module_at(index, offset)?;
-            parent.modules[index as usize]
-        };
-
-        self.modules.push(ty);
-
+        let component = Self::check_alias_count(components, count, offset)?;
+        let ty = component.module_at(index, offset)?;
+        components.last_mut().unwrap().modules.push(ty);
         Ok(())
     }
 
     fn alias_component(
-        &mut self,
+        components: &mut Vec<Self>,
         count: u32,
         index: u32,
-        parents: &[Self],
         offset: usize,
     ) -> Result<()> {
-        let count = count as usize;
-        let ty = if count == 0 {
-            self.component_at(index, offset)?;
-            self.components[index as usize]
-        } else {
-            if count > parents.len() {
-                return Err(BinaryReaderError::new(
-                    format!("invalid outer alias count of {}", count),
-                    offset,
-                ));
-            }
-
-            let parent = &parents[parents.len() - count];
-            parent.component_at(index, offset)?;
-            parent.components[index as usize]
-        };
-
-        self.components.push(ty);
-
+        let component = Self::check_alias_count(components, count, offset)?;
+        let ty = component.component_at(index, offset)?;
+        components.last_mut().unwrap().components.push(ty);
         Ok(())
+    }
+
+    fn alias_type(components: &mut Vec<Self>, count: u32, index: u32, offset: usize) -> Result<()> {
+        let component = Self::check_alias_count(components, count, offset)?;
+        let ty = component.type_at(index, offset)?;
+        components.last_mut().unwrap().types.push(ty);
+        Ok(())
+    }
+
+    fn check_alias_count(components: &[Self], count: u32, offset: usize) -> Result<&Self> {
+        let count = count as usize;
+        if count >= components.len() {
+            return Err(BinaryReaderError::new(
+                format!("invalid outer alias count of {}", count),
+                offset,
+            ));
+        }
+
+        Ok(&components[components.len() - count - 1])
     }
 
     fn create_interface_type(
