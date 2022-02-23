@@ -337,9 +337,9 @@ impl<'a> ModuleInfo<'a> {
     /// * `section_writer` this callback should write the custom section and
     ///   returns true if it was successful, if false is returned then the
     ///   default section will be written to the module
-    pub fn replace_multiple_sections<P>(&self, section_writer: P) -> wasm_encoder::Module
+    pub fn replace_multiple_sections<P>(&self, mut section_writer: P) -> wasm_encoder::Module
     where
-        P: Fn(usize, u8, &mut wasm_encoder::Module) -> bool,
+        P: FnMut(usize, u8, &mut wasm_encoder::Module) -> bool,
     {
         let mut module = wasm_encoder::Module::new();
         self.raw_sections.iter().enumerate().for_each(|(j, s)| {
