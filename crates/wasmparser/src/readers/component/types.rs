@@ -122,6 +122,37 @@ pub enum PrimitiveInterfaceType {
     String,
 }
 
+impl PrimitiveInterfaceType {
+    pub(crate) fn is_subtype_of(&self, other: &Self) -> bool {
+        // Interface subtyping rules according to
+        // https://github.com/WebAssembly/component-model/blob/17f94ed1270a98218e0e796ca1dad1feb7e5c507/design/mvp/Subtyping.md
+        self == other
+            || matches!(
+                (self, other),
+                (_, PrimitiveInterfaceType::Unit)
+                    | (PrimitiveInterfaceType::S8, PrimitiveInterfaceType::S16)
+                    | (PrimitiveInterfaceType::S8, PrimitiveInterfaceType::S32)
+                    | (PrimitiveInterfaceType::S8, PrimitiveInterfaceType::S64)
+                    | (PrimitiveInterfaceType::U8, PrimitiveInterfaceType::U16)
+                    | (PrimitiveInterfaceType::U8, PrimitiveInterfaceType::U32)
+                    | (PrimitiveInterfaceType::U8, PrimitiveInterfaceType::U64)
+                    | (PrimitiveInterfaceType::U8, PrimitiveInterfaceType::S16)
+                    | (PrimitiveInterfaceType::U8, PrimitiveInterfaceType::S32)
+                    | (PrimitiveInterfaceType::U8, PrimitiveInterfaceType::S64)
+                    | (PrimitiveInterfaceType::S16, PrimitiveInterfaceType::S32)
+                    | (PrimitiveInterfaceType::S16, PrimitiveInterfaceType::S64)
+                    | (PrimitiveInterfaceType::U16, PrimitiveInterfaceType::U32)
+                    | (PrimitiveInterfaceType::U16, PrimitiveInterfaceType::U64)
+                    | (PrimitiveInterfaceType::U16, PrimitiveInterfaceType::S32)
+                    | (PrimitiveInterfaceType::U16, PrimitiveInterfaceType::S64)
+                    | (PrimitiveInterfaceType::S32, PrimitiveInterfaceType::S64)
+                    | (PrimitiveInterfaceType::U32, PrimitiveInterfaceType::U64)
+                    | (PrimitiveInterfaceType::U32, PrimitiveInterfaceType::S64)
+                    | (PrimitiveInterfaceType::F32, PrimitiveInterfaceType::F64)
+            )
+    }
+}
+
 /// Represents a reference to an interface type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InterfaceTypeRef {
@@ -129,6 +160,17 @@ pub enum InterfaceTypeRef {
     Primitive(PrimitiveInterfaceType),
     /// The reference is to an interface type defined in a type section.
     Type(u32),
+}
+
+/// Represents a case in a variant interface type.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VariantCase<'a> {
+    /// The name of the variant case.
+    pub name: &'a str,
+    /// The interface type of the variant case.
+    pub ty: InterfaceTypeRef,
+    /// The default-to case index to use when this case is not present.
+    pub default_to: Option<u32>,
 }
 
 /// Represents an interface type.
@@ -139,12 +181,7 @@ pub enum InterfaceType<'a> {
     /// The type is a record with the given fields.
     Record(Box<[(&'a str, InterfaceTypeRef)]>),
     /// The type is a variant with the given cases.
-    Variant {
-        /// The cases of the variant.
-        cases: Box<[(&'a str, InterfaceTypeRef)]>,
-        /// The index of the default case of the variant.
-        default: Option<u32>,
-    },
+    Variant(Box<[VariantCase<'a>]>),
     /// The type is a list of the given interface type.
     List(InterfaceTypeRef),
     /// The type is a tuple of the given interface types.

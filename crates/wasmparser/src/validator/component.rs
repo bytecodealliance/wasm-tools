@@ -5,7 +5,7 @@ use crate::{
     limits::*, validator::core::EntityType, BinaryReaderError, CanonicalOption, FuncType,
     GlobalType, MemoryType, PrimitiveInterfaceType, Result, TableType, Type, WasmFeatures,
 };
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 fn check_options(options: &[CanonicalOption], offset: usize) -> Result<()> {
     fn display(option: CanonicalOption) -> &'static str {
@@ -84,10 +84,15 @@ pub struct ModuleType {
 
 impl ModuleType {
     fn is_subtype_of(&self, other: &Self) -> bool {
+        // For module type subtyping, all exports in the other module type
+        // must be present in this module type's exports (i.e. it can export
+        // *more* than what this module type needs).
+        // However, for imports, the check is reversed (i.e. it is okay
+        // to import *less* than what this module type needs).
         self.imports
             .iter()
             .all(|(k, ty)| match other.imports.get(k) {
-                Some(other) => ty[0].is_subtype_of(&other[0]),
+                Some(other) => other[0].is_subtype_of(&ty[0]),
                 None => false,
             })
             && other
@@ -108,10 +113,15 @@ pub struct ComponentType {
 
 impl ComponentType {
     fn is_subtype_of(&self, other: &Self, types: &SnapshotList<TypeDef>) -> bool {
+        // For component type subtyping, all exports in the other component type
+        // must be present in this component type's exports (i.e. it can export
+        // *more* than what this component type needs).
+        // However, for imports, the check is reversed (i.e. it is okay
+        // to import *less* than what this component type needs).
         self.imports
             .iter()
             .all(|(k, ty)| match other.imports.get(k) {
-                Some(other) => ty.is_subtype_of(other, types),
+                Some(other) => other.is_subtype_of(ty, types),
                 None => false,
             })
             && other
@@ -131,6 +141,9 @@ pub struct InstanceType {
 
 impl InstanceType {
     fn is_subtype_of(&self, other: &Self, types: &SnapshotList<TypeDef>) -> bool {
+        // For instance type subtyping, all exports in the other instance type
+        // must be present in this instance type's exports (i.e. it can export
+        // *more* than what this instance type needs).
         other
             .exports
             .iter()
@@ -141,16 +154,41 @@ impl InstanceType {
     }
 }
 
-#[derive(Clone, Eq)]
+#[derive(Clone)]
 pub struct ComponentFuncType {
-    params: Box<[InterfaceTypeRef]>,
+    params: Box<[(String, InterfaceTypeRef)]>,
     result: InterfaceTypeRef,
     core_type: FuncType,
 }
 
-impl PartialEq for ComponentFuncType {
-    fn eq(&self, other: &Self) -> bool {
-        self.params.iter().eq(other.params.iter()) && self.result.eq(&other.result)
+impl ComponentFuncType {
+    fn is_subtype_of(&self, other: &Self, types: &SnapshotList<TypeDef>) -> bool {
+        // Subtyping rules:
+        // https://github.com/WebAssembly/component-model/blob/17f94ed1270a98218e0e796ca1dad1feb7e5c507/design/mvp/Subtyping.md
+
+        // Contravariant on return type
+        if !other.result.is_subtype_of(&self.result, types) {
+            return false;
+        }
+
+        // All overlapping parameters must have the same name and are subtypes
+        for ((name, ty), (other_name, other_ty)) in self.params.iter().zip(other.params.iter()) {
+            if name != other_name {
+                return false;
+            }
+
+            if !ty.is_subtype_of(other_ty, types) {
+                return false;
+            }
+        }
+
+        // All remaining parameters in the supertype must be optional
+        // All superfluous parameters in the subtype are ignored
+        other
+            .params
+            .iter()
+            .skip(self.params.len())
+            .all(|(_, ty)| ty.is_optional(types))
     }
 }
 
@@ -158,6 +196,32 @@ impl PartialEq for ComponentFuncType {
 pub enum InterfaceTypeRef {
     Primitive(PrimitiveInterfaceType),
     Type(usize),
+}
+
+impl InterfaceTypeRef {
+    fn is_optional(&self, types: &SnapshotList<TypeDef>) -> bool {
+        match self {
+            InterfaceTypeRef::Primitive(_) => false,
+            InterfaceTypeRef::Type(ty) => {
+                matches!(
+                    types[*ty].unwrap_interface_type(),
+                    InterfaceType::Optional(_)
+                )
+            }
+        }
+    }
+
+    fn is_subtype_of(&self, other: &Self, types: &SnapshotList<TypeDef>) -> bool {
+        match (self, other) {
+            (InterfaceTypeRef::Primitive(ty), InterfaceTypeRef::Primitive(other_ty)) => {
+                ty.is_subtype_of(other_ty)
+            }
+            (InterfaceTypeRef::Type(ty), InterfaceTypeRef::Type(other_ty)) => types[*ty]
+                .unwrap_interface_type()
+                .is_subtype_of(types[*other_ty].unwrap_interface_type(), types),
+            _ => false,
+        }
+    }
 }
 
 impl InterfaceTypeRef {
@@ -178,22 +242,97 @@ impl InterfaceTypeRef {
     }
 }
 
-/// Represents an interface type.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
+pub struct VariantCase {
+    ty: InterfaceTypeRef,
+    default_to: Option<String>,
+}
+
+#[derive(Debug, Clone)]
 pub enum InterfaceType {
     Primitive(PrimitiveInterfaceType),
-    Record(Box<[(String, InterfaceTypeRef)]>),
-    Variant(Box<[(String, InterfaceTypeRef)]>),
+    Record(HashMap<String, InterfaceTypeRef>),
+    Variant(HashMap<String, VariantCase>),
     List(InterfaceTypeRef),
     Tuple(Box<[InterfaceTypeRef]>),
-    Flags(Box<[String]>),
-    Enum(Box<[String]>),
+    Flags(HashSet<String>),
+    Enum(HashSet<String>),
     Union(Box<[InterfaceTypeRef]>),
     Optional(InterfaceTypeRef),
     Expected(InterfaceTypeRef, InterfaceTypeRef),
 }
 
 impl InterfaceType {
+    fn is_subtype_of(&self, other: &Self, types: &SnapshotList<TypeDef>) -> bool {
+        // Subtyping rules according to
+        // https://github.com/WebAssembly/component-model/blob/17f94ed1270a98218e0e796ca1dad1feb7e5c507/design/mvp/Subtyping.md
+        match (self, other) {
+            (InterfaceType::Primitive(ty), InterfaceType::Primitive(other_ty)) => {
+                ty.is_subtype_of(other_ty)
+            }
+            (InterfaceType::Record(fields), InterfaceType::Record(other_fields)) => {
+                for (name, ty) in fields.iter() {
+                    if let Some(other_ty) = other_fields.get(name) {
+                        if !ty.is_subtype_of(other_ty, types) {
+                            return false;
+                        }
+                    } else {
+                        // Superfluous fields can be ignored in the subtype
+                    }
+                }
+                // Check for missing required fields in the supertype
+                for (other_name, other_ty) in other_fields.iter() {
+                    if !other_ty.is_optional(types) && !fields.contains_key(other_name) {
+                        return false;
+                    }
+                }
+                true
+            }
+            (InterfaceType::Variant(cases), InterfaceType::Variant(other_cases)) => {
+                for (name, case) in cases.iter() {
+                    if let Some(other_case) = other_cases.get(name) {
+                        // Contravariant subtype on the case type
+                        if !other_case.ty.is_subtype_of(&case.ty, types) {
+                            return false;
+                        }
+                    } else if let Some(default) = &case.default_to {
+                        if !other_cases.contains_key(default) {
+                            // The default is not in the supertype
+                            return false;
+                        }
+                    } else {
+                        // This case is not in the supertype and there is no
+                        // default
+                        return false;
+                    }
+                }
+                true
+            }
+            (InterfaceType::List(ty), InterfaceType::List(other_ty))
+            | (InterfaceType::Optional(ty), InterfaceType::Optional(other_ty)) => {
+                ty.is_subtype_of(other_ty, types)
+            }
+            (InterfaceType::Tuple(tys), InterfaceType::Tuple(other_tys))
+            | (InterfaceType::Union(tys), InterfaceType::Union(other_tys)) => {
+                if tys.len() != other_tys.len() {
+                    return false;
+                }
+                tys.iter()
+                    .zip(other_tys.iter())
+                    .all(|(ty, other_ty)| ty.is_subtype_of(other_ty, types))
+            }
+            (InterfaceType::Flags(set), InterfaceType::Flags(other_set))
+            | (InterfaceType::Enum(set), InterfaceType::Enum(other_set)) => {
+                set.is_subset(other_set)
+            }
+            (
+                InterfaceType::Expected(ok, error),
+                InterfaceType::Expected(other_ok, other_error),
+            ) => ok.is_subtype_of(other_ok, types) && error.is_subtype_of(other_error, types),
+            _ => false,
+        }
+    }
+
     fn push_wasm_types(
         &self,
         types: &SnapshotList<TypeDef>,
@@ -209,7 +348,7 @@ impl InterfaceType {
             }
             Self::Variant(cases) => {
                 Self::push_variant_types(
-                    cases.iter().map(|(_, ty)| ty),
+                    cases.iter().map(|(_, case)| &case.ty),
                     types,
                     offset,
                     wasm_types,
@@ -574,7 +713,7 @@ impl ComponentState {
             ));
         }
 
-        for (i, (ty, arg)) in ft.params.iter().zip(args).enumerate() {
+        for (i, ((_, ty), arg)) in ft.params.iter().zip(args).enumerate() {
             if ty != self.value_at(*arg, offset)? {
                 return Err(BinaryReaderError::new(
                     format!(
@@ -688,7 +827,7 @@ impl ComponentState {
             TypeDef::Module(_) => ComponentEntityType::Module(self.types[ty as usize]),
             TypeDef::Component(_) => ComponentEntityType::Component(self.types[ty as usize]),
             TypeDef::Instance(_) => ComponentEntityType::Instance(self.types[ty as usize]),
-            TypeDef::ComponentFunc(_) => ComponentEntityType::Component(self.types[ty as usize]),
+            TypeDef::ComponentFunc(_) => ComponentEntityType::Func(self.types[ty as usize]),
             TypeDef::Value(ty) => ComponentEntityType::Value(*ty),
             TypeDef::Interface(_) => ComponentEntityType::Type(self.types[ty as usize]),
             TypeDef::Func(_) => {
@@ -828,7 +967,7 @@ impl ComponentState {
                 Self::check_name(name, "function parameter", offset)?;
                 let ty = self.create_interface_type_ref(*ty, types, offset)?;
                 ty.push_wasm_types(types, offset, &mut core_params)?;
-                Ok(ty)
+                Ok((name.to_string(), ty))
             })
             .collect::<Result<_>>()?;
 
@@ -1452,28 +1591,34 @@ impl ComponentState {
                     })
                     .collect::<Result<_>>()?,
             ),
-            crate::InterfaceType::Variant { cases, default } => {
-                if let Some(default) = default {
-                    if default >= cases.len() as u32 {
-                        return Err(BinaryReaderError::new(
-                            format!("variant default index {} is out of bounds", default),
-                            offset,
-                        ));
-                    }
-                }
-                InterfaceType::Variant(
-                    cases
-                        .iter()
-                        .map(|(name, ty)| {
-                            Self::check_name(name, "variant case", offset)?;
-                            Ok((
-                                name.to_string(),
-                                self.create_interface_type_ref(*ty, types, offset)?,
-                            ))
-                        })
-                        .collect::<Result<_>>()?,
-                )
-            }
+            crate::InterfaceType::Variant(cases) => InterfaceType::Variant(
+                cases
+                    .iter()
+                    .map(|case| {
+                        Self::check_name(case.name, "variant case", offset)?;
+                        if let Some(default_to) = case.default_to {
+                            if default_to >= cases.len() as u32 {
+                                return Err(BinaryReaderError::new(
+                                    format!(
+                                        "variant case default index {} is out of bounds",
+                                        default_to
+                                    ),
+                                    offset,
+                                ));
+                            }
+                        }
+                        Ok((
+                            case.name.to_string(),
+                            VariantCase {
+                                ty: self.create_interface_type_ref(case.ty, types, offset)?,
+                                default_to: case
+                                    .default_to
+                                    .map(|i| cases[i as usize].name.to_string()),
+                            },
+                        ))
+                    })
+                    .collect::<Result<_>>()?,
+            ),
             crate::InterfaceType::List(ty) => {
                 InterfaceType::List(self.create_interface_type_ref(ty, types, offset)?)
             }
@@ -1768,9 +1913,13 @@ impl ComponentEntityType {
             (Self::Instance(ty), Self::Instance(other_ty)) => types[*ty]
                 .unwrap_instance_type()
                 .is_subtype_of(types[*other_ty].unwrap_instance_type(), types),
-            (Self::Func(ty), Self::Func(other_ty)) => ty == other_ty,
-            (Self::Value(ty), Self::Value(other_ty)) => ty == other_ty,
-            (Self::Type(ty), Self::Type(other_ty)) => ty == other_ty,
+            (Self::Func(ty), Self::Func(other_ty)) => types[*ty]
+                .unwrap_component_func_type()
+                .is_subtype_of(types[*other_ty].unwrap_component_func_type(), types),
+            (Self::Value(ty), Self::Value(other_ty)) => ty.is_subtype_of(other_ty, types),
+            (Self::Type(ty), Self::Type(other_ty)) => types[*ty]
+                .unwrap_interface_type()
+                .is_subtype_of(types[*other_ty].unwrap_interface_type(), types),
             _ => false,
         }
     }

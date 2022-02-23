@@ -20,7 +20,7 @@ use crate::{
     Ieee64, Import, InitExpr, Instance, InstanceType, InterfaceType, InterfaceTypeRef, LinkingType,
     MemoryImmediate, MemoryType, ModuleArg, ModuleArgKind, ModuleType, NameType, Operator,
     PrimitiveInterfaceType, RelocType, SIMDLaneIndex, SectionCode, TableType, TagKind, TagType,
-    Type, TypeDef, TypeRef, V128,
+    Type, TypeDef, TypeRef, VariantCase, V128,
 };
 use crate::{ComponentArg, ComponentArgKind};
 use std::convert::TryInto;
@@ -415,7 +415,19 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    pub(crate) fn read_interface_type_ref(&mut self) -> Result<InterfaceTypeRef> {
+    fn read_variant_case(&mut self) -> Result<VariantCase<'a>> {
+        Ok(VariantCase {
+            name: self.read_string()?,
+            ty: self.read_interface_type_ref()?,
+            default_to: match self.read_u8()? {
+                0x0 => None,
+                0x1 => Some(self.read_var_u32()?),
+                x => return self.invalid_leading_byte(x, "variant case default"),
+            },
+        })
+    }
+
+    fn read_interface_type_ref(&mut self) -> Result<InterfaceTypeRef> {
         if let Some(it) = Self::primitive_it_from_byte(self.peek()?) {
             self.position += 1;
             return Ok(InterfaceTypeRef::Primitive(it));
@@ -435,18 +447,12 @@ impl<'a> BinaryReader<'a> {
                 )
             }
             0x70 => {
-                let cases_size = self.read_size(MAX_WASM_VARIANT_CASES, "variant cases")?;
-                let cases = (0..cases_size)
-                    .map(|_| Ok((self.read_string()?, self.read_interface_type_ref()?)))
-                    .collect::<Result<_>>()?;
-
-                let default = if self.read_bool()? {
-                    Some(self.read_var_u32()?)
-                } else {
-                    None
-                };
-
-                InterfaceType::Variant { cases, default }
+                let size = self.read_size(MAX_WASM_VARIANT_CASES, "variant cases")?;
+                InterfaceType::Variant(
+                    (0..size)
+                        .map(|_| self.read_variant_case())
+                        .collect::<Result<_>>()?,
+                )
             }
             0x6f => InterfaceType::List(self.read_interface_type_ref()?),
             0x6e => {
