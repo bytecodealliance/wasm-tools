@@ -17,10 +17,11 @@ mod mutators;
 pub use error::*;
 
 use crate::mutators::{
-    codemotion::CodemotionMutator, custom::RemoveCustomSection,
-    function_body_unreachable::FunctionBodyUnreachable, modify_data::ModifyDataMutator,
-    peephole::PeepholeMutator, remove_export::RemoveExportMutator, remove_item::RemoveItemMutator,
-    rename_export::RenameExportMutator, snip_function::SnipMutator, Item,
+    add_function::AddFunctionMutator, add_type::AddTypeMutator, codemotion::CodemotionMutator,
+    custom::RemoveCustomSection, function_body_unreachable::FunctionBodyUnreachable,
+    modify_data::ModifyDataMutator, peephole::PeepholeMutator, remove_export::RemoveExportMutator,
+    remove_item::RemoveItemMutator, rename_export::RenameExportMutator, snip_function::SnipMutator,
+    Item,
 };
 use info::ModuleInfo;
 use mutators::Mutator;
@@ -278,6 +279,11 @@ impl<'wasm> WasmMutate<'wasm> {
                 SnipMutator,
                 CodemotionMutator,
                 FunctionBodyUnreachable,
+                AddTypeMutator {
+                    max_params: 20,
+                    max_results: 20,
+                },
+                AddFunctionMutator,
                 RemoveCustomSection,
                 RemoveItemMutator(Item::Function),
                 RemoveItemMutator(Item::Global),
@@ -362,5 +368,5 @@ pub(crate) fn validate(validator: &mut wasmparser::Validator, bytes: &[u8]) {
         drop(std::fs::write("test.wat", &text));
     }
 
-    panic!("wasm failed to validate {:?}", err);
+    panic!("wasm failed to validate: {}", err);
 }
