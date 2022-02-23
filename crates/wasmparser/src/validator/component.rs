@@ -2,8 +2,8 @@
 
 use super::{check_max, core::Module, SnapshotList, TypeDef};
 use crate::{
-    limits::*, validator::core::EntityType, BinaryReaderError, CanonicalOption, ExternalKind,
-    FuncType, GlobalType, MemoryType, Result, TableType, Type, WasmFeatures,
+    limits::*, validator::core::EntityType, BinaryReaderError, CanonicalOption, FuncType,
+    GlobalType, MemoryType, PrimitiveInterfaceType, Result, TableType, Type, WasmFeatures,
 };
 use std::collections::HashMap;
 
@@ -52,6 +52,28 @@ fn check_options(options: &[CanonicalOption], offset: usize) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn push_primitive_wasm_types(ty: &PrimitiveInterfaceType, wasm_types: &mut Vec<Type>) {
+    match ty {
+        PrimitiveInterfaceType::Unit => {}
+        PrimitiveInterfaceType::Bool
+        | PrimitiveInterfaceType::S8
+        | PrimitiveInterfaceType::U8
+        | PrimitiveInterfaceType::S16
+        | PrimitiveInterfaceType::U16
+        | PrimitiveInterfaceType::S32
+        | PrimitiveInterfaceType::U32
+        | PrimitiveInterfaceType::Char => {
+            wasm_types.push(Type::I32);
+        }
+        PrimitiveInterfaceType::S64 | PrimitiveInterfaceType::U64 => {
+            wasm_types.push(Type::I64);
+        }
+        PrimitiveInterfaceType::F32 => wasm_types.push(Type::F32),
+        PrimitiveInterfaceType::F64 => wasm_types.push(Type::F64),
+        PrimitiveInterfaceType::String => wasm_types.extend([Type::I32, Type::I32]),
+    }
 }
 
 #[derive(Clone)]
@@ -121,8 +143,8 @@ impl InstanceType {
 
 #[derive(Clone, Eq)]
 pub struct ComponentFuncType {
-    params: Box<[InterfaceType]>,
-    result: InterfaceType,
+    params: Box<[InterfaceTypeRef]>,
+    result: InterfaceTypeRef,
     core_type: FuncType,
 }
 
@@ -132,25 +154,43 @@ impl PartialEq for ComponentFuncType {
     }
 }
 
-/// Represents an interface type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InterfaceTypeRef {
+    Primitive(PrimitiveInterfaceType),
+    Type(usize),
+}
+
+impl InterfaceTypeRef {
+    fn push_wasm_types(
+        &self,
+        types: &SnapshotList<TypeDef>,
+        offset: usize,
+        wasm_types: &mut Vec<Type>,
+    ) -> Result<()> {
+        match self {
+            Self::Primitive(ty) => push_primitive_wasm_types(ty, wasm_types),
+            Self::Type(idx) => types[*idx]
+                .unwrap_interface_type()
+                .push_wasm_types(types, offset, wasm_types)?,
+        }
+
+        Ok(())
+    }
+}
+
+/// Represents an interface type.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InterfaceType {
-    Unit,
-    Bool,
-    S8,
-    U8,
-    S16,
-    U16,
-    S32,
-    U32,
-    S64,
-    U64,
-    F32,
-    F64,
-    Char,
-    String,
-    /// The value is an index in the validator's type list.
-    Compound(usize),
+    Primitive(PrimitiveInterfaceType),
+    Record(Box<[(String, InterfaceTypeRef)]>),
+    Variant(Box<[(String, InterfaceTypeRef)]>),
+    List(InterfaceTypeRef),
+    Tuple(Box<[InterfaceTypeRef]>),
+    Flags(Box<[String]>),
+    Enum(Box<[String]>),
+    Union(Box<[InterfaceTypeRef]>),
+    Optional(InterfaceTypeRef),
+    Expected(InterfaceTypeRef, InterfaceTypeRef),
 }
 
 impl InterfaceType {
@@ -161,75 +201,62 @@ impl InterfaceType {
         wasm_types: &mut Vec<Type>,
     ) -> Result<()> {
         match self {
-            Self::Unit => {}
-            Self::Bool
-            | Self::S8
-            | Self::U8
-            | Self::S16
-            | Self::U16
-            | Self::S32
-            | Self::U32
-            | Self::Char => {
-                wasm_types.push(Type::I32);
+            Self::Primitive(ty) => push_primitive_wasm_types(ty, wasm_types),
+            Self::Record(fields) => {
+                for (_, ty) in fields.iter() {
+                    ty.push_wasm_types(types, offset, wasm_types)?;
+                }
             }
-            Self::S64 | Self::U64 => {
-                wasm_types.push(Type::I64);
+            Self::Variant(cases) => {
+                Self::push_variant_types(
+                    cases.iter().map(|(_, ty)| ty),
+                    types,
+                    offset,
+                    wasm_types,
+                )?;
             }
-            Self::F32 => wasm_types.push(Type::F32),
-            Self::F64 => wasm_types.push(Type::F64),
-            Self::String => wasm_types.extend([Type::I32, Type::I32]),
-            Self::Compound(idx) => match types[*idx].unwrap_compound_type() {
-                CompoundType::Record(fields) => {
-                    for ty in fields.iter() {
-                        ty.push_wasm_types(types, offset, wasm_types)?;
-                    }
+            Self::List(_) => {
+                wasm_types.extend([Type::I32, Type::I32]);
+            }
+            Self::Tuple(tys) => {
+                for ty in tys.iter() {
+                    ty.push_wasm_types(types, offset, wasm_types)?;
                 }
-                CompoundType::Variant(cases) => {
-                    Self::push_variant_types(cases.iter(), types, offset, wasm_types)?;
-                }
-                CompoundType::List(_) => {
-                    wasm_types.extend([Type::I32, Type::I32]);
-                }
-                CompoundType::Tuple(tys) => {
-                    for ty in tys.iter() {
-                        ty.push_wasm_types(types, offset, wasm_types)?;
-                    }
-                }
-                CompoundType::Flags(size) => {
-                    if *size <= 32 {
+            }
+            Self::Flags(names) => {
+                if names.len() <= 32 {
+                    wasm_types.push(Type::I32);
+                } else if names.len() <= 64 {
+                    wasm_types.push(Type::I64);
+                } else {
+                    for _ in 0..(names.len() + 31) / 32 {
                         wasm_types.push(Type::I32);
-                    } else if *size <= 64 {
-                        wasm_types.push(Type::I64);
-                    } else {
-                        for _ in 0..(*size + 31) / 32 {
-                            wasm_types.push(Type::I32);
-                        }
                     }
                 }
-                CompoundType::Enum(size) => {
-                    if *size < u32::max_value() as usize {
-                        wasm_types.push(Type::I32);
-                    } else {
-                        wasm_types.push(Type::I64);
-                    }
+            }
+            Self::Enum(names) => {
+                if names.len() < u32::max_value() as usize {
+                    wasm_types.push(Type::I32);
+                } else {
+                    wasm_types.push(Type::I64);
                 }
-                CompoundType::Union(tys) => {
-                    Self::push_variant_types(tys.iter(), types, offset, wasm_types)?;
-                }
-                CompoundType::Optional(ty) => {
-                    Self::push_variant_types([ty].into_iter(), types, offset, wasm_types)?;
-                }
-                CompoundType::Expected(ok, error) => {
-                    Self::push_variant_types([ok, error].into_iter(), types, offset, wasm_types)?;
-                }
-            },
+            }
+            Self::Union(tys) => {
+                Self::push_variant_types(tys.iter(), types, offset, wasm_types)?;
+            }
+            Self::Optional(ty) => {
+                Self::push_variant_types([ty].into_iter(), types, offset, wasm_types)?;
+            }
+            Self::Expected(ok, error) => {
+                Self::push_variant_types([ok, error].into_iter(), types, offset, wasm_types)?;
+            }
         }
 
         Ok(())
     }
 
     fn push_variant_types<'a>(
-        cases: impl ExactSizeIterator<Item = &'a InterfaceType>,
+        cases: impl ExactSizeIterator<Item = &'a InterfaceTypeRef>,
         types: &SnapshotList<TypeDef>,
         offset: usize,
         wasm_types: &mut Vec<Type>,
@@ -270,35 +297,6 @@ impl InterfaceType {
     }
 }
 
-#[derive(Clone, Eq)]
-pub enum CompoundType {
-    Record(Box<[InterfaceType]>),
-    Variant(Box<[InterfaceType]>),
-    List(InterfaceType),
-    Tuple(Box<[InterfaceType]>),
-    Flags(usize),
-    Enum(usize),
-    Union(Box<[InterfaceType]>),
-    Optional(InterfaceType),
-    Expected(InterfaceType, InterfaceType),
-}
-
-impl PartialEq for CompoundType {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Record(l), Self::Record(r))
-            | (Self::Variant(l), Self::Variant(r))
-            | (Self::Tuple(l), Self::Tuple(r))
-            | (Self::Union(l), Self::Union(r)) => l == r,
-            (Self::List(l), Self::List(r)) => l == r,
-            (Self::Flags(l), Self::Flags(r)) | (Self::Enum(l), Self::Enum(r)) => l == r,
-            (Self::Optional(l), Self::Optional(r)) => l == r,
-            (Self::Expected(lo, le), Self::Expected(ro, re)) => lo == ro && le == re,
-            _ => false,
-        }
-    }
-}
-
 #[derive(Default)]
 pub struct ComponentState {
     // The various lists here store indexes into the validator's type list.
@@ -307,7 +305,7 @@ pub struct ComponentState {
     pub components: Vec<usize>,
     pub instances: Vec<usize>,
     pub functions: Vec<usize>,
-    pub values: Vec<(InterfaceType, bool)>,
+    pub values: Vec<(InterfaceTypeRef, bool)>,
     pub memories: Vec<MemoryType>,
     pub tables: Vec<TableType>,
     pub globals: Vec<GlobalType>,
@@ -351,13 +349,13 @@ impl ComponentState {
                 components
                     .last_mut()
                     .unwrap()
-                    .create_interface_type(ty, types, offset)?,
+                    .create_interface_type_ref(ty, types, offset)?,
             ),
-            crate::ComponentTypeDef::Compound(ct) => TypeDef::Compound(
+            crate::ComponentTypeDef::Interface(ty) => TypeDef::Interface(
                 components
                     .last_mut()
                     .unwrap()
-                    .create_compound_type(ct, types, offset)?,
+                    .create_interface_type(ty, types, offset)?,
             ),
         };
 
@@ -517,8 +515,11 @@ impl ComponentState {
             crate::Instance::Component { index, args } => {
                 self.instantiate_component(index, args.to_vec(), types, offset)?
             }
-            crate::Instance::FromExports(exports) => {
+            crate::Instance::ComponentFromExports(exports) => {
                 self.instantiate_exports(exports.to_vec(), types, offset)?
+            }
+            crate::Instance::ModuleFromExports(exports) => {
+                self.instantiate_core_exports(exports.to_vec(), types, offset)?
             }
         };
 
@@ -568,7 +569,7 @@ impl ComponentState {
         }
 
         match ft.result {
-            InterfaceType::Unit => {}
+            InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Unit) => {}
             ty => {
                 self.values.push((ty, false));
             }
@@ -652,59 +653,8 @@ impl ComponentState {
             crate::ComponentExportKind::Value(idx) => {
                 ComponentEntityType::Value(*self.value_at(*idx, offset)?)
             }
-            crate::ComponentExportKind::Type(ty) => {
-                ComponentEntityType::Type(self.create_interface_type(*ty, types, offset)?)
-            }
-            crate::ComponentExportKind::InstanceFromExports(exports) => {
-                ComponentEntityType::Instance(self.instantiate_exports(
-                    exports.to_vec(),
-                    types,
-                    offset,
-                )?)
-            }
-        })
-    }
-
-    pub fn core_export_to_entity_type(
-        &self,
-        export: &crate::Export,
-        offset: usize,
-    ) -> Result<EntityType> {
-        let check = |ty: &str, index: u32, total: usize| {
-            if index as usize >= total {
-                Err(BinaryReaderError::new(
-                    format!(
-                        "unknown {ty} {index}: exported {ty} index out of bounds",
-                        index = index,
-                        ty = ty,
-                    ),
-                    offset,
-                ))
-            } else {
-                Ok(())
-            }
-        };
-
-        Ok(match export.kind {
-            ExternalKind::Func => {
-                check("function", export.index, self.functions.len())?;
-                EntityType::Func(self.types[self.functions[export.index as usize] as usize])
-            }
-            ExternalKind::Table => {
-                check("table", export.index, self.tables.len())?;
-                EntityType::Table(self.tables[export.index as usize])
-            }
-            ExternalKind::Memory => {
-                check("memory", export.index, self.memories.len())?;
-                EntityType::Memory(self.memories[export.index as usize])
-            }
-            ExternalKind::Global => {
-                check("global", export.index, self.globals.len())?;
-                EntityType::Global(self.globals[export.index as usize])
-            }
-            ExternalKind::Tag => {
-                check("tag", export.index, self.tags.len())?;
-                EntityType::Tag(self.types[self.tags[export.index as usize] as usize])
+            crate::ComponentExportKind::Type(idx) => {
+                ComponentEntityType::Type(self.interface_type_at(*idx, types, offset)?)
             }
         })
     }
@@ -722,15 +672,10 @@ impl ComponentState {
             TypeDef::Instance(_) => ComponentEntityType::Instance(self.types[ty as usize]),
             TypeDef::ComponentFunc(_) => ComponentEntityType::Component(self.types[ty as usize]),
             TypeDef::Value(ty) => ComponentEntityType::Value(*ty),
+            TypeDef::Interface(_) => ComponentEntityType::Type(self.types[ty as usize]),
             TypeDef::Func(_) => {
                 return Err(BinaryReaderError::new(
                     format!("core WebAssembly function types cannot be {}", desc),
-                    offset,
-                ))
-            }
-            TypeDef::Compound(_) => {
-                return Err(BinaryReaderError::new(
-                    format!("compound types cannot be {}", desc),
                     offset,
                 ))
             }
@@ -863,13 +808,13 @@ impl ComponentState {
             .iter()
             .map(|(name, ty)| {
                 Self::check_name(name, "function parameter", offset)?;
-                let ty = self.create_interface_type(*ty, types, offset)?;
+                let ty = self.create_interface_type_ref(*ty, types, offset)?;
                 ty.push_wasm_types(types, offset, &mut core_params)?;
                 Ok(ty)
             })
             .collect::<Result<_>>()?;
 
-        let result = self.create_interface_type(ty.result, types, offset)?;
+        let result = self.create_interface_type_ref(ty.result, types, offset)?;
         result.push_wasm_types(types, offset, &mut core_returns)?;
 
         Ok(ComponentFuncType {
@@ -893,100 +838,12 @@ impl ComponentState {
         Ok(())
     }
 
-    fn create_compound_type(
-        &self,
-        ct: crate::CompoundType,
-        types: &SnapshotList<TypeDef>,
-        offset: usize,
-    ) -> Result<CompoundType> {
-        Ok(match ct {
-            crate::CompoundType::Record(fields) => CompoundType::Record(
-                fields
-                    .iter()
-                    .map(|(name, ty)| {
-                        Self::check_name(name, "record field", offset)?;
-                        self.create_interface_type(*ty, types, offset)
-                    })
-                    .collect::<Result<_>>()?,
-            ),
-            crate::CompoundType::Variant { cases, default } => {
-                if let Some(default) = default {
-                    if default >= cases.len() as u32 {
-                        return Err(BinaryReaderError::new(
-                            format!("variant default index {} is out of bounds", default),
-                            offset,
-                        ));
-                    }
-                }
-                CompoundType::Variant(
-                    cases
-                        .iter()
-                        .map(|(name, ty)| {
-                            Self::check_name(name, "variant case", offset)?;
-                            self.create_interface_type(*ty, types, offset)
-                        })
-                        .collect::<Result<_>>()?,
-                )
-            }
-            crate::CompoundType::List(ty) => {
-                CompoundType::List(self.create_interface_type(ty, types, offset)?)
-            }
-            crate::CompoundType::Tuple(tys) => CompoundType::Tuple(
-                tys.iter()
-                    .map(|ty| self.create_interface_type(*ty, types, offset))
-                    .collect::<Result<_>>()?,
-            ),
-            crate::CompoundType::Flags(names) => {
-                for name in names.iter() {
-                    Self::check_name(name, "flag", offset)?
-                }
-
-                CompoundType::Flags(names.len())
-            }
-            crate::CompoundType::Enum(names) => {
-                for name in names.iter() {
-                    Self::check_name(name, "enum tag", offset)?
-                }
-
-                CompoundType::Enum(names.len())
-            }
-            crate::CompoundType::Union(tys) => CompoundType::Union(
-                tys.iter()
-                    .map(|ty| self.create_interface_type(*ty, types, offset))
-                    .collect::<Result<_>>()?,
-            ),
-            crate::CompoundType::Optional(ty) => {
-                CompoundType::Optional(self.create_interface_type(ty, types, offset)?)
-            }
-            crate::CompoundType::Expected { ok, error } => CompoundType::Expected(
-                self.create_interface_type(ok, types, offset)?,
-                self.create_interface_type(error, types, offset)?,
-            ),
-        })
-    }
-
     pub fn type_at(&self, idx: u32, offset: usize) -> Result<usize> {
         if let Some(idx) = self.types.get(idx as usize) {
             Ok(*idx)
         } else {
             Err(BinaryReaderError::new(
                 format!("unknown type {}: type index out of bounds", idx),
-                offset,
-            ))
-        }
-    }
-
-    fn compound_type_at<'a>(
-        &self,
-        idx: u32,
-        types: &'a SnapshotList<TypeDef>,
-        offset: usize,
-    ) -> Result<&'a CompoundType> {
-        if let TypeDef::Compound(ty) = &types[self.type_at(idx, offset)?] {
-            Ok(ty)
-        } else {
-            Err(BinaryReaderError::new(
-                format!("type index {} is not a compound type", idx),
                 offset,
             ))
         }
@@ -1046,12 +903,6 @@ impl ComponentState {
                         types[self.module_instance_at(idx, types, offset)?].unwrap_module_type();
                     for (name, ty) in instance_type.exports.iter() {
                         insert_arg(module_arg.name, name, ty.clone(), &mut args, offset)?;
-                    }
-                }
-                crate::ModuleArgKind::InstanceFromExports(exports) => {
-                    for export in exports.to_vec() {
-                        let ty = self.core_export_to_entity_type(&export, offset)?;
-                        insert_arg(module_arg.name, export.name, ty, &mut args, offset)?;
                     }
                 }
             }
@@ -1180,17 +1031,8 @@ impl ComponentState {
                         offset,
                     )?;
                 }
-                crate::ComponentArgKind::InstanceFromExports(exports) => {
-                    insert_arg(
-                        component_arg.name,
-                        ComponentEntityType::Instance(self.instantiate_exports(
-                            exports.to_vec(),
-                            types,
-                            offset,
-                        )?),
-                        &mut args,
-                        offset,
-                    )?;
+                crate::ComponentArgKind::Type(_) => {
+                    // Type arguments are ignored
                 }
             }
         }
@@ -1315,22 +1157,10 @@ impl ComponentState {
                         offset,
                     )?;
                 }
-                crate::ComponentExportKind::Type(ty) => {
+                crate::ComponentExportKind::Type(idx) => {
                     insert_export(
                         export.name,
-                        ComponentEntityType::Type(self.create_interface_type(ty, types, offset)?),
-                        &mut inst_exports,
-                        offset,
-                    )?;
-                }
-                crate::ComponentExportKind::InstanceFromExports(exports) => {
-                    insert_export(
-                        export.name,
-                        ComponentEntityType::Instance(self.instantiate_exports(
-                            exports.to_vec(),
-                            types,
-                            offset,
-                        )?),
+                        ComponentEntityType::Type(self.interface_type_at(idx, types, offset)?),
                         &mut inst_exports,
                         offset,
                     )?;
@@ -1345,6 +1175,79 @@ impl ComponentState {
         Ok(ty)
     }
 
+    fn instantiate_core_exports(
+        &mut self,
+        exports: Vec<crate::Export>,
+        types: &mut SnapshotList<TypeDef>,
+        offset: usize,
+    ) -> Result<usize> {
+        fn insert_export(
+            name: &str,
+            export: EntityType,
+            exports: &mut HashMap<String, EntityType>,
+            offset: usize,
+        ) -> Result<()> {
+            if exports.insert(name.to_string(), export).is_some() {
+                return Err(BinaryReaderError::new(
+                    format!(
+                        "duplicate instantiation export name `{}` already defined",
+                        name
+                    ),
+                    offset,
+                ));
+            }
+
+            Ok(())
+        }
+
+        let mut inst_exports = HashMap::new();
+        for export in exports {
+            match export.kind {
+                crate::ExternalKind::Func => {
+                    insert_export(
+                        export.name,
+                        EntityType::Func(self.core_function_at(export.index, types, offset)?),
+                        &mut inst_exports,
+                        offset,
+                    )?;
+                }
+                crate::ExternalKind::Table => insert_export(
+                    export.name,
+                    EntityType::Table(*self.table_at(export.index, offset)?),
+                    &mut inst_exports,
+                    offset,
+                )?,
+                crate::ExternalKind::Memory => insert_export(
+                    export.name,
+                    EntityType::Memory(*self.memory_at(export.index, offset)?),
+                    &mut inst_exports,
+                    offset,
+                )?,
+                crate::ExternalKind::Global => {
+                    insert_export(
+                        export.name,
+                        EntityType::Global(*self.global_at(export.index, offset)?),
+                        &mut inst_exports,
+                        offset,
+                    )?;
+                }
+                crate::ExternalKind::Tag => insert_export(
+                    export.name,
+                    EntityType::Tag(self.core_function_at(export.index, types, offset)?),
+                    &mut inst_exports,
+                    offset,
+                )?,
+            }
+        }
+
+        let ty = types.len();
+        types.push(TypeDef::Module(ModuleType {
+            imports: HashMap::default(),
+            exports: inst_exports,
+        }));
+        Ok(ty)
+    }
+
     fn alias_instance_export(
         &mut self,
         kind: crate::AliasKind,
@@ -1354,7 +1257,8 @@ impl ComponentState {
         offset: usize,
     ) -> Result<()> {
         macro_rules! push_module_export {
-            ($expected:path, $collection:ident, $ty:literal) => {{
+            ($expected:path, $collection:ident, $limit:ident, $ty:literal) => {{
+                check_max(self.$collection.len(), 1, $limit, concat!($ty, "s"), offset)?;
                 match self.module_instance_export(idx, name, types, offset)? {
                     $expected(ty) => {
                         self.$collection.push(*ty);
@@ -1371,7 +1275,8 @@ impl ComponentState {
         }
 
         macro_rules! push_component_export {
-            ($expected:path, $collection:ident, $ty:literal) => {{
+            ($expected:path, $collection:ident, $limit:ident, $ty:literal) => {{
+                check_max(self.$collection.len(), 1, $limit, concat!($ty, "s"), offset)?;
                 match self.component_instance_export(idx, name, types, offset)? {
                     $expected(ty) => {
                         self.$collection.push(*ty);
@@ -1389,18 +1294,20 @@ impl ComponentState {
 
         match kind {
             crate::AliasKind::Module => {
-                check_max(self.modules.len(), 1, MAX_WASM_MODULES, "modules", offset)?;
-                push_component_export!(ComponentEntityType::Module, modules, "module")
+                push_component_export!(
+                    ComponentEntityType::Module,
+                    modules,
+                    MAX_WASM_MODULES,
+                    "module"
+                )
             }
             crate::AliasKind::Component => {
-                check_max(
-                    self.components.len(),
-                    1,
+                push_component_export!(
+                    ComponentEntityType::Component,
+                    components,
                     MAX_WASM_COMPONENTS,
-                    "components",
-                    offset,
-                )?;
-                push_component_export!(ComponentEntityType::Component, components, "component")
+                    "component"
+                )
             }
             crate::AliasKind::Instance => {
                 check_max(
@@ -1423,6 +1330,14 @@ impl ComponentState {
                     }
                 }
             }
+            crate::AliasKind::ComponentFunc => {
+                push_component_export!(
+                    ComponentEntityType::Func,
+                    functions,
+                    MAX_WASM_FUNCTIONS,
+                    "function"
+                )
+            }
             crate::AliasKind::Value => {
                 check_max(self.values.len(), 1, MAX_WASM_VALUES, "values", offset)?;
                 match self.component_instance_export(idx, name, types, offset)? {
@@ -1438,39 +1353,20 @@ impl ComponentState {
                     }
                 }
             }
-            crate::AliasKind::Function => {
-                check_max(
-                    self.functions.len(),
-                    1,
-                    MAX_WASM_FUNCTIONS,
-                    "functions",
-                    offset,
-                )?;
-                self.functions
-                    .push(self.instance_exported_function(idx, name, types, offset)?);
-                Ok(())
+            crate::AliasKind::Func => {
+                push_module_export!(EntityType::Func, functions, MAX_WASM_FUNCTIONS, "function")
             }
             crate::AliasKind::Table => {
-                check_max(self.tables.len(), 1, MAX_WASM_TABLES, "tables", offset)?;
-                push_module_export!(EntityType::Table, tables, "table")
+                push_module_export!(EntityType::Table, tables, MAX_WASM_TABLES, "table")
             }
             crate::AliasKind::Memory => {
-                check_max(
-                    self.memories.len(),
-                    1,
-                    MAX_WASM_MEMORIES,
-                    "memories",
-                    offset,
-                )?;
-                push_module_export!(EntityType::Memory, memories, "memory")
+                push_module_export!(EntityType::Memory, memories, MAX_WASM_MEMORIES, "memory")
             }
             crate::AliasKind::Global => {
-                check_max(self.globals.len(), 1, MAX_WASM_GLOBALS, "globals", offset)?;
-                push_module_export!(EntityType::Global, globals, "global")
+                push_module_export!(EntityType::Global, globals, MAX_WASM_GLOBALS, "global")
             }
             crate::AliasKind::Tag => {
-                check_max(self.tags.len(), 1, MAX_WASM_TAGS, "tags", offset)?;
-                push_module_export!(EntityType::Tag, tags, "tag")
+                push_module_export!(EntityType::Tag, tags, MAX_WASM_TAGS, "tag")
             }
         }
     }
@@ -1525,23 +1421,92 @@ impl ComponentState {
         offset: usize,
     ) -> Result<InterfaceType> {
         Ok(match ty {
-            crate::InterfaceType::Unit => InterfaceType::Unit,
-            crate::InterfaceType::Bool => InterfaceType::Bool,
-            crate::InterfaceType::S8 => InterfaceType::S8,
-            crate::InterfaceType::U8 => InterfaceType::U8,
-            crate::InterfaceType::S16 => InterfaceType::S16,
-            crate::InterfaceType::U16 => InterfaceType::U16,
-            crate::InterfaceType::S32 => InterfaceType::S32,
-            crate::InterfaceType::U32 => InterfaceType::U32,
-            crate::InterfaceType::S64 => InterfaceType::S64,
-            crate::InterfaceType::U64 => InterfaceType::U64,
-            crate::InterfaceType::F32 => InterfaceType::F32,
-            crate::InterfaceType::F64 => InterfaceType::F64,
-            crate::InterfaceType::Char => InterfaceType::Char,
-            crate::InterfaceType::String => InterfaceType::String,
-            crate::InterfaceType::Compound(idx) => {
-                self.compound_type_at(idx, types, offset)?;
-                InterfaceType::Compound(self.types[idx as usize])
+            crate::InterfaceType::Primitive(ty) => InterfaceType::Primitive(ty),
+            crate::InterfaceType::Record(fields) => InterfaceType::Record(
+                fields
+                    .iter()
+                    .map(|(name, ty)| {
+                        Self::check_name(name, "record field", offset)?;
+                        Ok((
+                            name.to_string(),
+                            self.create_interface_type_ref(*ty, types, offset)?,
+                        ))
+                    })
+                    .collect::<Result<_>>()?,
+            ),
+            crate::InterfaceType::Variant { cases, default } => {
+                if let Some(default) = default {
+                    if default >= cases.len() as u32 {
+                        return Err(BinaryReaderError::new(
+                            format!("variant default index {} is out of bounds", default),
+                            offset,
+                        ));
+                    }
+                }
+                InterfaceType::Variant(
+                    cases
+                        .iter()
+                        .map(|(name, ty)| {
+                            Self::check_name(name, "variant case", offset)?;
+                            Ok((
+                                name.to_string(),
+                                self.create_interface_type_ref(*ty, types, offset)?,
+                            ))
+                        })
+                        .collect::<Result<_>>()?,
+                )
+            }
+            crate::InterfaceType::List(ty) => {
+                InterfaceType::List(self.create_interface_type_ref(ty, types, offset)?)
+            }
+            crate::InterfaceType::Tuple(tys) => InterfaceType::Tuple(
+                tys.iter()
+                    .map(|ty| self.create_interface_type_ref(*ty, types, offset))
+                    .collect::<Result<_>>()?,
+            ),
+            crate::InterfaceType::Flags(names) => InterfaceType::Flags(
+                names
+                    .iter()
+                    .map(|name| {
+                        Self::check_name(name, "flag", offset)?;
+                        Ok(name.to_string())
+                    })
+                    .collect::<Result<_>>()?,
+            ),
+            crate::InterfaceType::Enum(names) => InterfaceType::Enum(
+                names
+                    .iter()
+                    .map(|name| {
+                        Self::check_name(name, "enum tag", offset)?;
+                        Ok(name.to_string())
+                    })
+                    .collect::<Result<_>>()?,
+            ),
+            crate::InterfaceType::Union(tys) => InterfaceType::Union(
+                tys.iter()
+                    .map(|ty| self.create_interface_type_ref(*ty, types, offset))
+                    .collect::<Result<_>>()?,
+            ),
+            crate::InterfaceType::Optional(ty) => {
+                InterfaceType::Optional(self.create_interface_type_ref(ty, types, offset)?)
+            }
+            crate::InterfaceType::Expected { ok, error } => InterfaceType::Expected(
+                self.create_interface_type_ref(ok, types, offset)?,
+                self.create_interface_type_ref(error, types, offset)?,
+            ),
+        })
+    }
+
+    fn create_interface_type_ref(
+        &self,
+        ty: crate::InterfaceTypeRef,
+        types: &SnapshotList<TypeDef>,
+        offset: usize,
+    ) -> Result<InterfaceTypeRef> {
+        Ok(match ty {
+            crate::InterfaceTypeRef::Primitive(pt) => InterfaceTypeRef::Primitive(pt),
+            crate::InterfaceTypeRef::Type(idx) => {
+                InterfaceTypeRef::Type(self.interface_type_at(idx, types, offset)?)
             }
         })
     }
@@ -1650,49 +1615,6 @@ impl ComponentState {
         }
     }
 
-    fn instance_exported_function(
-        &self,
-        idx: u32,
-        name: &str,
-        types: &SnapshotList<TypeDef>,
-        offset: usize,
-    ) -> Result<usize> {
-        match &types[self.instance_at(idx, offset)?] {
-            TypeDef::Instance(ty) => {
-                if let Some(ty) = ty.exports.get(name) {
-                    match ty {
-                        ComponentEntityType::Func(ty) => return Ok(*ty),
-                        _ => {
-                            return Err(BinaryReaderError::new(
-                                format!("export `{}` for instance {} is not a function", name, idx),
-                                offset,
-                            ))
-                        }
-                    }
-                }
-            }
-            TypeDef::Module(ty) => {
-                if let Some(ty) = ty.exports.get(name) {
-                    match ty {
-                        EntityType::Func(ty) => return Ok(*ty),
-                        _ => {
-                            return Err(BinaryReaderError::new(
-                                format!("export `{}` for instance {} is not a function", name, idx),
-                                offset,
-                            ))
-                        }
-                    }
-                }
-            }
-            _ => unreachable!(),
-        }
-
-        Err(BinaryReaderError::new(
-            format!("instance {} has no export named `{}`", idx, name),
-            offset,
-        ))
-    }
-
     fn module_instance_export<'a>(
         &self,
         idx: u32,
@@ -1737,7 +1659,7 @@ impl ComponentState {
         }
     }
 
-    fn value_at(&mut self, idx: u32, offset: usize) -> Result<&InterfaceType> {
+    fn value_at(&mut self, idx: u32, offset: usize) -> Result<&InterfaceTypeRef> {
         match self.values.get_mut(idx as usize) {
             Some((ty, used)) if !*used => {
                 *used = true;
@@ -1749,6 +1671,52 @@ impl ComponentState {
             )),
             None => Err(BinaryReaderError::new(
                 format!("unknown value {}: value index out of bounds", idx),
+                offset,
+            )),
+        }
+    }
+
+    fn interface_type_at(
+        &self,
+        idx: u32,
+        types: &SnapshotList<TypeDef>,
+        offset: usize,
+    ) -> Result<usize> {
+        let idx = self.type_at(idx, offset)?;
+        match &types[idx] {
+            TypeDef::Interface(_) => Ok(idx),
+            _ => Err(BinaryReaderError::new(
+                format!("type {} is not an interface type", idx),
+                offset,
+            )),
+        }
+    }
+
+    fn global_at(&self, idx: u32, offset: usize) -> Result<&GlobalType> {
+        match self.globals.get(idx as usize) {
+            Some(t) => Ok(t),
+            None => Err(BinaryReaderError::new(
+                format!("unknown global {}: global index out of bounds", idx,),
+                offset,
+            )),
+        }
+    }
+
+    fn table_at(&self, idx: u32, offset: usize) -> Result<&TableType> {
+        match self.tables.get(idx as usize) {
+            Some(t) => Ok(t),
+            None => Err(BinaryReaderError::new(
+                format!("unknown table {}: table index out of bounds", idx),
+                offset,
+            )),
+        }
+    }
+
+    fn memory_at(&self, idx: u32, offset: usize) -> Result<&MemoryType> {
+        match self.memories.get(idx as usize) {
+            Some(t) => Ok(t),
+            None => Err(BinaryReaderError::new(
+                format!("unknown memory {}: memory index out of bounds", idx,),
                 offset,
             )),
         }
@@ -1765,8 +1733,9 @@ pub enum ComponentEntityType {
     Instance(usize),
     // Stores an index into the global type list.
     Func(usize),
-    Value(InterfaceType),
-    Type(InterfaceType),
+    Value(InterfaceTypeRef),
+    // Stores an index into the global type list.
+    Type(usize),
 }
 
 impl ComponentEntityType {

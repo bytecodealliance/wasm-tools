@@ -5,11 +5,9 @@ use crate::{
 
 /// Represents the kind of argument when instantiating a WebAssembly module.
 #[derive(Debug, Clone)]
-pub enum ModuleArgKind<'a> {
+pub enum ModuleArgKind {
     /// The argument is an instance.
     Instance(u32),
-    /// The argument is an instance based on exports of local items.
-    InstanceFromExports(Box<[Export<'a>]>),
 }
 
 /// Represents an argument to instantiating a WebAssembly component.
@@ -18,12 +16,12 @@ pub struct ModuleArg<'a> {
     /// The name of the module argument.
     pub name: &'a str,
     /// The kind of the module argument.
-    pub kind: ModuleArgKind<'a>,
+    pub kind: ModuleArgKind,
 }
 
 /// Represents the kind of argument when instantiating a WebAssembly component.
 #[derive(Debug, Clone)]
-pub enum ComponentArgKind<'a> {
+pub enum ComponentArgKind {
     /// The argument is a module.
     Module(u32),
     /// The argument is a component.
@@ -34,8 +32,8 @@ pub enum ComponentArgKind<'a> {
     Function(u32),
     /// The argument is a value.
     Value(u32),
-    /// The argument is an instance based on exports of local items.
-    InstanceFromExports(Box<[ComponentExport<'a>]>),
+    /// The argument is a type.
+    Type(u32),
 }
 
 /// Represents an argument to instantiating a WebAssembly component.
@@ -44,7 +42,7 @@ pub struct ComponentArg<'a> {
     /// The name of the component argument.
     pub name: &'a str,
     /// The kind of the component argument.
-    pub kind: ComponentArgKind<'a>,
+    pub kind: ComponentArgKind,
 }
 
 /// Represents an instance in a WebAssembly component.
@@ -64,8 +62,10 @@ pub enum Instance<'a> {
         /// The component's instantiation arguments.
         args: Box<[ComponentArg<'a>]>,
     },
-    /// The instance is from exporting local items.
-    FromExports(Box<[ComponentExport<'a>]>),
+    /// The instance is a module instance from exporting local items.
+    ModuleFromExports(Box<[Export<'a>]>),
+    /// The instance is a component instance from exporting local items.
+    ComponentFromExports(Box<[ComponentExport<'a>]>),
 }
 
 /// A reader for the instance section of a WebAssembly component.
@@ -98,7 +98,7 @@ impl<'a> InstanceSectionReader<'a> {
     /// # Examples
     /// ```
     /// use wasmparser::InstanceSectionReader;
-    /// # let data: &[u8] = &[0x01, 0x00, 0x00, 0x00, 0x01, 0x03, b'f', b'o', b'o', 0x00, 0x02, 0x00];
+    /// # let data: &[u8] = &[0x01, 0x00, 0x00, 0x00, 0x01, 0x03, b'f', b'o', b'o', 0x02, 0x00];
     /// let mut reader = InstanceSectionReader::new(data, 0).unwrap();
     /// for _ in 0..reader.get_count() {
     ///     let instance = reader.read().expect("instance");
@@ -146,7 +146,7 @@ impl<'a> IntoIterator for InstanceSectionReader<'a> {
     ///
     /// ```
     /// use wasmparser::InstanceSectionReader;
-    /// # let data: &[u8] = &[0x01, 0x00, 0x00, 0x00, 0x01, 0x03, b'f', b'o', b'o', 0x00, 0x02, 0x00];
+    /// # let data: &[u8] = &[0x01, 0x00, 0x00, 0x00, 0x01, 0x03, b'f', b'o', b'o', 0x02, 0x00];
     /// let mut reader = InstanceSectionReader::new(data, 0).unwrap();
     /// for inst in reader {
     ///     println!("Instance {:?}", inst.expect("instance"));

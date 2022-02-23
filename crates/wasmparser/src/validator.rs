@@ -78,8 +78,8 @@ enum TypeDef {
     Component(ComponentType),
     Instance(InstanceType),
     ComponentFunc(ComponentFuncType),
-    Value(InterfaceType),
-    Compound(CompoundType),
+    Value(InterfaceTypeRef),
+    Interface(InterfaceType),
 }
 
 impl TypeDef {
@@ -118,10 +118,10 @@ impl TypeDef {
         }
     }
 
-    fn unwrap_compound_type(&self) -> &CompoundType {
+    fn unwrap_interface_type(&self) -> &InterfaceType {
         match self {
-            TypeDef::Compound(ty) => ty,
-            _ => panic!("expected compound type"),
+            TypeDef::Interface(ty) => ty,
+            _ => panic!("expected interface type"),
         }
     }
 }

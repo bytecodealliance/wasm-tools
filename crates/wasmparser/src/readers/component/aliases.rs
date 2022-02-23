@@ -11,10 +11,12 @@ pub enum AliasKind {
     Component,
     /// The alias is to an instance.
     Instance,
-    /// The alias is to a function.
-    Function,
+    /// The alias is to a component function.
+    ComponentFunc,
     /// The alias is to a value.
     Value,
+    /// The alias is to a core function.
+    Func,
     /// The alias is to a table.
     Table,
     /// The alias is to a memory.

@@ -15,12 +15,12 @@
 
 use crate::{
     limits::*, Alias, AliasKind, BlockType, BrTable, CanonicalOption, ComponentExport,
-    ComponentExportKind, ComponentFuncType, ComponentFunction, ComponentImport,
-    ComponentStartFunction, ComponentType, ComponentTypeDef, CompoundType, CustomSectionKind,
-    Export, ExternalKind, FuncType, GlobalType, Ieee32, Ieee64, Import, InitExpr, Instance,
-    InstanceType, InterfaceType, LinkingType, MemoryImmediate, MemoryType, ModuleArg,
-    ModuleArgKind, ModuleType, NameType, Operator, RelocType, SIMDLaneIndex, SectionCode,
-    TableType, TagKind, TagType, Type, TypeDef, TypeRef, V128,
+    ComponentFuncType, ComponentFunction, ComponentImport, ComponentStartFunction, ComponentType,
+    ComponentTypeDef, CustomSectionKind, Export, ExternalKind, FuncType, GlobalType, Ieee32,
+    Ieee64, Import, InitExpr, Instance, InstanceType, InterfaceType, InterfaceTypeRef, LinkingType,
+    MemoryImmediate, MemoryType, ModuleArg, ModuleArgKind, ModuleType, NameType, Operator,
+    PrimitiveInterfaceType, RelocType, SIMDLaneIndex, SectionCode, TableType, TagKind, TagType,
+    Type, TypeDef, TypeRef, V128,
 };
 use crate::{ComponentArg, ComponentArgKind};
 use std::convert::TryInto;
@@ -325,16 +325,21 @@ impl<'a> BinaryReader<'a> {
                 let params_size =
                     self.read_size(MAX_WASM_FUNCTION_PARAMS, "function parameters")?;
                 let params = (0..params_size)
-                    .map(|_| Ok((self.read_string()?, self.read_interface_type()?)))
+                    .map(|_| Ok((self.read_string()?, self.read_interface_type_ref()?)))
                     .collect::<Result<_>>()?;
                 ComponentTypeDef::Function(ComponentFuncType {
                     params,
-                    result: self.read_interface_type()?,
+                    result: self.read_interface_type_ref()?,
                 })
             }
-            0x4b => ComponentTypeDef::Value(self.read_interface_type()?),
-            // Delegate all other values to `read_compound_type`.
-            x => ComponentTypeDef::Compound(self.read_compound_type(x)?),
+            0x4b => ComponentTypeDef::Value(self.read_interface_type_ref()?),
+            x => {
+                if let Some(it) = Self::primitive_it_from_byte(x) {
+                    ComponentTypeDef::Interface(InterfaceType::Primitive(it))
+                } else {
+                    ComponentTypeDef::Interface(self.read_interface_type(x)?)
+                }
+            }
         })
     }
 
@@ -390,49 +395,49 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    pub(crate) fn read_interface_type(&mut self) -> Result<InterfaceType> {
-        let ty = match self.peek()? {
-            0x7f => InterfaceType::Unit,
-            0x7e => InterfaceType::Bool,
-            0x7d => InterfaceType::S8,
-            0x7c => InterfaceType::U8,
-            0x7b => InterfaceType::S16,
-            0x7a => InterfaceType::U16,
-            0x79 => InterfaceType::S32,
-            0x78 => InterfaceType::U32,
-            0x77 => InterfaceType::S64,
-            0x76 => InterfaceType::U64,
-            0x75 => InterfaceType::F32,
-            0x74 => InterfaceType::F64,
-            0x73 => InterfaceType::Char,
-            0x72 => InterfaceType::String,
-            _ => {
-                // All other values are interpreted as a compound type index.
-                // The index is SLEB128 encoded, so use `read_var_s33` read it cast as u32.
-                // The cast here is safe as `read_var_s33` guarantees the encoding can't be
-                // above `u32::MAX`.
-                return Ok(InterfaceType::Compound(self.read_var_s33()? as u32));
-            }
-        };
-
-        self.position += 1;
-        Ok(ty)
+    fn primitive_it_from_byte(byte: u8) -> Option<PrimitiveInterfaceType> {
+        Some(match byte {
+            0x7f => PrimitiveInterfaceType::Unit,
+            0x7e => PrimitiveInterfaceType::Bool,
+            0x7d => PrimitiveInterfaceType::S8,
+            0x7c => PrimitiveInterfaceType::U8,
+            0x7b => PrimitiveInterfaceType::S16,
+            0x7a => PrimitiveInterfaceType::U16,
+            0x79 => PrimitiveInterfaceType::S32,
+            0x78 => PrimitiveInterfaceType::U32,
+            0x77 => PrimitiveInterfaceType::S64,
+            0x76 => PrimitiveInterfaceType::U64,
+            0x75 => PrimitiveInterfaceType::F32,
+            0x74 => PrimitiveInterfaceType::F64,
+            0x73 => PrimitiveInterfaceType::Char,
+            0x72 => PrimitiveInterfaceType::String,
+            _ => return None,
+        })
     }
 
-    pub(crate) fn read_compound_type(&mut self, leading: u8) -> Result<CompoundType<'a>> {
-        Ok(match leading {
+    pub(crate) fn read_interface_type_ref(&mut self) -> Result<InterfaceTypeRef> {
+        if let Some(it) = Self::primitive_it_from_byte(self.peek()?) {
+            self.position += 1;
+            return Ok(InterfaceTypeRef::Primitive(it));
+        }
+
+        Ok(InterfaceTypeRef::Type(self.read_var_s33()? as u32))
+    }
+
+    fn read_interface_type(&mut self, byte: u8) -> Result<InterfaceType<'a>> {
+        Ok(match byte {
             0x71 => {
                 let size = self.read_size(MAX_WASM_RECORD_FIELDS, "record field")?;
-                CompoundType::Record(
+                InterfaceType::Record(
                     (0..size)
-                        .map(|_| Ok((self.read_string()?, self.read_interface_type()?)))
+                        .map(|_| Ok((self.read_string()?, self.read_interface_type_ref()?)))
                         .collect::<Result<_>>()?,
                 )
             }
             0x70 => {
                 let cases_size = self.read_size(MAX_WASM_VARIANT_CASES, "variant cases")?;
                 let cases = (0..cases_size)
-                    .map(|_| Ok((self.read_string()?, self.read_interface_type()?)))
+                    .map(|_| Ok((self.read_string()?, self.read_interface_type_ref()?)))
                     .collect::<Result<_>>()?;
 
                 let default = if self.read_bool()? {
@@ -441,20 +446,20 @@ impl<'a> BinaryReader<'a> {
                     None
                 };
 
-                CompoundType::Variant { cases, default }
+                InterfaceType::Variant { cases, default }
             }
-            0x6f => CompoundType::List(self.read_interface_type()?),
+            0x6f => InterfaceType::List(self.read_interface_type_ref()?),
             0x6e => {
                 let size = self.read_size(MAX_WASM_TUPLE_TYPES, "tuple types")?;
-                CompoundType::Tuple(
+                InterfaceType::Tuple(
                     (0..size)
-                        .map(|_| self.read_interface_type())
+                        .map(|_| self.read_interface_type_ref())
                         .collect::<Result<_>>()?,
                 )
             }
             0x6d => {
                 let size = self.read_size(MAX_WASM_FLAG_NAMES, "flag names")?;
-                CompoundType::Flags(
+                InterfaceType::Flags(
                     (0..size)
                         .map(|_| self.read_string())
                         .collect::<Result<_>>()?,
@@ -462,7 +467,7 @@ impl<'a> BinaryReader<'a> {
             }
             0x6c => {
                 let size = self.read_size(MAX_WASM_ENUM_CASES, "enum cases")?;
-                CompoundType::Enum(
+                InterfaceType::Enum(
                     (0..size)
                         .map(|_| self.read_string())
                         .collect::<Result<_>>()?,
@@ -470,16 +475,16 @@ impl<'a> BinaryReader<'a> {
             }
             0x6b => {
                 let size = self.read_size(MAX_WASM_UNION_TYPES, "union types")?;
-                CompoundType::Union(
+                InterfaceType::Union(
                     (0..size)
-                        .map(|_| self.read_interface_type())
+                        .map(|_| self.read_interface_type_ref())
                         .collect::<Result<_>>()?,
                 )
             }
-            0x6a => CompoundType::Optional(self.read_interface_type()?),
-            0x69 => CompoundType::Expected {
-                ok: self.read_interface_type()?,
-                error: self.read_interface_type()?,
+            0x6a => InterfaceType::Optional(self.read_interface_type_ref()?),
+            0x69 => InterfaceType::Expected {
+                ok: self.read_interface_type_ref()?,
+                error: self.read_interface_type_ref()?,
             },
             x => return self.invalid_leading_byte(x, "type"),
         })
@@ -493,62 +498,29 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    fn read_component_arg_kind(&mut self) -> Result<ComponentArgKind<'a>> {
+    fn read_component_arg_kind(&mut self, desc: &str) -> Result<ComponentArgKind> {
         Ok(match self.read_u8()? {
             0x00 => ComponentArgKind::Module(self.read_var_u32()?),
             0x01 => ComponentArgKind::Component(self.read_var_u32()?),
             0x02 => ComponentArgKind::Instance(self.read_var_u32()?),
             0x03 => ComponentArgKind::Function(self.read_var_u32()?),
             0x04 => ComponentArgKind::Value(self.read_var_u32()?),
-            x => return self.invalid_leading_byte(x, "component argument kind"),
+            0x05 => ComponentArgKind::Type(self.read_var_u32()?),
+            x => return self.invalid_leading_byte(x, desc),
         })
     }
 
-    fn read_instantiation_exports(&mut self) -> Result<Box<[ComponentExport<'a>]>> {
-        let size = self.read_size(MAX_WASM_INSTANTIATION_EXPORTS, "instantiation exports")?;
-        (0..size)
-            .map(|_| self.read_component_export())
-            .collect::<Result<_>>()
-    }
-
     fn read_component_arg(&mut self) -> Result<ComponentArg<'a>> {
-        let name = self.read_string()?;
-        Ok(match self.read_u8()? {
-            0x00 => ComponentArg {
-                name,
-                kind: self.read_component_arg_kind()?,
-            },
-            0x01 => ComponentArg {
-                name,
-                kind: ComponentArgKind::InstanceFromExports(self.read_instantiation_exports()?),
-            },
-            x => return self.invalid_leading_byte(x, "component argument"),
+        Ok(ComponentArg {
+            name: self.read_string()?,
+            kind: self.read_component_arg_kind("component argument kind")?,
         })
     }
 
     pub(crate) fn read_component_export(&mut self) -> Result<ComponentExport<'a>> {
-        let name = self.read_string()?;
-        Ok(match self.read_u8()? {
-            0x00 => {
-                // Check for type exports
-                if self.peek()? == 0x05 {
-                    self.position += 1;
-                    ComponentExport {
-                        name,
-                        kind: ComponentExportKind::Type(self.read_interface_type()?),
-                    }
-                } else {
-                    ComponentExport {
-                        name,
-                        kind: self.read_component_arg_kind()?.into(),
-                    }
-                }
-            }
-            0x01 => ComponentExport {
-                name,
-                kind: ComponentExportKind::InstanceFromExports(self.read_instantiation_exports()?),
-            },
-            x => return self.invalid_leading_byte(x, "component export"),
+        Ok(ComponentExport {
+            name: self.read_string()?,
+            kind: self.read_component_arg_kind("component export kind")?,
         })
     }
 
@@ -631,28 +603,32 @@ impl<'a> BinaryReader<'a> {
                 }
                 x => return self.invalid_leading_byte(x, "instance"),
             },
-            0x01 => Instance::FromExports(self.read_instantiation_exports()?),
+            0x01 => {
+                let size =
+                    self.read_size(MAX_WASM_INSTANTIATION_EXPORTS, "instantiation exports")?;
+                Instance::ComponentFromExports(
+                    (0..size)
+                        .map(|_| self.read_component_export())
+                        .collect::<Result<_>>()?,
+                )
+            }
+            0x02 => {
+                let size =
+                    self.read_size(MAX_WASM_INSTANTIATION_EXPORTS, "instantiation exports")?;
+                Instance::ModuleFromExports(
+                    (0..size)
+                        .map(|_| self.read_export())
+                        .collect::<Result<_>>()?,
+                )
+            }
             x => return self.invalid_leading_byte(x, "instance"),
         })
     }
 
     pub(crate) fn read_module_arg(&mut self) -> Result<ModuleArg<'a>> {
         let name = self.read_string()?;
-
         let kind = match self.read_u8()? {
-            0x00 => match self.read_u8()? {
-                0x02 => ModuleArgKind::Instance(self.read_var_u32()?),
-                x => return self.invalid_leading_byte(x, "module argument"),
-            },
-            0x01 => {
-                let size =
-                    self.read_size(MAX_WASM_INSTANTIATION_EXPORTS, "instantiation exports")?;
-                ModuleArgKind::InstanceFromExports(
-                    (0..size)
-                        .map(|_| self.read_export())
-                        .collect::<Result<_>>()?,
-                )
-            }
+            0x02 => ModuleArgKind::Instance(self.read_var_u32()?),
             x => return self.invalid_leading_byte(x, "module argument"),
         };
 
@@ -673,8 +649,9 @@ impl<'a> BinaryReader<'a> {
                     (0x00, 0x00) => AliasKind::Module,
                     (0x00, 0x01) => AliasKind::Component,
                     (0x00, 0x02) => AliasKind::Instance,
-                    (0x00, 0x03) => AliasKind::Function,
+                    (0x00, 0x03) => AliasKind::ComponentFunc,
                     (0x00, 0x04) => AliasKind::Value,
+                    (0x01, 0x00) => AliasKind::Func,
                     (0x01, 0x01) => AliasKind::Table,
                     (0x01, 0x02) => AliasKind::Memory,
                     (0x01, 0x03) => AliasKind::Global,

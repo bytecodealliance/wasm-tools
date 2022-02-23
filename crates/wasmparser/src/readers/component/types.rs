@@ -15,9 +15,9 @@ pub enum ComponentTypeDef<'a> {
     /// The type is a function type.
     Function(ComponentFuncType<'a>),
     /// The type is for a value type.
-    Value(InterfaceType),
-    /// The type is for a compound type.
-    Compound(CompoundType<'a>),
+    Value(InterfaceTypeRef),
+    /// The type is for an interface type.
+    Interface(InterfaceType<'a>),
 }
 
 /// Represents a module type definition in a WebAssembly component.
@@ -84,14 +84,14 @@ pub enum InstanceType<'a> {
 #[derive(Debug, Clone)]
 pub struct ComponentFuncType<'a> {
     /// The function parameter types.
-    pub params: Box<[(&'a str, InterfaceType)]>,
+    pub params: Box<[(&'a str, InterfaceTypeRef)]>,
     /// The function result type.
-    pub result: InterfaceType,
+    pub result: InterfaceTypeRef,
 }
 
-/// Represents an interface type.
+/// Represents a primitive interface type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum InterfaceType {
+pub enum PrimitiveInterfaceType {
     /// The type is the unit type.
     Unit,
     /// The type is a boolean.
@@ -120,42 +120,49 @@ pub enum InterfaceType {
     Char,
     /// The type is a string.
     String,
-    /// The type is a compound interface type.
-    ///
-    /// The value is a type index to a compound type.
-    Compound(u32),
 }
 
-/// Represents a compound interface type.
+/// Represents a reference to an interface type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InterfaceTypeRef {
+    /// The reference is to a primitive interface type.
+    Primitive(PrimitiveInterfaceType),
+    /// The reference is to an interface type defined in a type section.
+    Type(u32),
+}
+
+/// Represents an interface type.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CompoundType<'a> {
+pub enum InterfaceType<'a> {
+    /// The interface type is one of the primitive types.
+    Primitive(PrimitiveInterfaceType),
     /// The type is a record with the given fields.
-    Record(Box<[(&'a str, InterfaceType)]>),
+    Record(Box<[(&'a str, InterfaceTypeRef)]>),
     /// The type is a variant with the given cases.
     Variant {
         /// The cases of the variant.
-        cases: Box<[(&'a str, InterfaceType)]>,
+        cases: Box<[(&'a str, InterfaceTypeRef)]>,
         /// The index of the default case of the variant.
         default: Option<u32>,
     },
     /// The type is a list of the given interface type.
-    List(InterfaceType),
+    List(InterfaceTypeRef),
     /// The type is a tuple of the given interface types.
-    Tuple(Box<[InterfaceType]>),
+    Tuple(Box<[InterfaceTypeRef]>),
     /// The type is flags with the given names.
     Flags(Box<[&'a str]>),
     /// The type is an enum with the given tags.
     Enum(Box<[&'a str]>),
     /// The type is a union of the given interface types.
-    Union(Box<[InterfaceType]>),
+    Union(Box<[InterfaceTypeRef]>),
     /// The type is an optional of the given interface type.
-    Optional(InterfaceType),
+    Optional(InterfaceTypeRef),
     /// The type is an expected type.
     Expected {
         /// The type returned for success.
-        ok: InterfaceType,
+        ok: InterfaceTypeRef,
         /// The type returned for failure.
-        error: InterfaceType,
+        error: InterfaceTypeRef,
     },
 }
 

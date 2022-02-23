@@ -1,39 +1,10 @@
 use crate::{
-    BinaryReader, ComponentArgKind, InterfaceType, Range, Result, SectionIteratorLimited,
-    SectionReader, SectionWithLimitedItems,
+    BinaryReader, ComponentArgKind, Range, Result, SectionIteratorLimited, SectionReader,
+    SectionWithLimitedItems,
 };
 
 /// Represents the kind of export in a WebAssembly component.
-#[derive(Debug, Clone)]
-pub enum ComponentExportKind<'a> {
-    /// The export is a module.
-    Module(u32),
-    /// The export is a component.
-    Component(u32),
-    /// The export is an instance.
-    Instance(u32),
-    /// The export is a function.
-    Function(u32),
-    /// The export is a value.
-    Value(u32),
-    /// The export is an interface type.
-    Type(InterfaceType),
-    /// The export is an instance based on exports of local items.
-    InstanceFromExports(Box<[ComponentExport<'a>]>),
-}
-
-impl<'a> From<ComponentArgKind<'a>> for ComponentExportKind<'a> {
-    fn from(arg: ComponentArgKind<'a>) -> Self {
-        match arg {
-            ComponentArgKind::Module(idx) => Self::Module(idx),
-            ComponentArgKind::Component(idx) => Self::Component(idx),
-            ComponentArgKind::Instance(idx) => Self::Instance(idx),
-            ComponentArgKind::Function(idx) => Self::Function(idx),
-            ComponentArgKind::Value(idx) => Self::Value(idx),
-            ComponentArgKind::InstanceFromExports(exports) => Self::InstanceFromExports(exports),
-        }
-    }
-}
+pub type ComponentExportKind = ComponentArgKind;
 
 /// Represents an export in a WebAssembly component.
 #[derive(Debug, Clone)]
@@ -41,7 +12,7 @@ pub struct ComponentExport<'a> {
     /// The name of the exported item.
     pub name: &'a str,
     /// The kind of the export.
-    pub kind: ComponentExportKind<'a>,
+    pub kind: ComponentExportKind,
 }
 
 /// A reader for the export section of a WebAssembly component.
