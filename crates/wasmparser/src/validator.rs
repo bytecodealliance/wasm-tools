@@ -942,14 +942,14 @@ impl Validator {
                     } => current.lift_function(
                         type_index,
                         func_index,
-                        options.to_vec(),
+                        options.into_vec(),
                         types,
                         offset,
                     ),
                     crate::ComponentFunction::Lower {
                         func_index,
                         options,
-                    } => current.lower_function(func_index, options.to_vec(), types, offset),
+                    } => current.lower_function(func_index, options.into_vec(), types, offset),
                 }
             },
         )

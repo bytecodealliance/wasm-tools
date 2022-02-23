@@ -440,7 +440,17 @@ impl ComponentState {
         let ty = self.function_type_at(type_index, types, offset)?;
         let core_ty = types[self.core_function_at(func_index, types, offset)?].unwrap_func_type();
 
-        if ty.core_type != *core_ty {
+        // Lifting a function is for an export, so match the expected canonical ABI
+        // export signature
+        let mismatch = if ty.core_type.returns.len() > 1 {
+            ty.core_type.params != core_ty.params
+                || core_ty.returns.len() != 1
+                || core_ty.returns[0] != Type::I32
+        } else {
+            ty.core_type != *core_ty
+        };
+
+        if mismatch {
             return Err(BinaryReaderError::new(
                 "lowered function type does not match core function type",
                 offset,
@@ -460,12 +470,20 @@ impl ComponentState {
         types: &mut SnapshotList<TypeDef>,
         offset: usize,
     ) -> Result<()> {
-        let ty = self
-            .function_type_at(func_index, types, offset)?
-            .core_type
-            .clone();
-
         check_options(&options, offset)?;
+
+        let ty = &self.function_type_at(func_index, types, offset)?.core_type;
+
+        // Lowering a function is for an import, so use a function type that matches
+        // the expected canonical ABI import signature.
+        let ty = if ty.returns.len() > 1 {
+            FuncType {
+                params: ty.params.iter().chain(&[Type::I32]).copied().collect(),
+                returns: [].into(),
+            }
+        } else {
+            ty.clone()
+        };
 
         self.functions.push(types.len());
         types.push(TypeDef::Func(ty));
@@ -510,16 +528,16 @@ impl ComponentState {
     ) -> Result<()> {
         let instance = match instance {
             crate::Instance::Module { index, args } => {
-                self.instantiate_module(index, args.to_vec(), types, offset)?
+                self.instantiate_module(index, args.into_vec(), types, offset)?
             }
             crate::Instance::Component { index, args } => {
-                self.instantiate_component(index, args.to_vec(), types, offset)?
+                self.instantiate_component(index, args.into_vec(), types, offset)?
             }
             crate::Instance::ComponentFromExports(exports) => {
-                self.instantiate_exports(exports.to_vec(), types, offset)?
+                self.instantiate_exports(exports.into_vec(), types, offset)?
             }
             crate::Instance::ModuleFromExports(exports) => {
-                self.instantiate_core_exports(exports.to_vec(), types, offset)?
+                self.instantiate_core_exports(exports.into_vec(), types, offset)?
             }
         };
 
