@@ -7,53 +7,6 @@ use crate::{
 };
 use std::collections::{HashMap, HashSet};
 
-fn check_options(options: &[CanonicalOption], offset: usize) -> Result<()> {
-    fn display(option: CanonicalOption) -> &'static str {
-        match option {
-            CanonicalOption::UTF8 => "utf8",
-            CanonicalOption::UTF16 => "utf16",
-            CanonicalOption::CompactUTF16 => "compact-utf16",
-            CanonicalOption::Into(_) => "into",
-        }
-    }
-
-    let mut encoding = None;
-    let mut into = None;
-
-    for option in options {
-        match option {
-            CanonicalOption::UTF8 | CanonicalOption::UTF16 | CanonicalOption::CompactUTF16 => {
-                match encoding {
-                    Some(existing) => {
-                        return Err(BinaryReaderError::new(
-                            format!(
-                                "canonical option `{}` conflicts with option `{}`",
-                                display(existing),
-                                display(*option)
-                            ),
-                            offset,
-                        ))
-                    }
-                    None => encoding = Some(*option),
-                }
-            }
-            CanonicalOption::Into(i) => {
-                into = match into {
-                    None => Some(*i),
-                    Some(_) => {
-                        return Err(BinaryReaderError::new(
-                            "canonical option `into` is specified more than once",
-                            offset,
-                        ))
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(())
-}
-
 fn push_primitive_wasm_types(ty: &PrimitiveInterfaceType, wasm_types: &mut Vec<Type>) {
     match ty {
         PrimitiveInterfaceType::Unit => {}
@@ -162,6 +115,14 @@ pub struct ComponentFuncType {
 }
 
 impl ComponentFuncType {
+    fn requires_into_option(&self, types: &SnapshotList<TypeDef>) -> bool {
+        self.result.requires_into_option(types)
+            || self
+                .params
+                .iter()
+                .any(|(_, ty)| ty.requires_into_option(types))
+    }
+
     fn is_subtype_of(&self, other: &Self, types: &SnapshotList<TypeDef>) -> bool {
         // Subtyping rules:
         // https://github.com/WebAssembly/component-model/blob/17f94ed1270a98218e0e796ca1dad1feb7e5c507/design/mvp/Subtyping.md
@@ -199,6 +160,15 @@ pub enum InterfaceTypeRef {
 }
 
 impl InterfaceTypeRef {
+    fn requires_into_option(&self, types: &SnapshotList<TypeDef>) -> bool {
+        match self {
+            InterfaceTypeRef::Primitive(ty) => ty.requires_into_option(),
+            InterfaceTypeRef::Type(ty) => types[*ty]
+                .unwrap_interface_type()
+                .requires_into_option(types),
+        }
+    }
+
     fn is_optional(&self, types: &SnapshotList<TypeDef>) -> bool {
         match self {
             InterfaceTypeRef::Primitive(_) => false,
@@ -263,6 +233,27 @@ pub enum InterfaceType {
 }
 
 impl InterfaceType {
+    fn requires_into_option(&self, types: &SnapshotList<TypeDef>) -> bool {
+        match self {
+            InterfaceType::Primitive(ty) => ty.requires_into_option(),
+            InterfaceType::Record(fields) => {
+                fields.values().any(|ty| ty.requires_into_option(types))
+            }
+            InterfaceType::Variant(cases) => cases
+                .values()
+                .any(|case| case.ty.requires_into_option(types)),
+            InterfaceType::List(_) => true,
+            InterfaceType::Tuple(tys) | InterfaceType::Union(tys) => {
+                tys.iter().any(|ty| ty.requires_into_option(types))
+            }
+            InterfaceType::Flags(_) | InterfaceType::Enum(_) => false,
+            InterfaceType::Optional(ty) => ty.requires_into_option(types),
+            InterfaceType::Expected(ok, error) => {
+                ok.requires_into_option(types) || error.requires_into_option(types)
+            }
+        }
+    }
+
     fn is_subtype_of(&self, other: &Self, types: &SnapshotList<TypeDef>) -> bool {
         // Subtyping rules according to
         // https://github.com/WebAssembly/component-model/blob/17f94ed1270a98218e0e796ca1dad1feb7e5c507/design/mvp/Subtyping.md
@@ -596,7 +587,7 @@ impl ComponentState {
             ));
         }
 
-        check_options(&options, offset)?;
+        self.check_options(&options, ty, types, offset)?;
         self.functions.push(self.types[type_index as usize]);
 
         Ok(())
@@ -609,23 +600,29 @@ impl ComponentState {
         types: &mut SnapshotList<TypeDef>,
         offset: usize,
     ) -> Result<()> {
-        check_options(&options, offset)?;
+        let ty = self.function_type_at(func_index, types, offset)?;
 
-        let ty = &self.function_type_at(func_index, types, offset)?.core_type;
+        self.check_options(&options, ty, types, offset)?;
 
         // Lowering a function is for an import, so use a function type that matches
         // the expected canonical ABI import signature.
-        let ty = if ty.returns.len() > 1 {
+        let core_ty = if ty.core_type.returns.len() > 1 {
             FuncType {
-                params: ty.params.iter().chain(&[Type::I32]).copied().collect(),
+                params: ty
+                    .core_type
+                    .params
+                    .iter()
+                    .chain(&[Type::I32])
+                    .copied()
+                    .collect(),
                 returns: [].into(),
             }
         } else {
-            ty.clone()
+            ty.core_type.clone()
         };
 
         self.functions.push(types.len());
-        types.push(TypeDef::Func(ty));
+        types.push(TypeDef::Func(core_ty));
 
         Ok(())
     }
@@ -814,6 +811,129 @@ impl ComponentState {
                 ComponentEntityType::Type(self.interface_type_at(*idx, types, offset)?)
             }
         })
+    }
+
+    fn check_options(
+        &self,
+        options: &[CanonicalOption],
+        ty: &ComponentFuncType,
+        types: &SnapshotList<TypeDef>,
+        offset: usize,
+    ) -> Result<()> {
+        fn display(option: CanonicalOption) -> &'static str {
+            match option {
+                CanonicalOption::UTF8 => "utf8",
+                CanonicalOption::UTF16 => "utf16",
+                CanonicalOption::CompactUTF16 => "compact-utf16",
+                CanonicalOption::Into(_) => "into",
+            }
+        }
+
+        fn check_into_func(
+            into: &ModuleType,
+            name: &str,
+            params: &[Type],
+            returns: &[Type],
+            types: &SnapshotList<TypeDef>,
+            offset: usize,
+        ) -> Result<()> {
+            match into.exports.get(name) {
+                Some(EntityType::Func(ty)) => {
+                    let ty = types[*ty].unwrap_func_type();
+                    if ty.params.as_ref() != params || ty.returns.as_ref() != returns {
+                        return Err(BinaryReaderError::new(
+                            format!("instance specified by `into` option exports a function named `{}` with the wrong signature", name),
+                            offset,
+                        ));
+                    }
+                }
+                _ => {
+                    return Err(BinaryReaderError::new(
+                        format!("instance specified by `into` option does not export a function named `{}`", name),
+                        offset,
+                    ));
+                }
+            }
+
+            Ok(())
+        }
+
+        let mut encoding = None;
+        let mut into = None;
+
+        for option in options {
+            match option {
+                CanonicalOption::UTF8 | CanonicalOption::UTF16 | CanonicalOption::CompactUTF16 => {
+                    match encoding {
+                        Some(existing) => {
+                            return Err(BinaryReaderError::new(
+                                format!(
+                                    "canonical option `{}` conflicts with option `{}`",
+                                    display(existing),
+                                    display(*option)
+                                ),
+                                offset,
+                            ))
+                        }
+                        None => encoding = Some(*option),
+                    }
+                }
+                CanonicalOption::Into(i) => {
+                    into = match into {
+                        None => Some(*i),
+                        Some(_) => {
+                            return Err(BinaryReaderError::new(
+                                "canonical option `into` is specified more than once",
+                                offset,
+                            ))
+                        }
+                    }
+                }
+            }
+        }
+
+        match into {
+            Some(idx) => {
+                let into_ty = self.module_instance_at(idx, types, offset)?;
+
+                match into_ty.exports.get("memory") {
+                    Some(EntityType::Memory(_)) => {}
+                    _ => {
+                        return Err(BinaryReaderError::new(
+                            "instance specified by `into` option does not export a memory named `memory`",
+                            offset,
+                        ));
+                    }
+                }
+
+                check_into_func(
+                    into_ty,
+                    "canonical_abi_realloc",
+                    &[Type::I32, Type::I32, Type::I32, Type::I32],
+                    &[Type::I32],
+                    types,
+                    offset,
+                )?;
+                check_into_func(
+                    into_ty,
+                    "canonical_abi_free",
+                    &[Type::I32, Type::I32, Type::I32],
+                    &[],
+                    types,
+                    offset,
+                )?;
+            }
+            None => {
+                if ty.requires_into_option(types) {
+                    return Err(BinaryReaderError::new(
+                        "canonical option `into` is required",
+                        offset,
+                    ));
+                }
+            }
+        }
+
+        Ok(())
     }
 
     fn type_index_to_entity_type(
@@ -1056,8 +1176,7 @@ impl ComponentState {
         for module_arg in module_args {
             match module_arg.kind {
                 crate::ModuleArgKind::Instance(idx) => {
-                    let instance_type =
-                        types[self.module_instance_at(idx, types, offset)?].unwrap_module_type();
+                    let instance_type = self.module_instance_at(idx, types, offset)?;
                     for (name, ty) in instance_type.exports.iter() {
                         insert_arg(module_arg.name, name, ty.clone(), &mut args, offset)?;
                     }
@@ -1746,15 +1865,14 @@ impl ComponentState {
         }
     }
 
-    fn module_instance_at(
+    fn module_instance_at<'a>(
         &self,
         idx: u32,
-        types: &SnapshotList<TypeDef>,
+        types: &'a SnapshotList<TypeDef>,
         offset: usize,
-    ) -> Result<usize> {
-        let ty = self.instance_at(idx, offset)?;
+    ) -> Result<&'a ModuleType> {
         match &types[self.instance_at(idx, offset)?] {
-            TypeDef::Module(_) => Ok(ty),
+            TypeDef::Module(ty) => Ok(ty),
             _ => Err(BinaryReaderError::new(
                 format!("instance {} is not a module instance", idx),
                 offset,
@@ -1785,8 +1903,8 @@ impl ComponentState {
         types: &'a SnapshotList<TypeDef>,
         offset: usize,
     ) -> Result<&'a EntityType> {
-        match types[self.module_instance_at(idx, types, offset)?]
-            .unwrap_module_type()
+        match self
+            .module_instance_at(idx, types, offset)?
             .exports
             .get(name)
         {

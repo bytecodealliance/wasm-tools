@@ -123,6 +123,10 @@ pub enum PrimitiveInterfaceType {
 }
 
 impl PrimitiveInterfaceType {
+    pub(crate) fn requires_into_option(&self) -> bool {
+        matches!(self, PrimitiveInterfaceType::String)
+    }
+
     pub(crate) fn is_subtype_of(&self, other: &Self) -> bool {
         // Interface subtyping rules according to
         // https://github.com/WebAssembly/component-model/blob/17f94ed1270a98218e0e796ca1dad1feb7e5c507/design/mvp/Subtyping.md
