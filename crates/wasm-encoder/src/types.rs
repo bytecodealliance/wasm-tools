@@ -439,7 +439,8 @@ impl InterfaceType {
             Self::F64 => bytes.push(INTERFACE_TYPE_F64),
             Self::Char => bytes.push(INTERFACE_TYPE_CHAR),
             Self::String => bytes.push(INTERFACE_TYPE_STRING),
-            Self::Compound(index) => bytes.extend(encoders::u32(*index)),
+            // Compound type indexes are SLEB128 encoded, so use s33 here.
+            Self::Compound(index) => bytes.extend(encoders::s33(*index as i64)),
         }
     }
 }

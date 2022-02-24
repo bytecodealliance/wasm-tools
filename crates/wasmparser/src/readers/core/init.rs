@@ -13,8 +13,9 @@
  * limitations under the License.
  */
 
-use super::{BinaryReader, OperatorsReader};
+use crate::{BinaryReader, OperatorsReader};
 
+/// Represents an initialization expression.
 #[derive(Debug, Copy, Clone)]
 pub struct InitExpr<'a> {
     offset: usize,
@@ -22,10 +23,12 @@ pub struct InitExpr<'a> {
 }
 
 impl<'a> InitExpr<'a> {
+    /// Constructs a new `InitExpr` from the given data and offset.
     pub fn new(data: &[u8], offset: usize) -> InitExpr {
         InitExpr { offset, data }
     }
 
+    /// Gets a binary reader for the initialization expression.
     pub fn get_binary_reader<'b>(&self) -> BinaryReader<'b>
     where
         'a: 'b,
@@ -33,6 +36,7 @@ impl<'a> InitExpr<'a> {
         BinaryReader::new_with_offset(self.data, self.offset)
     }
 
+    /// Gets an operators reader for the initialization expression.
     pub fn get_operators_reader<'b>(&self) -> OperatorsReader<'b>
     where
         'a: 'b,

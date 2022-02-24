@@ -13,11 +13,47 @@
  * limitations under the License.
  */
 
-use super::{
-    BinaryReader, BinaryReaderError, NameType, Naming, Range, Result, SectionIterator,
-    SectionReader,
-};
+use crate::{BinaryReader, BinaryReaderError, Range, Result, SectionIterator, SectionReader};
 
+/// Represents a name for an index from the names section.
+#[derive(Debug, Copy, Clone)]
+pub struct Naming<'a> {
+    /// The index being named.
+    pub index: u32,
+    /// The name for the index.
+    pub name: &'a str,
+}
+
+/// Represents the type of name.
+#[derive(Debug, Copy, Clone)]
+pub enum NameType {
+    /// The name is for a module.
+    Module,
+    /// The name is for a function.
+    Function,
+    /// The name is for a local.
+    Local,
+    /// The name is for a label.
+    Label,
+    /// The name is for a type.
+    Type,
+    /// The name is for a table.
+    Table,
+    /// The name is for a memory.
+    Memory,
+    /// The name is for a global.
+    Global,
+    /// The name is for an element segment.
+    Element,
+    /// The name is for a data segment.
+    Data,
+    /// The name is unknown.
+    ///
+    /// The value is the unknown section identifier.
+    Unknown(u8),
+}
+
+/// Represents a single name in the names custom section.
 #[derive(Debug, Copy, Clone)]
 pub struct SingleName<'a> {
     data: &'a [u8],
@@ -25,6 +61,7 @@ pub struct SingleName<'a> {
 }
 
 impl<'a> SingleName<'a> {
+    /// Gets the name as a string.
     pub fn get_name<'b>(&self) -> Result<&'b str>
     where
         'a: 'b,
@@ -33,11 +70,13 @@ impl<'a> SingleName<'a> {
         reader.read_string()
     }
 
+    /// Gets the original position of the name.
     pub fn original_position(&self) -> usize {
         self.offset
     }
 }
 
+/// A reader for direct names in the names custom section.
 pub struct NamingReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,
@@ -59,14 +98,17 @@ impl<'a> NamingReader<'a> {
         Ok(())
     }
 
+    /// Gets the original position of the reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
+    /// Gets the count of items in the section.
     pub fn get_count(&self) -> u32 {
         self.count
     }
 
+    /// Reads a name from the names custom section.
     pub fn read<'b>(&mut self) -> Result<Naming<'b>>
     where
         'a: 'b,
@@ -77,6 +119,7 @@ impl<'a> NamingReader<'a> {
     }
 }
 
+/// Represents a name map from the names custom section.
 #[derive(Debug, Copy, Clone)]
 pub struct NameMap<'a> {
     data: &'a [u8],
@@ -84,6 +127,7 @@ pub struct NameMap<'a> {
 }
 
 impl<'a> NameMap<'a> {
+    /// Gets a naming reader for the map.
     pub fn get_map<'b>(&self) -> Result<NamingReader<'b>>
     where
         'a: 'b,
@@ -91,19 +135,23 @@ impl<'a> NameMap<'a> {
         NamingReader::new(self.data, self.offset)
     }
 
+    /// Gets the original position of the map.
     pub fn original_position(&self) -> usize {
         self.offset
     }
 }
 
+/// Represents an indirect name in the names custom section.
 #[derive(Debug, Copy, Clone)]
 pub struct IndirectNaming<'a> {
+    /// The indirect index of the name.
     pub indirect_index: u32,
     data: &'a [u8],
     offset: usize,
 }
 
 impl<'a> IndirectNaming<'a> {
+    /// Gets the naming reader for the indirect name.
     pub fn get_map<'b>(&self) -> Result<NamingReader<'b>>
     where
         'a: 'b,
@@ -111,11 +159,13 @@ impl<'a> IndirectNaming<'a> {
         NamingReader::new(self.data, self.offset)
     }
 
+    /// Gets the original position of the indirect name.
     pub fn original_position(&self) -> usize {
         self.offset
     }
 }
 
+/// Represents a reader for indirect names from the names custom section.
 pub struct IndirectNamingReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,
@@ -128,14 +178,17 @@ impl<'a> IndirectNamingReader<'a> {
         Ok(IndirectNamingReader { reader, count })
     }
 
+    /// Gets the count of indirect names.
     pub fn get_indirect_count(&self) -> u32 {
         self.count
     }
 
+    /// Gets the original position of the reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
+    /// Reads an indirect name from the reader.
     pub fn read<'b>(&mut self) -> Result<IndirectNaming<'b>>
     where
         'a: 'b,
@@ -152,6 +205,7 @@ impl<'a> IndirectNamingReader<'a> {
     }
 }
 
+/// Represents an indirect name map.
 #[derive(Debug, Copy, Clone)]
 pub struct IndirectNameMap<'a> {
     data: &'a [u8],
@@ -159,6 +213,7 @@ pub struct IndirectNameMap<'a> {
 }
 
 impl<'a> IndirectNameMap<'a> {
+    /// Gets an indirect naming reader for the map.
     pub fn get_indirect_map<'b>(&self) -> Result<IndirectNamingReader<'b>>
     where
         'a: 'b,
@@ -166,27 +221,39 @@ impl<'a> IndirectNameMap<'a> {
         IndirectNamingReader::new(self.data, self.offset)
     }
 
+    /// Gets an original position of the map.
     pub fn original_position(&self) -> usize {
         self.offset
     }
 }
 
+/// Represents a name read from the names custom section.
 #[derive(Debug, Copy, Clone)]
 pub enum Name<'a> {
+    /// The name is for the module.
     Module(SingleName<'a>),
+    /// The name is for the functions.
     Function(NameMap<'a>),
+    /// The name is for the function locals.
     Local(IndirectNameMap<'a>),
+    /// The name is for the function labels.
     Label(IndirectNameMap<'a>),
+    /// The name is for the types.
     Type(NameMap<'a>),
+    /// The name is for the tables.
     Table(NameMap<'a>),
+    /// The name is for the memories.
     Memory(NameMap<'a>),
+    /// The name is for the globals.
     Global(NameMap<'a>),
+    /// The name is for the element segments.
     Element(NameMap<'a>),
+    /// The name is for the data segments.
     Data(NameMap<'a>),
     /// An unknown [name subsection](https://webassembly.github.io/spec/core/appendix/custom.html#subsections).
     Unknown {
         /// The identifier for this subsection.
-        ty: u32,
+        ty: u8,
         /// The contents of this subsection.
         data: &'a [u8],
         /// The range of bytes, relative to the start of the original data
@@ -195,11 +262,13 @@ pub enum Name<'a> {
     },
 }
 
+/// A reader for the name custom section of a WebAssembly module.
 pub struct NameSectionReader<'a> {
     reader: BinaryReader<'a>,
 }
 
 impl<'a> NameSectionReader<'a> {
+    /// Constructs a new `NameSectionReader` from the given data and offset.
     pub fn new(data: &'a [u8], offset: usize) -> Result<NameSectionReader<'a>> {
         Ok(NameSectionReader {
             reader: BinaryReader::new_with_offset(data, offset),
@@ -209,21 +278,24 @@ impl<'a> NameSectionReader<'a> {
     fn verify_section_end(&self, end: usize) -> Result<()> {
         if self.reader.buffer.len() < end {
             return Err(BinaryReaderError::new(
-                "Name entry extends past end of the code section",
+                "name entry extends past end of the code section",
                 self.reader.original_offset + self.reader.buffer.len(),
             ));
         }
         Ok(())
     }
 
+    /// Determines if the reader is at the end of the section.
     pub fn eof(&self) -> bool {
         self.reader.eof()
     }
 
+    /// Gets the original position of the section reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
+    /// Reads a name from the section.
     pub fn read<'b>(&mut self) -> Result<Name<'b>>
     where
         'a: 'b,

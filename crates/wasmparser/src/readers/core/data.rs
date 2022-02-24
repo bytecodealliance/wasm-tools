@@ -13,27 +13,37 @@
  * limitations under the License.
  */
 
-use super::{
+use crate::{
     BinaryReader, BinaryReaderError, InitExpr, Range, Result, SectionIteratorLimited,
     SectionReader, SectionWithLimitedItems,
 };
 
+/// Represents a data segment in a core WebAssembly module.
 #[derive(Debug, Copy, Clone)]
 pub struct Data<'a> {
+    /// The kind of data segment.
     pub kind: DataKind<'a>,
+    /// The data of the data segment.
     pub data: &'a [u8],
+    /// The range of the data segment.
     pub range: Range,
 }
 
+/// The kind of data segment.
 #[derive(Debug, Copy, Clone)]
 pub enum DataKind<'a> {
+    /// The data segment is passive.
     Passive,
+    /// The data segment is active.
     Active {
+        /// The memory index for the data segment.
         memory_index: u32,
+        /// The initialization expression for the data segment.
         init_expr: InitExpr<'a>,
     },
 }
 
+/// A reader for the data section of a WebAssembly module.
 #[derive(Clone)]
 pub struct DataSectionReader<'a> {
     reader: BinaryReader<'a>,
@@ -42,6 +52,7 @@ pub struct DataSectionReader<'a> {
 }
 
 impl<'a> DataSectionReader<'a> {
+    /// Constructs a new `DataSectionReader` for the given data and offset.
     pub fn new(data: &'a [u8], offset: usize) -> Result<DataSectionReader<'a>> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
@@ -52,14 +63,17 @@ impl<'a> DataSectionReader<'a> {
         })
     }
 
+    /// Gets the original position of the section reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
+    /// Gets the count of items in the section.
     pub fn get_count(&self) -> u32 {
         self.count
     }
 
+    /// Whether or not to forbid data segments using bulk memory proposal.
     pub fn forbid_bulk_memory(&mut self, forbid: bool) {
         self.forbid_bulk_memory = forbid;
     }
@@ -67,7 +81,7 @@ impl<'a> DataSectionReader<'a> {
     fn verify_data_end(&self, end: usize) -> Result<()> {
         if self.reader.buffer.len() < end {
             return Err(BinaryReaderError::new(
-                "Data segment extends past end of the data section",
+                "data segment extends past end of the data section",
                 self.reader.original_offset + self.reader.buffer.len(),
             ));
         }

@@ -13,11 +13,12 @@
  * limitations under the License.
  */
 
-use super::{
+use crate::{
     BinaryReader, MemoryType, Range, Result, SectionIteratorLimited, SectionReader,
     SectionWithLimitedItems,
 };
 
+/// A reader for the memory section of a WebAssembly module.
 #[derive(Clone)]
 pub struct MemorySectionReader<'a> {
     reader: BinaryReader<'a>,
@@ -25,16 +26,19 @@ pub struct MemorySectionReader<'a> {
 }
 
 impl<'a> MemorySectionReader<'a> {
+    /// Constructs a new `MemorySectionReader` for the given data and offset.
     pub fn new(data: &'a [u8], offset: usize) -> Result<MemorySectionReader<'a>> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
         Ok(MemorySectionReader { reader, count })
     }
 
+    /// Gets the original position of the section reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
+    /// Gets the count of items in the section.
     pub fn get_count(&self) -> u32 {
         self.count
     }

@@ -1,4 +1,4 @@
-/* Copyright 2020 Mozilla Foundation
+/* Copyright 2018 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,74 +13,79 @@
  * limitations under the License.
  */
 
-use super::{
+use crate::{
     BinaryReader, Range, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
-    TagType,
+    TableType,
 };
 
+/// A reader for the table section of a WebAssembly module.
 #[derive(Clone)]
-pub struct TagSectionReader<'a> {
+pub struct TableSectionReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,
 }
 
-impl<'a> TagSectionReader<'a> {
-    pub fn new(data: &'a [u8], offset: usize) -> Result<TagSectionReader<'a>> {
+impl<'a> TableSectionReader<'a> {
+    /// Constructs a new `TableSectionReader` for the given data and offset.
+    pub fn new(data: &'a [u8], offset: usize) -> Result<TableSectionReader<'a>> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
-        Ok(TagSectionReader { reader, count })
+        Ok(TableSectionReader { reader, count })
     }
 
+    /// Gets the original position of the section reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
+    /// Gets the count of items in the section.
     pub fn get_count(&self) -> u32 {
         self.count
     }
 
-    /// Reads content of the tag section.
+    /// Reads content of the table section.
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::TagSectionReader;
-    /// # let data: &[u8] = &[0x01, 0x00, 0x01];
-    /// let mut tag_reader = TagSectionReader::new(data, 0).unwrap();
-    /// for _ in 0..tag_reader.get_count() {
-    ///     let et = tag_reader.read().expect("tag_type");
-    ///     println!("Tag: {:?}", et);
+    /// use wasmparser::TableSectionReader;
+    ///
+    /// # let data: &[u8] = &[0x01, 0x70, 0x01, 0x01, 0x01];
+    /// let mut table_reader = TableSectionReader::new(data, 0).unwrap();
+    /// for _ in 0..table_reader.get_count() {
+    ///     let table = table_reader.read().expect("table");
+    ///     println!("Table: {:?}", table);
     /// }
     /// ```
-    pub fn read(&mut self) -> Result<TagType> {
-        self.reader.read_tag_type()
+    pub fn read(&mut self) -> Result<TableType> {
+        self.reader.read_table_type()
     }
 }
 
-impl<'a> SectionReader for TagSectionReader<'a> {
-    type Item = TagType;
+impl<'a> SectionReader for TableSectionReader<'a> {
+    type Item = TableType;
     fn read(&mut self) -> Result<Self::Item> {
-        TagSectionReader::read(self)
+        TableSectionReader::read(self)
     }
     fn eof(&self) -> bool {
         self.reader.eof()
     }
     fn original_position(&self) -> usize {
-        TagSectionReader::original_position(self)
+        TableSectionReader::original_position(self)
     }
     fn range(&self) -> Range {
         self.reader.range()
     }
 }
 
-impl<'a> SectionWithLimitedItems for TagSectionReader<'a> {
+impl<'a> SectionWithLimitedItems for TableSectionReader<'a> {
     fn get_count(&self) -> u32 {
-        TagSectionReader::get_count(self)
+        TableSectionReader::get_count(self)
     }
 }
 
-impl<'a> IntoIterator for TagSectionReader<'a> {
-    type Item = Result<TagType>;
-    type IntoIter = SectionIteratorLimited<TagSectionReader<'a>>;
+impl<'a> IntoIterator for TableSectionReader<'a> {
+    type Item = Result<TableType>;
+    type IntoIter = SectionIteratorLimited<TableSectionReader<'a>>;
 
     fn into_iter(self) -> Self::IntoIter {
         SectionIteratorLimited::new(self)

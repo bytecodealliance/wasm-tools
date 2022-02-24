@@ -68,10 +68,11 @@ impl Section for TagSection {
     }
 }
 
-#[allow(missing_docs)]
+/// Represents a tag kind.
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TagKind {
+    /// The tag is an exception type.
     Exception = 0x0,
 }
 

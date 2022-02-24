@@ -13,29 +13,53 @@
  * limitations under the License.
  */
 
-use super::{BinaryReaderError, Range, Result};
+use crate::{BinaryReaderError, Range, Result};
 
+mod component;
+mod core;
+
+pub use self::component::*;
+pub use self::core::*;
+
+/// A trait implemented by section readers.
 pub trait SectionReader {
+    /// The item returned by the reader.
     type Item;
+
+    /// Reads an item from the section.
     fn read(&mut self) -> Result<Self::Item>;
+
+    /// Determines if the reader is at end-of-section.
     fn eof(&self) -> bool;
+
+    /// Gets the original position of the reader.
     fn original_position(&self) -> usize;
+
+    /// Gets the range of the reader.
     fn range(&self) -> Range;
+
+    /// Ensures the reader is at the end of the section.
+    ///
+    /// This methods returns an error if there is more data in the section
+    /// than what is described by the section's header.
     fn ensure_end(&self) -> Result<()> {
         if self.eof() {
             return Ok(());
         }
         Err(BinaryReaderError::new(
-            "Unexpected data at the end of the section",
+            "unexpected data at the end of the section",
             self.original_position(),
         ))
     }
 }
 
+/// Implemented by sections with a limited number of items.
 pub trait SectionWithLimitedItems {
+    /// Gets the count of the items in the section.
     fn get_count(&self) -> u32;
 }
 
+/// An iterator over items in a section.
 pub struct SectionIterator<R>
 where
     R: SectionReader,
@@ -48,6 +72,7 @@ impl<R> SectionIterator<R>
 where
     R: SectionReader,
 {
+    /// Constructs a new `SectionIterator` for the given section reader.
     pub fn new(reader: R) -> SectionIterator<R> {
         SectionIterator { reader, err: false }
     }
@@ -69,6 +94,7 @@ where
     }
 }
 
+/// An iterator over a limited section iterator.
 pub struct SectionIteratorLimited<R>
 where
     R: SectionReader + SectionWithLimitedItems,
@@ -82,6 +108,7 @@ impl<R> SectionIteratorLimited<R>
 where
     R: SectionReader + SectionWithLimitedItems,
 {
+    /// Constructs a new `SectionIteratorLimited` for the given limited section reader.
     pub fn new(reader: R) -> SectionIteratorLimited<R> {
         let left = reader.get_count();
         SectionIteratorLimited {

@@ -13,18 +13,39 @@
  * limitations under the License.
  */
 
-use super::{
-    BinaryReader, ExternalKind, Range, Result, SectionIteratorLimited, SectionReader,
-    SectionWithLimitedItems,
+use crate::{
+    BinaryReader, Range, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
 };
 
+/// External types as defined [here].
+///
+/// [here]: https://webassembly.github.io/spec/core/syntax/types.html#external-types
+#[derive(Debug, Copy, Clone)]
+pub enum ExternalKind {
+    /// The external kind is a function.
+    Func,
+    /// The external kind if a table.
+    Table,
+    /// The external kind is a memory.
+    Memory,
+    /// The external kind is a global.
+    Global,
+    /// The external kind is a tag.
+    Tag,
+}
+
+/// Represents an export in a WebAssembly module.
 #[derive(Debug, Copy, Clone)]
 pub struct Export<'a> {
-    pub field: &'a str,
+    /// The name of the exported item.
+    pub name: &'a str,
+    /// The kind of the export.
     pub kind: ExternalKind,
+    /// The index of the exported item.
     pub index: u32,
 }
 
+/// A reader for the export section of a WebAssembly module.
 #[derive(Clone)]
 pub struct ExportSectionReader<'a> {
     reader: BinaryReader<'a>,
@@ -32,16 +53,19 @@ pub struct ExportSectionReader<'a> {
 }
 
 impl<'a> ExportSectionReader<'a> {
-    pub fn new(data: &'a [u8], offset: usize) -> Result<ExportSectionReader<'a>> {
+    /// Constructs a new `ExportSectionReader` for the given data and offset.
+    pub fn new(data: &'a [u8], offset: usize) -> Result<Self> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
-        Ok(ExportSectionReader { reader, count })
+        Ok(Self { reader, count })
     }
 
+    /// Gets the original position of the section reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
+    /// Gets the count of items in the section.
     pub fn get_count(&self) -> u32 {
         self.count
     }
@@ -53,34 +77,32 @@ impl<'a> ExportSectionReader<'a> {
     /// use wasmparser::ExportSectionReader;
     ///
     /// # let data: &[u8] = &[0x01, 0x01, 0x65, 0x00, 0x00];
-    /// let mut export_reader = ExportSectionReader::new(data, 0).unwrap();
-    /// for _ in 0..export_reader.get_count() {
-    ///     let export = export_reader.read().expect("export");
+    /// let mut reader = ExportSectionReader::new(data, 0).unwrap();
+    /// for _ in 0..reader.get_count() {
+    ///     let export = reader.read().expect("export");
     ///     println!("Export: {:?}", export);
     /// }
     /// ```
-    pub fn read<'b>(&mut self) -> Result<Export<'b>>
-    where
-        'a: 'b,
-    {
-        let field = self.reader.read_string()?;
-        let kind = self.reader.read_external_kind()?;
-        let index = self.reader.read_var_u32()?;
-        Ok(Export { field, kind, index })
+    pub fn read(&mut self) -> Result<Export<'a>> {
+        self.reader.read_export()
     }
 }
 
 impl<'a> SectionReader for ExportSectionReader<'a> {
     type Item = Export<'a>;
+
     fn read(&mut self) -> Result<Self::Item> {
-        ExportSectionReader::read(self)
+        Self::read(self)
     }
+
     fn eof(&self) -> bool {
         self.reader.eof()
     }
+
     fn original_position(&self) -> usize {
-        ExportSectionReader::original_position(self)
+        Self::original_position(self)
     }
+
     fn range(&self) -> Range {
         self.reader.range()
     }
@@ -88,13 +110,13 @@ impl<'a> SectionReader for ExportSectionReader<'a> {
 
 impl<'a> SectionWithLimitedItems for ExportSectionReader<'a> {
     fn get_count(&self) -> u32 {
-        ExportSectionReader::get_count(self)
+        Self::get_count(self)
     }
 }
 
 impl<'a> IntoIterator for ExportSectionReader<'a> {
     type Item = Result<Export<'a>>;
-    type IntoIter = SectionIteratorLimited<ExportSectionReader<'a>>;
+    type IntoIter = SectionIteratorLimited<Self>;
 
     fn into_iter(self) -> Self::IntoIter {
         SectionIteratorLimited::new(self)

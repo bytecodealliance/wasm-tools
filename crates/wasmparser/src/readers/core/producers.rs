@@ -13,26 +13,32 @@
  * limitations under the License.
  */
 
-use super::{
+use crate::{
     BinaryReader, Range, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
 };
 
+/// Represents a field value in the producers custom section.
 #[derive(Debug, Copy, Clone)]
 pub struct ProducersFieldValue<'a> {
+    /// The field name.
     pub name: &'a str,
+    /// The field version.
     pub version: &'a str,
 }
 
+/// A reader for fields in the producers custom section.
 pub struct ProducersFieldValuesReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,
 }
 
 impl<'a> ProducersFieldValuesReader<'a> {
+    /// Gets the count of items in the reader.
     pub fn get_count(&self) -> u32 {
         self.count
     }
 
+    /// Gets the original position of the reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
@@ -45,6 +51,7 @@ impl<'a> ProducersFieldValuesReader<'a> {
         Ok(())
     }
 
+    /// Reads a field from the reader.
     pub fn read<'b>(&mut self) -> Result<ProducersFieldValue<'b>>
     where
         'a: 'b,
@@ -68,6 +75,7 @@ impl<'a> IntoIterator for ProducersFieldValuesReader<'a> {
     }
 }
 
+/// An iterator over fields in the producers custom section.
 pub struct ProducersFieldValuesIterator<'a> {
     reader: ProducersFieldValuesReader<'a>,
     left: u32,
@@ -91,8 +99,10 @@ impl<'a> Iterator for ProducersFieldValuesIterator<'a> {
     }
 }
 
+/// A field from the producers custom section.
 #[derive(Debug, Copy, Clone)]
 pub struct ProducersField<'a> {
+    /// The name of the field.
     pub name: &'a str,
     values_count: u32,
     values_data: &'a [u8],
@@ -100,6 +110,7 @@ pub struct ProducersField<'a> {
 }
 
 impl<'a> ProducersField<'a> {
+    /// Gets a reader of values for the field.
     pub fn get_producer_field_values_reader<'b>(&self) -> Result<ProducersFieldValuesReader<'b>>
     where
         'a: 'b,
@@ -111,6 +122,7 @@ impl<'a> ProducersField<'a> {
     }
 }
 
+/// A reader for the producers custom section of a WebAssembly module.
 pub struct ProducersSectionReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,
@@ -139,14 +151,17 @@ impl<'a> ProducersSectionReader<'a> {
         Ok(ProducersSectionReader { reader, count })
     }
 
+    /// Gets the original position of the reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
+    /// Gets the count of items in the reader.
     pub fn get_count(&self) -> u32 {
         self.count
     }
 
+    /// Reads an item from the reader.
     pub fn read<'b>(&mut self) -> Result<ProducersField<'b>>
     where
         'a: 'b,

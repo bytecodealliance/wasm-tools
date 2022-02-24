@@ -13,260 +13,26 @@
  * limitations under the License.
  */
 
-use std::error::Error;
-use std::fmt;
-use std::result;
+use crate::{BinaryReader, BinaryReaderError, Result, Type};
 
-#[derive(Debug, Clone)]
-pub struct BinaryReaderError {
-    // Wrap the actual error data in a `Box` so that the error is just one
-    // word. This means that we can continue returning small `Result`s in
-    // registers.
-    pub(crate) inner: Box<BinaryReaderErrorInner>,
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct BinaryReaderErrorInner {
-    pub(crate) message: String,
-    pub(crate) offset: usize,
-    pub(crate) needed_hint: Option<usize>,
-}
-
-pub type Result<T, E = BinaryReaderError> = result::Result<T, E>;
-
-impl Error for BinaryReaderError {}
-
-impl fmt::Display for BinaryReaderError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{} (at offset {})",
-            self.inner.message, self.inner.offset
-        )
-    }
-}
-
-impl BinaryReaderError {
-    pub(crate) fn new(message: impl Into<String>, offset: usize) -> Self {
-        let message = message.into();
-        BinaryReaderError {
-            inner: Box::new(BinaryReaderErrorInner {
-                message,
-                offset,
-                needed_hint: None,
-            }),
-        }
-    }
-
-    pub(crate) fn eof(offset: usize, needed_hint: usize) -> Self {
-        BinaryReaderError {
-            inner: Box::new(BinaryReaderErrorInner {
-                message: "Unexpected EOF".to_string(),
-                offset,
-                needed_hint: Some(needed_hint),
-            }),
-        }
-    }
-
-    /// Get this error's message.
-    pub fn message(&self) -> &str {
-        &self.inner.message
-    }
-
-    /// Get the offset within the Wasm binary where the error occured.
-    pub fn offset(&self) -> usize {
-        self.inner.offset
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum CustomSectionKind {
-    Unknown,
-    Name,
-    Producers,
-    SourceMappingURL,
-    Reloc,
-    Linking,
-}
-
-/// Section code as defined [here].
-///
-/// [here]: https://webassembly.github.io/spec/core/binary/modules.html#sections
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum SectionCode<'a> {
-    Custom {
-        name: &'a str,
-        kind: CustomSectionKind,
-    },
-    Type,       // Function signature declarations
-    Alias,      // Aliased indices from nested/parent modules
-    Import,     // Import declarations
-    Module,     // Module declarations
-    Instance,   // Instance definitions
-    Function,   // Function declarations
-    Table,      // Indirect function table and other tables
-    Memory,     // Memory attributes
-    Global,     // Global declarations
-    Export,     // Exports
-    Start,      // Start function declaration
-    Element,    // Elements section
-    ModuleCode, // Module definitions
-    Code,       // Function bodies (code)
-    Data,       // Data segments
-    DataCount,  // Count of passive data segments
-    Tag,        // Tag declarations
-}
-
-/// Types as defined [here].
-///
-/// [here]: https://webassembly.github.io/spec/core/syntax/types.html#types
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum Type {
-    I32,
-    I64,
-    F32,
-    F64,
-    V128,
-    FuncRef,
-    ExternRef,
-    ExnRef,
-    Func,
-    EmptyBlockType,
-}
-
-/// Either a value type or a function type.
+/// Represents a block type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum TypeOrFuncType {
-    /// A value type.
-    ///
-    /// When used as the type for a block, this type is the optional result
-    /// type: `[] -> [t?]`.
+pub enum BlockType {
+    /// The block produces consumes nor produces any values.
+    Empty,
+    /// The block produces a singular value of the given type ([] -> \[t]).
     Type(Type),
-
-    /// A function type (referenced as an index into the types section).
+    /// The block is described by a function type.
+    ///
+    /// The index is to a function type in the types section.
     FuncType(u32),
 }
 
-/// External types as defined [here].
-///
-/// [here]: https://webassembly.github.io/spec/core/syntax/types.html#external-types
-#[derive(Debug, Copy, Clone)]
-pub enum ExternalKind {
-    Function,
-    Table,
-    Memory,
-    Tag,
-    Global,
-    Type,
-    Module,
-    Instance,
-}
-
-#[derive(Debug, Clone)]
-pub enum TypeDef<'a> {
-    Func(FuncType),
-    Instance(InstanceType<'a>),
-    Module(ModuleType<'a>),
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct FuncType {
-    pub params: Box<[Type]>,
-    pub returns: Box<[Type]>,
-}
-
-#[derive(Debug, Clone)]
-pub struct InstanceType<'a> {
-    pub exports: Box<[ExportType<'a>]>,
-}
-
-#[derive(Debug, Clone)]
-pub struct ModuleType<'a> {
-    pub imports: Box<[crate::Import<'a>]>,
-    pub exports: Box<[ExportType<'a>]>,
-}
-
-#[derive(Debug, Clone)]
-pub struct ExportType<'a> {
-    pub name: &'a str,
-    pub ty: ImportSectionEntryType,
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct TableType {
-    pub element_type: Type,
-    /// Initial size of this table, in elements.
-    pub initial: u32,
-    /// Optional maximum size of the table, in elements.
-    pub maximum: Option<u32>,
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct MemoryType {
-    /// Whether or not this is a 64-bit memory, using i64 as an index. If this
-    /// is false it's a 32-bit memory using i32 as an index.
-    ///
-    /// This is part of the memory64 proposal in WebAssembly.
-    pub memory64: bool,
-
-    /// Whether or not this is a "shared" memory, indicating that it should be
-    /// send-able across threads and the `maximum` field is always present for
-    /// valid types.
-    ///
-    /// This is part of the threads proposal in WebAssembly.
-    pub shared: bool,
-
-    /// Initial size of this memory, in wasm pages.
-    ///
-    /// For 32-bit memories (when `memory64` is `false`) this is guaranteed to
-    /// be at most `u32::MAX` for valid types.
-    pub initial: u64,
-
-    /// Optional maximum size of this memory, in wasm pages.
-    ///
-    /// For 32-bit memories (when `memory64` is `false`) this is guaranteed to
-    /// be at most `u32::MAX` for valid types. This field is always present for
-    /// valid wasm memories when `shared` is `true`.
-    pub maximum: Option<u64>,
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct TagType {
-    pub type_index: u32,
-}
-
-impl MemoryType {
-    pub fn index_type(&self) -> Type {
-        if self.memory64 {
-            Type::I64
-        } else {
-            Type::I32
-        }
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct GlobalType {
-    pub content_type: Type,
-    pub mutable: bool,
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum ImportSectionEntryType {
-    Function(u32),
-    Table(TableType),
-    Memory(MemoryType),
-    Tag(TagType),
-    Global(GlobalType),
-    Module(u32),
-    Instance(u32),
-}
-
+/// Represents a memory immediate in a WebAssembly memory instruction.
 #[derive(Debug, Copy, Clone)]
 pub struct MemoryImmediate {
     /// Alignment, stored as `n` where the actual alignment is `2^n`
     pub align: u8,
-
     /// A fixed byte-offset that this memory immediate specifies.
     ///
     /// Note that the memory64 proposal can specify a full 64-bit byte offset
@@ -274,51 +40,12 @@ pub struct MemoryImmediate {
     /// memory immediates for 32-bit memories are guaranteed to be at most
     /// `u32::MAX` whereas 64-bit memories can use the full 64-bits.
     pub offset: u64,
-
     /// The index of the memory this immediate points to.
     ///
     /// Note that this points within the module's own memory index space, and
     /// is always zero unless the multi-memory proposal of WebAssembly is
     /// enabled.
     pub memory: u32,
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct Naming<'a> {
-    pub index: u32,
-    pub name: &'a str,
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum NameType {
-    Module,
-    Function,
-    Local,
-    Label,
-    Type,
-    Table,
-    Memory,
-    Global,
-    Element,
-    Data,
-    Unknown(u32),
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum LinkingType {
-    StackPointer(u32),
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum RelocType {
-    FunctionIndexLEB,
-    TableIndexSLEB,
-    TableIndexI32,
-    GlobalAddrLEB,
-    GlobalAddrSLEB,
-    GlobalAddrI32,
-    TypeIndexLEB,
-    GlobalIndexLEB,
 }
 
 /// A br_table entries representation.
@@ -330,65 +57,72 @@ pub struct BrTable<'a> {
 }
 
 /// An IEEE binary32 immediate floating point value, represented as a u32
-/// containing the bitpattern.
+/// containing the bit pattern.
 ///
 /// All bit patterns are allowed.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Ieee32(pub(crate) u32);
 
 impl Ieee32 {
+    /// Gets the underlying bits of the 32-bit float.
     pub fn bits(self) -> u32 {
         self.0
     }
 }
 
 /// An IEEE binary64 immediate floating point value, represented as a u64
-/// containing the bitpattern.
+/// containing the bit pattern.
 ///
 /// All bit patterns are allowed.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Ieee64(pub(crate) u64);
 
 impl Ieee64 {
+    /// Gets the underlying bits of the 64-bit float.
     pub fn bits(self) -> u64 {
         self.0
     }
 }
 
+/// Represents a 128-bit vector value.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct V128(pub(crate) [u8; 16]);
 
 impl V128 {
+    /// Gets the bytes of the vector value.
     pub fn bytes(&self) -> &[u8; 16] {
         &self.0
     }
 
+    /// Gets a signed 128-bit integer value from the vector's bytes.
     pub fn i128(&self) -> i128 {
         i128::from_le_bytes(self.0)
     }
 }
 
+/// Represents a SIMD lane index.
 pub type SIMDLaneIndex = u8;
 
 /// Instructions as defined [here].
 ///
 /// [here]: https://webassembly.github.io/spec/core/binary/instructions.html
 #[derive(Debug, Clone)]
+#[allow(missing_docs)]
 pub enum Operator<'a> {
     Unreachable,
     Nop,
     Block {
-        ty: TypeOrFuncType,
+        ty: BlockType,
     },
     Loop {
-        ty: TypeOrFuncType,
+        ty: BlockType,
     },
     If {
-        ty: TypeOrFuncType,
+        ty: BlockType,
     },
     Else,
     Try {
-        ty: TypeOrFuncType,
+        ty: BlockType,
     },
     Catch {
         index: u32,
@@ -1270,4 +1004,174 @@ pub enum Operator<'a> {
     F32x4RelaxedMax,
     F64x2RelaxedMin,
     F64x2RelaxedMax,
+}
+
+/// A reader for a core WebAssembly function's operators.
+#[derive(Clone)]
+pub struct OperatorsReader<'a> {
+    pub(crate) reader: BinaryReader<'a>,
+}
+
+impl<'a> OperatorsReader<'a> {
+    pub(crate) fn new<'b>(data: &'a [u8], offset: usize) -> OperatorsReader<'b>
+    where
+        'a: 'b,
+    {
+        OperatorsReader {
+            reader: BinaryReader::new_with_offset(data, offset),
+        }
+    }
+
+    /// Determines if the reader is at the end of the operators.
+    pub fn eof(&self) -> bool {
+        self.reader.eof()
+    }
+
+    /// Gets the original position of the reader.
+    pub fn original_position(&self) -> usize {
+        self.reader.original_position()
+    }
+
+    /// Whether or not to allow 64-bit memory arguments in the
+    /// the operators being read.
+    ///
+    /// This is intended to be `true` when support for the memory64
+    /// WebAssembly proposal is also enabled.
+    pub fn allow_memarg64(&mut self, allow: bool) {
+        self.reader.allow_memarg64(allow);
+    }
+
+    /// Ensures the reader is at the end.
+    ///
+    /// This function returns an error if there is extra data after the operators.
+    pub fn ensure_end(&self) -> Result<()> {
+        if self.eof() {
+            return Ok(());
+        }
+        Err(BinaryReaderError::new(
+            "unexpected data at the end of operators",
+            self.reader.original_position(),
+        ))
+    }
+
+    /// Reads an operator from the reader.
+    pub fn read<'b>(&mut self) -> Result<Operator<'b>>
+    where
+        'a: 'b,
+    {
+        self.reader.read_operator()
+    }
+
+    /// Converts to an iterator of operators paired with offsets.
+    pub fn into_iter_with_offsets<'b>(self) -> OperatorsIteratorWithOffsets<'b>
+    where
+        'a: 'b,
+    {
+        OperatorsIteratorWithOffsets {
+            reader: self,
+            err: false,
+        }
+    }
+
+    /// Reads an operator with its offset.
+    pub fn read_with_offset<'b>(&mut self) -> Result<(Operator<'b>, usize)>
+    where
+        'a: 'b,
+    {
+        let pos = self.reader.original_position();
+        Ok((self.read()?, pos))
+    }
+
+    /// Gets a binary reader from this operators reader.
+    pub fn get_binary_reader(&self) -> BinaryReader<'a> {
+        self.reader.clone()
+    }
+}
+
+impl<'a> IntoIterator for OperatorsReader<'a> {
+    type Item = Result<Operator<'a>>;
+    type IntoIter = OperatorsIterator<'a>;
+
+    /// Reads content of the code section.
+    ///
+    /// # Examples
+    /// ```
+    /// use wasmparser::{Operator, CodeSectionReader, Result};
+    /// # let data: &[u8] = &[
+    /// #     0x01, 0x03, 0x00, 0x01, 0x0b];
+    /// let mut code_reader = CodeSectionReader::new(data, 0).unwrap();
+    /// for _ in 0..code_reader.get_count() {
+    ///     let body = code_reader.read().expect("function body");
+    ///     let mut op_reader = body.get_operators_reader().expect("op reader");
+    ///     let ops = op_reader.into_iter().collect::<Result<Vec<Operator>>>().expect("ops");
+    ///     assert!(
+    ///         if let [Operator::Nop, Operator::End] = ops.as_slice() { true } else { false },
+    ///         "found {:?}",
+    ///         ops
+    ///     );
+    /// }
+    /// ```
+    fn into_iter(self) -> Self::IntoIter {
+        OperatorsIterator {
+            reader: self,
+            err: false,
+        }
+    }
+}
+
+/// An iterator over a function's operators.
+pub struct OperatorsIterator<'a> {
+    reader: OperatorsReader<'a>,
+    err: bool,
+}
+
+impl<'a> Iterator for OperatorsIterator<'a> {
+    type Item = Result<Operator<'a>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.err || self.reader.eof() {
+            return None;
+        }
+        let result = self.reader.read();
+        self.err = result.is_err();
+        Some(result)
+    }
+}
+
+/// An iterator over a function's operators with offsets.
+pub struct OperatorsIteratorWithOffsets<'a> {
+    reader: OperatorsReader<'a>,
+    err: bool,
+}
+
+impl<'a> Iterator for OperatorsIteratorWithOffsets<'a> {
+    type Item = Result<(Operator<'a>, usize)>;
+
+    /// Reads content of the code section with offsets.
+    ///
+    /// # Examples
+    /// ```
+    /// use wasmparser::{Operator, CodeSectionReader, Result};
+    /// # let data: &[u8] = &[
+    /// #     0x01, 0x03, 0x00, /* offset = 23 */ 0x01, 0x0b];
+    /// let mut code_reader = CodeSectionReader::new(data, 20).unwrap();
+    /// for _ in 0..code_reader.get_count() {
+    ///     let body = code_reader.read().expect("function body");
+    ///     let mut op_reader = body.get_operators_reader().expect("op reader");
+    ///     let ops = op_reader.into_iter_with_offsets().collect::<Result<Vec<(Operator, usize)>>>().expect("ops");
+    ///     assert!(
+    ///         if let [(Operator::Nop, 23), (Operator::End, 24)] = ops.as_slice() { true } else { false },
+    ///         "found {:?}",
+    ///         ops
+    ///     );
+    /// }
+    /// ```
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.err || self.reader.eof() {
+            return None;
+        }
+        let result = self.reader.read_with_offset();
+        self.err = result.is_err();
+        Some(result)
+    }
 }

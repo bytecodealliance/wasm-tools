@@ -190,7 +190,7 @@ mod tests {
             .op(
                 1,
                 &Operator::Block {
-                    ty: crate::TypeOrFuncType::Type(crate::Type::EmptyBlockType)
+                    ty: crate::BlockType::Empty
                 }
             )
             .is_ok());

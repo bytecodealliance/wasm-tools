@@ -13,30 +13,41 @@
  * limitations under the License.
  */
 
-use super::{
-    BinaryReader, BinaryReaderError, InitExpr, Range, Result, SectionIteratorLimited,
+use crate::{
+    BinaryReader, BinaryReaderError, ExternalKind, InitExpr, Range, Result, SectionIteratorLimited,
     SectionReader, SectionWithLimitedItems, Type,
 };
-use crate::ExternalKind;
 
+/// Represents a core WebAssembly element segment.
 #[derive(Clone)]
 pub struct Element<'a> {
+    /// The kind of the element segment.
     pub kind: ElementKind<'a>,
+    /// The initial elements of the element segment.
     pub items: ElementItems<'a>,
+    /// The type of the elements.
     pub ty: Type,
+    /// The range of the the element segment.
     pub range: Range,
 }
 
+/// The kind of element segment.
 #[derive(Clone)]
 pub enum ElementKind<'a> {
+    /// The element segment is passive.
     Passive,
+    /// The element segment is active.
     Active {
+        /// The index of the table being initialized.
         table_index: u32,
+        /// The initial expression of the element segment.
         init_expr: InitExpr<'a>,
     },
+    /// The element segment is declared.
     Declared,
 }
 
+/// Represents the items of an element segment.
 #[derive(Debug, Copy, Clone)]
 pub struct ElementItems<'a> {
     exprs: bool,
@@ -44,13 +55,17 @@ pub struct ElementItems<'a> {
     data: &'a [u8],
 }
 
+/// Represents an individual item of an element segment.
 #[derive(Debug)]
 pub enum ElementItem<'a> {
+    /// The item is a function index.
     Func(u32),
+    /// The item is an initialization expression.
     Expr(InitExpr<'a>),
 }
 
 impl<'a> ElementItems<'a> {
+    /// Gets an items reader for the items in an element segment.
     pub fn get_items_reader<'b>(&self) -> Result<ElementItemsReader<'b>>
     where
         'a: 'b,
@@ -59,6 +74,7 @@ impl<'a> ElementItems<'a> {
     }
 }
 
+/// A reader for element items in an element segment.
 pub struct ElementItemsReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,
@@ -66,6 +82,7 @@ pub struct ElementItemsReader<'a> {
 }
 
 impl<'a> ElementItemsReader<'a> {
+    /// Constructs a new `ElementItemsReader` for the given data and offset.
     pub fn new(data: &[u8], offset: usize, exprs: bool) -> Result<ElementItemsReader> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
@@ -76,18 +93,22 @@ impl<'a> ElementItemsReader<'a> {
         })
     }
 
+    /// Gets the original position of the reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
+    /// Gets the count of element items in the segment.
     pub fn get_count(&self) -> u32 {
         self.count
     }
 
+    /// Whether or not initialization expressions are used.
     pub fn uses_exprs(&self) -> bool {
         self.exprs
     }
 
+    /// Reads an element item from the segment.
     pub fn read(&mut self) -> Result<ElementItem<'a>> {
         if self.exprs {
             let expr = self.reader.read_init_expr()?;
@@ -112,6 +133,7 @@ impl<'a> IntoIterator for ElementItemsReader<'a> {
     }
 }
 
+/// An iterator over element items in an element segment.
 pub struct ElementItemsIterator<'a> {
     reader: ElementItemsReader<'a>,
     left: u32,
@@ -135,6 +157,7 @@ impl<'a> Iterator for ElementItemsIterator<'a> {
     }
 }
 
+/// A reader for the element section of a WebAssembly module.
 #[derive(Clone)]
 pub struct ElementSectionReader<'a> {
     reader: BinaryReader<'a>,
@@ -142,16 +165,19 @@ pub struct ElementSectionReader<'a> {
 }
 
 impl<'a> ElementSectionReader<'a> {
+    /// Constructs a new `ElementSectionReader` for the given data and offset.
     pub fn new(data: &'a [u8], offset: usize) -> Result<ElementSectionReader<'a>> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
         Ok(ElementSectionReader { reader, count })
     }
 
+    /// Gets the original position of the section reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
+    /// Gets the count of items in the section.
     pub fn get_count(&self) -> u32 {
         self.count
     }
@@ -220,7 +246,7 @@ impl<'a> ElementSectionReader<'a> {
                 self.reader.read_type()?
             } else {
                 match self.reader.read_external_kind()? {
-                    ExternalKind::Function => Type::FuncRef,
+                    ExternalKind::Func => Type::FuncRef,
                     _ => {
                         return Err(BinaryReaderError::new(
                             "only the function external type is supported in elem segment",

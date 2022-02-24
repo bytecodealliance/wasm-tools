@@ -1,4 +1,4 @@
-/* Copyright 2018 Mozilla Foundation
+/* Copyright 2020 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,74 +13,78 @@
  * limitations under the License.
  */
 
-use super::{
+use crate::{
     BinaryReader, Range, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
+    TagType,
 };
 
+/// A reader for the tags section of a WebAssembly module.
 #[derive(Clone)]
-pub struct FunctionSectionReader<'a> {
+pub struct TagSectionReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,
 }
 
-impl<'a> FunctionSectionReader<'a> {
-    pub fn new(data: &'a [u8], offset: usize) -> Result<FunctionSectionReader<'a>> {
+impl<'a> TagSectionReader<'a> {
+    /// Constructs a new `TagSectionReader` for the given data and offset.
+    pub fn new(data: &'a [u8], offset: usize) -> Result<TagSectionReader<'a>> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
-        Ok(FunctionSectionReader { reader, count })
+        Ok(TagSectionReader { reader, count })
     }
 
+    /// Gets the original position of the section reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
+    /// Gets the count of items in the section.
     pub fn get_count(&self) -> u32 {
         self.count
     }
 
-    /// Reads function type index from the function section.
+    /// Reads content of the tag section.
     ///
     /// # Examples
-    ///
     /// ```
-    /// use wasmparser::FunctionSectionReader;
-    /// # let data: &[u8] = &[0x01, 0x00];
-    /// let mut function_reader = FunctionSectionReader::new(data, 0).unwrap();
-    /// for _ in 0..function_reader.get_count() {
-    ///     let ty = function_reader.read().expect("function type index");
-    ///     println!("Function type index: {}", ty);
+    /// use wasmparser::TagSectionReader;
+    /// # let data: &[u8] = &[0x01, 0x00, 0x01];
+    /// let mut reader = TagSectionReader::new(data, 0).unwrap();
+    /// for _ in 0..reader.get_count() {
+    ///     let ty = reader.read().expect("tag type");
+    ///     println!("Tag type: {:?}", ty);
     /// }
     /// ```
-    pub fn read(&mut self) -> Result<u32> {
-        self.reader.read_var_u32()
+    pub fn read(&mut self) -> Result<TagType> {
+        self.reader.read_tag_type()
     }
 }
 
-impl<'a> SectionReader for FunctionSectionReader<'a> {
-    type Item = u32;
+impl<'a> SectionReader for TagSectionReader<'a> {
+    type Item = TagType;
     fn read(&mut self) -> Result<Self::Item> {
-        FunctionSectionReader::read(self)
+        TagSectionReader::read(self)
     }
     fn eof(&self) -> bool {
         self.reader.eof()
     }
     fn original_position(&self) -> usize {
-        FunctionSectionReader::original_position(self)
+        TagSectionReader::original_position(self)
     }
     fn range(&self) -> Range {
         self.reader.range()
     }
 }
 
-impl<'a> SectionWithLimitedItems for FunctionSectionReader<'a> {
+impl<'a> SectionWithLimitedItems for TagSectionReader<'a> {
     fn get_count(&self) -> u32 {
-        FunctionSectionReader::get_count(self)
+        TagSectionReader::get_count(self)
     }
 }
 
-impl<'a> IntoIterator for FunctionSectionReader<'a> {
-    type Item = Result<u32>;
-    type IntoIter = SectionIteratorLimited<FunctionSectionReader<'a>>;
+impl<'a> IntoIterator for TagSectionReader<'a> {
+    type Item = Result<TagType>;
+    type IntoIter = SectionIteratorLimited<TagSectionReader<'a>>;
 
     fn into_iter(self) -> Self::IntoIter {
         SectionIteratorLimited::new(self)

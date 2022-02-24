@@ -1,7 +1,7 @@
 use crate::{Error, Result};
 use std::convert::TryFrom;
 use wasm_encoder::{BlockType, ValType};
-use wasmparser::{Type, TypeDef, TypeOrFuncType};
+use wasmparser::{Type, TypeDef};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum PrimitiveTypeInfo {
@@ -13,8 +13,6 @@ pub enum PrimitiveTypeInfo {
     FuncRef,
     ExternRef,
     Empty,
-    ExnRef,
-    Func,
 }
 
 #[derive(Debug, Clone)]
@@ -39,17 +37,14 @@ impl From<Type> for PrimitiveTypeInfo {
             Type::V128 => PrimitiveTypeInfo::V128,
             Type::FuncRef => PrimitiveTypeInfo::FuncRef,
             Type::ExternRef => PrimitiveTypeInfo::ExternRef,
-            Type::EmptyBlockType => PrimitiveTypeInfo::Empty,
-            Type::ExnRef => PrimitiveTypeInfo::ExnRef,
-            Type::Func => PrimitiveTypeInfo::Func,
         }
     }
 }
 
-impl TryFrom<TypeDef<'_>> for TypeInfo {
+impl TryFrom<TypeDef> for TypeInfo {
     type Error = Error;
 
-    fn try_from(value: TypeDef<'_>) -> Result<Self> {
+    fn try_from(value: TypeDef) -> Result<Self> {
         match value {
             TypeDef::Func(ft) => Ok(TypeInfo::Func(FuncInfo {
                 params: ft
@@ -63,7 +58,6 @@ impl TryFrom<TypeDef<'_>> for TypeInfo {
                     .map(|&t| PrimitiveTypeInfo::from(t))
                     .collect(),
             })),
-            _ => Err(Error::unsupported(format!("{:?}", value))),
         }
     }
 }
@@ -77,17 +71,13 @@ pub fn map_type(tpe: Type) -> Result<ValType> {
         Type::V128 => Ok(ValType::V128),
         Type::FuncRef => Ok(ValType::FuncRef),
         Type::ExternRef => Ok(ValType::ExternRef),
-        _ => Err(Error::unsupported(format!(
-            "{:?} is not supported in `wasm-encoder`",
-            tpe
-        ))),
     }
 }
 
-pub fn map_block_type(ty: TypeOrFuncType) -> Result<BlockType> {
+pub fn map_block_type(ty: wasmparser::BlockType) -> Result<BlockType> {
     match ty {
-        TypeOrFuncType::FuncType(f) => Ok(BlockType::FunctionType(f)),
-        TypeOrFuncType::Type(Type::EmptyBlockType) => Ok(BlockType::Empty),
-        TypeOrFuncType::Type(ty) => Ok(BlockType::Result(map_type(ty)?)),
+        wasmparser::BlockType::Empty => Ok(BlockType::Empty),
+        wasmparser::BlockType::Type(ty) => Ok(BlockType::Result(map_type(ty)?)),
+        wasmparser::BlockType::FuncType(f) => Ok(BlockType::FunctionType(f)),
     }
 }

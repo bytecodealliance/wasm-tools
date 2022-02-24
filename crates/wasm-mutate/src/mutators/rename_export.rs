@@ -1,4 +1,4 @@
-//! Mutator that generates a random renaming of a prexisting export
+//! Mutator that generates a random renaming of a preexisting export
 use super::Mutator;
 use crate::{Result, WasmMutate};
 use rand::Rng;
@@ -59,15 +59,15 @@ impl Mutator for RenameExportMutator {
 
             let new_name = if skip_at != i {
                 // otherwise bypass
-                String::from(export.field)
+                String::from(export.name)
             } else {
-                let new_name = self.limited_string(config, export.field)?;
+                let new_name = self.limited_string(config, export.name)?;
                 log::debug!("Renaming export {:?} by {:?}", export, new_name);
                 new_name
             };
 
             match export.kind {
-                wasmparser::ExternalKind::Function => {
+                wasmparser::ExternalKind::Func => {
                     exports.export(new_name.as_str(), Export::Function(export.index));
                 }
                 wasmparser::ExternalKind::Table => {

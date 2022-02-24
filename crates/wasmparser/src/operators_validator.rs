@@ -19,12 +19,13 @@
 //
 // That algorithm is followed pretty closely here, namely `push_operand`,
 // `pop_operand`, `push_ctrl`, and `pop_ctrl`. If anything here is a bit
-// confusing it's recomended to read over that section to see how it maps to
+// confusing it's recommended to read over that section to see how it maps to
 // the various methods here.
 
-use crate::limits::MAX_WASM_FUNCTION_LOCALS;
-use crate::primitives::{MemoryImmediate, Operator, SIMDLaneIndex, Type, TypeOrFuncType};
-use crate::{BinaryReaderError, Result, WasmFeatures, WasmFuncType, WasmModuleResources};
+use crate::{
+    limits::MAX_WASM_FUNCTION_LOCALS, BinaryReaderError, BlockType, MemoryImmediate, Operator,
+    Result, SIMDLaneIndex, Type, WasmFeatures, WasmFuncType, WasmModuleResources,
+};
 
 /// A wrapper around a `BinaryReaderError` where the inner error's offset is a
 /// temporary placeholder value. This can be converted into a proper
@@ -100,7 +101,7 @@ struct Frame {
     kind: FrameKind,
     // The type signature of this frame, represented as a singular return type
     // or a type index pointing into the module's types.
-    block_type: TypeOrFuncType,
+    block_type: BlockType,
     // The index, below which, this frame cannot modify the operand stack.
     height: usize,
     // Whether this frame is unreachable so far.
@@ -142,7 +143,7 @@ impl OperatorValidator {
             operands: Vec::new(),
             control: vec![Frame {
                 kind: FrameKind::Block,
-                block_type: TypeOrFuncType::FuncType(ty),
+                block_type: BlockType::FuncType(ty),
                 height: 0,
                 unreachable: false,
             }],
@@ -161,7 +162,7 @@ impl OperatorValidator {
             operands: Vec::new(),
             control: vec![Frame {
                 kind: FrameKind::Block,
-                block_type: TypeOrFuncType::Type(ty),
+                block_type: BlockType::Type(ty),
                 height: 0,
                 unreachable: false,
             }],
@@ -199,7 +200,7 @@ impl OperatorValidator {
             }
             // If `Ok` is returned we found the index exactly, or if `Err` is
             // returned the position is the one which is the least index
-            // greater thatn `idx`, which is still the type of `idx` according
+            // greater that `idx`, which is still the type of `idx` according
             // to our "compressed" representation. In both cases we access the
             // list at index `i`.
             Ok(i) | Err(i) => Ok(self.locals[i].1),
@@ -281,7 +282,7 @@ impl OperatorValidator {
     fn push_ctrl(
         &mut self,
         kind: FrameKind,
-        ty: TypeOrFuncType,
+        ty: BlockType,
         resources: &impl WasmModuleResources,
     ) -> OperatorValidatorResult<()> {
         // Push a new frame which has a snapshot of the height of the current
@@ -331,7 +332,7 @@ impl OperatorValidator {
     ///
     /// Returns the type signature of the block that we're jumping to as well
     /// as the kind of block if the jump is valid. Otherwise returns an error.
-    fn jump(&self, depth: u32) -> OperatorValidatorResult<(TypeOrFuncType, FrameKind)> {
+    fn jump(&self, depth: u32) -> OperatorValidatorResult<(BlockType, FrameKind)> {
         match (self.control.len() - 1).checked_sub(depth as usize) {
             Some(i) => {
                 let frame = &self.control[i];
@@ -471,20 +472,20 @@ impl OperatorValidator {
     /// Validates a block type, primarily with various in-flight proposals.
     fn check_block_type(
         &self,
-        ty: TypeOrFuncType,
+        ty: BlockType,
         resources: impl WasmModuleResources,
     ) -> OperatorValidatorResult<()> {
         match ty {
-            TypeOrFuncType::Type(Type::EmptyBlockType)
-            | TypeOrFuncType::Type(Type::I32)
-            | TypeOrFuncType::Type(Type::I64)
-            | TypeOrFuncType::Type(Type::F32)
-            | TypeOrFuncType::Type(Type::F64) => Ok(()),
-            TypeOrFuncType::Type(Type::ExternRef) | TypeOrFuncType::Type(Type::FuncRef) => {
+            BlockType::Empty
+            | BlockType::Type(Type::I32)
+            | BlockType::Type(Type::I64)
+            | BlockType::Type(Type::F32)
+            | BlockType::Type(Type::F64) => Ok(()),
+            BlockType::Type(Type::ExternRef) | BlockType::Type(Type::FuncRef) => {
                 self.check_reference_types_enabled()
             }
-            TypeOrFuncType::Type(Type::V128) => self.check_simd_enabled(),
-            TypeOrFuncType::FuncType(idx) => {
+            BlockType::Type(Type::V128) => self.check_simd_enabled(),
+            BlockType::FuncType(idx) => {
                 let ty = func_type_at(&resources, idx)?;
                 if !self.features.multi_value {
                     if ty.len_outputs() > 1 {
@@ -502,7 +503,6 @@ impl OperatorValidator {
                 }
                 Ok(())
             }
-            _ => Err(OperatorValidatorError::new("invalid block return type")),
         }
     }
 
@@ -2106,28 +2106,28 @@ trait PreciseIterator: ExactSizeIterator + DoubleEndedIterator {}
 impl<T: ExactSizeIterator + DoubleEndedIterator> PreciseIterator for T {}
 
 fn params(
-    ty: TypeOrFuncType,
+    ty: BlockType,
     resources: &impl WasmModuleResources,
 ) -> OperatorValidatorResult<impl PreciseIterator<Item = Type> + '_> {
     Ok(match ty {
-        TypeOrFuncType::FuncType(t) => Either::A(func_type_at(resources, t)?.inputs()),
-        TypeOrFuncType::Type(_) => Either::B(None.into_iter()),
+        BlockType::Empty | BlockType::Type(_) => Either::B(None.into_iter()),
+        BlockType::FuncType(t) => Either::A(func_type_at(resources, t)?.inputs()),
     })
 }
 
 fn results(
-    ty: TypeOrFuncType,
+    ty: BlockType,
     resources: &impl WasmModuleResources,
 ) -> OperatorValidatorResult<impl PreciseIterator<Item = Type> + '_> {
     Ok(match ty {
-        TypeOrFuncType::FuncType(t) => Either::A(func_type_at(resources, t)?.outputs()),
-        TypeOrFuncType::Type(Type::EmptyBlockType) => Either::B(None.into_iter()),
-        TypeOrFuncType::Type(t) => Either::B(Some(t).into_iter()),
+        BlockType::Empty => Either::B(None.into_iter()),
+        BlockType::Type(t) => Either::B(Some(t).into_iter()),
+        BlockType::FuncType(t) => Either::A(func_type_at(resources, t)?.outputs()),
     })
 }
 
 fn label_types(
-    ty: TypeOrFuncType,
+    ty: BlockType,
     resources: &impl WasmModuleResources,
     kind: FrameKind,
 ) -> OperatorValidatorResult<impl PreciseIterator<Item = Type> + '_> {
@@ -2146,8 +2146,5 @@ fn ty_to_str(ty: Type) -> &'static str {
         Type::V128 => "v128",
         Type::FuncRef => "funcref",
         Type::ExternRef => "externref",
-        Type::ExnRef => "exnref",
-        Type::Func => "func",
-        Type::EmptyBlockType => "nil",
     }
 }

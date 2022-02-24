@@ -1,6 +1,9 @@
 use crate::{Error, Result};
 use wasm_encoder::*;
-use wasmparser::*;
+use wasmparser::{
+    DataKind, ElementItem, ElementKind, FunctionBody, Global, InitExpr, MemoryImmediate, Operator,
+    Type, TypeDef,
+};
 
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
 pub enum Item {
@@ -78,7 +81,7 @@ pub trait Translator {
         op(self.as_obj(), e)
     }
 
-    fn translate_block_type(&mut self, ty: &TypeOrFuncType) -> Result<BlockType> {
+    fn translate_block_type(&mut self, ty: &wasmparser::BlockType) -> Result<BlockType> {
         block_type(self.as_obj(), ty)
     }
 
@@ -114,9 +117,6 @@ pub fn type_def(t: &mut dyn Translator, ty: TypeDef, s: &mut TypeSection) -> Res
             );
             Ok(())
         }
-
-        // Module linking is not supported at this time.
-        TypeDef::Instance(_) | TypeDef::Module(_) => Err(Error::no_mutations_applicable()),
     }
 }
 
@@ -155,7 +155,7 @@ pub fn global_type(
 pub fn tag_type(t: &mut dyn Translator, ty: &wasmparser::TagType) -> Result<wasm_encoder::TagType> {
     Ok(wasm_encoder::TagType {
         kind: TagKind::Exception,
-        func_type_idx: t.remap(Item::Type, ty.type_index)?,
+        func_type_idx: t.remap(Item::Type, ty.func_type_idx)?,
     })
 }
 
@@ -168,13 +168,6 @@ pub fn ty(_t: &mut dyn Translator, ty: &Type) -> Result<ValType> {
         Type::V128 => Ok(ValType::V128),
         Type::FuncRef => Ok(ValType::FuncRef),
         Type::ExternRef => Ok(ValType::ExternRef),
-
-        // not supported in wasm-encoder
-        Type::ExnRef => Err(Error::no_mutations_applicable()),
-
-        // Shouldn't ever show up as these are used in different contexts
-        // within wasmparser.
-        Type::Func | Type::EmptyBlockType => Err(Error::no_mutations_applicable()),
     }
 }
 
@@ -898,11 +891,11 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
     })
 }
 
-pub fn block_type(t: &mut dyn Translator, ty: &TypeOrFuncType) -> Result<BlockType> {
+pub fn block_type(t: &mut dyn Translator, ty: &wasmparser::BlockType) -> Result<BlockType> {
     match ty {
-        TypeOrFuncType::Type(Type::EmptyBlockType) => Ok(BlockType::Empty),
-        TypeOrFuncType::Type(ty) => Ok(BlockType::Result(t.translate_ty(ty)?)),
-        TypeOrFuncType::FuncType(f) => Ok(BlockType::FunctionType(t.remap(Item::Type, *f)?)),
+        wasmparser::BlockType::Empty => Ok(BlockType::Empty),
+        wasmparser::BlockType::Type(ty) => Ok(BlockType::Result(t.translate_ty(ty)?)),
+        wasmparser::BlockType::FuncType(f) => Ok(BlockType::FunctionType(t.remap(Item::Type, *f)?)),
     }
 }
 

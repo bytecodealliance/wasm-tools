@@ -13,17 +13,21 @@
  * limitations under the License.
  */
 
-use super::{
+use crate::{
     BinaryReader, GlobalType, InitExpr, Range, Result, SectionIteratorLimited, SectionReader,
     SectionWithLimitedItems,
 };
 
+/// Represents a core WebAssembly global.
 #[derive(Debug, Copy, Clone)]
 pub struct Global<'a> {
+    /// The global's type.
     pub ty: GlobalType,
+    /// The global's initialization expression.
     pub init_expr: InitExpr<'a>,
 }
 
+/// A reader for the global section of a WebAssembly module.
 #[derive(Clone)]
 pub struct GlobalSectionReader<'a> {
     reader: BinaryReader<'a>,
@@ -31,16 +35,19 @@ pub struct GlobalSectionReader<'a> {
 }
 
 impl<'a> GlobalSectionReader<'a> {
+    /// Constructs a new `GlobalSectionReader` for the given data and offset.
     pub fn new(data: &'a [u8], offset: usize) -> Result<GlobalSectionReader<'a>> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
         Ok(GlobalSectionReader { reader, count })
     }
 
+    /// Gets the original position of the section reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
+    /// Gets the count of items in the section.
     pub fn get_count(&self) -> u32 {
         self.count
     }
