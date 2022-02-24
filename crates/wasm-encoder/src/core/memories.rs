@@ -1,4 +1,4 @@
-use super::*;
+use crate::{encoders, Section, SectionId};
 
 /// An encoder for the memory section.
 ///

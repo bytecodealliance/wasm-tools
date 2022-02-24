@@ -1,4 +1,4 @@
-use super::*;
+use crate::{encoders, Instruction, Section, SectionId, ValType};
 
 /// An encoder for the global section.
 ///

@@ -1,4 +1,4 @@
-use super::*;
+use crate::{encoders, Section, SectionId};
 use std::convert::TryFrom;
 
 /// An encoder for the tag section.

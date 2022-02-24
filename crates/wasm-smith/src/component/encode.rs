@@ -133,47 +133,52 @@ impl Type {
             Type::Value(val_ty) => {
                 enc.value(val_ty.0);
             }
-            Type::Compound(comp_ty) => {
-                comp_ty.encode(enc.compound());
+            Type::Interface(ty) => {
+                ty.encode(enc.interface_type());
             }
         }
     }
 }
 
-impl CompoundType {
-    fn encode(&self, enc: wasm_encoder::CompoundTypeEncoder<'_>) {
+impl InterfaceType {
+    fn encode(&self, enc: wasm_encoder::InterfaceTypeEncoder<'_>) {
         match self {
-            CompoundType::Record(ty) => {
+            InterfaceType::Primitive(ty) => enc.primitive(*ty),
+            InterfaceType::Record(ty) => {
                 enc.record(ty.fields.iter().map(|f| translate_named_type(f)));
             }
-            CompoundType::Variant(ty) => {
-                enc.variant(ty.cases.iter().map(|f| translate_named_type(f)), ty.default);
+            InterfaceType::Variant(ty) => {
+                enc.variant(
+                    ty.cases
+                        .iter()
+                        .map(|(ty, default_to)| (ty.name.as_str(), ty.ty, default_to.clone())),
+                );
             }
-            CompoundType::List(ty) => {
+            InterfaceType::List(ty) => {
                 enc.list(ty.elem_ty);
             }
-            CompoundType::Tuple(ty) => {
+            InterfaceType::Tuple(ty) => {
                 enc.tuple(ty.fields.iter().copied());
             }
-            CompoundType::Flags(ty) => {
+            InterfaceType::Flags(ty) => {
                 enc.flags(ty.fields.iter().map(|f| f.as_str()));
             }
-            CompoundType::Enum(ty) => {
+            InterfaceType::Enum(ty) => {
                 enc.enum_type(ty.variants.iter().map(|v| v.as_str()));
             }
-            CompoundType::Union(ty) => {
+            InterfaceType::Union(ty) => {
                 enc.union(ty.variants.iter().copied());
             }
-            CompoundType::Optional(ty) => {
+            InterfaceType::Optional(ty) => {
                 enc.optional(ty.inner_ty);
             }
-            CompoundType::Expected(ty) => {
+            InterfaceType::Expected(ty) => {
                 enc.expected(ty.ok_ty, ty.err_ty);
             }
         }
     }
 }
 
-fn translate_named_type(ty: &NamedType) -> (&str, InterfaceType) {
+fn translate_named_type(ty: &NamedType) -> (&str, InterfaceTypeRef) {
     (&ty.name, ty.ty)
 }

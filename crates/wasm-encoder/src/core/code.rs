@@ -1,4 +1,4 @@
-use super::*;
+use crate::{encoders, Section, SectionId, ValType};
 use std::borrow::Cow;
 
 /// An encoder for the code section.
