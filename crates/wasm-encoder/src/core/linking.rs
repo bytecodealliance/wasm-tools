@@ -1,4 +1,4 @@
-use super::*;
+use crate::{encoders, Section, SectionId};
 use std::convert::TryInto;
 
 /// An encoder for the [linking custom

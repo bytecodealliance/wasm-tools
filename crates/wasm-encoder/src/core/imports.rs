@@ -1,4 +1,77 @@
-use crate::{encoders, ComponentSection, ComponentSectionId, EntityType, Section, SectionId};
+use crate::{
+    encoders, ComponentSection, ComponentSectionId, GlobalType, MemoryType, Section, SectionId,
+    TableType, TagType,
+};
+
+/// The type of an entity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EntityType {
+    /// A function type.
+    ///
+    /// The value is an index into the types section.
+    Function(u32),
+    /// A table type.
+    Table(TableType),
+    /// A memory type.
+    Memory(MemoryType),
+    /// A global type.
+    Global(GlobalType),
+    /// A tag type.
+    ///
+    /// This variant is used with the exception handling proposal.
+    Tag(TagType),
+}
+
+impl EntityType {
+    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
+        match self {
+            Self::Function(i) => {
+                bytes.push(0x00);
+                bytes.extend(encoders::u32(*i));
+            }
+            Self::Table(t) => {
+                bytes.push(0x01);
+                t.encode(bytes);
+            }
+            Self::Memory(t) => {
+                bytes.push(0x02);
+                t.encode(bytes);
+            }
+            Self::Global(t) => {
+                bytes.push(0x03);
+                t.encode(bytes);
+            }
+            Self::Tag(t) => {
+                bytes.push(0x04);
+                t.encode(bytes);
+            }
+        }
+    }
+}
+
+impl From<TableType> for EntityType {
+    fn from(t: TableType) -> Self {
+        Self::Table(t)
+    }
+}
+
+impl From<MemoryType> for EntityType {
+    fn from(t: MemoryType) -> Self {
+        Self::Memory(t)
+    }
+}
+
+impl From<GlobalType> for EntityType {
+    fn from(t: GlobalType) -> Self {
+        Self::Global(t)
+    }
+}
+
+impl From<TagType> for EntityType {
+    fn from(t: TagType) -> Self {
+        Self::Tag(t)
+    }
+}
 
 /// An encoder for the import section of WebAssembly modules.
 ///

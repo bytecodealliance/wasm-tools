@@ -1,4 +1,4 @@
-use super::*;
+use crate::{encoders, ComponentSection, ComponentSectionId, Section, SectionId};
 
 /// A custom section holding arbitrary data.
 #[derive(Clone, Debug)]

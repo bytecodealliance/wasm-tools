@@ -1,4 +1,4 @@
-use super::*;
+use crate::{encoders, Section, SectionId, ValType};
 
 /// An encoder for the table section.
 ///
