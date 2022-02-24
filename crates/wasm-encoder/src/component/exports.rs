@@ -1,7 +1,7 @@
 use crate::{encoders, ComponentArg, ComponentSection, ComponentSectionId};
 
 /// Represents an export for a WebAssembly component.
-pub type ComponentExport<'a> = ComponentArg<'a>;
+pub type ComponentExport = ComponentArg;
 
 /// An encoder for the export section of WebAssembly component.
 ///
@@ -12,7 +12,7 @@ pub type ComponentExport<'a> = ComponentArg<'a>;
 ///
 /// // This exports an instance named "foo" that exports a function named "bar".
 /// let mut exports = ComponentExportSection::new();
-/// exports.export("foo", [("bar", ComponentExport::Function(0))]);
+/// exports.export("foo", ComponentExport::Function(0));
 ///
 /// let mut component = Component::new();
 /// component.section(&exports);
@@ -42,7 +42,7 @@ impl ComponentExportSection {
     }
 
     /// Define an export in the export section.
-    pub fn export<'a>(&mut self, name: &str, export: impl Into<ComponentExport<'a>>) -> &mut Self {
+    pub fn export(&mut self, name: &str, export: impl Into<ComponentExport>) -> &mut Self {
         self.bytes.extend(encoders::str(name));
         export.into().encode(&mut self.bytes);
         self.num_added += 1;

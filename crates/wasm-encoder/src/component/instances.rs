@@ -1,15 +1,13 @@
-use crate::{encoders, ComponentExport, ComponentSection, ComponentSectionId, Export};
+use crate::{encoders, ComponentExport, ComponentSection, ComponentSectionId};
 
 /// Represents an argument to instantiating a WebAssembly module.
 #[derive(Debug, Clone)]
-pub enum ModuleArg<'a> {
+pub enum ModuleArg {
     /// The argument is an instance.
     Instance(u32),
-    /// The argument is an instance based on exports of local items.
-    Exports(Vec<(&'a str, Export)>),
 }
 
-impl<'a> ModuleArg<'a> {
+impl ModuleArg {
     fn encode(self, bytes: &mut Vec<u8>) {
         match self {
             Self::Instance(index) => {
@@ -17,32 +15,13 @@ impl<'a> ModuleArg<'a> {
                 bytes.push(0x02);
                 bytes.extend(encoders::u32(index));
             }
-            Self::Exports(exports) => {
-                let exports = exports.into_iter();
-                bytes.push(0x01);
-                bytes.extend(encoders::u32(u32::try_from(exports.len()).unwrap()));
-                for (name, export) in exports {
-                    bytes.extend(encoders::str(name));
-                    export.encode(bytes);
-                }
-            }
         }
-    }
-}
-
-impl<'a, T> From<T> for ModuleArg<'a>
-where
-    T: IntoIterator<Item = (&'a str, Export)>,
-    T::IntoIter: ExactSizeIterator,
-{
-    fn from(t: T) -> Self {
-        Self::Exports(t.into_iter().collect())
     }
 }
 
 /// Represents an argument to instantiating a WebAssembly component.
 #[derive(Debug, Clone)]
-pub enum ComponentArg<'a> {
+pub enum ComponentArg {
     /// The argument is a module.
     Module(u32),
     /// The argument is a component.
@@ -53,11 +32,11 @@ pub enum ComponentArg<'a> {
     Function(u32),
     /// The argument is a value.
     Value(u32),
-    /// The argument is an instance based on exports of local items.
-    Exports(Vec<(&'a str, ComponentExport<'a>)>),
+    /// The argument is a type.
+    Type(u32),
 }
 
-impl<'a> ComponentArg<'a> {
+impl ComponentArg {
     pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
         match self {
             Self::Module(index) => {
@@ -85,25 +64,12 @@ impl<'a> ComponentArg<'a> {
                 bytes.push(0x04);
                 bytes.extend(encoders::u32(*index));
             }
-            Self::Exports(exports) => {
-                bytes.push(0x01);
-                bytes.extend(encoders::u32(u32::try_from(exports.len()).unwrap()));
-                for (name, export) in exports {
-                    bytes.extend(encoders::str(name));
-                    export.encode(bytes);
-                }
+            Self::Type(index) => {
+                bytes.push(0x00);
+                bytes.push(0x05);
+                bytes.extend(encoders::u32(*index));
             }
         }
-    }
-}
-
-impl<'a, T> From<T> for ComponentArg<'a>
-where
-    T: IntoIterator<Item = (&'a str, ComponentExport<'a>)>,
-    T::IntoIter: ExactSizeIterator,
-{
-    fn from(t: T) -> Self {
-        Self::Exports(t.into_iter().collect())
     }
 }
 
@@ -115,7 +81,7 @@ where
 /// use wasm_encoder::{Component, InstanceSection, ModuleArg, Export};
 ///
 /// let mut instances = InstanceSection::new();
-/// instances.instantiate_module(0, [("foo", [("bar", Export::Function(0))])]);
+/// instances.export_core_items([("foo", Export::Function(0))]);
 /// instances.instantiate_module(1, [("foo", ModuleArg::Instance(0))]);
 ///
 /// let mut component = Component::new();
@@ -146,17 +112,14 @@ impl InstanceSection {
     }
 
     /// Define an instance by instantiating a module.
-    pub fn instantiate_module<'a, 'b, Args, Arg>(
-        &mut self,
-        module_index: u32,
-        args: Args,
-    ) -> &mut Self
+    pub fn instantiate_module<'a, Args, Arg>(&mut self, module_index: u32, args: Args) -> &mut Self
     where
         Args: IntoIterator<Item = (&'a str, Arg)>,
         Args::IntoIter: ExactSizeIterator,
-        Arg: Into<ModuleArg<'b>>,
+        Arg: Into<ModuleArg>,
     {
         let args = args.into_iter();
+        self.bytes.push(0x00);
         self.bytes.push(0x00);
         self.bytes.extend(encoders::u32(module_index));
         self.bytes
@@ -164,6 +127,25 @@ impl InstanceSection {
         for (name, arg) in args {
             self.bytes.extend(encoders::str(name));
             arg.into().encode(&mut self.bytes);
+        }
+        self.num_added += 1;
+        self
+    }
+
+    /// Define an instance by exporting core WebAssembly items.
+    pub fn export_core_items<'a, Exports, Export>(&mut self, exports: Exports) -> &mut Self
+    where
+        Exports: IntoIterator<Item = (&'a str, Export)>,
+        Exports::IntoIter: ExactSizeIterator,
+        Export: Into<crate::Export>,
+    {
+        let exports = exports.into_iter();
+        self.bytes.push(0x02);
+        self.bytes
+            .extend(encoders::u32(u32::try_from(exports.len()).unwrap()));
+        for (name, export) in exports {
+            self.bytes.extend(encoders::str(name));
+            export.into().encode(&mut self.bytes);
         }
         self.num_added += 1;
         self
@@ -178,9 +160,10 @@ impl InstanceSection {
     where
         Args: IntoIterator<Item = (&'a str, Arg)>,
         Args::IntoIter: ExactSizeIterator,
-        Arg: Into<ComponentArg<'a>>,
+        Arg: Into<ComponentArg>,
     {
         let args = args.into_iter();
+        self.bytes.push(0x00);
         self.bytes.push(0x01);
         self.bytes.extend(encoders::u32(component_index));
         self.bytes
@@ -188,6 +171,25 @@ impl InstanceSection {
         for (name, arg) in args {
             self.bytes.extend(encoders::str(name));
             arg.into().encode(&mut self.bytes);
+        }
+        self.num_added += 1;
+        self
+    }
+
+    /// Define an instance by exporting items.
+    pub fn export_items<'a, Exports, Export>(&mut self, exports: Exports) -> &mut Self
+    where
+        Exports: IntoIterator<Item = (&'a str, Export)>,
+        Exports::IntoIter: ExactSizeIterator,
+        Export: Into<ComponentExport>,
+    {
+        let exports = exports.into_iter();
+        self.bytes.push(0x01);
+        self.bytes
+            .extend(encoders::u32(u32::try_from(exports.len()).unwrap()));
+        for (name, export) in exports {
+            self.bytes.extend(encoders::str(name));
+            export.into().encode(&mut self.bytes);
         }
         self.num_added += 1;
         self

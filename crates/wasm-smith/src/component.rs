@@ -11,7 +11,7 @@ use std::{
     marker,
     rc::Rc,
 };
-use wasm_encoder::{InterfaceType, ValType};
+use wasm_encoder::{InterfaceTypeRef, PrimitiveInterfaceType, ValType};
 
 mod encode;
 
@@ -76,8 +76,8 @@ struct TypesScope {
     // The indices of all the entries in `types` that are value types.
     value_types: Vec<u32>,
 
-    // The indices of all the entries in `types` that are compound types.
-    compound_types: Vec<u32>,
+    // The indices of all the entries in `types` that are interface types.
+    interface_types: Vec<u32>,
 }
 
 impl TypesScope {
@@ -88,7 +88,7 @@ impl TypesScope {
             Type::Instance(_) => &mut self.instance_types,
             Type::Func(_) => &mut self.func_types,
             Type::Value(_) => &mut self.value_types,
-            Type::Compound(_) => &mut self.compound_types,
+            Type::Interface(_) => &mut self.interface_types,
         };
         let ty_idx = u32::try_from(self.types.len()).unwrap();
         kind_list.push(ty_idx);
@@ -237,7 +237,7 @@ impl Component {
             2 => Type::Instance(self.arbitrary_instance_type(u, type_fuel)?),
             3 => Type::Func(self.arbitrary_func_type(u, type_fuel)?),
             4 => Type::Value(self.arbitrary_value_type(u)?),
-            5 => Type::Compound(self.arbitrary_compound_type(u, type_fuel)?),
+            5 => Type::Interface(self.arbitrary_interface_type(u, type_fuel)?),
             _ => unreachable!(),
         };
         Ok(Rc::new(ty))
@@ -485,39 +485,51 @@ impl Component {
             Ok(true)
         })?;
 
-        let result = self.arbitrary_interface_type(u)?;
+        let result = self.arbitrary_interface_type_ref(u)?;
 
         Ok(FuncType { params, result })
     }
 
     fn arbitrary_value_type(&mut self, u: &mut Unstructured) -> Result<ValueType> {
-        Ok(ValueType(self.arbitrary_interface_type(u)?))
+        Ok(ValueType(self.arbitrary_interface_type_ref(u)?))
     }
 
-    fn arbitrary_interface_type(&mut self, u: &mut Unstructured) -> Result<InterfaceType> {
-        let num_choices = if self.current_type_scope().compound_types.is_empty() {
-            13
+    fn arbitrary_interface_type_ref(&mut self, u: &mut Unstructured) -> Result<InterfaceTypeRef> {
+        let max_choices = if self.current_type_scope().interface_types.is_empty() {
+            0
         } else {
-            14
+            1
         };
-        match u.int_in_range(0..=num_choices)? {
-            0 => Ok(InterfaceType::Unit),
-            1 => Ok(InterfaceType::Bool),
-            2 => Ok(InterfaceType::S8),
-            3 => Ok(InterfaceType::U8),
-            4 => Ok(InterfaceType::S16),
-            5 => Ok(InterfaceType::U16),
-            6 => Ok(InterfaceType::S32),
-            7 => Ok(InterfaceType::U32),
-            8 => Ok(InterfaceType::S64),
-            9 => Ok(InterfaceType::U64),
-            10 => Ok(InterfaceType::F32),
-            11 => Ok(InterfaceType::F64),
-            12 => Ok(InterfaceType::Char),
-            13 => Ok(InterfaceType::String),
-            14 => Ok(InterfaceType::Compound(
-                *u.choose(&self.current_type_scope().compound_types)?,
+        match u.int_in_range(0..=max_choices)? {
+            0 => Ok(InterfaceTypeRef::Primitive(
+                self.arbitrary_primitive_interface_type(u)?,
             )),
+            1 => Ok(InterfaceTypeRef::Type(
+                *u.choose(&self.current_type_scope().interface_types)?,
+            )),
+            _ => unreachable!(),
+        }
+    }
+
+    fn arbitrary_primitive_interface_type(
+        &mut self,
+        u: &mut Unstructured,
+    ) -> Result<PrimitiveInterfaceType> {
+        match u.int_in_range(0..=13)? {
+            0 => Ok(PrimitiveInterfaceType::Unit),
+            1 => Ok(PrimitiveInterfaceType::Bool),
+            2 => Ok(PrimitiveInterfaceType::S8),
+            3 => Ok(PrimitiveInterfaceType::U8),
+            4 => Ok(PrimitiveInterfaceType::S16),
+            5 => Ok(PrimitiveInterfaceType::U16),
+            6 => Ok(PrimitiveInterfaceType::S32),
+            7 => Ok(PrimitiveInterfaceType::U32),
+            8 => Ok(PrimitiveInterfaceType::S64),
+            9 => Ok(PrimitiveInterfaceType::U64),
+            10 => Ok(PrimitiveInterfaceType::F32),
+            11 => Ok(PrimitiveInterfaceType::F64),
+            12 => Ok(PrimitiveInterfaceType::Char),
+            13 => Ok(PrimitiveInterfaceType::String),
             _ => unreachable!(),
         }
     }
@@ -528,7 +540,7 @@ impl Component {
         names: &mut HashSet<String>,
     ) -> Result<NamedType> {
         let name = crate::unique_string(100, names, u)?;
-        let ty = self.arbitrary_interface_type(u)?;
+        let ty = self.arbitrary_interface_type_ref(u)?;
         Ok(NamedType { name, ty })
     }
 
@@ -564,23 +576,23 @@ impl Component {
                 return Ok(false);
             }
 
-            cases.push(self.arbitrary_named_type(u, &mut case_names)?);
+            let default = if !cases.is_empty() && u.arbitrary()? {
+                let max_cases = u32::try_from(cases.len() - 1).unwrap();
+                Some(u.int_in_range(0..=max_cases)?)
+            } else {
+                None
+            };
+
+            cases.push((self.arbitrary_named_type(u, &mut case_names)?, default));
             Ok(true)
         })?;
 
-        let default = if !cases.is_empty() && u.arbitrary()? {
-            let max_cases = u32::try_from(cases.len() - 1).unwrap();
-            Some(u.int_in_range(0..=max_cases)?)
-        } else {
-            None
-        };
-
-        Ok(VariantType { cases, default })
+        Ok(VariantType { cases })
     }
 
     fn arbitrary_list_type(&mut self, u: &mut Unstructured) -> Result<ListType> {
         Ok(ListType {
-            elem_ty: self.arbitrary_interface_type(u)?,
+            elem_ty: self.arbitrary_interface_type_ref(u)?,
         })
     }
 
@@ -596,7 +608,7 @@ impl Component {
                 return Ok(false);
             }
 
-            fields.push(self.arbitrary_interface_type(u)?);
+            fields.push(self.arbitrary_interface_type_ref(u)?);
             Ok(true)
         })?;
         Ok(TupleType { fields })
@@ -652,7 +664,7 @@ impl Component {
                 return Ok(false);
             }
 
-            variants.push(self.arbitrary_interface_type(u)?);
+            variants.push(self.arbitrary_interface_type_ref(u)?);
             Ok(true)
         })?;
         Ok(UnionType { variants })
@@ -660,42 +672,45 @@ impl Component {
 
     fn arbitrary_optional_type(&mut self, u: &mut Unstructured) -> Result<OptionalType> {
         Ok(OptionalType {
-            inner_ty: self.arbitrary_interface_type(u)?,
+            inner_ty: self.arbitrary_interface_type_ref(u)?,
         })
     }
 
     fn arbitrary_expected_type(&mut self, u: &mut Unstructured) -> Result<ExpectedType> {
         Ok(ExpectedType {
-            ok_ty: self.arbitrary_interface_type(u)?,
-            err_ty: self.arbitrary_interface_type(u)?,
+            ok_ty: self.arbitrary_interface_type_ref(u)?,
+            err_ty: self.arbitrary_interface_type_ref(u)?,
         })
     }
 
-    fn arbitrary_compound_type(
+    fn arbitrary_interface_type(
         &mut self,
         u: &mut Unstructured,
         type_fuel: &mut u32,
-    ) -> Result<CompoundType> {
-        match u.int_in_range(0..=8)? {
-            0 => Ok(CompoundType::Record(
+    ) -> Result<InterfaceType> {
+        match u.int_in_range(0..=9)? {
+            0 => Ok(InterfaceType::Primitive(
+                self.arbitrary_primitive_interface_type(u)?,
+            )),
+            1 => Ok(InterfaceType::Record(
                 self.arbitrary_record_type(u, type_fuel)?,
             )),
-            1 => Ok(CompoundType::Variant(
+            2 => Ok(InterfaceType::Variant(
                 self.arbitrary_variant_type(u, type_fuel)?,
             )),
-            2 => Ok(CompoundType::List(self.arbitrary_list_type(u)?)),
-            3 => Ok(CompoundType::Tuple(
+            3 => Ok(InterfaceType::List(self.arbitrary_list_type(u)?)),
+            4 => Ok(InterfaceType::Tuple(
                 self.arbitrary_tuple_type(u, type_fuel)?,
             )),
-            4 => Ok(CompoundType::Flags(
+            5 => Ok(InterfaceType::Flags(
                 self.arbitrary_flags_type(u, type_fuel)?,
             )),
-            5 => Ok(CompoundType::Enum(self.arbitrary_enum_type(u, type_fuel)?)),
-            6 => Ok(CompoundType::Union(
+            6 => Ok(InterfaceType::Enum(self.arbitrary_enum_type(u, type_fuel)?)),
+            7 => Ok(InterfaceType::Union(
                 self.arbitrary_union_type(u, type_fuel)?,
             )),
-            7 => Ok(CompoundType::Optional(self.arbitrary_optional_type(u)?)),
-            8 => Ok(CompoundType::Expected(self.arbitrary_expected_type(u)?)),
+            8 => Ok(InterfaceType::Optional(self.arbitrary_optional_type(u)?)),
+            9 => Ok(InterfaceType::Expected(self.arbitrary_expected_type(u)?)),
             _ => unreachable!(),
         }
     }
@@ -773,7 +788,7 @@ enum Type {
     Instance(InstanceType),
     Func(FuncType),
     Value(ValueType),
-    Compound(CompoundType),
+    Interface(InterfaceType),
 }
 
 #[derive(Clone, Debug)]
@@ -859,20 +874,21 @@ enum InstanceTypeDef {
 #[derive(Clone, Debug)]
 struct FuncType {
     params: Vec<NamedType>,
-    result: InterfaceType,
+    result: InterfaceTypeRef,
 }
 
 #[derive(Clone, Debug)]
 struct NamedType {
     name: String,
-    ty: InterfaceType,
+    ty: InterfaceTypeRef,
 }
 
 #[derive(Clone, Debug)]
-struct ValueType(InterfaceType);
+struct ValueType(InterfaceTypeRef);
 
 #[derive(Clone, Debug)]
-enum CompoundType {
+enum InterfaceType {
+    Primitive(PrimitiveInterfaceType),
     Record(RecordType),
     Variant(VariantType),
     List(ListType),
@@ -891,18 +907,17 @@ struct RecordType {
 
 #[derive(Clone, Debug)]
 struct VariantType {
-    cases: Vec<NamedType>,
-    default: Option<u32>,
+    cases: Vec<(NamedType, Option<u32>)>,
 }
 
 #[derive(Clone, Debug)]
 struct ListType {
-    elem_ty: InterfaceType,
+    elem_ty: InterfaceTypeRef,
 }
 
 #[derive(Clone, Debug)]
 struct TupleType {
-    fields: Vec<InterfaceType>,
+    fields: Vec<InterfaceTypeRef>,
 }
 
 #[derive(Clone, Debug)]
@@ -917,18 +932,18 @@ struct EnumType {
 
 #[derive(Clone, Debug)]
 struct UnionType {
-    variants: Vec<InterfaceType>,
+    variants: Vec<InterfaceTypeRef>,
 }
 
 #[derive(Clone, Debug)]
 struct OptionalType {
-    inner_ty: InterfaceType,
+    inner_ty: InterfaceTypeRef,
 }
 
 #[derive(Clone, Debug)]
 struct ExpectedType {
-    ok_ty: InterfaceType,
-    err_ty: InterfaceType,
+    ok_ty: InterfaceTypeRef,
+    err_ty: InterfaceTypeRef,
 }
 
 #[derive(Debug)]
