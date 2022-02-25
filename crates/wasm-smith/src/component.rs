@@ -54,12 +54,22 @@ pub struct Component {
     // been generated. This changes the behavior of various
     // `arbitrary_<section>` methods to always fill in their minimums.
     fill_minimums: bool,
+
+    // The number of imports we have generated thus far.
+    num_imports: usize,
+
+    // The set of names of imports we've generated thus far.
+    import_names: HashSet<String>,
 }
 
 #[derive(Debug, Default)]
 struct TypesScope {
     // All types in this index space, regardless of kind.
     types: Vec<Rc<Type>>,
+
+    // The indices of all the entries in `types` that describe things that can
+    // be imported or exported at instantiation time.
+    def_types: Vec<u32>,
 
     // The indices of all the entries in `types` that are module types.
     module_types: Vec<u32>,
@@ -82,15 +92,18 @@ struct TypesScope {
 
 impl TypesScope {
     fn push(&mut self, ty: Rc<Type>) {
-        let kind_list = match &*ty {
-            Type::Module(_) => &mut self.module_types,
-            Type::Component(_) => &mut self.component_types,
-            Type::Instance(_) => &mut self.instance_types,
-            Type::Func(_) => &mut self.func_types,
-            Type::Value(_) => &mut self.value_types,
-            Type::Interface(_) => &mut self.interface_types,
+        let (is_def_type, kind_list) = match &*ty {
+            Type::Module(_) => (true, &mut self.module_types),
+            Type::Component(_) => (true, &mut self.component_types),
+            Type::Instance(_) => (true, &mut self.instance_types),
+            Type::Func(_) => (true, &mut self.func_types),
+            Type::Value(_) => (true, &mut self.value_types),
+            Type::Interface(_) => (false, &mut self.interface_types),
         };
         let ty_idx = u32::try_from(self.types.len()).unwrap();
+        if is_def_type {
+            self.def_types.push(ty_idx);
+        }
         kind_list.push(ty_idx);
         self.types.push(ty);
     }
@@ -153,6 +166,8 @@ impl Component {
             sections: vec![],
             types: vec![],
             fill_minimums: false,
+            num_imports: 0,
+            import_names: Default::default(),
         }
     }
 
@@ -169,14 +184,14 @@ impl Component {
             choices.clear();
             choices.push(Self::arbitrary_custom_section);
 
-            // NB: we add this as a choice even if we've already generated our
-            // maximum number of types so that we can exercise adding empty type
-            // sections to the end of the module.
+            // NB: we add each section as a choice even if we've already
+            // generated our maximum number of entities in that section so that
+            // we can exercise adding empty sections to the end of the module.
             choices.push(Self::arbitrary_type_section);
+            choices.push(Self::arbitrary_import_section);
 
             // TODO FITZGEN
             //
-            // choices.push(Self::arbitrary_import_section);
             // choices.push(Self::arbitrary_func_section);
             // choices.push(Self::arbitrary_core_section);
             // choices.push(Self::arbitrary_component_section);
@@ -193,6 +208,9 @@ impl Component {
         self.fill_minimums = true;
         if self.types.len() < self.config.min_types() {
             self.arbitrary_type_section(u)?;
+        }
+        if self.num_imports < self.config.min_imports() {
+            self.arbitrary_import_section(u)?;
         }
 
         Ok(())
@@ -861,7 +879,31 @@ impl Component {
     }
 
     fn arbitrary_import_section(&mut self, u: &mut Unstructured) -> Result<()> {
-        todo!()
+        let mut imports = vec![];
+
+        let min = if self.fill_minimums {
+            self.config.min_imports().saturating_sub(self.num_imports)
+        } else {
+            // Allow generating empty sections. We can always fill in the required
+            // minimum later.
+            0
+        };
+        let max = self.config.max_imports() - self.num_imports;
+
+        if !self.current_type_scope().def_types.is_empty() {
+            crate::arbitrary_loop(u, min, max, |u| {
+                let name = crate::unique_string(100, &mut self.import_names, u)?;
+                let max_def_ty_idx = self.current_type_scope().def_types.len() - 1;
+                let def_ty_idx = u.int_in_range(0..=max_def_ty_idx)?;
+                let ty = self.current_type_scope().def_types[def_ty_idx];
+                imports.push(Import { name, ty });
+                Ok(true)
+            })?;
+        }
+
+        self.sections
+            .push(Section::Import(ImportSection { imports }));
+        Ok(())
     }
 
     fn arbitrary_func_section(&mut self, u: &mut Unstructured) -> Result<()> {

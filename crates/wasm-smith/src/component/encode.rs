@@ -20,7 +20,7 @@ impl Section {
         match self {
             Section::Custom(sec) => sec.encode(component),
             Section::Type(sec) => sec.encode(component),
-            Section::Import(_) => todo!(),
+            Section::Import(sec) => sec.encode(component),
             Section::Func(_) => todo!(),
             Section::Core(_) => todo!(),
             Section::Component(_) => todo!(),
@@ -46,6 +46,16 @@ impl TypeSection {
         let mut sec = wasm_encoder::ComponentTypeSection::new();
         for ty in &self.types {
             ty.encode(sec.ty());
+        }
+        component.section(&sec);
+    }
+}
+
+impl ImportSection {
+    fn encode(&self, component: &mut wasm_encoder::Component) {
+        let mut sec = wasm_encoder::ComponentImportSection::new();
+        for imp in &self.imports {
+            sec.import(&imp.name, imp.ty);
         }
         component.section(&sec);
     }
