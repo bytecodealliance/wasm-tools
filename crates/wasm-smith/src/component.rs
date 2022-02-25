@@ -128,6 +128,15 @@ where
     }
 }
 
+#[derive(Default)]
+struct EntityCounts {
+    globals: usize,
+    tables: usize,
+    memories: usize,
+    tags: usize,
+    funcs: usize,
+}
+
 impl Component {
     /// Construct a new `Component` using the given configuration.
     pub fn new(config: impl Config, u: &mut Unstructured) -> Result<Self> {
@@ -189,6 +198,10 @@ impl Component {
         Ok(())
     }
 
+    fn config(&self) -> &dyn Config {
+        &*self.config
+    }
+
     fn arbitrary_custom_section(&mut self, u: &mut Unstructured) -> Result<()> {
         self.sections.push(Section::Custom(u.arbitrary()?));
         Ok(())
@@ -248,13 +261,20 @@ impl Component {
         u: &mut Unstructured,
         type_fuel: &mut u32,
     ) -> Result<ModuleType> {
-        // TODO: this currently only supports function type definitions,
-        // function imports, and function exports.
-
         let mut defs = vec![];
         let mut types: Vec<Rc<crate::core::FuncType>> = vec![];
         let mut imports = HashMap::new();
         let mut exports = HashSet::new();
+        let mut counts = EntityCounts::default();
+
+        let mut entity_choices: Vec<
+            fn(
+                &mut Component,
+                &mut Unstructured,
+                &mut EntityCounts,
+                &[Rc<crate::core::FuncType>],
+            ) -> Result<crate::core::EntityType>,
+        > = Vec::with_capacity(5);
 
         arbitrary_loop(u, 0, 100, |u| {
             *type_fuel = type_fuel.saturating_sub(1);
@@ -262,30 +282,45 @@ impl Component {
                 return Ok(false);
             }
 
-            match u.int_in_range::<u8>(0..=2)? {
+            let max_choice = if types.len() < self.config.max_types() {
+                2
+            } else {
+                1
+            };
+
+            match u.int_in_range::<u8>(0..=max_choice)? {
                 // Import.
-                0 if !types.is_empty() => {
+                0 => {
                     let module = crate::limited_string(100, u)?;
                     let existing_module_imports = imports.entry(module.clone()).or_default();
                     let field = crate::unique_string(100, existing_module_imports, u)?;
-                    let ty_idx = u.int_in_range(0..=types.len() - 1)?;
-                    let ty = types[ty_idx].clone();
+                    let entity_ty = match self.arbitrary_core_entity_type(
+                        u,
+                        &types,
+                        &mut entity_choices,
+                        &mut counts,
+                    )? {
+                        None => return Ok(false),
+                        Some(x) => x,
+                    };
                     defs.push(ModuleTypeDef::Import(crate::core::Import(
-                        module,
-                        field,
-                        crate::core::EntityType::Func(u32::try_from(ty_idx).unwrap(), ty),
+                        module, field, entity_ty,
                     )));
                 }
 
                 // Export.
-                1 if !types.is_empty() => {
+                1 => {
                     let name = crate::unique_string(100, &mut exports, u)?;
-                    let ty_idx = u.int_in_range(0..=types.len() - 1)?;
-                    let ty = types[ty_idx].clone();
-                    defs.push(ModuleTypeDef::Export(
-                        name,
-                        crate::core::EntityType::Func(u32::try_from(ty_idx).unwrap(), ty),
-                    ));
+                    let entity_ty = match self.arbitrary_core_entity_type(
+                        u,
+                        &types,
+                        &mut entity_choices,
+                        &mut counts,
+                    )? {
+                        None => return Ok(false),
+                        Some(x) => x,
+                    };
+                    defs.push(ModuleTypeDef::Export(name, entity_ty));
                 }
 
                 // Type definition.
@@ -295,10 +330,120 @@ impl Component {
                     defs.push(ModuleTypeDef::TypeDef(crate::core::Type::Func(ty)));
                 }
             }
+
             Ok(true)
         })?;
 
         Ok(ModuleType { defs })
+    }
+
+    fn arbitrary_core_entity_type(
+        &mut self,
+        u: &mut Unstructured,
+        types: &[Rc<crate::core::FuncType>],
+        choices: &mut Vec<
+            fn(
+                &mut Component,
+                &mut Unstructured,
+                &mut EntityCounts,
+                &[Rc<crate::core::FuncType>],
+            ) -> Result<crate::core::EntityType>,
+        >,
+        counts: &mut EntityCounts,
+    ) -> Result<Option<crate::core::EntityType>> {
+        choices.clear();
+
+        if counts.globals < self.config.max_globals() {
+            choices.push(|c, u, counts, _types| {
+                counts.globals += 1;
+                Ok(crate::core::EntityType::Global(
+                    c.arbitrary_core_global_type(u)?,
+                ))
+            });
+        }
+
+        if counts.tables < self.config.max_tables() {
+            choices.push(|c, u, counts, _types| {
+                counts.tables += 1;
+                Ok(crate::core::EntityType::Table(
+                    c.arbitrary_core_table_type(u)?,
+                ))
+            });
+        }
+
+        if counts.memories < self.config.max_memories() {
+            choices.push(|c, u, counts, _types| {
+                counts.memories += 1;
+                Ok(crate::core::EntityType::Memory(
+                    c.arbitrary_core_memory_type(u)?,
+                ))
+            });
+        }
+
+        if types.iter().any(|ty| ty.results.is_empty())
+            && self.config.exceptions_enabled()
+            && counts.tags < self.config.max_tags()
+        {
+            choices.push(|c, u, counts, types| {
+                counts.tags += 1;
+                let tag_func_types = types
+                    .iter()
+                    .filter(|ty| ty.results.is_empty())
+                    .enumerate()
+                    .map(|(i, _)| u32::try_from(i).unwrap())
+                    .collect::<Vec<_>>();
+                Ok(crate::core::EntityType::Tag(
+                    crate::core::arbitrary_tag_type(u, &tag_func_types, |idx| {
+                        types[usize::try_from(idx).unwrap()].clone()
+                    })?,
+                ))
+            });
+        }
+
+        if !types.is_empty() && counts.funcs < self.config.max_funcs() {
+            choices.push(|c, u, counts, types| {
+                counts.funcs += 1;
+                let ty_idx = u.int_in_range(0..=u32::try_from(types.len() - 1).unwrap())?;
+                let ty = types[ty_idx as usize].clone();
+                Ok(crate::core::EntityType::Func(ty_idx, ty))
+            });
+        }
+
+        if choices.is_empty() {
+            return Ok(None);
+        }
+
+        let f = u.choose(&choices)?;
+        let ty = f(self, u, counts, types)?;
+        Ok(Some(ty))
+    }
+
+    fn arbitrary_core_valtype(&self, u: &mut Unstructured) -> Result<ValType> {
+        Ok(*u.choose(&self.core_valtypes)?)
+    }
+
+    fn arbitrary_core_global_type(
+        &mut self,
+        u: &mut Unstructured,
+    ) -> Result<crate::core::GlobalType> {
+        Ok(crate::core::GlobalType {
+            val_type: self.arbitrary_core_valtype(u)?,
+            mutable: u.arbitrary()?,
+        })
+    }
+
+    fn arbitrary_core_table_type(
+        &mut self,
+        u: &mut Unstructured,
+    ) -> Result<crate::core::TableType> {
+        crate::core::arbitrary_table_type(u, self.config())
+    }
+
+    fn arbitrary_core_memory_type(
+        &mut self,
+        u: &mut Unstructured,
+    ) -> Result<crate::core::MemoryType> {
+        crate::core::arbitrary_memtype(u, self.config())
     }
 
     fn with_types_scope<T>(&mut self, f: impl FnOnce(&mut Self) -> Result<T>) -> Result<T> {
