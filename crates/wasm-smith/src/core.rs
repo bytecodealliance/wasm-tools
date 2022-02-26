@@ -14,7 +14,9 @@ use std::marker;
 use std::ops::Range;
 use std::rc::Rc;
 use std::str::{self, FromStr};
-use wasm_encoder::{BlockType, Export, GlobalType, MemoryType, TableType, ValType};
+use wasm_encoder::{BlockType, Export, ValType};
+
+pub(crate) use wasm_encoder::{GlobalType, MemoryType, TableType};
 
 // NB: these constants are used to control the rate at which various events
 // occur. For more information see where these constants are used. Their values
@@ -437,13 +439,13 @@ impl Module {
             }
             if self.can_add_local_or_import_memory() {
                 choices.push(|u, m| {
-                    let ty = m.arbitrary_memtype(u)?;
+                    let ty = arbitrary_memtype(u, m.config())?;
                     Ok(EntityType::Memory(ty))
                 });
             }
             if self.can_add_local_or_import_table() {
                 choices.push(|u, m| {
-                    let ty = m.arbitrary_table_type(u)?;
+                    let ty = arbitrary_table_type(u, m.config())?;
                     Ok(EntityType::Table(ty))
                 });
             }
@@ -572,29 +574,10 @@ impl Module {
         })
     }
 
-    fn arbitrary_table_type(&self, u: &mut Unstructured) -> Result<TableType> {
-        // We don't want to generate tables that are too large on average, so
-        // keep the "inbounds" limit here a bit smaller.
-        let max_inbounds = 10_000;
-        let (minimum, maximum) = self.arbitrary_limits32(u, 1_000_000, false, max_inbounds)?;
-        Ok(TableType {
-            element_type: if self.config.reference_types_enabled() {
-                *u.choose(&[ValType::FuncRef, ValType::ExternRef])?
-            } else {
-                ValType::FuncRef
-            },
-            minimum,
-            maximum,
-        })
-    }
-
     fn arbitrary_tag_type(&self, u: &mut Unstructured) -> Result<TagType> {
-        let candidate_func_types = self.tag_func_types().collect::<Vec<_>>();
-        let max = candidate_func_types.len() - 1;
-        let ty = candidate_func_types[u.int_in_range(0..=max)?];
-        Ok(TagType {
-            func_type_idx: ty,
-            func_type: self.func_type(ty).clone(),
+        let candidate_func_types: Vec<_> = self.tag_func_types().collect();
+        arbitrary_tag_type(u, &candidate_func_types, |ty_idx| {
+            self.func_type(ty_idx).clone()
         })
     }
 
@@ -640,30 +623,11 @@ impl Module {
                     return Ok(false);
                 }
                 self.num_defined_tables += 1;
-                let ty = self.arbitrary_table_type(u)?;
+                let ty = arbitrary_table_type(u, self.config())?;
                 self.tables.push(ty);
                 Ok(true)
             },
         )
-    }
-
-    fn arbitrary_memtype(&self, u: &mut Unstructured) -> Result<MemoryType> {
-        let memory64 = self.config.memory64_enabled() && u.arbitrary()?;
-        // We want to favor memories <= 1gb in size, allocate at most 16k pages,
-        // depending on the maximum number of memories.
-        let max_inbounds = 16 * 1024 / u64::try_from(self.config.max_memories()).unwrap();
-        let max_pages = self.config.max_memory_pages(memory64);
-        let (minimum, maximum) = self.arbitrary_limits64(
-            u,
-            max_pages,
-            self.config.memory_max_size_required(),
-            max_inbounds.min(max_pages),
-        )?;
-        Ok(MemoryType {
-            minimum,
-            maximum,
-            memory64,
-        })
     }
 
     fn arbitrary_memories(&mut self, u: &mut Unstructured) -> Result<()> {
@@ -676,7 +640,7 @@ impl Module {
                     return Ok(false);
                 }
                 self.num_defined_memories += 1;
-                self.memories.push(self.arbitrary_memtype(u)?);
+                self.memories.push(arbitrary_memtype(u, self.config())?);
                 Ok(true)
             },
         )
@@ -1092,37 +1056,6 @@ impl Module {
         )
     }
 
-    fn arbitrary_limits32(
-        &self,
-        u: &mut Unstructured,
-        max_minimum: u32,
-        max_required: bool,
-        max_inbounds: u32,
-    ) -> Result<(u32, Option<u32>)> {
-        let (min, max) =
-            self.arbitrary_limits64(u, max_minimum.into(), max_required, max_inbounds.into())?;
-        Ok((
-            u32::try_from(min).unwrap(),
-            max.map(|i| u32::try_from(i).unwrap()),
-        ))
-    }
-
-    fn arbitrary_limits64(
-        &self,
-        u: &mut Unstructured,
-        max_minimum: u64,
-        max_required: bool,
-        max_inbounds: u64,
-    ) -> Result<(u64, Option<u64>)> {
-        let min = gradually_grow(u, 0, max_inbounds, max_minimum)?;
-        let max = if max_required || u.arbitrary().unwrap_or(false) {
-            Some(u.int_in_range(min..=max_minimum)?)
-        } else {
-            None
-        };
-        Ok((min, max))
-    }
-
     fn params_results(&self, ty: &BlockType) -> (Vec<ValType>, Vec<ValType>) {
         match ty {
             BlockType::Empty => (vec![], vec![]),
@@ -1133,6 +1066,34 @@ impl Module {
             }
         }
     }
+}
+
+pub(crate) fn arbitrary_limits32(
+    u: &mut Unstructured,
+    max_minimum: u32,
+    max_required: bool,
+    max_inbounds: u32,
+) -> Result<(u32, Option<u32>)> {
+    let (min, max) = arbitrary_limits64(u, max_minimum.into(), max_required, max_inbounds.into())?;
+    Ok((
+        u32::try_from(min).unwrap(),
+        max.map(|i| u32::try_from(i).unwrap()),
+    ))
+}
+
+pub(crate) fn arbitrary_limits64(
+    u: &mut Unstructured,
+    max_minimum: u64,
+    max_required: bool,
+    max_inbounds: u64,
+) -> Result<(u64, Option<u64>)> {
+    let min = gradually_grow(u, 0, max_inbounds, max_minimum)?;
+    let max = if max_required || u.arbitrary().unwrap_or(false) {
+        Some(u.int_in_range(min..=max_minimum)?)
+    } else {
+        None
+    };
+    Ok((min, max))
 }
 
 pub(crate) fn configured_valtypes(config: &dyn Config) -> Vec<ValType> {
@@ -1170,6 +1131,54 @@ pub(crate) fn arbitrary_func_type(
 
 fn arbitrary_valtype(u: &mut Unstructured, valtypes: &[ValType]) -> Result<ValType> {
     Ok(*u.choose(valtypes)?)
+}
+
+pub(crate) fn arbitrary_table_type(u: &mut Unstructured, config: &dyn Config) -> Result<TableType> {
+    // We don't want to generate tables that are too large on average, so
+    // keep the "inbounds" limit here a bit smaller.
+    let max_inbounds = 10_000;
+    let (minimum, maximum) = arbitrary_limits32(u, 1_000_000, false, max_inbounds)?;
+    Ok(TableType {
+        element_type: if config.reference_types_enabled() {
+            *u.choose(&[ValType::FuncRef, ValType::ExternRef])?
+        } else {
+            ValType::FuncRef
+        },
+        minimum,
+        maximum,
+    })
+}
+
+pub(crate) fn arbitrary_memtype(u: &mut Unstructured, config: &dyn Config) -> Result<MemoryType> {
+    let memory64 = config.memory64_enabled() && u.arbitrary()?;
+    // We want to favor memories <= 1gb in size, allocate at most 16k pages,
+    // depending on the maximum number of memories.
+    let max_inbounds = 16 * 1024 / u64::try_from(config.max_memories()).unwrap();
+    let max_pages = config.max_memory_pages(memory64);
+    let (minimum, maximum) = arbitrary_limits64(
+        u,
+        max_pages,
+        config.memory_max_size_required(),
+        max_inbounds.min(max_pages),
+    )?;
+    Ok(MemoryType {
+        minimum,
+        maximum,
+        memory64,
+    })
+}
+
+pub(crate) fn arbitrary_tag_type(
+    u: &mut Unstructured,
+    candidate_func_types: &[u32],
+    get_func_type: impl FnOnce(u32) -> Rc<FuncType>,
+) -> Result<TagType> {
+    let max = candidate_func_types.len() - 1;
+    let ty = candidate_func_types[u.int_in_range(0..=max)?];
+    Ok(TagType {
+        func_type_idx: ty,
+        func_type: get_func_type(ty),
+    })
 }
 
 /// This function generates a number between `min` and `max`, favoring values

@@ -36,7 +36,6 @@ pub const MAX_WASM_COMPONENTS: usize = 1_000;
 pub const MAX_WASM_INSTANCES: usize = 1_000;
 pub const MAX_WASM_VALUES: usize = 1_000;
 pub const MAX_WASM_TAGS: usize = 1_000_000;
-pub const MAX_TYPE_SIZE: u32 = 100_000;
 pub const MAX_WASM_BR_TABLE_SIZE: usize = MAX_WASM_FUNCTION_SIZE;
 
 // Component-related limits
