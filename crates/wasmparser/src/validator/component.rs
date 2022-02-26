@@ -808,7 +808,7 @@ impl ComponentState {
                 ComponentEntityType::Value(*self.value_at(*idx, offset)?)
             }
             crate::ComponentExportKind::Type(idx) => {
-                ComponentEntityType::Type(self.interface_type_at(*idx, types, offset)?)
+                ComponentEntityType::Type(self.type_at(*idx, offset)?)
             }
         })
     }
@@ -1436,7 +1436,7 @@ impl ComponentState {
                 crate::ComponentExportKind::Type(idx) => {
                     insert_export(
                         export.name,
-                        ComponentEntityType::Type(self.interface_type_at(idx, types, offset)?),
+                        ComponentEntityType::Type(self.type_at(idx, offset)?),
                         &mut inst_exports,
                         offset,
                     )?;
