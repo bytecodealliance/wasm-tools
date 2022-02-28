@@ -791,7 +791,7 @@ impl<'a, T> TypeUse<'a, T> {
     /// with an index specified.
     pub fn new_with_index(idx: ast::Index<'a>) -> TypeUse<'a, T> {
         TypeUse {
-            index: Some(ast::ItemRef::Item {
+            index: Some(ast::ItemRef {
                 idx,
                 kind: kw::r#type::default(),
                 exports: Vec::new(),

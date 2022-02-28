@@ -1,4 +1,4 @@
-use crate::ast::{annotation, kw};
+use crate::ast::annotation;
 use crate::lexer::FloatVal;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use std::fmt;
@@ -222,34 +222,21 @@ impl Hash for Index<'_> {
 /// injection.
 #[derive(Clone, Debug)]
 #[allow(missing_docs)]
-pub enum ItemRef<'a, K> {
-    Outer {
-        kind: K,
-        module: Index<'a>,
-        idx: Index<'a>,
-    },
-    Item {
-        kind: K,
-        idx: Index<'a>,
-        exports: Vec<&'a str>,
-        #[cfg(wast_check_exhaustive)]
-        visited: bool,
-    },
+pub struct ItemRef<'a, K> {
+    pub kind: K,
+    pub idx: Index<'a>,
+    pub exports: Vec<&'a str>,
+    #[cfg(wast_check_exhaustive)]
+    pub visited: bool,
 }
 
 impl<'a, K> ItemRef<'a, K> {
     /// Unwraps the underlying `Index` for `ItemRef::Item`.
     ///
-    /// Panics if this is `ItemRef::Outer` or if exports haven't been expanded
-    /// yet.
+    /// Panics if exports haven't been expanded yet.
     pub fn unwrap_index(&self) -> &Index<'a> {
-        match self {
-            ItemRef::Item { idx, exports, .. } => {
-                debug_assert!(exports.len() == 0);
-                idx
-            }
-            ItemRef::Outer { .. } => panic!("unwrap_index called on Parent"),
-        }
+        debug_assert!(self.exports.len() == 0);
+        &self.idx
     }
 }
 
@@ -257,25 +244,18 @@ impl<'a, K: Parse<'a>> Parse<'a> for ItemRef<'a, K> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parens(|parser| {
             let kind = parser.parse::<K>()?;
-            if parser.peek::<kw::outer>() {
-                parser.parse::<kw::outer>()?;
-                let module = parser.parse()?;
-                let idx = parser.parse()?;
-                Ok(ItemRef::Outer { kind, module, idx })
-            } else {
-                let idx = parser.parse()?;
-                let mut exports = Vec::new();
-                while !parser.is_empty() {
-                    exports.push(parser.parse()?);
-                }
-                Ok(ItemRef::Item {
-                    kind,
-                    idx,
-                    exports,
-                    #[cfg(wast_check_exhaustive)]
-                    visited: false,
-                })
+            let idx = parser.parse()?;
+            let mut exports = Vec::new();
+            while !parser.is_empty() {
+                exports.push(parser.parse()?);
             }
+            Ok(ItemRef {
+                kind,
+                idx,
+                exports,
+                #[cfg(wast_check_exhaustive)]
+                visited: false,
+            })
         })
     }
 }
@@ -303,7 +283,7 @@ where
 {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         if parser.peek::<Index<'_>>() {
-            Ok(IndexOrRef(ItemRef::Item {
+            Ok(IndexOrRef(ItemRef {
                 kind: K::default(),
                 idx: parser.parse()?,
                 exports: Vec::new(),

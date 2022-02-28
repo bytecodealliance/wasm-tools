@@ -228,13 +228,7 @@ impl<'a> Expander<'a> {
         T: TypeReference<'a>,
     {
         if let Some(idx) = &item.index {
-            match idx {
-                ItemRef::Item { idx, exports, .. } => {
-                    debug_assert!(exports.len() == 0);
-                    return idx.clone();
-                }
-                ItemRef::Outer { .. } => unreachable!(),
-            }
+            return idx.unwrap_index().clone();
         }
         let key = match item.inline.as_mut() {
             Some(ty) => {
@@ -245,7 +239,7 @@ impl<'a> Expander<'a> {
         };
         let span = Span::from_offset(0); // FIXME: don't manufacture
         let idx = self.key_to_idx(span, key);
-        item.index = Some(ItemRef::Item {
+        item.index = Some(ItemRef {
             idx,
             kind: kw::r#type(span),
             exports: Vec::new(),
