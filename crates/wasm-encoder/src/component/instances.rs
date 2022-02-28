@@ -11,7 +11,6 @@ impl ModuleArg {
     fn encode(self, bytes: &mut Vec<u8>) {
         match self {
             Self::Instance(index) => {
-                bytes.push(0x00);
                 bytes.push(0x02);
                 bytes.extend(encoders::u32(index));
             }
@@ -41,31 +40,25 @@ impl ComponentArg {
         match self {
             Self::Module(index) => {
                 bytes.push(0x00);
-                bytes.push(0x00);
                 bytes.extend(encoders::u32(*index));
             }
             Self::Component(index) => {
-                bytes.push(0x00);
                 bytes.push(0x01);
                 bytes.extend(encoders::u32(*index));
             }
             Self::Instance(index) => {
-                bytes.push(0x00);
                 bytes.push(0x02);
                 bytes.extend(encoders::u32(*index));
             }
             Self::Function(index) => {
-                bytes.push(0x00);
                 bytes.push(0x03);
                 bytes.extend(encoders::u32(*index));
             }
             Self::Value(index) => {
-                bytes.push(0x00);
                 bytes.push(0x04);
                 bytes.extend(encoders::u32(*index));
             }
             Self::Type(index) => {
-                bytes.push(0x00);
                 bytes.push(0x05);
                 bytes.extend(encoders::u32(*index));
             }
