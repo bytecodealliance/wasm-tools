@@ -427,42 +427,30 @@ impl<'a> Resolver<'a> {
     where
         K: Into<ExportKind> + Copy,
     {
-        match item {
-            ItemRef::Item {
-                idx,
-                kind,
-                exports,
-                #[cfg(wast_check_exhaustive)]
-                visited,
-            } => {
-                #[cfg(wast_check_exhaustive)]
-                {
-                    if !*visited {
-                        return Err(Error::new(
-                            idx.span(),
-                            format!("BUG: this index wasn't visited"),
-                        ));
-                    }
-                }
-                debug_assert!(exports.len() == 0);
-                self.resolve(
-                    idx,
-                    match (*kind).into() {
-                        ExportKind::Func => Ns::Func,
-                        ExportKind::Table => Ns::Table,
-                        ExportKind::Global => Ns::Global,
-                        ExportKind::Memory => Ns::Memory,
-                        ExportKind::Instance => Ns::Instance,
-                        ExportKind::Module => Ns::Module,
-                        ExportKind::Tag => Ns::Tag,
-                        ExportKind::Type => Ns::Type,
-                    },
-                )?;
-                Ok(idx)
+        #[cfg(wast_check_exhaustive)]
+        {
+            if !item.visited {
+                return Err(Error::new(
+                    item.idx.span(),
+                    format!("BUG: this index wasn't visited"),
+                ));
             }
-            // should be expanded by now
-            ItemRef::Outer { .. } => unreachable!(),
         }
+        debug_assert!(item.exports.len() == 0);
+        self.resolve(
+            &mut item.idx,
+            match item.kind.into() {
+                ExportKind::Func => Ns::Func,
+                ExportKind::Table => Ns::Table,
+                ExportKind::Global => Ns::Global,
+                ExportKind::Memory => Ns::Memory,
+                ExportKind::Instance => Ns::Instance,
+                ExportKind::Module => Ns::Module,
+                ExportKind::Tag => Ns::Tag,
+                ExportKind::Type => Ns::Type,
+            },
+        )?;
+        Ok(&item.idx)
     }
 }
 

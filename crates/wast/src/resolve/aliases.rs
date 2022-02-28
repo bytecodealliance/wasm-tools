@@ -227,83 +227,45 @@ impl<'a> Expander<'a> {
     where
         T: Into<ExportKind> + Copy,
     {
-        match item {
-            ItemRef::Outer { kind, module, idx } => {
-                let key = (*module, *idx, (*kind).into());
-                let idx = match self.parents.entry(key) {
-                    Entry::Occupied(e) => *e.get(),
-                    Entry::Vacant(v) => {
-                        let span = idx.span();
-                        let id = gensym::gen(span);
-                        self.to_prepend.push(ModuleField::Alias(Alias {
-                            span,
-                            id: Some(id),
-                            name: None,
-                            source: AliasSource::Outer {
-                                module: *module,
-                                index: *idx,
-                            },
-                            kind: (*kind).into(),
-                        }));
-                        *v.insert(Index::Id(id))
-                    }
-                };
-                *item = ItemRef::Item {
-                    kind: *kind,
-                    idx,
-                    exports: Vec::new(),
-                    #[cfg(wast_check_exhaustive)]
-                    visited: true,
-                };
-            }
-            ItemRef::Item {
-                kind,
-                idx,
-                exports,
-                #[cfg(wast_check_exhaustive)]
-                visited,
-            } => {
-                #[cfg(wast_check_exhaustive)]
-                {
-                    *visited = true;
-                }
-                let mut cur = *idx;
-                let len = exports.len();
-                for (i, export) in exports.drain(..).enumerate() {
-                    let kind = if i < len - 1 {
-                        ExportKind::Instance
-                    } else {
-                        (*kind).into()
-                    };
-                    let key = (cur, export, kind);
-                    cur = match self.instances.entry(key) {
-                        Entry::Occupied(e) => *e.get(),
-                        Entry::Vacant(v) => {
-                            let span = idx.span();
-                            let id = gensym::gen(span);
-                            self.to_prepend.push(ModuleField::Alias(Alias {
-                                span,
-                                id: Some(id),
-                                name: None,
-                                kind,
-                                source: AliasSource::InstanceExport {
-                                    instance: ItemRef::Item {
-                                        kind: kw::instance(span),
-                                        idx: cur,
-                                        exports: Vec::new(),
-                                        #[cfg(wast_check_exhaustive)]
-                                        visited: true,
-                                    },
-                                    export,
-                                },
-                            }));
-                            *v.insert(Index::Id(id))
-                        }
-                    };
-                }
-                *idx = cur;
-            }
+        #[cfg(wast_check_exhaustive)]
+        {
+            item.visited = true;
         }
+        let mut cur = item.idx;
+        let len = item.exports.len();
+        for (i, export) in item.exports.drain(..).enumerate() {
+            let kind = if i < len - 1 {
+                ExportKind::Instance
+            } else {
+                item.kind.into()
+            };
+            let key = (cur, export, kind);
+            cur = match self.instances.entry(key) {
+                Entry::Occupied(e) => *e.get(),
+                Entry::Vacant(v) => {
+                    let span = item.idx.span();
+                    let id = gensym::gen(span);
+                    self.to_prepend.push(ModuleField::Alias(Alias {
+                        span,
+                        id: Some(id),
+                        name: None,
+                        kind,
+                        source: AliasSource::InstanceExport {
+                            instance: ItemRef {
+                                kind: kw::instance(span),
+                                idx: cur,
+                                exports: Vec::new(),
+                                #[cfg(wast_check_exhaustive)]
+                                visited: true,
+                            },
+                            export,
+                        },
+                    }));
+                    *v.insert(Index::Id(id))
+                }
+            };
+        }
+        item.idx = cur;
     }
 }
 

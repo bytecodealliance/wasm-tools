@@ -284,7 +284,7 @@ fn export<'a>(
 }
 
 fn item_ref<'a, K>(kind: K, id: impl Into<Index<'a>>) -> ItemRef<'a, K> {
-    ItemRef::Item {
+    ItemRef {
         kind,
         idx: id.into(),
         exports: Vec::new(),

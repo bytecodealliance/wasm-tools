@@ -142,7 +142,7 @@ impl<'a> Parse<'a> for Data<'a> {
             let memory = if let Some(index) = parser.parse::<Option<ast::IndexOrRef<_>>>()? {
                 index.0
             } else {
-                ast::ItemRef::Item {
+                ast::ItemRef {
                     kind: kw::memory(parser.prev_span()),
                     idx: ast::Index::Num(0, span),
                     exports: Vec::new(),
