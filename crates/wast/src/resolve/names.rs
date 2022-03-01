@@ -436,7 +436,6 @@ impl<'a> Resolver<'a> {
                 ));
             }
         }
-        debug_assert!(item.exports.len() == 0);
         self.resolve(
             &mut item.idx,
             match item.kind.into() {

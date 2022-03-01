@@ -1,6 +1,6 @@
 use crate::ast::*;
 use crate::resolve::gensym;
-use std::collections::{hash_map::Entry, HashMap};
+use std::collections::HashMap;
 
 pub fn run(fields: &mut Vec<ModuleField>) {
     let mut cur = 0;
@@ -71,7 +71,7 @@ impl<'a> Expander<'a> {
                     AliasSource::InstanceExport { instance, export } => {
                         self.expand(instance);
                         self.instances
-                            .insert((*instance.unwrap_index(), export, a.kind), id.into());
+                            .insert((instance.idx, export, a.kind), id.into());
                     }
                     AliasSource::Outer { module, index } => {
                         self.parents.insert((*module, *index, a.kind), id.into());
@@ -231,41 +231,6 @@ impl<'a> Expander<'a> {
         {
             item.visited = true;
         }
-        let mut cur = item.idx;
-        let len = item.exports.len();
-        for (i, export) in item.exports.drain(..).enumerate() {
-            let kind = if i < len - 1 {
-                ExportKind::Instance
-            } else {
-                item.kind.into()
-            };
-            let key = (cur, export, kind);
-            cur = match self.instances.entry(key) {
-                Entry::Occupied(e) => *e.get(),
-                Entry::Vacant(v) => {
-                    let span = item.idx.span();
-                    let id = gensym::gen(span);
-                    self.to_prepend.push(ModuleField::Alias(Alias {
-                        span,
-                        id: Some(id),
-                        name: None,
-                        kind,
-                        source: AliasSource::InstanceExport {
-                            instance: ItemRef {
-                                kind: kw::instance(span),
-                                idx: cur,
-                                exports: Vec::new(),
-                                #[cfg(wast_check_exhaustive)]
-                                visited: true,
-                            },
-                            export,
-                        },
-                    }));
-                    *v.insert(Index::Id(id))
-                }
-            };
-        }
-        item.idx = cur;
     }
 }
 

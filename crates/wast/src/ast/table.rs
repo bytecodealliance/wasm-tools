@@ -151,7 +151,6 @@ impl<'a> Parse<'a> for Elem<'a> {
                 ast::ItemRef {
                     kind: kw::table(parser.prev_span()),
                     idx: ast::Index::Num(0, span),
-                    exports: Vec::new(),
                     #[cfg(wast_check_exhaustive)]
                     visited: false,
                 }
