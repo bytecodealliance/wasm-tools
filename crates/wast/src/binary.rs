@@ -509,7 +509,6 @@ impl<T> Encode for ItemRef<'_, T> {
     fn encode(&self, e: &mut Vec<u8>) {
         #[cfg(wast_check_exhaustive)]
         assert!(self.visited);
-        assert!(self.exports.is_empty());
         self.idx.encode(e);
     }
 }

@@ -228,7 +228,7 @@ impl<'a> Expander<'a> {
         T: TypeReference<'a>,
     {
         if let Some(idx) = &item.index {
-            return idx.unwrap_index().clone();
+            return idx.idx.clone();
         }
         let key = match item.inline.as_mut() {
             Some(ty) => {
@@ -242,7 +242,6 @@ impl<'a> Expander<'a> {
         item.index = Some(ItemRef {
             idx,
             kind: kw::r#type(span),
-            exports: Vec::new(),
             #[cfg(wast_check_exhaustive)]
             visited: true,
         });
@@ -439,12 +438,10 @@ enum Item<'a> {
 impl<'a> Item<'a> {
     fn new(item: &ItemSig<'a>) -> Item<'a> {
         match &item.kind {
-            ItemKind::Func(f) => Item::Func(*f.index.as_ref().unwrap().unwrap_index()),
-            ItemKind::Instance(f) => Item::Instance(*f.index.as_ref().unwrap().unwrap_index()),
-            ItemKind::Module(f) => Item::Module(*f.index.as_ref().unwrap().unwrap_index()),
-            ItemKind::Tag(TagType::Exception(f)) => {
-                Item::Tag(*f.index.as_ref().unwrap().unwrap_index())
-            }
+            ItemKind::Func(f) => Item::Func(f.index.as_ref().unwrap().idx),
+            ItemKind::Instance(f) => Item::Instance(f.index.as_ref().unwrap().idx),
+            ItemKind::Module(f) => Item::Module(f.index.as_ref().unwrap().idx),
+            ItemKind::Tag(TagType::Exception(f)) => Item::Tag(f.index.as_ref().unwrap().idx),
             ItemKind::Table(t) => Item::Table(t.clone()),
             ItemKind::Memory(t) => Item::Memory(t.clone()),
             ItemKind::Global(t) => Item::Global(t.clone()),

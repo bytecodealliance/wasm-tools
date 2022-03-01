@@ -794,7 +794,6 @@ impl<'a, T> TypeUse<'a, T> {
             index: Some(ast::ItemRef {
                 idx,
                 kind: kw::r#type::default(),
-                exports: Vec::new(),
                 #[cfg(wast_check_exhaustive)]
                 visited: true,
             }),

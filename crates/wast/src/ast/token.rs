@@ -217,27 +217,13 @@ impl Hash for Index<'_> {
 }
 
 /// Parses `(func $foo)`
-///
-/// Optionally includes export strings for module-linking sugar syntax for alias
-/// injection.
 #[derive(Clone, Debug)]
 #[allow(missing_docs)]
 pub struct ItemRef<'a, K> {
     pub kind: K,
     pub idx: Index<'a>,
-    pub exports: Vec<&'a str>,
     #[cfg(wast_check_exhaustive)]
     pub visited: bool,
-}
-
-impl<'a, K> ItemRef<'a, K> {
-    /// Unwraps the underlying `Index` for `ItemRef::Item`.
-    ///
-    /// Panics if exports haven't been expanded yet.
-    pub fn unwrap_index(&self) -> &Index<'a> {
-        debug_assert!(self.exports.len() == 0);
-        &self.idx
-    }
 }
 
 impl<'a, K: Parse<'a>> Parse<'a> for ItemRef<'a, K> {
@@ -245,14 +231,9 @@ impl<'a, K: Parse<'a>> Parse<'a> for ItemRef<'a, K> {
         parser.parens(|parser| {
             let kind = parser.parse::<K>()?;
             let idx = parser.parse()?;
-            let mut exports = Vec::new();
-            while !parser.is_empty() {
-                exports.push(parser.parse()?);
-            }
             Ok(ItemRef {
                 kind,
                 idx,
-                exports,
                 #[cfg(wast_check_exhaustive)]
                 visited: false,
             })
@@ -286,7 +267,6 @@ where
             Ok(IndexOrRef(ItemRef {
                 kind: K::default(),
                 idx: parser.parse()?,
-                exports: Vec::new(),
                 #[cfg(wast_check_exhaustive)]
                 visited: false,
             }))
