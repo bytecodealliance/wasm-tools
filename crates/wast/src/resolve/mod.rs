@@ -77,7 +77,7 @@ pub fn resolve<'a>(module: &mut Module<'a>) -> Result<Names<'a>, Error> {
 
     // Perform name resolution over all `Index` items to resolve them all to
     // indices instead of symbolic names.
-    let resolver = names::resolve(module.id, fields)?;
+    let resolver = names::resolve(fields)?;
     Ok(Names { resolver })
 }
 

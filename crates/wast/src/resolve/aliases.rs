@@ -31,9 +31,7 @@ pub fn run(fields: &mut Vec<ModuleField>) {
         match field {
             ModuleField::Alias(_)
             | ModuleField::Type(_)
-            | ModuleField::Import(_)
-            | ModuleField::NestedModule(_)
-            | ModuleField::Instance(_) => {}
+            | ModuleField::Import(_) => {}
             _ if insertion_point.is_none() => insertion_point = Some(cur),
             _ => {}
         }
@@ -75,15 +73,6 @@ impl<'a> Expander<'a> {
                     }
                     AliasSource::Outer { module, index } => {
                         self.parents.insert((*module, *index, a.kind), id.into());
-                    }
-                }
-            }
-
-            ModuleField::Instance(i) => {
-                if let InstanceKind::Inline { module, args } = &mut i.kind {
-                    self.expand(module);
-                    for arg in args {
-                        self.expand(&mut arg.index);
                     }
                 }
             }
@@ -137,17 +126,10 @@ impl<'a> Expander<'a> {
                 TagType::Exception(t) => self.expand_type_use(t),
             },
 
-            ModuleField::NestedModule(m) => match &mut m.kind {
-                NestedModuleKind::Import { ty, .. } => self.expand_type_use(ty),
-                NestedModuleKind::Inline { fields } => run(fields),
-            },
-
             ModuleField::Type(t) => match &mut t.def {
                 TypeDef::Func(f) => f.expand(self),
                 TypeDef::Struct(_) => {}
                 TypeDef::Array(_) => {}
-                TypeDef::Module(m) => m.expand(self),
-                TypeDef::Instance(i) => i.expand(self),
             },
 
             ModuleField::Custom(_) | ModuleField::Memory(_) | ModuleField::Table(_) => {}
@@ -157,8 +139,6 @@ impl<'a> Expander<'a> {
     fn expand_item_sig(&mut self, sig: &mut ItemSig<'a>) {
         match &mut sig.kind {
             ItemKind::Func(t) => self.expand_type_use(t),
-            ItemKind::Module(t) => self.expand_type_use(t),
-            ItemKind::Instance(t) => self.expand_type_use(t),
             ItemKind::Table(_) => {}
             ItemKind::Memory(_) => {}
             ItemKind::Global(_) => {}

@@ -4,13 +4,11 @@ use crate::Error;
 use std::collections::{HashMap, HashSet};
 
 pub fn resolve<'a>(
-    id: Option<Id<'a>>,
     fields: &mut Vec<ModuleField<'a>>,
 ) -> Result<Resolver<'a>, Error> {
     let mut names = HashMap::new();
     let mut parents = Parents {
         prev: None,
-        cur_id: id,
         depth: 0,
         names: &mut names,
     };
@@ -77,16 +75,12 @@ impl<'a> Resolver<'a> {
                     ItemKind::Table(_) => self.tables.register(i.item.id, "table")?,
                     ItemKind::Global(_) => self.globals.register(i.item.id, "global")?,
                     ItemKind::Tag(_) => self.tags.register(i.item.id, "tag")?,
-                    ItemKind::Module(_) => self.modules.register(i.item.id, "module")?,
-                    ItemKind::Instance(_) => self.instances.register(i.item.id, "instance")?,
                 }
             }
             ModuleField::Global(i) => self.globals.register(i.id, "global")?,
             ModuleField::Memory(i) => self.memories.register(i.id, "memory")?,
             ModuleField::Func(i) => self.funcs.register(i.id, "func")?,
             ModuleField::Table(i) => self.tables.register(i.id, "table")?,
-            ModuleField::NestedModule(m) => self.modules.register(m.id, "module")?,
-            ModuleField::Instance(i) => self.instances.register(i.id, "instance")?,
 
             ModuleField::Type(i) => {
                 match &i.def {
@@ -103,10 +97,8 @@ impl<'a> Resolver<'a> {
                         }
                     }
 
-                    TypeDef::Instance(_)
-                    | TypeDef::Array(_)
-                    | TypeDef::Func(_)
-                    | TypeDef::Module(_) => {}
+                    TypeDef::Array(_)
+                    | TypeDef::Func(_) => {}
                 }
 
                 // Record function signatures as we see them to so we can
@@ -169,8 +161,6 @@ impl<'a> Resolver<'a> {
                         }
                     }
                     TypeDef::Array(array) => self.resolve_storagetype(&mut array.ty)?,
-                    TypeDef::Module(m) => m.resolve(self)?,
-                    TypeDef::Instance(i) => i.resolve(self)?,
                 }
                 Ok(())
             }
@@ -281,25 +271,6 @@ impl<'a> Resolver<'a> {
                 Ok(())
             }
 
-            ModuleField::Instance(i) => {
-                if let InstanceKind::Inline { module, args } = &mut i.kind {
-                    self.resolve_item_ref(module)?;
-                    for arg in args {
-                        self.resolve_item_ref(&mut arg.index)?;
-                    }
-                }
-                Ok(())
-            }
-
-            ModuleField::NestedModule(m) => {
-                let fields = match &mut m.kind {
-                    NestedModuleKind::Inline { fields } => fields,
-                    NestedModuleKind::Import { .. } => panic!("should only be inline"),
-                };
-                Resolver::default().process(&mut parents.push(self, m.id), fields)?;
-                Ok(())
-            }
-
             ModuleField::Table(t) => {
                 if let TableKind::Normal(t) = &mut t.kind {
                     self.resolve_heaptype(&mut t.elem.heap)?;
@@ -369,12 +340,6 @@ impl<'a> Resolver<'a> {
                 self.resolve_type_use(t)?;
             }
             ItemKind::Global(t) => self.resolve_valtype(&mut t.ty)?,
-            ItemKind::Instance(t) => {
-                self.resolve_type_use(t)?;
-            }
-            ItemKind::Module(m) => {
-                self.resolve_type_use(m)?;
-            }
             ItemKind::Table(t) => {
                 self.resolve_heaptype(&mut t.elem.heap)?;
             }
@@ -853,7 +818,6 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
 
 struct Parents<'a, 'b> {
     prev: Option<ParentNode<'a, 'b>>,
-    cur_id: Option<Id<'a>>,
     depth: usize,
     names: &'b mut HashMap<Id<'a>, usize>,
 }
@@ -866,28 +830,6 @@ struct ParentNode<'a, 'b> {
 }
 
 impl<'a, 'b> Parents<'a, 'b> {
-    fn push<'c>(&'c mut self, resolver: &'c Resolver<'a>, id: Option<Id<'a>>) -> Parents<'a, 'c>
-    where
-        'b: 'c,
-    {
-        let prev_depth = if let Some(id) = self.cur_id {
-            self.names.insert(id, self.depth)
-        } else {
-            None
-        };
-        Parents {
-            prev: Some(ParentNode {
-                prev: self.prev.as_ref(),
-                resolver,
-                id: self.cur_id,
-                prev_depth,
-            }),
-            cur_id: id,
-            depth: self.depth + 1,
-            names: &mut *self.names,
-        }
-    }
-
     fn resolve(&self, index: &mut Index<'a>) -> Result<&'b Resolver<'a>, Error> {
         let mut i = match *index {
             Index::Num(n, _) => n,
