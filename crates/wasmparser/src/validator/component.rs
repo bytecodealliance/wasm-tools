@@ -127,18 +127,18 @@ impl ComponentFuncType {
         // Subtyping rules:
         // https://github.com/WebAssembly/component-model/blob/17f94ed1270a98218e0e796ca1dad1feb7e5c507/design/mvp/Subtyping.md
 
-        // Contravariant on return type
-        if !other.result.is_subtype_of(&self.result, types) {
+        // Covariant on return type
+        if !self.result.is_subtype_of(&other.result, types) {
             return false;
         }
 
-        // All overlapping parameters must have the same name and are subtypes
+        // All overlapping parameters must have the same name and are contravariant subtypes
         for ((name, ty), (other_name, other_ty)) in self.params.iter().zip(other.params.iter()) {
             if name != other_name {
                 return false;
             }
 
-            if !ty.is_subtype_of(other_ty, types) {
+            if !other_ty.is_subtype_of(ty, types) {
                 return false;
             }
         }
@@ -279,8 +279,8 @@ impl InterfaceType {
             (InterfaceType::Variant(cases), InterfaceType::Variant(other_cases)) => {
                 for (name, case) in cases.iter() {
                     if let Some(other_case) = other_cases.get(name) {
-                        // Contravariant subtype on the case type
-                        if !other_case.ty.is_subtype_of(&case.ty, types) {
+                        // Covariant subtype on the case type
+                        if !case.ty.is_subtype_of(&other_case.ty, types) {
                             return false;
                         }
                     } else if let Some(default) = &case.default_to {
