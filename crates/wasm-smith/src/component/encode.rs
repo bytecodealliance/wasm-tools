@@ -182,8 +182,8 @@ impl InterfaceType {
             InterfaceType::Union(ty) => {
                 enc.union(ty.variants.iter().copied());
             }
-            InterfaceType::Optional(ty) => {
-                enc.optional(ty.inner_ty);
+            InterfaceType::Option(ty) => {
+                enc.option(ty.inner_ty);
             }
             InterfaceType::Expected(ty) => {
                 enc.expected(ty.ok_ty, ty.err_ty);

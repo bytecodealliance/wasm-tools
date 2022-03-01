@@ -173,10 +173,7 @@ impl InterfaceTypeRef {
         match self {
             InterfaceTypeRef::Primitive(_) => false,
             InterfaceTypeRef::Type(ty) => {
-                matches!(
-                    types[*ty].unwrap_interface_type(),
-                    InterfaceType::Optional(_)
-                )
+                matches!(types[*ty].unwrap_interface_type(), InterfaceType::Option(_))
             }
         }
     }
@@ -228,7 +225,7 @@ pub enum InterfaceType {
     Flags(HashSet<String>),
     Enum(HashSet<String>),
     Union(Box<[InterfaceTypeRef]>),
-    Optional(InterfaceTypeRef),
+    Option(InterfaceTypeRef),
     Expected(InterfaceTypeRef, InterfaceTypeRef),
 }
 
@@ -247,7 +244,7 @@ impl InterfaceType {
                 tys.iter().any(|ty| ty.requires_into_option(types))
             }
             InterfaceType::Flags(_) | InterfaceType::Enum(_) => false,
-            InterfaceType::Optional(ty) => ty.requires_into_option(types),
+            InterfaceType::Option(ty) => ty.requires_into_option(types),
             InterfaceType::Expected(ok, error) => {
                 ok.requires_into_option(types) || error.requires_into_option(types)
             }
@@ -300,7 +297,7 @@ impl InterfaceType {
                 true
             }
             (InterfaceType::List(ty), InterfaceType::List(other_ty))
-            | (InterfaceType::Optional(ty), InterfaceType::Optional(other_ty)) => {
+            | (InterfaceType::Option(ty), InterfaceType::Option(other_ty)) => {
                 ty.is_subtype_of(other_ty, types)
             }
             (InterfaceType::Tuple(tys), InterfaceType::Tuple(other_tys))
@@ -374,7 +371,7 @@ impl InterfaceType {
             Self::Union(tys) => {
                 Self::push_variant_types(tys.iter(), types, offset, wasm_types)?;
             }
-            Self::Optional(ty) => {
+            Self::Option(ty) => {
                 Self::push_variant_types([ty].into_iter(), types, offset, wasm_types)?;
             }
             Self::Expected(ok, error) => {
@@ -1771,8 +1768,8 @@ impl ComponentState {
                     .map(|ty| self.create_interface_type_ref(*ty, types, offset))
                     .collect::<Result<_>>()?,
             ),
-            crate::InterfaceType::Optional(ty) => {
-                InterfaceType::Optional(self.create_interface_type_ref(ty, types, offset)?)
+            crate::InterfaceType::Option(ty) => {
+                InterfaceType::Option(self.create_interface_type_ref(ty, types, offset)?)
             }
             crate::InterfaceType::Expected { ok, error } => InterfaceType::Expected(
                 self.create_interface_type_ref(ok, types, offset)?,

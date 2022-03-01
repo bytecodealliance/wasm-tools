@@ -426,8 +426,8 @@ impl InterfaceTypeEncoder<'_> {
         }
     }
 
-    /// Define an optional type.
-    pub fn optional(self, ty: impl Into<InterfaceTypeRef>) {
+    /// Define an option type.
+    pub fn option(self, ty: impl Into<InterfaceTypeRef>) {
         self.0.push(0x6A);
         ty.into().encode(self.0);
     }

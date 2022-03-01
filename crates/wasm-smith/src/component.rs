@@ -847,8 +847,8 @@ impl Component {
         Ok(UnionType { variants })
     }
 
-    fn arbitrary_optional_type(&mut self, u: &mut Unstructured) -> Result<OptionalType> {
-        Ok(OptionalType {
+    fn arbitrary_option_type(&mut self, u: &mut Unstructured) -> Result<OptionType> {
+        Ok(OptionType {
             inner_ty: self.arbitrary_interface_type_ref(u)?,
         })
     }
@@ -886,7 +886,7 @@ impl Component {
             7 => Ok(InterfaceType::Union(
                 self.arbitrary_union_type(u, type_fuel)?,
             )),
-            8 => Ok(InterfaceType::Optional(self.arbitrary_optional_type(u)?)),
+            8 => Ok(InterfaceType::Option(self.arbitrary_option_type(u)?)),
             9 => Ok(InterfaceType::Expected(self.arbitrary_expected_type(u)?)),
             _ => unreachable!(),
         }
@@ -1103,7 +1103,7 @@ enum InterfaceType {
     Flags(FlagsType),
     Enum(EnumType),
     Union(UnionType),
-    Optional(OptionalType),
+    Option(OptionType),
     Expected(ExpectedType),
 }
 
@@ -1143,7 +1143,7 @@ struct UnionType {
 }
 
 #[derive(Clone, Debug)]
-struct OptionalType {
+struct OptionType {
     inner_ty: InterfaceTypeRef,
 }
 

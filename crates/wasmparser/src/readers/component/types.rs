@@ -196,8 +196,8 @@ pub enum InterfaceType<'a> {
     Enum(Box<[&'a str]>),
     /// The type is a union of the given interface types.
     Union(Box<[InterfaceTypeRef]>),
-    /// The type is an optional of the given interface type.
-    Optional(InterfaceTypeRef),
+    /// The type is an option of the given interface type.
+    Option(InterfaceTypeRef),
     /// The type is an expected type.
     Expected {
         /// The type returned for success.

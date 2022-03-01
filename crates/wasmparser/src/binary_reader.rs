@@ -492,7 +492,7 @@ impl<'a> BinaryReader<'a> {
                         .collect::<Result<_>>()?,
                 )
             }
-            0x6a => InterfaceType::Optional(self.read_interface_type_ref()?),
+            0x6a => InterfaceType::Option(self.read_interface_type_ref()?),
             0x69 => InterfaceType::Expected {
                 ok: self.read_interface_type_ref()?,
                 error: self.read_interface_type_ref()?,
