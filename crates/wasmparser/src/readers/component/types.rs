@@ -113,9 +113,9 @@ pub enum PrimitiveInterfaceType {
     /// The type is an unsigned 64-bit integer.
     U64,
     /// The type is a 32-bit floating point number.
-    F32,
+    Float32,
     /// The type is a 64-bit floating point number.
-    F64,
+    Float64,
     /// The type is a Unicode character.
     Char,
     /// The type is a string.
@@ -152,7 +152,10 @@ impl PrimitiveInterfaceType {
                     | (PrimitiveInterfaceType::S32, PrimitiveInterfaceType::S64)
                     | (PrimitiveInterfaceType::U32, PrimitiveInterfaceType::U64)
                     | (PrimitiveInterfaceType::U32, PrimitiveInterfaceType::S64)
-                    | (PrimitiveInterfaceType::F32, PrimitiveInterfaceType::F64)
+                    | (
+                        PrimitiveInterfaceType::Float32,
+                        PrimitiveInterfaceType::Float64
+                    )
             )
     }
 }

@@ -23,8 +23,8 @@ fn push_primitive_wasm_types(ty: &PrimitiveInterfaceType, wasm_types: &mut Vec<T
         PrimitiveInterfaceType::S64 | PrimitiveInterfaceType::U64 => {
             wasm_types.push(Type::I64);
         }
-        PrimitiveInterfaceType::F32 => wasm_types.push(Type::F32),
-        PrimitiveInterfaceType::F64 => wasm_types.push(Type::F64),
+        PrimitiveInterfaceType::Float32 => wasm_types.push(Type::F32),
+        PrimitiveInterfaceType::Float64 => wasm_types.push(Type::F64),
         PrimitiveInterfaceType::String => wasm_types.extend([Type::I32, Type::I32]),
     }
 }

@@ -253,9 +253,9 @@ pub enum PrimitiveInterfaceType {
     /// The type is an unsigned 64-bit integer.
     U64,
     /// The type is a 32-bit floating point number.
-    F32,
+    Float32,
     /// The type is a 64-bit floating point number.
-    F64,
+    Float64,
     /// The type is a Unicode character.
     Char,
     /// The type is a string.
@@ -275,8 +275,8 @@ impl PrimitiveInterfaceType {
             Self::U32 => bytes.push(0x78),
             Self::S64 => bytes.push(0x77),
             Self::U64 => bytes.push(0x76),
-            Self::F32 => bytes.push(0x75),
-            Self::F64 => bytes.push(0x74),
+            Self::Float32 => bytes.push(0x75),
+            Self::Float64 => bytes.push(0x74),
             Self::Char => bytes.push(0x73),
             Self::String => bytes.push(0x72),
         }
