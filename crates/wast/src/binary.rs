@@ -27,9 +27,6 @@ fn encode_fields(
     let mut data = Vec::new();
     let mut tags = Vec::new();
     let mut customs = Vec::new();
-    let mut instances = Vec::new();
-    let mut modules = Vec::new();
-    let mut aliases = Vec::new();
     for field in fields {
         match field {
             ModuleField::Type(i) => types.push(i),
@@ -44,9 +41,6 @@ fn encode_fields(
             ModuleField::Data(i) => data.push(i),
             ModuleField::Tag(i) => tags.push(i),
             ModuleField::Custom(i) => customs.push(i),
-            ModuleField::Instance(i) => instances.push(i),
-            ModuleField::NestedModule(i) => modules.push(i),
-            ModuleField::Alias(a) => aliases.push(a),
         }
     }
 
@@ -60,47 +54,10 @@ fn encode_fields(
 
     e.custom_sections(BeforeFirst);
 
-    let mut items = fields
-        .iter()
-        .filter(|i| match i {
-            ModuleField::Alias(_)
-            | ModuleField::Type(_)
-            | ModuleField::Import(_)
-            | ModuleField::NestedModule(_)
-            | ModuleField::Instance(_) => true,
-            _ => false,
-        })
-        .peekable();
-
     // A special path is used for now to handle non-module-linking modules to
     // work around WebAssembly/annotations#11
-    if aliases.len() == 0 && modules.len() == 0 && instances.len() == 0 {
-        e.section_list(1, Type, &types);
-        e.section_list(2, Import, &imports);
-    } else {
-        while let Some(field) = items.next() {
-            macro_rules! list {
-                ($code:expr, $name:ident) => {
-                    list!($code, $name, $name)
-                };
-                ($code:expr, $field:ident, $custom:ident) => {
-                    if let ModuleField::$field(f) = field {
-                        let mut list = vec![f];
-                        while let Some(ModuleField::$field(f)) = items.peek() {
-                            list.push(f);
-                            items.next();
-                        }
-                        e.section_list($code, $custom, &list);
-                    }
-                };
-            }
-            list!(1, Type);
-            list!(2, Import);
-            list!(14, NestedModule, Module);
-            list!(15, Instance);
-            list!(16, Alias);
-        }
-    }
+    e.section_list(1, Type, &types);
+    e.section_list(2, Import, &imports);
 
     let functys = funcs.iter().map(|f| &f.ty).collect::<Vec<_>>();
     e.section_list(3, Func, &functys);
@@ -306,14 +263,6 @@ impl Encode for Type<'_> {
                 e.push(0x5e);
                 array.encode(e)
             }
-            TypeDef::Module(module) => {
-                e.push(0x61);
-                module.encode(e)
-            }
-            TypeDef::Instance(instance) => {
-                e.push(0x62);
-                instance.encode(e)
-            }
         }
     }
 }
@@ -469,14 +418,6 @@ impl Encode for ItemSig<'_> {
                 e.push(0x04);
                 f.encode(e);
             }
-            ItemKind::Module(m) => {
-                e.push(0x05);
-                m.encode(e);
-            }
-            ItemKind::Instance(i) => {
-                e.push(0x06);
-                i.encode(e);
-            }
         }
     }
 }
@@ -622,8 +563,6 @@ impl Encode for ExportKind {
             ExportKind::Memory => e.push(0x02),
             ExportKind::Global => e.push(0x03),
             ExportKind::Tag => e.push(0x04),
-            ExportKind::Module => e.push(0x05),
-            ExportKind::Instance => e.push(0x06),
             ExportKind::Type => e.push(0x07),
         }
     }
@@ -933,10 +872,6 @@ struct Names<'a> {
     table_idx: u32,
     tags: Vec<(u32, &'a str)>,
     tag_idx: u32,
-    modules: Vec<(u32, &'a str)>,
-    module_idx: u32,
-    instances: Vec<(u32, &'a str)>,
-    instance_idx: u32,
     types: Vec<(u32, &'a str)>,
     type_idx: u32,
     data: Vec<(u32, &'a str)>,
@@ -964,8 +899,6 @@ fn find_names<'a>(
         Type,
         Global,
         Func,
-        Module,
-        Instance,
         Memory,
         Table,
         Tag,
@@ -985,8 +918,6 @@ fn find_names<'a>(
                     ItemKind::Memory(_) => Name::Memory,
                     ItemKind::Global(_) => Name::Global,
                     ItemKind::Tag(_) => Name::Tag,
-                    ItemKind::Instance(_) => Name::Instance,
-                    ItemKind::Module(_) => Name::Module,
                 },
                 &i.item.id,
                 &i.item.name,
@@ -995,26 +926,10 @@ fn find_names<'a>(
             ModuleField::Table(t) => (Name::Table, &t.id, &t.name),
             ModuleField::Memory(m) => (Name::Memory, &m.id, &m.name),
             ModuleField::Tag(t) => (Name::Tag, &t.id, &t.name),
-            ModuleField::NestedModule(m) => (Name::Module, &m.id, &m.name),
-            ModuleField::Instance(i) => (Name::Instance, &i.id, &i.name),
             ModuleField::Type(t) => (Name::Type, &t.id, &t.name),
             ModuleField::Elem(e) => (Name::Elem, &e.id, &e.name),
             ModuleField::Data(d) => (Name::Data, &d.id, &d.name),
             ModuleField::Func(f) => (Name::Func, &f.id, &f.name),
-            ModuleField::Alias(a) => (
-                match a.kind {
-                    ExportKind::Func => Name::Func,
-                    ExportKind::Table => Name::Table,
-                    ExportKind::Memory => Name::Memory,
-                    ExportKind::Global => Name::Global,
-                    ExportKind::Module => Name::Module,
-                    ExportKind::Instance => Name::Instance,
-                    ExportKind::Tag => Name::Tag,
-                    ExportKind::Type => Name::Type,
-                },
-                &a.id,
-                &a.name,
-            ),
             ModuleField::Export(_) | ModuleField::Start(_) | ModuleField::Custom(_) => continue,
         };
 
@@ -1024,8 +939,6 @@ fn find_names<'a>(
             Name::Table => (&mut ret.tables, &mut ret.table_idx),
             Name::Memory => (&mut ret.memories, &mut ret.memory_idx),
             Name::Global => (&mut ret.globals, &mut ret.global_idx),
-            Name::Module => (&mut ret.modules, &mut ret.module_idx),
-            Name::Instance => (&mut ret.instances, &mut ret.instance_idx),
             Name::Tag => (&mut ret.tags, &mut ret.tag_idx),
             Name::Type => (&mut ret.types, &mut ret.type_idx),
             Name::Elem => (&mut ret.elems, &mut ret.elem_idx),
@@ -1232,53 +1145,10 @@ impl Encode for StructAccess<'_> {
     }
 }
 
-impl Encode for NestedModule<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        let fields = match &self.kind {
-            NestedModuleKind::Inline { fields, .. } => fields,
-            _ => panic!("should only have inline modules in emission"),
-        };
-
-        encode_fields(&self.id, &self.name, fields).encode(e);
-    }
-}
-
-impl Encode for Instance<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        assert!(self.exports.names.is_empty());
-        let (module, args) = match &self.kind {
-            InstanceKind::Inline { module, args } => (module, args),
-            _ => panic!("should only have inline instances in emission"),
-        };
-        e.push(0x00);
-        module.encode(e);
-        args.encode(e);
-    }
-}
-
 impl Encode for InstanceArg<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.name.encode(e);
         self.index.kind.encode(e);
         self.index.encode(e);
-    }
-}
-
-impl Encode for Alias<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        match &self.source {
-            AliasSource::InstanceExport { instance, export } => {
-                e.push(0x00);
-                instance.encode(e);
-                self.kind.encode(e);
-                export.encode(e);
-            }
-            AliasSource::Outer { module, index } => {
-                e.push(0x01);
-                module.encode(e);
-                self.kind.encode(e);
-                index.encode(e);
-            }
-        }
     }
 }

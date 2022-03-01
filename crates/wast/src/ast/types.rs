@@ -722,10 +722,6 @@ pub enum TypeDef<'a> {
     Struct(StructType<'a>),
     /// An array type definition.
     Array(ArrayType<'a>),
-    /// A module type definition.
-    Module(ModuleType<'a>),
-    /// An instance type definition.
-    Instance(InstanceType<'a>),
 }
 
 /// A type declaration in a module
@@ -758,12 +754,6 @@ impl<'a> Parse<'a> for Type<'a> {
             } else if l.peek::<kw::array>() {
                 parser.parse::<kw::array>()?;
                 Ok(TypeDef::Array(parser.parse()?))
-            } else if l.peek::<kw::module>() {
-                parser.parse::<kw::module>()?;
-                Ok(TypeDef::Module(parser.parse()?))
-            } else if l.peek::<kw::instance>() {
-                parser.parse::<kw::instance>()?;
-                Ok(TypeDef::Instance(parser.parse()?))
             } else {
                 Err(l.error())
             }

@@ -1,7 +1,6 @@
 use crate::ast::*;
 use crate::Error;
 
-mod aliases;
 mod deinline_import_export;
 mod gensym;
 mod names;
@@ -13,25 +12,8 @@ pub enum Ns {
     Table,
     Global,
     Memory,
-    Module,
-    Instance,
     Tag,
     Type,
-}
-
-impl Ns {
-    fn from_export(kind: &ExportKind) -> Ns {
-        match kind {
-            ExportKind::Func => Ns::Func,
-            ExportKind::Table => Ns::Table,
-            ExportKind::Global => Ns::Global,
-            ExportKind::Memory => Ns::Memory,
-            ExportKind::Instance => Ns::Instance,
-            ExportKind::Module => Ns::Module,
-            ExportKind::Tag => Ns::Tag,
-            ExportKind::Type => Ns::Type,
-        }
-    }
 }
 
 pub fn resolve<'a>(module: &mut Module<'a>) -> Result<Names<'a>, Error> {
@@ -50,8 +32,6 @@ pub fn resolve<'a>(module: &mut Module<'a>) -> Result<Names<'a>, Error> {
     // calculate exports we only have to look for a particular kind of module
     // field.
     deinline_import_export::run(fields);
-
-    aliases::run(fields);
 
     // With a canonical form of imports make sure that imports are all listed
     // first.
@@ -77,7 +57,7 @@ pub fn resolve<'a>(module: &mut Module<'a>) -> Result<Names<'a>, Error> {
 
     // Perform name resolution over all `Index` items to resolve them all to
     // indices instead of symbolic names.
-    let resolver = names::resolve(module.id, fields)?;
+    let resolver = names::resolve(fields)?;
     Ok(Names { resolver })
 }
 
