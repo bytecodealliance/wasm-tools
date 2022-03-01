@@ -644,7 +644,7 @@ impl Component {
                 return Ok(false);
             }
 
-            params.push(self.arbitrary_named_type(u, &mut param_names)?);
+            params.push(self.arbitrary_optional_named_type(u, &mut param_names)?);
             Ok(true)
         })?;
 
@@ -689,8 +689,8 @@ impl Component {
             7 => Ok(PrimitiveInterfaceType::U32),
             8 => Ok(PrimitiveInterfaceType::S64),
             9 => Ok(PrimitiveInterfaceType::U64),
-            10 => Ok(PrimitiveInterfaceType::F32),
-            11 => Ok(PrimitiveInterfaceType::F64),
+            10 => Ok(PrimitiveInterfaceType::Float32),
+            11 => Ok(PrimitiveInterfaceType::Float64),
             12 => Ok(PrimitiveInterfaceType::Char),
             13 => Ok(PrimitiveInterfaceType::String),
             _ => unreachable!(),
@@ -705,6 +705,20 @@ impl Component {
         let name = crate::unique_string(100, names, u)?;
         let ty = self.arbitrary_interface_type_ref(u)?;
         Ok(NamedType { name, ty })
+    }
+
+    fn arbitrary_optional_named_type(
+        &mut self,
+        u: &mut Unstructured,
+        names: &mut HashSet<String>,
+    ) -> Result<OptionalNamedType> {
+        let name = if u.arbitrary()? {
+            Some(crate::unique_string(100, names, u)?)
+        } else {
+            None
+        };
+        let ty = self.arbitrary_interface_type_ref(u)?;
+        Ok(OptionalNamedType { name, ty })
     }
 
     fn arbitrary_record_type(
@@ -833,8 +847,8 @@ impl Component {
         Ok(UnionType { variants })
     }
 
-    fn arbitrary_optional_type(&mut self, u: &mut Unstructured) -> Result<OptionalType> {
-        Ok(OptionalType {
+    fn arbitrary_option_type(&mut self, u: &mut Unstructured) -> Result<OptionType> {
+        Ok(OptionType {
             inner_ty: self.arbitrary_interface_type_ref(u)?,
         })
     }
@@ -872,7 +886,7 @@ impl Component {
             7 => Ok(InterfaceType::Union(
                 self.arbitrary_union_type(u, type_fuel)?,
             )),
-            8 => Ok(InterfaceType::Optional(self.arbitrary_optional_type(u)?)),
+            8 => Ok(InterfaceType::Option(self.arbitrary_option_type(u)?)),
             9 => Ok(InterfaceType::Expected(self.arbitrary_expected_type(u)?)),
             _ => unreachable!(),
         }
@@ -1060,8 +1074,14 @@ enum InstanceTypeDef {
 
 #[derive(Clone, Debug)]
 struct FuncType {
-    params: Vec<NamedType>,
+    params: Vec<OptionalNamedType>,
     result: InterfaceTypeRef,
+}
+
+#[derive(Clone, Debug)]
+struct OptionalNamedType {
+    name: Option<String>,
+    ty: InterfaceTypeRef,
 }
 
 #[derive(Clone, Debug)]
@@ -1083,7 +1103,7 @@ enum InterfaceType {
     Flags(FlagsType),
     Enum(EnumType),
     Union(UnionType),
-    Optional(OptionalType),
+    Option(OptionType),
     Expected(ExpectedType),
 }
 
@@ -1123,7 +1143,7 @@ struct UnionType {
 }
 
 #[derive(Clone, Debug)]
-struct OptionalType {
+struct OptionType {
     inner_ty: InterfaceTypeRef,
 }
 

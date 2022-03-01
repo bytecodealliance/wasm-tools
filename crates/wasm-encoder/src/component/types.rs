@@ -189,28 +189,35 @@ impl<'a> TypeEncoder<'a> {
     }
 
     /// Define a function type.
-    pub fn function<'b, P>(self, params: P, result: InterfaceTypeRef)
+    pub fn function<'b, P, T>(self, params: P, result: impl Into<InterfaceTypeRef>)
     where
-        P: IntoIterator<Item = (&'b str, InterfaceTypeRef)>,
+        P: IntoIterator<Item = (Option<&'b str>, T)>,
         P::IntoIter: ExactSizeIterator,
+        T: Into<InterfaceTypeRef>,
     {
         let params = params.into_iter();
         self.0.push(0x4c);
 
         self.0
             .extend(encoders::u32(u32::try_from(params.len()).unwrap()));
-        for (name, param) in params {
-            self.0.extend(encoders::str(name));
-            param.encode(self.0);
+        for (name, ty) in params {
+            match name {
+                Some(name) => {
+                    self.0.push(0x01);
+                    self.0.extend(encoders::str(name));
+                }
+                None => self.0.push(0x00),
+            }
+            ty.into().encode(self.0);
         }
 
-        result.encode(self.0);
+        result.into().encode(self.0);
     }
 
     /// Define a value type.
-    pub fn value(self, ty: InterfaceTypeRef) {
+    pub fn value(self, ty: impl Into<InterfaceTypeRef>) {
         self.0.push(0x4b);
-        ty.encode(self.0);
+        ty.into().encode(self.0);
     }
 
     /// Define an interface type.
@@ -246,9 +253,9 @@ pub enum PrimitiveInterfaceType {
     /// The type is an unsigned 64-bit integer.
     U64,
     /// The type is a 32-bit floating point number.
-    F32,
+    Float32,
     /// The type is a 64-bit floating point number.
-    F64,
+    Float64,
     /// The type is a Unicode character.
     Char,
     /// The type is a string.
@@ -268,8 +275,8 @@ impl PrimitiveInterfaceType {
             Self::U32 => bytes.push(0x78),
             Self::S64 => bytes.push(0x77),
             Self::U64 => bytes.push(0x76),
-            Self::F32 => bytes.push(0x75),
-            Self::F64 => bytes.push(0x74),
+            Self::Float32 => bytes.push(0x75),
+            Self::Float64 => bytes.push(0x74),
             Self::Char => bytes.push(0x73),
             Self::String => bytes.push(0x72),
         }
@@ -296,6 +303,12 @@ impl InterfaceTypeRef {
     }
 }
 
+impl From<PrimitiveInterfaceType> for InterfaceTypeRef {
+    fn from(ty: PrimitiveInterfaceType) -> Self {
+        Self::Primitive(ty)
+    }
+}
+
 /// Used for encoding interface types.
 #[derive(Debug)]
 pub struct InterfaceTypeEncoder<'a>(&'a mut Vec<u8>);
@@ -307,10 +320,11 @@ impl InterfaceTypeEncoder<'_> {
     }
 
     /// Define a record type.
-    pub fn record<'a, F>(self, fields: F)
+    pub fn record<'a, F, T>(self, fields: F)
     where
-        F: IntoIterator<Item = (&'a str, InterfaceTypeRef)>,
+        F: IntoIterator<Item = (&'a str, T)>,
         F::IntoIter: ExactSizeIterator,
+        T: Into<InterfaceTypeRef>,
     {
         let fields = fields.into_iter();
         self.0.push(0x71);
@@ -318,15 +332,16 @@ impl InterfaceTypeEncoder<'_> {
             .extend(encoders::u32(fields.len().try_into().unwrap()));
         for (name, ty) in fields {
             self.0.extend(encoders::str(name));
-            ty.encode(self.0);
+            ty.into().encode(self.0);
         }
     }
 
     /// Define a variant type.
-    pub fn variant<'a, C>(self, cases: C)
+    pub fn variant<'a, C, T>(self, cases: C)
     where
-        C: IntoIterator<Item = (&'a str, InterfaceTypeRef, Option<u32>)>,
+        C: IntoIterator<Item = (&'a str, T, Option<u32>)>,
         C::IntoIter: ExactSizeIterator,
+        T: Into<InterfaceTypeRef>,
     {
         let cases = cases.into_iter();
         self.0.push(0x70);
@@ -334,7 +349,7 @@ impl InterfaceTypeEncoder<'_> {
             .extend(encoders::u32(cases.len().try_into().unwrap()));
         for (name, ty, default_to) in cases {
             self.0.extend(encoders::str(name));
-            ty.encode(self.0);
+            ty.into().encode(self.0);
             if let Some(default) = default_to {
                 self.0.push(0x01);
                 self.0.extend(encoders::u32(default));
@@ -345,23 +360,24 @@ impl InterfaceTypeEncoder<'_> {
     }
 
     /// Define a list type.
-    pub fn list(self, ty: InterfaceTypeRef) {
+    pub fn list(self, ty: impl Into<InterfaceTypeRef>) {
         self.0.push(0x6f);
-        ty.encode(self.0);
+        ty.into().encode(self.0);
     }
 
     /// Define a tuple type.
-    pub fn tuple<I>(self, types: I)
+    pub fn tuple<I, T>(self, types: I)
     where
-        I: IntoIterator<Item = InterfaceTypeRef>,
+        I: IntoIterator<Item = T>,
         I::IntoIter: ExactSizeIterator,
+        T: Into<InterfaceTypeRef>,
     {
         let types = types.into_iter();
         self.0.push(0x6E);
         self.0
             .extend(encoders::u32(types.len().try_into().unwrap()));
         for ty in types {
-            ty.encode(self.0);
+            ty.into().encode(self.0);
         }
     }
 
@@ -395,31 +411,32 @@ impl InterfaceTypeEncoder<'_> {
     }
 
     /// Define a union type.
-    pub fn union<I>(self, types: I)
+    pub fn union<I, T>(self, types: I)
     where
-        I: IntoIterator<Item = InterfaceTypeRef>,
+        I: IntoIterator<Item = T>,
         I::IntoIter: ExactSizeIterator,
+        T: Into<InterfaceTypeRef>,
     {
         let types = types.into_iter();
         self.0.push(0x6B);
         self.0
             .extend(encoders::u32(types.len().try_into().unwrap()));
         for ty in types {
-            ty.encode(self.0);
+            ty.into().encode(self.0);
         }
     }
 
-    /// Define an optional type.
-    pub fn optional(self, ty: InterfaceTypeRef) {
+    /// Define an option type.
+    pub fn option(self, ty: impl Into<InterfaceTypeRef>) {
         self.0.push(0x6A);
-        ty.encode(self.0);
+        ty.into().encode(self.0);
     }
 
     /// Define an expected type.
-    pub fn expected(self, ok: InterfaceTypeRef, error: InterfaceTypeRef) {
+    pub fn expected(self, ok: impl Into<InterfaceTypeRef>, error: impl Into<InterfaceTypeRef>) {
         self.0.push(0x69);
-        ok.encode(self.0);
-        error.encode(self.0);
+        ok.into().encode(self.0);
+        error.into().encode(self.0);
     }
 }
 
@@ -428,16 +445,16 @@ impl InterfaceTypeEncoder<'_> {
 /// # Example
 ///
 /// ```rust
-/// use wasm_encoder::{Component, ComponentTypeSection, InterfaceTypeRef, PrimitiveInterfaceType};
+/// use wasm_encoder::{Component, ComponentTypeSection, PrimitiveInterfaceType};
 ///
 /// let mut types = ComponentTypeSection::new();
 ///
 /// types.function(
 ///   [
-///     ("a", InterfaceTypeRef::Primitive(PrimitiveInterfaceType::String)),
-///     ("b", InterfaceTypeRef::Primitive(PrimitiveInterfaceType::String))
+///     (Some("a"), PrimitiveInterfaceType::String),
+///     (Some("b"), PrimitiveInterfaceType::String)
 ///   ],
-///   InterfaceTypeRef::Primitive(PrimitiveInterfaceType::String)
+///   PrimitiveInterfaceType::String
 /// );
 ///
 /// let mut component = Component::new();
@@ -495,17 +512,22 @@ impl ComponentTypeSection {
     }
 
     /// Define a function type in this type section.
-    pub fn function<'a, P>(&mut self, params: P, result: InterfaceTypeRef) -> &mut Self
+    pub fn function<'a, P, T>(
+        &mut self,
+        params: P,
+        result: impl Into<InterfaceTypeRef>,
+    ) -> &mut Self
     where
-        P: IntoIterator<Item = (&'a str, InterfaceTypeRef)>,
+        P: IntoIterator<Item = (Option<&'a str>, T)>,
         P::IntoIter: ExactSizeIterator,
+        T: Into<InterfaceTypeRef>,
     {
         self.ty().function(params, result);
         self
     }
 
     /// Define a value type in this type section.
-    pub fn value(&mut self, ty: InterfaceTypeRef) -> &mut Self {
+    pub fn value(&mut self, ty: impl Into<InterfaceTypeRef>) -> &mut Self {
         self.ty().value(ty);
         self
     }

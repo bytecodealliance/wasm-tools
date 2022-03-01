@@ -23,8 +23,8 @@ fn push_primitive_wasm_types(ty: &PrimitiveInterfaceType, wasm_types: &mut Vec<T
         PrimitiveInterfaceType::S64 | PrimitiveInterfaceType::U64 => {
             wasm_types.push(Type::I64);
         }
-        PrimitiveInterfaceType::F32 => wasm_types.push(Type::F32),
-        PrimitiveInterfaceType::F64 => wasm_types.push(Type::F64),
+        PrimitiveInterfaceType::Float32 => wasm_types.push(Type::F32),
+        PrimitiveInterfaceType::Float64 => wasm_types.push(Type::F64),
         PrimitiveInterfaceType::String => wasm_types.extend([Type::I32, Type::I32]),
     }
 }
@@ -109,7 +109,7 @@ impl InstanceType {
 
 #[derive(Clone)]
 pub struct ComponentFuncType {
-    params: Box<[(String, InterfaceTypeRef)]>,
+    params: Box<[(Option<String>, InterfaceTypeRef)]>,
     result: InterfaceTypeRef,
     core_type: FuncType,
 }
@@ -127,18 +127,18 @@ impl ComponentFuncType {
         // Subtyping rules:
         // https://github.com/WebAssembly/component-model/blob/17f94ed1270a98218e0e796ca1dad1feb7e5c507/design/mvp/Subtyping.md
 
-        // Contravariant on return type
-        if !other.result.is_subtype_of(&self.result, types) {
+        // Covariant on return type
+        if !self.result.is_subtype_of(&other.result, types) {
             return false;
         }
 
-        // All overlapping parameters must have the same name and are subtypes
+        // All overlapping parameters must have the same name and are contravariant subtypes
         for ((name, ty), (other_name, other_ty)) in self.params.iter().zip(other.params.iter()) {
             if name != other_name {
                 return false;
             }
 
-            if !ty.is_subtype_of(other_ty, types) {
+            if !other_ty.is_subtype_of(ty, types) {
                 return false;
             }
         }
@@ -173,10 +173,7 @@ impl InterfaceTypeRef {
         match self {
             InterfaceTypeRef::Primitive(_) => false,
             InterfaceTypeRef::Type(ty) => {
-                matches!(
-                    types[*ty].unwrap_interface_type(),
-                    InterfaceType::Optional(_)
-                )
+                matches!(types[*ty].unwrap_interface_type(), InterfaceType::Option(_))
             }
         }
     }
@@ -228,7 +225,7 @@ pub enum InterfaceType {
     Flags(HashSet<String>),
     Enum(HashSet<String>),
     Union(Box<[InterfaceTypeRef]>),
-    Optional(InterfaceTypeRef),
+    Option(InterfaceTypeRef),
     Expected(InterfaceTypeRef, InterfaceTypeRef),
 }
 
@@ -247,7 +244,7 @@ impl InterfaceType {
                 tys.iter().any(|ty| ty.requires_into_option(types))
             }
             InterfaceType::Flags(_) | InterfaceType::Enum(_) => false,
-            InterfaceType::Optional(ty) => ty.requires_into_option(types),
+            InterfaceType::Option(ty) => ty.requires_into_option(types),
             InterfaceType::Expected(ok, error) => {
                 ok.requires_into_option(types) || error.requires_into_option(types)
             }
@@ -282,8 +279,8 @@ impl InterfaceType {
             (InterfaceType::Variant(cases), InterfaceType::Variant(other_cases)) => {
                 for (name, case) in cases.iter() {
                     if let Some(other_case) = other_cases.get(name) {
-                        // Contravariant subtype on the case type
-                        if !other_case.ty.is_subtype_of(&case.ty, types) {
+                        // Covariant subtype on the case type
+                        if !case.ty.is_subtype_of(&other_case.ty, types) {
                             return false;
                         }
                     } else if let Some(default) = &case.default_to {
@@ -300,7 +297,7 @@ impl InterfaceType {
                 true
             }
             (InterfaceType::List(ty), InterfaceType::List(other_ty))
-            | (InterfaceType::Optional(ty), InterfaceType::Optional(other_ty)) => {
+            | (InterfaceType::Option(ty), InterfaceType::Option(other_ty)) => {
                 ty.is_subtype_of(other_ty, types)
             }
             (InterfaceType::Tuple(tys), InterfaceType::Tuple(other_tys))
@@ -374,7 +371,7 @@ impl InterfaceType {
             Self::Union(tys) => {
                 Self::push_variant_types(tys.iter(), types, offset, wasm_types)?;
             }
-            Self::Optional(ty) => {
+            Self::Option(ty) => {
                 Self::push_variant_types([ty].into_iter(), types, offset, wasm_types)?;
             }
             Self::Expected(ok, error) => {
@@ -1084,10 +1081,12 @@ impl ComponentState {
             .params
             .iter()
             .map(|(name, ty)| {
-                Self::check_name(name, "function parameter", offset)?;
+                if let Some(name) = name {
+                    Self::check_name(name, "function parameter", offset)?;
+                }
                 let ty = self.create_interface_type_ref(*ty, types, offset)?;
                 ty.push_wasm_types(types, offset, &mut core_params)?;
-                Ok((name.to_string(), ty))
+                Ok((name.map(ToOwned::to_owned), ty))
             })
             .collect::<Result<_>>()?;
 
@@ -1769,8 +1768,8 @@ impl ComponentState {
                     .map(|ty| self.create_interface_type_ref(*ty, types, offset))
                     .collect::<Result<_>>()?,
             ),
-            crate::InterfaceType::Optional(ty) => {
-                InterfaceType::Optional(self.create_interface_type_ref(ty, types, offset)?)
+            crate::InterfaceType::Option(ty) => {
+                InterfaceType::Option(self.create_interface_type_ref(ty, types, offset)?)
             }
             crate::InterfaceType::Expected { ok, error } => InterfaceType::Expected(
                 self.create_interface_type_ref(ok, types, offset)?,

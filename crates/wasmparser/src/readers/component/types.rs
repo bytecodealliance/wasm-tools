@@ -84,7 +84,7 @@ pub enum InstanceType<'a> {
 #[derive(Debug, Clone)]
 pub struct ComponentFuncType<'a> {
     /// The function parameter types.
-    pub params: Box<[(&'a str, InterfaceTypeRef)]>,
+    pub params: Box<[(Option<&'a str>, InterfaceTypeRef)]>,
     /// The function result type.
     pub result: InterfaceTypeRef,
 }
@@ -113,9 +113,9 @@ pub enum PrimitiveInterfaceType {
     /// The type is an unsigned 64-bit integer.
     U64,
     /// The type is a 32-bit floating point number.
-    F32,
+    Float32,
     /// The type is a 64-bit floating point number.
-    F64,
+    Float64,
     /// The type is a Unicode character.
     Char,
     /// The type is a string.
@@ -152,7 +152,10 @@ impl PrimitiveInterfaceType {
                     | (PrimitiveInterfaceType::S32, PrimitiveInterfaceType::S64)
                     | (PrimitiveInterfaceType::U32, PrimitiveInterfaceType::U64)
                     | (PrimitiveInterfaceType::U32, PrimitiveInterfaceType::S64)
-                    | (PrimitiveInterfaceType::F32, PrimitiveInterfaceType::F64)
+                    | (
+                        PrimitiveInterfaceType::Float32,
+                        PrimitiveInterfaceType::Float64
+                    )
             )
     }
 }
@@ -196,8 +199,8 @@ pub enum InterfaceType<'a> {
     Enum(Box<[&'a str]>),
     /// The type is a union of the given interface types.
     Union(Box<[InterfaceTypeRef]>),
-    /// The type is an optional of the given interface type.
-    Optional(InterfaceTypeRef),
+    /// The type is an option of the given interface type.
+    Option(InterfaceTypeRef),
     /// The type is an expected type.
     Expected {
         /// The type returned for success.
@@ -237,7 +240,7 @@ impl<'a> ComponentTypeSectionReader<'a> {
     /// # Examples
     /// ```
     /// use wasmparser::ComponentTypeSectionReader;
-    /// let data: &[u8] = &[0x01, 0x4c, 0x01, 0x03, b'f', b'o', b'o', 0x72, 0x72];
+    /// let data: &[u8] = &[0x01, 0x4c, 0x01, 0x01, 0x03, b'f', b'o', b'o', 0x72, 0x72];
     /// let mut reader = ComponentTypeSectionReader::new(data, 0).unwrap();
     /// for _ in 0..reader.get_count() {
     ///     let ty = reader.read().expect("type");
@@ -284,7 +287,7 @@ impl<'a> IntoIterator for ComponentTypeSectionReader<'a> {
     /// # Examples
     /// ```
     /// use wasmparser::ComponentTypeSectionReader;
-    /// # let data: &[u8] = &[0x01, 0x4c, 0x01, 0x03, b'f', b'o', b'o', 0x72, 0x72];
+    /// # let data: &[u8] = &[0x01, 0x4c, 0x01, 0x01, 0x03, b'f', b'o', b'o', 0x72, 0x72];
     /// let mut reader = ComponentTypeSectionReader::new(data, 0).unwrap();
     /// for ty in reader {
     ///     println!("Type {:?}", ty.expect("type"));

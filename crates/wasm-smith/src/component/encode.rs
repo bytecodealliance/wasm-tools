@@ -136,7 +136,10 @@ impl Type {
             }
             Type::Func(func_ty) => {
                 enc.function(
-                    func_ty.params.iter().map(|p| translate_named_type(p)),
+                    func_ty
+                        .params
+                        .iter()
+                        .map(|p| translate_optional_named_type(p)),
                     func_ty.result,
                 );
             }
@@ -179,8 +182,8 @@ impl InterfaceType {
             InterfaceType::Union(ty) => {
                 enc.union(ty.variants.iter().copied());
             }
-            InterfaceType::Optional(ty) => {
-                enc.optional(ty.inner_ty);
+            InterfaceType::Option(ty) => {
+                enc.option(ty.inner_ty);
             }
             InterfaceType::Expected(ty) => {
                 enc.expected(ty.ok_ty, ty.err_ty);
@@ -191,4 +194,8 @@ impl InterfaceType {
 
 fn translate_named_type(ty: &NamedType) -> (&str, InterfaceTypeRef) {
     (&ty.name, ty.ty)
+}
+
+fn translate_optional_named_type(ty: &OptionalNamedType) -> (Option<&str>, InterfaceTypeRef) {
+    (ty.name.as_deref(), ty.ty)
 }
