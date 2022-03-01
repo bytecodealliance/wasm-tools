@@ -109,7 +109,7 @@ impl InstanceType {
 
 #[derive(Clone)]
 pub struct ComponentFuncType {
-    params: Box<[(String, InterfaceTypeRef)]>,
+    params: Box<[(Option<String>, InterfaceTypeRef)]>,
     result: InterfaceTypeRef,
     core_type: FuncType,
 }
@@ -1084,10 +1084,12 @@ impl ComponentState {
             .params
             .iter()
             .map(|(name, ty)| {
-                Self::check_name(name, "function parameter", offset)?;
+                if let Some(name) = name {
+                    Self::check_name(name, "function parameter", offset)?;
+                }
                 let ty = self.create_interface_type_ref(*ty, types, offset)?;
                 ty.push_wasm_types(types, offset, &mut core_params)?;
-                Ok((name.to_string(), ty))
+                Ok((name.map(ToOwned::to_owned), ty))
             })
             .collect::<Result<_>>()?;
 

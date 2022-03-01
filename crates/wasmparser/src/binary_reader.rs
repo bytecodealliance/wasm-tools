@@ -325,7 +325,12 @@ impl<'a> BinaryReader<'a> {
                 let params_size =
                     self.read_size(MAX_WASM_FUNCTION_PARAMS, "function parameters")?;
                 let params = (0..params_size)
-                    .map(|_| Ok((self.read_string()?, self.read_interface_type_ref()?)))
+                    .map(|_| {
+                        Ok((
+                            self.read_optional_string()?,
+                            self.read_interface_type_ref()?,
+                        ))
+                    })
                     .collect::<Result<_>>()?;
                 ComponentTypeDef::Function(ComponentFuncType {
                     params,
@@ -1240,6 +1245,17 @@ impl<'a> BinaryReader<'a> {
         str::from_utf8(bytes).map_err(|_| {
             BinaryReaderError::new("invalid UTF-8 encoding", self.original_position() - 1)
         })
+    }
+
+    fn read_optional_string(&mut self) -> Result<Option<&'a str>> {
+        match self.read_u8()? {
+            0x0 => Ok(None),
+            0x1 => Ok(Some(self.read_string()?)),
+            _ => Err(BinaryReaderError::new(
+                "invalid optional string encoding",
+                self.original_position() - 1,
+            )),
+        }
     }
 
     fn read_memarg_of_align(&mut self, max_align: u8) -> Result<MemoryImmediate> {

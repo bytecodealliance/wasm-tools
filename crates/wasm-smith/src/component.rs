@@ -644,7 +644,7 @@ impl Component {
                 return Ok(false);
             }
 
-            params.push(self.arbitrary_named_type(u, &mut param_names)?);
+            params.push(self.arbitrary_optional_named_type(u, &mut param_names)?);
             Ok(true)
         })?;
 
@@ -705,6 +705,20 @@ impl Component {
         let name = crate::unique_string(100, names, u)?;
         let ty = self.arbitrary_interface_type_ref(u)?;
         Ok(NamedType { name, ty })
+    }
+
+    fn arbitrary_optional_named_type(
+        &mut self,
+        u: &mut Unstructured,
+        names: &mut HashSet<String>,
+    ) -> Result<OptionalNamedType> {
+        let name = if u.arbitrary()? {
+            Some(crate::unique_string(100, names, u)?)
+        } else {
+            None
+        };
+        let ty = self.arbitrary_interface_type_ref(u)?;
+        Ok(OptionalNamedType { name, ty })
     }
 
     fn arbitrary_record_type(
@@ -1060,8 +1074,14 @@ enum InstanceTypeDef {
 
 #[derive(Clone, Debug)]
 struct FuncType {
-    params: Vec<NamedType>,
+    params: Vec<OptionalNamedType>,
     result: InterfaceTypeRef,
+}
+
+#[derive(Clone, Debug)]
+struct OptionalNamedType {
+    name: Option<String>,
+    ty: InterfaceTypeRef,
 }
 
 #[derive(Clone, Debug)]
