@@ -5,6 +5,7 @@ use crate::{encode_functype, encoders, ComponentSection, ComponentSectionId, Ent
 pub struct ModuleType {
     bytes: Vec<u8>,
     num_added: u32,
+    types_added: u32,
 }
 
 impl ModuleType {
@@ -24,6 +25,7 @@ impl ModuleType {
         self.bytes.push(0x01);
         encode_functype(&mut self.bytes, params, results);
         self.num_added += 1;
+        self.types_added += 1;
         self
     }
 
@@ -46,6 +48,11 @@ impl ModuleType {
         self
     }
 
+    /// Gets the number of types that have been added to this module type.
+    pub fn type_count(&self) -> u32 {
+        self.types_added
+    }
+
     fn encode(&self, bytes: &mut Vec<u8>) {
         bytes.extend(encoders::u32(self.num_added));
         bytes.extend(self.bytes.iter().copied());
@@ -57,6 +64,7 @@ impl ModuleType {
 pub struct ComponentType {
     bytes: Vec<u8>,
     num_added: u32,
+    types_added: u32,
 }
 
 impl ComponentType {
@@ -72,6 +80,7 @@ impl ComponentType {
     pub fn ty(&mut self) -> TypeEncoder {
         self.bytes.push(0x01);
         self.num_added += 1;
+        self.types_added += 1;
         TypeEncoder(&mut self.bytes)
     }
 
@@ -105,7 +114,13 @@ impl ComponentType {
         self.bytes.extend(encoders::u32(count));
         self.bytes.extend(encoders::u32(index));
         self.num_added += 1;
+        self.types_added += 1;
         self
+    }
+
+    /// Gets the number of types that have been added or aliased in this component type.
+    pub fn type_count(&self) -> u32 {
+        self.types_added
     }
 
     fn encode(&self, bytes: &mut Vec<u8>) {
@@ -119,6 +134,7 @@ impl ComponentType {
 pub struct InstanceType {
     bytes: Vec<u8>,
     num_added: u32,
+    types_added: u32,
 }
 
 impl InstanceType {
@@ -134,6 +150,7 @@ impl InstanceType {
     pub fn ty(&mut self) -> TypeEncoder {
         self.bytes.push(0x01);
         self.num_added += 1;
+        self.types_added += 1;
         TypeEncoder(&mut self.bytes)
     }
 
@@ -156,7 +173,13 @@ impl InstanceType {
         self.bytes.extend(encoders::u32(count));
         self.bytes.extend(encoders::u32(index));
         self.num_added += 1;
+        self.types_added += 1;
         self
+    }
+
+    /// Gets the number of types that have been added or aliased in this instance type.
+    pub fn type_count(&self) -> u32 {
+        self.types_added
     }
 
     fn encode(&self, bytes: &mut Vec<u8>) {
