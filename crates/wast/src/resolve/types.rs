@@ -200,6 +200,7 @@ impl<'a> Expander<'a> {
         item.index = Some(ItemRef {
             idx,
             kind: kw::r#type(span),
+            extra_names: Vec::new(),
             #[cfg(wast_check_exhaustive)]
             visited: true,
         });

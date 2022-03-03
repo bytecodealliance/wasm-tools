@@ -1,13 +1,22 @@
 use crate::ast::*;
 
-pub fn encode(module: &Module<'_>) -> Vec<u8> {
+pub fn encode_module(module: &Module<'_>) -> Vec<u8> {
     match &module.kind {
-        ModuleKind::Text(fields) => encode_fields(&module.id, &module.name, fields),
+        ModuleKind::Text(fields) => encode_module_fields(&module.id, &module.name, fields),
         ModuleKind::Binary(bytes) => bytes.iter().flat_map(|b| b.iter().cloned()).collect(),
     }
 }
 
-fn encode_fields(
+pub fn encode_component(component: &Component<'_>) -> Vec<u8> {
+    match &component.kind {
+        ComponentKind::Text(fields) => {
+            encode_component_fields(&component.id, &component.name, fields)
+        }
+        ComponentKind::Binary(bytes) => bytes.iter().flat_map(|b| b.iter().cloned()).collect(),
+    }
+}
+
+fn encode_module_fields(
     module_id: &Option<Id<'_>>,
     module_name: &Option<NameAnnotation<'_>>,
     fields: &[ModuleField<'_>],
@@ -78,7 +87,7 @@ fn encode_fields(
     e.section_list(10, Code, &funcs);
     e.section_list(11, Data, &data);
 
-    let names = find_names(module_id, module_name, fields);
+    let names = find_module_names(module_id, module_name, fields);
     if !names.is_empty() {
         e.section(0, &("name", names));
     }
@@ -101,6 +110,113 @@ fn encode_fields(
     }
 }
 
+fn encode_component_fields(
+    _component_id: &Option<Id<'_>>,
+    _component_name: &Option<NameAnnotation<'_>>,
+    _fields: &[ComponentField<'_>],
+) -> Vec<u8> {
+    Vec::new()
+    /* TODO
+    use crate::ast::CustomPlace::*;
+    use crate::ast::CustomPlaceAnchor::*;
+
+    let mut types = Vec::new();
+    let mut imports = Vec::new();
+    let mut funcs = Vec::new();
+    let mut exports = Vec::new();
+    let mut start = Vec::new();
+    let mut customs = Vec::new();
+    let mut instances = Vec::new();
+    let mut modules = Vec::new();
+    let mut components = Vec::new();
+    let mut aliases = Vec::new();
+    for field in fields {
+        match field {
+            ComponentField::Type(i) => types.push(i),
+            ComponentField::Import(i) => imports.push(i),
+            ComponentField::Func(i) => funcs.push(i),
+            ComponentField::Export(i) => exports.push(i),
+            ComponentField::Start(i) => start.push(i),
+            ComponentField::Custom(i) => customs.push(i),
+            ComponentField::Instance(i) => instances.push(i),
+            ComponentField::Module(i) => modules.push(i),
+            ComponentField::Component(i) => components.push(i),
+            ComponentField::Alias(a) => aliases.push(a),
+        }
+    }
+
+    let mut e = Encoder {
+        wasm: Vec::new(),
+        tmp: Vec::new(),
+        customs: &customs,
+    };
+    e.wasm.extend(b"\0asm");
+    e.wasm.extend(b"\x01\0\0\0");
+
+    e.custom_sections(BeforeFirst);
+
+    let mut items = fields
+        .iter()
+        .filter(|i| match i {
+            ComponentField::Alias(_)
+            | ComponentField::Type(_)
+            | ComponentField::Import(_)
+            | ComponentField::Component(_)
+            | ComponentField::Instance(_) => true,
+            _ => false,
+        })
+        .peekable();
+
+    // A special path is used for now to handle non-module-linking modules to
+    // work around WebAssembly/annotations#11
+    if aliases.len() == 0 && components.len() == 0 && instances.len() == 0 {
+        e.section_list(1, Type, &types);
+        e.section_list(2, Import, &imports);
+    } else {
+        while let Some(field) = items.next() {
+            macro_rules! list {
+                ($code:expr, $name:ident) => {
+                    list!($code, $name, $name)
+                };
+                ($code:expr, $field:ident, $custom:ident) => {
+                    if let ComponentField::$field(f) = field {
+                        let mut list = vec![f];
+                        while let Some(ComponentField::$field(f)) = items.peek() {
+                            list.push(f);
+                            items.next();
+                        }
+                        e.section_list($code, $custom, &list);
+                    }
+                };
+            }
+            list!(1, Type);
+            list!(2, Import);
+            list!(14, Module, Module);
+            list!(14, Component, Component); // TODO: nested component encoding
+            list!(15, Instance);
+            list!(16, Alias);
+        }
+    }
+
+    let functys = funcs.iter().map(|f| &f.ty).collect::<Vec<_>>();
+    e.section_list(3, Func, &functys);
+    e.section_list(7, Export, &exports);
+    e.custom_sections(Before(Start));
+    if let Some(start) = start.get(0) {
+        e.section(8, start);
+    }
+    e.custom_sections(After(Start));
+    e.section_list(10, Code, &funcs);
+
+    let names = find_component_names(component_id, component_name, fields);
+    if !names.is_empty() {
+        e.section(0, &("name", names));
+    }
+    e.custom_sections(AfterLast);
+
+    return e.wasm;
+    */
+}
 struct Encoder<'a> {
     wasm: Vec<u8>,
     tmp: Vec<u8>,
@@ -235,9 +351,15 @@ impl Encode for ModuleType<'_> {
     }
 }
 
+impl Encode for ComponentModuleType<'_> {
+    fn encode(&self, _e: &mut Vec<u8>) {
+        eprintln!("TODO: Encode for ComponentModuleType")
+    }
+}
+
 impl Encode for InstanceType<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.exports.encode(e);
+    fn encode(&self, _e: &mut Vec<u8>) {
+        eprintln!("TODO: Encode for InstanceType")
     }
 }
 
@@ -264,6 +386,12 @@ impl Encode for Type<'_> {
                 array.encode(e)
             }
         }
+    }
+}
+
+impl Encode for ComponentType<'_> {
+    fn encode(&self, _e: &mut Vec<u8>) {
+        eprintln!("TODO: Encode for ComponentType")
     }
 }
 
@@ -392,6 +520,12 @@ impl Encode for Import<'_> {
             }
         }
         self.item.encode(e);
+    }
+}
+
+impl Encode for ComponentImport<'_> {
+    fn encode(&self, _e: &mut Vec<u8>) {
+        eprintln!("TODO: Encode for ComponentImport")
     }
 }
 
@@ -549,9 +683,20 @@ impl Encode for Global<'_> {
 impl Encode for Export<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.name.encode(e);
-        let ItemRef { kind, .. } = &self.index;
+        let ItemRef {
+            kind, extra_names, ..
+        } = &self.index;
         kind.encode(e);
         self.index.encode(e);
+        if !extra_names.is_empty() {
+            eprintln!("TODO: implement alias sugar for encoding `Export`");
+        }
+    }
+}
+
+impl Encode for ComponentExport<'_> {
+    fn encode(&self, _e: &mut Vec<u8>) {
+        eprintln!("TODO: Encode for ComponentExport")
     }
 }
 
@@ -696,6 +841,12 @@ impl Encode for Func<'_> {
     }
 }
 
+impl Encode for ComponentFunc<'_> {
+    fn encode(&self, _e: &mut Vec<u8>) {
+        eprintln!("TODO: Encode for ComponentFunc")
+    }
+}
+
 impl Encode for Vec<Local<'_>> {
     fn encode(&self, e: &mut Vec<u8>) {
         let mut locals_compressed = Vec::<(u32, ValType)>::new();
@@ -706,7 +857,7 @@ impl Encode for Vec<Local<'_>> {
                     continue;
                 }
             }
-            locals_compressed.push((1, local.ty));
+            locals_compressed.push((1, local.ty.clone()));
         }
         locals_compressed.encode(e);
     }
@@ -858,7 +1009,7 @@ impl Encode for Float64 {
 }
 
 #[derive(Default)]
-struct Names<'a> {
+struct ModuleNames<'a> {
     module: Option<&'a str>,
     funcs: Vec<(u32, &'a str)>,
     func_idx: u32,
@@ -880,11 +1031,11 @@ struct Names<'a> {
     elem_idx: u32,
 }
 
-fn find_names<'a>(
+fn find_module_names<'a>(
     module_id: &Option<Id<'a>>,
     module_name: &Option<NameAnnotation<'a>>,
     fields: &[ModuleField<'a>],
-) -> Names<'a> {
+) -> ModuleNames<'a> {
     fn get_name<'a>(id: &Option<Id<'a>>, name: &Option<NameAnnotation<'a>>) -> Option<&'a str> {
         name.as_ref().map(|n| n.name).or(id.and_then(|id| {
             if id.is_gensym() {
@@ -906,7 +1057,7 @@ fn find_names<'a>(
         Data,
     }
 
-    let mut ret = Names::default();
+    let mut ret = ModuleNames::default();
     ret.module = get_name(module_id, module_name);
     for field in fields {
         // Extract the kind/id/name from whatever kind of field this is...
@@ -1008,7 +1159,122 @@ fn find_names<'a>(
     return ret;
 }
 
-impl Names<'_> {
+#[derive(Default)]
+struct ComponentNames<'a> {
+    component: Option<&'a str>,
+    funcs: Vec<(u32, &'a str)>,
+    func_idx: u32,
+    locals: Vec<(u32, Vec<(u32, &'a str)>)>,
+    labels: Vec<(u32, Vec<(u32, &'a str)>)>,
+    components: Vec<(u32, &'a str)>,
+    component_idx: u32,
+    instances: Vec<(u32, &'a str)>,
+    instance_idx: u32,
+    types: Vec<(u32, &'a str)>,
+    type_idx: u32,
+}
+
+fn find_component_names<'a>(
+    component_id: &Option<Id<'a>>,
+    component_name: &Option<NameAnnotation<'a>>,
+    fields: &[ComponentField<'a>],
+) -> ComponentNames<'a> {
+    fn get_name<'a>(id: &Option<Id<'a>>, name: &Option<NameAnnotation<'a>>) -> Option<&'a str> {
+        name.as_ref().map(|n| n.name).or(id.and_then(|id| {
+            if id.is_gensym() {
+                None
+            } else {
+                Some(id.name())
+            }
+        }))
+    }
+
+    enum Name {
+        Type,
+        Func,
+        Module,
+        Component,
+        Instance,
+    }
+
+    let mut ret = ComponentNames::default();
+    ret.component = get_name(component_id, component_name);
+    for field in fields {
+        // Extract the kind/id/name from whatever kind of field this is...
+        let (kind, id, name) = match field {
+            ComponentField::Import(_i) => {
+                eprintln!("TODO: Extract the kind/id/name from ComponentField::Import");
+                continue;
+            }
+            ComponentField::Module(m) => (Name::Module, &m.id, &m.name),
+            ComponentField::Component(c) => (Name::Component, &c.id, &c.name),
+            ComponentField::Instance(i) => (Name::Instance, &i.id, &i.name),
+            ComponentField::Type(t) => (Name::Type, &t.id, &t.name),
+            ComponentField::Func(f) => (Name::Func, &f.id, &f.name),
+            ComponentField::Alias(_a) => {
+                eprintln!("TODO: Extract the kind/id/name from ComponentField::Alias");
+                continue;
+            }
+            ComponentField::Export(_) | ComponentField::Start(_) | ComponentField::Custom(_) => {
+                continue
+            }
+        };
+
+        // .. and using the kind we can figure out where to place this name
+        let (list, idx) = match kind {
+            Name::Func => (&mut ret.funcs, &mut ret.func_idx),
+            Name::Module => {
+                eprintln!("TODO: modules");
+                continue;
+            }
+            Name::Component => (&mut ret.components, &mut ret.component_idx),
+            Name::Instance => (&mut ret.instances, &mut ret.instance_idx),
+            Name::Type => (&mut ret.types, &mut ret.type_idx),
+        };
+        if let Some(name) = get_name(id, name) {
+            list.push((*idx, name));
+        }
+
+        // Handle module locals separately from above
+        if let ComponentField::Func(f) = field {
+            let mut local_names = Vec::new();
+            let mut local_idx = 0;
+
+            // Consult the inline type listed for local names of parameters.
+            // This is specifically preserved during the name resolution
+            // pass, but only for functions, so here we can look at the
+            // original source's names.
+            if let Some(ty) = &f.ty.inline {
+                for (id, name, _) in ty.params.iter() {
+                    if let Some(name) = get_name(id, name) {
+                        local_names.push((local_idx, name));
+                    }
+                    local_idx += 1;
+                }
+            }
+            if let ComponentFuncKind::Inline { locals, body, .. } = &f.kind {
+                for local in locals {
+                    if let Some(name) = get_name(&local.id, &local.name) {
+                        local_names.push((local_idx, name));
+                    }
+                    local_idx += 1;
+                }
+
+                let _ = body;
+                eprintln!("TODO: ComponentKindKind::Inline body");
+            }
+            if local_names.len() > 0 {
+                ret.locals.push((*idx, local_names));
+            }
+        }
+
+        *idx += 1;
+    }
+
+    return ret;
+}
+
+impl ModuleNames<'_> {
     fn is_empty(&self) -> bool {
         self.module.is_none()
             && self.funcs.is_empty()
@@ -1025,7 +1291,7 @@ impl Names<'_> {
     }
 }
 
-impl Encode for Names<'_> {
+impl Encode for ModuleNames<'_> {
     fn encode(&self, dst: &mut Vec<u8>) {
         let mut tmp = Vec::new();
 
@@ -1075,6 +1341,24 @@ impl Encode for Names<'_> {
             self.data.encode(&mut tmp);
             subsec(9, &mut tmp);
         }
+    }
+}
+
+impl ComponentNames<'_> {
+    fn is_empty(&self) -> bool {
+        self.component.is_none()
+            && self.funcs.is_empty()
+            && self.locals.is_empty()
+            && self.labels.is_empty()
+            && self.types.is_empty()
+        // NB: specifically don't check modules/components/instances since they're
+        // not encoded for now.
+    }
+}
+
+impl Encode for ComponentNames<'_> {
+    fn encode(&self, _dst: &mut Vec<u8>) {
+        eprintln!("TODO: names section for components")
     }
 }
 
@@ -1145,10 +1429,50 @@ impl Encode for StructAccess<'_> {
     }
 }
 
-impl Encode for InstanceArg<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.name.encode(e);
-        self.index.kind.encode(e);
-        self.index.encode(e);
+impl Encode for Component<'_> {
+    fn encode(&self, _e: &mut Vec<u8>) {
+        eprintln!("TODO: Encode for Component")
+    }
+}
+
+impl Encode for NestedModule<'_> {
+    fn encode(&self, _e: &mut Vec<u8>) {
+        eprintln!("TODO: Encode for NestedModule")
+    }
+}
+
+impl Encode for Instance<'_> {
+    fn encode(&self, _e: &mut Vec<u8>) {
+        eprintln!("TODO: Encode for Instance")
+    }
+}
+
+impl Encode for Start<'_> {
+    fn encode(&self, _e: &mut Vec<u8>) {
+        eprintln!("TODO: Encode for Start")
+    }
+}
+
+impl Encode for ComponentArg<'_> {
+    fn encode(&self, _e: &mut Vec<u8>) {
+        eprintln!("TODO: Encode for ComponentArg")
+    }
+}
+
+impl Encode for Alias<'_> {
+    fn encode(&self, _e: &mut Vec<u8>) {
+        eprintln!("TODO: Encode for Alias")
+    }
+}
+
+impl Encode for CanonLower<'_> {
+    fn encode(&self, _e: &mut Vec<u8>) {
+        eprintln!("TODO: Encode for CanonLower")
+    }
+}
+
+impl Encode for CanonLift<'_> {
+    fn encode(&self, _e: &mut Vec<u8>) {
+        eprintln!("TODO: Encode for CanonLift")
     }
 }

@@ -261,6 +261,16 @@ pub trait Peek {
         }
     }
 
+    /// The same as `peek2`, except it checks the token immediately following
+    /// the token immediately following the current token.
+    fn peek3(mut cursor: Cursor<'_>) -> bool {
+        if cursor.advance_token().is_some() {
+            Self::peek(cursor)
+        } else {
+            false
+        }
+    }
+
     /// Returns a human-readable name of this token to display when generating
     /// errors about this token missing.
     fn display() -> &'static str;
@@ -566,6 +576,38 @@ impl<'a> Parser<'a> {
         } else {
             false
         }
+    }
+
+    /// Same as the [`Parser::peek2`] method, except checks the next next token,
+    /// not the next token.
+    pub fn peek3<T: Peek>(self) -> bool {
+        let mut cursor = self.cursor();
+        if cursor.advance_token().is_some() && cursor.advance_token().is_some() {
+            T::peek(cursor)
+        } else {
+            false
+        }
+    }
+
+    /// Same as the [`Parser::peek3`] method, except checks the next next next
+    /// token, not the next next token.
+    pub fn peek4<T: Peek>(self) -> bool {
+        let mut cursor = self.cursor();
+        if cursor.advance_token().is_some()
+            && cursor.advance_token().is_some()
+            && cursor.advance_token().is_some()
+        {
+            T::peek(cursor)
+        } else {
+            false
+        }
+    }
+
+    /// `is_empty` meets `peek2`. Looks past a token and checks if there are any
+    /// more tokens after that.
+    pub fn peek2_empty(self) -> bool {
+        let mut cursor = self.cursor();
+        cursor.advance_token().is_some()
     }
 
     /// A helper structure to perform a sequence of `peek` operations and if

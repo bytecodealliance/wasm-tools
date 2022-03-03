@@ -1,4 +1,4 @@
-use crate::ast::{self, kw};
+use crate::ast::{self, kw, Wat};
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::{AssertExpression, NanPattern, V128Pattern};
 
@@ -24,8 +24,11 @@ impl<'a> Parse<'a> for Wast<'a> {
                 directives.push(parser.parens(|p| p.parse())?);
             }
         } else {
-            let module = parser.parse::<ast::Wat>()?.module;
-            directives.push(WastDirective::Module(module));
+            let wat = parser.parse::<ast::Wat>()?;
+            match wat {
+                Wat::Module(m) => directives.push(WastDirective::Module(m)),
+                Wat::Component(_c) => todo!("inline component in wast"),
+            }
         }
         Ok(Wast { directives })
     }

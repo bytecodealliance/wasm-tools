@@ -42,6 +42,7 @@ pub enum CustomPlaceAnchor {
     Func,
     Table,
     Memory,
+    Component,
     Global,
     Export,
     Start,

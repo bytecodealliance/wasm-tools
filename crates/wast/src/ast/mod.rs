@@ -45,7 +45,7 @@ macro_rules! custom_keyword {
     ($name:ident = $kw:expr) => {
         #[allow(non_camel_case_types)]
         #[allow(missing_docs)]
-        #[derive(Debug, Copy, Clone)]
+        #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
         pub struct $name(pub $crate::Span);
 
         impl<'a> $crate::parser::Parse<'a> for $name {
@@ -303,8 +303,12 @@ reexport! {
 
 #[cfg(feature = "wasm-module")]
 reexport! {
+    mod alias;
     mod assert_expr;
+    mod component;
+    mod component_func;
     mod custom;
+    mod deftype;
     mod tag;
     mod export;
     mod expr;
@@ -312,17 +316,20 @@ reexport! {
     mod global;
     mod import;
     mod instance;
+    mod intertype;
     mod memory;
     mod module;
     mod nested_module;
     mod table;
     mod types;
+    mod wat;
     mod wast;
 }
 
 /// Common keyword used to parse WebAssembly text files.
 pub mod kw {
     custom_keyword!(after);
+    custom_keyword!(alias);
     custom_keyword!(any);
     custom_keyword!(anyfunc);
     custom_keyword!(anyref);
@@ -345,17 +352,25 @@ pub mod kw {
     custom_keyword!(before);
     custom_keyword!(binary);
     custom_keyword!(block);
+    custom_keyword!(canon_lift = "canon.lift");
+    custom_keyword!(canon_lower = "canon.lower");
     custom_keyword!(catch);
     custom_keyword!(catch_all);
+    custom_keyword!(case);
+    custom_keyword!(char);
     custom_keyword!(code);
+    custom_keyword!(component);
+    custom_keyword!(core);
     custom_keyword!(data);
     custom_keyword!(dataref);
     custom_keyword!(declare);
+    custom_keyword!(defaults_to = "defaults-to");
     custom_keyword!(delegate);
     custom_keyword!(r#do = "do");
     custom_keyword!(elem);
     custom_keyword!(end);
     custom_keyword!(tag);
+    custom_keyword!(expected);
     custom_keyword!(export);
     custom_keyword!(r#extern = "extern");
     custom_keyword!(externref);
@@ -367,6 +382,9 @@ pub mod kw {
     custom_keyword!(f64x2);
     custom_keyword!(field);
     custom_keyword!(first);
+    custom_keyword!(float32);
+    custom_keyword!(float64);
+    custom_keyword!(flags);
     custom_keyword!(func);
     custom_keyword!(funcref);
     custom_keyword!(get);
@@ -384,9 +402,11 @@ pub mod kw {
     custom_keyword!(import);
     custom_keyword!(instance);
     custom_keyword!(instantiate);
+    custom_keyword!(into);
     custom_keyword!(invoke);
     custom_keyword!(item);
     custom_keyword!(last);
+    custom_keyword!(list);
     custom_keyword!(local);
     custom_keyword!(memory);
     custom_keyword!(module);
@@ -396,29 +416,50 @@ pub mod kw {
     custom_keyword!(null);
     custom_keyword!(nullref);
     custom_keyword!(offset);
+    custom_keyword!(option);
     custom_keyword!(outer);
     custom_keyword!(param);
     custom_keyword!(parent);
     custom_keyword!(passive);
     custom_keyword!(quote);
+    custom_keyword!(bool_ = "bool");
+    custom_keyword!(enum_ = "enum");
     custom_keyword!(r#else = "else");
     custom_keyword!(r#if = "if");
     custom_keyword!(r#loop = "loop");
     custom_keyword!(r#mut = "mut");
     custom_keyword!(r#type = "type");
     custom_keyword!(r#ref = "ref");
+    custom_keyword!(record);
     custom_keyword!(ref_func = "ref.func");
     custom_keyword!(ref_null = "ref.null");
     custom_keyword!(register);
     custom_keyword!(result);
     custom_keyword!(rtt);
+    custom_keyword!(s8);
+    custom_keyword!(s16);
+    custom_keyword!(s32);
+    custom_keyword!(s64);
     custom_keyword!(shared);
     custom_keyword!(start);
+    custom_keyword!(string);
+    custom_keyword!(string_utf8 = "string=utf8");
+    custom_keyword!(string_utf16 = "string=utf16");
+    custom_keyword!(string_latin1_utf16 = "string=latin1+utf816");
     custom_keyword!(r#struct = "struct");
     custom_keyword!(table);
     custom_keyword!(then);
+    custom_keyword!(tuple);
     custom_keyword!(r#try = "try");
+    custom_keyword!(u8);
+    custom_keyword!(u16);
+    custom_keyword!(u32);
+    custom_keyword!(u64);
+    custom_keyword!(union);
+    custom_keyword!(unit);
     custom_keyword!(v128);
+    custom_keyword!(value);
+    custom_keyword!(variant);
 }
 
 /// Common annotations used to parse WebAssembly text files.

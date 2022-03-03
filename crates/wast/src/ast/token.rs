@@ -216,12 +216,16 @@ impl Hash for Index<'_> {
     }
 }
 
-/// Parses `(func $foo)`
-#[derive(Clone, Debug)]
+/// Parses `(func $foo)` or `(func $foo "thing")`
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[allow(missing_docs)]
 pub struct ItemRef<'a, K> {
     pub kind: K,
     pub idx: Index<'a>,
+    /// Syntax sugar for `export` aliases allows extra names to be added,
+    /// which indicate a sequence of instance lookups to arrive at the
+    /// ultimate referent.
+    pub extra_names: Vec<&'a str>,
     #[cfg(wast_check_exhaustive)]
     pub visited: bool,
 }
@@ -231,9 +235,14 @@ impl<'a, K: Parse<'a>> Parse<'a> for ItemRef<'a, K> {
         parser.parens(|parser| {
             let kind = parser.parse::<K>()?;
             let idx = parser.parse()?;
+            let mut extra_names = Vec::new();
+            while !parser.is_empty() {
+                extra_names.push(parser.parse()?);
+            }
             Ok(ItemRef {
                 kind,
                 idx,
+                extra_names,
                 #[cfg(wast_check_exhaustive)]
                 visited: false,
             })
@@ -267,6 +276,7 @@ where
             Ok(IndexOrRef(ItemRef {
                 kind: K::default(),
                 idx: parser.parse()?,
+                extra_names: Vec::new(),
                 #[cfg(wast_check_exhaustive)]
                 visited: false,
             }))
@@ -683,6 +693,22 @@ impl Peek for LParen {
 
     fn display() -> &'static str {
         "left paren"
+    }
+}
+
+/// A convenience type to use with [`Parser::peek`](crate::parser::Parser::peek)
+/// to see if the next token ends an s-expression.
+pub struct RParen {
+    _priv: (),
+}
+
+impl Peek for RParen {
+    fn peek(cursor: Cursor<'_>) -> bool {
+        cursor.rparen().is_some()
+    }
+
+    fn display() -> &'static str {
+        "right paren"
     }
 }
 

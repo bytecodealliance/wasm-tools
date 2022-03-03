@@ -391,7 +391,7 @@ impl TestState {
         if ret.contains("offset=4294967296") && !test.iter().any(|t| t == "memory64") {
             bail!("i32 constant out of bounds");
         }
-        Ok(wat.module.encode()?)
+        Ok(wat.encode()?)
     }
 
     fn test_quote_module(&self, test: &Path, source: &[&[u8]]) -> Result<()> {
