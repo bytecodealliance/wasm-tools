@@ -22,8 +22,6 @@ pub enum ExportKind {
     Memory,
     Global,
     Tag,
-    Module,
-    Instance,
     Type,
 }
 
@@ -55,12 +53,6 @@ impl<'a> Parse<'a> for ExportKind {
         } else if l.peek::<kw::tag>() {
             parser.parse::<kw::tag>()?;
             Ok(ExportKind::Tag)
-        } else if l.peek::<kw::module>() {
-            parser.parse::<kw::module>()?;
-            Ok(ExportKind::Module)
-        } else if l.peek::<kw::instance>() {
-            parser.parse::<kw::instance>()?;
-            Ok(ExportKind::Instance)
         } else if l.peek::<kw::r#type>() {
             parser.parse::<kw::r#type>()?;
             Ok(ExportKind::Type)
@@ -87,14 +79,18 @@ macro_rules! kw_conversions {
 }
 
 kw_conversions! {
-    instance => Instance
-    module => Module
     func => Func
     table => Table
     global => Global
     tag => Tag
     memory => Memory
     r#type => Type
+}
+
+impl Default for kw::module {
+    fn default() -> kw::module {
+        kw::module(ast::Span::from_offset(0))
+    }
 }
 
 /// A listing of inline `(export "foo")` statements on a WebAssembly item in

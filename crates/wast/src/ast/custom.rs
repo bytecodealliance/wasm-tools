@@ -155,10 +155,6 @@ impl<'a> Parse<'a> for CustomPlaceAnchor {
             parser.parse::<kw::module>()?;
             return Ok(CustomPlaceAnchor::Module);
         }
-        if parser.peek::<kw::alias>() {
-            parser.parse::<kw::alias>()?;
-            return Ok(CustomPlaceAnchor::Alias);
-        }
 
         Err(parser.error("expected a valid section name"))
     }

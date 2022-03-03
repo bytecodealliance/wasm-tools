@@ -303,7 +303,6 @@ reexport! {
 
 #[cfg(feature = "wasm-module")]
 reexport! {
-    mod alias;
     mod assert_expr;
     mod custom;
     mod tag;
@@ -324,7 +323,6 @@ reexport! {
 /// Common keyword used to parse WebAssembly text files.
 pub mod kw {
     custom_keyword!(after);
-    custom_keyword!(alias);
     custom_keyword!(any);
     custom_keyword!(anyfunc);
     custom_keyword!(anyref);

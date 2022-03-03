@@ -174,7 +174,6 @@ pub enum ModuleField<'a> {
     Data(ast::Data<'a>),
     Tag(ast::Tag<'a>),
     Custom(ast::Custom<'a>),
-    Alias(ast::Alias<'a>),
 }
 
 impl<'a> ModuleField<'a> {
@@ -225,9 +224,6 @@ impl<'a> Parse<'a> for ModuleField<'a> {
         }
         if parser.peek::<annotation::custom>() {
             return Ok(ModuleField::Custom(parser.parse()?));
-        }
-        if parser.peek::<kw::alias>() {
-            return Ok(ModuleField::Alias(parser.parse()?));
         }
         Err(parser.error("expected valid module field"))
     }

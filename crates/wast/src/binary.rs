@@ -27,7 +27,6 @@ fn encode_fields(
     let mut data = Vec::new();
     let mut tags = Vec::new();
     let mut customs = Vec::new();
-    let mut aliases = Vec::new();
     for field in fields {
         match field {
             ModuleField::Type(i) => types.push(i),
@@ -42,7 +41,6 @@ fn encode_fields(
             ModuleField::Data(i) => data.push(i),
             ModuleField::Tag(i) => tags.push(i),
             ModuleField::Custom(i) => customs.push(i),
-            ModuleField::Alias(a) => aliases.push(a),
         }
     }
 
@@ -565,8 +563,6 @@ impl Encode for ExportKind {
             ExportKind::Memory => e.push(0x02),
             ExportKind::Global => e.push(0x03),
             ExportKind::Tag => e.push(0x04),
-            ExportKind::Module => e.push(0x05),
-            ExportKind::Instance => e.push(0x06),
             ExportKind::Type => e.push(0x07),
         }
     }
@@ -876,10 +872,6 @@ struct Names<'a> {
     table_idx: u32,
     tags: Vec<(u32, &'a str)>,
     tag_idx: u32,
-    modules: Vec<(u32, &'a str)>,
-    module_idx: u32,
-    instances: Vec<(u32, &'a str)>,
-    instance_idx: u32,
     types: Vec<(u32, &'a str)>,
     type_idx: u32,
     data: Vec<(u32, &'a str)>,
@@ -907,8 +899,6 @@ fn find_names<'a>(
         Type,
         Global,
         Func,
-        Module,
-        Instance,
         Memory,
         Table,
         Tag,
@@ -940,20 +930,6 @@ fn find_names<'a>(
             ModuleField::Elem(e) => (Name::Elem, &e.id, &e.name),
             ModuleField::Data(d) => (Name::Data, &d.id, &d.name),
             ModuleField::Func(f) => (Name::Func, &f.id, &f.name),
-            ModuleField::Alias(a) => (
-                match a.kind {
-                    ExportKind::Func => Name::Func,
-                    ExportKind::Table => Name::Table,
-                    ExportKind::Memory => Name::Memory,
-                    ExportKind::Global => Name::Global,
-                    ExportKind::Module => Name::Module,
-                    ExportKind::Instance => Name::Instance,
-                    ExportKind::Tag => Name::Tag,
-                    ExportKind::Type => Name::Type,
-                },
-                &a.id,
-                &a.name,
-            ),
             ModuleField::Export(_) | ModuleField::Start(_) | ModuleField::Custom(_) => continue,
         };
 
@@ -963,8 +939,6 @@ fn find_names<'a>(
             Name::Table => (&mut ret.tables, &mut ret.table_idx),
             Name::Memory => (&mut ret.memories, &mut ret.memory_idx),
             Name::Global => (&mut ret.globals, &mut ret.global_idx),
-            Name::Module => (&mut ret.modules, &mut ret.module_idx),
-            Name::Instance => (&mut ret.instances, &mut ret.instance_idx),
             Name::Tag => (&mut ret.tags, &mut ret.tag_idx),
             Name::Type => (&mut ret.types, &mut ret.type_idx),
             Name::Elem => (&mut ret.elems, &mut ret.elem_idx),
@@ -1176,24 +1150,5 @@ impl Encode for InstanceArg<'_> {
         self.name.encode(e);
         self.index.kind.encode(e);
         self.index.encode(e);
-    }
-}
-
-impl Encode for Alias<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        match &self.source {
-            AliasSource::InstanceExport { instance, export } => {
-                e.push(0x00);
-                instance.encode(e);
-                self.kind.encode(e);
-                export.encode(e);
-            }
-            AliasSource::Outer { module, index } => {
-                e.push(0x01);
-                module.encode(e);
-                self.kind.encode(e);
-                index.encode(e);
-            }
-        }
     }
 }

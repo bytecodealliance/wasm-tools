@@ -109,8 +109,7 @@ impl<'a> Expander<'a> {
                     self.expand_type_use(ty);
                 }
             },
-            ModuleField::Alias(_)
-            | ModuleField::Table(_)
+            ModuleField::Table(_)
             | ModuleField::Memory(_)
             | ModuleField::Start(_)
             | ModuleField::Export(_)
