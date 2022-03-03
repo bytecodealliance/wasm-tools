@@ -3,9 +3,7 @@ use crate::resolve::Ns;
 use crate::Error;
 use std::collections::HashMap;
 
-pub fn resolve<'a>(
-    fields: &mut Vec<ModuleField<'a>>,
-) -> Result<Resolver<'a>, Error> {
+pub fn resolve<'a>(fields: &mut Vec<ModuleField<'a>>) -> Result<Resolver<'a>, Error> {
     let mut resolver = Resolver::default();
     resolver.process(fields)?;
     Ok(resolver)
@@ -31,10 +29,7 @@ pub struct Resolver<'a> {
 }
 
 impl<'a> Resolver<'a> {
-    fn process(
-        &mut self,
-        fields: &mut Vec<ModuleField<'a>>,
-    ) -> Result<(), Error> {
+    fn process(&mut self, fields: &mut Vec<ModuleField<'a>>) -> Result<(), Error> {
         // Number everything in the module, recording what names correspond to
         // what indices.
         for field in fields.iter_mut() {
@@ -51,15 +46,13 @@ impl<'a> Resolver<'a> {
 
     fn register(&mut self, item: &ModuleField<'a>) -> Result<(), Error> {
         match item {
-            ModuleField::Import(i) => {
-                match &i.item.kind {
-                    ItemKind::Func(_) => self.funcs.register(i.item.id, "func")?,
-                    ItemKind::Memory(_) => self.memories.register(i.item.id, "memory")?,
-                    ItemKind::Table(_) => self.tables.register(i.item.id, "table")?,
-                    ItemKind::Global(_) => self.globals.register(i.item.id, "global")?,
-                    ItemKind::Tag(_) => self.tags.register(i.item.id, "tag")?,
-                }
-            }
+            ModuleField::Import(i) => match &i.item.kind {
+                ItemKind::Func(_) => self.funcs.register(i.item.id, "func")?,
+                ItemKind::Memory(_) => self.memories.register(i.item.id, "memory")?,
+                ItemKind::Table(_) => self.tables.register(i.item.id, "table")?,
+                ItemKind::Global(_) => self.globals.register(i.item.id, "global")?,
+                ItemKind::Tag(_) => self.tags.register(i.item.id, "tag")?,
+            },
             ModuleField::Global(i) => self.globals.register(i.id, "global")?,
             ModuleField::Memory(i) => self.memories.register(i.id, "memory")?,
             ModuleField::Func(i) => self.funcs.register(i.id, "func")?,
@@ -110,10 +103,7 @@ impl<'a> Resolver<'a> {
         Ok(())
     }
 
-    fn resolve_field(
-        &self,
-        field: &mut ModuleField<'a>,
-    ) -> Result<(), Error> {
+    fn resolve_field(&self, field: &mut ModuleField<'a>) -> Result<(), Error> {
         match field {
             ModuleField::Import(i) => {
                 self.resolve_item_sig(&mut i.item)?;
@@ -865,11 +855,8 @@ impl<'a> TypeReference<'a> for InstanceType<'a> {
         ))
     }
 
-    fn resolve(&mut self, cx: &Resolver<'a>) -> Result<(), Error> {
-        for export in self.exports.iter_mut() {
-            cx.resolve_item_sig(&mut export.item)?;
-        }
-        Ok(())
+    fn resolve(&mut self, _cx: &Resolver<'a>) -> Result<(), Error> {
+        todo!("resolve for InstanceType")
     }
 }
 
