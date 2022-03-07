@@ -29,9 +29,7 @@ pub fn run(fields: &mut Vec<ModuleField>) {
     while cur < fields.len() {
         let field = &mut fields[cur];
         match field {
-            ModuleField::Alias(_)
-            | ModuleField::Type(_)
-            | ModuleField::Import(_) => {}
+            ModuleField::Alias(_) | ModuleField::Type(_) | ModuleField::Import(_) => {}
             _ if insertion_point.is_none() => insertion_point = Some(cur),
             _ => {}
         }

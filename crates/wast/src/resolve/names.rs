@@ -3,9 +3,7 @@ use crate::resolve::Ns;
 use crate::Error;
 use std::collections::{HashMap, HashSet};
 
-pub fn resolve<'a>(
-    fields: &mut Vec<ModuleField<'a>>,
-) -> Result<Resolver<'a>, Error> {
+pub fn resolve<'a>(fields: &mut Vec<ModuleField<'a>>) -> Result<Resolver<'a>, Error> {
     let mut names = HashMap::new();
     let mut parents = Parents {
         prev: None,
@@ -97,8 +95,7 @@ impl<'a> Resolver<'a> {
                         }
                     }
 
-                    TypeDef::Array(_)
-                    | TypeDef::Func(_) => {}
+                    TypeDef::Array(_) | TypeDef::Func(_) => {}
                 }
 
                 // Record function signatures as we see them to so we can
