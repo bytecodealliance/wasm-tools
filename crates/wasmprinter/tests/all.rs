@@ -137,7 +137,7 @@ fn no_oom() {
     for _ in 0..20_000 {
         s.push_str("(func if)\n");
     }
-    s.push_str(")");
+    s.push(')');
     let bytes = wat::parse_str(&s).unwrap();
     let wat = wasmprinter::print_bytes(&bytes).unwrap();
     assert!(wat.len() < 500_000_000);

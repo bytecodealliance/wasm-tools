@@ -981,6 +981,7 @@ mod arc {
     }
 
     impl<T> MaybeOwned<T> {
+        #[allow(clippy::cast_ref_to_mut)]
         fn as_mut(&mut self) -> Option<&mut T> {
             if !self.owned {
                 return None;
