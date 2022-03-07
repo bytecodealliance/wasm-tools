@@ -74,7 +74,7 @@ fuzz_target!(|bytes: &[u8]| {
     features.relaxed_simd = config.relaxed_simd_enabled;
     features.module_linking = config.module_linking_enabled;
 
-    for (i, mutated_wasm) in iterator.take(100).enumerate() {
+    for (i, mutated_wasm) in iterator.take(10).enumerate() {
         let mutated_wasm = match mutated_wasm {
             Ok(w) => w,
             Err(e) => match e.kind() {
