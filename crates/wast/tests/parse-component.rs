@@ -5,7 +5,6 @@
 //! look at the diff!
 
 use rayon::prelude::*;
-use std::env;
 use std::path::{Path, PathBuf};
 
 #[test]
