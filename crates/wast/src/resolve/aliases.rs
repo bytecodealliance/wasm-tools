@@ -62,7 +62,71 @@ struct Expander<'a> {
 
 impl<'a> Expander<'a> {
     fn process(&mut self, field: &mut ModuleField<'a>) {
-        todo!("resolve for aliases")
+        match field {
+            ModuleField::Elem(e) => {
+                if let ElemKind::Active { table, offset, .. } = &mut e.kind {
+                    self.expand(table);
+                    self.expand_expr(offset);
+                }
+                match &mut e.payload {
+                    ElemPayload::Indices(funcs) => {
+                        for func in funcs {
+                            self.expand(func);
+                        }
+                    }
+                    ElemPayload::Exprs { exprs, .. } => {
+                        for expr in exprs {
+                            self.expand_expr(expr);
+                        }
+                    }
+                }
+            }
+
+            ModuleField::Data(e) => {
+                if let DataKind::Active { memory, offset, .. } = &mut e.kind {
+                    self.expand(memory);
+                    self.expand_expr(offset);
+                }
+            }
+
+            ModuleField::Export(e) => self.expand(&mut e.index),
+
+            ModuleField::Func(f) => {
+                self.expand_type_use(&mut f.ty);
+                if let FuncKind::Inline { expression, .. } = &mut f.kind {
+                    self.expand_expr(expression);
+                }
+            }
+
+            ModuleField::Import(i) => self.expand_item_sig(&mut i.item),
+
+            ModuleField::Global(g) => {
+                if let GlobalKind::Inline(expr) = &mut g.kind {
+                    self.expand_expr(expr);
+                }
+            }
+
+            ModuleField::Start(s) => self.expand(s),
+
+            ModuleField::Tag(t) => match &mut t.ty {
+                TagType::Exception(t) => self.expand_type_use(t),
+            },
+
+            ModuleField::NestedModule(m) => match &mut m.kind {
+                NestedModuleKind::Import { ty, .. } => self.expand_type_use(ty),
+                NestedModuleKind::Inline { fields } => run(fields),
+            },
+
+            ModuleField::Type(t) => match &mut t.def {
+                TypeDef::Func(f) => f.expand(self),
+                TypeDef::Struct(_) => {}
+                TypeDef::Array(_) => {}
+                TypeDef::Module(m) => m.expand(self),
+                TypeDef::Instance(i) => i.expand(self),
+            },
+
+            ModuleField::Custom(_) | ModuleField::Memory(_) | ModuleField::Table(_) => {}
+        }
     }
 
     fn expand_item_sig(&mut self, sig: &mut ItemSig<'a>) {
@@ -132,13 +196,86 @@ impl<'a> Expander<'a> {
         }
     }
 
-    fn expand<T>(&mut self, _item: &mut ItemRef<'a, T>)
+    fn expand<T>(&mut self, item: &mut ItemRef<'a, T>)
     where
         T: Into<ExportKind> + Copy,
     {
-        #[cfg(wast_check_exhaustive)]
-        {
-            item.visited = true;
+        match item {
+            ItemRef::Outer { kind, module, idx } => {
+                let key = (*module, *idx, (*kind).into());
+                let idx = match self.parents.entry(key) {
+                    Entry::Occupied(e) => *e.get(),
+                    Entry::Vacant(v) => {
+                        let span = idx.span();
+                        let id = gensym::gen(span);
+                        self.to_prepend.push(ModuleField::Alias(Alias {
+                            span,
+                            id: Some(id),
+                            name: None,
+                            source: AliasSource::Outer {
+                                module: *module,
+                                index: *idx,
+                            },
+                            kind: (*kind).into(),
+                        }));
+                        *v.insert(Index::Id(id))
+                    }
+                };
+                *item = ItemRef::Item {
+                    kind: *kind,
+                    idx,
+                    exports: Vec::new(),
+                    #[cfg(wast_check_exhaustive)]
+                    visited: true,
+                };
+            }
+            ItemRef::Item {
+                kind,
+                idx,
+                exports,
+                #[cfg(wast_check_exhaustive)]
+                visited,
+            } => {
+                #[cfg(wast_check_exhaustive)]
+                {
+                    *visited = true;
+                }
+                let mut cur = *idx;
+                let len = exports.len();
+                for (i, export) in exports.drain(..).enumerate() {
+                    let kind = if i < len - 1 {
+                        ExportKind::Instance
+                    } else {
+                        (*kind).into()
+                    };
+                    let key = (cur, export, kind);
+                    cur = match self.instances.entry(key) {
+                        Entry::Occupied(e) => *e.get(),
+                        Entry::Vacant(v) => {
+                            let span = idx.span();
+                            let id = gensym::gen(span);
+                            self.to_prepend.push(ModuleField::Alias(Alias {
+                                span,
+                                id: Some(id),
+                                name: None,
+                                kind,
+                                source: AliasSource::InstanceExport {
+                                    instance: ItemRef::Item {
+                                        kind: kw::instance(span),
+                                        idx: cur,
+                                        exports: Vec::new(),
+                                        #[cfg(wast_check_exhaustive)]
+                                        visited: true,
+                                    },
+                                    export,
+                                },
+                            }));
+                            *v.insert(Index::Id(id))
+                        }
+                    };
+                }
+                *idx = cur;
+            }
         }
     }
 }
@@ -164,6 +301,8 @@ impl<'a> Expand<'a> for ModuleType<'a> {
 
 impl<'a> Expand<'a> for InstanceType<'a> {
     fn expand(&mut self, cx: &mut Expander<'a>) {
-        todo!("resolve for aliases")
+        for e in self.exports.iter_mut() {
+            cx.expand_item_sig(&mut e.item);
+        }
     }
 }
