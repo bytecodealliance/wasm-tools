@@ -1036,16 +1036,6 @@ fn find_module_names<'a>(
     module_name: &Option<NameAnnotation<'a>>,
     fields: &[ModuleField<'a>],
 ) -> ModuleNames<'a> {
-    fn get_name<'a>(id: &Option<Id<'a>>, name: &Option<NameAnnotation<'a>>) -> Option<&'a str> {
-        name.as_ref().map(|n| n.name).or(id.and_then(|id| {
-            if id.is_gensym() {
-                None
-            } else {
-                Some(id.name())
-            }
-        }))
-    }
-
     enum Name {
         Type,
         Global,
@@ -1179,16 +1169,6 @@ fn find_component_names<'a>(
     component_name: &Option<NameAnnotation<'a>>,
     fields: &[ComponentField<'a>],
 ) -> ComponentNames<'a> {
-    fn get_name<'a>(id: &Option<Id<'a>>, name: &Option<NameAnnotation<'a>>) -> Option<&'a str> {
-        name.as_ref().map(|n| n.name).or(id.and_then(|id| {
-            if id.is_gensym() {
-                None
-            } else {
-                Some(id.name())
-            }
-        }))
-    }
-
     enum Name {
         Type,
         Func,
@@ -1272,6 +1252,16 @@ fn find_component_names<'a>(
     }
 
     return ret;
+}
+
+fn get_name<'a>(id: &Option<Id<'a>>, name: &Option<NameAnnotation<'a>>) -> Option<&'a str> {
+    name.as_ref().map(|n| n.name).or(id.and_then(|id| {
+        if id.is_gensym() {
+            None
+        } else {
+            Some(id.name())
+        }
+    }))
 }
 
 impl ModuleNames<'_> {
