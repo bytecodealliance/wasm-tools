@@ -83,8 +83,9 @@ impl WasmToWitApp {
         let bytes = wat::parse_file(&self.component)
             .with_context(|| format!("failed to parse component `{}`", self.component.display()))?;
 
-        let interface = decode_interface_component(&bytes)
-            .with_context(|| format!("failed to decode component`{}`", self.component.display()))?;
+        let interface = decode_interface_component(&bytes).with_context(|| {
+            format!("failed to decode component `{}`", self.component.display())
+        })?;
 
         let mut printer = InterfacePrinter::default();
 
