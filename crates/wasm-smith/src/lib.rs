@@ -60,6 +60,7 @@
 mod component;
 mod config;
 mod core;
+mod notrap;
 
 pub use crate::core::{
     ConfiguredModule, InstructionKind, InstructionKinds, MaybeInvalidModule, Module,
