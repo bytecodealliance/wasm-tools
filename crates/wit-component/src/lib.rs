@@ -67,7 +67,7 @@ pub fn encode_interface_component(name: &str, interface: impl AsRef<Path>) -> Re
     Ok(output)
 }
 
-/// Gets the imported and exported interfaces of a component.
+/// Decode an "interface-only" component to a wit `Interface`.
 pub fn decode_interface_component(bytes: &[u8]) -> Result<Interface> {
     let info = decoding::ComponentInfo::new(bytes)?;
     if !info.imports.is_empty() || info.exports.len() != 1 {
