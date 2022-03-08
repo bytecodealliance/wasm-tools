@@ -735,7 +735,7 @@ impl<'a> DFGBuilder {
                 Operator::TableSet { table } => {
                     let arg1 = Id::from(self.pop_operand(idx, false));
                     let arg2 = Id::from(self.pop_operand(idx, false));
-                    self.push_node(Lang::TableSet(*table, [arg2, arg1]), idx);
+                    self.empty_node(Lang::TableSet(*table, [arg2, arg1]), idx);
                 }
 
                 _ => {
