@@ -160,8 +160,9 @@ pub struct WasmMutate<'wasm> {
     preserve_semantics: bool,
 
     /// Fuel to control the time of the mutation.
-    #[cfg_attr(feature = "clap", clap(skip = Cell::new(u64::MAX)))]
-    fuel: Cell<u64>,
+    #[cfg_attr(feature = "clap", clap(long, parse(try_from_str = parse_fuel)))]
+    fuel: Option<Cell<u64>>,
+
     /// Only perform size-reducing transformations on the Wasm module. This
     /// allows `wasm-mutate` to be used as a test case reducer.
     #[cfg_attr(feature = "clap", clap(long))]
@@ -179,6 +180,11 @@ pub struct WasmMutate<'wasm> {
     info: Option<ModuleInfo<'wasm>>,
 }
 
+#[cfg(feature = "clap")]
+fn parse_fuel(s: &str) -> Result<Cell<u64>, String> {
+    s.parse::<u64>().map(Cell::new).map_err(|s| s.to_string())
+}
+
 impl Default for WasmMutate<'_> {
     fn default() -> Self {
         let seed = 3;
@@ -187,7 +193,7 @@ impl Default for WasmMutate<'_> {
             preserve_semantics: false,
             reduce: false,
             raw_mutate_func: None,
-            fuel: Cell::new(u64::MAX),
+            fuel: None,
             rng: None,
             info: None,
         }
@@ -213,7 +219,7 @@ impl<'wasm> WasmMutate<'wasm> {
 
     /// Configure the fuel used during the mutation
     pub fn fuel(&mut self, fuel: u64) -> &mut Self {
-        self.fuel = Cell::new(fuel);
+        self.fuel = Some(Cell::new(fuel));
         self
     }
 
@@ -248,11 +254,15 @@ impl<'wasm> WasmMutate<'wasm> {
     }
 
     pub(crate) fn consume_fuel(&self, qt: u64) -> Result<()> {
-        if qt > self.fuel.get() {
+        let fuel = match &self.fuel {
+            Some(n) => n,
+            None => return Ok(()),
+        };
+        if qt > fuel.get() {
             log::info!("Out of fuel");
             return Err(Error::out_of_fuel());
         }
-        self.fuel.set(self.fuel.get() - qt);
+        fuel.set(fuel.get() - qt);
         Ok(())
     }
 
