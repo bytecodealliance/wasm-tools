@@ -214,6 +214,20 @@ impl InterfacePrinter {
             return Ok(());
         }
 
+        if record.is_flags() {
+            match name {
+                Some(name) => {
+                    writeln!(&mut self.output, "flags {} {{", name)?;
+                    for field in &record.fields {
+                        writeln!(&mut self.output, "  {},", field.name)?;
+                    }
+                    self.output.push_str("}\n\n");
+                }
+                None => bail!("interface has unnamed flags type"),
+            }
+            return Ok(());
+        }
+
         match name {
             Some(name) => {
                 writeln!(&mut self.output, "record {} {{", name)?;

@@ -68,24 +68,10 @@ pub fn encode_interface_component(name: &str, interface: impl AsRef<Path>) -> Re
 }
 
 /// Gets the imported and exported interfaces of a component.
-pub fn decode_interface_component(component: impl AsRef<Path>) -> Result<Interface> {
-    let component = component.as_ref();
-    if !component.is_file() {
-        bail!(
-            "component `{}` does not exist as a file",
-            component.display()
-        );
-    }
-
-    let bytes = wat::parse_file(component)
-        .with_context(|| format!("failed to parse component `{}`", component.display()))?;
-
-    let info = decoding::ComponentInfo::new(&bytes)?;
+pub fn decode_interface_component(bytes: &[u8]) -> Result<Interface> {
+    let info = decoding::ComponentInfo::new(bytes)?;
     if !info.imports.is_empty() || info.exports.len() != 1 {
-        bail!(
-            "component `{}` is not an interface-only component",
-            component.display()
-        );
+        bail!("component is not an interface-only component");
     }
 
     let export = &info.exports[0];

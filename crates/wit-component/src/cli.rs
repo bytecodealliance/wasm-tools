@@ -3,7 +3,7 @@
 #![deny(missing_docs)]
 
 use crate::{decode_interface_component, encode_interface_component, InterfacePrinter};
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use clap::Parser;
 use std::path::PathBuf;
 
@@ -73,7 +73,18 @@ impl WasmToWitApp {
             stem
         });
 
-        let interface = decode_interface_component(&self.component)?;
+        if !self.component.is_file() {
+            bail!(
+                "component `{}` does not exist as a file",
+                self.component.display()
+            );
+        }
+
+        let bytes = wat::parse_file(&self.component)
+            .with_context(|| format!("failed to parse component `{}`", self.component.display()))?;
+
+        let interface = decode_interface_component(&bytes)
+            .with_context(|| format!("failed to decode component`{}`", self.component.display()))?;
 
         let mut printer = InterfacePrinter::default();
 

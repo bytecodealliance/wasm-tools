@@ -1,0 +1,54 @@
+record empty {
+}
+
+record scalars {
+  a: u32,
+  b: u32,
+}
+
+flags really-flags {
+  a,
+  b,
+  c,
+  d,
+  e,
+  f,
+  g,
+  h,
+  i,
+}
+
+record aggregates {
+  a: scalars,
+  b: u32,
+  c: empty,
+  d: string,
+  e: really-flags,
+}
+
+type int-typedef = s32
+
+type tuple-typedef2 = tuple<int-typedef>
+
+tuple-arg: function(x: tuple<char, u32>)
+
+tuple-result: function() -> tuple<char, u32>
+
+empty-arg: function(x: empty)
+
+empty-result: function() -> empty
+
+scalar-arg: function(x: scalars)
+
+scalar-result: function() -> scalars
+
+flags-arg: function(x: really-flags)
+
+flags-result: function() -> really-flags
+
+aggregate-arg: function(x: aggregates)
+
+aggregate-result: function() -> aggregates
+
+typedef-inout: function(e: tuple-typedef2) -> s32
+

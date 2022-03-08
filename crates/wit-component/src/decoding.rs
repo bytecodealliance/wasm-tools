@@ -151,7 +151,7 @@ impl<'a> ComponentInfo<'a> {
 pub struct InterfaceDecoder<'a> {
     info: &'a ComponentInfo<'a>,
     name_map: HashMap<u32, &'a str>,
-    exported_funcs: Vec<u32>,
+    exported_funcs: Vec<(&'a str, u32)>,
     interface: Interface,
     type_map: HashMap<u32, Type>,
     bool_ty: Option<TypeId>,
@@ -192,14 +192,13 @@ impl<'a> InterfaceDecoder<'a> {
                     let index = index_map[ty];
                     let ty = &info.types[index as usize];
                     match ty {
-                        ComponentTypeDef::Function(_) | ComponentTypeDef::Interface(_) => {
+                        ComponentTypeDef::Interface(_) => {
                             name_map.insert(index, *name);
                         }
+                        ComponentTypeDef::Function(_) => {
+                            exported_funcs.push((*name, index));
+                        }
                         _ => {}
-                    }
-
-                    if let ComponentTypeDef::Function(_) = ty {
-                        exported_funcs.push(index);
                     }
                 }
             }
@@ -222,21 +221,20 @@ impl<'a> InterfaceDecoder<'a> {
     /// Consumes the decoder and returns the interface representation.
     pub fn finish(mut self) -> Result<Interface> {
         let funcs = std::mem::take(&mut self.exported_funcs);
-        for index in funcs {
+        for (name, index) in funcs {
             let ty = match &self.info.types[index as usize] {
                 ComponentTypeDef::Function(ty) => ty,
                 _ => unreachable!(),
             };
 
-            let name = self.name_map[&index].to_string();
             self.add_function(name, ty)?;
         }
 
         Ok(self.interface)
     }
 
-    fn add_function(&mut self, name: String, ty: &ComponentFuncType) -> Result<()> {
-        validate_id(&name)
+    fn add_function(&mut self, name: &str, ty: &ComponentFuncType) -> Result<()> {
+        validate_id(name)
             .with_context(|| format!("function name `{}` is not a valid identifier", name))?;
 
         let mut params = Vec::new();
@@ -254,7 +252,7 @@ impl<'a> InterfaceDecoder<'a> {
             abi: Abi::Canonical,
             is_async: false,
             docs: Docs::default(),
-            name,
+            name: name.to_string(),
             kind: FunctionKind::Freestanding,
             params,
             results,
