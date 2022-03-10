@@ -274,6 +274,13 @@ impl Printer {
                 Payload::CodeSectionEntry(f) => {
                     code.push(f);
                 }
+                Payload::ModuleSection { range, .. } | Payload::ComponentSection { range, .. } => {
+                    let offset = range.end - range.start;
+                    if offset > bytes.len() {
+                        bail!("invalid module or component section range");
+                    }
+                    bytes = &bytes[offset..];
+                }
                 Payload::CustomSection {
                     name: "name",
                     data_offset,
@@ -484,7 +491,8 @@ impl Printer {
                 }
 
                 Payload::End(_) => {
-                    self.end_group(); // close the `module` or `component` group
+                    // close the `module` or `component` group
+                    self.newline_end_group();
 
                     let state = states.pop().unwrap();
                     if let Some(parent) = states.last_mut() {
@@ -498,7 +506,6 @@ impl Printer {
                             }
                         }
                         parser = parsers.pop().unwrap();
-                        self.newline();
                     } else {
                         break;
                     }
@@ -520,6 +527,12 @@ impl Printer {
     fn end_group(&mut self) {
         self.result.push(')');
         self.nesting -= 1;
+    }
+
+    fn newline_end_group(&mut self) {
+        self.nesting -= 1;
+        self.newline();
+        self.result.push(')');
     }
 
     fn register_names(&mut self, state: &mut State, names: NameSectionReader<'_>) -> Result<()> {
@@ -907,6 +920,7 @@ impl Printer {
                 .unwrap_or(0);
 
             let mut first = true;
+            let mut end_with_newline = false;
             let mut local_idx = 0;
             let mut locals = NamedLocalPrinter::new("local");
             for local in body.get_locals_reader()? {
@@ -921,6 +935,7 @@ impl Printer {
                 for _ in 0..cnt {
                     if first {
                         self.newline();
+                        end_with_newline = true;
                         first = false;
                     }
                     let name = state.local_names.get(&(func_idx, params + local_idx));
@@ -951,6 +966,7 @@ impl Printer {
                     | Operator::Loop { .. }
                     | Operator::Try { .. } => {
                         self.newline();
+                        end_with_newline = true;
                         self.nesting += 1;
                     }
 
@@ -960,6 +976,7 @@ impl Printer {
                     Operator::Else | Operator::Catch { .. } | Operator::CatchAll => {
                         self.nesting -= 1;
                         self.newline();
+                        end_with_newline = true;
                         self.nesting += 1;
                     }
 
@@ -968,11 +985,15 @@ impl Printer {
                     Operator::End | Operator::Delegate { .. } if self.nesting > nesting_start => {
                         self.nesting -= 1;
                         self.newline();
+                        end_with_newline = true;
                     }
 
                     // .. otherwise everything else just has a normal newline
                     // out in front.
-                    _ => self.newline(),
+                    _ => {
+                        self.newline();
+                        end_with_newline = true;
+                    }
                 }
                 self.print_operator(state, types, &operator, nesting_start)?;
             }
@@ -984,9 +1005,15 @@ impl Printer {
             // with the closing paren printed for the func.
             if self.nesting != nesting_start {
                 self.nesting = nesting_start;
+                end_with_newline = true;
                 self.newline();
             }
-            self.end_group();
+
+            if end_with_newline {
+                self.newline_end_group();
+            } else {
+                self.end_group();
+            }
 
             state.functions.push(state.ty(ty)?);
         }
@@ -2436,7 +2463,7 @@ impl Printer {
 
     fn print_outer_alias(
         &mut self,
-        states: &mut Vec<State>,
+        states: &mut [State],
         kind: OuterAliasKind,
         count: u32,
         index: u32,
@@ -3092,7 +3119,7 @@ impl Printer {
 
     fn print_aliases(
         &mut self,
-        states: &mut Vec<State>,
+        states: &mut [State],
         types: &mut Vec<TypeDef>,
         parser: AliasSectionReader,
     ) -> Result<()> {
