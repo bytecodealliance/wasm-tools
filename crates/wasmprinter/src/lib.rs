@@ -40,6 +40,8 @@ pub struct Printer {
     printers: HashMap<String, Box<dyn FnMut(&mut Printer, usize, &[u8]) -> Result<()>>>,
     result: String,
     nesting: u32,
+    line: usize,
+    group_lines: Vec<usize>,
 }
 
 enum TypeDef<'a> {
@@ -491,8 +493,7 @@ impl Printer {
                 }
 
                 Payload::End(_) => {
-                    // close the `module` or `component` group
-                    self.newline_end_group();
+                    self.end_group(); // close the `module` or `component` group
 
                     let state = states.pop().unwrap();
                     if let Some(parent) = states.last_mut() {
@@ -522,16 +523,16 @@ impl Printer {
         self.result.push('(');
         self.result.push_str(name);
         self.nesting += 1;
+        self.group_lines.push(self.line);
     }
 
     fn end_group(&mut self) {
-        self.result.push(')');
         self.nesting -= 1;
-    }
-
-    fn newline_end_group(&mut self) {
-        self.nesting -= 1;
-        self.newline();
+        if let Some(line) = self.group_lines.pop() {
+            if line != self.line {
+                self.newline();
+            }
+        }
         self.result.push(')');
     }
 
@@ -920,7 +921,6 @@ impl Printer {
                 .unwrap_or(0);
 
             let mut first = true;
-            let mut end_with_newline = false;
             let mut local_idx = 0;
             let mut locals = NamedLocalPrinter::new("local");
             for local in body.get_locals_reader()? {
@@ -935,7 +935,6 @@ impl Printer {
                 for _ in 0..cnt {
                     if first {
                         self.newline();
-                        end_with_newline = true;
                         first = false;
                     }
                     let name = state.local_names.get(&(func_idx, params + local_idx));
@@ -966,7 +965,6 @@ impl Printer {
                     | Operator::Loop { .. }
                     | Operator::Try { .. } => {
                         self.newline();
-                        end_with_newline = true;
                         self.nesting += 1;
                     }
 
@@ -976,7 +974,6 @@ impl Printer {
                     Operator::Else | Operator::Catch { .. } | Operator::CatchAll => {
                         self.nesting -= 1;
                         self.newline();
-                        end_with_newline = true;
                         self.nesting += 1;
                     }
 
@@ -985,15 +982,11 @@ impl Printer {
                     Operator::End | Operator::Delegate { .. } if self.nesting > nesting_start => {
                         self.nesting -= 1;
                         self.newline();
-                        end_with_newline = true;
                     }
 
                     // .. otherwise everything else just has a normal newline
                     // out in front.
-                    _ => {
-                        self.newline();
-                        end_with_newline = true;
-                    }
+                    _ => self.newline(),
                 }
                 self.print_operator(state, types, &operator, nesting_start)?;
             }
@@ -1005,15 +998,10 @@ impl Printer {
             // with the closing paren printed for the func.
             if self.nesting != nesting_start {
                 self.nesting = nesting_start;
-                end_with_newline = true;
                 self.newline();
             }
 
-            if end_with_newline {
-                self.newline_end_group();
-            } else {
-                self.end_group();
-            }
+            self.end_group();
 
             state.functions.push(state.ty(ty)?);
         }
@@ -1022,6 +1010,7 @@ impl Printer {
 
     fn newline(&mut self) {
         self.result.push('\n');
+        self.line += 1;
         for _ in 0..self.nesting {
             self.result.push_str("  ");
         }
