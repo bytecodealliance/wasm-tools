@@ -732,7 +732,7 @@ impl ComponentState {
     }
 
     pub(super) fn add_alias(
-        components: &mut Vec<Self>,
+        components: &mut [Self],
         alias: crate::Alias,
         types: &SnapshotList<TypeDef>,
         offset: usize,
@@ -1646,12 +1646,7 @@ impl ComponentState {
         }
     }
 
-    fn alias_module(
-        components: &mut Vec<Self>,
-        count: u32,
-        index: u32,
-        offset: usize,
-    ) -> Result<()> {
+    fn alias_module(components: &mut [Self], count: u32, index: u32, offset: usize) -> Result<()> {
         let component = Self::check_alias_count(components, count, offset)?;
         let ty = component.module_at(index, offset)?;
         components.last_mut().unwrap().modules.push(ty);
@@ -1659,7 +1654,7 @@ impl ComponentState {
     }
 
     fn alias_component(
-        components: &mut Vec<Self>,
+        components: &mut [Self],
         count: u32,
         index: u32,
         offset: usize,
@@ -1670,7 +1665,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn alias_type(components: &mut Vec<Self>, count: u32, index: u32, offset: usize) -> Result<()> {
+    fn alias_type(components: &mut [Self], count: u32, index: u32, offset: usize) -> Result<()> {
         let component = Self::check_alias_count(components, count, offset)?;
         let ty = component.type_at(index, offset)?;
         components.last_mut().unwrap().types.push(ty);
