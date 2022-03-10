@@ -40,6 +40,8 @@ pub struct Printer {
     printers: HashMap<String, Box<dyn FnMut(&mut Printer, usize, &[u8]) -> Result<()>>>,
     result: String,
     nesting: u32,
+    line: usize,
+    group_lines: Vec<usize>,
 }
 
 enum TypeDef<'a> {
@@ -274,6 +276,13 @@ impl Printer {
                 Payload::CodeSectionEntry(f) => {
                     code.push(f);
                 }
+                Payload::ModuleSection { range, .. } | Payload::ComponentSection { range, .. } => {
+                    let offset = range.end - range.start;
+                    if offset > bytes.len() {
+                        bail!("invalid module or component section range");
+                    }
+                    bytes = &bytes[offset..];
+                }
                 Payload::CustomSection {
                     name: "name",
                     data_offset,
@@ -498,7 +507,6 @@ impl Printer {
                             }
                         }
                         parser = parsers.pop().unwrap();
-                        self.newline();
                     } else {
                         break;
                     }
@@ -515,11 +523,17 @@ impl Printer {
         self.result.push('(');
         self.result.push_str(name);
         self.nesting += 1;
+        self.group_lines.push(self.line);
     }
 
     fn end_group(&mut self) {
-        self.result.push(')');
         self.nesting -= 1;
+        if let Some(line) = self.group_lines.pop() {
+            if line != self.line {
+                self.newline();
+            }
+        }
+        self.result.push(')');
     }
 
     fn register_names(&mut self, state: &mut State, names: NameSectionReader<'_>) -> Result<()> {
@@ -986,6 +1000,7 @@ impl Printer {
                 self.nesting = nesting_start;
                 self.newline();
             }
+
             self.end_group();
 
             state.functions.push(state.ty(ty)?);
@@ -995,6 +1010,7 @@ impl Printer {
 
     fn newline(&mut self) {
         self.result.push('\n');
+        self.line += 1;
         for _ in 0..self.nesting {
             self.result.push_str("  ");
         }
@@ -2436,7 +2452,7 @@ impl Printer {
 
     fn print_outer_alias(
         &mut self,
-        states: &mut Vec<State>,
+        states: &mut [State],
         kind: OuterAliasKind,
         count: u32,
         index: u32,
@@ -3092,7 +3108,7 @@ impl Printer {
 
     fn print_aliases(
         &mut self,
-        states: &mut Vec<State>,
+        states: &mut [State],
         types: &mut Vec<TypeDef>,
         parser: AliasSectionReader,
     ) -> Result<()> {
