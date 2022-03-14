@@ -460,6 +460,7 @@ pub mod kw {
     custom_keyword!(v128);
     custom_keyword!(value);
     custom_keyword!(variant);
+    custom_keyword!(with);
 }
 
 /// Common annotations used to parse WebAssembly text files.

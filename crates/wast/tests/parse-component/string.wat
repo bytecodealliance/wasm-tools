@@ -15,7 +15,7 @@
       unreachable
     )
   )
-  (instance $main (instantiate (module $Main) (import "libc" (instance $libc))))
+  (instance $main (instantiate (module $Main) (with "libc" (instance $libc))))
   (func $start
     (canon.lift (func (param string) (result string)) (into $libc) (func $main "start"))
   )

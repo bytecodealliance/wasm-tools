@@ -11,16 +11,16 @@
   )
   (instance $a (instantiate (module $A)))
   (instance $b1 (instantiate (module $B)
-    (import "a" (instance $a))          ;; no renaming
+    (with "a" (instance $a))            ;; no renaming
   ))
   (alias export $a "two" (func $a_two))
   (instance $b2 (instantiate (module $B)
-    (import "a" (instance
+    (with "a" (instance
       (export "one" (func $a_two))      ;; renaming, using explicit alias
     ))
   ))
   (instance $b3 (instantiate (module $B)
-    (import "a" (instance
+    (with "a" (instance
       (export "one" (func $a "three"))  ;; renaming, using inline alias sugar
     ))
   ))
