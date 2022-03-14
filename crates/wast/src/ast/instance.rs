@@ -62,7 +62,7 @@ pub struct NamedModuleArg<'a> {
 
 impl<'a> Parse<'a> for NamedModuleArg<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::import>()?;
+        parser.parse::<kw::with>()?;
         Ok(NamedModuleArg {
             name: parser.parse()?,
             arg: parser.parse()?,
@@ -80,9 +80,7 @@ pub struct NamedComponentArg<'a> {
 
 impl<'a> Parse<'a> for NamedComponentArg<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        // The `import` keyword is repurposed here to introduce component
-        // arguments.
-        parser.parse::<kw::import>()?;
+        parser.parse::<kw::with>()?;
         Ok(NamedComponentArg {
             name: parser.parse()?,
             arg: parser.parse()?,

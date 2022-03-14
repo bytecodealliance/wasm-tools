@@ -11,10 +11,10 @@
     (export "g" (func (result string)))
   ))
   (instance $d1 (instantiate (component $D)
-    (import "c" (instance $c))
+    (with "c" (instance $c))
   ))
   (instance $d2 (instantiate (component $D)
-    (import "c" (instance
+    (with "c" (instance
       (export "f" (func $d1 "g"))
     ))
   ))

@@ -8,5 +8,5 @@
     (func (import "a" "one") (result i32))
   )
   (instance $a (instantiate (module $A)))
-  (instance $b (instantiate (module $B) (import "a" (instance $a))))
+  (instance $b (instantiate (module $B) (with "a" (instance $a))))
 )
