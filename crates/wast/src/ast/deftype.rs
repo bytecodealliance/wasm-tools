@@ -265,7 +265,7 @@ pub struct ComponentModuleType<'a> {
     /// name resolution.
     pub id: Option<ast::Id<'a>>,
     /// The public types for this component.
-    pub types: Vec<ast::ComponentType<'a>>,
+    pub types: Vec<ast::ComponentTypeField<'a>>,
     /// The public type relationships for this component.
     pub aliases: Vec<ast::Alias<'a>>,
     /// The imports that are expected for this component type.
@@ -331,7 +331,7 @@ pub struct InstanceType<'a> {
     /// name resolution.
     pub id: Option<ast::Id<'a>>,
     /// The public types for this instance.
-    pub types: Vec<ast::ComponentType<'a>>,
+    pub types: Vec<ast::ComponentTypeField<'a>>,
     /// The public type relationships for this instance.
     pub aliases: Vec<ast::ComponentExportType<'a>>,
     /// The exports that this instance type is expected to have.

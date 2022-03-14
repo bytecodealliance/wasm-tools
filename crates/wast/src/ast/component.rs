@@ -132,7 +132,7 @@ impl<'a> Parse<'a> for Component<'a> {
 #[allow(missing_docs)]
 #[derive(Debug)]
 pub enum ComponentField<'a> {
-    Type(ast::ComponentType<'a>),
+    Type(ast::ComponentTypeField<'a>),
     Import(ast::ComponentImport<'a>),
     Func(ast::ComponentFunc<'a>),
     Export(ast::ComponentExport<'a>),

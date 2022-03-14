@@ -389,9 +389,9 @@ impl Encode for Type<'_> {
     }
 }
 
-impl Encode for ComponentType<'_> {
+impl Encode for ComponentTypeField<'_> {
     fn encode(&self, _e: &mut Vec<u8>) {
-        eprintln!("TODO: Encode for ComponentType")
+        eprintln!("TODO: Encode for ComponentTypeField")
     }
 }
 

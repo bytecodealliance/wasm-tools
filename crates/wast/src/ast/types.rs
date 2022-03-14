@@ -718,7 +718,7 @@ impl<'a> Parse<'a> for Type<'a> {
 ///
 /// type              ::= (type <id>? <typeexpr>)
 #[derive(Debug, Clone)]
-pub struct ComponentType<'a> {
+pub struct ComponentTypeField<'a> {
     /// Where this type was defined.
     pub span: ast::Span,
     /// An optional identifer to refer to this `type` by as part of name
@@ -730,7 +730,7 @@ pub struct ComponentType<'a> {
     pub def: ComponentTypeDef<'a>,
 }
 
-impl<'a> Parse<'a> for ComponentType<'a> {
+impl<'a> Parse<'a> for ComponentTypeField<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parens(|parser| {
             let span = parser.parse::<kw::r#type>()?.0;
@@ -743,7 +743,7 @@ impl<'a> Parse<'a> for ComponentType<'a> {
             } else {
                 return Err(parser.error("expected deftype or intertype"));
             };
-            Ok(ComponentType {
+            Ok(ComponentTypeField {
                 span,
                 id,
                 name,
