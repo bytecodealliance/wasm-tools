@@ -62,7 +62,7 @@ impl Peek for DefTypeKind {
 pub enum DefType<'a> {
     Func(ast::ComponentFunctionType<'a>),
     Module(ast::ModuleType<'a>),
-    Component(ast::ComponentModuleType<'a>),
+    Component(ast::ComponentType<'a>),
     Instance(ast::InstanceType<'a>),
     Value(ast::ValueType<'a>),
 }
@@ -75,7 +75,7 @@ impl<'a> Parse<'a> for DefType<'a> {
         } else if parser.peek::<ast::ModuleType>() {
             let ty = parser.parse()?;
             Ok(DefType::Module(ty))
-        } else if parser.peek::<ast::ComponentModuleType>() {
+        } else if parser.peek::<ast::ComponentType>() {
             let ty = parser.parse()?;
             Ok(DefType::Component(ty))
         } else if parser.peek::<ast::InstanceType>() {
@@ -260,7 +260,7 @@ impl<'a> Peek for ModuleType<'a> {
 
 /// A type for a nested component
 #[derive(Clone, Debug, Default)]
-pub struct ComponentModuleType<'a> {
+pub struct ComponentType<'a> {
     /// An optional identifer to refer to this `component` type by as part of
     /// name resolution.
     pub id: Option<ast::Id<'a>>,
@@ -274,7 +274,7 @@ pub struct ComponentModuleType<'a> {
     pub exports: Vec<ast::ComponentExportType<'a>>,
 }
 
-impl<'a> Parse<'a> for ComponentModuleType<'a> {
+impl<'a> Parse<'a> for ComponentType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         if parser.parens_depth() > 100 {
             return Err(parser.error("component type nesting too deep"));
@@ -299,7 +299,7 @@ impl<'a> Parse<'a> for ComponentModuleType<'a> {
                     aliases.push(parser.parse()?);
                 }
             }
-            Ok(ComponentModuleType {
+            Ok(ComponentType {
                 id,
                 types,
                 aliases,
@@ -310,7 +310,7 @@ impl<'a> Parse<'a> for ComponentModuleType<'a> {
     }
 }
 
-impl<'a> Peek for ComponentModuleType<'a> {
+impl<'a> Peek for ComponentType<'a> {
     fn peek(cursor: Cursor<'_>) -> bool {
         if let Some(next) = cursor.lparen() {
             matches!(next.keyword(), Some(("component", _)))
