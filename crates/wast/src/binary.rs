@@ -351,9 +351,9 @@ impl Encode for ModuleType<'_> {
     }
 }
 
-impl Encode for ComponentModuleType<'_> {
+impl Encode for ComponentType<'_> {
     fn encode(&self, _e: &mut Vec<u8>) {
-        eprintln!("TODO: Encode for ComponentModuleType")
+        eprintln!("TODO: Encode for ComponentType")
     }
 }
 

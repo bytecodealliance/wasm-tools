@@ -714,7 +714,11 @@ impl<'a> Parse<'a> for Type<'a> {
     }
 }
 
-/// A type declaration in a component
+/// A type declaration in a component.
+///
+/// This is named `ComponentTypeField` because it isn't the type of a
+/// component (`ComponentType`), and it isn't just any type (`Type`),
+/// it's a `(type ...)` field within a component.
 ///
 /// type              ::= (type <id>? <typeexpr>)
 #[derive(Debug, Clone)]
