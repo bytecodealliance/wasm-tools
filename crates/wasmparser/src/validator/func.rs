@@ -1,4 +1,4 @@
-use crate::operators_validator::OperatorValidator;
+use super::operators::OperatorValidator;
 use crate::{BinaryReader, Result, Type};
 use crate::{FunctionBody, Operator, WasmFeatures, WasmModuleResources};
 

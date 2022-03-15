@@ -44,6 +44,7 @@ fn test_validate() {
 mod component;
 mod core;
 mod func;
+mod operators;
 
 use self::component::*;
 use self::core::*;

@@ -1,10 +1,10 @@
 //! State relating to validating a WebAssembly module.
 //!
-use super::{check_max, SnapshotList, TypeDef};
+use super::{check_max, operators::OperatorValidator, SnapshotList, TypeDef};
 use crate::{
-    limits::*, operators_validator::OperatorValidator, BinaryReaderError, Data, DataKind, Element,
-    ElementItem, ElementKind, ExternalKind, FuncType, Global, GlobalType, InitExpr, MemoryType,
-    Operator, Result, TableType, TagType, Type, TypeRef, WasmFeatures, WasmModuleResources,
+    limits::*, BinaryReaderError, Data, DataKind, Element, ElementItem, ElementKind, ExternalKind,
+    FuncType, Global, GlobalType, InitExpr, MemoryType, Operator, Result, TableType, TagType, Type,
+    TypeRef, WasmFeatures, WasmModuleResources,
 };
 use std::{
     collections::{HashMap, HashSet},
