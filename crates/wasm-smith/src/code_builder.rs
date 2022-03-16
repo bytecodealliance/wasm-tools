@@ -1691,7 +1691,7 @@ fn i32_load(
     module: &Module,
     builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
-    let memarg = mem_arg(u, module, builder, &[0, 1])?;
+    let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
     builder.allocs.operands.push(Some(ValType::I32));
     Ok(Instruction::I32Load(memarg))
 }
@@ -1701,7 +1701,7 @@ fn i64_load(
     module: &Module,
     builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
-    let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
+    let memarg = mem_arg(u, module, builder, &[0, 1, 2, 3])?;
     builder.allocs.operands.push(Some(ValType::I64));
     Ok(Instruction::I64Load(memarg))
 }
@@ -1711,7 +1711,7 @@ fn f32_load(
     module: &Module,
     builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
-    let memarg = mem_arg(u, module, builder, &[0, 1])?;
+    let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
     builder.allocs.operands.push(Some(ValType::F32));
     Ok(Instruction::F32Load(memarg))
 }
@@ -1721,7 +1721,7 @@ fn f64_load(
     module: &Module,
     builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
-    let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
+    let memarg = mem_arg(u, module, builder, &[0, 1, 2, 3])?;
     builder.allocs.operands.push(Some(ValType::F64));
     Ok(Instruction::F64Load(memarg))
 }
@@ -1843,7 +1843,7 @@ fn i32_store(
     builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32]);
-    let memarg = mem_arg(u, module, builder, &[0, 1])?;
+    let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
     Ok(Instruction::I32Store(memarg))
 }
 
@@ -1858,7 +1858,7 @@ fn i64_store(
     builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I64]);
-    let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
+    let memarg = mem_arg(u, module, builder, &[0, 1, 2, 3])?;
     Ok(Instruction::I64Store(memarg))
 }
 
@@ -1873,7 +1873,7 @@ fn f32_store(
     builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F32]);
-    let memarg = mem_arg(u, module, builder, &[0, 1])?;
+    let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
     Ok(Instruction::F32Store(memarg))
 }
 
@@ -1888,7 +1888,7 @@ fn f64_store(
     builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::F64]);
-    let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
+    let memarg = mem_arg(u, module, builder, &[0, 1, 2, 3])?;
     Ok(Instruction::F64Store(memarg))
 }
 
