@@ -280,11 +280,11 @@ impl Default for WasmFeatures {
 pub enum ValidPayload<'a> {
     /// The payload validated, no further action need be taken.
     Ok,
-    /// The payload validated, but it started a nested module.
+    /// The payload validated, but it started a nested module or component.
     ///
     /// This result indicates that the specified parser should be used instead
     /// of the currently-used parser until this returned one ends.
-    Submodule(Parser),
+    Parser(Parser),
     /// A function was found to be validate.
     Func(FuncValidator<ValidatorResources>, FunctionBody<'a>),
     /// The end payload was validated and the types known to the validator
@@ -389,8 +389,14 @@ impl Validator {
             ComponentTypeSection(s) => self.component_type_section(s)?,
             ComponentImportSection(s) => self.component_import_section(s)?,
             ComponentFunctionSection(s) => self.component_function_section(s)?,
-            ModuleSection { range, .. } => self.module_section(range)?,
-            ComponentSection { range, .. } => self.component_section(range)?,
+            ModuleSection { parser, range, .. } => {
+                self.module_section(range)?;
+                return Ok(ValidPayload::Parser(parser.clone()));
+            }
+            ComponentSection { parser, range, .. } => {
+                self.component_section(range)?;
+                return Ok(ValidPayload::Parser(parser.clone()));
+            }
             InstanceSection(s) => self.instance_section(s)?,
             ComponentExportSection(s) => self.component_export_section(s)?,
             ComponentStartSection(s) => self.component_start_section(s)?,
