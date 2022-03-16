@@ -1214,3 +1214,109 @@ impl Validator {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{GlobalType, MemoryType, TableType, Type, Validator, WasmFeatures};
+    use anyhow::Result;
+
+    #[test]
+    fn test_module_type_information() -> Result<()> {
+        let bytes = wat::parse_str(
+            r#"
+            (module
+                (type (func (param i32 i64) (result i32)))
+                (memory 1 5)
+                (table 10 funcref)
+                (global (mut i32) (i32.const 0))
+                (func (type 0) (i32.const 0))
+                (tag (param i64 i32))
+                (elem funcref (ref.func 0))
+            )
+        "#,
+        )?;
+
+        let mut validator = Validator::new();
+        validator.wasm_features(WasmFeatures {
+            exceptions: true,
+            ..Default::default()
+        });
+
+        let types = validator.validate_all(&bytes)?;
+
+        assert_eq!(types.type_count(), 2);
+        assert_eq!(types.memory_count(), 1);
+        assert_eq!(types.table_count(), 1);
+        assert_eq!(types.global_count(), 1);
+        assert_eq!(types.function_count(), 1);
+        assert_eq!(types.tag_count(), 1);
+        assert_eq!(types.element_count(), 1);
+        assert_eq!(types.module_count(), 0);
+        assert_eq!(types.component_count(), 0);
+        assert_eq!(types.instance_count(), 0);
+        assert_eq!(types.value_count(), 0);
+
+        match types.func_type_at(0) {
+            Some(ty) => {
+                assert_eq!(ty.params.as_ref(), [Type::I32, Type::I64]);
+                assert_eq!(ty.returns.as_ref(), [Type::I32]);
+            }
+            _ => unreachable!(),
+        }
+
+        match types.func_type_at(1) {
+            Some(ty) => {
+                assert_eq!(ty.params.as_ref(), [Type::I64, Type::I32]);
+                assert_eq!(ty.returns.as_ref(), []);
+            }
+            _ => unreachable!(),
+        }
+
+        assert_eq!(
+            types.memory_at(0),
+            Some(MemoryType {
+                memory64: false,
+                shared: false,
+                initial: 1,
+                maximum: Some(5)
+            })
+        );
+
+        assert_eq!(
+            types.table_at(0),
+            Some(TableType {
+                initial: 10,
+                maximum: None,
+                element_type: Type::FuncRef,
+            })
+        );
+
+        assert_eq!(
+            types.global_at(0),
+            Some(GlobalType {
+                content_type: Type::I32,
+                mutable: true
+            })
+        );
+
+        match types.function_at(0) {
+            Some(ty) => {
+                assert_eq!(ty.params.as_ref(), [Type::I32, Type::I64]);
+                assert_eq!(ty.returns.as_ref(), [Type::I32]);
+            }
+            _ => unreachable!(),
+        }
+
+        match types.tag_at(0) {
+            Some(ty) => {
+                assert_eq!(ty.params.as_ref(), [Type::I64, Type::I32]);
+                assert_eq!(ty.returns.as_ref(), []);
+            }
+            _ => unreachable!(),
+        }
+
+        assert_eq!(types.element_at(0), Some(Type::FuncRef));
+
+        Ok(())
+    }
+}

@@ -742,6 +742,20 @@ impl Types {
         Some(&self.types[*types.get(index as usize)?])
     }
 
+    /// Gets a defined core function type at the given type index.
+    ///
+    /// Returns `None` if the index is out of bounds.
+    ///
+    /// Additionally, this method always returns `None` for components
+    /// because core function types are never present in a component's
+    /// type index space.
+    pub fn func_type_at(&self, index: u32) -> Option<&FuncType> {
+        match self.type_at(index)? {
+            TypeDef::Func(ty) => Some(ty),
+            _ => None,
+        }
+    }
+
     /// Gets the count of defined types.
     pub fn type_count(&self) -> usize {
         match &self.kind {
