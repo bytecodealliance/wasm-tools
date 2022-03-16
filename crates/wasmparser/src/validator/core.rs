@@ -1,6 +1,10 @@
 //! State relating to validating a WebAssembly module.
 //!
-use super::{check_max, operators::OperatorValidator, SnapshotList, TypeDef};
+use super::{
+    check_max,
+    operators::OperatorValidator,
+    types::{EntityType, TypeDef, TypeId, TypeList},
+};
 use crate::{
     limits::*, BinaryReaderError, Data, DataKind, Element, ElementItem, ElementKind, ExternalKind,
     FuncType, Global, GlobalType, InitExpr, MemoryType, Operator, Result, TableType, TagType, Type,
@@ -43,59 +47,6 @@ pub enum Order {
 impl Default for Order {
     fn default() -> Order {
         Order::Initial
-    }
-}
-
-#[derive(Clone)]
-pub enum EntityType {
-    // Stores an index into the global type list.
-    Func(usize),
-    Table(TableType),
-    Memory(MemoryType),
-    Global(GlobalType),
-    // Stores an index into the global type list.
-    Tag(usize),
-}
-
-impl EntityType {
-    pub fn is_subtype_of(&self, b: &Self) -> bool {
-        macro_rules! limits_match {
-            ($a:expr, $b:expr) => {{
-                let a = $a;
-                let b = $b;
-                a.initial >= b.initial
-                    && match b.maximum {
-                        Some(b_max) => match a.maximum {
-                            Some(a_max) => a_max <= b_max,
-                            None => false,
-                        },
-                        None => true,
-                    }
-            }};
-        }
-
-        match (self, b) {
-            (EntityType::Func(a), EntityType::Func(b)) => a == b,
-            (EntityType::Table(a), EntityType::Table(b)) => {
-                a.element_type == b.element_type && limits_match!(a, b)
-            }
-            (EntityType::Memory(a), EntityType::Memory(b)) => {
-                a.shared == b.shared && a.memory64 == b.memory64 && limits_match!(a, b)
-            }
-            (EntityType::Global(a), EntityType::Global(b)) => a == b,
-            (EntityType::Tag(a), EntityType::Tag(b)) => a == b,
-            _ => false,
-        }
-    }
-
-    pub fn desc(&self) -> &'static str {
-        match self {
-            Self::Func(_) => "function",
-            Self::Table(_) => "table",
-            Self::Memory(_) => "memory",
-            Self::Global(_) => "global",
-            Self::Tag(_) => "tag",
-        }
     }
 }
 
@@ -182,7 +133,7 @@ impl ModuleState {
         &mut self,
         global: Global,
         features: &WasmFeatures,
-        types: &SnapshotList<TypeDef>,
+        types: &TypeList,
         offset: usize,
     ) -> Result<()> {
         self.module
@@ -202,7 +153,7 @@ impl ModuleState {
         &mut self,
         data: Data,
         features: &WasmFeatures,
-        types: &SnapshotList<TypeDef>,
+        types: &TypeList,
         offset: usize,
     ) -> Result<()> {
         match data.kind {
@@ -221,7 +172,7 @@ impl ModuleState {
         &mut self,
         e: Element,
         features: &WasmFeatures,
-        types: &SnapshotList<TypeDef>,
+        types: &TypeList,
         offset: usize,
     ) -> Result<()> {
         match e.ty {
@@ -294,7 +245,7 @@ impl ModuleState {
         expr: &InitExpr<'_>,
         expected_ty: Type,
         features: &WasmFeatures,
-        types: &SnapshotList<TypeDef>,
+        types: &TypeList,
         offset: usize,
     ) -> Result<()> {
         let mut ops = expr.get_operators_reader();
@@ -400,9 +351,9 @@ pub struct Module {
     // This is set once the code section starts.
     // `WasmModuleResources` implementations use the snapshot to
     // enable parallel validation of functions.
-    pub(super) snapshot: Option<Arc<SnapshotList<TypeDef>>>,
+    pub(super) snapshot: Option<Arc<TypeList>>,
     // Stores indexes into the validator's types list.
-    pub types: Vec<usize>,
+    pub types: Vec<TypeId>,
     pub tables: Vec<TableType>,
     pub memories: Vec<MemoryType>,
     pub globals: Vec<GlobalType>,
@@ -410,8 +361,7 @@ pub struct Module {
     pub data_count: Option<u32>,
     // Stores indexes into `types`.
     pub functions: Vec<u32>,
-    // Stores indexes into `types`.
-    pub tags: Vec<u32>,
+    pub tags: Vec<TypeId>,
     pub function_references: HashSet<u32>,
     pub imports: HashMap<(String, String), Vec<EntityType>>,
     pub exports: HashMap<String, EntityType>,
@@ -424,7 +374,7 @@ impl Module {
         &mut self,
         def: crate::TypeDef,
         features: &WasmFeatures,
-        types: &mut SnapshotList<TypeDef>,
+        types: &mut TypeList,
         offset: usize,
     ) -> Result<()> {
         let def = match def {
@@ -442,7 +392,7 @@ impl Module {
             }
         };
 
-        self.types.push(types.len());
+        self.types.push(TypeId(types.len()));
         types.push(def);
         Ok(())
     }
@@ -451,7 +401,7 @@ impl Module {
         &mut self,
         import: crate::Import,
         features: &WasmFeatures,
-        types: &SnapshotList<TypeDef>,
+        types: &TypeList,
         offset: usize,
     ) -> Result<()> {
         let entity = self.check_type_ref(&import.ty, features, types, offset)?;
@@ -471,7 +421,7 @@ impl Module {
                 (self.memories.len(), self.max_memories(features), "memories")
             }
             TypeRef::Tag(ty) => {
-                self.tags.push(ty.func_type_idx);
+                self.tags.push(self.types[ty.func_type_idx as usize]);
                 (self.tags.len(), MAX_WASM_TAGS, "tags")
             }
             TypeRef::Global(ty) => {
@@ -504,7 +454,7 @@ impl Module {
     pub(super) fn add_function(
         &mut self,
         type_index: u32,
-        types: &SnapshotList<TypeDef>,
+        types: &TypeList,
         offset: usize,
     ) -> Result<()> {
         self.func_type_at(type_index, types, offset)?;
@@ -538,36 +488,28 @@ impl Module {
         &mut self,
         ty: TagType,
         features: &WasmFeatures,
-        types: &SnapshotList<TypeDef>,
+        types: &TypeList,
         offset: usize,
     ) -> Result<()> {
         self.check_tag_type(&ty, features, types, offset)?;
-        self.tags.push(ty.func_type_idx);
+        self.tags.push(self.types[ty.func_type_idx as usize]);
         Ok(())
     }
 
-    fn type_at<'a>(
-        &self,
-        idx: u32,
-        types: &'a SnapshotList<TypeDef>,
-        offset: usize,
-    ) -> Result<&'a TypeDef> {
-        if let Some(idx) = self.types.get(idx as usize) {
-            if let Some(ty) = types.get(*idx) {
-                return Ok(ty);
-            }
+    fn type_at<'a>(&self, idx: u32, types: &'a TypeList, offset: usize) -> Result<&'a TypeDef> {
+        match self.types.get(idx as usize) {
+            Some(id) => Ok(&types[*id]),
+            None => Err(BinaryReaderError::new(
+                format!("unknown type {}: type index out of bounds", idx),
+                offset,
+            )),
         }
-
-        Err(BinaryReaderError::new(
-            format!("unknown type {}: type index out of bounds", idx),
-            offset,
-        ))
     }
 
     fn func_type_at<'a>(
         &self,
         type_index: u32,
-        types: &'a SnapshotList<TypeDef>,
+        types: &'a TypeList,
         offset: usize,
     ) -> Result<&'a FuncType> {
         Ok(self.type_at(type_index, types, offset)?.unwrap_func_type())
@@ -577,7 +519,7 @@ impl Module {
         &self,
         type_ref: &TypeRef,
         features: &WasmFeatures,
-        types: &SnapshotList<TypeDef>,
+        types: &TypeList,
         offset: usize,
     ) -> Result<EntityType> {
         Ok(match type_ref {
@@ -683,10 +625,13 @@ impl Module {
         Ok(())
     }
 
-    pub(crate) fn validate_for_module_type(&self, offset: usize) -> Result<()> {
+    pub(crate) fn imports_for_module_type(
+        &self,
+        offset: usize,
+    ) -> Result<HashMap<(String, String), EntityType>> {
         // Ensure imports are unique, which is a requirement of the component model
-        for ((module, name), v) in &self.imports {
-            if v.len() != 1 {
+        self.imports.iter().map(|((module, name), types)| {
+            if types.len() != 1 {
                 return Err(BinaryReaderError::new(
                     format!(
                         "module has a duplicate import name `{}:{}` that is not allowed in components",
@@ -695,16 +640,15 @@ impl Module {
                     offset,
                 ));
             }
-        }
-
-        Ok(())
+            Ok(((module.clone(), name.clone()), types[0]))
+        }).collect::<Result<_>>()
     }
 
     fn check_tag_type(
         &self,
         ty: &TagType,
         features: &WasmFeatures,
-        types: &SnapshotList<TypeDef>,
+        types: &TypeList,
         offset: usize,
     ) -> Result<()> {
         if !features.exceptions {
@@ -803,7 +747,7 @@ impl Module {
             }
             ExternalKind::Tag => {
                 check("tag", export.index, self.tags.len())?;
-                EntityType::Tag(self.types[self.tags[export.index as usize] as usize])
+                EntityType::Tag(self.tags[export.index as usize])
             }
         })
     }
@@ -811,11 +755,11 @@ impl Module {
     pub(super) fn get_func_type<'a>(
         &self,
         func_idx: u32,
-        types: &'a SnapshotList<TypeDef>,
+        types: &'a TypeList,
         offset: usize,
     ) -> Result<&'a FuncType> {
         match self.functions.get(func_idx as usize) {
-            Some(t) => self.func_type_at(*t, types, offset),
+            Some(idx) => self.func_type_at(*idx, types, offset),
             None => Err(BinaryReaderError::new(
                 format!("unknown function {}: func index out of bounds", func_idx),
                 offset,
@@ -856,7 +800,7 @@ impl Module {
 
 struct OperatorValidatorResources<'a> {
     module: &'a Module,
-    types: &'a SnapshotList<TypeDef>,
+    types: &'a TypeList,
 }
 
 impl WasmModuleResources for OperatorValidatorResources<'_> {
@@ -871,7 +815,7 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
     }
 
     fn tag_at(&self, at: u32) -> Option<&Self::FuncType> {
-        self.func_type_at(*self.module.tags.get(at as usize)?)
+        Some(self.types[*self.module.tags.get(at as usize)?].unwrap_func_type())
     }
 
     fn global_at(&self, at: u32) -> Option<GlobalType> {
@@ -879,11 +823,7 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
     }
 
     fn func_type_at(&self, at: u32) -> Option<&Self::FuncType> {
-        Some(
-            self.types
-                .get(*self.module.types.get(at as usize)?)?
-                .unwrap_func_type(),
-        )
+        Some(self.types[*self.module.types.get(at as usize)?].unwrap_func_type())
     }
 
     fn type_of_function(&self, at: u32) -> Option<&Self::FuncType> {
@@ -922,7 +862,7 @@ impl WasmModuleResources for ValidatorResources {
     }
 
     fn tag_at(&self, at: u32) -> Option<&Self::FuncType> {
-        self.func_type_at(*self.0.tags.get(at as usize)?)
+        Some(self.0.snapshot.as_ref().unwrap()[*self.0.tags.get(at as usize)?].unwrap_func_type())
     }
 
     fn global_at(&self, at: u32) -> Option<GlobalType> {
@@ -930,14 +870,7 @@ impl WasmModuleResources for ValidatorResources {
     }
 
     fn func_type_at(&self, at: u32) -> Option<&Self::FuncType> {
-        Some(
-            self.0
-                .snapshot
-                .as_ref()
-                .unwrap()
-                .get(*self.0.types.get(at as usize)?)?
-                .unwrap_func_type(),
-        )
+        Some(self.0.snapshot.as_ref().unwrap()[*self.0.types.get(at as usize)?].unwrap_func_type())
     }
 
     fn type_of_function(&self, at: u32) -> Option<&Self::FuncType> {
