@@ -1,9 +1,11 @@
 //! Types relating to type information provided by validation.
 
+use indexmap::{IndexMap, IndexSet};
+
 use crate::{FuncType, GlobalType, MemoryType, PrimitiveInterfaceType, Result, TableType, Type};
 use std::{
     borrow::Borrow,
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     hash::{Hash, Hasher},
     mem,
     sync::Arc,
@@ -480,17 +482,17 @@ pub enum InterfaceType {
     /// The type is a primitive interface type.
     Primitive(PrimitiveInterfaceType),
     /// The type is a record.
-    Record(HashMap<String, InterfaceTypeRef>),
+    Record(IndexMap<String, InterfaceTypeRef>),
     /// The type is a variant.
-    Variant(HashMap<String, VariantCase>),
+    Variant(IndexMap<String, VariantCase>),
     /// The type is a list.
     List(InterfaceTypeRef),
     /// The type is a tuple.
     Tuple(Box<[InterfaceTypeRef]>),
     /// The type is a set of flags.
-    Flags(HashSet<String>),
+    Flags(IndexSet<String>),
     /// The type is an enumeration.
-    Enum(HashSet<String>),
+    Enum(IndexSet<String>),
     /// The type is a union.
     Union(Box<[InterfaceTypeRef]>),
     /// The type is an `option`.
