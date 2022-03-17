@@ -732,16 +732,23 @@ impl Types {
         self.types.get(id.0)
     }
 
-    /// Gets a defined type at the given type index.
+    /// Gets a type id from a type index.
     ///
-    /// Returns `None` if the index is out of bounds.
-    pub fn type_at(&self, index: u32) -> Option<&TypeDef> {
+    /// Returns `None` if the type index is out of bounds.
+    pub fn id_from_type_index(&self, index: u32) -> Option<TypeId> {
         let types = match &self.kind {
             TypesKind::Module(module) => &module.types,
             TypesKind::Component(component) => &component.types,
         };
 
-        Some(&self.types[*types.get(index as usize)?])
+        types.get(index as usize).copied()
+    }
+
+    /// Gets a defined type at the given type index.
+    ///
+    /// Returns `None` if the index is out of bounds.
+    pub fn type_at(&self, index: u32) -> Option<&TypeDef> {
+        self.type_from_id(self.id_from_type_index(index)?)
     }
 
     /// Gets a defined core function type at the given type index.
