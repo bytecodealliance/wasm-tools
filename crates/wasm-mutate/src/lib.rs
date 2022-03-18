@@ -349,7 +349,7 @@ impl<'wasm> WasmMutate<'wasm> {
 #[cfg(test)]
 pub(crate) fn validate(validator: &mut wasmparser::Validator, bytes: &[u8]) {
     let err = match validator.validate_all(bytes) {
-        Ok(()) => return,
+        Ok(_) => return,
         Err(e) => e,
     };
     drop(std::fs::write("test.wasm", &bytes));

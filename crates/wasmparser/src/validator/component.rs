@@ -1,445 +1,34 @@
 //! State relating to validating a WebAssembly component.
 
-use super::{check_max, core::Module, SnapshotList, TypeDef};
+use super::{
+    check_max,
+    core::Module,
+    types::{
+        ComponentFuncType, ComponentType, EntityType, InstanceType, InterfaceType,
+        InterfaceTypeRef, ModuleType, TypeDef, TypeId, TypeList, VariantCase,
+    },
+};
 use crate::{
-    limits::*, validator::core::EntityType, BinaryReaderError, CanonicalOption, FuncType,
+    limits::*, types::ComponentEntityType, BinaryReaderError, CanonicalOption, FuncType,
     GlobalType, MemoryType, PrimitiveInterfaceType, Result, TableType, Type, WasmFeatures,
 };
-use std::collections::{HashMap, HashSet};
-
-fn push_primitive_wasm_types(ty: &PrimitiveInterfaceType, wasm_types: &mut Vec<Type>) {
-    match ty {
-        PrimitiveInterfaceType::Unit => {}
-        PrimitiveInterfaceType::Bool
-        | PrimitiveInterfaceType::S8
-        | PrimitiveInterfaceType::U8
-        | PrimitiveInterfaceType::S16
-        | PrimitiveInterfaceType::U16
-        | PrimitiveInterfaceType::S32
-        | PrimitiveInterfaceType::U32
-        | PrimitiveInterfaceType::Char => {
-            wasm_types.push(Type::I32);
-        }
-        PrimitiveInterfaceType::S64 | PrimitiveInterfaceType::U64 => {
-            wasm_types.push(Type::I64);
-        }
-        PrimitiveInterfaceType::Float32 => wasm_types.push(Type::F32),
-        PrimitiveInterfaceType::Float64 => wasm_types.push(Type::F64),
-        PrimitiveInterfaceType::String => wasm_types.extend([Type::I32, Type::I32]),
-    }
-}
-
-#[derive(Clone)]
-pub struct ModuleType {
-    imports: HashMap<(String, String), Vec<EntityType>>,
-    exports: HashMap<String, EntityType>,
-}
-
-impl ModuleType {
-    fn is_subtype_of(&self, other: &Self) -> bool {
-        // For module type subtyping, all exports in the other module type
-        // must be present in this module type's exports (i.e. it can export
-        // *more* than what this module type needs).
-        // However, for imports, the check is reversed (i.e. it is okay
-        // to import *less* than what this module type needs).
-        self.imports
-            .iter()
-            .all(|(k, ty)| match other.imports.get(k) {
-                Some(other) => other[0].is_subtype_of(&ty[0]),
-                None => false,
-            })
-            && other
-                .exports
-                .iter()
-                .all(|(k, other)| match self.exports.get(k) {
-                    Some(ty) => ty.is_subtype_of(other),
-                    None => false,
-                })
-    }
-}
-
-#[derive(Clone)]
-pub struct ComponentType {
-    imports: HashMap<String, ComponentEntityType>,
-    exports: HashMap<String, ComponentEntityType>,
-}
-
-impl ComponentType {
-    fn is_subtype_of(&self, other: &Self, types: &SnapshotList<TypeDef>) -> bool {
-        // For component type subtyping, all exports in the other component type
-        // must be present in this component type's exports (i.e. it can export
-        // *more* than what this component type needs).
-        // However, for imports, the check is reversed (i.e. it is okay
-        // to import *less* than what this component type needs).
-        self.imports
-            .iter()
-            .all(|(k, ty)| match other.imports.get(k) {
-                Some(other) => other.is_subtype_of(ty, types),
-                None => false,
-            })
-            && other
-                .exports
-                .iter()
-                .all(|(k, other)| match self.exports.get(k) {
-                    Some(ty) => ty.is_subtype_of(other, types),
-                    None => false,
-                })
-    }
-}
-
-#[derive(Clone)]
-pub struct InstanceType {
-    exports: HashMap<String, ComponentEntityType>,
-}
-
-impl InstanceType {
-    fn is_subtype_of(&self, other: &Self, types: &SnapshotList<TypeDef>) -> bool {
-        // For instance type subtyping, all exports in the other instance type
-        // must be present in this instance type's exports (i.e. it can export
-        // *more* than what this instance type needs).
-        other
-            .exports
-            .iter()
-            .all(|(k, other)| match self.exports.get(k) {
-                Some(ty) => ty.is_subtype_of(other, types),
-                None => false,
-            })
-    }
-}
-
-#[derive(Clone)]
-pub struct ComponentFuncType {
-    params: Box<[(Option<String>, InterfaceTypeRef)]>,
-    result: InterfaceTypeRef,
-    core_type: FuncType,
-}
-
-impl ComponentFuncType {
-    fn requires_into_option(&self, types: &SnapshotList<TypeDef>) -> bool {
-        self.result.requires_into_option(types)
-            || self
-                .params
-                .iter()
-                .any(|(_, ty)| ty.requires_into_option(types))
-    }
-
-    fn is_subtype_of(&self, other: &Self, types: &SnapshotList<TypeDef>) -> bool {
-        // Subtyping rules:
-        // https://github.com/WebAssembly/component-model/blob/17f94ed1270a98218e0e796ca1dad1feb7e5c507/design/mvp/Subtyping.md
-
-        // Covariant on return type
-        if !self.result.is_subtype_of(&other.result, types) {
-            return false;
-        }
-
-        // All overlapping parameters must have the same name and are contravariant subtypes
-        for ((name, ty), (other_name, other_ty)) in self.params.iter().zip(other.params.iter()) {
-            if name != other_name {
-                return false;
-            }
-
-            if !other_ty.is_subtype_of(ty, types) {
-                return false;
-            }
-        }
-
-        // All remaining parameters in the supertype must be optional
-        // All superfluous parameters in the subtype are ignored
-        other
-            .params
-            .iter()
-            .skip(self.params.len())
-            .all(|(_, ty)| ty.is_optional(types))
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum InterfaceTypeRef {
-    Primitive(PrimitiveInterfaceType),
-    Type(usize),
-}
-
-impl InterfaceTypeRef {
-    fn requires_into_option(&self, types: &SnapshotList<TypeDef>) -> bool {
-        match self {
-            InterfaceTypeRef::Primitive(ty) => ty.requires_into_option(),
-            InterfaceTypeRef::Type(ty) => types[*ty]
-                .unwrap_interface_type()
-                .requires_into_option(types),
-        }
-    }
-
-    fn is_optional(&self, types: &SnapshotList<TypeDef>) -> bool {
-        match self {
-            InterfaceTypeRef::Primitive(_) => false,
-            InterfaceTypeRef::Type(ty) => {
-                matches!(types[*ty].unwrap_interface_type(), InterfaceType::Option(_))
-            }
-        }
-    }
-
-    fn is_subtype_of(&self, other: &Self, types: &SnapshotList<TypeDef>) -> bool {
-        match (self, other) {
-            (InterfaceTypeRef::Primitive(ty), InterfaceTypeRef::Primitive(other_ty)) => {
-                ty.is_subtype_of(other_ty)
-            }
-            (InterfaceTypeRef::Type(ty), InterfaceTypeRef::Type(other_ty)) => types[*ty]
-                .unwrap_interface_type()
-                .is_subtype_of(types[*other_ty].unwrap_interface_type(), types),
-            _ => false,
-        }
-    }
-}
-
-impl InterfaceTypeRef {
-    fn push_wasm_types(
-        &self,
-        types: &SnapshotList<TypeDef>,
-        offset: usize,
-        wasm_types: &mut Vec<Type>,
-    ) -> Result<()> {
-        match self {
-            Self::Primitive(ty) => push_primitive_wasm_types(ty, wasm_types),
-            Self::Type(idx) => types[*idx]
-                .unwrap_interface_type()
-                .push_wasm_types(types, offset, wasm_types)?,
-        }
-
-        Ok(())
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct VariantCase {
-    ty: InterfaceTypeRef,
-    default_to: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub enum InterfaceType {
-    Primitive(PrimitiveInterfaceType),
-    Record(HashMap<String, InterfaceTypeRef>),
-    Variant(HashMap<String, VariantCase>),
-    List(InterfaceTypeRef),
-    Tuple(Box<[InterfaceTypeRef]>),
-    Flags(HashSet<String>),
-    Enum(HashSet<String>),
-    Union(Box<[InterfaceTypeRef]>),
-    Option(InterfaceTypeRef),
-    Expected(InterfaceTypeRef, InterfaceTypeRef),
-}
-
-impl InterfaceType {
-    fn requires_into_option(&self, types: &SnapshotList<TypeDef>) -> bool {
-        match self {
-            InterfaceType::Primitive(ty) => ty.requires_into_option(),
-            InterfaceType::Record(fields) => {
-                fields.values().any(|ty| ty.requires_into_option(types))
-            }
-            InterfaceType::Variant(cases) => cases
-                .values()
-                .any(|case| case.ty.requires_into_option(types)),
-            InterfaceType::List(_) => true,
-            InterfaceType::Tuple(tys) | InterfaceType::Union(tys) => {
-                tys.iter().any(|ty| ty.requires_into_option(types))
-            }
-            InterfaceType::Flags(_) | InterfaceType::Enum(_) => false,
-            InterfaceType::Option(ty) => ty.requires_into_option(types),
-            InterfaceType::Expected(ok, error) => {
-                ok.requires_into_option(types) || error.requires_into_option(types)
-            }
-        }
-    }
-
-    fn is_subtype_of(&self, other: &Self, types: &SnapshotList<TypeDef>) -> bool {
-        // Subtyping rules according to
-        // https://github.com/WebAssembly/component-model/blob/17f94ed1270a98218e0e796ca1dad1feb7e5c507/design/mvp/Subtyping.md
-        match (self, other) {
-            (InterfaceType::Primitive(ty), InterfaceType::Primitive(other_ty)) => {
-                ty.is_subtype_of(other_ty)
-            }
-            (InterfaceType::Record(fields), InterfaceType::Record(other_fields)) => {
-                for (name, ty) in fields.iter() {
-                    if let Some(other_ty) = other_fields.get(name) {
-                        if !ty.is_subtype_of(other_ty, types) {
-                            return false;
-                        }
-                    } else {
-                        // Superfluous fields can be ignored in the subtype
-                    }
-                }
-                // Check for missing required fields in the supertype
-                for (other_name, other_ty) in other_fields.iter() {
-                    if !other_ty.is_optional(types) && !fields.contains_key(other_name) {
-                        return false;
-                    }
-                }
-                true
-            }
-            (InterfaceType::Variant(cases), InterfaceType::Variant(other_cases)) => {
-                for (name, case) in cases.iter() {
-                    if let Some(other_case) = other_cases.get(name) {
-                        // Covariant subtype on the case type
-                        if !case.ty.is_subtype_of(&other_case.ty, types) {
-                            return false;
-                        }
-                    } else if let Some(default) = &case.default_to {
-                        if !other_cases.contains_key(default) {
-                            // The default is not in the supertype
-                            return false;
-                        }
-                    } else {
-                        // This case is not in the supertype and there is no
-                        // default
-                        return false;
-                    }
-                }
-                true
-            }
-            (InterfaceType::List(ty), InterfaceType::List(other_ty))
-            | (InterfaceType::Option(ty), InterfaceType::Option(other_ty)) => {
-                ty.is_subtype_of(other_ty, types)
-            }
-            (InterfaceType::Tuple(tys), InterfaceType::Tuple(other_tys))
-            | (InterfaceType::Union(tys), InterfaceType::Union(other_tys)) => {
-                if tys.len() != other_tys.len() {
-                    return false;
-                }
-                tys.iter()
-                    .zip(other_tys.iter())
-                    .all(|(ty, other_ty)| ty.is_subtype_of(other_ty, types))
-            }
-            (InterfaceType::Flags(set), InterfaceType::Flags(other_set))
-            | (InterfaceType::Enum(set), InterfaceType::Enum(other_set)) => {
-                set.is_subset(other_set)
-            }
-            (
-                InterfaceType::Expected(ok, error),
-                InterfaceType::Expected(other_ok, other_error),
-            ) => ok.is_subtype_of(other_ok, types) && error.is_subtype_of(other_error, types),
-            _ => false,
-        }
-    }
-
-    fn push_wasm_types(
-        &self,
-        types: &SnapshotList<TypeDef>,
-        offset: usize,
-        wasm_types: &mut Vec<Type>,
-    ) -> Result<()> {
-        match self {
-            Self::Primitive(ty) => push_primitive_wasm_types(ty, wasm_types),
-            Self::Record(fields) => {
-                for (_, ty) in fields.iter() {
-                    ty.push_wasm_types(types, offset, wasm_types)?;
-                }
-            }
-            Self::Variant(cases) => {
-                Self::push_variant_types(
-                    cases.iter().map(|(_, case)| &case.ty),
-                    types,
-                    offset,
-                    wasm_types,
-                )?;
-            }
-            Self::List(_) => {
-                wasm_types.extend([Type::I32, Type::I32]);
-            }
-            Self::Tuple(tys) => {
-                for ty in tys.iter() {
-                    ty.push_wasm_types(types, offset, wasm_types)?;
-                }
-            }
-            Self::Flags(names) => {
-                if names.len() <= 32 {
-                    wasm_types.push(Type::I32);
-                } else if names.len() <= 64 {
-                    wasm_types.push(Type::I64);
-                } else {
-                    for _ in 0..(names.len() + 31) / 32 {
-                        wasm_types.push(Type::I32);
-                    }
-                }
-            }
-            Self::Enum(names) => {
-                if names.len() < u32::max_value() as usize {
-                    wasm_types.push(Type::I32);
-                } else {
-                    wasm_types.push(Type::I64);
-                }
-            }
-            Self::Union(tys) => {
-                Self::push_variant_types(tys.iter(), types, offset, wasm_types)?;
-            }
-            Self::Option(ty) => {
-                Self::push_variant_types([ty].into_iter(), types, offset, wasm_types)?;
-            }
-            Self::Expected(ok, error) => {
-                Self::push_variant_types([ok, error].into_iter(), types, offset, wasm_types)?;
-            }
-        }
-
-        Ok(())
-    }
-
-    fn push_variant_types<'a>(
-        cases: impl ExactSizeIterator<Item = &'a InterfaceTypeRef>,
-        types: &SnapshotList<TypeDef>,
-        offset: usize,
-        wasm_types: &mut Vec<Type>,
-    ) -> Result<()> {
-        if cases.len() < u32::max_value() as usize {
-            wasm_types.push(Type::I32);
-        } else {
-            wasm_types.push(Type::I64);
-        }
-
-        let start = wasm_types.len();
-        let mut temp = Vec::new();
-
-        for ty in cases {
-            ty.push_wasm_types(types, offset, &mut temp)?;
-
-            for (i, ty) in temp.drain(..).enumerate() {
-                match wasm_types.get_mut(start + i) {
-                    Some(prev) => *prev = Self::unify_wasm_type(*prev, ty),
-                    None => wasm_types.push(ty),
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    fn unify_wasm_type(a: Type, b: Type) -> Type {
-        use Type::*;
-
-        match (a, b) {
-            (I64, _) | (_, I64) | (I32, F64) | (F64, I32) => I64,
-            (I32, I32) | (I32, F32) | (F32, I32) => I32,
-            (F32, F32) => F32,
-            (F64, F64) | (F32, F64) | (F64, F32) => F64,
-            _ => panic!("unexpected wasm type for canonical ABI"),
-        }
-    }
-}
+use std::{collections::HashMap, mem};
 
 #[derive(Default)]
 pub struct ComponentState {
-    // The various lists here store indexes into the validator's type list.
-    pub types: Vec<usize>,
-    pub modules: Vec<usize>,
-    pub components: Vec<usize>,
-    pub instances: Vec<usize>,
-    pub functions: Vec<usize>,
+    pub types: Vec<TypeId>,
+    pub modules: Vec<TypeId>,
+    pub components: Vec<TypeId>,
+    pub instances: Vec<TypeId>,
+    pub functions: Vec<TypeId>,
     pub values: Vec<(InterfaceTypeRef, bool)>,
     pub memories: Vec<MemoryType>,
     pub tables: Vec<TableType>,
     pub globals: Vec<GlobalType>,
-    tags: Vec<usize>,
-    has_start: bool,
-    imports: HashMap<String, ComponentEntityType>,
+    pub tags: Vec<TypeId>,
+    pub imports: HashMap<String, ComponentEntityType>,
     pub exports: HashMap<String, ComponentEntityType>,
+    has_start: bool,
 }
 
 impl ComponentState {
@@ -447,7 +36,7 @@ impl ComponentState {
         components: &mut Vec<Self>,
         def: crate::ComponentTypeDef,
         features: &WasmFeatures,
-        types: &mut SnapshotList<TypeDef>,
+        types: &mut TypeList,
         offset: usize,
     ) -> Result<()> {
         assert!(!components.is_empty());
@@ -486,7 +75,11 @@ impl ComponentState {
             ),
         };
 
-        components.last_mut().unwrap().types.push(types.len());
+        components
+            .last_mut()
+            .unwrap()
+            .types
+            .push(TypeId(types.len()));
         types.push(def);
 
         Ok(())
@@ -495,7 +88,7 @@ impl ComponentState {
     pub(super) fn add_import(
         &mut self,
         import: crate::ComponentImport,
-        types: &SnapshotList<TypeDef>,
+        types: &TypeList,
         offset: usize,
     ) -> Result<()> {
         let ty = self.type_index_to_entity_type(import.ty, types, "imported", offset)?;
@@ -561,7 +154,7 @@ impl ComponentState {
         type_index: u32,
         func_index: u32,
         options: Vec<CanonicalOption>,
-        types: &SnapshotList<TypeDef>,
+        types: &TypeList,
         offset: usize,
     ) -> Result<()> {
         let ty = self.function_type_at(type_index, types, offset)?;
@@ -594,7 +187,7 @@ impl ComponentState {
         &mut self,
         func_index: u32,
         options: Vec<CanonicalOption>,
-        types: &mut SnapshotList<TypeDef>,
+        types: &mut TypeList,
         offset: usize,
     ) -> Result<()> {
         let ty = self.function_type_at(func_index, types, offset)?;
@@ -618,7 +211,7 @@ impl ComponentState {
             ty.core_type.clone()
         };
 
-        self.functions.push(types.len());
+        self.functions.push(TypeId(types.len()));
         types.push(TypeDef::Func(core_ty));
 
         Ok(())
@@ -627,36 +220,35 @@ impl ComponentState {
     pub(super) fn add_module(
         &mut self,
         module: &Module,
-        types: &mut SnapshotList<TypeDef>,
+        types: &mut TypeList,
         offset: usize,
     ) -> Result<()> {
-        module.validate_for_module_type(offset)?;
-
-        self.modules.push(types.len());
+        let imports = module.imports_for_module_type(offset)?;
 
         // We have to clone the module's imports and exports here
         // because we cannot take the data out of the `MaybeOwned`
         // as it might be shared with a function validator.
+        self.modules.push(TypeId(types.len()));
         types.push(TypeDef::Module(ModuleType {
-            imports: module.imports.clone(),
+            imports,
             exports: module.exports.clone(),
         }));
 
         Ok(())
     }
 
-    pub(super) fn add_component(&mut self, component: Self, types: &mut SnapshotList<TypeDef>) {
-        self.components.push(types.len());
+    pub(super) fn add_component(&mut self, component: &mut Self, types: &mut TypeList) {
+        self.components.push(TypeId(types.len()));
         types.push(TypeDef::Component(ComponentType {
-            imports: component.imports,
-            exports: component.exports,
+            imports: mem::take(&mut component.imports),
+            exports: mem::take(&mut component.exports),
         }));
     }
 
     pub(super) fn add_instance(
         &mut self,
         instance: crate::Instance,
-        types: &mut SnapshotList<TypeDef>,
+        types: &mut TypeList,
         offset: usize,
     ) -> Result<()> {
         let instance = match instance {
@@ -683,7 +275,7 @@ impl ComponentState {
         &mut self,
         func_index: u32,
         args: &[u32],
-        types: &SnapshotList<TypeDef>,
+        types: &TypeList,
         offset: usize,
     ) -> Result<()> {
         if self.has_start {
@@ -734,7 +326,7 @@ impl ComponentState {
     pub(super) fn add_alias(
         components: &mut [Self],
         alias: crate::Alias,
-        types: &SnapshotList<TypeDef>,
+        types: &TypeList,
         offset: usize,
     ) -> Result<()> {
         assert!(!components.is_empty());
@@ -783,7 +375,7 @@ impl ComponentState {
     pub(super) fn export_to_entity_type(
         &mut self,
         export: &crate::ComponentExport,
-        types: &mut SnapshotList<TypeDef>,
+        types: &mut TypeList,
         offset: usize,
     ) -> Result<ComponentEntityType> {
         Ok(match &export.kind {
@@ -814,7 +406,7 @@ impl ComponentState {
         &self,
         options: &[CanonicalOption],
         ty: &ComponentFuncType,
-        types: &SnapshotList<TypeDef>,
+        types: &TypeList,
         offset: usize,
     ) -> Result<()> {
         fn display(option: CanonicalOption) -> &'static str {
@@ -831,7 +423,7 @@ impl ComponentState {
             name: &str,
             params: &[Type],
             returns: &[Type],
-            types: &SnapshotList<TypeDef>,
+            types: &TypeList,
             offset: usize,
         ) -> Result<()> {
             match into.exports.get(name) {
@@ -936,7 +528,7 @@ impl ComponentState {
     fn type_index_to_entity_type(
         &self,
         ty: u32,
-        types: &SnapshotList<TypeDef>,
+        types: &TypeList,
         desc: &str,
         offset: usize,
     ) -> Result<ComponentEntityType> {
@@ -960,7 +552,7 @@ impl ComponentState {
         &self,
         defs: Vec<crate::ModuleType>,
         features: &WasmFeatures,
-        types: &mut SnapshotList<TypeDef>,
+        types: &mut TypeList,
         offset: usize,
     ) -> Result<ModuleType> {
         let mut state = Module::default();
@@ -983,10 +575,10 @@ impl ComponentState {
             }
         }
 
-        state.validate_for_module_type(offset)?;
+        let imports = state.imports_for_module_type(offset)?;
 
         Ok(ModuleType {
-            imports: state.imports,
+            imports,
             exports: state.exports,
         })
     }
@@ -995,7 +587,7 @@ impl ComponentState {
         components: &mut Vec<Self>,
         defs: Vec<crate::ComponentType>,
         features: &WasmFeatures,
-        types: &mut SnapshotList<TypeDef>,
+        types: &mut TypeList,
         offset: usize,
     ) -> Result<ComponentType> {
         components.push(ComponentState::default());
@@ -1037,7 +629,7 @@ impl ComponentState {
         components: &mut Vec<Self>,
         defs: Vec<crate::InstanceType>,
         features: &WasmFeatures,
-        types: &mut SnapshotList<TypeDef>,
+        types: &mut TypeList,
         offset: usize,
     ) -> Result<InstanceType> {
         components.push(ComponentState::default());
@@ -1071,7 +663,7 @@ impl ComponentState {
     fn create_function_type(
         &self,
         ty: crate::ComponentFuncType,
-        types: &SnapshotList<TypeDef>,
+        types: &TypeList,
         offset: usize,
     ) -> Result<ComponentFuncType> {
         let mut core_params = Vec::new();
@@ -1114,7 +706,7 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn type_at(&self, idx: u32, offset: usize) -> Result<usize> {
+    pub fn type_at(&self, idx: u32, offset: usize) -> Result<TypeId> {
         if let Some(idx) = self.types.get(idx as usize) {
             Ok(*idx)
         } else {
@@ -1128,7 +720,7 @@ impl ComponentState {
     fn function_type_at<'a>(
         &self,
         idx: u32,
-        types: &'a SnapshotList<TypeDef>,
+        types: &'a TypeList,
         offset: usize,
     ) -> Result<&'a ComponentFuncType> {
         if let TypeDef::ComponentFunc(ty) = &types[self.type_at(idx, offset)?] {
@@ -1145,9 +737,9 @@ impl ComponentState {
         &self,
         module_index: u32,
         module_args: Vec<crate::ModuleArg>,
-        types: &mut SnapshotList<TypeDef>,
+        types: &mut TypeList,
         offset: usize,
-    ) -> Result<usize> {
+    ) -> Result<TypeId> {
         fn insert_arg<'a>(
             module: &'a str,
             name: &'a str,
@@ -1177,7 +769,7 @@ impl ComponentState {
                 crate::ModuleArgKind::Instance(idx) => {
                     let instance_type = self.module_instance_at(idx, types, offset)?;
                     for (name, ty) in instance_type.exports.iter() {
-                        insert_arg(module_arg.name, name, ty.clone(), &mut args, offset)?;
+                        insert_arg(module_arg.name, name, *ty, &mut args, offset)?;
                     }
                 }
             }
@@ -1185,10 +777,9 @@ impl ComponentState {
 
         // Validate the arguments
         for ((module, name), b) in types[module_type].unwrap_module_type().imports.iter() {
-            assert_eq!(b.len(), 1);
             match args.get(&(module.as_str(), name.as_str())) {
                 Some(a) => {
-                    let desc = match (a, &b[0]) {
+                    let desc = match (a, b) {
                         (EntityType::Func(_), EntityType::Func(_)) => "function",
                         (EntityType::Table(_), EntityType::Table(_)) => "table",
                         (EntityType::Memory(_), EntityType::Memory(_)) => "memory",
@@ -1200,14 +791,14 @@ impl ComponentState {
                                 "expected module instantiation argument `{}::{}` to be of type `{}`",
                                 module,
                                 name,
-                                b[0].desc()
+                                b.desc()
                             ),
                                 offset,
                             ))
                         }
                     };
 
-                    if !a.is_subtype_of(&b[0]) {
+                    if !a.is_subtype_of(b) {
                         return Err(BinaryReaderError::new(
                             format!(
                                 "{} type mismatch for module instantiation argument `{}::{}`",
@@ -1236,9 +827,9 @@ impl ComponentState {
         &mut self,
         component_index: u32,
         component_args: Vec<crate::ComponentArg>,
-        types: &mut SnapshotList<TypeDef>,
+        types: &mut TypeList,
         offset: usize,
-    ) -> Result<usize> {
+    ) -> Result<TypeId> {
         fn insert_arg<'a>(
             name: &'a str,
             arg: ComponentEntityType,
@@ -1365,9 +956,9 @@ impl ComponentState {
     fn instantiate_exports(
         &mut self,
         exports: Vec<crate::ComponentExport>,
-        types: &mut SnapshotList<TypeDef>,
+        types: &mut TypeList,
         offset: usize,
-    ) -> Result<usize> {
+    ) -> Result<TypeId> {
         fn insert_export(
             name: &str,
             export: ComponentEntityType,
@@ -1443,7 +1034,7 @@ impl ComponentState {
             }
         }
 
-        let ty = types.len();
+        let ty = TypeId(types.len());
         types.push(TypeDef::Instance(InstanceType {
             exports: inst_exports,
         }));
@@ -1453,9 +1044,9 @@ impl ComponentState {
     fn instantiate_core_exports(
         &mut self,
         exports: Vec<crate::Export>,
-        types: &mut SnapshotList<TypeDef>,
+        types: &mut TypeList,
         offset: usize,
-    ) -> Result<usize> {
+    ) -> Result<TypeId> {
         fn insert_export(
             name: &str,
             export: EntityType,
@@ -1515,7 +1106,7 @@ impl ComponentState {
             }
         }
 
-        let ty = types.len();
+        let ty = TypeId(types.len());
         types.push(TypeDef::Module(ModuleType {
             imports: HashMap::default(),
             exports: inst_exports,
@@ -1528,7 +1119,7 @@ impl ComponentState {
         kind: crate::AliasKind,
         idx: u32,
         name: &str,
-        types: &SnapshotList<TypeDef>,
+        types: &TypeList,
         offset: usize,
     ) -> Result<()> {
         macro_rules! push_module_export {
@@ -1687,7 +1278,7 @@ impl ComponentState {
     fn create_interface_type(
         &self,
         ty: crate::InterfaceType,
-        types: &SnapshotList<TypeDef>,
+        types: &TypeList,
         offset: usize,
     ) -> Result<InterfaceType> {
         Ok(match ty {
@@ -1776,7 +1367,7 @@ impl ComponentState {
     fn create_interface_type_ref(
         &self,
         ty: crate::InterfaceTypeRef,
-        types: &SnapshotList<TypeDef>,
+        types: &TypeList,
         offset: usize,
     ) -> Result<InterfaceTypeRef> {
         Ok(match ty {
@@ -1787,7 +1378,7 @@ impl ComponentState {
         })
     }
 
-    fn function_at(&self, idx: u32, offset: usize) -> Result<usize> {
+    fn function_at(&self, idx: u32, offset: usize) -> Result<TypeId> {
         match self.functions.get(idx as usize) {
             Some(ty) => Ok(*ty),
             None => Err(BinaryReaderError::new(
@@ -1797,12 +1388,7 @@ impl ComponentState {
         }
     }
 
-    fn component_function_at(
-        &self,
-        idx: u32,
-        types: &SnapshotList<TypeDef>,
-        offset: usize,
-    ) -> Result<usize> {
+    fn component_function_at(&self, idx: u32, types: &TypeList, offset: usize) -> Result<TypeId> {
         let ty = self.function_at(idx, offset)?;
         match &types[ty] {
             TypeDef::ComponentFunc(_) => Ok(ty),
@@ -1813,12 +1399,7 @@ impl ComponentState {
         }
     }
 
-    fn core_function_at(
-        &self,
-        idx: u32,
-        types: &SnapshotList<TypeDef>,
-        offset: usize,
-    ) -> Result<usize> {
+    fn core_function_at(&self, idx: u32, types: &TypeList, offset: usize) -> Result<TypeId> {
         let ty = self.function_at(idx, offset)?;
         match &types[ty] {
             TypeDef::Func(_) => Ok(ty),
@@ -1829,7 +1410,7 @@ impl ComponentState {
         }
     }
 
-    fn module_at(&self, idx: u32, offset: usize) -> Result<usize> {
+    fn module_at(&self, idx: u32, offset: usize) -> Result<TypeId> {
         match self.modules.get(idx as usize) {
             Some(idx) => Ok(*idx),
             None => Err(BinaryReaderError::new(
@@ -1839,7 +1420,7 @@ impl ComponentState {
         }
     }
 
-    fn component_at(&self, idx: u32, offset: usize) -> Result<usize> {
+    fn component_at(&self, idx: u32, offset: usize) -> Result<TypeId> {
         match self.components.get(idx as usize) {
             Some(idx) => Ok(*idx),
             None => Err(BinaryReaderError::new(
@@ -1849,7 +1430,7 @@ impl ComponentState {
         }
     }
 
-    fn instance_at(&self, idx: u32, offset: usize) -> Result<usize> {
+    fn instance_at(&self, idx: u32, offset: usize) -> Result<TypeId> {
         match self.instances.get(idx as usize) {
             Some(idx) => Ok(*idx),
             None => Err(BinaryReaderError::new(
@@ -1862,7 +1443,7 @@ impl ComponentState {
     fn module_instance_at<'a>(
         &self,
         idx: u32,
-        types: &'a SnapshotList<TypeDef>,
+        types: &'a TypeList,
         offset: usize,
     ) -> Result<&'a ModuleType> {
         match &types[self.instance_at(idx, offset)?] {
@@ -1874,12 +1455,7 @@ impl ComponentState {
         }
     }
 
-    fn component_instance_at(
-        &self,
-        idx: u32,
-        types: &SnapshotList<TypeDef>,
-        offset: usize,
-    ) -> Result<usize> {
+    fn component_instance_at(&self, idx: u32, types: &TypeList, offset: usize) -> Result<TypeId> {
         let ty = self.instance_at(idx, offset)?;
         match &types[ty] {
             TypeDef::Instance(_) => Ok(ty),
@@ -1894,7 +1470,7 @@ impl ComponentState {
         &self,
         idx: u32,
         name: &str,
-        types: &'a SnapshotList<TypeDef>,
+        types: &'a TypeList,
         offset: usize,
     ) -> Result<&'a EntityType> {
         match self
@@ -1916,7 +1492,7 @@ impl ComponentState {
         &self,
         idx: u32,
         name: &str,
-        types: &'a SnapshotList<TypeDef>,
+        types: &'a TypeList,
         offset: usize,
     ) -> Result<&'a ComponentEntityType> {
         match types[self.component_instance_at(idx, types, offset)?]
@@ -1951,17 +1527,12 @@ impl ComponentState {
         }
     }
 
-    fn interface_type_at(
-        &self,
-        idx: u32,
-        types: &SnapshotList<TypeDef>,
-        offset: usize,
-    ) -> Result<usize> {
+    fn interface_type_at(&self, idx: u32, types: &TypeList, offset: usize) -> Result<TypeId> {
         let idx = self.type_at(idx, offset)?;
         match &types[idx] {
             TypeDef::Interface(_) => Ok(idx),
             _ => Err(BinaryReaderError::new(
-                format!("type {} is not an interface type", idx),
+                format!("type index {} is not an interface type", idx.0),
                 offset,
             )),
         }
@@ -1994,56 +1565,6 @@ impl ComponentState {
                 format!("unknown memory {}: memory index out of bounds", idx,),
                 offset,
             )),
-        }
-    }
-}
-
-#[derive(Clone)]
-pub enum ComponentEntityType {
-    // Stores an index into the global type list.
-    Module(usize),
-    // Stores an index into the global type list.
-    Component(usize),
-    // Stores an index into the global type list.
-    Instance(usize),
-    // Stores an index into the global type list.
-    Func(usize),
-    Value(InterfaceTypeRef),
-    // Stores an index into the global type list.
-    Type(usize),
-}
-
-impl ComponentEntityType {
-    fn is_subtype_of(&self, other: &Self, types: &SnapshotList<TypeDef>) -> bool {
-        match (self, other) {
-            (Self::Module(ty), Self::Module(other_ty)) => types[*ty]
-                .unwrap_module_type()
-                .is_subtype_of(types[*other_ty].unwrap_module_type()),
-            (Self::Component(ty), Self::Component(other_ty)) => types[*ty]
-                .unwrap_component_type()
-                .is_subtype_of(types[*other_ty].unwrap_component_type(), types),
-            (Self::Instance(ty), Self::Instance(other_ty)) => types[*ty]
-                .unwrap_instance_type()
-                .is_subtype_of(types[*other_ty].unwrap_instance_type(), types),
-            (Self::Func(ty), Self::Func(other_ty)) => types[*ty]
-                .unwrap_component_func_type()
-                .is_subtype_of(types[*other_ty].unwrap_component_func_type(), types),
-            (Self::Value(ty), Self::Value(other_ty)) => ty.is_subtype_of(other_ty, types),
-            (Self::Type(ty), Self::Type(other_ty)) => types[*ty]
-                .unwrap_interface_type()
-                .is_subtype_of(types[*other_ty].unwrap_interface_type(), types),
-            _ => false,
-        }
-    }
-
-    fn desc(&self) -> &'static str {
-        match self {
-            Self::Module(_) => "module",
-            Self::Component(_) => "component",
-            Self::Instance(_) => "instance",
-            Self::Func(_) => "function",
-            Self::Value(_) => "value",
-            Self::Type(_) => "type",
         }
     }
 }

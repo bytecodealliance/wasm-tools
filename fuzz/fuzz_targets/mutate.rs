@@ -86,8 +86,6 @@ fuzz_target!(|bytes: &[u8]| {
 
         let validation_result = validator.validate_all(&mutated_wasm);
 
-        log::debug!("validation result = {:?}", validation_result);
-
         if log::log_enabled!(log::Level::Debug) {
             log::debug!("writing mutated Wasm to `mutated.wasm`");
             std::fs::write("mutated.wasm", &mutated_wasm)
@@ -98,10 +96,8 @@ fuzz_target!(|bytes: &[u8]| {
                     .expect("should write `mutated.wat` okay");
             }
         }
-        assert!(
-            validation_result.is_ok(),
-            "`wasm-mutate` should always produce a valid Wasm file"
-        );
+
+        validation_result.expect("`wasm-mutate` should always produce a valid Wasm file");
 
         #[cfg(feature = "wasmtime")]
         eval::assert_same_evaluation(&wasm, &mutated_wasm);

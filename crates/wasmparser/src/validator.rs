@@ -14,7 +14,7 @@
  */
 
 use crate::{
-    limits::*, BinaryReaderError, Encoding, FuncType, FunctionBody, Parser, Payload, Range, Result,
+    limits::*, BinaryReaderError, Encoding, FunctionBody, Parser, Payload, Range, Result,
     SectionReader, SectionWithLimitedItems, Type, WASM_COMPONENT_VERSION, WASM_MODULE_VERSION,
 };
 use std::mem;
@@ -30,8 +30,11 @@ use std::sync::Arc;
 /// For more fine-tuned control over validation it's recommended to review the
 /// documentation of [`Validator`].
 ///
+/// Upon success, the type information for the top-level module or component will
+/// be returned.
+///
 /// [js]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/validate
-pub fn validate(bytes: &[u8]) -> Result<()> {
+pub fn validate(bytes: &[u8]) -> Result<Types> {
     Validator::new().validate_all(bytes)
 }
 
@@ -44,9 +47,12 @@ fn test_validate() {
 mod component;
 mod core;
 mod func;
+mod operators;
+pub mod types;
 
 use self::component::*;
 use self::core::*;
+use self::types::{TypeList, Types};
 pub use func::FuncValidator;
 
 fn check_max(cur_len: usize, amt_added: u32, max: usize, desc: &str, offset: usize) -> Result<()> {
@@ -66,64 +72,6 @@ fn check_max(cur_len: usize, amt_added: u32, max: usize, desc: &str, offset: usi
     }
 
     Ok(())
-}
-
-/// A unified type definition for validating WebAssembly modules and components.
-enum TypeDef {
-    // Module type definitions
-    Func(FuncType),
-
-    // Component type definitions
-    Module(ModuleType),
-    Component(ComponentType),
-    Instance(InstanceType),
-    ComponentFunc(ComponentFuncType),
-    Value(InterfaceTypeRef),
-    Interface(InterfaceType),
-}
-
-impl TypeDef {
-    fn unwrap_func_type(&self) -> &FuncType {
-        match self {
-            TypeDef::Func(ty) => ty,
-            _ => panic!("expected function type"),
-        }
-    }
-
-    fn unwrap_module_type(&self) -> &ModuleType {
-        match self {
-            TypeDef::Module(ty) => ty,
-            _ => panic!("expected module type"),
-        }
-    }
-
-    fn unwrap_component_type(&self) -> &ComponentType {
-        match self {
-            TypeDef::Component(ty) => ty,
-            _ => panic!("expected component type"),
-        }
-    }
-
-    fn unwrap_instance_type(&self) -> &InstanceType {
-        match self {
-            TypeDef::Instance(ty) => ty,
-            _ => panic!("expected instance type"),
-        }
-    }
-
-    fn unwrap_component_func_type(&self) -> &ComponentFuncType {
-        match self {
-            TypeDef::ComponentFunc(ty) => ty,
-            _ => panic!("expected component function type"),
-        }
-    }
-
-    fn unwrap_interface_type(&self) -> &InterfaceType {
-        match self {
-            TypeDef::Interface(ty) => ty,
-            _ => panic!("expected interface type"),
-        }
-    }
 }
 
 /// Validator for a WebAssembly binary module or component.
@@ -157,7 +105,7 @@ pub struct Validator {
     state: State,
 
     /// The global type space used by the validator and any sub-validators.
-    types: SnapshotList<TypeDef>,
+    types: TypeList,
 
     /// The module state when parsing a WebAssembly module.
     module: Option<ModuleState>,
@@ -328,16 +276,20 @@ impl Default for WasmFeatures {
 }
 
 /// Possible return values from [`Validator::payload`].
+#[allow(clippy::large_enum_variant)]
 pub enum ValidPayload<'a> {
     /// The payload validated, no further action need be taken.
     Ok,
-    /// The payload validated, but it started a nested module.
+    /// The payload validated, but it started a nested module or component.
     ///
     /// This result indicates that the specified parser should be used instead
     /// of the currently-used parser until this returned one ends.
-    Submodule(Parser),
+    Parser(Parser),
     /// A function was found to be validate.
     Func(FuncValidator<ValidatorResources>, FunctionBody<'a>),
+    /// The end payload was validated and the types known to the validator
+    /// are provided.
+    End(Types),
 }
 
 impl Validator {
@@ -357,25 +309,35 @@ impl Validator {
         self
     }
 
-    /// Validates an entire in-memory module or component  with this validator.
+    /// Validates an entire in-memory module or component with this validator.
     ///
     /// This function will internally create a [`Parser`] to parse the `bytes`
     /// provided. The entire module or component specified by `bytes` will be
-    /// parsed and validated. Parse and validation errors will be returned through
-    /// `Err(_)`, and otherwise a successful validation means `Ok(())` is
-    /// returned.
-    pub fn validate_all(&mut self, bytes: &[u8]) -> Result<()> {
+    /// parsed and validated.
+    ///
+    /// Upon success, the type information for the top-level module or component
+    /// will be returned.
+    pub fn validate_all(&mut self, bytes: &[u8]) -> Result<Types> {
         let mut functions_to_validate = Vec::new();
+        let mut last_types = None;
         for payload in Parser::new(0).parse_all(bytes) {
-            if let ValidPayload::Func(a, b) = self.payload(&payload?)? {
-                functions_to_validate.push((a, b));
+            match self.payload(&payload?)? {
+                ValidPayload::Func(a, b) => {
+                    functions_to_validate.push((a, b));
+                }
+                ValidPayload::End(types) => {
+                    // Only the last (top-level) type information will be returned
+                    last_types = Some(types);
+                }
+                _ => {}
             }
         }
 
         for (mut validator, body) in functions_to_validate {
             validator.validate(&body)?;
         }
-        Ok(())
+
+        Ok(last_types.unwrap())
     }
 
     /// Convenience function to validate a single [`Payload`].
@@ -427,14 +389,20 @@ impl Validator {
             ComponentTypeSection(s) => self.component_type_section(s)?,
             ComponentImportSection(s) => self.component_import_section(s)?,
             ComponentFunctionSection(s) => self.component_function_section(s)?,
-            ModuleSection { range, .. } => self.module_section(range)?,
-            ComponentSection { range, .. } => self.component_section(range)?,
+            ModuleSection { parser, range, .. } => {
+                self.module_section(range)?;
+                return Ok(ValidPayload::Parser(parser.clone()));
+            }
+            ComponentSection { parser, range, .. } => {
+                self.component_section(range)?;
+                return Ok(ValidPayload::Parser(parser.clone()));
+            }
             InstanceSection(s) => self.instance_section(s)?,
             ComponentExportSection(s) => self.component_export_section(s)?,
             ComponentStartSection(s) => self.component_start_section(s)?,
             AliasSection(s) => self.alias_section(s)?,
 
-            End(offset) => self.end(*offset)?,
+            End(offset) => return Ok(ValidPayload::End(self.end(*offset)?)),
 
             CustomSection { .. } => {} // no validation for custom sections
             UnknownSection { id, range, .. } => self.unknown_section(*id, range)?,
@@ -834,7 +802,7 @@ impl Validator {
         let state = self.module.as_mut().unwrap();
 
         Ok(FuncValidator::new(
-            state.next_code_entry_type(offset)? as u32,
+            state.next_code_entry_type(offset)?,
             0,
             ValidatorResources(state.module.arc().clone()),
             &self.features,
@@ -1102,46 +1070,48 @@ impl Validator {
     }
 
     /// Validates [`Payload::End`](crate::Payload).
-    pub fn end(&mut self, offset: usize) -> Result<()> {
+    ///
+    /// Returns the types known to the validator for the module or component.
+    pub fn end(&mut self, offset: usize) -> Result<Types> {
         match std::mem::replace(&mut self.state, State::End) {
-            State::Unparsed(_) => {
-                return Err(BinaryReaderError::new(
-                    "cannot call `end` before a header has been parsed",
-                    offset,
-                ))
-            }
-            State::End => {
-                return Err(BinaryReaderError::new(
-                    "cannot call `end` after parsing has completed",
-                    offset,
-                ))
-            }
+            State::Unparsed(_) => Err(BinaryReaderError::new(
+                "cannot call `end` before a header has been parsed",
+                offset,
+            )),
+            State::End => Err(BinaryReaderError::new(
+                "cannot call `end` after parsing has completed",
+                offset,
+            )),
             State::Module => {
-                self.module.as_ref().unwrap().validate_end(offset)?;
+                let mut state = self.module.take().unwrap();
+                state.validate_end(offset)?;
 
                 // If there's a parent component, we'll add a module to the parent state
                 // and continue to validate the component
                 if let Some(parent) = self.components.last_mut() {
-                    let state = self.module.take().unwrap();
                     parent.add_module(&state.module, &mut self.types, offset)?;
                     self.state = State::Component;
                 }
+
+                Ok(Types::from_module(
+                    self.types.commit(),
+                    state.module.arc().clone(),
+                ))
             }
             State::Component => {
-                assert!(!self.components.is_empty());
+                let mut component = self.components.pop().unwrap();
 
                 // If there's a parent component, pop the stack, add it to the parent,
                 // and continue to validate the component
                 if self.components.len() > 1 {
-                    let component = self.components.pop().unwrap();
                     let current = self.components.last_mut().unwrap();
-                    current.add_component(component, &mut self.types);
+                    current.add_component(&mut component, &mut self.types);
                     self.state = State::Component;
                 }
+
+                Ok(Types::from_component(self.types.commit(), component))
             }
         }
-
-        Ok(())
     }
 
     fn ensure_module_section<T>(
@@ -1152,14 +1122,14 @@ impl Validator {
         validate_section: impl FnOnce(
             &mut ModuleState,
             &WasmFeatures,
-            &mut SnapshotList<TypeDef>,
+            &mut TypeList,
             u32,
             usize,
         ) -> Result<()>,
         mut validate_item: impl FnMut(
             &mut ModuleState,
             &WasmFeatures,
-            &mut SnapshotList<TypeDef>,
+            &mut TypeList,
             T::Item,
             usize,
         ) -> Result<()>,
@@ -1197,15 +1167,10 @@ impl Validator {
         &mut self,
         section: &T,
         name: &str,
-        validate_section: impl FnOnce(
-            &mut Vec<ComponentState>,
-            &mut SnapshotList<TypeDef>,
-            u32,
-            usize,
-        ) -> Result<()>,
+        validate_section: impl FnOnce(&mut Vec<ComponentState>, &mut TypeList, u32, usize) -> Result<()>,
         mut validate_item: impl FnMut(
             &mut Vec<ComponentState>,
-            &mut SnapshotList<TypeDef>,
+            &mut TypeList,
             &WasmFeatures,
             T::Item,
             usize,
@@ -1250,131 +1215,108 @@ impl Validator {
     }
 }
 
-/// This is a type which mirrors a subset of the `Vec<T>` API, but is intended
-/// to be able to be cheaply snapshotted and cloned.
-///
-/// When each module's code sections start we "commit" the current list of types
-/// in the global list of types. This means that the temporary `cur` vec here is
-/// pushed onto `snapshots` and wrapped up in an `Arc`. At that point we clone
-/// this entire list (which is then O(modules), not O(types in all modules)) and
-/// pass out as a context to each function validator.
-///
-/// Otherwise, though, this type behaves as if it were a large `Vec<T>`, but
-/// it's represented by lists of contiguous chunks.
-pub struct SnapshotList<T> {
-    // All previous snapshots, the "head" of the list that this type represents.
-    // The first entry in this pair is the starting index for all elements
-    // contained in the list, and the second element is the list itself. Note
-    // the `Arc` wrapper around sub-lists, which makes cloning time for this
-    // `SnapshotList` O(snapshots) rather than O(snapshots_total), which for
-    // us in this context means the number of modules, not types.
-    //
-    // Note that this list is sorted least-to-greatest in order of the index for
-    // binary searching.
-    snapshots: Vec<(usize, Arc<Vec<T>>)>,
+#[cfg(test)]
+mod tests {
+    use crate::{GlobalType, MemoryType, TableType, Type, Validator, WasmFeatures};
+    use anyhow::Result;
 
-    // This is the total length of all lists in the `snapshots` array.
-    snapshots_total: usize,
+    #[test]
+    fn test_module_type_information() -> Result<()> {
+        let bytes = wat::parse_str(
+            r#"
+            (module
+                (type (func (param i32 i64) (result i32)))
+                (memory 1 5)
+                (table 10 funcref)
+                (global (mut i32) (i32.const 0))
+                (func (type 0) (i32.const 0))
+                (tag (param i64 i32))
+                (elem funcref (ref.func 0))
+            )
+        "#,
+        )?;
 
-    // The current list of types for the current snapshot that are being built.
-    cur: Vec<T>,
-}
+        let mut validator = Validator::new();
+        validator.wasm_features(WasmFeatures {
+            exceptions: true,
+            ..Default::default()
+        });
 
-impl<T> SnapshotList<T> {
-    /// Same as `<&[T]>::get`
-    fn get(&self, index: usize) -> Option<&T> {
-        // Check to see if this index falls on our local list
-        if index >= self.snapshots_total {
-            return self.cur.get(index - self.snapshots_total);
+        let types = validator.validate_all(&bytes)?;
+
+        assert_eq!(types.type_count(), 2);
+        assert_eq!(types.memory_count(), 1);
+        assert_eq!(types.table_count(), 1);
+        assert_eq!(types.global_count(), 1);
+        assert_eq!(types.function_count(), 1);
+        assert_eq!(types.tag_count(), 1);
+        assert_eq!(types.element_count(), 1);
+        assert_eq!(types.module_count(), 0);
+        assert_eq!(types.component_count(), 0);
+        assert_eq!(types.instance_count(), 0);
+        assert_eq!(types.value_count(), 0);
+
+        match types.func_type_at(0) {
+            Some(ty) => {
+                assert_eq!(ty.params.as_ref(), [Type::I32, Type::I64]);
+                assert_eq!(ty.returns.as_ref(), [Type::I32]);
+            }
+            _ => unreachable!(),
         }
-        // ... and failing that we do a binary search to figure out which bucket
-        // it's in. Note the `i-1` in the `Err` case because if we don't find an
-        // exact match the type is located in the previous bucket.
-        let i = match self.snapshots.binary_search_by_key(&index, |(i, _)| *i) {
-            Ok(i) => i,
-            Err(i) => i - 1,
-        };
-        let (len, list) = &self.snapshots[i];
-        Some(&list[index - len])
-    }
 
-    /// Same as `<&mut [T]>::get_mut`, except only works for indexes into the
-    /// current snapshot being built.
-    ///
-    /// # Panics
-    ///
-    /// Panics if an index is passed in which falls within the
-    /// previously-snapshotted list of types. This should never happen in our
-    /// context and the panic is intended to weed out possible bugs in
-    /// wasmparser.
-    fn get_mut(&mut self, index: usize) -> Option<&mut T> {
-        if index >= self.snapshots_total {
-            return self.cur.get_mut(index - self.snapshots_total);
+        match types.func_type_at(1) {
+            Some(ty) => {
+                assert_eq!(ty.params.as_ref(), [Type::I64, Type::I32]);
+                assert_eq!(ty.returns.as_ref(), []);
+            }
+            _ => unreachable!(),
         }
-        panic!("cannot get a mutable reference in snapshotted part of list")
-    }
 
-    /// Same as `Vec::push`
-    fn push(&mut self, val: T) {
-        self.cur.push(val);
-    }
+        assert_eq!(
+            types.memory_at(0),
+            Some(MemoryType {
+                memory64: false,
+                shared: false,
+                initial: 1,
+                maximum: Some(5)
+            })
+        );
 
-    /// Same as `<[T]>::len`
-    fn len(&self) -> usize {
-        self.cur.len() + self.snapshots_total
-    }
+        assert_eq!(
+            types.table_at(0),
+            Some(TableType {
+                initial: 10,
+                maximum: None,
+                element_type: Type::FuncRef,
+            })
+        );
 
-    /// Reserve space for an additional count of items.
-    fn reserve(&mut self, additional: usize) {
-        self.cur.reserve(additional);
-    }
+        assert_eq!(
+            types.global_at(0),
+            Some(GlobalType {
+                content_type: Type::I32,
+                mutable: true
+            })
+        );
 
-    /// Commits previously pushed types into this snapshot vector, and returns a
-    /// clone of this list.
-    ///
-    /// The returned `SnapshotList` can be used to access all the same types as
-    /// this list itself. This list also is not changed (from an external
-    /// perspective) and can continue to access all the same types.
-    fn commit(&mut self) -> SnapshotList<T> {
-        // If the current chunk has new elements, commit them in to an
-        // `Arc`-wrapped vector in the snapshots list. Note the `shrink_to_fit`
-        // ahead of time to hopefully keep memory usage lower than it would
-        // otherwise be.
-        let len = self.cur.len();
-        if len > 0 {
-            self.cur.shrink_to_fit();
-            self.snapshots
-                .push((self.snapshots_total, Arc::new(mem::take(&mut self.cur))));
-            self.snapshots_total += len;
+        match types.function_at(0) {
+            Some(ty) => {
+                assert_eq!(ty.params.as_ref(), [Type::I32, Type::I64]);
+                assert_eq!(ty.returns.as_ref(), [Type::I32]);
+            }
+            _ => unreachable!(),
         }
-        SnapshotList {
-            snapshots: self.snapshots.clone(),
-            snapshots_total: self.snapshots_total,
-            cur: Vec::new(),
+
+        match types.tag_at(0) {
+            Some(ty) => {
+                assert_eq!(ty.params.as_ref(), [Type::I64, Type::I32]);
+                assert_eq!(ty.returns.as_ref(), []);
+            }
+            _ => unreachable!(),
         }
-    }
-}
 
-impl<T> std::ops::Index<usize> for SnapshotList<T> {
-    type Output = T;
+        assert_eq!(types.element_at(0), Some(Type::FuncRef));
 
-    fn index(&self, index: usize) -> &T {
-        self.get(index).unwrap()
-    }
-}
-
-impl<T> std::ops::IndexMut<usize> for SnapshotList<T> {
-    fn index_mut(&mut self, index: usize) -> &mut T {
-        self.get_mut(index).unwrap()
-    }
-}
-
-impl<T> Default for SnapshotList<T> {
-    fn default() -> SnapshotList<T> {
-        SnapshotList {
-            snapshots: Vec::new(),
-            snapshots_total: 0,
-            cur: Vec::new(),
-        }
+        Ok(())
     }
 }

@@ -34,7 +34,6 @@ pub use crate::validator::*;
 mod binary_reader;
 mod limits;
 mod module_resources;
-mod operators_validator;
 mod parser;
 mod readers;
 mod validator;
