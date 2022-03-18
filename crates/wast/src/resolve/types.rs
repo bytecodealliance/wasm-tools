@@ -1,14 +1,18 @@
 use crate::ast::*;
-use crate::resolve::gensym;
+use crate::resolve::gensym::Gensym;
 use std::collections::HashMap;
 
-pub fn expand<'a>(fields: &mut Vec<ModuleField<'a>>) {
-    let mut expander = Expander::default();
+pub(crate) fn expand<'a, 'g>(fields: &mut Vec<ModuleField<'a>>, gensym: &'g mut Gensym) {
+    let mut expander = Expander {
+        process_imports_early: false,
+        func_type_to_idx: HashMap::new(),
+        to_prepend: Vec::new(),
+        gensym,
+    };
     expander.process(fields);
 }
 
-#[derive(Default)]
-struct Expander<'a> {
+struct Expander<'a, 'g> {
     // See the comment in `process` for why this exists.
     process_imports_early: bool,
 
@@ -21,9 +25,12 @@ struct Expander<'a> {
     /// currently-being-processed field. This should always be empty after
     /// processing is complete.
     to_prepend: Vec<ModuleField<'a>>,
+
+    /// Unique numbers for generated symbols.
+    gensym: &'g mut Gensym,
 }
 
-impl<'a> Expander<'a> {
+impl<'a, 'g> Expander<'a, 'g> {
     fn process(&mut self, fields: &mut Vec<ModuleField<'a>>) {
         // Next we expand "header" fields which are those like types and
         // imports. In this context "header" is defined by the previous
@@ -52,7 +59,7 @@ impl<'a> Expander<'a> {
     fn expand_header(&mut self, item: &mut ModuleField<'a>) {
         match item {
             ModuleField::Type(ty) => {
-                let id = gensym::fill(ty.span, &mut ty.id);
+                let id = self.gensym.fill(ty.span, &mut ty.id);
                 match &mut ty.def {
                     TypeDef::Func(f) => {
                         f.key().insert(self, Index::Id(id));
@@ -183,7 +190,7 @@ impl<'a> Expander<'a> {
 
     fn expand_type_use<T>(&mut self, item: &mut TypeUse<'a, T>) -> Index<'a>
     where
-        T: TypeReference<'a>,
+        T: TypeReference<'a, 'g>,
     {
         if let Some(idx) = &item.index {
             return idx.idx.clone();
@@ -207,7 +214,7 @@ impl<'a> Expander<'a> {
         return idx;
     }
 
-    fn key_to_idx(&mut self, span: Span, key: impl TypeKey<'a>) -> Index<'a> {
+    fn key_to_idx(&mut self, span: Span, key: impl TypeKey<'a, 'g>) -> Index<'a> {
         // First see if this `key` already exists in the type definitions we've
         // seen so far...
         if let Some(idx) = key.lookup(self) {
@@ -215,7 +222,7 @@ impl<'a> Expander<'a> {
         }
 
         // ... and failing that we insert a new type definition.
-        let id = gensym::gen(span);
+        let id = self.gensym.gen(span);
         self.to_prepend.push(ModuleField::Type(Type {
             span,
             id: Some(id),
@@ -229,21 +236,21 @@ impl<'a> Expander<'a> {
     }
 }
 
-trait TypeReference<'a>: Default {
-    type Key: TypeKey<'a>;
+trait TypeReference<'a, 'g>: Default {
+    type Key: TypeKey<'a, 'g>;
     fn key(&self) -> Self::Key;
-    fn expand(&mut self, cx: &mut Expander<'a>);
+    fn expand(&mut self, cx: &mut Expander<'a, 'g>);
 }
 
-trait TypeKey<'a> {
-    fn lookup(&self, cx: &Expander<'a>) -> Option<Index<'a>>;
+trait TypeKey<'a, 'g> {
+    fn lookup(&self, cx: &Expander<'a, 'g>) -> Option<Index<'a>>;
     fn to_def(&self, span: Span) -> TypeDef<'a>;
-    fn insert(&self, cx: &mut Expander<'a>, id: Index<'a>);
+    fn insert(&self, cx: &mut Expander<'a, 'g>, id: Index<'a>);
 }
 
 type FuncKey<'a> = (Box<[ValType<'a>]>, Box<[ValType<'a>]>);
 
-impl<'a> TypeReference<'a> for FunctionType<'a> {
+impl<'a, 'g> TypeReference<'a, 'g> for FunctionType<'a> {
     type Key = FuncKey<'a>;
 
     fn key(&self) -> Self::Key {
@@ -252,11 +259,11 @@ impl<'a> TypeReference<'a> for FunctionType<'a> {
         (params, results)
     }
 
-    fn expand(&mut self, _cx: &mut Expander<'a>) {}
+    fn expand(&mut self, _cx: &mut Expander<'a, 'g>) {}
 }
 
-impl<'a> TypeKey<'a> for FuncKey<'a> {
-    fn lookup(&self, cx: &Expander<'a>) -> Option<Index<'a>> {
+impl<'a, 'g> TypeKey<'a, 'g> for FuncKey<'a> {
+    fn lookup(&self, cx: &Expander<'a, 'g>) -> Option<Index<'a>> {
         cx.func_type_to_idx.get(self).cloned()
     }
 
@@ -267,7 +274,7 @@ impl<'a> TypeKey<'a> for FuncKey<'a> {
         })
     }
 
-    fn insert(&self, cx: &mut Expander<'a>, idx: Index<'a>) {
+    fn insert(&self, cx: &mut Expander<'a, 'g>, idx: Index<'a>) {
         cx.func_type_to_idx.entry(self.clone()).or_insert(idx);
     }
 }

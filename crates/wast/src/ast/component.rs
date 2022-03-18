@@ -40,18 +40,14 @@ impl<'a> Component<'a> {
     /// exports/imports listed on fields and handle various other shorthands of
     /// the text format.
     ///
-    /// If successful the AST was modified to be ready for binary encoding. A
-    /// [`ComponentNames`] structure is also returned so if you'd like to do your own
-    /// name lookups on the result you can do so as well.
+    /// If successful the AST was modified to be ready for binary encoding.
     ///
     /// # Errors
     ///
     /// If an error happens during resolution, such a name resolution error or
     /// items are found in the wrong order, then an error is returned.
     pub fn resolve(&mut self) -> std::result::Result<(), crate::Error> {
-        // TODO: resolve for components
-
-        Ok(())
+        crate::resolve::resolve_component(self)
     }
 
     /// Encodes this [`Component`] to its binary form.
@@ -194,11 +190,11 @@ impl<'a> Parse<'a> for ComponentField<'a> {
 #[derive(Debug)]
 pub struct Start<'a> {
     /// The function to call.
-    func: ast::ItemRef<'a, kw::func>,
+    pub func: ast::ItemRef<'a, kw::func>,
     /// The arguments to pass to the function.
-    args: Vec<ast::ItemRef<'a, kw::value>>,
+    pub args: Vec<ast::ItemRef<'a, kw::value>>,
     /// Name of the result value.
-    result: ast::Id<'a>,
+    pub result: ast::Id<'a>,
 }
 
 impl<'a> Parse<'a> for Start<'a> {

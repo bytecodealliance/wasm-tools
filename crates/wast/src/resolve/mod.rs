@@ -1,6 +1,8 @@
 use crate::ast::*;
 use crate::Error;
+use gensym::Gensym;
 
+mod component_names;
 mod deinline_import_export;
 mod gensym;
 mod names;
@@ -22,16 +24,14 @@ pub fn resolve<'a>(module: &mut Module<'a>) -> Result<Names<'a>, Error> {
         _ => return Ok(Default::default()),
     };
 
-    // Ensure that each resolution of a module is deterministic in the names
-    // that it generates by resetting our thread-local symbol generator.
-    gensym::reset();
+    let mut gensym = Gensym::new();
 
     // First up, de-inline import/export annotations.
     //
     // This ensures we only have to deal with inline definitions and to
     // calculate exports we only have to look for a particular kind of module
     // field.
-    deinline_import_export::run(fields);
+    deinline_import_export::run(fields, &mut gensym);
 
     // With a canonical form of imports make sure that imports are all listed
     // first.
@@ -53,12 +53,24 @@ pub fn resolve<'a>(module: &mut Module<'a>) -> Result<Names<'a>, Error> {
 
     // Expand all `TypeUse` annotations so all necessary `type` nodes are
     // present in the AST.
-    types::expand(fields);
+    types::expand(fields, &mut gensym);
 
     // Perform name resolution over all `Index` items to resolve them all to
     // indices instead of symbolic names.
     let resolver = names::resolve(fields)?;
     Ok(Names { resolver })
+}
+
+pub fn resolve_component<'a>(component: &mut Component<'a>) -> Result<(), Error> {
+    let fields = match &mut component.kind {
+        ComponentKind::Text(fields) => fields,
+        _ => return Ok(Default::default()),
+    };
+
+    // Perform name resolution over all `Index` items to resolve them all to
+    // indices instead of symbolic names.
+    component_names::resolve(fields)?;
+    Ok(())
 }
 
 /// Representation of the results of name resolution for a module.

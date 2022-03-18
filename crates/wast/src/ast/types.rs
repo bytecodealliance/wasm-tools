@@ -819,50 +819,36 @@ impl<'a> From<TypeUse<'a, FunctionTypeNoNames<'a>>> for TypeUse<'a, FunctionType
 /// This is the same as `TypeUse`, but accepts `$T` as shorthand for
 /// `(type $T)`.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct ComponentTypeUse<'a, T> {
-    /// The type that we're referencing, if it was present.
-    pub index: Option<ast::ItemRef<'a, kw::r#type>>,
-    /// The inline type, if present.
-    pub inline: Option<T>,
+pub enum ComponentTypeUse<'a, T> {
+    /// The type that we're referencing.
+    Ref(ast::ItemRef<'a, kw::r#type>),
+    /// The inline type.
+    Inline(T),
 }
 
 impl<'a, T> ComponentTypeUse<'a, T> {
     /// Constructs a new instance of `ComponentTypeUse` without an inline definition but
     /// with an index specified.
     pub fn new_with_index(idx: ast::Index<'a>) -> ComponentTypeUse<'a, T> {
-        ComponentTypeUse {
-            index: Some(ast::ItemRef {
+        ComponentTypeUse::Ref(ast::ItemRef {
                 idx,
                 kind: kw::r#type::default(),
                 extra_names: Vec::new(),
                 #[cfg(wast_check_exhaustive)]
                 visited: true,
-            }),
-            inline: None,
-        }
+            })
     }
 }
 
 impl<'a, T: Peek + Parse<'a>> Parse<'a> for ComponentTypeUse<'a, T> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let index = if parser.peek::<ast::ItemRef<'a, kw::r#type>>() {
-            Some(parser.parse()?)
+        if parser.peek::<ast::IndexOrRef<'a, kw::r#type>>() {
+            Ok(ComponentTypeUse::Ref(parser.parse::<ast::IndexOrRef<kw::r#type>>()?.0))
         } else if parser.peek::<ast::Index>() {
-            let idx = parser.parse()?;
-            Some(ast::ItemRef {
-                kind: kw::r#type::default(),
-                idx,
-                extra_names: Vec::new(),
-                #[cfg(wast_check_exhaustive)]
-                visited: false,
-            })
+            Ok(ComponentTypeUse::Ref(parser.parse()?))
         } else {
-            None
-        };
-
-        let inline = parser.parse()?;
-
-        Ok(ComponentTypeUse { index, inline })
+            Ok(ComponentTypeUse::Inline(parser.parse()?))
+        }
     }
 }
 

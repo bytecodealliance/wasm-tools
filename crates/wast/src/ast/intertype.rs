@@ -148,7 +148,8 @@ impl<'a> Peek for InterType<'a> {
 /// An interface-types record, aka a struct.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Record<'a> {
-    fields: Vec<Field<'a>>,
+    /// The fields of the struct.
+    pub fields: Vec<Field<'a>>,
 }
 
 impl<'a> Parse<'a> for Record<'a> {
@@ -168,9 +169,9 @@ impl<'a> Parse<'a> for Record<'a> {
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Field<'a> {
     /// The name of the field.
-    name: ast::Id<'a>,
+    pub name: ast::Id<'a>,
     /// The type of the field.
-    type_: ast::ComponentTypeUse<'a, InterType<'a>>,
+    pub type_: ast::ComponentTypeUse<'a, InterType<'a>>,
 }
 
 impl<'a> Parse<'a> for Field<'a> {
@@ -188,7 +189,8 @@ impl<'a> Parse<'a> for Field<'a> {
 /// An interface-types variant, aka a discriminated union with named arms.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Variant<'a> {
-    cases: Vec<Case<'a>>,
+    /// The cases of the variant type.
+    pub cases: Vec<Case<'a>>,
 }
 
 impl<'a> Parse<'a> for Variant<'a> {
@@ -208,29 +210,32 @@ impl<'a> Parse<'a> for Variant<'a> {
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Case<'a> {
     /// The name of the case.
-    name: ast::Id<'a>,
+    pub name: ast::Id<'a>,
+    /// Where this `component` was defined
+    pub span: ast::Span,
     /// The type of the case.
-    type_: ast::ComponentTypeUse<'a, InterType<'a>>,
+    pub type_: ast::ComponentTypeUse<'a, InterType<'a>>,
     /// The optional defaults-to name.
-    defaults_to: Option<ast::Id<'a>>,
+    pub defaults_to: Option<ast::Index<'a>>,
 }
 
 impl<'a> Parse<'a> for Case<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parens(|parser| {
-            parser.parse::<kw::case>()?;
+            let span = parser.parse::<kw::case>()?.0;
             let name = parser.parse()?;
             let type_ = parser.parse()?;
             let defaults_to = if !parser.is_empty() {
                 Some(parser.parens(|parser| {
                     parser.parse::<kw::defaults_to>()?;
-                    parser.parse()
+                    Ok(ast::Index::Id(parser.parse()?))
                 })?)
             } else {
                 None
             };
             Ok(Case {
                 name,
+                span,
                 type_,
                 defaults_to,
             })
@@ -241,7 +246,8 @@ impl<'a> Parse<'a> for Case<'a> {
 /// An interface-types list, aka a fixed-size array.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct List<'a> {
-    element: Box<ast::ComponentTypeUse<'a, InterType<'a>>>,
+    /// The element type of the array.
+    pub element: Box<ast::ComponentTypeUse<'a, InterType<'a>>>,
 }
 
 impl<'a> Parse<'a> for List<'a> {
@@ -259,7 +265,8 @@ impl<'a> Parse<'a> for List<'a> {
 /// An interface-types tuple, aka a record with anonymous fields.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Tuple<'a> {
-    fields: Vec<ast::ComponentTypeUse<'a, InterType<'a>>>,
+    /// The types of the fields of the tuple.
+    pub fields: Vec<ast::ComponentTypeUse<'a, InterType<'a>>>,
 }
 
 impl<'a> Parse<'a> for Tuple<'a> {
@@ -278,7 +285,8 @@ impl<'a> Parse<'a> for Tuple<'a> {
 /// An interface-types flags, aka a fixed-sized bitfield with named fields.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Flags<'a> {
-    flag_names: Vec<ast::Id<'a>>,
+    /// The names of the individual flags.
+    pub flag_names: Vec<ast::Id<'a>>,
 }
 
 impl<'a> Parse<'a> for Flags<'a> {
@@ -297,7 +305,8 @@ impl<'a> Parse<'a> for Flags<'a> {
 /// An interface-types enum, aka a discriminated union with unit arms.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Enum<'a> {
-    arms: Vec<ast::Id<'a>>,
+    /// The arms of the enum.
+    pub arms: Vec<ast::Id<'a>>,
 }
 
 impl<'a> Parse<'a> for Enum<'a> {
@@ -316,7 +325,8 @@ impl<'a> Parse<'a> for Enum<'a> {
 /// An interface-types union, aka a discriminated union with anonymous arms.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Union<'a> {
-    arms: Vec<ast::ComponentTypeUse<'a, InterType<'a>>>,
+    /// The arms of the union.
+    pub arms: Vec<ast::ComponentTypeUse<'a, InterType<'a>>>,
 }
 
 impl<'a> Parse<'a> for Union<'a> {
@@ -335,7 +345,8 @@ impl<'a> Parse<'a> for Union<'a> {
 /// An interface-types optional, aka an option.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct OptionType<'a> {
-    element: Box<ast::ComponentTypeUse<'a, InterType<'a>>>,
+    /// The type of the value, when a value is present.
+    pub element: Box<ast::ComponentTypeUse<'a, InterType<'a>>>,
 }
 
 impl<'a> Parse<'a> for OptionType<'a> {
@@ -353,8 +364,10 @@ impl<'a> Parse<'a> for OptionType<'a> {
 /// An interface-types expected, aka an result.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Expected<'a> {
-    ok: Box<ast::ComponentTypeUse<'a, InterType<'a>>>,
-    err: Box<ast::ComponentTypeUse<'a, InterType<'a>>>,
+    /// The type on success.
+    pub ok: Box<ast::ComponentTypeUse<'a, InterType<'a>>>,
+    /// The type on failure.
+    pub err: Box<ast::ComponentTypeUse<'a, InterType<'a>>>,
 }
 
 impl<'a> Parse<'a> for Expected<'a> {

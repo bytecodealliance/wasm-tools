@@ -37,7 +37,7 @@ impl<'a> Resolver<'a> {
         }
 
         // Then we can replace all our `Index::Id` instances with `Index::Num`
-        // in the AST. Note that this also recurses into nested modules.
+        // in the AST.
         for field in fields.iter_mut() {
             self.resolve_field(field)?;
         }
@@ -870,11 +870,12 @@ impl<'a> TypeReference<'a> for ModuleType<'a> {
     }
 
     fn resolve(&mut self, cx: &Resolver<'a>) -> Result<(), Error> {
-        for i in self.imports.iter_mut() {
-            cx.resolve_item_sig(&mut i.item)?;
-        }
-        for e in self.exports.iter_mut() {
-            cx.resolve_item_sig(&mut e.item)?;
+        for def in self.defs.iter_mut() {
+            match def {
+                ModuleTypeDef::CoreDefType(_func_ty) => (),
+                ModuleTypeDef::CoreImport(import) => cx.resolve_item_sig(&mut import.item)?,
+                ModuleTypeDef::Export(_name, item_sig) => cx.resolve_item_sig(item_sig)?,
+            }
         }
         Ok(())
     }

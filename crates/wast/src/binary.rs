@@ -63,8 +63,6 @@ fn encode_module_fields(
 
     e.custom_sections(BeforeFirst);
 
-    // A special path is used for now to handle non-module-linking modules to
-    // work around WebAssembly/annotations#11
     e.section_list(1, Type, &types);
     e.section_list(2, Import, &imports);
 
@@ -111,102 +109,37 @@ fn encode_module_fields(
 }
 
 fn encode_component_fields(
-    _component_id: &Option<Id<'_>>,
-    _component_name: &Option<NameAnnotation<'_>>,
-    _fields: &[ComponentField<'_>],
+    component_id: &Option<Id<'_>>,
+    component_name: &Option<NameAnnotation<'_>>,
+    fields: &[ComponentField<'_>],
 ) -> Vec<u8> {
-    Vec::new()
-    /* TODO
     use crate::ast::CustomPlace::*;
-    use crate::ast::CustomPlaceAnchor::*;
-
-    let mut types = Vec::new();
-    let mut imports = Vec::new();
-    let mut funcs = Vec::new();
-    let mut exports = Vec::new();
-    let mut start = Vec::new();
-    let mut customs = Vec::new();
-    let mut instances = Vec::new();
-    let mut modules = Vec::new();
-    let mut components = Vec::new();
-    let mut aliases = Vec::new();
-    for field in fields {
-        match field {
-            ComponentField::Type(i) => types.push(i),
-            ComponentField::Import(i) => imports.push(i),
-            ComponentField::Func(i) => funcs.push(i),
-            ComponentField::Export(i) => exports.push(i),
-            ComponentField::Start(i) => start.push(i),
-            ComponentField::Custom(i) => customs.push(i),
-            ComponentField::Instance(i) => instances.push(i),
-            ComponentField::Module(i) => modules.push(i),
-            ComponentField::Component(i) => components.push(i),
-            ComponentField::Alias(a) => aliases.push(a),
-        }
-    }
 
     let mut e = Encoder {
         wasm: Vec::new(),
         tmp: Vec::new(),
-        customs: &customs,
+        customs: &Vec::new(),
     };
     e.wasm.extend(b"\0asm");
-    e.wasm.extend(b"\x01\0\0\0");
+    e.wasm.extend(b"\x0a\0\x01\0");
 
     e.custom_sections(BeforeFirst);
 
-    let mut items = fields
-        .iter()
-        .filter(|i| match i {
-            ComponentField::Alias(_)
-            | ComponentField::Type(_)
-            | ComponentField::Import(_)
-            | ComponentField::Component(_)
-            | ComponentField::Instance(_) => true,
-            _ => false,
-        })
-        .peekable();
-
-    // A special path is used for now to handle non-module-linking modules to
-    // work around WebAssembly/annotations#11
-    if aliases.len() == 0 && components.len() == 0 && instances.len() == 0 {
-        e.section_list(1, Type, &types);
-        e.section_list(2, Import, &imports);
-    } else {
-        while let Some(field) = items.next() {
-            macro_rules! list {
-                ($code:expr, $name:ident) => {
-                    list!($code, $name, $name)
-                };
-                ($code:expr, $field:ident, $custom:ident) => {
-                    if let ComponentField::$field(f) = field {
-                        let mut list = vec![f];
-                        while let Some(ComponentField::$field(f)) = items.peek() {
-                            list.push(f);
-                            items.next();
-                        }
-                        e.section_list($code, $custom, &list);
-                    }
-                };
-            }
-            list!(1, Type);
-            list!(2, Import);
-            list!(14, Module, Module);
-            list!(14, Component, Component); // TODO: nested component encoding
-            list!(15, Instance);
-            list!(16, Alias);
+    // TODO: coalesce sections where possible
+    for field in fields {
+        match field {
+            ComponentField::Type(i) => e.component_section_list(1, &[i]),
+            ComponentField::Import(i) => e.component_section_list(2, &[i]),
+            ComponentField::Func(i) => e.component_section_list(3, &[i]),
+            ComponentField::Module(i) => e.component_section_list(4, &[i]),
+            ComponentField::Component(i) => e.component_section_list(5, &[i]),
+            ComponentField::Instance(i) => e.component_section_list(6, &[i]),
+            ComponentField::Export(i) => e.component_section_list(7, &[i]),
+            ComponentField::Start(i) => e.component_section_list(8, &[i]),
+            ComponentField::Alias(i) => e.component_section_list(9, &[i]),
+            ComponentField::Custom(i) => e.section(0, &(i.name, &i.data)),
         }
     }
-
-    let functys = funcs.iter().map(|f| &f.ty).collect::<Vec<_>>();
-    e.section_list(3, Func, &functys);
-    e.section_list(7, Export, &exports);
-    e.custom_sections(Before(Start));
-    if let Some(start) = start.get(0) {
-        e.section(8, start);
-    }
-    e.custom_sections(After(Start));
-    e.section_list(10, Code, &funcs);
 
     let names = find_component_names(component_id, component_name, fields);
     if !names.is_empty() {
@@ -215,7 +148,6 @@ fn encode_component_fields(
     e.custom_sections(AfterLast);
 
     return e.wasm;
-    */
 }
 struct Encoder<'a> {
     wasm: Vec<u8>,
@@ -245,6 +177,12 @@ impl Encoder<'_> {
             self.section(id, &list)
         }
         self.custom_sections(CustomPlace::After(anchor));
+    }
+
+    fn component_section_list(&mut self, id: u8, list: &[impl Encode]) {
+        if !list.is_empty() {
+            self.section(id, &list)
+        }
     }
 }
 
@@ -346,19 +284,41 @@ impl Encode for ArrayType<'_> {
 
 impl Encode for ModuleType<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
-        self.imports.encode(e);
-        self.exports.encode(e);
+        e.push(0x4f);
+        self.defs.encode(e);
+    }
+}
+
+impl Encode for ModuleTypeDef<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        match self {
+            ModuleTypeDef::CoreDefType(f) => {
+                e.push(0x01);
+                f.encode(e);
+            }
+            ModuleTypeDef::CoreImport(i) => {
+                e.push(0x02);
+                i.encode(e);
+            }
+            ModuleTypeDef::Export(name, x) => {
+                e.push(0x07);
+                name.encode(e);
+                x.encode(e);
+            }
+        }
     }
 }
 
 impl Encode for ComponentType<'_> {
-    fn encode(&self, _e: &mut Vec<u8>) {
+    fn encode(&self, e: &mut Vec<u8>) {
+        e.push(0x4e);
         eprintln!("TODO: Encode for ComponentType")
     }
 }
 
 impl Encode for InstanceType<'_> {
-    fn encode(&self, _e: &mut Vec<u8>) {
+    fn encode(&self, e: &mut Vec<u8>) {
+        e.push(0x4d);
         eprintln!("TODO: Encode for InstanceType")
     }
 }
@@ -390,8 +350,164 @@ impl Encode for Type<'_> {
 }
 
 impl Encode for ComponentTypeField<'_> {
-    fn encode(&self, _e: &mut Vec<u8>) {
-        eprintln!("TODO: Encode for ComponentTypeField")
+    fn encode(&self, e: &mut Vec<u8>) {
+        match &self.def {
+            ComponentTypeDef::DefType(d) => d.encode(e),
+            ComponentTypeDef::InterType(i) => i.encode(e),
+        }
+    }
+}
+
+impl<'a> Encode for InterType<'a> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        match self {
+            InterType::Unit => e.push(0x7f),
+            InterType::Bool => e.push(0x7e),
+            InterType::S8 => e.push(0x7d),
+            InterType::U8 => e.push(0x7c),
+            InterType::S16 => e.push(0x7b),
+            InterType::U16 => e.push(0x7a),
+            InterType::S32 => e.push(0x79),
+            InterType::U32 => e.push(0x78),
+            InterType::S64 => e.push(0x77),
+            InterType::U64 => e.push(0x76),
+            InterType::Float32 => e.push(0x75),
+            InterType::Float64 => e.push(0x74),
+            InterType::Char => e.push(0x73),
+            InterType::String => e.push(0x72),
+            InterType::Record(r) => r.encode(e),
+            InterType::Variant(v) => v.encode(e),
+            InterType::List(l) => l.encode(e),
+            InterType::Tuple(t) => t.encode(e),
+            InterType::Flags(f) => f.encode(e),
+            InterType::Enum(n) => n.encode(e),
+            InterType::Union(u) => u.encode(e),
+            InterType::Option(o) => o.encode(e),
+            InterType::Expected(x) => x.encode(e),
+        }
+    }
+}
+
+impl<'a> Encode for DefType<'a> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        match self {
+            DefType::Func(f) => f.encode(e),
+            DefType::Module(m) => m.encode(e),
+            DefType::Component(c) => c.encode(e),
+            DefType::Instance(i) => i.encode(e),
+            DefType::Value(v) => v.encode(e),
+        }
+    }
+}
+
+impl<'a> Encode for Record<'a> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        e.push(0x71);
+        self.fields.encode(e);
+    }
+}
+
+impl<'a> Encode for Field<'a> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.name.encode(e);
+        self.type_.encode(e);
+    }
+}
+
+impl<'a> Encode for Variant<'a> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        e.push(0x70);
+        self.cases.encode(e);
+    }
+}
+
+impl<'a> Encode for Case<'a> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.name.encode(e);
+        self.type_.encode(e);
+        if let Some(defaults_to) = self.defaults_to {
+            e.push(0x01);
+            defaults_to.encode(e);
+        } else {
+            e.push(0x00);
+        }
+    }
+}
+
+impl<'a> Encode for List<'a> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        e.push(0x6f);
+        self.element.encode(e);
+    }
+}
+
+impl<'a> Encode for Tuple<'a> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        e.push(0x6e);
+        self.fields.encode(e);
+    }
+}
+
+impl<'a> Encode for Flags<'a> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        e.push(0x6d);
+        self.flag_names.encode(e);
+    }
+}
+
+impl<'a> Encode for Enum<'a> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        e.push(0x6c);
+        self.arms.encode(e);
+    }
+}
+
+impl<'a> Encode for Union<'a> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        e.push(0x6b);
+        self.arms.encode(e);
+    }
+}
+
+impl<'a> Encode for OptionType<'a> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        e.push(0x6a);
+        self.element.encode(e);
+    }
+}
+
+impl<'a> Encode for Expected<'a> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        e.push(0x69);
+        self.ok.encode(e);
+        self.err.encode(e);
+    }
+}
+
+impl<'a> Encode for ComponentFunctionType<'a> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        e.push(0x4c);
+        self.params.encode(e);
+        self.result.encode(e);
+    }
+}
+
+impl<'a> Encode for ComponentFunctionParam<'a> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        if let Some(id) = self.id {
+            e.push(0x01);
+            id.encode(e);
+        } else {
+            e.push(0x00);
+        }
+        self.type_.encode(e);
+    }
+}
+
+impl<'a> Encode for ValueType<'a> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        e.push(0x4b);
+        self.value_type.encode(e)
     }
 }
 
@@ -512,13 +628,7 @@ impl<'a> Encode for StorageType<'a> {
 impl Encode for Import<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.module.encode(e);
-        match self.field {
-            Some(s) => s.encode(e),
-            None => {
-                e.push(0x00);
-                e.push(0xff);
-            }
-        }
+        self.field.encode(e);
         self.item.encode(e);
     }
 }
@@ -562,6 +672,15 @@ impl<T> Encode for TypeUse<'_, T> {
             .as_ref()
             .expect("TypeUse should be filled in by this point")
             .encode(e)
+    }
+}
+
+impl<T: Encode> Encode for ComponentTypeUse<'_, T> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        match self {
+            ComponentTypeUse::Inline(inline) => inline.encode(e),
+            ComponentTypeUse::Ref(index) => index.encode(e),
+        }
     }
 }
 
@@ -1154,7 +1273,6 @@ struct ComponentNames<'a> {
     component: Option<&'a str>,
     funcs: Vec<(u32, &'a str)>,
     func_idx: u32,
-    locals: Vec<(u32, Vec<(u32, &'a str)>)>,
     labels: Vec<(u32, Vec<(u32, &'a str)>)>,
     components: Vec<(u32, &'a str)>,
     component_idx: u32,
@@ -1213,39 +1331,6 @@ fn find_component_names<'a>(
         };
         if let Some(name) = get_name(id, name) {
             list.push((*idx, name));
-        }
-
-        // Handle module locals separately from above
-        if let ComponentField::Func(f) = field {
-            let mut local_names = Vec::new();
-            let mut local_idx = 0;
-
-            // Consult the inline type listed for local names of parameters.
-            // This is specifically preserved during the name resolution
-            // pass, but only for functions, so here we can look at the
-            // original source's names.
-            if let Some(ty) = &f.ty.inline {
-                for (id, name, _) in ty.params.iter() {
-                    if let Some(name) = get_name(id, name) {
-                        local_names.push((local_idx, name));
-                    }
-                    local_idx += 1;
-                }
-            }
-            if let ComponentFuncKind::Inline { locals, body, .. } = &f.kind {
-                for local in locals {
-                    if let Some(name) = get_name(&local.id, &local.name) {
-                        local_names.push((local_idx, name));
-                    }
-                    local_idx += 1;
-                }
-
-                let _ = body;
-                eprintln!("TODO: ComponentKindKind::Inline body");
-            }
-            if local_names.len() > 0 {
-                ret.locals.push((*idx, local_names));
-            }
         }
 
         *idx += 1;
@@ -1338,7 +1423,6 @@ impl ComponentNames<'_> {
     fn is_empty(&self) -> bool {
         self.component.is_none()
             && self.funcs.is_empty()
-            && self.locals.is_empty()
             && self.labels.is_empty()
             && self.types.is_empty()
         // NB: specifically don't check modules/components/instances since they're
@@ -1348,7 +1432,7 @@ impl ComponentNames<'_> {
 
 impl Encode for ComponentNames<'_> {
     fn encode(&self, _dst: &mut Vec<u8>) {
-        eprintln!("TODO: names section for components")
+        // TODO: names section for components
     }
 }
 
@@ -1438,8 +1522,9 @@ impl Encode for Instance<'_> {
 }
 
 impl Encode for Start<'_> {
-    fn encode(&self, _e: &mut Vec<u8>) {
-        eprintln!("TODO: Encode for Start")
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.func.encode(e);
+        self.args.encode(e);
     }
 }
 

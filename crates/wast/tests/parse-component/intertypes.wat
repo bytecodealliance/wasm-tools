@@ -16,20 +16,20 @@
 
   (type $A14a (record))
   (type $A14b (record (field $x unit)))
-  (type $A14c (record (field $x $T)))
+  (type $A14c (record (field $x $A0)))
 
   (type $A15a (variant))
   (type $A15b (variant (case $x unit)))
-  (type $A15c (variant (case $x $T)))
+  (type $A15c (variant (case $x $A1)))
   (type $A15d (variant (case $x unit (defaults-to $x))))
-  (type $A15e (variant (case $x $T (defaults-to $x))))
+  (type $A15e (variant (case $x $A2 (defaults-to $x))))
 
   (type $A16a (list unit))
-  (type $A16b (list $T))
+  (type $A16b (list $A3))
 
   (type $A17a (tuple))
   (type $A17b (tuple unit))
-  (type $A17c (tuple $T))
+  (type $A17c (tuple $A4))
 
   (type $A18a (flags))
   (type $A18b (flags $x))
@@ -39,13 +39,13 @@
 
   (type $A20a (union))
   (type $A20b (union unit))
-  (type $A20c (union $T))
+  (type $A20c (union $A5))
 
   (type $A21a (option unit))
-  (type $A21b (option $T))
+  (type $A21b (option $A6))
 
   (type $A22a (expected unit unit))
-  (type $A22b (expected $T unit))
-  (type $A22c (expected unit $T))
-  (type $A22d (expected $T $T))
+  (type $A22b (expected $A7 unit))
+  (type $A22c (expected unit $A8))
+  (type $A22d (expected $A9 $A10))
 )

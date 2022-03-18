@@ -9,7 +9,7 @@ pub struct Import<'a> {
     /// The module that this statement is importing from
     pub module: &'a str,
     /// The name of the field in the module this statement imports from.
-    pub field: Option<&'a str>,
+    pub field: &'a str,
     /// The item that's being imported.
     pub item: ItemSig<'a>,
 }
@@ -139,7 +139,7 @@ impl<'a> Parse<'a> for ItemSig<'a> {
 #[allow(missing_docs)]
 pub struct InlineImport<'a> {
     pub module: &'a str,
-    pub field: Option<&'a str>,
+    pub field: &'a str,
 }
 
 impl<'a> Parse<'a> for InlineImport<'a> {

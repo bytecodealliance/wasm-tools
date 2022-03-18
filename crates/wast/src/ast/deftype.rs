@@ -114,13 +114,7 @@ pub struct ComponentFunctionType<'a> {
     pub id: Option<ast::Id<'a>>,
     /// The parameters of a function, optionally each having an identifier for
     /// name resolution and a name for the custom `name` section.
-    pub params: Box<
-        [(
-            Option<ast::Id<'a>>,
-            Option<ast::NameAnnotation<'a>>,
-            ast::ComponentTypeUse<'a, ast::InterType<'a>>,
-        )],
-    >,
+    pub params: Box<[ComponentFunctionParam<'a>]>,
     /// The result type of a function.
     pub result: ast::ComponentTypeUse<'a, ast::InterType<'a>>,
 }
@@ -145,11 +139,11 @@ impl<'a> Parse<'a> for ComponentFunctionType<'a> {
                         // type.
                         if p.peek2_empty() {
                             let ty = p.parse()?;
-                            params.push((None, None, ty));
+                            params.push(ComponentFunctionParam { id: None, name: None, type_: ty });
                         } else {
                             let (id, name) = (p.parse::<Option<_>>()?, p.parse::<Option<_>>()?);
                             let ty = p.parse()?;
-                            params.push((id, name, ty));
+                            params.push(ComponentFunctionParam { id, name, type_: ty});
                         }
                     } else {
                         return Err(l.error());
@@ -165,10 +159,7 @@ impl<'a> Parse<'a> for ComponentFunctionType<'a> {
                 })?
             } else {
                 // If the result is omitted, use `unit`.
-                ast::ComponentTypeUse {
-                    index: None,
-                    inline: Some(ast::InterType::Unit),
-                }
+                ast::ComponentTypeUse::Inline(ast::InterType::Unit)
             };
             Ok(Self {
                 id,
@@ -196,16 +187,26 @@ impl<'a> Peek for ComponentFunctionType<'a> {
     }
 }
 
+/// A parameter of a [`ComponentFunctionType`].
+#[derive(Clone, Debug)]
+pub struct ComponentFunctionParam<'a> {
+    /// An optional identifer to refer to this `param` by as part of
+    /// name resolution.
+    pub id: Option<ast::Id<'a>>,
+    /// An optional `@name` annotation for this parameter
+    pub name: Option<ast::NameAnnotation<'a>>,
+    /// The type of the parameter.
+    pub type_: ast::ComponentTypeUse<'a, ast::InterType<'a>>,
+}
+
 /// A type for a nested module
 #[derive(Clone, Debug, Default)]
 pub struct ModuleType<'a> {
     /// An optional identifer to refer to this `module` type by as part of
     /// name resolution.
     pub id: Option<ast::Id<'a>>,
-    /// The imports that are expected for this module type.
-    pub imports: Vec<ast::Import<'a>>,
-    /// The exports that this module type is expected to have.
-    pub exports: Vec<ast::ExportType<'a>>,
+    /// The fields of the module type.
+    pub defs: Vec<ModuleTypeDef<'a>>,
 }
 
 impl<'a> Parse<'a> for ModuleType<'a> {
@@ -218,24 +219,13 @@ impl<'a> Parse<'a> for ModuleType<'a> {
         parser.parens(|parser| {
             parser.parse::<kw::module>()?;
             let id = parser.parse()?;
-            let mut imports = Vec::new();
-            let mut exports = Vec::new();
+            let mut defs = Vec::new();
             while !parser.is_empty() {
-                if parser.peek2::<kw::import>() {
-                    imports.push(parser.parens(|p| p.parse())?);
-                } else if parser.peek2::<kw::export>() {
-                    parser.parens(|p| {
-                        exports.push(p.parse()?);
-                        Ok(())
-                    })?;
-                } else {
-                    return Err(parser.error("Expected a moduletype-def"));
-                }
+                defs.push(parser.parse()?);
             }
             Ok(ModuleType {
                 id,
-                imports,
-                exports,
+                defs,
             })
         })
     }
@@ -258,6 +248,41 @@ impl<'a> Peek for ModuleType<'a> {
     }
 }
 
+/// The contents of a [`ModuleType`].
+#[derive(Clone, Debug)]
+pub enum ModuleTypeDef<'a> {
+    /// A function type.
+    CoreDefType(ast::FunctionType<'a>),
+    /// An import.
+    CoreImport(ast::Import<'a>),
+    /// An export.
+    Export(&'a str, ast::ItemSig<'a>),
+}
+
+impl<'a> Parse<'a> for ModuleTypeDef<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.parens(|parser| {
+            let mut l = parser.lookahead1();
+            if l.peek::<kw::func>() {
+                let ft = parser.parse()?;
+                Ok(ModuleTypeDef::CoreDefType(ft))
+            } else if l.peek::<kw::import>() {
+                let it = parser.parse()?;
+                Ok(ModuleTypeDef::CoreImport(it))
+            } else if l.peek::<kw::export>() {
+                parser.parse::<kw::export>()?;
+                let name = parser.parse()?;
+                let et = parser.parens(|parser| {
+                    parser.parse()
+                })?;
+                Ok(ModuleTypeDef::Export(name, et))
+            } else {
+                Err(parser.error("Expected a moduletype-def"))
+            }
+        })
+    }
+}
+
 /// A type for a nested component
 #[derive(Clone, Debug, Default)]
 pub struct ComponentType<'a> {
@@ -276,6 +301,7 @@ pub struct ComponentType<'a> {
 
 impl<'a> Parse<'a> for ComponentType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
+        // See comments in `nested_module.rs` for why this is tested here.
         if parser.parens_depth() > 100 {
             return Err(parser.error("component type nesting too deep"));
         }
