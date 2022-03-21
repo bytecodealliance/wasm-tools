@@ -2932,7 +2932,7 @@ impl Printer {
     }
 
     fn print_module_arg(&mut self, state: &State, arg: &ModuleArg) -> Result<()> {
-        self.start_group("import ");
+        self.start_group("with ");
         self.print_str(arg.name)?;
         self.result.push(' ');
         match arg.kind {
@@ -2947,7 +2947,7 @@ impl Printer {
     }
 
     fn print_component_arg(&mut self, state: &State, arg: &ComponentArg) -> Result<()> {
-        self.start_group("import ");
+        self.start_group("with ");
         self.print_str(arg.name)?;
         self.result.push(' ');
         self.print_component_export_kind(state, &arg.kind)?;
