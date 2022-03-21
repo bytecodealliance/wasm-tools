@@ -2786,6 +2786,7 @@ impl Printer {
             self.newline();
             self.start_group("func ");
             self.print_name(&state.function_names, state.functions.len() as u32)?;
+            self.result.push(' ');
 
             match func? {
                 ComponentFunction::Lift {
@@ -2798,6 +2799,7 @@ impl Printer {
                     self.print_idx(&state.type_names, type_index)?;
                     self.end_group();
                     self.print_canonical_options(state, &options)?;
+                    self.result.push(' ');
                     self.start_group("func ");
                     self.print_idx(&state.function_names, func_index)?;
                     self.end_group();
@@ -2807,8 +2809,9 @@ impl Printer {
                     func_index,
                     options,
                 } => {
-                    self.start_group("canon.lower ");
+                    self.start_group("canon.lower");
                     self.print_canonical_options(state, &options)?;
+                    self.result.push(' ');
                     self.start_group("func ");
                     self.print_idx(&state.function_names, func_index)?;
                     self.end_group();
@@ -3102,6 +3105,8 @@ impl Printer {
                 state.tags += 1;
             }
         }
+
+        self.end_group(); // alias export
 
         Ok(())
     }
