@@ -446,6 +446,11 @@ impl PeepholeMutator {
                         if self.is_type("?x", PrimitiveTypeInfo::F64)
                 ),
                 rewrite!(
+                    "replace-with-v128-0";
+                    "?x" => "v128.const.0"
+                        if self.is_type("?x", PrimitiveTypeInfo::V128)
+                ),
+                rewrite!(
                     "replace-with-i32.rand";
                     "?x" => "i32.rand"
                         if self.is_type("?x", PrimitiveTypeInfo::I32)

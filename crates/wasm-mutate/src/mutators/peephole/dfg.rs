@@ -5,7 +5,9 @@ use std::collections::HashMap;
 use egg::{Id, Language, RecExpr};
 use wasmparser::{Operator, Range};
 
-use crate::mutators::peephole::{Lang, MemArg, MemoryCopy, MemoryInit, TableCopy, TableInit};
+use crate::mutators::peephole::{
+    Lang, MemArg, MemArgLane, MemoryCopy, MemoryInit, RefType, TableCopy, TableInit,
+};
 use crate::ModuleInfo;
 
 use crate::mutators::OperatorAndByteOffset;
@@ -418,6 +420,9 @@ impl<'a> DFGBuilder {
                 Operator::F64Const { value } => {
                     self.push_node(Lang::F64(value.bits()), idx);
                 }
+                Operator::V128Const { value } => {
+                    self.push_node(Lang::V128(value.i128()), idx);
+                }
                 Operator::LocalSet { local_index } => {
                     let val = self.pop_operand(idx, true);
                     self.empty_node(Lang::LocalSet(*local_index, Id::from(val)), idx);
@@ -426,6 +431,10 @@ impl<'a> DFGBuilder {
                     let val = self.pop_operand(idx, true);
                     self.push_node(Lang::LocalTee(*local_index, Id::from(val)), idx);
                     self.new_color();
+                }
+
+                Operator::Nop => {
+                    self.empty_node(Lang::Nop, idx);
                 }
 
                 Operator::I32Store { memarg } => self.store(idx, memarg, Lang::I32Store),
@@ -738,8 +747,321 @@ impl<'a> DFGBuilder {
                     self.empty_node(Lang::TableSet(*table, [arg2, arg1]), idx);
                 }
 
-                _ => {
+                Operator::RefNull {
+                    ty: wasmparser::Type::ExternRef,
+                } => {
+                    self.push_node(Lang::RefNull(RefType::Extern), idx);
+                }
+                Operator::RefNull {
+                    ty: wasmparser::Type::FuncRef,
+                } => {
+                    self.push_node(Lang::RefNull(RefType::Func), idx);
+                }
+                Operator::RefFunc { function_index } => {
+                    self.push_node(Lang::RefFunc(*function_index), idx);
+                }
+
+                Operator::RefIsNull => {
+                    let arg = Id::from(self.pop_operand(idx, false));
+                    self.push_node(Lang::RefIsNull(arg), idx);
+                }
+
+                Operator::V128Load { memarg } => self.load(idx, memarg, Lang::V128Load),
+                Operator::V128Load8x8S { memarg } => self.load(idx, memarg, Lang::V128Load8x8S),
+                Operator::V128Load8x8U { memarg } => self.load(idx, memarg, Lang::V128Load8x8U),
+                Operator::V128Load16x4S { memarg } => self.load(idx, memarg, Lang::V128Load16x4S),
+                Operator::V128Load16x4U { memarg } => self.load(idx, memarg, Lang::V128Load16x4U),
+                Operator::V128Load32x2S { memarg } => self.load(idx, memarg, Lang::V128Load32x2S),
+                Operator::V128Load32x2U { memarg } => self.load(idx, memarg, Lang::V128Load32x2U),
+                Operator::V128Load8Splat { memarg } => self.load(idx, memarg, Lang::V128Load8Splat),
+                Operator::V128Load16Splat { memarg } => {
+                    self.load(idx, memarg, Lang::V128Load16Splat)
+                }
+                Operator::V128Load32Splat { memarg } => {
+                    self.load(idx, memarg, Lang::V128Load32Splat)
+                }
+                Operator::V128Load64Splat { memarg } => {
+                    self.load(idx, memarg, Lang::V128Load64Splat)
+                }
+                Operator::V128Store { memarg } => self.store(idx, memarg, Lang::V128Store),
+                Operator::V128Load8Lane { memarg, lane } => {
+                    self.load_lane(idx, memarg, lane, Lang::V128Load8Lane)
+                }
+                Operator::V128Load16Lane { memarg, lane } => {
+                    self.load_lane(idx, memarg, lane, Lang::V128Load16Lane)
+                }
+                Operator::V128Load32Lane { memarg, lane } => {
+                    self.load_lane(idx, memarg, lane, Lang::V128Load32Lane)
+                }
+                Operator::V128Load64Lane { memarg, lane } => {
+                    self.load_lane(idx, memarg, lane, Lang::V128Load64Lane)
+                }
+                Operator::V128Store8Lane { memarg, lane } => {
+                    self.store_lane(idx, memarg, lane, Lang::V128Store8Lane)
+                }
+                Operator::V128Store16Lane { memarg, lane } => {
+                    self.store_lane(idx, memarg, lane, Lang::V128Store16Lane)
+                }
+                Operator::V128Store32Lane { memarg, lane } => {
+                    self.store_lane(idx, memarg, lane, Lang::V128Store32Lane)
+                }
+                Operator::V128Store64Lane { memarg, lane } => {
+                    self.store_lane(idx, memarg, lane, Lang::V128Store64Lane)
+                }
+
+                Operator::I8x16ExtractLaneS { lane } => {
+                    self.extract_lane(idx, lane, Lang::I8x16ExtractLaneS)
+                }
+                Operator::I8x16ExtractLaneU { lane } => {
+                    self.extract_lane(idx, lane, Lang::I8x16ExtractLaneU)
+                }
+                Operator::I8x16ReplaceLane { lane } => {
+                    self.replace_lane(idx, lane, Lang::I8x16ReplaceLane)
+                }
+                Operator::I16x8ExtractLaneS { lane } => {
+                    self.extract_lane(idx, lane, Lang::I16x8ExtractLaneS)
+                }
+                Operator::I16x8ExtractLaneU { lane } => {
+                    self.extract_lane(idx, lane, Lang::I16x8ExtractLaneU)
+                }
+                Operator::I16x8ReplaceLane { lane } => {
+                    self.replace_lane(idx, lane, Lang::I16x8ReplaceLane)
+                }
+                Operator::I32x4ExtractLane { lane } => {
+                    self.extract_lane(idx, lane, Lang::I32x4ExtractLane)
+                }
+                Operator::I32x4ReplaceLane { lane } => {
+                    self.replace_lane(idx, lane, Lang::I32x4ReplaceLane)
+                }
+                Operator::I64x2ExtractLane { lane } => {
+                    self.extract_lane(idx, lane, Lang::I64x2ExtractLane)
+                }
+                Operator::I64x2ReplaceLane { lane } => {
+                    self.replace_lane(idx, lane, Lang::I64x2ReplaceLane)
+                }
+                Operator::F32x4ExtractLane { lane } => {
+                    self.extract_lane(idx, lane, Lang::F32x4ExtractLane)
+                }
+                Operator::F32x4ReplaceLane { lane } => {
+                    self.replace_lane(idx, lane, Lang::F32x4ReplaceLane)
+                }
+                Operator::F64x2ExtractLane { lane } => {
+                    self.extract_lane(idx, lane, Lang::F64x2ExtractLane)
+                }
+                Operator::F64x2ReplaceLane { lane } => {
+                    self.replace_lane(idx, lane, Lang::F64x2ReplaceLane)
+                }
+
+                Operator::I8x16Swizzle => self.binop(idx, Lang::I8x16Swizzle),
+                Operator::I8x16Splat => self.unop(idx, Lang::I8x16Splat),
+                Operator::I16x8Splat => self.unop(idx, Lang::I16x8Splat),
+                Operator::I32x4Splat => self.unop(idx, Lang::I32x4Splat),
+                Operator::I64x2Splat => self.unop(idx, Lang::I64x2Splat),
+                Operator::F32x4Splat => self.unop(idx, Lang::F32x4Splat),
+                Operator::F64x2Splat => self.unop(idx, Lang::F64x2Splat),
+
+                Operator::I8x16Eq => self.binop(idx, Lang::I8x16Eq),
+                Operator::I8x16Ne => self.binop(idx, Lang::I8x16Ne),
+                Operator::I8x16LtS => self.binop(idx, Lang::I8x16LtS),
+                Operator::I8x16LtU => self.binop(idx, Lang::I8x16LtU),
+                Operator::I8x16GtS => self.binop(idx, Lang::I8x16GtS),
+                Operator::I8x16GtU => self.binop(idx, Lang::I8x16GtU),
+                Operator::I8x16LeS => self.binop(idx, Lang::I8x16LeS),
+                Operator::I8x16LeU => self.binop(idx, Lang::I8x16LeU),
+                Operator::I8x16GeS => self.binop(idx, Lang::I8x16GeS),
+                Operator::I8x16GeU => self.binop(idx, Lang::I8x16GeU),
+                Operator::I16x8Eq => self.binop(idx, Lang::I16x8Eq),
+                Operator::I16x8Ne => self.binop(idx, Lang::I16x8Ne),
+                Operator::I16x8LtS => self.binop(idx, Lang::I16x8LtS),
+                Operator::I16x8LtU => self.binop(idx, Lang::I16x8LtU),
+                Operator::I16x8GtS => self.binop(idx, Lang::I16x8GtS),
+                Operator::I16x8GtU => self.binop(idx, Lang::I16x8GtU),
+                Operator::I16x8LeS => self.binop(idx, Lang::I16x8LeS),
+                Operator::I16x8LeU => self.binop(idx, Lang::I16x8LeU),
+                Operator::I16x8GeS => self.binop(idx, Lang::I16x8GeS),
+                Operator::I16x8GeU => self.binop(idx, Lang::I16x8GeU),
+                Operator::I32x4Eq => self.binop(idx, Lang::I32x4Eq),
+                Operator::I32x4Ne => self.binop(idx, Lang::I32x4Ne),
+                Operator::I32x4LtS => self.binop(idx, Lang::I32x4LtS),
+                Operator::I32x4LtU => self.binop(idx, Lang::I32x4LtU),
+                Operator::I32x4GtS => self.binop(idx, Lang::I32x4GtS),
+                Operator::I32x4GtU => self.binop(idx, Lang::I32x4GtU),
+                Operator::I32x4LeS => self.binop(idx, Lang::I32x4LeS),
+                Operator::I32x4LeU => self.binop(idx, Lang::I32x4LeU),
+                Operator::I32x4GeS => self.binop(idx, Lang::I32x4GeS),
+                Operator::I32x4GeU => self.binop(idx, Lang::I32x4GeU),
+                Operator::I64x2Eq => self.binop(idx, Lang::I64x2Eq),
+                Operator::I64x2Ne => self.binop(idx, Lang::I64x2Ne),
+                Operator::I64x2LtS => self.binop(idx, Lang::I64x2LtS),
+                Operator::I64x2GtS => self.binop(idx, Lang::I64x2GtS),
+                Operator::I64x2LeS => self.binop(idx, Lang::I64x2LeS),
+                Operator::I64x2GeS => self.binop(idx, Lang::I64x2GeS),
+                Operator::F32x4Eq => self.binop(idx, Lang::F32x4Eq),
+                Operator::F32x4Ne => self.binop(idx, Lang::F32x4Ne),
+                Operator::F32x4Lt => self.binop(idx, Lang::F32x4Lt),
+                Operator::F32x4Gt => self.binop(idx, Lang::F32x4Gt),
+                Operator::F32x4Le => self.binop(idx, Lang::F32x4Le),
+                Operator::F32x4Ge => self.binop(idx, Lang::F32x4Ge),
+                Operator::F64x2Eq => self.binop(idx, Lang::F64x2Eq),
+                Operator::F64x2Ne => self.binop(idx, Lang::F64x2Ne),
+                Operator::F64x2Lt => self.binop(idx, Lang::F64x2Lt),
+                Operator::F64x2Gt => self.binop(idx, Lang::F64x2Gt),
+                Operator::F64x2Le => self.binop(idx, Lang::F64x2Le),
+                Operator::F64x2Ge => self.binop(idx, Lang::F64x2Ge),
+
+                Operator::I8x16Abs => self.unop(idx, Lang::I8x16Abs),
+                Operator::I8x16Neg => self.unop(idx, Lang::I8x16Neg),
+                Operator::I8x16Popcnt => self.unop(idx, Lang::I8x16Popcnt),
+                Operator::I8x16AllTrue => self.unop(idx, Lang::I8x16AllTrue),
+                Operator::I8x16Bitmask => self.unop(idx, Lang::I8x16Bitmask),
+                Operator::I8x16NarrowI16x8S => self.binop(idx, Lang::I8x16NarrowI16x8S),
+                Operator::I8x16NarrowI16x8U => self.binop(idx, Lang::I8x16NarrowI16x8U),
+                Operator::I8x16Shl => self.binop(idx, Lang::I8x16Shl),
+                Operator::I8x16ShrS => self.binop(idx, Lang::I8x16ShrS),
+                Operator::I8x16ShrU => self.binop(idx, Lang::I8x16ShrU),
+                Operator::I8x16Add => self.binop(idx, Lang::I8x16Add),
+                Operator::I8x16AddSatS => self.binop(idx, Lang::I8x16AddSatS),
+                Operator::I8x16AddSatU => self.binop(idx, Lang::I8x16AddSatU),
+                Operator::I8x16Sub => self.binop(idx, Lang::I8x16Sub),
+                Operator::I8x16SubSatS => self.binop(idx, Lang::I8x16SubSatS),
+                Operator::I8x16SubSatU => self.binop(idx, Lang::I8x16SubSatU),
+                Operator::I8x16MinS => self.binop(idx, Lang::I8x16MinS),
+                Operator::I8x16MinU => self.binop(idx, Lang::I8x16MinU),
+                Operator::I8x16MaxS => self.binop(idx, Lang::I8x16MaxS),
+                Operator::I8x16MaxU => self.binop(idx, Lang::I8x16MaxU),
+                Operator::I8x16RoundingAverageU => self.binop(idx, Lang::I8x16AvgrU),
+
+                Operator::I16x8ExtAddPairwiseI8x16S => {
+                    self.unop(idx, Lang::I16x8ExtAddPairwiseI8x16S)
+                }
+                Operator::I16x8ExtAddPairwiseI8x16U => {
+                    self.unop(idx, Lang::I16x8ExtAddPairwiseI8x16U)
+                }
+                Operator::I16x8Abs => self.unop(idx, Lang::I16x8Abs),
+                Operator::I16x8Neg => self.unop(idx, Lang::I16x8Neg),
+                Operator::I16x8Q15MulrSatS => self.unop(idx, Lang::I16x8Q15MulrSatS),
+                Operator::I16x8AllTrue => self.unop(idx, Lang::I16x8AllTrue),
+                Operator::I16x8Bitmask => self.unop(idx, Lang::I16x8Bitmask),
+                Operator::I16x8NarrowI32x4S => self.binop(idx, Lang::I16x8NarrowI32x4S),
+                Operator::I16x8NarrowI32x4U => self.binop(idx, Lang::I16x8NarrowI32x4U),
+                Operator::I16x8ExtendLowI8x16S => self.unop(idx, Lang::I16x8ExtendLowI8x16S),
+                Operator::I16x8ExtendHighI8x16S => self.unop(idx, Lang::I16x8ExtendHighI8x16S),
+                Operator::I16x8ExtendLowI8x16U => self.unop(idx, Lang::I16x8ExtendLowI8x16U),
+                Operator::I16x8ExtendHighI8x16U => self.unop(idx, Lang::I16x8ExtendHighI8x16U),
+                Operator::I16x8Shl => self.binop(idx, Lang::I16x8Shl),
+                Operator::I16x8ShrS => self.binop(idx, Lang::I16x8ShrS),
+                Operator::I16x8ShrU => self.binop(idx, Lang::I16x8ShrU),
+                Operator::I16x8Add => self.binop(idx, Lang::I16x8Add),
+                Operator::I16x8AddSatS => self.binop(idx, Lang::I16x8AddSatS),
+                Operator::I16x8AddSatU => self.binop(idx, Lang::I16x8AddSatU),
+                Operator::I16x8Sub => self.binop(idx, Lang::I16x8Sub),
+                Operator::I16x8SubSatS => self.binop(idx, Lang::I16x8SubSatS),
+                Operator::I16x8SubSatU => self.binop(idx, Lang::I16x8SubSatU),
+                Operator::I16x8Mul => self.binop(idx, Lang::I16x8Mul),
+                Operator::I16x8MinS => self.binop(idx, Lang::I16x8MinS),
+                Operator::I16x8MinU => self.binop(idx, Lang::I16x8MinU),
+                Operator::I16x8MaxS => self.binop(idx, Lang::I16x8MaxS),
+                Operator::I16x8MaxU => self.binop(idx, Lang::I16x8MaxU),
+                Operator::I16x8RoundingAverageU => self.binop(idx, Lang::I16x8AvgrU),
+                Operator::I16x8ExtMulLowI8x16S => self.binop(idx, Lang::I16x8ExtMulLowI8x16S),
+                Operator::I16x8ExtMulHighI8x16S => self.binop(idx, Lang::I16x8ExtMulHighI8x16S),
+                Operator::I16x8ExtMulLowI8x16U => self.binop(idx, Lang::I16x8ExtMulLowI8x16U),
+                Operator::I16x8ExtMulHighI8x16U => self.binop(idx, Lang::I16x8ExtMulHighI8x16U),
+
+                Operator::I32x4ExtAddPairwiseI16x8S => {
+                    self.unop(idx, Lang::I32x4ExtAddPairwiseI16x8S)
+                }
+                Operator::I32x4ExtAddPairwiseI16x8U => {
+                    self.unop(idx, Lang::I32x4ExtAddPairwiseI16x8U)
+                }
+                Operator::I32x4Abs => self.unop(idx, Lang::I32x4Abs),
+                Operator::I32x4Neg => self.unop(idx, Lang::I32x4Neg),
+                Operator::I32x4AllTrue => self.unop(idx, Lang::I32x4AllTrue),
+                Operator::I32x4Bitmask => self.unop(idx, Lang::I32x4Bitmask),
+                Operator::I32x4ExtendLowI16x8S => self.unop(idx, Lang::I32x4ExtendLowI16x8S),
+                Operator::I32x4ExtendHighI16x8S => self.unop(idx, Lang::I32x4ExtendHighI16x8S),
+                Operator::I32x4ExtendLowI16x8U => self.unop(idx, Lang::I32x4ExtendLowI16x8U),
+                Operator::I32x4ExtendHighI16x8U => self.unop(idx, Lang::I32x4ExtendHighI16x8U),
+                Operator::I32x4Shl => self.binop(idx, Lang::I32x4Shl),
+                Operator::I32x4ShrS => self.binop(idx, Lang::I32x4ShrS),
+                Operator::I32x4ShrU => self.binop(idx, Lang::I32x4ShrU),
+                Operator::I32x4Add => self.binop(idx, Lang::I32x4Add),
+                Operator::I32x4Sub => self.binop(idx, Lang::I32x4Sub),
+                Operator::I32x4Mul => self.binop(idx, Lang::I32x4Mul),
+                Operator::I32x4MinS => self.binop(idx, Lang::I32x4MinS),
+                Operator::I32x4MinU => self.binop(idx, Lang::I32x4MinU),
+                Operator::I32x4MaxS => self.binop(idx, Lang::I32x4MaxS),
+                Operator::I32x4MaxU => self.binop(idx, Lang::I32x4MaxU),
+                Operator::I32x4DotI16x8S => self.binop(idx, Lang::I32x4DotI16x8S),
+                Operator::I32x4ExtMulLowI16x8S => self.binop(idx, Lang::I32x4ExtMulLowI16x8S),
+                Operator::I32x4ExtMulHighI16x8S => self.binop(idx, Lang::I32x4ExtMulHighI16x8S),
+                Operator::I32x4ExtMulLowI16x8U => self.binop(idx, Lang::I32x4ExtMulLowI16x8U),
+                Operator::I32x4ExtMulHighI16x8U => self.binop(idx, Lang::I32x4ExtMulHighI16x8U),
+
+                Operator::I64x2Abs => self.unop(idx, Lang::I64x2Abs),
+                Operator::I64x2Neg => self.unop(idx, Lang::I64x2Neg),
+                Operator::I64x2AllTrue => self.unop(idx, Lang::I64x2AllTrue),
+                Operator::I64x2Bitmask => self.unop(idx, Lang::I64x2Bitmask),
+                Operator::I64x2ExtendLowI32x4S => self.unop(idx, Lang::I64x2ExtendLowI32x4S),
+                Operator::I64x2ExtendHighI32x4S => self.unop(idx, Lang::I64x2ExtendHighI32x4S),
+                Operator::I64x2ExtendLowI32x4U => self.unop(idx, Lang::I64x2ExtendLowI32x4U),
+                Operator::I64x2ExtendHighI32x4U => self.unop(idx, Lang::I64x2ExtendHighI32x4U),
+                Operator::I64x2Shl => self.binop(idx, Lang::I64x2Shl),
+                Operator::I64x2ShrS => self.binop(idx, Lang::I64x2ShrS),
+                Operator::I64x2ShrU => self.binop(idx, Lang::I64x2ShrU),
+                Operator::I64x2Add => self.binop(idx, Lang::I64x2Add),
+                Operator::I64x2Sub => self.binop(idx, Lang::I64x2Sub),
+                Operator::I64x2Mul => self.binop(idx, Lang::I64x2Mul),
+                Operator::I64x2ExtMulLowI32x4S => self.binop(idx, Lang::I64x2ExtMulLowI32x4S),
+                Operator::I64x2ExtMulHighI32x4S => self.binop(idx, Lang::I64x2ExtMulHighI32x4S),
+                Operator::I64x2ExtMulLowI32x4U => self.binop(idx, Lang::I64x2ExtMulLowI32x4U),
+                Operator::I64x2ExtMulHighI32x4U => self.binop(idx, Lang::I64x2ExtMulHighI32x4U),
+
+                Operator::F32x4Ceil => self.unop(idx, Lang::F32x4Ceil),
+                Operator::F32x4Floor => self.unop(idx, Lang::F32x4Floor),
+                Operator::F32x4Trunc => self.unop(idx, Lang::F32x4Trunc),
+                Operator::F32x4Nearest => self.unop(idx, Lang::F32x4Nearest),
+                Operator::F32x4Abs => self.unop(idx, Lang::F32x4Abs),
+                Operator::F32x4Neg => self.unop(idx, Lang::F32x4Neg),
+                Operator::F32x4Sqrt => self.unop(idx, Lang::F32x4Sqrt),
+                Operator::F32x4Add => self.binop(idx, Lang::F32x4Add),
+                Operator::F32x4Sub => self.binop(idx, Lang::F32x4Sub),
+                Operator::F32x4Mul => self.binop(idx, Lang::F32x4Mul),
+                Operator::F32x4Div => self.binop(idx, Lang::F32x4Div),
+                Operator::F32x4Min => self.binop(idx, Lang::F32x4Min),
+                Operator::F32x4Max => self.binop(idx, Lang::F32x4Max),
+                Operator::F32x4PMin => self.binop(idx, Lang::F32x4PMin),
+                Operator::F32x4PMax => self.binop(idx, Lang::F32x4PMax),
+                Operator::F64x2Ceil => self.unop(idx, Lang::F64x2Ceil),
+                Operator::F64x2Floor => self.unop(idx, Lang::F64x2Floor),
+                Operator::F64x2Trunc => self.unop(idx, Lang::F64x2Trunc),
+                Operator::F64x2Nearest => self.unop(idx, Lang::F64x2Nearest),
+                Operator::F64x2Abs => self.unop(idx, Lang::F64x2Abs),
+                Operator::F64x2Neg => self.unop(idx, Lang::F64x2Neg),
+                Operator::F64x2Sqrt => self.unop(idx, Lang::F64x2Sqrt),
+                Operator::F64x2Add => self.binop(idx, Lang::F64x2Add),
+                Operator::F64x2Sub => self.binop(idx, Lang::F64x2Sub),
+                Operator::F64x2Mul => self.binop(idx, Lang::F64x2Mul),
+                Operator::F64x2Div => self.binop(idx, Lang::F64x2Div),
+                Operator::F64x2Min => self.binop(idx, Lang::F64x2Min),
+                Operator::F64x2Max => self.binop(idx, Lang::F64x2Max),
+                Operator::F64x2PMin => self.binop(idx, Lang::F64x2PMin),
+                Operator::F64x2PMax => self.binop(idx, Lang::F64x2PMax),
+
+                Operator::I32x4TruncSatF32x4S => self.unop(idx, Lang::I32x4TruncSatF32x4S),
+                Operator::I32x4TruncSatF32x4U => self.unop(idx, Lang::I32x4TruncSatF32x4U),
+                Operator::F32x4ConvertI32x4S => self.unop(idx, Lang::F32x4ConvertI32x4S),
+                Operator::F32x4ConvertI32x4U => self.unop(idx, Lang::F32x4ConvertI32x4U),
+                Operator::I32x4TruncSatF64x2SZero => self.unop(idx, Lang::I32x4TruncSatF64x2SZero),
+                Operator::I32x4TruncSatF64x2UZero => self.unop(idx, Lang::I32x4TruncSatF64x2UZero),
+                Operator::F64x2ConvertLowI32x4S => self.unop(idx, Lang::F64x2ConvertLowI32x4S),
+                Operator::F64x2ConvertLowI32x4U => self.unop(idx, Lang::F64x2ConvertLowI32x4U),
+                Operator::F32x4DemoteF64x2Zero => self.unop(idx, Lang::F32x4DemoteF64x2Zero),
+                Operator::F64x2PromoteLowF32x4 => self.unop(idx, Lang::F64x2PromoteLowF32x4),
+
+                op => {
                     // If the operator is not implemented, break the mutation of this Basic Block
+                    log::warn!("wasm operator not implemented: {:?}", op);
                     return None;
                 }
             }
@@ -763,6 +1085,30 @@ impl<'a> DFGBuilder {
         op: fn(MemArg, Id) -> Lang,
     ) {
         self.unop_cb(idx, |id| op(memarg.into(), id))
+    }
+
+    fn load_lane(
+        &mut self,
+        idx: usize,
+        memarg: &wasmparser::MemoryImmediate,
+        lane: &u8,
+        op: fn(MemArgLane, [Id; 2]) -> Lang,
+    ) {
+        let leftidx = self.pop_operand(idx, false);
+        let rightidx = self.pop_operand(idx, false);
+        // The operands should not be the same
+        assert_ne!(leftidx, rightidx);
+
+        self.push_node(
+            op(
+                MemArgLane {
+                    lane: *lane,
+                    memarg: memarg.into(),
+                },
+                [Id::from(rightidx), Id::from(leftidx)],
+            ),
+            idx,
+        );
     }
 
     fn unop_cb(&mut self, idx: usize, op: impl Fn(Id) -> Lang) {
@@ -796,6 +1142,42 @@ impl<'a> DFGBuilder {
             op(memarg.into(), [Id::from(rightidx), Id::from(leftidx)]),
             idx,
         );
+    }
+
+    fn store_lane(
+        &mut self,
+        idx: usize,
+        memarg: &wasmparser::MemoryImmediate,
+        lane: &u8,
+        op: fn(MemArgLane, [Id; 2]) -> Lang,
+    ) {
+        let leftidx = self.pop_operand(idx, false);
+        let rightidx = self.pop_operand(idx, false);
+
+        // The operands should not be the same
+        assert_ne!(leftidx, rightidx);
+
+        self.empty_node(
+            op(
+                MemArgLane {
+                    lane: *lane,
+                    memarg: memarg.into(),
+                },
+                [Id::from(rightidx), Id::from(leftidx)],
+            ),
+            idx,
+        );
+    }
+
+    fn extract_lane(&mut self, idx: usize, lane: &u8, op: fn(u8, Id) -> Lang) {
+        let arg = self.pop_operand(idx, false);
+        self.push_node(op(*lane, Id::from(arg)), idx);
+    }
+
+    fn replace_lane(&mut self, idx: usize, lane: &u8, op: fn(u8, [Id; 2]) -> Lang) {
+        let leftidx = self.pop_operand(idx, false);
+        let rightidx = self.pop_operand(idx, false);
+        self.push_node(op(*lane, [Id::from(rightidx), Id::from(leftidx)]), idx);
     }
 }
 
