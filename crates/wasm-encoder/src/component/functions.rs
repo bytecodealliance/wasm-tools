@@ -88,6 +88,7 @@ impl ComponentFunctionSection {
         }
         self.bytes.extend(encoders::u32(type_index));
         self.bytes.extend(encoders::u32(func_index));
+        self.num_added += 1;
         self
     }
 
@@ -105,6 +106,7 @@ impl ComponentFunctionSection {
             option.encode(&mut self.bytes);
         }
         self.bytes.extend(encoders::u32(func_index));
+        self.num_added += 1;
         self
     }
 }
