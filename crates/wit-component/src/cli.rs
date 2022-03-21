@@ -5,7 +5,19 @@
 use crate::{decode_interface_component, encode_interface_component, InterfacePrinter};
 use anyhow::{bail, Context, Result};
 use clap::Parser;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use wit_parser::Interface;
+
+fn read_interface(path: impl AsRef<Path>) -> Result<Interface> {
+    let path = path.as_ref();
+
+    if !path.is_file() {
+        bail!("interface file `{}` does not exist", path.display(),);
+    }
+
+    Interface::parse_file(&path)
+        .with_context(|| format!("failed to parse interface file `{}`", path.display()))
+}
 
 /// WebAssembly interface encoder.
 ///
@@ -17,10 +29,6 @@ pub struct WitToWasmApp {
     #[clap(long, short = 'o', value_name = "OUTPUT", parse(from_os_str))]
     pub output: Option<PathBuf>,
 
-    /// The name of the interface to encode (defaults to interface file name).
-    #[clap(long, short = 'n', value_name = "NAME")]
-    pub name: Option<String>,
-
     /// The path to the WebAssembly interface file to encode.
     #[clap(index = 1, value_name = "INTERFACE", parse(from_os_str))]
     pub interface: PathBuf,
@@ -29,18 +37,16 @@ pub struct WitToWasmApp {
 impl WitToWasmApp {
     /// Executes the application.
     pub fn execute(self) -> Result<()> {
-        let name = self
-            .name
-            .as_deref()
-            .unwrap_or_else(|| self.interface.file_stem().unwrap().to_str().unwrap());
-
         let output = self.output.unwrap_or_else(|| {
             let mut stem: PathBuf = self.interface.file_stem().unwrap().into();
             stem.set_extension("wasm");
             stem
         });
 
-        std::fs::write(&output, encode_interface_component(name, &self.interface)?)
+        let interface = read_interface(self.interface)?;
+        let bytes = encode_interface_component(&interface)?;
+
+        std::fs::write(&output, bytes)
             .with_context(|| format!("failed to write output file `{}`", output.display()))?;
 
         println!("encoded interface as component `{}`", output.display());

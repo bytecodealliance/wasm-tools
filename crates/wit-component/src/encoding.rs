@@ -4,7 +4,7 @@ use std::{
     hash::{Hash, Hasher},
 };
 use wasm_encoder::{
-    ComponentExport, ComponentExportSection, ComponentTypeSection, InstanceType, InterfaceTypeRef,
+    ComponentExport, ComponentExportSection, ComponentTypeSection, InterfaceTypeRef,
     PrimitiveInterfaceType,
 };
 use wit_parser::{
@@ -257,22 +257,14 @@ impl Hash for FunctionKey<'_> {
     }
 }
 
-#[derive(Default)]
-struct InterfaceEncoderState<'a> {
-    ty: InstanceType,
-    aliases: HashMap<u32, u32>,
-    exports: HashMap<&'a str, u32>,
-}
-
 /// An encoder of WebAssembly interfaces AST representations.
 pub struct InterfaceEncoder<'a> {
     interface: &'a Interface,
-    name: &'a str,
     types: &'a mut ComponentTypeSection,
     exports: &'a mut ComponentExportSection,
     type_map: &'a mut HashMap<TypeDefKey<'a>, u32>,
     func_type_map: &'a mut HashMap<FunctionKey<'a>, u32>,
-    state: InterfaceEncoderState<'a>,
+    exported: &'a mut HashMap<&'a str, u32>,
 }
 
 impl<'a> InterfaceEncoder<'a> {
@@ -281,11 +273,11 @@ impl<'a> InterfaceEncoder<'a> {
     /// The interface will be encoded in the given sections.
     pub fn new(
         interface: &'a Interface,
-        name: &'a str,
         types: &'a mut ComponentTypeSection,
         exports: &'a mut ComponentExportSection,
         type_map: &'a mut HashMap<TypeDefKey<'a>, u32>,
         func_type_map: &'a mut HashMap<FunctionKey<'a>, u32>,
+        exported: &'a mut HashMap<&'a str, u32>,
     ) -> Result<Self> {
         if interface.resources.len() != 0 {
             bail!("the use of resources in interfaces is not currently not supported");
@@ -293,17 +285,22 @@ impl<'a> InterfaceEncoder<'a> {
 
         Ok(InterfaceEncoder {
             interface,
-            name,
             types,
             exports,
             type_map,
             func_type_map,
-            state: InterfaceEncoderState::default(),
+            exported,
         })
     }
 
     /// Encodes the interface into the internal sections.
-    pub fn encode(&mut self) -> Result<()> {
+    ///
+    /// If `export_func_types` is true, then the declared function types
+    /// will be exported.
+    ///
+    /// It is expected that this will be `false` when encoding components
+    /// that export functions instead of types.
+    pub fn encode(&mut self, export_func_types: bool) -> Result<()> {
         for func in &self.interface.functions {
             assert!(!func.name.is_empty());
 
@@ -346,20 +343,17 @@ impl<'a> InterfaceEncoder<'a> {
                 }
             };
 
-            self.export_type(&func.name, index)?;
+            if export_func_types {
+                self.export_type(&func.name, index)?;
+            }
 
             // TODO: stick interface documentation in a custom section?
         }
-
-        let state = std::mem::take(&mut self.state);
-        let index = self.types.len();
-        self.types.instance(&state.ty);
-        self.exports.export(self.name, ComponentExport::Type(index));
         Ok(())
     }
 
     fn export_type(&mut self, name: &'a str, index: u32) -> Result<()> {
-        match self.state.exports.entry(name) {
+        match self.exported.entry(name) {
             Entry::Occupied(e) => {
                 if *e.get() != index {
                     bail!("duplicate export `{}`", name)
@@ -367,24 +361,11 @@ impl<'a> InterfaceEncoder<'a> {
             }
             Entry::Vacant(entry) => {
                 entry.insert(index);
-                let index = self.alias_type(index);
-                self.state.ty.export(name, index);
+                self.exports.export(name, ComponentExport::Type(index));
             }
         }
 
         Ok(())
-    }
-
-    fn alias_type(&mut self, index: u32) -> u32 {
-        match self.state.aliases.entry(index) {
-            Entry::Occupied(e) => *e.get(),
-            Entry::Vacant(e) => {
-                let alias = self.state.ty.type_count();
-                e.insert(alias);
-                self.state.ty.alias_outer_type(1, index);
-                alias
-            }
-        }
     }
 
     fn encode_record(&mut self, record: &Record) -> Result<InterfaceTypeRef> {

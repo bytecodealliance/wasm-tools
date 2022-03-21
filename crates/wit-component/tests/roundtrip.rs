@@ -3,12 +3,13 @@
 use anyhow::Result;
 use std::fs;
 use wit_component::{decode_interface_component, encode_interface_component, InterfacePrinter};
+use wit_parser::Interface;
 
 #[test]
 fn roundtrip_interfaces() -> Result<()> {
     for file in fs::read_dir("tests/wit")? {
         let file = file?;
-        let bytes = encode_interface_component("test", file.path())?;
+        let bytes = encode_interface_component(&Interface::parse_file(file.path())?)?;
         let interface = decode_interface_component(&bytes)?;
 
         let mut printer = InterfacePrinter::default();
