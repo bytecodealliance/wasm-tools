@@ -350,10 +350,25 @@ impl Printer {
                         Encoding::Module => {
                             states.push(State::new(Encoding::Module));
                             self.start_group("module");
+
+                            if states.len() > 1 {
+                                let parent = &states[states.len() - 2];
+                                self.result.push(' ');
+                                self.print_name(&parent.module_names, parent.modules)?;
+                            }
                         }
                         Encoding::Component => {
                             states.push(State::new(Encoding::Component));
                             self.start_group("component");
+
+                            if states.len() > 1 {
+                                let parent = &states[states.len() - 2];
+                                self.result.push(' ');
+                                self.print_name(
+                                    &parent.component_names,
+                                    parent.components.len() as u32,
+                                )?;
+                            }
                         }
                     }
 
