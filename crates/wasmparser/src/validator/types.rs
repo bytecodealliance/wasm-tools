@@ -171,7 +171,7 @@ impl InterfaceTypeRef {
 }
 
 /// The entity type for imports and exports of a module.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum EntityType {
     /// The entity is a function.
     Func(TypeId),
@@ -186,7 +186,7 @@ pub enum EntityType {
 }
 
 impl EntityType {
-    pub(crate) fn is_subtype_of(&self, b: &Self) -> bool {
+    pub(crate) fn is_subtype_of(&self, b: &Self, types: &TypeList) -> bool {
         macro_rules! limits_match {
             ($a:expr, $b:expr) => {{
                 let a = $a;
@@ -203,7 +203,9 @@ impl EntityType {
         }
 
         match (self, b) {
-            (EntityType::Func(a), EntityType::Func(b)) => a == b,
+            (EntityType::Func(a), EntityType::Func(b)) => {
+                types[*a].unwrap_func_type() == types[*b].unwrap_func_type()
+            }
             (EntityType::Table(a), EntityType::Table(b)) => {
                 a.element_type == b.element_type && limits_match!(a, b)
             }
@@ -211,7 +213,9 @@ impl EntityType {
                 a.shared == b.shared && a.memory64 == b.memory64 && limits_match!(a, b)
             }
             (EntityType::Global(a), EntityType::Global(b)) => a == b,
-            (EntityType::Tag(a), EntityType::Tag(b)) => a == b,
+            (EntityType::Tag(a), EntityType::Tag(b)) => {
+                types[*a].unwrap_func_type() == types[*b].unwrap_func_type()
+            }
             _ => false,
         }
     }
@@ -290,7 +294,7 @@ impl ModuleType {
         self.imports.get(&(module, name) as &dyn ModuleImportKey)
     }
 
-    pub(crate) fn is_subtype_of(&self, other: &Self) -> bool {
+    pub(crate) fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
         // For module type subtyping, all exports in the other module type
         // must be present in this module type's exports (i.e. it can export
         // *more* than what this module type needs).
@@ -299,14 +303,14 @@ impl ModuleType {
         self.imports
             .iter()
             .all(|(k, ty)| match other.imports.get(k) {
-                Some(other) => other.is_subtype_of(ty),
+                Some(other) => other.is_subtype_of(ty, types),
                 None => false,
             })
             && other
                 .exports
                 .iter()
                 .all(|(k, other)| match self.exports.get(k) {
-                    Some(ty) => ty.is_subtype_of(other),
+                    Some(ty) => ty.is_subtype_of(other, types),
                     None => false,
                 })
     }
@@ -334,7 +338,7 @@ impl ComponentEntityType {
         match (self, other) {
             (Self::Module(ty), Self::Module(other_ty)) => types[*ty]
                 .unwrap_module_type()
-                .is_subtype_of(types[*other_ty].unwrap_module_type()),
+                .is_subtype_of(types[*other_ty].unwrap_module_type(), types),
             (Self::Component(ty), Self::Component(other_ty)) => types[*ty]
                 .unwrap_component_type()
                 .is_subtype_of(types[*other_ty].unwrap_component_type(), types),

@@ -789,7 +789,7 @@ impl ComponentState {
                         }
                     };
 
-                    if !a.is_subtype_of(b) {
+                    if !a.is_subtype_of(b, types) {
                         return Err(BinaryReaderError::new(
                             format!(
                                 "{} type mismatch for module instantiation argument `{}::{}`",
