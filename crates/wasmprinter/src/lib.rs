@@ -350,10 +350,25 @@ impl Printer {
                         Encoding::Module => {
                             states.push(State::new(Encoding::Module));
                             self.start_group("module");
+
+                            if states.len() > 1 {
+                                let parent = &states[states.len() - 2];
+                                self.result.push(' ');
+                                self.print_name(&parent.module_names, parent.modules)?;
+                            }
                         }
                         Encoding::Component => {
                             states.push(State::new(Encoding::Component));
                             self.start_group("component");
+
+                            if states.len() > 1 {
+                                let parent = &states[states.len() - 2];
+                                self.result.push(' ');
+                                self.print_name(
+                                    &parent.component_names,
+                                    parent.components.len() as u32,
+                                )?;
+                            }
                         }
                     }
 
@@ -2786,6 +2801,7 @@ impl Printer {
             self.newline();
             self.start_group("func ");
             self.print_name(&state.function_names, state.functions.len() as u32)?;
+            self.result.push(' ');
 
             match func? {
                 ComponentFunction::Lift {
@@ -2798,6 +2814,7 @@ impl Printer {
                     self.print_idx(&state.type_names, type_index)?;
                     self.end_group();
                     self.print_canonical_options(state, &options)?;
+                    self.result.push(' ');
                     self.start_group("func ");
                     self.print_idx(&state.function_names, func_index)?;
                     self.end_group();
@@ -2807,8 +2824,9 @@ impl Printer {
                     func_index,
                     options,
                 } => {
-                    self.start_group("canon.lower ");
+                    self.start_group("canon.lower");
                     self.print_canonical_options(state, &options)?;
+                    self.result.push(' ');
                     self.start_group("func ");
                     self.print_idx(&state.function_names, func_index)?;
                     self.end_group();
@@ -2914,7 +2932,7 @@ impl Printer {
     }
 
     fn print_module_arg(&mut self, state: &State, arg: &ModuleArg) -> Result<()> {
-        self.start_group("import ");
+        self.start_group("with ");
         self.print_str(arg.name)?;
         self.result.push(' ');
         match arg.kind {
@@ -2929,7 +2947,7 @@ impl Printer {
     }
 
     fn print_component_arg(&mut self, state: &State, arg: &ComponentArg) -> Result<()> {
-        self.start_group("import ");
+        self.start_group("with ");
         self.print_str(arg.name)?;
         self.result.push(' ');
         self.print_component_export_kind(state, &arg.kind)?;
@@ -3102,6 +3120,8 @@ impl Printer {
                 state.tags += 1;
             }
         }
+
+        self.end_group(); // alias export
 
         Ok(())
     }
