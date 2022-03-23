@@ -2886,8 +2886,9 @@ impl Printer {
                         .push(InstanceIndexType::Component(state.component(index)?));
                 }
                 Instance::ModuleFromExports(exports) => {
-                    self.result.push_str(" core ");
+                    self.result.push_str(" core");
                     for export in exports.iter() {
+                        self.result.push(' ');
                         self.print_export(state, export)?;
                     }
 

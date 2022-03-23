@@ -190,7 +190,8 @@ impl ComponentState {
         types: &mut TypeList,
         offset: usize,
     ) -> Result<()> {
-        let ty = self.function_type_at(func_index, types, offset)?;
+        let ty = types[self.component_function_at(func_index, types, offset)?]
+            .unwrap_component_func_type();
 
         self.check_options(&options, ty, types, offset)?;
 
@@ -788,7 +789,7 @@ impl ComponentState {
                         }
                     };
 
-                    if !a.is_subtype_of(b) {
+                    if !a.is_subtype_of(b, types) {
                         return Err(BinaryReaderError::new(
                             format!(
                                 "{} type mismatch for module instantiation argument `{}::{}`",
