@@ -50,6 +50,7 @@ pub struct ModuleInfo<'a> {
     pub function_map: Vec<u32>,
     pub global_types: Vec<PrimitiveTypeInfo>,
     pub table_elem_types: Vec<PrimitiveTypeInfo>,
+    pub memory_types: Vec<wasmparser::MemoryType>,
 
     // raw_sections
     pub raw_sections: Vec<RawSection<'a>>,
@@ -114,9 +115,10 @@ impl<'a> ModuleInfo<'a> {
                                 info.global_types.push(ty);
                                 info.imported_globals_count += 1;
                             }
-                            wasmparser::ImportSectionEntryType::Memory(_ty) => {
+                            wasmparser::ImportSectionEntryType::Memory(ty) => {
                                 info.memory_count += 1;
                                 info.imported_memories_count += 1;
+                                info.memory_types.push(ty);
                             }
                             wasmparser::ImportSectionEntryType::Table(ty) => {
                                 info.table_count += 1;
@@ -154,10 +156,15 @@ impl<'a> ModuleInfo<'a> {
                         info.table_elem_types.push(ty);
                     }
                 }
-                Payload::MemorySection(reader) => {
+                Payload::MemorySection(mut reader) => {
                     info.memories = Some(info.raw_sections.len());
                     info.memory_count += reader.get_count();
                     info.section(SectionId::Memory.into(), reader.range(), input_wasm);
+
+                    for _ in 0..reader.get_count() {
+                        let ty = reader.read()?;
+                        info.memory_types.push(ty);
+                    }
                 }
                 Payload::GlobalSection(mut reader) => {
                     info.globals = Some(info.raw_sections.len());

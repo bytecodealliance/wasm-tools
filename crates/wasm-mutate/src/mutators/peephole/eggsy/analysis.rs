@@ -25,6 +25,7 @@ pub struct PeepholeMutationAnalysis {
     function_map: Vec<u32>,
     /// table index to the type of element it has
     table_types: Vec<PrimitiveTypeInfo>,
+    memory_types: Vec<wasmparser::MemoryType>,
 }
 
 impl PeepholeMutationAnalysis {
@@ -36,6 +37,7 @@ impl PeepholeMutationAnalysis {
             types_map: info.types_map.clone(),
             function_map: info.function_map.clone(),
             table_types: info.table_elem_types.clone(),
+            memory_types: info.memory_types.clone(),
         }
     }
 
@@ -253,8 +255,14 @@ impl PeepholeMutationAnalysis {
                 debug_assert_eq!(consequenttpe, alternativetpe);
                 Ok(consequenttpe)
             }
-            Lang::MemoryGrow { .. } => Ok(PrimitiveTypeInfo::I32),
-            Lang::MemorySize { .. } => Ok(PrimitiveTypeInfo::I32),
+            Lang::MemoryGrow(mem, _) | Lang::MemorySize(mem) => {
+                let ty = self.memory_types[*mem as usize];
+                if ty.memory64 {
+                    Ok(PrimitiveTypeInfo::I64)
+                } else {
+                    Ok(PrimitiveTypeInfo::I32)
+                }
+            }
             Lang::MemoryInit { .. } => Ok(PrimitiveTypeInfo::Empty),
             Lang::DataDrop(_) => Ok(PrimitiveTypeInfo::Empty),
             Lang::MemoryCopy { .. } => Ok(PrimitiveTypeInfo::Empty),

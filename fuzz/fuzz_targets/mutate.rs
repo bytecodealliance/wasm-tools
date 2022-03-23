@@ -17,8 +17,6 @@ fuzz_target!(|bytes: &[u8]| {
     let (wasm, config) = match wasm_tools_fuzz::generate_valid_module(bytes, |config, u| {
         config.module_linking_enabled = false;
         config.exceptions_enabled = false;
-        config.memory64_enabled = false;
-        config.max_memories = 1;
         seed = u.arbitrary()?;
         Ok(())
     }) {
@@ -73,6 +71,8 @@ fuzz_target!(|bytes: &[u8]| {
     let mut features = WasmFeatures::default();
     features.relaxed_simd = config.relaxed_simd_enabled;
     features.module_linking = config.module_linking_enabled;
+    features.multi_memory = config.max_memories > 1;
+    features.memory64 = config.memory64_enabled;
 
     for (i, mutated_wasm) in iterator.take(10).enumerate() {
         let mutated_wasm = match mutated_wasm {
