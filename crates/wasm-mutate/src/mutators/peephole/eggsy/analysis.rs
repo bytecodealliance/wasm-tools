@@ -299,6 +299,13 @@ impl PeepholeMutationAnalysis {
             Lang::V128Store16Lane(..) => Ok(PrimitiveTypeInfo::Empty),
             Lang::V128Store32Lane(..) => Ok(PrimitiveTypeInfo::Empty),
             Lang::V128Store64Lane(..) => Ok(PrimitiveTypeInfo::Empty),
+            Lang::V128Not(..) => Ok(PrimitiveTypeInfo::V128),
+            Lang::V128And(..) => Ok(PrimitiveTypeInfo::V128),
+            Lang::V128AndNot(..) => Ok(PrimitiveTypeInfo::V128),
+            Lang::V128Or(..) => Ok(PrimitiveTypeInfo::V128),
+            Lang::V128Xor(..) => Ok(PrimitiveTypeInfo::V128),
+            Lang::V128Bitselect(..) => Ok(PrimitiveTypeInfo::V128),
+            Lang::V128AnyTrue(..) => Ok(PrimitiveTypeInfo::I32),
 
             Lang::I8x16ExtractLaneS(..) => Ok(PrimitiveTypeInfo::I32),
             Lang::I8x16ExtractLaneU(..) => Ok(PrimitiveTypeInfo::I32),
