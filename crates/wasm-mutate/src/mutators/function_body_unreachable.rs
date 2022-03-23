@@ -23,7 +23,7 @@ impl Mutator for FunctionBodyUnreachable {
         let mut reader = CodeSectionReader::new(code_section.data, 0)?;
 
         let count = reader.get_count();
-        let function_to_mutate = config.rng().gen_range(0, count);
+        let function_to_mutate = config.rng().gen_range(0..count);
 
         (0..count)
             .map(|i| {
@@ -51,13 +51,14 @@ impl Mutator for FunctionBodyUnreachable {
     }
 
     fn can_mutate<'a>(&self, config: &'a WasmMutate) -> bool {
-        !config.preserve_semantics && config.info().has_code()
+        !config.preserve_semantics && config.info().has_nonempty_code()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::FunctionBodyUnreachable;
+    use crate::mutators::Mutator;
 
     #[test]
     fn test_code_unreachable_mutator() {
@@ -84,5 +85,13 @@ mod tests {
                   i64.const 42)  (func (;2;) (type 1) (result i32)    unreachable)
                 (export "exported_func" (func 2)))"#,
         );
+    }
+
+    #[test]
+    fn test_fn_body_unreachable_empty_code_section() {
+        let wasm = b"\x00\x61\x73\x6d\x01\x00\x00\x00\x0a\x02\x00\x0b";
+        let mut config = crate::WasmMutate::default();
+        config.setup(wasm).unwrap();
+        assert_eq!(FunctionBodyUnreachable.can_mutate(&config), false);
     }
 }

@@ -224,6 +224,17 @@ impl<'a> ModuleInfo<'a> {
         Ok(info)
     }
 
+    pub fn has_nonempty_code(&self) -> bool {
+        if let Some(section) = self.code {
+            let section_data = self.raw_sections[section].data;
+            wasmparser::CodeSectionReader::new(section_data, 0)
+                .map(|r| r.get_count() != 0)
+                .unwrap_or(false)
+        } else {
+            false
+        }
+    }
+
     pub fn has_code(&self) -> bool {
         self.code != None
     }
@@ -234,6 +245,11 @@ impl<'a> ModuleInfo<'a> {
             id,
             data: &full_wasm[range.start..range.end],
         });
+    }
+
+    pub fn get_type_section(&self) -> Option<RawSection<'a>> {
+        let idx = self.types?;
+        Some(self.raw_sections[idx])
     }
 
     pub fn get_code_section(&self) -> RawSection<'a> {
@@ -270,6 +286,26 @@ impl<'a> ModuleInfo<'a> {
         self.raw_sections[self.globals.unwrap()]
     }
 
+    /// Insert a new section as the `i`th section in the Wasm module.
+    pub fn insert_section(
+        &self,
+        i: usize,
+        new_section: &impl wasm_encoder::Section,
+    ) -> wasm_encoder::Module {
+        let mut module = wasm_encoder::Module::new();
+        self.raw_sections.iter().enumerate().for_each(|(j, s)| {
+            if i == j {
+                module.section(new_section);
+            }
+            module.section(s);
+        });
+        if self.raw_sections.len() == i {
+            module.section(new_section);
+        }
+        module
+    }
+
+    /// Replace the `i`th section in this module with the given new section.
     pub fn replace_section(
         &self,
         i: usize,
@@ -295,9 +331,9 @@ impl<'a> ModuleInfo<'a> {
     /// * `section_writer` this callback should write the custom section and
     ///   returns true if it was successful, if false is returned then the
     ///   default section will be written to the module
-    pub fn replace_multiple_sections<P>(&self, section_writer: P) -> wasm_encoder::Module
+    pub fn replace_multiple_sections<P>(&self, mut section_writer: P) -> wasm_encoder::Module
     where
-        P: Fn(usize, u8, &mut wasm_encoder::Module) -> bool,
+        P: FnMut(usize, u8, &mut wasm_encoder::Module) -> bool,
     {
         let mut module = wasm_encoder::Module::new();
         self.raw_sections.iter().enumerate().for_each(|(j, s)| {
@@ -343,6 +379,10 @@ impl<'a> ModuleInfo<'a> {
 
     pub fn num_imported_globals(&self) -> u32 {
         self.imported_globals_count
+    }
+
+    pub fn num_local_globals(&self) -> u32 {
+        self.global_types.len() as u32 - self.imported_globals_count
     }
 
     pub fn num_tags(&self) -> u32 {

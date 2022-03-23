@@ -1,3 +1,4 @@
+use super::translate::InitExprKind;
 use super::Mutator;
 use crate::{Result, WasmMutate};
 
@@ -21,7 +22,7 @@ impl Mutator for ModifyDataMutator {
         let mut reader = DataSectionReader::new(config.info().get_data_section().data, 0)?;
 
         // Select an arbitrary data segment to modify.
-        let data_to_modify = config.rng().gen_range(0, reader.get_count());
+        let data_to_modify = config.rng().gen_range(0..reader.get_count());
 
         // Iterate over all data segments in the old data section and re-add
         // them to the `new_section` one-by-one.
@@ -34,7 +35,11 @@ impl Mutator for ModifyDataMutator {
                     memory_index,
                     init_expr,
                 } => {
-                    offset = DefaultTranslator.translate_init_expr(init_expr)?;
+                    offset = DefaultTranslator.translate_init_expr(
+                        init_expr,
+                        &wasmparser::Type::I32,
+                        InitExprKind::DataOffset,
+                    )?;
                     DataSegmentMode::Active {
                         memory_index: *memory_index,
                         offset: &offset,

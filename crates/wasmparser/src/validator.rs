@@ -202,6 +202,12 @@ impl Default for State {
 /// Flags for features that are enabled for validation.
 #[derive(Hash, Debug, Copy, Clone)]
 pub struct WasmFeatures {
+    /// The WebAssembly `mutable-global` proposal (enabled by default)
+    pub mutable_global: bool,
+    /// The WebAssembly `nontrapping-float-to-int-conversions` proposal (enabled by default)
+    pub saturating_float_to_int: bool,
+    /// The WebAssembly `sign-extension-ops` proposal (enabled by default)
+    pub sign_extension: bool,
     /// The WebAssembly reference types proposal (enabled by default)
     pub reference_types: bool,
     /// The WebAssembly multi-value proposal (enabled by default)
@@ -267,6 +273,9 @@ impl Default for WasmFeatures {
             deterministic_only: cfg!(feature = "deterministic"),
 
             // on-by-default features
+            mutable_global: true,
+            saturating_float_to_int: true,
+            sign_extension: true,
             bulk_memory: true,
             multi_value: true,
             reference_types: true,
@@ -667,10 +676,10 @@ impl Validator {
                 state.module.assert_mut().exports.reserve(count as usize);
                 Ok(())
             },
-            |state, _, _, e, offset| {
+            |state, features, _, e, offset| {
                 let module = state.module.assert_mut();
                 let ty = module.export_to_entity_type(&e, offset)?;
-                module.add_export(e.name, ty, offset)
+                module.add_export(e.name, ty, features, offset)
             },
         )
     }

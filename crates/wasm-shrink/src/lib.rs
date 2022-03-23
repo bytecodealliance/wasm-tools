@@ -322,6 +322,9 @@ impl WasmShrink {
             memory64: true,
             relaxed_simd: true,
             extended_const: true,
+            mutable_global: true,
+            saturating_float_to_int: true,
+            sign_extension: true,
 
             // We'll never enable this here.
             deterministic_only: false,

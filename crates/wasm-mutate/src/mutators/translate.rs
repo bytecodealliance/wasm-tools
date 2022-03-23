@@ -17,6 +17,14 @@ pub enum Item {
     Element,
 }
 
+#[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
+pub enum InitExprKind {
+    Global,
+    ElementOffset,
+    ElementFunction,
+    DataOffset,
+}
+
 pub trait Translator {
     fn as_obj(&mut self) -> &mut dyn Translator;
 
@@ -57,7 +65,12 @@ pub trait Translator {
         global(self.as_obj(), g, s)
     }
 
-    fn translate_init_expr(&mut self, e: &InitExpr<'_>) -> Result<Instruction<'static>> {
+    fn translate_init_expr(
+        &mut self,
+        e: &InitExpr<'_>,
+        _ty: &Type,
+        _ctx: InitExprKind,
+    ) -> Result<Instruction<'static>> {
         init_expr(self.as_obj(), e)
     }
 
@@ -173,7 +186,11 @@ pub fn ty(_t: &mut dyn Translator, ty: &Type) -> Result<ValType> {
 
 pub fn global(t: &mut dyn Translator, global: Global, s: &mut GlobalSection) -> Result<()> {
     let ty = t.translate_global_type(&global.ty)?;
-    let insn = t.translate_init_expr(&global.init_expr)?;
+    let insn = t.translate_init_expr(
+        &global.init_expr,
+        &global.ty.content_type,
+        InitExprKind::Global,
+    )?;
     s.global(ty, &insn);
     Ok(())
 }
@@ -200,7 +217,7 @@ pub fn element(
             table_index,
             init_expr,
         } => {
-            offset = t.translate_init_expr(init_expr)?;
+            offset = t.translate_init_expr(init_expr, &Type::I32, InitExprKind::ElementOffset)?;
             ElementMode::Active {
                 table: Some(t.remap(Item::Table, *table_index)?),
                 offset: &offset,
@@ -218,15 +235,17 @@ pub fn element(
             ElementItem::Func(idx) => {
                 functions.push(t.remap(Item::Function, idx)?);
             }
-            ElementItem::Expr(expr) => match t.translate_init_expr(&expr)? {
-                Instruction::RefFunc(n) => {
-                    exprs.push(wasm_encoder::Element::Func(n));
+            ElementItem::Expr(expr) => {
+                match t.translate_init_expr(&expr, &element.ty, InitExprKind::ElementFunction)? {
+                    Instruction::RefFunc(n) => {
+                        exprs.push(wasm_encoder::Element::Func(n));
+                    }
+                    Instruction::RefNull(_) => {
+                        exprs.push(wasm_encoder::Element::Null);
+                    }
+                    _ => return Err(Error::no_mutations_applicable()),
                 }
-                Instruction::RefNull(_) => {
-                    exprs.push(wasm_encoder::Element::Null);
-                }
-                _ => return Err(Error::no_mutations_applicable()),
-            },
+            }
         }
     }
     s.segment(ElementSegment {
@@ -914,7 +933,7 @@ pub fn data(t: &mut dyn Translator, data: wasmparser::Data<'_>, s: &mut DataSect
             memory_index,
             init_expr,
         } => {
-            offset = t.translate_init_expr(init_expr)?;
+            offset = t.translate_init_expr(init_expr, &Type::I32, InitExprKind::DataOffset)?;
             DataSegmentMode::Active {
                 memory_index: t.remap(Item::Memory, *memory_index)?,
                 offset: &offset,

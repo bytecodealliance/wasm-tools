@@ -2434,18 +2434,48 @@ impl<'a> BrTable<'a> {
     ///     assert_eq!(targets, [1, 2]);
     /// }
     /// ```
-    pub fn targets(&self) -> impl Iterator<Item = Result<u32>> + '_ {
-        let mut reader = self.reader.clone();
-        (0..self.cnt).map(move |i| {
-            let label = reader.read_var_u32()?;
-            if i == self.cnt - 1 && !reader.eof() {
-                return Err(BinaryReaderError::new(
+    pub fn targets(&self) -> BrTableTargets {
+        BrTableTargets {
+            reader: self.reader.clone(),
+            remaining: self.cnt,
+        }
+    }
+}
+
+/// An iterator over the targets of a [`BrTable`].
+///
+/// # Note
+///
+/// This iterator parses each target of the underlying `br_table`
+/// except for the default target.
+/// The iterator will yield exactly as many targets as the `br_table` has.
+pub struct BrTableTargets<'a> {
+    reader: crate::BinaryReader<'a>,
+    remaining: u32,
+}
+
+impl<'a> Iterator for BrTableTargets<'a> {
+    type Item = Result<u32>;
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = usize::try_from(self.remaining).unwrap_or_else(|error| {
+            panic!("could not convert remaining `u32` into `usize`: {}", error)
+        });
+        (remaining, Some(remaining))
+    }
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.remaining == 0 {
+            if !self.reader.eof() {
+                return Some(Err(BinaryReaderError::new(
                     "trailing data in br_table",
-                    reader.original_position(),
-                ));
+                    self.reader.original_position(),
+                )));
             }
-            Ok(label)
-        })
+            return None;
+        }
+        self.remaining -= 1;
+        Some(self.reader.read_var_u32())
     }
 }
 

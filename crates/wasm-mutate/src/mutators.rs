@@ -20,10 +20,13 @@
 //! functions is processed in order to construct an equivalent piece of code.
 //!
 
+pub mod add_function;
+pub mod add_type;
 pub mod codemotion;
 pub mod custom;
 pub mod function_body_unreachable;
 pub mod modify_data;
+pub mod modify_init_exprs;
 pub mod peephole;
 pub mod remove_export;
 pub mod remove_item;
@@ -89,9 +92,7 @@ pub trait Mutator {
     fn mutate<'a>(
         self,
         config: &'a mut WasmMutate,
-    ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>>
-    where
-        Self: Copy;
+    ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>>;
 
     /// What is this mutator's name?
     ///
@@ -107,7 +108,7 @@ pub type OperatorAndByteOffset<'a> = (Operator<'a>, usize);
 #[cfg(test)]
 fn match_mutation<T>(original: &str, mutator: T, expected: &str)
 where
-    T: Mutator + Copy,
+    T: Mutator + Clone,
 {
     WasmMutate::default().match_mutation(original, mutator, expected)
 }
@@ -116,10 +117,12 @@ impl WasmMutate<'_> {
     #[cfg(test)]
     fn match_mutation<T>(&mut self, original: &str, mutator: T, expected: &str)
     where
-        T: Mutator + Copy,
+        T: Mutator + Clone,
     {
         use crate::ErrorKind;
         use wasmparser::WasmFeatures;
+
+        drop(env_logger::try_init());
 
         let original = &wat::parse_str(original).unwrap();
 
@@ -134,13 +137,16 @@ impl WasmMutate<'_> {
         assert!(can_mutate);
 
         let attempts = 100;
+        let mut last_mutation = None;
 
         for _ in 0..attempts {
             let mutation = match mutator
+                .clone()
                 .mutate(&mut config)
-                .and_then(|mut mutation| mutation.next().unwrap())
+                .map(|mut mutation| mutation.next())
             {
-                Ok(mutation) => mutation,
+                Ok(Some(mutation)) => mutation.unwrap(),
+                Ok(None) => continue,
                 Err(e) if matches!(e.kind(), ErrorKind::NoMutationsApplicable) => continue,
                 Err(e) => panic!("mutation error: {}", e),
             };
@@ -157,13 +163,27 @@ impl WasmMutate<'_> {
             // If it fails, it is probably an invalid
             // reformatting expected
             let text = wasmprinter::print_bytes(mutation_bytes).unwrap();
-            assert_eq!(text.trim(), expected_text.trim());
-            return;
+            if text.trim() == expected_text.trim() {
+                return;
+            }
+            log::debug!("skipping mutation {}", text);
+            last_mutation = Some(text);
         }
 
-        panic!(
-            "never found any applicable mutations after {} attempts",
-            attempts
-        );
+        match last_mutation {
+            Some(mutation) => {
+                panic!(
+                    "after {} attempts the last mutation:\n{:?}\n\n\
+                     did not match the expected mutation\n{:?}",
+                    attempts, mutation, expected_text
+                );
+            }
+            None => {
+                panic!(
+                    "never found any applicable mutations after {} attempts",
+                    attempts
+                );
+            }
+        }
     }
 }

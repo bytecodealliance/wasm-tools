@@ -98,6 +98,9 @@ fn parse_features(arg: &str) -> Result<WasmFeatures> {
         ("memory64", |f| &mut f.memory64),
         ("extended-const", |f| &mut f.extended_const),
         ("deterministic", |f| &mut f.deterministic_only),
+        ("saturating-float-to-int", |f| &mut f.saturating_float_to_int),
+        ("sign-extension", |f| &mut f.sign_extension),
+        ("mutable-global", |f| &mut f.mutable_global),
     ];
 
     for part in arg.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {

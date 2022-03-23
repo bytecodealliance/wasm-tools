@@ -425,6 +425,12 @@ impl Module {
                 (self.tags.len(), MAX_WASM_TAGS, "tags")
             }
             TypeRef::Global(ty) => {
+                if !features.mutable_global && ty.mutable {
+                    return Err(BinaryReaderError::new(
+                        "mutable global support is not enabled",
+                        offset,
+                    ));
+                }
                 self.globals.push(ty);
                 self.num_imported_globals += 1;
                 (self.globals.len(), MAX_WASM_GLOBALS, "globals")
@@ -441,7 +447,23 @@ impl Module {
         Ok(())
     }
 
-    pub(super) fn add_export(&mut self, name: &str, ty: EntityType, offset: usize) -> Result<()> {
+    pub(super) fn add_export(
+        &mut self,
+        name: &str,
+        ty: EntityType,
+        features: &WasmFeatures,
+        offset: usize,
+    ) -> Result<()> {
+        if !features.mutable_global {
+            if let EntityType::Global(global_type) = ty {
+                if global_type.mutable {
+                    return Err(BinaryReaderError::new(
+                        "mutable global support is not enabled",
+                        offset,
+                    ));
+                }
+            }
+        }
         match self.exports.insert(name.to_string(), ty) {
             Some(_) => Err(BinaryReaderError::new(
                 format!("duplicate export name `{}` already defined", name),
@@ -920,7 +942,7 @@ mod arc {
                 return None;
             }
             debug_assert!(Arc::get_mut(&mut self.arc).is_some());
-            Some(unsafe { &mut *(&*self.arc as *const T as *mut T) })
+            Some(unsafe { &mut *(Arc::as_ptr(&self.arc) as *mut T) })
         }
 
         pub fn assert_mut(&mut self) -> &mut T {

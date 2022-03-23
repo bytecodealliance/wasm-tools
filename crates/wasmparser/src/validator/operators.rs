@@ -486,21 +486,13 @@ impl OperatorValidator {
             }
             BlockType::Type(Type::V128) => self.check_simd_enabled(),
             BlockType::FuncType(idx) => {
-                let ty = func_type_at(&resources, idx)?;
                 if !self.features.multi_value {
-                    if ty.len_outputs() > 1 {
-                        return Err(OperatorValidatorError::new(
-                            "blocks, loops, and ifs may only return at most one \
-                             value when multi-value is not enabled",
-                        ));
-                    }
-                    if ty.len_inputs() > 0 {
-                        return Err(OperatorValidatorError::new(
-                            "blocks, loops, and ifs accept no parameters \
-                             when multi-value is not enabled",
-                        ));
-                    }
+                    return Err(OperatorValidatorError::new(
+                        "blocks, loops, and ifs may only produce a resulttype \
+                         when multi-value is not enabled",
+                    ));
                 }
+                func_type_at(&resources, idx)?;
                 Ok(())
             }
         }
@@ -1190,27 +1182,57 @@ impl OperatorValidator {
                 self.push_operand(Type::F64)?;
             }
             Operator::I32TruncSatF32S | Operator::I32TruncSatF32U => {
+                if !self.features.saturating_float_to_int {
+                    return Err(OperatorValidatorError::new(
+                        "saturating float to int conversions support is not enabled",
+                    ));
+                }
                 self.pop_operand(Some(Type::F32))?;
                 self.push_operand(Type::I32)?;
             }
             Operator::I32TruncSatF64S | Operator::I32TruncSatF64U => {
+                if !self.features.saturating_float_to_int {
+                    return Err(OperatorValidatorError::new(
+                        "saturating float to int conversions support is not enabled",
+                    ));
+                }
                 self.pop_operand(Some(Type::F64))?;
                 self.push_operand(Type::I32)?;
             }
             Operator::I64TruncSatF32S | Operator::I64TruncSatF32U => {
+                if !self.features.saturating_float_to_int {
+                    return Err(OperatorValidatorError::new(
+                        "saturating float to int conversions support is not enabled",
+                    ));
+                }
                 self.pop_operand(Some(Type::F32))?;
                 self.push_operand(Type::I64)?;
             }
             Operator::I64TruncSatF64S | Operator::I64TruncSatF64U => {
+                if !self.features.saturating_float_to_int {
+                    return Err(OperatorValidatorError::new(
+                        "saturating float to int conversions support is not enabled",
+                    ));
+                }
                 self.pop_operand(Some(Type::F64))?;
                 self.push_operand(Type::I64)?;
             }
             Operator::I32Extend16S | Operator::I32Extend8S => {
+                if !self.features.sign_extension {
+                    return Err(OperatorValidatorError::new(
+                        "sign extension operations support is not enabled",
+                    ));
+                }
                 self.pop_operand(Some(Type::I32))?;
                 self.push_operand(Type::I32)?;
             }
 
             Operator::I64Extend32S | Operator::I64Extend16S | Operator::I64Extend8S => {
+                if !self.features.sign_extension {
+                    return Err(OperatorValidatorError::new(
+                        "sign extension operations support is not enabled",
+                    ));
+                }
                 self.pop_operand(Some(Type::I64))?;
                 self.push_operand(Type::I64)?;
             }

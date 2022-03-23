@@ -557,6 +557,7 @@ impl ComponentState {
                     state.add_export(
                         name,
                         state.check_type_ref(&ty, features, types, offset)?,
+                        features,
                         offset,
                     )?;
                 }
