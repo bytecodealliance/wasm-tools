@@ -652,6 +652,248 @@ lang! {
         TableSet(u32, [Id; 2]) = "table.set",
         TableGrow(u32, [Id; 2]) = "table.grow",
         TableSize(u32) = "table.size",
+        RefIsNull(Id) = "ref.is_null",
+
+        V128Load(MemArg, Id) = "v128.load",
+        V128Load8x8S(MemArg, Id) = "v128.load8x8_s",
+        V128Load8x8U(MemArg, Id) = "v128.load8x8_u",
+        V128Load16x4S(MemArg, Id) = "v128.load16x4_s",
+        V128Load16x4U(MemArg, Id) = "v128.load16x4_u",
+        V128Load32x2S(MemArg, Id) = "v128.load32x2_s",
+        V128Load32x2U(MemArg, Id) = "v128.load32x2_u",
+        V128Load8Splat(MemArg, Id) = "v128.load8_splat",
+        V128Load16Splat(MemArg, Id) = "v128.load16_splat",
+        V128Load32Splat(MemArg, Id) = "v128.load32_splat",
+        V128Load64Splat(MemArg, Id) = "v128.load64_splat",
+        V128Store(MemArg, [Id; 2]) = "v128.store",
+        V128Load8Lane(MemArgLane, [Id; 2]) = "v128.load8_lane",
+        V128Load16Lane(MemArgLane, [Id; 2]) = "v128.load16_lane",
+        V128Load32Lane(MemArgLane, [Id; 2]) = "v128.load32_lane",
+        V128Load64Lane(MemArgLane, [Id; 2]) = "v128.load64_lane",
+        V128Store8Lane(MemArgLane, [Id; 2]) = "v128.store8_lane",
+        V128Store16Lane(MemArgLane, [Id; 2]) = "v128.store16_lane",
+        V128Store32Lane(MemArgLane, [Id; 2]) = "v128.store32_lane",
+        V128Store64Lane(MemArgLane, [Id; 2]) = "v128.store64_lane",
+
+        I8x16ExtractLaneS(u8, Id) = "i8x16.extract_lane_s",
+        I8x16ExtractLaneU(u8, Id) = "i8x16.extract_lane_u",
+        I8x16ReplaceLane(u8, [Id; 2]) = "i8x16.replace_lane",
+        I16x8ExtractLaneS(u8, Id) = "i16x8.extract_lane_s",
+        I16x8ExtractLaneU(u8, Id) = "i16x8.extract_lane_u",
+        I16x8ReplaceLane(u8, [Id; 2]) = "i16x8.replace_lane",
+        I32x4ExtractLane(u8, Id) = "i32x4.extract_lane",
+        I32x4ReplaceLane(u8, [Id; 2]) = "i32x4.replace_lane",
+        I64x2ExtractLane(u8, Id) = "i64x2.extract_lane",
+        I64x2ReplaceLane(u8, [Id; 2]) = "i64x2.replace_lane",
+        F32x4ExtractLane(u8, Id) = "f32x4.extract_lane",
+        F32x4ReplaceLane(u8, [Id; 2]) = "f32x4.replace_lane",
+        F64x2ExtractLane(u8, Id) = "f64x2.extract_lane",
+        F64x2ReplaceLane(u8, [Id; 2]) = "f64x2.replace_lane",
+
+        I8x16Swizzle([Id; 2]) = "i8x16.swizzle",
+        I8x16Splat([Id; 1]) = "i8x16.splat",
+        I16x8Splat([Id; 1]) = "i16x8.splat",
+        I32x4Splat([Id; 1]) = "i32x4.splat",
+        I64x2Splat([Id; 1]) = "i64x2.splat",
+        F32x4Splat([Id; 1]) = "f32x4.splat",
+        F64x2Splat([Id; 1]) = "f64x2.splat",
+
+        I8x16Eq([Id; 2]) = "i8x16.eq",
+        I8x16Ne([Id; 2]) = "i8x16.ne",
+        I8x16LtS([Id; 2]) = "i8x16.lt_s",
+        I8x16LtU([Id; 2]) = "i8x16.lt_u",
+        I8x16GtS([Id; 2]) = "i8x16.gt_s",
+        I8x16GtU([Id; 2]) = "i8x16.gt_u",
+        I8x16LeS([Id; 2]) = "i8x16.le_s",
+        I8x16LeU([Id; 2]) = "i8x16.le_u",
+        I8x16GeS([Id; 2]) = "i8x16.ge_s",
+        I8x16GeU([Id; 2]) = "i8x16.ge_u",
+
+        I16x8Eq([Id; 2]) = "i16x8.eq",
+        I16x8Ne([Id; 2]) = "i16x8.ne",
+        I16x8LtS([Id; 2]) = "i16x8.lt_s",
+        I16x8LtU([Id; 2]) = "i16x8.lt_u",
+        I16x8GtS([Id; 2]) = "i16x8.gt_s",
+        I16x8GtU([Id; 2]) = "i16x8.gt_u",
+        I16x8LeS([Id; 2]) = "i16x8.le_s",
+        I16x8LeU([Id; 2]) = "i16x8.le_u",
+        I16x8GeS([Id; 2]) = "i16x8.ge_s",
+        I16x8GeU([Id; 2]) = "i16x8.ge_u",
+
+        I32x4Eq([Id; 2]) = "i32x4.eq",
+        I32x4Ne([Id; 2]) = "i32x4.ne",
+        I32x4LtS([Id; 2]) = "i32x4.lt_s",
+        I32x4LtU([Id; 2]) = "i32x4.lt_u",
+        I32x4GtS([Id; 2]) = "i32x4.gt_s",
+        I32x4GtU([Id; 2]) = "i32x4.gt_u",
+        I32x4LeS([Id; 2]) = "i32x4.le_s",
+        I32x4LeU([Id; 2]) = "i32x4.le_u",
+        I32x4GeS([Id; 2]) = "i32x4.ge_s",
+        I32x4GeU([Id; 2]) = "i32x4.ge_u",
+
+        I64x2Eq([Id; 2]) = "i64x2.eq",
+        I64x2Ne([Id; 2]) = "i64x2.ne",
+        I64x2LtS([Id; 2]) = "i64x2.lt_s",
+        I64x2GtS([Id; 2]) = "i64x2.gt_s",
+        I64x2LeS([Id; 2]) = "i64x2.le_s",
+        I64x2GeS([Id; 2]) = "i64x2.ge_s",
+
+        F32x4Eq([Id; 2]) = "f32x4.eq",
+        F32x4Ne([Id; 2]) = "f32x4.ne",
+        F32x4Lt([Id; 2]) = "f32x4.lt",
+        F32x4Gt([Id; 2]) = "f32x4.gt",
+        F32x4Le([Id; 2]) = "f32x4.le",
+        F32x4Ge([Id; 2]) = "f32x4.ge",
+
+        I8x16Abs([Id; 1]) = "i8x16.abs",
+        I8x16Neg([Id; 1]) = "i8x16.neg",
+        I8x16Popcnt([Id; 1]) = "i8x16.popcnt",
+        I8x16AllTrue([Id; 1]) = "i8x16.all_true",
+        I8x16Bitmask([Id; 1]) = "i8x16.bitmask",
+        I8x16NarrowI16x8S([Id; 2]) = "i8x16.narrow_i16x8_s",
+        I8x16NarrowI16x8U([Id; 2]) = "i8x16.narrow_i16x8_u",
+        I8x16Shl([Id; 2]) = "i8x16.shl",
+        I8x16ShrS([Id; 2]) = "i8x16.shr_s",
+        I8x16ShrU([Id; 2]) = "i8x16.shr_u",
+        I8x16Add([Id; 2]) = "i8x16.add",
+        I8x16AddSatS([Id; 2]) = "i8x16.add_sat_s",
+        I8x16AddSatU([Id; 2]) = "i8x16.add_sat_u",
+        I8x16Sub([Id; 2]) = "i8x16.sub",
+        I8x16SubSatS([Id; 2]) = "i8x16.sub_sat_s",
+        I8x16SubSatU([Id; 2]) = "i8x16.sub_sat_u",
+        I8x16MinS([Id; 2]) = "i8x16.min_s",
+        I8x16MinU([Id; 2]) = "i8x16.min_u",
+        I8x16MaxS([Id; 2]) = "i8x16.max_s",
+        I8x16MaxU([Id; 2]) = "i8x16.max_u",
+        I8x16AvgrU([Id; 2]) = "i8x16.avgr_u",
+
+        I16x8ExtAddPairwiseI8x16S([Id; 1]) = "i16x8.extadd_pairwise_i8x16_s",
+        I16x8ExtAddPairwiseI8x16U([Id; 1]) = "i16x8.extadd_pairwise_i8x16_u",
+        I16x8Abs([Id; 1]) = "i16x8.abs",
+        I16x8Neg([Id; 1]) = "i16x8.neg",
+        I16x8Q15MulrSatS([Id; 1]) = "i16x8.q15mulr_sat_s",
+        I16x8AllTrue([Id; 1]) = "i16x8.all_true",
+        I16x8Bitmask([Id; 1]) = "i16x8.bitmask",
+        I16x8NarrowI32x4S([Id; 2]) = "i16x8.narrow_i32x4_s",
+        I16x8NarrowI32x4U([Id; 2]) = "i16x8.narrow_i32x4_u",
+        I16x8ExtendLowI8x16S([Id; 1]) = "i16x8.extend_low_i8x16_s",
+        I16x8ExtendHighI8x16S([Id; 1]) = "i16x8.extend_high_i8x16_s",
+        I16x8ExtendLowI8x16U([Id; 1]) = "i16x8.extend_low_i8x16_u",
+        I16x8ExtendHighI8x16U([Id; 1]) = "i16x8.extend_high_i8x16_u",
+        I16x8Shl([Id; 2]) = "i16x8.shl",
+        I16x8ShrS([Id; 2]) = "i16x8.shr_s",
+        I16x8ShrU([Id; 2]) = "i16x8.shr_u",
+        I16x8Add([Id; 2]) = "i16x8.add",
+        I16x8AddSatS([Id; 2]) = "i16x8.add_sat_s",
+        I16x8AddSatU([Id; 2]) = "i16x8.add_sat_u",
+        I16x8Sub([Id; 2]) = "i16x8.sub",
+        I16x8SubSatS([Id; 2]) = "i16x8.sub_sat_s",
+        I16x8SubSatU([Id; 2]) = "i16x8.sub_sat_u",
+        I16x8Mul([Id; 2]) = "i16x8.mul",
+        I16x8MinS([Id; 2]) = "i16x8.min_s",
+        I16x8MinU([Id; 2]) = "i16x8.min_u",
+        I16x8MaxS([Id; 2]) = "i16x8.max_s",
+        I16x8MaxU([Id; 2]) = "i16x8.max_u",
+        I16x8AvgrU([Id; 2]) = "i16x8.avgr_u",
+        I16x8ExtMulLowI8x16S([Id; 2]) = "i16x8.extmul_low_i8x16_s",
+        I16x8ExtMulHighI8x16S([Id; 2]) = "i16x8.extmul_low_i8x16_s",
+        I16x8ExtMulLowI8x16U([Id; 2]) = "i16x8.extmul_low_i8x16_u",
+        I16x8ExtMulHighI8x16U([Id; 2]) = "i16x8.extmul_low_i8x16_u",
+
+        I32x4ExtAddPairwiseI16x8S([Id; 1]) = "i32x4.extadd_pairwise_i16x8_s",
+        I32x4ExtAddPairwiseI16x8U([Id; 1]) = "i32x4.extadd_pairwise_i16x8_u",
+        I32x4Abs([Id; 1]) = "i32x4.abs",
+        I32x4Neg([Id; 1]) = "i32x4.neg",
+        I32x4AllTrue([Id; 1]) = "i32x4.all_true",
+        I32x4Bitmask([Id; 1]) = "i32x4.bitmask",
+        I32x4ExtendLowI16x8S([Id; 1]) = "i32x4.extend_low_i16x8_s",
+        I32x4ExtendHighI16x8S([Id; 1]) = "i32x4.extend_high_i16x8_s",
+        I32x4ExtendLowI16x8U([Id; 1]) = "i32x4.extend_low_i16x8_u",
+        I32x4ExtendHighI16x8U([Id; 1]) = "i32x4.extend_high_i16x8_u",
+        I32x4Shl([Id; 2]) = "i32x4.shl",
+        I32x4ShrS([Id; 2]) = "i32x4.shr_s",
+        I32x4ShrU([Id; 2]) = "i32x4.shr_u",
+        I32x4Add([Id; 2]) = "i32x4.add",
+        I32x4Sub([Id; 2]) = "i32x4.sub",
+        I32x4Mul([Id; 2]) = "i32x4.mul",
+        I32x4MinS([Id; 2]) = "i32x4.min_s",
+        I32x4MinU([Id; 2]) = "i32x4.min_u",
+        I32x4MaxS([Id; 2]) = "i32x4.max_s",
+        I32x4MaxU([Id; 2]) = "i32x4.max_u",
+        I32x4DotI16x8S([Id; 2]) = "i32x4.dot_i16x8_s",
+        I32x4ExtMulLowI16x8S([Id; 2]) = "i32x4.extmul_low_i16x8_s",
+        I32x4ExtMulHighI16x8S([Id; 2]) = "i32x4.extmul_low_i16x8_s",
+        I32x4ExtMulLowI16x8U([Id; 2]) = "i32x4.extmul_low_i16x8_u",
+        I32x4ExtMulHighI16x8U([Id; 2]) = "i32x4.extmul_low_i16x8_u",
+
+        I64x2Abs([Id; 1]) = "i64x2.abs",
+        I64x2Neg([Id; 1]) = "i64x2.neg",
+        I64x2AllTrue([Id; 1]) = "i64x2.all_true",
+        I64x2Bitmask([Id; 1]) = "i64x2.bitmask",
+        I64x2ExtendLowI32x4S([Id; 1]) = "i64x2.extend_low_i32x4_s",
+        I64x2ExtendHighI32x4S([Id; 1]) = "i64x2.extend_high_i32x4_s",
+        I64x2ExtendLowI32x4U([Id; 1]) = "i64x2.extend_low_i32x4_u",
+        I64x2ExtendHighI32x4U([Id; 1]) = "i64x2.extend_high_i32x4_u",
+        I64x2Shl([Id; 2]) = "i64x2.shl",
+        I64x2ShrS([Id; 2]) = "i64x2.shr_s",
+        I64x2ShrU([Id; 2]) = "i64x2.shr_u",
+        I64x2Add([Id; 2]) = "i64x2.add",
+        I64x2Sub([Id; 2]) = "i64x2.sub",
+        I64x2Mul([Id; 2]) = "i64x2.mul",
+        I64x2ExtMulLowI32x4S([Id; 2]) = "i64x2.extmul_low_i32x4_s",
+        I64x2ExtMulHighI32x4S([Id; 2]) = "i64x2.extmul_low_i32x4_s",
+        I64x2ExtMulLowI32x4U([Id; 2]) = "i64x2.extmul_low_i32x4_u",
+        I64x2ExtMulHighI32x4U([Id; 2]) = "i64x2.extmul_low_i32x4_u",
+
+        F64x2Eq([Id; 2]) = "f64x2.eq",
+        F64x2Ne([Id; 2]) = "f64x2.ne",
+        F64x2Lt([Id; 2]) = "f64x2.lt",
+        F64x2Gt([Id; 2]) = "f64x2.gt",
+        F64x2Le([Id; 2]) = "f64x2.le",
+        F64x2Ge([Id; 2]) = "f64x2.ge",
+
+        F32x4Ceil([Id; 1]) = "f32x4.ceil",
+        F32x4Floor([Id; 1]) = "f32x4.floor",
+        F32x4Trunc([Id; 1]) = "f32x4.trunc",
+        F32x4Nearest([Id; 1]) = "f32x4.nearest",
+        F32x4Abs([Id; 1]) = "f32x4.abs",
+        F32x4Neg([Id; 1]) = "f32x4.neg",
+        F32x4Sqrt([Id; 1]) = "f32x4.sqrt",
+        F32x4Add([Id; 2]) = "f32x4.add",
+        F32x4Sub([Id; 2]) = "f32x4.sub",
+        F32x4Mul([Id; 2]) = "f32x4.mul",
+        F32x4Div([Id; 2]) = "f32x4.div",
+        F32x4Min([Id; 2]) = "f32x4.min",
+        F32x4Max([Id; 2]) = "f32x4.max",
+        F32x4PMin([Id; 2]) = "f32x4.pmin",
+        F32x4PMax([Id; 2]) = "f32x4.pmax",
+
+        F64x2Ceil([Id; 1]) = "f64x2.ceil",
+        F64x2Floor([Id; 1]) = "f64x2.floor",
+        F64x2Trunc([Id; 1]) = "f64x2.trunc",
+        F64x2Nearest([Id; 1]) = "f64x2.nearest",
+        F64x2Abs([Id; 1]) = "f64x2.abs",
+        F64x2Neg([Id; 1]) = "f64x2.neg",
+        F64x2Sqrt([Id; 1]) = "f64x2.sqrt",
+        F64x2Add([Id; 2]) = "f64x2.add",
+        F64x2Sub([Id; 2]) = "f64x2.sub",
+        F64x2Mul([Id; 2]) = "f64x2.mul",
+        F64x2Div([Id; 2]) = "f64x2.div",
+        F64x2Min([Id; 2]) = "f64x2.min",
+        F64x2Max([Id; 2]) = "f64x2.max",
+        F64x2PMin([Id; 2]) = "f64x2.pmin",
+        F64x2PMax([Id; 2]) = "f64x2.pmax",
+
+        I32x4TruncSatF32x4S([Id; 1]) = "i32x4.trunc_sat_f32x4_s",
+        I32x4TruncSatF32x4U([Id; 1]) = "i32x4.trunc_sat_f32x4_u",
+        F32x4ConvertI32x4S([Id; 1]) = "f32x4.convert_i32x4_s",
+        F32x4ConvertI32x4U([Id; 1]) = "f32x4.convert_i32x4_u",
+        I32x4TruncSatF64x2SZero([Id; 1]) = "i32x4.trunc_sat_f64x2_s_zero",
+        I32x4TruncSatF64x2UZero([Id; 1]) = "i32x4.trunc_sat_f64x2_u_zero",
+        F64x2ConvertLowI32x4S([Id; 1]) = "f64x2.convert_low_i32x4_s",
+        F64x2ConvertLowI32x4U([Id; 1]) = "f64x2.convert_low_i32x4_u",
+        F32x4DemoteF64x2Zero([Id; 1]) = "f32x4.demote_f64x2_zero",
+        F64x2PromoteLowF32x4([Id; 1]) = "f64x2.promote_low_f32x4",
 
         /// Add custom or others operator nodes below
 
@@ -705,8 +947,12 @@ lang! {
         F32(u32) = "f32.const",
         /// F64 constant node
         F64(u64) = "f64.const",
+        /// V128 constant node
+        V128(i128) = "v128.const",
         /// constant ref.null node
         RefNull(RefType) = "ref.null",
+        /// constant ref.func node
+        RefFunc(u32) = "ref.func",
     }
 }
 
@@ -796,6 +1042,42 @@ impl FromStr for MemArg {
             align,
             mem,
         })
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
+pub struct MemArgLane {
+    /// Other memarg information
+    pub memarg: MemArg,
+    /// Immediate value for the simd vector lane this is operating on.
+    pub lane: u8,
+}
+
+impl fmt::Display for MemArgLane {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}.{}", self.memarg, self.lane)
+    }
+}
+
+impl FromStr for MemArgLane {
+    type Err = String;
+    fn from_str(s: &str) -> Result<MemArgLane, String> {
+        let mut parts = s.rsplitn(2, '.');
+        let lane = parts
+            .next()
+            .ok_or_else(|| format!("expected more static instr info"))?
+            .parse::<u8>()
+            .map_err(|e| e.to_string())?;
+        let memarg = parts
+            .next()
+            .ok_or_else(|| format!("expected more static instr info"))?
+            .parse::<MemArg>()
+            .map_err(|e| e.to_string())?;
+        if parts.next().is_some() {
+            return Err(format!("too much info after instruction"));
+        }
+
+        Ok(MemArgLane { lane, memarg })
     }
 }
 
