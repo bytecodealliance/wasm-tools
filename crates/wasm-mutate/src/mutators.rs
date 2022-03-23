@@ -120,7 +120,6 @@ impl WasmMutate<'_> {
         T: Mutator + Clone,
     {
         use crate::ErrorKind;
-        use wasmparser::WasmFeatures;
 
         drop(env_logger::try_init());
 
@@ -153,12 +152,7 @@ impl WasmMutate<'_> {
 
             let mutation_bytes = mutation.finish();
 
-            let mut validator = wasmparser::Validator::new();
-            validator.wasm_features(WasmFeatures {
-                multi_memory: true,
-                ..WasmFeatures::default()
-            });
-            crate::validate(&mut validator, &mutation_bytes);
+            crate::validate(&mutation_bytes);
 
             // If it fails, it is probably an invalid
             // reformatting expected

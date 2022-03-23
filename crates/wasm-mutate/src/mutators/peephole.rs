@@ -139,7 +139,8 @@ impl PeepholeMutator {
             }
 
             let reader = readers[function_to_mutate as usize];
-            let operatorreader = reader.get_operators_reader()?;
+            let mut operatorreader = reader.get_operators_reader()?;
+            operatorreader.allow_memarg64(true);
             let mut localsreader = reader.get_locals_reader()?;
             let operators = operatorreader
                 .into_iter_with_offsets()
@@ -540,8 +541,7 @@ macro_rules! match_code_mutation {
         }
         modu.section(&codesection);
         let mutated = modu.finish();
-        let mut validator = wasmparser::Validator::new();
-        crate::validate(&mut validator, &mutated);
+        crate::validate(&mutated);
 
         let text = wasmprinter::print_bytes(mutated).unwrap();
 
@@ -940,10 +940,9 @@ mod tests {
         for mutated in mutator.mutate_with_rules(&mut wasmmutate, &rules).unwrap() {
             let module = mutated.unwrap();
 
-            let mut validator = wasmparser::Validator::new();
             let mutated_bytes = &module.finish();
             let _text = wasmprinter::print_bytes(mutated_bytes).unwrap();
-            crate::validate(&mut validator, mutated_bytes);
+            crate::validate(mutated_bytes);
         }
     }
 

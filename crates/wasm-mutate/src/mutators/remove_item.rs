@@ -41,9 +41,17 @@ impl Mutator for RemoveItemMutator {
             referenced_functions: HashSet::new(),
             function_reference_action: Funcref::Save,
         }
-        .remove(config.info())?;
-        log::debug!("removed {:?} index {}", self.0, idx);
-        Ok(Box::new(std::iter::once(Ok(result))))
+        .remove(config.info());
+        match result {
+            Ok(result) => {
+                log::debug!("removed {:?} index {}", self.0, idx);
+                Ok(Box::new(std::iter::once(Ok(result))))
+            }
+            Err(e) => {
+                log::trace!("failed to remove {:?} index {}: {:?}", self.0, idx, e);
+                Err(e)
+            }
+        }
     }
 }
 
@@ -707,6 +715,28 @@ mod tests {
             r#"(module
                     (global i32 (i32.const 1))
                     (func (export "") (result i32) global.get 0)
+            )"#,
+        );
+    }
+
+    #[test]
+    fn remove_function_with_memarg64() {
+        crate::mutators::match_mutation(
+            r#"(module
+                    (memory i64 0)
+                    (func)
+                    (func (export "")
+                        i64.const 0
+                        i64.load offset=1125899906842624
+                        drop)
+            )"#,
+            RemoveItemMutator(Item::Function),
+            r#"(module
+                    (memory i64 0)
+                    (func (export "")
+                        i64.const 0
+                        i64.load offset=1125899906842624
+                        drop)
             )"#,
         );
     }
