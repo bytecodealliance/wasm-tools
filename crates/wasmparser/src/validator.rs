@@ -51,6 +51,7 @@ mod operators;
 pub mod types;
 
 use self::component::*;
+pub use self::core::ValidatorResources;
 use self::core::*;
 use self::types::{TypeList, Types};
 pub use func::FuncValidator;
