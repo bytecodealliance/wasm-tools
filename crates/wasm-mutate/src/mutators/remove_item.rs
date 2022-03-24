@@ -435,6 +435,15 @@ impl Translator for RemoveItem {
     /// * Finally our index is larger than the one being removed which means we
     ///   now decrement it by one to account for the removed item.
     fn remap(&mut self, item: Item, idx: u32) -> Result<u32> {
+        // If we're before the code section then all function references, no
+        // matter where they are, are considered "referencing functions" so we
+        // save the indices of that which is referenced.
+        if item == Item::Function {
+            if let Funcref::Save = self.function_reference_action {
+                self.referenced_functions.insert(idx);
+            }
+        }
+
         if item != self.item {
             // Different kind of item, no change
             Ok(idx)
@@ -465,19 +474,13 @@ impl Translator for RemoveItem {
         // otherwise referenced (probably because we removed the one
         // item that referenced it).
         if let Operator::RefFunc { function_index } = op {
-            let idx = *function_index;
-            match self.function_reference_action {
-                Funcref::Save => {
-                    self.referenced_functions.insert(idx);
-                }
-                Funcref::Skip => {}
-                Funcref::RequireReferenced => {
-                    if !self.referenced_functions.contains(&idx) {
-                        return Err(Error::no_mutations_applicable());
-                    }
+            if let Funcref::RequireReferenced = self.function_reference_action {
+                if !self.referenced_functions.contains(function_index) {
+                    return Err(Error::no_mutations_applicable());
                 }
             }
         }
+
         translate::op(self, op)
     }
 }
@@ -737,6 +740,26 @@ mod tests {
                         i64.const 0
                         i64.load offset=1125899906842624
                         drop)
+            )"#,
+        );
+    }
+
+    #[test]
+    fn remove_empty_element() {
+        crate::mutators::match_mutation(
+            r#"(module
+                    (func (result funcref)
+                        ref.func 0)
+                    ;; cannot be removed otherwise the `ref.func 0` would be
+                    ;; inapplicable
+                    (elem declare func 0)
+                    (elem declare func)
+            )"#,
+            RemoveItemMutator(Item::Element),
+            r#"(module
+                    (func (result funcref)
+                        ref.func 0)
+                    (elem declare func 0)
             )"#,
         );
     }
