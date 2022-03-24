@@ -795,7 +795,7 @@ lang! {
         I16x8ExtAddPairwiseI8x16U([Id; 1]) = "i16x8.extadd_pairwise_i8x16_u",
         I16x8Abs([Id; 1]) = "i16x8.abs",
         I16x8Neg([Id; 1]) = "i16x8.neg",
-        I16x8Q15MulrSatS([Id; 1]) = "i16x8.q15mulr_sat_s",
+        I16x8Q15MulrSatS([Id; 2]) = "i16x8.q15mulr_sat_s",
         I16x8AllTrue([Id; 1]) = "i16x8.all_true",
         I16x8Bitmask([Id; 1]) = "i16x8.bitmask",
         I16x8NarrowI32x4S([Id; 2]) = "i16x8.narrow_i32x4_s",
