@@ -62,7 +62,7 @@ pub fn lazy_expand<'a>(
     let nodes = egraph[id].nodes.clone();
     let count = nodes.len();
     // For each eclass, at least one node exists
-    let split_at = rnd.borrow_mut().gen_range(0, count);
+    let split_at = rnd.borrow_mut().gen_range(0..count);
     let indices = (split_at..count).into_iter().chain(0..split_at);
 
     let t = indices

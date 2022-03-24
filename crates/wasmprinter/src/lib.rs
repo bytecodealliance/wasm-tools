@@ -16,6 +16,7 @@ use std::path::Path;
 use wasmparser::*;
 
 const MAX_LOCALS: u32 = 50000;
+const MAX_NESTING_TO_PRINT: u32 = 50;
 
 /// Reads a WebAssembly `file` from the filesystem and then prints it into an
 /// in-memory `String`.
@@ -1026,7 +1027,11 @@ impl Printer {
     fn newline(&mut self) {
         self.result.push('\n');
         self.line += 1;
-        for _ in 0..self.nesting {
+
+        // Clamp the maximum nesting size that we print at something somewhat
+        // reasonable to avoid generating hundreds of megabytes of whitespace
+        // for small-ish modules that have deep-ish nesting.
+        for _ in 0..self.nesting.min(MAX_NESTING_TO_PRINT) {
             self.result.push_str("  ");
         }
     }

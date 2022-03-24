@@ -382,7 +382,15 @@ impl Module {
     }
 
     fn arbitrary_func_type(&mut self, u: &mut Unstructured) -> Result<Rc<FuncType>> {
-        arbitrary_func_type(u, &self.valtypes)
+        arbitrary_func_type(
+            u,
+            &self.valtypes,
+            if !self.config.multi_value_enabled() {
+                Some(1)
+            } else {
+                None
+            },
+        )
     }
 
     fn can_add_local_or_import_tag(&self) -> bool {
@@ -1115,6 +1123,7 @@ pub(crate) fn configured_valtypes(config: &dyn Config) -> Vec<ValType> {
 pub(crate) fn arbitrary_func_type(
     u: &mut Unstructured,
     valtypes: &[ValType],
+    max_results: Option<usize>,
 ) -> Result<Rc<FuncType>> {
     let mut params = vec![];
     let mut results = vec![];
@@ -1122,7 +1131,7 @@ pub(crate) fn arbitrary_func_type(
         params.push(arbitrary_valtype(u, valtypes)?);
         Ok(true)
     })?;
-    arbitrary_loop(u, 0, 20, |u| {
+    arbitrary_loop(u, 0, max_results.unwrap_or(20), |u| {
         results.push(arbitrary_valtype(u, valtypes)?);
         Ok(true)
     })?;

@@ -61,13 +61,18 @@ fuzz_target!(|bytes: &[u8]| {
         }
     };
 
+    // Note that on-by-default features in wasmparser are not disabled here if
+    // the feature was disabled in `config` when the module was generated. For
+    // example if the input module doesn't have simd then wasm-mutate may
+    // produce a module that uses simd, which is ok and expected.
+    //
+    // Otherwise only forward some off-by-default features which are affected by
+    // wasm-smith's generation of modules and wasm-mutate otherwise won't add
+    // itself if it doesn't already exist.
     let mut features = WasmFeatures::default();
-    features.simd = config.simd_enabled;
     features.relaxed_simd = config.relaxed_simd_enabled;
-    features.reference_types = config.reference_types_enabled;
-    features.bulk_memory = config.bulk_memory_enabled;
 
-    for (i, mutated_wasm) in iterator.take(100).enumerate() {
+    for (i, mutated_wasm) in iterator.take(10).enumerate() {
         let mutated_wasm = match mutated_wasm {
             Ok(w) => w,
             Err(e) => match e.kind() {

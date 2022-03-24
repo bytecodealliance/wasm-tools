@@ -17,8 +17,9 @@ mod mutators;
 pub use error::*;
 
 use crate::mutators::{
-    codemotion::CodemotionMutator, custom::RemoveCustomSection,
-    function_body_unreachable::FunctionBodyUnreachable, modify_data::ModifyDataMutator,
+    add_function::AddFunctionMutator, add_type::AddTypeMutator, codemotion::CodemotionMutator,
+    custom::RemoveCustomSection, function_body_unreachable::FunctionBodyUnreachable,
+    modify_data::ModifyDataMutator, modify_init_exprs::InitExpressionMutator,
     peephole::PeepholeMutator, remove_export::RemoveExportMutator, remove_item::RemoveItemMutator,
     rename_export::RenameExportMutator, snip_function::SnipMutator, Item,
 };
@@ -42,7 +43,7 @@ macro_rules! define_mutators {
             let m = $first;
 
             if m.can_mutate($self) {
-                match m.mutate($self) {
+                match m.clone().mutate($self) {
                     Ok(iter) => {
                         return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))))
                     }
@@ -57,7 +58,7 @@ macro_rules! define_mutators {
                 let m = $rest;
 
                 if m.can_mutate($self) {
-                    match m.mutate($self) {
+                    match m.clone().mutate($self) {
                         Ok(iter) => {
                             return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))))
                         }
@@ -73,7 +74,7 @@ macro_rules! define_mutators {
                 let m = $head;
 
                 if m.can_mutate($self) {
-                    match m.mutate($self) {
+                    match m.clone().mutate($self) {
                         Ok(iter) => {
                             return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))))
                         }
@@ -91,7 +92,7 @@ macro_rules! define_mutators {
     ( $self: ident , ($first: expr , $( $tail: expr ,)* ) ) => {
         {
             let count = define_mutators!(@count $first , $($tail ,)*);
-            let discriminator:u32 = $self.rng().gen_range(0, count);
+            let discriminator:u32 = $self.rng().gen_range(0..count);
             define_mutators!(@expand $self, discriminator , 0 , $first , $($tail ,)*  . , );
         }
     };
@@ -159,8 +160,17 @@ pub struct WasmMutate<'wasm> {
     preserve_semantics: bool,
 
     /// Fuel to control the time of the mutation.
-    #[cfg_attr(feature = "clap", clap(skip = Cell::new(u64::MAX)))]
+    #[cfg_attr(
+        feature = "clap",
+        clap(
+            short,
+            long,
+            default_value = "18446744073709551615", // u64::MAX
+            parse(try_from_str = parse_fuel),
+        )
+    )]
     fuel: Cell<u64>,
+
     /// Only perform size-reducing transformations on the Wasm module. This
     /// allows `wasm-mutate` to be used as a test case reducer.
     #[cfg_attr(feature = "clap", clap(long))]
@@ -176,6 +186,11 @@ pub struct WasmMutate<'wasm> {
 
     #[cfg_attr(feature = "clap", clap(skip = None))]
     info: Option<ModuleInfo<'wasm>>,
+}
+
+#[cfg(feature = "clap")]
+fn parse_fuel(s: &str) -> Result<Cell<u64>, String> {
+    s.parse::<u64>().map(Cell::new).map_err(|s| s.to_string())
 }
 
 impl Default for WasmMutate<'_> {
@@ -233,6 +248,11 @@ impl<'wasm> WasmMutate<'wasm> {
     ///
     /// You can override this to use `libFuzzer`'s `LLVMFuzzerMutate` function
     /// to get raw bytes from `libFuzzer`, for example.
+    ///
+    /// The function is given the raw data buffer and the maximum size the
+    /// mutated data should be. After mutating the data, the function should
+    /// `resize` the data to its final, mutated size, which should be less than
+    /// or equal to the maximum size.
     pub fn raw_mutate_func(
         &mut self,
         raw_mutate_func: Option<Arc<dyn Fn(&mut Vec<u8>, usize) -> Result<()>>>,
@@ -273,7 +293,15 @@ impl<'wasm> WasmMutate<'wasm> {
                 SnipMutator,
                 CodemotionMutator,
                 FunctionBodyUnreachable,
+                AddTypeMutator {
+                    max_params: 20,
+                    max_results: 20,
+                },
+                AddFunctionMutator,
                 RemoveCustomSection,
+                InitExpressionMutator::Global,
+                InitExpressionMutator::ElementOffset,
+                InitExpressionMutator::ElementFunc,
                 RemoveItemMutator(Item::Function),
                 RemoveItemMutator(Item::Global),
                 RemoveItemMutator(Item::Memory),
@@ -316,8 +344,8 @@ impl<'wasm> WasmMutate<'wasm> {
         // subslice of data with a random slice of other data.
         //
         // First up start/end indices are picked.
-        let a = self.rng().gen_range(0, data.len() + 1);
-        let b = self.rng().gen_range(0, data.len() + 1);
+        let a = self.rng().gen_range(0..=data.len());
+        let b = self.rng().gen_range(0..=data.len());
         let start = a.min(b);
         let end = a.max(b);
 
@@ -331,7 +359,7 @@ impl<'wasm> WasmMutate<'wasm> {
         };
         let len = self
             .rng()
-            .gen_range(0, end - start + max_size.saturating_sub(data.len()) + 1);
+            .gen_range(0..=end - start + max_size.saturating_sub(data.len()));
 
         // With parameters chosen the `Vec::splice` method is used to replace
         // the data in the input.
@@ -357,5 +385,5 @@ pub(crate) fn validate(validator: &mut wasmparser::Validator, bytes: &[u8]) {
         drop(std::fs::write("test.wat", &text));
     }
 
-    panic!("wasm failed to validate {:?}", err);
+    panic!("wasm failed to validate: {} (written to test.wasm)", err);
 }

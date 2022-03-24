@@ -759,7 +759,10 @@ impl Parser {
             }
             let payload = match cur.parse(data, true) {
                 // Propagate all errors
-                Err(e) => return Some(Err(e)),
+                Err(e) => {
+                    done = true;
+                    return Some(Err(e));
+                }
 
                 // This isn't possible because `eof` is always true.
                 Ok(Chunk::NeedMoreData(_)) => unreachable!(),
@@ -1072,6 +1075,14 @@ mod tests {
                 payload: Payload::Version { num: 1, .. },
             }),
         );
+    }
+
+    #[test]
+    fn header_iter() {
+        for _ in Parser::default().parse_all(&[]) {}
+        for _ in Parser::default().parse_all(b"\0") {}
+        for _ in Parser::default().parse_all(b"\0asm") {}
+        for _ in Parser::default().parse_all(b"\0asm\x01\x01\x01\x01") {}
     }
 
     fn parser_after_header() -> Parser {

@@ -8,12 +8,12 @@ publish = false
 anyhow = "1.0"
 arbitrary = "1.0"
 num_cpus = "1.13"
-rand = { version = "0.7.3", features = ["small_rng"] }
+rand = { version = "0.8.0", features = ["small_rng"] }
 wasm-mutate = { path = '../wasm-mutate' }
 wasmprinter = { path = '../wasmprinter' }
 wasmparser = { path = "../wasmparser" }
 wasmtime = "0.32.0"
-env_logger = "0.8"
+env_logger = "0.9"
 itertools = "0.10.0"
 clap = "3.0"
 log = "0.4"

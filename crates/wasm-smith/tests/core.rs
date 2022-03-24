@@ -16,7 +16,7 @@ fn wasm_features() -> WasmFeatures {
 #[test]
 fn smoke_test_module() {
     let mut rng = SmallRng::seed_from_u64(0);
-    let mut buf = vec![0; 1024];
+    let mut buf = vec![0; 2048];
     for _ in 0..1024 {
         rng.fill_bytes(&mut buf);
         let u = Unstructured::new(&buf);
@@ -33,7 +33,7 @@ fn smoke_test_module() {
 #[test]
 fn smoke_test_ensure_termination() {
     let mut rng = SmallRng::seed_from_u64(0);
-    let mut buf = vec![0; 1024];
+    let mut buf = vec![0; 2048];
     for _ in 0..1024 {
         rng.fill_bytes(&mut buf);
         let u = Unstructured::new(&buf);
@@ -51,7 +51,7 @@ fn smoke_test_ensure_termination() {
 #[test]
 fn smoke_test_swarm_config() {
     let mut rng = SmallRng::seed_from_u64(0);
-    let mut buf = vec![0; 1024];
+    let mut buf = vec![0; 2048];
     for _ in 0..1024 {
         rng.fill_bytes(&mut buf);
         let u = Unstructured::new(&buf);
@@ -61,6 +61,26 @@ fn smoke_test_swarm_config() {
 
             let mut validator = Validator::new();
             validator.wasm_features(wasm_features());
+            validate(&mut validator, &wasm_bytes);
+        }
+    }
+}
+
+#[test]
+fn multi_value_disabled() {
+    let mut rng = SmallRng::seed_from_u64(42);
+    let mut buf = vec![0; 2048];
+    for _ in 0..10 {
+        rng.fill_bytes(&mut buf);
+        let mut u = Unstructured::new(&buf);
+        let mut cfg = SwarmConfig::arbitrary(&mut u).unwrap();
+        cfg.multi_value_enabled = false;
+        if let Ok(module) = Module::new(cfg, &mut u) {
+            let wasm_bytes = module.to_bytes();
+            let mut validator = Validator::new();
+            let mut features = wasm_features();
+            features.multi_value = false;
+            validator.wasm_features(features);
             validate(&mut validator, &wasm_bytes);
         }
     }

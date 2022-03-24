@@ -45,10 +45,12 @@ use wasm_encoder::{CodeSection, Function, GlobalSection, Instruction, Module, Va
 use wasmparser::{CodeSectionReader, FunctionBody, GlobalSectionReader, LocalsReader};
 
 /// This mutator applies a random peephole transformation to the input Wasm module
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct PeepholeMutator {
     max_tree_depth: u32,
+    rules: Option<Vec<Rewrite<Lang, PeepholeMutationAnalysis>>>,
 }
+
 type EG = egg::EGraph<Lang, PeepholeMutationAnalysis>;
 
 impl PeepholeMutator {
@@ -56,6 +58,18 @@ impl PeepholeMutator {
     pub fn new(max_depth: u32) -> Self {
         PeepholeMutator {
             max_tree_depth: max_depth,
+            rules: None,
+        }
+    }
+
+    #[cfg(test)]
+    pub fn new_with_rules(
+        max_tree_depth: u32,
+        rules: Vec<Rewrite<Lang, PeepholeMutationAnalysis>>,
+    ) -> Self {
+        PeepholeMutator {
+            max_tree_depth,
+            rules: Some(rules),
         }
     }
 
@@ -106,12 +120,12 @@ impl PeepholeMutator {
     fn random_mutate<'a>(
         self,
         config: &'a mut WasmMutate,
-        rules: Vec<Rewrite<Lang, PeepholeMutationAnalysis>>,
+        rules: &[Rewrite<Lang, PeepholeMutationAnalysis>],
     ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         let code_section = config.info().get_code_section();
         let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
         let function_count = sectionreader.get_count();
-        let mut function_to_mutate = config.rng().gen_range(0, function_count);
+        let mut function_to_mutate = config.rng().gen_range(0..function_count);
 
         let mut visited_functions = 0;
 
@@ -132,7 +146,7 @@ impl PeepholeMutator {
                 .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()?;
             let operatorscount = operators.len();
 
-            let mut opcode_to_mutate = config.rng().gen_range(0, operatorscount);
+            let mut opcode_to_mutate = config.rng().gen_range(0..operatorscount);
             log::trace!(
                 "Selecting operator {}/{} from function {}",
                 opcode_to_mutate,
@@ -208,7 +222,7 @@ impl PeepholeMutator {
                 let runner = Runner::<Lang, PeepholeMutationAnalysis, ()>::new(analysis)
                     .with_iter_limit(1) // FIXME, the iterations should consume fuel from the actual mutator. Be careful with inner set time limits that can lead us to non-deterministic behavior
                     .with_expr(&start)
-                    .run(&rules);
+                    .run(rules);
                 let mut egraph = runner.egraph;
                 // In theory this will return the Id of the operator eterm
                 let root = egraph.add_expr(&start);
@@ -402,7 +416,7 @@ impl PeepholeMutator {
     fn mutate_with_rules<'a>(
         self,
         config: &'a mut WasmMutate,
-        rules: Vec<Rewrite<Lang, PeepholeMutationAnalysis>>,
+        rules: &[Rewrite<Lang, PeepholeMutationAnalysis>],
     ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         self.random_mutate(config, rules)
     }
@@ -414,12 +428,14 @@ impl Mutator for PeepholeMutator {
         self,
         config: &'a mut crate::WasmMutate,
     ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
-        // Calculate here type related information for parameters, locals and returns
-        // This information could be passed to the conditions to check for type correctness rewriting
-        // Write the new rules in the rules.rs file
-        let rules = self.get_rules(config);
-
-        let modules = self.mutate_with_rules(config, rules)?;
+        let rules = match self.rules.clone() {
+            Some(rules) => rules,
+            // Calculate here type related information for parameters, locals and returns
+            // This information could be passed to the conditions to check for type correctness rewriting
+            // Write the new rules in the rules.rs file
+            None => self.get_rules(config),
+        };
+        let modules = self.mutate_with_rules(config, &rules)?;
 
         Ok(modules)
     }
@@ -611,8 +627,8 @@ mod tests {
                 (type (;0;) (func (result i32)))
                 (func (;0;) (type 0) (result i32)
                   (local i32 i32)
-                  i32.const 160268115
-                  i32.const -160268059
+                  i32.const -1985698784
+                  i32.const 1985698840
                   i32.add)
                 (export "exported_func" (func 0)))
             "#,
@@ -712,22 +728,21 @@ mod tests {
         "#,
             rules,
             r#"
-            (module
-                (type (;0;) (func (result i32) ))
-                (func (;0;) (type 0) (result i32)
-                    (local i64)
-                    local.get 0
-                    i64.const 0
-                    i64.shl
-                    i32.wrap_i64
-                    i32.const -441701230
-                    i32.const 441701230
-                    i32.add
-                    i32.add
-                    i32.const 0
-                    i32.add)
-              (export "exported_func" (func 0)))
-            "#,
+        (module
+            (func (export "exported_func") (result i32) (local i64)
+                local.get 0
+                i64.const 0
+                i64.shl
+                i32.wrap_i64
+                i32.const -441701230
+                i32.const 0
+                i32.add
+                i32.const 441701230
+                i32.add
+                i32.add
+            )
+        )
+        "#,
             0,
         );
     }
@@ -922,7 +937,7 @@ mod tests {
         assert_eq!(can_mutate, true);
         let rules = mutator.get_rules(&wasmmutate);
 
-        for mutated in mutator.mutate_with_rules(&mut wasmmutate, rules).unwrap() {
+        for mutated in mutator.mutate_with_rules(&mut wasmmutate, &rules).unwrap() {
             let module = mutated.unwrap();
 
             let mut validator = wasmparser::Validator::new();
@@ -1419,6 +1434,21 @@ mod tests {
                   local.get 6
                   i64.div_s
                   call 0
+                  local.get 6
+                  local.get 6
+                  i64.div_s
+                  local.get 6
+                  i64.div_s
+                  local.get 6
+                  i64.div_s
+                  local.get 6
+                  i64.div_s
+                  local.get 6
+                  i64.div_s
+                  local.get 6
+                  i64.div_s
+                  call 0
+                  i32.or
                   i32.or
                 )
             )
@@ -1557,39 +1587,11 @@ mod tests {
         expected: &str,
         seed: u64,
     ) {
-        let original = &wat::parse_str(original).unwrap();
-        let info = ModuleInfo::new(original).unwrap();
+        let mut config = WasmMutate::default();
+        config.fuel(300);
+        config.seed(seed);
 
-        let mut wasmmutate = WasmMutate::default();
-        wasmmutate.fuel(300);
-        wasmmutate.info = Some(info);
-        let rnd = SmallRng::seed_from_u64(seed);
-        wasmmutate.rng = Some(rnd);
-
-        let mutator = PeepholeMutator::new(3);
-
-        let can_mutate = mutator.can_mutate(&wasmmutate);
-
-        assert_eq!(can_mutate, true);
-        let mut found = false;
-        for mutated in mutator
-            .mutate_with_rules(&mut wasmmutate, rules.to_vec())
-            .unwrap()
-        {
-            let mut validator = wasmparser::Validator::new();
-            let mutated_bytes = &mutated.unwrap().finish();
-            let text = wasmprinter::print_bytes(mutated_bytes).unwrap();
-            crate::validate(&mut validator, mutated_bytes);
-
-            let expected_bytes = &wat::parse_str(expected).unwrap();
-            let expectedtext = wasmprinter::print_bytes(expected_bytes).unwrap();
-
-            if expectedtext == text {
-                found = true;
-            }
-        }
-
-        // Assert that the passed mutation was found
-        assert!(found)
+        let mutator = PeepholeMutator::new_with_rules(3, rules.to_vec());
+        config.match_mutation(original, mutator, expected);
     }
 }

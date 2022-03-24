@@ -343,7 +343,7 @@ impl Component {
 
                 // Type definition.
                 _ => {
-                    let ty = crate::core::arbitrary_func_type(u, &self.core_valtypes)?;
+                    let ty = crate::core::arbitrary_func_type(u, &self.core_valtypes, None)?;
                     types.push(ty.clone());
                     defs.push(ModuleTypeDef::TypeDef(crate::core::Type::Func(ty)));
                 }

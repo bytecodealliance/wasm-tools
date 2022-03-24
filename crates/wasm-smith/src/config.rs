@@ -237,33 +237,50 @@ pub trait Config: 'static + std::fmt::Debug {
     }
 
     /// Determines whether the bulk memory proposal is enabled for generating
-    /// instructions. Defaults to `false`.
+    /// instructions.
+    ///
+    /// Defaults to `false`.
     fn bulk_memory_enabled(&self) -> bool {
         false
     }
 
     /// Determines whether the reference types proposal is enabled for
-    /// generating instructions. Defaults to `false`.
+    /// generating instructions.
+    ///
+    /// Defaults to `false`.
     fn reference_types_enabled(&self) -> bool {
         false
     }
 
     /// Determines whether the SIMD proposal is enabled for
-    /// generating instructions. Defaults to `false`.
+    /// generating instructions.
+    ///
+    /// Defaults to `false`.
     fn simd_enabled(&self) -> bool {
         false
     }
 
     /// Determines whether the Relaxed SIMD proposal is enabled for
-    /// generating instructions. Defaults to `false`.
+    /// generating instructions.
+    ///
+    /// Defaults to `false`.
     fn relaxed_simd_enabled(&self) -> bool {
         false
     }
 
     /// Determines whether the exception-handling proposal is enabled for
-    /// generating instructions. Defaults to `false`.
+    /// generating instructions.
+    ///
+    /// Defaults to `false`.
     fn exceptions_enabled(&self) -> bool {
         false
+    }
+
+    /// Determines whether the multi-value results are enabled.
+    ///
+    /// Defaults to `true`.
+    fn multi_value_enabled(&self) -> bool {
+        true
     }
 
     /// Determines whether a `start` export may be included. Defaults to `true`.
@@ -397,6 +414,7 @@ pub struct SwarmConfig {
     pub memory_offset_choices: (u32, u32, u32),
     pub memory_max_size_required: bool,
     pub simd_enabled: bool,
+    pub multi_value_enabled: bool,
     pub relaxed_simd_enabled: bool,
     pub exceptions_enabled: bool,
     pub allow_start_export: bool,
@@ -429,6 +447,7 @@ impl<'a> Arbitrary<'a> for SwarmConfig {
             bulk_memory_enabled: reference_types_enabled || u.arbitrary()?,
             reference_types_enabled,
             simd_enabled: u.arbitrary()?,
+            multi_value_enabled: u.arbitrary()?,
             max_aliases: u.int_in_range(0..=MAX_MAXIMUM)?,
             max_nesting_depth: u.int_in_range(0..=10)?,
 
@@ -591,6 +610,10 @@ impl Config for SwarmConfig {
 
     fn exceptions_enabled(&self) -> bool {
         self.exceptions_enabled
+    }
+
+    fn multi_value_enabled(&self) -> bool {
+        self.multi_value_enabled
     }
 
     fn allow_start_export(&self) -> bool {
