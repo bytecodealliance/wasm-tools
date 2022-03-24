@@ -939,7 +939,7 @@ impl<'a> DFGBuilder {
                 }
                 Operator::I16x8Abs => self.unop(idx, Lang::I16x8Abs),
                 Operator::I16x8Neg => self.unop(idx, Lang::I16x8Neg),
-                Operator::I16x8Q15MulrSatS => self.unop(idx, Lang::I16x8Q15MulrSatS),
+                Operator::I16x8Q15MulrSatS => self.binop(idx, Lang::I16x8Q15MulrSatS),
                 Operator::I16x8AllTrue => self.unop(idx, Lang::I16x8AllTrue),
                 Operator::I16x8Bitmask => self.unop(idx, Lang::I16x8Bitmask),
                 Operator::I16x8NarrowI32x4S => self.binop(idx, Lang::I16x8NarrowI32x4S),
