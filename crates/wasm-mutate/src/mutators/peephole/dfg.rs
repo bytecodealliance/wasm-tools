@@ -1235,7 +1235,7 @@ impl From<&wasmparser::MemoryImmediate> for MemArg {
 mod tests {
     use super::DFGBuilder;
     use crate::mutators::OperatorAndByteOffset;
-    use crate::ModuleInfo;
+    use crate::{ModuleInfo, WasmMutate};
     use wasmparser::Parser;
 
     #[test]
@@ -1270,6 +1270,7 @@ mod tests {
         )
         .unwrap();
 
+        let config = WasmMutate::default();
         let mut parser = Parser::new(0);
         let mut consumed = 0;
         loop {
@@ -1291,7 +1292,7 @@ mod tests {
                         .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()
                         .unwrap();
 
-                    let roots = DFGBuilder::new().get_bb_from_operator(5, &operators);
+                    let roots = DFGBuilder::new(&config).get_bb_from_operator(5, &operators);
 
                     assert!(roots.is_some())
                 }
@@ -1325,6 +1326,7 @@ mod tests {
         )
         .unwrap();
 
+        let config = WasmMutate::default();
         let mut parser = Parser::new(0);
         let mut consumed = 0;
         loop {
@@ -1346,10 +1348,11 @@ mod tests {
                         .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()
                         .unwrap();
 
-                    let bb = DFGBuilder::new()
+                    let bb = DFGBuilder::new(&config)
                         .get_bb_from_operator(0, &operators)
                         .unwrap();
-                    let roots = DFGBuilder::new().get_dfg(&ModuleInfo::default(), &operators, &bb);
+                    let roots =
+                        DFGBuilder::new(&config).get_dfg(&ModuleInfo::default(), &operators, &bb);
                     assert!(roots.is_some())
                 }
                 wasmparser::Payload::End => {
@@ -1405,6 +1408,7 @@ mod tests {
         )
         .unwrap();
 
+        let config = WasmMutate::default();
         let mut parser = Parser::new(0);
         let mut consumed = 0;
         loop {
@@ -1426,10 +1430,11 @@ mod tests {
                         .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()
                         .unwrap();
 
-                    let bb = DFGBuilder::new()
+                    let bb = DFGBuilder::new(&config)
                         .get_bb_from_operator(7, &operators)
                         .unwrap();
-                    let roots = DFGBuilder::new().get_dfg(&ModuleInfo::default(), &operators, &bb);
+                    let roots =
+                        DFGBuilder::new(&config).get_dfg(&ModuleInfo::default(), &operators, &bb);
                     assert!(roots.is_some());
                 }
                 wasmparser::Payload::End => {
@@ -1460,6 +1465,7 @@ mod tests {
         )
         .unwrap();
 
+        let config = WasmMutate::default();
         let info = ModuleInfo::new(original).unwrap();
 
         let mut parser = Parser::new(0);
@@ -1481,10 +1487,10 @@ mod tests {
                         .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()
                         .unwrap();
 
-                    let bb = DFGBuilder::new()
+                    let bb = DFGBuilder::new(&config)
                         .get_bb_from_operator(3, &operators)
                         .unwrap();
-                    let roots = DFGBuilder::new().get_dfg(&info, &operators, &bb);
+                    let roots = DFGBuilder::new(&config).get_dfg(&info, &operators, &bb);
                     assert!(roots.is_some());
                 }
                 wasmparser::Payload::End => {
