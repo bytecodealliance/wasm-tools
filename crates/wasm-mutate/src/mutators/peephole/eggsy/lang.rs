@@ -932,11 +932,18 @@ lang! {
         /// This operation represents a random f64
         RandF64 = "f64.rand",
 
-        /// This instructions is used to define unknown operands, for example when the value can come from the join of several basic blocks in a dfg
+        /// This instructions is used to define unknown operands, for example
+        /// when the value can come from the join of several basic blocks in a
+        /// dfg
         Undef = "undef",
-        /// Takes one i32 constant operand and turn it into a sum of two random numbers whihch sum is the operand `i32.const x = i32.const r + i32.const (x - r) `
+
+        /// Takes one i32 constant operand and turn it into a sum of two random
+        /// numbers whihch sum is the operand `i32.const x = i32.const r +
+        /// i32.const (x - r) `
         UnfoldI32(Id) = "i32.unfold",
-        /// Takes one i64 constant operand and turn it into a sum of two random numbers whihch sum is the operand `i64.const x = i64.const r + i64.const (x - r) `
+        /// Takes one i64 constant operand and turn it into a sum of two random
+        /// numbers whihch sum is the operand `i64.const x = i64.const r +
+        /// i64.const (x - r) `
         UnfoldI64(Id) = "i64.unfold",
 
         /// Propsoed custom mutator from issue #391, use-of-global

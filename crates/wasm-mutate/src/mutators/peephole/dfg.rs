@@ -92,6 +92,7 @@ impl MiniDFG {
             .or(Some(false))
             .unwrap()
     }
+
     /// Return true if the coloring of the children subtrees is the same as the root
     /// Notice that this value can be calcuated when the tree is built
     pub fn is_subtree_consistent_from_root(&self) -> bool {
@@ -104,6 +105,7 @@ impl MiniDFG {
     pub fn pretty_print_default(&self) -> String {
         self.pretty_print(&|entry: &StackEntry| format!("{:?}", entry.operator))
     }
+
     /// Pretty prints the DFG forest in a tree structure
     /// It receives a custom function to format how the entry information will be written
     /// For an example, see the implementation of the `pretty_print_default` method.
