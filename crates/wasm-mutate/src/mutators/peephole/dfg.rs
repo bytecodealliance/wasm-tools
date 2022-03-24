@@ -92,6 +92,7 @@ impl MiniDFG {
             .or(Some(false))
             .unwrap()
     }
+
     /// Return true if the coloring of the children subtrees is the same as the root
     /// Notice that this value can be calcuated when the tree is built
     pub fn is_subtree_consistent_from_root(&self) -> bool {
@@ -104,6 +105,7 @@ impl MiniDFG {
     pub fn pretty_print_default(&self) -> String {
         self.pretty_print(&|entry: &StackEntry| format!("{:?}", entry.operator))
     }
+
     /// Pretty prints the DFG forest in a tree structure
     /// It receives a custom function to format how the entry information will be written
     /// For an example, see the implementation of the `pretty_print_default` method.
@@ -1070,8 +1072,15 @@ impl<'a> DFGBuilder {
                 Operator::F64x2PromoteLowF32x4 => self.unop(idx, Lang::F64x2PromoteLowF32x4),
 
                 op => {
-                    // If the operator is not implemented, break the mutation of this Basic Block
-                    log::warn!("wasm operator not implemented: {:?}", op);
+                    // If the operator is not implemented, warn and bail out. We
+                    // can't use `undef` for these because if we try to rewrite
+                    // them with some rule like `x => i32.rand` then we fail to
+                    // actually encode the rewritten code to valid Wasm right
+                    // now. We would need to be able to walk the new expression
+                    // and determine which `undef` values became dead code and
+                    // we need to insert `drop`s for before inserting the new
+                    // code, and we don't currently have that infrastructure.
+                    log::warn!("Wasm operator not implemented: {:?}", op);
                     return None;
                 }
             }
