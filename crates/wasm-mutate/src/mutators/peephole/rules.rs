@@ -480,6 +480,40 @@ impl PeepholeMutator {
                     "?x" => "ref.null.extern"
                         if self.is_type("?x", PrimitiveTypeInfo::ExternRef)
                 ),
+                // Try to outright delete some instructions and containers to
+                // help make input even smaller in wasm-shrink cases.
+                rewrite!(
+                    "remove-drop";
+                    "(drop ?x)" => "(container)"
+                ),
+                rewrite!(
+                    "remove-nop";
+                    "nop" => "(container)"
+                ),
+                rewrite!(
+                    "remove-global.set.0";
+                    "(global.set.0 ?x)" => "(container)"
+                ),
+                rewrite!(
+                    "remove-global.set.1";
+                    "(global.set.1 ?x)" => "(container)"
+                ),
+                rewrite!(
+                    "remove-elem.drop.0";
+                    "(elem.drop.0)" => "(container)"
+                ),
+                rewrite!(
+                    "remove-elem.drop.1";
+                    "(elem.drop.1)" => "(container)"
+                ),
+                rewrite!(
+                    "remove-data.drop.0";
+                    "(data.drop.0)" => "(container)"
+                ),
+                rewrite!(
+                    "remove-data.drop.1";
+                    "(data.drop.1)" => "(container)"
+                ),
             ]);
 
             if !config.reduce {
