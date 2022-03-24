@@ -166,7 +166,7 @@ impl PeepholeMutator {
                 if count == operatorscount {
                     break;
                 }
-                let mut dfg = DFGBuilder::new();
+                let mut dfg = DFGBuilder::new(config);
                 let basicblock = dfg.get_bb_from_operator(opcode_to_mutate, &operators);
 
                 let basicblock = match basicblock {
@@ -247,21 +247,28 @@ impl PeepholeMutator {
                 // At this point we spent some resource calculating basic block,
                 // and constructing the egraph
                 config.consume_fuel(1)?;
-                let iterator = if config.reduce {
+
+                // If reduction mode is requested then yield back the smallest
+                // graph to start off with. For reduction cases that are
+                // specifically trying to find an interesting test case though
+                // the first reduction may not be interesting, so continue to
+                // chain up the lazy expansions afterwards like we always do.
+                let iter = if config.reduce {
                     let mut extractor = egg::Extractor::new(&egraph, egg::AstSize);
                     let (_best_cost, best_expr) = extractor.find_best(root);
-                    Box::new(std::iter::once(best_expr))
+                    Some(best_expr).into_iter()
                 } else {
-                    lazy_expand_aux(
-                        root,
-                        egraph.clone(),
-                        self.max_tree_depth,
-                        config.rng().gen(),
-                    )
+                    None.into_iter()
                 };
+                let iter = iter.chain(lazy_expand_aux(
+                    root,
+                    egraph.clone(),
+                    self.max_tree_depth,
+                    config.rng().gen(),
+                ));
 
                 // Filter expression equal to the original one
-                let iterator = iterator
+                let iterator = iter
                     .filter(move |expr| !expr.to_string().eq(&startcmp.to_string()))
                     .map(move |expr| {
                         log::trace!("Yielding expression:\n{}", expr.pretty(60));
