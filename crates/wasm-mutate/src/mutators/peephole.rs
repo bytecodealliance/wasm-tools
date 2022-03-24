@@ -166,7 +166,7 @@ impl PeepholeMutator {
                 if count == operatorscount {
                     break;
                 }
-                let mut dfg = DFGBuilder::new();
+                let mut dfg = DFGBuilder::new(config);
                 let basicblock = dfg.get_bb_from_operator(opcode_to_mutate, &operators);
 
                 let basicblock = match basicblock {

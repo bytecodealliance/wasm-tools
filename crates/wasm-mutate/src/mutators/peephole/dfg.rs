@@ -1,18 +1,15 @@
 //! DFG extractor for Wasm functions. It converts Wasm operators to the [Lang]
 //! intermediate representation.
-use std::collections::HashMap;
 
-use egg::{Id, Language, RecExpr};
-use wasmparser::{Operator, Range};
-
+use super::eggsy::encoder::rebuild::build_expr;
 use crate::mutators::peephole::{
     Lang, MemArg, MemArgLane, MemoryCopy, MemoryInit, RefType, TableCopy, TableInit,
 };
-use crate::ModuleInfo;
-
 use crate::mutators::OperatorAndByteOffset;
-
-use super::eggsy::encoder::rebuild::build_expr;
+use crate::{ModuleInfo, WasmMutate};
+use egg::{Id, Language, RecExpr};
+use std::collections::HashMap;
+use wasmparser::{Operator, Range};
 
 /// It executes a minimal symbolic evaluation of the stack to detect operands
 /// location in the code for certain operators
@@ -30,6 +27,7 @@ pub struct DFGBuilder {
     dfg_map: Vec<StackEntry>,
     operator_index_to_entry_index: HashMap<usize, usize>,
     parents: Vec<Option<usize>>,
+    preserve_semantics: bool,
 }
 
 /// Basic block of a Wasm's function defined as a range of operators in the Wasm
@@ -202,13 +200,14 @@ const UNDEF_COLOR: u32 = u32::MAX;
 
 impl<'a> DFGBuilder {
     /// Returns a new DFG builder
-    pub fn new() -> Self {
+    pub fn new(config: &WasmMutate) -> Self {
         DFGBuilder {
             color: 0,
             stack: Vec::new(),
             dfg_map: Vec::new(),
             operator_index_to_entry_index: HashMap::new(),
             parents: Vec::new(),
+            preserve_semantics: config.preserve_semantics,
         }
     }
 
@@ -341,8 +340,14 @@ impl<'a> DFGBuilder {
     }
 
     fn new_color(&mut self) {
-        self.color += 1;
-        assert!(self.color < UNDEF_COLOR);
+        // If we're not in semantics preservation mode then there's no need to
+        // ever switch colors because the color here is only used to ensure that
+        // we don't break edges between effectful instructions, which is all
+        // about preserving semantics.
+        if self.preserve_semantics {
+            self.color += 1;
+            assert!(self.color < UNDEF_COLOR);
+        }
     }
 
     /// This method should build lane dfg information
