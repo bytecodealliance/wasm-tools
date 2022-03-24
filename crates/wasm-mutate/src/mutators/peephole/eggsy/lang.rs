@@ -687,6 +687,8 @@ lang! {
         V128Load16Splat(MemArg, Id) = "v128.load16_splat",
         V128Load32Splat(MemArg, Id) = "v128.load32_splat",
         V128Load64Splat(MemArg, Id) = "v128.load64_splat",
+        V128Load32Zero(MemArg, Id) = "v128.load32_zero",
+        V128Load64Zero(MemArg, Id) = "v128.load64_zero",
         V128Store(MemArg, [Id; 2]) = "v128.store",
         V128Load8Lane(MemArgLane, [Id; 2]) = "v128.load8_lane",
         V128Load16Lane(MemArgLane, [Id; 2]) = "v128.load16_lane",

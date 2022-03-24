@@ -791,6 +791,8 @@ impl<'a> DFGBuilder {
                 Operator::V128Load64Splat { memarg } => {
                     self.load(idx, memarg, Lang::V128Load64Splat)
                 }
+                Operator::V128Load32Zero { memarg } => self.load(idx, memarg, Lang::V128Load32Zero),
+                Operator::V128Load64Zero { memarg } => self.load(idx, memarg, Lang::V128Load64Zero),
                 Operator::V128Store { memarg } => self.store(idx, memarg, Lang::V128Store),
                 Operator::V128Load8Lane { memarg, lane } => {
                     self.load_lane(idx, memarg, lane, Lang::V128Load8Lane)

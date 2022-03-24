@@ -473,6 +473,16 @@ pub fn expr2wasm(
                             memarg: memarg.into(),
                         });
                     }
+                    Lang::V128Load32Zero(memarg, _) => {
+                        newfunc.instruction(&Instruction::V128Load32Zero {
+                            memarg: memarg.into(),
+                        });
+                    }
+                    Lang::V128Load64Zero(memarg, _) => {
+                        newfunc.instruction(&Instruction::V128Load64Zero {
+                            memarg: memarg.into(),
+                        });
+                    }
                     Lang::V128Store(memarg, _) => {
                         newfunc.instruction(&Instruction::V128Store {
                             memarg: memarg.into(),
