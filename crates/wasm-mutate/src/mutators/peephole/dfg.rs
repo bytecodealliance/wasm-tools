@@ -1070,8 +1070,15 @@ impl<'a> DFGBuilder {
                 Operator::F64x2PromoteLowF32x4 => self.unop(idx, Lang::F64x2PromoteLowF32x4),
 
                 op => {
-                    // If the operator is not implemented, break the mutation of this Basic Block
-                    log::warn!("wasm operator not implemented: {:?}", op);
+                    // If the operator is not implemented, warn and bail out. We
+                    // can't use `undef` for these because if we try to rewrite
+                    // them with some rule like `x => i32.rand` then we fail to
+                    // actually encode the rewritten code to valid Wasm right
+                    // now. We would need to be able to walk the new expression
+                    // and determine which `undef` values became dead code and
+                    // we need to insert `drop`s for before inserting the new
+                    // code, and we don't currently have that infrastructure.
+                    log::warn!("Wasm operator not implemented: {:?}", op);
                     return None;
                 }
             }
