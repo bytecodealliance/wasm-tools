@@ -298,6 +298,8 @@ impl PeepholeMutationAnalysis {
             Lang::V128Load16Splat(..) => Ok(PrimitiveTypeInfo::V128),
             Lang::V128Load32Splat(..) => Ok(PrimitiveTypeInfo::V128),
             Lang::V128Load64Splat(..) => Ok(PrimitiveTypeInfo::V128),
+            Lang::V128Load32Zero(..) => Ok(PrimitiveTypeInfo::V128),
+            Lang::V128Load64Zero(..) => Ok(PrimitiveTypeInfo::V128),
             Lang::V128Store(..) => Ok(PrimitiveTypeInfo::Empty),
             Lang::V128Load8Lane(..) => Ok(PrimitiveTypeInfo::V128),
             Lang::V128Load16Lane(..) => Ok(PrimitiveTypeInfo::V128),
