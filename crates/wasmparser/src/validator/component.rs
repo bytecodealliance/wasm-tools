@@ -486,6 +486,16 @@ impl ComponentState {
             Some(idx) => {
                 let into_ty = self.module_instance_at(idx, types, offset)?;
 
+                match into_ty.exports.get("memory") {
+                    Some(EntityType::Memory(_)) => {}
+                    _ => {
+                        return Err(BinaryReaderError::new(
+                            "instance specified by `into` option does not export a memory named `memory`",
+                            offset,
+                        ));
+                    }
+                }
+
                 check_into_func(
                     into_ty,
                     "canonical_abi_realloc",
