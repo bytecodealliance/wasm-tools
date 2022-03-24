@@ -598,6 +598,14 @@ impl<'a> DFGBuilder {
                 Operator::I64Rotl => self.binop(idx, Lang::I64RotL),
                 Operator::I64Rotr => self.binop(idx, Lang::I64RotR),
 
+                Operator::V128Not => self.unop(idx, Lang::V128Not),
+                Operator::V128And => self.binop(idx, Lang::V128And),
+                Operator::V128AndNot => self.binop(idx, Lang::V128AndNot),
+                Operator::V128Or => self.binop(idx, Lang::V128Or),
+                Operator::V128Xor => self.binop(idx, Lang::V128Xor),
+                Operator::V128AnyTrue => self.unop(idx, Lang::V128AnyTrue),
+                Operator::V128Bitselect => self.ternop(idx, Lang::V128Bitselect),
+
                 Operator::Drop => {
                     let arg = self.pop_operand(idx, false);
                     self.empty_node(Lang::Drop([Id::from(arg)]), idx);
@@ -1124,6 +1132,19 @@ impl<'a> DFGBuilder {
         assert_ne!(leftidx, rightidx);
 
         self.push_node(op([Id::from(rightidx), Id::from(leftidx)]), idx);
+    }
+
+    fn ternop(&mut self, idx: usize, op: fn([Id; 3]) -> Lang) {
+        let c = self.pop_operand(idx, false);
+        let b = self.pop_operand(idx, false);
+        let a = self.pop_operand(idx, false);
+
+        // The operands should not be the same.
+        assert_ne!(a, b);
+        assert_ne!(a, c);
+        assert_ne!(b, c);
+
+        self.push_node(op([Id::from(a), Id::from(b), Id::from(c)]), idx);
     }
 
     fn store(

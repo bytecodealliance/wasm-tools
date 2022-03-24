@@ -410,6 +410,14 @@ pub fn expr2wasm(
                     Lang::RefFunc(idx) => insn(Instruction::RefFunc(*idx)),
                     Lang::RefIsNull(_) => insn(Instruction::RefIsNull),
 
+                    Lang::V128Not(_) => insn(Instruction::V128Not),
+                    Lang::V128And(_) => insn(Instruction::V128And),
+                    Lang::V128AndNot(_) => insn(Instruction::V128AndNot),
+                    Lang::V128Or(_) => insn(Instruction::V128Or),
+                    Lang::V128Xor(_) => insn(Instruction::V128Xor),
+                    Lang::V128AnyTrue(_) => insn(Instruction::V128AnyTrue),
+                    Lang::V128Bitselect(_) => insn(Instruction::V128Bitselect),
+
                     Lang::V128Load(memarg, _) => {
                         newfunc.instruction(&Instruction::V128Load {
                             memarg: memarg.into(),

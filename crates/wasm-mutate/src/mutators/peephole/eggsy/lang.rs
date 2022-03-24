@@ -403,6 +403,27 @@ lang! {
         F32Copysign([Id; 2]) = "f32.copysign",
         /// f64.copysign  operator
         F64Copysign([Id; 2]) = "f64.copysign",
+
+        // unops v128
+        /// v128.not operator
+        V128Not([Id; 1]) = "v128.not",
+        /// v128.any_true operator
+        V128AnyTrue([Id; 1]) = "v128.any_true",
+
+        // binops v128
+        /// v128.bitselect operator
+        V128And([Id; 2]) = "v128.and",
+        /// v128.and_not operator
+        V128AndNot([Id; 2]) = "v128.and_not",
+        /// v128.or operator
+        V128Or([Id; 2]) = "v128.or",
+        /// v128.xor operator
+        V128Xor([Id; 2]) = "v128.xor",
+
+        // ternary ops v128
+        /// v128.bitselect operator
+        V128Bitselect([Id; 3]) = "v128.bitselect",
+
         // frelops
         /// f32.eq  operator
         F32Eq([Id; 2]) = "f32.eq",
@@ -428,6 +449,7 @@ lang! {
         F32Ge([Id; 2]) = "f32.ge",
         /// f64.ge  operator
         F64Ge([Id; 2]) = "f64.ge",
+
         // unops integers
         /// i32.eqz  operator
         I32Eqz([Id; 1]) = "i32.eqz",
