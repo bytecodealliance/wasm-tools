@@ -36,7 +36,12 @@ let my_input_wasm: Vec<u8> = todo!();
 let shrink = WasmShrink::default()
     // Give up on shrinking after 999 failed attempts to shrink a given
     // Wasm test case any further.
-    .attempts(999);
+    .attempts(999)
+    // Optionally do something with each new smallest Wasm as it is discovered.
+    .on_new_smallest(Some(Box::new(|new_smallest| {
+        // Do stuff...
+        Ok(())
+    })));
 
 // Run the configured shrinking task.
 let info = shrink.run(
@@ -47,13 +52,7 @@ let info = shrink.run(
             "check for whether the given Wasm is interesting"
         );
         Ok(is_interesting)
-    },
-    // Callback called each time we find a new smallest interesting
-    // Wasm.
-    &mut |new_smallest| {
-        // Optionally do something with the new smallest Wasm.
-        Ok(())
-    },
+    }
 )?;
 
 // Get the shrunken Wasm and other information about the completed shrink
@@ -80,6 +79,9 @@ pub struct WasmShrink {
     /// The RNG seed for choosing which size-reducing mutation to attempt next.
     #[cfg_attr(feature = "clap", clap(short, long, default_value = "42"))]
     seed: u64,
+
+    #[cfg_attr(feature = "clap", clap(skip))]
+    on_new_smallest: Option<Box<dyn FnMut(&[u8]) -> Result<()>>>,
 }
 
 impl Default for WasmShrink {
@@ -88,6 +90,7 @@ impl Default for WasmShrink {
             attempts: 1000,
             allow_empty: false,
             seed: 42,
+            on_new_smallest: None,
         }
     }
 }
@@ -116,194 +119,100 @@ impl WasmShrink {
         self
     }
 
+    /// Set the callback that is called each time we discover a new smallest
+    /// test case that is interesting.
+    pub fn on_new_smallest(
+        mut self,
+        on_new_smallest: Option<Box<dyn FnMut(&[u8]) -> Result<()>>>,
+    ) -> WasmShrink {
+        self.on_new_smallest = on_new_smallest;
+        self
+    }
+
     /// Run this configured Wasm shrinking task.
     ///
     /// The `predicate` function is called on each candidate Wasm to determine
     /// whether the Wasm is interesting or not. Returning `true` means that it
     /// is interesting, `false` means that it is not.
     ///
-    /// The `on_new_smallest` function is called whenever we find a new smallest
-    /// interesting Wasm.
-    ///
-    /// Returns information and metrics about the shrink task, such as the
-    /// shrunken Wasm's output file path, the size of the input Wasm, the size
-    /// of the output Wasm, etc.
-    pub fn run<P, I, S>(
-        self,
-        input: Vec<u8>,
-        mut predicate: P,
-        mut on_new_smallest: S,
-    ) -> Result<ShrinkInfo>
+    /// Returns the shrunken Wasm and information and metrics about the shrink
+    /// task, such as the size of the input Wasm, the size of the output Wasm,
+    /// etc.
+    pub fn run<P, I>(self, input: Vec<u8>, predicate: P) -> Result<ShrinkInfo>
     where
         P: FnMut(&[u8]) -> Result<I>,
         I: IsInteresting,
-        S: FnMut(&[u8]) -> Result<()>,
     {
+        ShrinkRun::new(self, input).run(predicate)
+    }
+}
+
+struct ShrinkRun {
+    shrink: WasmShrink,
+    rng: SmallRng,
+
+    // The size of the original input Wasm.
+    input_size: u64,
+
+    // The smallest Wasm that passes the predicate.
+    best: Vec<u8>,
+
+    // Mutated Wasm test cases that we've already tested and either found to be
+    // uninteresting or ultimately not lead to test cases smaller than our
+    // current best.
+    already_tested: HashSet<blake3::Hash>,
+
+    // The count of how many times we've attempted to shrink our current test
+    // case smaller than `best`.
+    attempt: u32,
+}
+
+impl ShrinkRun {
+    pub fn new(shrink: WasmShrink, input: Vec<u8>) -> ShrinkRun {
+        let rng = SmallRng::seed_from_u64(shrink.seed);
         let input_size = input.len() as u64;
-
-        // Prerequisites for the input Wasm.
-        self.validate_wasm(&input)
-            .context("The input is not valid Wasm.")?;
-
-        // First double check that the input Wasm passes the predicate.
-        //
-        // It is fairly common to accidentally write a predicate script that
-        // doesn't consider the input Wasm interesting. Better to surface this
-        // user error as quick as possible than to make them wait until we've
-        // exhausted all the ways we could shrink it further.
-        let result = predicate(&input)?;
-        anyhow::ensure!(
-            result.is_interesting(),
-            "The predicate does not consider the input Wasm interesting: {}",
-            result
-        );
-
-        // The smallest Wasm that passes the predicate.
-        let mut best = input;
-
-        let mut new_best = |old_best: &mut Vec<u8>, new: Vec<u8>| -> Result<()> {
-            debug_assert!(
-                new.len() < old_best.len() || (new == EMPTY_WASM && *old_best == EMPTY_WASM)
-            );
-            log::info!("New smallest Wasm found: {} bytes", new.len());
-            on_new_smallest(&new)?;
-            *old_best = new;
-            Ok(())
-        };
-
-        // Next try running the predicate on an empty Wasm module.
-        //
-        // It is fairly common to accidentally write a predicate script that
-        // considers the empty module interesting, and we might as well check
-        // for it eagerly, rather than make the user wait forever until we
-        // finally to reduce the whole Wasm module to nothing.
-        let result = predicate(EMPTY_WASM)?;
-        if result.is_interesting() {
-            if self.allow_empty {
-                new_best(&mut best, EMPTY_WASM.to_vec())?;
-                return Ok(ShrinkInfo {
-                    input_size,
-                    output_size: best.len() as u64,
-                    output: best,
-                });
-            } else {
-                anyhow::bail!(
-                    "The predicate considers the empty Wasm module \
-                     interesting, which is usually not desired and \
-                     is a symptom of a bug in the predicate:\n\
-                     \n\
-                     {}",
-                    result
-                );
-            }
-        }
-
-        // Now we perform the main search. Keep trying to find smaller and
-        // interesting variants of the current smallest interesting Wasm file
-        // until we run out of attempts and get stuck.
-
-        let mut rng = SmallRng::seed_from_u64(self.seed);
-
-        // Mutated Wasm test cases that we've already tested and found to be
-        // uninteresting.
-        let mut uninteresting = HashSet::new();
-
-        loop {
-            let mut new_smallest = None;
-            let mut attempt = 0;
-
-            'attempts: while attempt < self.attempts {
-                let mut mutate = WasmMutate::default();
-                let seed = rng.gen();
-                mutate.reduce(true).seed(seed);
-                log::trace!("Attempt #{}: seed: {}", attempt, seed);
-
-                let mutations = match mutate.run(&best) {
-                    Ok(m) => m,
-                    Err(e) => {
-                        // This mutation failed, but another randomly chosen
-                        // mutation might succeed, so keep attempting.
-                        log::trace!("Attempt #{}: mutation failed ({:?})", attempt, e);
-                        attempt += 1;
-                        continue;
-                    }
-                };
-
-                for mutated_wasm in mutations
-                    // NB: The only mutator that takes advantage of returning an
-                    // iterator with more than one item is the peephole mutator,
-                    // which doesn't help shrinking too much. Therefore, we only
-                    // take at most 10 elements.
-                    .take(std::cmp::min(self.attempts - attempt, 10) as usize)
-                {
-                    let mutated_wasm = match mutated_wasm {
-                        Ok(w) => w,
-                        Err(e) => {
-                            // This mutation failed, but another randomly chosen
-                            // mutation might succeed, so keep attempting.
-                            log::trace!("Attempt #{}: mutation failed ({:?})", attempt, e);
-                            attempt += 1;
-                            continue;
-                        }
-                    };
-
-                    // TODO: This "shouldn't" happen when we set `.reduce(true)`
-                    // on `WasmMutate`, but it does. This should turn into a
-                    // `debug_assert!` once we fix `wasm-mutate`.
-                    if mutated_wasm.len() >= best.len() {
-                        log::trace!(
-                            "Attempt #{}: mutated Wasm ({} bytes) is not smaller than \
-                             best ({} bytes)",
-                            attempt,
-                            mutated_wasm.len(),
-                            best.len(),
-                        );
-                        attempt += 1;
-                        continue;
-                    }
-
-                    let hash = blake3::hash(&mutated_wasm);
-                    if uninteresting.contains(&hash) {
-                        log::trace!(
-                            "Attempt #{}: already tested this candidate and found it uninteresting",
-                            attempt
-                        );
-                        attempt += 1;
-                        continue;
-                    }
-
-                    log::trace!(
-                        "Attempt #{}: testing candidate ({} bytes)",
-                        attempt,
-                        mutated_wasm.len()
-                    );
-                    attempt += 1;
-
-                    if predicate(&mutated_wasm)?.is_interesting() {
-                        new_smallest = Some(mutated_wasm);
-                        break 'attempts;
-                    }
-
-                    // Uninteresting. Don't try it again.
-                    uninteresting.insert(hash);
-                }
-            }
-
-            match new_smallest {
-                // We've exhausted our attempt budget for shrinking this Wasm
-                // any further.
-                None => break,
-
-                // We found a new smallest Wasm module, try reducing it further.
-                Some(w) => new_best(&mut best, w)?,
-            }
-        }
-
-        Ok(ShrinkInfo {
+        let best = input;
+        ShrinkRun {
+            shrink,
+            rng,
             input_size,
-            output_size: best.len() as u64,
-            output: best,
-        })
+            best,
+            already_tested: HashSet::new(),
+            attempt: 0,
+        }
+    }
+
+    fn on_new_best(&mut self, new_best: Vec<u8>) -> Result<()> {
+        debug_assert!(
+            new_best.len() < self.best.len() || (new_best == EMPTY_WASM && self.best == EMPTY_WASM)
+        );
+        log::info!("New smallest Wasm found: {} bytes", new_best.len());
+        if let Some(f) = self.shrink.on_new_smallest.as_mut() {
+            f(&new_best)?;
+        }
+        self.best = new_best;
+        self.attempt = 0;
+        Ok(())
+    }
+
+    fn should_accept(&mut self, current: &[u8], new_interesting: &[u8]) -> bool {
+        new_interesting.len() < current.len() ||
+            // With low probability, accept larger interesting Wasm test cases
+            // to avoid getting stuck in local minima.
+            self.rng.gen_ratio(1, 100)
+    }
+
+    fn on_new_interesting(
+        &mut self,
+        current: &mut Vec<u8>,
+        new_interesting: Vec<u8>,
+    ) -> Result<()> {
+        debug_assert!(self.best.len() <= current.len());
+        *current = new_interesting;
+        if current.len() < self.best.len() {
+            self.on_new_best(current.clone())?;
+        }
+        Ok(())
     }
 
     fn validate_wasm(&self, wasm: &[u8]) -> Result<()> {
@@ -332,6 +241,158 @@ impl WasmShrink {
 
         validator.validate_all(wasm)?;
         Ok(())
+    }
+
+    fn finish(self) -> ShrinkInfo {
+        ShrinkInfo {
+            input_size: self.input_size,
+            output_size: self.best.len() as u64,
+            output: self.best,
+        }
+    }
+
+    pub fn run<P, I>(mut self, mut predicate: P) -> Result<ShrinkInfo>
+    where
+        P: FnMut(&[u8]) -> Result<I>,
+        I: IsInteresting,
+    {
+        // The Wasm that we are currently mutating.
+        //
+        // This can differ from `best` in that, with a very small probability,
+        // we will sometimes accept mutations that don't shrink Wasm size. This
+        // behavior is borrowed from MCMC[0] and helps us avoid getting stuck in
+        // local minima. For example, we might replace a `ref.func $f` with a
+        // `ref.null`, which doesn't actually shrink code size itself, but which
+        // might make `$f` dead code such that we can remove `$f` altogether in
+        // a follow up mutation.
+        //
+        // [0]: https://en.wikipedia.org/wiki/Markov_chain_Monte_Carlo
+        let mut current = self.best.clone();
+
+        // Check prerequisites for the input Wasm.
+        self.validate_wasm(&current)
+            .context("The input is not valid Wasm.")?;
+
+        // First double check that the input Wasm passes the predicate.
+        //
+        // It is fairly common to accidentally write a predicate script that
+        // doesn't consider the input Wasm interesting. Better to surface this
+        // user error as quick as possible than to make them wait until we've
+        // exhausted all the ways we could shrink it further.
+        let result = predicate(&current)?;
+        anyhow::ensure!(
+            result.is_interesting(),
+            "The predicate does not consider the input Wasm interesting: {}",
+            result
+        );
+
+        // Next try running the predicate on an empty Wasm module.
+        //
+        // It is fairly common to accidentally write a predicate script that
+        // considers the empty module interesting, and we might as well check
+        // for it eagerly, rather than make the user wait forever until we
+        // finally to reduce the whole Wasm module to nothing.
+        let result = predicate(EMPTY_WASM)?;
+        if result.is_interesting() {
+            if self.shrink.allow_empty {
+                self.on_new_best(EMPTY_WASM.to_vec())?;
+                return Ok(self.finish());
+            } else {
+                anyhow::bail!(
+                    "The predicate considers the empty Wasm module \
+                     interesting, which is usually not desired and \
+                     is a symptom of a bug in the predicate:\n\
+                     \n\
+                     {}",
+                    result
+                );
+            }
+        }
+
+        // Now we perform the main search. Keep trying to find smaller and
+        // interesting variants of the current smallest interesting Wasm file
+        // until we run out of attempts and get stuck.
+        while self.attempt < self.shrink.attempts {
+            self.attempt += 1;
+
+            let mut mutate = WasmMutate::default();
+            let seed = self.rng.gen();
+            mutate.reduce(true).seed(seed);
+            log::trace!("Attempt #{}: seed: {}", self.attempt, seed);
+
+            let mutations = match mutate.run(&current) {
+                Ok(m) => m,
+                Err(e) => {
+                    // This mutation failed, but another randomly chosen
+                    // mutation might succeed, so keep attempting.
+                    log::trace!("Attempt #{}: mutation failed ({:?})", self.attempt, e);
+                    continue;
+                }
+            };
+
+            let mut mutations = mutations
+                // NB: The only mutator that takes advantage of returning an
+                // iterator with more than one item is the peephole mutator, which
+                // doesn't help shrinking too much. Therefore, we only take at most
+                // 10 elements.
+                .take(std::cmp::min(self.shrink.attempts - self.attempt, 10) as usize)
+                .peekable();
+
+            if mutations.peek().is_none() {
+                log::trace!(
+                    "Attempt #{}: `wasm-mutate` failed to generate any mutations",
+                    self.attempt
+                );
+                continue;
+            }
+
+            let mut new_current_wasm = None;
+            for (i, mutated_wasm) in mutations.enumerate() {
+                if i > 0 {
+                    self.attempt += 1;
+                }
+
+                let mutated_wasm = match mutated_wasm {
+                    Ok(w) => w,
+                    Err(e) => {
+                        // This mutation failed, but another randomly chosen
+                        // mutation might succeed, so keep attempting.
+                        log::trace!("Attempt #{}: mutation failed ({:?})", self.attempt, e);
+                        continue;
+                    }
+                };
+
+                let hash = blake3::hash(&mutated_wasm);
+                if !self.already_tested.insert(hash) {
+                    log::trace!("Attempt #{}: already tested this candidate", self.attempt,);
+                    continue;
+                }
+
+                log::trace!(
+                    "Attempt #{}: testing candidate ({} bytes)",
+                    self.attempt,
+                    mutated_wasm.len()
+                );
+
+                let result = predicate(&mutated_wasm)?;
+                if result.is_interesting() {
+                    log::trace!("Attempt #{}: candidate is interesting", self.attempt);
+                    if self.should_accept(&current, &mutated_wasm) {
+                        log::trace!("Attempt #{}: accepting candidate", self.attempt);
+                        new_current_wasm = Some(mutated_wasm);
+                        break;
+                    }
+                } else {
+                    log::trace!("Attempt #{}: candidate is not interesting", self.attempt);
+                }
+            }
+
+            if let Some(new_current_wasm) = new_current_wasm {
+                self.on_new_interesting(&mut current, new_current_wasm)?;
+            }
+        }
+
+        Ok(self.finish())
     }
 }
 
