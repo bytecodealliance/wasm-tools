@@ -73,7 +73,7 @@ pub enum ElementMode<'a> {
         /// The table index.
         ///
         /// `None` is implicitly table `0`. Non-`None` tables are part of the
-        /// reference types proposal.
+        /// reference types proposal, including `Some(0)`.
         table: Option<u32>,
         /// The offset within the table to place this segment.
         offset: &'a Instruction<'a>,
@@ -181,6 +181,9 @@ impl ElementSection {
     }
 
     /// Define an active element segment.
+    ///
+    /// Table `None` is implicitly table `0`. Non-`None` tables are part of the
+    /// reference types proposal, including `Some(0)`.
     pub fn active(
         &mut self,
         table_index: Option<u32>,
