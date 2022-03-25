@@ -2,7 +2,7 @@
 
 use super::Mutator;
 use crate::module::{PrimitiveTypeInfo, TypeInfo};
-use crate::{Error, Result, WasmMutate};
+use crate::{Result, WasmMutate};
 use rand::Rng;
 use std::convert::TryFrom;
 use wasm_encoder::{Instruction, Module, ValType};
@@ -70,8 +70,7 @@ impl Mutator for AddFunctionMutator {
                 PrimitiveTypeInfo::ExternRef => {
                     func.instruction(&Instruction::RefNull(ValType::ExternRef));
                 }
-                PrimitiveTypeInfo::ExnRef => return Err(Error::unsupported("exnref")),
-                PrimitiveTypeInfo::Func | PrimitiveTypeInfo::Empty => unreachable!(),
+                PrimitiveTypeInfo::Empty => unreachable!(),
             }
         }
         func.instruction(&Instruction::End);

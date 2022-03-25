@@ -1,4 +1,4 @@
-use super::*;
+use crate::{encoders, ComponentSection, ComponentSectionId, Section, SectionId};
 
 /// A custom section holding arbitrary data.
 #[derive(Clone, Debug)]
@@ -7,6 +7,20 @@ pub struct CustomSection<'a> {
     pub name: &'a str,
     /// This custom section's data.
     pub data: &'a [u8],
+}
+
+impl CustomSection<'_> {
+    fn encode(&self, sink: &mut impl Extend<u8>) {
+        let name_len = encoders::u32(u32::try_from(self.name.len()).unwrap());
+        let n = name_len.len();
+
+        sink.extend(
+            encoders::u32(u32::try_from(n + self.name.len() + self.data.len()).unwrap())
+                .chain(name_len)
+                .chain(self.name.as_bytes().iter().copied())
+                .chain(self.data.iter().copied()),
+        );
+    }
 }
 
 impl Section for CustomSection<'_> {
@@ -18,15 +32,20 @@ impl Section for CustomSection<'_> {
     where
         S: Extend<u8>,
     {
-        let name_len = encoders::u32(u32::try_from(self.name.len()).unwrap());
-        let n = name_len.len();
+        self.encode(sink);
+    }
+}
 
-        sink.extend(
-            encoders::u32(u32::try_from(n + self.name.len() + self.data.len()).unwrap())
-                .chain(name_len)
-                .chain(self.name.as_bytes().iter().copied())
-                .chain(self.data.iter().copied()),
-        );
+impl ComponentSection for CustomSection<'_> {
+    fn id(&self) -> u8 {
+        ComponentSectionId::Custom.into()
+    }
+
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        self.encode(sink);
     }
 }
 

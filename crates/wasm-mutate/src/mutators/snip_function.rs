@@ -65,11 +65,7 @@ impl Mutator for SnipMutator {
                             PrimitiveTypeInfo::ExternRef => {
                                 f.instruction(&Instruction::RefNull(ValType::ExternRef));
                             }
-                            PrimitiveTypeInfo::ExnRef => {
-                                // TODO: not supported in `wasm-encoder` yet.
-                                f.instruction(&Instruction::Unreachable);
-                            }
-                            PrimitiveTypeInfo::Empty | PrimitiveTypeInfo::Func => {
+                            PrimitiveTypeInfo::Empty => {
                                 unreachable!()
                             }
                         }

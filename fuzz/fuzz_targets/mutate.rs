@@ -15,7 +15,6 @@ fuzz_target!(|bytes: &[u8]| {
 
     let mut seed = 0;
     let (wasm, config) = match wasm_tools_fuzz::generate_valid_module(bytes, |config, u| {
-        config.module_linking_enabled = false;
         config.exceptions_enabled = false;
         seed = u.arbitrary()?;
         Ok(())
@@ -70,7 +69,6 @@ fuzz_target!(|bytes: &[u8]| {
     // itself if it doesn't already exist.
     let mut features = WasmFeatures::default();
     features.relaxed_simd = config.relaxed_simd_enabled;
-    features.module_linking = config.module_linking_enabled;
     features.multi_memory = config.max_memories > 1;
     features.memory64 = config.memory64_enabled;
 
@@ -93,8 +91,6 @@ fuzz_target!(|bytes: &[u8]| {
 
         let validation_result = validator.validate_all(&mutated_wasm);
 
-        log::debug!("validation result = {:?}", validation_result);
-
         if log::log_enabled!(log::Level::Debug) {
             log::debug!("writing mutated Wasm to `mutated.wasm`");
             std::fs::write("mutated.wasm", &mutated_wasm)
@@ -105,10 +101,8 @@ fuzz_target!(|bytes: &[u8]| {
                     .expect("should write `mutated.wat` okay");
             }
         }
-        assert!(
-            validation_result.is_ok(),
-            "`wasm-mutate` should always produce a valid Wasm file"
-        );
+
+        validation_result.expect("`wasm-mutate` should always produce a valid Wasm file");
 
         #[cfg(feature = "wasmtime")]
         eval::assert_same_evaluation(&wasm, &mutated_wasm);

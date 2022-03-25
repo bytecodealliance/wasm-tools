@@ -92,18 +92,6 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
                     item?;
                 }
             }
-            AliasSection(s) => {
-                for item in s {
-                    item?;
-                }
-            }
-            InstanceSection(s) => {
-                for item in s {
-                    for arg in item?.args()? {
-                        arg?;
-                    }
-                }
-            }
             FunctionSection(s) => {
                 for item in s {
                     item?;
@@ -168,15 +156,24 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
                 }
             }
 
+            // Component sections
+            ComponentTypeSection(_) => todo!("component-model"),
+            ComponentImportSection(_) => todo!("component-model"),
+            ComponentFunctionSection(_) => todo!("component-model"),
+            ModuleSection { .. } => todo!("component-model"),
+            ComponentSection { .. } => todo!("component-model"),
+            InstanceSection(_) => todo!("component-model"),
+            ComponentExportSection(_) => todo!("component-model"),
+            ComponentStartSection { .. } => todo!("component-model"),
+            AliasSection(_) => todo!("component-model"),
+
             Version { .. }
             | StartSection { .. }
             | DataCountSection { .. }
             | UnknownSection { .. }
             | CustomSection { .. }
             | CodeSectionStart { .. }
-            | ModuleSectionStart { .. }
-            | ModuleSectionEntry { .. }
-            | End => {}
+            | End(_) => {}
         }
     }
     Ok(())
@@ -212,7 +209,7 @@ fn validate_benchmark(c: &mut Criterion) {
             simd: true,
             relaxed_simd: true,
             exceptions: true,
-            module_linking: true,
+            component_model: true,
             bulk_memory: true,
             threads: true,
             tail_call: true,

@@ -115,30 +115,6 @@ fn no_panic_dangling_else() {
 }
 
 #[test]
-fn module_section_too_large() {
-    let bytes = wat::parse_str(
-        r#"
-            (module binary
-                "\00asm" "\01\00\00\00"     ;; module header
-
-                "\0e"           ;; module section
-                "\08"           ;; size of section
-                "\00"           ;; 0 modules
-                ;; intentionally missing the rest of the section
-            )
-        "#,
-    )
-    .unwrap();
-    let err = wasmprinter::print_bytes(&bytes).unwrap_err();
-    assert!(
-        err.to_string()
-            .contains("unexpected eof reading module section"),
-        "{:?}",
-        err
-    );
-}
-
-#[test]
 fn dangling_if() {
     let bytes = wat::parse_str(
         r#"
@@ -161,7 +137,7 @@ fn no_oom() {
     for _ in 0..20_000 {
         s.push_str("(func if)\n");
     }
-    s.push_str(")");
+    s.push(')');
     let bytes = wat::parse_str(&s).unwrap();
     let wat = wasmprinter::print_bytes(&bytes).unwrap();
     assert!(wat.len() < 500_000_000);

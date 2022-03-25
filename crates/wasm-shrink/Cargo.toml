@@ -6,7 +6,7 @@ edition = "2021"
 keywords = ["reducer", "reduce", "bug", "crash"]
 license = "Apache-2.0 WITH LLVM-exception"
 readme = "./README.md"
-repository = "https://github.com/bytecodealliance/wasm-tools"
+repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-shrink"
 name = "wasm-shrink"
 version = "0.1.3"
 

@@ -222,7 +222,6 @@ impl ShrinkRun {
             reference_types: true,
             multi_value: true,
             bulk_memory: true,
-            module_linking: false,
             simd: true,
             threads: true,
             tail_call: true,
@@ -234,6 +233,7 @@ impl ShrinkRun {
             mutable_global: true,
             saturating_float_to_int: true,
             sign_extension: true,
+            component_model: false,
 
             // We'll never enable this here.
             deterministic_only: false,

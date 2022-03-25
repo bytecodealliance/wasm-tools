@@ -4,7 +4,7 @@ use std::{collections::HashMap, slice::Iter};
 
 use rand::prelude::SliceRandom;
 use wasm_encoder::{Function, Instruction, ValType};
-use wasmparser::{Operator, TypeOrFuncType};
+use wasmparser::{BlockType, Operator};
 
 use crate::{
     module::map_block_type,
@@ -158,7 +158,7 @@ impl AstWriter for LoopUnrollWriter {
         newfunc: &mut Function,
         operators: &Vec<OperatorAndByteOffset>,
         input_wasm: &'a [u8],
-        ty: &wasmparser::TypeOrFuncType,
+        ty: &wasmparser::BlockType,
     ) -> crate::Result<()> {
         if self.loop_to_mutate == nodeidx {
             self.unroll_loop(ast, nodeidx, newfunc, operators, input_wasm)?;
@@ -182,7 +182,7 @@ impl LoopUnrollMutator {
                     range: _,
                     body: _,
                 } => {
-                    if let TypeOrFuncType::Type(wasmparser::Type::EmptyBlockType) = ty {
+                    if let BlockType::Empty = ty {
                         loops.push(*idx)
                     }
                 }

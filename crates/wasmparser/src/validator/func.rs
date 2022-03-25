@@ -1,4 +1,4 @@
-use crate::operators_validator::OperatorValidator;
+use super::operators::OperatorValidator;
 use crate::{BinaryReader, Result, Type};
 use crate::{FunctionBody, Operator, WasmFeatures, WasmModuleResources};
 
@@ -190,7 +190,7 @@ mod tests {
             .op(
                 1,
                 &Operator::Block {
-                    ty: crate::TypeOrFuncType::Type(crate::Type::EmptyBlockType)
+                    ty: crate::BlockType::Empty
                 }
             )
             .is_ok());

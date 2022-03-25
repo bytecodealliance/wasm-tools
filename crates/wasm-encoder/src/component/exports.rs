@@ -1,16 +1,18 @@
-use super::{ComponentSection, IndexRef, SectionId};
-use crate::encoders;
+use crate::{encoders, ComponentArg, ComponentSection, ComponentSectionId};
 
-/// An encoder for the component export section.
+/// Represents an export for a WebAssembly component.
+pub type ComponentExport = ComponentArg;
+
+/// An encoder for the export section of WebAssembly component.
 ///
 /// # Example
 ///
 /// ```rust
-/// use wasm_encoder::component::{Component, ExportSection, IndexRef};
+/// use wasm_encoder::{Component, ComponentExportSection, ComponentExport};
 ///
-/// // This assumes there is a function at index 0 to export
-/// let mut exports = ExportSection::new();
-/// exports.export("foo", IndexRef::Function(0));
+/// // This exports an instance named "foo" that exports a function named "bar".
+/// let mut exports = ComponentExportSection::new();
+/// exports.export("foo", ComponentExport::Function(0));
 ///
 /// let mut component = Component::new();
 /// component.section(&exports);
@@ -18,12 +20,12 @@ use crate::encoders;
 /// let bytes = component.finish();
 /// ```
 #[derive(Clone, Debug, Default)]
-pub struct ExportSection {
+pub struct ComponentExportSection {
     bytes: Vec<u8>,
     num_added: u32,
 }
 
-impl ExportSection {
+impl ComponentExportSection {
     /// Create a new component export section encoder.
     pub fn new() -> Self {
         Self::default()
@@ -40,17 +42,17 @@ impl ExportSection {
     }
 
     /// Define an export in the export section.
-    pub fn export(&mut self, name: &str, index_ref: IndexRef) -> &mut Self {
+    pub fn export(&mut self, name: &str, export: impl Into<ComponentExport>) -> &mut Self {
         self.bytes.extend(encoders::str(name));
-        index_ref.encode(&mut self.bytes);
+        export.into().encode(&mut self.bytes);
         self.num_added += 1;
         self
     }
 }
 
-impl ComponentSection for ExportSection {
+impl ComponentSection for ComponentExportSection {
     fn id(&self) -> u8 {
-        SectionId::Export.into()
+        ComponentSectionId::Export.into()
     }
 
     fn encode<S>(&self, sink: &mut S)

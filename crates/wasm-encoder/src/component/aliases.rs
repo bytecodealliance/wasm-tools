@@ -1,40 +1,60 @@
-use super::{ComponentSection, SectionId};
-use crate::encoders;
-
-const ALIAS_KIND_INSTANCE_EXPORT: u8 = 0x00;
-pub(crate) const ALIAS_KIND_OUTER: u8 = 0x01;
-pub(crate) const ALIAS_KIND_OUTER_MODULE: u8 = 0x01;
-pub(crate) const ALIAS_KIND_OUTER_TYPE: u8 = 0x06;
+use crate::{encoders, ComponentSection, ComponentSectionId};
 
 /// Represents the expected export kind for an alias.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ExportKind {
-    /// The alias is to an instance.
-    Instance = 0x00,
+pub enum AliasExportKind {
     /// The alias is to a module.
-    Module = 0x01,
-    /// The alias is to a function.
-    Function = 0x02,
+    Module,
+    /// The alias is to a component.
+    Component,
+    /// The alias is to an instance.
+    Instance,
+    /// The alias is to a component function.
+    ComponentFunction,
+    /// The alias is to a value.
+    Value,
+    /// The alias is to a core WebAssembly function.
+    Function,
     /// The alias is to a table.
-    Table = 0x03,
+    Table,
     /// The alias is to a memory.
-    Memory = 0x04,
+    Memory,
     /// The alias is to a global.
-    Global = 0x05,
-    /// The alias is to an adapter function.
-    AdapterFunction = 0x06,
+    Global,
+    /// The alias is to a tag.
+    Tag,
 }
 
-/// An encoder for the component alias section.
+impl AliasExportKind {
+    fn encode(&self, bytes: &mut Vec<u8>) {
+        let (preamble, value) = match self {
+            AliasExportKind::Module => (0x00, 0x00),
+            AliasExportKind::Component => (0x00, 0x01),
+            AliasExportKind::Instance => (0x00, 0x02),
+            AliasExportKind::ComponentFunction => (0x00, 0x03),
+            AliasExportKind::Value => (0x00, 0x04),
+            AliasExportKind::Function => (0x01, 0x00),
+            AliasExportKind::Table => (0x01, 0x01),
+            AliasExportKind::Memory => (0x01, 0x02),
+            AliasExportKind::Global => (0x01, 0x03),
+            AliasExportKind::Tag => (0x01, 0x04),
+        };
+
+        bytes.push(preamble);
+        bytes.push(value);
+    }
+}
+
+/// An encoder for the alias section of WebAssembly component.
 ///
 /// # Example
 ///
 /// ```rust
-/// use wasm_encoder::component::{Component, AliasSection, ExportKind};
+/// use wasm_encoder::{Component, AliasSection, AliasExportKind};
 ///
 /// let mut aliases = AliasSection::new();
 /// aliases.outer_type(0, 2);
-/// aliases.instance_export(0, ExportKind::Function, "foo");
+/// aliases.instance_export(0, AliasExportKind::Function, "foo");
 ///
 /// let mut component = Component::new();
 /// component.section(&aliases);
@@ -48,7 +68,7 @@ pub struct AliasSection {
 }
 
 impl AliasSection {
-    /// Create a new component alias section encoder.
+    /// Create a new alias section encoder.
     pub fn new() -> Self {
         Self::default()
     }
@@ -64,31 +84,51 @@ impl AliasSection {
     }
 
     /// Define an alias that references the export of a defined instance.
-    pub fn instance_export(&mut self, instance: u32, kind: ExportKind, name: &str) -> &mut Self {
-        self.bytes.push(ALIAS_KIND_INSTANCE_EXPORT);
+    pub fn instance_export(
+        &mut self,
+        instance: u32,
+        kind: AliasExportKind,
+        name: &str,
+    ) -> &mut Self {
+        kind.encode(&mut self.bytes);
         self.bytes.extend(encoders::u32(instance));
         self.bytes.extend(encoders::str(name));
-        self.bytes.push(kind as u8);
         self.num_added += 1;
         self
     }
 
-    /// Define an alias that references an outer module's type.
-    pub fn outer_type(&mut self, count: u32, ty: u32) -> &mut Self {
-        self.bytes.push(ALIAS_KIND_OUTER);
+    /// Define an alias to an outer type.
+    ///
+    /// The count starts at 0 to represent the current component.
+    pub fn outer_type(&mut self, count: u32, index: u32) -> &mut Self {
+        self.bytes.push(0x02);
+        self.bytes.push(0x05);
         self.bytes.extend(encoders::u32(count));
-        self.bytes.extend(encoders::u32(ty));
-        self.bytes.push(ALIAS_KIND_OUTER_TYPE);
+        self.bytes.extend(encoders::u32(index));
         self.num_added += 1;
         self
     }
 
-    /// Define an alias that references an outer module's module.
-    pub fn outer_module(&mut self, count: u32, module: u32) -> &mut Self {
-        self.bytes.push(ALIAS_KIND_OUTER);
+    /// Define an alias to an outer module.
+    ///
+    /// The count starts at 0 to represent the current component.
+    pub fn outer_module(&mut self, count: u32, index: u32) -> &mut Self {
+        self.bytes.push(0x02);
+        self.bytes.push(0x00);
         self.bytes.extend(encoders::u32(count));
-        self.bytes.extend(encoders::u32(module));
-        self.bytes.push(ALIAS_KIND_OUTER_MODULE);
+        self.bytes.extend(encoders::u32(index));
+        self.num_added += 1;
+        self
+    }
+
+    /// Define an alias to an outer component.
+    ///
+    /// The count starts at 0 to represent the current component.
+    pub fn outer_component(&mut self, count: u32, index: u32) -> &mut Self {
+        self.bytes.push(0x02);
+        self.bytes.push(0x01);
+        self.bytes.extend(encoders::u32(count));
+        self.bytes.extend(encoders::u32(index));
         self.num_added += 1;
         self
     }
@@ -96,7 +136,7 @@ impl AliasSection {
 
 impl ComponentSection for AliasSection {
     fn id(&self) -> u8 {
-        SectionId::Alias.into()
+        ComponentSectionId::Alias.into()
     }
 
     fn encode<S>(&self, sink: &mut S)

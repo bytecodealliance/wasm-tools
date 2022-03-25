@@ -492,11 +492,13 @@ impl State {
             let data_clone = wasm.clone();
             panic::set_hook(Box::new(move |panic_info| {
                 // invoke the default handler and exit the process
-                println!("Internal undhandled panicking \n{:?}!", panic_info);
+                println!("Internal unhandled panic:\n{:?}!", panic_info);
                 // stop generator
                 finish_writing_wrap_clone2.store(true, SeqCst);
                 // report current crash
-                self_clone.save_crash(&data_clone, None, seed, &artifact_clone);
+                if let Err(e) = self_clone.save_crash(&data_clone, None, seed, &artifact_clone) {
+                    eprintln!("Failed to save crash: {}", e);
+                }
                 process::exit(1);
             }));
 

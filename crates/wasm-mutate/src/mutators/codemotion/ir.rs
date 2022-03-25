@@ -4,7 +4,7 @@ use crate::{
     mutators::{codemotion::ir::parse_context::ParseContext, OperatorAndByteOffset},
 };
 use wasm_encoder::{Function, Instruction};
-use wasmparser::{Operator, Range, TypeOrFuncType};
+use wasmparser::{BlockType, Operator, Range};
 
 use self::parse_context::{Ast, Node, State};
 
@@ -28,7 +28,7 @@ pub trait AstWriter {
         newfunc: &mut Function,
         operators: &Vec<OperatorAndByteOffset>,
         input_wasm: &'a [u8],
-        ty: &TypeOrFuncType,
+        ty: &BlockType,
     ) -> crate::Result<()> {
         self.write_loop_default(ast, nodeidx, body, newfunc, operators, input_wasm, ty)
     }
@@ -45,7 +45,7 @@ pub trait AstWriter {
         newfunc: &mut Function,
         operators: &Vec<OperatorAndByteOffset>,
         input_wasm: &'a [u8],
-        ty: &TypeOrFuncType,
+        ty: &BlockType,
     ) -> crate::Result<()> {
         newfunc.instruction(&Instruction::Loop(map_block_type(*ty)?));
         for ch in body {
@@ -67,7 +67,7 @@ pub trait AstWriter {
         newfunc: &mut Function,
         operators: &Vec<OperatorAndByteOffset>,
         input_wasm: &'a [u8],
-        ty: &TypeOrFuncType,
+        ty: &BlockType,
     ) -> crate::Result<()> {
         newfunc.instruction(&Instruction::Block(map_block_type(*ty)?));
         for ch in body {
@@ -93,7 +93,7 @@ pub trait AstWriter {
         newfunc: &mut Function,
         operators: &Vec<OperatorAndByteOffset>,
         input_wasm: &'a [u8],
-        ty: &TypeOrFuncType,
+        ty: &BlockType,
     ) -> crate::Result<()> {
         self.write_block_default(ast, nodeidx, body, newfunc, operators, input_wasm, ty)
     }
@@ -113,7 +113,7 @@ pub trait AstWriter {
         newfunc: &mut Function,
         operators: &Vec<OperatorAndByteOffset>,
         input_wasm: &'a [u8],
-        ty: &TypeOrFuncType,
+        ty: &BlockType,
     ) -> crate::Result<()> {
         self.write_if_else_default(
             ast,
@@ -140,7 +140,7 @@ pub trait AstWriter {
         newfunc: &mut Function,
         operators: &Vec<OperatorAndByteOffset>,
         input_wasm: &'a [u8],
-        ty: &TypeOrFuncType,
+        ty: &BlockType,
     ) -> crate::Result<()> {
         newfunc.instruction(&Instruction::If(map_block_type(*ty)?));
 

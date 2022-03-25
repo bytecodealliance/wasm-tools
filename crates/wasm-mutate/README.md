@@ -73,7 +73,6 @@ You can mutate a WebAssembly binary by using the cli tool:
           wasm.to_vec()
       } else {
           let (w, _) = match wasm_tools_fuzz::generate_valid_module_from_seed(seed, |config, u| {
-              config.module_linking_enabled = false;
               config.exceptions_enabled = false;
               config.simd_enabled = false;
               config.reference_types_enabled = false;

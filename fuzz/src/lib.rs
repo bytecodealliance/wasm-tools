@@ -13,7 +13,6 @@ pub fn generate_valid_module(
     // them. Use the input data to determine whether these features are enabled.
     config.simd_enabled = u.arbitrary()?;
     config.relaxed_simd_enabled = config.simd_enabled && u.arbitrary()?;
-    config.module_linking_enabled = u.arbitrary()?;
     config.memory64_enabled = u.arbitrary()?;
     config.exceptions_enabled = u.arbitrary()?;
     config.canonicalize_nans = u.arbitrary()?;
