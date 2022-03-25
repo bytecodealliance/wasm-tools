@@ -9,7 +9,10 @@ keywords = ["parser", "WebAssembly", "wasm"]
 description = """
 A simple event-driven library for parsing WebAssembly binary files.
 """
-edition = "2018"
+edition = "2021"
+
+[dependencies]
+indexmap = "1.8.0"
 
 [dev-dependencies]
 anyhow = "1.0"

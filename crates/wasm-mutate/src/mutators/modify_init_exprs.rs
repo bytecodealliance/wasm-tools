@@ -133,9 +133,6 @@ impl<'cfg, 'wasm> Translator for InitTranslator<'cfg, 'wasm> {
                 }
                 T::FuncRef => I::RefNull(wasm_encoder::ValType::FuncRef),
                 T::ExternRef => I::RefNull(wasm_encoder::ValType::ExternRef),
-                T::ExnRef | T::Func | T::EmptyBlockType => {
-                    return Err(Error::no_mutations_applicable())
-                }
             }
         } else {
             // FIXME: implement non-reducing mutations for constant expressions.

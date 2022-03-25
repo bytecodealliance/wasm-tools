@@ -237,7 +237,7 @@ pub trait Config: 'static + std::fmt::Debug {
     }
 
     /// Determines whether the bulk memory proposal is enabled for generating
-    /// insructions.
+    /// instructions.
     ///
     /// Defaults to `false`.
     fn bulk_memory_enabled(&self) -> bool {
@@ -245,7 +245,7 @@ pub trait Config: 'static + std::fmt::Debug {
     }
 
     /// Determines whether the reference types proposal is enabled for
-    /// generating insructions.
+    /// generating instructions.
     ///
     /// Defaults to `false`.
     fn reference_types_enabled(&self) -> bool {
@@ -253,7 +253,7 @@ pub trait Config: 'static + std::fmt::Debug {
     }
 
     /// Determines whether the SIMD proposal is enabled for
-    /// generating insructions.
+    /// generating instructions.
     ///
     /// Defaults to `false`.
     fn simd_enabled(&self) -> bool {
@@ -261,7 +261,7 @@ pub trait Config: 'static + std::fmt::Debug {
     }
 
     /// Determines whether the Relaxed SIMD proposal is enabled for
-    /// generating insructions.
+    /// generating instructions.
     ///
     /// Defaults to `false`.
     fn relaxed_simd_enabled(&self) -> bool {
@@ -269,17 +269,10 @@ pub trait Config: 'static + std::fmt::Debug {
     }
 
     /// Determines whether the exception-handling proposal is enabled for
-    /// generating insructions.
+    /// generating instructions.
     ///
     /// Defaults to `false`.
     fn exceptions_enabled(&self) -> bool {
-        false
-    }
-
-    /// Determines whether the module linking proposal is enabled.
-    ///
-    /// Defaults to `false`.
-    fn module_linking_enabled(&self) -> bool {
         false
     }
 
@@ -352,6 +345,13 @@ pub trait Config: 'static + std::fmt::Debug {
     fn allowed_instructions(&self) -> InstructionKinds {
         InstructionKinds::all()
     }
+
+    /// Returns whether we should generate custom sections or not.
+    ///
+    /// This is false by default.
+    fn generate_custom_sections(&self) -> bool {
+        false
+    }
 }
 
 /// The default configuration.
@@ -392,7 +392,6 @@ pub struct SwarmConfig {
     pub max_memory_pages: u64,
     pub bulk_memory_enabled: bool,
     pub reference_types_enabled: bool,
-    pub module_linking_enabled: bool,
     pub max_aliases: usize,
     pub max_nesting_depth: usize,
 
@@ -475,7 +474,6 @@ impl<'a> Arbitrary<'a> for SwarmConfig {
             exceptions_enabled: false,
             memory64_enabled: false,
             max_type_size: 1000,
-            module_linking_enabled: false,
             canonicalize_nans: false,
         })
     }
@@ -600,10 +598,6 @@ impl Config for SwarmConfig {
 
     fn reference_types_enabled(&self) -> bool {
         self.reference_types_enabled
-    }
-
-    fn module_linking_enabled(&self) -> bool {
-        self.module_linking_enabled
     }
 
     fn simd_enabled(&self) -> bool {

@@ -13,7 +13,12 @@ use crate::{ModuleInfo, Result, WasmMutate};
 use rand::Rng;
 use std::collections::HashSet;
 use wasm_encoder::*;
-use wasmparser::*;
+use wasmparser::{
+    BinaryReader, CodeSectionReader, DataSectionReader, ElementSectionReader, ExportSectionReader,
+    ExternalKind, FunctionSectionReader, GlobalSectionReader, ImportSectionReader,
+    MemorySectionReader, Operator, SectionReader, TableSectionReader, TagSectionReader,
+    TypeSectionReader,
+};
 
 /// Mutator that removes a random item in a wasm module (function, global,
 /// table, etc).
@@ -129,9 +134,6 @@ impl RemoveItem {
         const DATA: u8 = SectionId::Data as u8;
         const DATACOUNT: u8 = SectionId::DataCount as u8;
         const TAG: u8 = SectionId::Tag as u8;
-        const MODULE: u8 = SectionId::Module as u8;
-        const INSTANCE: u8 = SectionId::Instance as u8;
-        const ALIAS: u8 = SectionId::Alias as u8;
 
         // This is the main workhorse loop of the module translation. This will
         // iterate over the original wasm sections, raw, and create the new
@@ -158,7 +160,7 @@ impl RemoveItem {
                 // `filter_out` helper can't be used and we have to process
                 // everything manually here.
                 IMPORT => {
-                    let mut result = ImportSection::default();
+                    let mut result = ImportSection::new();
                     let mut function = 0;
                     let mut global = 0;
                     let mut table = 0;
@@ -167,48 +169,40 @@ impl RemoveItem {
                     for item in ImportSectionReader::new(section.data, 0)? {
                         let item = item?;
                         match &item.ty {
-                            ImportSectionEntryType::Function(ty) => {
+                            wasmparser::TypeRef::Func(ty) => {
                                 if self.item != Item::Function || self.idx != function {
                                     let ty = self.remap(Item::Type, *ty)?;
-                                    result.import(
-                                        item.module,
-                                        item.field,
-                                        EntityType::Function(ty),
-                                    );
+                                    result.import(item.module, item.name, EntityType::Function(ty));
                                 }
                                 function += 1;
                             }
-                            ImportSectionEntryType::Table(ty) => {
+                            wasmparser::TypeRef::Table(ty) => {
                                 if self.item != Item::Table || self.idx != table {
                                     let ty = self.translate_table_type(ty)?;
-                                    result.import(item.module, item.field, ty);
+                                    result.import(item.module, item.name, ty);
                                 }
                                 table += 1;
                             }
-                            ImportSectionEntryType::Memory(ty) => {
+                            wasmparser::TypeRef::Memory(ty) => {
                                 if self.item != Item::Memory || self.idx != memory {
                                     let ty = self.translate_memory_type(ty)?;
-                                    result.import(item.module, item.field, ty);
+                                    result.import(item.module, item.name, ty);
                                 }
                                 memory += 1;
                             }
-                            ImportSectionEntryType::Global(ty) => {
+                            wasmparser::TypeRef::Global(ty) => {
                                 if self.item != Item::Global || self.idx != global {
                                     let ty = self.translate_global_type(ty)?;
-                                    result.import(item.module, item.field, ty);
+                                    result.import(item.module, item.name, ty);
                                 }
                                 global += 1;
                             }
-                            ImportSectionEntryType::Tag(ty) => {
+                            wasmparser::TypeRef::Tag(ty) => {
                                 if self.item != Item::Tag || self.idx != tag {
                                     let ty = self.translate_tag_type(ty)?;
-                                    result.import(item.module, item.field, ty);
+                                    result.import(item.module, item.name, ty);
                                 }
                                 tag += 1;
-                            }
-                            ImportSectionEntryType::Instance(_)
-                            | ImportSectionEntryType::Module(_) => {
-                                return Err(Error::no_mutations_applicable())
                             }
                         }
                     }
@@ -268,13 +262,11 @@ impl RemoveItem {
                 }
 
                 EXPORT => {
-                    use wasm_encoder::Export;
-
-                    let mut result = ExportSection::default();
+                    let mut result = ExportSection::new();
                     for item in ExportSectionReader::new(section.data, 0)? {
                         let item = item?;
                         let e = match &item.kind {
-                            ExternalKind::Function => {
+                            ExternalKind::Func => {
                                 Export::Function(self.remap(Item::Function, item.index)?)
                             }
                             ExternalKind::Table => {
@@ -287,11 +279,8 @@ impl RemoveItem {
                             ExternalKind::Global => {
                                 Export::Global(self.remap(Item::Global, item.index)?)
                             }
-                            ExternalKind::Type | ExternalKind::Instance | ExternalKind::Module => {
-                                return Err(Error::no_mutations_applicable())
-                            }
                         };
-                        result.export(item.field, e);
+                        result.export(item.name, e);
                     }
                     module.section(&result);
                 }
@@ -364,9 +353,6 @@ impl RemoveItem {
                         },
                     )?;
                 }
-
-                // Module linking is not supported at this time.
-                MODULE | INSTANCE | ALIAS => return Err(Error::no_mutations_applicable()),
 
                 id => panic!("unknown id: {}", id),
             }

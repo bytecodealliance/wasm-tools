@@ -62,7 +62,7 @@ impl Opts {
         let start = Instant::now();
         for payload in Parser::new(0).parse_all(&wasm) {
             match validator.payload(&payload?)? {
-                ValidPayload::Ok | ValidPayload::Submodule(_) => {}
+                ValidPayload::Ok | ValidPayload::Parser(_) | ValidPayload::End(_) => {}
                 ValidPayload::Func(validator, body) => {
                     functions_to_validate.push((validator, body))
                 }
@@ -92,7 +92,7 @@ fn parse_features(arg: &str) -> Result<WasmFeatures> {
         ("bulk-memory", |f| &mut f.bulk_memory),
         ("multi-value", |f| &mut f.multi_value),
         ("tail-call", |f| &mut f.tail_call),
-        ("module-linking", |f| &mut f.module_linking),
+        ("component-model", |f| &mut f.component_model),
         ("multi-memory", |f| &mut f.multi_memory),
         ("exception-handling", |f| &mut f.exceptions),
         ("memory64", |f| &mut f.memory64),

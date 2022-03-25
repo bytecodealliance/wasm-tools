@@ -1,7 +1,7 @@
 //! A mutator to add a new type to a Wasm module.
 
 use super::Mutator;
-use crate::{Error, Result};
+use crate::Result;
 use rand::Rng;
 use std::iter;
 
@@ -70,9 +70,6 @@ impl Mutator for AddTypeMutator {
                             .collect::<Result<Vec<_>, _>>()?;
                         types.function(params, results);
                     }
-                    wasmparser::TypeDef::Instance(_) | wasmparser::TypeDef::Module(_) => {
-                        return Err(Error::unsupported("instance or module type def"))
-                    }
                 }
             }
             // And then add our new type.
@@ -98,9 +95,6 @@ fn translate_type(ty: &wasmparser::Type) -> Result<wasm_encoder::ValType> {
         wasmparser::Type::V128 => wasm_encoder::ValType::V128,
         wasmparser::Type::FuncRef => wasm_encoder::ValType::FuncRef,
         wasmparser::Type::ExternRef => wasm_encoder::ValType::ExternRef,
-        wasmparser::Type::ExnRef | wasmparser::Type::Func | wasmparser::Type::EmptyBlockType => {
-            return Err(Error::unsupported(format!("unsupported type: {:?}", ty)));
-        }
     })
 }
 

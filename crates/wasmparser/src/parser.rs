@@ -1,35 +1,53 @@
-use crate::TagSectionReader;
-use crate::{AliasSectionReader, InstanceSectionReader};
-use crate::{BinaryReader, BinaryReaderError, FunctionBody, Range, Result};
-use crate::{DataSectionReader, ElementSectionReader, ExportSectionReader};
-use crate::{FunctionSectionReader, ImportSectionReader, TypeSectionReader};
-use crate::{GlobalSectionReader, MemorySectionReader, TableSectionReader};
+use crate::limits::MAX_WASM_MODULE_SIZE;
+use crate::{
+    AliasSectionReader, ComponentExportSectionReader, ComponentFunctionSectionReader,
+    ComponentImportSectionReader, ComponentStartSectionReader, ComponentTypeSectionReader,
+    InstanceSectionReader,
+};
+use crate::{
+    BinaryReader, BinaryReaderError, DataSectionReader, ElementSectionReader, ExportSectionReader,
+    FunctionBody, FunctionSectionReader, GlobalSectionReader, ImportSectionReader,
+    MemorySectionReader, Range, Result, TableSectionReader, TagSectionReader, TypeSectionReader,
+};
 use std::convert::TryInto;
 use std::fmt;
 use std::iter;
 
-/// An incremental parser of a binary WebAssembly module.
+pub(crate) const WASM_EXPERIMENTAL_VERSION: u32 = 0xd;
+pub(crate) const WASM_MODULE_VERSION: u32 = 0x1;
+pub(crate) const WASM_COMPONENT_VERSION: u32 = 0x0001000a;
+
+/// The supported encoding formats for the parser.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum Encoding {
+    /// The encoding format is a WebAssembly module.
+    Module,
+    /// The encoding format is a WebAssembly component.
+    Component,
+}
+
+/// An incremental parser of a binary WebAssembly module or component.
 ///
 /// This type is intended to be used to incrementally parse a WebAssembly module
-/// as bytes become available for the module. This can also be used to parse
-/// modules that are already entirely resident within memory.
+/// or component as bytes become available for the module. This can also be used
+/// to parse modules or components that are already entirely resident within memory.
 ///
 /// This primary function for a parser is the [`Parser::parse`] function which
 /// will incrementally consume input. You can also use the [`Parser::parse_all`]
-/// function to parse a module that is entirely resident in memory.
+/// function to parse a module or component that is entirely resident in memory.
 #[derive(Debug, Clone)]
 pub struct Parser {
     state: State,
     offset: u64,
     max_size: u64,
+    encoding: Encoding,
 }
 
 #[derive(Debug, Clone)]
 enum State {
-    ModuleHeader,
+    Header,
     SectionStart,
     FunctionBody { remaining: u32, len: u32 },
-    Module { remaining: u32, len: u32 },
 }
 
 /// A successful return payload from [`Parser::parse`].
@@ -55,71 +73,63 @@ pub enum Chunk<'a> {
     },
 }
 
-/// Values that can be parsed from a wasm module.
+/// Values that can be parsed from a WebAssembly module or component.
 ///
 /// This enumeration is all possible chunks of pieces that can be parsed by a
-/// [`Parser`] from a binary WebAssembly module. Note that for many sections the
-/// entire section is parsed all at once, whereas other functions, like the code
-/// section, are parsed incrementally. This is a distinction where some
+/// [`Parser`] from a binary WebAssembly module or component. Note that for many
+/// sections the entire section is parsed all at once, whereas other functions,
+/// like the code section, are parsed incrementally. This is a distinction where some
 /// sections, like the type section, are required to be fully resident in memory
 /// (fully downloaded) before proceeding. Other sections, like the code section,
 /// can be processed in a streaming fashion where each function is extracted
 /// individually so it can possibly be shipped to another thread while you wait
 /// for more functions to get downloaded.
 ///
-/// Note that payloads, when returned, do not indicate that the wasm module is
-/// valid. For example when you receive a `Payload::TypeSection` the type
+/// Note that payloads, when returned, do not indicate that the module or component
+/// is valid. For example when you receive a `Payload::TypeSection` the type
 /// section itself has not yet actually been parsed. The reader returned will be
 /// able to parse it, but you'll have to actually iterate the reader to do the
 /// full parse. Each payload returned is intended to be a *window* into the
 /// original `data` passed to [`Parser::parse`] which can be further processed
 /// if necessary.
 pub enum Payload<'a> {
-    /// Indicates the header of a WebAssembly binary.
-    ///
-    /// This header also indicates the version number that was parsed, which is
-    /// currently always 1.
+    /// Indicates the header of a WebAssembly module or component.
     Version {
-        /// The version number found
+        /// The version number found in the header.
         num: u32,
+        /// The encoding format being parsed.
+        encoding: Encoding,
         /// The range of bytes that were parsed to consume the header of the
-        /// module. Note that this range is relative to the start of the byte
-        /// stream.
+        /// module or component. Note that this range is relative to the start
+        /// of the byte stream.
         range: Range,
     },
 
-    /// A type section was received, and the provided reader can be used to
-    /// parse the contents of the type section.
+    /// A module type section was received and the provided reader can be
+    /// used to parse the contents of the type section.
     TypeSection(crate::TypeSectionReader<'a>),
-    /// A import section was received, and the provided reader can be used to
-    /// parse the contents of the import section.
+    /// A module import section was received and the provided reader can be
+    /// used to parse the contents of the import section.
     ImportSection(crate::ImportSectionReader<'a>),
-    /// An alias section was received, and the provided reader can be used to
-    /// parse the contents of the alias section.
-    AliasSection(crate::AliasSectionReader<'a>),
-    /// An instance section was received, and the provided reader can be used to
-    /// parse the contents of the instance section.
-    InstanceSection(crate::InstanceSectionReader<'a>),
-    /// A function section was received, and the provided reader can be used to
-    /// parse the contents of the function section.
+    /// A module function section was received and the provided reader can be
+    /// used to parse the contents of the function section.
     FunctionSection(crate::FunctionSectionReader<'a>),
-    /// A table section was received, and the provided reader can be used to
-    /// parse the contents of the table section.
+    /// A module table section was received and the provided reader can be
+    /// used to parse the contents of the table section.
     TableSection(crate::TableSectionReader<'a>),
-    /// A memory section was received, and the provided reader can be used to
-    /// parse the contents of the memory section.
+    /// A module memory section was received and the provided reader can be
+    /// used to parse the contents of the memory section.
     MemorySection(crate::MemorySectionReader<'a>),
-    /// An tag section was received, and the provided reader can be used to
-    /// parse the contents of the tag section.
+    /// A module tag section was received, and the provided reader can be
+    /// used to parse the contents of the tag section.
     TagSection(crate::TagSectionReader<'a>),
-    /// A global section was received, and the provided reader can be used to
-    /// parse the contents of the global section.
+    /// A module global section was received and the provided reader can be
+    /// used to parse the contents of the global section.
     GlobalSection(crate::GlobalSectionReader<'a>),
-    /// An export section was received, and the provided reader can be used to
-    /// parse the contents of the export section.
+    /// A module export section was received, and the provided reader can be
+    /// used to parse the contents of the export section.
     ExportSection(crate::ExportSectionReader<'a>),
-    /// A start section was received, and the `u32` here is the index of the
-    /// start function.
+    /// A module start section was received.
     StartSection {
         /// The start function index
         func: u32,
@@ -127,11 +137,10 @@ pub enum Payload<'a> {
         /// offsets relative to the start of the byte stream.
         range: Range,
     },
-    /// An element section was received, and the provided reader can be used to
-    /// parse the contents of the element section.
+    /// A module element section was received and the provided reader can be
+    /// used to parse the contents of the element section.
     ElementSection(crate::ElementSectionReader<'a>),
-    /// A data count section was received, and the `u32` here is the contents of
-    /// the data count section.
+    /// A module data count section was received.
     DataCountSection {
         /// The number of data segments.
         count: u32,
@@ -139,25 +148,71 @@ pub enum Payload<'a> {
         /// offsets relative to the start of the byte stream.
         range: Range,
     },
-    /// A data section was received, and the provided reader can be used to
-    /// parse the contents of the data section.
+    /// A module data section was received and the provided reader can be
+    /// used to parse the contents of the data section.
     DataSection(crate::DataSectionReader<'a>),
-    /// A custom section was found.
-    CustomSection {
-        /// The name of the custom section.
-        name: &'a str,
-        /// The offset, relative to the start of the original module, that the
-        /// `data` payload for this custom section starts at.
-        data_offset: usize,
-        /// The actual contents of the custom section.
-        data: &'a [u8],
-        /// The range of bytes that specify this whole custom section (including
-        /// both the name of this custom section and its data) specified in
-        /// offsets relative to the start of the byte stream.
+
+    /// A component type section was received and the provided reader can be
+    /// used to parse the contents of the type section.
+    ComponentTypeSection(crate::ComponentTypeSectionReader<'a>),
+    /// A component import section was received and the provided reader can be
+    /// used to parse the contents of the import section.
+    ComponentImportSection(crate::ComponentImportSectionReader<'a>),
+    /// A component function section was received and the provided reader can be
+    /// used to parse the contents of the function section.
+    ComponentFunctionSection(crate::ComponentFunctionSectionReader<'a>),
+    /// A component module section was received and the provided parser can be
+    /// used to parse the nested module.
+    ///
+    /// This variant is special in that it returns a sub-`Parser`. Upon
+    /// receiving a `ModuleSection` it is expected that the returned
+    /// `Parser` will be used instead of the parent `Parser` until the parse has
+    /// finished. You'll need to feed data into the `Parser` returned until it
+    /// returns `Payload::End`. After that you'll switch back to the parent
+    /// parser to resume parsing the rest of the current component.
+    ///
+    /// Note that binaries will not be parsed correctly if you feed the data for
+    /// a nested module into the parent [`Parser`].
+    ModuleSection {
+        /// The parser for the nested module.
+        parser: Parser,
+        /// The range of bytes that represent the nested module in the
+        /// original byte stream.
         range: Range,
     },
+    /// A component section from a WebAssembly component was received and the
+    /// provided parser can be used to parse the nested component.
+    ///
+    /// This variant is special in that it returns a sub-`Parser`. Upon
+    /// receiving a `ComponentSection` it is expected that the returned
+    /// `Parser` will be used instead of the parent `Parser` until the parse has
+    /// finished. You'll need to feed data into the `Parser` returned until it
+    /// returns `Payload::End`. After that you'll switch back to the parent
+    /// parser to resume parsing the rest of the current component.
+    ///
+    /// Note that binaries will not be parsed correctly if you feed the data for
+    /// a nested component into the parent [`Parser`].
+    ComponentSection {
+        /// The parser for the nested component.
+        parser: Parser,
+        /// The range of bytes that represent the nested component in the
+        /// original byte stream.
+        range: Range,
+    },
+    /// A component instance section was received and the provided reader can be
+    /// used to parse the contents of the instance section.
+    InstanceSection(crate::InstanceSectionReader<'a>),
+    /// A component export section was received, and the provided reader can be
+    /// used to parse the contents of the export section.
+    ComponentExportSection(crate::ComponentExportSectionReader<'a>),
+    /// A component start section was received, and the provided reader can be
+    /// used to parse the contents of the start section.
+    ComponentStartSection(crate::ComponentStartSectionReader<'a>),
+    /// A component alias section was received and the provided reader can be
+    /// used to parse the contents of the alias section.
+    AliasSection(crate::AliasSectionReader<'a>),
 
-    /// Indicator of the start of the code section.
+    /// Indicator of the start of the code section of a WebAssembly module.
     ///
     /// This entry is returned whenever the code section starts. The `count`
     /// field indicates how many entries are in this code section. After
@@ -181,8 +236,8 @@ pub enum Payload<'a> {
         /// bytes into `Parser` again.
         size: u32,
     },
-
-    /// An entry of the code section, a function, was parsed.
+    /// An entry of the code section, a function, was parsed from a WebAssembly
+    /// module.
     ///
     /// This entry indicates that a function was successfully received from the
     /// code section, and the payload here is the window into the original input
@@ -191,47 +246,27 @@ pub enum Payload<'a> {
     /// `FunctionBody` provided to test whether it parses and/or is valid.
     CodeSectionEntry(crate::FunctionBody<'a>),
 
-    /// Indicator of the start of the module code section.
-    ///
-    /// This behaves the same as the `CodeSectionStart` payload being returned.
-    /// You're guaranteed the next `count` items will be of type
-    /// `ModuleSectionEntry`.
-    ModuleSectionStart {
-        /// The number of inline modules in this section.
-        count: u32,
-        /// The range of bytes that represent this section, specified in
+    /// A module or component custom section was received.
+    CustomSection {
+        /// The name of the custom section.
+        name: &'a str,
+        /// The offset, relative to the start of the original module or component,
+        /// that the `data` payload for this custom section starts at.
+        data_offset: usize,
+        /// The actual contents of the custom section.
+        data: &'a [u8],
+        /// The range of bytes that specify this whole custom section (including
+        /// both the name of this custom section and its data) specified in
         /// offsets relative to the start of the byte stream.
-        range: Range,
-        /// The size, in bytes, of the remaining contents of this section.
-        size: u32,
-    },
-
-    /// An entry of the module code section, a module, was parsed.
-    ///
-    /// This variant is special in that it returns a sub-`Parser`. Upon
-    /// receiving a `ModuleSectionEntry` it is expected that the returned
-    /// `Parser` will be used instead of the parent `Parser` until the parse has
-    /// finished. You'll need to feed data into the `Parser` returned until it
-    /// returns `Payload::End`. After that you'll switch back to the parent
-    /// parser to resume parsing the rest of the module code section.
-    ///
-    /// Note that binaries will not be parsed correctly if you feed the data for
-    /// a nested module into the parent [`Parser`].
-    ModuleSectionEntry {
-        /// The parser to use to parse the contents of the nested submodule.
-        /// This parser should be used until it reports `End`.
-        parser: Parser,
-        /// The range of bytes, relative to the start of the input stream, of
-        /// the bytes containing this submodule.
         range: Range,
     },
 
     /// An unknown section was found.
     ///
-    /// This variant is returned for all unknown sections in a wasm file. This
+    /// This variant is returned for all unknown sections encountered. This
     /// likely wants to be interpreted as an error by consumers of the parser,
-    /// but this can also be used to parse sections unknown to wasmparser at
-    /// this time.
+    /// but this can also be used to parse sections currently unsupported by
+    /// the parser.
     UnknownSection {
         /// The 8-bit identifier for this section.
         id: u8,
@@ -242,38 +277,41 @@ pub enum Payload<'a> {
         range: Range,
     },
 
-    /// The end of the WebAssembly module was reached.
-    End,
+    /// The end of the WebAssembly module or component was reached.
+    ///
+    /// The value is the offset in the input byte stream where the end
+    /// was reached.
+    End(usize),
 }
 
 impl Parser {
-    /// Creates a new module parser.
+    /// Creates a new parser.
     ///
     /// Reports errors and ranges relative to `offset` provided, where `offset`
     /// is some logical offset within the input stream that we're parsing.
     pub fn new(offset: u64) -> Parser {
         Parser {
-            state: State::ModuleHeader,
+            state: State::Header,
             offset,
             max_size: u64::max_value(),
+            // Assume the encoding is a module until we know otherwise
+            encoding: Encoding::Module,
         }
     }
 
     /// Attempts to parse a chunk of data.
     ///
     /// This method will attempt to parse the next incremental portion of a
-    /// WebAssembly binary. Data available for the module is provided as `data`,
-    /// and the data can be incomplete if more data has yet to arrive for the
-    /// module. The `eof` flag indicates whether `data` represents all possible
-    /// data for the module and no more data will ever be received.
+    /// WebAssembly binary. Data available for the module or component is
+    /// provided as `data`, and the data can be incomplete if more data has yet
+    /// to arrive. The `eof` flag indicates whether more data will ever be received.
     ///
     /// There are two ways parsing can succeed with this method:
     ///
     /// * `Chunk::NeedMoreData` - this indicates that there is not enough bytes
-    ///   in `data` to parse a chunk of this module. The caller needs to wait
-    ///   for more data to be available in this situation before calling this
-    ///   method again. It is guaranteed that this is only returned if `eof` is
-    ///   `false`.
+    ///   in `data` to parse a payload. The caller needs to wait for more data to
+    ///   be available in this situation before calling this method again. It is
+    ///   guaranteed that this is only returned if `eof` is `false`.
     ///
     /// * `Chunk::Parsed` - this indicates that a chunk of the input was
     ///   successfully parsed. The payload is available in this variant of what
@@ -286,14 +324,14 @@ impl Parser {
     /// view into it for successfully parsed chunks.
     ///
     /// It is expected that you'll call this method until `Payload::End` is
-    /// reached, at which point you're guaranteed that the module has completely
-    /// parsed. Note that complete parsing, for the top-level wasm module,
+    /// reached, at which point you're guaranteed that the parse has completed.
+    /// Note that complete parsing, for the top-level module or component,
     /// implies that `data` is empty and `eof` is `true`.
     ///
     /// # Errors
     ///
     /// Parse errors are returned as an `Err`. Errors can happen when the
-    /// structure of the module is unexpected, or if sections are too large for
+    /// structure of the data is unexpected or if sections are too large for
     /// example. Note that errors are not returned for malformed *contents* of
     /// sections here. Sections are generally not individually parsed and each
     /// returned [`Payload`] needs to be iterated over further to detect all
@@ -337,12 +375,10 @@ impl Parser {
     ///         };
     ///
     ///         match payload {
-    ///             // Each of these would be handled individually as necessary
+    ///             // Sections for WebAssembly modules
     ///             Version { .. } => { /* ... */ }
     ///             TypeSection(_) => { /* ... */ }
     ///             ImportSection(_) => { /* ... */ }
-    ///             AliasSection(_) => { /* ... */ }
-    ///             InstanceSection(_) => { /* ... */ }
     ///             FunctionSection(_) => { /* ... */ }
     ///             TableSection(_) => { /* ... */ }
     ///             MemorySection(_) => { /* ... */ }
@@ -364,23 +400,26 @@ impl Parser {
     ///                 // and its locals
     ///             }
     ///
-    ///             // When parsing nested modules we need to switch which
-    ///             // `Parser` we're using.
-    ///             ModuleSectionStart { .. } => { /* ... */ }
-    ///             ModuleSectionEntry { parser: subparser, .. } => {
-    ///                 stack.push(parser);
-    ///                 parser = subparser;
-    ///             }
+    ///             // Sections for WebAssembly components
+    ///             ComponentTypeSection(_) => { /* ... */ }
+    ///             ComponentImportSection(_) => { /* ... */ }
+    ///             ComponentFunctionSection(_) => { /* ... */ }
+    ///             ModuleSection { .. } => { /* ... */ }
+    ///             ComponentSection { .. } => { /* ... */ }
+    ///             InstanceSection(_) => { /* ... */ }
+    ///             ComponentExportSection(_) => { /* ... */ }
+    ///             ComponentStartSection { .. } => { /* ... */ }
+    ///             AliasSection(_) => { /* ... */ }
     ///
     ///             CustomSection { name, .. } => { /* ... */ }
     ///
     ///             // most likely you'd return an error here
     ///             UnknownSection { id, .. } => { /* ... */ }
     ///
-    ///             // Once we've reached the end of a module we either resume
-    ///             // at the parent module or we break out of the loop because
+    ///             // Once we've reached the end of a parser we either resume
+    ///             // at the parent parser or we break out of the loop because
     ///             // we're done.
-    ///             End => {
+    ///             End(_) => {
     ///                 if let Some(parent_parser) = stack.pop() {
     ///                     parser = parent_parser;
     ///                 } else {
@@ -445,12 +484,23 @@ impl Parser {
         use Payload::*;
 
         match self.state {
-            State::ModuleHeader => {
+            State::Header => {
                 let start = reader.original_position();
-                let num = reader.read_file_header()?;
+                let num = reader.read_header_version()?;
+                self.encoding = match num {
+                    WASM_EXPERIMENTAL_VERSION | WASM_MODULE_VERSION => Encoding::Module,
+                    WASM_COMPONENT_VERSION => Encoding::Component,
+                    _ => {
+                        return Err(BinaryReaderError::new(
+                            "bad version number",
+                            reader.original_position() - 4,
+                        ))
+                    }
+                };
                 self.state = State::SectionStart;
                 Ok(Version {
                     num,
+                    encoding: self.encoding,
                     range: Range {
                         start,
                         end: reader.original_position(),
@@ -459,20 +509,19 @@ impl Parser {
             }
             State::SectionStart => {
                 // If we're at eof and there are no bytes in our buffer, then
-                // that means we reached the end of the wasm file since it's
-                // just a bunch of sections concatenated after the module
-                // header.
+                // that means we reached the end of the data since it's
+                // just a bunch of sections concatenated after the header.
                 if eof && reader.bytes_remaining() == 0 {
-                    return Ok(Payload::End);
+                    return Ok(Payload::End(reader.original_position()));
                 }
 
-                let id = reader.read_var_u7()? as u8;
+                let id = reader.read_u7()? as u8;
                 let len_pos = reader.position;
                 let mut len = reader.read_var_u32()?;
 
                 // Test to make sure that this section actually fits within
                 // `Parser::max_size`. This doesn't matter for top-level modules
-                // but it is required for nested modules to correctly ensure
+                // but it is required for nested modules/components to correctly ensure
                 // that all sections live entirely within their section of the
                 // file.
                 let section_overflow = self
@@ -484,38 +533,57 @@ impl Parser {
                     return Err(BinaryReaderError::new("section too large", len_pos));
                 }
 
-                match id {
-                    0 => {
-                        let start = reader.original_position();
-                        let range = Range {
-                            start,
-                            end: reader.original_position() + len as usize,
-                        };
-                        let mut content = subreader(reader, len)?;
-                        // Note that if this fails we can't read any more bytes,
-                        // so clear the "we'd succeed if we got this many more
-                        // bytes" because we can't recover from "eof" at this point.
-                        let name = content.read_string().map_err(clear_hint)?;
-                        Ok(Payload::CustomSection {
-                            name,
-                            data_offset: content.original_position(),
-                            data: content.remaining_buffer(),
-                            range,
-                        })
+                // Check for custom sections (supported by all encodings)
+                if id == 0 {
+                    let start = reader.original_position();
+                    let range = Range {
+                        start,
+                        end: reader.original_position() + len as usize,
+                    };
+                    let mut content = subreader(reader, len)?;
+                    // Note that if this fails we can't read any more bytes,
+                    // so clear the "we'd succeed if we got this many more
+                    // bytes" because we can't recover from "eof" at this point.
+                    let name = content.read_string().map_err(clear_hint)?;
+                    return Ok(Payload::CustomSection {
+                        name,
+                        data_offset: content.original_position(),
+                        data: content.remaining_buffer(),
+                        range,
+                    });
+                }
+
+                match (self.encoding, id) {
+                    // Module sections
+                    (Encoding::Module, 1) => {
+                        section(reader, len, TypeSectionReader::new, TypeSection)
                     }
-                    1 => section(reader, len, TypeSectionReader::new, TypeSection),
-                    2 => section(reader, len, ImportSectionReader::new, ImportSection),
-                    3 => section(reader, len, FunctionSectionReader::new, FunctionSection),
-                    4 => section(reader, len, TableSectionReader::new, TableSection),
-                    5 => section(reader, len, MemorySectionReader::new, MemorySection),
-                    6 => section(reader, len, GlobalSectionReader::new, GlobalSection),
-                    7 => section(reader, len, ExportSectionReader::new, ExportSection),
-                    8 => {
+                    (Encoding::Module, 2) => {
+                        section(reader, len, ImportSectionReader::new, ImportSection)
+                    }
+                    (Encoding::Module, 3) => {
+                        section(reader, len, FunctionSectionReader::new, FunctionSection)
+                    }
+                    (Encoding::Module, 4) => {
+                        section(reader, len, TableSectionReader::new, TableSection)
+                    }
+                    (Encoding::Module, 5) => {
+                        section(reader, len, MemorySectionReader::new, MemorySection)
+                    }
+                    (Encoding::Module, 6) => {
+                        section(reader, len, GlobalSectionReader::new, GlobalSection)
+                    }
+                    (Encoding::Module, 7) => {
+                        section(reader, len, ExportSectionReader::new, ExportSection)
+                    }
+                    (Encoding::Module, 8) => {
                         let (func, range) = single_u32(reader, len, "start")?;
                         Ok(StartSection { func, range })
                     }
-                    9 => section(reader, len, ElementSectionReader::new, ElementSection),
-                    10 => {
+                    (Encoding::Module, 9) => {
+                        section(reader, len, ElementSectionReader::new, ElementSection)
+                    }
+                    (Encoding::Module, 10) => {
                         let start = reader.original_position();
                         let count = delimited(reader, &mut len, |r| r.read_var_u32())?;
                         let range = Range {
@@ -532,32 +600,81 @@ impl Parser {
                             size: len,
                         })
                     }
-                    11 => section(reader, len, DataSectionReader::new, DataSection),
-                    12 => {
+                    (Encoding::Module, 11) => {
+                        section(reader, len, DataSectionReader::new, DataSection)
+                    }
+                    (Encoding::Module, 12) => {
                         let (count, range) = single_u32(reader, len, "data count")?;
                         Ok(DataCountSection { count, range })
                     }
-                    13 => section(reader, len, TagSectionReader::new, TagSection),
-                    14 => {
-                        let start = reader.original_position();
-                        let count = delimited(reader, &mut len, |r| r.read_var_u32())?;
+                    (Encoding::Module, 13) => {
+                        section(reader, len, TagSectionReader::new, TagSection)
+                    }
+
+                    // Component sections
+                    (Encoding::Component, 1) => section(
+                        reader,
+                        len,
+                        ComponentTypeSectionReader::new,
+                        ComponentTypeSection,
+                    ),
+                    (Encoding::Component, 2) => section(
+                        reader,
+                        len,
+                        ComponentImportSectionReader::new,
+                        ComponentImportSection,
+                    ),
+                    (Encoding::Component, 3) => section(
+                        reader,
+                        len,
+                        ComponentFunctionSectionReader::new,
+                        ComponentFunctionSection,
+                    ),
+                    (Encoding::Component, 4) | (Encoding::Component, 5) => {
+                        if len as usize > MAX_WASM_MODULE_SIZE {
+                            return Err(BinaryReaderError::new(
+                                format!(
+                                    "{} section is too large",
+                                    if id == 4 { "module" } else { "component " }
+                                ),
+                                len_pos,
+                            ));
+                        }
+
                         let range = Range {
-                            start,
+                            start: reader.original_position(),
                             end: reader.original_position() + len as usize,
                         };
-                        self.state = State::Module {
-                            remaining: count,
-                            len,
-                        };
-                        Ok(ModuleSectionStart {
-                            count,
-                            range,
-                            size: len,
+                        self.max_size -= u64::from(len);
+                        self.offset += u64::from(len);
+                        let mut parser = Parser::new(usize_to_u64(reader.original_position()));
+                        parser.max_size = len.into();
+
+                        Ok(match id {
+                            4 => ModuleSection { parser, range },
+                            5 => ComponentSection { parser, range },
+                            _ => unreachable!(),
                         })
                     }
-                    15 => section(reader, len, InstanceSectionReader::new, InstanceSection),
-                    16 => section(reader, len, AliasSectionReader::new, AliasSection),
-                    id => {
+                    (Encoding::Component, 6) => {
+                        section(reader, len, InstanceSectionReader::new, InstanceSection)
+                    }
+                    (Encoding::Component, 7) => section(
+                        reader,
+                        len,
+                        ComponentExportSectionReader::new,
+                        ComponentExportSection,
+                    ),
+                    (Encoding::Component, 8) => section(
+                        reader,
+                        len,
+                        ComponentStartSectionReader::new,
+                        ComponentStartSection,
+                    ),
+                    (Encoding::Component, 9) => {
+                        section(reader, len, AliasSectionReader::new, AliasSection)
+                    }
+                    (_, id) => {
                         let offset = reader.original_position();
                         let contents = reader.read_bytes(len as usize)?;
                         let range = Range {
@@ -579,10 +696,6 @@ impl Parser {
             State::FunctionBody {
                 remaining: 0,
                 len: 0,
-            }
-            | State::Module {
-                remaining: 0,
-                len: 0,
             } => {
                 self.state = State::SectionStart;
                 self.parse_reader(reader, eof)
@@ -590,7 +703,7 @@ impl Parser {
 
             // ... otherwise trailing bytes with no remaining entries in these
             // sections indicates an error.
-            State::FunctionBody { remaining: 0, len } | State::Module { remaining: 0, len } => {
+            State::FunctionBody { remaining: 0, len } => {
                 debug_assert!(len > 0);
                 let offset = reader.original_position();
                 Err(BinaryReaderError::new(
@@ -608,7 +721,7 @@ impl Parser {
             // resident in memory. This means that we're reading whole chunks of
             // functions at a time.
             //
-            // Limiting via `Parser::max_size` (nested modules) happens above in
+            // Limiting via `Parser::max_size` (nested parsing) happens above in
             // `fn parse`, and limiting by our section size happens via
             // `delimited`. Actual parsing of the function body is delegated to
             // the caller to iterate over the `FunctionBody` structure.
@@ -624,72 +737,18 @@ impl Parser {
                 };
                 Ok(CodeSectionEntry(body))
             }
-
-            // Modules are trickier than functions. What's going to happen here
-            // is that we'll be offloading parsing to a sub-`Parser`. This
-            // sub-`Parser` will be delimited to not read past the size of the
-            // module that's specified.
-            //
-            // So the first thing that happens here is we read the size of the
-            // module. We use `delimited` to make sure the bytes specifying the
-            // size of the module are themselves within the module code section.
-            //
-            // Once we've read the size of a module, however, there's a few
-            // pieces of state that we need to update. We as a parser will not
-            // receive the next `size` bytes, so we need to update our internal
-            // bookkeeping to account for that:
-            //
-            // * The `len`, number of bytes remaining in this section, is
-            //   decremented by `size`. This can underflow, however, meaning
-            //   that the size of the module doesn't fit within the section.
-            //
-            // * Our `Parser::max_size` field needs to account for the bytes
-            //   that we're reading. Note that this is guaranteed to not
-            //   underflow, however, because whenever we parse a section header
-            //   we guarantee that its contents fit within our `max_size`.
-            //
-            // To update `len` we do that when updating `self.state`, and to
-            // update `max_size` we do that inline. Note that this will get
-            // further tweaked after we return with the bytes we read specifying
-            // the size of the module itself.
-            State::Module { remaining, mut len } => {
-                let size = delimited(reader, &mut len, |r| r.read_var_u32())?;
-                match len.checked_sub(size) {
-                    Some(i) => len = i,
-                    None => {
-                        return Err(BinaryReaderError::new(
-                            "Unexpected EOF",
-                            reader.original_position(),
-                        ));
-                    }
-                }
-                self.state = State::Module {
-                    remaining: remaining - 1,
-                    len,
-                };
-                let range = Range {
-                    start: reader.original_position(),
-                    end: reader.original_position() + size as usize,
-                };
-                self.max_size -= u64::from(size);
-                self.offset += u64::from(size);
-                let mut parser = Parser::new(usize_to_u64(reader.original_position()));
-                parser.max_size = size.into();
-                Ok(ModuleSectionEntry { parser, range })
-            }
         }
     }
 
-    /// Convenience function that can be used to parse a module entirely
-    /// resident in memory.
+    /// Convenience function that can be used to parse a module or component
+    /// that is entirely resident in memory.
     ///
-    /// This function will parse the `data` provided as a WebAssembly module,
-    /// assuming that `data` represents the entire WebAssembly module.
+    /// This function will parse the `data` provided as a WebAssembly module
+    /// or component.
     ///
-    /// Note that when this function yields `ModuleSectionEntry`
-    /// no action needs to be taken with the returned parser. The parser will be
-    /// automatically switched to internally and more payloads will continue to
-    /// get returned.
+    /// Note that when this function yields sections that provide parsers,
+    /// no further action is required for those sections as payloads from
+    /// those parsers will be automatically returned.
     pub fn parse_all(self, mut data: &[u8]) -> impl Iterator<Item = Result<Payload>> {
         let mut stack = Vec::new();
         let mut cur = self;
@@ -715,23 +774,15 @@ impl Parser {
             };
 
             match &payload {
-                // If a module ends then we either finished the current
-                // module or, if there's a parent, we switch back to
-                // resuming parsing the parent.
-                Payload::End => match stack.pop() {
-                    Some(p) => cur = p,
-                    None => done = true,
-                },
-
-                // When we enter a nested module then we need to update our
-                // current parser, saving off the previous state.
-                //
-                // Afterwards we turn the loop again to recurse in parsing the
-                // nested module.
-                Payload::ModuleSectionEntry { parser, range: _ } => {
+                Payload::ModuleSection { parser, .. }
+                | Payload::ComponentSection { parser, .. } => {
                     stack.push(cur.clone());
                     cur = parser.clone();
                 }
+                Payload::End(_) => match stack.pop() {
+                    Some(p) => cur = p,
+                    None => done = true,
+                },
 
                 _ => {}
             }
@@ -740,20 +791,19 @@ impl Parser {
         })
     }
 
-    /// Skip parsing the code or module code section entirely.
+    /// Skip parsing the code section entirely.
     ///
     /// This function can be used to indicate, after receiving
-    /// `CodeSectionStart` or `ModuleSectionStart`, that the section
-    /// will not be parsed.
+    /// `CodeSectionStart`, that the section will not be parsed.
     ///
     /// The caller will be responsible for skipping `size` bytes (found in the
-    /// `CodeSectionStart` or `ModuleSectionStart` payload). Bytes should
-    /// only be fed into `parse` after the `size` bytes have been skipped.
+    /// `CodeSectionStart` payload). Bytes should only be fed into `parse`
+    /// after the `size` bytes have been skipped.
     ///
     /// # Panics
     ///
     /// This function will panic if the parser is not in a state where it's
-    /// parsing the code or module code section.
+    /// parsing the code section.
     ///
     /// # Examples
     ///
@@ -783,7 +833,7 @@ impl Parser {
     ///                 parser.skip_section();
     ///                 wasm = &wasm[size as usize..];
     ///             }
-    ///             End => break,
+    ///             End(_) => break,
     ///             _ => {}
     ///         }
     ///     }
@@ -796,7 +846,7 @@ impl Parser {
     /// ```
     pub fn skip_section(&mut self) {
         let skip = match self.state {
-            State::FunctionBody { remaining: _, len } | State::Module { remaining: _, len } => len,
+            State::FunctionBody { remaining: _, len } => len,
             _ => panic!("wrong state to call `skip_section`"),
         };
         self.offset += u64::from(skip);
@@ -852,7 +902,7 @@ fn single_u32<'a>(reader: &mut BinaryReader<'a>, len: u32, desc: &str) -> Result
     let index = content.read_var_u32().map_err(clear_hint)?;
     if !content.eof() {
         return Err(BinaryReaderError::new(
-            format!("Unexpected content in the {} section", desc),
+            format!("unexpected content in the {} section", desc),
             content.original_position(),
         ));
     }
@@ -877,7 +927,7 @@ fn delimited<'a, T>(
         .and_then(|i| len.checked_sub(i))
     {
         Some(i) => i,
-        None => return Err(BinaryReaderError::new("Unexpected EOF", start)),
+        None => return Err(BinaryReaderError::new("unexpected EOF", start)),
     };
     Ok(ret)
 }
@@ -892,27 +942,20 @@ impl fmt::Debug for Payload<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use Payload::*;
         match self {
-            CustomSection {
-                name,
-                data_offset,
-                data: _,
+            Version {
+                num,
+                encoding,
                 range,
             } => f
-                .debug_struct("CustomSection")
-                .field("name", name)
-                .field("data_offset", data_offset)
-                .field("range", range)
-                .field("data", &"...")
-                .finish(),
-            Version { num, range } => f
                 .debug_struct("Version")
                 .field("num", num)
+                .field("encoding", encoding)
                 .field("range", range)
                 .finish(),
+
+            // Module sections
             TypeSection(_) => f.debug_tuple("TypeSection").field(&"...").finish(),
             ImportSection(_) => f.debug_tuple("ImportSection").field(&"...").finish(),
-            AliasSection(_) => f.debug_tuple("AliasSection").field(&"...").finish(),
-            InstanceSection(_) => f.debug_tuple("InstanceSection").field(&"...").finish(),
             FunctionSection(_) => f.debug_tuple("FunctionSection").field(&"...").finish(),
             TableSection(_) => f.debug_tuple("TableSection").field(&"...").finish(),
             MemorySection(_) => f.debug_tuple("MemorySection").field(&"...").finish(),
@@ -938,22 +981,56 @@ impl fmt::Debug for Payload<'_> {
                 .field("size", size)
                 .finish(),
             CodeSectionEntry(_) => f.debug_tuple("CodeSectionEntry").field(&"...").finish(),
-            ModuleSectionStart { count, range, size } => f
-                .debug_struct("ModuleSectionStart")
-                .field("count", count)
-                .field("range", range)
-                .field("size", size)
+
+            // Component sections
+            ComponentTypeSection(_) => f.debug_tuple("ComponentTypeSection").field(&"...").finish(),
+            ComponentImportSection(_) => f
+                .debug_tuple("ComponentImportSection")
+                .field(&"...")
                 .finish(),
-            ModuleSectionEntry { parser: _, range } => f
-                .debug_struct("ModuleSectionEntry")
+            ComponentFunctionSection(_) => f
+                .debug_tuple("ComponentFunctionSection")
+                .field(&"...")
+                .finish(),
+            ModuleSection { parser: _, range } => f
+                .debug_struct("ModuleSection")
                 .field("range", range)
                 .finish(),
+            ComponentSection { parser: _, range } => f
+                .debug_struct("ComponentSection")
+                .field("range", range)
+                .finish(),
+            InstanceSection(_) => f.debug_tuple("InstanceSection").field(&"...").finish(),
+            ComponentExportSection(_) => f
+                .debug_tuple("ComponentExportSection")
+                .field(&"...")
+                .finish(),
+            ComponentStartSection(_) => f
+                .debug_tuple("ComponentStartSection")
+                .field(&"...")
+                .finish(),
+            AliasSection(_) => f.debug_tuple("AliasSection").field(&"...").finish(),
+
+            CustomSection {
+                name,
+                data_offset,
+                data: _,
+                range,
+            } => f
+                .debug_struct("CustomSection")
+                .field("name", name)
+                .field("data_offset", data_offset)
+                .field("range", range)
+                .field("data", &"...")
+                .finish(),
+
             UnknownSection { id, range, .. } => f
                 .debug_struct("UnknownSection")
                 .field("id", id)
                 .field("range", range)
                 .finish(),
-            End => f.write_str("End"),
+
+            End(offset) => f.debug_tuple("End").field(offset).finish(),
         }
     }
 }
@@ -1014,10 +1091,30 @@ mod tests {
             p.parse(b"\0asm\x01\0\0\0", false),
             Ok(Chunk::Parsed {
                 consumed: 8,
-                payload: Payload::Version { num: 1, .. },
+                payload: Payload::Version {
+                    num: WASM_MODULE_VERSION,
+                    encoding: Encoding::Module,
+                    ..
+                },
             }),
         );
-        return p;
+        p
+    }
+
+    fn parser_after_component_header() -> Parser {
+        let mut p = Parser::default();
+        assert_matches!(
+            p.parse(b"\0asm\x0a\0\x01\0", false),
+            Ok(Chunk::Parsed {
+                consumed: 8,
+                payload: Payload::Version {
+                    num: WASM_COMPONENT_VERSION,
+                    encoding: Encoding::Component,
+                    ..
+                },
+            }),
+        );
+        p
     }
 
     #[test]
@@ -1058,7 +1155,7 @@ mod tests {
             parser_after_header().parse(&[], true),
             Ok(Chunk::Parsed {
                 consumed: 0,
-                payload: Payload::End,
+                payload: Payload::End(8),
             }),
         );
     }
@@ -1067,7 +1164,7 @@ mod tests {
     fn type_section() {
         assert!(parser_after_header().parse(&[1], true).is_err());
         assert!(parser_after_header().parse(&[1, 0], false).is_err());
-        // assert!(parser_after_header().parse(&[8, 2], true).is_err());
+        assert!(parser_after_header().parse(&[8, 2], true).is_err());
         assert_matches!(
             parser_after_header().parse(&[1], false),
             Ok(Chunk::NeedMoreData(1)),
@@ -1164,7 +1261,7 @@ mod tests {
             p.parse(&[], true),
             Ok(Chunk::Parsed {
                 consumed: 0,
-                payload: Payload::End,
+                payload: Payload::End(11),
             }),
         );
         let mut p = parser_after_header();
@@ -1186,7 +1283,7 @@ mod tests {
             p.parse(&[], true),
             Ok(Chunk::Parsed {
                 consumed: 0,
-                payload: Payload::End,
+                payload: Payload::End(12),
             }),
         );
 
@@ -1202,7 +1299,7 @@ mod tests {
         );
         assert_eq!(
             p.parse(&[0], false).unwrap_err().message(),
-            "Unexpected EOF"
+            "unexpected EOF"
         );
 
         // section with 2 functions but section is cut off
@@ -1224,7 +1321,7 @@ mod tests {
         assert_matches!(p.parse(&[], false), Ok(Chunk::NeedMoreData(1)));
         assert_eq!(
             p.parse(&[0], false).unwrap_err().message(),
-            "Unexpected EOF",
+            "unexpected EOF",
         );
 
         // trailing data is bad
@@ -1250,34 +1347,15 @@ mod tests {
     }
 
     #[test]
-    fn module_code_errors() {
-        // no bytes to say size of section
-        assert!(parser_after_header().parse(&[14], true).is_err());
-        // section must start with a u32
-        assert!(parser_after_header().parse(&[14, 0], true).is_err());
-        // EOF before we finish reading the section
-        assert!(parser_after_header().parse(&[14, 1], true).is_err());
-    }
+    fn single_module() {
+        let mut p = parser_after_component_header();
+        assert_matches!(p.parse(&[4], false), Ok(Chunk::NeedMoreData(1)));
 
-    #[test]
-    fn module_code_one() {
-        let mut p = parser_after_header();
-        assert_matches!(p.parse(&[14], false), Ok(Chunk::NeedMoreData(1)));
-        assert_matches!(p.parse(&[14, 9], false), Ok(Chunk::NeedMoreData(1)));
-        // Module code section, 10 bytes large, one module.
-        assert_matches!(
-            p.parse(&[14, 10, 1], false),
+        // A module that's 8 bytes in length
+        let mut sub = match p.parse(&[4, 8], false) {
             Ok(Chunk::Parsed {
-                consumed: 3,
-                payload: Payload::ModuleSectionStart { count: 1, .. },
-            })
-        );
-        // Declare an empty module, which will be 8 bytes large for the header.
-        // Switch to the sub-parser on success.
-        let mut sub = match p.parse(&[8], false) {
-            Ok(Chunk::Parsed {
-                consumed: 1,
-                payload: Payload::ModuleSectionEntry { parser, .. },
+                consumed: 2,
+                payload: Payload::ModuleSection { parser, .. },
             }) => parser,
             other => panic!("bad parse {:?}", other),
         };
@@ -1289,7 +1367,11 @@ mod tests {
             sub.parse(b"\0asm\x01\0\0\0", false),
             Ok(Chunk::Parsed {
                 consumed: 8,
-                payload: Payload::Version { num: 1, .. },
+                payload: Payload::Version {
+                    num: 1,
+                    encoding: Encoding::Module,
+                    ..
+                },
             }),
         );
 
@@ -1299,7 +1381,7 @@ mod tests {
             sub.parse(&[10], false),
             Ok(Chunk::Parsed {
                 consumed: 0,
-                payload: Payload::End,
+                payload: Payload::End(18),
             }),
         );
 
@@ -1311,29 +1393,20 @@ mod tests {
             p.parse(&[], true),
             Ok(Chunk::Parsed {
                 consumed: 0,
-                payload: Payload::End,
+                payload: Payload::End(18),
             }),
         );
     }
 
     #[test]
     fn nested_section_too_big() {
-        let mut p = parser_after_header();
-        // Module code section, 12 bytes large, one module. This leaves 11 bytes
-        // of payload for the module definition itself.
-        assert_matches!(
-            p.parse(&[14, 12, 1], false),
+        let mut p = parser_after_component_header();
+
+        // A module that's 10 bytes in length
+        let mut sub = match p.parse(&[4, 10], false) {
             Ok(Chunk::Parsed {
-                consumed: 3,
-                payload: Payload::ModuleSectionStart { count: 1, .. },
-            })
-        );
-        // Use one byte to say we're a 10 byte module, which fits exactly within
-        // our module code section.
-        let mut sub = match p.parse(&[10], false) {
-            Ok(Chunk::Parsed {
-                consumed: 1,
-                payload: Payload::ModuleSectionEntry { parser, .. },
+                consumed: 2,
+                payload: Payload::ModuleSection { parser, .. },
             }) => parser,
             other => panic!("bad parse {:?}", other),
         };
@@ -1349,11 +1422,11 @@ mod tests {
         );
 
         // We can't parse a section which declares its bigger than the outer
-        // module. This is section 1, one byte big, with one content byte. The
+        // module. This is a custom section, one byte big, with one content byte. The
         // content byte, however, lives outside of the parent's module code
         // section.
         assert_eq!(
-            sub.parse(&[1, 1, 0], false).unwrap_err().message(),
+            sub.parse(&[0, 1, 0], false).unwrap_err().message(),
             "section too large",
         );
     }

@@ -8,7 +8,7 @@ license = "Apache-2.0 WITH LLVM-exception"
 documentation = "https://github.com/bytecodealliance/wasm-tools"
 categories = ["wasm"]
 keywords = ["webassembly", "wasm"]
-repository = "https://github.com/bytecodealliance/wasm-totols"
+repository = "https://github.com/bytecodealliance/wasm-tools"
 readme = "README.md"
 exclude = ['tests/wabt', 'tests/testsuite', 'publish.rs']
 

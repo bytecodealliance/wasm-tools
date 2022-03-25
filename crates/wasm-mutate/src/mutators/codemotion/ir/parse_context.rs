@@ -1,5 +1,5 @@
 use crate::{Error, Result};
-use wasmparser::{Range, TypeOrFuncType};
+use wasmparser::{BlockType, Range};
 
 #[derive(Debug, Default)]
 pub struct Ast {
@@ -49,7 +49,7 @@ pub enum Node {
         /// Else branch node indices.
         alternative: Option<Vec<usize>>,
         /// The block type for the branches.
-        ty: TypeOrFuncType,
+        ty: BlockType,
         range: Range,
     },
     /// Code node
@@ -62,7 +62,7 @@ pub enum Node {
         /// Children nodes
         body: Vec<usize>,
         /// Block type
-        ty: TypeOrFuncType,
+        ty: BlockType,
         /// Range on the instructions stream
         range: Range,
     },
@@ -71,7 +71,7 @@ pub enum Node {
         /// Children nodes
         body: Vec<usize>,
         /// Block type
-        ty: TypeOrFuncType,
+        ty: BlockType,
         /// Range on the instructions stream
         range: Range,
     },
@@ -92,7 +92,7 @@ pub(crate) enum State {
 pub(crate) struct ParseContext {
     current_parsing: Vec<usize>,
     stack: Vec<Vec<usize>>,
-    frames: Vec<(State, Option<TypeOrFuncType>, usize)>,
+    frames: Vec<(State, Option<BlockType>, usize)>,
     current_code_range: Range,
     nodes: Vec<Node>,
 
@@ -160,12 +160,12 @@ impl ParseContext {
     /// * `state` - `If`, `Else`, `Block`, or `Loop` frame type
     /// * `ty` - Returning type of the frame
     /// * `idx` - Instruction index
-    pub fn push_frame(&mut self, state: State, ty: Option<TypeOrFuncType>, idx: usize) {
+    pub fn push_frame(&mut self, state: State, ty: Option<BlockType>, idx: usize) {
         self.frames.push((state, ty, idx))
     }
 
     /// Pop frame from the current parsing
-    pub fn pop_frame(&mut self) -> Result<(State, Option<TypeOrFuncType>, usize)> {
+    pub fn pop_frame(&mut self) -> Result<(State, Option<BlockType>, usize)> {
         match self.frames.pop() {
             Some(e) => Ok(e),
             None => Err(Error::other("`pop_frame` on an empty frame stack")),

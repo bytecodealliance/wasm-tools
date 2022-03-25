@@ -105,32 +105,29 @@ impl<'a> ModuleInfo<'a> {
                     for _ in 0..reader.get_count() {
                         let ty = reader.read()?;
                         match ty.ty {
-                            wasmparser::ImportSectionEntryType::Function(ty) => {
+                            wasmparser::TypeRef::Func(ty) => {
                                 // Save imported functions
                                 info.function_map.push(ty);
                                 info.imported_functions_count += 1;
                             }
-                            wasmparser::ImportSectionEntryType::Global(ty) => {
+                            wasmparser::TypeRef::Global(ty) => {
                                 let ty = PrimitiveTypeInfo::try_from(ty.content_type).unwrap();
                                 info.global_types.push(ty);
                                 info.imported_globals_count += 1;
                             }
-                            wasmparser::ImportSectionEntryType::Memory(ty) => {
+                            wasmparser::TypeRef::Memory(ty) => {
                                 info.memory_count += 1;
                                 info.imported_memories_count += 1;
                                 info.memory_types.push(ty);
                             }
-                            wasmparser::ImportSectionEntryType::Table(ty) => {
+                            wasmparser::TypeRef::Table(ty) => {
                                 info.table_count += 1;
                                 info.imported_tables_count += 1;
                                 info.table_elem_types.push(ty.element_type.into());
                             }
-                            wasmparser::ImportSectionEntryType::Tag(_ty) => {
+                            wasmparser::TypeRef::Tag(_ty) => {
                                 info.tag_count += 1;
                                 info.imported_tags_count += 1;
-                            }
-                            _ => {
-                                // Do nothing
                             }
                         }
                     }
@@ -172,7 +169,7 @@ impl<'a> ModuleInfo<'a> {
 
                     for _ in 0..reader.get_count() {
                         let ty = reader.read()?;
-                        // We only need the type of the global, not necesarily if is mutable or not
+                        // We only need the type of the global, not necessarily if is mutable or not
                         let ty = PrimitiveTypeInfo::try_from(ty.ty.content_type).unwrap();
                         info.global_types.push(ty);
                     }
@@ -183,7 +180,7 @@ impl<'a> ModuleInfo<'a> {
 
                     for _ in 0..reader.get_count() {
                         let entry = reader.read()?;
-                        info.export_names.insert(entry.field.into());
+                        info.export_names.insert(entry.name.into());
                     }
 
                     info.section(SectionId::Export.into(), reader.range(), input_wasm);
@@ -211,9 +208,6 @@ impl<'a> ModuleInfo<'a> {
                 } => {
                     info.section(SectionId::Custom.into(), range, input_wasm);
                 }
-                Payload::AliasSection(reader) => {
-                    info.section(SectionId::Alias.into(), reader.range(), input_wasm);
-                }
                 Payload::UnknownSection {
                     id,
                     contents: _,
@@ -226,7 +220,7 @@ impl<'a> ModuleInfo<'a> {
                     info.section(SectionId::DataCount.into(), range, input_wasm);
                 }
                 Payload::Version { .. } => {}
-                Payload::End => {
+                Payload::End(_) => {
                     break;
                 }
                 _ => todo!("{:?} not implemented", payload),

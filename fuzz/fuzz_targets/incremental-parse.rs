@@ -66,7 +66,7 @@ fuzz_target!(|data: Vec<Vec<u8>>| {
             .expect("full parse stopped early")
             .expect("full parse failed but incremental succeeded");
         match (payload, expected_payload) {
-            (End, End) => match stack.pop() {
+            (End(_), End(_)) => match stack.pop() {
                 Some(p) => parser = p,
                 None => {
                     log::debug!("no more parsers");
@@ -74,15 +74,25 @@ fuzz_target!(|data: Vec<Vec<u8>>| {
                     break;
                 }
             },
-            (Version { num: a, range: ar }, Version { num: b, range: br }) => {
+            (
+                Version {
+                    num: a,
+                    encoding: ae,
+                    range: ar,
+                },
+                Version {
+                    num: b,
+                    encoding: be,
+                    range: br,
+                },
+            ) => {
                 assert_eq!(a, b);
+                assert_eq!(ae, be);
                 assert_eq!(ar, br);
             }
 
             (TypeSection(a), TypeSection(b)) => assert_eq!(a.range(), b.range()),
             (ImportSection(a), ImportSection(b)) => assert_eq!(a.range(), b.range()),
-            (AliasSection(a), AliasSection(b)) => assert_eq!(a.range(), b.range()),
-            (InstanceSection(a), InstanceSection(b)) => assert_eq!(a.range(), b.range()),
             (FunctionSection(a), FunctionSection(b)) => assert_eq!(a.range(), b.range()),
             (TableSection(a), TableSection(b)) => assert_eq!(a.range(), b.range()),
             (MemorySection(a), MemorySection(b)) => assert_eq!(a.range(), b.range()),
@@ -138,18 +148,6 @@ fuzz_target!(|data: Vec<Vec<u8>>| {
                     range: br,
                     size: bsz,
                 },
-            )
-            | (
-                ModuleSectionStart {
-                    count: a,
-                    range: ar,
-                    size: asz,
-                },
-                ModuleSectionStart {
-                    count: b,
-                    range: br,
-                    size: bsz,
-                },
             ) => {
                 assert_eq!(a, b);
                 assert_eq!(ar, br);
@@ -159,17 +157,7 @@ fuzz_target!(|data: Vec<Vec<u8>>| {
             (CodeSectionEntry(a), CodeSectionEntry(b)) => {
                 assert_eq!(a.get_binary_reader().range(), b.get_binary_reader().range());
             }
-            (
-                ModuleSectionEntry {
-                    range: ar,
-                    parser: ap,
-                },
-                ModuleSectionEntry { range: br, .. },
-            ) => {
-                assert_eq!(ar, br);
-                stack.push(parser);
-                parser = ap;
-            }
+
             (
                 UnknownSection {
                     id: a,

@@ -1,4 +1,4 @@
-0x0000 | 00 61 73 6d | version 1
+0x0000 | 00 61 73 6d | version 1 (Module)
        | 01 00 00 00
 0x0008 | 01 08       | type section
 0x000a | 02          | 2 count
@@ -6,7 +6,7 @@
 0x000f | 60 00 00    | [type 1] Func(FuncType { params: [], returns: [] })
 0x0012 | 02 07       | import section
 0x0014 | 01          | 1 count
-0x0015 | 01 6d 01 6e | import [func 0] Import { module: "m", field: Some("n"), ty: Function(0) }
+0x0015 | 01 6d 01 6e | import [func 0] Import { module: "m", name: "n", ty: Func(0) }
        | 00 00      
 0x001b | 03 04       | func section
 0x001d | 03          | 3 count
@@ -26,7 +26,7 @@
 0x0033 | 0b          | End
 0x0034 | 07 05       | export section
 0x0036 | 01          | 1 count
-0x0037 | 01 6d 02 00 | export Export { field: "m", kind: Memory, index: 0 }
+0x0037 | 01 6d 02 00 | export Export { name: "m", kind: Memory, index: 0 }
 0x003b | 08 01       | start section
 0x003d | 00          | start function 0
 0x003e | 09 0f       | element section

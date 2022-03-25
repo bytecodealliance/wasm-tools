@@ -141,6 +141,11 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         return true;
     }
 
+    // todo!("component-model")
+    if test.to_str().unwrap().contains("component-model") {
+        return true;
+    }
+
     // TODO: the gc proposal isn't implemented yet
     if test.iter().any(|p| p == "gc") {
         return true;
@@ -535,7 +540,7 @@ impl TestState {
                         bytes.drain(start..offset);
                         return bytes;
                     }
-                    Payload::End => break,
+                    Payload::End(_) => break,
                     _ => {}
                 }
             }
@@ -552,7 +557,7 @@ impl TestState {
             exceptions: true,
             bulk_memory: true,
             tail_call: true,
-            module_linking: false,
+            component_model: false,
             deterministic_only: false,
             multi_value: true,
             multi_memory: true,
@@ -583,7 +588,7 @@ impl TestState {
                 "exception-handling" => features.exceptions = true,
                 "tail-call" => features.tail_call = true,
                 "memory64" => features.memory64 = true,
-                "module-linking" => features.module_linking = true,
+                "component-model" => features.component_model = true,
                 "multi-memory" => features.multi_memory = true,
                 "extended-const" => features.extended_const = true,
                 _ => {}
@@ -641,7 +646,7 @@ fn error_matches(error: &str, message: &str) -> bool {
     }
 
     if message == "bad magic" {
-        return error.contains("Bad magic number");
+        return error.contains("bad magic number");
     }
 
     return false;

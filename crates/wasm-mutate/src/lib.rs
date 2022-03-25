@@ -383,7 +383,7 @@ pub(crate) fn validate(bytes: &[u8]) {
         ..Default::default()
     });
     let err = match validator.validate_all(bytes) {
-        Ok(()) => return,
+        Ok(_) => return,
         Err(e) => e,
     };
     drop(std::fs::write("test.wasm", &bytes));

@@ -1305,7 +1305,7 @@ mod tests {
 
                     assert!(roots.is_some())
                 }
-                wasmparser::Payload::End => {
+                wasmparser::Payload::End(_) => {
                     break;
                 }
                 _ => {
@@ -1364,7 +1364,7 @@ mod tests {
                         DFGBuilder::new(&config).get_dfg(&ModuleInfo::default(), &operators, &bb);
                     assert!(roots.is_some())
                 }
-                wasmparser::Payload::End => {
+                wasmparser::Payload::End(_) => {
                     break;
                 }
                 _ => {
@@ -1446,7 +1446,7 @@ mod tests {
                         DFGBuilder::new(&config).get_dfg(&ModuleInfo::default(), &operators, &bb);
                     assert!(roots.is_some());
                 }
-                wasmparser::Payload::End => {
+                wasmparser::Payload::End(_) => {
                     break;
                 }
                 _ => {
@@ -1502,7 +1502,7 @@ mod tests {
                     let roots = DFGBuilder::new(&config).get_dfg(&info, &operators, &bb);
                     assert!(roots.is_some());
                 }
-                wasmparser::Payload::End => {
+                wasmparser::Payload::End(_) => {
                     break;
                 }
                 _ => {

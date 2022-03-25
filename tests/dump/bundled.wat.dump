@@ -1,4 +1,4 @@
-0x0000 | 00 61 73 6d | version 1
+0x0000 | 00 61 73 6d | version 1 (Module)
        | 01 00 00 00
 0x0008 | 01 19       | type section
 0x000a | 02          | 2 count
@@ -18,7 +18,7 @@
 0x0034 | 0e c4 01    | module section
 0x0037 | 02          | 2 count
 0x0038 | 5f          | inline module size
-  0x0039 | 00 61 73 6d | version 1
+  0x0039 | 00 61 73 6d | version 1 (Module)
          | 01 00 00 00
   0x0041 | 10 05       | alias section
   0x0043 | 01          | 1 count
@@ -41,7 +41,7 @@
   0x006d | 01          | [func 1] type 1
   0x006e | 07 08       | export section
   0x0070 | 01          | 1 count
-  0x0071 | 04 70 6c 61 | export Export { field: "play", kind: Function, index: 1 }
+  0x0071 | 04 70 6c 61 | export Export { name: "play", kind: Function, index: 1 }
          | 79 00 01   
   0x0078 | 0a 06       | code section
   0x007a | 01          | 1 count
@@ -61,7 +61,7 @@
   0x0092 | 01 04 70 6c | Naming { index: 1, name: "play" }
          | 61 79      
 0x0098 | 62          | inline module size
-  0x0099 | 00 61 73 6d | version 1
+  0x0099 | 00 61 73 6d | version 1 (Module)
          | 01 00 00 00
   0x00a1 | 10 05       | alias section
   0x00a3 | 01          | 1 count
@@ -82,9 +82,9 @@
   0x00c7 | 01          | [func 1] type 1
   0x00c8 | 07 10       | export section
   0x00ca | 02          | 2 count
-  0x00cb | 04 72 65 61 | export Export { field: "read", kind: Function, index: 0 }
+  0x00cb | 04 72 65 61 | export Export { name: "read", kind: Function, index: 0 }
          | 64 00 00   
-  0x00d2 | 05 77 72 69 | export Export { field: "write", kind: Function, index: 1 }
+  0x00d2 | 05 77 72 69 | export Export { name: "write", kind: Function, index: 1 }
          | 74 65 00 01
   0x00da | 0a 0b       | code section
   0x00dc | 02          | 2 count
@@ -129,7 +129,7 @@
 0x0130 | 02          | [func 1] type 2
 0x0131 | 07 08       | export section
 0x0133 | 01          | 1 count
-0x0134 | 04 77 6f 72 | export Export { field: "work", kind: Function, index: 1 }
+0x0134 | 04 77 6f 72 | export Export { name: "work", kind: Function, index: 1 }
        | 6b 00 01   
 0x013b | 0a 06       | code section
 0x013d | 01          | 1 count

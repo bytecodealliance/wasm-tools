@@ -1,4 +1,4 @@
-0x0000 | 00 61 73 6d | version 1
+0x0000 | 00 61 73 6d | version 1 (Module)
        | 01 00 00 00
 0x0008 | 01 14       | type section
 0x000a | 03          | 3 count
@@ -20,7 +20,7 @@
 0x0033 | 00          | [func 1] type 0
 0x0034 | 07 07       | export section
 0x0036 | 01          | 1 count
-0x0037 | 03 72 75 6e | export Export { field: "run", kind: Function, index: 1 }
+0x0037 | 03 72 75 6e | export Export { name: "run", kind: Function, index: 1 }
        | 00 01      
 0x003d | 0a 06       | code section
 0x003f | 01          | 1 count
