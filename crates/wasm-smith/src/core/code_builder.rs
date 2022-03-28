@@ -264,19 +264,19 @@ instructions! {
     (Some(f64_on_stack), i64_reinterpret_f64, Numeric),
     (Some(i32_on_stack), f32_reinterpret_i32, Numeric),
     (Some(i64_on_stack), f64_reinterpret_i64, Numeric),
-    (Some(i32_on_stack), i32_extend_8_s, Numeric),
-    (Some(i32_on_stack), i32_extend_16_s, Numeric),
-    (Some(i64_on_stack), i64_extend_8_s, Numeric),
-    (Some(i64_on_stack), i64_extend_16_s, Numeric),
-    (Some(i64_on_stack), i64_extend_32_s, Numeric),
-    (Some(f32_on_stack), i32_trunc_sat_f32_s, Numeric),
-    (Some(f32_on_stack), i32_trunc_sat_f32_u, Numeric),
-    (Some(f64_on_stack), i32_trunc_sat_f64_s, Numeric),
-    (Some(f64_on_stack), i32_trunc_sat_f64_u, Numeric),
-    (Some(f32_on_stack), i64_trunc_sat_f32_s, Numeric),
-    (Some(f32_on_stack), i64_trunc_sat_f32_u, Numeric),
-    (Some(f64_on_stack), i64_trunc_sat_f64_s, Numeric),
-    (Some(f64_on_stack), i64_trunc_sat_f64_u, Numeric),
+    (Some(extendable_i32_on_stack), i32_extend_8_s, Numeric),
+    (Some(extendable_i32_on_stack), i32_extend_16_s, Numeric),
+    (Some(extendable_i64_on_stack), i64_extend_8_s, Numeric),
+    (Some(extendable_i64_on_stack), i64_extend_16_s, Numeric),
+    (Some(extendable_i64_on_stack), i64_extend_32_s, Numeric),
+    (Some(nontrapping_f32_on_stack), i32_trunc_sat_f32_s, Numeric),
+    (Some(nontrapping_f32_on_stack), i32_trunc_sat_f32_u, Numeric),
+    (Some(nontrapping_f64_on_stack), i32_trunc_sat_f64_s, Numeric),
+    (Some(nontrapping_f64_on_stack), i32_trunc_sat_f64_u, Numeric),
+    (Some(nontrapping_f32_on_stack), i64_trunc_sat_f32_s, Numeric),
+    (Some(nontrapping_f32_on_stack), i64_trunc_sat_f32_u, Numeric),
+    (Some(nontrapping_f64_on_stack), i64_trunc_sat_f64_s, Numeric),
+    (Some(nontrapping_f64_on_stack), i64_trunc_sat_f64_u, Numeric),
     // reference types proposal
     (Some(ref_null_valid), ref_null, Reference),
     (Some(ref_func_valid), ref_func, Reference),
@@ -2777,6 +2777,10 @@ fn i32_wrap_i64(
     Ok(Instruction::I32WrapI64)
 }
 
+fn nontrapping_f32_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.saturating_float_to_int_enabled() && f32_on_stack(module, builder)
+}
+
 fn i32_trunc_f32_s(
     _: &mut Unstructured,
     _: &Module,
@@ -2795,6 +2799,10 @@ fn i32_trunc_f32_u(
     builder.pop_operands(&[ValType::F32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32TruncF32U)
+}
+
+fn nontrapping_f64_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.saturating_float_to_int_enabled() && f64_on_stack(module, builder)
 }
 
 fn i32_trunc_f64_s(
@@ -3017,6 +3025,10 @@ fn f64_reinterpret_i64(
     Ok(Instruction::F64ReinterpretI64)
 }
 
+fn extendable_i32_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.sign_extension_ops_enabled() && i32_on_stack(module, builder)
+}
+
 fn i32_extend_8_s(
     _: &mut Unstructured,
     _: &Module,
@@ -3035,6 +3047,10 @@ fn i32_extend_16_s(
     builder.pop_operands(&[ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     Ok(Instruction::I32Extend16S)
+}
+
+fn extendable_i64_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.sign_extension_ops_enabled() && i64_on_stack(module, builder)
 }
 
 fn i64_extend_8_s(
