@@ -17,6 +17,7 @@ use wasmparser::*;
 
 const MAX_LOCALS: u32 = 50000;
 const MAX_NESTING_TO_PRINT: u32 = 50;
+const MAX_WASM_FUNCTIONS: u32 = 1_000_000;
 
 /// Reads a WebAssembly `file` from the filesystem and then prints it into an
 /// in-memory `String`.
@@ -272,6 +273,13 @@ impl Printer {
 
             match payload {
                 Payload::FunctionSection(s) => {
+                    if s.get_count() > MAX_WASM_FUNCTIONS {
+                        bail!(
+                            "module contains {} functions which exceeds the limit of {}",
+                            s.get_count(),
+                            MAX_WASM_FUNCTIONS
+                        );
+                    }
                     code.reserve(s.get_count() as usize);
                 }
                 Payload::CodeSectionEntry(f) => {
