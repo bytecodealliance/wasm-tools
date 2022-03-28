@@ -15,9 +15,9 @@ path = "src/bin/wasm2wit.rs"
 required-features = ["cli"]
 
 [dependencies]
-wasmparser = { git = "https://github.com/bytecodealliance/wasm-tools", branch = "component-model" }
-wasm-encoder = { git = "https://github.com/bytecodealliance/wasm-tools", branch = "component-model" }
-wat = { git = "https://github.com/bytecodealliance/wasm-tools", branch = "component-model" }
+wasmparser = { git = "https://github.com/bytecodealliance/wasm-tools" }
+wasm-encoder = { git = "https://github.com/bytecodealliance/wasm-tools" }
+wat = { git = "https://github.com/bytecodealliance/wasm-tools" }
 wit-parser = { path = "../parser" }
 anyhow = "1.0.55"
 clap = { version = "3.1.0", features = ["derive"], optional = true }
