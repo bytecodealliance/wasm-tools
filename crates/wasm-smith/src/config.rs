@@ -283,6 +283,20 @@ pub trait Config: 'static + std::fmt::Debug {
         true
     }
 
+    /// Determines whether the nontrapping-float-to-int-conversions propsal is enabled.
+    ///
+    /// Defaults to `true`.
+    fn saturating_float_to_int_enabled(&self) -> bool {
+        true
+    }
+
+    /// Determines whether the sign-extension-ops propsal is enabled.
+    ///
+    /// Defaults to `true`.
+    fn sign_extension_ops_enabled(&self) -> bool {
+        true
+    }
+
     /// Determines whether a `start` export may be included. Defaults to `true`.
     fn allow_start_export(&self) -> bool {
         true
@@ -375,51 +389,49 @@ impl Config for DefaultConfig {}
 #[derive(Clone, Debug)]
 #[allow(missing_docs)]
 pub struct SwarmConfig {
-    // These fields are configured via `Arbitrary`
-    pub max_types: usize,
-    pub max_imports: usize,
-    pub max_tags: usize,
-    pub max_funcs: usize,
-    pub max_globals: usize,
-    pub max_exports: usize,
+    pub allow_start_export: bool,
+    pub bulk_memory_enabled: bool,
+    pub canonicalize_nans: bool,
+    pub exceptions_enabled: bool,
+    pub max_aliases: usize,
+    pub max_data_segments: usize,
     pub max_element_segments: usize,
     pub max_elements: usize,
-    pub max_data_segments: usize,
+    pub max_exports: usize,
+    pub max_funcs: usize,
+    pub max_globals: usize,
+    pub max_imports: usize,
+    pub max_instances: usize,
     pub max_instructions: usize,
     pub max_memories: usize,
-    pub min_uleb_size: u8,
-    pub max_tables: usize,
     pub max_memory_pages: u64,
-    pub bulk_memory_enabled: bool,
-    pub reference_types_enabled: bool,
-    pub max_aliases: usize,
+    pub max_modules: usize,
     pub max_nesting_depth: usize,
-
-    // These fields are always set to their default value as specified in the
-    // default trait implementation.
+    pub max_tables: usize,
+    pub max_tags: usize,
+    pub max_type_size: u32,
+    pub max_types: usize,
     pub memory64_enabled: bool,
-    pub min_types: usize,
-    pub min_imports: usize,
-    pub min_tags: usize,
-    pub min_funcs: usize,
-    pub min_globals: usize,
-    pub min_exports: usize,
+    pub memory_max_size_required: bool,
+    pub memory_offset_choices: (u32, u32, u32),
     pub min_data_segments: usize,
     pub min_element_segments: usize,
     pub min_elements: usize,
+    pub min_exports: usize,
+    pub min_funcs: usize,
+    pub min_globals: usize,
+    pub min_imports: usize,
     pub min_memories: u32,
     pub min_tables: u32,
-    pub max_instances: usize,
-    pub max_modules: usize,
-    pub memory_offset_choices: (u32, u32, u32),
-    pub memory_max_size_required: bool,
-    pub simd_enabled: bool,
+    pub min_tags: usize,
+    pub min_types: usize,
+    pub min_uleb_size: u8,
     pub multi_value_enabled: bool,
+    pub reference_types_enabled: bool,
     pub relaxed_simd_enabled: bool,
-    pub exceptions_enabled: bool,
-    pub allow_start_export: bool,
-    pub max_type_size: u32,
-    pub canonicalize_nans: bool,
+    pub saturating_float_to_int_enabled: bool,
+    pub sign_extension_enabled: bool,
+    pub simd_enabled: bool,
 }
 
 impl<'a> Arbitrary<'a> for SwarmConfig {
@@ -450,6 +462,8 @@ impl<'a> Arbitrary<'a> for SwarmConfig {
             multi_value_enabled: u.arbitrary()?,
             max_aliases: u.int_in_range(0..=MAX_MAXIMUM)?,
             max_nesting_depth: u.int_in_range(0..=10)?,
+            saturating_float_to_int_enabled: u.arbitrary()?,
+            sign_extension_enabled: u.arbitrary()?,
 
             // These fields, unlike the ones above, are less useful to set.
             // They either make weird inputs or are for features not widely
@@ -614,6 +628,14 @@ impl Config for SwarmConfig {
 
     fn multi_value_enabled(&self) -> bool {
         self.multi_value_enabled
+    }
+
+    fn saturating_float_to_int_enabled(&self) -> bool {
+        self.saturating_float_to_int_enabled
+    }
+
+    fn sign_extension_ops_enabled(&self) -> bool {
+        self.sign_extension_enabled
     }
 
     fn allow_start_export(&self) -> bool {

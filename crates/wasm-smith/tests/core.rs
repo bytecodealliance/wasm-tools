@@ -1,6 +1,6 @@
 use arbitrary::{Arbitrary, Unstructured};
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
-use wasm_smith::{ConfiguredModule, Module, SwarmConfig};
+use wasm_smith::{Config, ConfiguredModule, Module, SwarmConfig};
 use wasmparser::{Validator, WasmFeatures};
 
 fn wasm_features() -> WasmFeatures {
@@ -80,6 +80,53 @@ fn multi_value_disabled() {
             let mut validator = Validator::new();
             let mut features = wasm_features();
             features.multi_value = false;
+            validator.wasm_features(features);
+            validate(&mut validator, &wasm_bytes);
+        }
+    }
+}
+
+#[test]
+fn smoke_can_smith_valid_webassembly_one_point_oh() {
+    let mut rng = SmallRng::seed_from_u64(42);
+    let mut buf = vec![0; 10240];
+    for _ in 0..100 {
+        rng.fill_bytes(&mut buf);
+        let mut u = Unstructured::new(&buf);
+        let mut cfg = SwarmConfig::arbitrary(&mut u).unwrap();
+        cfg.sign_extension_enabled = false;
+        cfg.saturating_float_to_int_enabled = false;
+        cfg.reference_types_enabled = false;
+        cfg.multi_value_enabled = false;
+        cfg.bulk_memory_enabled = false;
+        cfg.simd_enabled = false;
+        cfg.relaxed_simd_enabled = false;
+        cfg.exceptions_enabled = false;
+        cfg.memory64_enabled = false;
+        cfg.max_memories = 1;
+        cfg.max_tables = 1;
+        if let Ok(module) = Module::new(cfg, &mut u) {
+            let wasm_bytes = module.to_bytes();
+            let mut validator = Validator::new();
+            // This table should set to `true` only features specified in wasm-core-1 spec.
+            let features = WasmFeatures {
+                mutable_global: true, // available in 1.0
+                saturating_float_to_int: false,
+                sign_extension: false,
+                reference_types: false,
+                multi_value: false,
+                bulk_memory: false,
+                simd: false,
+                relaxed_simd: false,
+                threads: false,
+                tail_call: false,
+                deterministic_only: false,
+                multi_memory: false,
+                exceptions: false,
+                memory64: false,
+                extended_const: false,
+                component_model: false,
+            };
             validator.wasm_features(features);
             validate(&mut validator, &wasm_bytes);
         }
