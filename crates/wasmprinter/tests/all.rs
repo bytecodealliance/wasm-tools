@@ -34,7 +34,11 @@ fn code_section_overflow() {
     )
     .unwrap();
     let err = wasmprinter::print_bytes(&bytes).unwrap_err();
-    assert!(err.to_string().contains("Unexpected EOF"), "{:?}", err);
+    assert!(
+        err.to_string().contains("unexpected end-of-file"),
+        "{:?}",
+        err
+    );
 }
 
 #[test]
