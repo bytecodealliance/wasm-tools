@@ -165,9 +165,27 @@ fuzz_target!(|data: Vec<Vec<u8>>| {
             (ComponentFunctionSection(a), ComponentFunctionSection(b)) => {
                 assert_eq!(a.range(), b.range())
             }
-            (ModuleSection { range: a, .. }, ModuleSection { range: b, .. }) => assert_eq!(a, b),
-            (ComponentSection { range: a, .. }, ComponentSection { range: b, .. }) => {
-                assert_eq!(a, b)
+            (
+                ModuleSection {
+                    parser: p,
+                    range: a,
+                },
+                ModuleSection { range: b, .. },
+            ) => {
+                assert_eq!(a, b);
+                stack.push(parser);
+                parser = p;
+            }
+            (
+                ComponentSection {
+                    parser: p,
+                    range: a,
+                },
+                ComponentSection { range: b, .. },
+            ) => {
+                assert_eq!(a, b);
+                stack.push(parser);
+                parser = p;
             }
             (InstanceSection(a), InstanceSection(b)) => assert_eq!(a.range(), b.range()),
             (ComponentExportSection(a), ComponentExportSection(b)) => {
