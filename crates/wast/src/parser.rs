@@ -589,20 +589,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Same as the [`Parser::peek3`] method, except checks the next next next
-    /// token, not the next next token.
-    pub fn peek4<T: Peek>(self) -> bool {
-        let mut cursor = self.cursor();
-        if cursor.advance_token().is_some()
-            && cursor.advance_token().is_some()
-            && cursor.advance_token().is_some()
-        {
-            T::peek(cursor)
-        } else {
-            false
-        }
-    }
-
     /// `is_empty` meets `peek2`. Looks past a token and checks if there are any
     /// more tokens after that.
     pub fn peek2_empty(self) -> bool {
