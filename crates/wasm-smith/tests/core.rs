@@ -1,6 +1,6 @@
 use arbitrary::{Arbitrary, Unstructured};
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
-use wasm_smith::{Config, ConfiguredModule, Module, SwarmConfig};
+use wasm_smith::{ConfiguredModule, Module, SwarmConfig};
 use wasmparser::{Validator, WasmFeatures};
 
 fn wasm_features() -> WasmFeatures {
@@ -23,8 +23,7 @@ fn smoke_test_module() {
         if let Ok(module) = Module::arbitrary_take_rest(u) {
             let wasm_bytes = module.to_bytes();
 
-            let mut validator = Validator::new();
-            validator.wasm_features(wasm_features());
+            let mut validator = Validator::new_with_features(wasm_features());
             validate(&mut validator, &wasm_bytes);
         }
     }
@@ -41,8 +40,7 @@ fn smoke_test_ensure_termination() {
             module.ensure_termination(10);
             let wasm_bytes = module.to_bytes();
 
-            let mut validator = Validator::new();
-            validator.wasm_features(wasm_features());
+            let mut validator = Validator::new_with_features(wasm_features());
             validate(&mut validator, &wasm_bytes);
         }
     }
@@ -59,8 +57,7 @@ fn smoke_test_swarm_config() {
             let module = module.module;
             let wasm_bytes = module.to_bytes();
 
-            let mut validator = Validator::new();
-            validator.wasm_features(wasm_features());
+            let mut validator = Validator::new_with_features(wasm_features());
             validate(&mut validator, &wasm_bytes);
         }
     }
@@ -77,10 +74,9 @@ fn multi_value_disabled() {
         cfg.multi_value_enabled = false;
         if let Ok(module) = Module::new(cfg, &mut u) {
             let wasm_bytes = module.to_bytes();
-            let mut validator = Validator::new();
             let mut features = wasm_features();
             features.multi_value = false;
-            validator.wasm_features(features);
+            let mut validator = Validator::new_with_features(features);
             validate(&mut validator, &wasm_bytes);
         }
     }
@@ -107,7 +103,6 @@ fn smoke_can_smith_valid_webassembly_one_point_oh() {
         cfg.max_tables = 1;
         if let Ok(module) = Module::new(cfg, &mut u) {
             let wasm_bytes = module.to_bytes();
-            let mut validator = Validator::new();
             // This table should set to `true` only features specified in wasm-core-1 spec.
             let features = WasmFeatures {
                 mutable_global: true, // available in 1.0
@@ -127,7 +122,7 @@ fn smoke_can_smith_valid_webassembly_one_point_oh() {
                 extended_const: false,
                 component_model: false,
             };
-            validator.wasm_features(features);
+            let mut validator = Validator::new_with_features(features);
             validate(&mut validator, &wasm_bytes);
         }
     }

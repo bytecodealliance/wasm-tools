@@ -594,9 +594,7 @@ impl TestState {
                 _ => {}
             }
         }
-        let mut ret = Validator::new();
-        ret.wasm_features(features);
-        return ret;
+        Validator::new_with_features(features)
     }
 
     fn bump_ntests(&self) {

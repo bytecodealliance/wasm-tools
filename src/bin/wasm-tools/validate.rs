@@ -52,10 +52,7 @@ impl Opts {
         // `Validator` we're using as we navigate nested modules (the module
         // linking proposal) and any functions found are deferred to get
         // validated later.
-        let mut validator = Validator::new();
-        if let Some(features) = self.features {
-            validator.wasm_features(features);
-        }
+        let mut validator = Validator::new_with_features(self.features.unwrap_or_default());
         let mut functions_to_validate = Vec::new();
         let wasm = wat::parse_file(&self.input)?;
 
@@ -98,7 +95,9 @@ fn parse_features(arg: &str) -> Result<WasmFeatures> {
         ("memory64", |f| &mut f.memory64),
         ("extended-const", |f| &mut f.extended_const),
         ("deterministic", |f| &mut f.deterministic_only),
-        ("saturating-float-to-int", |f| &mut f.saturating_float_to_int),
+        ("saturating-float-to-int", |f| {
+            &mut f.saturating_float_to_int
+        }),
         ("sign-extension", |f| &mut f.sign_extension),
         ("mutable-global", |f| &mut f.mutable_global),
     ];
