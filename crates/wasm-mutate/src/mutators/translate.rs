@@ -293,7 +293,11 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
 
         O::Return => I::Return,
         O::Call { function_index } => I::Call(t.remap(Item::Function, *function_index)?),
-        O::CallIndirect { index, table_index } => I::CallIndirect {
+        O::CallIndirect {
+            index,
+            table_index,
+            table_byte: _,
+        } => I::CallIndirect {
             ty: t.remap(Item::Type, *index)?,
             table: t.remap(Item::Table, *table_index)?,
         },

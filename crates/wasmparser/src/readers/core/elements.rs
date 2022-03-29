@@ -266,7 +266,7 @@ impl<'a> ElementSectionReader<'a> {
             }
         } else {
             for _ in 0..items_count {
-                self.reader.skip_var_32()?;
+                self.reader.read_var_u32()?;
             }
         }
         let data_end = self.reader.position;

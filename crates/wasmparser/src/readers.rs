@@ -47,7 +47,7 @@ pub trait SectionReader {
             return Ok(());
         }
         Err(BinaryReaderError::new(
-            "unexpected data at the end of the section",
+            "section size mismatch: unexpected data at the end of the section",
             self.original_position(),
         ))
     }

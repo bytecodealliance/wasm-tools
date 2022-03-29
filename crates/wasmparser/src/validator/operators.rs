@@ -183,7 +183,10 @@ impl OperatorValidator {
             None => return Err(BinaryReaderError::new("locals overflow", offset)),
         }
         if self.num_locals > (MAX_WASM_FUNCTION_LOCALS as u32) {
-            return Err(BinaryReaderError::new("locals exceed maximum", offset));
+            return Err(BinaryReaderError::new(
+                "too many locals: locals exceed maximum",
+                offset,
+            ));
         }
         self.locals.push((self.num_locals - 1, ty));
         Ok(())
@@ -760,7 +763,16 @@ impl OperatorValidator {
                 self.check_call(function_index, resources)?;
                 self.check_return(resources)?;
             }
-            Operator::CallIndirect { index, table_index } => {
+            Operator::CallIndirect {
+                index,
+                table_index,
+                table_byte,
+            } => {
+                if table_byte != 0 && !self.features.reference_types {
+                    return Err(OperatorValidatorError::new(
+                        "reference-types not enabled: zero byte expected",
+                    ));
+                }
                 self.check_call_indirect(index, table_index, resources)?
             }
             Operator::ReturnCallIndirect { index, table_index } => {
@@ -936,14 +948,18 @@ impl OperatorValidator {
             }
             Operator::MemorySize { mem, mem_byte } => {
                 if mem_byte != 0 && !self.features.multi_memory {
-                    return Err(OperatorValidatorError::new("multi-memory not enabled"));
+                    return Err(OperatorValidatorError::new(
+                        "multi-memory not enabled: zero byte expected",
+                    ));
                 }
                 let index_ty = self.check_memory_index(mem, resources)?;
                 self.push_operand(index_ty)?;
             }
             Operator::MemoryGrow { mem, mem_byte } => {
                 if mem_byte != 0 && !self.features.multi_memory {
-                    return Err(OperatorValidatorError::new("multi-memory not enabled"));
+                    return Err(OperatorValidatorError::new(
+                        "multi-memory not enabled: zero byte expected",
+                    ));
                 }
                 let index_ty = self.check_memory_index(mem, resources)?;
                 self.pop_operand(Some(index_ty))?;
@@ -1918,8 +1934,10 @@ impl OperatorValidator {
             Operator::MemoryInit { mem, segment } => {
                 self.check_bulk_memory_enabled()?;
                 let ty = self.check_memory_index(mem, resources)?;
-                if segment >= resources.data_count() {
-                    bail_op_err!("unknown data segment {}", segment);
+                match resources.data_count() {
+                    None => bail_op_err!("data count section required"),
+                    Some(count) if segment < count => {}
+                    Some(_) => bail_op_err!("unknown data segment {}", segment),
                 }
                 self.pop_operand(Some(Type::I32))?;
                 self.pop_operand(Some(Type::I32))?;
@@ -1927,8 +1945,10 @@ impl OperatorValidator {
             }
             Operator::DataDrop { segment } => {
                 self.check_bulk_memory_enabled()?;
-                if segment >= resources.data_count() {
-                    bail_op_err!("unknown data segment {}", segment);
+                match resources.data_count() {
+                    None => bail_op_err!("data count section required"),
+                    Some(count) if segment < count => {}
+                    Some(_) => bail_op_err!("unknown data segment {}", segment),
                 }
             }
             Operator::MemoryCopy { src, dst } => {
@@ -2057,8 +2077,13 @@ impl OperatorValidator {
     }
 
     pub fn finish(&mut self) -> OperatorValidatorResult<()> {
-        if !self.control.is_empty() {
-            bail_op_err!("control frames remain at end of function");
+        if let Some(last) = self.control.last() {
+            // match last.kind {
+            //     FrameKind::Block | FrameKind::If | FrameKind::Else
+            // }
+            // bail_op_err!("control frames remain at end of function");
+            drop(last);
+            bail_op_err!("control frames remain at end of function: END opcode expected");
         }
         Ok(())
     }

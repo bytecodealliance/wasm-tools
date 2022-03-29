@@ -58,8 +58,8 @@ impl<'a> FunctionBody<'a> {
     fn skip_locals(reader: &mut BinaryReader) -> Result<()> {
         let count = reader.read_var_u32()?;
         for _ in 0..count {
-            reader.skip_var_32()?;
-            reader.skip_type()?;
+            reader.read_var_u32()?;
+            reader.read_var_u32()?;
         }
         Ok(())
     }

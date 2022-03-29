@@ -1121,7 +1121,11 @@ impl Printer {
                 self.result.push_str("call ");
                 self.print_idx(&state.function_names, *function_index)?;
             }
-            CallIndirect { table_index, index } => {
+            CallIndirect {
+                table_index,
+                index,
+                table_byte: _,
+            } => {
                 self.result.push_str("call_indirect");
                 if *table_index != 0 {
                     self.result.push(' ');

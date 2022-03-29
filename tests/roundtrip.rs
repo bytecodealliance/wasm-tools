@@ -326,13 +326,20 @@ impl TestState {
 
             WastDirective::AssertMalformed {
                 span: _,
-                module: QuoteModule::Quote(source),
+                module,
                 message,
             } => {
+                let result = match module {
+                    QuoteModule::Quote(source) => self.test_quote_module(test, &source),
+                    QuoteModule::Module(mut module) => {
+                        let wasm = module.encode()?;
+                        self.bump_ntests();
+                        Err(self.test_wasm_invalid(test, &wasm)?.into())
+                    }
+                };
                 if skip_verify {
                     return Ok(());
                 }
-                let result = self.test_quote_module(test, &source);
                 match result {
                     Ok(_) => bail!(
                         "parsed successfully but should have failed with: {}",
@@ -377,20 +384,6 @@ impl TestState {
                         actual = e,
                     );
                 }
-            }
-
-            WastDirective::AssertMalformed {
-                module: QuoteModule::Module(mut module),
-                ..
-            } => {
-                let wasm = module.encode()?;
-                self.bump_ntests();
-                if skip_verify {
-                    return Ok(());
-                }
-                let e = self.test_wasm_invalid(test, &wasm)?;
-                // TODO: Check the assert_malformed message
-                drop(e);
             }
 
             _ => {}
@@ -587,7 +580,10 @@ impl TestState {
                 "simd" => features.simd = true,
                 "exception-handling" => features.exceptions = true,
                 "tail-call" => features.tail_call = true,
-                "memory64" => features.memory64 = true,
+                "memory64" => {
+                    features.memory64 = true;
+                    features.reference_types = false;
+                }
                 "component-model" => features.component_model = true,
                 "multi-memory" => features.multi_memory = true,
                 "extended-const" => features.extended_const = true,
@@ -631,8 +627,8 @@ fn error_matches(error: &str, message: &str) -> bool {
         return error.contains("unexpected end-of-file");
     }
 
-    if message == "invalid UTF-8 encoding" {
-        return error.contains("malformed UTF-8 encoding");
+    if message == "malformed UTF-8 encoding" {
+        return error.contains("invalid UTF-8 encoding");
     }
 
     if message == "duplicate identifier" {
@@ -643,8 +639,88 @@ fn error_matches(error: &str, message: &str) -> bool {
         return error.contains("no linear memories are present");
     }
 
-    if message == "bad magic" {
-        return error.contains("bad magic number");
+    // wasmparser differentiates these cases, the spec interpreter apparently
+    // doesn't
+    if message == "function and code section have inconsistent lengths" {
+        return error.contains("code section without function section");
+    }
+
+    // This test in binary.wast uses a section id implemented by other
+    // proposals, so it's valid from wasmparser's point of view
+    if message == "malformed section id" {
+        return error.contains("unexpected end-of-file");
+    }
+
+    // The spec interpreter will apparently read beyond the limits of a section
+    // as defined by its size to parse a function, wasmparser doesn't do that.
+    // That means that the error message here is legitimately different.
+    if message == "section size mismatch" {
+        return error.contains("control frames remain at end of function");
+    }
+
+    if message == "malformed import kind" {
+        return error.contains("invalid external kind")
+            // wasmparser understands more import kinds than the default spec
+            // interpreter
+            || error.contains("unexpected end-of-file");
+    }
+
+    if message == "integer representation too long" {
+        // wasmparser implements more features than the default spec
+        // interpreter, so these error looks different.
+        return error.contains("invalid memory limits flags")
+            || error.contains("invalid table resizable limits flags")
+            // different error message for types
+            || error.contains("invalid leading byte")
+            // the spec interpreter will read past section boundaries when
+            // decoding, wasmparser won't, producing different errors.
+            || error.contains("unexpected end-of-file")
+            || error.contains("malformed section id");
+    }
+
+    if message == "integer too large" {
+        // wasmparser implements more features than the default spec
+        // interpreter, so these error looks different.
+        return error.contains("threads must be enabled for shared memories")
+            || error.contains("invalid table resizable limits flags")
+            // honestly this feels like the spec interpreter is just weird
+            || error.contains("unexpected end-of-file")
+            // This mostly comes from the memory64/binary-leb128.wast test file
+            // which I think is largely busted as it looks like a bunch of lebs
+            // were inflated to a larger size while not updating the binary
+            // encoding of the size of the section.
+            || error.contains("invalid var_u32: integer representation too long")
+            || error.contains("malformed section id");
+    }
+
+    // wasmparser blames a truncated file here, the spec interpreter blames the
+    // section counts/lengths.
+    if message == "length out of bounds" || message == "unexpected end of section or function" {
+        return error.contains("unexpected end-of-file")
+            || error.contains("control frames remain at end of function");
+    }
+
+    // this feels like a busted test in the spec suite
+    if message == "unexpected end" {
+        return error.contains("type index out of bounds");
+    }
+
+    if message == "unexpected content after last section" {
+        return error.contains("section out of order");
+    }
+
+    if message == "malformed limits flags" {
+        return error.contains("invalid memory limits flags");
+    }
+
+    if message == "zero flag expected" {
+        return error.contains("zero byte expected")
+            // wasmparser defers some of these errors to validation
+            || error.contains("trailing bytes at end of section");
+    }
+
+    if message == "junk after last section" {
+        return error.contains("section out of order");
     }
 
     return false;
