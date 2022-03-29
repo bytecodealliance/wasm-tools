@@ -92,7 +92,7 @@ impl ModuleState {
         if let Some(data_count) = self.module.data_count {
             if data_count != self.data_segment_count {
                 return Err(BinaryReaderError::new(
-                    "data count section and data section mismatch",
+                    "data count and data section have inconsistent lengths",
                     offset,
                 ));
             }
@@ -102,7 +102,7 @@ impl ModuleState {
         if let Some(n) = self.expected_code_bodies {
             if n > 0 {
                 return Err(BinaryReaderError::new(
-                    "function and code sections have inconsistent lengths",
+                    "function and code section have inconsistent lengths",
                     offset,
                 ));
             }
@@ -184,7 +184,7 @@ impl ModuleState {
                     offset,
                 ))
             }
-            _ => return Err(BinaryReaderError::new("invalid reference type", offset)),
+            _ => return Err(BinaryReaderError::new("malformed reference type", offset)),
         }
         match e.kind {
             ElementKind::Active {
@@ -860,8 +860,8 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
         self.module.element_types.len() as u32
     }
 
-    fn data_count(&self) -> u32 {
-        self.module.data_count.unwrap_or(0)
+    fn data_count(&self) -> Option<u32> {
+        self.module.data_count
     }
 
     fn is_function_referenced(&self, idx: u32) -> bool {
@@ -907,8 +907,8 @@ impl WasmModuleResources for ValidatorResources {
         self.0.element_types.len() as u32
     }
 
-    fn data_count(&self) -> u32 {
-        self.0.data_count.unwrap_or(0)
+    fn data_count(&self) -> Option<u32> {
+        self.0.data_count
     }
 
     fn is_function_referenced(&self, idx: u32) -> bool {

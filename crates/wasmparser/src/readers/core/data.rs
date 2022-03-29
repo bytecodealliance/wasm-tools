@@ -81,7 +81,7 @@ impl<'a> DataSectionReader<'a> {
     fn verify_data_end(&self, end: usize) -> Result<()> {
         if self.reader.buffer.len() < end {
             return Err(BinaryReaderError::new(
-                "data segment extends past end of the data section",
+                "unexpected end of section or function: data segment extends past end of the data section",
                 self.reader.original_offset + self.reader.buffer.len(),
             ));
         }

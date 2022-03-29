@@ -109,7 +109,7 @@ impl BinaryReaderError {
     pub(crate) fn eof(offset: usize, needed_hint: usize) -> Self {
         BinaryReaderError {
             inner: Box::new(BinaryReaderErrorInner {
-                message: "Unexpected EOF".to_string(),
+                message: "unexpected end-of-file".to_string(),
                 offset,
                 needed_hint: Some(needed_hint),
             }),
@@ -207,17 +207,6 @@ impl<'a> BinaryReader<'a> {
             let hint = self.position + len - self.buffer.len();
             Err(BinaryReaderError::eof(self.original_position(), hint))
         }
-    }
-
-    fn read_bool(&mut self) -> Result<bool> {
-        let b = self.read_u8()?;
-        if (b & 0xFE) != 0 {
-            return Err(BinaryReaderError::new(
-                "invalid u1",
-                self.original_position() - 1,
-            ));
-        }
-        Ok(b == 1)
     }
 
     pub(crate) fn read_u7(&mut self) -> Result<u8> {
@@ -786,7 +775,16 @@ impl<'a> BinaryReader<'a> {
     pub(crate) fn read_global_type(&mut self) -> Result<GlobalType> {
         Ok(GlobalType {
             content_type: self.read_type()?,
-            mutable: self.read_bool()?,
+            mutable: match self.read_u8()? {
+                0x00 => false,
+                0x01 => true,
+                _ => {
+                    return Err(BinaryReaderError::new(
+                        "malformed mutability",
+                        self.original_position() - 1,
+                    ))
+                }
+            },
         })
     }
 
@@ -875,7 +873,7 @@ impl<'a> BinaryReader<'a> {
         let cnt = self.read_size(MAX_WASM_BR_TABLE_SIZE, "br_table")?;
         let start = self.position;
         for _ in 0..cnt {
-            self.skip_var_32()?;
+            self.read_var_u32()?;
         }
         let end = self.position;
         let default = self.read_var_u32()?;
@@ -971,7 +969,7 @@ impl<'a> BinaryReader<'a> {
         let result: u32 = (next << 7) | (byte & 0x7F) as u32;
         if result >= 0x100 {
             return Err(BinaryReaderError::new(
-                "invalid var_u8",
+                "invalid var_u8: integer representation too long",
                 self.original_position() - 1,
             ));
         }
@@ -998,11 +996,13 @@ impl<'a> BinaryReader<'a> {
             let byte = self.read_u8()?;
             result |= ((byte & 0x7F) as u32) << shift;
             if shift >= 25 && (byte >> (32 - shift)) != 0 {
+                let msg = if byte & 0x80 != 0 {
+                    "invalid var_u32: integer representation too long"
+                } else {
+                    "invalid var_u32: integer too large"
+                };
                 // The continuation bit or unused bits are set.
-                return Err(BinaryReaderError::new(
-                    "invalid var_u32",
-                    self.original_position() - 1,
-                ));
+                return Err(BinaryReaderError::new(msg, self.original_position() - 1));
             }
             shift += 7;
             if (byte & 0x80) == 0 {
@@ -1032,11 +1032,13 @@ impl<'a> BinaryReader<'a> {
             let byte = u64::from(self.read_u8()?);
             result |= (byte & 0x7F) << shift;
             if shift >= 57 && (byte >> (64 - shift)) != 0 {
+                let msg = if byte & 0x80 != 0 {
+                    "invalid var_u64: integer representation too long"
+                } else {
+                    "invalid var_u64: integer too large"
+                };
                 // The continuation bit or unused bits are set.
-                return Err(BinaryReaderError::new(
-                    "invalid var_u64",
-                    self.original_position() - 1,
-                ));
+                return Err(BinaryReaderError::new(msg, self.original_position() - 1));
             }
             shift += 7;
             if (byte & 0x80) == 0 {
@@ -1044,29 +1046,6 @@ impl<'a> BinaryReader<'a> {
             }
         }
         Ok(result)
-    }
-
-    /// Advances the `BinaryReader` up to four bytes over a variable length 32
-    /// bit integer, discarding the result.
-    /// # Errors
-    /// If `BinaryReader` has less than one or up to four bytes remaining, or
-    /// the integer is larger than 32 bits.
-    pub fn skip_var_32(&mut self) -> Result<()> {
-        for _ in 0..5 {
-            let byte = self.read_u8()?;
-            if (byte & 0x80) == 0 {
-                return Ok(());
-            }
-        }
-        Err(BinaryReaderError::new(
-            "invalid var_32",
-            self.original_position() - 1,
-        ))
-    }
-
-    /// Alias method for `BinaryReader::skip_var_u32`.
-    pub fn skip_type(&mut self) -> Result<()> {
-        self.skip_var_32()
     }
 
     /// Advances the `BinaryReader` `len` bytes, skipping the result.
@@ -1124,10 +1103,12 @@ impl<'a> BinaryReader<'a> {
                 let continuation_bit = (byte & 0x80) != 0;
                 let sign_and_unused_bit = (byte << 1) as i8 >> (32 - shift);
                 if continuation_bit || (sign_and_unused_bit != 0 && sign_and_unused_bit != -1) {
-                    return Err(BinaryReaderError::new(
-                        "invalid var_i32",
-                        self.original_position() - 1,
-                    ));
+                    let msg = if continuation_bit {
+                        "invalid var_i32: integer representation too long"
+                    } else {
+                        "invalid var_i32: integer too large"
+                    };
+                    return Err(BinaryReaderError::new(msg, self.original_position() - 1));
                 }
                 return Ok(result);
             }
@@ -1162,7 +1143,7 @@ impl<'a> BinaryReader<'a> {
                 let sign_and_unused_bit = (byte << 1) as i8 >> (33 - shift);
                 if continuation_bit || (sign_and_unused_bit != 0 && sign_and_unused_bit != -1) {
                     return Err(BinaryReaderError::new(
-                        "invalid var_s33",
+                        "invalid var_s33: integer representation too long",
                         self.original_position() - 1,
                     ));
                 }
@@ -1192,10 +1173,12 @@ impl<'a> BinaryReader<'a> {
                 let continuation_bit = (byte & 0x80) != 0;
                 let sign_and_unused_bit = ((byte << 1) as i8) >> (64 - shift);
                 if continuation_bit || (sign_and_unused_bit != 0 && sign_and_unused_bit != -1) {
-                    return Err(BinaryReaderError::new(
-                        "invalid var_i64",
-                        self.original_position() - 1,
-                    ));
+                    let msg = if continuation_bit {
+                        "invalid var_i64: integer representation too long"
+                    } else {
+                        "invalid var_i64: integer too large"
+                    };
+                    return Err(BinaryReaderError::new(msg, self.original_position() - 1));
                 }
                 return Ok(result);
             }
@@ -1591,10 +1574,15 @@ impl<'a> BinaryReader<'a> {
             0x10 => Operator::Call {
                 function_index: self.read_var_u32()?,
             },
-            0x11 => Operator::CallIndirect {
-                index: self.read_var_u32()?,
-                table_index: self.read_var_u32()?,
-            },
+            0x11 => {
+                let index = self.read_var_u32()?;
+                let (table_byte, table_index) = self.read_first_byte_and_var_u32()?;
+                Operator::CallIndirect {
+                    index,
+                    table_index,
+                    table_byte,
+                }
+            }
             0x12 => Operator::ReturnCall {
                 function_index: self.read_var_u32()?,
             },
@@ -1874,7 +1862,7 @@ impl<'a> BinaryReader<'a> {
 
             _ => {
                 return Err(BinaryReaderError::new(
-                    format!("unknown opcode: 0x{:x}", code),
+                    format!("illegal opcode: 0x{:x}", code),
                     self.original_position() - 1,
                 ));
             }
@@ -2327,7 +2315,7 @@ impl<'a> BinaryReader<'a> {
         let magic_number = self.read_bytes(4)?;
         if magic_number != WASM_MAGIC_NUMBER {
             return Err(BinaryReaderError::new(
-                "bad magic number",
+                "magic header not detected: bad magic number",
                 self.original_position() - 4,
             ));
         }

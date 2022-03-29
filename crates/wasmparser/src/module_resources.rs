@@ -216,7 +216,7 @@ pub trait WasmModuleResources {
     /// Returns the number of elements.
     fn element_count(&self) -> u32;
     /// Returns the number of bytes in the Wasm data section.
-    fn data_count(&self) -> u32;
+    fn data_count(&self) -> Option<u32>;
     /// Returns whether the function index is referenced in the module anywhere
     /// outside of the start/function sections.
     fn is_function_referenced(&self, idx: u32) -> bool;
@@ -253,7 +253,7 @@ where
     fn element_count(&self) -> u32 {
         T::element_count(self)
     }
-    fn data_count(&self) -> u32 {
+    fn data_count(&self) -> Option<u32> {
         T::data_count(self)
     }
     fn is_function_referenced(&self, idx: u32) -> bool {
@@ -299,7 +299,7 @@ where
         T::element_count(self)
     }
 
-    fn data_count(&self) -> u32 {
+    fn data_count(&self) -> Option<u32> {
         T::data_count(self)
     }
 

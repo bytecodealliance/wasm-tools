@@ -150,6 +150,7 @@ pub enum Operator<'a> {
     CallIndirect {
         index: u32,
         table_index: u32,
+        table_byte: u8,
     },
     ReturnCall {
         function_index: u32,

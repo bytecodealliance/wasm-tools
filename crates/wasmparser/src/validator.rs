@@ -466,7 +466,7 @@ impl Validator {
             }
             _ => {
                 return Err(BinaryReaderError::new(
-                    "unsupported wasm header version",
+                    "unknown binary version",
                     range.start,
                 ));
             }
@@ -1074,7 +1074,7 @@ impl Validator {
     /// Currently always returns an error.
     pub fn unknown_section(&mut self, id: u8, range: &Range) -> Result<()> {
         Err(BinaryReaderError::new(
-            format!("invalid section code: {}", id),
+            format!("malformed section id: {}", id),
             range.start,
         ))
     }

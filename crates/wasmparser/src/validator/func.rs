@@ -149,7 +149,7 @@ mod tests {
         fn element_count(&self) -> u32 {
             todo!()
         }
-        fn data_count(&self) -> u32 {
+        fn data_count(&self) -> Option<u32> {
             todo!()
         }
         fn is_function_referenced(&self, _idx: u32) -> bool {

@@ -492,7 +492,7 @@ impl Parser {
                     WASM_COMPONENT_VERSION => Encoding::Component,
                     _ => {
                         return Err(BinaryReaderError::new(
-                            "bad version number",
+                            "unknown binary version",
                             reader.original_position() - 4,
                         ))
                     }
@@ -515,7 +515,11 @@ impl Parser {
                     return Ok(Payload::End(reader.original_position()));
                 }
 
-                let id = reader.read_u7()? as u8;
+                let id_pos = reader.position;
+                let id = reader.read_u8()?;
+                if id & 0x80 != 0 {
+                    return Err(BinaryReaderError::new("malformed section id", id_pos));
+                }
                 let len_pos = reader.position;
                 let mut len = reader.read_var_u32()?;
 
@@ -927,7 +931,7 @@ fn delimited<'a, T>(
         .and_then(|i| len.checked_sub(i))
     {
         Some(i) => i,
-        None => return Err(BinaryReaderError::new("unexpected EOF", start)),
+        None => return Err(BinaryReaderError::new("unexpected end-of-file", start)),
     };
     Ok(ret)
 }
@@ -1299,7 +1303,7 @@ mod tests {
         );
         assert_eq!(
             p.parse(&[0], false).unwrap_err().message(),
-            "unexpected EOF"
+            "unexpected end-of-file"
         );
 
         // section with 2 functions but section is cut off
@@ -1321,7 +1325,7 @@ mod tests {
         assert_matches!(p.parse(&[], false), Ok(Chunk::NeedMoreData(1)));
         assert_eq!(
             p.parse(&[0], false).unwrap_err().message(),
-            "unexpected EOF",
+            "unexpected end-of-file",
         );
 
         // trailing data is bad

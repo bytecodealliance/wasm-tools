@@ -92,7 +92,7 @@ impl<'a> NamingReader<'a> {
     fn skip(reader: &mut BinaryReader) -> Result<()> {
         let count = reader.read_var_u32()?;
         for _ in 0..count {
-            reader.skip_var_32()?;
+            reader.read_var_u32()?;
             reader.skip_string()?;
         }
         Ok(())
