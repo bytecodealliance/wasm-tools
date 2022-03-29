@@ -142,3 +142,26 @@ fn no_oom() {
     let wat = wasmprinter::print_bytes(&bytes).unwrap();
     assert!(wat.len() < 500_000_000);
 }
+
+#[test]
+fn dont_reserve_the_world() {
+    let bytes = wat::parse_str(
+        r#"
+            (module binary
+                "\00asm" "\01\00\00\00"     ;; module header
+
+                "\03"               ;; function section
+                "\05"               ;; section size
+                "\ff\ff\ff\ff\0f"   ;; number of functions (u32::MAX)
+            )
+        "#,
+    )
+    .unwrap();
+    let err = wasmprinter::print_bytes(&bytes).unwrap_err();
+    assert!(
+        err.to_string()
+            .contains("functions which exceeds the limit"),
+        "{:?}",
+        err
+    );
+}
