@@ -193,6 +193,7 @@ impl<'a, 'g> Expander<'a, 'g> {
         T: TypeReference<'a, 'g>,
     {
         if let Some(idx) = &mut item.index {
+            #[cfg(wast_check_exhaustive)]
             idx.visited = true;
             return idx.idx.clone();
         }
