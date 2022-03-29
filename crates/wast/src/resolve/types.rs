@@ -192,7 +192,8 @@ impl<'a, 'g> Expander<'a, 'g> {
     where
         T: TypeReference<'a, 'g>,
     {
-        if let Some(idx) = &item.index {
+        if let Some(idx) = &mut item.index {
+            idx.visited = true;
             return idx.idx.clone();
         }
         let key = match item.inline.as_mut() {
