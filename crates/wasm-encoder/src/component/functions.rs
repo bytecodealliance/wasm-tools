@@ -81,12 +81,12 @@ impl ComponentFunctionSection {
     {
         let options = options.into_iter();
         self.bytes.push(0x00);
+        self.bytes.extend(encoders::u32(type_index));
         self.bytes
             .extend(encoders::u32(u32::try_from(options.len()).unwrap()));
         for option in options {
             option.encode(&mut self.bytes);
         }
-        self.bytes.extend(encoders::u32(type_index));
         self.bytes.extend(encoders::u32(func_index));
         self.num_added += 1;
         self
