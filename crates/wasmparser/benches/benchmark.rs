@@ -202,8 +202,7 @@ fn it_works_benchmark(c: &mut Criterion) {
 
 fn validate_benchmark(c: &mut Criterion) {
     fn validator() -> Validator {
-        let mut ret = Validator::new();
-        ret.wasm_features(WasmFeatures {
+        Validator::new_with_features(WasmFeatures {
             reference_types: true,
             multi_value: true,
             simd: true,
@@ -220,8 +219,7 @@ fn validate_benchmark(c: &mut Criterion) {
             mutable_global: true,
             saturating_float_to_int: true,
             sign_extension: true,
-        });
-        return ret;
+        })
     }
     let mut inputs = collect_benchmark_inputs();
     // Filter out all benchmark inputs that fail to validate via `wasmparser`.
