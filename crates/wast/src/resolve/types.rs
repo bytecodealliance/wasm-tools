@@ -194,7 +194,9 @@ impl<'a, 'g> Expander<'a, 'g> {
     {
         if let Some(idx) = &mut item.index {
             #[cfg(wast_check_exhaustive)]
-            idx.visited = true;
+            {
+                idx.visited = true;
+            }
             return idx.idx.clone();
         }
         let key = match item.inline.as_mut() {
