@@ -4,7 +4,6 @@ use libfuzzer_sys::*;
 use wasmparser::{Validator, WasmFeatures};
 
 fuzz_target!(|data: &[u8]| {
-    let mut validator = Validator::new();
     let byte1 = match data.get(0) {
         Some(byte) => byte,
         None => return,
@@ -13,7 +12,7 @@ fuzz_target!(|data: &[u8]| {
         Some(byte) => byte,
         None => return,
     };
-    validator.wasm_features(WasmFeatures {
+    let mut validator = Validator::new_with_features(WasmFeatures {
         reference_types: (byte1 & 0b0000_0001) != 0,
         multi_value: (byte1 & 0b0000_0010) != 0,
         threads: (byte1 & 0b0000_0100) != 0,

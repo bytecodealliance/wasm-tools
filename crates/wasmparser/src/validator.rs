@@ -313,10 +313,22 @@ impl Validator {
         Validator::default()
     }
 
-    /// Configures the enabled WebAssembly features for this `Validator`.
-    pub fn wasm_features(&mut self, features: WasmFeatures) -> &mut Validator {
-        self.features = features;
-        self
+    /// Creates a new [`Validator`] which has the specified set of wasm
+    /// features activated for validation.
+    ///
+    /// This function is the same as [`Validator::new`] except it also allows
+    /// you to customize the active wasm features in use for validation. This
+    /// can allow enabling experimental proposals or also turning off
+    /// on-by-default wasm proposals.
+    pub fn new_with_features(features: WasmFeatures) -> Validator {
+        let mut ret = Validator::new();
+        ret.features = features;
+        ret
+    }
+
+    /// Returns the wasm features used for this validator.
+    pub fn features(&self) -> &WasmFeatures {
+        &self.features
     }
 
     /// Validates an entire in-memory module or component with this validator.
@@ -1246,8 +1258,7 @@ mod tests {
         "#,
         )?;
 
-        let mut validator = Validator::new();
-        validator.wasm_features(WasmFeatures {
+        let mut validator = Validator::new_with_features(WasmFeatures {
             exceptions: true,
             ..Default::default()
         });

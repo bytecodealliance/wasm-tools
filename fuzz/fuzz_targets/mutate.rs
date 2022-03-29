@@ -86,10 +86,8 @@ fuzz_target!(|bytes: &[u8]| {
             NUM_SUCCESSFUL_MUTATIONS.fetch_add(1, Ordering::Relaxed);
         }
 
-        let mut validator = wasmparser::Validator::new();
-        validator.wasm_features(features);
-
-        let validation_result = validator.validate_all(&mutated_wasm);
+        let validation_result =
+            wasmparser::Validator::new_with_features(features).validate_all(&mutated_wasm);
 
         if log::log_enabled!(log::Level::Debug) {
             log::debug!("writing mutated Wasm to `mutated.wasm`");

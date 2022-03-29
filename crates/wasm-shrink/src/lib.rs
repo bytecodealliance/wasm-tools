@@ -216,8 +216,7 @@ impl ShrinkRun {
     }
 
     fn validate_wasm(&self, wasm: &[u8]) -> Result<()> {
-        let mut validator = wasmparser::Validator::new();
-        validator.wasm_features(wasmparser::WasmFeatures {
+        let mut validator = wasmparser::Validator::new_with_features(wasmparser::WasmFeatures {
             // TODO: we should have CLI flags for each Wasm proposal.
             reference_types: true,
             multi_value: true,
