@@ -8,11 +8,9 @@
 //!   path name,
 //!
 //! The goal here is to make adding tests very easy. It should be as simple as
-//! dropping tests into the `tests/local` directory or updating one of the
-//! `tests/wabt` or `tests/testsuite` submodules. The `wabt` submodule is
-//! intended to pull in a number of tests that wabt itself uses. The `testsuite`
-//! submodule is the upstream git repository of the spec tests, including
-//! proposals.
+//! dropping tests into the `tests/local` directory or updating the
+//! `tests/testsuite` submodule which is the upstream git repository of the
+//! spec tests, including proposals.
 //!
 //! You can run this test suite with:
 //!
@@ -82,16 +80,9 @@ fn main() {
 /// then load up and test in parallel.
 fn find_tests() -> Vec<PathBuf> {
     let mut tests = Vec::new();
-    if !Path::new("tests/wabt").exists() {
+    if !Path::new("tests/testsuite").exists() {
         panic!("submodules need to be checked out");
     }
-    find_tests("tests/wabt/test/desugar".as_ref(), &mut tests);
-    find_tests("tests/wabt/test/dump".as_ref(), &mut tests);
-    find_tests("tests/wabt/test/interp".as_ref(), &mut tests);
-    find_tests("tests/wabt/test/parse".as_ref(), &mut tests);
-    find_tests("tests/wabt/test/roundtrip".as_ref(), &mut tests);
-    find_tests("tests/wabt/test/spec".as_ref(), &mut tests);
-    find_tests("tests/wabt/test/typecheck".as_ref(), &mut tests);
     find_tests("tests/local".as_ref(), &mut tests);
     find_tests("tests/testsuite".as_ref(), &mut tests);
     tests.sort();
@@ -121,14 +112,6 @@ fn find_tests() -> Vec<PathBuf> {
 /// time. There's further filters applied while testing.
 fn skip_test(test: &Path, contents: &[u8]) -> bool {
     let broken = &[
-        // We've made the opinionated decision that well-known annotations like
-        // `@custom` and `@name` must be well-formed. This test, however, uses
-        // `@custom` in ways the spec doesn't specify, so we skip it.
-        "test/parse/annotations.txt",
-        // this has syntax of an element segment `(elem $e 0)` which isn't used
-        // anywhere else, and I'm not entirely certain if it's vaild, and for
-        // now I don't feel like filing an issue or adding parsing for this.
-        "roundtrip/table-init-index.txt",
         // I don't really have any idea what's going on with the expected syntax
         // errors and expected error messages in these tests. They seem like
         // they're from left field considering other conventions, so let's just
@@ -174,44 +157,27 @@ struct TestState {
 impl TestState {
     fn run_test(&self, test: &Path, contents: &[u8]) -> Result<()> {
         let result = match test.extension().and_then(|s| s.to_str()) {
-            Some("wat") => self.test_wat(test, contents),
+            Some("wat") => self.test_wat(test),
             Some("wasm") => self.test_wasm(test, contents, false),
             Some("wast") => self.test_wast(test, contents),
             Some("txt") => match str::from_utf8(contents) {
                 Ok(s) if s.contains("TOOL: wast2json") || s.contains("TOOL: run-objdump-spec") => {
                     self.test_wast(test, contents)
                 }
-                _ => self.test_wat(test, contents),
+                _ => self.test_wat(test),
             },
             _ => bail!("unknown file extension {:?}", test),
         };
         result.with_context(|| format!("failed test: {}", test.display()))
     }
 
-    fn test_wat(&self, test: &Path, contents: &[u8]) -> Result<()> {
+    fn test_wat(&self, test: &Path) -> Result<()> {
         // First up test that we can parse the file and convert it to a binary
         // wasm file.
         let binary = wat::parse_file(test)?;
         self.bump_ntests();
-
-        let contents = str::from_utf8(contents)?;
-
-        // Finally we test that this is indeed a valid wasm file. Note,
-        // however, that wasmparser doesn't implement all features that wabt
-        // does, so we skip some tests here too.
-        //
-        // TODO: implement function-references in wasmparser
-        // TODO: implement gc types in wasmparser
-        if !contents.contains("--enable-function-references")
-            && !contents.contains("--enable-gc")
-            && !contents.contains("--no-check")
-            // intentionally invalid wasm files
-            && !contents.contains(";; TOOL: wat-desugar")
-            && !test.ends_with("dump/import.txt")
-        {
-            self.test_wasm(test, &binary, true)
-                .context("failed testing the binary output of `wat`")?;
-        }
+        self.test_wasm(test, &binary, true)
+            .context("failed testing the binary output of `wat`")?;
         Ok(())
     }
 
@@ -224,8 +190,7 @@ impl TestState {
         self.test_wasm_valid(test, contents)
             .context("wasm isn't valid")?;
 
-        // Test that we can print these bytes, and if available make sure it
-        // matches wabt.
+        // Test that we can print these bytes.
         let string = wasmprinter::print_bytes(contents).context("failed to print wasm")?;
         self.bump_ntests();
 
@@ -235,7 +200,7 @@ impl TestState {
             let binary2 =
                 wat::parse_str(&string).context("failed to parse `wat` from `wasmprinter`")?;
             self.bump_ntests();
-            self.binary_compare(&binary2, contents, false)
+            self.binary_compare(&binary2, contents)
                 .context("failed to compare original `wat` with roundtrip `wat`")?;
         }
 
@@ -291,8 +256,9 @@ impl TestState {
     }
 
     fn test_wast_directive(&self, test: &Path, directive: WastDirective) -> Result<()> {
-        // Only test parsing and encoding of modules that wabt doesn't support
-        let skip_verify = test.iter().any(|t| t == "function-references");
+        // Only test parsing and encoding of modules which wasmparser doesn't
+        // support test (basically just test `wast`, nothing else)
+        let skip_verify = test.iter().any(|t| t == "function-references" || t == "gc");
 
         match directive {
             WastDirective::Module(mut module) => {
@@ -305,12 +271,8 @@ impl TestState {
                     ModuleKind::Text(_) => true,
 
                     // Don't test the wasmprinter round trip since these bytes
-                    // may not be in their canonical form (didn't come from teh
+                    // may not be in their canonical form (didn't come from the
                     // `wat` crate).
-                    //
-                    // Additionally don't test against the expected value since
-                    // the encoding here is trivial and otherwise this disagrees
-                    // with wabt which does further parsing.
                     ModuleKind::Binary(_) => false,
                 };
                 self.test_wasm(test, &actual, test_roundtrip)
@@ -443,18 +405,7 @@ impl TestState {
     ///
     /// If they are not equal this attempts to produce as nice of an error
     /// message as it can to help narrow down on where the differences lie.
-    fn binary_compare(&self, actual: &[u8], expected: &[u8], expected_is_wabt: bool) -> Result<()> {
-        use wasmparser::*;
-
-        // I tried for a bit but honestly couldn't figure out a great way to match
-        // wabt's encoding of the name section. Just remove it from our asserted
-        // sections and don't compare against wabt's.
-        let actual = if expected_is_wabt {
-            remove_name_section(actual)
-        } else {
-            actual.to_vec()
-        };
-
+    fn binary_compare(&self, actual: &[u8], expected: &[u8]) -> Result<()> {
         if actual == expected {
             self.bump_ntests();
             return Ok(());
@@ -514,31 +465,6 @@ impl TestState {
         }
 
         bail!("{}", msg);
-
-        fn remove_name_section(bytes: &[u8]) -> Vec<u8> {
-            let mut p = Parser::new(0);
-            let mut offset = 0;
-            loop {
-                let start = offset;
-                let payload = match p.parse(&bytes[offset..], true) {
-                    Ok(Chunk::Parsed { consumed, payload }) => {
-                        offset += consumed;
-                        payload
-                    }
-                    _ => break,
-                };
-                match payload {
-                    Payload::CustomSection { name: "name", .. } => {
-                        let mut bytes = bytes.to_vec();
-                        bytes.drain(start..offset);
-                        return bytes;
-                    }
-                    Payload::End(_) => break,
-                    _ => {}
-                }
-            }
-            return bytes.to_vec();
-        }
     }
 
     fn wasmparser_validator_for(&self, test: &Path) -> Validator {

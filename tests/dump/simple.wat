@@ -14,6 +14,6 @@
   (func (local i32))
   (func (local i32) i32.const 0)
   (data (i32.const 8) "y")
-  (data passive "x")
+  (data "x")
   (@custom "name-of-section" "content")
 )

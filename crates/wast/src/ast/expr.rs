@@ -1405,14 +1405,8 @@ pub struct CallIndirect<'a> {
 impl<'a> Parse<'a> for CallIndirect<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let prev_span = parser.prev_span();
-        let mut table: Option<ast::IndexOrRef<_>> = parser.parse()?;
+        let table: Option<ast::IndexOrRef<_>> = parser.parse()?;
         let ty = parser.parse::<ast::TypeUse<'a, ast::FunctionTypeNoNames<'a>>>()?;
-        // Turns out the official test suite at this time thinks table
-        // identifiers comes first but wabt's test suites asserts differently
-        // putting them second. Let's just handle both.
-        if table.is_none() {
-            table = parser.parse()?;
-        }
         Ok(CallIndirect {
             table: table.map(|i| i.0).unwrap_or(idx_zero(prev_span, kw::table)),
             ty: ty.into(),
