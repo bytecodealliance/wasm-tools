@@ -383,8 +383,8 @@ impl Module {
                 self.initial_sections.push(InitialSection::Type(Vec::new()));
                 position
             });
-        let min = self.config.min_types() - self.types.len();
-        let max = self.config.max_types() - self.types.len();
+        let min = self.config.min_types().saturating_sub(self.types.len());
+        let max = self.config.max_types().saturating_sub(self.types.len());
         arbitrary_loop(u, min, max, |u| {
             let ty = self.arbitrary_type(u)?;
             self.add_type_to_type_section(section_idx, ty)
@@ -471,12 +471,9 @@ impl Module {
 
         let mut choices: Vec<fn(&mut Unstructured, &mut Module) -> Result<EntityType>> =
             Vec::with_capacity(5);
-
         let mut imports = Vec::new();
-
-        let min = self.config.min_imports() - self.num_imports;
-        let max = self.config.max_imports() - self.num_imports;
-
+        let min = self.config.min_imports().saturating_sub(self.num_imports);
+        let max = self.config.max_imports().saturating_sub(self.num_imports);
         arbitrary_loop(u, min, max, |u| {
             choices.clear();
             if self.can_add_local_or_import_tag() {
