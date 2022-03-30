@@ -1287,8 +1287,8 @@ impl<'a> MemArg<'a> {
                     return Ok((None, c));
                 }
                 let num = &kw[1..];
-                let num = if num.starts_with("0x") {
-                    f(c, &num[2..], 16)?
+                let num = if let Some(stripped) = num.strip_prefix("0x") {
+                    f(c, stripped, 16)?
                 } else {
                     f(c, num, 10)?
                 };
