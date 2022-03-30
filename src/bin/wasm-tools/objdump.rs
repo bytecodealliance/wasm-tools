@@ -119,6 +119,6 @@ impl Printer {
         for _ in 0..self.module_code_counts.len() {
             s.push_str("  ");
         }
-        return s;
+        s
     }
 }

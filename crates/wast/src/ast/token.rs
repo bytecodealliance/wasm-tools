@@ -152,10 +152,7 @@ impl Index<'_> {
     }
 
     pub(crate) fn is_resolved(&self) -> bool {
-        match self {
-            Index::Num(..) => true,
-            _ => false,
-        }
+        matches!(self, Index::Num(..))
     }
 }
 
@@ -245,7 +242,7 @@ impl<'a, K> ItemRef<'a, K> {
     pub fn unwrap_index(&self) -> &Index<'a> {
         match self {
             ItemRef::Item { idx, exports, .. } => {
-                debug_assert!(exports.len() == 0);
+                debug_assert!(exports.is_empty());
                 idx
             }
             ItemRef::Outer { .. } => panic!("unwrap_index called on Parent"),

@@ -45,6 +45,7 @@
 //! [`Parse`]: parser::Parse
 //! [`LexError`]: lexer::LexError
 
+#![allow(clippy::field_reassign_with_default)]
 #![deny(missing_docs, rustdoc::broken_intra_doc_links)]
 
 use std::fmt;
@@ -109,7 +110,7 @@ impl Error {
             }),
         };
         ret.set_text(content);
-        return ret;
+        ret
     }
 
     fn parse(span: Span, content: &str, message: String) -> Error {
@@ -122,7 +123,7 @@ impl Error {
             }),
         };
         ret.set_text(content);
-        return ret;
+        ret
     }
 
     /// Creates a new error with the given `message` which is targeted at the

@@ -92,6 +92,6 @@ mod tests {
         let wasm = b"\x00\x61\x73\x6d\x01\x00\x00\x00\x0a\x02\x00\x0b";
         let mut config = crate::WasmMutate::default();
         config.setup(wasm).unwrap();
-        assert_eq!(FunctionBodyUnreachable.can_mutate(&config), false);
+        assert!(!FunctionBodyUnreachable.can_mutate(&config));
     }
 }

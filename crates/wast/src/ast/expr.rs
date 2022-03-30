@@ -87,7 +87,7 @@ enum If<'a> {
 /// Possible state of "what should be parsed next?" in a `try` expression.
 enum Try<'a> {
     /// Next thing to parse is the `do` block.
-    Do(Instruction<'a>),
+    Do(Box<Instruction<'a>>),
     /// Next thing to parse is `catch`/`catch_all`, or `delegate`.
     CatchOrDelegate,
     /// Next thing to parse is a `catch` block or `catch_all`.
@@ -165,7 +165,7 @@ impl<'a> ExpressionParser<'a> {
                         // Parsing a `try` is easier than `if` but we also push
                         // a `Try` scope to handle the required nested blocks.
                         i @ Instruction::Try(_) => {
-                            self.stack.push(Level::Try(Try::Do(i)));
+                            self.stack.push(Level::Try(Try::Do(Box::new(i))));
                         }
 
                         // Anything else means that we're parsing a nested form
@@ -327,7 +327,7 @@ impl<'a> ExpressionParser<'a> {
 
         // Try statements must start with a `do` block.
         if let Try::Do(try_instr) = i {
-            let instr = mem::replace(try_instr, Instruction::End(None));
+            let instr = mem::replace(try_instr.as_mut(), Instruction::End(None));
             self.instrs.push(instr);
             if parser.parse::<Option<kw::r#do>>()?.is_some() {
                 // The state is advanced here only if the parse succeeds in
@@ -1215,8 +1215,7 @@ pub struct BrTableIndices<'a> {
 
 impl<'a> Parse<'a> for BrTableIndices<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let mut labels = Vec::new();
-        labels.push(parser.parse()?);
+        let mut labels = vec![parser.parse()?];
         while parser.peek::<ast::Index>() {
             labels.push(parser.parse()?);
         }
@@ -1283,7 +1282,7 @@ impl<'a> MemArg<'a> {
                     return Ok((None, c));
                 }
                 let kw = &kw[name.len()..];
-                if !kw.starts_with("=") {
+                if !kw.starts_with('=') {
                     return Ok((None, c));
                 }
                 let num = &kw[1..];
@@ -1312,7 +1311,7 @@ impl<'a> MemArg<'a> {
         let memory = parser
             .parse::<Option<ast::IndexOrRef<'a, kw::memory>>>()?
             .map(|i| i.0)
-            .unwrap_or(idx_zero(parser.prev_span(), kw::memory));
+            .unwrap_or_else(|| idx_zero(parser.prev_span(), kw::memory));
         let offset = parse_u64("offset", parser)?.unwrap_or(0);
         let align = match parse_u32("align", parser)? {
             Some(n) if !n.is_power_of_two() => {
@@ -1408,7 +1407,7 @@ impl<'a> Parse<'a> for CallIndirect<'a> {
         let table: Option<ast::IndexOrRef<_>> = parser.parse()?;
         let ty = parser.parse::<ast::TypeUse<'a, ast::FunctionTypeNoNames<'a>>>()?;
         Ok(CallIndirect {
-            table: table.map(|i| i.0).unwrap_or(idx_zero(prev_span, kw::table)),
+            table: table.map(|i| i.0).unwrap_or_else(|| idx_zero(prev_span, kw::table)),
             ty: ty.into(),
         })
     }

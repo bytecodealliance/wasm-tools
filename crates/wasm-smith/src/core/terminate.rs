@@ -1,5 +1,5 @@
 use super::*;
-use std::mem;
+
 use wasm_encoder::BlockType;
 
 impl Module {
@@ -50,7 +50,7 @@ impl Module {
             // recursion.
             check_fuel(&mut new_insts);
 
-            for inst in mem::replace(instrs, vec![]) {
+            for inst in std::mem::take(instrs) {
                 let is_loop = matches!(&inst, Instruction::Loop(_));
                 new_insts.push(inst);
 

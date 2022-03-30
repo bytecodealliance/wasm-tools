@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 
 pub fn resolve<'a>(
     id: Option<Id<'a>>,
-    fields: &mut Vec<ModuleField<'a>>,
+    fields: &mut [ModuleField<'a>],
 ) -> Result<Resolver<'a>, Error> {
     let mut names = HashMap::new();
     let mut parents = Parents {
@@ -45,7 +45,7 @@ impl<'a> Resolver<'a> {
     fn process(
         &mut self,
         parents: &mut Parents<'a, '_>,
-        fields: &mut Vec<ModuleField<'a>>,
+        fields: &mut [ModuleField<'a>],
     ) -> Result<(), Error> {
         // Number everything in the module, recording what names correspond to
         // what indices.
@@ -66,10 +66,8 @@ impl<'a> Resolver<'a> {
             ModuleField::Import(i) => {
                 // Account for implicit instances created by two-level imports
                 // first. At this time they never have a name.
-                if i.field.is_some() {
-                    if self.implicit_instances.insert(i.module) {
-                        self.instances.register(None, "instance")?;
-                    }
+                if i.field.is_some() && self.implicit_instances.insert(i.module) {
+                    self.instances.register(None, "instance")?;
                 }
                 match &i.item.kind {
                     ItemKind::Func(_) => self.funcs.register(i.item.id, "func")?,
@@ -193,7 +191,7 @@ impl<'a> Resolver<'a> {
 
                     // Parameters come first in the scope...
                     if let Some(inline) = &inline {
-                        for (id, _, _) in inline.params.iter() {
+                        for FunctionParam(id, _, _) in inline.params.iter() {
                             scope.register(*id, "local")?;
                         }
                     } else if let Some(TypeInfo::Func { params, .. }) =
@@ -346,19 +344,15 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_heaptype(&self, ty: &mut HeapType<'a>) -> Result<(), Error> {
-        match ty {
-            HeapType::Index(i) => {
-                self.resolve(i, Ns::Type)?;
-            }
-            _ => {}
+        if let HeapType::Index(i) = ty {
+            self.resolve(i, Ns::Type)?;
         }
         Ok(())
     }
 
     fn resolve_storagetype(&self, ty: &mut StorageType<'a>) -> Result<(), Error> {
-        match ty {
-            StorageType::Val(ty) => self.resolve_valtype(ty)?,
-            _ => {}
+        if let StorageType::Val(ty) = ty {
+            self.resolve_valtype(ty)?
         }
         Ok(())
     }
@@ -444,7 +438,7 @@ impl<'a> Resolver<'a> {
                         ));
                     }
                 }
-                debug_assert!(exports.len() == 0);
+                debug_assert!(exports.is_empty());
                 self.resolve(
                     idx,
                     match (*kind).into() {
@@ -511,7 +505,7 @@ impl<'a> Namespace<'a> {
     fn alloc(&mut self) -> u32 {
         let index = self.count;
         self.count += 1;
-        return index;
+        index
     }
 
     fn register_specific(&mut self, name: Id<'a>, index: u32, desc: &str) -> Result<(), Error> {
@@ -678,7 +672,7 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             }
 
             LocalSet(i) | LocalGet(i) | LocalTee(i) => {
-                assert!(self.scopes.len() > 0);
+                assert!(!self.scopes.is_empty());
                 // Resolve a local by iterating over scopes from most recent
                 // to less recent. This allows locals added by `let` blocks to
                 // shadow less recent locals.
@@ -985,8 +979,8 @@ impl<'a> TypeReference<'a> for FunctionType<'a> {
         // opportunistically here to see if the values are equal.
 
         let types_not_equal = |a: &ValType, b: &ValType| {
-            let mut a = a.clone();
-            let mut b = b.clone();
+            let mut a = *a;
+            let mut b = *b;
             drop(cx.resolve_valtype(&mut a));
             drop(cx.resolve_valtype(&mut b));
             a != b
@@ -997,7 +991,7 @@ impl<'a> TypeReference<'a> for FunctionType<'a> {
             || params
                 .iter()
                 .zip(self.params.iter())
-                .any(|(a, (_, _, b))| types_not_equal(a, b))
+                .any(|(a, FunctionParam(_, _, b))| types_not_equal(a, b))
             || results
                 .iter()
                 .zip(self.results.iter())
@@ -1005,7 +999,7 @@ impl<'a> TypeReference<'a> for FunctionType<'a> {
         if not_equal {
             return Err(Error::new(
                 idx.span(),
-                format!("inline function type doesn't match type reference"),
+                "inline function type doesn't match type reference".to_string(),
             ));
         }
 
@@ -1025,11 +1019,11 @@ impl<'a> TypeReference<'a> for FunctionType<'a> {
 }
 
 impl<'a> TypeReference<'a> for InstanceType<'a> {
-    fn check_matches(&mut self, idx: &Index<'a>, cx: &Resolver<'a>) -> Result<(), Error> {
-        drop(cx);
+    fn check_matches(&mut self, idx: &Index<'a>, _cx: &Resolver<'a>) -> Result<(), Error> {
+        // TODO: drop(cx);
         Err(Error::new(
             idx.span(),
-            format!("cannot specify instance type as a reference and inline"),
+            "cannot specify instance type as a reference and inline".to_string(),
         ))
     }
 
@@ -1042,11 +1036,11 @@ impl<'a> TypeReference<'a> for InstanceType<'a> {
 }
 
 impl<'a> TypeReference<'a> for ModuleType<'a> {
-    fn check_matches(&mut self, idx: &Index<'a>, cx: &Resolver<'a>) -> Result<(), Error> {
-        drop(cx);
+    fn check_matches(&mut self, idx: &Index<'a>, _cx: &Resolver<'a>) -> Result<(), Error> {
+        // TODO: drop(cx);
         Err(Error::new(
             idx.span(),
-            format!("cannot specify module type as a reference and inline"),
+            "cannot specify module type as a reference and inline".to_string(),
         ))
     }
 

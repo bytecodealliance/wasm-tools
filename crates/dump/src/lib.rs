@@ -185,7 +185,7 @@ impl<'a> Dump<'a> {
                     for _ in 0..NBYTES {
                         write!(me.dst, "---")?;
                     }
-                    write!(me.dst, "-| ... {} bytes of data\n", i.data.len())?;
+                    writeln!(me.dst, "-| ... {} bytes of data", i.data.len())?;
                     me.cur = end;
                     Ok(())
                 })?,
@@ -198,9 +198,9 @@ impl<'a> Dump<'a> {
                 }
 
                 Payload::CodeSectionEntry(body) => {
-                    write!(
+                    writeln!(
                         self.dst,
-                        "============== func {} ====================\n",
+                        "============== func {} ====================",
                         i.funcs
                     )?;
                     i.funcs += 1;
@@ -248,7 +248,7 @@ impl<'a> Dump<'a> {
                         for _ in 0..NBYTES {
                             write!(self.dst, "---")?;
                         }
-                        write!(self.dst, "-| ... {} bytes of data\n", data.len())?;
+                        writeln!(self.dst, "-| ... {} bytes of data", data.len())?;
                         self.cur += data.len();
                     }
                 }
@@ -263,7 +263,7 @@ impl<'a> Dump<'a> {
                     for _ in 0..NBYTES {
                         write!(self.dst, "---")?;
                     }
-                    write!(self.dst, "-| ... {} bytes of data\n", contents.len())?;
+                    writeln!(self.dst, "-| ... {} bytes of data", contents.len())?;
                     self.cur += contents.len();
                 }
                 Payload::End(_) => {
@@ -424,7 +424,7 @@ impl<'a> Dump<'a> {
                 self.dst.push_str(&self.state);
                 self.state.truncate(0);
             }
-            self.dst.push_str("\n");
+            self.dst.push('\n');
         }
         self.cur = end;
         Ok(())

@@ -545,10 +545,6 @@ impl PartialEq for ClassData {
     fn eq(&self, other: &Self) -> bool {
         self.tpe == other.tpe
     }
-
-    fn ne(&self, other: &Self) -> bool {
-        !self.eq(other)
-    }
 }
 
 impl Analysis<Lang> for PeepholeMutationAnalysis {

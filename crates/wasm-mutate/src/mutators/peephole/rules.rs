@@ -646,13 +646,10 @@ impl PeepholeMutator {
                     let eclass = &egraph[subst[var]];
                     if eclass.nodes.len() == 1 {
                         let node = &eclass.nodes[0];
-                        match node {
-                            Lang::I32(_) => true,
-                            Lang::I64(_) => true,
-                            Lang::F32(_) => true,
-                            Lang::F64(_) => true,
-                            _ => false,
-                        }
+                        matches!(
+                            node,
+                            Lang::I32(_) | Lang::I64(_) | Lang::F32(_) | Lang::F64(_)
+                        )
                     } else {
                         false
                     }

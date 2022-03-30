@@ -175,7 +175,7 @@ macro_rules! lang {
     (@from_op_str $op:ident $children:ident $name:tt $lang:ident :: $case:ident) => ({
         if $op == $name {
             if $children.len() != 0 {
-                return Err(format!("expected zero children"))
+                return Err("expected zero children".to_string())
             }
             return Ok($lang::$case);
         }
@@ -211,7 +211,7 @@ macro_rules! lang {
                     // node has no children. Verify as such and then parse the
                     // suffix for the static information.
                     if $children.len() != 0 {
-                        return Err(format!("expected zero children"))
+                        return Err("expected zero children".to_string())
                     }
                     return Ok($lang::$case(
                         match suffix.parse() {
@@ -1050,22 +1050,22 @@ impl FromStr for MemArg {
         let mut parts = s.split('.');
         let static_offset = parts
             .next()
-            .ok_or_else(|| format!("expected more static instr info"))?
+            .ok_or_else(|| "expected more static instr info".to_string())?
             .parse::<u64>()
             .map_err(|e| e.to_string())?;
         let align = parts
             .next()
-            .ok_or_else(|| format!("expected more static instr info"))?
+            .ok_or_else(|| "expected more static instr info".to_string())?
             .parse::<u8>()
             .map_err(|e| e.to_string())?;
         let mem = parts
             .next()
-            .ok_or_else(|| format!("expected more static instr info"))?
+            .ok_or_else(|| "expected more static instr info".to_string())?
             .parse::<u32>()
             .map_err(|e| e.to_string())?;
 
         if parts.next().is_some() {
-            return Err(format!("too much info after instruction"));
+            return Err("too much info after instruction".to_string());
         }
 
         Ok(MemArg {
@@ -1096,16 +1096,15 @@ impl FromStr for MemArgLane {
         let mut parts = s.rsplitn(2, '.');
         let lane = parts
             .next()
-            .ok_or_else(|| format!("expected more static instr info"))?
+            .ok_or_else(|| "expected more static instr info".to_string())?
             .parse::<u8>()
             .map_err(|e| e.to_string())?;
         let memarg = parts
             .next()
-            .ok_or_else(|| format!("expected more static instr info"))?
-            .parse::<MemArg>()
-            .map_err(|e| e.to_string())?;
+            .ok_or_else(|| "expected more static instr info".to_string())?
+            .parse::<MemArg>()?;
         if parts.next().is_some() {
-            return Err(format!("too much info after instruction"));
+            return Err("too much info after instruction".to_string());
         }
 
         Ok(MemArgLane { lane, memarg })
@@ -1170,17 +1169,17 @@ where
     let mut parts = s.split('.');
     let t = parts
         .next()
-        .ok_or_else(|| format!("expected more static instr info"))?
+        .ok_or_else(|| "expected more static instr info".to_string())?
         .parse::<T>()
         .map_err(|e| e.to_string())?;
     let u = parts
         .next()
-        .ok_or_else(|| format!("expected more static instr info"))?
+        .ok_or_else(|| "expected more static instr info".to_string())?
         .parse::<U>()
         .map_err(|e| e.to_string())?;
 
     if parts.next().is_some() {
-        return Err(format!("too much info after instruction"));
+        return Err("too much info after instruction".to_string());
     }
 
     Ok((t, u))
@@ -1310,7 +1309,7 @@ mod tests {
             [Lang::RefNull(RefType::Func), Lang::RefNull(RefType::Extern)],
         ];
         for [l, r] in pairs {
-            assert_eq!(l.matches(&r), false);
+            assert!(!l.matches(&r));
         }
     }
 }

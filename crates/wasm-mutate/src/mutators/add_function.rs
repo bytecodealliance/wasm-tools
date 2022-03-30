@@ -43,9 +43,7 @@ impl Mutator for AddFunctionMutator {
                 code_sec_enc.raw(&raw_code_sec.data[range.start..range.end]);
             }
         }
-        let func_ty = match &config.info().types_map[usize::try_from(ty_idx).unwrap()] {
-            TypeInfo::Func(func_ty) => func_ty,
-        };
+        let TypeInfo::Func(func_ty) = &config.info().types_map[usize::try_from(ty_idx).unwrap()];
         let mut func = wasm_encoder::Function::new(vec![]);
         for ty in &func_ty.returns {
             match ty {

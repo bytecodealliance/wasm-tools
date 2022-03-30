@@ -7,6 +7,7 @@
 //! tool. `wasm-mutate` can serve as a custom mutator for mutation-based
 //! fuzzing.
 
+#![allow(clippy::field_reassign_with_default, clippy::too_many_arguments)]
 #![cfg_attr(not(feature = "clap"), deny(missing_docs))]
 
 mod error;
@@ -179,7 +180,7 @@ pub struct WasmMutate<'wasm> {
     // Note: this is only exposed via the programmatic interface, not via the
     // CLI.
     #[cfg_attr(feature = "clap", clap(skip = None))]
-    raw_mutate_func: Option<Arc<dyn Fn(&mut Vec<u8>, usize) -> Result<()>>>,
+    raw_mutate_func: Option<Arc<FnRawMutate>>,
 
     #[cfg_attr(feature = "clap", clap(skip = None))]
     rng: Option<SmallRng>,
@@ -187,6 +188,8 @@ pub struct WasmMutate<'wasm> {
     #[cfg_attr(feature = "clap", clap(skip = None))]
     info: Option<ModuleInfo<'wasm>>,
 }
+
+type FnRawMutate = dyn Fn(&mut Vec<u8>, usize) -> Result<()>;
 
 #[cfg(feature = "clap")]
 fn parse_fuel(s: &str) -> Result<Cell<u64>, String> {
@@ -253,10 +256,7 @@ impl<'wasm> WasmMutate<'wasm> {
     /// mutated data should be. After mutating the data, the function should
     /// `resize` the data to its final, mutated size, which should be less than
     /// or equal to the maximum size.
-    pub fn raw_mutate_func(
-        &mut self,
-        raw_mutate_func: Option<Arc<dyn Fn(&mut Vec<u8>, usize) -> Result<()>>>,
-    ) -> &mut Self {
+    pub fn raw_mutate_func(&mut self, raw_mutate_func: Option<Arc<FnRawMutate>>) -> &mut Self {
         self.raw_mutate_func = raw_mutate_func;
         self
     }

@@ -385,7 +385,7 @@ impl ParseBuffer<'_> {
 
                 // If the previous state was an `LParen`, we may have an
                 // annotation if the next keyword is reserved
-                (Reserved(s), State::LParen) if s.starts_with("@") && s.len() > 0 => {
+                (Reserved(s), State::LParen) if s.starts_with('@') && !s.is_empty() => {
                     let offset = self.input_pos(s);
                     State::Annotation {
                         span: Span { offset },
@@ -412,7 +412,7 @@ impl ParseBuffer<'_> {
             };
         }
         if let State::Annotation { span, .. } = state {
-            return Err(Error::new(span, format!("unclosed annotation")));
+            return Err(Error::new(span, "unclosed annotation".to_string()));
         }
         Ok(())
     }
@@ -440,12 +440,12 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn has_meaningful_tokens(self) -> bool {
-        self.buf.tokens[self.cursor().cur..]
-            .iter()
-            .any(|(t, _)| match t {
-                Token::Whitespace(_) | Token::LineComment(_) | Token::BlockComment(_) => false,
-                _ => true,
-            })
+        self.buf.tokens[self.cursor().cur..].iter().any(|(t, _)| {
+            !matches!(
+                t,
+                Token::Whitespace(_) | Token::LineComment(_) | Token::BlockComment(_)
+            )
+        })
     }
 
     /// Parses a `T` from this [`Parser`].
@@ -687,7 +687,7 @@ impl<'a> Parser<'a> {
         if res.is_err() {
             self.buf.cur.set(before);
         }
-        return res;
+        res
     }
 
     /// Return the depth of nested parens we've parsed so far.
@@ -741,7 +741,9 @@ impl<'a> Parser<'a> {
 
     /// Returns the span of the previous token
     pub fn prev_span(&self) -> Span {
-        self.cursor().prev_span().unwrap_or(Span::from_offset(0))
+        self.cursor()
+            .prev_span()
+            .unwrap_or_else(|| Span::from_offset(0))
     }
 
     /// Registers a new known annotation with this parser to allow parsing
@@ -1070,7 +1072,7 @@ impl<'a> Cursor<'a> {
     /// [annotation]: https://github.com/WebAssembly/annotations
     pub fn annotation(self) -> Option<(&'a str, Self)> {
         let (token, cursor) = self.reserved()?;
-        if !token.starts_with("@") || token.len() <= 1 {
+        if !token.starts_with('@') || token.len() <= 1 {
             return None;
         }
         match &self.parser.buf.tokens.get(self.cur.wrapping_sub(1))?.0 {
@@ -1166,7 +1168,7 @@ impl<'a> Cursor<'a> {
             Some(Token::Reserved(n)) => n,
             _ => return None,
         };
-        if reserved.starts_with("@") && reserved.len() > 1 {
+        if reserved.starts_with('@') && reserved.len() > 1 {
             Some(&reserved[1..])
         } else {
             None

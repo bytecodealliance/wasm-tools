@@ -10,7 +10,7 @@ use rand::{rngs::SmallRng, Rng, SeedableRng};
 use wasm_mutate::WasmMutate;
 
 #[rustfmt::skip]
-static EMPTY_WASM: &'static [u8] = &[
+static EMPTY_WASM: &[u8] = &[
     // Magic.
     0x00, b'a', b's', b'm',
     // Version.
@@ -81,8 +81,10 @@ pub struct WasmShrink {
     seed: u64,
 
     #[cfg_attr(feature = "clap", clap(skip))]
-    on_new_smallest: Option<Box<dyn FnMut(&[u8]) -> Result<()>>>,
+    on_new_smallest: Option<Box<FnOnNewSmallest>>,
 }
+
+type FnOnNewSmallest = dyn FnMut(&[u8]) -> Result<()>;
 
 impl Default for WasmShrink {
     fn default() -> Self {
@@ -121,10 +123,7 @@ impl WasmShrink {
 
     /// Set the callback that is called each time we discover a new smallest
     /// test case that is interesting.
-    pub fn on_new_smallest(
-        mut self,
-        on_new_smallest: Option<Box<dyn FnMut(&[u8]) -> Result<()>>>,
-    ) -> WasmShrink {
+    pub fn on_new_smallest(mut self, on_new_smallest: Option<Box<FnOnNewSmallest>>) -> WasmShrink {
         self.on_new_smallest = on_new_smallest;
         self
     }

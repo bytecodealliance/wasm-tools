@@ -88,18 +88,12 @@ mod test {
     #[test]
     fn it_encodes_an_empty_module() {
         let bytes = Module::new().finish();
-        assert_eq!(
-            bytes,
-            [0x00, 'a' as u8, 's' as u8, 'm' as u8, 0x01, 0x00, 0x00, 0x00]
-        );
+        assert_eq!(bytes, [0x00, b'a', b's', b'm', 0x01, 0x00, 0x00, 0x00]);
     }
 
     #[test]
     fn it_encodes_an_empty_component() {
         let bytes = Component::new().finish();
-        assert_eq!(
-            bytes,
-            [0x00, 'a' as u8, 's' as u8, 'm' as u8, 0x0a, 0x00, 0x01, 0x00]
-        );
+        assert_eq!(bytes, [0x00, b'a', b's', b'm', 0x0a, 0x00, 0x01, 0x00]);
     }
 }

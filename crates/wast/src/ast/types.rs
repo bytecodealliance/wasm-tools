@@ -409,18 +409,20 @@ impl<'a> Parse<'a> for MemoryType {
     }
 }
 
+/// A function param, optionally having an identifier for
+/// name resolution and a name for the custom `name` section.
+#[derive(Clone, Debug)]
+pub struct FunctionParam<'a>(
+    pub Option<ast::Id<'a>>,
+    pub Option<ast::NameAnnotation<'a>>,
+    pub ValType<'a>
+);
+
 /// A function type with parameters and results.
 #[derive(Clone, Debug, Default)]
 pub struct FunctionType<'a> {
-    /// The parameters of a function, optionally each having an identifier for
-    /// name resolution and a name for the custom `name` section.
-    pub params: Box<
-        [(
-            Option<ast::Id<'a>>,
-            Option<ast::NameAnnotation<'a>>,
-            ValType<'a>,
-        )],
-    >,
+    /// The parameters of a function.
+    pub params: Box<[FunctionParam<'a>]>,
     /// The results types of a function.
     pub results: Box<[ValType<'a>]>,
 }
@@ -433,7 +435,7 @@ impl<'a> FunctionType<'a> {
             parser.parens(|p| {
                 let mut l = p.lookahead1();
                 if l.peek::<kw::param>() {
-                    if results.len() > 0 {
+                    if !results.is_empty() {
                         return Err(p.error(
                             "result before parameter (or unexpected token): \
                              cannot list params after results",
@@ -450,9 +452,9 @@ impl<'a> FunctionType<'a> {
                     };
                     let parse_more = id.is_none() && name.is_none();
                     let ty = p.parse()?;
-                    params.push((id, name, ty));
+                    params.push(FunctionParam(id, name, ty));
                     while parse_more && !p.is_empty() {
-                        params.push((None, None, p.parse()?));
+                        params.push(FunctionParam(None, None, p.parse()?));
                     }
                 } else if l.peek::<kw::result>() {
                     p.parse::<kw::result>()?;
@@ -679,10 +681,7 @@ impl<'a> Parse<'a> for InstanceType<'a> {
 impl<'a> Peek for InstanceType<'a> {
     fn peek(cursor: Cursor<'_>) -> bool {
         if let Some(next) = cursor.lparen() {
-            match next.keyword() {
-                Some(("export", _)) => return true,
-                _ => {}
-            }
+            if let Some(("export", _)) = next.keyword() { return true }
         }
 
         false

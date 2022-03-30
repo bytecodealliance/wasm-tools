@@ -79,10 +79,12 @@ impl Opts {
     }
 }
 
+type FnWasmFeatureParser = fn(&mut WasmFeatures) -> &mut bool;
+
 fn parse_features(arg: &str) -> Result<WasmFeatures> {
     let mut ret = WasmFeatures::default();
 
-    const FEATURES: &[(&str, fn(&mut WasmFeatures) -> &mut bool)] = &[
+    const FEATURES: &[(&str, FnWasmFeatureParser)] = &[
         ("reference-types", |f| &mut f.reference_types),
         ("simd", |f| &mut f.simd),
         ("threads", |f| &mut f.threads),
@@ -103,7 +105,7 @@ fn parse_features(arg: &str) -> Result<WasmFeatures> {
     ];
 
     for part in arg.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {
-        let (enable, part) = if let Some(part) = part.strip_prefix("-") {
+        let (enable, part) = if let Some(part) = part.strip_prefix('-') {
             (false, part)
         } else {
             (true, part)

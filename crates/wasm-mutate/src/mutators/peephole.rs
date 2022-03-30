@@ -307,7 +307,7 @@ impl PeepholeMutator {
                         // Needed globals
                         let mut new_global_section = GlobalSection::new();
                         // Reparse and reencode global section
-                        if let Some(_) = config.info().globals {
+                        if config.info().globals.is_some() {
                             // If the global section was already there, try to copy it to the
                             // new raw section
                             let global_section = config.info().get_global_section();
@@ -325,7 +325,7 @@ impl PeepholeMutator {
                             }
                         }
 
-                        if needed_resources.len() > 0 {
+                        if !needed_resources.is_empty() {
                             log::trace!("Adding {} additional resources", needed_resources.len());
                         }
 
@@ -387,7 +387,7 @@ impl PeepholeMutator {
                             move |index, _sectionid, module: &mut wasm_encoder::Module| {
                                 if insert_globals_before == index
                             // Write if needed or if it wasm in the init Wasm
-                            && (new_global_section.len() > 0 || global_index.is_some() )
+                            && (!new_global_section.is_empty() || global_index.is_some() )
                                 {
                                     // Insert the new globals here
                                     module.section(&new_global_section);
@@ -584,11 +584,7 @@ mod tests {
                     let eclass = &egraph[subst[var]];
                     if eclass.nodes.len() == 1 {
                         let node = &eclass.nodes[0];
-                        match node {
-                            Lang::I32(_) => true,
-                            Lang::I64(_) => true,
-                            _ => false,
-                        }
+                        matches!(node, Lang::I32(_) | Lang::I64(_))
                     } else {
                         false
                     }
@@ -941,7 +937,7 @@ mod tests {
 
         let can_mutate = mutator.can_mutate(&wasmmutate);
 
-        assert_eq!(can_mutate, true);
+        assert!(can_mutate);
         let rules = mutator.get_rules(&wasmmutate);
 
         for mutated in mutator.mutate_with_rules(&mut wasmmutate, &rules).unwrap() {

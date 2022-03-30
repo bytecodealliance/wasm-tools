@@ -53,13 +53,13 @@ fn run_test(test: &Path, bless: bool) -> anyhow::Result<()> {
     };
     let assert = test.with_extension("wat.err");
     if bless {
-        std::fs::write(assert, err.to_string())?;
+        std::fs::write(assert, &err)?;
         return Ok(());
     }
 
     // Ignore CRLF line ending and force always `\n`
     let assert = std::fs::read_to_string(assert)
-        .unwrap_or(String::new())
+        .unwrap_or_default()
         .replace("\r\n", "\n");
 
     // Compare normalize verisons which handles weirdness like path differences
@@ -74,11 +74,11 @@ fn run_test(test: &Path, bless: bool) -> anyhow::Result<()> {
     );
 
     fn normalize(s: &str) -> String {
-        s.replace("\\", "/")
+        s.replace('\\', "/")
     }
 
     fn tab(s: &str) -> String {
-        s.replace("\n", "\n\t")
+        s.replace('\n', "\n\t")
     }
 }
 

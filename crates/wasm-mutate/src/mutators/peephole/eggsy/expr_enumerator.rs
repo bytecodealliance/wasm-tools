@@ -67,7 +67,7 @@ pub fn lazy_expand<'a>(
 
     let t = indices
         .map(move |i| nodes[i].clone())
-        .map(move |mut l| {
+        .flat_map(move |mut l| {
             let depth = match l {
                 // This is a patch to avoid expansion of non-statically known
                 // values.
@@ -150,8 +150,7 @@ pub fn lazy_expand<'a>(
                 }
             };
             iter
-        })
-        .flatten();
+        });
     Box::new(t)
 }
 
@@ -249,7 +248,7 @@ mod tests {
         let mut it = lazy_expand(root, Rc::new(egraph), 10, rnd, recexpr);
         let mut h: HashMap<String, usize> = HashMap::new();
         for _ in 0..100000 {
-            if let Some(_) = it.next() {
+            if it.next().is_some() {
                 let t = format!("{}", r.borrow());
 
                 assert!(!h.contains_key(&t));

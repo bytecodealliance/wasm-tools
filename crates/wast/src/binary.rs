@@ -62,19 +62,21 @@ fn encode_fields(
 
     let mut items = fields
         .iter()
-        .filter(|i| match i {
-            ModuleField::Alias(_)
-            | ModuleField::Type(_)
-            | ModuleField::Import(_)
-            | ModuleField::NestedModule(_)
-            | ModuleField::Instance(_) => true,
-            _ => false,
+        .filter(|i| {
+            matches!(
+                i,
+                ModuleField::Alias(_)
+                    | ModuleField::Type(_)
+                    | ModuleField::Import(_)
+                    | ModuleField::NestedModule(_)
+                    | ModuleField::Instance(_)
+            )
         })
         .peekable();
 
     // A special path is used for now to handle non-module-linking modules to
     // work around WebAssembly/annotations#11
-    if aliases.len() == 0 && modules.len() == 0 && instances.len() == 0 {
+    if aliases.is_empty() && modules.is_empty() && instances.is_empty() {
         e.section_list(1, Type, &types);
         e.section_list(2, Import, &imports);
     } else {
@@ -137,10 +139,7 @@ fn encode_fields(
                 _ => None,
             })
             .flat_map(|e| e.instrs.iter())
-            .any(|i| match i {
-                Instruction::MemoryInit(_) | Instruction::DataDrop(_) => true,
-                _ => false,
-            })
+            .any(|i| matches!(i, Instruction::MemoryInit(_) | Instruction::DataDrop(_)))
     }
 }
 
@@ -234,7 +233,7 @@ impl Encode for i32 {
 
 impl Encode for u64 {
     fn encode(&self, e: &mut Vec<u8>) {
-        leb128::write::unsigned(e, (*self).into()).unwrap();
+        leb128::write::unsigned(e, *self).unwrap();
     }
 }
 
@@ -247,7 +246,7 @@ impl Encode for i64 {
 impl Encode for FunctionType<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.params.len().encode(e);
-        for (_, _, ty) in self.params.iter() {
+        for FunctionParam(_, _, ty) in self.params.iter() {
             ty.encode(e);
         }
         self.results.encode(e);
@@ -964,13 +963,15 @@ fn find_names<'a>(
     fields: &[ModuleField<'a>],
 ) -> Names<'a> {
     fn get_name<'a>(id: &Option<Id<'a>>, name: &Option<NameAnnotation<'a>>) -> Option<&'a str> {
-        name.as_ref().map(|n| n.name).or(id.and_then(|id| {
-            if id.is_gensym() {
-                None
-            } else {
-                Some(id.name())
-            }
-        }))
+        name.as_ref().map(|n| n.name).or_else(|| {
+            id.and_then(|id| {
+                if id.is_gensym() {
+                    None
+                } else {
+                    Some(id.name())
+                }
+            })
+        })
     }
 
     enum Name {
@@ -1060,7 +1061,7 @@ fn find_names<'a>(
             // pass, but only for functions, so here we can look at the
             // original source's names.
             if let Some(ty) = &f.ty.inline {
-                for (id, name, _) in ty.params.iter() {
+                for FunctionParam(id, name, _) in ty.params.iter() {
                     if let Some(name) = get_name(id, name) {
                         local_names.push((local_idx, name));
                     }
@@ -1094,10 +1095,10 @@ fn find_names<'a>(
                     }
                 }
             }
-            if local_names.len() > 0 {
+            if !local_names.is_empty() {
                 ret.locals.push((*idx, local_names));
             }
-            if label_names.len() > 0 {
+            if !label_names.is_empty() {
                 ret.labels.push((*idx, label_names));
             }
         }
@@ -1105,7 +1106,7 @@ fn find_names<'a>(
         *idx += 1;
     }
 
-    return ret;
+    ret
 }
 
 impl Names<'_> {
@@ -1139,39 +1140,39 @@ impl Encode for Names<'_> {
             id.encode(&mut tmp);
             subsec(0, &mut tmp);
         }
-        if self.funcs.len() > 0 {
+        if !self.funcs.is_empty() {
             self.funcs.encode(&mut tmp);
             subsec(1, &mut tmp);
         }
-        if self.locals.len() > 0 {
+        if !self.locals.is_empty() {
             self.locals.encode(&mut tmp);
             subsec(2, &mut tmp);
         }
-        if self.labels.len() > 0 {
+        if !self.labels.is_empty() {
             self.labels.encode(&mut tmp);
             subsec(3, &mut tmp);
         }
-        if self.types.len() > 0 {
+        if !self.types.is_empty() {
             self.types.encode(&mut tmp);
             subsec(4, &mut tmp);
         }
-        if self.tables.len() > 0 {
+        if !self.tables.is_empty() {
             self.tables.encode(&mut tmp);
             subsec(5, &mut tmp);
         }
-        if self.memories.len() > 0 {
+        if !self.memories.is_empty() {
             self.memories.encode(&mut tmp);
             subsec(6, &mut tmp);
         }
-        if self.globals.len() > 0 {
+        if !self.globals.is_empty() {
             self.globals.encode(&mut tmp);
             subsec(7, &mut tmp);
         }
-        if self.elems.len() > 0 {
+        if !self.elems.is_empty() {
             self.elems.encode(&mut tmp);
             subsec(8, &mut tmp);
         }
-        if self.data.len() > 0 {
+        if !self.data.is_empty() {
             self.data.encode(&mut tmp);
             subsec(9, &mut tmp);
         }

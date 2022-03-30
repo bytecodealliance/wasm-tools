@@ -122,7 +122,7 @@ pub trait AstMutator {
         config: &'a mut WasmMutate,
         ast: &Ast,
         locals: &[(u32, ValType)],
-        operators: &Vec<OperatorAndByteOffset>,
+        operators: &[OperatorAndByteOffset],
         input_wasm: &'a [u8],
     ) -> Result<Function>;
 

@@ -136,10 +136,7 @@ impl Type {
             }
             Type::Func(func_ty) => {
                 enc.function(
-                    func_ty
-                        .params
-                        .iter()
-                        .map(|p| translate_optional_named_type(p)),
+                    func_ty.params.iter().map(translate_optional_named_type),
                     func_ty.result,
                 );
             }
@@ -158,13 +155,13 @@ impl InterfaceType {
         match self {
             InterfaceType::Primitive(ty) => enc.primitive(*ty),
             InterfaceType::Record(ty) => {
-                enc.record(ty.fields.iter().map(|f| translate_named_type(f)));
+                enc.record(ty.fields.iter().map(translate_named_type));
             }
             InterfaceType::Variant(ty) => {
                 enc.variant(
                     ty.cases
                         .iter()
-                        .map(|(ty, default_to)| (ty.name.as_str(), ty.ty, default_to.clone())),
+                        .map(|(ty, default_to)| (ty.name.as_str(), ty.ty, *default_to)),
                 );
             }
             InterfaceType::List(ty) => {

@@ -50,7 +50,7 @@ impl Module {
     fn encode_imports(&self, module: &mut wasm_encoder::Module, imports: &[Import]) {
         let mut section = wasm_encoder::ImportSection::new();
         for Import(module, name, ty) in imports {
-            section.import(module, &name, translate_entity_type(ty));
+            section.import(module, name, translate_entity_type(ty));
         }
         module.section(&section);
     }

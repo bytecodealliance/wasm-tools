@@ -46,7 +46,7 @@ fn main() {
                 }
             }
             let contents = std::fs::read(test).unwrap();
-            if skip_test(&test, &contents) {
+            if skip_test(test, &contents) {
                 None
             } else {
                 Some((test, contents))
@@ -250,7 +250,7 @@ impl TestState {
                 err.set_text(contents);
             }
             s.push_str("\n\n\t--------------------------------\n\n\t");
-            s.push_str(&format!("{:?}", error).replace("\n", "\n\t"));
+            s.push_str(&format!("{:?}", error).replace('\n', "\n\t"));
         }
         bail!("{}", s)
     }
@@ -377,7 +377,7 @@ impl TestState {
                 Ok(s) => ret.push_str(s),
                 Err(_) => bail!("malformed UTF-8 encoding"),
             }
-            ret.push_str(" ");
+            ret.push(' ');
         }
         let buf = ParseBuffer::new(&ret)?;
         let mut wat = parser::parse::<Wat>(&buf)?;
@@ -418,7 +418,7 @@ impl TestState {
             .find(|((_, actual), expected)| actual != expected);
         let pos = match difference {
             Some(((pos, _), _)) => format!("at byte {} ({0:#x})", pos),
-            None => format!("by being too small"),
+            None => "by being too small".to_string(),
         };
         let mut msg = format!("error: actual wasm differs {} from expected wasm\n", pos);
 
@@ -429,8 +429,8 @@ impl TestState {
             msg.push_str(&format!("       | + {:#04x}\n", actual[pos]));
         }
 
-        if let Ok(actual) = wasmparser_dump::dump_wasm(&actual) {
-            if let Ok(expected) = wasmparser_dump::dump_wasm(&expected) {
+        if let Ok(actual) = wasmparser_dump::dump_wasm(actual) {
+            if let Ok(expected) = wasmparser_dump::dump_wasm(expected) {
                 let mut actual = actual.lines();
                 let mut expected = expected.lines();
                 let mut differences = 0;
@@ -447,7 +447,7 @@ impl TestState {
 
                     if actual_state == expected_state {
                         if differences > 0 && !last_dots {
-                            msg.push_str(&format!(" ...\n"));
+                            msg.push_str(" ...\n");
                             last_dots = true;
                         }
                         continue;
@@ -649,5 +649,5 @@ fn error_matches(error: &str, message: &str) -> bool {
         return error.contains("section out of order");
     }
 
-    return false;
+    false
 }

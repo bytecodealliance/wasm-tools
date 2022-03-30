@@ -59,7 +59,7 @@ fn run_test(test: &Path, bless: bool) -> Result<()> {
 
     // Ignore CRLF line ending and force always `\n`
     let assert = std::fs::read_to_string(assert)
-        .unwrap_or(String::new())
+        .unwrap_or_default()
         .replace("\r\n", "\n");
 
     let mut bad = false;
@@ -68,20 +68,20 @@ fn run_test(test: &Path, bless: bool) -> Result<()> {
         match diff {
             diff::Result::Left(s) => {
                 bad = true;
-                result.push_str("-");
+                result.push('-');
                 result.push_str(s);
             }
             diff::Result::Right(s) => {
                 bad = true;
-                result.push_str("+");
+                result.push('+');
                 result.push_str(s);
             }
             diff::Result::Both(s, _) => {
-                result.push_str(" ");
+                result.push(' ');
                 result.push_str(s);
             }
         }
-        result.push_str("\n");
+        result.push('\n');
     }
     if bad {
         bail!(

@@ -87,8 +87,7 @@ impl MiniDFG {
         colors
             .get(0)
             .map(|&val| colors.iter().all(|&x| x == val))
-            .or(Some(false))
-            .unwrap()
+            .unwrap_or(false)
     }
 
     /// Return true if the coloring of the children subtrees is the same as the root
@@ -138,7 +137,7 @@ impl MiniDFG {
             builder: &mut String,
         ) {
             let entry = &minidfg.entries[entryidx];
-            builder.push_str(&(&preffix).to_string());
+            builder.push_str((&preffix).as_ref());
             let color = get_ansi_term_color(entry.color);
             builder.push_str(
                 format!(
@@ -369,9 +368,13 @@ impl<'a> DFGBuilder {
         // the stack. If an operator is missing in the stack then it probably
         // comes from a previous BB.
 
-        for idx in basicblock.range.start..basicblock.range.end {
+        for (idx, (operator, _)) in operators
+            .iter()
+            .enumerate()
+            .take(basicblock.range.end)
+            .skip(basicblock.range.start)
+        {
             // We dont care about the jump
-            let (operator, _) = &operators[idx];
             // Check if it is not EOF
 
             match operator {

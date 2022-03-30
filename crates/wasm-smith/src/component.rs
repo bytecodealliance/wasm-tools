@@ -150,6 +150,13 @@ struct EntityCounts {
     funcs: usize,
 }
 
+type FnEntityChoice = fn(
+    &mut Component,
+    &mut Unstructured,
+    &mut EntityCounts,
+    &[Rc<crate::core::FuncType>],
+) -> Result<crate::core::EntityType>;
+
 impl Component {
     /// Construct a new `Component` using the given configuration.
     pub fn new(config: impl Config, u: &mut Unstructured) -> Result<Self> {
@@ -285,14 +292,7 @@ impl Component {
         let mut exports = HashSet::new();
         let mut counts = EntityCounts::default();
 
-        let mut entity_choices: Vec<
-            fn(
-                &mut Component,
-                &mut Unstructured,
-                &mut EntityCounts,
-                &[Rc<crate::core::FuncType>],
-            ) -> Result<crate::core::EntityType>,
-        > = Vec::with_capacity(5);
+        let mut entity_choices: Vec<FnEntityChoice> = Vec::with_capacity(5);
 
         arbitrary_loop(u, 0, 100, |u| {
             *type_fuel = type_fuel.saturating_sub(1);
@@ -359,14 +359,7 @@ impl Component {
         &mut self,
         u: &mut Unstructured,
         types: &[Rc<crate::core::FuncType>],
-        choices: &mut Vec<
-            fn(
-                &mut Component,
-                &mut Unstructured,
-                &mut EntityCounts,
-                &[Rc<crate::core::FuncType>],
-            ) -> Result<crate::core::EntityType>,
-        >,
+        choices: &mut Vec<FnEntityChoice>,
         counts: &mut EntityCounts,
     ) -> Result<Option<crate::core::EntityType>> {
         choices.clear();
@@ -431,7 +424,7 @@ impl Component {
             return Ok(None);
         }
 
-        let f = u.choose(&choices)?;
+        let f = u.choose(choices)?;
         let ty = f(self, u, counts, types)?;
         Ok(Some(ty))
     }
@@ -550,6 +543,7 @@ impl Component {
         exports: &mut HashSet<String>,
         type_fuel: &mut u32,
     ) -> Result<InstanceTypeDef> {
+        #[allow(clippy::type_complexity)]
         let mut choices: Vec<
             fn(
                 &mut Component,

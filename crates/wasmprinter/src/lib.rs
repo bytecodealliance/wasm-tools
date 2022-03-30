@@ -33,13 +33,15 @@ pub fn print_bytes(wasm: impl AsRef<[u8]>) -> Result<String> {
     Printer::new().print(wasm.as_ref())
 }
 
+type FnPrinter = dyn FnMut(&mut Printer, usize, &[u8]) -> Result<()>;
+
 /// Context used for printing a WebAssembly binary.
 ///
 /// This is largely only required if you'd like to register custom printers for
 /// custom sections in a wasm binary.
 #[derive(Default)]
 pub struct Printer {
-    printers: HashMap<String, Box<dyn FnMut(&mut Printer, usize, &[u8]) -> Result<()>>>,
+    printers: HashMap<String, Box<FnPrinter>>,
     result: String,
     nesting: u32,
     line: usize,

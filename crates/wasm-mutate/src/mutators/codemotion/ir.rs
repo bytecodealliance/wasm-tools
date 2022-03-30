@@ -26,7 +26,7 @@ pub trait AstWriter {
         nodeidx: usize,
         body: &[usize],
         newfunc: &mut Function,
-        operators: &Vec<OperatorAndByteOffset>,
+        operators: &[OperatorAndByteOffset],
         input_wasm: &'a [u8],
         ty: &BlockType,
     ) -> crate::Result<()> {
@@ -43,7 +43,7 @@ pub trait AstWriter {
         _nodeidx: usize,
         body: &[usize],
         newfunc: &mut Function,
-        operators: &Vec<OperatorAndByteOffset>,
+        operators: &[OperatorAndByteOffset],
         input_wasm: &'a [u8],
         ty: &BlockType,
     ) -> crate::Result<()> {
@@ -65,7 +65,7 @@ pub trait AstWriter {
         _nodeidx: usize,
         body: &[usize],
         newfunc: &mut Function,
-        operators: &Vec<OperatorAndByteOffset>,
+        operators: &[OperatorAndByteOffset],
         input_wasm: &'a [u8],
         ty: &BlockType,
     ) -> crate::Result<()> {
@@ -91,7 +91,7 @@ pub trait AstWriter {
         nodeidx: usize,
         body: &[usize],
         newfunc: &mut Function,
-        operators: &Vec<OperatorAndByteOffset>,
+        operators: &[OperatorAndByteOffset],
         input_wasm: &'a [u8],
         ty: &BlockType,
     ) -> crate::Result<()> {
@@ -111,7 +111,7 @@ pub trait AstWriter {
         then: &[usize],
         alternative: &Option<Vec<usize>>,
         newfunc: &mut Function,
-        operators: &Vec<OperatorAndByteOffset>,
+        operators: &[OperatorAndByteOffset],
         input_wasm: &'a [u8],
         ty: &BlockType,
     ) -> crate::Result<()> {
@@ -138,7 +138,7 @@ pub trait AstWriter {
         then: &[usize],
         alternative: &Option<Vec<usize>>,
         newfunc: &mut Function,
-        operators: &Vec<OperatorAndByteOffset>,
+        operators: &[OperatorAndByteOffset],
         input_wasm: &'a [u8],
         ty: &BlockType,
     ) -> crate::Result<()> {
@@ -171,7 +171,7 @@ pub trait AstWriter {
         _nodeidx: usize,
         range: Range,
         newfunc: &mut Function,
-        operators: &Vec<OperatorAndByteOffset>,
+        operators: &[OperatorAndByteOffset],
         input_wasm: &'a [u8],
     ) -> crate::Result<()> {
         let operator_range = (range.start, range.end);
@@ -194,7 +194,7 @@ pub trait AstWriter {
         nodeidx: usize,
         range: Range,
         newfunc: &mut Function,
-        operators: &Vec<OperatorAndByteOffset>,
+        operators: &[OperatorAndByteOffset],
         input_wasm: &'a [u8],
     ) -> crate::Result<()> {
         self.write_code(ast, nodeidx, range, newfunc, operators, input_wasm)
@@ -208,7 +208,7 @@ pub trait AstWriter {
         ast: &Ast,
         nodeidx: usize,
         newfunc: &mut Function,
-        operators: &Vec<OperatorAndByteOffset>,
+        operators: &[OperatorAndByteOffset],
         input_wasm: &'a [u8],
     ) -> crate::Result<()> {
         let node = &ast.get_nodes()[nodeidx];

@@ -76,17 +76,14 @@ fn assert_local_name(name: &str, wat: &str) -> anyhow::Result<()> {
     let wasm = wat::parse_str(wat)?;
     let mut found = false;
     for s in get_name_section(&wasm)? {
-        match s? {
-            Name::Local(n) => {
-                let mut reader = n.get_indirect_map()?;
-                let section = reader.read()?;
-                let mut map = section.get_map()?;
-                let naming = map.read()?;
-                assert_eq!(naming.index, 0);
-                assert_eq!(naming.name, name);
-                found = true;
-            }
-            _ => {}
+        if let Name::Local(n) = s? {
+            let mut reader = n.get_indirect_map()?;
+            let section = reader.read()?;
+            let mut map = section.get_map()?;
+            let naming = map.read()?;
+            assert_eq!(naming.index, 0);
+            assert_eq!(naming.name, name);
+            found = true;
         }
     }
     assert!(found);
@@ -94,7 +91,7 @@ fn assert_local_name(name: &str, wat: &str) -> anyhow::Result<()> {
 }
 
 fn get_name_section(wasm: &[u8]) -> anyhow::Result<NameSectionReader<'_>> {
-    for payload in Parser::new(0).parse_all(&wasm) {
+    for payload in Parser::new(0).parse_all(wasm) {
         if let Payload::CustomSection {
             name: "name",
             data,

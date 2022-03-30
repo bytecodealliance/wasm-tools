@@ -37,7 +37,7 @@ impl IfComplementWriter {
         then: &[usize],
         alternative: &Option<Vec<usize>>,
         newfunc: &mut wasm_encoder::Function,
-        operators: &Vec<crate::mutators::OperatorAndByteOffset>,
+        operators: &[crate::mutators::OperatorAndByteOffset],
         input_wasm: &'a [u8],
         ty: &wasmparser::BlockType,
     ) -> crate::Result<()> {
@@ -73,7 +73,7 @@ impl AstWriter for IfComplementWriter {
         then: &[usize],
         alternative: &Option<Vec<usize>>,
         newfunc: &mut wasm_encoder::Function,
-        operators: &Vec<crate::mutators::OperatorAndByteOffset>,
+        operators: &[crate::mutators::OperatorAndByteOffset],
         input_wasm: &'a [u8],
         ty: &wasmparser::BlockType,
     ) -> crate::Result<()> {
@@ -114,7 +114,7 @@ impl AstMutator for IfComplementMutator {
         config: &'a mut WasmMutate,
         ast: &Ast,
         locals: &[(u32, ValType)],
-        operators: &Vec<OperatorAndByteOffset>,
+        operators: &[OperatorAndByteOffset],
         input_wasm: &'a [u8],
     ) -> crate::Result<Function> {
         // Select the if index

@@ -545,6 +545,7 @@ instructions! {
     (Some(simd_v128_v128_on_stack_relaxed), f64x2_relaxed_max, Vector),
 }
 
+#[allow(clippy::type_complexity)]
 pub(crate) struct CodeBuilderAllocations {
     // The control labels in scope right now.
     controls: Vec<Control>,
@@ -910,7 +911,7 @@ impl CodeBuilder<'_> {
             }
         }
 
-        self.locals.extend(self.extra_locals.drain(..));
+        self.locals.append(&mut self.extra_locals);
 
         Ok(instructions)
     }
@@ -1141,7 +1142,7 @@ fn delegate_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
 fn delegate(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
     // There will always be at least the function's return frame and try
     // control frame if we are emitting delegate
-    let n = builder.allocs.controls.iter().count();
+    let n = builder.allocs.controls.len();
     debug_assert!(n >= 2);
     // Delegate must target an outer control from the try block, and is
     // encoded with relative depth from the outer control
@@ -1160,7 +1161,7 @@ fn catch_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.exceptions_enabled()
         && (control_kind == ControlKind::Try || control_kind == ControlKind::Catch)
         && end_valid(module, builder)
-        && module.tags.len() > 0
+        && !module.tags.is_empty()
 }
 
 fn catch(u: &mut Unstructured, module: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
@@ -1420,7 +1421,7 @@ fn call(u: &mut Unstructured, module: &Module, builder: &mut CodeBuilder) -> Res
         .filter(|(k, _)| builder.types_on_stack(k))
         .flat_map(|(_, v)| v.iter().copied())
         .collect::<Vec<_>>();
-    assert!(candidates.len() > 0);
+    assert!(!candidates.is_empty());
     let i = u.int_in_range(0..=candidates.len() - 1)?;
     let (func_idx, ty) = module.funcs().nth(candidates[i] as usize).unwrap();
     builder.pop_operands(&ty.params);
@@ -1480,11 +1481,11 @@ fn throw(u: &mut Unstructured, module: &Module, builder: &mut CodeBuilder) -> Re
         .filter(|(k, _)| builder.types_on_stack(k))
         .flat_map(|(_, v)| v.iter().copied())
         .collect::<Vec<_>>();
-    assert!(candidates.len() > 0);
+    assert!(!candidates.is_empty());
     let i = u.int_in_range(0..=candidates.len() - 1)?;
     let (tag_idx, tag_type) = module.tags().nth(candidates[i] as usize).unwrap();
     // Tags have no results, throwing cannot return
-    assert!(tag_type.func_type.results.len() == 0);
+    assert!(tag_type.func_type.results.is_empty());
     builder.pop_operands(&tag_type.func_type.params);
     Ok(Instruction::Throw(tag_idx as u32))
 }
@@ -1631,7 +1632,7 @@ fn local_tee(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Res
 
 #[inline]
 fn global_get_valid(module: &Module, _: &mut CodeBuilder) -> bool {
-    module.globals.len() > 0
+    !module.globals.is_empty()
 }
 
 fn global_get(
@@ -1639,7 +1640,7 @@ fn global_get(
     module: &Module,
     builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
-    debug_assert!(module.globals.len() > 0);
+    debug_assert!(!module.globals.is_empty());
     let global_idx = u.int_in_range(0..=module.globals.len() - 1)?;
     builder
         .allocs
@@ -1672,18 +1673,18 @@ fn global_set(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Re
 
 #[inline]
 fn have_memory(module: &Module, _: &mut CodeBuilder) -> bool {
-    module.memories.len() > 0
+    !module.memories.is_empty()
 }
 
 #[inline]
 fn have_memory_and_offset(_module: &Module, builder: &mut CodeBuilder) -> bool {
-    (builder.allocs.memory32.len() > 0 && builder.type_on_stack(ValType::I32))
-        || (builder.allocs.memory64.len() > 0 && builder.type_on_stack(ValType::I64))
+    (!builder.allocs.memory32.is_empty() && builder.type_on_stack(ValType::I32))
+        || (!builder.allocs.memory64.is_empty() && builder.type_on_stack(ValType::I64))
 }
 
 #[inline]
 fn have_data(module: &Module, _: &mut CodeBuilder) -> bool {
-    module.data.len() > 0
+    !module.data.is_empty()
 }
 
 fn i32_load(
@@ -1828,8 +1829,8 @@ fn i64_load_32_u(
 
 #[inline]
 fn store_valid(_module: &Module, builder: &mut CodeBuilder, f: impl Fn() -> ValType) -> bool {
-    (builder.allocs.memory32.len() > 0 && builder.types_on_stack(&[ValType::I32, f()]))
-        || (builder.allocs.memory64.len() > 0 && builder.types_on_stack(&[ValType::I64, f()]))
+    (!builder.allocs.memory32.is_empty() && builder.types_on_stack(&[ValType::I32, f()]))
+        || (!builder.allocs.memory64.is_empty() && builder.types_on_stack(&[ValType::I64, f()]))
 }
 
 #[inline]
@@ -1959,8 +1960,8 @@ fn memory_size(
 
 #[inline]
 fn memory_grow_valid(_module: &Module, builder: &mut CodeBuilder) -> bool {
-    (builder.allocs.memory32.len() > 0 && builder.type_on_stack(ValType::I32))
-        || (builder.allocs.memory64.len() > 0 && builder.type_on_stack(ValType::I64))
+    (!builder.allocs.memory32.is_empty() && builder.type_on_stack(ValType::I32))
+        || (!builder.allocs.memory64.is_empty() && builder.type_on_stack(ValType::I64))
 }
 
 fn memory_grow(
@@ -1983,9 +1984,9 @@ fn memory_grow(
 fn memory_init_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.bulk_memory_enabled()
         && have_data(module, builder)
-        && (builder.allocs.memory32.len() > 0
+        && (!builder.allocs.memory32.is_empty()
             && builder.types_on_stack(&[ValType::I32, ValType::I32, ValType::I32])
-            || (builder.allocs.memory64.len() > 0
+            || (!builder.allocs.memory64.is_empty()
                 && builder.types_on_stack(&[ValType::I64, ValType::I32, ValType::I32])))
 }
 
@@ -2009,9 +2010,9 @@ fn memory_init(
 #[inline]
 fn memory_fill_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.bulk_memory_enabled()
-        && (builder.allocs.memory32.len() > 0
+        && (!builder.allocs.memory32.is_empty()
             && builder.types_on_stack(&[ValType::I32, ValType::I32, ValType::I32])
-            || (builder.allocs.memory64.len() > 0
+            || (!builder.allocs.memory64.is_empty()
                 && builder.types_on_stack(&[ValType::I64, ValType::I32, ValType::I64])))
 }
 
@@ -2037,24 +2038,24 @@ fn memory_copy_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     }
 
     if builder.types_on_stack(&[ValType::I64, ValType::I64, ValType::I64])
-        && builder.allocs.memory64.len() > 0
+        && !builder.allocs.memory64.is_empty()
     {
         return true;
     }
     if builder.types_on_stack(&[ValType::I32, ValType::I32, ValType::I32])
-        && builder.allocs.memory32.len() > 0
+        && !builder.allocs.memory32.is_empty()
     {
         return true;
     }
     if builder.types_on_stack(&[ValType::I64, ValType::I32, ValType::I32])
-        && builder.allocs.memory32.len() > 0
-        && builder.allocs.memory64.len() > 0
+        && !builder.allocs.memory32.is_empty()
+        && !builder.allocs.memory64.is_empty()
     {
         return true;
     }
     if builder.types_on_stack(&[ValType::I32, ValType::I64, ValType::I32])
-        && builder.allocs.memory32.len() > 0
-        && builder.allocs.memory64.len() > 0
+        && !builder.allocs.memory32.is_empty()
+        && !builder.allocs.memory64.is_empty()
     {
         return true;
     }
@@ -3249,7 +3250,7 @@ fn ref_null(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Resu
 
 #[inline]
 fn ref_func_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.reference_types_enabled() && builder.allocs.referenced_functions.len() > 0
+    module.config.reference_types_enabled() && !builder.allocs.referenced_functions.is_empty()
 }
 
 fn ref_func(u: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result<Instruction> {
@@ -3316,7 +3317,7 @@ fn table_set(
 fn table_get_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled()
         && builder.type_on_stack(ValType::I32)
-        && module.tables.len() > 0
+        && !module.tables.is_empty()
 }
 
 fn table_get(
@@ -3333,7 +3334,7 @@ fn table_get(
 
 #[inline]
 fn table_size_valid(module: &Module, _: &mut CodeBuilder) -> bool {
-    module.config.reference_types_enabled() && module.tables.len() > 0
+    module.config.reference_types_enabled() && !module.tables.is_empty()
 }
 
 fn table_size(
@@ -3370,7 +3371,7 @@ fn table_grow(
 #[inline]
 fn table_copy_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled()
-        && module.tables.len() > 0
+        && !module.tables.is_empty()
         && builder.types_on_stack(&[ValType::I32, ValType::I32, ValType::I32])
 }
 
@@ -3415,7 +3416,7 @@ fn table_init(
 
 #[inline]
 fn elem_drop_valid(module: &Module, _builder: &mut CodeBuilder) -> bool {
-    module.config.reference_types_enabled() && module.elems.len() > 0
+    module.config.reference_types_enabled() && !module.elems.is_empty()
 }
 
 fn elem_drop(
@@ -3641,10 +3642,10 @@ fn i8x16_shuffle(
     builder.pop_operands(&[ValType::V128, ValType::V128]);
     builder.push_operands(&[ValType::V128]);
     let mut lanes = [0; 16];
-    for i in 0..16 {
-        lanes[i] = u.int_in_range(0..=31)?;
+    for item in &mut lanes {
+        *item = u.int_in_range(0..=31)?;
     }
-    Ok(Instruction::I8x16Shuffle { lanes: lanes })
+    Ok(Instruction::I8x16Shuffle { lanes })
 }
 
 macro_rules! simd_lane_access {

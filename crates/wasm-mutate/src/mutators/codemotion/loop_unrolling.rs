@@ -56,7 +56,7 @@ impl LoopUnrollWriter {
         ast: &Ast,
         nodeidx: usize,
         newfunc: &mut Function,
-        operators: &Vec<OperatorAndByteOffset>,
+        operators: &[OperatorAndByteOffset],
         input_wasm: &'a [u8],
     ) -> crate::Result<()> {
         let nodes = ast.get_nodes();
@@ -156,7 +156,7 @@ impl AstWriter for LoopUnrollWriter {
         nodeidx: usize,
         body: &[usize],
         newfunc: &mut Function,
-        operators: &Vec<OperatorAndByteOffset>,
+        operators: &[OperatorAndByteOffset],
         input_wasm: &'a [u8],
         ty: &wasmparser::BlockType,
     ) -> crate::Result<()> {
@@ -171,7 +171,7 @@ impl AstWriter for LoopUnrollWriter {
 
 impl LoopUnrollMutator {
     /// Returns the indexes of empty return loop definitions inside the Wasm function
-    pub fn get_empty_returning_loops<'a>(&self, ast: &'a Ast) -> Vec<usize> {
+    pub fn get_empty_returning_loops(&self, ast: &'_ Ast) -> Vec<usize> {
         let nodes = ast.get_nodes();
         let mut loops = vec![];
         for idx in ast.get_loops() {
@@ -204,7 +204,7 @@ impl AstMutator for LoopUnrollMutator {
         config: &'a mut WasmMutate,
         ast: &Ast,
         locals: &[(u32, ValType)],
-        operators: &Vec<OperatorAndByteOffset>,
+        operators: &[OperatorAndByteOffset],
         input_wasm: &'a [u8],
     ) -> crate::Result<Function> {
         // Select the if index

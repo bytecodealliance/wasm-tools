@@ -129,7 +129,7 @@ impl WasmMutate<'_> {
         let expected_text = wasmprinter::print_bytes(expected).unwrap();
 
         let mut config = self.clone();
-        config.setup(&original).unwrap();
+        config.setup(original).unwrap();
 
         let can_mutate = mutator.can_mutate(&config);
 

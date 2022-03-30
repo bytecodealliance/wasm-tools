@@ -430,6 +430,7 @@ impl Translator for RemoveItem {
             }
         }
 
+        #[allow(clippy::if_same_then_else)]
         if item != self.item {
             // Different kind of item, no change
             Ok(idx)

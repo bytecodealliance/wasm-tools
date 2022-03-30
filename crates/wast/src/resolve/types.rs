@@ -2,7 +2,7 @@ use crate::ast::*;
 use crate::resolve::gensym;
 use std::collections::HashMap;
 
-pub fn expand<'a>(fields: &mut Vec<ModuleField<'a>>) {
+pub fn expand(fields: &mut Vec<ModuleField<'_>>) {
     let mut expander = Expander::default();
     expander.process(fields);
 }
@@ -38,9 +38,11 @@ impl<'a> Expander<'a> {
         // This is a bit of a hack and ideally something that needs to be
         // addressed in the upstream spec. WebAssembly/module-linking#25
         // represents this issue.
-        self.process_imports_early = fields.iter().any(|f| match f {
-            ModuleField::Alias(_) | ModuleField::NestedModule(_) | ModuleField::Instance(_) => true,
-            _ => false,
+        self.process_imports_early = fields.iter().any(|f| {
+            matches!(
+                f,
+                ModuleField::Alias(_) | ModuleField::NestedModule(_) | ModuleField::Instance(_)
+            )
         });
 
         // Next we expand "header" fields which are those like types and
@@ -64,7 +66,7 @@ impl<'a> Expander<'a> {
         for field in fields.iter_mut() {
             self.expand(field);
         }
-        fields.extend(self.to_prepend.drain(..));
+        fields.append(&mut self.to_prepend);
     }
 
     fn expand_header(&mut self, item: &mut ModuleField<'a>) {
@@ -230,8 +232,8 @@ impl<'a> Expander<'a> {
         if let Some(idx) = &item.index {
             match idx {
                 ItemRef::Item { idx, exports, .. } => {
-                    debug_assert!(exports.len() == 0);
-                    return idx.clone();
+                    debug_assert!(exports.is_empty());
+                    return *idx;
                 }
                 ItemRef::Outer { .. } => unreachable!(),
             }
@@ -252,7 +254,7 @@ impl<'a> Expander<'a> {
             #[cfg(wast_check_exhaustive)]
             visited: true,
         });
-        return idx;
+        idx
     }
 
     fn key_to_idx(&mut self, span: Span, key: impl TypeKey<'a>) -> Index<'a> {
@@ -273,7 +275,7 @@ impl<'a> Expander<'a> {
         let idx = Index::Id(id);
         key.insert(self, idx);
 
-        return idx;
+        idx
     }
 }
 
@@ -310,7 +312,11 @@ impl<'a> TypeKey<'a> for FuncKey<'a> {
 
     fn to_def(&self, _span: Span) -> TypeDef<'a> {
         TypeDef::Func(FunctionType {
-            params: self.0.iter().map(|t| (None, None, *t)).collect(),
+            params: self
+                .0
+                .iter()
+                .map(|t| FunctionParam(None, None, *t))
+                .collect(),
             results: self.1.clone(),
         })
     }
@@ -451,9 +457,9 @@ impl<'a> Item<'a> {
             ItemKind::Tag(TagType::Exception(f)) => {
                 Item::Tag(*f.index.as_ref().unwrap().unwrap_index())
             }
-            ItemKind::Table(t) => Item::Table(t.clone()),
-            ItemKind::Memory(t) => Item::Memory(t.clone()),
-            ItemKind::Global(t) => Item::Global(t.clone()),
+            ItemKind::Table(t) => Item::Table(*t),
+            ItemKind::Memory(t) => Item::Memory(*t),
+            ItemKind::Global(t) => Item::Global(*t),
         }
     }
 
@@ -463,9 +469,9 @@ impl<'a> Item<'a> {
             Item::Tag(index) => ItemKind::Tag(TagType::Exception(TypeUse::new_with_index(*index))),
             Item::Instance(index) => ItemKind::Instance(TypeUse::new_with_index(*index)),
             Item::Module(index) => ItemKind::Module(TypeUse::new_with_index(*index)),
-            Item::Table(t) => ItemKind::Table(t.clone()),
-            Item::Memory(t) => ItemKind::Memory(t.clone()),
-            Item::Global(t) => ItemKind::Global(t.clone()),
+            Item::Table(t) => ItemKind::Table(*t),
+            Item::Memory(t) => ItemKind::Memory(*t),
+            Item::Global(t) => ItemKind::Global(*t),
         };
         ItemSig {
             span,

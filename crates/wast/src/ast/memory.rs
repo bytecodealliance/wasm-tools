@@ -60,11 +60,7 @@ impl<'a> Parse<'a> for Memory<'a> {
         } else if l.peek::<ast::LParen>() || parser.peek2::<ast::LParen>() {
             let is_32 = if parser.parse::<Option<kw::i32>>()?.is_some() {
                 true
-            } else if parser.parse::<Option<kw::i64>>()?.is_some() {
-                false
-            } else {
-                true
-            };
+            } else { parser.parse::<Option<kw::i64>>()?.is_none() };
             let data = parser.parens(|parser| {
                 parser.parse::<kw::data>()?;
                 let mut data = Vec::new();
@@ -217,6 +213,11 @@ impl DataVal<'_> {
             DataVal::String(s) => s.len(),
             DataVal::Integral(s) => s.len(),
         }
+    }
+
+    /// Return whether the memory this data used is empty
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     /// Pushes the value of this data value onto the provided list of bytes.

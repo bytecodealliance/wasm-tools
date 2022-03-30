@@ -102,8 +102,8 @@ pub trait Translator {
         memarg(self.as_obj(), arg)
     }
 
-    fn remap(&mut self, item: Item, idx: u32) -> Result<u32> {
-        drop(item);
+    fn remap(&mut self, _item: Item, idx: u32) -> Result<u32> {
+        // TODO: Item impl Copy;    drop(item);
         Ok(idx)
     }
 }
