@@ -66,7 +66,7 @@ pub use crate::core::{
 };
 use arbitrary::{Result, Unstructured};
 pub use component::{Component, ConfiguredComponent};
-pub use config::{Config, DefaultConfig, SwarmConfig};
+pub use config::{AvailableImport, Config, DefaultConfig, ImportType, SwarmConfig, ValType};
 
 use std::{collections::HashSet, str};
 

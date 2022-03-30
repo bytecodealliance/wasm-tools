@@ -4,7 +4,8 @@ mod code_builder;
 pub(crate) mod encode;
 mod terminate;
 
-use crate::{arbitrary_loop, limited_string, unique_string, Config, DefaultConfig};
+use crate::config::AvailableImport;
+use crate::{arbitrary_loop, limited_string, unique_string, Config, DefaultConfig, ImportType};
 use arbitrary::{Arbitrary, Result, Unstructured};
 use code_builder::CodeBuilderAllocations;
 use flagset::{flags, FlagSet};
@@ -15,7 +16,6 @@ use std::ops::Range;
 use std::rc::Rc;
 use std::str::{self, FromStr};
 use wasm_encoder::{BlockType, Export, ValType};
-
 pub(crate) use wasm_encoder::{GlobalType, MemoryType, TableType};
 
 // NB: these constants are used to control the rate at which various events
@@ -242,27 +242,47 @@ pub(crate) enum Type {
     Func(Rc<FuncType>),
 }
 
+/// A function signature.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct FuncType {
+    /// Types of the parameter values.
     pub(crate) params: Vec<ValType>,
+    /// Types of the result values.
     pub(crate) results: Vec<ValType>,
 }
 
+/// An import of an entity provided externally or by a component.
 #[derive(Clone, Debug)]
-pub(crate) struct Import(pub(crate) String, pub(crate) String, pub(crate) EntityType);
+pub(crate) struct Import {
+    /// The name of the module providing this entity.
+    pub(crate) module: String,
+    /// The name of the entity.
+    pub(crate) field: String,
+    /// The type of this entity.
+    pub(crate) entity_type: EntityType,
+}
 
+/// Type of an entity.
 #[derive(Clone, Debug)]
 pub(crate) enum EntityType {
+    /// A global entity.
     Global(GlobalType),
+    /// A table entity.
     Table(TableType),
+    /// A memory entity.
     Memory(MemoryType),
+    /// A tag entity.
     Tag(TagType),
+    /// A function entity.
     Func(u32, Rc<FuncType>),
 }
 
+/// Type of a tag.
 #[derive(Clone, Debug)]
 pub(crate) struct TagType {
+    /// Index of the function type.
     func_type_idx: u32,
+    /// Type of the function.
     func_type: Rc<FuncType>,
 }
 
@@ -334,39 +354,68 @@ impl Module {
     }
 
     fn arbitrary_initial_sections(&mut self, u: &mut Unstructured) -> Result<()> {
-        self.arbitrary_types(self.config.min_types(), u)?;
-        self.arbitrary_imports(self.config.min_imports(), u)?;
+        if let Some(available_imports) = self.config.available_imports() {
+            // We figure out our imports *before* creating the types section here, because
+            // the types for the imports are already well-known (specified by the user) and
+            // we must have those populated for all function/etc. imports, no matter what.
+            //
+            // This can affect the available capacity for types and such.
+            self.arbitrary_imports_from_available(&available_imports, u)?;
+            self.arbitrary_types(u)?;
+        } else {
+            self.arbitrary_types(u)?;
+            self.arbitrary_imports(u)?;
+        }
         Ok(())
     }
 
-    fn arbitrary_types(&mut self, min: usize, u: &mut Unstructured) -> Result<()> {
+    fn arbitrary_types(&mut self, u: &mut Unstructured) -> Result<()> {
         // Note that we push to `self.initializers` immediately because types
         // can mention any previous types, so we need to ensure that after each
         // type is generated it's listed in the module's types so indexing will
         // succeed.
-        let section_idx = self.initial_sections.len();
-        self.initial_sections.push(InitialSection::Type(Vec::new()));
-        arbitrary_loop(u, min, self.config.max_types() - self.types.len(), |u| {
-            let ty = self.arbitrary_type(u)?;
-            self.record_type(&ty);
-            let types = match self.initial_sections.last_mut().unwrap() {
-                InitialSection::Type(list) => list,
-                _ => unreachable!(),
-            };
-            self.types.push(LocalType::Defined {
-                section: section_idx,
-                nth: types.len(),
+        let section_idx = self
+            .initial_sections
+            .iter_mut()
+            .rposition(|sect| matches!(sect, InitialSection::Type(_)))
+            .unwrap_or_else(|| {
+                let position = self.initial_sections.len();
+                self.initial_sections.push(InitialSection::Type(Vec::new()));
+                position
             });
-            types.push(ty);
+        let min = self.config.min_types() - self.types.len();
+        let max = self.config.max_types() - self.types.len();
+        arbitrary_loop(u, min, max, |u| {
+            let ty = self.arbitrary_type(u)?;
+            self.add_type_to_type_section(section_idx, ty)
+                .expect("add type to type section");
             Ok(true)
         })?;
-        let types = match self.initial_sections.last_mut().unwrap() {
+        let types = match &mut self.initial_sections[section_idx] {
             InitialSection::Type(list) => list,
             _ => unreachable!(),
         };
         if types.is_empty() && !u.arbitrary()? {
-            self.initial_sections.pop();
+            self.initial_sections.remove(section_idx);
         }
+        Ok(())
+    }
+
+    fn add_type_to_type_section(
+        &mut self,
+        section_idx: usize,
+        ty: Type,
+    ) -> std::result::Result<(), &'static str> {
+        self.record_type(&ty);
+        let types = match self.initial_sections.get_mut(section_idx) {
+            Some(InitialSection::Type(list)) => list,
+            Some(_) | None => return Err("cannot add type to the type section"),
+        };
+        self.types.push(LocalType::Defined {
+            section: section_idx,
+            nth: types.len(),
+        });
+        types.push(ty);
         Ok(())
     }
 
@@ -415,16 +464,20 @@ impl Module {
         self.memories.len() < self.config.max_memories()
     }
 
-    fn arbitrary_imports(&mut self, min: usize, u: &mut Unstructured) -> Result<()> {
+    fn arbitrary_imports(&mut self, u: &mut Unstructured) -> Result<()> {
         if self.config.max_type_size() < self.type_size {
             return Ok(());
         }
 
         let mut choices: Vec<fn(&mut Unstructured, &mut Module) -> Result<EntityType>> =
-            Vec::with_capacity(4);
+            Vec::with_capacity(5);
 
         let mut imports = Vec::new();
-        arbitrary_loop(u, min, self.config.max_imports() - self.num_imports, |u| {
+
+        let min = self.config.min_imports() - self.num_imports;
+        let max = self.config.max_imports() - self.num_imports;
+
+        arbitrary_loop(u, min, max, |u| {
             choices.clear();
             if self.can_add_local_or_import_tag() {
                 choices.push(|u, m| {
@@ -468,23 +521,23 @@ impl Module {
             // Generate a type to import, but only actually add the item if the
             // type size budget allows us to.
             let f = u.choose(&choices)?;
-            let ty = f(u, self)?;
+            let entity_type = f(u, self)?;
             let budget = self.config.max_type_size() - self.type_size;
-            if ty.size() + 1 > budget {
+            if entity_type.size() + 1 > budget {
                 return Ok(false);
             }
-            self.type_size += ty.size() + 1;
+            self.type_size += entity_type.size() + 1;
 
             // Generate an arbitrary module/name pair to name this import. Note
             // that if module-linking is enabled and `name` is present, then we
             // might be implicitly generating an instance. If that's the case
             // then we need to record the type of this instance.
-            let (module, name) = unique_import_strings(1_000, u)?;
+            let (module, field) = unique_import_strings(1_000, u)?;
 
             // Once our name is determined, and if module linking is enabled
             // we've inserted the implicit instance, then we push the typed item
             // into the appropriate namespace.
-            match &ty {
+            match &entity_type {
                 EntityType::Tag(ty) => self.tags.push(ty.clone()),
                 EntityType::Func(idx, ty) => self.funcs.push((Some(*idx), ty.clone())),
                 EntityType::Global(ty) => self.globals.push(ty.clone()),
@@ -493,7 +546,11 @@ impl Module {
             }
 
             self.num_imports += 1;
-            imports.push(Import(module, name, ty));
+            imports.push(Import {
+                module: module.into(),
+                field: field.into(),
+                entity_type,
+            });
             Ok(true)
         })?;
         if !imports.is_empty() || u.arbitrary()? {
@@ -505,6 +562,157 @@ impl Module {
         // the bare name is imported and finalized.
         for val in self.import_names.values_mut() {
             *val = None;
+        }
+        Ok(())
+    }
+
+    fn arbitrary_imports_from_available(
+        &mut self,
+        imports: &[AvailableImport],
+        u: &mut Unstructured,
+    ) -> Result<()> {
+        // In this function we need to place imported function/tag types in the types section and
+        // generate import entries (which refer to said types) at the same time. A straightforward
+        // approach is to allocate a new type for every import, which is simple, but also somewhat
+        // wasteful and not representative of the wasm typically encountered in the wild.
+        let max_types = self.config.max_types();
+        let mut new_imports = Vec::with_capacity(imports.len());
+        let first_type_index = self.types.len();
+        let mut new_types = Vec::<Type>::new();
+        let mut make_func_type = |params: &[ValType], results: &[ValType]| {
+            let new_index = first_type_index + new_types.len();
+            let func_type = Rc::new(FuncType {
+                params: params.to_vec(),
+                results: results.to_vec(),
+            });
+            if new_index < max_types {
+                new_types.push(Type::Func(Rc::clone(&func_type)));
+                Some((new_index, func_type))
+            } else {
+                None
+            }
+        };
+        for import in imports {
+            if self.config.max_imports() <= self.num_imports {
+                break;
+            }
+            let use_import = u.arbitrary().unwrap_or(false);
+            if !use_import {
+                continue;
+            }
+            let type_size_budget = self.config.max_type_size() - self.type_size;
+            let entity_type = match &import.import_type {
+                ImportType::Tag { params } => {
+                    let can_add_tag = self.tags.len() < self.config.max_tags();
+                    if !self.config.exceptions_enabled() || !can_add_tag {
+                        continue;
+                    } else if let Some((func_type_idx, func_type)) = make_func_type(params, &[]) {
+                        let tag_type = TagType {
+                            func_type_idx: func_type_idx as u32,
+                            func_type,
+                        };
+                        let entity = EntityType::Tag(tag_type.clone());
+                        if type_size_budget < entity.size() {
+                            continue;
+                        }
+                        self.tags.push(tag_type);
+                        entity
+                    } else {
+                        continue;
+                    }
+                }
+                ImportType::Function { params, results } => {
+                    if self.funcs.len() >= self.config.max_funcs() {
+                        continue;
+                    } else if let Some((sig_idx, func_type)) = make_func_type(params, results) {
+                        let entity = EntityType::Func(sig_idx as u32, Rc::clone(&func_type));
+                        if type_size_budget < entity.size() {
+                            continue;
+                        }
+                        self.funcs.push((Some(sig_idx as u32), func_type));
+                        entity
+                    } else {
+                        continue;
+                    }
+                }
+                ImportType::Global { value, mutable } => {
+                    let global_ty = GlobalType {
+                        val_type: *value,
+                        mutable: *mutable,
+                    };
+                    let entity = EntityType::Global(global_ty);
+                    let type_size = entity.size();
+                    if type_size_budget < type_size || !self.can_add_local_or_import_global() {
+                        continue;
+                    }
+                    self.type_size += type_size;
+                    self.globals.push(global_ty);
+                    entity
+                }
+                ImportType::Table {
+                    element,
+                    minimum,
+                    maximum,
+                } => {
+                    let table_ty = TableType {
+                        element_type: *element,
+                        minimum: *minimum,
+                        maximum: *maximum,
+                    };
+                    let entity = EntityType::Table(table_ty);
+                    let type_size = entity.size();
+                    if type_size_budget < type_size || !self.can_add_local_or_import_table() {
+                        continue;
+                    }
+                    self.type_size += type_size;
+                    self.tables.push(table_ty);
+                    entity
+                }
+                ImportType::Memory {
+                    minimum,
+                    maximum,
+                    memory64,
+                } => {
+                    let memory_ty = MemoryType {
+                        minimum: *minimum,
+                        maximum: *maximum,
+                        memory64: *memory64,
+                    };
+                    let entity = EntityType::Memory(memory_ty.clone());
+                    let type_size = entity.size();
+                    if type_size_budget < type_size || !self.can_add_local_or_import_memory() {
+                        continue;
+                    }
+                    self.type_size += type_size;
+                    self.memories.push(memory_ty);
+                    entity
+                }
+            };
+            new_imports.push(Import {
+                module: import.module.to_string(),
+                field: import.field.to_string(),
+                entity_type,
+            });
+            self.num_imports += 1;
+        }
+        if !imports.is_empty() || u.arbitrary().unwrap_or(false) {
+            // First, find the type section and populate all information about the newly added
+            // types.
+            let type_section = self
+                .initial_sections
+                .iter_mut()
+                .rposition(|sect| matches!(sect, InitialSection::Type(_)))
+                .unwrap_or_else(|| {
+                    let position = self.initial_sections.len();
+                    self.initial_sections.push(InitialSection::Type(Vec::new()));
+                    position
+                });
+            for ty in new_types {
+                self.add_type_to_type_section(type_section, ty)
+                    .expect("add type to type section");
+            }
+            self.initial_sections
+                .push(InitialSection::Import(new_imports));
         }
         Ok(())
     }
@@ -1070,7 +1278,7 @@ impl Module {
             BlockType::Result(t) => (vec![], vec![*t]),
             BlockType::FunctionType(ty) => {
                 let ty = self.func_type(*ty);
-                (ty.params.clone(), ty.results.clone())
+                (ty.params.to_vec(), ty.results.to_vec())
             }
         }
     }
@@ -1135,7 +1343,10 @@ pub(crate) fn arbitrary_func_type(
         results.push(arbitrary_valtype(u, valtypes)?);
         Ok(true)
     })?;
-    Ok(Rc::new(FuncType { params, results }))
+    Ok(Rc::new(FuncType {
+        params: params.into(),
+        results: results.into(),
+    }))
 }
 
 fn arbitrary_valtype(u: &mut Unstructured, valtypes: &[ValType]) -> Result<ValType> {

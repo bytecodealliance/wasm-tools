@@ -312,7 +312,7 @@ impl Component {
                     let module = crate::limited_string(100, u)?;
                     let existing_module_imports = imports.entry(module.clone()).or_default();
                     let field = crate::unique_string(100, existing_module_imports, u)?;
-                    let entity_ty = match self.arbitrary_core_entity_type(
+                    let entity_type = match self.arbitrary_core_entity_type(
                         u,
                         &types,
                         &mut entity_choices,
@@ -321,9 +321,11 @@ impl Component {
                         None => return Ok(false),
                         Some(x) => x,
                     };
-                    defs.push(ModuleTypeDef::Import(crate::core::Import(
-                        module, field, entity_ty,
-                    )));
+                    defs.push(ModuleTypeDef::Import(crate::core::Import {
+                        module: module.into(),
+                        field: field.into(),
+                        entity_type,
+                    }));
                 }
 
                 // Export.

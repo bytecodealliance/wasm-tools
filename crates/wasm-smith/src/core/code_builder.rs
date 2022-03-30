@@ -660,7 +660,7 @@ impl CodeBuilderAllocations {
 
         let mut tags = BTreeMap::new();
         for (idx, tag_type) in module.tags() {
-            tags.entry(tag_type.func_type.params.clone())
+            tags.entry(tag_type.func_type.params.to_vec())
                 .or_insert(Vec::new())
                 .push(idx);
         }
@@ -668,7 +668,7 @@ impl CodeBuilderAllocations {
         let mut functions = BTreeMap::new();
         for (idx, func) in module.funcs() {
             functions
-                .entry(func.params.clone())
+                .entry(func.params.to_vec())
                 .or_insert(Vec::new())
                 .push(idx);
         }
@@ -736,7 +736,7 @@ impl CodeBuilderAllocations {
         self.controls.push(Control {
             kind: ControlKind::Block,
             params: vec![],
-            results: func_ty.results.clone(),
+            results: func_ty.results.to_vec(),
             height: 0,
         });
 
@@ -3644,7 +3644,7 @@ fn i8x16_shuffle(
     for i in 0..16 {
         lanes[i] = u.int_in_range(0..=31)?;
     }
-    Ok(Instruction::I8x16Shuffle { lanes: lanes })
+    Ok(Instruction::I8x16Shuffle { lanes })
 }
 
 macro_rules! simd_lane_access {
