@@ -353,13 +353,12 @@ impl Module {
     }
 
     fn arbitrary_initial_sections(&mut self, u: &mut Unstructured) -> Result<()> {
-        if let Some(available_imports) = self.config.available_imports() {
-            // We figure out our imports *before* creating the types section here, because
-            // the types for the imports are already well-known (specified by the user) and
-            // we must have those populated for all function/etc. imports, no matter what.
-            //
-            // This can affect the available capacity for types and such.
-            self.arbitrary_imports_from_available(&available_imports, u)?;
+        // We attempt to figure out our available imports *before* creating the types section here,
+        // because the types for the imports are already well-known (specified by the user) and we
+        // must have those populated for all function/etc. imports, no matter what.
+        //
+        // This can affect the available capacity for types and such.
+        if self.arbitrary_imports_from_available(u)? {
             self.arbitrary_types(u)?;
         } else {
             self.arbitrary_types(u)?;
@@ -562,15 +561,21 @@ impl Module {
         Ok(())
     }
 
-    fn arbitrary_imports_from_available(
-        &mut self,
-        example_module: &[u8],
-        u: &mut Unstructured,
-    ) -> Result<()> {
+    /// Generate some arbitrary imports from the list of available imports.
+    ///
+    /// Returns `true` if there was a list of available imports configured. Otherwise `false` and
+    /// the caller should generate arbitrary imports.
+    fn arbitrary_imports_from_available(&mut self, u: &mut Unstructured) -> Result<bool> {
+        let example_module = if let Some(wasm) = self.config.available_imports() {
+            wasm
+        } else {
+            return Ok(false);
+        };
+
         // First, parse the module-by-example to collect the types and imports.
         let mut available_types = Vec::new();
         let mut available_imports = Vec::new();
-        for payload in wasmparser::Parser::new(0).parse_all(example_module) {
+        for payload in wasmparser::Parser::new(0).parse_all(&example_module) {
             match payload.expect("could not parse available import payload") {
                 wasmparser::Payload::TypeSection(mut type_reader) => {
                     for _ in 0..type_reader.get_count() {
@@ -597,6 +602,7 @@ impl Module {
         // In this function we need to place imported function/tag types in the types section and
         // generate import entries (which refer to said types) at the same time.
         let max_types = self.config.max_types();
+        let multi_value_enabled = self.config.multi_value_enabled();
         let mut new_imports = Vec::with_capacity(available_imports.len());
         let first_type_index = self.types.len();
         let mut new_types = Vec::<Type>::new();
@@ -615,18 +621,18 @@ impl Module {
                 None => panic!("signature index refers to a type out of bounds"),
                 Some((_, Some(idx))) => *idx as usize,
                 Some((wasmparser::TypeDef::Func(func_type), index_store)) => {
+                    let multi_value_required = func_type.returns.len() > 1;
                     let new_index = first_type_index + new_types.len();
-                    if new_index < max_types {
-                        let func_type = Rc::new(FuncType {
-                            params: func_type.params.iter().map(|t| convert_type(*t)).collect(),
-                            results: func_type.returns.iter().map(|t| convert_type(*t)).collect(),
-                        });
-                        index_store.replace(new_index as u32);
-                        new_types.push(Type::Func(Rc::clone(&func_type)));
-                        new_index
-                    } else {
+                    if new_index >= max_types || multi_value_required > multi_value_enabled {
                         return None;
                     }
+                    let func_type = Rc::new(FuncType {
+                        params: func_type.params.iter().map(|t| convert_type(*t)).collect(),
+                        results: func_type.returns.iter().map(|t| convert_type(*t)).collect(),
+                    });
+                    index_store.replace(new_index as u32);
+                    new_types.push(Type::Func(Rc::clone(&func_type)));
+                    new_index
                 }
             };
             match &new_types[serialized_sig_idx - first_type_index] {
@@ -747,7 +753,7 @@ impl Module {
             self.initial_sections
                 .push(InitialSection::Import(new_imports));
         }
-        Ok(())
+        Ok(true)
     }
 
     fn type_of(&self, item: &Export) -> EntityType {

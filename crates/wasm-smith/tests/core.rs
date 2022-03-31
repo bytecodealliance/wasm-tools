@@ -1,18 +1,8 @@
 use arbitrary::{Arbitrary, Unstructured};
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
-use std::{borrow::Cow, collections::HashMap};
+use std::collections::HashMap;
 use wasm_smith::{Config, ConfiguredModule, Module, SwarmConfig};
 use wasmparser::{Parser, TypeRef, Validator, WasmFeatures};
-
-fn wasm_features() -> WasmFeatures {
-    WasmFeatures {
-        multi_memory: true,
-        relaxed_simd: true,
-        memory64: true,
-        exceptions: true,
-        ..WasmFeatures::default()
-    }
-}
 
 #[test]
 fn smoke_test_module() {
@@ -102,72 +92,13 @@ fn smoke_can_smith_valid_webassembly_one_point_oh() {
         cfg.memory64_enabled = false;
         cfg.max_memories = 1;
         cfg.max_tables = 1;
+        let features = parser_features_from_config(&cfg);
         if let Ok(module) = Module::new(cfg, &mut u) {
             let wasm_bytes = module.to_bytes();
             // This table should set to `true` only features specified in wasm-core-1 spec.
-            let features = WasmFeatures {
-                mutable_global: true, // available in 1.0
-                saturating_float_to_int: false,
-                sign_extension: false,
-                reference_types: false,
-                multi_value: false,
-                bulk_memory: false,
-                simd: false,
-                relaxed_simd: false,
-                threads: false,
-                tail_call: false,
-                deterministic_only: false,
-                multi_memory: false,
-                exceptions: false,
-                memory64: false,
-                extended_const: false,
-                component_model: false,
-            };
             let mut validator = Validator::new_with_features(features);
             validate(&mut validator, &wasm_bytes);
         }
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-struct ImportConfig {
-    exceptions: bool,
-}
-
-impl Config for ImportConfig {
-    fn exceptions_enabled(&self) -> bool {
-        self.exceptions
-    }
-
-    fn available_imports(&self) -> Option<Cow<'static, [u8]>> {
-        Some(
-            wat::parse_str(
-                r#"
-            (module
-                (import "env" "ping" (func (param i32)))
-                (import "env" "ping2" (func (param i32)))
-                (import "env" "pingping2" (func (param i32 i32)))
-                (import "env" "pong" (func (result i32)))
-                (import "env" "pingpong" (func (param i32) (result i32)))
-                (import "env" "pongpong" (func (result i32 i32)))
-                (import "env" "mem" (memory 1 16))
-                (import "env" "tbl" (table 1 16 funcref))
-                (import "vars" "g" (global i32))
-                (import "tags" "tag1" (tag (param i32)))
-            )
-        "#,
-            )
-            .unwrap()
-            .into(),
-        )
-    }
-}
-
-impl<'a> Arbitrary<'a> for ImportConfig {
-    fn arbitrary(u: &mut Unstructured<'a>) -> arbitrary::Result<Self> {
-        Ok(ImportConfig {
-            exceptions: u.arbitrary()?,
-        })
     }
 }
 
@@ -180,13 +111,11 @@ fn smoke_test_imports_config() {
     for _ in 0..1024 {
         rng.fill_bytes(&mut buf);
         let mut u = Unstructured::new(&buf);
-        let config: ImportConfig = u.arbitrary().unwrap();
+        let config = import_config(&mut u);
+        let features = parser_features_from_config(&config);
         if let Ok(module) = Module::new(config, &mut u) {
             let wasm_bytes = module.to_bytes();
-            let mut validator = Validator::new_with_features(WasmFeatures {
-                exceptions: config.exceptions_enabled(),
-                ..wasm_features()
-            });
+            let mut validator = Validator::new_with_features(features);
             validate(&mut validator, &wasm_bytes);
             let available = vec![
                 ("env", "ping", "func"),
@@ -202,7 +131,7 @@ fn smoke_test_imports_config() {
             ];
             let mut imports_seen = available
                 .iter()
-                .map(|(m, f, t)| ((*m, *f), (false, *t)))
+                .map(|(m, f, t)| ((*m, *f), false))
                 .collect::<HashMap<_, _>>();
             for payload in Parser::new(0).parse_all(&wasm_bytes) {
                 let payload = payload.unwrap();
@@ -211,12 +140,12 @@ fn smoke_test_imports_config() {
                         let entry = imports_seen.get_mut(&(import.module, import.name));
                         match (entry, &import.ty) {
                             // TODO: check types too.
-                            (Some((true, _)), _) => panic!("duplicate import of {:?}", import),
-                            (Some((f, "memory")), TypeRef::Memory(_))
-                            | (Some((f, "global")), TypeRef::Global(_))
-                            | (Some((f, "func")), TypeRef::Func(_))
-                            | (Some((f, "table")), TypeRef::Table(_))
-                            | (Some((f, "tag")), TypeRef::Tag(_)) => *f = true,
+                            (Some(true), _) => panic!("duplicate import of {:?}", import),
+                            (Some(seen), TypeRef::Memory(_))
+                            | (Some(seen), TypeRef::Global(_))
+                            | (Some(seen), TypeRef::Func(_))
+                            | (Some(seen), TypeRef::Table(_))
+                            | (Some(seen), TypeRef::Tag(_)) => *seen = true,
                             (Some(_), _) => panic!("import type mismatch"),
                             (None, _) => panic!("import of an unknown entity: {:?}", import),
                         }
@@ -224,19 +153,77 @@ fn smoke_test_imports_config() {
                 }
             }
             for (m, f, _) in &available[..] {
-                let (seen, _) = imports_seen[&(*m, *f)];
+                let seen = imports_seen[&(*m, *f)];
                 let global_seen = global_imports_seen
                     .entry((m.to_string(), f.to_string()))
                     .or_default();
                 *global_seen |= seen;
             }
-            if !imports_seen.values().all(|v| v.0) {
+            if !imports_seen.values().all(|v| *v) {
                 n_partial += 1;
             }
         }
     }
     assert!(global_imports_seen.values().all(|v| *v));
     assert!(n_partial > 0);
+}
+
+fn wasm_features() -> WasmFeatures {
+    WasmFeatures {
+        multi_memory: true,
+        relaxed_simd: true,
+        memory64: true,
+        exceptions: true,
+        ..WasmFeatures::default()
+    }
+}
+
+fn import_config(u: &mut Unstructured) -> SwarmConfig {
+    let mut config = SwarmConfig::arbitrary(u).expect("arbitrary swarm");
+    config.exceptions_enabled = u.arbitrary().expect("exceptions enabled for swarm");
+    config.available_imports = Some(
+        wat::parse_str(
+            r#"
+            (module
+                (import "env" "ping" (func (param i32)))
+                (import "env" "ping2" (func (param i32)))
+                (import "env" "pingping2" (func (param i32 i32)))
+                (import "env" "pong" (func (result i32)))
+                (import "env" "pingpong" (func (param i32) (result i32)))
+                (import "env" "pongpong" (func (result i32 i32)))
+                (import "env" "mem" (memory 1 16))
+                (import "env" "tbl" (table 1 16 funcref))
+                (import "vars" "g" (global i32))
+                (import "tags" "tag1" (tag (param i32)))
+            )
+            "#,
+        )
+        .unwrap()
+        .into(),
+    );
+    config
+}
+
+fn parser_features_from_config(config: &impl Config) -> WasmFeatures {
+    WasmFeatures {
+        mutable_global: true,
+        saturating_float_to_int: config.saturating_float_to_int_enabled(),
+        sign_extension: config.sign_extension_ops_enabled(),
+        reference_types: config.reference_types_enabled(),
+        multi_value: config.multi_value_enabled(),
+        bulk_memory: config.bulk_memory_enabled(),
+        simd: config.simd_enabled(),
+        relaxed_simd: config.relaxed_simd_enabled(),
+        multi_memory: config.max_memories() > 1,
+        exceptions: config.exceptions_enabled(),
+        memory64: config.memory64_enabled(),
+
+        threads: false,
+        tail_call: false,
+        deterministic_only: false,
+        extended_const: false,
+        component_model: false,
+    }
 }
 
 fn validate(validator: &mut Validator, bytes: &[u8]) {

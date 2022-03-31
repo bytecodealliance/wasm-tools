@@ -91,7 +91,7 @@ pub trait Config: 'static + std::fmt::Debug {
     /// "#))
     /// # ;
     /// ```
-    fn available_imports(&self) -> Option<Cow<'static, [u8]>> {
+    fn available_imports(&self) -> Option<Cow<'_, [u8]>> {
         None
     }
 
@@ -426,6 +426,7 @@ impl Config for DefaultConfig {}
 #[allow(missing_docs)]
 pub struct SwarmConfig {
     pub allow_start_export: bool,
+    pub available_imports: Option<Vec<u8>>,
     pub bulk_memory_enabled: bool,
     pub canonicalize_nans: bool,
     pub exceptions_enabled: bool,
@@ -525,6 +526,7 @@ impl<'a> Arbitrary<'a> for SwarmConfig {
             memory64_enabled: false,
             max_type_size: 1000,
             canonicalize_nans: false,
+            available_imports: None,
         })
     }
 }
@@ -544,6 +546,12 @@ impl Config for SwarmConfig {
 
     fn max_imports(&self) -> usize {
         self.max_imports
+    }
+
+    fn available_imports(&self) -> Option<Cow<'_, [u8]>> {
+        self.available_imports
+            .as_ref()
+            .map(|is| Cow::Borrowed(&is[..]))
     }
 
     fn min_funcs(&self) -> usize {
@@ -686,12 +694,12 @@ impl Config for SwarmConfig {
         self.max_nesting_depth
     }
 
-    fn memory64_enabled(&self) -> bool {
-        self.memory64_enabled
-    }
-
     fn max_type_size(&self) -> u32 {
         self.max_type_size
+    }
+
+    fn memory64_enabled(&self) -> bool {
+        self.memory64_enabled
     }
 
     fn canonicalize_nans(&self) -> bool {
