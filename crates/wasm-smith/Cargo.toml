@@ -18,17 +18,18 @@ harness = false
 [dependencies]
 arbitrary = { version = "1.0.0", features = ["derive"] }
 flagset = "0.4"
-leb128 = "0.2.4"
-wasm-encoder = { version = "0.10.0", path = "../wasm-encoder" }
 indexmap = "1.6"
+leb128 = "0.2.4"
 serde = { version = "1", features = ['derive'], optional = true }
+wasm-encoder = { version = "0.10.0", path = "../wasm-encoder" }
+wasmparser = { version = "0.83", path = "../wasmparser" }
 
 [dev-dependencies]
 criterion = "0.3.3"
 libfuzzer-sys = "0.4.0"
 rand = { version = "0.8.0", features = ["small_rng"] }
-wasmparser = { path = "../wasmparser" }
 wasmprinter = { path = "../wasmprinter" }
+wat = { path = "../wat" }
 
 [features]
 _internal_cli = ["serde", "flagset/serde"]

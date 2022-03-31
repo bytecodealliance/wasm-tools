@@ -3,79 +3,6 @@
 use crate::InstructionKinds;
 use arbitrary::{Arbitrary, Result, Unstructured};
 use std::borrow::Cow;
-pub use wasm_encoder::ValType;
-
-/// A description of an import that can be generated within a module.
-///
-/// See [`Config::available_imports`].
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct AvailableImport {
-    /// Name of the module from which this entity should be imported.
-    pub module: Cow<'static, str>,
-    /// Name of the field for this import.
-    pub field: Cow<'static, str>,
-    /// The type of the entity being imported.
-    pub import_type: ImportType,
-}
-
-/// Type of an entity made available for import.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum ImportType {
-    /// A global.
-    Global {
-        /// The type of the value contained within this global.
-        value: ValType,
-        /// Is this global is mutable.
-        mutable: bool,
-    },
-    /// A table.
-    Table {
-        /// Type of the elements stored within this table.
-        element: ValType,
-        /// The minimum space allocated for this table.
-        minimum: u32,
-        /// The maximum space allocated for this table.
-        maximum: Option<u32>,
-    },
-    /// A memory.
-    Memory {
-        /// The minimum amount of memory made available by this import.
-        minimum: u64,
-        /// The maximum amount of memory made available by this import.
-        maximum: Option<u64>,
-        /// Is this a 64-bit memory?
-        memory64: bool,
-    },
-    /// A tag.
-    Tag {
-        /// The parameters of this tag.
-        params: Cow<'static, [ValType]>,
-    },
-    /// A function.
-    Function {
-        /// The parameters of this function.
-        params: Cow<'static, [ValType]>,
-        /// The results of this function.
-        results: Cow<'static, [ValType]>,
-    },
-}
-
-impl ImportType {
-    /// Construct a new static `ImportType::Function`.
-    pub const fn function(params: &'static [ValType], results: &'static [ValType]) -> Self {
-        Self::Function {
-            params: Cow::Borrowed(params),
-            results: Cow::Borrowed(results),
-        }
-    }
-
-    /// Construct a new static `ImportType::Tag`.
-    pub const fn tag(params: &'static [ValType]) -> Self {
-        Self::Tag {
-            params: Cow::Borrowed(params),
-        }
-    }
-}
 
 /// Configuration for a generated module.
 ///
@@ -137,11 +64,34 @@ pub trait Config: 'static + std::fmt::Debug {
     ///
     /// Defaults to `None` which means that any arbitrary import can be generated.
     ///
-    /// To only allow imports from a specific set, override this method to return a list
-    /// available imports.
+    /// To only allow specific imports, override this method to return a WebAssembly module which
+    /// describes the imports allowed.
     ///
-    /// Note that today [`Self::min_imports`] is ignored when this is enabled.
-    fn available_imports(&self) -> Option<Cow<'static, [AvailableImport]>> {
+    /// Note that [`Self::min_imports`] is ignored when `available_imports` are enabled.
+    ///
+    /// # Panics
+    ///
+    /// The returned value must be a valid binary encoding of a WebAssembly module. `wasm-smith`
+    /// will panic if the module cannot be parsed.
+    ///
+    /// # Example
+    ///
+    /// An implementation of this method could use `wat` to provide a human-readable and
+    /// maintainable description:
+    ///
+    /// ```rust
+    /// Some(wat::parse_str(r#"
+    ///     (module
+    ///         (import "env" "ping" (func (param i32)))
+    ///         (import "env" "pong" (func (result i32)))
+    ///         (import "env" "memory" (memory 1))
+    ///         (import "env" "table" (table 1))
+    ///         (import "env" "tag" (tag (param i32)))
+    ///     )
+    /// "#))
+    /// # ;
+    /// ```
+    fn available_imports(&self) -> Option<Cow<'static, [u8]>> {
         None
     }
 

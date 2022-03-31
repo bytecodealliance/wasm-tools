@@ -1,7 +1,7 @@
 use arbitrary::{Arbitrary, Unstructured};
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
 use std::{borrow::Cow, collections::HashMap};
-use wasm_smith::{Config, ConfiguredModule, ImportType, Module, SwarmConfig, ValType};
+use wasm_smith::{Config, ConfiguredModule, Module, SwarmConfig};
 use wasmparser::{Parser, TypeRef, Validator, WasmFeatures};
 
 fn wasm_features() -> WasmFeatures {
@@ -139,66 +139,25 @@ impl Config for ImportConfig {
         self.exceptions
     }
 
-    fn available_imports(&self) -> Option<Cow<'static, [wasm_smith::AvailableImport]>> {
+    fn available_imports(&self) -> Option<Cow<'static, [u8]>> {
         Some(
-            vec![
-                wasm_smith::AvailableImport {
-                    module: "env".into(),
-                    field: "ping".into(),
-                    import_type: ImportType::function(&[ValType::I32], &[]),
-                },
-                wasm_smith::AvailableImport {
-                    module: "env".into(),
-                    field: "ping2".into(),
-                    import_type: ImportType::function(&[ValType::I32], &[]),
-                },
-                wasm_smith::AvailableImport {
-                    module: "env".into(),
-                    field: "pingping2".into(),
-                    import_type: ImportType::function(&[ValType::I32, ValType::I32], &[]),
-                },
-                wasm_smith::AvailableImport {
-                    module: "env".into(),
-                    field: "pong".into(),
-                    import_type: ImportType::function(&[], &[ValType::I32]),
-                },
-                wasm_smith::AvailableImport {
-                    module: "env".into(),
-                    field: "pingpong".into(),
-                    import_type: ImportType::function(&[ValType::I32], &[ValType::I32]),
-                },
-                wasm_smith::AvailableImport {
-                    module: "env".into(),
-                    field: "mem".into(),
-                    import_type: ImportType::Memory {
-                        minimum: 1,
-                        maximum: Some(16),
-                        memory64: false,
-                    },
-                },
-                wasm_smith::AvailableImport {
-                    module: "env".into(),
-                    field: "tbl".into(),
-                    import_type: ImportType::Table {
-                        minimum: 0,
-                        maximum: None,
-                        element: ValType::FuncRef,
-                    },
-                },
-                wasm_smith::AvailableImport {
-                    module: "vars".into(),
-                    field: "g".into(),
-                    import_type: ImportType::Global {
-                        mutable: false,
-                        value: ValType::I32,
-                    },
-                },
-                wasm_smith::AvailableImport {
-                    module: "tags".into(),
-                    field: "tag1".into(),
-                    import_type: ImportType::tag(&[ValType::I32]),
-                },
-            ]
+            wat::parse_str(
+                r#"
+            (module
+                (import "env" "ping" (func (param i32)))
+                (import "env" "ping2" (func (param i32)))
+                (import "env" "pingping2" (func (param i32 i32)))
+                (import "env" "pong" (func (result i32)))
+                (import "env" "pingpong" (func (param i32) (result i32)))
+                (import "env" "pongpong" (func (result i32 i32)))
+                (import "env" "mem" (memory 1 16))
+                (import "env" "tbl" (table 1 16 funcref))
+                (import "vars" "g" (global i32))
+                (import "tags" "tag1" (tag (param i32)))
+            )
+        "#,
+            )
+            .unwrap()
             .into(),
         )
     }
@@ -229,10 +188,21 @@ fn smoke_test_imports_config() {
                 ..wasm_features()
             });
             validate(&mut validator, &wasm_bytes);
-            let available = config.available_imports().unwrap();
+            let available = vec![
+                ("env", "ping", "func"),
+                ("env", "ping2", "func"),
+                ("env", "pingping2", "func"),
+                ("env", "pong", "func"),
+                ("env", "pingpong", "func"),
+                ("env", "pongpong", "func"),
+                ("env", "mem", "memory"),
+                ("env", "tbl", "table"),
+                ("vars", "g", "global"),
+                ("tags", "tag1", "tag"),
+            ];
             let mut imports_seen = available
                 .iter()
-                .map(|i| ((&*i.module, &*i.field), (false, &i.import_type)))
+                .map(|(m, f, t)| ((*m, *f), (false, *t)))
                 .collect::<HashMap<_, _>>();
             for payload in Parser::new(0).parse_all(&wasm_bytes) {
                 let payload = payload.unwrap();
@@ -240,22 +210,23 @@ fn smoke_test_imports_config() {
                     while let Ok(import) = rdr.read() {
                         let entry = imports_seen.get_mut(&(import.module, import.name));
                         match (entry, &import.ty) {
+                            // TODO: check types too.
                             (Some((true, _)), _) => panic!("duplicate import of {:?}", import),
-                            (Some((f, ImportType::Memory { .. })), TypeRef::Memory(_))
-                            | (Some((f, ImportType::Global { .. })), TypeRef::Global(_))
-                            | (Some((f, ImportType::Function { .. })), TypeRef::Func(_))
-                            | (Some((f, ImportType::Table { .. })), TypeRef::Table(_))
-                            | (Some((f, ImportType::Tag { .. })), TypeRef::Tag(_)) => *f = true,
+                            (Some((f, "memory")), TypeRef::Memory(_))
+                            | (Some((f, "global")), TypeRef::Global(_))
+                            | (Some((f, "func")), TypeRef::Func(_))
+                            | (Some((f, "table")), TypeRef::Table(_))
+                            | (Some((f, "tag")), TypeRef::Tag(_)) => *f = true,
                             (Some(_), _) => panic!("import type mismatch"),
                             (None, _) => panic!("import of an unknown entity: {:?}", import),
                         }
                     }
                 }
             }
-            for import in &available[..] {
-                let (seen, _) = imports_seen[&(&*import.module, &*import.field)];
+            for (m, f, _) in &available[..] {
+                let (seen, _) = imports_seen[&(*m, *f)];
                 let global_seen = global_imports_seen
-                    .entry((import.module.to_string(), import.field.to_string()))
+                    .entry((m.to_string(), f.to_string()))
                     .or_default();
                 *global_seen |= seen;
             }

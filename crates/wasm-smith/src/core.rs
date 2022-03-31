@@ -4,8 +4,7 @@ mod code_builder;
 pub(crate) mod encode;
 mod terminate;
 
-use crate::config::AvailableImport;
-use crate::{arbitrary_loop, limited_string, unique_string, Config, DefaultConfig, ImportType};
+use crate::{arbitrary_loop, limited_string, unique_string, Config, DefaultConfig};
 use arbitrary::{Arbitrary, Result, Unstructured};
 use code_builder::CodeBuilderAllocations;
 use flagset::{flags, FlagSet};
@@ -565,47 +564,101 @@ impl Module {
 
     fn arbitrary_imports_from_available(
         &mut self,
-        imports: &[AvailableImport],
+        example_module: &[u8],
         u: &mut Unstructured,
     ) -> Result<()> {
+        // First, parse the module-by-example to collect the types and imports.
+        let mut available_types = Vec::new();
+        let mut available_imports = Vec::new();
+        for payload in wasmparser::Parser::new(0).parse_all(example_module) {
+            match payload.expect("could not parse available import payload") {
+                wasmparser::Payload::TypeSection(mut type_reader) => {
+                    for _ in 0..type_reader.get_count() {
+                        let ty = type_reader.read().expect("could not parse type section");
+                        available_types.push((ty, None));
+                    }
+                }
+                wasmparser::Payload::ImportSection(mut import_reader) => {
+                    for _ in 0..import_reader.get_count() {
+                        let im = import_reader.read().expect("could not read import");
+                        // We can immediately filter whether this is an import we want to
+                        // use.
+                        let use_import = u.arbitrary().unwrap_or(false);
+                        if !use_import {
+                            continue;
+                        }
+                        available_imports.push(im);
+                    }
+                }
+                _ => {}
+            }
+        }
+
         // In this function we need to place imported function/tag types in the types section and
-        // generate import entries (which refer to said types) at the same time. A straightforward
-        // approach is to allocate a new type for every import, which is simple, but also somewhat
-        // wasteful and not representative of the wasm typically encountered in the wild.
+        // generate import entries (which refer to said types) at the same time.
         let max_types = self.config.max_types();
-        let mut new_imports = Vec::with_capacity(imports.len());
+        let mut new_imports = Vec::with_capacity(available_imports.len());
         let first_type_index = self.types.len();
         let mut new_types = Vec::<Type>::new();
-        let mut make_func_type = |params: &[ValType], results: &[ValType]| {
-            let new_index = first_type_index + new_types.len();
-            let func_type = Rc::new(FuncType {
-                params: params.to_vec(),
-                results: results.to_vec(),
-            });
-            if new_index < max_types {
-                new_types.push(Type::Func(Rc::clone(&func_type)));
-                Some((new_index, func_type))
-            } else {
-                None
+
+        let convert_type = |parsed_type: wasmparser::Type| match parsed_type {
+            wasmparser::Type::I32 => ValType::I32,
+            wasmparser::Type::I64 => ValType::I64,
+            wasmparser::Type::F32 => ValType::F32,
+            wasmparser::Type::F64 => ValType::F64,
+            wasmparser::Type::V128 => ValType::V128,
+            wasmparser::Type::FuncRef => ValType::FuncRef,
+            wasmparser::Type::ExternRef => ValType::ExternRef,
+        };
+        let mut make_func_type = |parsed_sig_idx: u32| {
+            let serialized_sig_idx = match available_types.get_mut(parsed_sig_idx as usize) {
+                None => panic!("signature index refers to a type out of bounds"),
+                Some((_, Some(idx))) => *idx as usize,
+                Some((wasmparser::TypeDef::Func(func_type), index_store)) => {
+                    let new_index = first_type_index + new_types.len();
+                    if new_index < max_types {
+                        let func_type = Rc::new(FuncType {
+                            params: func_type.params.iter().map(|t| convert_type(*t)).collect(),
+                            results: func_type.returns.iter().map(|t| convert_type(*t)).collect(),
+                        });
+                        index_store.replace(new_index as u32);
+                        new_types.push(Type::Func(Rc::clone(&func_type)));
+                        new_index
+                    } else {
+                        return None;
+                    }
+                }
+            };
+            match &new_types[serialized_sig_idx - first_type_index] {
+                Type::Func(f) => Some((serialized_sig_idx as u32, Rc::clone(f))),
             }
         };
-        for import in imports {
-            if self.config.max_imports() <= self.num_imports {
-                break;
-            }
-            let use_import = u.arbitrary().unwrap_or(false);
-            if !use_import {
-                continue;
-            }
+
+        for import in available_imports {
             let type_size_budget = self.config.max_type_size() - self.type_size;
-            let entity_type = match &import.import_type {
-                ImportType::Tag { params } => {
+            let entity_type = match &import.ty {
+                wasmparser::TypeRef::Func(sig_idx) => {
+                    if self.funcs.len() >= self.config.max_funcs() {
+                        continue;
+                    } else if let Some((sig_idx, func_type)) = make_func_type(*sig_idx) {
+                        let entity = EntityType::Func(sig_idx as u32, Rc::clone(&func_type));
+                        if type_size_budget < entity.size() {
+                            continue;
+                        }
+                        self.funcs.push((Some(sig_idx), func_type));
+                        entity
+                    } else {
+                        continue;
+                    }
+                }
+
+                wasmparser::TypeRef::Tag(wasmparser::TagType { func_type_idx, .. }) => {
                     let can_add_tag = self.tags.len() < self.config.max_tags();
                     if !self.config.exceptions_enabled() || !can_add_tag {
                         continue;
-                    } else if let Some((func_type_idx, func_type)) = make_func_type(params, &[]) {
+                    } else if let Some((sig_idx, func_type)) = make_func_type(*func_type_idx) {
                         let tag_type = TagType {
-                            func_type_idx: func_type_idx as u32,
+                            func_type_idx: sig_idx,
                             func_type,
                         };
                         let entity = EntityType::Tag(tag_type.clone());
@@ -618,43 +671,12 @@ impl Module {
                         continue;
                     }
                 }
-                ImportType::Function { params, results } => {
-                    if self.funcs.len() >= self.config.max_funcs() {
-                        continue;
-                    } else if let Some((sig_idx, func_type)) = make_func_type(params, results) {
-                        let entity = EntityType::Func(sig_idx as u32, Rc::clone(&func_type));
-                        if type_size_budget < entity.size() {
-                            continue;
-                        }
-                        self.funcs.push((Some(sig_idx as u32), func_type));
-                        entity
-                    } else {
-                        continue;
-                    }
-                }
-                ImportType::Global { value, mutable } => {
-                    let global_ty = GlobalType {
-                        val_type: *value,
-                        mutable: *mutable,
-                    };
-                    let entity = EntityType::Global(global_ty);
-                    let type_size = entity.size();
-                    if type_size_budget < type_size || !self.can_add_local_or_import_global() {
-                        continue;
-                    }
-                    self.type_size += type_size;
-                    self.globals.push(global_ty);
-                    entity
-                }
-                ImportType::Table {
-                    element,
-                    minimum,
-                    maximum,
-                } => {
+
+                wasmparser::TypeRef::Table(table_ty) => {
                     let table_ty = TableType {
-                        element_type: *element,
-                        minimum: *minimum,
-                        maximum: *maximum,
+                        element_type: convert_type(table_ty.element_type),
+                        minimum: table_ty.initial,
+                        maximum: table_ty.maximum,
                     };
                     let entity = EntityType::Table(table_ty);
                     let type_size = entity.size();
@@ -665,15 +687,12 @@ impl Module {
                     self.tables.push(table_ty);
                     entity
                 }
-                ImportType::Memory {
-                    minimum,
-                    maximum,
-                    memory64,
-                } => {
+
+                wasmparser::TypeRef::Memory(memory_ty) => {
                     let memory_ty = MemoryType {
-                        minimum: *minimum,
-                        maximum: *maximum,
-                        memory64: *memory64,
+                        minimum: memory_ty.initial,
+                        maximum: memory_ty.maximum,
+                        memory64: memory_ty.memory64,
                     };
                     let entity = EntityType::Memory(memory_ty.clone());
                     let type_size = entity.size();
@@ -684,15 +703,32 @@ impl Module {
                     self.memories.push(memory_ty);
                     entity
                 }
+
+                wasmparser::TypeRef::Global(global_ty) => {
+                    let global_ty = GlobalType {
+                        val_type: convert_type(global_ty.content_type),
+                        mutable: global_ty.mutable,
+                    };
+                    let entity = EntityType::Global(global_ty);
+                    let type_size = entity.size();
+                    if type_size_budget < type_size || !self.can_add_local_or_import_global() {
+                        continue;
+                    }
+                    self.type_size += type_size;
+                    self.globals.push(global_ty);
+                    entity
+                }
             };
             new_imports.push(Import {
                 module: import.module.to_string(),
-                field: import.field.to_string(),
+                field: import.name.to_string(),
                 entity_type,
             });
             self.num_imports += 1;
         }
-        if !imports.is_empty() || u.arbitrary().unwrap_or(false) {
+
+        // Finally, add the sections we just generated.
+        if !new_imports.is_empty() || u.arbitrary().unwrap_or(false) {
             // First, find the type section and populate all information about the newly added
             // types.
             let type_section = self
