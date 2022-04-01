@@ -120,32 +120,19 @@ enum Funcref {
 
 impl RemoveItem {
     fn remove(&mut self, info: &ModuleInfo) -> Result<Module> {
-        const CUSTOM: u8 = SectionId::Custom as u8;
-        const TYPE: u8 = SectionId::Type as u8;
-        const IMPORT: u8 = SectionId::Import as u8;
-        const FUNCTION: u8 = SectionId::Function as u8;
-        const TABLE: u8 = SectionId::Table as u8;
-        const MEMORY: u8 = SectionId::Memory as u8;
-        const GLOBAL: u8 = SectionId::Global as u8;
-        const EXPORT: u8 = SectionId::Export as u8;
-        const START: u8 = SectionId::Start as u8;
-        const ELEMENT: u8 = SectionId::Element as u8;
-        const CODE: u8 = SectionId::Code as u8;
-        const DATA: u8 = SectionId::Data as u8;
-        const DATACOUNT: u8 = SectionId::DataCount as u8;
-        const TAG: u8 = SectionId::Tag as u8;
-
         // This is the main workhorse loop of the module translation. This will
         // iterate over the original wasm sections, raw, and create the new
         // module section-by-section. Sections are rewritten on-the-fly.
         let mut module = Module::new();
         for section in info.raw_sections.iter() {
-            match section.id {
-                CUSTOM => {
-                    module.section(section);
-                }
+            crate::module::match_section_id! {
+                match section.id;
 
-                TYPE => {
+                Custom => {
+                    module.section(section);
+                },
+
+                Type => {
                     self.filter_out(
                         &mut module,
                         0,
@@ -153,13 +140,13 @@ impl RemoveItem {
                         Item::Type,
                         |me, ty, section| me.translate_type_def(ty, section),
                     )?;
-                }
+                },
 
-                // The import section is a little special because it defines
-                // items in multiple index spaces. This means that the
-                // `filter_out` helper can't be used and we have to process
-                // everything manually here.
-                IMPORT => {
+                Import => {
+                    // The import section is a little special because it defines
+                    // items in multiple index spaces. This means that the
+                    // `filter_out` helper can't be used and we have to process
+                    // everything manually here.
                     let mut result = ImportSection::new();
                     let mut function = 0;
                     let mut global = 0;
@@ -207,9 +194,9 @@ impl RemoveItem {
                         }
                     }
                     module.section(&result);
-                }
+                },
 
-                FUNCTION => {
+                Function => {
                     self.filter_out(
                         &mut module,
                         info.num_imported_functions(),
@@ -221,9 +208,9 @@ impl RemoveItem {
                             Ok(())
                         },
                     )?;
-                }
+                },
 
-                TABLE => {
+                Table => {
                     self.filter_out(
                         &mut module,
                         info.num_imported_tables(),
@@ -235,9 +222,9 @@ impl RemoveItem {
                             Ok(())
                         },
                     )?;
-                }
+                },
 
-                MEMORY => {
+                Memory => {
                     self.filter_out(
                         &mut module,
                         info.num_imported_memories(),
@@ -249,9 +236,9 @@ impl RemoveItem {
                             Ok(())
                         },
                     )?;
-                }
+                },
 
-                GLOBAL => {
+                Global => {
                     self.filter_out(
                         &mut module,
                         info.num_imported_globals(),
@@ -259,9 +246,9 @@ impl RemoveItem {
                         Item::Global,
                         |me, ty, section| me.translate_global(ty, section),
                     )?;
-                }
+                },
 
-                EXPORT => {
+                Export => {
                     let mut result = ExportSection::new();
                     for item in ExportSectionReader::new(section.data, 0)? {
                         let item = item?;
@@ -283,17 +270,17 @@ impl RemoveItem {
                         result.export(item.name, e);
                     }
                     module.section(&result);
-                }
+                },
 
-                START => {
+                Start => {
                     let function_index = BinaryReader::new(section.data).read_var_u32()?;
                     self.function_reference_action = Funcref::Skip;
                     let function_index = self.remap(Item::Function, function_index)?;
                     self.function_reference_action = Funcref::Save;
                     module.section(&StartSection { function_index });
-                }
+                },
 
-                ELEMENT => {
+                Element => {
                     self.filter_out(
                         &mut module,
                         0,
@@ -301,9 +288,9 @@ impl RemoveItem {
                         Item::Element,
                         |me, ty, section| me.translate_element(ty, section),
                     )?;
-                }
+                },
 
-                CODE => {
+                Code => {
                     // In the code section we require that all functions
                     // referenced in `ref.func` are referenced elsewhere in the
                     // module, so indicate so in our internal state here.
@@ -315,9 +302,9 @@ impl RemoveItem {
                         Item::Function,
                         |me, body, section| me.translate_code(body, section),
                     )?;
-                }
+                },
 
-                DATA => {
+                Data => {
                     self.filter_out(
                         &mut module,
                         0,
@@ -325,9 +312,9 @@ impl RemoveItem {
                         Item::Data,
                         |me, ty, section| me.translate_data(ty, section),
                     )?;
-                }
+                },
 
-                DATACOUNT => {
+                DataCount => {
                     let count = BinaryReader::new(section.data).read_var_u32()?;
                     // Note that the data count section is decremented here if
                     // we're removing a data item, otherwise it's preserved
@@ -338,9 +325,9 @@ impl RemoveItem {
                         count
                     };
                     module.section(&DataCountSection { count });
-                }
+                },
 
-                TAG => {
+                Tag => {
                     self.filter_out(
                         &mut module,
                         info.num_imported_tags(),
@@ -352,10 +339,10 @@ impl RemoveItem {
                             Ok(())
                         },
                     )?;
-                }
+                },
 
-                id => panic!("unknown id: {}", id),
-            }
+                _ => panic!("unknown id: {}", section.id),
+            };
         }
         Ok(module)
     }

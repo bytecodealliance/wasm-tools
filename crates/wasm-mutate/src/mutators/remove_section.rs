@@ -14,29 +14,10 @@ pub enum RemoveSection {
     Empty,
 }
 
-// The SectionId is stored as a `u8`. This macro will ensure that all of the `SectionId`s are
-// matched and also takes care of converting the patterns to `u8` for matching.
-macro_rules! match_section_id {
-    (match ($scrutinee:expr) {
-        $($pat:ident => $result:expr,)*
-        _ => $otherwise:expr,
-    }) => {'result: loop {
-        #![allow(unreachable_code, non_upper_case_globals)]
-        $(const $pat: u8 = SectionId::$pat as u8;)*
-        break 'result match $scrutinee {
-            $($pat => $result,)*
-            _ => $otherwise,
-        };
-        // Check exhaustiveness of the SectionId match
-        match SectionId::Type {
-            $(SectionId::$pat => (),)*
-        };
-    }}
-}
-
 fn is_empty_section(section: &wasm_encoder::RawSection) -> bool {
     use wasmparser::*;
-    match_section_id!(match (section.id) {
+    crate::module::match_section_id! {
+        match section.id;
         Custom => Ok(section.data.is_empty()),
         Type => TypeSectionReader::new(section.data, 0).map(|r| r.get_count() == 0),
         Import => ImportSectionReader::new(section.data, 0).map(|r| r.get_count() == 0),
@@ -52,7 +33,7 @@ fn is_empty_section(section: &wasm_encoder::RawSection) -> bool {
         DataCount => Ok(section.data.is_empty()),
         Tag => TagSectionReader::new(section.data, 0).map(|r| r.get_count() == 0),
         _ => Ok(section.data.is_empty()),
-    })
+    }
     .unwrap_or(false)
 }
 
