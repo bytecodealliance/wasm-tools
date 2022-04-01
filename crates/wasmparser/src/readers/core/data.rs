@@ -48,7 +48,6 @@ pub enum DataKind<'a> {
 pub struct DataSectionReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,
-    forbid_bulk_memory: bool,
 }
 
 impl<'a> DataSectionReader<'a> {
@@ -56,11 +55,7 @@ impl<'a> DataSectionReader<'a> {
     pub fn new(data: &'a [u8], offset: usize) -> Result<DataSectionReader<'a>> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
-        Ok(DataSectionReader {
-            reader,
-            count,
-            forbid_bulk_memory: false,
-        })
+        Ok(DataSectionReader { reader, count })
     }
 
     /// Gets the original position of the section reader.
@@ -71,11 +66,6 @@ impl<'a> DataSectionReader<'a> {
     /// Gets the count of items in the section.
     pub fn get_count(&self) -> u32 {
         self.count
-    }
-
-    /// Whether or not to forbid data segments using bulk memory proposal.
-    pub fn forbid_bulk_memory(&mut self, forbid: bool) {
-        self.forbid_bulk_memory = forbid;
     }
 
     fn verify_data_end(&self, end: usize) -> Result<()> {
@@ -112,32 +102,47 @@ impl<'a> DataSectionReader<'a> {
     {
         let segment_start = self.reader.original_position();
 
+        // The current handling of the flags is largely specified in the `bulk-memory` proposal,
+        // which at the time this commend is written has been merged to the main specification
+        // draft.
+        //
+        // Notably, this proposal allows multiple different encodings of the memory index 0. `00`
+        // and `02 00` are both valid ways to specify the 0-th memory. However it also makes
+        // another encoding of the 0-th memory `80 00` no longer valid.
+        //
+        // We, however maintain this by parsing `flags` as a LEB128 integer. In that case, `80 00`
+        // encoding is parsed out as `0` and is therefore assigned a `memidx` 0, even though the
+        // current specification draft does not allow for this.
+        //
+        // See also https://github.com/WebAssembly/spec/issues/1439
         let flags = self.reader.read_var_u32()?;
-        let kind = if !self.forbid_bulk_memory && flags == 1 {
-            DataKind::Passive
-        } else {
-            let memory_index = match flags {
-                0 => 0,
-                _ if self.forbid_bulk_memory => flags,
-                2 => self.reader.read_var_u32()?,
-                _ => {
-                    return Err(BinaryReaderError::new(
-                        "invalid flags byte in data segment",
-                        self.reader.original_position() - 1,
-                    ));
+        let kind = match flags {
+            1 => DataKind::Passive,
+            0 | 2 => {
+                let memory_index = if flags == 0 {
+                    0
+                } else {
+                    self.reader.read_var_u32()?
+                };
+                let init_expr = {
+                    let expr_offset = self.reader.position;
+                    self.reader.skip_init_expr()?;
+                    let data = &self.reader.buffer[expr_offset..self.reader.position];
+                    InitExpr::new(data, self.reader.original_offset + expr_offset)
+                };
+                DataKind::Active {
+                    memory_index,
+                    init_expr,
                 }
-            };
-            let init_expr = {
-                let expr_offset = self.reader.position;
-                self.reader.skip_init_expr()?;
-                let data = &self.reader.buffer[expr_offset..self.reader.position];
-                InitExpr::new(data, self.reader.original_offset + expr_offset)
-            };
-            DataKind::Active {
-                memory_index,
-                init_expr,
+            }
+            _ => {
+                return Err(BinaryReaderError::new(
+                    "invalid flags byte in data segment",
+                    self.reader.original_position() - 1,
+                ));
             }
         };
+
         let data_len = self.reader.read_var_u32()? as usize;
         let data_end = self.reader.position + data_len;
         self.verify_data_end(data_end)?;

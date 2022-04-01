@@ -497,6 +497,7 @@ impl TestState {
                     features.sign_extension = false;
                     features.saturating_float_to_int = false;
                     features.mutable_global = false;
+                    features.bulk_memory = false;
                 }
                 "threads" => {
                     features.threads = true;

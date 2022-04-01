@@ -209,7 +209,19 @@ impl<'a> ElementSectionReader<'a> {
         'a: 'b,
     {
         let elem_start = self.reader.original_position();
-
+        // The current handling of the flags is largely specified in the `bulk-memory` proposal,
+        // which at the time this commend is written has been merged to the main specification
+        // draft.
+        //
+        // Notably, this proposal allows multiple different encodings of the table index 0. `00`
+        // and `02 00` are both valid ways to specify the 0-th table. However it also makes
+        // another encoding of the 0-th memory `80 00` no longer valid.
+        //
+        // We, however maintain this support by parsing `flags` as a LEB128 integer. In that case,
+        // `80 00` encoding is parsed out as `0` and is therefore assigned a `tableidx` 0, even
+        // though the current specification draft does not allow for this.
+        //
+        // See also https://github.com/WebAssembly/spec/issues/1439
         let flags = self.reader.read_var_u32()?;
         if (flags & !0b111) != 0 {
             return Err(BinaryReaderError::new(

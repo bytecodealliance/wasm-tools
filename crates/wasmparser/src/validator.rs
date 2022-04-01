@@ -836,12 +836,9 @@ impl Validator {
     ///
     /// This method should only be called when parsing a module.
     pub fn data_section(&mut self, section: &crate::DataSectionReader<'_>) -> Result<()> {
-        let mut section = section.clone();
-        section.forbid_bulk_memory(!self.features.bulk_memory);
-
         self.ensure_module_section(
             Order::Data,
-            &section,
+            section,
             "data",
             |state, _, _, count, offset| {
                 state.data_segment_count = count;
