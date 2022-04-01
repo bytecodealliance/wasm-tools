@@ -2501,21 +2501,24 @@ impl Printer {
             self.result.push(' ');
             let index = match kind {
                 OuterAliasKind::Type => {
-                    self.start_group("type");
-                    write!(self.result, " (;{};) ", state.types.len() as u32)?;
                     self.print_idx(&outer.type_names, index)?;
+                    self.result.push(' ');
+                    self.start_group("type ");
+                    self.print_name(&state.type_names, state.types.len() as u32)?;
                     Some(outer.ty(index)?)
                 }
                 OuterAliasKind::Module => {
-                    self.start_group("module ");
-                    write!(self.result, " (;{};) ", state.modules)?;
                     self.print_idx(&outer.module_names, index)?;
+                    self.result.push(' ');
+                    self.start_group("module ");
+                    self.print_name(&state.module_names, state.modules)?;
                     None
                 }
                 OuterAliasKind::Component => {
-                    self.start_group("component ");
-                    write!(self.result, " (;{};) ", state.components.len() as u32)?;
                     self.print_idx(&outer.component_names, index)?;
+                    self.result.push(' ');
+                    self.start_group("component ");
+                    self.print_name(&state.component_names, state.components.len() as u32)?;
                     Some(outer.component(index)?)
                 }
             };
