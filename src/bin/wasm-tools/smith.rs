@@ -166,7 +166,7 @@ struct Config {
     /// reference, parametric, variable, table, memory, control. Specify
     /// multiple kinds with a comma-separated list: e.g.,
     /// `--allowed-instructions numeric,control,parametric`
-    #[clap(long = "allowed-instructions", use_delimiter = true)]
+    #[clap(long = "allowed-instructions", use_value_delimiter = true)]
     allowed_instructions: Option<Vec<InstructionKind>>,
 }
 

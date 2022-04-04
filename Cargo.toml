@@ -19,7 +19,7 @@ members = ['fuzz', 'crates/wasm-encoder', 'crates/fuzz-stats', 'crates/wasm-muta
 anyhow = "1.0"
 env_logger = "0.9"
 log = "0.4"
-clap = { version = "3.0", features = ['derive'] }
+clap = { version = "3.1.8", features = ['derive'] }
 tempfile = "3.2.0"
 wat = { path = "crates/wat", optional = true, version = '1.0.41' }
 
