@@ -76,7 +76,7 @@ pub trait Config: 'static + std::fmt::Debug {
     ///
     /// # Example
     ///
-    /// An implementation of this method could use `wat` to provide a human-readable and
+    /// An implementation of this method could use the `wat` crate to provide a human-readable and
     /// maintainable description:
     ///
     /// ```rust

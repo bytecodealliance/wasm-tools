@@ -407,7 +407,7 @@ impl Module {
         self.record_type(&ty);
         let types = match self.initial_sections.get_mut(section_idx) {
             Some(InitialSection::Type(list)) => list,
-            Some(_) | None => return Err("cannot add type to the type section"),
+            Some(_) | None => return Err("attempt to add type to non-type section"),
         };
         self.types.push(LocalType::Defined {
             section: section_idx,
@@ -573,10 +573,16 @@ impl Module {
         };
 
         // First, parse the module-by-example to collect the types and imports.
-        let mut available_types = Vec::new();
-        let mut available_imports = Vec::new();
+        //
+        // `available_types` will map from a signature index (which is the same as the index into
+        // this vector) as it appears in the parsed code, to the type itself as well as to the
+        // index in our newly generated module. Initially the option is `None` and will become a
+        // `Some` when we encounter an import that uses this signature in the next portion of this
+        // function. See also the `make_func_type` closure below.
+        let mut available_types = Vec::<(wasmparser::TypeDef, Option<u32>)>::new();
+        let mut available_imports = Vec::<wasmparser::Import>::new();
         for payload in wasmparser::Parser::new(0).parse_all(&example_module) {
-            match payload.expect("could not parse available import payload") {
+            match payload.expect("could not parse the available import payload") {
                 wasmparser::Payload::TypeSection(mut type_reader) => {
                     for _ in 0..type_reader.get_count() {
                         let ty = type_reader.read().expect("could not parse type section");
@@ -607,15 +613,8 @@ impl Module {
         let first_type_index = self.types.len();
         let mut new_types = Vec::<Type>::new();
 
-        let convert_type = |parsed_type: wasmparser::Type| match parsed_type {
-            wasmparser::Type::I32 => ValType::I32,
-            wasmparser::Type::I64 => ValType::I64,
-            wasmparser::Type::F32 => ValType::F32,
-            wasmparser::Type::F64 => ValType::F64,
-            wasmparser::Type::V128 => ValType::V128,
-            wasmparser::Type::FuncRef => ValType::FuncRef,
-            wasmparser::Type::ExternRef => ValType::ExternRef,
-        };
+        // Returns the index to the translated type in the to-be type section, and the reference to
+        // the type itself.
         let mut make_func_type = |parsed_sig_idx: u32| {
             let serialized_sig_idx = match available_types.get_mut(parsed_sig_idx as usize) {
                 None => panic!("signature index refers to a type out of bounds"),
@@ -734,7 +733,8 @@ impl Module {
         }
 
         // Finally, add the sections we just generated.
-        if !new_imports.is_empty() || u.arbitrary().unwrap_or(false) {
+        let should_add_empty_section = u.arbitrary().unwrap_or(false);
+        if !new_imports.is_empty() || should_add_empty_section {
             // First, find the type section and populate all information about the newly added
             // types.
             let type_section = self
@@ -748,7 +748,7 @@ impl Module {
                 });
             for ty in new_types {
                 self.add_type_to_type_section(type_section, ty)
-                    .expect("add type to type section");
+                    .expect("could not add add type to type section");
             }
             self.initial_sections
                 .push(InitialSection::Import(new_imports));
@@ -1574,6 +1574,20 @@ fn unique_import_strings(max_size: usize, u: &mut Unstructured) -> Result<(Strin
 fn arbitrary_vec_u8(u: &mut Unstructured) -> Result<Vec<u8>> {
     let size = u.arbitrary_len::<u8>()?;
     Ok(u.bytes(size)?.to_vec())
+}
+
+/// Convert a wasmparser's `Type` to a `wasm_encoder::ValType`.
+fn convert_type(parsed_type: wasmparser::Type) -> ValType {
+    use wasmparser::Type::*;
+    match parsed_type {
+        I32 => ValType::I32,
+        I64 => ValType::I64,
+        F32 => ValType::F32,
+        F64 => ValType::F64,
+        V128 => ValType::V128,
+        FuncRef => ValType::FuncRef,
+        ExternRef => ValType::ExternRef,
+    }
 }
 
 impl EntityType {
