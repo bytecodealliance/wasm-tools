@@ -1,0 +1,32 @@
+record r {
+    s: string
+}
+
+record r-no-string {
+    s: u32
+}
+
+variant v {
+    s(string)
+}
+
+variant v-no-string {
+    s(u32)
+}
+
+a: function()
+b: function(x: list<string>)
+c: function(x: r)
+d: function(x: v)
+e: function(x: r-no-string)
+f: function(x: v-no-string)
+g: function(x: list<r>)
+h: function(x: list<v>)
+i: function(x: list<u32>)
+j: function(x: u32)
+k: function() -> (u32, u32)
+l: function() -> string
+m: function() -> list<u32>
+n: function() -> u32
+o: function() -> v
+p: function() -> list<v-no-string>

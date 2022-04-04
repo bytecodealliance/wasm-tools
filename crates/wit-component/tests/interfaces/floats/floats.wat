@@ -1,0 +1,10 @@
+(component
+  (type (;0;) (func (param "x" float32)))
+  (type (;1;) (func (param "x" float64)))
+  (type (;2;) (func (result float32)))
+  (type (;3;) (func (result float64)))
+  (export "f32-param" (type 0))
+  (export "f64-param" (type 1))
+  (export "f32-result" (type 2))
+  (export "f64-result" (type 3))
+)

@@ -1,0 +1,7 @@
+flags x {
+    a,
+    b,
+    c
+}
+
+a: function(x: x)

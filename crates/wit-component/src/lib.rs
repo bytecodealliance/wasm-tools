@@ -2,11 +2,9 @@
 
 #![deny(missing_docs)]
 
-use crate::encoding::InterfaceEncoder;
-use anyhow::{Context, Result};
-use std::collections::HashMap;
-use wasm_encoder::{Component, ComponentExportSection, ComponentTypeSection};
-use wasmparser::{Validator, WasmFeatures};
+use anyhow::{bail, Result};
+use std::str::FromStr;
+use wasm_encoder::CanonicalOption;
 use wit_parser::Interface;
 
 #[cfg(feature = "cli")]
@@ -14,45 +12,49 @@ pub mod cli;
 mod decoding;
 mod encoding;
 mod printing;
+mod validation;
 
+pub use encoding::*;
 pub use printing::*;
 
-/// Encodes an "interface-only" component from an interface definition file.
-///
-/// The resulting component file will only describe the types of the given interface.
-pub fn encode_interface_component(interface: &Interface) -> Result<Vec<u8>> {
-    let mut types = ComponentTypeSection::new();
-    let mut exports = ComponentExportSection::new();
-    let mut type_map = HashMap::new();
-    let mut func_type_map = HashMap::new();
-    let mut exported = HashMap::new();
+/// Supported string encoding formats.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum StringEncoding {
+    /// Strings are encoded with UTF-8.
+    UTF8,
+    /// Strings are encoded with UTF-16.
+    UTF16,
+    /// Strings are encoded with compact UTF-16 (i.e. Latin1+UTF-16).
+    CompactUTF16,
+}
 
-    let mut encoder = InterfaceEncoder::new(
-        interface,
-        &mut types,
-        &mut exports,
-        &mut type_map,
-        &mut func_type_map,
-        &mut exported,
-    )?;
-    encoder.encode(true /* export the function types */)?;
+impl Default for StringEncoding {
+    fn default() -> Self {
+        StringEncoding::UTF8
+    }
+}
 
-    let mut component = Component::new();
-    component.section(&types);
-    component.section(&exports);
-    let output = component.finish();
+impl FromStr for StringEncoding {
+    type Err = anyhow::Error;
 
-    let mut validator = Validator::new();
-    validator.wasm_features(WasmFeatures {
-        component_model: true,
-        ..Default::default()
-    });
+    fn from_str(s: &str) -> Result<Self> {
+        match s {
+            "utf8" => Ok(StringEncoding::UTF8),
+            "utf16" => Ok(StringEncoding::UTF16),
+            "compact-utf16" => Ok(StringEncoding::CompactUTF16),
+            _ => bail!("unknown string encoding `{}`", s),
+        }
+    }
+}
 
-    validator
-        .validate_all(&output)
-        .context("failed to validate component output")?;
-
-    Ok(output)
+impl From<StringEncoding> for wasm_encoder::CanonicalOption {
+    fn from(e: StringEncoding) -> wasm_encoder::CanonicalOption {
+        match e {
+            StringEncoding::UTF8 => CanonicalOption::UTF8,
+            StringEncoding::UTF16 => CanonicalOption::UTF16,
+            StringEncoding::CompactUTF16 => CanonicalOption::CompactUTF16,
+        }
+    }
 }
 
 /// Decode an "interface-only" component to a wit `Interface`.

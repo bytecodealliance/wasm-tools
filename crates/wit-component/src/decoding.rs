@@ -24,14 +24,12 @@ impl<'a> ComponentInfo<'a> {
     pub fn new(mut bytes: &'a [u8]) -> Result<Self> {
         let mut parser = Parser::new(0);
         let mut parsers = Vec::new();
-        let mut validator = Validator::new();
-        let mut exported_types = Vec::new();
-        let mut exported_functions = Vec::new();
-
-        validator.wasm_features(WasmFeatures {
+        let mut validator = Validator::new_with_features(WasmFeatures {
             component_model: true,
             ..Default::default()
         });
+        let mut exported_types = Vec::new();
+        let mut exported_functions = Vec::new();
 
         loop {
             match parser.parse(bytes, true)? {

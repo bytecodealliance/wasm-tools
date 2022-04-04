@@ -1,0 +1,5 @@
+type x = s8
+
+baz1: function(x: list<string>)
+baz2: function()
+baz3: function(x: x)

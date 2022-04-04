@@ -19,6 +19,9 @@
 
 ## Tools
 
+* `wit-component` - creates a WebAssembly component from a core WebAssembly module and a set of
+  `.wit` files representing the component's imported and exported interfaces.
+
 * `wit2wasm` - encodes an interface definition (in `wit`) as an "interface-only" WebAssembly component.
   A `.wasm` component file will be generated that stores a full description of the original interface.
 

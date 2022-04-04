@@ -5,6 +5,11 @@ authors = ["Peter Huene <peter@huene.dev>"]
 edition = "2021"
 
 [[bin]]
+name = "wit-component"
+path = "src/bin/wit-component.rs"
+required-features = ["cli"]
+
+[[bin]]
 name = "wit2wasm"
 path = "src/bin/wit2wasm.rs"
 required-features = ["cli"]
@@ -20,9 +25,15 @@ wasm-encoder = { git = "https://github.com/bytecodealliance/wasm-tools" }
 wat = { git = "https://github.com/bytecodealliance/wasm-tools" }
 wit-parser = { path = "../parser" }
 anyhow = "1.0.55"
+indexmap = "1.8.0"
 clap = { version = "3.1.0", features = ["derive"], optional = true }
 env_logger = { version = "0.9.0", optional = true }
 log = { version = "0.4.14", optional = true }
+
+[dev-dependencies]
+wasmprinter = { git = "https://github.com/bytecodealliance/wasm-tools" }
+glob = "0.3.0"
+pretty_assertions = "1.2.0"
 
 [features]
 default = ["cli"]

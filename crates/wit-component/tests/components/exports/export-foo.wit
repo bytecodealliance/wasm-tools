@@ -1,0 +1,9 @@
+variant x {
+    a,
+    b(string),
+    c(s64)
+}
+
+a: function()
+b: function(x: string) -> x
+c: function(x: x) -> string

@@ -1,23 +1,23 @@
 use anyhow::{Context, Result};
 use pretty_assertions::assert_eq;
 use std::fs;
-use wit_component::{decode_interface_component, ComponentEncoder, InterfacePrinter};
+use wit_component::ComponentEncoder;
 use wit_parser::Interface;
 
-/// Tests the the roundtrip encoding of individual interface files.
+/// Tests the encoding of individual interface files.
 ///
 /// This test looks in the `interfaces/` directory for test cases.
 ///
-/// Each test case is a directory containing a `<testcase>.wit` file.
+/// Each test case is a directory containing a `<testcase>.wit` file
+/// and an expected `<testcase>.wat` file.
 ///
-/// The test encodes the wit file, decodes the resulting bytes, and
-/// compares the generated interface definition to the original interface
-/// definition.
+/// The test encodes the wit file, prints the resulting component, and
+/// compares the output to the wat file.
 ///
 /// Run the test with the environment variable `BLESS` set to update
-/// the wit file based on the decoded output.
+/// the wat baseline file.
 #[test]
-fn roundtrip_interfaces() -> Result<()> {
+fn interface_encoding() -> Result<()> {
     for entry in fs::read_dir("tests/interfaces")? {
         let path = entry?.path();
         if !path.is_dir() {
@@ -36,25 +36,24 @@ fn roundtrip_interfaces() -> Result<()> {
         let bytes = encoder.encode().with_context(|| {
             format!(
                 "failed to encode a component from interface `{}` for test case `{}`",
-                path.display(),
+                wit_path.display(),
                 test_case,
             )
         })?;
 
-        let interface = decode_interface_component(&bytes)?;
-
-        let mut printer = InterfacePrinter::default();
-        let output = printer.print(&interface)?;
+        let output = wasmprinter::print_bytes(&bytes)?;
+        let wat_path = wit_path.with_extension("wat");
 
         if std::env::var_os("BLESS").is_some() {
-            fs::write(&wit_path, output)?;
+            fs::write(&wat_path, output)?;
         } else {
             assert_eq!(
-                fs::read_to_string(&wit_path)?.replace("\r\n", "\n"),
+                fs::read_to_string(&wat_path)?.replace("\r\n", "\n"),
                 output,
-                "encoding of wit file `{}` did not match the the decoded interface for test case `{}`",
+                "encoding of wit file `{}` did not match the expected wat file `{}` for test case `{}`",
                 wit_path.display(),
-                test_case,
+                wat_path.display(),
+                test_case
             );
         }
     }
