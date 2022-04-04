@@ -2,6 +2,7 @@
 
 use crate::InstructionKinds;
 use arbitrary::{Arbitrary, Result, Unstructured};
+use std::borrow::Cow;
 
 /// Configuration for a generated module.
 ///
@@ -57,6 +58,41 @@ pub trait Config: 'static + std::fmt::Debug {
     /// The maximum number of tags to generate. Defaults to 100.
     fn max_tags(&self) -> usize {
         100
+    }
+
+    /// The imports that may be used when generating the module.
+    ///
+    /// Defaults to `None` which means that any arbitrary import can be generated.
+    ///
+    /// To only allow specific imports, override this method to return a WebAssembly module which
+    /// describes the imports allowed.
+    ///
+    /// Note that [`Self::min_imports`] is ignored when `available_imports` are enabled.
+    ///
+    /// # Panics
+    ///
+    /// The returned value must be a valid binary encoding of a WebAssembly module. `wasm-smith`
+    /// will panic if the module cannot be parsed.
+    ///
+    /// # Example
+    ///
+    /// An implementation of this method could use the `wat` crate to provide a human-readable and
+    /// maintainable description:
+    ///
+    /// ```rust
+    /// Some(wat::parse_str(r#"
+    ///     (module
+    ///         (import "env" "ping" (func (param i32)))
+    ///         (import "env" "pong" (func (result i32)))
+    ///         (import "env" "memory" (memory 1))
+    ///         (import "env" "table" (table 1))
+    ///         (import "env" "tag" (tag (param i32)))
+    ///     )
+    /// "#))
+    /// # ;
+    /// ```
+    fn available_imports(&self) -> Option<Cow<'_, [u8]>> {
+        None
     }
 
     /// The minimum number of functions to generate. Defaults to 0.  This
@@ -390,6 +426,7 @@ impl Config for DefaultConfig {}
 #[allow(missing_docs)]
 pub struct SwarmConfig {
     pub allow_start_export: bool,
+    pub available_imports: Option<Vec<u8>>,
     pub bulk_memory_enabled: bool,
     pub canonicalize_nans: bool,
     pub exceptions_enabled: bool,
@@ -489,6 +526,7 @@ impl<'a> Arbitrary<'a> for SwarmConfig {
             memory64_enabled: false,
             max_type_size: 1000,
             canonicalize_nans: false,
+            available_imports: None,
         })
     }
 }
@@ -508,6 +546,12 @@ impl Config for SwarmConfig {
 
     fn max_imports(&self) -> usize {
         self.max_imports
+    }
+
+    fn available_imports(&self) -> Option<Cow<'_, [u8]>> {
+        self.available_imports
+            .as_ref()
+            .map(|is| Cow::Borrowed(&is[..]))
     }
 
     fn min_funcs(&self) -> usize {
@@ -650,12 +694,12 @@ impl Config for SwarmConfig {
         self.max_nesting_depth
     }
 
-    fn memory64_enabled(&self) -> bool {
-        self.memory64_enabled
-    }
-
     fn max_type_size(&self) -> u32 {
         self.max_type_size
+    }
+
+    fn memory64_enabled(&self) -> bool {
+        self.memory64_enabled
     }
 
     fn canonicalize_nans(&self) -> bool {

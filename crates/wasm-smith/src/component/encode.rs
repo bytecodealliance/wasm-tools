@@ -76,9 +76,9 @@ impl Type {
                         }
                         ModuleTypeDef::Import(imp) => {
                             enc_mod_ty.import(
-                                &imp.0,
-                                &imp.1,
-                                crate::core::encode::translate_entity_type(&imp.2),
+                                &imp.module,
+                                &imp.field,
+                                crate::core::encode::translate_entity_type(&imp.entity_type),
                             );
                         }
                         ModuleTypeDef::Export(name, ty) => {
