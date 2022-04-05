@@ -1091,9 +1091,10 @@ impl Module {
             if i == 0 && ty.element_type == ValType::FuncRef {
                 dst.push(Box::new(move |u| arbitrary_active_elem(u, minimum, None)));
             }
-            dst.push(Box::new(move |u| {
-                arbitrary_active_elem(u, minimum, Some(i as u32))
-            }));
+            if self.config.bulk_memory_enabled() {
+                let idx = Some(i as u32);
+                dst.push(Box::new(move |u| arbitrary_active_elem(u, minimum, idx)));
+            }
         }
 
         // Reference types allows us to create passive and declared element

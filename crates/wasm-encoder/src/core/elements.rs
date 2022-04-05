@@ -74,8 +74,9 @@ pub enum ElementMode<'a> {
     Active {
         /// The table index.
         ///
-        /// `None` is implicitly table `0`. Non-`None` tables are part of the
-        /// reference types proposal, including `Some(0)`.
+        /// `Active` element specifying a `None` table forces the MVP encoding and refers to the
+        /// 0th table holding `funcref`s. Non-`None` tables use the encoding introduced with the
+        /// bulk memory proposal and can refer to tables with any valid reference type.
         table: Option<u32>,
         /// The offset within the table to place this segment.
         offset: &'a Instruction<'a>,
@@ -184,8 +185,9 @@ impl ElementSection {
 
     /// Define an active element segment.
     ///
-    /// Table `None` is implicitly table `0`. Non-`None` tables are part of the
-    /// reference types proposal, including `Some(0)`.
+    /// `Active` element specifying a `None` table forces the MVP encoding and refers to the 0th
+    /// table holding `funcref`s. Non-`None` tables use the encoding introduced with the bulk
+    /// memory proposal and can refer to tables with any valid reference type.
     pub fn active(
         &mut self,
         table_index: Option<u32>,
