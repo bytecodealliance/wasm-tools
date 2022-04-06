@@ -2882,7 +2882,7 @@ impl Printer {
                     self.print_idx(&state.module_names, index)?;
                     self.end_group();
                     for arg in args.iter() {
-                        self.result.push(' ');
+                        self.newline();
                         self.print_module_arg(state, arg)?;
                     }
                     self.end_group();
@@ -2896,7 +2896,7 @@ impl Printer {
                     self.print_idx(&state.component_names, index)?;
                     self.end_group();
                     for arg in args.iter() {
-                        self.result.push(' ');
+                        self.newline();
                         self.print_component_arg(state, arg)?;
                     }
                     self.end_group();
@@ -2908,7 +2908,7 @@ impl Printer {
                 Instance::ModuleFromExports(exports) => {
                     self.result.push_str(" core");
                     for export in exports.iter() {
-                        self.result.push(' ');
+                        self.newline();
                         self.print_export(state, export)?;
                     }
 
@@ -2917,7 +2917,7 @@ impl Printer {
                 Instance::ComponentFromExports(exports) => {
                     let mut type_exports = HashMap::new();
                     for export in exports.iter() {
-                        self.result.push(' ');
+                        self.newline();
                         self.print_component_export(state, export)?;
 
                         let existing = match export.kind {
