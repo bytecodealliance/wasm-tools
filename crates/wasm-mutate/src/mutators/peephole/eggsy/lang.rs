@@ -973,11 +973,12 @@ lang! {
         I32(i32) = "i32.const",
         /// I64 constant node
         I64(i64) = "i64.const",
+
         // Save bits
         /// F32 constant node
-        F32(u32) = "f32.const",
+        F32(F32) = "f32.const",
         /// F64 constant node
-        F64(u64) = "f64.const",
+        F64(F64) = "f64.const",
         /// V128 constant node
         V128(i128) = "v128.const",
         /// constant ref.null node
@@ -990,6 +991,76 @@ lang! {
 impl Default for Lang {
     fn default() -> Self {
         Lang::Undef
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
+pub struct F32(u32);
+
+impl F32 {
+    pub fn to_f32(self) -> f32 {
+        f32::from_bits(self.0)
+    }
+}
+
+impl FromStr for F32 {
+    type Err = <f32 as FromStr>::Err;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(F32(f32::from_str(&s.replace(",", "."))?.to_bits()))
+    }
+}
+
+impl From<f32> for F32 {
+    fn from(f: f32) -> Self {
+        Self(f.to_bits())
+    }
+}
+
+impl From<wasmparser::Ieee32> for F32 {
+    fn from(f: wasmparser::Ieee32) -> Self {
+        Self(f.bits())
+    }
+}
+
+impl fmt::Display for F32 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.to_f32(), f)
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
+pub struct F64(u64);
+
+impl F64 {
+    pub fn to_f64(self) -> f64 {
+        f64::from_bits(self.0)
+    }
+}
+
+impl FromStr for F64 {
+    type Err = <f64 as FromStr>::Err;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(F64(f64::from_str(&s.replace(",", "."))?.to_bits()))
+    }
+}
+
+impl From<f64> for F64 {
+    fn from(f: f64) -> Self {
+        Self(f.to_bits())
+    }
+}
+
+impl From<wasmparser::Ieee64> for F64 {
+    fn from(f: wasmparser::Ieee64) -> Self {
+        Self(f.bits())
+    }
+}
+
+impl fmt::Display for F64 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.to_f64(), f)
     }
 }
 

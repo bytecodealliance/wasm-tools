@@ -1496,13 +1496,13 @@ mod tests {
     #[test]
     fn test_peep_floats1() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] =
-            &[rewrite!("rule";  "f32.const.1065353216" => "f32.const.0" )];
+            &[rewrite!("rule";  "f32.const.1,0" => "f32.const.0,0" )];
 
         test_peephole_mutator(
             r#"
         (module
             (func (export "exported_func") (result f32) (local i64 i64)
-                f32.const 1
+                f32.const 1.0
             )
         )
         "#,

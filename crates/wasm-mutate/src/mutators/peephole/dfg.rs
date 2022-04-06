@@ -422,10 +422,10 @@ impl<'a> DFGBuilder {
                     self.push_node(Lang::I64(*value), idx);
                 }
                 Operator::F32Const { value } => {
-                    self.push_node(Lang::F32(value.bits()), idx);
+                    self.push_node(Lang::F32((*value).into()), idx);
                 }
                 Operator::F64Const { value } => {
-                    self.push_node(Lang::F64(value.bits()), idx);
+                    self.push_node(Lang::F64((*value).into()), idx);
                 }
                 Operator::V128Const { value } => {
                     self.push_node(Lang::V128(value.i128()), idx);

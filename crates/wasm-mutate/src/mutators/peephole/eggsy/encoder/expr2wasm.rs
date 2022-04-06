@@ -171,8 +171,8 @@ pub fn expr2wasm(
                     }
                     Lang::I32(v) => insn(Instruction::I32Const(*v)),
                     Lang::I64(v) => insn(Instruction::I64Const(*v)),
-                    Lang::F32(v) => insn(Instruction::F32Const(f32::from_bits(*v))),
-                    Lang::F64(v) => insn(Instruction::F64Const(f64::from_bits(*v))),
+                    Lang::F32(v) => insn(Instruction::F32Const(v.to_f32())),
+                    Lang::F64(v) => insn(Instruction::F64Const(v.to_f64())),
                     Lang::V128(v) => insn(Instruction::V128Const(*v)),
                     Lang::I32Add(_) => insn(Instruction::I32Add),
                     Lang::I64Add(_) => insn(Instruction::I64Add),
