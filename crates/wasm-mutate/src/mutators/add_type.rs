@@ -74,9 +74,10 @@ impl Mutator for AddTypeMutator {
             }
             // And then add our new type.
             types.function(params, results);
+            let types_section_index = config.info().types.unwrap();
             Ok(Box::new(iter::once(Ok(config
                 .info()
-                .replace_section(0, &types)))))
+                .replace_section(types_section_index, &types)))))
         } else {
             types.function(params, results);
             Ok(Box::new(iter::once(Ok(config
