@@ -74,9 +74,10 @@ impl Mutator for AddTypeMutator {
             }
             // And then add our new type.
             types.function(params, results);
+            let types_section_index = config.info().types.unwrap();
             Ok(Box::new(iter::once(Ok(config
                 .info()
-                .replace_section(0, &types)))))
+                .replace_section(types_section_index, &types)))))
         } else {
             types.function(params, results);
             Ok(Box::new(iter::once(Ok(config
@@ -134,6 +135,29 @@ mod tests {
             },
             r#"
                 (module
+                    (type (;0;) (func (param i32) (result i64)))
+                    (type (;0;) (func (param i64) (result i32)))
+                )
+            "#,
+        );
+    }
+
+    #[test]
+    fn add_type_with_custom_section_first() {
+        crate::mutators::match_mutation(
+            r#"
+                (module
+                    (@custom "HI" (before type) "xxx")
+                    (type (;0;) (func (param i32) (result i64)))
+                )
+            "#,
+            AddTypeMutator {
+                max_params: 1,
+                max_results: 1,
+            },
+            r#"
+                (module
+                    (@custom "HI" (before type) "xxx")
                     (type (;0;) (func (param i32) (result i64)))
                     (type (;0;) (func (param i64) (result i32)))
                 )

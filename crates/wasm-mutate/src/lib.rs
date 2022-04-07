@@ -43,13 +43,17 @@ macro_rules! define_mutators {
             // Start by the current node
             let m = $first;
 
-            if m.can_mutate($self) {
+            let can_mutate = m.can_mutate($self);
+            log::trace!("Can `{}` mutate? {}", m.name(), can_mutate);
+            if can_mutate {
+                log::debug!("attempting to mutate with `{}`", m.name());
                 match m.clone().mutate($self) {
                     Ok(iter) => {
+                        log::debug!("mutator `{}` succeeded", m.name());
                         return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))))
                     }
                     Err(e) => {
-                        log::debug!("mutator {} failed: {}; will try again", m.name(), e);
+                        log::debug!("mutator `{}` failed: {}", m.name(), e);
                         return Err(e);
                     }
                 }
@@ -58,13 +62,17 @@ macro_rules! define_mutators {
             $(
                 let m = $rest;
 
-                if m.can_mutate($self) {
+                let can_mutate = m.can_mutate($self);
+                log::trace!("Can `{}` mutate? {}", m.name(), can_mutate);
+                if can_mutate {
+                    log::debug!("attempting to mutate with `{}`", m.name());
                     match m.clone().mutate($self) {
                         Ok(iter) => {
+                            log::debug!("mutator `{}` succeeded", m.name());
                             return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))))
                         }
                         Err(e) => {
-                            log::debug!("mutator {} failed: {}; will try again", m.name(), e);
+                            log::debug!("mutator {} failed: {}", m.name(), e);
                             return Err(e);
                         }
                     }

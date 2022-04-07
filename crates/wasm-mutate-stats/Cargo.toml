@@ -12,7 +12,7 @@ rand = { version = "0.8.0", features = ["small_rng"] }
 wasm-mutate = { path = '../wasm-mutate' }
 wasmprinter = { path = '../wasmprinter' }
 wasmparser = { path = "../wasmparser" }
-wasmtime = "0.32.0"
+wasmtime = "0.35.2"
 env_logger = "0.9"
 itertools = "0.10.0"
 clap = "3.0"

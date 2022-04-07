@@ -299,6 +299,7 @@ impl<'a> ModuleInfo<'a> {
         i: usize,
         new_section: &impl wasm_encoder::Section,
     ) -> wasm_encoder::Module {
+        log::trace!("inserting new section at {}", i);
         let mut module = wasm_encoder::Module::new();
         self.raw_sections.iter().enumerate().for_each(|(j, s)| {
             if i == j {
@@ -318,14 +319,15 @@ impl<'a> ModuleInfo<'a> {
         i: usize,
         new_section: &impl wasm_encoder::Section,
     ) -> wasm_encoder::Module {
+        log::trace!("replacing section {}", i);
         let mut module = wasm_encoder::Module::new();
-        self.raw_sections.iter().enumerate().for_each(|(j, s)| {
+        for (j, s) in self.raw_sections.iter().enumerate() {
             if i == j {
                 module.section(new_section);
             } else {
                 module.section(s);
             }
-        });
+        }
         module
     }
 
