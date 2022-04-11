@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use arbitrary::Arbitrary;
 use clap::Parser;
+use std::borrow::Cow;
 use std::fs;
 use std::io::{stdin, stdout, Read, Write};
 use std::path::PathBuf;
@@ -160,6 +161,16 @@ struct Config {
     memory64_enabled: Option<bool>,
     #[clap(long = "canonicalize-nans")]
     canonicalize_nans: Option<bool>,
+    #[clap(long = "multi-value")]
+    multi_value_enabled: Option<bool>,
+    #[clap(long = "sign-extension-ops")]
+    sign_extension_ops_enabled: Option<bool>,
+    #[clap(long = "saturating-float-to-int")]
+    saturating_float_to_int_enabled: Option<bool>,
+    #[clap(long = "generate-custom-sections")]
+    generate_custom_sections: Option<bool>,
+    #[clap(long = "available-imports")]
+    available_imports: Option<PathBuf>,
     /// Limit what kinds of instructions are allowed.
     ///
     /// By default, all kinds are allowed; available kinds: numeric, vector,
@@ -295,15 +306,19 @@ impl wasm_smith::Config for CliAndJsonConfig {
         (min_uleb_size, u8, 1),
         (bulk_memory_enabled, bool, false),
         (reference_types_enabled, bool, false),
-        (memory64_enabled, bool, false),
         (simd_enabled, bool, false),
         (relaxed_simd_enabled, bool, false),
         (exceptions_enabled, bool, false),
+        (multi_value_enabled, bool, true),
+        (saturating_float_to_int_enabled, bool, true),
+        (sign_extension_ops_enabled, bool, true),
+        (memory64_enabled, bool, false),
         (allow_start_export, bool, true),
         (max_aliases, usize, 1000),
         (max_nesting_depth, usize, 1000),
         (max_type_size, u32, 1000),
         (canonicalize_nans, bool, false),
+        (generate_custom_sections, bool, false),
     }
 
     fn max_memory_pages(&self, _is_64: bool) -> u64 {
@@ -323,5 +338,14 @@ impl wasm_smith::Config for CliAndJsonConfig {
             Some(ks) => InstructionKinds::new(ks),
             None => InstructionKinds::all(),
         }
+    }
+
+    fn available_imports(&self) -> Option<Cow<'static, [u8]>> {
+        let file = self
+            .cli
+            .available_imports
+            .as_ref()
+            .or(self.json.available_imports.as_ref())?;
+        Some(wat::parse_file(file).unwrap().into())
     }
 }
