@@ -1,4 +1,5 @@
 mod code;
+mod custom;
 mod data;
 mod elements;
 mod exports;
@@ -17,6 +18,7 @@ mod tags;
 mod types;
 
 pub use self::code::*;
+pub use self::custom::*;
 pub use self::data::*;
 pub use self::elements::*;
 pub use self::exports::*;

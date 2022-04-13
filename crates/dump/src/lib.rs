@@ -228,18 +228,13 @@ impl<'a> Dump<'a> {
                 Payload::ComponentStartSection { .. } => todo!("component-model"),
                 Payload::AliasSection(_) => todo!("component-model"),
 
-                Payload::CustomSection {
-                    name,
-                    data_offset,
-                    data,
-                    range,
-                } => {
+                Payload::CustomSection(c) => {
                     write!(self.state, "custom section")?;
-                    self.print(range.start)?;
-                    write!(self.state, "name: {:?}", name)?;
-                    self.print(data_offset)?;
-                    if name == "name" {
-                        let mut iter = NameSectionReader::new(data, data_offset)?;
+                    self.print(c.range().start)?;
+                    write!(self.state, "name: {:?}", c.name())?;
+                    self.print(c.data_offset())?;
+                    if c.name() == "name" {
+                        let mut iter = NameSectionReader::new(c.data(), c.data_offset())?;
                         while !iter.eof() {
                             self.print_custom_name_section(iter.read()?, iter.original_position())?;
                         }
@@ -248,8 +243,8 @@ impl<'a> Dump<'a> {
                         for _ in 0..NBYTES {
                             write!(self.dst, "---")?;
                         }
-                        write!(self.dst, "-| ... {} bytes of data\n", data.len())?;
-                        self.cur += data.len();
+                        write!(self.dst, "-| ... {} bytes of data\n", c.data().len())?;
+                        self.cur += c.data().len();
                     }
                 }
                 Payload::UnknownSection {

@@ -292,13 +292,8 @@ impl Printer {
                     }
                     bytes = &bytes[offset..];
                 }
-                Payload::CustomSection {
-                    name: "name",
-                    data_offset,
-                    data,
-                    range: _,
-                } => {
-                    let reader = NameSectionReader::new(data, data_offset)?;
+                Payload::CustomSection(c) if c.name() == "name" => {
+                    let reader = NameSectionReader::new(c.data(), c.data_offset())?;
 
                     // Ignore any error associated with the name section.
                     drop(self.register_names(state, reader));
@@ -395,15 +390,10 @@ impl Printer {
                         name.write(&mut self.result);
                     }
                 }
-                Payload::CustomSection {
-                    name,
-                    data,
-                    data_offset,
-                    range: _,
-                } => {
+                Payload::CustomSection(c) => {
                     let mut printers = mem::take(&mut self.printers);
-                    if let Some(printer) = printers.get_mut(name) {
-                        printer(self, data_offset, data)?;
+                    if let Some(printer) = printers.get_mut(c.name()) {
+                        printer(self, c.data_offset(), c.data())?;
                     }
                     self.printers = printers;
                 }

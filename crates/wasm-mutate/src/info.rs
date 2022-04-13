@@ -5,7 +5,7 @@ use crate::{
 use std::collections::HashSet;
 use std::convert::TryFrom;
 use wasm_encoder::{RawSection, SectionId};
-use wasmparser::{Chunk, Parser, Payload, SectionReader};
+use wasmparser::{Chunk, CustomSectionReader, Parser, Payload, SectionReader};
 
 /// Provides module information for future usage during mutation
 /// an instance of ModuleInfo could be user to determine which mutation could be applied
@@ -200,12 +200,12 @@ impl<'a> ModuleInfo<'a> {
                     info.data_segments_count = reader.get_count();
                     info.section(SectionId::Data.into(), reader.range(), input_wasm);
                 }
-                Payload::CustomSection {
+                Payload::CustomSection(CustomSectionReader {
                     name: _,
                     data_offset: _,
                     data: _,
                     range,
-                } => {
+                }) => {
                     info.section(SectionId::Custom.into(), range, input_wasm);
                 }
                 Payload::UnknownSection {

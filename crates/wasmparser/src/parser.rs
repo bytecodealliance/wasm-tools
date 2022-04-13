@@ -5,9 +5,10 @@ use crate::{
     InstanceSectionReader,
 };
 use crate::{
-    BinaryReader, BinaryReaderError, DataSectionReader, ElementSectionReader, ExportSectionReader,
-    FunctionBody, FunctionSectionReader, GlobalSectionReader, ImportSectionReader,
-    MemorySectionReader, Range, Result, TableSectionReader, TagSectionReader, TypeSectionReader,
+    BinaryReader, BinaryReaderError, CustomSectionReader, DataSectionReader, ElementSectionReader,
+    ExportSectionReader, FunctionBody, FunctionSectionReader, GlobalSectionReader,
+    ImportSectionReader, MemorySectionReader, Range, Result, TableSectionReader, TagSectionReader,
+    TypeSectionReader,
 };
 use std::convert::TryInto;
 use std::fmt;
@@ -247,19 +248,7 @@ pub enum Payload<'a> {
     CodeSectionEntry(crate::FunctionBody<'a>),
 
     /// A module or component custom section was received.
-    CustomSection {
-        /// The name of the custom section.
-        name: &'a str,
-        /// The offset, relative to the start of the original module or component,
-        /// that the `data` payload for this custom section starts at.
-        data_offset: usize,
-        /// The actual contents of the custom section.
-        data: &'a [u8],
-        /// The range of bytes that specify this whole custom section (including
-        /// both the name of this custom section and its data) specified in
-        /// offsets relative to the start of the byte stream.
-        range: Range,
-    },
+    CustomSection(crate::CustomSectionReader<'a>),
 
     /// An unknown section was found.
     ///
@@ -411,7 +400,7 @@ impl Parser {
     ///             ComponentStartSection { .. } => { /* ... */ }
     ///             AliasSection(_) => { /* ... */ }
     ///
-    ///             CustomSection { name, .. } => { /* ... */ }
+    ///             CustomSection(_) => { /* ... */ }
     ///
     ///             // most likely you'd return an error here
     ///             UnknownSection { id, .. } => { /* ... */ }
@@ -538,26 +527,12 @@ impl Parser {
                 }
 
                 // Check for custom sections (supported by all encodings)
-                if id == 0 {
-                    let start = reader.original_position();
-                    let range = Range {
-                        start,
-                        end: reader.original_position() + len as usize,
-                    };
-                    let mut content = subreader(reader, len)?;
-                    // Note that if this fails we can't read any more bytes,
-                    // so clear the "we'd succeed if we got this many more
-                    // bytes" because we can't recover from "eof" at this point.
-                    let name = content.read_string().map_err(clear_hint)?;
-                    return Ok(Payload::CustomSection {
-                        name,
-                        data_offset: content.original_position(),
-                        data: content.remaining_buffer(),
-                        range,
-                    });
-                }
+                if id == 0 {}
 
                 match (self.encoding, id) {
+                    // Sections for both modules and components.
+                    (_, 0) => section(reader, len, CustomSectionReader::new, CustomSection),
+
                     // Module sections
                     (Encoding::Module, 1) => {
                         section(reader, len, TypeSectionReader::new, TypeSection)
@@ -1015,18 +990,7 @@ impl fmt::Debug for Payload<'_> {
                 .finish(),
             AliasSection(_) => f.debug_tuple("AliasSection").field(&"...").finish(),
 
-            CustomSection {
-                name,
-                data_offset,
-                data: _,
-                range,
-            } => f
-                .debug_struct("CustomSection")
-                .field("name", name)
-                .field("data_offset", data_offset)
-                .field("range", range)
-                .field("data", &"...")
-                .finish(),
+            CustomSection(c) => f.debug_tuple("CustomSection").field(c).finish(),
 
             UnknownSection { id, range, .. } => f
                 .debug_struct("UnknownSection")
@@ -1206,36 +1170,36 @@ mod tests {
             parser_after_header().parse(&[0, 1, 0], false),
             Ok(Chunk::Parsed {
                 consumed: 3,
-                payload: Payload::CustomSection {
+                payload: Payload::CustomSection(CustomSectionReader {
                     name: "",
                     data_offset: 11,
                     data: b"",
                     range: Range { start: 10, end: 11 },
-                },
+                }),
             }),
         );
         assert_matches!(
             parser_after_header().parse(&[0, 2, 1, b'a'], false),
             Ok(Chunk::Parsed {
                 consumed: 4,
-                payload: Payload::CustomSection {
+                payload: Payload::CustomSection(CustomSectionReader {
                     name: "a",
                     data_offset: 12,
                     data: b"",
                     range: Range { start: 10, end: 12 },
-                },
+                }),
             }),
         );
         assert_matches!(
             parser_after_header().parse(&[0, 2, 0, b'a'], false),
             Ok(Chunk::Parsed {
                 consumed: 4,
-                payload: Payload::CustomSection {
+                payload: Payload::CustomSection(CustomSectionReader {
                     name: "",
                     data_offset: 11,
                     data: b"a",
                     range: Range { start: 10, end: 12 },
-                },
+                }),
             }),
         );
     }

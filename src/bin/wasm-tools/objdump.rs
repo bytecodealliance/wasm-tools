@@ -1,6 +1,6 @@
 use anyhow::Result;
 use std::path::PathBuf;
-use wasmparser::{Parser, Payload::*};
+use wasmparser::{CustomSectionReader, Parser, Payload::*};
 
 /// Dumps information about sections in a WebAssembly file.
 ///
@@ -46,18 +46,13 @@ impl Opts {
                 ComponentStartSection { .. } => todo!("component-model"),
                 AliasSection(_) => todo!("component-model"),
 
-                CustomSection {
-                    name,
-                    data_offset,
-                    data,
-                    range: _,
-                } => printer.section_raw(
+                CustomSection(c) => printer.section_raw(
                     wasmparser::Range {
-                        start: data_offset,
-                        end: data_offset + data.len(),
+                        start: c.data_offset(),
+                        end: c.data_offset() + c.data().len(),
                     },
                     1,
-                    &format!("custom {:?}", name),
+                    &format!("custom {:?}", c.name()),
                 ),
 
                 UnknownSection { .. } => {}
