@@ -23,6 +23,7 @@
 pub mod add_function;
 pub mod add_type;
 pub mod codemotion;
+pub mod custom;
 pub mod function_body_unreachable;
 pub mod modify_data;
 pub mod modify_init_exprs;

@@ -200,13 +200,8 @@ impl<'a> ModuleInfo<'a> {
                     info.data_segments_count = reader.get_count();
                     info.section(SectionId::Data.into(), reader.range(), input_wasm);
                 }
-                Payload::CustomSection {
-                    name: _,
-                    data_offset: _,
-                    data: _,
-                    range,
-                } => {
-                    info.section(SectionId::Custom.into(), range, input_wasm);
+                Payload::CustomSection(c) => {
+                    info.section(SectionId::Custom.into(), c.range(), input_wasm);
                 }
                 Payload::UnknownSection {
                     id,
@@ -244,6 +239,13 @@ impl<'a> ModuleInfo<'a> {
 
     pub fn has_code(&self) -> bool {
         self.code != None
+    }
+
+    /// Does this module have any custom sections?
+    pub fn has_custom_section(&self) -> bool {
+        self.raw_sections
+            .iter()
+            .any(|s| s.id == SectionId::Custom as u8)
     }
 
     /// Registers a new raw_section in the ModuleInfo

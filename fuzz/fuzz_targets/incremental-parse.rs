@@ -118,24 +118,11 @@ fuzz_target!(|data: Vec<Vec<u8>>| {
                 assert_eq!(ar, br);
             }
             (DataSection(a), DataSection(b)) => assert_eq!(a.range(), b.range()),
-            (
-                CustomSection {
-                    name: a,
-                    data_offset: ado,
-                    data: ad,
-                    range: ar,
-                },
-                CustomSection {
-                    name: b,
-                    data_offset: bdo,
-                    data: bd,
-                    range: br,
-                },
-            ) => {
-                assert_eq!(a, b);
-                assert_eq!(ad, bd);
-                assert_eq!(ado, bdo);
-                assert_eq!(ar, br);
+            (CustomSection(ca), CustomSection(cb)) => {
+                assert_eq!(ca.name(), cb.name());
+                assert_eq!(ca.data_offset(), cb.data_offset());
+                assert_eq!(ca.data(), cb.data());
+                assert_eq!(ca.range(), cb.range());
             }
             (
                 CodeSectionStart {
