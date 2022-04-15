@@ -58,7 +58,7 @@ impl Opts {
 
                 InstanceSection(s) => printer.section(s, "instances"),
                 ComponentExportSection(s) => printer.section(s, "exports"),
-                ComponentStartSection(_) => {}
+                ComponentStartSection(s) => printer.section_raw(s.range(), 1, "start"),
                 AliasSection(s) => printer.section(s, "alias"),
 
                 CustomSection(c) => printer.section_raw(
