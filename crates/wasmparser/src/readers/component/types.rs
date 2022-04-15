@@ -1,7 +1,8 @@
 use crate::{
-    BinaryReader, ComponentImport, Import, Range, Result, SectionIteratorLimited, SectionReader,
+    BinaryReader, ComponentImport, Import, Result, SectionIteratorLimited, SectionReader,
     SectionWithLimitedItems, TypeDef, TypeRef,
 };
+use std::ops::Range;
 
 /// Represents a type defined in a WebAssembly component.
 #[derive(Debug, Clone)]
@@ -267,7 +268,7 @@ impl<'a> SectionReader for ComponentTypeSectionReader<'a> {
         Self::original_position(self)
     }
 
-    fn range(&self) -> Range {
+    fn range(&self) -> Range<usize> {
         self.reader.range()
     }
 }

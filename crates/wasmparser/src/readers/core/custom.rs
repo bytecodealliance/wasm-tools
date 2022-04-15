@@ -1,4 +1,5 @@
-use crate::{BinaryReader, Range, Result};
+use crate::{BinaryReader, Result};
+use std::ops::Range;
 
 /// A reader for custom sections of a WebAssembly module.
 #[derive(Clone)]
@@ -7,7 +8,7 @@ pub struct CustomSectionReader<'a> {
     pub(crate) name: &'a str,
     pub(crate) data_offset: usize,
     pub(crate) data: &'a [u8],
-    pub(crate) range: Range,
+    pub(crate) range: Range<usize>,
 }
 
 impl<'a> CustomSectionReader<'a> {
@@ -45,8 +46,8 @@ impl<'a> CustomSectionReader<'a> {
     /// The range of bytes that specify this whole custom section (including
     /// both the name of this custom section and its data) specified in
     /// offsets relative to the start of the byte stream.
-    pub fn range(&self) -> Range {
-        self.range
+    pub fn range(&self) -> Range<usize> {
+        self.range.clone()
     }
 }
 

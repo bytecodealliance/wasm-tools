@@ -13,9 +13,8 @@
  * limitations under the License.
  */
 
-use crate::{
-    BinaryReader, Range, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
-};
+use crate::{BinaryReader, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems};
+use std::ops::Range;
 
 /// Represents a field value in the producers custom section.
 #[derive(Debug, Copy, Clone)]
@@ -191,7 +190,7 @@ impl<'a> SectionReader for ProducersSectionReader<'a> {
     fn original_position(&self) -> usize {
         ProducersSectionReader::original_position(self)
     }
-    fn range(&self) -> Range {
+    fn range(&self) -> Range<usize> {
         self.reader.range()
     }
 }

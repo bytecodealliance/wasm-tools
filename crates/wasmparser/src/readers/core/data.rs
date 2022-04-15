@@ -14,19 +14,20 @@
  */
 
 use crate::{
-    BinaryReader, BinaryReaderError, InitExpr, Range, Result, SectionIteratorLimited,
-    SectionReader, SectionWithLimitedItems,
+    BinaryReader, BinaryReaderError, InitExpr, Result, SectionIteratorLimited, SectionReader,
+    SectionWithLimitedItems,
 };
+use std::ops::Range;
 
 /// Represents a data segment in a core WebAssembly module.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct Data<'a> {
     /// The kind of data segment.
     pub kind: DataKind<'a>,
     /// The data of the data segment.
     pub data: &'a [u8],
     /// The range of the data segment.
-    pub range: Range,
+    pub range: Range<usize>,
 }
 
 /// The kind of data segment.
@@ -150,7 +151,7 @@ impl<'a> DataSectionReader<'a> {
         self.reader.skip_to(data_end);
 
         let segment_end = self.reader.original_position();
-        let range = Range::new(segment_start, segment_end);
+        let range = segment_start..segment_end;
 
         Ok(Data { kind, data, range })
     }
@@ -167,7 +168,7 @@ impl<'a> SectionReader for DataSectionReader<'a> {
     fn original_position(&self) -> usize {
         DataSectionReader::original_position(self)
     }
-    fn range(&self) -> Range {
+    fn range(&self) -> Range<usize> {
         self.reader.range()
     }
 }

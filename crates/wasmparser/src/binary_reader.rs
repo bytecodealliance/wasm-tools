@@ -26,6 +26,7 @@ use crate::{ComponentArg, ComponentArgKind};
 use std::convert::TryInto;
 use std::error::Error;
 use std::fmt;
+use std::ops::Range;
 use std::str;
 
 fn is_name(name: &str, expected: &'static str) -> bool {
@@ -37,31 +38,6 @@ fn is_name_prefix(name: &str, prefix: &'static str) -> bool {
 }
 
 const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
-
-/// Bytecode range in the WebAssembly module.
-#[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct Range {
-    /// The start bound of the range.
-    pub start: usize,
-    /// The end bound of the range.
-    pub end: usize,
-}
-
-impl Range {
-    /// Constructs a new instance of `Range`.
-    ///
-    /// # Panics
-    /// If `start` is greater than `end`.
-    pub fn new(start: usize, end: usize) -> Range {
-        assert!(start <= end);
-        Range { start, end }
-    }
-
-    /// Returns a new slice between `start` and `end - 1` from `data`.
-    pub fn slice<'a>(&self, data: &'a [u8]) -> &'a [u8] {
-        &data[self.start..self.end]
-    }
-}
 
 /// A binary reader for WebAssembly modules.
 #[derive(Debug, Clone)]
@@ -181,11 +157,8 @@ impl<'a> BinaryReader<'a> {
     }
 
     /// Returns a range from the starting offset to the end of the buffer.
-    pub fn range(&self) -> Range {
-        Range {
-            start: self.original_offset,
-            end: self.original_offset + self.buffer.len(),
-        }
+    pub fn range(&self) -> Range<usize> {
+        self.original_offset..self.original_offset + self.buffer.len()
     }
 
     pub(crate) fn remaining_buffer(&self) -> &'a [u8] {

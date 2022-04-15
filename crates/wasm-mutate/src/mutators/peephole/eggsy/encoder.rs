@@ -36,7 +36,7 @@ impl Encoder {
         egraph: &EG,
     ) -> crate::Result<Vec<ResourceRequest>> {
         // Copy previous code
-        let range = basicblock.range;
+        let range = basicblock.range.clone();
         let byterange = (&operators[0].1, &operators[range.start].1);
         let bytes = &config.info().get_code_section().data[*byterange.0..*byterange.1];
         newfunc.raw(bytes.iter().copied());
@@ -60,7 +60,7 @@ impl Encoder {
         }
 
         // Copy remaining function
-        let range = basicblock.range;
+        let range = basicblock.range.clone();
         let byterange = (
             &operators[range.end].1, // In the worst case the next instruction will be and end
             &operators[operators.len() - 1].1,

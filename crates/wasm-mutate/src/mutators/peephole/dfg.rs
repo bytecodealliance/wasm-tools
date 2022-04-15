@@ -9,7 +9,8 @@ use crate::mutators::OperatorAndByteOffset;
 use crate::{ModuleInfo, WasmMutate};
 use egg::{Id, Language, RecExpr};
 use std::collections::HashMap;
-use wasmparser::{Operator, Range};
+use std::ops::Range;
+use wasmparser::Operator;
 
 /// It executes a minimal symbolic evaluation of the stack to detect operands
 /// location in the code for certain operators
@@ -34,7 +35,7 @@ pub struct DFGBuilder {
 /// function
 #[derive(Debug)]
 pub struct BBlock {
-    pub(crate) range: Range,
+    pub(crate) range: Range<usize>,
 }
 
 /// Node of a DFG extracted from a basic block in the Wasm code
@@ -226,10 +227,8 @@ impl<'a> DFGBuilder {
         operator_index: usize,
         operators: &[OperatorAndByteOffset],
     ) -> Option<BBlock> {
-        let mut range = Range {
-            start: operator_index,
-            end: operator_index + 1, // The range is inclusive in the last operator
-        };
+        // The range is inclusive in the last operator
+        let mut range = operator_index..operator_index + 1;
         // We only need the basic block upward
         let mut found = false;
         loop {

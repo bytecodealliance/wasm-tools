@@ -1,6 +1,5 @@
-use crate::{
-    BinaryReader, Range, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
-};
+use crate::{BinaryReader, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems};
+use std::ops::Range;
 
 /// Represents options for component functions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -98,7 +97,7 @@ impl<'a> SectionReader for ComponentFunctionSectionReader<'a> {
         Self::original_position(self)
     }
 
-    fn range(&self) -> Range {
+    fn range(&self) -> Range<usize> {
         self.reader.range()
     }
 }

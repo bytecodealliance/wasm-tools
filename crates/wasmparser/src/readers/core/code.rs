@@ -14,9 +14,10 @@
  */
 
 use crate::{
-    BinaryReader, BinaryReaderError, OperatorsReader, Range, Result, SectionIteratorLimited,
+    BinaryReader, BinaryReaderError, OperatorsReader, Result, SectionIteratorLimited,
     SectionReader, SectionWithLimitedItems, Type,
 };
+use std::ops::Range;
 
 /// Represents a WebAssembly function body.
 #[derive(Debug, Clone, Copy)]
@@ -88,11 +89,8 @@ impl<'a> FunctionBody<'a> {
     }
 
     /// Gets the range of the function body.
-    pub fn range(&self) -> Range {
-        Range {
-            start: self.offset,
-            end: self.offset + self.data.len(),
-        }
+    pub fn range(&self) -> Range<usize> {
+        self.offset..self.offset + self.data.len()
     }
 }
 
@@ -236,7 +234,7 @@ impl<'a> SectionReader for CodeSectionReader<'a> {
     fn original_position(&self) -> usize {
         CodeSectionReader::original_position(self)
     }
-    fn range(&self) -> Range {
+    fn range(&self) -> Range<usize> {
         self.reader.range()
     }
 }

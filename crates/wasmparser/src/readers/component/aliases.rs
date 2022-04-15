@@ -1,6 +1,5 @@
-use crate::{
-    BinaryReader, Range, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
-};
+use crate::{BinaryReader, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems};
+use std::ops::Range;
 
 /// Represents a kind of alias.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -119,7 +118,7 @@ impl<'a> SectionReader for AliasSectionReader<'a> {
         Self::original_position(self)
     }
 
-    fn range(&self) -> Range {
+    fn range(&self) -> Range<usize> {
         self.reader.range()
     }
 }

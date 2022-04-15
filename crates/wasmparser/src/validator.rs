@@ -14,10 +14,11 @@
  */
 
 use crate::{
-    limits::*, BinaryReaderError, Encoding, FunctionBody, Parser, Payload, Range, Result,
-    SectionReader, SectionWithLimitedItems, Type, WASM_COMPONENT_VERSION, WASM_MODULE_VERSION,
+    limits::*, BinaryReaderError, Encoding, FunctionBody, Parser, Payload, Result, SectionReader,
+    SectionWithLimitedItems, Type, WASM_COMPONENT_VERSION, WASM_MODULE_VERSION,
 };
 use std::mem;
+use std::ops::Range;
 use std::sync::Arc;
 
 /// Test whether the given buffer contains a valid WebAssembly module or component,
@@ -433,7 +434,7 @@ impl Validator {
     }
 
     /// Validates [`Payload::Version`](crate::Payload).
-    pub fn version(&mut self, num: u32, encoding: Encoding, range: &Range) -> Result<()> {
+    pub fn version(&mut self, num: u32, encoding: Encoding, range: &Range<usize>) -> Result<()> {
         match &self.state {
             State::Unparsed(expected) => {
                 if let Some(expected) = expected {
@@ -700,7 +701,7 @@ impl Validator {
     /// Validates [`Payload::StartSection`](crate::Payload).
     ///
     /// This method should only be called when parsing a module.
-    pub fn start_section(&mut self, func: u32, range: &Range) -> Result<()> {
+    pub fn start_section(&mut self, func: u32, range: &Range<usize>) -> Result<()> {
         let offset = range.start;
         self.state.ensure_module_state("start", offset)?;
         let state = self.module.as_mut().unwrap();
@@ -749,7 +750,7 @@ impl Validator {
     /// Validates [`Payload::DataCountSection`](crate::Payload).
     ///
     /// This method should only be called when parsing a module.
-    pub fn data_count_section(&mut self, count: u32, range: &Range) -> Result<()> {
+    pub fn data_count_section(&mut self, count: u32, range: &Range<usize>) -> Result<()> {
         let offset = range.start;
         self.state.ensure_module_state("data count", offset)?;
         let state = self.module.as_mut().unwrap();
@@ -769,7 +770,7 @@ impl Validator {
     /// Validates [`Payload::CodeSectionStart`](crate::Payload).
     ///
     /// This method should only be called when parsing a module.
-    pub fn code_section_start(&mut self, count: u32, range: &Range) -> Result<()> {
+    pub fn code_section_start(&mut self, count: u32, range: &Range<usize>) -> Result<()> {
         let offset = range.start;
         self.state.ensure_module_state("code", offset)?;
         let state = self.module.as_mut().unwrap();
@@ -945,7 +946,7 @@ impl Validator {
     /// Validates [`Payload::ModuleSection`](crate::Payload).
     ///
     /// This method should only be called when parsing a component.
-    pub fn module_section(&mut self, range: &Range) -> Result<()> {
+    pub fn module_section(&mut self, range: &Range<usize>) -> Result<()> {
         self.state.ensure_component_state("module", range.start)?;
         let current = self.components.last_mut().unwrap();
         check_max(
@@ -967,7 +968,7 @@ impl Validator {
     /// Validates [`Payload::ComponentSection`](crate::Payload).
     ///
     /// This method should only be called when parsing a component.
-    pub fn component_section(&mut self, range: &Range) -> Result<()> {
+    pub fn component_section(&mut self, range: &Range<usize>) -> Result<()> {
         self.state
             .ensure_component_state("component", range.start)?;
         let current = self.components.last_mut().unwrap();
@@ -1081,7 +1082,7 @@ impl Validator {
     /// Validates [`Payload::UnknownSection`](crate::Payload).
     ///
     /// Currently always returns an error.
-    pub fn unknown_section(&mut self, id: u8, range: &Range) -> Result<()> {
+    pub fn unknown_section(&mut self, id: u8, range: &Range<usize>) -> Result<()> {
         Err(BinaryReaderError::new(
             format!("malformed section id: {}", id),
             range.start,

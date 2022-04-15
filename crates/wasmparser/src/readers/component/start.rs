@@ -1,4 +1,5 @@
-use crate::{BinaryReader, Range, Result, SectionReader};
+use crate::{BinaryReader, Result, SectionReader};
+use std::ops::Range;
 
 /// Represents the start function in a WebAssembly component.
 #[derive(Debug, Clone)]
@@ -57,7 +58,7 @@ impl<'a> SectionReader for ComponentStartSectionReader<'a> {
         Self::original_position(self)
     }
 
-    fn range(&self) -> Range {
+    fn range(&self) -> Range<usize> {
         self.0.range()
     }
 }
