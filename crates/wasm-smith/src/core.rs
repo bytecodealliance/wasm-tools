@@ -519,15 +519,11 @@ impl Module {
             }
             self.type_size += entity_type.size() + 1;
 
-            // Generate an arbitrary module/name pair to name this import. Note
-            // that if module-linking is enabled and `name` is present, then we
-            // might be implicitly generating an instance. If that's the case
-            // then we need to record the type of this instance.
+            // Generate an arbitrary module/name pair to name this import.
             let (module, field) = unique_import_strings(1_000, u)?;
 
-            // Once our name is determined, and if module linking is enabled
-            // we've inserted the implicit instance, then we push the typed item
-            // into the appropriate namespace.
+            // Once our name is determined, then we push the typed item into the
+            // appropriate namespace.
             match &entity_type {
                 EntityType::Tag(ty) => self.tags.push(ty.clone()),
                 EntityType::Func(idx, ty) => self.funcs.push((*idx, ty.clone())),
