@@ -10,7 +10,8 @@ impl Module {
     fn encoded(&self) -> wasm_encoder::Module {
         let mut module = wasm_encoder::Module::new();
 
-        self.encode_initializers(&mut module);
+        self.encode_types(&mut module);
+        self.encode_imports(&mut module);
         self.encode_funcs(&mut module);
         self.encode_tables(&mut module);
         self.encode_memories(&mut module);
@@ -26,18 +27,13 @@ impl Module {
         module
     }
 
-    fn encode_initializers(&self, module: &mut wasm_encoder::Module) {
-        for init in self.initial_sections.iter() {
-            match init {
-                InitialSection::Type(types) => self.encode_types(module, types),
-                InitialSection::Import(imports) => self.encode_imports(module, imports),
-            }
+    fn encode_types(&self, module: &mut wasm_encoder::Module) {
+        if !self.should_encode_types {
+            return;
         }
-    }
 
-    fn encode_types(&self, module: &mut wasm_encoder::Module, types: &[Type]) {
         let mut section = wasm_encoder::TypeSection::new();
-        for ty in types {
+        for ty in &self.types {
             match ty {
                 Type::Func(ty) => {
                     section.function(ty.params.iter().cloned(), ty.results.iter().cloned());
@@ -47,9 +43,13 @@ impl Module {
         module.section(&section);
     }
 
-    fn encode_imports(&self, module: &mut wasm_encoder::Module, imports: &[Import]) {
+    fn encode_imports(&self, module: &mut wasm_encoder::Module) {
+        if !self.should_encode_imports {
+            return;
+        }
+
         let mut section = wasm_encoder::ImportSection::new();
-        for im in imports {
+        for im in &self.imports {
             section.import(
                 &im.module,
                 &im.field,
@@ -79,7 +79,7 @@ impl Module {
         }
         let mut funcs = wasm_encoder::FunctionSection::new();
         for (ty, _) in self.funcs[self.funcs.len() - self.num_defined_funcs..].iter() {
-            funcs.function(ty.unwrap());
+            funcs.function(*ty);
         }
         module.section(&funcs);
     }
