@@ -40,6 +40,7 @@ use crate::{
 };
 use egg::{Rewrite, Runner};
 use rand::{prelude::SmallRng, Rng};
+use std::ops::Range;
 use std::{borrow::Cow, fmt::Debug};
 use wasm_encoder::{CodeSection, Function, GlobalSection, Instruction, Module, ValType};
 use wasmparser::{CodeSectionReader, FunctionBody, GlobalSectionReader, LocalsReader};
@@ -467,7 +468,7 @@ pub(crate) trait CodeMutator {
         operator_index: usize,
         operators: Vec<OperatorAndByteOffset>,
         funcreader: FunctionBody,
-        body_range: wasmparser::Range,
+        body_range: Range<usize>,
         function_data: &[u8],
     ) -> Result<Function>;
 

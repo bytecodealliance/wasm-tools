@@ -14,9 +14,10 @@
  */
 
 use crate::{
-    BinaryReader, MemoryType, Range, Result, SectionIteratorLimited, SectionReader,
+    BinaryReader, MemoryType, Result, SectionIteratorLimited, SectionReader,
     SectionWithLimitedItems,
 };
+use std::ops::Range;
 
 /// A reader for the memory section of a WebAssembly module.
 #[derive(Clone)]
@@ -71,7 +72,7 @@ impl<'a> SectionReader for MemorySectionReader<'a> {
     fn original_position(&self) -> usize {
         MemorySectionReader::original_position(self)
     }
-    fn range(&self) -> Range {
+    fn range(&self) -> Range<usize> {
         self.reader.range()
     }
 }

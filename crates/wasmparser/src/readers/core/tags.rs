@@ -14,9 +14,9 @@
  */
 
 use crate::{
-    BinaryReader, Range, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
-    TagType,
+    BinaryReader, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems, TagType,
 };
+use std::ops::Range;
 
 /// A reader for the tags section of a WebAssembly module.
 #[derive(Clone)]
@@ -71,7 +71,7 @@ impl<'a> SectionReader for TagSectionReader<'a> {
     fn original_position(&self) -> usize {
         TagSectionReader::original_position(self)
     }
-    fn range(&self) -> Range {
+    fn range(&self) -> Range<usize> {
         self.reader.range()
     }
 }

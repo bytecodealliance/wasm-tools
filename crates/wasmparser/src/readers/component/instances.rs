@@ -1,7 +1,8 @@
 use crate::{
-    BinaryReader, ComponentExport, Export, Range, Result, SectionIteratorLimited, SectionReader,
+    BinaryReader, ComponentExport, Export, Result, SectionIteratorLimited, SectionReader,
     SectionWithLimitedItems,
 };
+use std::ops::Range;
 
 /// Represents the kind of argument when instantiating a WebAssembly module.
 #[derive(Debug, Clone)]
@@ -125,7 +126,7 @@ impl<'a> SectionReader for InstanceSectionReader<'a> {
         Self::original_position(self)
     }
 
-    fn range(&self) -> Range {
+    fn range(&self) -> Range<usize> {
         self.reader.range()
     }
 }

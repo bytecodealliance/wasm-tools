@@ -1,6 +1,5 @@
-use crate::{
-    BinaryReader, Range, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
-};
+use crate::{BinaryReader, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems};
+use std::ops::Range;
 
 /// Represents an import in a WebAssembly component
 #[derive(Debug, Copy, Clone)]
@@ -68,7 +67,7 @@ impl<'a> SectionReader for ComponentImportSectionReader<'a> {
         Self::original_position(self)
     }
 
-    fn range(&self) -> Range {
+    fn range(&self) -> Range<usize> {
         self.reader.range()
     }
 }

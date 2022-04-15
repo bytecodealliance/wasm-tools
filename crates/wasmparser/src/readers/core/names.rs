@@ -13,7 +13,8 @@
  * limitations under the License.
  */
 
-use crate::{BinaryReader, BinaryReaderError, Range, Result, SectionIterator, SectionReader};
+use crate::{BinaryReader, BinaryReaderError, Result, SectionIterator, SectionReader};
+use std::ops::Range;
 
 /// Represents a name for an index from the names section.
 #[derive(Debug, Copy, Clone)]
@@ -228,7 +229,7 @@ impl<'a> IndirectNameMap<'a> {
 }
 
 /// Represents a name read from the names custom section.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub enum Name<'a> {
     /// The name is for the module.
     Module(SingleName<'a>),
@@ -258,7 +259,7 @@ pub enum Name<'a> {
         data: &'a [u8],
         /// The range of bytes, relative to the start of the original data
         /// stream, that the contents of this subsection reside in.
-        range: Range,
+        range: Range<usize>,
     },
 }
 
@@ -322,7 +323,7 @@ impl<'a> NameSectionReader<'a> {
             NameType::Unknown(ty) => Name::Unknown {
                 ty,
                 data,
-                range: Range::new(offset, offset + payload_len),
+                range: offset..offset + payload_len,
             },
         })
     }
@@ -339,7 +340,7 @@ impl<'a> SectionReader for NameSectionReader<'a> {
     fn original_position(&self) -> usize {
         NameSectionReader::original_position(self)
     }
-    fn range(&self) -> Range {
+    fn range(&self) -> Range<usize> {
         self.reader.range()
     }
 }

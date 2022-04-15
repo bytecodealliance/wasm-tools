@@ -14,9 +14,10 @@
  */
 
 use crate::{
-    BinaryReader, GlobalType, InitExpr, Range, Result, SectionIteratorLimited, SectionReader,
+    BinaryReader, GlobalType, InitExpr, Result, SectionIteratorLimited, SectionReader,
     SectionWithLimitedItems,
 };
+use std::ops::Range;
 
 /// Represents a core WebAssembly global.
 #[derive(Debug, Copy, Clone)]
@@ -88,7 +89,7 @@ impl<'a> SectionReader for GlobalSectionReader<'a> {
     fn original_position(&self) -> usize {
         GlobalSectionReader::original_position(self)
     }
-    fn range(&self) -> Range {
+    fn range(&self) -> Range<usize> {
         self.reader.range()
     }
 }

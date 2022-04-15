@@ -14,9 +14,9 @@
  */
 
 use crate::{
-    BinaryReader, Range, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
-    TableType,
+    BinaryReader, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems, TableType,
 };
+use std::ops::Range;
 
 /// A reader for the table section of a WebAssembly module.
 #[derive(Clone)]
@@ -72,7 +72,7 @@ impl<'a> SectionReader for TableSectionReader<'a> {
     fn original_position(&self) -> usize {
         TableSectionReader::original_position(self)
     }
-    fn range(&self) -> Range {
+    fn range(&self) -> Range<usize> {
         self.reader.range()
     }
 }

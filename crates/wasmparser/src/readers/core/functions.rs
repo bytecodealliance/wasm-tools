@@ -13,9 +13,8 @@
  * limitations under the License.
  */
 
-use crate::{
-    BinaryReader, Range, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
-};
+use crate::{BinaryReader, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems};
+use std::ops::Range;
 
 /// A reader for the function section of a WebAssembly module.
 #[derive(Clone)]
@@ -75,7 +74,7 @@ impl<'a> SectionReader for FunctionSectionReader<'a> {
         Self::original_position(self)
     }
 
-    fn range(&self) -> Range {
+    fn range(&self) -> Range<usize> {
         self.reader.range()
     }
 }

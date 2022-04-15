@@ -13,9 +13,8 @@
  * limitations under the License.
  */
 
-use crate::{
-    BinaryReader, Range, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
-};
+use crate::{BinaryReader, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems};
+use std::ops::Range;
 
 /// Represents a linking type.
 #[derive(Debug, Copy, Clone)]
@@ -68,7 +67,7 @@ impl<'a> SectionReader for LinkingSectionReader<'a> {
     fn original_position(&self) -> usize {
         LinkingSectionReader::original_position(self)
     }
-    fn range(&self) -> Range {
+    fn range(&self) -> Range<usize> {
         self.reader.range()
     }
 }

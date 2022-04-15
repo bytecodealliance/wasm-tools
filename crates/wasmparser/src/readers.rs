@@ -13,7 +13,8 @@
  * limitations under the License.
  */
 
-use crate::{BinaryReaderError, Range, Result};
+use crate::{BinaryReaderError, Result};
+use std::ops::Range;
 
 mod component;
 mod core;
@@ -36,7 +37,7 @@ pub trait SectionReader {
     fn original_position(&self) -> usize;
 
     /// Gets the range of the reader.
-    fn range(&self) -> Range;
+    fn range(&self) -> Range<usize>;
 
     /// Ensures the reader is at the end of the section.
     ///

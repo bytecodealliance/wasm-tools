@@ -1,5 +1,6 @@
 use crate::{Error, Result};
-use wasmparser::{BlockType, Range};
+use std::ops::Range;
+use wasmparser::BlockType;
 
 #[derive(Debug, Default)]
 pub struct Ast {
@@ -50,12 +51,12 @@ pub enum Node {
         alternative: Option<Vec<usize>>,
         /// The block type for the branches.
         ty: BlockType,
-        range: Range,
+        range: Range<usize>,
     },
     /// Code node
     Code {
         /// Range on the instructions stream
-        range: Range,
+        range: Range<usize>,
     },
     /// Loop Node
     Loop {
@@ -64,7 +65,7 @@ pub enum Node {
         /// Block type
         ty: BlockType,
         /// Range on the instructions stream
-        range: Range,
+        range: Range<usize>,
     },
     /// Block Node
     Block {
@@ -73,7 +74,7 @@ pub enum Node {
         /// Block type
         ty: BlockType,
         /// Range on the instructions stream
-        range: Range,
+        range: Range<usize>,
     },
     /// Special node to wrap the root nodes of the Ast
     Root(Vec<usize>),
@@ -93,7 +94,7 @@ pub(crate) struct ParseContext {
     current_parsing: Vec<usize>,
     stack: Vec<Vec<usize>>,
     frames: Vec<(State, Option<BlockType>, usize)>,
-    current_code_range: Range,
+    current_code_range: Range<usize>,
     nodes: Vec<Node>,
 
     ifs: Vec<usize>,
@@ -104,7 +105,7 @@ pub(crate) struct ParseContext {
 impl Default for ParseContext {
     fn default() -> Self {
         ParseContext {
-            current_code_range: Range::new(0, 0),
+            current_code_range: 0..0,
             current_parsing: Vec::new(),
             stack: Vec::new(),
             frames: Vec::new(),
@@ -185,13 +186,13 @@ impl ParseContext {
     /// Pushes the current code parsing as a `Node::Code` instance
     pub fn push_current_code_as_node(&mut self) -> usize {
         self.push_node_to_current_parsing(Node::Code {
-            range: self.current_code_range,
+            range: self.current_code_range.clone(),
         })
     }
 
     /// Resets the current code parsing
     pub fn reset_code_range_at(&mut self, idx: usize) {
-        self.current_code_range = Range::new(idx, idx);
+        self.current_code_range = idx..idx;
     }
 
     /// Augmnents current code parsing to include the next instruction

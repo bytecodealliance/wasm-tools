@@ -7,12 +7,13 @@ use crate::{
 use crate::{
     BinaryReader, BinaryReaderError, CustomSectionReader, DataSectionReader, ElementSectionReader,
     ExportSectionReader, FunctionBody, FunctionSectionReader, GlobalSectionReader,
-    ImportSectionReader, MemorySectionReader, Range, Result, TableSectionReader, TagSectionReader,
+    ImportSectionReader, MemorySectionReader, Result, TableSectionReader, TagSectionReader,
     TypeSectionReader,
 };
 use std::convert::TryInto;
 use std::fmt;
 use std::iter;
+use std::ops::Range;
 
 pub(crate) const WASM_EXPERIMENTAL_VERSION: u32 = 0xd;
 pub(crate) const WASM_MODULE_VERSION: u32 = 0x1;
@@ -103,7 +104,7 @@ pub enum Payload<'a> {
         /// The range of bytes that were parsed to consume the header of the
         /// module or component. Note that this range is relative to the start
         /// of the byte stream.
-        range: Range,
+        range: Range<usize>,
     },
 
     /// A module type section was received and the provided reader can be
@@ -136,7 +137,7 @@ pub enum Payload<'a> {
         func: u32,
         /// The range of bytes that specify the `func` field, specified in
         /// offsets relative to the start of the byte stream.
-        range: Range,
+        range: Range<usize>,
     },
     /// A module element section was received and the provided reader can be
     /// used to parse the contents of the element section.
@@ -147,7 +148,7 @@ pub enum Payload<'a> {
         count: u32,
         /// The range of bytes that specify the `count` field, specified in
         /// offsets relative to the start of the byte stream.
-        range: Range,
+        range: Range<usize>,
     },
     /// A module data section was received and the provided reader can be
     /// used to parse the contents of the data section.
@@ -179,7 +180,7 @@ pub enum Payload<'a> {
         parser: Parser,
         /// The range of bytes that represent the nested module in the
         /// original byte stream.
-        range: Range,
+        range: Range<usize>,
     },
     /// A component section from a WebAssembly component was received and the
     /// provided parser can be used to parse the nested component.
@@ -198,7 +199,7 @@ pub enum Payload<'a> {
         parser: Parser,
         /// The range of bytes that represent the nested component in the
         /// original byte stream.
-        range: Range,
+        range: Range<usize>,
     },
     /// A component instance section was received and the provided reader can be
     /// used to parse the contents of the instance section.
@@ -229,7 +230,7 @@ pub enum Payload<'a> {
         count: u32,
         /// The range of bytes that represent this section, specified in
         /// offsets relative to the start of the byte stream.
-        range: Range,
+        range: Range<usize>,
         /// The size, in bytes, of the remaining contents of this section.
         ///
         /// This can be used in combination with [`Parser::skip_section`]
@@ -263,7 +264,7 @@ pub enum Payload<'a> {
         contents: &'a [u8],
         /// The range of bytes, relative to the start of the original data
         /// stream, that the contents of this section reside in.
-        range: Range,
+        range: Range<usize>,
     },
 
     /// The end of the WebAssembly module or component was reached.
@@ -490,10 +491,7 @@ impl Parser {
                 Ok(Version {
                     num,
                     encoding: self.encoding,
-                    range: Range {
-                        start,
-                        end: reader.original_position(),
-                    },
+                    range: start..reader.original_position(),
                 })
             }
             State::SectionStart => {
@@ -565,10 +563,7 @@ impl Parser {
                     (Encoding::Module, 10) => {
                         let start = reader.original_position();
                         let count = delimited(reader, &mut len, |r| r.read_var_u32())?;
-                        let range = Range {
-                            start,
-                            end: reader.original_position() + len as usize,
-                        };
+                        let range = start..reader.original_position() + len as usize;
                         self.state = State::FunctionBody {
                             remaining: count,
                             len,
@@ -620,10 +615,8 @@ impl Parser {
                             ));
                         }
 
-                        let range = Range {
-                            start: reader.original_position(),
-                            end: reader.original_position() + len as usize,
-                        };
+                        let range =
+                            reader.original_position()..reader.original_position() + len as usize;
                         self.max_size -= u64::from(len);
                         self.offset += u64::from(len);
                         let mut parser = Parser::new(usize_to_u64(reader.original_position()));
@@ -656,10 +649,7 @@ impl Parser {
                     (_, id) => {
                         let offset = reader.original_position();
                         let contents = reader.read_bytes(len as usize)?;
-                        let range = Range {
-                            start: offset,
-                            end: offset + len as usize,
-                        };
+                        let range = offset..offset + len as usize;
                         Ok(UnknownSection {
                             id,
                             contents,
@@ -787,7 +777,8 @@ impl Parser {
     /// # Examples
     ///
     /// ```
-    /// use wasmparser::{Result, Parser, Chunk, Range, SectionReader, Payload::*};
+    /// use wasmparser::{Result, Parser, Chunk, SectionReader, Payload::*};
+    /// use std::ops::Range;
     ///
     /// fn objdump_headers(mut wasm: &[u8]) -> Result<()> {
     ///     let mut parser = Parser::new(0);
@@ -819,7 +810,7 @@ impl Parser {
     ///     Ok(())
     /// }
     ///
-    /// fn print_range(section: &str, range: &Range) {
+    /// fn print_range(section: &str, range: &Range<usize>) {
     ///     println!("{:>40}: {:#010x} - {:#010x}", section, range.start, range.end);
     /// }
     /// ```
@@ -869,11 +860,12 @@ fn subreader<'a>(reader: &mut BinaryReader<'a>, len: u32) -> Result<BinaryReader
 }
 
 /// Reads a section that is represented by a single uleb-encoded `u32`.
-fn single_u32<'a>(reader: &mut BinaryReader<'a>, len: u32, desc: &str) -> Result<(u32, Range)> {
-    let range = Range {
-        start: reader.original_position(),
-        end: reader.original_position() + len as usize,
-    };
+fn single_u32<'a>(
+    reader: &mut BinaryReader<'a>,
+    len: u32,
+    desc: &str,
+) -> Result<(u32, Range<usize>)> {
+    let range = reader.original_position()..reader.original_position() + len as usize;
     let mut content = subreader(reader, len)?;
     // We can't recover from "unexpected eof" here because our entire section is
     // already resident in memory, so clear the hint for how many more bytes are

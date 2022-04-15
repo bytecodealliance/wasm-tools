@@ -14,9 +14,10 @@
  */
 
 use crate::{
-    BinaryReader, GlobalType, MemoryType, Range, Result, SectionIteratorLimited, SectionReader,
+    BinaryReader, GlobalType, MemoryType, Result, SectionIteratorLimited, SectionReader,
     SectionWithLimitedItems, TableType, TagType,
 };
+use std::ops::Range;
 
 /// Represents a reference to a type definition.
 #[derive(Debug, Clone, Copy)]
@@ -107,7 +108,7 @@ impl<'a> SectionReader for ImportSectionReader<'a> {
         Self::original_position(self)
     }
 
-    fn range(&self) -> Range {
+    fn range(&self) -> Range<usize> {
         self.reader.range()
     }
 }

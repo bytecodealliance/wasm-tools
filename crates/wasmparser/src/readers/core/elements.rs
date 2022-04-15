@@ -14,9 +14,10 @@
  */
 
 use crate::{
-    BinaryReader, BinaryReaderError, ExternalKind, InitExpr, Range, Result, SectionIteratorLimited,
+    BinaryReader, BinaryReaderError, ExternalKind, InitExpr, Result, SectionIteratorLimited,
     SectionReader, SectionWithLimitedItems, Type,
 };
+use std::ops::Range;
 
 /// Represents a core WebAssembly element segment.
 #[derive(Clone)]
@@ -28,7 +29,7 @@ pub struct Element<'a> {
     /// The type of the elements.
     pub ty: Type,
     /// The range of the the element segment.
-    pub range: Range,
+    pub range: Range<usize>,
 }
 
 /// The kind of element segment.
@@ -289,7 +290,7 @@ impl<'a> ElementSectionReader<'a> {
         };
 
         let elem_end = self.reader.original_position();
-        let range = Range::new(elem_start, elem_end);
+        let range = elem_start..elem_end;
 
         Ok(Element {
             kind,
@@ -311,7 +312,7 @@ impl<'a> SectionReader for ElementSectionReader<'a> {
     fn original_position(&self) -> usize {
         ElementSectionReader::original_position(self)
     }
-    fn range(&self) -> Range {
+    fn range(&self) -> Range<usize> {
         self.reader.range()
     }
 }

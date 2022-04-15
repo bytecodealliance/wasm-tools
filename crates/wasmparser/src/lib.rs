@@ -25,7 +25,7 @@
 
 #![deny(missing_docs)]
 
-pub use crate::binary_reader::{BinaryReader, BinaryReaderError, Range, Result};
+pub use crate::binary_reader::{BinaryReader, BinaryReaderError, Result};
 pub use crate::module_resources::*;
 pub use crate::parser::*;
 pub use crate::readers::*;

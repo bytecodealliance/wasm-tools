@@ -13,9 +13,8 @@
  * limitations under the License.
  */
 
-use crate::{
-    BinaryReader, Range, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
-};
+use crate::{BinaryReader, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems};
+use std::ops::Range;
 
 /// Represents a relocation type.
 #[derive(Debug, Copy, Clone)]
@@ -178,7 +177,7 @@ impl<'a> SectionReader for RelocSectionReader<'a> {
     fn original_position(&self) -> usize {
         RelocSectionReader::original_position(self)
     }
-    fn range(&self) -> Range {
+    fn range(&self) -> Range<usize> {
         self.reader.range()
     }
 }

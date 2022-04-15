@@ -4,6 +4,7 @@ use crate::{
 };
 use std::collections::HashSet;
 use std::convert::TryFrom;
+use std::ops::Range;
 use wasm_encoder::{RawSection, SectionId};
 use wasmparser::{Chunk, Parser, Payload, SectionReader};
 
@@ -79,7 +80,7 @@ impl<'a> ModuleInfo<'a> {
                     size: _,
                 } => {
                     info.code = Some(info.raw_sections.len());
-                    info.section(SectionId::Code.into(), range, input_wasm);
+                    info.section(SectionId::Code.into(), range.clone(), input_wasm);
                     parser.skip_section();
                     // update slice, bypass the section
                     wasm = &input_wasm[range.end..];
@@ -249,10 +250,10 @@ impl<'a> ModuleInfo<'a> {
     }
 
     /// Registers a new raw_section in the ModuleInfo
-    pub fn section(&mut self, id: u8, range: wasmparser::Range, full_wasm: &'a [u8]) {
+    pub fn section(&mut self, id: u8, range: Range<usize>, full_wasm: &'a [u8]) {
         self.raw_sections.push(RawSection {
             id,
-            data: &full_wasm[range.start..range.end],
+            data: &full_wasm[range],
         });
     }
 

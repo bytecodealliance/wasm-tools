@@ -3,8 +3,9 @@ use crate::{
     module::map_block_type,
     mutators::{codemotion::ir::parse_context::ParseContext, OperatorAndByteOffset},
 };
+use std::ops::Range;
 use wasm_encoder::{Function, Instruction};
-use wasmparser::{BlockType, Operator, Range};
+use wasmparser::{BlockType, Operator};
 
 use self::parse_context::{Ast, Node, State};
 
@@ -169,7 +170,7 @@ pub trait AstWriter {
         &self,
         _ast: &Ast,
         _nodeidx: usize,
-        range: Range,
+        range: Range<usize>,
         newfunc: &mut Function,
         operators: &Vec<OperatorAndByteOffset>,
         input_wasm: &'a [u8],
@@ -192,7 +193,7 @@ pub trait AstWriter {
         &self,
         ast: &Ast,
         nodeidx: usize,
-        range: Range,
+        range: Range<usize>,
         newfunc: &mut Function,
         operators: &Vec<OperatorAndByteOffset>,
         input_wasm: &'a [u8],
@@ -232,7 +233,7 @@ pub trait AstWriter {
                 )?;
             }
             Node::Code { range } => {
-                self.write_code(ast, nodeidx, *range, newfunc, operators, input_wasm)?;
+                self.write_code(ast, nodeidx, range.clone(), newfunc, operators, input_wasm)?;
             }
             Node::Loop { body, ty, range: _ } => {
                 self.write_loop(ast, nodeidx, body, newfunc, operators, input_wasm, ty)?
@@ -319,7 +320,7 @@ impl AstBuilder {
                                 consequent: then_branch,
                                 alternative: None,
                                 ty: ty.expect("Missing if type"),
-                                range: Range::new(frame_start, idx),
+                                range: frame_start..idx,
                             });
                         }
                         State::Else => {
@@ -337,7 +338,7 @@ impl AstBuilder {
                                 consequent: then_branch,
                                 alternative: Some(else_branch),
                                 ty: ty.expect("Missing if type"),
-                                range: Range::new(if_start, idx),
+                                range: if_start..idx,
                             });
                         }
                         State::Loop => {
@@ -347,7 +348,7 @@ impl AstBuilder {
                             parse_context.push_node_to_current_parsing(Node::Loop {
                                 body: children,
                                 ty: ty.expect("Missing block type for loop"),
-                                range: Range::new(frame_start, idx),
+                                range: frame_start..idx,
                             });
                         }
                         State::Block => {
@@ -357,7 +358,7 @@ impl AstBuilder {
                             parse_context.push_node_to_current_parsing(Node::Block {
                                 body: children,
                                 ty: ty.expect("Missing block type for loop"),
-                                range: Range::new(frame_start, idx),
+                                range: frame_start..idx,
                             });
                         }
                         State::Root => {
