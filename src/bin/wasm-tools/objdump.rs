@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::ops::Range;
 use std::path::PathBuf;
-use wasmparser::{Parser, Payload::*};
+use wasmparser::{Encoding, Parser, Payload::*, SectionReader};
 
 /// Dumps information about sections in a WebAssembly file.
 ///
@@ -22,7 +22,7 @@ impl Opts {
 
         for payload in Parser::new(0).parse_all(&input) {
             match payload? {
-                Version { encoding, .. } => printer.start(encoding),
+                Version { .. } => {}
 
                 TypeSection(s) => printer.section(s, "types"),
                 ImportSection(s) => printer.section(s, "imports"),
@@ -44,18 +44,13 @@ impl Opts {
                 ComponentFunctionSection(s) => printer.section(s, "functions"),
                 ModuleSection { range, .. } => {
                     printer.section_raw(range, 1, "module");
-                    if let Some(space) = printer.indices.last_mut() {
-                        space.inc_module();
-                    }
+                    printer.start(Encoding::Module);
                 }
-
                 ComponentSection { range, .. } => {
-                    let mut index_space = IndexSpace::default();
-                    index_space.inc_component();
-                    printer.indices.push(index_space);
-                    printer.section_raw(range, 1, "component")
+                    printer.section_raw(range, 1, "component");
+                    printer.indices.push(IndexSpace::default());
+                    printer.start(Encoding::Component);
                 }
-
                 InstanceSection(s) => printer.section(s, "instances"),
                 ComponentExportSection(s) => printer.section(s, "exports"),
                 ComponentStartSection(s) => printer.section_raw(s.range(), 1, "start"),
@@ -77,27 +72,11 @@ impl Opts {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 struct IndexSpace {
-    modules: Option<u32>,
-    components: Option<u32>,
-    processing: Vec<wasmparser::Encoding>,
-}
-
-impl IndexSpace {
-    pub fn inc_module(&mut self) {
-        match self.modules {
-            None => self.modules = Some(0),
-            Some(n) => self.modules = Some(n + 1),
-        }
-    }
-
-    pub fn inc_component(&mut self) {
-        match self.components {
-            None => self.components = Some(0),
-            Some(n) => self.components = Some(n + 1),
-        }
-    }
+    modules: u32,
+    components: u32,
+    processing: Vec<Encoding>,
 }
 
 #[derive(Default)]
@@ -106,30 +85,26 @@ struct Printer {
 }
 
 impl Printer {
-    fn start(&mut self, encoding: wasmparser::Encoding) {
-        if !self.indices.is_empty() {
-            let space = self.indices.last_mut().unwrap();
-
+    fn start(&mut self, encoding: Encoding) {
+        if let Some(space) = self.indices.last_mut() {
             space.processing.push(encoding);
+        }
 
+        if let Some(space) = self.indices.last() {
             match encoding {
-                wasmparser::Encoding::Module => {
-                    if let Some(modules) = space.modules {
-                        println!(
-                            "{}------ start module {} -------------",
-                            self.header(),
-                            modules
-                        );
-                    }
+                Encoding::Module => {
+                    println!(
+                        "{}------ start module {} -------------",
+                        self.header(),
+                        space.modules
+                    );
                 }
-                wasmparser::Encoding::Component => {
-                    if let Some(components) = space.components {
-                        println!(
-                            "{}------ start component {} ----------",
-                            self.header(),
-                            components
-                        );
-                    }
+                Encoding::Component => {
+                    println!(
+                        "{}------ start component {} ----------",
+                        self.header(),
+                        space.components
+                    );
                 }
             }
         }
@@ -137,31 +112,34 @@ impl Printer {
 
     fn end(&mut self) {
         let header = self.header();
-
         if let Some(space) = self.indices.last_mut() {
-            match space.processing.last() {
-                Some(wasmparser::Encoding::Module) => {
-                    if let Some(modules) = space.modules {
-                        println!("{}------ end module {} -------------", header, modules);
-                        space.processing.pop();
-                    }
+            match space.processing.pop() {
+                Some(Encoding::Module) => {
+                    println!(
+                        "{}------ end module {} -------------",
+                        header, space.modules
+                    );
+                    space.modules += 1;
                 }
-                Some(wasmparser::Encoding::Component) => {
-                    if let Some(components) = space.components {
-                        println!("{}------ end component {} ----------", header, components);
-                        space.processing.pop();
-                    }
-                }
-                _ => {}
-            }
+                Some(Encoding::Component) => {
+                    println!(
+                        "{}------ end component {} ----------",
+                        header, space.components
+                    );
+                    self.indices.pop();
 
-            if space.processing.is_empty() {
-                self.indices.pop();
+                    if let Some(space) = self.indices.last_mut() {
+                        space.components += 1;
+                    }
+                }
+                None => {
+                    self.indices.pop();
+                }
             }
         }
     }
 
-    fn section<T>(&mut self, section: T, name: &str)
+    fn section<T>(&self, section: T, name: &str)
     where
         T: wasmparser::SectionWithLimitedItems + wasmparser::SectionReader,
     {
@@ -179,21 +157,16 @@ impl Printer {
         );
     }
 
-    fn header(&mut self) -> String {
+    fn header(&self) -> String {
         let mut s = String::new();
         let depth = self
             .indices
             .last()
             .map_or(0, |space| match space.processing.last() {
-                Some(wasmparser::Encoding::Module) => {
-                    if space.modules.is_some() {
-                        self.indices.len() + 1
-                    } else {
-                        self.indices.len()
-                    }
-                }
+                Some(Encoding::Module) => self.indices.len() + 1,
                 _ => self.indices.len(),
             });
+
         for _ in 0..depth {
             s.push_str("  ");
         }
