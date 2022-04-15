@@ -8,7 +8,7 @@ use crate::{arbitrary_loop, limited_string, unique_string, Config, DefaultConfig
 use arbitrary::{Arbitrary, Result, Unstructured};
 use code_builder::CodeBuilderAllocations;
 use flagset::{flags, FlagSet};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::marker;
 use std::ops::Range;
@@ -46,31 +46,21 @@ pub struct Module {
     config: Rc<dyn Config>,
     valtypes: Vec<ValType>,
 
-    /// The initial sections of this wasm module, including types and imports.
-    /// This is stored as a list-of-lists where each `InitialSection` represents
-    /// a whole section, so this `initial_sections` list represents a list of
-    /// sections.
-    ///
-    /// With the module linking proposal, types, imports, module, instance,
-    /// and alias sections can come in any order and occur repeatedly at the
-    /// start of a Wasm module. We want to generate interesting entities --
-    /// entities that require multiple, interspersed occurrences of these
-    /// sections -- and we don't want to always generate the "same shape" of
-    /// these initial sections. Each entry in this initializers list is one of
-    /// these initial sections, and we will directly encode each entry as a
-    /// section when we serialize this module to bytes, which allows us to
-    /// easily model the flexibility of the module linking proposal.
-    initial_sections: Vec<InitialSection>,
-
-    /// A map of what import names have been generated. The key here is the
-    /// name of the import and the value is `None` if it's a single-level
-    /// import or `Some` if it's a two-level import with the set of
-    /// second-level import names that have been generated so far.
-    import_names: HashMap<String, Option<HashSet<String>>>,
-
     /// All types locally defined in this module (available in the type index
     /// space).
-    types: Vec<LocalType>,
+    types: Vec<Type>,
+
+    /// Whether we should encode a types section, even if `self.types` is empty.
+    should_encode_types: bool,
+
+    /// All of this module's imports. These don't have their own index space,
+    /// but instead introduce entries to each imported entity's associated index
+    /// space.
+    imports: Vec<Import>,
+
+    /// Whether we should encode an imports section, even if `self.imports` is
+    /// empty.
+    should_encode_imports: bool,
 
     /// Indices within `types` that are function types.
     func_types: Vec<u32>,
@@ -168,9 +158,10 @@ impl Module {
         Module {
             config,
             valtypes: Vec::new(),
-            initial_sections: Vec::new(),
-            import_names: HashMap::new(),
             types: Vec::new(),
+            should_encode_types: false,
+            imports: Vec::new(),
+            should_encode_imports: false,
             func_types: Vec::new(),
             num_imports: 0,
             num_defined_tags: 0,
@@ -224,12 +215,6 @@ impl<'a> Arbitrary<'a> for MaybeInvalidModule {
         module.build(u, true)?;
         Ok(MaybeInvalidModule { module })
     }
-}
-
-#[derive(Debug)]
-enum InitialSection {
-    Type(Vec<Type>),
-    Import(Vec<Import>),
 }
 
 #[derive(Clone, Debug)]
@@ -334,7 +319,22 @@ enum DataSegmentKind {
 impl Module {
     fn build(&mut self, u: &mut Unstructured, allow_invalid: bool) -> Result<()> {
         self.valtypes = configured_valtypes(&*self.config);
-        self.arbitrary_initial_sections(u)?;
+
+        // We attempt to figure out our available imports *before* creating the types section here,
+        // because the types for the imports are already well-known (specified by the user) and we
+        // must have those populated for all function/etc. imports, no matter what.
+        //
+        // This can affect the available capacity for types and such.
+        if self.arbitrary_imports_from_available(u)? {
+            self.arbitrary_types(u)?;
+        } else {
+            self.arbitrary_types(u)?;
+            self.arbitrary_imports(u)?;
+        }
+
+        self.should_encode_types = !self.types.is_empty() || u.arbitrary()?;
+        self.should_encode_imports = !self.imports.is_empty() || u.arbitrary()?;
+
         self.arbitrary_tags(u)?;
         self.arbitrary_funcs(u)?;
         self.arbitrary_tables(u)?;
@@ -348,68 +348,18 @@ impl Module {
         Ok(())
     }
 
-    fn arbitrary_initial_sections(&mut self, u: &mut Unstructured) -> Result<()> {
-        // We attempt to figure out our available imports *before* creating the types section here,
-        // because the types for the imports are already well-known (specified by the user) and we
-        // must have those populated for all function/etc. imports, no matter what.
-        //
-        // This can affect the available capacity for types and such.
-        if self.arbitrary_imports_from_available(u)? {
-            self.arbitrary_types(u)?;
-        } else {
-            self.arbitrary_types(u)?;
-            self.arbitrary_imports(u)?;
-        }
-        Ok(())
-    }
-
     fn arbitrary_types(&mut self, u: &mut Unstructured) -> Result<()> {
-        // Note that we push to `self.initializers` immediately because types
-        // can mention any previous types, so we need to ensure that after each
-        // type is generated it's listed in the module's types so indexing will
-        // succeed.
-        let section_idx = self
-            .initial_sections
-            .iter_mut()
-            .rposition(|sect| matches!(sect, InitialSection::Type(_)))
-            .unwrap_or_else(|| {
-                let position = self.initial_sections.len();
-                self.initial_sections.push(InitialSection::Type(Vec::new()));
-                position
-            });
+        // NB: It isn't guaranteed that `self.types.is_empty()` because when
+        // available imports are configured, we may add eagerly specigfic types
+        // for the available imports before generating arbitrary types here.
         let min = self.config.min_types().saturating_sub(self.types.len());
         let max = self.config.max_types().saturating_sub(self.types.len());
         arbitrary_loop(u, min, max, |u| {
             let ty = self.arbitrary_type(u)?;
-            self.add_type_to_type_section(section_idx, ty)
-                .expect("add type to type section");
+            self.record_type(&ty);
+            self.types.push(ty);
             Ok(true)
         })?;
-        let types = match &mut self.initial_sections[section_idx] {
-            InitialSection::Type(list) => list,
-            _ => unreachable!(),
-        };
-        if types.is_empty() && !u.arbitrary()? {
-            self.initial_sections.remove(section_idx);
-        }
-        Ok(())
-    }
-
-    fn add_type_to_type_section(
-        &mut self,
-        section_idx: usize,
-        ty: Type,
-    ) -> std::result::Result<(), &'static str> {
-        self.record_type(&ty);
-        let types = match self.initial_sections.get_mut(section_idx) {
-            Some(InitialSection::Type(list)) => list,
-            Some(_) | None => return Err("attempt to add type to non-type section"),
-        };
-        self.types.push(LocalType::Defined {
-            section: section_idx,
-            nth: types.len(),
-        });
-        types.push(ty);
         Ok(())
     }
 
@@ -465,7 +415,6 @@ impl Module {
 
         let mut choices: Vec<fn(&mut Unstructured, &mut Module) -> Result<EntityType>> =
             Vec::with_capacity(5);
-        let mut imports = Vec::new();
         let min = self.config.min_imports().saturating_sub(self.num_imports);
         let max = self.config.max_imports().saturating_sub(self.num_imports);
         arbitrary_loop(u, min, max, |u| {
@@ -503,9 +452,10 @@ impl Module {
             }
 
             if choices.is_empty() {
-                // We are out of choices. If we have not have reached the minimum yet, then we
-                // have no way to satisfy the constraint, but we follow max-constraints before
-                // the min-import constraint.
+                // We are out of choices. If we have not have reached the
+                // minimum yet, then we have no way to satisfy the constraint,
+                // but we follow max-constraints before the min-import
+                // constraint.
                 return Ok(false);
             }
 
@@ -533,23 +483,14 @@ impl Module {
             }
 
             self.num_imports += 1;
-            imports.push(Import {
+            self.imports.push(Import {
                 module: module.into(),
                 field: field.into(),
                 entity_type,
             });
             Ok(true)
         })?;
-        if !imports.is_empty() || u.arbitrary()? {
-            self.initial_sections.push(InitialSection::Import(imports));
-        }
 
-        // After an import section we can no longer update previously-defined
-        // pseudo-instance imports, so set them all to `None` indicating that
-        // the bare name is imported and finalized.
-        for val in self.import_names.values_mut() {
-            *val = None;
-        }
         Ok(())
     }
 
@@ -724,27 +665,10 @@ impl Module {
             self.num_imports += 1;
         }
 
-        // Finally, add the sections we just generated.
-        let should_add_empty_section = u.arbitrary().unwrap_or(false);
-        if !new_imports.is_empty() || should_add_empty_section {
-            // First, find the type section and populate all information about the newly added
-            // types.
-            let type_section = self
-                .initial_sections
-                .iter_mut()
-                .rposition(|sect| matches!(sect, InitialSection::Type(_)))
-                .unwrap_or_else(|| {
-                    let position = self.initial_sections.len();
-                    self.initial_sections.push(InitialSection::Type(Vec::new()));
-                    position
-                });
-            for ty in new_types {
-                self.add_type_to_type_section(type_section, ty)
-                    .expect("could not add add type to type section");
-            }
-            self.initial_sections
-                .push(InitialSection::Import(new_imports));
-        }
+        // Finally, add the entities we just generated.
+        self.types.extend(new_types);
+        self.imports.extend(new_imports);
+
         Ok(true)
     }
 
@@ -762,14 +686,7 @@ impl Module {
     }
 
     fn ty(&self, idx: u32) -> &Type {
-        match &self.types[idx as usize] {
-            LocalType::Defined { section, nth } => {
-                if let InitialSection::Type(list) = &self.initial_sections[*section] {
-                    return &list[*nth];
-                }
-                panic!("looked up a type with the wrong index")
-            }
-        }
+        &self.types[idx as usize]
     }
 
     fn func_types<'a>(&'a self) -> impl Iterator<Item = (u32, &'a FuncType)> + 'a {
@@ -1604,19 +1521,6 @@ struct Entities {
     tables: usize,
     funcs: usize,
     tags: usize,
-}
-
-#[derive(Clone, Debug)]
-enum LocalType {
-    /// A type that's locally defined in a module via a type section.
-    Defined {
-        /// The section (index within `Module::initializers` that this
-        /// type is defined.
-        section: usize,
-        /// Which element within the section definition this type corresponds
-        /// to.
-        nth: usize,
-    },
 }
 
 /// A container for the kinds of instructions that wasm-smith is allowed to
