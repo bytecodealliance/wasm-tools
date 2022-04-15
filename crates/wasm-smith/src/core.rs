@@ -105,11 +105,7 @@ pub struct Module {
     /// All functions available to this module, sorted by their index. The list
     /// entry points to the index in this module where the function type is
     /// defined (if available) and provides the type of the function.
-    ///
-    /// Note that aliased functions may have types not defined in this module,
-    /// hence the optional index type. All defined functions in this module,
-    /// however, will have an index type specified.
-    funcs: Vec<(Option<u32>, Rc<FuncType>)>,
+    funcs: Vec<(u32, Rc<FuncType>)>,
 
     /// All tables available to this module, sorted by their index. The list
     /// entry is the type of each table.
@@ -534,7 +530,7 @@ impl Module {
             // into the appropriate namespace.
             match &entity_type {
                 EntityType::Tag(ty) => self.tags.push(ty.clone()),
-                EntityType::Func(idx, ty) => self.funcs.push((Some(*idx), ty.clone())),
+                EntityType::Func(idx, ty) => self.funcs.push((*idx, ty.clone())),
                 EntityType::Global(ty) => self.globals.push(ty.clone()),
                 EntityType::Table(ty) => self.tables.push(ty.clone()),
                 EntityType::Memory(ty) => self.memories.push(ty.clone()),
@@ -650,7 +646,7 @@ impl Module {
                         if type_size_budget < entity.size() {
                             continue;
                         }
-                        self.funcs.push((Some(sig_idx), func_type));
+                        self.funcs.push((sig_idx, func_type));
                         entity
                     } else {
                         continue;
@@ -862,7 +858,7 @@ impl Module {
             }
             let max = self.func_types.len() - 1;
             let ty = self.func_types[u.int_in_range(0..=max)?];
-            self.funcs.push((Some(ty), self.func_type(ty).clone()));
+            self.funcs.push((ty, self.func_type(ty).clone()));
             self.num_defined_funcs += 1;
             Ok(true)
         })

@@ -79,7 +79,7 @@ impl Module {
         }
         let mut funcs = wasm_encoder::FunctionSection::new();
         for (ty, _) in self.funcs[self.funcs.len() - self.num_defined_funcs..].iter() {
-            funcs.function(ty.unwrap());
+            funcs.function(*ty);
         }
         module.section(&funcs);
     }
