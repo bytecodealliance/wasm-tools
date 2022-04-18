@@ -31,29 +31,54 @@ mod encode;
 /// instead of plain `Component`.
 #[derive(Debug)]
 pub struct Component {
+    sections: Vec<Section>,
+}
+
+/// A builder to create a component (and possibly a whole tree of nested
+/// components).
+///
+/// Maintains a stack of components we are currently building, as well as
+/// metadata about them. The split between `Component` and `ComponentBuilder` is
+/// that the builder contains metadata that is purely used when generating
+/// components and is unnecessary after we are done generating the structure of
+/// the components and only need to encode an already-generated component to
+/// bytes.
+struct ComponentBuilder {
     config: Rc<dyn Config>,
 
     // The set of core `valtype`s that we are configured to generate.
     core_valtypes: Vec<ValType>,
 
-    // Stack of types scopes that are currently available. The last entry is the
-    // current scope. We can add aliases to anything in the current scope or
-    // parent scopes.
-    types_scopes: Vec<TypesScope>,
+    // Stack of types scopes that are currently available.
+    //
+    // There is an entry in this stack for each component, but there can also be
+    // additional entries for module/component/instance types, each of which
+    // have their own scope.
+    //
+    // This stack is always non-empty and the last entry is always the current
+    // scope.
+    //
+    // When a particular scope can alias outer types, it can alias from any
+    // scope that is older than it (i.e. `types_scope[i]` can alias from
+    // `types_scope[j]` when `j <= i`).
+    types: Vec<TypesScope>,
 
-    // All the sections we've generated thus far for the component.
-    sections: Vec<Section>,
-
-    // An indirect list of all types generated in this component. Each entry is
-    // of the form `(i, j)` where `sections[i]` is guaranteed to be a
-    // `Section::Type` and we are referencing the `j`th type in that section.
-    types: Vec<(usize, usize)>,
+    // The set of components we are currently building and their associated
+    // metadata.
+    components: Vec<ComponentContext>,
 
     // Whether we are in the final bits of generating this component and we just
     // need to ensure that the minimum number of entities configured have all
     // been generated. This changes the behavior of various
     // `arbitrary_<section>` methods to always fill in their minimums.
     fill_minimums: bool,
+}
+
+/// Metadata (e.g. contents of various index spaces) we keep track of on a
+/// per-component basis.
+struct ComponentContext {
+    // The actual component itself.
+    component: Component,
 
     // The number of imports we have generated thus far.
     num_imports: usize,
@@ -134,8 +159,10 @@ where
     C: Config + Arbitrary<'a>,
 {
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+        let config = C::arbitrary(u)?;
+        let component = Component::new(config, u)?;
         Ok(ConfiguredComponent {
-            component: Component::new(C::arbitrary(u)?, u)?,
+            component,
             _marker: marker::PhantomData,
         })
     }
@@ -153,107 +180,182 @@ struct EntityCounts {
 impl Component {
     /// Construct a new `Component` using the given configuration.
     pub fn new(config: impl Config, u: &mut Unstructured) -> Result<Self> {
-        let mut component = Component::empty(Rc::new(config));
-        component.build(u)?;
-        Ok(component)
+        let mut builder = ComponentBuilder::new(Rc::new(config));
+        Ok(builder.build(u)?)
     }
 
-    fn empty(config: Rc<dyn Config>) -> Self {
-        Component {
+    fn empty() -> Self {
+        Component { sections: vec![] }
+    }
+}
+
+impl ComponentContext {
+    fn empty() -> Self {
+        ComponentContext {
+            num_imports: 0,
+            import_names: HashSet::default(),
+            component: Component::empty(),
+        }
+    }
+}
+
+#[must_use]
+enum Step {
+    Finished(Component),
+    StillBuilding,
+}
+
+impl Step {
+    fn unwrap_still_building(self) {
+        match self {
+            Step::Finished(_) => panic!(
+                "`Step::unwrap_still_building` called on a `Step` that is not `StillBuilding`"
+            ),
+            Step::StillBuilding => {}
+        }
+    }
+}
+
+impl ComponentBuilder {
+    fn new(config: Rc<dyn Config>) -> Self {
+        ComponentBuilder {
             config,
             core_valtypes: vec![],
-            types_scopes: vec![Default::default()],
-            sections: vec![],
-            types: vec![],
+            types: vec![Default::default()],
+            components: vec![ComponentContext::empty()],
             fill_minimums: false,
-            num_imports: 0,
-            import_names: Default::default(),
         }
     }
 
-    fn build(&mut self, u: &mut Unstructured) -> Result<()> {
+    fn build(&mut self, u: &mut Unstructured) -> Result<Component> {
         self.core_valtypes = crate::core::configured_valtypes(&*self.config);
 
-        let mut choices: Vec<fn(&mut Component, &mut Unstructured) -> Result<()>> = vec![];
+        let mut choices: Vec<fn(&mut ComponentBuilder, &mut Unstructured) -> Result<Step>> = vec![];
+
         loop {
-            // Keep going while the fuzzer tells us to / has more data for us.
-            if !u.arbitrary()? {
-                break;
+            choices.clear();
+            choices.push(Self::finish_component);
+
+            // Only add any choice other than "finish what we've generated thus
+            // far" when there is more arbitrary fuzzer data for us to consume.
+            if u.len() > 0 {
+                choices.push(Self::arbitrary_custom_section);
+
+                // NB: we add each section as a choice even if we've already
+                // generated our maximum number of entities in that section so that
+                // we can exercise adding empty sections to the end of the module.
+                choices.push(Self::arbitrary_type_section);
+                choices.push(Self::arbitrary_import_section);
+
+                // TODO FITZGEN
+                //
+                // choices.push(Self::arbitrary_func_section);
+                // choices.push(Self::arbitrary_core_section);
+                // choices.push(Self::arbitrary_component_section);
+                // choices.push(Self::arbitrary_instance_section);
+                // choices.push(Self::arbitrary_export_section);
+                // choices.push(Self::arbitrary_start_section);
+                // choices.push(Self::arbitrary_alias_section);
             }
 
-            choices.clear();
-            choices.push(Self::arbitrary_custom_section);
-
-            // NB: we add each section as a choice even if we've already
-            // generated our maximum number of entities in that section so that
-            // we can exercise adding empty sections to the end of the module.
-            choices.push(Self::arbitrary_type_section);
-            choices.push(Self::arbitrary_import_section);
-
-            // TODO FITZGEN
-            //
-            // choices.push(Self::arbitrary_func_section);
-            // choices.push(Self::arbitrary_core_section);
-            // choices.push(Self::arbitrary_component_section);
-            // choices.push(Self::arbitrary_instance_section);
-            // choices.push(Self::arbitrary_export_section);
-            // choices.push(Self::arbitrary_start_section);
-            // choices.push(Self::arbitrary_alias_section);
-
             let f = u.choose(&choices)?;
-            f(self, u)?;
+            match f(self, u)? {
+                Step::StillBuilding => {}
+                Step::Finished(component) => {
+                    if self.components.is_empty() {
+                        // If we just finished the root component, then return it.
+                        return Ok(component);
+                    } else {
+                        // Otherwise, add it as a nested component in the parent.
+                        self.append_nested_component(component);
+                    }
+                }
+            }
         }
+    }
 
+    fn finish_component(&mut self, u: &mut Unstructured) -> Result<Step> {
         // Ensure we've generated all of our minimums.
         self.fill_minimums = true;
-        if self.types.len() < self.config.min_types() {
-            self.arbitrary_type_section(u)?;
+        {
+            if self.current_type_scope().types.len() < self.config.min_types() {
+                self.arbitrary_type_section(u)?.unwrap_still_building();
+            }
+            if self.component().num_imports < self.config.min_imports() {
+                self.arbitrary_import_section(u)?.unwrap_still_building();
+            }
         }
-        if self.num_imports < self.config.min_imports() {
-            self.arbitrary_import_section(u)?;
-        }
+        self.fill_minimums = false;
 
-        Ok(())
+        self.types
+            .pop()
+            .expect("should have a types scope for the component we are finishing");
+        Ok(Step::Finished(self.components.pop().unwrap().component))
+    }
+
+    fn append_nested_component(&mut self, component: Component) {
+        match self.last_section_mut() {
+            Some(Section::Component(sec)) => sec.components.push(component),
+            _ => self.push_section(Section::Component(ComponentSection {
+                components: vec![component],
+            })),
+        }
     }
 
     fn config(&self) -> &dyn Config {
         &*self.config
     }
 
-    fn arbitrary_custom_section(&mut self, u: &mut Unstructured) -> Result<()> {
-        self.sections.push(Section::Custom(u.arbitrary()?));
-        Ok(())
+    fn component(&self) -> &ComponentContext {
+        self.components.last().unwrap()
     }
 
-    fn arbitrary_type_section(&mut self, u: &mut Unstructured) -> Result<()> {
-        self.sections
-            .push(Section::Type(TypeSection { types: vec![] }));
+    fn component_mut(&mut self) -> &mut ComponentContext {
+        self.components.last_mut().unwrap()
+    }
+
+    fn push_section(&mut self, section: Section) {
+        self.component_mut().component.sections.push(section);
+    }
+
+    fn last_section_mut(&mut self) -> Option<&mut Section> {
+        self.component_mut().component.sections.last_mut()
+    }
+
+    fn arbitrary_custom_section(&mut self, u: &mut Unstructured) -> Result<Step> {
+        self.push_section(Section::Custom(u.arbitrary()?));
+        Ok(Step::StillBuilding)
+    }
+
+    fn arbitrary_type_section(&mut self, u: &mut Unstructured) -> Result<Step> {
+        self.push_section(Section::Type(TypeSection { types: vec![] }));
 
         let min = if self.fill_minimums {
-            self.config.min_types().saturating_sub(self.types.len())
+            self.config
+                .min_types()
+                .saturating_sub(self.current_type_scope().types.len())
         } else {
             0
         };
 
-        let max = self.config.max_types() - self.types.len();
+        let max = self.config.max_types() - self.current_type_scope().types.len();
 
         arbitrary_loop(u, min, max, |u| {
             let mut type_fuel = self.config.max_type_size();
             let ty = self.arbitrary_type(u, &mut type_fuel)?;
 
-            let section_idx = self.sections.len() - 1;
-            let section = match self.sections.last_mut().unwrap() {
-                Section::Type(section) => section,
+            let section_idx = self.component().component.sections.len() - 1;
+            let section = match self.last_section_mut() {
+                Some(Section::Type(section)) => section,
                 _ => unreachable!(),
             };
-            self.types.push((section_idx, section.types.len()));
             section.types.push(ty.clone());
 
             self.current_type_scope_mut().push(ty);
             Ok(true)
         })?;
 
-        Ok(())
+        Ok(Step::StillBuilding)
     }
 
     fn arbitrary_type(&mut self, u: &mut Unstructured, type_fuel: &mut u32) -> Result<Rc<Type>> {
@@ -287,7 +389,7 @@ impl Component {
 
         let mut entity_choices: Vec<
             fn(
-                &mut Component,
+                &mut ComponentBuilder,
                 &mut Unstructured,
                 &mut EntityCounts,
                 &[Rc<crate::core::FuncType>],
@@ -363,7 +465,7 @@ impl Component {
         types: &[Rc<crate::core::FuncType>],
         choices: &mut Vec<
             fn(
-                &mut Component,
+                &mut ComponentBuilder,
                 &mut Unstructured,
                 &mut EntityCounts,
                 &[Rc<crate::core::FuncType>],
@@ -467,22 +569,22 @@ impl Component {
     }
 
     fn with_types_scope<T>(&mut self, f: impl FnOnce(&mut Self) -> Result<T>) -> Result<T> {
-        self.types_scopes.push(Default::default());
+        self.types.push(Default::default());
         let result = f(self);
-        self.types_scopes.pop();
+        self.types.pop();
         result
     }
 
     fn current_type_scope(&self) -> &TypesScope {
-        self.types_scopes.last().unwrap()
+        self.types.last().unwrap()
     }
 
     fn current_type_scope_mut(&mut self) -> &mut TypesScope {
-        self.types_scopes.last_mut().unwrap()
+        self.types.last_mut().unwrap()
     }
 
     fn outer_types_scope(&self, count: u32) -> &TypesScope {
-        &self.types_scopes[self.types_scopes.len() - 1 - usize::try_from(count).unwrap()]
+        &self.types[self.types.len() - 1 - usize::try_from(count).unwrap()]
     }
 
     fn outer_type(&self, count: u32, i: u32) -> &Rc<Type> {
@@ -554,7 +656,7 @@ impl Component {
     ) -> Result<InstanceTypeDef> {
         let mut choices: Vec<
             fn(
-                &mut Component,
+                &mut ComponentBuilder,
                 &mut HashSet<String>,
                 &mut Unstructured,
                 &mut u32,
@@ -574,11 +676,7 @@ impl Component {
         }
 
         // Outer type alias.
-        if self
-            .types_scopes
-            .iter()
-            .any(|scope| !scope.types.is_empty())
-        {
+        if self.types.iter().any(|scope| !scope.types.is_empty()) {
             choices.push(|me, _exports, u, _type_fuel| {
                 let alias = me.arbitrary_outer_type_alias(u)?;
                 let (count, i) = match alias {
@@ -608,7 +706,7 @@ impl Component {
 
     fn arbitrary_outer_type_alias(&mut self, u: &mut Unstructured) -> Result<Alias> {
         let non_empty_types_scopes: Vec<_> = self
-            .types_scopes
+            .types
             .iter()
             .rev()
             .enumerate()
@@ -894,21 +992,23 @@ impl Component {
         }
     }
 
-    fn arbitrary_import_section(&mut self, u: &mut Unstructured) -> Result<()> {
+    fn arbitrary_import_section(&mut self, u: &mut Unstructured) -> Result<Step> {
         let mut imports = vec![];
 
         let min = if self.fill_minimums {
-            self.config.min_imports().saturating_sub(self.num_imports)
+            self.config
+                .min_imports()
+                .saturating_sub(self.component().num_imports)
         } else {
             // Allow generating empty sections. We can always fill in the required
             // minimum later.
             0
         };
-        let max = self.config.max_imports() - self.num_imports;
+        let max = self.config.max_imports() - self.component().num_imports;
 
         if !self.current_type_scope().def_types.is_empty() {
             crate::arbitrary_loop(u, min, max, |u| {
-                let name = crate::unique_string(100, &mut self.import_names, u)?;
+                let name = crate::unique_string(100, &mut self.component_mut().import_names, u)?;
                 let max_def_ty_idx = self.current_type_scope().def_types.len() - 1;
                 let def_ty_idx = u.int_in_range(0..=max_def_ty_idx)?;
                 let ty = self.current_type_scope().def_types[def_ty_idx];
@@ -917,9 +1017,8 @@ impl Component {
             })?;
         }
 
-        self.sections
-            .push(Section::Import(ImportSection { imports }));
-        Ok(())
+        self.push_section(Section::Import(ImportSection { imports }));
+        Ok(Step::StillBuilding)
     }
 
     fn arbitrary_func_section(&mut self, u: &mut Unstructured) -> Result<()> {
@@ -1173,7 +1272,9 @@ struct FuncSection {}
 struct CoreSection {}
 
 #[derive(Debug)]
-struct ComponentSection {}
+struct ComponentSection {
+    components: Vec<Component>,
+}
 
 #[derive(Debug)]
 struct InstanceSection {}
