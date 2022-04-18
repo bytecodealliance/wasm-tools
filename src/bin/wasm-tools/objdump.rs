@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::ops::Range;
 use std::path::PathBuf;
-use wasmparser::{Parser, Payload::*};
+use wasmparser::{Encoding, Parser, Payload::*, SectionReader};
 
 /// Dumps information about sections in a WebAssembly file.
 ///
@@ -18,9 +18,11 @@ impl Opts {
         let input = wat::parse_file(&self.input)?;
 
         let mut printer = Printer::default();
+        printer.indices.push(IndexSpace::default());
+
         for payload in Parser::new(0).parse_all(&input) {
             match payload? {
-                Version { .. } => printer.start(),
+                Version { .. } => {}
 
                 TypeSection(s) => printer.section(s, "types"),
                 ImportSection(s) => printer.section(s, "imports"),
@@ -37,15 +39,22 @@ impl Opts {
                 CodeSectionStart { range, count, .. } => printer.section_raw(range, count, "code"),
                 CodeSectionEntry(_) => {}
 
-                ComponentTypeSection(_) => todo!("component-model"),
-                ComponentImportSection(_) => todo!("component-model"),
-                ComponentFunctionSection(_) => todo!("component-model"),
-                ModuleSection { .. } => todo!("component-model"),
-                ComponentSection { .. } => todo!("component-model"),
-                InstanceSection(_) => todo!("component-model"),
-                ComponentExportSection(_) => todo!("component-model"),
-                ComponentStartSection { .. } => todo!("component-model"),
-                AliasSection(_) => todo!("component-model"),
+                ComponentTypeSection(s) => printer.section(s, "types"),
+                ComponentImportSection(s) => printer.section(s, "imports"),
+                ComponentFunctionSection(s) => printer.section(s, "functions"),
+                ModuleSection { range, .. } => {
+                    printer.section_raw(range, 1, "module");
+                    printer.start(Encoding::Module);
+                }
+                ComponentSection { range, .. } => {
+                    printer.section_raw(range, 1, "component");
+                    printer.indices.push(IndexSpace::default());
+                    printer.start(Encoding::Component);
+                }
+                InstanceSection(s) => printer.section(s, "instances"),
+                ComponentExportSection(s) => printer.section(s, "exports"),
+                ComponentStartSection(s) => printer.section_raw(s.range(), 1, "start"),
+                AliasSection(s) => printer.section(s, "alias"),
 
                 CustomSection(c) => printer.section_raw(
                     c.data_offset()..c.data_offset() + c.data().len(),
@@ -64,28 +73,69 @@ impl Opts {
 }
 
 #[derive(Default)]
+struct IndexSpace {
+    modules: u32,
+    components: u32,
+    processing: Vec<Encoding>,
+}
+
+#[derive(Default)]
 struct Printer {
-    module_code_counts: Vec<(u32, u32)>,
+    indices: Vec<IndexSpace>,
 }
 
 impl Printer {
-    fn start(&self) {
-        if let Some((a, b)) = self.module_code_counts.last() {
-            println!("{}------ start {}/{} ----------", self.header(), *a + 1, b);
+    fn start(&mut self, encoding: Encoding) {
+        if let Some(space) = self.indices.last_mut() {
+            space.processing.push(encoding);
+        }
+
+        if let Some(space) = self.indices.last() {
+            match encoding {
+                Encoding::Module => {
+                    println!(
+                        "{}------ start module {} -------------",
+                        self.header(),
+                        space.modules
+                    );
+                }
+                Encoding::Component => {
+                    println!(
+                        "{}------ start component {} ----------",
+                        self.header(),
+                        space.components
+                    );
+                }
+            }
         }
     }
 
     fn end(&mut self) {
         let header = self.header();
-        let pop = if let Some((a, b)) = self.module_code_counts.last_mut() {
-            println!("{}------   end {}/{} ----------", header, *a + 1, b);
-            *a += 1;
-            *a == *b
-        } else {
-            false
-        };
-        if pop {
-            self.module_code_counts.pop();
+        if let Some(space) = self.indices.last_mut() {
+            match space.processing.pop() {
+                Some(Encoding::Module) => {
+                    println!(
+                        "{}------ end module {} -------------",
+                        header, space.modules
+                    );
+                    space.modules += 1;
+                }
+                Some(Encoding::Component) => {
+                    println!(
+                        "{}------ end component {} ----------",
+                        header, space.components
+                    );
+                    self.indices.pop();
+
+                    if let Some(space) = self.indices.last_mut() {
+                        space.components += 1;
+                    }
+                }
+                None => {
+                    self.indices.pop();
+                }
+            }
         }
     }
 
@@ -109,7 +159,15 @@ impl Printer {
 
     fn header(&self) -> String {
         let mut s = String::new();
-        for _ in 0..self.module_code_counts.len() {
+        let depth = self
+            .indices
+            .last()
+            .map_or(0, |space| match space.processing.last() {
+                Some(Encoding::Module) => self.indices.len() + 1,
+                _ => self.indices.len(),
+            });
+
+        for _ in 0..depth {
             s.push_str("  ");
         }
         return s;
