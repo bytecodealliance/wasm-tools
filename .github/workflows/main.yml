@@ -27,7 +27,7 @@ jobs:
             rust: beta
           - build: nightly
             os: ubuntu-latest
-            rust: nightly-2021-12-10
+            rust: nightly
           - build: macos
             os: macos-latest
             rust: stable
