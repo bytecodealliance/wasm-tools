@@ -5,8 +5,8 @@ use wasmparser::{
     Validator, WasmFeatures,
 };
 use wit_parser::{
-    abi::Abi, validate_id, Case, Docs, Field, Function, FunctionKind, Int, Interface, Record,
-    RecordKind, Type, TypeDef, TypeDefKind, TypeId, Variant,
+    validate_id, Case, Docs, Field, Function, FunctionKind, Int, Interface, Record, RecordKind,
+    Type, TypeDef, TypeDefKind, TypeId, Variant,
 };
 
 /// Represents information about a decoded WebAssembly component.
@@ -249,7 +249,6 @@ impl<'a> InterfaceDecoder<'a> {
         }
 
         self.interface.functions.push(Function {
-            abi: Abi::Canonical,
             is_async: false,
             docs: Docs::default(),
             name: func_name.to_string(),

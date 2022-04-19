@@ -82,11 +82,6 @@ impl InterfacePrinter {
                         }
                     }
                     TypeDefKind::Type(ty) => self.print_type_name(interface, ty)?,
-
-                    TypeDefKind::Pointer(_)
-                    | TypeDefKind::ConstPointer(_)
-                    | TypeDefKind::PushBuffer(_)
-                    | TypeDefKind::PullBuffer(_) => bail!("interface has unsupported type"),
                 }
             }
 
@@ -182,11 +177,6 @@ impl InterfacePrinter {
                         }
                         None => bail!("unnamed type in interface"),
                     },
-
-                    TypeDefKind::Pointer(_)
-                    | TypeDefKind::ConstPointer(_)
-                    | TypeDefKind::PushBuffer(_)
-                    | TypeDefKind::PullBuffer(_) => bail!("interface has unsupported type"),
                 }
             }
 

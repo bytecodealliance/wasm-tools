@@ -12,7 +12,7 @@ use std::{
 use wasm_encoder::*;
 use wasmparser::{Validator, WasmFeatures};
 use wit_parser::{
-    abi::{Abi, AbiVariant, WasmSignature, WasmType},
+    abi::{AbiVariant, WasmSignature, WasmType},
     Docs, Field, Function, FunctionKind, Interface, Record, RecordKind, Type, TypeDef, TypeDefKind,
     Variant,
 };
@@ -192,10 +192,6 @@ impl Hash for TypeDefKey<'_> {
                 }
                 .hash(state);
             }
-            TypeDefKind::Pointer(_)
-            | TypeDefKind::ConstPointer(_)
-            | TypeDefKind::PushBuffer(_)
-            | TypeDefKind::PullBuffer(_) => unreachable!(),
         }
     }
 }
@@ -450,12 +446,6 @@ impl<'a> TypeEncoder<'a> {
                             InterfaceTypeRef::Type(index)
                         }
                         TypeDefKind::Type(ty) => self.encode_type(interface, instance, ty)?,
-                        TypeDefKind::Pointer(_) | TypeDefKind::ConstPointer(_) => {
-                            bail!("the use of pointers in interfaces is not supported")
-                        }
-                        TypeDefKind::PushBuffer(_) | TypeDefKind::PullBuffer(_) => {
-                            bail!("the use of buffers in interfaces is not currently supported")
-                        }
                     };
 
                     if ty.name.is_some() {
@@ -689,10 +679,6 @@ impl RequiredOptions {
                     Self::for_type(interface, t) | Self::Into
                 }
                 TypeDefKind::Type(t) => Self::for_type(interface, t),
-                TypeDefKind::Pointer(_)
-                | TypeDefKind::ConstPointer(_)
-                | TypeDefKind::PushBuffer(_)
-                | TypeDefKind::PullBuffer(_) => Self::None,
             },
             _ => Self::None,
         }
@@ -1230,13 +1216,6 @@ impl<'a> ComponentEncoder<'a> {
         if !matches!(function.kind, FunctionKind::Freestanding) {
             bail!(
                 "unsupported function `{}`: only free-standing functions are currently supported",
-                function.name
-            );
-        }
-
-        if !matches!(function.abi, Abi::Canonical) {
-            bail!(
-                "unsupported function `{}`: only canonical functions are supported",
                 function.name
             );
         }
