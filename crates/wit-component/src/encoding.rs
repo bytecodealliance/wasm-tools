@@ -475,10 +475,6 @@ impl<'a> TypeEncoder<'a> {
             Type::Handle(_) => {
                 bail!("the use of handle types in interfaces is not currently supported")
             }
-            Type::CChar => {
-                bail!("the use of C characters in interfaces is not currently supported")
-            }
-            Type::Usize => bail!("the use of usize in interfaces is not currently supported"),
         })
     }
 

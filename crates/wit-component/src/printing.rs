@@ -85,7 +85,7 @@ impl InterfacePrinter {
                 }
             }
 
-            Type::CChar | Type::Usize | Type::Handle(_) => bail!("interface has unsupported type"),
+            Type::Handle(_) => bail!("interface has unsupported type"),
         }
 
         Ok(())
@@ -180,7 +180,7 @@ impl InterfacePrinter {
                 }
             }
 
-            Type::CChar | Type::Usize | Type::Handle(_) => bail!("interface has unsupported type"),
+            Type::Handle(_) => bail!("interface has unsupported type"),
         }
         Ok(())
     }
