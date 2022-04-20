@@ -1,3 +1,3 @@
 foo1: function()
 foo2: function(x: u8)
-foo3: function(x: f32)
+foo3: function(x: float32)

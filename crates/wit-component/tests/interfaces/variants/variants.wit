@@ -4,7 +4,7 @@ enum e1 {
 
 union u1 {
   u32,
-  f32,
+  float32,
 }
 
 record empty {
@@ -22,16 +22,16 @@ variant v1 {
 
 variant casts1 {
   a(s32),
-  b(f32),
+  b(float32),
 }
 
 variant casts2 {
-  a(f64),
-  b(f32),
+  a(float64),
+  b(float32),
 }
 
 variant casts3 {
-  a(f64),
+  a(float64),
   b(u64),
 }
 
@@ -41,12 +41,12 @@ variant casts4 {
 }
 
 variant casts5 {
-  a(f32),
+  a(float32),
   b(s64),
 }
 
 variant casts6 {
-  a(tuple<f32, u32>),
+  a(tuple<float32, u32>),
   b(tuple<u32, u32>),
 }
 
@@ -71,9 +71,9 @@ bool-arg: function(x: bool)
 
 bool-result: function() -> bool
 
-option-arg: function(a: option<bool>, b: option<tuple<>>, c: option<u32>, d: option<e1>, e: option<f32>, f: option<u1>, g: option<option<bool>>)
+option-arg: function(a: option<bool>, b: option<tuple<>>, c: option<u32>, d: option<e1>, e: option<float32>, f: option<u1>, g: option<option<bool>>)
 
-option-result: function() -> tuple<option<bool>, option<tuple<>>, option<u32>, option<e1>, option<f32>, option<u1>, option<option<bool>>>
+option-result: function() -> tuple<option<bool>, option<tuple<>>, option<u32>, option<e1>, option<float32>, option<u1>, option<option<bool>>>
 
 casts: function(a: casts1, b: casts2, c: casts3, d: casts4, e: casts5, f: casts6) -> tuple<casts1, casts2, casts3, casts4, casts5, casts6>
 

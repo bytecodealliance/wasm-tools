@@ -341,8 +341,8 @@ impl<'a> InterfaceDecoder<'a> {
             PrimitiveInterfaceType::U32 => Type::U32,
             PrimitiveInterfaceType::S64 => Type::S64,
             PrimitiveInterfaceType::U64 => Type::U64,
-            PrimitiveInterfaceType::Float32 => Type::F32,
-            PrimitiveInterfaceType::Float64 => Type::F64,
+            PrimitiveInterfaceType::Float32 => Type::Float32,
+            PrimitiveInterfaceType::Float64 => Type::Float64,
             PrimitiveInterfaceType::Char => Type::Char,
             PrimitiveInterfaceType::String => self.string(),
         })

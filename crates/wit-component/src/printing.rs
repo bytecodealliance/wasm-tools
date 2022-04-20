@@ -54,8 +54,8 @@ impl InterfacePrinter {
             Type::S16 => self.output.push_str("s16"),
             Type::S32 => self.output.push_str("s32"),
             Type::S64 => self.output.push_str("s64"),
-            Type::F32 => self.output.push_str("f32"),
-            Type::F64 => self.output.push_str("f64"),
+            Type::Float32 => self.output.push_str("float32"),
+            Type::Float64 => self.output.push_str("float64"),
             Type::Char => self.output.push_str("char"),
 
             Type::Id(id) => {
@@ -149,8 +149,8 @@ impl InterfacePrinter {
             | Type::S16
             | Type::S32
             | Type::S64
-            | Type::F32
-            | Type::F64
+            | Type::Float32
+            | Type::Float64
             | Type::Char => return Ok(()),
 
             Type::Id(id) => {

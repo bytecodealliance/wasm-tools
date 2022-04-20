@@ -29,7 +29,7 @@ variant some-variant {
   d(list<other-variant>),
 }
 
-type load-store-all-sizes = list<tuple<string, u8, s8, u16, s16, u32, s32, u64, s64, f32, f64, char>>
+type load-store-all-sizes = list<tuple<string, u8, s8, u16, s16, u32, s32, u64, s64, float32, float64, char>>
 
 list-u8-param: function(x: list<u8>)
 
@@ -47,9 +47,9 @@ list-s32-param: function(x: list<s32>)
 
 list-s64-param: function(x: list<s64>)
 
-list-f32-param: function(x: list<f32>)
+list-float32-param: function(x: list<float32>)
 
-list-f64-param: function(x: list<f64>)
+list-float64-param: function(x: list<float64>)
 
 list-u8-ret: function() -> list<u8>
 
@@ -67,9 +67,9 @@ list-s32-ret: function() -> list<s32>
 
 list-s64-ret: function() -> list<s64>
 
-list-f32-ret: function() -> list<f32>
+list-float32-ret: function() -> list<float32>
 
-list-f64-ret: function() -> list<f64>
+list-float64-ret: function() -> list<float64>
 
 tuple-list: function(x: list<tuple<u8, s8>>) -> list<tuple<s64, u32>>
 

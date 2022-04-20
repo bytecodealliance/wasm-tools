@@ -1,8 +1,8 @@
-f32-param: function(x: f32)
+float32-param: function(x: float32)
 
-f64-param: function(x: f64)
+float64-param: function(x: float64)
 
-f32-result: function() -> f32
+float32-result: function() -> float32
 
-f64-result: function() -> f64
+float64-result: function() -> float64
 

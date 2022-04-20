@@ -423,8 +423,8 @@ impl<'a> TypeEncoder<'a> {
             Type::S16 => InterfaceTypeRef::Primitive(PrimitiveInterfaceType::S16),
             Type::S32 => InterfaceTypeRef::Primitive(PrimitiveInterfaceType::S32),
             Type::S64 => InterfaceTypeRef::Primitive(PrimitiveInterfaceType::S64),
-            Type::F32 => InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Float32),
-            Type::F64 => InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Float64),
+            Type::Float32 => InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Float32),
+            Type::Float64 => InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Float64),
             Type::Char => InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Char),
             Type::Id(id) => {
                 let ty = &interface.types[*id];
