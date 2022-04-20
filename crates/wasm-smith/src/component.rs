@@ -382,10 +382,73 @@ impl ComponentBuilder {
         type_fuel: &mut u32,
     ) -> Result<ModuleType> {
         let mut defs = vec![];
+        let mut has_memory = false;
+        let mut has_canonical_abi_realloc = false;
+        let mut has_canonical_abi_free = false;
         let mut types: Vec<Rc<crate::core::FuncType>> = vec![];
         let mut imports = HashMap::new();
         let mut exports = HashSet::new();
         let mut counts = EntityCounts::default();
+
+        // Special case the canonical ABI functions since certain types can only
+        // be passed across the interface types boundary if they exist and
+        // randomly generating them is extremely unlikely.
+
+        // `memory`
+        if counts.memories < self.config.max_memories() && u.ratio::<u8>(99, 100)? {
+            defs.push(ModuleTypeDef::Export(
+                "memory".into(),
+                crate::core::EntityType::Memory(self.arbitrary_core_memory_type(u)?),
+            ));
+            counts.memories += 1;
+            has_memory = true;
+        }
+
+        // `canonical_abi_realloc`
+        if counts.funcs < self.config.max_funcs()
+            && types.len() < self.config.max_types()
+            && u.ratio::<u8>(99, 100)?
+        {
+            let realloc_ty = Rc::new(crate::core::FuncType {
+                params: vec![ValType::I32, ValType::I32, ValType::I32, ValType::I32],
+                results: vec![ValType::I32],
+            });
+            let ty_idx = u32::try_from(types.len()).unwrap();
+            types.push(realloc_ty.clone());
+            defs.push(ModuleTypeDef::TypeDef(crate::core::Type::Func(
+                realloc_ty.clone(),
+            )));
+            defs.push(ModuleTypeDef::Export(
+                "canonical_abi_realloc".into(),
+                crate::core::EntityType::Func(ty_idx, realloc_ty),
+            ));
+            exports.insert("canonical_abi_realloc".into());
+            counts.funcs += 1;
+            has_canonical_abi_realloc = true;
+        }
+
+        // `canonical_abi_free`
+        if counts.funcs < self.config.max_funcs()
+            && types.len() < self.config.max_types()
+            && u.ratio::<u8>(99, 100)?
+        {
+            let free_ty = Rc::new(crate::core::FuncType {
+                params: vec![ValType::I32, ValType::I32, ValType::I32],
+                results: vec![],
+            });
+            let ty_idx = u32::try_from(types.len()).unwrap();
+            types.push(free_ty.clone());
+            defs.push(ModuleTypeDef::TypeDef(crate::core::Type::Func(
+                free_ty.clone(),
+            )));
+            defs.push(ModuleTypeDef::Export(
+                "canonical_abi_free".into(),
+                crate::core::EntityType::Func(ty_idx, free_ty),
+            ));
+            exports.insert("canonical_abi_free".into());
+            counts.funcs += 1;
+            has_canonical_abi_free = true;
+        }
 
         let mut entity_choices: Vec<
             fn(
@@ -456,7 +519,12 @@ impl ComponentBuilder {
             Ok(true)
         })?;
 
-        Ok(ModuleType { defs })
+        Ok(ModuleType {
+            defs,
+            has_memory,
+            has_canonical_abi_realloc,
+            has_canonical_abi_free,
+        })
     }
 
     fn arbitrary_core_entity_type(
@@ -1096,6 +1164,9 @@ enum Type {
 #[derive(Clone, Debug)]
 struct ModuleType {
     defs: Vec<ModuleTypeDef>,
+    has_memory: bool,
+    has_canonical_abi_realloc: bool,
+    has_canonical_abi_free: bool,
 }
 
 #[derive(Clone, Debug)]
