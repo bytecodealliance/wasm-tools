@@ -2070,10 +2070,11 @@ impl Printer {
     }
 
     fn print_name(&mut self, names: &HashMap<u32, Naming>, cur_idx: u32) -> Result<()> {
-        match names.get(&cur_idx) {
-            Some(name) => name.write(&mut self.result),
-            None => write!(self.result, "(;{};)", cur_idx)?,
+        if let Some(name) = names.get(&cur_idx) {
+            name.write(&mut self.result);
+            self.result.push_str(" ");
         }
+        write!(self.result, "(;{};)", cur_idx)?;
         Ok(())
     }
 
