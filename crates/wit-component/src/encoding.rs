@@ -426,6 +426,7 @@ impl<'a> TypeEncoder<'a> {
             Type::Float32 => InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Float32),
             Type::Float64 => InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Float64),
             Type::Char => InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Char),
+            Type::String => InterfaceTypeRef::Primitive(PrimitiveInterfaceType::String),
             Type::Id(id) => {
                 let ty = &interface.types[*id];
                 let key = TypeDefKey::borrow(interface, &interface.types[*id]);
@@ -435,9 +436,6 @@ impl<'a> TypeEncoder<'a> {
                     let mut encoded = match &ty.kind {
                         TypeDefKind::Record(r) => self.encode_record(interface, instance, r)?,
                         TypeDefKind::Variant(v) => self.encode_variant(interface, instance, v)?,
-                        TypeDefKind::List(Type::Char) => {
-                            InterfaceTypeRef::Primitive(PrimitiveInterfaceType::String)
-                        }
                         TypeDefKind::List(ty) => {
                             let ty = self.encode_type(interface, instance, ty)?;
                             let index = self.types.len();
@@ -664,10 +662,6 @@ impl RequiredOptions {
                 TypeDefKind::Variant(v) => {
                     Self::for_types(interface, v.cases.iter().filter_map(|c| c.ty.as_ref()))
                 }
-                TypeDefKind::List(Type::Char) => {
-                    // Strings need the encoding option
-                    Self::Encoding
-                }
                 TypeDefKind::List(t) => {
                     // Lists need at least the `into` option, but may require
                     // the encoding option if there's a string somewhere in the
@@ -676,6 +670,7 @@ impl RequiredOptions {
                 }
                 TypeDefKind::Type(t) => Self::for_type(interface, t),
             },
+            Type::String => Self::Encoding,
             _ => Self::None,
         }
     }

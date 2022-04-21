@@ -57,6 +57,7 @@ impl InterfacePrinter {
             Type::Float32 => self.output.push_str("float32"),
             Type::Float64 => self.output.push_str("float64"),
             Type::Char => self.output.push_str("char"),
+            Type::String => self.output.push_str("string"),
 
             Type::Id(id) => {
                 let ty = &interface.types[*id];
@@ -73,13 +74,9 @@ impl InterfacePrinter {
                         self.print_variant_type(interface, v)?;
                     }
                     TypeDefKind::List(ty) => {
-                        if let Type::Char = ty {
-                            self.output.push_str("string");
-                        } else {
-                            self.output.push_str("list<");
-                            self.print_type_name(interface, ty)?;
-                            self.output.push('>');
-                        }
+                        self.output.push_str("list<");
+                        self.print_type_name(interface, ty)?;
+                        self.output.push('>');
                     }
                     TypeDefKind::Type(ty) => self.print_type_name(interface, ty)?,
                 }
@@ -151,7 +148,8 @@ impl InterfacePrinter {
             | Type::S64
             | Type::Float32
             | Type::Float64
-            | Type::Char => return Ok(()),
+            | Type::Char
+            | Type::String => return Ok(()),
 
             Type::Id(id) => {
                 if !self.declared.insert(*id) {

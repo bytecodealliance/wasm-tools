@@ -178,7 +178,6 @@ pub struct InterfaceDecoder<'a> {
     type_map: HashMap<types::TypeId, Type>,
     name_map: HashMap<types::TypeId, &'a str>,
     bool_ty: Option<TypeId>,
-    string_ty: Option<TypeId>,
 }
 
 impl<'a> InterfaceDecoder<'a> {
@@ -190,7 +189,6 @@ impl<'a> InterfaceDecoder<'a> {
             name_map: HashMap::new(),
             type_map: HashMap::new(),
             bool_ty: None,
-            string_ty: None,
         }
     }
 
@@ -344,7 +342,7 @@ impl<'a> InterfaceDecoder<'a> {
             PrimitiveInterfaceType::Float32 => Type::Float32,
             PrimitiveInterfaceType::Float64 => Type::Float64,
             PrimitiveInterfaceType::Char => Type::Char,
-            PrimitiveInterfaceType::String => self.string(),
+            PrimitiveInterfaceType::String => Type::String,
         })
     }
 
@@ -629,12 +627,5 @@ impl<'a> InterfaceDecoder<'a> {
             ));
         }
         Type::Id(self.bool_ty.unwrap())
-    }
-
-    fn string(&mut self) -> Type {
-        if self.string_ty.is_none() {
-            self.string_ty = Some(self.alloc_type(None, TypeDefKind::List(Type::Char)));
-        }
-        Type::Id(self.string_ty.unwrap())
     }
 }
