@@ -756,10 +756,14 @@ impl ComponentBuilder {
                     return Ok(false);
                 }
 
-                if !me.current_type_scope().types.is_empty() && u.int_in_range::<u8>(0..=3)? == 0 {
+                if !me.current_type_scope().def_types.is_empty()
+                    && u.int_in_range::<u8>(0..=3)? == 0
+                {
                     // Imports.
                     let name = crate::unique_string(100, &mut imports, u)?;
-                    let ty = u.int_in_range(0..=me.current_type_scope().types.len() - 1)?;
+                    let max_def_ty_idx = me.current_type_scope().def_types.len() - 1;
+                    let def_ty_idx = u.int_in_range(0..=max_def_ty_idx)?;
+                    let ty = me.current_type_scope().def_types[def_ty_idx];
                     let ty = u32::try_from(ty).unwrap();
                     defs.push(ComponentTypeDef::Import(Import { name, ty }));
                 } else {
