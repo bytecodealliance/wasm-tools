@@ -21,7 +21,7 @@ impl Section {
             Section::Custom(sec) => sec.encode(component),
             Section::Type(sec) => sec.encode(component),
             Section::Import(sec) => sec.encode(component),
-            Section::Func(_) => todo!(),
+            Section::Func(sec) => sec.encode(component),
             Section::Core(_) => todo!(),
             Section::Component(_) => todo!(),
             Section::Instance(_) => todo!(),
@@ -56,6 +56,32 @@ impl ImportSection {
         let mut sec = wasm_encoder::ComponentImportSection::new();
         for imp in &self.imports {
             sec.import(&imp.name, imp.ty);
+        }
+        component.section(&sec);
+    }
+}
+
+impl FuncSection {
+    fn encode(&self, component: &mut wasm_encoder::Component) {
+        let mut sec = wasm_encoder::ComponentFunctionSection::new();
+        for func in &self.funcs {
+            match func {
+                Func::CanonLift {
+                    func_ty,
+                    options,
+                    core_func,
+                } => {
+                    let options = translate_canon_opt(options);
+                    sec.lift(*func_ty, *core_func, options);
+                }
+                Func::CanonLower {
+                    options,
+                    inter_func,
+                } => {
+                    let options = translate_canon_opt(options);
+                    sec.lower(*inter_func, options);
+                }
+            }
         }
         component.section(&sec);
     }
@@ -198,4 +224,16 @@ fn translate_named_type(ty: &NamedType) -> (&str, InterfaceTypeRef) {
 
 fn translate_optional_named_type(ty: &OptionalNamedType) -> (Option<&str>, InterfaceTypeRef) {
     (ty.name.as_deref(), ty.ty)
+}
+
+fn translate_canon_opt(options: &[CanonOpt]) -> Vec<wasm_encoder::CanonicalOption> {
+    options
+        .iter()
+        .map(|o| match o {
+            CanonOpt::StringUtf8 => wasm_encoder::CanonicalOption::UTF8,
+            CanonOpt::StringUtf16 => wasm_encoder::CanonicalOption::UTF16,
+            CanonOpt::StringLatin1Utf16 => wasm_encoder::CanonicalOption::CompactUTF16,
+            CanonOpt::Into { instance } => wasm_encoder::CanonicalOption::Into(*instance),
+        })
+        .collect()
 }
