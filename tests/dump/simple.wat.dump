@@ -1,73 +1,73 @@
-0x0000 | 00 61 73 6d | version 1 (Module)
-       | 01 00 00 00
-0x0008 | 01 08       | type section
-0x000a | 02          | 2 count
-0x000b | 60 01 7f 00 | [type 0] Func(FuncType { params: [I32], returns: [] })
-0x000f | 60 00 00    | [type 1] Func(FuncType { params: [], returns: [] })
-0x0012 | 02 07       | import section
-0x0014 | 01          | 1 count
-0x0015 | 01 6d 01 6e | import [func 0] Import { module: "m", name: "n", ty: Func(0) }
-       | 00 00      
-0x001b | 03 04       | func section
-0x001d | 03          | 3 count
-0x001e | 01          | [func 1] type 1
-0x001f | 01          | [func 2] type 1
-0x0020 | 01          | [func 3] type 1
-0x0021 | 04 04       | table section
-0x0023 | 01          | 1 count
-0x0024 | 70 00 01    | [table 0] TableType { element_type: FuncRef, initial: 1, maximum: None }
-0x0027 | 05 03       | memory section
-0x0029 | 01          | 1 count
-0x002a | 00 01       | [memory 0] MemoryType { memory64: false, shared: false, initial: 1, maximum: None }
-0x002c | 06 06       | global section
-0x002e | 01          | 1 count
-0x002f | 7f 00       | [global 0] GlobalType { content_type: I32, mutable: false }
-0x0031 | 41 00       | I32Const { value: 0 }
-0x0033 | 0b          | End
-0x0034 | 07 05       | export section
-0x0036 | 01          | 1 count
-0x0037 | 01 6d 02 00 | export Export { name: "m", kind: Memory, index: 0 }
-0x003b | 08 01       | start section
-0x003d | 00          | start function 0
-0x003e | 09 0f       | element section
-0x0040 | 03          | 3 count
-0x0041 | 00          | element FuncRef table[0]
-0x0042 | 41 03       | I32Const { value: 3 }
-0x0044 | 0b          | End
-0x0045 | 01          | 1 items
-0x0046 | 00          | item Func(0)
-0x0047 | 01 00 01    | element FuncRef passive, 1 items
-0x004a | 00          | item Func(0)
-0x004b | 03 00 01    | element FuncRef declared 1 items
-0x004e | 00          | item Func(0)
-0x004f | 0a 10       | code section
-0x0051 | 03          | 3 count
+  0x0 | 00 61 73 6d | version 1 (Module)
+      | 01 00 00 00
+  0x8 | 01 08       | type section
+  0xa | 02          | 2 count
+  0xb | 60 01 7f 00 | [type 0] Func(FuncType { params: [I32], returns: [] })
+  0xf | 60 00 00    | [type 1] Func(FuncType { params: [], returns: [] })
+ 0x12 | 02 07       | import section
+ 0x14 | 01          | 1 count
+ 0x15 | 01 6d 01 6e | import [func 0] Import { module: "m", name: "n", ty: Func(0) }
+      | 00 00      
+ 0x1b | 03 04       | func section
+ 0x1d | 03          | 3 count
+ 0x1e | 01          | [func 1] type 1
+ 0x1f | 01          | [func 2] type 1
+ 0x20 | 01          | [func 3] type 1
+ 0x21 | 04 04       | table section
+ 0x23 | 01          | 1 count
+ 0x24 | 70 00 01    | [table 0] TableType { element_type: FuncRef, initial: 1, maximum: None }
+ 0x27 | 05 03       | memory section
+ 0x29 | 01          | 1 count
+ 0x2a | 00 01       | [memory 0] MemoryType { memory64: false, shared: false, initial: 1, maximum: None }
+ 0x2c | 06 06       | global section
+ 0x2e | 01          | 1 count
+ 0x2f | 7f 00       | [global 0] GlobalType { content_type: I32, mutable: false }
+ 0x31 | 41 00       | I32Const { value: 0 }
+ 0x33 | 0b          | End
+ 0x34 | 07 05       | export section
+ 0x36 | 01          | 1 count
+ 0x37 | 01 6d 02 00 | export Export { name: "m", kind: Memory, index: 0 }
+ 0x3b | 08 01       | start section
+ 0x3d | 00          | start function 0
+ 0x3e | 09 0f       | element section
+ 0x40 | 03          | 3 count
+ 0x41 | 00          | element FuncRef table[0]
+ 0x42 | 41 03       | I32Const { value: 3 }
+ 0x44 | 0b          | End
+ 0x45 | 01          | 1 items
+ 0x46 | 00          | item Func(0)
+ 0x47 | 01 00 01    | element FuncRef passive, 1 items
+ 0x4a | 00          | item Func(0)
+ 0x4b | 03 00 01    | element FuncRef declared 1 items
+ 0x4e | 00          | item Func(0)
+ 0x4f | 0a 10       | code section
+ 0x51 | 03          | 3 count
 ============== func 1 ====================
-0x0052 | 02          | size of function
-0x0053 | 00          | 0 local blocks
-0x0054 | 0b          | End
+ 0x52 | 02          | size of function
+ 0x53 | 00          | 0 local blocks
+ 0x54 | 0b          | End
 ============== func 2 ====================
-0x0055 | 04          | size of function
-0x0056 | 01          | 1 local blocks
-0x0057 | 01 7f       | 1 locals of type I32
-0x0059 | 0b          | End
+ 0x55 | 04          | size of function
+ 0x56 | 01          | 1 local blocks
+ 0x57 | 01 7f       | 1 locals of type I32
+ 0x59 | 0b          | End
 ============== func 3 ====================
-0x005a | 06          | size of function
-0x005b | 01          | 1 local blocks
-0x005c | 01 7f       | 1 locals of type I32
-0x005e | 41 00       | I32Const { value: 0 }
-0x0060 | 0b          | End
-0x0061 | 0b 0a       | data section
-0x0063 | 02          | 2 count
-0x0064 | 00          | data memory[0]
-0x0065 | 41 08       | I32Const { value: 8 }
-0x0067 | 0b          | End
-0x0068 |-------------| ... 1 bytes of data
-0x006a | 01 01       | data passive
-0x006c |-------------| ... 1 bytes of data
-0x006d | 00 17       | custom section
-0x006f | 0f 6e 61 6d | name: "name-of-section"
-       | 65 2d 6f 66
-       | 2d 73 65 63
-       | 74 69 6f 6e
-0x007f |-------------| ... 7 bytes of data
+ 0x5a | 06          | size of function
+ 0x5b | 01          | 1 local blocks
+ 0x5c | 01 7f       | 1 locals of type I32
+ 0x5e | 41 00       | I32Const { value: 0 }
+ 0x60 | 0b          | End
+ 0x61 | 0b 0a       | data section
+ 0x63 | 02          | 2 count
+ 0x64 | 00          | data memory[0]
+ 0x65 | 41 08       | I32Const { value: 8 }
+ 0x67 | 0b          | End
+ 0x68 |-------------| ... 1 bytes of data
+ 0x6a | 01 01       | data passive
+ 0x6c |-------------| ... 1 bytes of data
+ 0x6d | 00 17       | custom section
+ 0x6f | 0f 6e 61 6d | name: "name-of-section"
+      | 65 2d 6f 66
+      | 2d 73 65 63
+      | 74 69 6f 6e
+ 0x7f |-------------| ... 7 bytes of data
