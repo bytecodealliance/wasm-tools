@@ -364,7 +364,7 @@ pub struct InstanceType<'a> {
     /// The public types for this instance.
     pub types: Vec<ast::ComponentTypeField<'a>>,
     /// The public type relationships for this instance.
-    pub aliases: Vec<ast::ComponentExportType<'a>>,
+    pub aliases: Vec<ast::Alias<'a>>,
     /// The exports that this instance type is expected to have.
     pub exports: Vec<ast::ComponentExportType<'a>>,
 }
