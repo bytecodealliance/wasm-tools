@@ -4,7 +4,6 @@ use std::collections::HashMap;
 
 pub(crate) fn expand<'a, 'g>(fields: &mut Vec<ModuleField<'a>>, gensym: &'g mut Gensym) {
     let mut expander = Expander {
-        process_imports_early: false,
         func_type_to_idx: HashMap::new(),
         to_prepend: Vec::new(),
         gensym,
@@ -13,9 +12,6 @@ pub(crate) fn expand<'a, 'g>(fields: &mut Vec<ModuleField<'a>>, gensym: &'g mut 
 }
 
 struct Expander<'a, 'g> {
-    // See the comment in `process` for why this exists.
-    process_imports_early: bool,
-
     // Maps used to "intern" types. These maps are populated as type annotations
     // are seen and inline type annotations use previously defined ones if
     // there's a match.
@@ -32,9 +28,8 @@ struct Expander<'a, 'g> {
 
 impl<'a, 'g> Expander<'a, 'g> {
     fn process(&mut self, fields: &mut Vec<ModuleField<'a>>) {
-        // Next we expand "header" fields which are those like types and
-        // imports. In this context "header" is defined by the previous
-        // `process_imports_early` annotation.
+        // Expand "header" fields which are those like types and
+        // imports.
         let mut cur = 0;
         while cur < fields.len() {
             self.expand_header(&mut fields[cur]);
@@ -67,9 +62,6 @@ impl<'a, 'g> Expander<'a, 'g> {
                     TypeDef::Array(_) | TypeDef::Struct(_) => {}
                 }
             }
-            ModuleField::Import(i) if self.process_imports_early => {
-                self.expand_item_sig(&mut i.item);
-            }
             _ => {}
         }
     }
@@ -80,10 +72,7 @@ impl<'a, 'g> Expander<'a, 'g> {
             ModuleField::Type(_) => {}
 
             ModuleField::Import(i) => {
-                // Only expand here if not expanded above
-                if !self.process_imports_early {
-                    self.expand_item_sig(&mut i.item);
-                }
+                self.expand_item_sig(&mut i.item);
             }
             ModuleField::Func(f) => {
                 self.expand_type_use(&mut f.ty);
