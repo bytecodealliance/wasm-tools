@@ -46,6 +46,8 @@ impl InterfacePrinter {
 
     fn print_type_name(&mut self, interface: &Interface, ty: &Type) -> Result<()> {
         match ty {
+            Type::Unit => self.output.push_str("unit"),
+            Type::Bool => self.output.push_str("bool"),
             Type::U8 => self.output.push_str("u8"),
             Type::U16 => self.output.push_str("u16"),
             Type::U32 => self.output.push_str("u32"),
@@ -106,11 +108,6 @@ impl InterfacePrinter {
     }
 
     fn print_variant_type(&mut self, interface: &Interface, variant: &Variant) -> Result<()> {
-        if variant.is_bool() {
-            self.output.push_str("bool");
-            return Ok(());
-        }
-
         if let Some(ty) = variant.as_option() {
             self.output.push_str("option<");
             self.print_type_name(interface, ty)?;
@@ -138,7 +135,9 @@ impl InterfacePrinter {
 
     fn declare_type(&mut self, interface: &Interface, ty: &Type) -> Result<()> {
         match ty {
-            Type::U8
+            Type::Unit
+            | Type::Bool
+            | Type::U8
             | Type::U16
             | Type::U32
             | Type::U64
@@ -244,7 +243,7 @@ impl InterfacePrinter {
             }
         }
 
-        if variant.is_bool() || variant.as_option().is_some() || variant.as_expected().is_some() {
+        if variant.as_option().is_some() || variant.as_expected().is_some() {
             if let Some(name) = name {
                 write!(&mut self.output, "type {} = ", name)?;
                 self.print_variant_type(interface, variant)?;

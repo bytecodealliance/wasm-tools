@@ -5,8 +5,8 @@ use wasmparser::{
     Validator, WasmFeatures,
 };
 use wit_parser::{
-    validate_id, Case, Docs, Field, Function, FunctionKind, Int, Interface, Record, RecordKind,
-    Type, TypeDef, TypeDefKind, TypeId, Variant,
+    validate_id, Case, Docs, Field, Function, FunctionKind, Interface, Record, RecordKind, Type,
+    TypeDef, TypeDefKind, TypeId, Variant,
 };
 
 /// Represents information about a decoded WebAssembly component.
@@ -177,7 +177,6 @@ pub struct InterfaceDecoder<'a> {
     interface: Interface,
     type_map: HashMap<types::TypeId, Type>,
     name_map: HashMap<types::TypeId, &'a str>,
-    bool_ty: Option<TypeId>,
 }
 
 impl<'a> InterfaceDecoder<'a> {
@@ -188,7 +187,6 @@ impl<'a> InterfaceDecoder<'a> {
             interface: Interface::default(),
             name_map: HashMap::new(),
             type_map: HashMap::new(),
-            bool_ty: None,
         }
     }
 
@@ -329,8 +327,8 @@ impl<'a> InterfaceDecoder<'a> {
 
     fn decode_primitive(&mut self, ty: PrimitiveInterfaceType) -> Result<Type> {
         Ok(match ty {
-            PrimitiveInterfaceType::Unit => bail!("unexpected unit type in interface function"),
-            PrimitiveInterfaceType::Bool => self.bool(),
+            PrimitiveInterfaceType::Unit => Type::Unit,
+            PrimitiveInterfaceType::Bool => Type::Bool,
             PrimitiveInterfaceType::S8 => Type::S8,
             PrimitiveInterfaceType::U8 => Type::U8,
             PrimitiveInterfaceType::S16 => Type::S16,
@@ -603,29 +601,5 @@ impl<'a> InterfaceDecoder<'a> {
             name,
             foreign_module: None,
         })
-    }
-
-    fn bool(&mut self) -> Type {
-        if self.bool_ty.is_none() {
-            self.bool_ty = Some(self.alloc_type(
-                None,
-                TypeDefKind::Variant(Variant {
-                    cases: vec![
-                        Case {
-                            docs: Docs::default(),
-                            name: "false".to_string(),
-                            ty: None,
-                        },
-                        Case {
-                            docs: Docs::default(),
-                            name: "true".to_string(),
-                            ty: None,
-                        },
-                    ],
-                    tag: Int::U8,
-                }),
-            ));
-        }
-        Type::Id(self.bool_ty.unwrap())
     }
 }

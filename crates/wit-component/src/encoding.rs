@@ -415,6 +415,8 @@ impl<'a> TypeEncoder<'a> {
         ty: &Type,
     ) -> Result<InterfaceTypeRef> {
         Ok(match ty {
+            Type::Unit => InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Unit),
+            Type::Bool => InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Bool),
             Type::U8 => InterfaceTypeRef::Primitive(PrimitiveInterfaceType::U8),
             Type::U16 => InterfaceTypeRef::Primitive(PrimitiveInterfaceType::U16),
             Type::U32 => InterfaceTypeRef::Primitive(PrimitiveInterfaceType::U32),
@@ -526,10 +528,6 @@ impl<'a> TypeEncoder<'a> {
         instance: &mut Option<InstanceTypeEncoder<'a>>,
         variant: &Variant,
     ) -> Result<InterfaceTypeRef> {
-        if variant.is_bool() {
-            return Ok(InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Bool));
-        }
-
         if let Some(ty) = variant.as_option() {
             let ty = self.encode_type(interface, instance, ty)?;
             let index = self.types.len();
