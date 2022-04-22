@@ -174,7 +174,6 @@ impl<'a> Parse<'a> for ModuleArg<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         if parser.peek::<ast::LParen>()
             && parser.peek2::<kw::instance>()
-            && (parser.peek3::<ast::LParen>() || parser.peek3::<ast::RParen>())
         {
             let exports = parser.parens(|p| {
                 p.parse::<kw::instance>()?;
@@ -197,10 +196,14 @@ impl<'a> Parse<'a> for ModuleArg<'a> {
 
 impl<'a> Parse<'a> for ComponentArg<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        if parser.peek::<ast::LParen>()
-            && parser.peek2::<kw::instance>()
-            && (parser.peek3::<ast::LParen>() || parser.peek3::<ast::RParen>())
-        {
+        if parser.peek::<ast::ItemRef<'a, ast::DefTypeKind>>() {
+            // `(<deftypekind> <index>)`
+            let def = parser.parse::<ast::ItemRef<'a, ast::DefTypeKind>>()?;
+            Ok(ComponentArg::Def(def))
+        } else if parser.peek::<ast::LParen>() && parser.peek2::<ast::ItemRef<kw::r#type>>() {
+            let def = parser.parse::<ast::ItemRef<'a, kw::r#type>>()?;
+            Ok(ComponentArg::Type(def))
+        } else if parser.peek::<ast::LParen>() && parser.peek2::<kw::instance>() {
             let exports = parser.parens(|p| {
                 p.parse::<kw::instance>()?;
                 let mut exports = Vec::new();
@@ -210,13 +213,6 @@ impl<'a> Parse<'a> for ComponentArg<'a> {
                 Ok(exports)
             })?;
             Ok(ComponentArg::BundleOfExports(exports))
-        } else if parser.peek::<ast::ItemRef<'a, ast::DefTypeKind>>() {
-            // `(<deftypekind> <index>)`
-            let def = parser.parse::<ast::ItemRef<'a, ast::DefTypeKind>>()?;
-            Ok(ComponentArg::Def(def))
-        } else if parser.peek::<ast::LParen>() && parser.peek2::<ast::ItemRef<kw::r#type>>() {
-            let def = parser.parse::<ast::ItemRef<'a, kw::r#type>>()?;
-            Ok(ComponentArg::Type(def))
         } else {
             Err(parser.error("expected def type, type, or instance"))
         }
@@ -225,9 +221,9 @@ impl<'a> Parse<'a> for ComponentArg<'a> {
 
 impl Peek for ComponentArg<'_> {
     fn peek(cursor: Cursor<'_>) -> bool {
-        (kw::instance::peek2(cursor) && (ast::LParen::peek3(cursor) || ast::RParen::peek3(cursor)))
-            || ast::ItemRef::<ast::DefTypeKind>::peek(cursor)
+        ast::ItemRef::<ast::DefTypeKind>::peek(cursor)
             || ast::ItemRef::<kw::r#type>::peek2(cursor)
+            || (ast::LParen::peek(cursor) && kw::instance::peek2(cursor))
     }
     fn display() -> &'static str {
         "componentarg"
