@@ -1,18 +1,28 @@
 use anyhow::{bail, Result};
-use std::fmt::Write;
+use std::fmt::Write as _;
+use std::io::Write;
 use wasmparser::*;
 
 pub fn dump_wasm(bytes: &[u8]) -> Result<String> {
-    let mut d = Dump::new(bytes);
+    let mut dst = vec![];
+    {
+        let mut d = Dump::new(bytes, &mut dst);
+        d.run()?;
+    }
+    Ok(String::from_utf8(dst).unwrap())
+}
+
+pub fn dump_wasm_into(bytes: &[u8], into: impl Write) -> Result<()> {
+    let mut d = Dump::new(bytes, into);
     d.run()?;
-    Ok(d.dst)
+    Ok(())
 }
 
 struct Dump<'a> {
     bytes: &'a [u8],
     cur: usize,
     state: String,
-    dst: String,
+    dst: Box<dyn Write + 'a>,
     nesting: u32,
     offset_width: usize,
 }
@@ -34,13 +44,13 @@ struct Indices {
 const NBYTES: usize = 4;
 
 impl<'a> Dump<'a> {
-    fn new(bytes: &'a [u8]) -> Dump<'a> {
+    fn new(bytes: &'a [u8], dst: impl Write + 'a) -> Dump<'a> {
         Dump {
             bytes,
             cur: 0,
             nesting: 0,
             state: String::new(),
-            dst: String::new(),
+            dst: Box::new(dst) as _,
             offset_width: format!("{:x}", bytes.len()).len() + 1,
         }
     }
@@ -441,11 +451,10 @@ impl<'a> Dump<'a> {
     fn print(&mut self, end: usize) -> Result<()> {
         assert!(
             self.cur < end,
-            "{:#x} >= {:#x}\ntrying to print: {}\n{}",
+            "{:#x} >= {:#x}\ntrying to print: {}",
             self.cur,
             end,
             self.state,
-            self.dst
         );
         let bytes = &self.bytes[self.cur..end];
         self.print_byte_header()?;
@@ -455,9 +464,9 @@ impl<'a> Dump<'a> {
                     write!(self.dst, "  ")?;
                 }
                 for _ in 0..self.offset_width {
-                    self.dst.push_str(" ");
+                    write!(self.dst, " ")?;
                 }
-                self.dst.push_str("   |");
+                write!(self.dst, "   |")?;
             }
             for j in 0..NBYTES {
                 match chunk.get(j) {
@@ -466,11 +475,11 @@ impl<'a> Dump<'a> {
                 }
             }
             if i == 0 {
-                self.dst.push_str(" | ");
-                self.dst.push_str(&self.state);
+                write!(self.dst, " | ")?;
+                write!(self.dst, "{}", &self.state)?;
                 self.state.truncate(0);
             }
-            self.dst.push_str("\n");
+            write!(self.dst, "\n")?;
         }
         self.cur = end;
         Ok(())
