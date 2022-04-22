@@ -291,14 +291,9 @@ pub struct ComponentType<'a> {
     /// An optional identifer to refer to this `component` type by as part of
     /// name resolution.
     pub id: Option<ast::Id<'a>>,
-    /// The public types for this component.
-    pub types: Vec<ast::ComponentTypeField<'a>>,
-    /// The public type relationships for this component.
-    pub aliases: Vec<ast::Alias<'a>>,
-    /// The imports that are expected for this component type.
-    pub imports: Vec<ast::ComponentImport<'a>>,
-    /// The exports that this component type is expected to have.
-    pub exports: Vec<ast::ComponentExportType<'a>>,
+
+    /// The fields of this `ComponentType`.
+    pub fields: Vec<ComponentTypeField<'a>>,
 }
 
 impl<'a> Parse<'a> for ComponentType<'a> {
@@ -312,31 +307,22 @@ impl<'a> Parse<'a> for ComponentType<'a> {
             parser.parse::<kw::component>()?;
             let id = parser.parse()?;
 
-            let mut types = Vec::new();
-            let mut aliases = Vec::new();
-            let mut imports = Vec::new();
-            let mut exports = Vec::new();
+            let mut fields = Vec::new();
             while parser.peek::<ast::LParen>() {
                 parser.parens(|parser| {
                     if parser.peek::<kw::import>() {
-                        imports.push(parser.parse()?);
+                        fields.push(ComponentTypeField::Import(parser.parse()?));
                     } else if parser.peek::<kw::export>() {
-                        exports.push(parser.parse()?);
+                        fields.push(ComponentTypeField::Export(parser.parse()?));
                     } else if parser.peek::<kw::r#type>() {
-                        types.push(parser.parse()?);
+                        fields.push(ComponentTypeField::Type(parser.parse()?));
                     } else if parser.peek::<kw::alias>() {
-                        aliases.push(parser.parse()?);
+                        fields.push(ComponentTypeField::Alias(parser.parse()?));
                     }
                     Ok(())
                 })?;
             }
-            Ok(ComponentType {
-                id,
-                types,
-                aliases,
-                imports,
-                exports,
-            })
+            Ok(ComponentType { id, fields })
         })
     }
 }
@@ -355,18 +341,31 @@ impl<'a> Peek for ComponentType<'a> {
     }
 }
 
+/// A field of a type for a nested component
+#[derive(Clone, Debug)]
+pub enum ComponentTypeField<'a> {
+    /// A public type for this component.
+    Type(ast::TypeField<'a>),
+
+    /// A public type relationships for this component.
+    Alias(ast::Alias<'a>),
+
+    /// An import expected for this component type.
+    Import(ast::ComponentImport<'a>),
+
+    /// An export this component type is expected to have.
+    Export(ast::ComponentExportType<'a>),
+}
+
 /// A type for a nested instance
 #[derive(Clone, Debug, Default)]
 pub struct InstanceType<'a> {
     /// An optional identifer to refer to this `instance` type by as part of
     /// name resolution.
     pub id: Option<ast::Id<'a>>,
-    /// The public types for this instance.
-    pub types: Vec<ast::ComponentTypeField<'a>>,
-    /// The public type relationships for this instance.
-    pub aliases: Vec<ast::Alias<'a>>,
-    /// The exports that this instance type is expected to have.
-    pub exports: Vec<ast::ComponentExportType<'a>>,
+
+    /// The fields of this `InstanceType`.
+    pub fields: Vec<InstanceTypeField<'a>>,
 }
 
 impl<'a> Parse<'a> for InstanceType<'a> {
@@ -379,24 +378,19 @@ impl<'a> Parse<'a> for InstanceType<'a> {
         parser.parens(|parser| {
             parser.parse::<kw::instance>()?;
             let id = parser.parse()?;
-            let mut types = Vec::new();
-            let mut aliases = Vec::new();
-            let mut exports = Vec::new();
+            let mut fields = Vec::new();
             while parser.peek::<ast::LParen>() {
                 if parser.peek2::<kw::export>() {
-                    exports.push(parser.parens(|parser| parser.parse())?);
+                    fields.push(InstanceTypeField::Export(
+                        parser.parens(|parser| parser.parse())?,
+                    ));
                 } else if parser.peek2::<kw::r#type>() {
-                    types.push(parser.parse()?);
+                    fields.push(InstanceTypeField::Type(parser.parse()?));
                 } else if parser.peek2::<kw::alias>() {
-                    aliases.push(parser.parse()?);
+                    fields.push(InstanceTypeField::Alias(parser.parse()?));
                 }
             }
-            Ok(InstanceType {
-                id,
-                types,
-                aliases,
-                exports,
-            })
+            Ok(InstanceType { id, fields })
         })
     }
 }
@@ -416,6 +410,19 @@ impl<'a> Peek for InstanceType<'a> {
     fn display() -> &'static str {
         "instance type"
     }
+}
+
+/// A field of a type for a nested instance
+#[derive(Clone, Debug)]
+pub enum InstanceTypeField<'a> {
+    /// A public type for this component.
+    Type(ast::TypeField<'a>),
+
+    /// A public type relationships for this component.
+    Alias(ast::Alias<'a>),
+
+    /// An export this component type is expected to have.
+    Export(ast::ComponentExportType<'a>),
 }
 
 /// A value type.

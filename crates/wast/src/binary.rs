@@ -131,11 +131,11 @@ fn encode_component_fields(
             ComponentField::Type(i) => e.component_section_list(1, &[i]),
             ComponentField::Import(i) => e.component_section_list(2, &[i]),
             ComponentField::Func(i) => e.component_section_list(3, &[i]),
-            ComponentField::Module(i) => e.component_section_list(4, &[i]),
-            ComponentField::Component(i) => e.component_section_list(5, &[i]),
+            ComponentField::Module(i) => e.section(4, &i),
+            ComponentField::Component(i) => e.section(5, &i),
             ComponentField::Instance(i) => e.component_section_list(6, &[i]),
             ComponentField::Export(i) => e.component_section_list(7, &[i]),
-            ComponentField::Start(i) => e.component_section_list(8, &[i]),
+            ComponentField::Start(i) => e.section(8, &i),
             ComponentField::Alias(i) => e.component_section_list(9, &[i]),
             ComponentField::Custom(i) => e.section(0, &(i.name, &i.data)),
         }
@@ -349,7 +349,7 @@ impl Encode for Type<'_> {
     }
 }
 
-impl Encode for ComponentTypeField<'_> {
+impl Encode for TypeField<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         match &self.def {
             ComponentTypeDef::DefType(d) => d.encode(e),
@@ -1274,12 +1274,24 @@ struct ComponentNames<'a> {
     funcs: Vec<(u32, &'a str)>,
     func_idx: u32,
     labels: Vec<(u32, Vec<(u32, &'a str)>)>,
+    modules: Vec<(u32, &'a str)>,
+    module_idx: u32,
     components: Vec<(u32, &'a str)>,
     component_idx: u32,
+    values: Vec<(u32, &'a str)>,
+    value_idx: u32,
     instances: Vec<(u32, &'a str)>,
     instance_idx: u32,
     types: Vec<(u32, &'a str)>,
     type_idx: u32,
+    tables: Vec<(u32, &'a str)>,
+    table_idx: u32,
+    globals: Vec<(u32, &'a str)>,
+    global_idx: u32,
+    memories: Vec<(u32, &'a str)>,
+    memory_idx: u32,
+    tags: Vec<(u32, &'a str)>,
+    tag_idx: u32,
 }
 
 fn find_component_names<'a>(
@@ -1293,6 +1305,11 @@ fn find_component_names<'a>(
         Module,
         Component,
         Instance,
+        Value,
+        Table,
+        Global,
+        Memory,
+        Tag,
     }
 
     let mut ret = ComponentNames::default();
@@ -1301,7 +1318,7 @@ fn find_component_names<'a>(
         // Extract the kind/id/name from whatever kind of field this is...
         let (kind, id, name) = match field {
             ComponentField::Import(_i) => {
-                eprintln!("TODO: Extract the kind/id/name from ComponentField::Import");
+                eprintln!("TODO: Extract the kind/id/name for the name section from ComponentField::Import");
                 continue;
             }
             ComponentField::Module(m) => (Name::Module, &m.id, &m.name),
@@ -1309,9 +1326,25 @@ fn find_component_names<'a>(
             ComponentField::Instance(i) => (Name::Instance, &i.id, &i.name),
             ComponentField::Type(t) => (Name::Type, &t.id, &t.name),
             ComponentField::Func(f) => (Name::Func, &f.id, &f.name),
-            ComponentField::Alias(_a) => {
-                eprintln!("TODO: Extract the kind/id/name from ComponentField::Alias");
-                continue;
+            ComponentField::Alias(a) => {
+                match a.target {
+                    AliasTarget::Export { .. } => {
+                        eprintln!("TODO: Extract the kind/id/name for the name section from export aliases");
+                        continue;
+                    }
+                    AliasTarget::Outer { .. } => match a.kind {
+                        AliasKind::Module => (Name::Module, &a.id, &a.name),
+                        AliasKind::Component => (Name::Component, &a.id, &a.name),
+                        AliasKind::Instance => (Name::Instance, &a.id, &a.name),
+                        AliasKind::Value => (Name::Value, &a.id, &a.name),
+                        AliasKind::ExportKind(ExportKind::Func) => (Name::Func, &a.id, &a.name),
+                        AliasKind::ExportKind(ExportKind::Table) => (Name::Table, &a.id, &a.name),
+                        AliasKind::ExportKind(ExportKind::Global) => (Name::Global, &a.id, &a.name),
+                        AliasKind::ExportKind(ExportKind::Memory) => (Name::Memory, &a.id, &a.name),
+                        AliasKind::ExportKind(ExportKind::Tag) => (Name::Tag, &a.id, &a.name),
+                        AliasKind::ExportKind(ExportKind::Type) => (Name::Type, &a.id, &a.name),
+                    },
+                }
             }
             ComponentField::Export(_) | ComponentField::Start(_) | ComponentField::Custom(_) => {
                 continue
@@ -1321,13 +1354,15 @@ fn find_component_names<'a>(
         // .. and using the kind we can figure out where to place this name
         let (list, idx) = match kind {
             Name::Func => (&mut ret.funcs, &mut ret.func_idx),
-            Name::Module => {
-                eprintln!("TODO: modules");
-                continue;
-            }
+            Name::Module => (&mut ret.modules, &mut ret.module_idx),
             Name::Component => (&mut ret.components, &mut ret.component_idx),
             Name::Instance => (&mut ret.instances, &mut ret.instance_idx),
             Name::Type => (&mut ret.types, &mut ret.type_idx),
+            Name::Value => (&mut ret.values, &mut ret.value_idx),
+            Name::Table => (&mut ret.tables, &mut ret.table_idx),
+            Name::Global => (&mut ret.globals, &mut ret.global_idx),
+            Name::Memory => (&mut ret.memories, &mut ret.memory_idx),
+            Name::Tag => (&mut ret.tags, &mut ret.tag_idx),
         };
         if let Some(name) = get_name(id, name) {
             list.push((*idx, name));
@@ -1510,14 +1545,92 @@ impl Encode for Component<'_> {
 }
 
 impl Encode for NestedModule<'_> {
-    fn encode(&self, _e: &mut Vec<u8>) {
-        eprintln!("TODO: Encode for NestedModule")
+    fn encode(&self, e: &mut Vec<u8>) {
+        match &self.kind {
+            NestedModuleKind::Import { .. } => todo!("encoding for NestedModuleKind::Import"),
+            NestedModuleKind::Inline { fields } => {
+                e.extend(encode_module_fields(&self.id, &self.name, fields))
+            }
+        }
     }
 }
 
 impl Encode for Instance<'_> {
-    fn encode(&self, _e: &mut Vec<u8>) {
-        eprintln!("TODO: Encode for Instance")
+    fn encode(&self, e: &mut Vec<u8>) {
+        match &self.kind {
+            InstanceKind::Module { module, args } => {
+                e.push(0x00);
+                e.push(0x00);
+                module.idx.encode(e);
+                args.encode(e);
+            }
+            InstanceKind::Component { component, args } => {
+                e.push(0x00);
+                e.push(0x01);
+                component.idx.encode(e);
+                args.encode(e);
+            }
+            InstanceKind::BundleOfComponentExports { args } => {
+                e.push(0x01);
+                args.encode(e);
+            }
+            InstanceKind::BundleOfExports { args } => {
+                e.push(0x02);
+                args.encode(e);
+            }
+        }
+    }
+}
+
+impl Encode for NamedModuleArg<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.name.encode(e);
+        e.push(0x02);
+        self.arg.encode(e);
+    }
+}
+
+impl Encode for ModuleArg<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        match self {
+            ModuleArg::Def(def) => {
+                def.idx.encode(e);
+            }
+            ModuleArg::BundleOfExports(_) => {
+                todo!("ModuleArg::BundleOfExports should be desugared")
+            }
+        }
+    }
+}
+
+impl Encode for NamedComponentArg<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.name.encode(e);
+        self.arg.encode(e);
+    }
+}
+
+impl Encode for ComponentArg<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        match self {
+            ComponentArg::Def(def) => {
+                match def.kind {
+                    DefTypeKind::Module => e.push(0x00),
+                    DefTypeKind::Component => e.push(0x01),
+                    DefTypeKind::Instance => e.push(0x02),
+                    DefTypeKind::Func => e.push(0x03),
+                    DefTypeKind::Value => e.push(0x04),
+                }
+                def.idx.encode(e);
+            }
+            ComponentArg::Type(ty) => {
+                e.push(0x05);
+                ty.idx.encode(e);
+            }
+            ComponentArg::BundleOfExports(_) => {
+                todo!("ComponentArg::BundleOfExports should be desugared")
+            }
+        }
     }
 }
 
@@ -1528,15 +1641,22 @@ impl Encode for Start<'_> {
     }
 }
 
-impl Encode for ComponentArg<'_> {
-    fn encode(&self, _e: &mut Vec<u8>) {
-        eprintln!("TODO: Encode for ComponentArg")
-    }
-}
-
 impl Encode for Alias<'_> {
-    fn encode(&self, _e: &mut Vec<u8>) {
-        eprintln!("TODO: Encode for Alias")
+    fn encode(&self, e: &mut Vec<u8>) {
+        match self.target {
+            AliasTarget::Export { .. } => todo!("Encode for alias export"),
+            AliasTarget::Outer { outer, index } => {
+                e.push(0x02);
+                match self.kind {
+                    AliasKind::Module => e.push(0x00),
+                    AliasKind::Component => e.push(0x01),
+                    AliasKind::ExportKind(ExportKind::Type) => e.push(0x05),
+                    _ => panic!("Unexpected alias outer kind"),
+                }
+                outer.encode(e);
+                index.encode(e);
+            }
+        }
     }
 }
 

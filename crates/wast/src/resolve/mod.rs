@@ -69,7 +69,7 @@ pub fn resolve_component<'a>(component: &mut Component<'a>) -> Result<(), Error>
 
     // Perform name resolution over all `Index` items to resolve them all to
     // indices instead of symbolic names.
-    component_names::resolve(fields)?;
+    component_names::resolve(component.id, fields)?;
     Ok(())
 }
 

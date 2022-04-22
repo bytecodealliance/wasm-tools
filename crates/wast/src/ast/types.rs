@@ -714,13 +714,9 @@ impl<'a> Parse<'a> for Type<'a> {
 
 /// A type declaration in a component.
 ///
-/// This is named `ComponentTypeField` because it isn't the type of a
-/// component (`ComponentType`), and it isn't just any type (`Type`),
-/// it's a `(type ...)` field within a component.
-///
 /// type              ::= (type <id>? <typeexpr>)
 #[derive(Debug, Clone)]
-pub struct ComponentTypeField<'a> {
+pub struct TypeField<'a> {
     /// Where this type was defined.
     pub span: ast::Span,
     /// An optional identifer to refer to this `type` by as part of name
@@ -732,7 +728,7 @@ pub struct ComponentTypeField<'a> {
     pub def: ComponentTypeDef<'a>,
 }
 
-impl<'a> Parse<'a> for ComponentTypeField<'a> {
+impl<'a> Parse<'a> for TypeField<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::r#type>()?.0;
         let id = parser.parse()?;
@@ -744,7 +740,7 @@ impl<'a> Parse<'a> for ComponentTypeField<'a> {
         } else {
             return Err(parser.error("expected deftype or intertype"));
         };
-        Ok(ComponentTypeField {
+        Ok(TypeField {
             span,
             id,
             name,
