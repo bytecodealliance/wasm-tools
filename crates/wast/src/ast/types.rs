@@ -639,12 +639,10 @@ pub struct ComponentExportType<'a> {
 
 impl<'a> Parse<'a> for ComponentExportType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parens(|parser| {
-            let span = parser.parse::<kw::export>()?.0;
-            let name = parser.parse()?;
-            let item = parser.parse()?;
-            Ok(ComponentExportType { span, name, item })
-        })
+        let span = parser.parse::<kw::export>()?.0;
+        let name = parser.parse()?;
+        let item = parser.parse()?;
+        Ok(ComponentExportType { span, name, item })
     }
 }
 
@@ -736,23 +734,21 @@ pub struct ComponentTypeField<'a> {
 
 impl<'a> Parse<'a> for ComponentTypeField<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parens(|parser| {
-            let span = parser.parse::<kw::r#type>()?.0;
-            let id = parser.parse()?;
-            let name = parser.parse()?;
-            let def = if parser.peek::<ast::DefType>() {
-                ComponentTypeDef::DefType(parser.parse()?)
-            } else if parser.peek::<ast::InterType>() {
-                ComponentTypeDef::InterType(parser.parse()?)
-            } else {
-                return Err(parser.error("expected deftype or intertype"));
-            };
-            Ok(ComponentTypeField {
-                span,
-                id,
-                name,
-                def,
-            })
+        let span = parser.parse::<kw::r#type>()?.0;
+        let id = parser.parse()?;
+        let name = parser.parse()?;
+        let def = if parser.peek::<ast::DefType>() {
+            ComponentTypeDef::DefType(parser.parse()?)
+        } else if parser.peek::<ast::InterType>() {
+            ComponentTypeDef::InterType(parser.parse()?)
+        } else {
+            return Err(parser.error("expected deftype or intertype"));
+        };
+        Ok(ComponentTypeField {
+            span,
+            id,
+            name,
+            def,
         })
     }
 }
@@ -831,19 +827,21 @@ impl<'a, T> ComponentTypeUse<'a, T> {
     /// with an index specified.
     pub fn new_with_index(idx: ast::Index<'a>) -> ComponentTypeUse<'a, T> {
         ComponentTypeUse::Ref(ast::ItemRef {
-                idx,
-                kind: kw::r#type::default(),
-                extra_names: Vec::new(),
-                #[cfg(wast_check_exhaustive)]
-                visited: true,
-            })
+            idx,
+            kind: kw::r#type::default(),
+            extra_names: Vec::new(),
+            #[cfg(wast_check_exhaustive)]
+            visited: true,
+        })
     }
 }
 
 impl<'a, T: Peek + Parse<'a>> Parse<'a> for ComponentTypeUse<'a, T> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         if parser.peek::<ast::IndexOrRef<'a, kw::r#type>>() {
-            Ok(ComponentTypeUse::Ref(parser.parse::<ast::IndexOrRef<kw::r#type>>()?.0))
+            Ok(ComponentTypeUse::Ref(
+                parser.parse::<ast::IndexOrRef<kw::r#type>>()?.0,
+            ))
         } else if parser.peek::<ast::Index>() {
             Ok(ComponentTypeUse::Ref(parser.parse()?))
         } else {

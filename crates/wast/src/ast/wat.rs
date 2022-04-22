@@ -1,4 +1,4 @@
-use crate::ast::{self, kw, Module, ModuleField, ModuleKind, Component};
+use crate::ast::{self, kw, Component, Module, ModuleField, ModuleKind};
 use crate::parser::{Parse, Parser, Result};
 
 /// A `*.wat` file parser, or a parser for one parenthesized core module.
@@ -41,7 +41,7 @@ impl<'a> Parse<'a> for Wat<'a> {
         let wat = if parser.peek2::<kw::module>() {
             Wat::Module(parser.parens(|parser| parser.parse())?)
         } else if parser.peek2::<kw::component>() {
-            Wat::Component(parser.parse()?)
+            Wat::Component(parser.parens(|parser| parser.parse())?)
         } else {
             let fields = ModuleField::parse_remaining(parser)?;
             Wat::Module(Module {

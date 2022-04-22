@@ -42,32 +42,30 @@ pub enum ComponentFuncKind<'a> {
 
 impl<'a> Parse<'a> for ComponentFunc<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parens(|parser| {
-            let span = parser.parse::<kw::func>()?.0;
-            let id = parser.parse()?;
-            let name = parser.parse()?;
-            let exports = parser.parse()?;
+        let span = parser.parse::<kw::func>()?.0;
+        let id = parser.parse()?;
+        let name = parser.parse()?;
+        let exports = parser.parse()?;
 
-            let (ty, kind) = if let Some(import) = parser.parse()? {
-                (parser.parse()?, ComponentFuncKind::Import(import))
-            } else {
-                let ty = parser.parse()?;
-                (
-                    ty,
-                    ComponentFuncKind::Inline {
-                        body: parser.parse()?,
-                    },
-                )
-            };
-
-            Ok(ComponentFunc {
-                span,
-                id,
-                name,
-                exports,
+        let (ty, kind) = if let Some(import) = parser.parse()? {
+            (parser.parse()?, ComponentFuncKind::Import(import))
+        } else {
+            let ty = parser.parse()?;
+            (
                 ty,
-                kind,
-            })
+                ComponentFuncKind::Inline {
+                    body: parser.parse()?,
+                },
+            )
+        };
+
+        Ok(ComponentFunc {
+            span,
+            id,
+            name,
+            exports,
+            ty,
+            kind,
         })
     }
 }
@@ -108,7 +106,9 @@ impl<'a> Parse<'a> for CanonLift<'a> {
             parser.parse::<kw::canon_lift>()?;
             let type_ = parser.parse()?;
             let mut opts = Vec::new();
-            while !parser.is_empty() && (!parser.peek::<ast::LParen>() || !parser.peek2::<kw::func>()) {
+            while !parser.is_empty()
+                && (!parser.peek::<ast::LParen>() || !parser.peek2::<kw::func>())
+            {
                 opts.push(parser.parse()?);
             }
             let func = parser.parse()?;
@@ -130,7 +130,9 @@ impl<'a> Parse<'a> for CanonLower<'a> {
         parser.parens(|parser| {
             parser.parse::<kw::canon_lower>()?;
             let mut opts = Vec::new();
-            while !parser.is_empty() && (!parser.peek::<ast::LParen>() || !parser.peek2::<kw::func>()) {
+            while !parser.is_empty()
+                && (!parser.peek::<ast::LParen>() || !parser.peek2::<kw::func>())
+            {
                 opts.push(parser.parse()?);
             }
             let func = parser.parse()?;

@@ -42,16 +42,10 @@ pub struct ComponentImport<'a> {
 
 impl<'a> Parse<'a> for ComponentImport<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parens(|parser| {
         let span = parser.parse::<kw::import>()?.0;
         let name = parser.parse()?;
         let type_ = parser.parse()?;
-        Ok(ComponentImport {
-            span,
-            name,
-            type_,
-        })
-        })
+        Ok(ComponentImport { span, name, type_ })
     }
 }
 

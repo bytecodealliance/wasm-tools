@@ -34,7 +34,7 @@ pub enum AliasKind {
     Component,
     Instance,
     Value,
-    ExportKind(ast::ExportKind)
+    ExportKind(ast::ExportKind),
 }
 
 impl<'a> Parse<'a> for AliasKind {
@@ -80,29 +80,27 @@ pub enum AliasTarget<'a> {
 
 impl<'a> Parse<'a> for Alias<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parens(|parser| {
-            let span = parser.parse::<kw::alias>()?.0;
-            let target = if parser.parse::<Option<kw::outer>>()?.is_some() {
-                AliasTarget::Outer {
-                    outer: parser.parse()?,
-                    index: parser.parse()?,
-                }
-            } else {
-                parser.parse::<kw::export>()?;
-                AliasTarget::Export {
-                    instance: parser.parse::<ast::Index<'a>>()?,
-                    export: parser.parse()?,
-                }
-            };
-            let (kind, id, name) = parser.parens(|p| Ok((p.parse()?, p.parse()?, p.parse()?)))?;
+        let span = parser.parse::<kw::alias>()?.0;
+        let target = if parser.parse::<Option<kw::outer>>()?.is_some() {
+            AliasTarget::Outer {
+                outer: parser.parse()?,
+                index: parser.parse()?,
+            }
+        } else {
+            parser.parse::<kw::export>()?;
+            AliasTarget::Export {
+                instance: parser.parse::<ast::Index<'a>>()?,
+                export: parser.parse()?,
+            }
+        };
+        let (kind, id, name) = parser.parens(|p| Ok((p.parse()?, p.parse()?, p.parse()?)))?;
 
-            Ok(Alias {
-                span,
-                id,
-                name,
-                kind,
-                target,
-            })
+        Ok(Alias {
+            span,
+            id,
+            name,
+            kind,
+            target,
         })
     }
 }

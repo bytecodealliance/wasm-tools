@@ -43,26 +43,16 @@ impl<'a> Parse<'a> for Export<'a> {
         let span = parser.parse::<kw::export>()?.0;
         let name = parser.parse()?;
         let index = parser.parse()?;
-        Ok(Export {
-            span,
-            name,
-            index,
-        })
+        Ok(Export { span, name, index })
     }
 }
 
 impl<'a> Parse<'a> for ComponentExport<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parens(|parser| {
-            let span = parser.parse::<kw::export>()?.0;
-            let name = parser.parse()?;
-            let arg = parser.parse()?;
-            Ok(ComponentExport {
-                span,
-                name,
-                arg,
-            })
-        })
+        let span = parser.parse::<kw::export>()?.0;
+        let name = parser.parse()?;
+        let arg = parser.parse()?;
+        Ok(ComponentExport { span, name, arg })
     }
 }
 

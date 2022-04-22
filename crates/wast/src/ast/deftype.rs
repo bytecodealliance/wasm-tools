@@ -1,5 +1,4 @@
 /// The `deftype` production in the component-model AST, and its children.
-
 use crate::ast::{self, kw};
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 
@@ -92,12 +91,12 @@ impl<'a> Parse<'a> for DefType<'a> {
 
 impl Peek for DefType<'_> {
     fn peek(cursor: Cursor<'_>) -> bool {
-        ast::LParen::peek(cursor) && (
-        kw::module::peek2(cursor) ||
-        kw::component::peek2(cursor) ||
-        kw::instance::peek2(cursor) ||
-        kw::func::peek2(cursor) ||
-        kw::value::peek2(cursor))
+        ast::LParen::peek(cursor)
+            && (kw::module::peek2(cursor)
+                || kw::component::peek2(cursor)
+                || kw::instance::peek2(cursor)
+                || kw::func::peek2(cursor)
+                || kw::value::peek2(cursor))
     }
 
     fn display() -> &'static str {
@@ -139,11 +138,19 @@ impl<'a> Parse<'a> for ComponentFunctionType<'a> {
                         // type.
                         if p.peek2_empty() {
                             let ty = p.parse()?;
-                            params.push(ComponentFunctionParam { id: None, name: None, type_: ty });
+                            params.push(ComponentFunctionParam {
+                                id: None,
+                                name: None,
+                                type_: ty,
+                            });
                         } else {
                             let (id, name) = (p.parse::<Option<_>>()?, p.parse::<Option<_>>()?);
                             let ty = p.parse()?;
-                            params.push(ComponentFunctionParam { id, name, type_: ty});
+                            params.push(ComponentFunctionParam {
+                                id,
+                                name,
+                                type_: ty,
+                            });
                         }
                     } else {
                         return Err(l.error());
@@ -223,10 +230,7 @@ impl<'a> Parse<'a> for ModuleType<'a> {
             while !parser.is_empty() {
                 defs.push(parser.parse()?);
             }
-            Ok(ModuleType {
-                id,
-                defs,
-            })
+            Ok(ModuleType { id, defs })
         })
     }
 }
@@ -272,9 +276,7 @@ impl<'a> Parse<'a> for ModuleTypeDef<'a> {
             } else if l.peek::<kw::export>() {
                 parser.parse::<kw::export>()?;
                 let name = parser.parse()?;
-                let et = parser.parens(|parser| {
-                    parser.parse()
-                })?;
+                let et = parser.parens(|parser| parser.parse())?;
                 Ok(ModuleTypeDef::Export(name, et))
             } else {
                 Err(parser.error("Expected a moduletype-def"))
@@ -315,15 +317,18 @@ impl<'a> Parse<'a> for ComponentType<'a> {
             let mut imports = Vec::new();
             let mut exports = Vec::new();
             while parser.peek::<ast::LParen>() {
-                if parser.peek2::<kw::import>() {
-                    imports.push(parser.parse()?);
-                } else if parser.peek2::<kw::export>() {
-                    exports.push(parser.parse()?);
-                } else if parser.peek2::<kw::r#type>() {
-                    types.push(parser.parse()?);
-                } else if parser.peek2::<kw::alias>() {
-                    aliases.push(parser.parse()?);
-                }
+                parser.parens(|parser| {
+                    if parser.peek::<kw::import>() {
+                        imports.push(parser.parse()?);
+                    } else if parser.peek::<kw::export>() {
+                        exports.push(parser.parse()?);
+                    } else if parser.peek::<kw::r#type>() {
+                        types.push(parser.parse()?);
+                    } else if parser.peek::<kw::alias>() {
+                        aliases.push(parser.parse()?);
+                    }
+                    Ok(())
+                })?;
             }
             Ok(ComponentType {
                 id,
@@ -379,7 +384,7 @@ impl<'a> Parse<'a> for InstanceType<'a> {
             let mut exports = Vec::new();
             while parser.peek::<ast::LParen>() {
                 if parser.peek2::<kw::export>() {
-                    exports.push(parser.parse()?);
+                    exports.push(parser.parens(|parser| parser.parse())?);
                 } else if parser.peek2::<kw::r#type>() {
                     types.push(parser.parse()?);
                 } else if parser.peek2::<kw::alias>() {
