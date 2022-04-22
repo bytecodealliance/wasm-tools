@@ -1504,8 +1504,8 @@ impl Encode for StructAccess<'_> {
 }
 
 impl Encode for Component<'_> {
-    fn encode(&self, _e: &mut Vec<u8>) {
-        eprintln!("TODO: Encode for Component")
+    fn encode(&self, e: &mut Vec<u8>) {
+        e.extend(encode_component(self))
     }
 }
 
