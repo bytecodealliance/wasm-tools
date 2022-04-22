@@ -325,18 +325,27 @@ impl<'a> Resolver<'a> {
     where
         K: Into<ExportKind> + Copy,
     {
+        let kind = item.kind.into();
+
         #[cfg(wast_check_exhaustive)]
         {
-            if !item.visited {
+            // Currently, we only set the visited flag in the `Expander` for
+            // types. So only check it on types.
+            if kind == ExportKind::Type && !item.visited {
                 return Err(Error::new(
                     item.idx.span(),
-                    format!("BUG: this index wasn't visited"),
+                    format!("BUG: this type index wasn't visited"),
                 ));
             }
+
+            // Regardless of the type, ensure that the item is marked as
+            // visited from this point on.
+            item.visited = true;
         }
+
         self.resolve(
             &mut item.idx,
-            match item.kind.into() {
+            match kind {
                 ExportKind::Func => Ns::Func,
                 ExportKind::Table => Ns::Table,
                 ExportKind::Global => Ns::Global,
