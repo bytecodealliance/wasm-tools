@@ -356,7 +356,7 @@ pub struct Namespace<'a> {
 }
 
 impl<'a> Namespace<'a> {
-    fn register(&mut self, name: Option<Id<'a>>, desc: &str) -> Result<u32, Error> {
+    pub fn register(&mut self, name: Option<Id<'a>>, desc: &str) -> Result<u32, Error> {
         let index = self.alloc();
         if let Some(name) = name {
             if let Some(_prev) = self.names.insert(name, index) {
@@ -391,13 +391,13 @@ impl<'a> Namespace<'a> {
         Ok(index)
     }
 
-    fn alloc(&mut self) -> u32 {
+    pub fn alloc(&mut self) -> u32 {
         let index = self.count;
         self.count += 1;
         return index;
     }
 
-    fn register_specific(&mut self, name: Id<'a>, index: u32, desc: &str) -> Result<(), Error> {
+    pub fn register_specific(&mut self, name: Id<'a>, index: u32, desc: &str) -> Result<(), Error> {
         if let Some(_prev) = self.names.insert(name, index) {
             return Err(Error::new(
                 name.span(),
@@ -407,7 +407,7 @@ impl<'a> Namespace<'a> {
         Ok(())
     }
 
-    fn resolve(&self, idx: &mut Index<'a>, desc: &str) -> Result<u32, Error> {
+    pub fn resolve(&self, idx: &mut Index<'a>, desc: &str) -> Result<u32, Error> {
         let id = match idx {
             Index::Num(n, _) => return Ok(*n),
             Index::Id(id) => id,
