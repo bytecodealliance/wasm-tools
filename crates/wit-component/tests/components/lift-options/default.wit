@@ -24,7 +24,7 @@ g: function(x: list<r>)
 h: function(x: list<v>)
 i: function(x: list<u32>)
 j: function(x: u32)
-k: function() -> (u32, u32)
+k: function() -> tuple<u32, u32>
 l: function() -> string
 m: function() -> list<u32>
 n: function() -> u32

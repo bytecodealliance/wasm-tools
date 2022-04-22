@@ -14,7 +14,7 @@ impl InterfacePrinter {
     /// Print the given WebAssembly interface to a string.
     pub fn print(&mut self, interface: &Interface) -> Result<String> {
         for func in &interface.functions {
-            for (_, ty) in func.params.iter().chain(func.results.iter()) {
+            for ty in func.params.iter().map(|p| &p.1).chain([&func.result]) {
                 self.declare_type(interface, ty)?;
             }
         }
@@ -30,13 +30,13 @@ impl InterfacePrinter {
             }
             self.output.push(')');
 
-            if !func.results.is_empty() {
-                self.output.push_str(" -> ");
-                for (_, ty) in &func.results {
-                    self.print_type_name(interface, ty)?;
+            match &func.result {
+                Type::Unit => {}
+                other => {
+                    self.output.push_str(" -> ");
+                    self.print_type_name(interface, other)?;
                 }
             }
-
             self.output.push_str("\n\n");
         }
 

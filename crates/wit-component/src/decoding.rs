@@ -238,11 +238,7 @@ impl<'a> InterfaceDecoder<'a> {
             params.push((name, self.decode_type(ty)?));
         }
 
-        let mut results = Vec::new();
-        if let types::InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Unit) = &ty.result {
-        } else {
-            results.push(("".to_string(), self.decode_type(&ty.result)?));
-        }
+        let result = self.decode_type(&ty.result)?;
 
         self.interface.functions.push(Function {
             is_async: false,
@@ -250,7 +246,7 @@ impl<'a> InterfaceDecoder<'a> {
             name: func_name.to_string(),
             kind: FunctionKind::Freestanding,
             params,
-            results,
+            result,
         });
 
         Ok(())
