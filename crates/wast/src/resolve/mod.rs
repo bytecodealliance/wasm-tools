@@ -61,6 +61,50 @@ pub fn resolve<'a>(module: &mut Module<'a>) -> Result<Names<'a>, Error> {
     Ok(Names { resolver })
 }
 
+/// The same as `resolve`, but for `NestedModule` instead of `Module`.
+pub fn resolve_nested_module<'a>(module: &mut NestedModule<'a>) -> Result<Names<'a>, Error> {
+    let fields = match &mut module.kind {
+        NestedModuleKind::Inline { fields } => fields,
+        _ => return Ok(Default::default()),
+    };
+
+    let mut gensym = Gensym::new();
+
+    // First up, de-inline import/export annotations.
+    //
+    // This ensures we only have to deal with inline definitions and to
+    // calculate exports we only have to look for a particular kind of module
+    // field.
+    deinline_import_export::run(fields, &mut gensym);
+
+    // With a canonical form of imports make sure that imports are all listed
+    // first.
+    let mut last = None;
+    for field in fields.iter() {
+        match field {
+            ModuleField::Import(i) => {
+                if let Some(name) = last {
+                    return Err(Error::new(i.span, format!("import after {}", name)));
+                }
+            }
+            ModuleField::Memory(_) => last = Some("memory"),
+            ModuleField::Func(_) => last = Some("function"),
+            ModuleField::Table(_) => last = Some("table"),
+            ModuleField::Global(_) => last = Some("global"),
+            _ => continue,
+        }
+    }
+
+    // Expand all `TypeUse` annotations so all necessary `type` nodes are
+    // present in the AST.
+    types::expand(fields, &mut gensym);
+
+    // Perform name resolution over all `Index` items to resolve them all to
+    // indices instead of symbolic names.
+    let resolver = names::resolve(fields)?;
+    Ok(Names { resolver })
+}
+
 pub fn resolve_component<'a>(component: &mut Component<'a>) -> Result<(), Error> {
     let fields = match &mut component.kind {
         ComponentKind::Text(fields) => fields,

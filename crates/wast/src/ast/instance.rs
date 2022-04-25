@@ -156,8 +156,11 @@ impl<'a> Parse<'a> for Instance<'a> {
                 args.push(parser.parse()?);
             }
             InstanceKind::BundleOfComponentExports { args }
+        } else if parser.is_empty() {
+            let args = Vec::new();
+            InstanceKind::BundleOfComponentExports { args }
         } else {
-            return Err(parser.error("expected `(instantiate` or `(instance`"));
+            return Err(parser.error("expected `(instantiate` or `(export`"));
         };
 
         Ok(Instance {
@@ -172,9 +175,11 @@ impl<'a> Parse<'a> for Instance<'a> {
 
 impl<'a> Parse<'a> for ModuleArg<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        if parser.peek::<ast::LParen>()
-            && parser.peek2::<kw::instance>()
-        {
+        if parser.peek::<ast::LParen>() && parser.peek2::<kw::instance>() && parser.peek3::<ast::Index>() {
+            // `(instance <index>)`
+            let def = parser.parse::<ast::ItemRef<kw::instance>>()?;
+            Ok(ModuleArg::Def(def))
+        } else if parser.peek::<ast::LParen>() && parser.peek2::<kw::instance>() {
             let exports = parser.parens(|p| {
                 p.parse::<kw::instance>()?;
                 let mut exports = Vec::new();
@@ -184,10 +189,6 @@ impl<'a> Parse<'a> for ModuleArg<'a> {
                 Ok(exports)
             })?;
             Ok(ModuleArg::BundleOfExports(exports))
-        } else if parser.peek::<ast::LParen>() && parser.peek2::<kw::instance>() {
-            // `(instance <index>)`
-            let def = parser.parse::<ast::ItemRef<kw::instance>>()?;
-            Ok(ModuleArg::Def(def))
         } else {
             Err(parser.error("expected an instance"))
         }
@@ -196,11 +197,11 @@ impl<'a> Parse<'a> for ModuleArg<'a> {
 
 impl<'a> Parse<'a> for ComponentArg<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        if parser.peek::<ast::ItemRef<'a, ast::DefTypeKind>>() {
+        if parser.peek::<ast::ItemRef<'a, ast::DefTypeKind>>() && parser.peek3::<ast::Index>() {
             // `(<deftypekind> <index>)`
             let def = parser.parse::<ast::ItemRef<'a, ast::DefTypeKind>>()?;
             Ok(ComponentArg::Def(def))
-        } else if parser.peek::<ast::LParen>() && parser.peek2::<ast::ItemRef<kw::r#type>>() {
+        } else if parser.peek::<ast::ItemRef<kw::r#type>>() {
             let def = parser.parse::<ast::ItemRef<'a, kw::r#type>>()?;
             Ok(ComponentArg::Type(def))
         } else if parser.peek::<ast::LParen>() && parser.peek2::<kw::instance>() {

@@ -26,7 +26,7 @@ pub enum NestedModuleKind<'a> {
         /// Where this nested module is imported from
         import: ast::InlineImport<'a>,
         /// The type that this nested module will have.
-        ty: ast::TypeUse<'a, ast::ModuleType<'a>>,
+        ty: ast::ComponentTypeUse<'a, ast::ModuleType<'a>>,
     },
 
     /// Nested modules whose instantiation is defined inline.

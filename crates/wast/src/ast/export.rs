@@ -22,7 +22,7 @@ pub struct ComponentExport<'a> {
     /// The name of this export from the component.
     pub name: &'a str,
     /// What's being exported from the component.
-    pub arg: ast::ComponentTypeUse<'a, ast::ComponentArg<'a>>,
+    pub arg: ast::ComponentArg<'a>,
 }
 
 /// Different kinds of elements that can be exported from a WebAssembly module,

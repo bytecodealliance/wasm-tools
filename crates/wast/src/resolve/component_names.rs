@@ -31,7 +31,6 @@ fn resolve_fields<'a, 'b>(
         let resolver = resolve_stack.last_mut().unwrap();
         let aliases_to_insert = replace(&mut resolver.aliases_to_insert, Vec::new());
         for alias in aliases_to_insert {
-            register(&mut fields[i], resolver)?;
             fields.insert(i, ComponentField::Alias(alias));
             i += 1;
         }
@@ -93,38 +92,9 @@ fn register<'a, 'b>(
         ComponentField::Component(c) => {
             resolver.components.register(c.id, "nested component")?;
         }
-        ComponentField::Alias(a) => match a.kind {
-            AliasKind::Module => {
-                resolver.modules.register(a.id, "module alias")?;
-            }
-            AliasKind::Component => {
-                resolver.components.register(a.id, "component alias")?;
-            }
-            AliasKind::Instance => {
-                resolver.instances.register(a.id, "instance alias")?;
-            }
-            AliasKind::Value => {
-                resolver.values.register(a.id, "value alias")?;
-            }
-            AliasKind::ExportKind(ExportKind::Func) => {
-                resolver.funcs.register(a.id, "func alias")?;
-            }
-            AliasKind::ExportKind(ExportKind::Table) => {
-                resolver.tables.register(a.id, "table alias")?;
-            }
-            AliasKind::ExportKind(ExportKind::Global) => {
-                resolver.globals.register(a.id, "global alias")?;
-            }
-            AliasKind::ExportKind(ExportKind::Memory) => {
-                resolver.memories.register(a.id, "memory alias")?;
-            }
-            AliasKind::ExportKind(ExportKind::Tag) => {
-                resolver.tags.register(a.id, "tag alias")?;
-            }
-            AliasKind::ExportKind(ExportKind::Type) => {
-                resolver.types.register(a.id, "type alias")?;
-            }
-        },
+        ComponentField::Alias(a) => {
+            register_alias(a, resolver)?;
+        }
 
         // These fields don't define any items in any index space.
         ComponentField::Export(_) | ComponentField::Start(_) | ComponentField::Custom(_) => {
@@ -141,14 +111,9 @@ fn resolve_field<'a, 'b>(
 ) -> Result<(), Error> {
     match field {
         ComponentField::Import(i) => {
-            match &i.type_ {
-                ComponentTypeUse::Inline(_i) => {
-                    // The type is already defined, so there's nothing to do.
-                }
-                ComponentTypeUse::Ref(r) => match r.idx {
-                    Index::Num(_, _) => {}
-                    Index::Id(_name) => todo!("import with a name"),
-                },
+            match &mut i.type_ {
+                ComponentTypeUse::Inline(i) => resolve_deftype(i, resolve_stack)?,
+                ComponentTypeUse::Ref(r) => resolve_item_ref(r, resolve_stack)?,
             }
             Ok(())
         }
@@ -165,7 +130,11 @@ fn resolve_field<'a, 'b>(
                         ModuleArg::Def(def) => {
                             resolve_item_ref(def, resolve_stack)?;
                         }
-                        ModuleArg::BundleOfExports(_) => todo!("bundle of exports"),
+                        ModuleArg::BundleOfExports(exports) => {
+                            for export in exports {
+                                resolve_item_ref(&mut export.index, resolve_stack)?;
+                            }
+                        }
                     }
                 }
                 Ok(())
@@ -180,84 +149,258 @@ fn resolve_field<'a, 'b>(
                         ComponentArg::Type(ty) => {
                             resolve_item_ref(ty, resolve_stack)?;
                         }
-                        ComponentArg::BundleOfExports(_) => todo!("bundle of exports"),
+                        ComponentArg::BundleOfExports(exports) => {
+                            for export in exports {
+                                resolve_arg(&mut export.arg, resolve_stack)?;
+                            }
+                        }
                     }
                 }
                 Ok(())
             }
-            InstanceKind::BundleOfExports { .. } => todo!("bundle of exports"),
-            InstanceKind::BundleOfComponentExports { .. } => todo!("bundle of exports"),
+            InstanceKind::BundleOfExports { args } => {
+                for arg in args {
+                    resolve_item_ref(&mut arg.index, resolve_stack)?;
+                }
+                Ok(())
+            }
+            InstanceKind::BundleOfComponentExports { args } => {
+                for arg in args {
+                    resolve_arg(&mut arg.arg, resolve_stack)?;
+                }
+                Ok(())
+            }
         },
-        ComponentField::Module(_m) => Ok(()),
+        ComponentField::Module(m) => {
+            // Perform a normal core-wasm resolve.
+            crate::resolve::resolve_nested_module(m)?;
+
+            match &mut m.kind {
+                // The `Inline` case is handled by `resolve_nested_module` above.
+                NestedModuleKind::Inline { .. } => {}
+
+                // For `Import`, just resolve the type.
+                NestedModuleKind::Import { import: _, ty } => {
+                    resolve_moduletype_use(ty, resolve_stack)?;
+                }
+            }
+
+            Ok(())
+        }
         ComponentField::Component(c) => match &mut c.kind {
             ComponentKind::Binary(_) => Ok(()),
             ComponentKind::Text(fields) => resolve_fields(c.id, fields, resolve_stack),
         },
-        ComponentField::Alias(a) => match &mut a.target {
-            AliasTarget::Export { .. } => todo!("export alias"),
-            AliasTarget::Outer { outer, index } => {
-                // Resolve `outer`, and compute the depth at which to look up
-                // `index`.
-                let depth = match outer {
-                    Index::Id(id) => {
-                        let mut depth = 0;
-                        for resolver in resolve_stack.iter_mut().rev() {
-                            if resolver.id == Some(*id) {
-                                break;
-                            }
-                            depth += 1;
-                        }
-                        if depth as usize == resolve_stack.len() {
-                            return Err(Error::new(
-                                a.span,
-                                format!("outer component '{:?}' not found", id),
-                            ));
-                        }
-                        depth
-                    }
-                    Index::Num(n, _span) => *n,
-                };
-                *outer = Index::Num(depth, a.span);
-
-                // Resolve `index` within the computed scope depth.
-                let ns = match a.kind {
-                    AliasKind::Module => Ns::Module,
-                    AliasKind::Component => Ns::Component,
-                    AliasKind::Instance => Ns::Instance,
-                    AliasKind::Value => Ns::Value,
-                    AliasKind::ExportKind(ExportKind::Func) => Ns::Func,
-                    AliasKind::ExportKind(ExportKind::Table) => Ns::Table,
-                    AliasKind::ExportKind(ExportKind::Global) => Ns::Global,
-                    AliasKind::ExportKind(ExportKind::Memory) => Ns::Memory,
-                    AliasKind::ExportKind(ExportKind::Tag) => Ns::Tag,
-                    AliasKind::ExportKind(ExportKind::Type) => Ns::Type,
-                };
-                let computed = resolve_stack.len() - 1 - depth as usize;
-                resolve_stack[computed].resolve(ns, index)?;
-
-                Ok(())
-            }
-        },
+        ComponentField::Alias(a) => resolve_alias(a, resolve_stack),
 
         ComponentField::Start(_i) => Ok(()),
 
-        ComponentField::Export(_e) => Ok(()),
+        ComponentField::Export(e) => {
+            resolve_arg(&mut e.arg, resolve_stack)?;
+            Ok(())
+        }
 
         ComponentField::Custom(_) => Ok(()),
     }
 }
 
-fn resolve_type_use<'a, 'b, T>(
-    ty: &'b mut ComponentTypeUse<'a, T>,
+fn resolve_alias<'a, 'b>(
+    alias: &'b mut Alias<'a>,
+    resolve_stack: &'b mut Vec<ComponentResolver<'a>>,
+) -> Result<(), Error> {
+    match &mut alias.target {
+        AliasTarget::Export {
+            instance,
+            export: _,
+        } => resolve_ns(instance, Ns::Instance, resolve_stack),
+        AliasTarget::Outer { outer, index } => {
+            // Resolve `outer`, and compute the depth at which to look up
+            // `index`.
+            let depth = match outer {
+                Index::Id(id) => {
+                    let mut depth = 0;
+                    for resolver in resolve_stack.iter_mut().rev() {
+                        if resolver.id == Some(*id) {
+                            break;
+                        }
+                        depth += 1;
+                    }
+                    if depth as usize == resolve_stack.len() {
+                        return Err(Error::new(
+                            alias.span,
+                            format!("outer component '{:?}' not found", id),
+                        ));
+                    }
+                    depth
+                }
+                Index::Num(n, _span) => *n,
+            };
+            *outer = Index::Num(depth, alias.span);
+
+            // Resolve `index` within the computed scope depth.
+            let ns = match alias.kind {
+                AliasKind::Module => Ns::Module,
+                AliasKind::Component => Ns::Component,
+                AliasKind::Instance => Ns::Instance,
+                AliasKind::Value => Ns::Value,
+                AliasKind::ExportKind(ExportKind::Func) => Ns::Func,
+                AliasKind::ExportKind(ExportKind::Table) => Ns::Table,
+                AliasKind::ExportKind(ExportKind::Global) => Ns::Global,
+                AliasKind::ExportKind(ExportKind::Memory) => Ns::Memory,
+                AliasKind::ExportKind(ExportKind::Tag) => Ns::Tag,
+                AliasKind::ExportKind(ExportKind::Type) => Ns::Type,
+            };
+            let computed = resolve_stack.len() - 1 - depth as usize;
+            resolve_stack[computed].resolve(ns, index)?;
+
+            Ok(())
+        }
+    }
+}
+
+fn resolve_arg<'a, 'b>(
+    arg: &'b mut ComponentArg<'a>,
+    resolve_stack: &'b mut Vec<ComponentResolver<'a>>,
+) -> Result<(), Error> {
+    match arg {
+        ComponentArg::Def(item_ref) => {
+            resolve_item_ref(item_ref, resolve_stack)?;
+        }
+        ComponentArg::Type(item_ref) => {
+            resolve_item_ref(item_ref, resolve_stack)?;
+        }
+        ComponentArg::BundleOfExports(exports) => {
+            for export in exports {
+                resolve_arg(&mut export.arg, resolve_stack)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn resolve_deftype_use<'a, 'b>(
+    ty: &'b mut ComponentTypeUse<'a, DefType<'a>>,
     resolve_stack: &'b mut Vec<ComponentResolver<'a>>,
 ) -> Result<(), Error> {
     match ty {
         ComponentTypeUse::Ref(r) => resolve_item_ref(r, resolve_stack),
-        ComponentTypeUse::Inline(_i) => {
-            // Nothing to do.
-            Ok(())
+        ComponentTypeUse::Inline(i) => resolve_deftype(i, resolve_stack),
+    }
+}
+
+fn resolve_deftype<'a, 'b>(
+    ty: &'b mut DefType<'a>,
+    resolve_stack: &'b mut Vec<ComponentResolver<'a>>,
+) -> Result<(), Error> {
+    match ty {
+        DefType::Func(f) => {
+            for param in f.params.iter_mut() {
+                resolve_intertype_use(&mut param.type_, resolve_stack)?;
+            }
+            resolve_intertype_use(&mut f.result, resolve_stack)
+        }
+        DefType::Module(_m) => todo!("resolve for module types"),
+        DefType::Component(c) => resolve_nested_component_type(c, resolve_stack),
+        DefType::Instance(i) => resolve_instance_type(i, resolve_stack),
+        DefType::Value(v) => resolve_intertype_use(&mut v.value_type, resolve_stack),
+    }
+}
+
+fn resolve_moduletype_use<'a, 'b>(
+    ty: &'b mut ComponentTypeUse<'a, ModuleType<'a>>,
+    resolve_stack: &'b mut Vec<ComponentResolver<'a>>,
+) -> Result<(), Error> {
+    match ty {
+        ComponentTypeUse::Ref(r) => resolve_item_ref(r, resolve_stack),
+        ComponentTypeUse::Inline(_) => Ok(()),
+    }
+}
+
+fn resolve_intertype_use<'a, 'b>(
+    ty: &'b mut ComponentTypeUse<'a, InterType<'a>>,
+    resolve_stack: &'b mut Vec<ComponentResolver<'a>>,
+) -> Result<(), Error> {
+    match ty {
+        ComponentTypeUse::Ref(r) => resolve_item_ref(r, resolve_stack),
+        ComponentTypeUse::Inline(i) => resolve_intertype(i, resolve_stack),
+    }
+}
+
+fn resolve_intertype<'a, 'b>(
+    ty: &'b mut InterType<'a>,
+    resolve_stack: &'b mut Vec<ComponentResolver<'a>>,
+) -> Result<(), Error> {
+    match ty {
+        InterType::Unit => {}
+        InterType::Bool => {}
+        InterType::U8 => {}
+        InterType::S8 => {}
+        InterType::U16 => {}
+        InterType::S16 => {}
+        InterType::U32 => {}
+        InterType::S32 => {}
+        InterType::U64 => {}
+        InterType::S64 => {}
+        InterType::Float32 => {}
+        InterType::Float64 => {}
+        InterType::String => {}
+        InterType::Char => {}
+        InterType::Flags(_) => {}
+        InterType::Enum(_) => {}
+        InterType::Record(r) => {
+            for field in r.fields.iter_mut() {
+                resolve_intertype_use(&mut field.type_, resolve_stack)?;
+            }
+        }
+        InterType::Variant(v) => {
+            for case in v.cases.iter_mut() {
+                resolve_intertype_use(&mut case.type_, resolve_stack)?;
+            }
+
+            // Resolve the `defaults-to` field. Use indices instead
+            // of iterators to avoid borrowing `v.cases`, as we
+            // also need to iterate through it to do the
+            // resolution.
+            for i in 0..v.cases.len() {
+                if let Some(index) = v.cases[i].defaults_to {
+                    if let Index::Id(id) = index {
+                        for other_i in 0..v.cases.len() {
+                            let other = &v.cases[other_i];
+                            if other.name == id {
+                                v.cases[i].defaults_to = Some(Index::Num(
+                                    i.try_into().map_err(|_| {
+                                        Error::new(v.cases[i].span, format!("too many cases"))
+                                    })?,
+                                    other.span,
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        InterType::List(l) => {
+            resolve_intertype_use(&mut *l.element, resolve_stack)?;
+        }
+        InterType::Tuple(t) => {
+            for field in t.fields.iter_mut() {
+                resolve_intertype_use(field, resolve_stack)?;
+            }
+        }
+        InterType::Union(t) => {
+            for arm in t.arms.iter_mut() {
+                resolve_intertype_use(arm, resolve_stack)?;
+            }
+        }
+        InterType::Option(o) => {
+            resolve_intertype_use(&mut *o.element, resolve_stack)?;
+        }
+        InterType::Expected(r) => {
+            resolve_intertype_use(&mut *r.ok, resolve_stack)?;
+            resolve_intertype_use(&mut *r.err, resolve_stack)?;
         }
     }
+    Ok(())
 }
 
 fn resolve_type_def<'a, 'b>(
@@ -265,101 +408,8 @@ fn resolve_type_def<'a, 'b>(
     resolve_stack: &'b mut Vec<ComponentResolver<'a>>,
 ) -> Result<(), Error> {
     match def {
-        ComponentTypeDef::DefType(d) => match d {
-            DefType::Func(f) => {
-                for param in f.params.iter_mut() {
-                    resolve_type_use(&mut param.type_, resolve_stack)?;
-                }
-                resolve_type_use(&mut f.result, resolve_stack)?;
-                Ok(())
-            }
-            DefType::Module(_m) => {
-                todo!("resolve for ModuleType")
-            }
-            DefType::Component(c) => resolve_nested_component_type(c, resolve_stack),
-            DefType::Instance(_i) => {
-                todo!("resolve for InstanceType")
-            }
-            DefType::Value(_v) => {
-                todo!("resolve for ValueType")
-            }
-        },
-        ComponentTypeDef::InterType(i) => {
-            match i {
-                InterType::Unit => {}
-                InterType::Bool => {}
-                InterType::U8 => {}
-                InterType::S8 => {}
-                InterType::U16 => {}
-                InterType::S16 => {}
-                InterType::U32 => {}
-                InterType::S32 => {}
-                InterType::U64 => {}
-                InterType::S64 => {}
-                InterType::Float32 => {}
-                InterType::Float64 => {}
-                InterType::String => {}
-                InterType::Char => {}
-                InterType::Flags(_) => {}
-                InterType::Enum(_) => {}
-                InterType::Record(r) => {
-                    for field in r.fields.iter_mut() {
-                        resolve_type_use(&mut field.type_, resolve_stack)?;
-                    }
-                }
-                InterType::Variant(v) => {
-                    for case in v.cases.iter_mut() {
-                        resolve_type_use(&mut case.type_, resolve_stack)?;
-                    }
-
-                    // Resolve the `defaults-to` field. Use indices instead
-                    // of iterators to avoid borrowing `v.cases`, as we
-                    // also need to iterate through it to do the
-                    // resolution.
-                    for i in 0..v.cases.len() {
-                        if let Some(index) = v.cases[i].defaults_to {
-                            if let Index::Id(id) = index {
-                                for other_i in 0..v.cases.len() {
-                                    let other = &v.cases[other_i];
-                                    if other.name == id {
-                                        v.cases[i].defaults_to = Some(Index::Num(
-                                            i.try_into().map_err(|_| {
-                                                Error::new(
-                                                    v.cases[i].span,
-                                                    format!("too many cases"),
-                                                )
-                                            })?,
-                                            other.span,
-                                        ));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                InterType::List(l) => {
-                    resolve_type_use(&mut l.element, resolve_stack)?;
-                }
-                InterType::Tuple(t) => {
-                    for field in t.fields.iter_mut() {
-                        resolve_type_use(field, resolve_stack)?;
-                    }
-                }
-                InterType::Union(t) => {
-                    for arm in t.arms.iter_mut() {
-                        resolve_type_use(arm, resolve_stack)?;
-                    }
-                }
-                InterType::Option(o) => {
-                    resolve_type_use(&mut o.element, resolve_stack)?;
-                }
-                InterType::Expected(r) => {
-                    resolve_type_use(&mut r.ok, resolve_stack)?;
-                    resolve_type_use(&mut r.err, resolve_stack)?;
-                }
-            }
-            Ok(())
-        }
+        ComponentTypeDef::DefType(d) => resolve_deftype(d, resolve_stack),
+        ComponentTypeDef::InterType(i) => resolve_intertype(i, resolve_stack),
     }
 }
 
@@ -376,15 +426,17 @@ fn resolve_nested_component_type<'a, 'b>(
     while i < c.fields.len() {
         // Resolve names within the field.
         match &mut c.fields[i] {
-            ComponentTypeField::Alias(_alias) => {}
+            ComponentTypeField::Alias(alias) => {
+                resolve_alias(alias, resolve_stack)?;
+            }
             ComponentTypeField::Type(ty) => {
                 resolve_type_def(&mut ty.def, resolve_stack)?;
             }
             ComponentTypeField::Import(import) => {
-                resolve_type_use(&mut import.type_, resolve_stack)?;
+                resolve_deftype_use(&mut import.type_, resolve_stack)?;
             }
             ComponentTypeField::Export(export) => {
-                resolve_type_use(&mut export.item, resolve_stack)?;
+                resolve_deftype_use(&mut export.item, resolve_stack)?;
             }
         }
 
@@ -392,8 +444,7 @@ fn resolve_nested_component_type<'a, 'b>(
         // the current definition.
         let resolver = resolve_stack.last_mut().unwrap();
         let aliases_to_insert = replace(&mut resolver.aliases_to_insert, Vec::new());
-        for mut alias in aliases_to_insert {
-            register_alias(&mut alias, resolver)?;
+        for alias in aliases_to_insert {
             c.fields.insert(i, ComponentTypeField::Alias(alias));
             i += 1;
         }
@@ -430,6 +481,59 @@ fn resolve_nested_component_type<'a, 'b>(
             },
             ComponentTypeField::Export(_export) => {}
         }
+        i += 1;
+    }
+
+    resolve_stack.pop();
+    Ok(())
+}
+
+fn resolve_instance_type<'a, 'b>(
+    c: &'b mut InstanceType<'a>,
+    resolve_stack: &'b mut Vec<ComponentResolver<'a>>,
+) -> Result<(), Error> {
+    resolve_stack.push(ComponentResolver::new(c.id));
+
+    // Iterate through the fields of the component type. We use an index
+    // instead of an iterator because we'll be inserting aliases
+    // as we go.
+    let mut i = 0;
+    while i < c.fields.len() {
+        // Resolve names within the field.
+        match &mut c.fields[i] {
+            InstanceTypeField::Alias(alias) => {
+                resolve_alias(alias, resolve_stack)?;
+            }
+            InstanceTypeField::Type(ty) => {
+                resolve_type_def(&mut ty.def, resolve_stack)?;
+            }
+            InstanceTypeField::Export(export) => {
+                resolve_deftype_use(&mut export.item, resolve_stack)?;
+            }
+        }
+
+        // Name resolution may have emitted some aliases. Insert them before
+        // the current definition.
+        let resolver = resolve_stack.last_mut().unwrap();
+        let aliases_to_insert = replace(&mut resolver.aliases_to_insert, Vec::new());
+        for alias in aliases_to_insert {
+            c.fields.insert(i, InstanceTypeField::Alias(alias));
+            i += 1;
+        }
+
+        // Definitions can't refer to themselves or to definitions that appear
+        // later in the format. Now that we're done resolving this field,
+        // assign it an index for later defintions to refer to.
+        match &mut c.fields[i] {
+            InstanceTypeField::Alias(alias) => {
+                register_alias(alias, resolver)?;
+            }
+            InstanceTypeField::Type(ty) => {
+                resolver.types.register(ty.id, "type")?;
+            }
+            InstanceTypeField::Export(_export) => {}
+        }
+        i += 1;
     }
 
     resolve_stack.pop();
@@ -439,48 +543,19 @@ fn resolve_nested_component_type<'a, 'b>(
 fn register_alias<'a, 'b>(
     alias: &'b Alias<'a>,
     resolver: &'b mut ComponentResolver<'a>,
-) -> Result<(), Error> {
-    match alias.target {
-        AliasTarget::Outer { .. } => match alias.kind {
-            AliasKind::Module => {
-                resolver.modules.register(alias.id, "module")?;
-            }
-            AliasKind::Component => {
-                resolver.components.register(alias.id, "component")?;
-            }
-            AliasKind::Instance => {
-                resolver.instances.register(alias.id, "instance")?;
-            }
-            AliasKind::Value => {
-                resolver.values.register(alias.id, "value")?;
-            }
-            AliasKind::ExportKind(ExportKind::Func) => {
-                resolver.funcs.register(alias.id, "func")?;
-            }
-            AliasKind::ExportKind(ExportKind::Table) => {
-                resolver.tables.register(alias.id, "table")?;
-            }
-            AliasKind::ExportKind(ExportKind::Memory) => {
-                resolver.memories.register(alias.id, "memory")?;
-            }
-            AliasKind::ExportKind(ExportKind::Global) => {
-                resolver.globals.register(alias.id, "global")?;
-            }
-            AliasKind::ExportKind(ExportKind::Tag) => {
-                resolver.tags.register(alias.id, "tag")?;
-            }
-            AliasKind::ExportKind(ExportKind::Type) => {
-                resolver.types.register(alias.id, "type")?;
-            }
-        },
-        AliasTarget::Export {
-            instance: _,
-            export: _,
-        } => {
-            todo!("export alias");
-        }
+) -> Result<u32, Error> {
+    match alias.kind {
+        AliasKind::Module => resolver.modules.register(alias.id, "module"),
+        AliasKind::Component => resolver.components.register(alias.id, "component"),
+        AliasKind::Instance => resolver.instances.register(alias.id, "instance"),
+        AliasKind::Value => resolver.values.register(alias.id, "value"),
+        AliasKind::ExportKind(ExportKind::Func) => resolver.funcs.register(alias.id, "func"),
+        AliasKind::ExportKind(ExportKind::Table) => resolver.tables.register(alias.id, "table"),
+        AliasKind::ExportKind(ExportKind::Memory) => resolver.memories.register(alias.id, "memory"),
+        AliasKind::ExportKind(ExportKind::Global) => resolver.globals.register(alias.id, "global"),
+        AliasKind::ExportKind(ExportKind::Tag) => resolver.tags.register(alias.id, "tag"),
+        AliasKind::ExportKind(ExportKind::Type) => resolver.types.register(alias.id, "type"),
     }
-    Ok(())
 }
 
 fn resolve_item_ref<'a, 'b, K>(
@@ -499,7 +574,61 @@ where
             ));
         }
     }
-    resolve_ns(&mut item.idx, item.kind.into(), resolve_stack)?;
+
+    let last_ns = item.kind.into();
+    if item.extra_names.is_empty() {
+        resolve_ns(&mut item.idx, last_ns, resolve_stack)?;
+        return Ok(());
+    }
+
+    // We have extra export names. This is syntax sugar for inserting export
+    // aliases.
+
+    // The index is an instance index, rather than the namespace of the
+    // reference.
+    resolve_ns(&mut item.idx, Ns::Instance, resolve_stack)?;
+
+    // The extra names are export names. Copy them into export aliases.
+    let span = item.idx.span();
+    let mut index = item.idx;
+    for (pos, export_name) in item.extra_names.iter().enumerate() {
+        // The last name is in the namespace of the reference. All others are
+        // instances.
+        let ns = if pos == item.extra_names.len() - 1 {
+            last_ns
+        } else {
+            Ns::Instance
+        };
+
+        // Record an outer alias to be inserted in front of the current
+        // definition.
+        let mut alias = Alias {
+            span,
+            id: None,
+            name: None,
+            target: AliasTarget::Export {
+                instance: index,
+                export: export_name,
+            },
+            kind: match ns {
+                Ns::Module => AliasKind::Module,
+                Ns::Component => AliasKind::Component,
+                Ns::Instance => AliasKind::Instance,
+                Ns::Value => AliasKind::Value,
+                Ns::Func => AliasKind::ExportKind(ExportKind::Func),
+                Ns::Table => AliasKind::ExportKind(ExportKind::Table),
+                Ns::Global => AliasKind::ExportKind(ExportKind::Global),
+                Ns::Memory => AliasKind::ExportKind(ExportKind::Memory),
+                Ns::Tag => AliasKind::ExportKind(ExportKind::Tag),
+                Ns::Type => AliasKind::ExportKind(ExportKind::Type),
+            },
+        };
+
+        let resolver = resolve_stack.last_mut().unwrap();
+        index = Index::Num(register_alias(&mut alias, resolver)?, span);
+        resolver.aliases_to_insert.push(alias);
+    }
+
     Ok(())
 }
 
@@ -534,7 +663,7 @@ fn resolve_ns<'a, 'b>(
 
     // Record an outer alias to be inserted in front of the current definition.
     let span = idx.span();
-    let alias = Alias {
+    let mut alias = Alias {
         span,
         id: None,
         name: None,
@@ -555,11 +684,10 @@ fn resolve_ns<'a, 'b>(
             Ns::Type => AliasKind::ExportKind(ExportKind::Type),
         },
     };
-    resolve_stack
-        .last_mut()
-        .unwrap()
-        .aliases_to_insert
-        .push(alias);
+
+    let resolver = resolve_stack.last_mut().unwrap();
+    register_alias(&mut alias, resolver)?;
+    resolver.aliases_to_insert.push(alias);
 
     Ok(())
 }
@@ -671,6 +799,19 @@ impl From<DefTypeKind> for Ns {
             DefTypeKind::Instance => Ns::Instance,
             DefTypeKind::Value => Ns::Value,
             DefTypeKind::Func => Ns::Func,
+        }
+    }
+}
+
+impl From<ExportKind> for Ns {
+    fn from(kind: ExportKind) -> Self {
+        match kind {
+            ExportKind::Func => Ns::Func,
+            ExportKind::Table => Ns::Table,
+            ExportKind::Global => Ns::Global,
+            ExportKind::Memory => Ns::Memory,
+            ExportKind::Tag => Ns::Tag,
+            ExportKind::Type => Ns::Type,
         }
     }
 }

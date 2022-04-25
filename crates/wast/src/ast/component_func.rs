@@ -93,11 +93,13 @@ impl<'a> Parse<'a> for ComponentFuncBody<'a> {
 
 /// Extra information associated with canon.lift instructions.
 #[derive(Debug)]
-#[allow(dead_code)] // TODO: encoding
 pub struct CanonLift<'a> {
-    type_: ast::ComponentFunctionType<'a>,
-    opts: Vec<CanonOpt<'a>>,
-    func: ast::IndexOrRef<'a, kw::func>,
+    /// The type exported to other components
+    pub type_: ast::ComponentFunctionType<'a>,
+    /// Configuration options
+    pub opts: Vec<CanonOpt<'a>>,
+    /// The function to wrap
+    pub func: ast::IndexOrRef<'a, kw::func>,
 }
 
 impl<'a> Parse<'a> for CanonLift<'a> {
@@ -119,10 +121,11 @@ impl<'a> Parse<'a> for CanonLift<'a> {
 
 /// Extra information associated with canon.lower instructions.
 #[derive(Debug)]
-#[allow(dead_code)] // TODO: encoding
 pub struct CanonLower<'a> {
-    opts: Vec<CanonOpt<'a>>,
-    func: ast::IndexOrRef<'a, kw::func>,
+    /// Configuration options
+    pub opts: Vec<CanonOpt<'a>>,
+    /// The function being wrapped
+    pub func: ast::IndexOrRef<'a, kw::func>,
 }
 
 impl<'a> Parse<'a> for CanonLower<'a> {

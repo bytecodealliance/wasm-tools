@@ -312,14 +312,63 @@ impl Encode for ModuleTypeDef<'_> {
 impl Encode for ComponentType<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         e.push(0x4e);
-        eprintln!("TODO: Encode for ComponentType")
+        self.fields.encode(e);
+    }
+}
+
+impl Encode for ComponentTypeField<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        match self {
+            ComponentTypeField::Type(ty_) => {
+                e.push(0x01);
+                ty_.encode(e);
+            }
+            ComponentTypeField::Alias(alias) => {
+                e.push(0x09);
+                alias.encode(e);
+            }
+            ComponentTypeField::Export(export) => {
+                e.push(0x07);
+                export.encode(e);
+            }
+            ComponentTypeField::Import(import) => {
+                e.push(0x02);
+                import.encode(e);
+            }
+        }
     }
 }
 
 impl Encode for InstanceType<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         e.push(0x4d);
-        eprintln!("TODO: Encode for InstanceType")
+        self.fields.encode(e);
+    }
+}
+
+impl Encode for InstanceTypeField<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        match self {
+            InstanceTypeField::Type(ty_) => {
+                e.push(0x01);
+                ty_.encode(e);
+            }
+            InstanceTypeField::Alias(alias) => {
+                e.push(0x09);
+                alias.encode(e);
+            }
+            InstanceTypeField::Export(export) => {
+                e.push(0x07);
+                export.encode(e);
+            }
+        }
+    }
+}
+
+impl Encode for ComponentExportType<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.name.encode(e);
+        self.item.encode(e);
     }
 }
 
@@ -634,8 +683,9 @@ impl Encode for Import<'_> {
 }
 
 impl Encode for ComponentImport<'_> {
-    fn encode(&self, _e: &mut Vec<u8>) {
-        eprintln!("TODO: Encode for ComponentImport")
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.name.encode(e);
+        self.type_.encode(e);
     }
 }
 
@@ -814,8 +864,24 @@ impl Encode for Export<'_> {
 }
 
 impl Encode for ComponentExport<'_> {
-    fn encode(&self, _e: &mut Vec<u8>) {
-        eprintln!("TODO: Encode for ComponentExport")
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.name.encode(e);
+        match &self.arg {
+            ComponentArg::Def(item_ref) => {
+                match item_ref.kind {
+                    DefTypeKind::Module => e.push(0x00),
+                    DefTypeKind::Component => e.push(0x01),
+                    DefTypeKind::Instance => e.push(0x02),
+                    DefTypeKind::Func => e.push(0x03),
+                    DefTypeKind::Value => e.push(0x04),
+                }
+                item_ref.idx.encode(e);
+            }
+            ComponentArg::Type(_item_ref) => todo!("Encode for ComponentArg::Type"),
+            ComponentArg::BundleOfExports(_exports) => {
+                todo!("Encode for ComponentArg::BundleOfExports")
+            }
+        }
     }
 }
 
@@ -961,8 +1027,22 @@ impl Encode for Func<'_> {
 }
 
 impl Encode for ComponentFunc<'_> {
-    fn encode(&self, _e: &mut Vec<u8>) {
-        eprintln!("TODO: Encode for ComponentFunc")
+    fn encode(&self, e: &mut Vec<u8>) {
+        match &self.kind {
+            ComponentFuncKind::Import(_) => todo!("Imported component function"),
+            ComponentFuncKind::Inline { body } => {
+                body.encode(e);
+            }
+        }
+    }
+}
+
+impl Encode for ComponentFuncBody<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        match self {
+            ComponentFuncBody::CanonLift(lift) => lift.encode(e),
+            ComponentFuncBody::CanonLower(lower) => lower.encode(e),
+        }
     }
 }
 
@@ -1644,14 +1724,46 @@ impl Encode for Start<'_> {
 impl Encode for Alias<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         match self.target {
-            AliasTarget::Export { .. } => todo!("Encode for alias export"),
+            AliasTarget::Export { instance, export } => {
+                match self.kind {
+                    AliasKind::Module => {
+                        e.push(0x00);
+                        e.push(0x00);
+                    }
+                    AliasKind::Component => {
+                        e.push(0x00);
+                        e.push(0x01);
+                    }
+                    AliasKind::Instance => {
+                        e.push(0x00);
+                        e.push(0x02);
+                    }
+                    AliasKind::Value => {
+                        e.push(0x00);
+                        e.push(0x04);
+                    }
+                    AliasKind::ExportKind(export_kind) => {
+                        e.push(0x01);
+                        match export_kind {
+                            ExportKind::Func => e.push(0x00),
+                            ExportKind::Table => e.push(0x01),
+                            ExportKind::Memory => e.push(0x02),
+                            ExportKind::Global => e.push(0x03),
+                            ExportKind::Tag => todo!("encoding for a tag export alias"),
+                            ExportKind::Type => todo!("encoding for a type export alias"),
+                        }
+                    }
+                }
+                instance.encode(e);
+                export.encode(e);
+            }
             AliasTarget::Outer { outer, index } => {
                 e.push(0x02);
                 match self.kind {
                     AliasKind::Module => e.push(0x00),
                     AliasKind::Component => e.push(0x01),
                     AliasKind::ExportKind(ExportKind::Type) => e.push(0x05),
-                    _ => panic!("Unexpected alias outer kind"),
+                    _ => panic!("Unexpected outer alias kind"),
                 }
                 outer.encode(e);
                 index.encode(e);
@@ -1661,13 +1773,32 @@ impl Encode for Alias<'_> {
 }
 
 impl Encode for CanonLower<'_> {
-    fn encode(&self, _e: &mut Vec<u8>) {
-        eprintln!("TODO: Encode for CanonLower")
+    fn encode(&self, e: &mut Vec<u8>) {
+        e.push(0x01);
+        self.opts.encode(e);
+        self.func.encode(e);
     }
 }
 
 impl Encode for CanonLift<'_> {
-    fn encode(&self, _e: &mut Vec<u8>) {
-        eprintln!("TODO: Encode for CanonLift")
+    fn encode(&self, e: &mut Vec<u8>) {
+        e.push(0x00);
+        self.type_.encode(e);
+        self.opts.encode(e);
+        self.func.encode(e);
+    }
+}
+
+impl Encode for CanonOpt<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        match self {
+            CanonOpt::StringUtf8 => e.push(0x00),
+            CanonOpt::StringUtf16 => e.push(0x01),
+            CanonOpt::StringLatin1Utf16 => e.push(0x02),
+            CanonOpt::Into(index) => {
+                e.push(0x03);
+                index.encode(e);
+            }
+        }
     }
 }
