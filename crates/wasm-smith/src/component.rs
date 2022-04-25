@@ -955,7 +955,7 @@ impl ComponentBuilder {
         u: &mut Unstructured,
         names: &mut HashSet<String>,
     ) -> Result<NamedType> {
-        let name = crate::unique_string(100, names, u)?;
+        let name = crate::unique_non_empty_string(100, names, u)?;
         let ty = self.arbitrary_interface_type_ref(u)?;
         Ok(NamedType { name, ty })
     }
@@ -966,7 +966,7 @@ impl ComponentBuilder {
         names: &mut HashSet<String>,
     ) -> Result<OptionalNamedType> {
         let name = if u.arbitrary()? {
-            Some(crate::unique_string(100, names, u)?)
+            Some(crate::unique_non_empty_string(100, names, u)?)
         } else {
             None
         };
@@ -1057,7 +1057,7 @@ impl ComponentBuilder {
                 return Ok(false);
             }
 
-            fields.push(crate::unique_string(100, &mut field_names, u)?);
+            fields.push(crate::unique_non_empty_string(100, &mut field_names, u)?);
             Ok(true)
         })?;
         Ok(FlagsType { fields })
@@ -1076,7 +1076,7 @@ impl ComponentBuilder {
                 return Ok(false);
             }
 
-            variants.push(crate::unique_string(100, &mut variant_names, u)?);
+            variants.push(crate::unique_non_empty_string(100, &mut variant_names, u)?);
             Ok(true)
         })?;
         Ok(EnumType { variants })
@@ -1439,7 +1439,7 @@ fn inverse_scalar_canonical_abi_for(
     if u.ratio::<u8>(1, 25)? {
         params.push(OptionalNamedType {
             name: if u.arbitrary()? {
-                Some(crate::unique_string(100, &mut param_names, u)?)
+                Some(crate::unique_non_empty_string(100, &mut param_names, u)?)
             } else {
                 None
             },
@@ -1449,7 +1449,7 @@ fn inverse_scalar_canonical_abi_for(
     for core_ty in &core_func_ty.params {
         params.push(OptionalNamedType {
             name: if u.arbitrary()? {
-                Some(crate::unique_string(100, &mut param_names, u)?)
+                Some(crate::unique_non_empty_string(100, &mut param_names, u)?)
             } else {
                 None
             },
@@ -1458,7 +1458,7 @@ fn inverse_scalar_canonical_abi_for(
         if u.ratio::<u8>(1, 25)? {
             params.push(OptionalNamedType {
                 name: if u.arbitrary()? {
-                    Some(crate::unique_string(100, &mut param_names, u)?)
+                    Some(crate::unique_non_empty_string(100, &mut param_names, u)?)
                 } else {
                     None
                 },
