@@ -756,10 +756,14 @@ impl ComponentBuilder {
                     return Ok(false);
                 }
 
-                if !me.current_type_scope().types.is_empty() && u.int_in_range::<u8>(0..=3)? == 0 {
+                if !me.current_type_scope().def_types.is_empty()
+                    && u.int_in_range::<u8>(0..=3)? == 0
+                {
                     // Imports.
                     let name = crate::unique_string(100, &mut imports, u)?;
-                    let ty = u.int_in_range(0..=me.current_type_scope().types.len() - 1)?;
+                    let max_def_ty_idx = me.current_type_scope().def_types.len() - 1;
+                    let def_ty_idx = u.int_in_range(0..=max_def_ty_idx)?;
+                    let ty = me.current_type_scope().def_types[def_ty_idx];
                     let ty = u32::try_from(ty).unwrap();
                     defs.push(ComponentTypeDef::Import(Import { name, ty }));
                 } else {
@@ -951,7 +955,7 @@ impl ComponentBuilder {
         u: &mut Unstructured,
         names: &mut HashSet<String>,
     ) -> Result<NamedType> {
-        let name = crate::unique_string(100, names, u)?;
+        let name = crate::unique_non_empty_string(100, names, u)?;
         let ty = self.arbitrary_interface_type_ref(u)?;
         Ok(NamedType { name, ty })
     }
@@ -962,7 +966,7 @@ impl ComponentBuilder {
         names: &mut HashSet<String>,
     ) -> Result<OptionalNamedType> {
         let name = if u.arbitrary()? {
-            Some(crate::unique_string(100, names, u)?)
+            Some(crate::unique_non_empty_string(100, names, u)?)
         } else {
             None
         };
@@ -1053,7 +1057,7 @@ impl ComponentBuilder {
                 return Ok(false);
             }
 
-            fields.push(crate::unique_string(100, &mut field_names, u)?);
+            fields.push(crate::unique_non_empty_string(100, &mut field_names, u)?);
             Ok(true)
         })?;
         Ok(FlagsType { fields })
@@ -1072,7 +1076,7 @@ impl ComponentBuilder {
                 return Ok(false);
             }
 
-            variants.push(crate::unique_string(100, &mut variant_names, u)?);
+            variants.push(crate::unique_non_empty_string(100, &mut variant_names, u)?);
             Ok(true)
         })?;
         Ok(EnumType { variants })
@@ -1435,7 +1439,7 @@ fn inverse_scalar_canonical_abi_for(
     if u.ratio::<u8>(1, 25)? {
         params.push(OptionalNamedType {
             name: if u.arbitrary()? {
-                Some(crate::unique_string(100, &mut param_names, u)?)
+                Some(crate::unique_non_empty_string(100, &mut param_names, u)?)
             } else {
                 None
             },
@@ -1445,7 +1449,7 @@ fn inverse_scalar_canonical_abi_for(
     for core_ty in &core_func_ty.params {
         params.push(OptionalNamedType {
             name: if u.arbitrary()? {
-                Some(crate::unique_string(100, &mut param_names, u)?)
+                Some(crate::unique_non_empty_string(100, &mut param_names, u)?)
             } else {
                 None
             },
@@ -1454,7 +1458,7 @@ fn inverse_scalar_canonical_abi_for(
         if u.ratio::<u8>(1, 25)? {
             params.push(OptionalNamedType {
                 name: if u.arbitrary()? {
-                    Some(crate::unique_string(100, &mut param_names, u)?)
+                    Some(crate::unique_non_empty_string(100, &mut param_names, u)?)
                 } else {
                     None
                 },

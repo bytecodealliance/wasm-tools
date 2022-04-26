@@ -64,7 +64,7 @@ impl fmt::Display for BinaryReaderError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "{} (at offset {})",
+            "{} (at offset 0x{:x})",
             self.inner.message, self.inner.offset
         )
     }

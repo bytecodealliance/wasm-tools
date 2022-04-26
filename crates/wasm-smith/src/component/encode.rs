@@ -159,6 +159,7 @@ impl Type {
                         InstanceTypeDef::Alias(_) => unreachable!(),
                     }
                 }
+                enc.instance(&enc_inst_ty);
             }
             Type::Func(func_ty) => {
                 enc.function(
