@@ -307,10 +307,10 @@ impl ComponentBuilder {
                 choices.push(Self::arbitrary_type_section);
                 choices.push(Self::arbitrary_import_section);
                 choices.push(Self::arbitrary_func_section);
+                choices.push(Self::arbitrary_core_section);
 
                 // TODO FITZGEN
                 //
-                // choices.push(Self::arbitrary_core_section);
                 // choices.push(Self::arbitrary_component_section);
                 // choices.push(Self::arbitrary_instance_section);
                 // choices.push(Self::arbitrary_export_section);
@@ -1347,8 +1347,15 @@ impl ComponentBuilder {
         Ok(Step::StillBuilding)
     }
 
-    fn arbitrary_core_section(&mut self, u: &mut Unstructured) -> Result<()> {
-        todo!()
+    fn arbitrary_core_section(&mut self, u: &mut Unstructured) -> Result<Step> {
+        let config: Rc<dyn Config> = Rc::clone(&self.config);
+        let module = crate::core::Module::new_internal(
+            config,
+            u,
+            crate::core::DuplicateImportsBehavior::Disallowed,
+        )?;
+        self.push_section(Section::Core(module));
+        Ok(Step::StillBuilding)
     }
 
     fn arbitrary_component_section(&mut self, u: &mut Unstructured) -> Result<()> {
@@ -1482,7 +1489,7 @@ enum Section {
     Type(TypeSection),
     Import(ImportSection),
     Func(FuncSection),
-    Core(CoreSection),
+    Core(crate::Module),
     Component(ComponentSection),
     Instance(InstanceSection),
     Export(ExportSection),
@@ -1753,9 +1760,6 @@ enum CanonOpt {
     StringLatin1Utf16,
     Into { instance: u32 },
 }
-
-#[derive(Debug)]
-struct CoreSection {}
 
 #[derive(Debug)]
 struct ComponentSection {

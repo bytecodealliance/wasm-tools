@@ -44,6 +44,7 @@ type Instruction = wasm_encoder::Instruction<'static>;
 #[derive(Debug)]
 pub struct Module {
     config: Rc<dyn Config>,
+    duplicate_imports_behavior: DuplicateImportsBehavior,
     valtypes: Vec<ValType>,
 
     /// All types locally defined in this module (available in the type index
@@ -140,6 +141,12 @@ pub struct ConfiguredModule<C> {
     _marker: marker::PhantomData<C>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum DuplicateImportsBehavior {
+    Allowed,
+    Disallowed,
+}
+
 impl Module {
     /// Returns a reference to the internal configuration.
     pub fn config(&self) -> &dyn Config {
@@ -149,14 +156,23 @@ impl Module {
     /// Creates a new `Module` with the specified `config` for
     /// configuration and `Unstructured` for the DNA of this module.
     pub fn new(config: impl Config, u: &mut Unstructured<'_>) -> Result<Self> {
-        let mut module = Module::empty(Rc::new(config));
+        Self::new_internal(Rc::new(config), u, DuplicateImportsBehavior::Allowed)
+    }
+
+    pub(crate) fn new_internal(
+        config: Rc<dyn Config>,
+        u: &mut Unstructured<'_>,
+        duplicate_imports_behavior: DuplicateImportsBehavior,
+    ) -> Result<Self> {
+        let mut module = Module::empty(config, duplicate_imports_behavior);
         module.build(u, false)?;
         Ok(module)
     }
 
-    fn empty(config: Rc<dyn Config>) -> Self {
+    fn empty(config: Rc<dyn Config>, duplicate_imports_behavior: DuplicateImportsBehavior) -> Self {
         Module {
             config,
+            duplicate_imports_behavior,
             valtypes: Vec::new(),
             types: Vec::new(),
             should_encode_types: false,
@@ -211,7 +227,7 @@ impl MaybeInvalidModule {
 
 impl<'a> Arbitrary<'a> for MaybeInvalidModule {
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        let mut module = Module::empty(Rc::new(DefaultConfig));
+        let mut module = Module::empty(Rc::new(DefaultConfig), DuplicateImportsBehavior::Allowed);
         module.build(u, true)?;
         Ok(MaybeInvalidModule { module })
     }
@@ -413,6 +429,7 @@ impl Module {
             return Ok(());
         }
 
+        let mut import_strings = HashSet::new();
         let mut choices: Vec<fn(&mut Unstructured, &mut Module) -> Result<EntityType>> =
             Vec::with_capacity(5);
         let min = self.config.min_imports().saturating_sub(self.num_imports);
@@ -470,7 +487,15 @@ impl Module {
             self.type_size += entity_type.size() + 1;
 
             // Generate an arbitrary module/name pair to name this import.
-            let (module, field) = unique_import_strings(1_000, u)?;
+            let mut import_pair = unique_import_strings(1_000, u)?;
+            if self.duplicate_imports_behavior == DuplicateImportsBehavior::Disallowed {
+                while import_strings.contains(&import_pair) {
+                    use std::fmt::Write;
+                    write!(&mut import_pair.1, "{}", import_strings.len()).unwrap();
+                }
+                import_strings.insert(import_pair.clone());
+            }
+            let (module, field) = import_pair;
 
             // Once our name is determined, then we push the typed item into the
             // appropriate namespace.
