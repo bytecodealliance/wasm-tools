@@ -1,6 +1,6 @@
 use libfuzzer_sys::arbitrary::{Result, Unstructured};
 use std::fmt::Debug;
-use wasm_smith::{Module, SwarmConfig};
+use wasm_smith::{Component, Module, SwarmConfig};
 
 pub fn generate_valid_module(
     input: &[u8],
@@ -23,6 +23,33 @@ pub fn generate_valid_module(
     // bytes.
     let module = Module::new(config.clone(), &mut u)?;
     let bytes = module.to_bytes();
+
+    log_wasm(&bytes, &config);
+
+    Ok((bytes, config))
+}
+
+pub fn generate_valid_component(
+    input: &[u8],
+    configure: impl FnOnce(&mut SwarmConfig, &mut Unstructured<'_>) -> Result<()>,
+) -> Result<(Vec<u8>, SwarmConfig)> {
+    let mut u = Unstructured::new(input);
+    let mut config: SwarmConfig = u.arbitrary()?;
+
+    // These are disabled in the swarm config by default, but we want to test
+    // them. Use the input data to determine whether these features are enabled.
+    config.simd_enabled = u.arbitrary()?;
+    config.relaxed_simd_enabled = config.simd_enabled && u.arbitrary()?;
+    config.memory64_enabled = u.arbitrary()?;
+    config.exceptions_enabled = u.arbitrary()?;
+    config.canonicalize_nans = u.arbitrary()?;
+
+    configure(&mut config, &mut u)?;
+
+    // Use wasm-smith to generate an arbitrary component and convert it to wasm
+    // bytes.
+    let component = Component::new(config.clone(), &mut u)?;
+    let bytes = component.to_bytes();
 
     log_wasm(&bytes, &config);
 

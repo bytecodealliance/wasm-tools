@@ -80,3 +80,9 @@ name = "mutate"
 path = "fuzz_targets/mutate.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "validate-component"
+path = "fuzz_targets/validate-component.rs"
+test = false
+doc = false
