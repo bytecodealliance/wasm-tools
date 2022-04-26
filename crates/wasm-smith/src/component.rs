@@ -659,8 +659,8 @@ impl ComponentBuilder {
                 counts.tags += 1;
                 let tag_func_types = types
                     .iter()
-                    .filter(|ty| ty.results.is_empty())
                     .enumerate()
+                    .filter(|(_, ty)| ty.results.is_empty())
                     .map(|(i, _)| u32::try_from(i).unwrap())
                     .collect::<Vec<_>>();
                 Ok(crate::core::EntityType::Tag(
