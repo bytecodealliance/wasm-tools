@@ -22,7 +22,13 @@ impl Section {
             Section::Type(sec) => sec.encode(component),
             Section::Import(sec) => sec.encode(component),
             Section::Func(sec) => sec.encode(component),
-            Section::Core(_) => todo!(),
+            Section::Core(module) => {
+                let bytes = module.to_bytes();
+                component.section(&wasm_encoder::RawSection {
+                    id: wasm_encoder::ComponentSectionId::Module as u8,
+                    data: &bytes,
+                });
+            }
             Section::Component(_) => todo!(),
             Section::Instance(_) => todo!(),
             Section::Export(_) => todo!(),
