@@ -1123,9 +1123,8 @@ impl Validator {
 
                 // If there's a parent component, pop the stack, add it to the parent,
                 // and continue to validate the component
-                if self.components.len() > 1 {
-                    let current = self.components.last_mut().unwrap();
-                    current.add_component(&mut component, &mut self.types);
+                if let Some(parent) = self.components.last_mut() {
+                    parent.add_component(&mut component, &mut self.types);
                     self.state = State::Component;
                 }
 
