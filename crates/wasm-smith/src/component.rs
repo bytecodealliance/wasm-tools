@@ -309,9 +309,12 @@ impl ComponentBuilder {
                 choices.push(Self::arbitrary_func_section);
                 choices.push(Self::arbitrary_core_section);
 
+                if self.components.len() < self.config.max_nesting_depth() {
+                    choices.push(Self::arbitrary_component_section);
+                }
+
                 // TODO FITZGEN
                 //
-                // choices.push(Self::arbitrary_component_section);
                 // choices.push(Self::arbitrary_instance_section);
                 // choices.push(Self::arbitrary_export_section);
                 // choices.push(Self::arbitrary_start_section);
@@ -327,7 +330,7 @@ impl ComponentBuilder {
                         return Ok(component);
                     } else {
                         // Otherwise, add it as a nested component in the parent.
-                        self.append_nested_component(component);
+                        self.push_section(Section::Component(component));
                     }
                 }
             }
@@ -354,15 +357,6 @@ impl ComponentBuilder {
             .pop()
             .expect("should have a types scope for the component we are finishing");
         Ok(Step::Finished(self.components.pop().unwrap().component))
-    }
-
-    fn append_nested_component(&mut self, component: Component) {
-        match self.last_section_mut() {
-            Some(Section::Component(sec)) => sec.components.push(component),
-            _ => self.push_section(Section::Component(ComponentSection {
-                components: vec![component],
-            })),
-        }
     }
 
     fn config(&self) -> &dyn Config {
@@ -1361,8 +1355,10 @@ impl ComponentBuilder {
         Ok(Step::StillBuilding)
     }
 
-    fn arbitrary_component_section(&mut self, u: &mut Unstructured) -> Result<()> {
-        todo!()
+    fn arbitrary_component_section(&mut self, u: &mut Unstructured) -> Result<Step> {
+        self.types.push(TypesScope::default());
+        self.components.push(ComponentContext::empty());
+        Ok(Step::StillBuilding)
     }
 
     fn arbitrary_instance_section(&mut self, u: &mut Unstructured) -> Result<()> {
@@ -1493,7 +1489,7 @@ enum Section {
     Import(ImportSection),
     Func(FuncSection),
     Core(crate::Module),
-    Component(ComponentSection),
+    Component(Component),
     Instance(InstanceSection),
     Export(ExportSection),
     Start(StartSection),
@@ -1762,11 +1758,6 @@ enum CanonOpt {
     StringUtf16,
     StringLatin1Utf16,
     Into { instance: u32 },
-}
-
-#[derive(Debug)]
-struct ComponentSection {
-    components: Vec<Component>,
 }
 
 #[derive(Debug)]
