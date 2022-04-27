@@ -344,6 +344,9 @@ impl ComponentBuilder {
             if self.component().num_imports < self.config.min_imports() {
                 self.arbitrary_import_section(u)?.unwrap_still_building();
             }
+            if self.component().funcs.len() < self.config.min_funcs() {
+                self.arbitrary_func_section(u)?.unwrap_still_building();
+            }
         }
         self.fill_minimums = false;
 
