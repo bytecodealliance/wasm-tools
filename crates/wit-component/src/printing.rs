@@ -1,7 +1,7 @@
 use anyhow::{bail, Result};
 use std::collections::HashSet;
 use std::fmt::Write;
-use wit_parser::{Interface, Record, Type, TypeDefKind, TypeId, Variant};
+use wit_parser::{Flags, Interface, Record, Type, TypeDefKind, TypeId, Variant};
 
 /// A utility for printing WebAssembly interface definitions to a string.
 #[derive(Default)]
@@ -71,6 +71,9 @@ impl InterfacePrinter {
                 match &ty.kind {
                     TypeDefKind::Record(r) => {
                         self.print_record_type(interface, r)?;
+                    }
+                    TypeDefKind::Flags(_) => {
+                        bail!("interface has unnamed flags type")
                     }
                     TypeDefKind::Variant(v) => {
                         self.print_variant_type(interface, v)?;
@@ -160,6 +163,7 @@ impl InterfacePrinter {
                     TypeDefKind::Record(r) => {
                         self.declare_record(interface, ty.name.as_deref(), r)?
                     }
+                    TypeDefKind::Flags(f) => self.declare_flags(ty.name.as_deref(), f)?,
                     TypeDefKind::Variant(v) => {
                         self.declare_variant(interface, ty.name.as_deref(), v)?
                     }
@@ -201,20 +205,6 @@ impl InterfacePrinter {
             return Ok(());
         }
 
-        if record.is_flags() {
-            match name {
-                Some(name) => {
-                    writeln!(&mut self.output, "flags {} {{", name)?;
-                    for field in &record.fields {
-                        writeln!(&mut self.output, "  {},", field.name)?;
-                    }
-                    self.output.push_str("}\n\n");
-                }
-                None => bail!("interface has unnamed flags type"),
-            }
-            return Ok(());
-        }
-
         match name {
             Some(name) => {
                 writeln!(&mut self.output, "record {} {{", name)?;
@@ -229,6 +219,20 @@ impl InterfacePrinter {
             }
             None => bail!("interface has unnamed record type"),
         }
+    }
+
+    fn declare_flags(&mut self, name: Option<&str>, flags: &Flags) -> Result<()> {
+        match name {
+            Some(name) => {
+                writeln!(&mut self.output, "flags {} {{", name)?;
+                for flag in &flags.flags {
+                    writeln!(&mut self.output, "  {},", flag.name)?;
+                }
+                self.output.push_str("}\n\n");
+            }
+            None => bail!("interface has unnamed flags type"),
+        }
+        Ok(())
     }
 
     fn declare_variant(

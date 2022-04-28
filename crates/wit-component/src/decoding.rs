@@ -5,8 +5,8 @@ use wasmparser::{
     Validator, WasmFeatures,
 };
 use wit_parser::{
-    validate_id, Case, Docs, Field, Function, FunctionKind, Interface, Record, RecordKind, Type,
-    TypeDef, TypeDefKind, TypeId, Variant,
+    validate_id, Case, Docs, Field, Flag, Flags, Function, FunctionKind, Interface, Record,
+    RecordKind, Type, TypeDef, TypeDefKind, TypeId, Variant,
 };
 
 /// Represents information about a decoded WebAssembly component.
@@ -446,8 +446,8 @@ impl<'a> InterfaceDecoder<'a> {
         let flags_name =
             flags_name.ok_or_else(|| anyhow!("interface has an unnamed flags type"))?;
 
-        let record = Record {
-            fields: names
+        let flags = Flags {
+            flags: names
                 .map(|name| {
                     validate_id(name).with_context(|| {
                         format!(
@@ -456,18 +456,16 @@ impl<'a> InterfaceDecoder<'a> {
                         )
                     })?;
 
-                    Ok(Field {
+                    Ok(Flag {
                         docs: Docs::default(),
                         name: name.clone(),
-                        ty: self.decode_primitive(PrimitiveInterfaceType::Bool)?,
                     })
                 })
                 .collect::<Result<_>>()?,
-            kind: RecordKind::Flags(None),
         };
 
         Ok(Type::Id(
-            self.alloc_type(Some(flags_name), TypeDefKind::Record(record)),
+            self.alloc_type(Some(flags_name), TypeDefKind::Flags(flags)),
         ))
     }
 
