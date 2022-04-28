@@ -668,7 +668,7 @@ impl<'a> ImportEncoder<'a> {
                     .map(|(i, f)| {
                         let sig = interface.wasm_signature(AbiVariant::GuestImport, f);
                         let options = RequiredOptions::for_function(interface, f)
-                            | if sig.retptr.is_some() {
+                            | if sig.retptr {
                                 RequiredOptions::Into
                             } else {
                                 RequiredOptions::None

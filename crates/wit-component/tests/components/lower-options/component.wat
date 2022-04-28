@@ -108,7 +108,6 @@
     (type (;0;) (func (param i32 i32)))
     (type (;1;) (func (param i32 i32 i32)))
     (type (;2;) (func (param i32)))
-    (type (;3;) (func (param i32)))
     (func (;0;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
@@ -161,10 +160,10 @@
       i32.const 8
       call_indirect (type 2)
     )
-    (func (;9;) (type 3) (param i32)
+    (func (;9;) (type 2) (param i32)
       local.get 0
       i32.const 9
-      call_indirect (type 3)
+      call_indirect (type 2)
     )
     (func (;10;) (type 2) (param i32)
       local.get 0
@@ -189,7 +188,6 @@
     (type (;0;) (func (param i32 i32)))
     (type (;1;) (func (param i32 i32 i32)))
     (type (;2;) (func (param i32)))
-    (type (;3;) (func (param i32)))
     (import "" "0" (func (;0;) (type 0)))
     (import "" "1" (func (;1;) (type 0)))
     (import "" "2" (func (;2;) (type 1)))
@@ -199,7 +197,7 @@
     (import "" "6" (func (;6;) (type 2)))
     (import "" "7" (func (;7;) (type 2)))
     (import "" "8" (func (;8;) (type 2)))
-    (import "" "9" (func (;9;) (type 3)))
+    (import "" "9" (func (;9;) (type 2)))
     (import "" "10" (func (;10;) (type 2)))
     (import "" "$imports" (table (;0;) 11 11 funcref))
     (elem (;0;) (i32.const 0) func 0 1 2 3 4 5 6 7 8 9 10)
