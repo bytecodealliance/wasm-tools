@@ -29,7 +29,13 @@ impl Section {
                     data: &bytes,
                 });
             }
-            Section::Component(_) => todo!(),
+            Section::Component(comp) => {
+                let bytes = comp.to_bytes();
+                component.section(&wasm_encoder::RawSection {
+                    id: wasm_encoder::ComponentSectionId::Component as u8,
+                    data: &bytes,
+                });
+            }
             Section::Instance(_) => todo!(),
             Section::Export(_) => todo!(),
             Section::Start(_) => todo!(),
