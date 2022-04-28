@@ -3,10 +3,9 @@ use std::fmt::Debug;
 use wasm_smith::{Component, Module, SwarmConfig};
 
 pub fn generate_valid_module(
-    input: &[u8],
+    u: &mut Unstructured,
     configure: impl FnOnce(&mut SwarmConfig, &mut Unstructured<'_>) -> Result<()>,
 ) -> Result<(Vec<u8>, SwarmConfig)> {
-    let mut u = Unstructured::new(input);
     let mut config: SwarmConfig = u.arbitrary()?;
 
     // These are disabled in the swarm config by default, but we want to test
@@ -17,11 +16,11 @@ pub fn generate_valid_module(
     config.exceptions_enabled = u.arbitrary()?;
     config.canonicalize_nans = u.arbitrary()?;
 
-    configure(&mut config, &mut u)?;
+    configure(&mut config, u)?;
 
     // Use wasm-smith to generate an arbitrary module and convert it to wasm
     // bytes.
-    let module = Module::new(config.clone(), &mut u)?;
+    let module = Module::new(config.clone(), u)?;
     let bytes = module.to_bytes();
 
     log_wasm(&bytes, &config);
@@ -30,10 +29,9 @@ pub fn generate_valid_module(
 }
 
 pub fn generate_valid_component(
-    input: &[u8],
+    u: &mut Unstructured,
     configure: impl FnOnce(&mut SwarmConfig, &mut Unstructured<'_>) -> Result<()>,
 ) -> Result<(Vec<u8>, SwarmConfig)> {
-    let mut u = Unstructured::new(input);
     let mut config: SwarmConfig = u.arbitrary()?;
 
     // These are disabled in the swarm config by default, but we want to test
@@ -44,11 +42,11 @@ pub fn generate_valid_component(
     config.exceptions_enabled = u.arbitrary()?;
     config.canonicalize_nans = u.arbitrary()?;
 
-    configure(&mut config, &mut u)?;
+    configure(&mut config, u)?;
 
     // Use wasm-smith to generate an arbitrary component and convert it to wasm
     // bytes.
-    let component = Component::new(config.clone(), &mut u)?;
+    let component = Component::new(config.clone(), u)?;
     let bytes = component.to_bytes();
 
     log_wasm(&bytes, &config);

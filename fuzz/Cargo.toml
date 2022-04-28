@@ -9,6 +9,7 @@ cargo-fuzz = true
 
 [dependencies]
 anyhow = "1"
+arbitrary = "1"
 env_logger = "0.9"
 libfuzzer-sys = "0.4.0"
 log = "0.4"
@@ -78,11 +79,5 @@ doc = false
 [[bin]]
 name = "mutate"
 path = "fuzz_targets/mutate.rs"
-test = false
-doc = false
-
-[[bin]]
-name = "validate-component"
-path = "fuzz_targets/validate-component.rs"
 test = false
 doc = false
