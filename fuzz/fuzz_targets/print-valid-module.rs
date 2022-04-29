@@ -1,9 +1,11 @@
 #![no_main]
 
+use arbitrary::Unstructured;
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|bytes: &[u8]| {
-    let (bytes, _config) = match wasm_tools_fuzz::generate_valid_module(bytes, |_, _| Ok(())) {
+    let mut u = Unstructured::new(bytes);
+    let (bytes, _config) = match wasm_tools_fuzz::generate_valid_module(&mut u, |_, _| Ok(())) {
         Ok(m) => m,
         Err(_) => return,
     };
