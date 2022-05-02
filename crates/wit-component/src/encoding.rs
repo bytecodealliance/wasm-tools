@@ -13,8 +13,7 @@ use wasm_encoder::*;
 use wasmparser::{Validator, WasmFeatures};
 use wit_parser::{
     abi::{AbiVariant, WasmSignature, WasmType},
-    Flags, Function, FunctionKind, Interface, Record, RecordKind, Type, TypeDef, TypeDefKind,
-    Variant,
+    Flags, Function, FunctionKind, Interface, Record, Tuple, Type, TypeDef, TypeDefKind, Variant,
 };
 
 const INDIRECT_TABLE_NAME: &str = "$imports";
@@ -91,6 +90,22 @@ impl PartialEq for TypeDefKey<'_> {
                             })
                     })
                 }
+                (TypeDefKind::Tuple(t1), TypeDefKind::Tuple(t2)) => {
+                    if t1.types.len() != t2.types.len() {
+                        return false;
+                    }
+
+                    t1.types.iter().zip(t2.types.iter()).all(|(t1, t2)| {
+                        TypeKey {
+                            interface: self.interface,
+                            ty: *t1,
+                        }
+                        .eq(&TypeKey {
+                            interface: other.interface,
+                            ty: *t2,
+                        })
+                    })
+                }
                 (TypeDefKind::Flags(f1), TypeDefKind::Flags(f2)) => {
                     if f1.flags.len() != f2.flags.len() {
                         return false;
@@ -152,14 +167,24 @@ impl Hash for TypeDefKey<'_> {
                     .hash(state);
                 }
             }
-            TypeDefKind::Flags(r) => {
+            TypeDefKind::Tuple(t) => {
                 state.write_u8(1);
+                for ty in &t.types {
+                    TypeKey {
+                        interface: self.interface,
+                        ty: *ty,
+                    }
+                    .hash(state);
+                }
+            }
+            TypeDefKind::Flags(r) => {
+                state.write_u8(2);
                 for f in &r.flags {
                     f.name.hash(state);
                 }
             }
             TypeDefKind::Variant(v) => {
-                state.write_u8(2);
+                state.write_u8(3);
                 for c in &v.cases {
                     c.name.hash(state);
                     c.ty.map(|ty| TypeKey {
@@ -170,7 +195,7 @@ impl Hash for TypeDefKey<'_> {
                 }
             }
             TypeDefKind::List(ty) => {
-                state.write_u8(3);
+                state.write_u8(4);
                 TypeKey {
                     interface: self.interface,
                     ty: *ty,
@@ -178,7 +203,7 @@ impl Hash for TypeDefKey<'_> {
                 .hash(state);
             }
             TypeDefKind::Type(ty) => {
-                state.write_u8(4);
+                state.write_u8(5);
                 TypeKey {
                     interface: self.interface,
                     ty: *ty,
@@ -362,6 +387,7 @@ impl<'a> TypeEncoder<'a> {
                 } else {
                     let mut encoded = match &ty.kind {
                         TypeDefKind::Record(r) => self.encode_record(interface, instance, r)?,
+                        TypeDefKind::Tuple(t) => self.encode_tuple(interface, instance, t)?,
                         TypeDefKind::Flags(r) => self.encode_flags(r)?,
                         TypeDefKind::Variant(v) => self.encode_variant(interface, instance, v)?,
                         TypeDefKind::List(ty) => {
@@ -410,36 +436,38 @@ impl<'a> TypeEncoder<'a> {
         instance: &mut Option<InstanceTypeEncoder<'a>>,
         record: &Record,
     ) -> Result<InterfaceTypeRef> {
-        Ok(match record.kind {
-            RecordKind::Other => {
-                let fields = record
-                    .fields
-                    .iter()
-                    .map(|f| {
-                        Ok((
-                            f.name.as_str(),
-                            self.encode_type(interface, instance, &f.ty)?,
-                        ))
-                    })
-                    .collect::<Result<Vec<_>>>()?;
+        let fields = record
+            .fields
+            .iter()
+            .map(|f| {
+                Ok((
+                    f.name.as_str(),
+                    self.encode_type(interface, instance, &f.ty)?,
+                ))
+            })
+            .collect::<Result<Vec<_>>>()?;
 
-                let index = self.types.len();
-                let encoder = self.types.interface_type();
-                encoder.record(fields);
-                InterfaceTypeRef::Type(index)
-            }
-            RecordKind::Tuple => {
-                let tys = record
-                    .fields
-                    .iter()
-                    .map(|f| self.encode_type(interface, instance, &f.ty))
-                    .collect::<Result<Vec<_>>>()?;
-                let index = self.types.len();
-                let encoder = self.types.interface_type();
-                encoder.tuple(tys);
-                InterfaceTypeRef::Type(index)
-            }
-        })
+        let index = self.types.len();
+        let encoder = self.types.interface_type();
+        encoder.record(fields);
+        Ok(InterfaceTypeRef::Type(index))
+    }
+
+    fn encode_tuple(
+        &mut self,
+        interface: &'a Interface,
+        instance: &mut Option<InstanceTypeEncoder<'a>>,
+        tuple: &Tuple,
+    ) -> Result<InterfaceTypeRef> {
+        let tys = tuple
+            .types
+            .iter()
+            .map(|ty| self.encode_type(interface, instance, ty))
+            .collect::<Result<Vec<_>>>()?;
+        let index = self.types.len();
+        let encoder = self.types.interface_type();
+        encoder.tuple(tys);
+        Ok(InterfaceTypeRef::Type(index))
     }
 
     fn encode_flags(&mut self, flags: &Flags) -> Result<InterfaceTypeRef> {
@@ -584,6 +612,7 @@ impl RequiredOptions {
                 TypeDefKind::Record(r) => {
                     Self::for_types(interface, r.fields.iter().map(|f| &f.ty))
                 }
+                TypeDefKind::Tuple(t) => Self::for_types(interface, t.types.iter()),
                 TypeDefKind::Flags(_) => Self::None,
                 TypeDefKind::Variant(v) => {
                     Self::for_types(interface, v.cases.iter().filter_map(|c| c.ty.as_ref()))

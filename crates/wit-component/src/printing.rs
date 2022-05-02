@@ -1,7 +1,7 @@
 use anyhow::{bail, Result};
 use std::collections::HashSet;
 use std::fmt::Write;
-use wit_parser::{Flags, Interface, Record, Type, TypeDefKind, TypeId, Variant};
+use wit_parser::{Flags, Interface, Record, Tuple, Type, TypeDefKind, TypeId, Variant};
 
 /// A utility for printing WebAssembly interface definitions to a string.
 #[derive(Default)]
@@ -69,8 +69,11 @@ impl InterfacePrinter {
                 }
 
                 match &ty.kind {
-                    TypeDefKind::Record(r) => {
-                        self.print_record_type(interface, r)?;
+                    TypeDefKind::Tuple(t) => {
+                        self.print_tuple_type(interface, t)?;
+                    }
+                    TypeDefKind::Record(_) => {
+                        bail!("interface has an unnamed record type");
                     }
                     TypeDefKind::Flags(_) => {
                         bail!("interface has unnamed flags type")
@@ -93,17 +96,13 @@ impl InterfacePrinter {
         Ok(())
     }
 
-    fn print_record_type(&mut self, interface: &Interface, record: &Record) -> Result<()> {
-        if !record.is_tuple() {
-            bail!("interface has an unnamed record type");
-        }
-
+    fn print_tuple_type(&mut self, interface: &Interface, tuple: &Tuple) -> Result<()> {
         self.output.push_str("tuple<");
-        for (i, field) in record.fields.iter().enumerate() {
+        for (i, ty) in tuple.types.iter().enumerate() {
             if i > 0 {
                 self.output.push_str(", ");
             }
-            self.print_type_name(interface, &field.ty)?;
+            self.print_type_name(interface, ty)?;
         }
         self.output.push('>');
 
@@ -163,6 +162,9 @@ impl InterfacePrinter {
                     TypeDefKind::Record(r) => {
                         self.declare_record(interface, ty.name.as_deref(), r)?
                     }
+                    TypeDefKind::Tuple(t) => {
+                        self.declare_tuple(interface, ty.name.as_deref(), t)?
+                    }
                     TypeDefKind::Flags(f) => self.declare_flags(ty.name.as_deref(), f)?,
                     TypeDefKind::Variant(v) => {
                         self.declare_variant(interface, ty.name.as_deref(), v)?
@@ -196,15 +198,6 @@ impl InterfacePrinter {
             self.declare_type(interface, &field.ty)?;
         }
 
-        if record.is_tuple() {
-            if let Some(name) = name {
-                write!(&mut self.output, "type {} = ", name)?;
-                self.print_record_type(interface, record)?;
-                self.output.push_str("\n\n");
-            }
-            return Ok(());
-        }
-
         match name {
             Some(name) => {
                 writeln!(&mut self.output, "record {} {{", name)?;
@@ -219,6 +212,24 @@ impl InterfacePrinter {
             }
             None => bail!("interface has unnamed record type"),
         }
+    }
+
+    fn declare_tuple(
+        &mut self,
+        interface: &Interface,
+        name: Option<&str>,
+        tuple: &Tuple,
+    ) -> Result<()> {
+        for ty in tuple.types.iter() {
+            self.declare_type(interface, ty)?;
+        }
+
+        if let Some(name) = name {
+            write!(&mut self.output, "type {} = ", name)?;
+            self.print_tuple_type(interface, tuple)?;
+            self.output.push_str("\n\n");
+        }
+        return Ok(());
     }
 
     fn declare_flags(&mut self, name: Option<&str>, flags: &Flags) -> Result<()> {
