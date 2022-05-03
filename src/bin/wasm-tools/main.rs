@@ -9,6 +9,7 @@ macro_rules! subcommands {
         )*
 
         #[derive(Parser)]
+        #[clap(version)]
         #[allow(non_camel_case_types)]
         enum WasmTools {
             $(
