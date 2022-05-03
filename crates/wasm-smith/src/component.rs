@@ -117,6 +117,67 @@ struct ComponentContext {
 
     // A map from a core function's index to its core function type.
     core_func_types: HashMap<u32, Rc<crate::core::FuncType>>,
+
+    // This component's component index space.
+    //
+    // An indirect list of all directly-nested (not transitive) components
+    // inside this component.
+    //
+    // Each entry is of the form `(i, j)` where `component.sections[i]` is
+    // guaranteed to be either
+    //
+    // * a `Section::Component` and we are referencing the component defined in
+    //   that section (in this case `j` must also be `0`, since a component
+    //   section can only contain a single nested component), or
+    //
+    // * a `Section::Import` and we are referenceing the `j`th import in that
+    //   section, which is guaranteed to be a component import.
+    components: Vec<(usize, usize)>,
+
+    // This component's module index space.
+    //
+    // An indirect list of all directly-nested (not transitive) modules
+    // inside this component.
+    //
+    // Each entry is of the form `(i, j)` where `component.sections[i]` is
+    // guaranteed to be either
+    //
+    // * a `Section::Core` and we are referencing the module defined in that
+    //   section (in this case `j` must also be `0`, since a core section can
+    //   only contain a single nested module), or
+    //
+    // * a `Section::Import` and we are referenceing the `j`th import in that
+    //   section, which is guaranteed to be a module import.
+    modules: Vec<(usize, usize)>,
+
+    // This component's instance index space.
+    //
+    // An indirect list of all instances imported or instantiated inside this
+    // component.
+    //
+    // Each entry is of the form `(i, j)` where `component.sections[i]` is
+    // guaranteed to be either
+    //
+    // * a `Section::Instance` and we are referencing the `j`th instance
+    //   instantiated in that section, or
+    //
+    // * a `Section::Import` and we are referenceing the `j`th import in that
+    //   section, which is guaranteed to be an instance import.
+    instances: Vec<(usize, usize)>,
+
+    // This component's value index space.
+    //
+    // An indirect list of all values inside this component.
+    //
+    // Each entry is of the form `(i, j)` where `component.sections[i]` is
+    // guaranteed to be either
+    //
+    // * a `Section::Start` and we are referencing the `j`th result of the start
+    //   function, or
+    //
+    // * a `Section::Import` and we are referenceing the `j`th import in that
+    //   section, which is guaranteed to be a value import.
+    values: Vec<(usize, usize)>,
 }
 
 impl ComponentContext {
@@ -130,7 +191,31 @@ impl ComponentContext {
             scalar_interface_funcs: vec![],
             core_funcs: vec![],
             core_func_types: HashMap::default(),
+            components: vec![],
+            modules: vec![],
+            instances: vec![],
+            values: vec![],
         }
+    }
+
+    fn num_modules(&self) -> usize {
+        self.modules.len()
+    }
+
+    fn num_components(&self) -> usize {
+        self.components.len()
+    }
+
+    fn num_instances(&self) -> usize {
+        self.instances.len()
+    }
+
+    fn num_funcs(&self) -> usize {
+        self.funcs.len()
+    }
+
+    fn num_values(&self) -> usize {
+        self.values.len()
     }
 }
 
@@ -1166,11 +1251,19 @@ impl ComponentBuilder {
                 }
             }
 
-            Type::Module(_) => {}
-            Type::Component(_) => {}
-            Type::Instance(_) => {}
-            Type::Value(_) => {}
-            Type::Interface(_) => {}
+            Type::Module(_) => {
+                self.component_mut().modules.push((section_index, nth));
+            }
+            Type::Component(_) => {
+                self.component_mut().components.push((section_index, nth));
+            }
+            Type::Instance(_) => {
+                self.component_mut().instances.push((section_index, nth));
+            }
+            Type::Value(_) => {
+                self.component_mut().values.push((section_index, nth));
+            }
+            Type::Interface(_) => unreachable!("cannot import interface types"),
         }
     }
 
@@ -1241,9 +1334,46 @@ impl ComponentBuilder {
         if !self.current_type_scope().def_types.is_empty() {
             crate::arbitrary_loop(u, min, max, |u| {
                 let name = crate::unique_string(100, &mut self.component_mut().import_names, u)?;
-                let max_def_ty_idx = self.current_type_scope().def_types.len() - 1;
-                let def_ty_idx = u.int_in_range(0..=max_def_ty_idx)?;
-                let ty = self.current_type_scope().def_types[def_ty_idx];
+
+                let mut choices: Vec<fn(&mut Unstructured, &mut ComponentBuilder) -> Result<u32>> =
+                    vec![];
+
+                if !self.current_type_scope().module_types.is_empty()
+                    && self.component().num_modules() < self.config.max_modules()
+                {
+                    choices.push(|u, c| u.choose(&c.current_type_scope().module_types).copied());
+                }
+
+                if !self.current_type_scope().component_types.is_empty()
+                    && self.component().num_components() < self.config.max_components()
+                {
+                    choices.push(|u, c| u.choose(&c.current_type_scope().component_types).copied());
+                }
+
+                if !self.current_type_scope().instance_types.is_empty()
+                    && self.component().num_instances() < self.config.max_instances()
+                {
+                    choices.push(|u, c| u.choose(&c.current_type_scope().instance_types).copied());
+                }
+
+                if !self.current_type_scope().func_types.is_empty()
+                    && self.component().num_funcs() < self.config.max_funcs()
+                {
+                    choices.push(|u, c| u.choose(&c.current_type_scope().func_types).copied());
+                }
+
+                if !self.current_type_scope().value_types.is_empty()
+                    && self.component().num_values() < self.config.max_values()
+                {
+                    choices.push(|u, c| u.choose(&c.current_type_scope().value_types).copied());
+                }
+
+                if choices.is_empty() {
+                    return Ok(false);
+                }
+
+                let f = u.choose(&choices)?;
+                let ty = f(u, self)?;
                 self.push_import(name, ty);
                 Ok(true)
             })?;
