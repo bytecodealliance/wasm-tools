@@ -673,7 +673,15 @@ impl ComponentBuilder {
 
                 // Type definition.
                 _ => {
-                    let ty = crate::core::arbitrary_func_type(u, &self.core_valtypes, None)?;
+                    let ty = crate::core::arbitrary_func_type(
+                        u,
+                        &self.core_valtypes,
+                        if self.config.multi_value_enabled() {
+                            None
+                        } else {
+                            Some(1)
+                        },
+                    )?;
                     types.push(ty.clone());
                     defs.push(ModuleTypeDef::TypeDef(crate::core::Type::Func(ty)));
                 }
