@@ -1404,7 +1404,7 @@ impl ComponentBuilder {
         };
         let max = self.config.max_funcs() - self.component().funcs.len();
 
-        let mut choices: Vec<fn(&mut Unstructured, &mut ComponentBuilder) -> Result<Func>> =
+        let mut choices: Vec<fn(&mut Unstructured, &mut ComponentBuilder) -> Result<Option<Func>>> =
             Vec::with_capacity(2);
 
         crate::arbitrary_loop(u, min, max, |u| {
@@ -1435,11 +1435,11 @@ impl ComponentBuilder {
             if !self.component().scalar_interface_funcs.is_empty() {
                 choices.push(|u, c| {
                     let inter_func = *u.choose(&c.component().scalar_interface_funcs)?;
-                    Ok(Func::CanonLower {
+                    Ok(Some(Func::CanonLower {
                         // Scalar interface functions don't use any canonical options.
                         options: vec![],
                         inter_func,
-                    })
+                    }))
                 });
             }
 
@@ -1448,23 +1448,34 @@ impl ComponentBuilder {
                     let core_func = *u.choose(&c.component().core_funcs)?;
                     let core_func_ty = c.component().core_func_types.get(&core_func).unwrap();
                     let inter_func_ty = inverse_scalar_canonical_abi_for(u, core_func_ty)?;
+
                     let func_ty = if let Some(indices) = c
                         .current_type_scope()
                         .func_type_to_indices
                         .get(&inter_func_ty)
                     {
+                        // If we've already defined this interface function type
+                        // one or more times, then choose one of those
+                        // definitions arbitrarily.
                         debug_assert!(!indices.is_empty());
                         *u.choose(indices)?
-                    } else {
+                    } else if c.current_type_scope().types.len() < c.config.max_types() {
+                        // If we haven't already defined this interface function
+                        // type, and we haven't defined the configured maximum
+                        // amount of types yet, then just define this type.
                         let ty = Rc::new(Type::Func(Rc::new(inter_func_ty)));
                         c.push_type(ty)
+                    } else {
+                        // Otherwise, give up on lifting this function.
+                        return Ok(None);
                     };
-                    Ok(Func::CanonLift {
+
+                    Ok(Some(Func::CanonLift {
                         func_ty,
                         // Scalar functions don't use any canonical options.
                         options: vec![],
                         core_func,
-                    })
+                    }))
                 });
             }
 
@@ -1473,8 +1484,9 @@ impl ComponentBuilder {
             }
 
             let f = u.choose(&choices)?;
-            let func = f(u, self)?;
-            self.push_func(func);
+            if let Some(func) = f(u, self)? {
+                self.push_func(func);
+            }
 
             Ok(true)
         })?;
