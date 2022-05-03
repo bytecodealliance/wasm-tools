@@ -15,7 +15,12 @@ fuzz_target!(|data: &[u8]| {
         Err(_) => false,
     };
     let (wasm_bytes, config) = if generate_component {
-        match wasm_tools_fuzz::generate_valid_component(&mut u, |_, _| Ok(())) {
+        match wasm_tools_fuzz::generate_valid_component(&mut u, |c, u| {
+            c.max_components = u.int_in_range(0..=1_000)?;
+            c.max_instances = u.int_in_range(0..=1_000)?;
+            c.max_values = u.int_in_range(0..=1_000)?;
+            Ok(())
+        }) {
             Ok(c) => c,
             Err(_) => return,
         }
