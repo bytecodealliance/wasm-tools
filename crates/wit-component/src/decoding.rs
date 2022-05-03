@@ -4,10 +4,7 @@ use wasmparser::{
     types, Chunk, ComponentExportKind, Encoding, Parser, Payload, PrimitiveInterfaceType,
     Validator, WasmFeatures,
 };
-use wit_parser::{
-    validate_id, Case, Docs, Field, Flag, Flags, Function, FunctionKind, Interface, Record, Tuple,
-    Type, TypeDef, TypeDefKind, TypeId, Variant,
-};
+use wit_parser::*;
 
 /// Represents information about a decoded WebAssembly component.
 pub struct ComponentInfo<'a> {
@@ -466,10 +463,7 @@ impl<'a> InterfaceDecoder<'a> {
         names: impl ExactSizeIterator<Item = &'a String>,
     ) -> Result<Type> {
         let enum_name = enum_name.ok_or_else(|| anyhow!("interface has an unnamed enum type"))?;
-
-        let names_len = names.len();
-
-        let variant = Variant {
+        let enum_ = Enum {
             cases: names
                 .map(|name| {
                     validate_id(name).with_context(|| {
@@ -479,20 +473,17 @@ impl<'a> InterfaceDecoder<'a> {
                         )
                     })?;
 
-                    Ok(Case {
+                    Ok(EnumCase {
                         docs: Docs::default(),
                         name: name.to_string(),
-                        ty: None,
                     })
                 })
                 .collect::<Result<_>>()?,
-            tag: Variant::infer_tag(names_len),
         };
 
-        Ok(Type::Id(self.alloc_type(
-            Some(enum_name),
-            TypeDefKind::Variant(variant),
-        )))
+        Ok(Type::Id(
+            self.alloc_type(Some(enum_name), TypeDefKind::Enum(enum_)),
+        ))
     }
 
     fn decode_union(

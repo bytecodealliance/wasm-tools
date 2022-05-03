@@ -13,7 +13,8 @@ use wasm_encoder::*;
 use wasmparser::{Validator, WasmFeatures};
 use wit_parser::{
     abi::{AbiVariant, WasmSignature, WasmType},
-    Flags, Function, FunctionKind, Interface, Record, Tuple, Type, TypeDef, TypeDefKind, Variant,
+    Enum, Flags, Function, FunctionKind, Interface, Record, Tuple, Type, TypeDef, TypeDefKind,
+    Variant,
 };
 
 const INDIRECT_TABLE_NAME: &str = "$imports";
@@ -135,6 +136,16 @@ impl PartialEq for TypeDefKey<'_> {
                                 }))
                     })
                 }
+                (TypeDefKind::Enum(e1), TypeDefKind::Enum(e2)) => {
+                    if e1.cases.len() != e2.cases.len() {
+                        return false;
+                    }
+
+                    e1.cases
+                        .iter()
+                        .zip(e2.cases.iter())
+                        .all(|(c1, c2)| c1.name == c2.name)
+                }
                 (TypeDefKind::List(t1), TypeDefKind::List(t2))
                 | (TypeDefKind::Type(t1), TypeDefKind::Type(t2)) => TypeKey {
                     interface: self.interface,
@@ -194,8 +205,14 @@ impl Hash for TypeDefKey<'_> {
                     .hash(state);
                 }
             }
-            TypeDefKind::List(ty) => {
+            TypeDefKind::Enum(e) => {
                 state.write_u8(4);
+                for c in &e.cases {
+                    c.name.hash(state);
+                }
+            }
+            TypeDefKind::List(ty) => {
+                state.write_u8(5);
                 TypeKey {
                     interface: self.interface,
                     ty: *ty,
@@ -203,7 +220,7 @@ impl Hash for TypeDefKey<'_> {
                 .hash(state);
             }
             TypeDefKind::Type(ty) => {
-                state.write_u8(5);
+                state.write_u8(6);
                 TypeKey {
                     interface: self.interface,
                     ty: *ty,
@@ -390,6 +407,7 @@ impl<'a> TypeEncoder<'a> {
                         TypeDefKind::Tuple(t) => self.encode_tuple(interface, instance, t)?,
                         TypeDefKind::Flags(r) => self.encode_flags(r)?,
                         TypeDefKind::Variant(v) => self.encode_variant(interface, instance, v)?,
+                        TypeDefKind::Enum(e) => self.encode_enum(e)?,
                         TypeDefKind::List(ty) => {
                             let ty = self.encode_type(interface, instance, ty)?;
                             let index = self.types.len();
@@ -506,13 +524,6 @@ impl<'a> TypeEncoder<'a> {
             return Ok(InterfaceTypeRef::Type(index));
         }
 
-        if variant.is_enum() {
-            let index = self.types.len();
-            let encoder = self.types.interface_type();
-            encoder.enum_type(variant.cases.iter().map(|c| c.name.as_str()));
-            return Ok(InterfaceTypeRef::Type(index));
-        }
-
         if variant.is_union() {
             let tys = variant
                 .cases
@@ -544,6 +555,13 @@ impl<'a> TypeEncoder<'a> {
         let index = self.types.len();
         let encoder = self.types.interface_type();
         encoder.variant(cases);
+        Ok(InterfaceTypeRef::Type(index))
+    }
+
+    fn encode_enum(&mut self, enum_: &Enum) -> Result<InterfaceTypeRef> {
+        let index = self.types.len();
+        let encoder = self.types.interface_type();
+        encoder.enum_type(enum_.cases.iter().map(|c| c.name.as_str()));
         Ok(InterfaceTypeRef::Type(index))
     }
 
@@ -617,6 +635,7 @@ impl RequiredOptions {
                 TypeDefKind::Variant(v) => {
                     Self::for_types(interface, v.cases.iter().filter_map(|c| c.ty.as_ref()))
                 }
+                TypeDefKind::Enum(_) => Self::None,
                 TypeDefKind::List(t) => {
                     // Lists need at least the `into` option, but may require
                     // the encoding option if there's a string somewhere in the

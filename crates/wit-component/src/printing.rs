@@ -1,7 +1,7 @@
 use anyhow::{bail, Result};
 use std::collections::HashSet;
 use std::fmt::Write;
-use wit_parser::{Flags, Interface, Record, Tuple, Type, TypeDefKind, TypeId, Variant};
+use wit_parser::{Enum, Flags, Interface, Record, Tuple, Type, TypeDefKind, TypeId, Variant};
 
 /// A utility for printing WebAssembly interface definitions to a string.
 #[derive(Default)]
@@ -77,6 +77,9 @@ impl InterfacePrinter {
                     }
                     TypeDefKind::Flags(_) => {
                         bail!("interface has unnamed flags type")
+                    }
+                    TypeDefKind::Enum(_) => {
+                        bail!("interface has unnamed enum type")
                     }
                     TypeDefKind::Variant(v) => {
                         self.print_variant_type(interface, v)?;
@@ -169,6 +172,7 @@ impl InterfacePrinter {
                     TypeDefKind::Variant(v) => {
                         self.declare_variant(interface, ty.name.as_deref(), v)?
                     }
+                    TypeDefKind::Enum(e) => self.declare_enum(ty.name.as_deref(), e)?,
                     TypeDefKind::List(inner) => {
                         self.declare_list(interface, ty.name.as_deref(), inner)?
                     }
@@ -269,15 +273,6 @@ impl InterfacePrinter {
 
         match name {
             Some(name) => {
-                if variant.is_enum() {
-                    writeln!(&mut self.output, "enum {} {{", name)?;
-                    for case in &variant.cases {
-                        writeln!(&mut self.output, "  {},", case.name)?;
-                    }
-                    self.output.push_str("}\n\n");
-                    return Ok(());
-                }
-
                 if variant.is_union() {
                     writeln!(&mut self.output, "union {} {{", name)?;
                     for case in &variant.cases {
@@ -304,6 +299,19 @@ impl InterfacePrinter {
             }
             None => bail!("interface has unnamed variant type"),
         }
+    }
+
+    fn declare_enum(&mut self, name: Option<&str>, enum_: &Enum) -> Result<()> {
+        let name = match name {
+            Some(name) => name,
+            None => bail!("interface has unnamed enum type"),
+        };
+        writeln!(&mut self.output, "enum {} {{", name)?;
+        for case in &enum_.cases {
+            writeln!(&mut self.output, "  {},", case.name)?;
+        }
+        self.output.push_str("}\n\n");
+        Ok(())
     }
 
     fn declare_list(&mut self, interface: &Interface, name: Option<&str>, ty: &Type) -> Result<()> {
