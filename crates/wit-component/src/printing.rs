@@ -1,7 +1,9 @@
 use anyhow::{bail, Result};
 use std::collections::HashSet;
 use std::fmt::Write;
-use wit_parser::{Enum, Flags, Interface, Record, Tuple, Type, TypeDefKind, TypeId, Variant};
+use wit_parser::{
+    Enum, Expected, Flags, Interface, Record, Tuple, Type, TypeDefKind, TypeId, Variant,
+};
 
 /// A utility for printing WebAssembly interface definitions to a string.
 #[derive(Default)]
@@ -72,6 +74,12 @@ impl InterfacePrinter {
                     TypeDefKind::Tuple(t) => {
                         self.print_tuple_type(interface, t)?;
                     }
+                    TypeDefKind::Option(t) => {
+                        self.print_option_type(interface, t)?;
+                    }
+                    TypeDefKind::Expected(t) => {
+                        self.print_expected_type(interface, t)?;
+                    }
                     TypeDefKind::Record(_) => {
                         bail!("interface has an unnamed record type");
                     }
@@ -81,8 +89,8 @@ impl InterfacePrinter {
                     TypeDefKind::Enum(_) => {
                         bail!("interface has unnamed enum type")
                     }
-                    TypeDefKind::Variant(v) => {
-                        self.print_variant_type(interface, v)?;
+                    TypeDefKind::Variant(_) => {
+                        bail!("interface has unnamed variant type")
                     }
                     TypeDefKind::List(ty) => {
                         self.output.push_str("list<");
@@ -112,30 +120,20 @@ impl InterfacePrinter {
         Ok(())
     }
 
-    fn print_variant_type(&mut self, interface: &Interface, variant: &Variant) -> Result<()> {
-        if let Some(ty) = variant.as_option() {
-            self.output.push_str("option<");
-            self.print_type_name(interface, ty)?;
-            self.output.push('>');
-            return Ok(());
-        }
+    fn print_option_type(&mut self, interface: &Interface, payload: &Type) -> Result<()> {
+        self.output.push_str("option<");
+        self.print_type_name(interface, payload)?;
+        self.output.push('>');
+        Ok(())
+    }
 
-        if let Some((ok, err)) = variant.as_expected() {
-            self.output.push_str("expected<");
-            match ok {
-                Some(ty) => self.print_type_name(interface, ty)?,
-                None => self.output.push('_'),
-            }
-            self.output.push_str(", ");
-            match err {
-                Some(ty) => self.print_type_name(interface, ty)?,
-                None => self.output.push('_'),
-            }
-            self.output.push('>');
-            return Ok(());
-        }
-
-        bail!("interface has an unnamed variant type");
+    fn print_expected_type(&mut self, interface: &Interface, expected: &Expected) -> Result<()> {
+        self.output.push_str("expected<");
+        self.print_type_name(interface, &expected.ok)?;
+        self.output.push_str(", ");
+        self.print_type_name(interface, &expected.err)?;
+        self.output.push('>');
+        Ok(())
     }
 
     fn declare_type(&mut self, interface: &Interface, ty: &Type) -> Result<()> {
@@ -171,6 +169,12 @@ impl InterfacePrinter {
                     TypeDefKind::Flags(f) => self.declare_flags(ty.name.as_deref(), f)?,
                     TypeDefKind::Variant(v) => {
                         self.declare_variant(interface, ty.name.as_deref(), v)?
+                    }
+                    TypeDefKind::Option(t) => {
+                        self.declare_option(interface, ty.name.as_deref(), t)?
+                    }
+                    TypeDefKind::Expected(e) => {
+                        self.declare_expected(interface, ty.name.as_deref(), e)?
                     }
                     TypeDefKind::Enum(e) => self.declare_enum(ty.name.as_deref(), e)?,
                     TypeDefKind::List(inner) => {
@@ -262,15 +266,6 @@ impl InterfacePrinter {
             }
         }
 
-        if variant.as_option().is_some() || variant.as_expected().is_some() {
-            if let Some(name) = name {
-                write!(&mut self.output, "type {} = ", name)?;
-                self.print_variant_type(interface, variant)?;
-                self.output.push_str("\n\n");
-            }
-            return Ok(());
-        }
-
         match name {
             Some(name) => {
                 if variant.is_union() {
@@ -299,6 +294,39 @@ impl InterfacePrinter {
             }
             None => bail!("interface has unnamed variant type"),
         }
+    }
+
+    fn declare_option(
+        &mut self,
+        interface: &Interface,
+        name: Option<&str>,
+        payload: &Type,
+    ) -> Result<()> {
+        self.declare_type(interface, payload)?;
+
+        if let Some(name) = name {
+            write!(&mut self.output, "type {} = ", name)?;
+            self.print_option_type(interface, payload)?;
+            self.output.push_str("\n\n");
+        }
+        Ok(())
+    }
+
+    fn declare_expected(
+        &mut self,
+        interface: &Interface,
+        name: Option<&str>,
+        expected: &Expected,
+    ) -> Result<()> {
+        self.declare_type(interface, &expected.ok)?;
+        self.declare_type(interface, &expected.err)?;
+
+        if let Some(name) = name {
+            write!(&mut self.output, "type {} = ", name)?;
+            self.print_expected_type(interface, expected)?;
+            self.output.push_str("\n\n");
+        }
+        Ok(())
     }
 
     fn declare_enum(&mut self, name: Option<&str>, enum_: &Enum) -> Result<()> {

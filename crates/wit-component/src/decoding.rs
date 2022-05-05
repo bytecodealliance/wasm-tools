@@ -514,26 +514,11 @@ impl<'a> InterfaceDecoder<'a> {
     fn decode_option(
         &mut self,
         name: Option<String>,
-        ty: &types::InterfaceTypeRef,
+        payload: &types::InterfaceTypeRef,
     ) -> Result<Type> {
-        let variant = Variant {
-            cases: vec![
-                Case {
-                    docs: Docs::default(),
-                    name: "none".to_string(),
-                    ty: None,
-                },
-                Case {
-                    docs: Docs::default(),
-                    name: "some".to_string(),
-                    ty: Some(self.decode_type(ty)?),
-                },
-            ],
-            tag: Variant::infer_tag(2),
-        };
-
+        let payload = self.decode_type(payload)?;
         Ok(Type::Id(
-            self.alloc_type(name, TypeDefKind::Variant(variant)),
+            self.alloc_type(name, TypeDefKind::Option(payload)),
         ))
     }
 
@@ -541,33 +526,14 @@ impl<'a> InterfaceDecoder<'a> {
         &mut self,
         name: Option<String>,
         ok: &types::InterfaceTypeRef,
-        error: &types::InterfaceTypeRef,
+        err: &types::InterfaceTypeRef,
     ) -> Result<Type> {
-        let variant = Variant {
-            cases: vec![
-                Case {
-                    docs: Docs::default(),
-                    name: "ok".to_string(),
-                    ty: match ok {
-                        types::InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Unit) => None,
-                        _ => Some(self.decode_type(ok)?),
-                    },
-                },
-                Case {
-                    docs: Docs::default(),
-                    name: "err".to_string(),
-                    ty: match error {
-                        types::InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Unit) => None,
-                        _ => Some(self.decode_type(error)?),
-                    },
-                },
-            ],
-            tag: Variant::infer_tag(2),
-        };
-
-        Ok(Type::Id(
-            self.alloc_type(name, TypeDefKind::Variant(variant)),
-        ))
+        let ok = self.decode_type(ok)?;
+        let err = self.decode_type(err)?;
+        Ok(Type::Id(self.alloc_type(
+            name,
+            TypeDefKind::Expected(Expected { ok, err }),
+        )))
     }
 
     fn alloc_type(&mut self, name: Option<String>, kind: TypeDefKind) -> TypeId {
