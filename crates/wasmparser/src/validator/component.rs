@@ -9,8 +9,10 @@ use super::{
     },
 };
 use crate::{
-    limits::*, types::ComponentEntityType, BinaryReaderError, CanonicalOption, FuncType,
-    GlobalType, MemoryType, PrimitiveInterfaceType, Result, TableType, Type, WasmFeatures,
+    limits::*,
+    types::{ComponentEntityType, MAX_FLAT_FUNC_RESULTS},
+    BinaryReaderError, CanonicalOption, FuncType, GlobalType, MemoryType, PrimitiveInterfaceType,
+    Result, TableType, Type, WasmFeatures,
 };
 use once_cell::sync::OnceCell;
 use std::{collections::HashMap, mem};
@@ -164,10 +166,9 @@ impl ComponentState {
         // Lifting a function is for an export, so match the expected canonical ABI
         // export signature
         let lowered_type = ty.lowered_type(types);
-        let mismatch = if lowered_type.returns.len() > 1 {
-            lowered_type.params != core_ty.params
-                || core_ty.returns.len() != 1
-                || core_ty.returns[0] != Type::I32
+        let mismatch = if lowered_type.returns.len() > MAX_FLAT_FUNC_RESULTS {
+            // The parameters must match and the return value must be a single i32
+            lowered_type.params != core_ty.params || core_ty.returns.as_ref() != [Type::I32]
         } else {
             lowered_type != core_ty
         };
@@ -200,7 +201,8 @@ impl ComponentState {
         // Lowering a function is for an import, so use a function type that matches
         // the expected canonical ABI import signature.
         let lowered_type = ty.lowered_type(types);
-        let core_ty = if lowered_type.returns.len() > 1 {
+        let core_ty = if lowered_type.returns.len() > MAX_FLAT_FUNC_RESULTS {
+            // The function has an additional retptr parameter and no results
             FuncType {
                 params: lowered_type
                     .params
@@ -1336,15 +1338,23 @@ impl ComponentState {
                     })
                     .collect::<Result<_>>()?,
             ),
-            crate::InterfaceType::Enum(names) => InterfaceType::Enum(
-                names
-                    .iter()
-                    .map(|name| {
-                        Self::check_name(name, "enum tag", offset)?;
-                        Ok(name.to_string())
-                    })
-                    .collect::<Result<_>>()?,
-            ),
+            crate::InterfaceType::Enum(cases) => {
+                if cases.len() > u32::max_value() as usize {
+                    return Err(BinaryReaderError::new(
+                        "enumeration type cannot be represented with a 32-bit discriminant value",
+                        offset,
+                    ));
+                }
+                InterfaceType::Enum(
+                    cases
+                        .iter()
+                        .map(|name| {
+                            Self::check_name(name, "enum tag", offset)?;
+                            Ok(name.to_string())
+                        })
+                        .collect::<Result<_>>()?,
+                )
+            }
             crate::InterfaceType::Union(tys) => InterfaceType::Union(
                 tys.iter()
                     .map(|ty| self.create_interface_type_ref(*ty, types, offset))

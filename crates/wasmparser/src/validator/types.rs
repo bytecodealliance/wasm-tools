@@ -12,6 +12,15 @@ use std::{
     sync::Arc,
 };
 
+// The maximum number of parameters in the canonical ABI that can be passed by value.
+// Functions that exceed this limit will instead pass parameters indirectly from
+// linear memory via a single i32 parameter.
+pub(crate) const MAX_FLAT_FUNC_PARAMS: usize = 16;
+/// The maximum number of results in the canonical ABI that can be returned by a function.
+/// Functions that exceed this limit have their results written to linear memory via an
+/// additional i32 parameter (imports) or return a single i32 value (exports).
+pub(crate) const MAX_FLAT_FUNC_RESULTS: usize = 1;
+
 fn push_primitive_wasm_types(ty: &PrimitiveInterfaceType, wasm_types: &mut Vec<Type>) {
     match ty {
         PrimitiveInterfaceType::Unit => {}
@@ -473,6 +482,17 @@ impl ComponentFuncType {
 
             self.result.push_wasm_types(types, &mut results);
 
+            // If there are too many parameters, the parameters will be passed
+            // indirectly by a single pointer parameter.
+            if params.len() > MAX_FLAT_FUNC_PARAMS {
+                params.clear();
+                params.push(Type::I32);
+            }
+
+            // We don't limit the number of results here; instead the callers
+            // of this function do so depending on whether an import or an export
+            // signature is expected.
+
             FuncType {
                 params: params.into_boxed_slice(),
                 returns: results.into_boxed_slice(),
@@ -627,22 +647,12 @@ impl InterfaceType {
                 }
             }
             Self::Flags(names) => {
-                if names.len() <= 32 {
+                for _ in 0..(names.len() + 31) / 32 {
                     wasm_types.push(Type::I32);
-                } else if names.len() <= 64 {
-                    wasm_types.push(Type::I64);
-                } else {
-                    for _ in 0..(names.len() + 31) / 32 {
-                        wasm_types.push(Type::I32);
-                    }
                 }
             }
-            Self::Enum(names) => {
-                if names.len() < u32::max_value() as usize {
-                    wasm_types.push(Type::I32);
-                } else {
-                    wasm_types.push(Type::I64);
-                }
+            Self::Enum(_) => {
+                wasm_types.push(Type::I32);
             }
             Self::Union(tys) => {
                 Self::push_variant_types(tys.iter(), types, wasm_types);
@@ -661,7 +671,7 @@ impl InterfaceType {
         types: &TypeList,
         wasm_types: &mut Vec<Type>,
     ) {
-        if cases.len() < u32::max_value() as usize {
+        if cases.len() <= u32::max_value() as usize {
             wasm_types.push(Type::I32);
         } else {
             wasm_types.push(Type::I64);
@@ -675,21 +685,20 @@ impl InterfaceType {
 
             for (i, ty) in temp.drain(..).enumerate() {
                 match wasm_types.get_mut(start + i) {
-                    Some(prev) => *prev = Self::unify_wasm_type(*prev, ty),
+                    Some(prev) => *prev = Self::join_types(*prev, ty),
                     None => wasm_types.push(ty),
                 }
             }
         }
     }
 
-    fn unify_wasm_type(a: Type, b: Type) -> Type {
+    fn join_types(a: Type, b: Type) -> Type {
         use Type::*;
 
         match (a, b) {
-            (I64, _) | (_, I64) | (I32, F64) | (F64, I32) => I64,
-            (I32, I32) | (I32, F32) | (F32, I32) => I32,
-            (F32, F32) => F32,
-            (F64, F64) | (F32, F64) | (F64, F32) => F64,
+            (I32, I32) | (I64, I64) | (F32, F32) | (F64, F64) => a,
+            (I32, F32) | (F32, I32) => I32,
+            (_, I64 | F64) | (I64 | F64, _) => I64,
             _ => panic!("unexpected wasm type for canonical ABI"),
         }
     }
