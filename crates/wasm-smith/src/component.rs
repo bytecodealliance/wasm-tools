@@ -73,6 +73,13 @@ struct ComponentBuilder {
     // been generated. This changes the behavior of various
     // `arbitrary_<section>` methods to always fill in their minimums.
     fill_minimums: bool,
+
+    // Our maximums for these entities are applied across the whole component
+    // tree, not per-component.
+    total_components: usize,
+    total_modules: usize,
+    total_instances: usize,
+    total_values: usize,
 }
 
 /// Metadata (e.g. contents of various index spaces) we keep track of on a
@@ -369,6 +376,10 @@ impl ComponentBuilder {
             types: vec![Default::default()],
             components: vec![ComponentContext::empty()],
             fill_minimums: false,
+            total_components: 0,
+            total_modules: 0,
+            total_instances: 0,
+            total_values: 0,
         }
     }
 
@@ -392,9 +403,14 @@ impl ComponentBuilder {
                 choices.push(Self::arbitrary_type_section);
                 choices.push(Self::arbitrary_import_section);
                 choices.push(Self::arbitrary_func_section);
-                choices.push(Self::arbitrary_core_section);
 
-                if self.components.len() < self.config.max_nesting_depth() {
+                if self.total_modules < self.config.max_modules() {
+                    choices.push(Self::arbitrary_core_section);
+                }
+
+                if self.components.len() < self.config.max_nesting_depth()
+                    && self.total_components < self.config.max_components()
+                {
                     choices.push(Self::arbitrary_component_section);
                 }
 
@@ -1260,15 +1276,19 @@ impl ComponentBuilder {
             }
 
             Type::Module(_) => {
+                self.total_modules += 1;
                 self.component_mut().modules.push((section_index, nth));
             }
             Type::Component(_) => {
+                self.total_components += 1;
                 self.component_mut().components.push((section_index, nth));
             }
             Type::Instance(_) => {
+                self.total_instances += 1;
                 self.component_mut().instances.push((section_index, nth));
             }
             Type::Value(_) => {
+                self.total_values += 1;
                 self.component_mut().values.push((section_index, nth));
             }
             Type::Interface(_) => unreachable!("cannot import interface types"),
@@ -1347,19 +1367,19 @@ impl ComponentBuilder {
                     vec![];
 
                 if !self.current_type_scope().module_types.is_empty()
-                    && self.component().num_modules() < self.config.max_modules()
+                    && self.total_modules < self.config.max_modules()
                 {
                     choices.push(|u, c| u.choose(&c.current_type_scope().module_types).copied());
                 }
 
                 if !self.current_type_scope().component_types.is_empty()
-                    && self.component().num_components() < self.config.max_components()
+                    && self.total_components < self.config.max_components()
                 {
                     choices.push(|u, c| u.choose(&c.current_type_scope().component_types).copied());
                 }
 
                 if !self.current_type_scope().instance_types.is_empty()
-                    && self.component().num_instances() < self.config.max_instances()
+                    && self.total_instances < self.config.max_instances()
                 {
                     choices.push(|u, c| u.choose(&c.current_type_scope().instance_types).copied());
                 }
@@ -1371,7 +1391,7 @@ impl ComponentBuilder {
                 }
 
                 if !self.current_type_scope().value_types.is_empty()
-                    && self.component().num_values() < self.config.max_values()
+                    && self.total_values < self.config.max_values()
                 {
                     choices.push(|u, c| u.choose(&c.current_type_scope().value_types).copied());
                 }
@@ -1502,12 +1522,14 @@ impl ComponentBuilder {
             crate::core::DuplicateImportsBehavior::Disallowed,
         )?;
         self.push_section(Section::Core(module));
+        self.total_modules += 1;
         Ok(Step::StillBuilding)
     }
 
     fn arbitrary_component_section(&mut self, u: &mut Unstructured) -> Result<Step> {
         self.types.push(TypesScope::default());
         self.components.push(ComponentContext::empty());
+        self.total_components += 1;
         Ok(Step::StillBuilding)
     }
 
