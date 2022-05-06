@@ -1,8 +1,9 @@
 //! Types relating to type information provided by validation.
 
+use super::{component::ComponentState, core::Module};
+use crate::{FuncType, GlobalType, MemoryType, PrimitiveInterfaceType, TableType, Type};
 use indexmap::{IndexMap, IndexSet};
-
-use crate::{FuncType, GlobalType, MemoryType, PrimitiveInterfaceType, Result, TableType, Type};
+use once_cell::sync::OnceCell;
 use std::{
     borrow::Borrow,
     collections::HashMap,
@@ -10,8 +11,6 @@ use std::{
     mem,
     sync::Arc,
 };
-
-use super::{component::ComponentState, core::Module};
 
 fn push_primitive_wasm_types(ty: &PrimitiveInterfaceType, wasm_types: &mut Vec<Type>) {
     match ty {
@@ -153,20 +152,13 @@ impl InterfaceTypeRef {
         }
     }
 
-    pub(crate) fn push_wasm_types(
-        &self,
-        types: &TypeList,
-        offset: usize,
-        wasm_types: &mut Vec<Type>,
-    ) -> Result<()> {
+    pub(crate) fn push_wasm_types(&self, types: &TypeList, wasm_types: &mut Vec<Type>) {
         match self {
             Self::Primitive(ty) => push_primitive_wasm_types(ty, wasm_types),
             Self::Type(idx) => types[*idx]
                 .unwrap_interface_type()
-                .push_wasm_types(types, offset, wasm_types)?,
+                .push_wasm_types(types, wasm_types),
         }
-
-        Ok(())
     }
 }
 
@@ -429,7 +421,7 @@ pub struct ComponentFuncType {
     pub params: Box<[(Option<String>, InterfaceTypeRef)]>,
     /// The function's result type.
     pub result: InterfaceTypeRef,
-    pub(crate) core_type: FuncType,
+    pub(crate) lowered_type: OnceCell<FuncType>,
 }
 
 impl ComponentFuncType {
@@ -468,6 +460,24 @@ impl ComponentFuncType {
             .iter()
             .skip(self.params.len())
             .all(|(_, ty)| ty.is_optional(types))
+    }
+
+    pub(crate) fn lowered_type(&self, types: &TypeList) -> &FuncType {
+        self.lowered_type.get_or_init(|| {
+            let mut params = Vec::new();
+            let mut results = Vec::new();
+
+            for (_, ty) in self.params.iter() {
+                ty.push_wasm_types(types, &mut params);
+            }
+
+            self.result.push_wasm_types(types, &mut results);
+
+            FuncType {
+                params: params.into_boxed_slice(),
+                returns: results.into_boxed_slice(),
+            }
+        })
     }
 }
 
@@ -597,33 +607,23 @@ impl InterfaceType {
         }
     }
 
-    pub(crate) fn push_wasm_types(
-        &self,
-        types: &TypeList,
-        offset: usize,
-        wasm_types: &mut Vec<Type>,
-    ) -> Result<()> {
+    pub(crate) fn push_wasm_types(&self, types: &TypeList, wasm_types: &mut Vec<Type>) {
         match self {
             Self::Primitive(ty) => push_primitive_wasm_types(ty, wasm_types),
             Self::Record(fields) => {
                 for (_, ty) in fields.iter() {
-                    ty.push_wasm_types(types, offset, wasm_types)?;
+                    ty.push_wasm_types(types, wasm_types);
                 }
             }
             Self::Variant(cases) => {
-                Self::push_variant_types(
-                    cases.iter().map(|(_, case)| &case.ty),
-                    types,
-                    offset,
-                    wasm_types,
-                )?;
+                Self::push_variant_types(cases.iter().map(|(_, case)| &case.ty), types, wasm_types);
             }
             Self::List(_) => {
                 wasm_types.extend([Type::I32, Type::I32]);
             }
             Self::Tuple(tys) => {
                 for ty in tys.iter() {
-                    ty.push_wasm_types(types, offset, wasm_types)?;
+                    ty.push_wasm_types(types, wasm_types);
                 }
             }
             Self::Flags(names) => {
@@ -645,25 +645,22 @@ impl InterfaceType {
                 }
             }
             Self::Union(tys) => {
-                Self::push_variant_types(tys.iter(), types, offset, wasm_types)?;
+                Self::push_variant_types(tys.iter(), types, wasm_types);
             }
             Self::Option(ty) => {
-                Self::push_variant_types([ty].into_iter(), types, offset, wasm_types)?;
+                Self::push_variant_types([ty].into_iter(), types, wasm_types);
             }
             Self::Expected(ok, error) => {
-                Self::push_variant_types([ok, error].into_iter(), types, offset, wasm_types)?;
+                Self::push_variant_types([ok, error].into_iter(), types, wasm_types);
             }
         }
-
-        Ok(())
     }
 
     fn push_variant_types<'a>(
         cases: impl ExactSizeIterator<Item = &'a InterfaceTypeRef>,
         types: &TypeList,
-        offset: usize,
         wasm_types: &mut Vec<Type>,
-    ) -> Result<()> {
+    ) {
         if cases.len() < u32::max_value() as usize {
             wasm_types.push(Type::I32);
         } else {
@@ -674,7 +671,7 @@ impl InterfaceType {
         let mut temp = Vec::new();
 
         for ty in cases {
-            ty.push_wasm_types(types, offset, &mut temp)?;
+            ty.push_wasm_types(types, &mut temp);
 
             for (i, ty) in temp.drain(..).enumerate() {
                 match wasm_types.get_mut(start + i) {
@@ -683,8 +680,6 @@ impl InterfaceType {
                 }
             }
         }
-
-        Ok(())
     }
 
     fn unify_wasm_type(a: Type, b: Type) -> Type {

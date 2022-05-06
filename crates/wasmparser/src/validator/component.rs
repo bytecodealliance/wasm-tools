@@ -12,6 +12,7 @@ use crate::{
     limits::*, types::ComponentEntityType, BinaryReaderError, CanonicalOption, FuncType,
     GlobalType, MemoryType, PrimitiveInterfaceType, Result, TableType, Type, WasmFeatures,
 };
+use once_cell::sync::OnceCell;
 use std::{collections::HashMap, mem};
 
 #[derive(Default)]
@@ -162,12 +163,13 @@ impl ComponentState {
 
         // Lifting a function is for an export, so match the expected canonical ABI
         // export signature
-        let mismatch = if ty.core_type.returns.len() > 1 {
-            ty.core_type.params != core_ty.params
+        let lowered_type = ty.lowered_type(types);
+        let mismatch = if lowered_type.returns.len() > 1 {
+            lowered_type.params != core_ty.params
                 || core_ty.returns.len() != 1
                 || core_ty.returns[0] != Type::I32
         } else {
-            ty.core_type != *core_ty
+            lowered_type != core_ty
         };
 
         if mismatch {
@@ -197,10 +199,10 @@ impl ComponentState {
 
         // Lowering a function is for an import, so use a function type that matches
         // the expected canonical ABI import signature.
-        let core_ty = if ty.core_type.returns.len() > 1 {
+        let lowered_type = ty.lowered_type(types);
+        let core_ty = if lowered_type.returns.len() > 1 {
             FuncType {
-                params: ty
-                    .core_type
+                params: lowered_type
                     .params
                     .iter()
                     .chain(&[Type::I32])
@@ -209,7 +211,7 @@ impl ComponentState {
                 returns: [].into(),
             }
         } else {
-            ty.core_type.clone()
+            lowered_type.clone()
         };
 
         self.functions.push(TypeId(types.len()));
@@ -668,9 +670,6 @@ impl ComponentState {
         types: &TypeList,
         offset: usize,
     ) -> Result<ComponentFuncType> {
-        let mut core_params = Vec::new();
-        let mut core_returns = Vec::new();
-
         let params = ty
             .params
             .iter()
@@ -679,21 +678,16 @@ impl ComponentState {
                     Self::check_name(name, "function parameter", offset)?;
                 }
                 let ty = self.create_interface_type_ref(*ty, types, offset)?;
-                ty.push_wasm_types(types, offset, &mut core_params)?;
                 Ok((name.map(ToOwned::to_owned), ty))
             })
             .collect::<Result<_>>()?;
 
         let result = self.create_interface_type_ref(ty.result, types, offset)?;
-        result.push_wasm_types(types, offset, &mut core_returns)?;
 
         Ok(ComponentFuncType {
             params,
             result,
-            core_type: FuncType {
-                params: core_params.into_boxed_slice(),
-                returns: core_returns.into_boxed_slice(),
-            },
+            lowered_type: OnceCell::new(),
         })
     }
 
