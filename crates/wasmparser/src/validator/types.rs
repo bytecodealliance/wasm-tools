@@ -50,6 +50,14 @@ impl LoweredTypes {
         self.len == self.max
     }
 
+    fn get_mut(&mut self, index: usize) -> Option<&mut Type> {
+        if index < self.len {
+            Some(&mut self.types[index])
+        } else {
+            None
+        }
+    }
+
     fn push(&mut self, ty: Type) -> bool {
         if self.maxed() {
             return false;
@@ -714,13 +722,13 @@ impl InterfaceType {
         types: &TypeList,
         lowered_types: &mut LoweredTypes,
     ) -> bool {
-        if cases.len() <= u32::max_value() as usize {
-            lowered_types.push(Type::I32);
+        let pushed = if cases.len() <= u32::max_value() as usize {
+            lowered_types.push(Type::I32)
         } else {
-            lowered_types.push(Type::I64);
-        }
+            lowered_types.push(Type::I64)
+        };
 
-        if lowered_types.maxed() {
+        if !pushed {
             return false;
         }
 
@@ -734,7 +742,7 @@ impl InterfaceType {
             }
 
             for (i, ty) in temp.iter().enumerate() {
-                match lowered_types.types.get_mut(start + i) {
+                match lowered_types.get_mut(start + i) {
                     Some(prev) => *prev = Self::join_types(*prev, ty),
                     None => {
                         if !lowered_types.push(ty) {
