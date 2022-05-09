@@ -9,12 +9,9 @@ use super::{
     },
 };
 use crate::{
-    limits::*,
-    types::{ComponentEntityType, MAX_FLAT_FUNC_RESULTS},
-    BinaryReaderError, CanonicalOption, FuncType, GlobalType, MemoryType, PrimitiveInterfaceType,
-    Result, TableType, Type, WasmFeatures,
+    limits::*, types::ComponentEntityType, BinaryReaderError, CanonicalOption, FuncType,
+    GlobalType, MemoryType, PrimitiveInterfaceType, Result, TableType, Type, WasmFeatures,
 };
-use once_cell::sync::OnceCell;
 use std::{collections::HashMap, mem};
 
 #[derive(Default)]
@@ -165,15 +162,11 @@ impl ComponentState {
 
         // Lifting a function is for an export, so match the expected canonical ABI
         // export signature
-        let lowered_type = ty.lowered_type(types);
-        let mismatch = if lowered_type.returns.len() > MAX_FLAT_FUNC_RESULTS {
-            // The parameters must match and the return value must be a single i32
-            lowered_type.params != core_ty.params || core_ty.returns.as_ref() != [Type::I32]
-        } else {
-            lowered_type != core_ty
-        };
+        let (params, results) = ty.lower(types, false);
 
-        if mismatch {
+        if core_ty.params.as_ref() != params.as_slice()
+            || core_ty.returns.as_ref() != results.as_slice()
+        {
             return Err(BinaryReaderError::new(
                 "lowered function type does not match core function type",
                 offset,
@@ -200,24 +193,14 @@ impl ComponentState {
 
         // Lowering a function is for an import, so use a function type that matches
         // the expected canonical ABI import signature.
-        let lowered_type = ty.lowered_type(types);
-        let core_ty = if lowered_type.returns.len() > MAX_FLAT_FUNC_RESULTS {
-            // The function has an additional retptr parameter and no results
-            FuncType {
-                params: lowered_type
-                    .params
-                    .iter()
-                    .chain(&[Type::I32])
-                    .copied()
-                    .collect(),
-                returns: [].into(),
-            }
-        } else {
-            lowered_type.clone()
-        };
+        let (params, results) = ty.lower(types, true);
 
         self.functions.push(TypeId(types.len()));
-        types.push(TypeDef::Func(core_ty));
+
+        types.push(TypeDef::Func(FuncType {
+            params: params.as_slice().to_vec().into_boxed_slice(),
+            returns: results.as_slice().to_vec().into_boxed_slice(),
+        }));
 
         Ok(())
     }
@@ -686,11 +669,7 @@ impl ComponentState {
 
         let result = self.create_interface_type_ref(ty.result, types, offset)?;
 
-        Ok(ComponentFuncType {
-            params,
-            result,
-            lowered_type: OnceCell::new(),
-        })
+        Ok(ComponentFuncType { params, result })
     }
 
     fn check_name(name: &str, desc: &str, offset: usize) -> Result<()> {
