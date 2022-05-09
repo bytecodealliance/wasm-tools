@@ -491,24 +491,19 @@ impl<'a> InterfaceDecoder<'a> {
         name: Option<String>,
         tys: &[types::InterfaceTypeRef],
     ) -> Result<Type> {
-        let variant = Variant {
+        let union = Union {
             cases: tys
                 .iter()
-                .enumerate()
-                .map(|(i, ty)| {
-                    Ok(Case {
+                .map(|ty| {
+                    Ok(UnionCase {
                         docs: Docs::default(),
-                        name: i.to_string(),
-                        ty: Some(self.decode_type(ty)?),
+                        ty: self.decode_type(ty)?,
                     })
                 })
                 .collect::<Result<_>>()?,
-            tag: Variant::infer_tag(tys.len()),
         };
 
-        Ok(Type::Id(
-            self.alloc_type(name, TypeDefKind::Variant(variant)),
-        ))
+        Ok(Type::Id(self.alloc_type(name, TypeDefKind::Union(union))))
     }
 
     fn decode_option(

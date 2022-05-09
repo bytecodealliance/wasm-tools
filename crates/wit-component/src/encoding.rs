@@ -14,7 +14,7 @@ use wasmparser::{Validator, WasmFeatures};
 use wit_parser::{
     abi::{AbiVariant, WasmSignature, WasmType},
     Enum, Expected, Flags, Function, FunctionKind, Interface, Record, Tuple, Type, TypeDef,
-    TypeDefKind, Variant,
+    TypeDefKind, Union, Variant,
 };
 
 const INDIRECT_TABLE_NAME: &str = "$imports";
@@ -134,6 +134,21 @@ impl PartialEq for TypeDefKey<'_> {
                                     interface: other.interface,
                                     ty,
                                 }))
+                    })
+                }
+                (TypeDefKind::Union(v1), TypeDefKind::Union(v2)) => {
+                    if v1.cases.len() != v2.cases.len() {
+                        return false;
+                    }
+
+                    v1.cases.iter().zip(v2.cases.iter()).all(|(c1, c2)| {
+                        TypeKey {
+                            interface: self.interface,
+                            ty: c1.ty,
+                        } == TypeKey {
+                            interface: other.interface,
+                            ty: c2.ty,
+                        }
                     })
                 }
                 (TypeDefKind::Enum(e1), TypeDefKind::Enum(e2)) => {
@@ -263,6 +278,17 @@ impl Hash for TypeDefKey<'_> {
                     ty: e.err,
                 }
                 .hash(state);
+            }
+            TypeDefKind::Union(u) => {
+                state.write_u8(9);
+                u.cases.len().hash(state);
+                for case in u.cases.iter() {
+                    TypeKey {
+                        interface: self.interface,
+                        ty: case.ty,
+                    }
+                    .hash(state);
+                }
             }
         }
     }
@@ -444,6 +470,7 @@ impl<'a> TypeEncoder<'a> {
                         TypeDefKind::Tuple(t) => self.encode_tuple(interface, instance, t)?,
                         TypeDefKind::Flags(r) => self.encode_flags(r)?,
                         TypeDefKind::Variant(v) => self.encode_variant(interface, instance, v)?,
+                        TypeDefKind::Union(u) => self.encode_union(interface, instance, u)?,
                         TypeDefKind::Option(t) => self.encode_option(interface, instance, t)?,
                         TypeDefKind::Expected(e) => self.encode_expected(interface, instance, e)?,
                         TypeDefKind::Enum(e) => self.encode_enum(e)?,
@@ -540,19 +567,6 @@ impl<'a> TypeEncoder<'a> {
         instance: &mut Option<InstanceTypeEncoder<'a>>,
         variant: &Variant,
     ) -> Result<InterfaceTypeRef> {
-        if variant.is_union() {
-            let tys = variant
-                .cases
-                .iter()
-                .map(|c| self.encode_type(interface, instance, c.ty.as_ref().unwrap()))
-                .collect::<Result<Vec<_>>>()?;
-
-            let index = self.types.len();
-            let encoder = self.types.interface_type();
-            encoder.union(tys);
-            return Ok(InterfaceTypeRef::Type(index));
-        }
-
         let cases = variant
             .cases
             .iter()
@@ -571,6 +585,24 @@ impl<'a> TypeEncoder<'a> {
         let index = self.types.len();
         let encoder = self.types.interface_type();
         encoder.variant(cases);
+        Ok(InterfaceTypeRef::Type(index))
+    }
+
+    fn encode_union(
+        &mut self,
+        interface: &'a Interface,
+        instance: &mut Option<InstanceTypeEncoder<'a>>,
+        union: &Union,
+    ) -> Result<InterfaceTypeRef> {
+        let tys = union
+            .cases
+            .iter()
+            .map(|c| self.encode_type(interface, instance, &c.ty))
+            .collect::<Result<Vec<_>>>()?;
+
+        let index = self.types.len();
+        let encoder = self.types.interface_type();
+        encoder.union(tys);
         Ok(InterfaceTypeRef::Type(index))
     }
 
@@ -682,6 +714,7 @@ impl RequiredOptions {
                 TypeDefKind::Variant(v) => {
                     Self::for_types(interface, v.cases.iter().filter_map(|c| c.ty.as_ref()))
                 }
+                TypeDefKind::Union(v) => Self::for_types(interface, v.cases.iter().map(|c| &c.ty)),
                 TypeDefKind::Enum(_) => Self::None,
                 TypeDefKind::List(t) => {
                     // Lists need at least the `into` option, but may require

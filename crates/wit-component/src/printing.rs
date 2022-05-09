@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 use std::collections::HashSet;
 use std::fmt::Write;
 use wit_parser::{
-    Enum, Expected, Flags, Interface, Record, Tuple, Type, TypeDefKind, TypeId, Variant,
+    Enum, Expected, Flags, Interface, Record, Tuple, Type, TypeDefKind, TypeId, Union, Variant,
 };
 
 /// A utility for printing WebAssembly interface definitions to a string.
@@ -92,6 +92,9 @@ impl InterfacePrinter {
                     TypeDefKind::Variant(_) => {
                         bail!("interface has unnamed variant type")
                     }
+                    TypeDefKind::Union(_) => {
+                        bail!("interface has unnamed union type")
+                    }
                     TypeDefKind::List(ty) => {
                         self.output.push_str("list<");
                         self.print_type_name(interface, ty)?;
@@ -169,6 +172,9 @@ impl InterfacePrinter {
                     TypeDefKind::Flags(f) => self.declare_flags(ty.name.as_deref(), f)?,
                     TypeDefKind::Variant(v) => {
                         self.declare_variant(interface, ty.name.as_deref(), v)?
+                    }
+                    TypeDefKind::Union(u) => {
+                        self.declare_union(interface, ty.name.as_deref(), u)?
                     }
                     TypeDefKind::Option(t) => {
                         self.declare_option(interface, ty.name.as_deref(), t)?
@@ -266,34 +272,46 @@ impl InterfacePrinter {
             }
         }
 
-        match name {
-            Some(name) => {
-                if variant.is_union() {
-                    writeln!(&mut self.output, "union {} {{", name)?;
-                    for case in &variant.cases {
-                        self.output.push_str("  ");
-                        self.print_type_name(interface, case.ty.as_ref().unwrap())?;
-                        self.output.push_str(",\n");
-                    }
-                    self.output.push_str("}\n\n");
-                    return Ok(());
-                }
-
-                writeln!(&mut self.output, "variant {} {{", name)?;
-                for case in &variant.cases {
-                    write!(&mut self.output, "  {}", case.name)?;
-                    if let Some(ty) = &case.ty {
-                        self.output.push('(');
-                        self.print_type_name(interface, ty)?;
-                        self.output.push(')');
-                    }
-                    self.output.push_str(",\n");
-                }
-                self.output.push_str("}\n\n");
-                Ok(())
+        let name = match name {
+            Some(name) => name,
+            None => bail!("interface has unnamed union type"),
+        };
+        writeln!(&mut self.output, "variant {} {{", name)?;
+        for case in &variant.cases {
+            write!(&mut self.output, "  {}", case.name)?;
+            if let Some(ty) = &case.ty {
+                self.output.push('(');
+                self.print_type_name(interface, ty)?;
+                self.output.push(')');
             }
-            None => bail!("interface has unnamed variant type"),
+            self.output.push_str(",\n");
         }
+        self.output.push_str("}\n\n");
+        Ok(())
+    }
+
+    fn declare_union(
+        &mut self,
+        interface: &Interface,
+        name: Option<&str>,
+        union: &Union,
+    ) -> Result<()> {
+        for case in union.cases.iter() {
+            self.declare_type(interface, &case.ty)?;
+        }
+
+        let name = match name {
+            Some(name) => name,
+            None => bail!("interface has unnamed union type"),
+        };
+        writeln!(&mut self.output, "union {} {{", name)?;
+        for case in &union.cases {
+            self.output.push_str("  ");
+            self.print_type_name(interface, &case.ty)?;
+            self.output.push_str(",\n");
+        }
+        self.output.push_str("}\n\n");
+        Ok(())
     }
 
     fn declare_option(
