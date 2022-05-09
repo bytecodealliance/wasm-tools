@@ -19,12 +19,12 @@ impl<'a> CustomSectionReader<'a> {
         let data_offset = reader.original_position();
         let data = reader.remaining_buffer();
         let range = reader.range();
-        return Ok(CustomSectionReader {
+        Ok(CustomSectionReader {
             name,
             data_offset,
             data,
             range,
-        });
+        })
     }
 
     /// The name of the custom section.

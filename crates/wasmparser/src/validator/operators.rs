@@ -2077,12 +2077,7 @@ impl OperatorValidator {
     }
 
     pub fn finish(&mut self) -> OperatorValidatorResult<()> {
-        if let Some(last) = self.control.last() {
-            // match last.kind {
-            //     FrameKind::Block | FrameKind::If | FrameKind::Else
-            // }
-            // bail_op_err!("control frames remain at end of function");
-            drop(last);
+        if self.control.last().is_some() {
             bail_op_err!("control frames remain at end of function: END opcode expected");
         }
         Ok(())

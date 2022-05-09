@@ -2357,7 +2357,7 @@ impl Printer {
             InterfaceType::List(ty) => self.print_list_type(state, ty)?,
             InterfaceType::Tuple(tys) => self.print_tuple_or_union_type("tuple", state, tys)?,
             InterfaceType::Flags(names) => self.print_flag_or_enum_type("flags", names)?,
-            InterfaceType::Enum(names) => self.print_flag_or_enum_type("enum", names)?,
+            InterfaceType::Enum(cases) => self.print_flag_or_enum_type("enum", cases)?,
             InterfaceType::Union(tys) => self.print_tuple_or_union_type("union", state, tys)?,
             InterfaceType::Option(ty) => self.print_option_type(state, ty)?,
             InterfaceType::Expected { ok, error } => self.print_expected_type(state, ok, error)?,
