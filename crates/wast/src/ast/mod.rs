@@ -303,7 +303,6 @@ reexport! {
 
 #[cfg(feature = "wasm-module")]
 reexport! {
-    mod alias;
     mod assert_expr;
     mod custom;
     mod tag;
@@ -312,10 +311,8 @@ reexport! {
     mod func;
     mod global;
     mod import;
-    mod instance;
     mod memory;
     mod module;
-    mod nested_module;
     mod table;
     mod types;
     mod wast;

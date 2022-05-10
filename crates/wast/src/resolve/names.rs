@@ -1,21 +1,11 @@
 use crate::ast::*;
 use crate::resolve::Ns;
 use crate::Error;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
-pub fn resolve<'a>(
-    id: Option<Id<'a>>,
-    fields: &mut Vec<ModuleField<'a>>,
-) -> Result<Resolver<'a>, Error> {
-    let mut names = HashMap::new();
-    let mut parents = Parents {
-        prev: None,
-        cur_id: id,
-        depth: 0,
-        names: &mut names,
-    };
+pub fn resolve<'a>(fields: &mut Vec<ModuleField<'a>>) -> Result<Resolver<'a>, Error> {
     let mut resolver = Resolver::default();
-    resolver.process(&mut parents, fields)?;
+    resolver.process(fields)?;
     Ok(resolver)
 }
 
@@ -32,21 +22,14 @@ pub struct Resolver<'a> {
     memories: Namespace<'a>,
     types: Namespace<'a>,
     tags: Namespace<'a>,
-    modules: Namespace<'a>,
-    instances: Namespace<'a>,
     datas: Namespace<'a>,
     elems: Namespace<'a>,
     fields: Namespace<'a>,
     type_info: Vec<TypeInfo<'a>>,
-    implicit_instances: HashSet<&'a str>,
 }
 
 impl<'a> Resolver<'a> {
-    fn process(
-        &mut self,
-        parents: &mut Parents<'a, '_>,
-        fields: &mut Vec<ModuleField<'a>>,
-    ) -> Result<(), Error> {
+    fn process(&mut self, fields: &mut Vec<ModuleField<'a>>) -> Result<(), Error> {
         // Number everything in the module, recording what names correspond to
         // what indices.
         for field in fields.iter_mut() {
@@ -56,37 +39,24 @@ impl<'a> Resolver<'a> {
         // Then we can replace all our `Index::Id` instances with `Index::Num`
         // in the AST. Note that this also recurses into nested modules.
         for field in fields.iter_mut() {
-            self.resolve_field(field, parents)?;
+            self.resolve_field(field)?;
         }
         Ok(())
     }
 
     fn register(&mut self, item: &ModuleField<'a>) -> Result<(), Error> {
         match item {
-            ModuleField::Import(i) => {
-                // Account for implicit instances created by two-level imports
-                // first. At this time they never have a name.
-                if i.field.is_some() {
-                    if self.implicit_instances.insert(i.module) {
-                        self.instances.register(None, "instance")?;
-                    }
-                }
-                match &i.item.kind {
-                    ItemKind::Func(_) => self.funcs.register(i.item.id, "func")?,
-                    ItemKind::Memory(_) => self.memories.register(i.item.id, "memory")?,
-                    ItemKind::Table(_) => self.tables.register(i.item.id, "table")?,
-                    ItemKind::Global(_) => self.globals.register(i.item.id, "global")?,
-                    ItemKind::Tag(_) => self.tags.register(i.item.id, "tag")?,
-                    ItemKind::Module(_) => self.modules.register(i.item.id, "module")?,
-                    ItemKind::Instance(_) => self.instances.register(i.item.id, "instance")?,
-                }
-            }
+            ModuleField::Import(i) => match &i.item.kind {
+                ItemKind::Func(_) => self.funcs.register(i.item.id, "func")?,
+                ItemKind::Memory(_) => self.memories.register(i.item.id, "memory")?,
+                ItemKind::Table(_) => self.tables.register(i.item.id, "table")?,
+                ItemKind::Global(_) => self.globals.register(i.item.id, "global")?,
+                ItemKind::Tag(_) => self.tags.register(i.item.id, "tag")?,
+            },
             ModuleField::Global(i) => self.globals.register(i.id, "global")?,
             ModuleField::Memory(i) => self.memories.register(i.id, "memory")?,
             ModuleField::Func(i) => self.funcs.register(i.id, "func")?,
             ModuleField::Table(i) => self.tables.register(i.id, "table")?,
-            ModuleField::NestedModule(m) => self.modules.register(m.id, "module")?,
-            ModuleField::Instance(i) => self.instances.register(i.id, "instance")?,
 
             ModuleField::Type(i) => {
                 match &i.def {
@@ -103,10 +73,7 @@ impl<'a> Resolver<'a> {
                         }
                     }
 
-                    TypeDef::Instance(_)
-                    | TypeDef::Array(_)
-                    | TypeDef::Func(_)
-                    | TypeDef::Module(_) => {}
+                    TypeDef::Array(_) | TypeDef::Func(_) => {}
                 }
 
                 // Record function signatures as we see them to so we can
@@ -126,19 +93,6 @@ impl<'a> Resolver<'a> {
             ModuleField::Elem(e) => self.elems.register(e.id, "elem")?,
             ModuleField::Data(d) => self.datas.register(d.id, "data")?,
             ModuleField::Tag(t) => self.tags.register(t.id, "tag")?,
-            ModuleField::Alias(a) => match a.kind {
-                ExportKind::Func => self.funcs.register(a.id, "func")?,
-                ExportKind::Table => self.tables.register(a.id, "table")?,
-                ExportKind::Memory => self.memories.register(a.id, "memory")?,
-                ExportKind::Global => self.globals.register(a.id, "global")?,
-                ExportKind::Instance => self.instances.register(a.id, "instance")?,
-                ExportKind::Module => self.modules.register(a.id, "module")?,
-                ExportKind::Tag => self.tags.register(a.id, "tag")?,
-                ExportKind::Type => {
-                    self.type_info.push(TypeInfo::Other);
-                    self.types.register(a.id, "type")?
-                }
-            },
 
             // These fields don't define any items in any index space.
             ModuleField::Export(_) | ModuleField::Start(_) | ModuleField::Custom(_) => {
@@ -149,11 +103,7 @@ impl<'a> Resolver<'a> {
         Ok(())
     }
 
-    fn resolve_field(
-        &self,
-        field: &mut ModuleField<'a>,
-        parents: &mut Parents<'a, '_>,
-    ) -> Result<(), Error> {
+    fn resolve_field(&self, field: &mut ModuleField<'a>) -> Result<(), Error> {
         match field {
             ModuleField::Import(i) => {
                 self.resolve_item_sig(&mut i.item)?;
@@ -169,8 +119,6 @@ impl<'a> Resolver<'a> {
                         }
                     }
                     TypeDef::Array(array) => self.resolve_storagetype(&mut array.ty)?,
-                    TypeDef::Module(m) => m.resolve(self)?,
-                    TypeDef::Instance(i) => i.resolve(self)?,
                 }
                 Ok(())
             }
@@ -281,51 +229,9 @@ impl<'a> Resolver<'a> {
                 Ok(())
             }
 
-            ModuleField::Instance(i) => {
-                if let InstanceKind::Inline { module, args } = &mut i.kind {
-                    self.resolve_item_ref(module)?;
-                    for arg in args {
-                        self.resolve_item_ref(&mut arg.index)?;
-                    }
-                }
-                Ok(())
-            }
-
-            ModuleField::NestedModule(m) => {
-                let fields = match &mut m.kind {
-                    NestedModuleKind::Inline { fields } => fields,
-                    NestedModuleKind::Import { .. } => panic!("should only be inline"),
-                };
-                Resolver::default().process(&mut parents.push(self, m.id), fields)?;
-                Ok(())
-            }
-
             ModuleField::Table(t) => {
                 if let TableKind::Normal(t) = &mut t.kind {
                     self.resolve_heaptype(&mut t.elem.heap)?;
-                }
-                Ok(())
-            }
-
-            ModuleField::Alias(a) => {
-                match &mut a.source {
-                    AliasSource::InstanceExport { instance, .. } => {
-                        self.resolve_item_ref(instance)?;
-                    }
-                    AliasSource::Outer { module, index } => {
-                        match (index, module) {
-                            // If both indices are numeric then don't try to
-                            // resolve anything since we could fail to walk up
-                            // the parent chain, producing a wat2wasm error that
-                            // should probably be a wasm validation error.
-                            (Index::Num(..), Index::Num(..)) => {}
-                            (index, module) => {
-                                parents
-                                    .resolve(module)?
-                                    .resolve(index, Ns::from_export(&a.kind))?;
-                            }
-                        }
-                    }
                 }
                 Ok(())
             }
@@ -369,12 +275,6 @@ impl<'a> Resolver<'a> {
                 self.resolve_type_use(t)?;
             }
             ItemKind::Global(t) => self.resolve_valtype(&mut t.ty)?,
-            ItemKind::Instance(t) => {
-                self.resolve_type_use(t)?;
-            }
-            ItemKind::Module(m) => {
-                self.resolve_type_use(m)?;
-            }
             ItemKind::Table(t) => {
                 self.resolve_heaptype(&mut t.elem.heap)?;
             }
@@ -416,8 +316,6 @@ impl<'a> Resolver<'a> {
             Ns::Table => self.tables.resolve(idx, "table"),
             Ns::Global => self.globals.resolve(idx, "global"),
             Ns::Memory => self.memories.resolve(idx, "memory"),
-            Ns::Instance => self.instances.resolve(idx, "instance"),
-            Ns::Module => self.modules.resolve(idx, "module"),
             Ns::Tag => self.tags.resolve(idx, "tag"),
             Ns::Type => self.types.resolve(idx, "type"),
         }
@@ -427,42 +325,18 @@ impl<'a> Resolver<'a> {
     where
         K: Into<ExportKind> + Copy,
     {
-        match item {
-            ItemRef::Item {
-                idx,
-                kind,
-                exports,
-                #[cfg(wast_check_exhaustive)]
-                visited,
-            } => {
-                #[cfg(wast_check_exhaustive)]
-                {
-                    if !*visited {
-                        return Err(Error::new(
-                            idx.span(),
-                            format!("BUG: this index wasn't visited"),
-                        ));
-                    }
-                }
-                debug_assert!(exports.len() == 0);
-                self.resolve(
-                    idx,
-                    match (*kind).into() {
-                        ExportKind::Func => Ns::Func,
-                        ExportKind::Table => Ns::Table,
-                        ExportKind::Global => Ns::Global,
-                        ExportKind::Memory => Ns::Memory,
-                        ExportKind::Instance => Ns::Instance,
-                        ExportKind::Module => Ns::Module,
-                        ExportKind::Tag => Ns::Tag,
-                        ExportKind::Type => Ns::Type,
-                    },
-                )?;
-                Ok(idx)
-            }
-            // should be expanded by now
-            ItemRef::Outer { .. } => unreachable!(),
-        }
+        self.resolve(
+            &mut item.idx,
+            match item.kind.into() {
+                ExportKind::Func => Ns::Func,
+                ExportKind::Table => Ns::Table,
+                ExportKind::Global => Ns::Global,
+                ExportKind::Memory => Ns::Memory,
+                ExportKind::Tag => Ns::Tag,
+                ExportKind::Type => Ns::Type,
+            },
+        )?;
+        Ok(&mut item.idx)
     }
 }
 
@@ -864,96 +738,6 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
     }
 }
 
-struct Parents<'a, 'b> {
-    prev: Option<ParentNode<'a, 'b>>,
-    cur_id: Option<Id<'a>>,
-    depth: usize,
-    names: &'b mut HashMap<Id<'a>, usize>,
-}
-
-struct ParentNode<'a, 'b> {
-    resolver: &'b Resolver<'a>,
-    id: Option<Id<'a>>,
-    prev: Option<&'b ParentNode<'a, 'b>>,
-    prev_depth: Option<usize>,
-}
-
-impl<'a, 'b> Parents<'a, 'b> {
-    fn push<'c>(&'c mut self, resolver: &'c Resolver<'a>, id: Option<Id<'a>>) -> Parents<'a, 'c>
-    where
-        'b: 'c,
-    {
-        let prev_depth = if let Some(id) = self.cur_id {
-            self.names.insert(id, self.depth)
-        } else {
-            None
-        };
-        Parents {
-            prev: Some(ParentNode {
-                prev: self.prev.as_ref(),
-                resolver,
-                id: self.cur_id,
-                prev_depth,
-            }),
-            cur_id: id,
-            depth: self.depth + 1,
-            names: &mut *self.names,
-        }
-    }
-
-    fn resolve(&self, index: &mut Index<'a>) -> Result<&'b Resolver<'a>, Error> {
-        let mut i = match *index {
-            Index::Num(n, _) => n,
-            Index::Id(id) => match self.names.get(&id) {
-                Some(idx) => (self.depth - *idx - 1) as u32,
-                None => return Err(resolve_error(id, "parent module")),
-            },
-        };
-        *index = Index::Num(i, index.span());
-        let mut cur = match self.prev.as_ref() {
-            Some(n) => n,
-            None => {
-                return Err(Error::new(
-                    index.span(),
-                    "cannot use `outer` alias in root module".to_string(),
-                ))
-            }
-        };
-        while i > 0 {
-            cur = match cur.prev {
-                Some(n) => n,
-                None => {
-                    return Err(Error::new(
-                        index.span(),
-                        "alias to `outer` module index too large".to_string(),
-                    ))
-                }
-            };
-            i -= 1;
-        }
-        Ok(cur.resolver)
-    }
-}
-
-impl<'a, 'b> Drop for Parents<'a, 'b> {
-    fn drop(&mut self) {
-        let (id, prev_depth) = match &self.prev {
-            Some(n) => (n.id, n.prev_depth),
-            None => return,
-        };
-        if let Some(id) = id {
-            match prev_depth {
-                Some(i) => {
-                    self.names.insert(id, i);
-                }
-                None => {
-                    self.names.remove(&id);
-                }
-            }
-        }
-    }
-}
-
 enum TypeInfo<'a> {
     Func {
         params: Box<[ValType<'a>]>,
@@ -1019,43 +803,6 @@ impl<'a> TypeReference<'a> for FunctionType<'a> {
         }
         for result in self.results.iter_mut() {
             cx.resolve_valtype(result)?;
-        }
-        Ok(())
-    }
-}
-
-impl<'a> TypeReference<'a> for InstanceType<'a> {
-    fn check_matches(&mut self, idx: &Index<'a>, cx: &Resolver<'a>) -> Result<(), Error> {
-        drop(cx);
-        Err(Error::new(
-            idx.span(),
-            format!("cannot specify instance type as a reference and inline"),
-        ))
-    }
-
-    fn resolve(&mut self, cx: &Resolver<'a>) -> Result<(), Error> {
-        for export in self.exports.iter_mut() {
-            cx.resolve_item_sig(&mut export.item)?;
-        }
-        Ok(())
-    }
-}
-
-impl<'a> TypeReference<'a> for ModuleType<'a> {
-    fn check_matches(&mut self, idx: &Index<'a>, cx: &Resolver<'a>) -> Result<(), Error> {
-        drop(cx);
-        Err(Error::new(
-            idx.span(),
-            format!("cannot specify module type as a reference and inline"),
-        ))
-    }
-
-    fn resolve(&mut self, cx: &Resolver<'a>) -> Result<(), Error> {
-        for i in self.imports.iter_mut() {
-            cx.resolve_item_sig(&mut i.item)?;
-        }
-        for e in self.exports.iter_mut() {
-            cx.resolve_item_sig(&mut e.item)?;
         }
         Ok(())
     }

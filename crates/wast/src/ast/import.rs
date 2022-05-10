@@ -9,7 +9,7 @@ pub struct Import<'a> {
     /// The module that this statement is importing from
     pub module: &'a str,
     /// The name of the field in the module this statement imports from.
-    pub field: Option<&'a str>,
+    pub field: &'a str,
     /// The item that's being imported.
     pub item: ItemSig<'a>,
 }
@@ -52,8 +52,6 @@ pub enum ItemKind<'a> {
     Memory(ast::MemoryType),
     Global(ast::GlobalType<'a>),
     Tag(ast::TagType<'a>),
-    Module(ast::TypeUse<'a, ast::ModuleType<'a>>),
-    Instance(ast::TypeUse<'a, ast::InstanceType<'a>>),
 }
 
 impl<'a> Parse<'a> for ItemSig<'a> {
@@ -99,22 +97,6 @@ impl<'a> Parse<'a> for ItemSig<'a> {
                 name: None,
                 kind: ItemKind::Tag(parser.parse()?),
             })
-        } else if l.peek::<kw::module>() {
-            let span = parser.parse::<kw::module>()?.0;
-            Ok(ItemSig {
-                span,
-                id: parser.parse()?,
-                name: None,
-                kind: ItemKind::Module(parser.parse()?),
-            })
-        } else if l.peek::<kw::instance>() {
-            let span = parser.parse::<kw::instance>()?.0;
-            Ok(ItemSig {
-                span,
-                id: parser.parse()?,
-                name: None,
-                kind: ItemKind::Instance(parser.parse()?),
-            })
         } else {
             Err(l.error())
         }
@@ -131,7 +113,7 @@ impl<'a> Parse<'a> for ItemSig<'a> {
 #[allow(missing_docs)]
 pub struct InlineImport<'a> {
     pub module: &'a str,
-    pub field: Option<&'a str>,
+    pub field: &'a str,
 }
 
 impl<'a> Parse<'a> for InlineImport<'a> {

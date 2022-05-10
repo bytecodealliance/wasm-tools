@@ -1330,12 +1330,9 @@ impl<'a> MemArg<'a> {
 }
 
 fn idx_zero<T>(span: ast::Span, mk_kind: fn(ast::Span) -> T) -> ast::ItemRef<'static, T> {
-    ast::ItemRef::Item {
+    ast::ItemRef {
         kind: mk_kind(span),
         idx: ast::Index::Num(0, span),
-        exports: Vec::new(),
-        #[cfg(wast_check_exhaustive)]
-        visited: false,
     }
 }
 
