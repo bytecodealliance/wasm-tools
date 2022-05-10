@@ -141,8 +141,8 @@ macro_rules! custom_keyword {
 /// /// A "three-way comparison" like `(<=> a b)` that returns -1 if `a` is less
 /// /// than `b`, 0 if they're equal, and 1 if `a` is greater than `b`.
 /// struct ThreeWayComparison<'a> {
-///     lhs: wast::Expression<'a>,
-///     rhs: wast::Expression<'a>,
+///     lhs: wast::core::Expression<'a>,
+///     rhs: wast::core::Expression<'a>,
 /// }
 ///
 /// impl<'a> Parse<'a> for ThreeWayComparison<'a> {
@@ -163,7 +163,7 @@ macro_rules! custom_reserved {
         #[allow(non_camel_case_types)]
         #[allow(missing_docs)]
         #[derive(Debug)]
-        pub struct $name(pub $crate::Span);
+        pub struct $name(pub $crate::token::Span);
 
         impl<'a> $crate::parser::Parse<'a> for $name {
             fn parse(parser: $crate::parser::Parser<'a>) -> $crate::parser::Result<Self> {

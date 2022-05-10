@@ -24,7 +24,8 @@
 //! [`Parse`](crate::parser::Parse) trait:
 //!
 //! ```
-//! use wast::{kw, Import, Func};
+//! use wast::kw;
+//! use wast::core::{Import, Func};
 //! use wast::parser::{Parser, Parse, Result};
 //!
 //! // Fields of a WebAssembly which only allow imports and functions, and all
@@ -171,7 +172,8 @@ pub fn parse<'a, T: Parse<'a>>(buf: &'a ParseBuffer<'a>) -> Result<T> {
 /// before all functions. An example [`Parse`] implementation might look like:
 ///
 /// ```
-/// use wast::{Import, Func, kw};
+/// use wast::core::{Import, Func};
+/// use wast::kw;
 /// use wast::parser::{Parser, Parse, Result};
 ///
 /// // Fields of a WebAssembly which only allow imports and functions, and all
@@ -476,7 +478,7 @@ impl<'a> Parser<'a> {
     /// and a [`RefType`]
     ///
     /// ```
-    /// # use wast::*;
+    /// # use wast::core::*;
     /// # use wast::parser::*;
     /// struct TableType<'a> {
     ///     limits: Limits,
@@ -593,7 +595,7 @@ impl<'a> Parser<'a> {
     /// parsing an [`Index`] we can do:
     ///
     /// ```
-    /// # use wast::*;
+    /// # use wast::token::*;
     /// # use wast::parser::*;
     /// enum Index<'a> {
     ///     Num(u32),
@@ -647,7 +649,8 @@ impl<'a> Parser<'a> {
     /// the exact definition, but it's close enough!
     ///
     /// ```
-    /// # use wast::*;
+    /// # use wast::kw;
+    /// # use wast::core::*;
     /// # use wast::parser::*;
     /// struct Module<'a> {
     ///     fields: Vec<ModuleField<'a>>,
@@ -794,7 +797,8 @@ impl<'a> Parser<'a> {
     /// to get an idea of how this works:
     ///
     /// ```
-    /// # use wast::*;
+    /// # use wast::kw;
+    /// # use wast::token::NameAnnotation;
     /// # use wast::parser::*;
     /// struct Module<'a> {
     ///     name: Option<NameAnnotation<'a>>,
@@ -825,7 +829,8 @@ impl<'a> Parser<'a> {
     /// registered *before* we parse the parentheses of the annotation.
     ///
     /// ```
-    /// # use wast::*;
+    /// # use wast::{kw, annotation};
+    /// # use wast::core::Custom;
     /// # use wast::parser::*;
     /// struct Module<'a> {
     ///     fields: Vec<ModuleField<'a>>,

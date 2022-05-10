@@ -350,8 +350,8 @@ impl<'a> Parse<'a> for QuoteModule<'a> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::parser::{parse, ParseBuffer};
-    use crate::wWastDirective;
 
     macro_rules! assert_parses_to_directive {
         ($text:expr, $pattern:pat) => {{
