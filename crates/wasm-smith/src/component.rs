@@ -43,6 +43,7 @@ pub struct Component {
 /// components and is unnecessary after we are done generating the structure of
 /// the components and only need to encode an already-generated component to
 /// bytes.
+#[derive(Debug)]
 struct ComponentBuilder {
     config: Rc<dyn Config>,
 
@@ -72,10 +73,18 @@ struct ComponentBuilder {
     // been generated. This changes the behavior of various
     // `arbitrary_<section>` methods to always fill in their minimums.
     fill_minimums: bool,
+
+    // Our maximums for these entities are applied across the whole component
+    // tree, not per-component.
+    total_components: usize,
+    total_modules: usize,
+    total_instances: usize,
+    total_values: usize,
 }
 
 /// Metadata (e.g. contents of various index spaces) we keep track of on a
 /// per-component basis.
+#[derive(Debug)]
 struct ComponentContext {
     // The actual component itself.
     component: Component,
@@ -85,6 +94,136 @@ struct ComponentContext {
 
     // The set of names of imports we've generated thus far.
     import_names: HashSet<String>,
+
+    // This component's function index space.
+    //
+    // An indirect list of all functions in this component.
+    //
+    // Each entry is of the form `(i, j)` where `component.sections[i]` is
+    // guaranteed to be either
+    //
+    // * a `Section::Func` and we are referencing the `j`th function defined in
+    //   that section, which is guaranteed to be a core Wasm function, or
+    //
+    // * a `Section::Import` and we are referencing the `j`th import in that
+    //   section, which is guaranteed to be a function import.
+    funcs: Vec<(usize, usize)>,
+
+    // Which entries in `funcs` are interface functions?
+    interface_funcs: Vec<u32>,
+
+    // Which entries in `funcs` are interface functions that only use scalar
+    // interface types?
+    scalar_interface_funcs: Vec<u32>,
+
+    // Which entries in `funcs` are core Wasm functions?
+    //
+    // Note that a component can't import core functions, so these entries will
+    // never point to a `Section::Import`.
+    core_funcs: Vec<u32>,
+
+    // A map from a core function's index to its core function type.
+    core_func_types: HashMap<u32, Rc<crate::core::FuncType>>,
+
+    // This component's component index space.
+    //
+    // An indirect list of all directly-nested (not transitive) components
+    // inside this component.
+    //
+    // Each entry is of the form `(i, j)` where `component.sections[i]` is
+    // guaranteed to be either
+    //
+    // * a `Section::Component` and we are referencing the component defined in
+    //   that section (in this case `j` must also be `0`, since a component
+    //   section can only contain a single nested component), or
+    //
+    // * a `Section::Import` and we are referenceing the `j`th import in that
+    //   section, which is guaranteed to be a component import.
+    components: Vec<(usize, usize)>,
+
+    // This component's module index space.
+    //
+    // An indirect list of all directly-nested (not transitive) modules
+    // inside this component.
+    //
+    // Each entry is of the form `(i, j)` where `component.sections[i]` is
+    // guaranteed to be either
+    //
+    // * a `Section::Core` and we are referencing the module defined in that
+    //   section (in this case `j` must also be `0`, since a core section can
+    //   only contain a single nested module), or
+    //
+    // * a `Section::Import` and we are referenceing the `j`th import in that
+    //   section, which is guaranteed to be a module import.
+    modules: Vec<(usize, usize)>,
+
+    // This component's instance index space.
+    //
+    // An indirect list of all instances imported or instantiated inside this
+    // component.
+    //
+    // Each entry is of the form `(i, j)` where `component.sections[i]` is
+    // guaranteed to be either
+    //
+    // * a `Section::Instance` and we are referencing the `j`th instance
+    //   instantiated in that section, or
+    //
+    // * a `Section::Import` and we are referenceing the `j`th import in that
+    //   section, which is guaranteed to be an instance import.
+    instances: Vec<(usize, usize)>,
+
+    // This component's value index space.
+    //
+    // An indirect list of all values inside this component.
+    //
+    // Each entry is of the form `(i, j)` where `component.sections[i]` is
+    // guaranteed to be either
+    //
+    // * a `Section::Start` and we are referencing the `j`th result of the start
+    //   function, or
+    //
+    // * a `Section::Import` and we are referenceing the `j`th import in that
+    //   section, which is guaranteed to be a value import.
+    values: Vec<(usize, usize)>,
+}
+
+impl ComponentContext {
+    fn empty() -> Self {
+        ComponentContext {
+            component: Component::empty(),
+            num_imports: 0,
+            import_names: HashSet::default(),
+            funcs: vec![],
+            interface_funcs: vec![],
+            scalar_interface_funcs: vec![],
+            core_funcs: vec![],
+            core_func_types: HashMap::default(),
+            components: vec![],
+            modules: vec![],
+            instances: vec![],
+            values: vec![],
+        }
+    }
+
+    fn num_modules(&self) -> usize {
+        self.modules.len()
+    }
+
+    fn num_components(&self) -> usize {
+        self.components.len()
+    }
+
+    fn num_instances(&self) -> usize {
+        self.instances.len()
+    }
+
+    fn num_funcs(&self) -> usize {
+        self.funcs.len()
+    }
+
+    fn num_values(&self) -> usize {
+        self.values.len()
+    }
 }
 
 #[derive(Debug, Default)]
@@ -108,6 +247,9 @@ struct TypesScope {
     // The indices of all the entries in `types` that are func types.
     func_types: Vec<u32>,
 
+    // A map from function types to their indices in the types space.
+    func_type_to_indices: HashMap<Rc<FuncType>, Vec<u32>>,
+
     // The indices of all the entries in `types` that are value types.
     value_types: Vec<u32>,
 
@@ -116,21 +258,41 @@ struct TypesScope {
 }
 
 impl TypesScope {
-    fn push(&mut self, ty: Rc<Type>) {
+    fn push(&mut self, ty: Rc<Type>) -> u32 {
+        let ty_idx = u32::try_from(self.types.len()).unwrap();
+
         let (is_def_type, kind_list) = match &*ty {
             Type::Module(_) => (true, &mut self.module_types),
             Type::Component(_) => (true, &mut self.component_types),
             Type::Instance(_) => (true, &mut self.instance_types),
-            Type::Func(_) => (true, &mut self.func_types),
+            Type::Func(func_ty) => {
+                self.func_type_to_indices
+                    .entry(func_ty.clone())
+                    .or_default()
+                    .push(ty_idx);
+                (true, &mut self.func_types)
+            }
             Type::Value(_) => (true, &mut self.value_types),
             Type::Interface(_) => (false, &mut self.interface_types),
         };
-        let ty_idx = u32::try_from(self.types.len()).unwrap();
+        kind_list.push(ty_idx);
         if is_def_type {
             self.def_types.push(ty_idx);
         }
-        kind_list.push(ty_idx);
+
         self.types.push(ty);
+        ty_idx
+    }
+
+    fn get(&self, index: u32) -> &Rc<Type> {
+        &self.types[index as usize]
+    }
+
+    fn get_func(&self, index: u32) -> &Rc<FuncType> {
+        match &**self.get(index) {
+            Type::Func(f) => f,
+            _ => panic!("get_func on non-function type"),
+        }
     }
 }
 
@@ -189,16 +351,6 @@ impl Component {
     }
 }
 
-impl ComponentContext {
-    fn empty() -> Self {
-        ComponentContext {
-            num_imports: 0,
-            import_names: HashSet::default(),
-            component: Component::empty(),
-        }
-    }
-}
-
 #[must_use]
 enum Step {
     Finished(Component),
@@ -224,6 +376,10 @@ impl ComponentBuilder {
             types: vec![Default::default()],
             components: vec![ComponentContext::empty()],
             fill_minimums: false,
+            total_components: 0,
+            total_modules: 0,
+            total_instances: 0,
+            total_values: 0,
         }
     }
 
@@ -246,12 +402,20 @@ impl ComponentBuilder {
                 // we can exercise adding empty sections to the end of the module.
                 choices.push(Self::arbitrary_type_section);
                 choices.push(Self::arbitrary_import_section);
+                choices.push(Self::arbitrary_func_section);
+
+                if self.total_modules < self.config.max_modules() {
+                    choices.push(Self::arbitrary_core_section);
+                }
+
+                if self.components.len() < self.config.max_nesting_depth()
+                    && self.total_components < self.config.max_components()
+                {
+                    choices.push(Self::arbitrary_component_section);
+                }
 
                 // TODO FITZGEN
                 //
-                // choices.push(Self::arbitrary_func_section);
-                // choices.push(Self::arbitrary_core_section);
-                // choices.push(Self::arbitrary_component_section);
                 // choices.push(Self::arbitrary_instance_section);
                 // choices.push(Self::arbitrary_export_section);
                 // choices.push(Self::arbitrary_start_section);
@@ -267,7 +431,7 @@ impl ComponentBuilder {
                         return Ok(component);
                     } else {
                         // Otherwise, add it as a nested component in the parent.
-                        self.append_nested_component(component);
+                        self.push_section(Section::Component(component));
                     }
                 }
             }
@@ -284,6 +448,9 @@ impl ComponentBuilder {
             if self.component().num_imports < self.config.min_imports() {
                 self.arbitrary_import_section(u)?.unwrap_still_building();
             }
+            if self.component().funcs.len() < self.config.min_funcs() {
+                self.arbitrary_func_section(u)?.unwrap_still_building();
+            }
         }
         self.fill_minimums = false;
 
@@ -291,15 +458,6 @@ impl ComponentBuilder {
             .pop()
             .expect("should have a types scope for the component we are finishing");
         Ok(Step::Finished(self.components.pop().unwrap().component))
-    }
-
-    fn append_nested_component(&mut self, component: Component) {
-        match self.last_section_mut() {
-            Some(Section::Component(sec)) => sec.components.push(component),
-            _ => self.push_section(Section::Component(ComponentSection {
-                components: vec![component],
-            })),
-        }
     }
 
     fn config(&self) -> &dyn Config {
@@ -314,17 +472,46 @@ impl ComponentBuilder {
         self.components.last_mut().unwrap()
     }
 
-    fn push_section(&mut self, section: Section) {
-        self.component_mut().component.sections.push(section);
+    fn last_section(&self) -> Option<&Section> {
+        self.component().component.sections.last()
     }
 
     fn last_section_mut(&mut self) -> Option<&mut Section> {
         self.component_mut().component.sections.last_mut()
     }
 
+    fn push_section(&mut self, section: Section) {
+        self.component_mut().component.sections.push(section);
+    }
+
+    fn ensure_section(
+        &mut self,
+        mut predicate: impl FnMut(&Section) -> bool,
+        mut make_section: impl FnMut() -> Section,
+    ) -> &mut Section {
+        match self.last_section() {
+            Some(sec) if predicate(sec) => {}
+            _ => self.push_section(make_section()),
+        }
+        self.last_section_mut().unwrap()
+    }
+
     fn arbitrary_custom_section(&mut self, u: &mut Unstructured) -> Result<Step> {
         self.push_section(Section::Custom(u.arbitrary()?));
         Ok(Step::StillBuilding)
+    }
+
+    fn push_type(&mut self, ty: Rc<Type>) -> u32 {
+        match self.ensure_section(
+            |s| matches!(s, Section::Type(_)),
+            || Section::Type(TypeSection { types: vec![] }),
+        ) {
+            Section::Type(TypeSection { types }) => {
+                types.push(ty.clone());
+                self.current_type_scope_mut().push(ty)
+            }
+            _ => unreachable!(),
+        }
     }
 
     fn arbitrary_type_section(&mut self, u: &mut Unstructured) -> Result<Step> {
@@ -343,15 +530,7 @@ impl ComponentBuilder {
         arbitrary_loop(u, min, max, |u| {
             let mut type_fuel = self.config.max_type_size();
             let ty = self.arbitrary_type(u, &mut type_fuel)?;
-
-            let section_idx = self.component().component.sections.len() - 1;
-            let section = match self.last_section_mut() {
-                Some(Section::Type(section)) => section,
-                _ => unreachable!(),
-            };
-            section.types.push(ty.clone());
-
-            self.current_type_scope_mut().push(ty);
+            self.push_type(ty);
             Ok(true)
         })?;
 
@@ -510,7 +689,15 @@ impl ComponentBuilder {
 
                 // Type definition.
                 _ => {
-                    let ty = crate::core::arbitrary_func_type(u, &self.core_valtypes, None)?;
+                    let ty = crate::core::arbitrary_func_type(
+                        u,
+                        &self.core_valtypes,
+                        if self.config.multi_value_enabled() {
+                            None
+                        } else {
+                            Some(1)
+                        },
+                    )?;
                     types.push(ty.clone());
                     defs.push(ModuleTypeDef::TypeDef(crate::core::Type::Func(ty)));
                 }
@@ -578,8 +765,8 @@ impl ComponentBuilder {
                 counts.tags += 1;
                 let tag_func_types = types
                     .iter()
-                    .filter(|ty| ty.results.is_empty())
                     .enumerate()
+                    .filter(|(_, ty)| ty.results.is_empty())
                     .map(|(i, _)| u32::try_from(i).unwrap())
                     .collect::<Vec<_>>();
                 Ok(crate::core::EntityType::Tag(
@@ -675,10 +862,14 @@ impl ComponentBuilder {
                     return Ok(false);
                 }
 
-                if !me.current_type_scope().types.is_empty() && u.int_in_range::<u8>(0..=3)? == 0 {
+                if !me.current_type_scope().def_types.is_empty()
+                    && u.int_in_range::<u8>(0..=3)? == 0
+                {
                     // Imports.
                     let name = crate::unique_string(100, &mut imports, u)?;
-                    let ty = u.int_in_range(0..=me.current_type_scope().types.len() - 1)?;
+                    let max_def_ty_idx = me.current_type_scope().def_types.len() - 1;
+                    let def_ty_idx = u.int_in_range(0..=max_def_ty_idx)?;
+                    let ty = me.current_type_scope().def_types[def_ty_idx];
                     let ty = u32::try_from(ty).unwrap();
                     defs.push(ComponentTypeDef::Import(Import { name, ty }));
                 } else {
@@ -803,7 +994,7 @@ impl ComponentBuilder {
         &mut self,
         u: &mut Unstructured,
         type_fuel: &mut u32,
-    ) -> Result<FuncType> {
+    ) -> Result<Rc<FuncType>> {
         let mut params = vec![];
         let mut param_names = HashSet::new();
         arbitrary_loop(u, 0, 20, |u| {
@@ -818,7 +1009,7 @@ impl ComponentBuilder {
 
         let result = self.arbitrary_interface_type_ref(u)?;
 
-        Ok(FuncType { params, result })
+        Ok(Rc::new(FuncType { params, result }))
     }
 
     fn arbitrary_value_type(&mut self, u: &mut Unstructured) -> Result<ValueType> {
@@ -870,7 +1061,7 @@ impl ComponentBuilder {
         u: &mut Unstructured,
         names: &mut HashSet<String>,
     ) -> Result<NamedType> {
-        let name = crate::unique_string(100, names, u)?;
+        let name = crate::unique_non_empty_string(100, names, u)?;
         let ty = self.arbitrary_interface_type_ref(u)?;
         Ok(NamedType { name, ty })
     }
@@ -881,7 +1072,7 @@ impl ComponentBuilder {
         names: &mut HashSet<String>,
     ) -> Result<OptionalNamedType> {
         let name = if u.arbitrary()? {
-            Some(crate::unique_string(100, names, u)?)
+            Some(crate::unique_non_empty_string(100, names, u)?)
         } else {
             None
         };
@@ -972,7 +1163,7 @@ impl ComponentBuilder {
                 return Ok(false);
             }
 
-            fields.push(crate::unique_string(100, &mut field_names, u)?);
+            fields.push(crate::unique_non_empty_string(100, &mut field_names, u)?);
             Ok(true)
         })?;
         Ok(FlagsType { fields })
@@ -991,7 +1182,7 @@ impl ComponentBuilder {
                 return Ok(false);
             }
 
-            variants.push(crate::unique_string(100, &mut variant_names, u)?);
+            variants.push(crate::unique_non_empty_string(100, &mut variant_names, u)?);
             Ok(true)
         })?;
         Ok(EnumType { variants })
@@ -1060,8 +1251,102 @@ impl ComponentBuilder {
         }
     }
 
+    fn push_import(&mut self, name: String, ty: u32) {
+        let nth = match self.ensure_section(
+            |sec| matches!(sec, Section::Import(_)),
+            || Section::Import(ImportSection { imports: vec![] }),
+        ) {
+            Section::Import(sec) => {
+                sec.imports.push(Import { name, ty });
+                sec.imports.len() - 1
+            }
+            _ => unreachable!(),
+        };
+        let section_index = self.component().component.sections.len() - 1;
+
+        match &*self.current_type_scope().get(ty).clone() {
+            Type::Func(func_ty) => {
+                let func_index = u32::try_from(self.component().funcs.len()).unwrap();
+                self.component_mut().funcs.push((section_index, nth));
+
+                self.component_mut().interface_funcs.push(func_index);
+                if func_ty.is_scalar() {
+                    self.component_mut().scalar_interface_funcs.push(func_index);
+                }
+            }
+
+            Type::Module(_) => {
+                self.total_modules += 1;
+                self.component_mut().modules.push((section_index, nth));
+            }
+            Type::Component(_) => {
+                self.total_components += 1;
+                self.component_mut().components.push((section_index, nth));
+            }
+            Type::Instance(_) => {
+                self.total_instances += 1;
+                self.component_mut().instances.push((section_index, nth));
+            }
+            Type::Value(_) => {
+                self.total_values += 1;
+                self.component_mut().values.push((section_index, nth));
+            }
+            Type::Interface(_) => unreachable!("cannot import interface types"),
+        }
+    }
+
+    fn interface_function_type(&self, inter_func: u32) -> &Rc<FuncType> {
+        let (section_index, nth) = self.component().funcs[inter_func as usize];
+        let inter_func_ty = match &self.component().component.sections[section_index] {
+            Section::Import(ImportSection { imports }) => imports[nth].ty,
+            Section::Func(FuncSection { funcs }) => match &funcs[nth] {
+                Func::CanonLift { func_ty, .. } => *func_ty,
+                _ => unreachable!(),
+            },
+            _ => unreachable!(),
+        };
+        self.current_type_scope().get_func(inter_func_ty)
+    }
+
+    fn push_func(&mut self, func: Func) {
+        let nth = match self.component_mut().component.sections.last_mut() {
+            Some(Section::Func(FuncSection { funcs })) => funcs.len(),
+            _ => {
+                self.push_section(Section::Func(FuncSection { funcs: vec![] }));
+                0
+            }
+        };
+        let section_index = self.component().component.sections.len() - 1;
+
+        let func_index = u32::try_from(self.component().funcs.len()).unwrap();
+        self.component_mut().funcs.push((section_index, nth));
+
+        match &func {
+            Func::CanonLift { func_ty, .. } => {
+                self.component_mut().interface_funcs.push(func_index);
+                if self.current_type_scope().get_func(*func_ty).is_scalar() {
+                    let interface_func_index = self.component().interface_funcs.len();
+                    self.component_mut().scalar_interface_funcs.push(func_index);
+                }
+            }
+            Func::CanonLower { inter_func, .. } => {
+                let inter_func_ty = self.interface_function_type(*inter_func);
+                let core_func_ty = canonical_abi_for(inter_func_ty);
+                self.component_mut().core_funcs.push(func_index);
+                self.component_mut()
+                    .core_func_types
+                    .insert(func_index, core_func_ty);
+            }
+        }
+
+        match self.component_mut().component.sections.last_mut() {
+            Some(Section::Func(FuncSection { funcs })) => funcs.push(func),
+            _ => unreachable!(),
+        }
+    }
+
     fn arbitrary_import_section(&mut self, u: &mut Unstructured) -> Result<Step> {
-        let mut imports = vec![];
+        self.push_section(Section::Import(ImportSection { imports: vec![] }));
 
         let min = if self.fill_minimums {
             self.config
@@ -1077,28 +1362,175 @@ impl ComponentBuilder {
         if !self.current_type_scope().def_types.is_empty() {
             crate::arbitrary_loop(u, min, max, |u| {
                 let name = crate::unique_string(100, &mut self.component_mut().import_names, u)?;
-                let max_def_ty_idx = self.current_type_scope().def_types.len() - 1;
-                let def_ty_idx = u.int_in_range(0..=max_def_ty_idx)?;
-                let ty = self.current_type_scope().def_types[def_ty_idx];
-                imports.push(Import { name, ty });
+
+                let mut choices: Vec<fn(&mut Unstructured, &mut ComponentBuilder) -> Result<u32>> =
+                    vec![];
+
+                if !self.current_type_scope().module_types.is_empty()
+                    && self.total_modules < self.config.max_modules()
+                {
+                    choices.push(|u, c| u.choose(&c.current_type_scope().module_types).copied());
+                }
+
+                if !self.current_type_scope().component_types.is_empty()
+                    && self.total_components < self.config.max_components()
+                {
+                    choices.push(|u, c| u.choose(&c.current_type_scope().component_types).copied());
+                }
+
+                if !self.current_type_scope().instance_types.is_empty()
+                    && self.total_instances < self.config.max_instances()
+                {
+                    choices.push(|u, c| u.choose(&c.current_type_scope().instance_types).copied());
+                }
+
+                if !self.current_type_scope().func_types.is_empty()
+                    && self.component().num_funcs() < self.config.max_funcs()
+                {
+                    choices.push(|u, c| u.choose(&c.current_type_scope().func_types).copied());
+                }
+
+                if !self.current_type_scope().value_types.is_empty()
+                    && self.total_values < self.config.max_values()
+                {
+                    choices.push(|u, c| u.choose(&c.current_type_scope().value_types).copied());
+                }
+
+                if choices.is_empty() {
+                    return Ok(false);
+                }
+
+                let f = u.choose(&choices)?;
+                let ty = f(u, self)?;
+                self.push_import(name, ty);
                 Ok(true)
             })?;
         }
 
-        self.push_section(Section::Import(ImportSection { imports }));
         Ok(Step::StillBuilding)
     }
 
-    fn arbitrary_func_section(&mut self, u: &mut Unstructured) -> Result<()> {
-        todo!()
+    fn arbitrary_func_section(&mut self, u: &mut Unstructured) -> Result<Step> {
+        self.push_section(Section::Func(FuncSection { funcs: vec![] }));
+
+        let min = if self.fill_minimums {
+            self.config
+                .min_funcs()
+                .saturating_sub(self.component().funcs.len())
+        } else {
+            // Allow generating empty sections. We can always fill in the
+            // required minimum later.
+            0
+        };
+        let max = self.config.max_funcs() - self.component().funcs.len();
+
+        let mut choices: Vec<fn(&mut Unstructured, &mut ComponentBuilder) -> Result<Option<Func>>> =
+            Vec::with_capacity(2);
+
+        crate::arbitrary_loop(u, min, max, |u| {
+            choices.clear();
+
+            // NB: We only lift/lower scalar interface functions.
+            //
+            // If we generated lifting and lowering of compound interface types,
+            // the probability of generating a corresponding Wasm module that
+            // generates valid instances of the compound interface types would
+            // be vanishingly tiny (e.g. for `list<string>` we would have to
+            // generate a core Wasm module that correctly produces a pointer and
+            // length for a memory region that itself is a series of pointers
+            // and lengths of valid strings, as well as `canonical_abi_realloc`
+            // and `canonical_abi_free` functions that do the right thing).
+            //
+            // This is a pretty serious limitation of `wasm-smith`'s interface
+            // types support, but it is one we are intentionally
+            // accepting. `wasm-smith` will focus on generating arbitrary
+            // component sections, structures, and import/export topologies; not
+            // interface functions and core Wasm implementations of interface
+            // functions. In the future, we intend to build a new, distinct test
+            // case generator specifically for exercising interface functions
+            // and the canonical ABI. This new generator won't emit arbitrary
+            // component sections, structures, or import/export topologies, and
+            // will instead leave that to `wasm-smith`.
+
+            if !self.component().scalar_interface_funcs.is_empty() {
+                choices.push(|u, c| {
+                    let inter_func = *u.choose(&c.component().scalar_interface_funcs)?;
+                    Ok(Some(Func::CanonLower {
+                        // Scalar interface functions don't use any canonical options.
+                        options: vec![],
+                        inter_func,
+                    }))
+                });
+            }
+
+            if !self.component().core_funcs.is_empty() {
+                choices.push(|u, c| {
+                    let core_func = *u.choose(&c.component().core_funcs)?;
+                    let core_func_ty = c.component().core_func_types.get(&core_func).unwrap();
+                    let inter_func_ty = inverse_scalar_canonical_abi_for(u, core_func_ty)?;
+
+                    let func_ty = if let Some(indices) = c
+                        .current_type_scope()
+                        .func_type_to_indices
+                        .get(&inter_func_ty)
+                    {
+                        // If we've already defined this interface function type
+                        // one or more times, then choose one of those
+                        // definitions arbitrarily.
+                        debug_assert!(!indices.is_empty());
+                        *u.choose(indices)?
+                    } else if c.current_type_scope().types.len() < c.config.max_types() {
+                        // If we haven't already defined this interface function
+                        // type, and we haven't defined the configured maximum
+                        // amount of types yet, then just define this type.
+                        let ty = Rc::new(Type::Func(Rc::new(inter_func_ty)));
+                        c.push_type(ty)
+                    } else {
+                        // Otherwise, give up on lifting this function.
+                        return Ok(None);
+                    };
+
+                    Ok(Some(Func::CanonLift {
+                        func_ty,
+                        // Scalar functions don't use any canonical options.
+                        options: vec![],
+                        core_func,
+                    }))
+                });
+            }
+
+            if choices.is_empty() {
+                return Ok(false);
+            }
+
+            let f = u.choose(&choices)?;
+            if let Some(func) = f(u, self)? {
+                self.push_func(func);
+            }
+
+            Ok(true)
+        })?;
+
+        Ok(Step::StillBuilding)
     }
 
-    fn arbitrary_core_section(&mut self, u: &mut Unstructured) -> Result<()> {
-        todo!()
+    fn arbitrary_core_section(&mut self, u: &mut Unstructured) -> Result<Step> {
+        let config: Rc<dyn Config> = Rc::clone(&self.config);
+        let module = crate::core::Module::new_internal(
+            config,
+            u,
+            crate::core::DuplicateImportsBehavior::Disallowed,
+        )?;
+        self.push_section(Section::Core(module));
+        self.total_modules += 1;
+        Ok(Step::StillBuilding)
     }
 
-    fn arbitrary_component_section(&mut self, u: &mut Unstructured) -> Result<()> {
-        todo!()
+    fn arbitrary_component_section(&mut self, u: &mut Unstructured) -> Result<Step> {
+        self.types.push(TypesScope::default());
+        self.components.push(ComponentContext::empty());
+        self.total_components += 1;
+        Ok(Step::StillBuilding)
     }
 
     fn arbitrary_instance_section(&mut self, u: &mut Unstructured) -> Result<()> {
@@ -1118,14 +1550,118 @@ impl ComponentBuilder {
     }
 }
 
+fn canonical_abi_for(inter_func_ty: &FuncType) -> Rc<crate::core::FuncType> {
+    let to_core_ty = |ty| match ty {
+        InterfaceTypeRef::Primitive(prim_ty) => match prim_ty {
+            PrimitiveInterfaceType::Unit => None,
+            PrimitiveInterfaceType::Char
+            | PrimitiveInterfaceType::Bool
+            | PrimitiveInterfaceType::S8
+            | PrimitiveInterfaceType::U8
+            | PrimitiveInterfaceType::S16
+            | PrimitiveInterfaceType::U16
+            | PrimitiveInterfaceType::S32
+            | PrimitiveInterfaceType::U32 => Some(ValType::I32),
+            PrimitiveInterfaceType::S64 | PrimitiveInterfaceType::U64 => Some(ValType::I64),
+            PrimitiveInterfaceType::Float32 => Some(ValType::F32),
+            PrimitiveInterfaceType::Float64 => Some(ValType::F64),
+            PrimitiveInterfaceType::String => {
+                unimplemented!("non-scalar types are not supported yet")
+            }
+        },
+        InterfaceTypeRef::Type(_) => unimplemented!("non-scalar types are not supported yet"),
+    };
+
+    Rc::new(crate::core::FuncType {
+        params: inter_func_ty
+            .params
+            .iter()
+            .flat_map(|ty| to_core_ty(ty.ty))
+            .collect(),
+        results: to_core_ty(inter_func_ty.result).into_iter().collect(),
+    })
+}
+
+fn inverse_scalar_canonical_abi_for(
+    u: &mut Unstructured,
+    core_func_ty: &crate::core::FuncType,
+) -> Result<FuncType> {
+    let from_core_ty = |u: &mut Unstructured, core_ty| match core_ty {
+        ValType::I32 => u
+            .choose(&[
+                InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Char),
+                InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Bool),
+                InterfaceTypeRef::Primitive(PrimitiveInterfaceType::S8),
+                InterfaceTypeRef::Primitive(PrimitiveInterfaceType::U8),
+                InterfaceTypeRef::Primitive(PrimitiveInterfaceType::S16),
+                InterfaceTypeRef::Primitive(PrimitiveInterfaceType::U16),
+                InterfaceTypeRef::Primitive(PrimitiveInterfaceType::S32),
+                InterfaceTypeRef::Primitive(PrimitiveInterfaceType::U32),
+            ])
+            .copied(),
+        ValType::I64 => u
+            .choose(&[
+                InterfaceTypeRef::Primitive(PrimitiveInterfaceType::S64),
+                InterfaceTypeRef::Primitive(PrimitiveInterfaceType::U64),
+            ])
+            .copied(),
+        ValType::F32 => Ok(InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Float32)),
+        ValType::F64 => Ok(InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Float64)),
+        ValType::V128 | ValType::FuncRef | ValType::ExternRef => {
+            unreachable!("not used in canonical ABI")
+        }
+    };
+
+    let mut param_names = HashSet::default();
+    let mut params = vec![];
+    if u.ratio::<u8>(1, 25)? {
+        params.push(OptionalNamedType {
+            name: if u.arbitrary()? {
+                Some(crate::unique_non_empty_string(100, &mut param_names, u)?)
+            } else {
+                None
+            },
+            ty: InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Unit),
+        });
+    }
+    for core_ty in &core_func_ty.params {
+        params.push(OptionalNamedType {
+            name: if u.arbitrary()? {
+                Some(crate::unique_non_empty_string(100, &mut param_names, u)?)
+            } else {
+                None
+            },
+            ty: from_core_ty(u, *core_ty)?,
+        });
+        if u.ratio::<u8>(1, 25)? {
+            params.push(OptionalNamedType {
+                name: if u.arbitrary()? {
+                    Some(crate::unique_non_empty_string(100, &mut param_names, u)?)
+                } else {
+                    None
+                },
+                ty: InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Unit),
+            });
+        }
+    }
+
+    let result = match core_func_ty.results.len() {
+        0 => InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Unit),
+        1 => from_core_ty(u, core_func_ty.results[0])?,
+        _ => unimplemented!("non-scalar types are not supported yet"),
+    };
+
+    Ok(FuncType { params, result })
+}
+
 #[derive(Debug)]
 enum Section {
     Custom(CustomSection),
     Type(TypeSection),
     Import(ImportSection),
     Func(FuncSection),
-    Core(CoreSection),
-    Component(ComponentSection),
+    Core(crate::Module),
+    Component(Component),
     Instance(InstanceSection),
     Export(ExportSection),
     Start(StartSection),
@@ -1156,7 +1692,7 @@ enum Type {
     Module(ModuleType),
     Component(ComponentType),
     Instance(InstanceType),
-    Func(FuncType),
+    Func(Rc<FuncType>),
     Value(ValueType),
     Interface(InterfaceType),
 }
@@ -1244,16 +1780,50 @@ enum InstanceTypeDef {
     Alias(Alias),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct FuncType {
     params: Vec<OptionalNamedType>,
     result: InterfaceTypeRef,
 }
 
-#[derive(Clone, Debug)]
+impl FuncType {
+    fn is_scalar(&self) -> bool {
+        self.params.iter().all(|p| p.is_scalar()) && is_scalar(self.result)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct OptionalNamedType {
     name: Option<String>,
     ty: InterfaceTypeRef,
+}
+
+impl OptionalNamedType {
+    fn is_scalar(&self) -> bool {
+        is_scalar(self.ty)
+    }
+}
+
+fn is_scalar(ty: InterfaceTypeRef) -> bool {
+    match ty {
+        InterfaceTypeRef::Primitive(prim) => match prim {
+            PrimitiveInterfaceType::Unit
+            | PrimitiveInterfaceType::Bool
+            | PrimitiveInterfaceType::S8
+            | PrimitiveInterfaceType::U8
+            | PrimitiveInterfaceType::S16
+            | PrimitiveInterfaceType::U16
+            | PrimitiveInterfaceType::S32
+            | PrimitiveInterfaceType::U32
+            | PrimitiveInterfaceType::S64
+            | PrimitiveInterfaceType::U64
+            | PrimitiveInterfaceType::Float32
+            | PrimitiveInterfaceType::Float64
+            | PrimitiveInterfaceType::Char => true,
+            PrimitiveInterfaceType::String => false,
+        },
+        InterfaceTypeRef::Type(_) => false,
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -1337,14 +1907,29 @@ struct Import {
 }
 
 #[derive(Debug)]
-struct FuncSection {}
+struct FuncSection {
+    funcs: Vec<Func>,
+}
 
 #[derive(Debug)]
-struct CoreSection {}
+enum Func {
+    CanonLift {
+        func_ty: u32,
+        options: Vec<CanonOpt>,
+        core_func: u32,
+    },
+    CanonLower {
+        options: Vec<CanonOpt>,
+        inter_func: u32,
+    },
+}
 
 #[derive(Debug)]
-struct ComponentSection {
-    components: Vec<Component>,
+enum CanonOpt {
+    StringUtf8,
+    StringUtf16,
+    StringLatin1Utf16,
+    Into { instance: u32 },
 }
 
 #[derive(Debug)]

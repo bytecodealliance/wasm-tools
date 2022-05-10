@@ -1,11 +1,12 @@
-use crate::ast::{self, annotation, kw};
 use crate::parser::{Parse, Parser, Result};
+use crate::token::{self, Span};
+use crate::{annotation, kw};
 
 /// A wasm custom section within a module.
 #[derive(Debug)]
 pub struct Custom<'a> {
     /// Where this `@custom` was defined.
-    pub span: ast::Span,
+    pub span: Span,
 
     /// Name of the custom section.
     pub name: &'a str,
@@ -36,13 +37,9 @@ pub enum CustomPlace {
 pub enum CustomPlaceAnchor {
     Type,
     Import,
-    Module,
-    Instance,
-    Alias,
     Func,
     Table,
     Memory,
-    Component,
     Global,
     Export,
     Start,
@@ -56,7 +53,7 @@ impl<'a> Parse<'a> for Custom<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<annotation::custom>()?.0;
         let name = parser.parse()?;
-        let place = if parser.peek::<ast::LParen>() {
+        let place = if parser.peek::<token::LParen>() {
             parser.parens(|p| p.parse())?
         } else {
             CustomPlace::AfterLast
@@ -147,14 +144,6 @@ impl<'a> Parse<'a> for CustomPlaceAnchor {
         if parser.peek::<kw::tag>() {
             parser.parse::<kw::tag>()?;
             return Ok(CustomPlaceAnchor::Tag);
-        }
-        if parser.peek::<kw::instance>() {
-            parser.parse::<kw::instance>()?;
-            return Ok(CustomPlaceAnchor::Instance);
-        }
-        if parser.peek::<kw::module>() {
-            parser.parse::<kw::module>()?;
-            return Ok(CustomPlaceAnchor::Module);
         }
 
         Err(parser.error("expected a valid section name"))

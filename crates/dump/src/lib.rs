@@ -1,19 +1,30 @@
 use anyhow::{bail, Result};
-use std::fmt::Write;
+use std::fmt::Write as _;
+use std::io::Write;
 use wasmparser::*;
 
 pub fn dump_wasm(bytes: &[u8]) -> Result<String> {
-    let mut d = Dump::new(bytes);
+    let mut dst = vec![];
+    {
+        let mut d = Dump::new(bytes, &mut dst);
+        d.run()?;
+    }
+    Ok(String::from_utf8(dst).unwrap())
+}
+
+pub fn dump_wasm_into(bytes: &[u8], into: impl Write) -> Result<()> {
+    let mut d = Dump::new(bytes, into);
     d.run()?;
-    Ok(d.dst)
+    Ok(())
 }
 
 struct Dump<'a> {
     bytes: &'a [u8],
     cur: usize,
     state: String,
-    dst: String,
+    dst: Box<dyn Write + 'a>,
     nesting: u32,
+    offset_width: usize,
 }
 
 #[derive(Default)]
@@ -24,18 +35,23 @@ struct Indices {
     memories: u32,
     tags: u32,
     types: u32,
+    instances: u32,
+    components: u32,
+    modules: u32,
+    values: u32,
 }
 
 const NBYTES: usize = 4;
 
 impl<'a> Dump<'a> {
-    fn new(bytes: &'a [u8]) -> Dump<'a> {
+    fn new(bytes: &'a [u8], dst: impl Write + 'a) -> Dump<'a> {
         Dump {
             bytes,
             cur: 0,
             nesting: 0,
             state: String::new(),
-            dst: String::new(),
+            dst: Box::new(dst) as _,
+            offset_width: format!("{:x}", bytes.len()).len() + 1,
         }
     }
 
@@ -61,58 +77,40 @@ impl<'a> Dump<'a> {
                     self.print(range.end)?;
                 }
                 Payload::TypeSection(s) => self.section(s, "type", |me, end, t| {
-                    write!(me.state, "[type {}] {:?}", i.types, t)?;
-                    i.types += 1;
+                    write!(me.state, "[type {}] {:?}", inc(&mut i.types), t)?;
                     me.print(end)
                 })?,
                 Payload::ImportSection(s) => self.section(s, "import", |me, end, imp| {
                     write!(me.state, "import ")?;
                     match imp.ty {
-                        TypeRef::Func(_) => {
-                            write!(me.state, "[func {}]", i.funcs)?;
-                            i.funcs += 1;
-                        }
+                        TypeRef::Func(_) => write!(me.state, "[func {}]", inc(&mut i.funcs))?,
                         TypeRef::Memory(_) => {
-                            write!(me.state, "[memory {}]", i.memories)?;
-                            i.memories += 1;
+                            write!(me.state, "[memory {}]", inc(&mut i.memories))?
                         }
-                        TypeRef::Tag(_) => {
-                            write!(me.state, "[tag {}]", i.tags)?;
-                            i.tags += 1;
-                        }
-                        TypeRef::Table(_) => {
-                            write!(me.state, "[table {}]", i.tables)?;
-                            i.tables += 1;
-                        }
-                        TypeRef::Global(_) => {
-                            write!(me.state, "[global {}]", i.globals)?;
-                            i.globals += 1;
-                        }
+                        TypeRef::Tag(_) => write!(me.state, "[tag {}]", inc(&mut i.tags))?,
+                        TypeRef::Table(_) => write!(me.state, "[table {}]", inc(&mut i.tables))?,
+                        TypeRef::Global(_) => write!(me.state, "[global {}]", inc(&mut i.globals))?,
                     }
                     write!(me.state, " {:?}", imp)?;
                     me.print(end)
                 })?,
                 Payload::FunctionSection(s) => {
-                    let mut cnt = 0;
+                    let mut cnt = i.funcs;
                     self.section(s, "func", |me, end, f| {
-                        write!(me.state, "[func {}] type {:?}", cnt + i.funcs, f)?;
-                        cnt += 1;
+                        write!(me.state, "[func {}] type {:?}", inc(&mut cnt), f)?;
                         me.print(end)
                     })?
                 }
                 Payload::TableSection(s) => self.section(s, "table", |me, end, t| {
-                    write!(me.state, "[table {}] {:?}", i.tables, t)?;
-                    i.tables += 1;
+                    write!(me.state, "[table {}] {:?}", inc(&mut i.tables), t)?;
                     me.print(end)
                 })?,
                 Payload::MemorySection(s) => self.section(s, "memory", |me, end, m| {
-                    write!(me.state, "[memory {}] {:?}", i.memories, m)?;
-                    i.memories += 1;
+                    write!(me.state, "[memory {}] {:?}", inc(&mut i.memories), m)?;
                     me.print(end)
                 })?,
                 Payload::TagSection(s) => self.section(s, "tag", |me, end, m| {
-                    write!(me.state, "[tag {}] {:?}", i.tags, m)?;
-                    i.tags += 1;
+                    write!(me.state, "[tag {}] {:?}", inc(&mut i.tags), m)?;
                     me.print(end)
                 })?,
                 Payload::ExportSection(s) => self.section(s, "export", |me, end, e| {
@@ -120,8 +118,7 @@ impl<'a> Dump<'a> {
                     me.print(end)
                 })?,
                 Payload::GlobalSection(s) => self.section(s, "global", |me, _end, g| {
-                    write!(me.state, "[global {}] {:?}", i.globals, g.ty)?;
-                    i.globals += 1;
+                    write!(me.state, "[global {}] {:?}", inc(&mut i.globals), g.ty)?;
                     me.print(g.init_expr.get_binary_reader().original_position())?;
                     me.print_ops(g.init_expr.get_operators_reader())
                 })?,
@@ -181,7 +178,7 @@ impl<'a> Dump<'a> {
                             me.print_ops(init_expr.get_operators_reader())?;
                         }
                     }
-                    write!(me.dst, "0x{:04x} |", me.cur)?;
+                    me.print_byte_header()?;
                     for _ in 0..NBYTES {
                         write!(me.dst, "---")?;
                     }
@@ -201,9 +198,8 @@ impl<'a> Dump<'a> {
                     write!(
                         self.dst,
                         "============== func {} ====================\n",
-                        i.funcs
+                        inc(&mut i.funcs),
                     )?;
-                    i.funcs += 1;
                     write!(self.state, "size of function")?;
                     self.print(body.get_binary_reader().original_position())?;
                     let mut locals = body.get_locals_reader()?;
@@ -218,15 +214,80 @@ impl<'a> Dump<'a> {
                 }
 
                 // Component sections
-                Payload::ComponentTypeSection(_) => todo!("component-model"),
-                Payload::ComponentImportSection(_) => todo!("component-model"),
-                Payload::ComponentFunctionSection(_) => todo!("component-model"),
-                Payload::ModuleSection { .. } => todo!("component-model"),
-                Payload::ComponentSection { .. } => todo!("component-model"),
-                Payload::InstanceSection(_) => todo!("component-model"),
-                Payload::ComponentExportSection(_) => todo!("component-model"),
+                Payload::ComponentTypeSection(s) => self.section(s, "type", |me, end, t| {
+                    write!(me.state, "[type {}] {:?}", inc(&mut i.types), t)?;
+                    me.print(end)
+                })?,
+
+                Payload::ComponentImportSection(s) => {
+                    self.section(s, "import", |me, end, item| {
+                        write!(me.state, "[func {}] {:?}", inc(&mut i.funcs), item)?;
+                        me.print(end)
+                    })?
+                }
+
+                Payload::ComponentFunctionSection(s) => {
+                    self.section(s, "component function", |me, end, f| {
+                        write!(me.state, "[func {}] {:?}", inc(&mut i.funcs), f)?;
+                        me.print(end)
+                    })?
+                }
+
+                Payload::ModuleSection { range, .. } => {
+                    write!(self.state, "[module {}] inline size", inc(&mut i.modules))?;
+                    self.print(range.start)?;
+                    self.nesting += 1;
+                    stack.push(i);
+                    i = Indices::default();
+                }
+
+                Payload::ComponentSection { range, .. } => {
+                    write!(
+                        self.state,
+                        "[component {}] inline size",
+                        inc(&mut i.components)
+                    )?;
+                    self.print(range.start)?;
+                    self.nesting += 1;
+                    stack.push(i);
+                    i = Indices::default();
+                }
+
+                Payload::InstanceSection(s) => self.section(s, "instance", |me, end, e| {
+                    write!(me.state, "[instance {}] {:?}", i.instances, e)?;
+                    me.print(end)
+                })?,
+
+                Payload::ComponentExportSection(s) => {
+                    self.section(s, "component-export", |me, end, e| {
+                        write!(me.state, "export {:?}", e)?;
+                        me.print(end)
+                    })?
+                }
+
                 Payload::ComponentStartSection { .. } => todo!("component-model"),
-                Payload::AliasSection(_) => todo!("component-model"),
+
+                Payload::AliasSection(s) => self.section(s, "alias", |me, end, a| {
+                    let (kind, num) = match a {
+                        Alias::InstanceExport { kind, .. } => match kind {
+                            AliasKind::Module => ("module", inc(&mut i.modules)),
+                            AliasKind::Component => ("component", inc(&mut i.components)),
+                            AliasKind::Instance => ("instance", inc(&mut i.instances)),
+                            AliasKind::ComponentFunc => ("component func", inc(&mut i.funcs)),
+                            AliasKind::Value => ("value", inc(&mut i.values)),
+                            AliasKind::Func => ("func", inc(&mut i.funcs)),
+                            AliasKind::Table => ("table", inc(&mut i.tables)),
+                            AliasKind::Memory => ("memory", inc(&mut i.memories)),
+                            AliasKind::Global => ("global", inc(&mut i.globals)),
+                            AliasKind::Tag => ("tag", inc(&mut i.tags)),
+                        },
+                        Alias::OuterModule { .. } => ("module", inc(&mut i.modules)),
+                        Alias::OuterComponent { .. } => ("component", inc(&mut i.components)),
+                        Alias::OuterType { .. } => ("type", inc(&mut i.types)),
+                    };
+                    write!(me.state, "alias [{} {}] {:?}", kind, num, a)?;
+                    me.print(end)
+                })?,
 
                 Payload::CustomSection(c) => {
                     write!(self.state, "custom section")?;
@@ -239,7 +300,7 @@ impl<'a> Dump<'a> {
                             self.print_custom_name_section(iter.read()?, iter.original_position())?;
                         }
                     } else {
-                        write!(self.dst, "0x{:04x} |", self.cur)?;
+                        self.print_byte_header()?;
                         for _ in 0..NBYTES {
                             write!(self.dst, "---")?;
                         }
@@ -254,7 +315,7 @@ impl<'a> Dump<'a> {
                 } => {
                     write!(self.state, "unknown section: {}", id)?;
                     self.print(range.start)?;
-                    write!(self.dst, "0x{:04x} |", self.cur)?;
+                    self.print_byte_header()?;
                     for _ in 0..NBYTES {
                         write!(self.dst, "---")?;
                     }
@@ -390,23 +451,22 @@ impl<'a> Dump<'a> {
     fn print(&mut self, end: usize) -> Result<()> {
         assert!(
             self.cur < end,
-            "{:#x} >= {:#x}\ntrying to print: {}\n{}",
+            "{:#x} >= {:#x}\ntrying to print: {}",
             self.cur,
             end,
             self.state,
-            self.dst
         );
         let bytes = &self.bytes[self.cur..end];
-        for _ in 0..self.nesting - 1 {
-            write!(self.dst, "  ")?;
-        }
-        write!(self.dst, "0x{:04x} |", self.cur)?;
+        self.print_byte_header()?;
         for (i, chunk) in bytes.chunks(NBYTES).enumerate() {
             if i > 0 {
                 for _ in 0..self.nesting - 1 {
                     write!(self.dst, "  ")?;
                 }
-                self.dst.push_str("       |");
+                for _ in 0..self.offset_width {
+                    write!(self.dst, " ")?;
+                }
+                write!(self.dst, "   |")?;
             }
             for j in 0..NBYTES {
                 match chunk.get(j) {
@@ -415,13 +475,32 @@ impl<'a> Dump<'a> {
                 }
             }
             if i == 0 {
-                self.dst.push_str(" | ");
-                self.dst.push_str(&self.state);
+                write!(self.dst, " | ")?;
+                write!(self.dst, "{}", &self.state)?;
                 self.state.truncate(0);
             }
-            self.dst.push_str("\n");
+            write!(self.dst, "\n")?;
         }
         self.cur = end;
         Ok(())
     }
+
+    fn print_byte_header(&mut self) -> Result<()> {
+        for _ in 0..self.nesting - 1 {
+            write!(self.dst, "  ")?;
+        }
+        write!(
+            self.dst,
+            "{:#width$x} |",
+            self.cur,
+            width = self.offset_width + 2
+        )?;
+        Ok(())
+    }
+}
+
+fn inc(spot: &mut u32) -> u32 {
+    let ret = *spot;
+    *spot += 1;
+    return ret;
 }

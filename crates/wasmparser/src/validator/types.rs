@@ -1,8 +1,8 @@
 //! Types relating to type information provided by validation.
 
+use super::{component::ComponentState, core::Module};
+use crate::{FuncType, GlobalType, MemoryType, PrimitiveInterfaceType, TableType, Type};
 use indexmap::{IndexMap, IndexSet};
-
-use crate::{FuncType, GlobalType, MemoryType, PrimitiveInterfaceType, Result, TableType, Type};
 use std::{
     borrow::Borrow,
     collections::HashMap,
@@ -11,11 +11,82 @@ use std::{
     sync::Arc,
 };
 
-use super::{component::ComponentState, core::Module};
+/// The maximum number of parameters in the canonical ABI that can be passed by value.
+///
+/// Functions that exceed this limit will instead pass parameters indirectly from
+/// linear memory via a single pointer parameter.
+const MAX_FLAT_FUNC_PARAMS: usize = 16;
+/// The maximum number of results in the canonical ABI that can be returned by a function.
+///
+/// Functions that exceed this limit have their results written to linear memory via an
+/// additional pointer parameter (imports) or return a single pointer value (exports).
+const MAX_FLAT_FUNC_RESULTS: usize = 1;
 
-fn push_primitive_wasm_types(ty: &PrimitiveInterfaceType, wasm_types: &mut Vec<Type>) {
+/// The maximum lowered types, including a possible type for a return pointer parameter.
+const MAX_LOWERED_TYPES: usize = MAX_FLAT_FUNC_PARAMS + 1;
+
+/// A simple alloc-free list of types used for calculating lowered function signatures.
+pub(crate) struct LoweredTypes {
+    types: [Type; MAX_LOWERED_TYPES],
+    len: usize,
+    max: usize,
+}
+
+impl LoweredTypes {
+    fn new(max: usize) -> Self {
+        assert!(max <= MAX_LOWERED_TYPES);
+        Self {
+            types: [Type::I32; MAX_LOWERED_TYPES],
+            len: 0,
+            max,
+        }
+    }
+
+    fn len(&self) -> usize {
+        self.len
+    }
+
+    fn maxed(&self) -> bool {
+        self.len == self.max
+    }
+
+    fn get_mut(&mut self, index: usize) -> Option<&mut Type> {
+        if index < self.len {
+            Some(&mut self.types[index])
+        } else {
+            None
+        }
+    }
+
+    fn push(&mut self, ty: Type) -> bool {
+        if self.maxed() {
+            return false;
+        }
+
+        self.types[self.len] = ty;
+        self.len += 1;
+        true
+    }
+
+    fn clear(&mut self) {
+        self.len = 0;
+    }
+
+    pub fn as_slice(&self) -> &[Type] {
+        &self.types[..self.len]
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = Type> + '_ {
+        self.as_slice().iter().copied()
+    }
+}
+
+fn push_primitive_wasm_types(
+    ty: &PrimitiveInterfaceType,
+    lowered_types: &mut LoweredTypes,
+) -> bool {
     match ty {
-        PrimitiveInterfaceType::Unit => {}
+        PrimitiveInterfaceType::Unit => true,
         PrimitiveInterfaceType::Bool
         | PrimitiveInterfaceType::S8
         | PrimitiveInterfaceType::U8
@@ -23,15 +94,13 @@ fn push_primitive_wasm_types(ty: &PrimitiveInterfaceType, wasm_types: &mut Vec<T
         | PrimitiveInterfaceType::U16
         | PrimitiveInterfaceType::S32
         | PrimitiveInterfaceType::U32
-        | PrimitiveInterfaceType::Char => {
-            wasm_types.push(Type::I32);
+        | PrimitiveInterfaceType::Char => lowered_types.push(Type::I32),
+        PrimitiveInterfaceType::S64 | PrimitiveInterfaceType::U64 => lowered_types.push(Type::I64),
+        PrimitiveInterfaceType::Float32 => lowered_types.push(Type::F32),
+        PrimitiveInterfaceType::Float64 => lowered_types.push(Type::F64),
+        PrimitiveInterfaceType::String => {
+            lowered_types.push(Type::I32) && lowered_types.push(Type::I32)
         }
-        PrimitiveInterfaceType::S64 | PrimitiveInterfaceType::U64 => {
-            wasm_types.push(Type::I64);
-        }
-        PrimitiveInterfaceType::Float32 => wasm_types.push(Type::F32),
-        PrimitiveInterfaceType::Float64 => wasm_types.push(Type::F64),
-        PrimitiveInterfaceType::String => wasm_types.extend([Type::I32, Type::I32]),
     }
 }
 
@@ -153,20 +222,13 @@ impl InterfaceTypeRef {
         }
     }
 
-    pub(crate) fn push_wasm_types(
-        &self,
-        types: &TypeList,
-        offset: usize,
-        wasm_types: &mut Vec<Type>,
-    ) -> Result<()> {
+    fn push_wasm_types(&self, types: &TypeList, lowered_types: &mut LoweredTypes) -> bool {
         match self {
-            Self::Primitive(ty) => push_primitive_wasm_types(ty, wasm_types),
+            Self::Primitive(ty) => push_primitive_wasm_types(ty, lowered_types),
             Self::Type(idx) => types[*idx]
                 .unwrap_interface_type()
-                .push_wasm_types(types, offset, wasm_types)?,
+                .push_wasm_types(types, lowered_types),
         }
-
-        Ok(())
     }
 }
 
@@ -429,7 +491,6 @@ pub struct ComponentFuncType {
     pub params: Box<[(Option<String>, InterfaceTypeRef)]>,
     /// The function's result type.
     pub result: InterfaceTypeRef,
-    pub(crate) core_type: FuncType,
 }
 
 impl ComponentFuncType {
@@ -468,6 +529,38 @@ impl ComponentFuncType {
             .iter()
             .skip(self.params.len())
             .all(|(_, ty)| ty.is_optional(types))
+    }
+
+    /// Lowers the component function type to core parameter and result types for the
+    /// canonical ABI.
+    pub(crate) fn lower(&self, types: &TypeList, import: bool) -> (LoweredTypes, LoweredTypes) {
+        let mut params = LoweredTypes::new(MAX_FLAT_FUNC_PARAMS);
+        let mut results = LoweredTypes::new(MAX_FLAT_FUNC_RESULTS);
+
+        for (_, ty) in self.params.iter() {
+            if !ty.push_wasm_types(types, &mut params) {
+                // Too many parameters to pass directly
+                // Function will have a single pointer parameter to pass the arguments
+                // via linear memory
+                params.clear();
+                assert!(params.push(Type::I32));
+                break;
+            }
+        }
+
+        if !self.result.push_wasm_types(types, &mut results) {
+            // Too many results to return directly, either a retptr parameter will be used (import)
+            // or a single pointer will be returned (export)
+            results.clear();
+            if import {
+                params.max = MAX_LOWERED_TYPES;
+                assert!(params.push(Type::I32));
+            } else {
+                assert!(results.push(Type::I32));
+            }
+        }
+
+        (params, results)
     }
 }
 
@@ -597,104 +690,79 @@ impl InterfaceType {
         }
     }
 
-    pub(crate) fn push_wasm_types(
-        &self,
-        types: &TypeList,
-        offset: usize,
-        wasm_types: &mut Vec<Type>,
-    ) -> Result<()> {
+    fn push_wasm_types(&self, types: &TypeList, lowered_types: &mut LoweredTypes) -> bool {
         match self {
-            Self::Primitive(ty) => push_primitive_wasm_types(ty, wasm_types),
-            Self::Record(fields) => {
-                for (_, ty) in fields.iter() {
-                    ty.push_wasm_types(types, offset, wasm_types)?;
-                }
-            }
-            Self::Variant(cases) => {
-                Self::push_variant_types(
-                    cases.iter().map(|(_, case)| &case.ty),
-                    types,
-                    offset,
-                    wasm_types,
-                )?;
-            }
-            Self::List(_) => {
-                wasm_types.extend([Type::I32, Type::I32]);
-            }
-            Self::Tuple(tys) => {
-                for ty in tys.iter() {
-                    ty.push_wasm_types(types, offset, wasm_types)?;
-                }
-            }
+            Self::Primitive(ty) => push_primitive_wasm_types(ty, lowered_types),
+            Self::Record(fields) => fields
+                .iter()
+                .all(|(_, ty)| ty.push_wasm_types(types, lowered_types)),
+            Self::Variant(cases) => Self::push_variant_types(
+                cases.iter().map(|(_, case)| &case.ty),
+                types,
+                lowered_types,
+            ),
+            Self::List(_) => lowered_types.push(Type::I32) && lowered_types.push(Type::I32),
+            Self::Tuple(tys) => tys
+                .iter()
+                .all(|ty| ty.push_wasm_types(types, lowered_types)),
             Self::Flags(names) => {
-                if names.len() <= 32 {
-                    wasm_types.push(Type::I32);
-                } else if names.len() <= 64 {
-                    wasm_types.push(Type::I64);
-                } else {
-                    for _ in 0..(names.len() + 31) / 32 {
-                        wasm_types.push(Type::I32);
-                    }
-                }
+                (0..(names.len() + 31) / 32).all(|_| lowered_types.push(Type::I32))
             }
-            Self::Enum(names) => {
-                if names.len() < u32::max_value() as usize {
-                    wasm_types.push(Type::I32);
-                } else {
-                    wasm_types.push(Type::I64);
-                }
-            }
-            Self::Union(tys) => {
-                Self::push_variant_types(tys.iter(), types, offset, wasm_types)?;
-            }
-            Self::Option(ty) => {
-                Self::push_variant_types([ty].into_iter(), types, offset, wasm_types)?;
-            }
+            Self::Enum(_) => lowered_types.push(Type::I32),
+            Self::Union(tys) => Self::push_variant_types(tys.iter(), types, lowered_types),
+            Self::Option(ty) => Self::push_variant_types([ty].into_iter(), types, lowered_types),
             Self::Expected(ok, error) => {
-                Self::push_variant_types([ok, error].into_iter(), types, offset, wasm_types)?;
+                Self::push_variant_types([ok, error].into_iter(), types, lowered_types)
             }
         }
-
-        Ok(())
     }
 
     fn push_variant_types<'a>(
         cases: impl ExactSizeIterator<Item = &'a InterfaceTypeRef>,
         types: &TypeList,
-        offset: usize,
-        wasm_types: &mut Vec<Type>,
-    ) -> Result<()> {
-        if cases.len() < u32::max_value() as usize {
-            wasm_types.push(Type::I32);
+        lowered_types: &mut LoweredTypes,
+    ) -> bool {
+        let pushed = if cases.len() <= u32::max_value() as usize {
+            lowered_types.push(Type::I32)
         } else {
-            wasm_types.push(Type::I64);
+            lowered_types.push(Type::I64)
+        };
+
+        if !pushed {
+            return false;
         }
 
-        let start = wasm_types.len();
-        let mut temp = Vec::new();
+        let start = lowered_types.len();
 
         for ty in cases {
-            ty.push_wasm_types(types, offset, &mut temp)?;
+            let mut temp = LoweredTypes::new(lowered_types.max);
 
-            for (i, ty) in temp.drain(..).enumerate() {
-                match wasm_types.get_mut(start + i) {
-                    Some(prev) => *prev = Self::unify_wasm_type(*prev, ty),
-                    None => wasm_types.push(ty),
+            if !ty.push_wasm_types(types, &mut temp) {
+                return false;
+            }
+
+            for (i, ty) in temp.iter().enumerate() {
+                match lowered_types.get_mut(start + i) {
+                    Some(prev) => *prev = Self::join_types(*prev, ty),
+                    None => {
+                        if !lowered_types.push(ty) {
+                            return false;
+                        }
+                    }
                 }
             }
         }
 
-        Ok(())
+        true
     }
 
-    fn unify_wasm_type(a: Type, b: Type) -> Type {
+    fn join_types(a: Type, b: Type) -> Type {
         use Type::*;
 
         match (a, b) {
-            (I64, _) | (_, I64) | (I32, F64) | (F64, I32) => I64,
-            (I32, I32) | (I32, F32) | (F32, I32) => I32,
-            (F32, F32) => F32,
-            (F64, F64) | (F32, F64) | (F64, F32) => F64,
+            (I32, I32) | (I64, I64) | (F32, F32) | (F64, F64) => a,
+            (I32, F32) | (F32, I32) => I32,
+            (_, I64 | F64) | (I64 | F64, _) => I64,
             _ => panic!("unexpected wasm type for canonical ABI"),
         }
     }

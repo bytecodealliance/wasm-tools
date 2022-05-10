@@ -1,28 +1,16 @@
-use crate::ast::{self, kw};
+use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
+use crate::token::{ItemRef, Span};
 
 /// A entry in a WebAssembly module's export section.
 #[derive(Debug)]
 pub struct Export<'a> {
     /// Where this export was defined.
-    pub span: ast::Span,
+    pub span: Span,
     /// The name of this export from the module.
     pub name: &'a str,
     /// What's being exported from the module.
-    pub index: ast::ItemRef<'a, ExportKind>,
-}
-
-/// A entry in a WebAssembly component's export section.
-///
-/// export       ::= (export <name> <componentarg>)
-#[derive(Debug)]
-pub struct ComponentExport<'a> {
-    /// Where this export was defined.
-    pub span: ast::Span,
-    /// The name of this export from the component.
-    pub name: &'a str,
-    /// What's being exported from the component.
-    pub arg: ast::ComponentArg<'a>,
+    pub index: ItemRef<'a, ExportKind>,
 }
 
 /// Different kinds of elements that can be exported from a WebAssembly module,
@@ -40,19 +28,11 @@ pub enum ExportKind {
 
 impl<'a> Parse<'a> for Export<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let span = parser.parse::<kw::export>()?.0;
-        let name = parser.parse()?;
-        let index = parser.parse()?;
-        Ok(Export { span, name, index })
-    }
-}
-
-impl<'a> Parse<'a> for ComponentExport<'a> {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        let span = parser.parse::<kw::export>()?.0;
-        let name = parser.parse()?;
-        let arg = parser.parse()?;
-        Ok(ComponentExport { span, name, arg })
+        Ok(Export {
+            span: parser.parse::<kw::export>()?.0,
+            name: parser.parse()?,
+            index: parser.parse()?,
+        })
     }
 }
 
@@ -83,47 +63,17 @@ impl<'a> Parse<'a> for ExportKind {
     }
 }
 
-impl Peek for ExportKind {
-    fn peek(cursor: Cursor<'_>) -> bool {
-        kw::func::peek(cursor)
-            || kw::table::peek(cursor)
-            || kw::memory::peek(cursor)
-            || kw::global::peek(cursor)
-            || kw::tag::peek(cursor)
-            || kw::r#type::peek(cursor)
-    }
-    fn display() -> &'static str {
-        "export kind"
-    }
-}
-
-macro_rules! kw_defaults {
-    ($($kw:ident)*) => ($(
-        impl Default for kw::$kw {
-            fn default() -> kw::$kw {
-                kw::$kw(ast::Span::from_offset(0))
-            }
-        }
-    )*);
-}
-
-kw_defaults! {
-    instance
-    module
-    component
-    func
-    table
-    global
-    tag
-    memory
-    r#type
-}
-
 macro_rules! kw_conversions {
     ($($kw:ident => $kind:ident)*) => ($(
         impl From<kw::$kw> for ExportKind {
             fn from(_: kw::$kw) -> ExportKind {
                 ExportKind::$kind
+            }
+        }
+
+        impl Default for kw::$kw {
+            fn default() -> kw::$kw {
+                kw::$kw(Span::from_offset(0))
             }
         }
     )*);

@@ -1,8 +1,10 @@
-use crate::ast::*;
-use crate::resolve::gensym::Gensym;
+use crate::core::*;
+use crate::gensym;
+use crate::kw;
+use crate::token::{Id, Index, ItemRef, Span};
 use std::mem;
 
-pub(crate) fn run(fields: &mut Vec<ModuleField>, gensym: &mut Gensym) {
+pub fn run(fields: &mut Vec<ModuleField>) {
     let mut cur = 0;
     let mut to_append = Vec::new();
     while cur < fields.len() {
@@ -10,7 +12,7 @@ pub(crate) fn run(fields: &mut Vec<ModuleField>, gensym: &mut Gensym) {
         match item {
             ModuleField::Func(f) => {
                 for name in f.exports.names.drain(..) {
-                    to_append.push(export(f.span, name, ExportKind::Func, &mut f.id, gensym));
+                    to_append.push(export(f.span, name, ExportKind::Func, &mut f.id));
                 }
                 match f.kind {
                     FuncKind::Import(import) => {
@@ -32,7 +34,7 @@ pub(crate) fn run(fields: &mut Vec<ModuleField>, gensym: &mut Gensym) {
 
             ModuleField::Memory(m) => {
                 for name in m.exports.names.drain(..) {
-                    to_append.push(export(m.span, name, ExportKind::Memory, &mut m.id, gensym));
+                    to_append.push(export(m.span, name, ExportKind::Memory, &mut m.id));
                 }
                 match m.kind {
                     MemoryKind::Import { import, ty } => {
@@ -74,7 +76,7 @@ pub(crate) fn run(fields: &mut Vec<ModuleField>, gensym: &mut Gensym) {
                             MemoryKind::Inline { data, .. } => data,
                             _ => unreachable!(),
                         };
-                        let id = gensym.fill(m.span, &mut m.id);
+                        let id = gensym::fill(m.span, &mut m.id);
                         to_append.push(ModuleField::Data(Data {
                             span: m.span,
                             id: None,
@@ -99,7 +101,7 @@ pub(crate) fn run(fields: &mut Vec<ModuleField>, gensym: &mut Gensym) {
 
             ModuleField::Table(t) => {
                 for name in t.exports.names.drain(..) {
-                    to_append.push(export(t.span, name, ExportKind::Table, &mut t.id, gensym));
+                    to_append.push(export(t.span, name, ExportKind::Table, &mut t.id));
                 }
                 match &mut t.kind {
                     TableKind::Import { import, ty } => {
@@ -133,7 +135,7 @@ pub(crate) fn run(fields: &mut Vec<ModuleField>, gensym: &mut Gensym) {
                             TableKind::Inline { payload, .. } => payload,
                             _ => unreachable!(),
                         };
-                        let id = gensym.fill(t.span, &mut t.id);
+                        let id = gensym::fill(t.span, &mut t.id);
                         to_append.push(ModuleField::Elem(Elem {
                             span: t.span,
                             id: None,
@@ -154,7 +156,7 @@ pub(crate) fn run(fields: &mut Vec<ModuleField>, gensym: &mut Gensym) {
 
             ModuleField::Global(g) => {
                 for name in g.exports.names.drain(..) {
-                    to_append.push(export(g.span, name, ExportKind::Global, &mut g.id, gensym));
+                    to_append.push(export(g.span, name, ExportKind::Global, &mut g.id));
                 }
                 match g.kind {
                     GlobalKind::Import(import) => {
@@ -176,7 +178,7 @@ pub(crate) fn run(fields: &mut Vec<ModuleField>, gensym: &mut Gensym) {
 
             ModuleField::Tag(e) => {
                 for name in e.exports.names.drain(..) {
-                    to_append.push(export(e.span, name, ExportKind::Tag, &mut e.id, gensym));
+                    to_append.push(export(e.span, name, ExportKind::Tag, &mut e.id));
                 }
                 match e.kind {
                     TagKind::Import(import) => {
@@ -221,9 +223,8 @@ fn export<'a>(
     name: &'a str,
     kind: ExportKind,
     id: &mut Option<Id<'a>>,
-    gensym: &mut Gensym,
 ) -> ModuleField<'a> {
-    let id = gensym.fill(span, id);
+    let id = gensym::fill(span, id);
     ModuleField::Export(Export {
         span,
         name,
@@ -235,8 +236,5 @@ fn item_ref<'a, K>(kind: K, id: impl Into<Index<'a>>) -> ItemRef<'a, K> {
     ItemRef {
         kind,
         idx: id.into(),
-        extra_names: Vec::new(),
-        #[cfg(wast_check_exhaustive)]
-        visited: false,
     }
 }

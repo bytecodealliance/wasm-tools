@@ -14,8 +14,8 @@ pub struct Opts {
 impl Opts {
     pub fn run(&self) -> Result<()> {
         let input = wat::parse_file(&self.input)?;
-        println!("{}", wasmparser_dump::dump_wasm(&input)?);
-
+        let stdout = std::io::stdout();
+        wasmparser_dump::dump_wasm_into(&input, stdout.lock())?;
         Ok(())
     }
 }

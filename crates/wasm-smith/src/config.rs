@@ -228,8 +228,24 @@ pub trait Config: 'static + std::fmt::Debug {
     /// The maximum number of modules to use. Defaults to 10. This includes
     /// imported modules.
     ///
-    /// Note that this is irrelevant unless module linking is enabled.
+    /// Note that this is irrelevant unless component model support is enabled.
     fn max_modules(&self) -> usize {
+        10
+    }
+
+    /// The maximum number of components to use. Defaults to 10. This includes
+    /// imported components.
+    ///
+    /// Note that this is irrelevant unless component model support is enabled.
+    fn max_components(&self) -> usize {
+        10
+    }
+
+    /// The maximum number of values to use. Defaults to 10. This includes
+    /// imported values.
+    ///
+    /// Note that this is irrelevant unless value model support is enabled.
+    fn max_values(&self) -> usize {
         10
     }
 
@@ -431,6 +447,7 @@ pub struct SwarmConfig {
     pub canonicalize_nans: bool,
     pub exceptions_enabled: bool,
     pub max_aliases: usize,
+    pub max_components: usize,
     pub max_data_segments: usize,
     pub max_element_segments: usize,
     pub max_elements: usize,
@@ -448,6 +465,7 @@ pub struct SwarmConfig {
     pub max_tags: usize,
     pub max_type_size: u32,
     pub max_types: usize,
+    pub max_values: usize,
     pub memory64_enabled: bool,
     pub memory_max_size_required: bool,
     pub memory_offset_choices: (u32, u32, u32),
@@ -519,6 +537,8 @@ impl<'a> Arbitrary<'a> for SwarmConfig {
             memory_max_size_required: false,
             max_instances: 0,
             max_modules: 0,
+            max_components: 0,
+            max_values: 0,
             memory_offset_choices: (75, 24, 1),
             allow_start_export: true,
             relaxed_simd_enabled: false,

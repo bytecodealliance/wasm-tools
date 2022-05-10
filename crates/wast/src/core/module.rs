@@ -1,17 +1,19 @@
-use crate::ast::{self, annotation, kw};
+use crate::core::*;
 use crate::parser::{Parse, Parser, Result};
+use crate::token::{Id, IndexOrRef, ItemRef, NameAnnotation, Span};
+use crate::{annotation, kw};
 
-pub use crate::resolve::Names;
+pub use crate::core::resolve::Names;
 
 /// A parsed WebAssembly core module.
 #[derive(Debug)]
 pub struct Module<'a> {
     /// Where this `module` was defined
-    pub span: ast::Span,
+    pub span: Span,
     /// An optional identifier this module is known by
-    pub id: Option<ast::Id<'a>>,
+    pub id: Option<Id<'a>>,
     /// An optional `@name` annotation for this module
-    pub name: Option<ast::NameAnnotation<'a>>,
+    pub name: Option<NameAnnotation<'a>>,
     /// What kind of module this was parsed as.
     pub kind: ModuleKind<'a>,
 }
@@ -38,9 +40,9 @@ impl<'a> Module<'a> {
     /// where expansion and name resolution happens.
     ///
     /// This function will mutate the AST of this [`Module`] and replace all
-    /// [`super::Index`] arguments with `Index::Num`. This will also expand inline
-    /// exports/imports listed on fields and handle various other shorthands of
-    /// the text format.
+    /// [`Index`](crate::token::Index) arguments with `Index::Num`. This will
+    /// also expand inline exports/imports listed on fields and handle various
+    /// other shorthands of the text format.
     ///
     /// If successful the AST was modified to be ready for binary encoding. A
     /// [`Names`] structure is also returned so if you'd like to do your own
@@ -51,7 +53,7 @@ impl<'a> Module<'a> {
     /// If an error happens during resolution, such a name resolution error or
     /// items are found in the wrong order, then an error is returned.
     pub fn resolve(&mut self) -> std::result::Result<Names<'a>, crate::Error> {
-        crate::resolve::resolve(self)
+        crate::core::resolve::resolve(self)
     }
 
     /// Encodes this [`Module`] to its binary form.
@@ -80,10 +82,10 @@ impl<'a> Module<'a> {
     /// expansion-related errors.
     pub fn encode(&mut self) -> std::result::Result<Vec<u8>, crate::Error> {
         self.resolve()?;
-        Ok(crate::binary::encode_module(self))
+        Ok(crate::core::binary::encode(self))
     }
 
-    pub(super) fn validate(&self, parser: Parser<'_>) -> Result<()> {
+    pub(crate) fn validate(&self, parser: Parser<'_>) -> Result<()> {
         let mut starts = 0;
         if let ModuleKind::Text(fields) = &self.kind {
             for item in fields.iter() {
@@ -102,7 +104,6 @@ impl<'a> Module<'a> {
 impl<'a> Parse<'a> for Module<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let _r = parser.register_annotation("custom");
-
         let span = parser.parse::<kw::module>()?.0;
         let id = parser.parse()?;
         let name = parser.parse()?;
@@ -130,22 +131,22 @@ impl<'a> Parse<'a> for Module<'a> {
 #[allow(missing_docs)]
 #[derive(Debug)]
 pub enum ModuleField<'a> {
-    Type(ast::Type<'a>),
-    Import(ast::Import<'a>),
-    Func(ast::Func<'a>),
-    Table(ast::Table<'a>),
-    Memory(ast::Memory<'a>),
-    Global(ast::Global<'a>),
-    Export(ast::Export<'a>),
-    Start(ast::ItemRef<'a, kw::func>),
-    Elem(ast::Elem<'a>),
-    Data(ast::Data<'a>),
-    Tag(ast::Tag<'a>),
-    Custom(ast::Custom<'a>),
+    Type(Type<'a>),
+    Import(Import<'a>),
+    Func(Func<'a>),
+    Table(Table<'a>),
+    Memory(Memory<'a>),
+    Global(Global<'a>),
+    Export(Export<'a>),
+    Start(ItemRef<'a, kw::func>),
+    Elem(Elem<'a>),
+    Data(Data<'a>),
+    Tag(Tag<'a>),
+    Custom(Custom<'a>),
 }
 
 impl<'a> ModuleField<'a> {
-    pub(super) fn parse_remaining(parser: Parser<'a>) -> Result<Vec<ModuleField>> {
+    pub(crate) fn parse_remaining(parser: Parser<'a>) -> Result<Vec<ModuleField>> {
         let mut fields = Vec::new();
         while !parser.is_empty() {
             fields.push(parser.parens(ModuleField::parse)?);
@@ -179,7 +180,7 @@ impl<'a> Parse<'a> for ModuleField<'a> {
         }
         if parser.peek::<kw::start>() {
             parser.parse::<kw::start>()?;
-            return Ok(ModuleField::Start(parser.parse::<ast::IndexOrRef<_>>()?.0));
+            return Ok(ModuleField::Start(parser.parse::<IndexOrRef<_>>()?.0));
         }
         if parser.peek::<kw::elem>() {
             return Ok(ModuleField::Elem(parser.parse()?));

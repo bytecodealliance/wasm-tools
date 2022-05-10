@@ -162,17 +162,20 @@ impl ComponentState {
 
         // Lifting a function is for an export, so match the expected canonical ABI
         // export signature
-        let mismatch = if ty.core_type.returns.len() > 1 {
-            ty.core_type.params != core_ty.params
-                || core_ty.returns.len() != 1
-                || core_ty.returns[0] != Type::I32
-        } else {
-            ty.core_type != *core_ty
-        };
+        let (params, results) = ty.lower(types, false);
 
-        if mismatch {
+        if core_ty.params.as_ref() != params.as_slice()
+            || core_ty.returns.as_ref() != results.as_slice()
+        {
             return Err(BinaryReaderError::new(
-                "lowered function type does not match core function type",
+                format!("lowered parameter types `{:?}` do not match parameter types `{:?}` of core function {func_index}", params.as_slice(), core_ty.params),
+                offset,
+            ));
+        }
+
+        if core_ty.returns.as_ref() != results.as_slice() {
+            return Err(BinaryReaderError::new(
+                format!("lowered result types `{:?}` do not match result types `{:?}` of core function {func_index}", results.as_slice(), core_ty.returns),
                 offset,
             ));
         }
@@ -197,23 +200,14 @@ impl ComponentState {
 
         // Lowering a function is for an import, so use a function type that matches
         // the expected canonical ABI import signature.
-        let core_ty = if ty.core_type.returns.len() > 1 {
-            FuncType {
-                params: ty
-                    .core_type
-                    .params
-                    .iter()
-                    .chain(&[Type::I32])
-                    .copied()
-                    .collect(),
-                returns: [].into(),
-            }
-        } else {
-            ty.core_type.clone()
-        };
+        let (params, results) = ty.lower(types, true);
 
         self.functions.push(TypeId(types.len()));
-        types.push(TypeDef::Func(core_ty));
+
+        types.push(TypeDef::Func(FuncType {
+            params: params.as_slice().to_vec().into_boxed_slice(),
+            returns: results.as_slice().to_vec().into_boxed_slice(),
+        }));
 
         Ok(())
     }
@@ -668,9 +662,6 @@ impl ComponentState {
         types: &TypeList,
         offset: usize,
     ) -> Result<ComponentFuncType> {
-        let mut core_params = Vec::new();
-        let mut core_returns = Vec::new();
-
         let params = ty
             .params
             .iter()
@@ -679,22 +670,13 @@ impl ComponentState {
                     Self::check_name(name, "function parameter", offset)?;
                 }
                 let ty = self.create_interface_type_ref(*ty, types, offset)?;
-                ty.push_wasm_types(types, offset, &mut core_params)?;
                 Ok((name.map(ToOwned::to_owned), ty))
             })
             .collect::<Result<_>>()?;
 
         let result = self.create_interface_type_ref(ty.result, types, offset)?;
-        result.push_wasm_types(types, offset, &mut core_returns)?;
 
-        Ok(ComponentFuncType {
-            params,
-            result,
-            core_type: FuncType {
-                params: core_params.into_boxed_slice(),
-                returns: core_returns.into_boxed_slice(),
-            },
-        })
+        Ok(ComponentFuncType { params, result })
     }
 
     fn check_name(name: &str, desc: &str, offset: usize) -> Result<()> {
@@ -1342,15 +1324,23 @@ impl ComponentState {
                     })
                     .collect::<Result<_>>()?,
             ),
-            crate::InterfaceType::Enum(names) => InterfaceType::Enum(
-                names
-                    .iter()
-                    .map(|name| {
-                        Self::check_name(name, "enum tag", offset)?;
-                        Ok(name.to_string())
-                    })
-                    .collect::<Result<_>>()?,
-            ),
+            crate::InterfaceType::Enum(cases) => {
+                if cases.len() > u32::max_value() as usize {
+                    return Err(BinaryReaderError::new(
+                        "enumeration type cannot be represented with a 32-bit discriminant value",
+                        offset,
+                    ));
+                }
+                InterfaceType::Enum(
+                    cases
+                        .iter()
+                        .map(|name| {
+                            Self::check_name(name, "enum tag", offset)?;
+                            Ok(name.to_string())
+                        })
+                        .collect::<Result<_>>()?,
+                )
+            }
             crate::InterfaceType::Union(tys) => InterfaceType::Union(
                 tys.iter()
                     .map(|ty| self.create_interface_type_ref(*ty, types, offset))

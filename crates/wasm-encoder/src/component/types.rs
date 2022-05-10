@@ -253,7 +253,7 @@ impl<'a> TypeEncoder<'a> {
 }
 
 /// Represents a primitive interface type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PrimitiveInterfaceType {
     /// The type is the unit type.
     Unit,
@@ -307,7 +307,7 @@ impl PrimitiveInterfaceType {
 }
 
 /// Represents a reference to an interface type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum InterfaceTypeRef {
     /// The reference is to a primitive type.
     Primitive(PrimitiveInterfaceType),

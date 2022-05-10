@@ -136,3 +136,16 @@ pub(crate) fn unique_string(
     names.insert(name.clone());
     Ok(name)
 }
+
+pub(crate) fn unique_non_empty_string(
+    max_size: usize,
+    names: &mut HashSet<String>,
+    u: &mut Unstructured,
+) -> Result<String> {
+    let mut s = unique_string(max_size, names, u)?;
+    while s.is_empty() || names.contains(&s) {
+        use std::fmt::Write;
+        write!(&mut s, "{}", names.len()).unwrap();
+    }
+    Ok(s)
+}

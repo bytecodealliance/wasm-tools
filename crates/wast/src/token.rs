@@ -1,4 +1,8 @@
-use crate::ast::annotation;
+//! Common tokens that implement the [`Parse`] trait which are otherwise not
+//! associated specifically with the wasm text format per se (useful in other
+//! contexts too perhaps).
+
+use crate::annotation;
 use crate::lexer::FloatVal;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use std::fmt;
@@ -216,18 +220,12 @@ impl Hash for Index<'_> {
     }
 }
 
-/// Parses `(func $foo)` or `(func $foo "thing")`
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+/// Parses `(func $foo)`
+#[derive(Clone, Debug)]
 #[allow(missing_docs)]
 pub struct ItemRef<'a, K> {
     pub kind: K,
     pub idx: Index<'a>,
-    /// Syntax sugar for `export` aliases allows extra names to be added,
-    /// which indicate a sequence of instance lookups to arrive at the
-    /// ultimate referent.
-    pub extra_names: Vec<&'a str>,
-    #[cfg(wast_check_exhaustive)]
-    pub visited: bool,
 }
 
 impl<'a, K: Parse<'a>> Parse<'a> for ItemRef<'a, K> {
@@ -235,17 +233,7 @@ impl<'a, K: Parse<'a>> Parse<'a> for ItemRef<'a, K> {
         parser.parens(|parser| {
             let kind = parser.parse::<K>()?;
             let idx = parser.parse()?;
-            let mut extra_names = Vec::new();
-            while !parser.is_empty() {
-                extra_names.push(parser.parse()?);
-            }
-            Ok(ItemRef {
-                kind,
-                idx,
-                extra_names,
-                #[cfg(wast_check_exhaustive)]
-                visited: false,
-            })
+            Ok(ItemRef { kind, idx })
         })
     }
 }
@@ -276,9 +264,6 @@ where
             Ok(IndexOrRef(ItemRef {
                 kind: K::default(),
                 idx: parser.parse()?,
-                extra_names: Vec::new(),
-                #[cfg(wast_check_exhaustive)]
-                visited: false,
             }))
         } else {
             Ok(IndexOrRef(parser.parse()?))

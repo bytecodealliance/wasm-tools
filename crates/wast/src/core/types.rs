@@ -1,5 +1,7 @@
-use crate::ast::{self, kw};
+use crate::core::*;
+use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
+use crate::token::{Id, Index, ItemRef, LParen, NameAnnotation, Span};
 use std::mem;
 
 /// The value types for a wasm module.
@@ -12,7 +14,7 @@ pub enum ValType<'a> {
     F64,
     V128,
     Ref(RefType<'a>),
-    Rtt(Option<u32>, ast::Index<'a>),
+    Rtt(Option<u32>, Index<'a>),
 }
 
 impl<'a> Parse<'a> for ValType<'a> {
@@ -35,7 +37,7 @@ impl<'a> Parse<'a> for ValType<'a> {
             Ok(ValType::V128)
         } else if l.peek::<RefType>() {
             Ok(ValType::Ref(parser.parse()?))
-        } else if l.peek::<ast::LParen>() {
+        } else if l.peek::<LParen>() {
             parser.parens(|p| {
                 let mut l = p.lookahead1();
                 if l.peek::<kw::rtt>() {
@@ -58,7 +60,7 @@ impl<'a> Peek for ValType<'a> {
             || kw::f32::peek(cursor)
             || kw::f64::peek(cursor)
             || kw::v128::peek(cursor)
-            || (ast::LParen::peek(cursor) && kw::rtt::peek2(cursor))
+            || (LParen::peek(cursor) && kw::rtt::peek2(cursor))
             || RefType::peek(cursor)
     }
     fn display() -> &'static str {
@@ -89,7 +91,7 @@ pub enum HeapType<'a> {
     I31,
     /// A reference to a function, struct, or array: ref T. This is part of the
     /// GC proposal.
-    Index(ast::Index<'a>),
+    Index(Index<'a>),
 }
 
 impl<'a> Parse<'a> for HeapType<'a> {
@@ -113,7 +115,7 @@ impl<'a> Parse<'a> for HeapType<'a> {
         } else if l.peek::<kw::i31>() {
             parser.parse::<kw::i31>()?;
             Ok(HeapType::I31)
-        } else if l.peek::<ast::Index>() {
+        } else if l.peek::<Index>() {
             Ok(HeapType::Index(parser.parse()?))
         } else {
             Err(l.error())
@@ -129,7 +131,7 @@ impl<'a> Peek for HeapType<'a> {
             || kw::eq::peek(cursor)
             || kw::data::peek(cursor)
             || kw::i31::peek(cursor)
-            || (ast::LParen::peek(cursor) && kw::r#type::peek2(cursor))
+            || (LParen::peek(cursor) && kw::r#type::peek2(cursor))
     }
     fn display() -> &'static str {
         "heaptype"
@@ -218,7 +220,7 @@ impl<'a> Parse<'a> for RefType<'a> {
         } else if l.peek::<kw::i31ref>() {
             parser.parse::<kw::i31ref>()?;
             Ok(RefType::i31())
-        } else if l.peek::<ast::LParen>() {
+        } else if l.peek::<LParen>() {
             parser.parens(|p| {
                 let mut l = parser.lookahead1();
                 if l.peek::<kw::r#ref>() {
@@ -253,7 +255,7 @@ impl<'a> Peek for RefType<'a> {
             || kw::eqref::peek(cursor)
             || kw::dataref::peek(cursor)
             || kw::i31ref::peek(cursor)
-            || (ast::LParen::peek(cursor) && kw::r#ref::peek2(cursor))
+            || (LParen::peek(cursor) && kw::r#ref::peek2(cursor))
     }
     fn display() -> &'static str {
         "reftype"
@@ -414,13 +416,7 @@ impl<'a> Parse<'a> for MemoryType {
 pub struct FunctionType<'a> {
     /// The parameters of a function, optionally each having an identifier for
     /// name resolution and a name for the custom `name` section.
-    pub params: Box<
-        [(
-            Option<ast::Id<'a>>,
-            Option<ast::NameAnnotation<'a>>,
-            ValType<'a>,
-        )],
-    >,
+    pub params: Box<[(Option<Id<'a>>, Option<NameAnnotation<'a>>, ValType<'a>)]>,
     /// The results types of a function.
     pub results: Box<[ValType<'a>]>,
 }
@@ -559,7 +555,7 @@ impl<'a> Parse<'a> for StructType<'a> {
 #[derive(Clone, Debug)]
 pub struct StructField<'a> {
     /// An optional identifier for name resolution.
-    pub id: Option<ast::Id<'a>>,
+    pub id: Option<Id<'a>>,
     /// Whether this field may be mutated or not.
     pub mutable: bool,
     /// The storage type stored in this field.
@@ -610,11 +606,11 @@ impl<'a> Parse<'a> for ArrayType<'a> {
 #[derive(Debug, Clone)]
 pub struct ExportType<'a> {
     /// Where this export was defined.
-    pub span: ast::Span,
+    pub span: Span,
     /// The name of this export.
     pub name: &'a str,
     /// The signature of the item that's exported.
-    pub item: ast::ItemSig<'a>,
+    pub item: ItemSig<'a>,
 }
 
 impl<'a> Parse<'a> for ExportType<'a> {
@@ -623,26 +619,6 @@ impl<'a> Parse<'a> for ExportType<'a> {
         let name = parser.parse()?;
         let item = parser.parens(|p| p.parse())?;
         Ok(ExportType { span, name, item })
-    }
-}
-
-/// The type of an exported item from an component or instance.
-#[derive(Debug, Clone)]
-pub struct ComponentExportType<'a> {
-    /// Where this export was defined.
-    pub span: ast::Span,
-    /// The name of this export.
-    pub name: &'a str,
-    /// The signature of the item that's exported.
-    pub item: ComponentTypeUse<'a, ast::DefType<'a>>,
-}
-
-impl<'a> Parse<'a> for ComponentExportType<'a> {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        let span = parser.parse::<kw::export>()?.0;
-        let name = parser.parse()?;
-        let item = parser.parse()?;
-        Ok(ComponentExportType { span, name, item })
     }
 }
 
@@ -657,28 +633,16 @@ pub enum TypeDef<'a> {
     Array(ArrayType<'a>),
 }
 
-/// A definition of a type.
-///
-/// typeexpr          ::= <deftype>
-///                     | <intertype>
-#[derive(Debug, Clone)]
-pub enum ComponentTypeDef<'a> {
-    /// The type of an entity.
-    DefType(ast::DefType<'a>),
-    /// The type of a value.
-    InterType(ast::InterType<'a>),
-}
-
 /// A type declaration in a module
 #[derive(Debug)]
 pub struct Type<'a> {
     /// Where this type was defined.
-    pub span: ast::Span,
+    pub span: Span,
     /// An optional identifer to refer to this `type` by as part of name
     /// resolution.
-    pub id: Option<ast::Id<'a>>,
+    pub id: Option<Id<'a>>,
     /// An optional name for this function stored in the custom `name` section.
-    pub name: Option<ast::NameAnnotation<'a>>,
+    pub name: Option<NameAnnotation<'a>>,
     /// The type that we're declaring.
     pub def: TypeDef<'a>,
 }
@@ -712,48 +676,11 @@ impl<'a> Parse<'a> for Type<'a> {
     }
 }
 
-/// A type declaration in a component.
-///
-/// type              ::= (type <id>? <typeexpr>)
-#[derive(Debug, Clone)]
-pub struct TypeField<'a> {
-    /// Where this type was defined.
-    pub span: ast::Span,
-    /// An optional identifer to refer to this `type` by as part of name
-    /// resolution.
-    pub id: Option<ast::Id<'a>>,
-    /// An optional name for this function stored in the custom `name` section.
-    pub name: Option<ast::NameAnnotation<'a>>,
-    /// The type that we're declaring.
-    pub def: ComponentTypeDef<'a>,
-}
-
-impl<'a> Parse<'a> for TypeField<'a> {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        let span = parser.parse::<kw::r#type>()?.0;
-        let id = parser.parse()?;
-        let name = parser.parse()?;
-        let def = if parser.peek::<ast::DefType>() {
-            ComponentTypeDef::DefType(parser.parse()?)
-        } else if parser.peek::<ast::InterType>() {
-            ComponentTypeDef::InterType(parser.parse()?)
-        } else {
-            return Err(parser.error("expected deftype or intertype"));
-        };
-        Ok(TypeField {
-            span,
-            id,
-            name,
-            def,
-        })
-    }
-}
-
 /// A reference to a type defined in this module.
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Clone, Debug)]
 pub struct TypeUse<'a, T> {
     /// The type that we're referencing, if it was present.
-    pub index: Option<ast::ItemRef<'a, kw::r#type>>,
+    pub index: Option<ItemRef<'a, kw::r#type>>,
     /// The inline type, if present.
     pub inline: Option<T>,
 }
@@ -761,14 +688,11 @@ pub struct TypeUse<'a, T> {
 impl<'a, T> TypeUse<'a, T> {
     /// Constructs a new instance of `TypeUse` without an inline definition but
     /// with an index specified.
-    pub fn new_with_index(idx: ast::Index<'a>) -> TypeUse<'a, T> {
+    pub fn new_with_index(idx: Index<'a>) -> TypeUse<'a, T> {
         TypeUse {
-            index: Some(ast::ItemRef {
+            index: Some(ItemRef {
                 idx,
                 kind: kw::r#type::default(),
-                extra_names: Vec::new(),
-                #[cfg(wast_check_exhaustive)]
-                visited: true,
             }),
             inline: None,
         }
@@ -788,69 +712,11 @@ impl<'a, T: Peek + Parse<'a>> Parse<'a> for TypeUse<'a, T> {
     }
 }
 
-impl<'a, T: Peek + Parse<'a>> Peek for TypeUse<'a, T> {
-    fn peek(cursor: Cursor<'_>) -> bool {
-        kw::r#type::peek(cursor) || T::peek(cursor)
-    }
-    fn display() -> &'static str {
-        T::display()
-    }
-}
-
 impl<'a> From<TypeUse<'a, FunctionTypeNoNames<'a>>> for TypeUse<'a, FunctionType<'a>> {
     fn from(src: TypeUse<'a, FunctionTypeNoNames<'a>>) -> TypeUse<'a, FunctionType<'a>> {
         TypeUse {
             index: src.index,
             inline: src.inline.map(|x| x.into()),
         }
-    }
-}
-
-/// A reference to a type defined in this component.
-///
-/// This is the same as `TypeUse`, but accepts `$T` as shorthand for
-/// `(type $T)`.
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub enum ComponentTypeUse<'a, T> {
-    /// The type that we're referencing.
-    Ref(ast::ItemRef<'a, kw::r#type>),
-    /// The inline type.
-    Inline(T),
-}
-
-impl<'a, T> ComponentTypeUse<'a, T> {
-    /// Constructs a new instance of `ComponentTypeUse` without an inline definition but
-    /// with an index specified.
-    pub fn new_with_index(idx: ast::Index<'a>) -> ComponentTypeUse<'a, T> {
-        ComponentTypeUse::Ref(ast::ItemRef {
-            idx,
-            kind: kw::r#type::default(),
-            extra_names: Vec::new(),
-            #[cfg(wast_check_exhaustive)]
-            visited: true,
-        })
-    }
-}
-
-impl<'a, T: Peek + Parse<'a>> Parse<'a> for ComponentTypeUse<'a, T> {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        if parser.peek::<ast::IndexOrRef<'a, kw::r#type>>() {
-            Ok(ComponentTypeUse::Ref(
-                parser.parse::<ast::IndexOrRef<kw::r#type>>()?.0,
-            ))
-        } else if parser.peek::<ast::Index>() {
-            Ok(ComponentTypeUse::Ref(parser.parse()?))
-        } else {
-            Ok(ComponentTypeUse::Inline(parser.parse()?))
-        }
-    }
-}
-
-impl<'a, T: Peek + Parse<'a>> Peek for ComponentTypeUse<'a, T> {
-    fn peek(cursor: Cursor<'_>) -> bool {
-        kw::r#type::peek(cursor) || T::peek(cursor)
-    }
-    fn display() -> &'static str {
-        T::display()
     }
 }

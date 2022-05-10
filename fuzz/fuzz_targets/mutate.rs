@@ -1,5 +1,6 @@
 #![no_main]
 
+use arbitrary::Unstructured;
 use libfuzzer_sys::fuzz_target;
 use std::sync::atomic::{AtomicU64, Ordering};
 use wasmparser::WasmFeatures;
@@ -14,7 +15,8 @@ fuzz_target!(|bytes: &[u8]| {
     // use with `wasm-mutate`.
 
     let mut seed = 0;
-    let (wasm, config) = match wasm_tools_fuzz::generate_valid_module(bytes, |config, u| {
+    let mut u = Unstructured::new(bytes);
+    let (wasm, config) = match wasm_tools_fuzz::generate_valid_module(&mut u, |config, u| {
         config.exceptions_enabled = false;
         seed = u.arbitrary()?;
         Ok(())

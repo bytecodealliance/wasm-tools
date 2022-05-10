@@ -1,18 +1,20 @@
-use crate::ast::{self, kw};
+use crate::core::*;
+use crate::kw;
 use crate::parser::{Lookahead1, Parse, Parser, Peek, Result};
+use crate::token::*;
 
 /// A defined WebAssembly memory instance inside of a module.
 #[derive(Debug)]
 pub struct Memory<'a> {
     /// Where this `memory` was defined
-    pub span: ast::Span,
+    pub span: Span,
     /// An optional name to refer to this memory by.
-    pub id: Option<ast::Id<'a>>,
+    pub id: Option<Id<'a>>,
     /// An optional name for this function stored in the custom `name` section.
-    pub name: Option<ast::NameAnnotation<'a>>,
+    pub name: Option<NameAnnotation<'a>>,
     /// If present, inline export annotations which indicate names this
     /// definition should be exported under.
-    pub exports: ast::InlineExport<'a>,
+    pub exports: InlineExport<'a>,
     /// How this memory is defined in the module.
     pub kind: MemoryKind<'a>,
 }
@@ -23,12 +25,12 @@ pub enum MemoryKind<'a> {
     /// This memory is actually an inlined import definition.
     #[allow(missing_docs)]
     Import {
-        import: ast::InlineImport<'a>,
-        ty: ast::MemoryType,
+        import: InlineImport<'a>,
+        ty: MemoryType,
     },
 
     /// A typical memory definition which simply says the limits of the memory
-    Normal(ast::MemoryType),
+    Normal(MemoryType),
 
     /// The data of this memory, starting from 0, explicitly listed
     Inline {
@@ -57,7 +59,7 @@ impl<'a> Parse<'a> for Memory<'a> {
                 import,
                 ty: parser.parse()?,
             }
-        } else if l.peek::<ast::LParen>() || parser.peek2::<ast::LParen>() {
+        } else if l.peek::<LParen>() || parser.peek2::<LParen>() {
             let is_32 = if parser.parse::<Option<kw::i32>>()?.is_some() {
                 true
             } else if parser.parse::<Option<kw::i64>>()?.is_some() {
@@ -93,13 +95,13 @@ impl<'a> Parse<'a> for Memory<'a> {
 #[derive(Debug)]
 pub struct Data<'a> {
     /// Where this `data` was defined
-    pub span: ast::Span,
+    pub span: Span,
 
     /// The optional name of this data segment
-    pub id: Option<ast::Id<'a>>,
+    pub id: Option<Id<'a>>,
 
     /// An optional name for this data stored in the custom `name` section.
-    pub name: Option<ast::NameAnnotation<'a>>,
+    pub name: Option<NameAnnotation<'a>>,
 
     /// Whether this data segment is passive or active
     pub kind: DataKind<'a>,
@@ -120,10 +122,10 @@ pub enum DataKind<'a> {
     /// memory on module instantiation.
     Active {
         /// The memory that this `Data` will be associated with.
-        memory: ast::ItemRef<'a, kw::memory>,
+        memory: ItemRef<'a, kw::memory>,
 
         /// Initial offset to load this data segment at
-        offset: ast::Expression<'a>,
+        offset: Expression<'a>,
     },
 }
 
@@ -139,15 +141,12 @@ impl<'a> Parse<'a> for Data<'a> {
         // ... and otherwise we must be attached to a particular memory as well
         // as having an initialization offset.
         } else {
-            let memory = if let Some(index) = parser.parse::<Option<ast::IndexOrRef<_>>>()? {
+            let memory = if let Some(index) = parser.parse::<Option<IndexOrRef<_>>>()? {
                 index.0
             } else {
-                ast::ItemRef {
+                ItemRef {
                     kind: kw::memory(parser.prev_span()),
-                    idx: ast::Index::Num(0, span),
-                    extra_names: Vec::new(),
-                    #[cfg(wast_check_exhaustive)]
-                    visited: false,
+                    idx: Index::Num(0, span),
                 }
             };
             let offset = parser.parens(|parser| {
@@ -160,7 +159,7 @@ impl<'a> Parse<'a> for Data<'a> {
                     // single-instruction expression.
                     let insn = parser.parse()?;
                     if parser.is_empty() {
-                        return Ok(ast::Expression {
+                        return Ok(Expression {
                             instrs: [insn].into(),
                         });
                     }
@@ -176,10 +175,10 @@ impl<'a> Parse<'a> for Data<'a> {
                     //    (data (offset ...))
                     //
                     // but alas
-                    let expr: ast::Expression = parser.parse()?;
+                    let expr: Expression = parser.parse()?;
                     let mut instrs = Vec::from(expr.instrs);
                     instrs.push(insn);
-                    Ok(ast::Expression {
+                    Ok(Expression {
                         instrs: instrs.into(),
                     })
                 }
@@ -230,7 +229,7 @@ impl DataVal<'_> {
 
 impl<'a> Parse<'a> for DataVal<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        if !parser.peek::<ast::LParen>() {
+        if !parser.peek::<LParen>() {
             return Ok(DataVal::String(parser.parse()?));
         }
 
@@ -243,15 +242,9 @@ impl<'a> Parse<'a> for DataVal<'a> {
                 || consume::<kw::i16, i16, _>(p, l, r, |u, v| v.extend(&u.to_le_bytes()))?
                 || consume::<kw::i32, i32, _>(p, l, r, |u, v| v.extend(&u.to_le_bytes()))?
                 || consume::<kw::i64, i64, _>(p, l, r, |u, v| v.extend(&u.to_le_bytes()))?
-                || consume::<kw::f32, ast::Float32, _>(p, l, r, |u, v| {
-                    v.extend(&u.bits.to_le_bytes())
-                })?
-                || consume::<kw::f64, ast::Float64, _>(p, l, r, |u, v| {
-                    v.extend(&u.bits.to_le_bytes())
-                })?
-                || consume::<kw::v128, ast::V128Const, _>(p, l, r, |u, v| {
-                    v.extend(&u.to_le_bytes())
-                })?
+                || consume::<kw::f32, Float32, _>(p, l, r, |u, v| v.extend(&u.bits.to_le_bytes()))?
+                || consume::<kw::f64, Float64, _>(p, l, r, |u, v| v.extend(&u.bits.to_le_bytes()))?
+                || consume::<kw::v128, V128Const, _>(p, l, r, |u, v| v.extend(&u.to_le_bytes()))?
             {
                 Ok(DataVal::Integral(result))
             } else {

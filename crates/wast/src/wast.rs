@@ -1,6 +1,9 @@
-use crate::ast::{self, kw, Wat};
+use crate::component::Component;
+use crate::core::{Expression, Module};
+use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
-use crate::{AssertExpression, NanPattern, V128Pattern};
+use crate::token::{Id, Span};
+use crate::{AssertExpression, NanPattern, V128Pattern, Wat};
 
 /// A parsed representation of a `*.wast` file.
 ///
@@ -24,10 +27,10 @@ impl<'a> Parse<'a> for Wast<'a> {
                 directives.push(parser.parens(|p| p.parse())?);
             }
         } else {
-            let wat = parser.parse::<ast::Wat>()?;
+            let wat = parser.parse::<Wat>()?;
             match wat {
                 Wat::Module(m) => directives.push(WastDirective::Module(m)),
-                Wat::Component(_c) => todo!("inline component in wast"),
+                Wat::Component(c) => directives.push(WastDirective::Component(c)),
             }
         }
         Ok(Wast { directives })
@@ -42,7 +45,11 @@ impl Peek for WastDirectiveToken {
             Some((kw, _)) => kw,
             None => return false,
         };
-        kw.starts_with("assert_") || kw == "module" || kw == "register" || kw == "invoke"
+        kw.starts_with("assert_")
+            || kw == "module"
+            || kw == "component"
+            || kw == "register"
+            || kw == "invoke"
     }
 
     fn display() -> &'static str {
@@ -57,58 +64,60 @@ impl Peek for WastDirectiveToken {
 #[allow(missing_docs)]
 #[derive(Debug)]
 pub enum WastDirective<'a> {
-    Module(ast::Module<'a>),
+    Module(Module<'a>),
+    Component(Component<'a>),
     QuoteModule {
-        span: ast::Span,
+        span: Span,
         source: Vec<&'a [u8]>,
     },
     AssertMalformed {
-        span: ast::Span,
+        span: Span,
         module: QuoteModule<'a>,
         message: &'a str,
     },
     AssertInvalid {
-        span: ast::Span,
+        span: Span,
         module: QuoteModule<'a>,
         message: &'a str,
     },
     Register {
-        span: ast::Span,
+        span: Span,
         name: &'a str,
-        module: Option<ast::Id<'a>>,
+        module: Option<Id<'a>>,
     },
     Invoke(WastInvoke<'a>),
     AssertTrap {
-        span: ast::Span,
+        span: Span,
         exec: WastExecute<'a>,
         message: &'a str,
     },
     AssertReturn {
-        span: ast::Span,
+        span: Span,
         exec: WastExecute<'a>,
-        results: Vec<ast::AssertExpression<'a>>,
+        results: Vec<AssertExpression<'a>>,
     },
     AssertExhaustion {
-        span: ast::Span,
+        span: Span,
         call: WastInvoke<'a>,
         message: &'a str,
     },
     AssertUnlinkable {
-        span: ast::Span,
-        module: ast::Module<'a>,
+        span: Span,
+        module: Module<'a>,
         message: &'a str,
     },
     AssertException {
-        span: ast::Span,
+        span: Span,
         exec: WastExecute<'a>,
     },
 }
 
 impl WastDirective<'_> {
     /// Returns the location in the source that this directive was defined at
-    pub fn span(&self) -> ast::Span {
+    pub fn span(&self) -> Span {
         match self {
             WastDirective::Module(m) => m.span,
+            WastDirective::Component(c) => c.span,
             WastDirective::AssertMalformed { span, .. }
             | WastDirective::Register { span, .. }
             | WastDirective::QuoteModule { span, .. }
@@ -138,6 +147,8 @@ impl<'a> Parse<'a> for WastDirective<'a> {
             } else {
                 Ok(WastDirective::Module(parser.parse()?))
             }
+        } else if l.peek::<kw::component>() {
+            Ok(WastDirective::Component(parser.parse()?))
         } else if l.peek::<kw::assert_malformed>() {
             let span = parser.parse::<kw::assert_malformed>()?.0;
             Ok(WastDirective::AssertMalformed {
@@ -273,9 +284,9 @@ impl<'a> Parse<'a> for WastDirective<'a> {
 #[derive(Debug)]
 pub enum WastExecute<'a> {
     Invoke(WastInvoke<'a>),
-    Module(ast::Module<'a>),
+    Module(Module<'a>),
     Get {
-        module: Option<ast::Id<'a>>,
+        module: Option<Id<'a>>,
         global: &'a str,
     },
 }
@@ -302,10 +313,10 @@ impl<'a> Parse<'a> for WastExecute<'a> {
 #[allow(missing_docs)]
 #[derive(Debug)]
 pub struct WastInvoke<'a> {
-    pub span: ast::Span,
-    pub module: Option<ast::Id<'a>>,
+    pub span: Span,
+    pub module: Option<Id<'a>>,
     pub name: &'a str,
-    pub args: Vec<ast::Expression<'a>>,
+    pub args: Vec<Expression<'a>>,
 }
 
 impl<'a> Parse<'a> for WastInvoke<'a> {
@@ -329,7 +340,7 @@ impl<'a> Parse<'a> for WastInvoke<'a> {
 #[allow(missing_docs)]
 #[derive(Debug)]
 pub enum QuoteModule<'a> {
-    Module(ast::Module<'a>),
+    Module(Module<'a>),
     Quote(Vec<&'a [u8]>),
 }
 
@@ -351,7 +362,7 @@ impl<'a> Parse<'a> for QuoteModule<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::wast::WastDirective;
+    use super::*;
     use crate::parser::{parse, ParseBuffer};
 
     macro_rules! assert_parses_to_directive {

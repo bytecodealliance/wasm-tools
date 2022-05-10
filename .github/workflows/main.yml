@@ -42,9 +42,6 @@ jobs:
       run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
       shell: bash
     - run: cargo test --all
-    - run: cargo test --all
-      env:
-        RUSTFLAGS: --cfg=wast_check_exhaustive
     - run: cargo test --manifest-path crates/wasmparser/Cargo.toml --features deterministic
     - run: cargo build --manifest-path crates/wast/Cargo.toml --no-default-features
     - run: cargo build --manifest-path crates/wast/Cargo.toml --no-default-features --features wasm-module
@@ -95,3 +92,9 @@ jobs:
       - run: cargo check --no-default-features --features mutate
       - run: cargo check --no-default-features --features dump
       - run: cargo check --no-default-features --features objdump
+
+  doc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: cargo doc --all

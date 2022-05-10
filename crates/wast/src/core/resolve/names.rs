@@ -1,5 +1,6 @@
-use crate::ast::*;
-use crate::resolve::Ns;
+use crate::core::resolve::Ns;
+use crate::core::*;
+use crate::token::{Id, Index, ItemRef};
 use crate::Error;
 use std::collections::HashMap;
 
@@ -37,7 +38,7 @@ impl<'a> Resolver<'a> {
         }
 
         // Then we can replace all our `Index::Id` instances with `Index::Num`
-        // in the AST.
+        // in the AST. Note that this also recurses into nested modules.
         for field in fields.iter_mut() {
             self.resolve_field(field)?;
         }
@@ -325,27 +326,9 @@ impl<'a> Resolver<'a> {
     where
         K: Into<ExportKind> + Copy,
     {
-        let kind = item.kind.into();
-
-        #[cfg(wast_check_exhaustive)]
-        {
-            // Currently, we only set the visited flag in the `Expander` for
-            // types. So only check it on types.
-            if kind == ExportKind::Type && !item.visited {
-                return Err(Error::new(
-                    item.idx.span(),
-                    format!("BUG: this type index wasn't visited"),
-                ));
-            }
-
-            // Regardless of the type, ensure that the item is marked as
-            // visited from this point on.
-            item.visited = true;
-        }
-
         self.resolve(
             &mut item.idx,
-            match kind {
+            match item.kind.into() {
                 ExportKind::Func => Ns::Func,
                 ExportKind::Table => Ns::Table,
                 ExportKind::Global => Ns::Global,
@@ -354,7 +337,7 @@ impl<'a> Resolver<'a> {
                 ExportKind::Type => Ns::Type,
             },
         )?;
-        Ok(&item.idx)
+        Ok(&mut item.idx)
     }
 }
 
@@ -365,7 +348,7 @@ pub struct Namespace<'a> {
 }
 
 impl<'a> Namespace<'a> {
-    pub fn register(&mut self, name: Option<Id<'a>>, desc: &str) -> Result<u32, Error> {
+    fn register(&mut self, name: Option<Id<'a>>, desc: &str) -> Result<u32, Error> {
         let index = self.alloc();
         if let Some(name) = name {
             if let Some(_prev) = self.names.insert(name, index) {
@@ -400,13 +383,13 @@ impl<'a> Namespace<'a> {
         Ok(index)
     }
 
-    pub fn alloc(&mut self) -> u32 {
+    fn alloc(&mut self) -> u32 {
         let index = self.count;
         self.count += 1;
         return index;
     }
 
-    pub fn register_specific(&mut self, name: Id<'a>, index: u32, desc: &str) -> Result<(), Error> {
+    fn register_specific(&mut self, name: Id<'a>, index: u32, desc: &str) -> Result<(), Error> {
         if let Some(_prev) = self.names.insert(name, index) {
             return Err(Error::new(
                 name.span(),
@@ -416,7 +399,7 @@ impl<'a> Namespace<'a> {
         Ok(())
     }
 
-    pub fn resolve(&self, idx: &mut Index<'a>, desc: &str) -> Result<u32, Error> {
+    fn resolve(&self, idx: &mut Index<'a>, desc: &str) -> Result<u32, Error> {
         let id = match idx {
             Index::Num(n, _) => return Ok(*n),
             Index::Id(id) => id,
@@ -526,7 +509,7 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
     }
 
     fn resolve_instr(&mut self, instr: &mut Instruction<'a>) -> Result<(), Error> {
-        use crate::ast::Instruction::*;
+        use Instruction::*;
 
         if let Some(m) = instr.memarg_mut() {
             self.resolver.resolve_item_ref(&mut m.memory)?;
@@ -756,35 +739,6 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
     }
 }
 
-struct Parents<'a, 'b> {
-    prev: Option<ParentNode<'a>>,
-    names: &'b mut HashMap<Id<'a>, usize>,
-}
-
-struct ParentNode<'a> {
-    id: Option<Id<'a>>,
-    prev_depth: Option<usize>,
-}
-
-impl<'a, 'b> Drop for Parents<'a, 'b> {
-    fn drop(&mut self) {
-        let (id, prev_depth) = match &self.prev {
-            Some(n) => (n.id, n.prev_depth),
-            None => return,
-        };
-        if let Some(id) = id {
-            match prev_depth {
-                Some(i) => {
-                    self.names.insert(id, i);
-                }
-                None => {
-                    self.names.remove(&id);
-                }
-            }
-        }
-    }
-}
-
 enum TypeInfo<'a> {
     Func {
         params: Box<[ValType<'a>]>,
@@ -850,41 +804,6 @@ impl<'a> TypeReference<'a> for FunctionType<'a> {
         }
         for result in self.results.iter_mut() {
             cx.resolve_valtype(result)?;
-        }
-        Ok(())
-    }
-}
-
-impl<'a> TypeReference<'a> for InstanceType<'a> {
-    fn check_matches(&mut self, idx: &Index<'a>, cx: &Resolver<'a>) -> Result<(), Error> {
-        drop(cx);
-        Err(Error::new(
-            idx.span(),
-            format!("cannot specify instance type as a reference and inline"),
-        ))
-    }
-
-    fn resolve(&mut self, _cx: &Resolver<'a>) -> Result<(), Error> {
-        todo!("resolve for InstanceType")
-    }
-}
-
-impl<'a> TypeReference<'a> for ModuleType<'a> {
-    fn check_matches(&mut self, idx: &Index<'a>, cx: &Resolver<'a>) -> Result<(), Error> {
-        drop(cx);
-        Err(Error::new(
-            idx.span(),
-            format!("cannot specify module type as a reference and inline"),
-        ))
-    }
-
-    fn resolve(&mut self, cx: &Resolver<'a>) -> Result<(), Error> {
-        for def in self.defs.iter_mut() {
-            match def {
-                ModuleTypeDef::CoreDefType(_func_ty) => (),
-                ModuleTypeDef::CoreImport(import) => cx.resolve_item_sig(&mut import.item)?,
-                ModuleTypeDef::Export(_name, item_sig) => cx.resolve_item_sig(item_sig)?,
-            }
         }
         Ok(())
     }

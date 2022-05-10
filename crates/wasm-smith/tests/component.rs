@@ -16,8 +16,20 @@ fn smoke_test_component() {
         if let Ok(component) = Component::arbitrary_take_rest(u) {
             ok_count += 1;
             let component = component.to_bytes();
-            // TODO: validate.
-            drop(component);
+
+            let mut validator =
+                wasmparser::Validator::new_with_features(wasmparser::WasmFeatures {
+                    component_model: true,
+                    ..Default::default()
+                });
+            if let Err(e) = validator.validate_all(&component) {
+                std::fs::write("component.wasm", &component).unwrap();
+                panic!(
+                    "generated component should be valid; failing binary written \
+                     to `component.wasm`. Error: {}",
+                    e
+                );
+            }
         }
     }
 

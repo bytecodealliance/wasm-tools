@@ -1,17 +1,19 @@
-use crate::ast::{self, kw};
+use crate::core::*;
+use crate::kw;
 use crate::parser::{Parse, Parser, Result};
+use crate::token::{Id, NameAnnotation, Span};
 
 /// A WebAssembly tag directive, part of the exception handling proposal.
 #[derive(Debug)]
 pub struct Tag<'a> {
     /// Where this tag was defined
-    pub span: ast::Span,
+    pub span: Span,
     /// An optional name by which to refer to this tag in name resolution.
-    pub id: Option<ast::Id<'a>>,
+    pub id: Option<Id<'a>>,
     /// An optional name for this function stored in the custom `name` section.
-    pub name: Option<ast::NameAnnotation<'a>>,
+    pub name: Option<NameAnnotation<'a>>,
     /// Optional export directives for this tag.
-    pub exports: ast::InlineExport<'a>,
+    pub exports: InlineExport<'a>,
     /// The type of tag that is defined.
     pub ty: TagType<'a>,
     /// What kind of tag this is defined as.
@@ -23,7 +25,7 @@ pub struct Tag<'a> {
 pub enum TagType<'a> {
     /// An exception tag, where the payload is the type signature of the tag
     /// (constructor parameters, etc).
-    Exception(ast::TypeUse<'a, ast::FunctionType<'a>>),
+    Exception(TypeUse<'a, FunctionType<'a>>),
 }
 
 /// Different kinds of tags that can be defined in a module.
@@ -34,7 +36,7 @@ pub enum TagKind<'a> {
     /// ```text
     /// (tag (type 0) (import "foo" "bar"))
     /// ```
-    Import(ast::InlineImport<'a>),
+    Import(InlineImport<'a>),
 
     /// A tag defined inline in the module itself
     Inline(),
