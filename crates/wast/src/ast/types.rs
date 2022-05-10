@@ -606,93 +606,6 @@ impl<'a> Parse<'a> for ArrayType<'a> {
     }
 }
 
-/// A type for a nested module
-#[derive(Clone, Debug, Default)]
-pub struct ModuleType<'a> {
-    /// The imports that are expected for this module type.
-    pub imports: Vec<ast::Import<'a>>,
-    /// The exports that this module type is expected to have.
-    pub exports: Vec<ExportType<'a>>,
-}
-
-impl<'a> Parse<'a> for ModuleType<'a> {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        // See comments in `nested_module.rs` for why this is tested here.
-        if parser.parens_depth() > 100 {
-            return Err(parser.error("module type nesting too deep"));
-        }
-
-        let mut imports = Vec::new();
-        while parser.peek2::<kw::import>() {
-            imports.push(parser.parens(|p| p.parse())?);
-        }
-        let mut exports = Vec::new();
-        while parser.peek2::<kw::export>() {
-            parser.parens(|p| {
-                exports.push(p.parse()?);
-                Ok(())
-            })?;
-        }
-        Ok(ModuleType { imports, exports })
-    }
-}
-
-impl<'a> Peek for ModuleType<'a> {
-    fn peek(cursor: Cursor<'_>) -> bool {
-        if let Some(next) = cursor.lparen() {
-            match next.keyword() {
-                Some(("import", _)) | Some(("export", _)) => return true,
-                _ => {}
-            }
-        }
-
-        false
-    }
-
-    fn display() -> &'static str {
-        "module type"
-    }
-}
-
-/// A type for a nested instance
-#[derive(Clone, Debug, Default)]
-pub struct InstanceType<'a> {
-    /// The exported types from this instance
-    pub exports: Vec<ExportType<'a>>,
-}
-
-impl<'a> Parse<'a> for InstanceType<'a> {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        // See comments in `nested_module.rs` for why this is tested here.
-        if parser.parens_depth() > 100 {
-            return Err(parser.error("instance type nesting too deep"));
-        }
-
-        let mut exports = Vec::new();
-        while !parser.is_empty() {
-            exports.push(parser.parens(|p| p.parse())?);
-        }
-        Ok(InstanceType { exports })
-    }
-}
-
-impl<'a> Peek for InstanceType<'a> {
-    fn peek(cursor: Cursor<'_>) -> bool {
-        if let Some(next) = cursor.lparen() {
-            match next.keyword() {
-                Some(("export", _)) => return true,
-                _ => {}
-            }
-        }
-
-        false
-    }
-
-    fn display() -> &'static str {
-        "instance type"
-    }
-}
-
 /// The type of an exported item from a module or instance.
 #[derive(Debug, Clone)]
 pub struct ExportType<'a> {
@@ -722,10 +635,6 @@ pub enum TypeDef<'a> {
     Struct(StructType<'a>),
     /// An array type definition.
     Array(ArrayType<'a>),
-    /// A module type definition.
-    Module(ModuleType<'a>),
-    /// An instance type definition.
-    Instance(InstanceType<'a>),
 }
 
 /// A type declaration in a module
@@ -758,12 +667,6 @@ impl<'a> Parse<'a> for Type<'a> {
             } else if l.peek::<kw::array>() {
                 parser.parse::<kw::array>()?;
                 Ok(TypeDef::Array(parser.parse()?))
-            } else if l.peek::<kw::module>() {
-                parser.parse::<kw::module>()?;
-                Ok(TypeDef::Module(parser.parse()?))
-            } else if l.peek::<kw::instance>() {
-                parser.parse::<kw::instance>()?;
-                Ok(TypeDef::Instance(parser.parse()?))
             } else {
                 Err(l.error())
             }
@@ -791,10 +694,9 @@ impl<'a, T> TypeUse<'a, T> {
     /// with an index specified.
     pub fn new_with_index(idx: ast::Index<'a>) -> TypeUse<'a, T> {
         TypeUse {
-            index: Some(ast::ItemRef::Item {
+            index: Some(ast::ItemRef {
                 idx,
                 kind: kw::r#type::default(),
-                exports: Vec::new(),
                 #[cfg(wast_check_exhaustive)]
                 visited: true,
             }),

@@ -36,9 +36,6 @@ pub enum CustomPlace {
 pub enum CustomPlaceAnchor {
     Type,
     Import,
-    Module,
-    Instance,
-    Alias,
     Func,
     Table,
     Memory,
@@ -146,18 +143,6 @@ impl<'a> Parse<'a> for CustomPlaceAnchor {
         if parser.peek::<kw::tag>() {
             parser.parse::<kw::tag>()?;
             return Ok(CustomPlaceAnchor::Tag);
-        }
-        if parser.peek::<kw::instance>() {
-            parser.parse::<kw::instance>()?;
-            return Ok(CustomPlaceAnchor::Instance);
-        }
-        if parser.peek::<kw::module>() {
-            parser.parse::<kw::module>()?;
-            return Ok(CustomPlaceAnchor::Module);
-        }
-        if parser.peek::<kw::alias>() {
-            parser.parse::<kw::alias>()?;
-            return Ok(CustomPlaceAnchor::Alias);
         }
 
         Err(parser.error("expected a valid section name"))

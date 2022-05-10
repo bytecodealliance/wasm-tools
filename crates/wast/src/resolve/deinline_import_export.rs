@@ -196,62 +196,9 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                 }
             }
 
-            ModuleField::Instance(i) => {
-                for name in i.exports.names.drain(..) {
-                    to_append.push(export(i.span, name, ExportKind::Instance, &mut i.id));
-                }
-                match &mut i.kind {
-                    InstanceKind::Import { import, ty } => {
-                        *item = ModuleField::Import(Import {
-                            span: i.span,
-                            module: import.module,
-                            field: import.field,
-                            item: ItemSig {
-                                span: i.span,
-                                id: i.id,
-                                name: None,
-                                kind: ItemKind::Instance(mem::replace(
-                                    ty,
-                                    TypeUse::new_with_index(Index::Num(0, Span::from_offset(0))),
-                                )),
-                            },
-                        });
-                    }
-                    InstanceKind::Inline { .. } => {}
-                }
-            }
-
-            ModuleField::NestedModule(m) => {
-                for name in m.exports.names.drain(..) {
-                    to_append.push(export(m.span, name, ExportKind::Module, &mut m.id));
-                }
-                match &mut m.kind {
-                    NestedModuleKind::Import { import, ty } => {
-                        *item = ModuleField::Import(Import {
-                            span: m.span,
-                            module: import.module,
-                            field: import.field,
-                            item: ItemSig {
-                                span: m.span,
-                                id: m.id,
-                                name: m.name,
-                                kind: ItemKind::Module(mem::replace(
-                                    ty,
-                                    TypeUse::new_with_index(Index::Num(0, Span::from_offset(0))),
-                                )),
-                            },
-                        });
-                    }
-                    NestedModuleKind::Inline { fields, .. } => {
-                        run(fields);
-                    }
-                };
-            }
-
             ModuleField::Import(_)
             | ModuleField::Type(_)
             | ModuleField::Export(_)
-            | ModuleField::Alias(_)
             | ModuleField::Start(_)
             | ModuleField::Elem(_)
             | ModuleField::Data(_)
@@ -284,10 +231,9 @@ fn export<'a>(
 }
 
 fn item_ref<'a, K>(kind: K, id: impl Into<Index<'a>>) -> ItemRef<'a, K> {
-    ItemRef::Item {
+    ItemRef {
         kind,
         idx: id.into(),
-        exports: Vec::new(),
         #[cfg(wast_check_exhaustive)]
         visited: false,
     }

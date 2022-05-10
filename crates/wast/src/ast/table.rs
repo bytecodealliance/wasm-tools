@@ -148,10 +148,9 @@ impl<'a> Parse<'a> for Elem<'a> {
             let table = if let Some(index) = parser.parse::<Option<ast::IndexOrRef<_>>>()? {
                 index.0
             } else {
-                ast::ItemRef::Item {
+                ast::ItemRef {
                     kind: kw::table(parser.prev_span()),
                     idx: ast::Index::Num(0, span),
-                    exports: Vec::new(),
                     #[cfg(wast_check_exhaustive)]
                     visited: false,
                 }
