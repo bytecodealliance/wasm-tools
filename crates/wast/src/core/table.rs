@@ -1,18 +1,20 @@
-use crate::ast::{self, kw};
+use crate::core::*;
+use crate::kw;
 use crate::parser::{Parse, Parser, Result};
+use crate::token::{Id, Index, IndexOrRef, ItemRef, LParen, NameAnnotation, Span};
 
 /// A WebAssembly `table` directive in a module.
 #[derive(Debug)]
 pub struct Table<'a> {
     /// Where this table was defined.
-    pub span: ast::Span,
+    pub span: Span,
     /// An optional name to refer to this table by.
-    pub id: Option<ast::Id<'a>>,
+    pub id: Option<Id<'a>>,
     /// An optional name for this function stored in the custom `name` section.
-    pub name: Option<ast::NameAnnotation<'a>>,
+    pub name: Option<NameAnnotation<'a>>,
     /// If present, inline export annotations which indicate names this
     /// definition should be exported under.
-    pub exports: ast::InlineExport<'a>,
+    pub exports: InlineExport<'a>,
     /// How this table is textually defined in the module.
     pub kind: TableKind<'a>,
 }
@@ -23,17 +25,17 @@ pub enum TableKind<'a> {
     /// This table is actually an inlined import definition.
     #[allow(missing_docs)]
     Import {
-        import: ast::InlineImport<'a>,
-        ty: ast::TableType<'a>,
+        import: InlineImport<'a>,
+        ty: TableType<'a>,
     },
 
     /// A typical memory definition which simply says the limits of the table
-    Normal(ast::TableType<'a>),
+    Normal(TableType<'a>),
 
     /// The elem segments of this table, starting from 0, explicitly listed
     Inline {
         /// The element type of this table.
-        elem: ast::RefType<'a>,
+        elem: RefType<'a>,
         /// The element table entries to have, and the length of this list is
         /// the limits of the table as well.
         payload: ElemPayload<'a>,
@@ -53,11 +55,11 @@ impl<'a> Parse<'a> for Table<'a> {
         //  *   `(import "a" "b") limits`
         //  *   `limits`
         let mut l = parser.lookahead1();
-        let kind = if l.peek::<ast::RefType>() {
+        let kind = if l.peek::<RefType>() {
             let elem = parser.parse()?;
             let payload = parser.parens(|p| {
                 p.parse::<kw::elem>()?;
-                let ty = if parser.peek::<ast::LParen>() {
+                let ty = if parser.peek::<LParen>() {
                     Some(elem)
                 } else {
                     None
@@ -89,11 +91,11 @@ impl<'a> Parse<'a> for Table<'a> {
 #[derive(Debug)]
 pub struct Elem<'a> {
     /// Where this `elem` was defined.
-    pub span: ast::Span,
+    pub span: Span,
     /// An optional name by which to refer to this segment.
-    pub id: Option<ast::Id<'a>>,
+    pub id: Option<Id<'a>>,
     /// An optional name for this element stored in the custom `name` section.
-    pub name: Option<ast::NameAnnotation<'a>>,
+    pub name: Option<NameAnnotation<'a>>,
     /// The way this segment was defined in the module.
     pub kind: ElemKind<'a>,
     /// The payload of this element segment, typically a list of functions.
@@ -114,9 +116,9 @@ pub enum ElemKind<'a> {
     /// An active segment associated with a table.
     Active {
         /// The table this `elem` is initializing.
-        table: ast::ItemRef<'a, kw::table>,
+        table: ItemRef<'a, kw::table>,
         /// The offset within `table` that we'll initialize at.
-        offset: ast::Expression<'a>,
+        offset: Expression<'a>,
     },
 }
 
@@ -124,15 +126,15 @@ pub enum ElemKind<'a> {
 #[derive(Debug)]
 pub enum ElemPayload<'a> {
     /// This element segment has a contiguous list of function indices
-    Indices(Vec<ast::ItemRef<'a, kw::func>>),
+    Indices(Vec<ItemRef<'a, kw::func>>),
 
     /// This element segment has a list of optional function indices,
     /// represented as expressions using `ref.func` and `ref.null`.
     Exprs {
         /// The desired type of each expression below.
-        ty: ast::RefType<'a>,
+        ty: RefType<'a>,
         /// The expressions in this segment.
-        exprs: Vec<ast::Expression<'a>>,
+        exprs: Vec<Expression<'a>>,
     },
 }
 
@@ -142,15 +144,14 @@ impl<'a> Parse<'a> for Elem<'a> {
         let id = parser.parse()?;
         let name = parser.parse()?;
 
-        let kind = if parser.peek::<u32>()
-            || (parser.peek::<ast::LParen>() && !parser.peek::<ast::RefType>())
+        let kind = if parser.peek::<u32>() || (parser.peek::<LParen>() && !parser.peek::<RefType>())
         {
-            let table = if let Some(index) = parser.parse::<Option<ast::IndexOrRef<_>>>()? {
+            let table = if let Some(index) = parser.parse::<Option<IndexOrRef<_>>>()? {
                 index.0
             } else {
-                ast::ItemRef {
+                ItemRef {
                     kind: kw::table(parser.prev_span()),
-                    idx: ast::Index::Num(0, span),
+                    idx: Index::Num(0, span),
                 }
             };
             let offset = parser.parens(|parser| {
@@ -184,19 +185,19 @@ impl<'a> Parse<'a> for ElemPayload<'a> {
 }
 
 impl<'a> ElemPayload<'a> {
-    fn parse_tail(parser: Parser<'a>, ty: Option<ast::RefType<'a>>) -> Result<Self> {
+    fn parse_tail(parser: Parser<'a>, ty: Option<RefType<'a>>) -> Result<Self> {
         let (must_use_indices, ty) = match ty {
             None => {
                 parser.parse::<Option<kw::func>>()?;
-                (true, ast::RefType::func())
+                (true, RefType::func())
             }
             Some(ty) => (false, ty),
         };
-        if let ast::HeapType::Func = ty.heap {
-            if must_use_indices || parser.peek::<ast::IndexOrRef<kw::func>>() {
+        if let HeapType::Func = ty.heap {
+            if must_use_indices || parser.peek::<IndexOrRef<kw::func>>() {
                 let mut elems = Vec::new();
                 while !parser.is_empty() {
-                    elems.push(parser.parse::<ast::IndexOrRef<_>>()?.0);
+                    elems.push(parser.parse::<IndexOrRef<_>>()?.0);
                 }
                 return Ok(ElemPayload::Indices(elems));
             }
@@ -211,7 +212,7 @@ impl<'a> ElemPayload<'a> {
                     // Without `item` this is "sugar" for a single-instruction
                     // expression.
                     let insn = parser.parse()?;
-                    Ok(ast::Expression {
+                    Ok(Expression {
                         instrs: [insn].into(),
                     })
                 }

@@ -1,5 +1,7 @@
-use crate::ast::{self, kw};
+use crate::core::*;
+use crate::kw;
 use crate::parser::{Parse, Parser, Result};
+use crate::token::{Id, NameAnnotation, Span};
 
 /// A WebAssembly function to be inserted into a module.
 ///
@@ -7,20 +9,20 @@ use crate::parser::{Parse, Parser, Result};
 #[derive(Debug)]
 pub struct Func<'a> {
     /// Where this `func` was defined.
-    pub span: ast::Span,
+    pub span: Span,
     /// An identifier that this function is resolved with (optionally) for name
     /// resolution.
-    pub id: Option<ast::Id<'a>>,
+    pub id: Option<Id<'a>>,
     /// An optional name for this function stored in the custom `name` section.
-    pub name: Option<ast::NameAnnotation<'a>>,
+    pub name: Option<NameAnnotation<'a>>,
     /// If present, inline export annotations which indicate names this
     /// definition should be exported under.
-    pub exports: ast::InlineExport<'a>,
+    pub exports: InlineExport<'a>,
     /// What kind of function this is, be it an inline-defined or imported
     /// function.
     pub kind: FuncKind<'a>,
     /// The type that this function will have.
-    pub ty: ast::TypeUse<'a, ast::FunctionType<'a>>,
+    pub ty: TypeUse<'a, FunctionType<'a>>,
 }
 
 /// Possible ways to define a function in the text format.
@@ -31,7 +33,7 @@ pub enum FuncKind<'a> {
     /// ```text
     /// (func (type 3) (import "foo" "bar"))
     /// ```
-    Import(ast::InlineImport<'a>),
+    Import(InlineImport<'a>),
 
     /// Almost all functions, those defined inline in a wasm module.
     Inline {
@@ -39,7 +41,7 @@ pub enum FuncKind<'a> {
         locals: Vec<Local<'a>>,
 
         /// The instructions of the function.
-        expression: ast::Expression<'a>,
+        expression: Expression<'a>,
     },
 }
 
@@ -83,11 +85,11 @@ impl<'a> Parse<'a> for Func<'a> {
 pub struct Local<'a> {
     /// An identifier that this local is resolved with (optionally) for name
     /// resolution.
-    pub id: Option<ast::Id<'a>>,
+    pub id: Option<Id<'a>>,
     /// An optional name for this local stored in the custom `name` section.
-    pub name: Option<ast::NameAnnotation<'a>>,
+    pub name: Option<NameAnnotation<'a>>,
     /// The value type of this local.
-    pub ty: ast::ValType<'a>,
+    pub ty: ValType<'a>,
 }
 
 impl<'a> Local<'a> {
@@ -105,7 +107,11 @@ impl<'a> Local<'a> {
                 let parse_more = id.is_none() && name.is_none();
                 locals.push(Local { id, name, ty });
                 while parse_more && !p.is_empty() {
-                    locals.push(Local { id: None, name: None, ty: p.parse()? });
+                    locals.push(Local {
+                        id: None,
+                        name: None,
+                        ty: p.parse()?,
+                    });
                 }
                 Ok(())
             })?;

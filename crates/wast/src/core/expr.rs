@@ -1,5 +1,8 @@
-use crate::ast::{self, kw, HeapType};
+use crate::core::binary::Encode;
+use crate::core::*;
+use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Result};
+use crate::token::*;
 use std::mem;
 
 /// An expression, or a list of instructions, in the WebAssembly text format.
@@ -114,7 +117,7 @@ impl<'a> ExpressionParser<'a> {
             // of an `if block then we require that all sub-components are
             // s-expressions surrounded by `(` and `)`, so verify that here.
             if let Some(Level::If(_)) | Some(Level::Try(_)) = self.stack.last() {
-                if !parser.is_empty() && !parser.peek::<ast::LParen>() {
+                if !parser.is_empty() && !parser.peek::<LParen>() {
                     return Err(parser.error("expected `(`"));
                 }
             }
@@ -346,7 +349,7 @@ impl<'a> ExpressionParser<'a> {
         if let Try::CatchOrDelegate = i {
             // `catch` may be followed by more `catch`s or `catch_all`.
             if parser.parse::<Option<kw::catch>>()?.is_some() {
-                let evt = parser.parse::<ast::Index<'a>>()?;
+                let evt = parser.parse::<Index<'a>>()?;
                 self.instrs.push(Instruction::Catch(evt));
                 *i = Try::Catch;
                 self.stack.push(Level::TryArm);
@@ -361,7 +364,7 @@ impl<'a> ExpressionParser<'a> {
             }
             // `delegate` has an index, and also ends the block like `end`.
             if parser.parse::<Option<kw::delegate>>()?.is_some() {
-                let depth = parser.parse::<ast::Index<'a>>()?;
+                let depth = parser.parse::<Index<'a>>()?;
                 self.instrs.push(Instruction::Delegate(depth));
                 *i = Try::Delegate;
                 match self.paren(parser)? {
@@ -374,7 +377,7 @@ impl<'a> ExpressionParser<'a> {
 
         if let Try::Catch = i {
             if parser.parse::<Option<kw::catch>>()?.is_some() {
-                let evt = parser.parse::<ast::Index<'a>>()?;
+                let evt = parser.parse::<Index<'a>>()?;
                 self.instrs.push(Instruction::Catch(evt));
                 *i = Try::Catch;
                 self.stack.push(Level::TryArm);
@@ -436,17 +439,17 @@ macro_rules! instructions {
             }
         }
 
-        impl crate::binary::Encode for Instruction<'_> {
+        impl Encode for Instruction<'_> {
             #[allow(non_snake_case)]
             fn encode(&self, v: &mut Vec<u8>) {
                 match self {
                     $(
-                        Instruction::$name $((instructions!(@first $($arg)*)))? => {
+                        Instruction::$name $((instructions!(@first x $($arg)*)))? => {
                             fn encode<'a>($(arg: &instructions!(@ty $($arg)*),)? v: &mut Vec<u8>) {
                                 instructions!(@encode v $($binary)*);
-                                $(<instructions!(@ty $($arg)*) as crate::binary::Encode>::encode(arg, v);)?
+                                $(<instructions!(@ty $($arg)*) as Encode>::encode(arg, v);)?
                             }
-                            encode($( instructions!(@first $($arg)*), )? v)
+                            encode($( instructions!(@first x $($arg)*), )? v)
                         }
                     )*
                 }
@@ -484,7 +487,7 @@ macro_rules! instructions {
     // simd opcodes prefixed with `0xfd` get a varuint32 encoding for their payload
     (@encode $dst:ident 0xfd, $simd:tt) => ({
         $dst.push(0xfd);
-        <u32 as crate::binary::Encode>::encode(&$simd, $dst);
+        <u32 as Encode>::encode(&$simd, $dst);
     });
     (@encode $dst:ident $($bytes:tt)*) => ($dst.extend_from_slice(&[$($bytes)*]););
 
@@ -501,21 +504,21 @@ instructions! {
     pub enum Instruction<'a> {
         Block(BlockType<'a>) : [0x02] : "block",
         If(BlockType<'a>) : [0x04] : "if",
-        Else(Option<ast::Id<'a>>) : [0x05] : "else",
+        Else(Option<Id<'a>>) : [0x05] : "else",
         Loop(BlockType<'a>) : [0x03] : "loop",
-        End(Option<ast::Id<'a>>) : [0x0b] : "end",
+        End(Option<Id<'a>>) : [0x0b] : "end",
 
         Unreachable : [0x00] : "unreachable",
         Nop : [0x01] : "nop",
-        Br(ast::Index<'a>) : [0x0c] : "br",
-        BrIf(ast::Index<'a>) : [0x0d] : "br_if",
+        Br(Index<'a>) : [0x0c] : "br",
+        BrIf(Index<'a>) : [0x0d] : "br_if",
         BrTable(BrTableIndices<'a>) : [0x0e] : "br_table",
         Return : [0x0f] : "return",
-        Call(ast::IndexOrRef<'a, kw::func>) : [0x10] : "call",
+        Call(IndexOrRef<'a, kw::func>) : [0x10] : "call",
         CallIndirect(CallIndirect<'a>) : [0x11] : "call_indirect",
 
         // tail-call proposal
-        ReturnCall(ast::IndexOrRef<'a, kw::func>) : [0x12] : "return_call",
+        ReturnCall(IndexOrRef<'a, kw::func>) : [0x12] : "return_call",
         ReturnCallIndirect(CallIndirect<'a>) : [0x13] : "return_call_indirect",
 
         // function-references proposal
@@ -526,11 +529,11 @@ instructions! {
 
         Drop : [0x1a] : "drop",
         Select(SelectTypes<'a>) : [] : "select",
-        LocalGet(ast::Index<'a>) : [0x20] : "local.get" | "get_local",
-        LocalSet(ast::Index<'a>) : [0x21] : "local.set" | "set_local",
-        LocalTee(ast::Index<'a>) : [0x22] : "local.tee" | "tee_local",
-        GlobalGet(ast::IndexOrRef<'a, kw::global>) : [0x23] : "global.get" | "get_global",
-        GlobalSet(ast::IndexOrRef<'a, kw::global>) : [0x24] : "global.set" | "set_global",
+        LocalGet(Index<'a>) : [0x20] : "local.get" | "get_local",
+        LocalSet(Index<'a>) : [0x21] : "local.set" | "set_local",
+        LocalTee(Index<'a>) : [0x22] : "local.tee" | "tee_local",
+        GlobalGet(IndexOrRef<'a, kw::global>) : [0x23] : "global.get" | "get_global",
+        GlobalSet(IndexOrRef<'a, kw::global>) : [0x24] : "global.set" | "set_global",
 
         TableGet(TableArg<'a>) : [0x25] : "table.get",
         TableSet(TableArg<'a>) : [0x26] : "table.set",
@@ -565,8 +568,8 @@ instructions! {
         MemoryInit(MemoryInit<'a>) : [0xfc, 0x08] : "memory.init",
         MemoryCopy(MemoryCopy<'a>) : [0xfc, 0x0a] : "memory.copy",
         MemoryFill(MemoryArg<'a>) : [0xfc, 0x0b] : "memory.fill",
-        DataDrop(ast::Index<'a>) : [0xfc, 0x09] : "data.drop",
-        ElemDrop(ast::Index<'a>) : [0xfc, 0x0d] : "elem.drop",
+        DataDrop(Index<'a>) : [0xfc, 0x09] : "data.drop",
+        ElemDrop(Index<'a>) : [0xfc, 0x0d] : "elem.drop",
         TableInit(TableInit<'a>) : [0xfc, 0x0c] : "table.init",
         TableCopy(TableCopy<'a>) : [0xfc, 0x0e] : "table.copy",
         TableFill(TableArg<'a>) : [0xfc, 0x11] : "table.fill",
@@ -576,35 +579,35 @@ instructions! {
         RefNull(HeapType<'a>) : [0xd0] : "ref.null",
         RefIsNull : [0xd1] : "ref.is_null",
         RefExtern(u32) : [0xff] : "ref.extern", // only used in test harness
-        RefFunc(ast::IndexOrRef<'a, kw::func>) : [0xd2] : "ref.func",
+        RefFunc(IndexOrRef<'a, kw::func>) : [0xd2] : "ref.func",
 
         // function-references proposal
         RefAsNonNull : [0xd3] : "ref.as_non_null",
-        BrOnNull(ast::Index<'a>) : [0xd4] : "br_on_null",
-        BrOnNonNull(ast::Index<'a>) : [0xd6] : "br_on_non_null",
+        BrOnNull(Index<'a>) : [0xd4] : "br_on_null",
+        BrOnNonNull(Index<'a>) : [0xd6] : "br_on_non_null",
 
         // gc proposal: eqref
         RefEq : [0xd5] : "ref.eq",
 
         // gc proposal (moz specific, will be removed)
-        StructNew(ast::Index<'a>) : [0xfb, 0x0] : "struct.new",
+        StructNew(Index<'a>) : [0xfb, 0x0] : "struct.new",
 
         // gc proposal: struct
-        StructNewWithRtt(ast::Index<'a>) : [0xfb, 0x01] : "struct.new_with_rtt",
-        StructNewDefaultWithRtt(ast::Index<'a>) : [0xfb, 0x02] : "struct.new_default_with_rtt",
+        StructNewWithRtt(Index<'a>) : [0xfb, 0x01] : "struct.new_with_rtt",
+        StructNewDefaultWithRtt(Index<'a>) : [0xfb, 0x02] : "struct.new_default_with_rtt",
         StructGet(StructAccess<'a>) : [0xfb, 0x03] : "struct.get",
         StructGetS(StructAccess<'a>) : [0xfb, 0x04] : "struct.get_s",
         StructGetU(StructAccess<'a>) : [0xfb, 0x05] : "struct.get_u",
         StructSet(StructAccess<'a>) : [0xfb, 0x06] : "struct.set",
 
         // gc proposal: array
-        ArrayNewWithRtt(ast::Index<'a>) : [0xfb, 0x11] : "array.new_with_rtt",
-        ArrayNewDefaultWithRtt(ast::Index<'a>) : [0xfb, 0x12] : "array.new_default_with_rtt",
-        ArrayGet(ast::Index<'a>) : [0xfb, 0x13] : "array.get",
-        ArrayGetS(ast::Index<'a>) : [0xfb, 0x14] : "array.get_s",
-        ArrayGetU(ast::Index<'a>) : [0xfb, 0x15] : "array.get_u",
-        ArraySet(ast::Index<'a>) : [0xfb, 0x16] : "array.set",
-        ArrayLen(ast::Index<'a>) : [0xfb, 0x17] : "array.len",
+        ArrayNewWithRtt(Index<'a>) : [0xfb, 0x11] : "array.new_with_rtt",
+        ArrayNewDefaultWithRtt(Index<'a>) : [0xfb, 0x12] : "array.new_default_with_rtt",
+        ArrayGet(Index<'a>) : [0xfb, 0x13] : "array.get",
+        ArrayGetS(Index<'a>) : [0xfb, 0x14] : "array.get_s",
+        ArrayGetU(Index<'a>) : [0xfb, 0x15] : "array.get_u",
+        ArraySet(Index<'a>) : [0xfb, 0x16] : "array.set",
+        ArrayLen(Index<'a>) : [0xfb, 0x17] : "array.len",
 
         // gc proposal, i31
         I31New : [0xfb, 0x20] : "i31.new",
@@ -612,11 +615,11 @@ instructions! {
         I31GetU : [0xfb, 0x22] : "i31.get_u",
 
         // gc proposal, rtt casting
-        RTTCanon(ast::Index<'a>) : [0xfb, 0x30] : "rtt.canon",
-        RTTSub(ast::Index<'a>) : [0xfb, 0x31] : "rtt.sub",
+        RTTCanon(Index<'a>) : [0xfb, 0x30] : "rtt.canon",
+        RTTSub(Index<'a>) : [0xfb, 0x31] : "rtt.sub",
         RefTest : [0xfb, 0x40] : "ref.test",
         RefCast : [0xfb, 0x41] : "ref.cast",
-        BrOnCast(ast::Index<'a>) : [0xfb, 0x42] : "br_on_cast",
+        BrOnCast(Index<'a>) : [0xfb, 0x42] : "br_on_cast",
 
         // gc proposal, heap casting
         RefIsFunc : [0xfb, 0x50] : "ref.is_func",
@@ -625,14 +628,14 @@ instructions! {
         RefAsFunc : [0xfb, 0x58] : "ref.as_func",
         RefAsData : [0xfb, 0x59] : "ref.as_data",
         RefAsI31 : [0xfb, 0x5a] : "ref.as_i31",
-        BrOnFunc(ast::Index<'a>) : [0xfb, 0x60] : "br_on_func",
-        BrOnData(ast::Index<'a>) : [0xfb, 0x61] : "br_on_data",
-        BrOnI31(ast::Index<'a>) : [0xfb, 0x62] : "br_on_i31",
+        BrOnFunc(Index<'a>) : [0xfb, 0x60] : "br_on_func",
+        BrOnData(Index<'a>) : [0xfb, 0x61] : "br_on_data",
+        BrOnI31(Index<'a>) : [0xfb, 0x62] : "br_on_i31",
 
         I32Const(i32) : [0x41] : "i32.const",
         I64Const(i64) : [0x42] : "i64.const",
-        F32Const(ast::Float32) : [0x43] : "f32.const",
-        F64Const(ast::Float64) : [0x44] : "f64.const",
+        F32Const(Float32) : [0x43] : "f32.const",
+        F64Const(Float64) : [0x44] : "f64.const",
 
         I32Clz : [0x67] : "i32.clz",
         I32Ctz : [0x68] : "i32.ctz",
@@ -1120,10 +1123,10 @@ instructions! {
 
         // Exception handling proposal
         Try(BlockType<'a>) : [0x06] : "try",
-        Catch(ast::Index<'a>) : [0x07] : "catch",
-        Throw(ast::Index<'a>) : [0x08] : "throw",
-        Rethrow(ast::Index<'a>) : [0x09] : "rethrow",
-        Delegate(ast::Index<'a>) : [0x18] : "delegate",
+        Catch(Index<'a>) : [0x07] : "catch",
+        Throw(Index<'a>) : [0x08] : "throw",
+        Rethrow(Index<'a>) : [0x09] : "rethrow",
+        Delegate(Index<'a>) : [0x18] : "delegate",
         CatchAll : [0x19] : "catch_all",
 
         // Relaxed SIMD proposal
@@ -1154,9 +1157,9 @@ instructions! {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct BlockType<'a> {
-    pub label: Option<ast::Id<'a>>,
-    pub label_name: Option<ast::NameAnnotation<'a>>,
-    pub ty: ast::TypeUse<'a, ast::FunctionType<'a>>,
+    pub label: Option<Id<'a>>,
+    pub label_name: Option<NameAnnotation<'a>>,
+    pub ty: TypeUse<'a, FunctionType<'a>>,
 }
 
 impl<'a> Parse<'a> for BlockType<'a> {
@@ -1165,7 +1168,7 @@ impl<'a> Parse<'a> for BlockType<'a> {
             label: parser.parse()?,
             label_name: parser.parse()?,
             ty: parser
-                .parse::<ast::TypeUse<'a, ast::FunctionTypeNoNames<'a>>>()?
+                .parse::<TypeUse<'a, FunctionTypeNoNames<'a>>>()?
                 .into(),
         })
     }
@@ -1175,14 +1178,14 @@ impl<'a> Parse<'a> for BlockType<'a> {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct FuncBindType<'a> {
-    pub ty: ast::TypeUse<'a, ast::FunctionType<'a>>,
+    pub ty: TypeUse<'a, FunctionType<'a>>,
 }
 
 impl<'a> Parse<'a> for FuncBindType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         Ok(FuncBindType {
             ty: parser
-                .parse::<ast::TypeUse<'a, ast::FunctionTypeNoNames<'a>>>()?
+                .parse::<TypeUse<'a, FunctionTypeNoNames<'a>>>()?
                 .into(),
         })
     }
@@ -1193,14 +1196,14 @@ impl<'a> Parse<'a> for FuncBindType<'a> {
 #[allow(missing_docs)]
 pub struct LetType<'a> {
     pub block: BlockType<'a>,
-    pub locals: Vec<ast::Local<'a>>,
+    pub locals: Vec<Local<'a>>,
 }
 
 impl<'a> Parse<'a> for LetType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         Ok(LetType {
             block: parser.parse()?,
-            locals: ast::Local::parse_remainder(parser)?,
+            locals: Local::parse_remainder(parser)?,
         })
     }
 }
@@ -1209,15 +1212,15 @@ impl<'a> Parse<'a> for LetType<'a> {
 #[allow(missing_docs)]
 #[derive(Debug)]
 pub struct BrTableIndices<'a> {
-    pub labels: Vec<ast::Index<'a>>,
-    pub default: ast::Index<'a>,
+    pub labels: Vec<Index<'a>>,
+    pub default: Index<'a>,
 }
 
 impl<'a> Parse<'a> for BrTableIndices<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let mut labels = Vec::new();
         labels.push(parser.parse()?);
-        while parser.peek::<ast::Index>() {
+        while parser.peek::<Index>() {
             labels.push(parser.parse()?);
         }
         let default = labels.pop().unwrap();
@@ -1264,7 +1267,7 @@ pub struct MemArg<'a> {
     /// The offset, in bytes of this access.
     pub offset: u64,
     /// The memory index we're accessing
-    pub memory: ast::ItemRef<'a, kw::memory>,
+    pub memory: ItemRef<'a, kw::memory>,
 }
 
 impl<'a> MemArg<'a> {
@@ -1310,7 +1313,7 @@ impl<'a> MemArg<'a> {
         }
 
         let memory = parser
-            .parse::<Option<ast::IndexOrRef<'a, kw::memory>>>()?
+            .parse::<Option<IndexOrRef<'a, kw::memory>>>()?
             .map(|i| i.0)
             .unwrap_or(idx_zero(parser.prev_span(), kw::memory));
         let offset = parse_u64("offset", parser)?.unwrap_or(0);
@@ -1329,10 +1332,10 @@ impl<'a> MemArg<'a> {
     }
 }
 
-fn idx_zero<T>(span: ast::Span, mk_kind: fn(ast::Span) -> T) -> ast::ItemRef<'static, T> {
-    ast::ItemRef {
+fn idx_zero<T>(span: Span, mk_kind: fn(Span) -> T) -> ItemRef<'static, T> {
+    ItemRef {
         kind: mk_kind(span),
-        idx: ast::Index::Num(0, span),
+        idx: Index::Num(0, span),
     }
 }
 
@@ -1394,16 +1397,16 @@ impl<'a> LoadOrStoreLane<'a> {
 #[derive(Debug)]
 pub struct CallIndirect<'a> {
     /// The table that this call is going to be indexing.
-    pub table: ast::ItemRef<'a, kw::table>,
+    pub table: ItemRef<'a, kw::table>,
     /// Type type signature that this `call_indirect` instruction is using.
-    pub ty: ast::TypeUse<'a, ast::FunctionType<'a>>,
+    pub ty: TypeUse<'a, FunctionType<'a>>,
 }
 
 impl<'a> Parse<'a> for CallIndirect<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let prev_span = parser.prev_span();
-        let table: Option<ast::IndexOrRef<_>> = parser.parse()?;
-        let ty = parser.parse::<ast::TypeUse<'a, ast::FunctionTypeNoNames<'a>>>()?;
+        let table: Option<IndexOrRef<_>> = parser.parse()?;
+        let ty = parser.parse::<TypeUse<'a, FunctionTypeNoNames<'a>>>()?;
         Ok(CallIndirect {
             table: table.map(|i| i.0).unwrap_or(idx_zero(prev_span, kw::table)),
             ty: ty.into(),
@@ -1415,21 +1418,20 @@ impl<'a> Parse<'a> for CallIndirect<'a> {
 #[derive(Debug)]
 pub struct TableInit<'a> {
     /// The index of the table we're copying into.
-    pub table: ast::ItemRef<'a, kw::table>,
+    pub table: ItemRef<'a, kw::table>,
     /// The index of the element segment we're copying into a table.
-    pub elem: ast::Index<'a>,
+    pub elem: Index<'a>,
 }
 
 impl<'a> Parse<'a> for TableInit<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let prev_span = parser.prev_span();
-        let (elem, table) =
-            if parser.peek::<ast::ItemRef<kw::table>>() || parser.peek2::<ast::Index>() {
-                let table = parser.parse::<ast::IndexOrRef<_>>()?.0;
-                (parser.parse()?, table)
-            } else {
-                (parser.parse()?, idx_zero(prev_span, kw::table))
-            };
+        let (elem, table) = if parser.peek::<ItemRef<kw::table>>() || parser.peek2::<Index>() {
+            let table = parser.parse::<IndexOrRef<_>>()?.0;
+            (parser.parse()?, table)
+        } else {
+            (parser.parse()?, idx_zero(prev_span, kw::table))
+        };
         Ok(TableInit { table, elem })
     }
 }
@@ -1438,15 +1440,15 @@ impl<'a> Parse<'a> for TableInit<'a> {
 #[derive(Debug)]
 pub struct TableCopy<'a> {
     /// The index of the destination table to copy into.
-    pub dst: ast::ItemRef<'a, kw::table>,
+    pub dst: ItemRef<'a, kw::table>,
     /// The index of the source table to copy from.
-    pub src: ast::ItemRef<'a, kw::table>,
+    pub src: ItemRef<'a, kw::table>,
 }
 
 impl<'a> Parse<'a> for TableCopy<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let (dst, src) = match parser.parse::<Option<ast::IndexOrRef<_>>>()? {
-            Some(dst) => (dst.0, parser.parse::<ast::IndexOrRef<_>>()?.0),
+        let (dst, src) = match parser.parse::<Option<IndexOrRef<_>>>()? {
+            Some(dst) => (dst.0, parser.parse::<IndexOrRef<_>>()?.0),
             None => (
                 idx_zero(parser.prev_span(), kw::table),
                 idx_zero(parser.prev_span(), kw::table),
@@ -1460,12 +1462,12 @@ impl<'a> Parse<'a> for TableCopy<'a> {
 #[derive(Debug)]
 pub struct TableArg<'a> {
     /// The index of the table argument.
-    pub dst: ast::ItemRef<'a, kw::table>,
+    pub dst: ItemRef<'a, kw::table>,
 }
 
 impl<'a> Parse<'a> for TableArg<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let dst = if let Some(dst) = parser.parse::<Option<ast::IndexOrRef<_>>>()? {
+        let dst = if let Some(dst) = parser.parse::<Option<IndexOrRef<_>>>()? {
             dst.0
         } else {
             idx_zero(parser.prev_span(), kw::table)
@@ -1478,12 +1480,12 @@ impl<'a> Parse<'a> for TableArg<'a> {
 #[derive(Debug)]
 pub struct MemoryArg<'a> {
     /// The index of the memory space.
-    pub mem: ast::ItemRef<'a, kw::memory>,
+    pub mem: ItemRef<'a, kw::memory>,
 }
 
 impl<'a> Parse<'a> for MemoryArg<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let mem = if let Some(mem) = parser.parse::<Option<ast::IndexOrRef<_>>>()? {
+        let mem = if let Some(mem) = parser.parse::<Option<IndexOrRef<_>>>()? {
             mem.0
         } else {
             idx_zero(parser.prev_span(), kw::memory)
@@ -1496,21 +1498,20 @@ impl<'a> Parse<'a> for MemoryArg<'a> {
 #[derive(Debug)]
 pub struct MemoryInit<'a> {
     /// The index of the data segment we're copying into memory.
-    pub data: ast::Index<'a>,
+    pub data: Index<'a>,
     /// The index of the memory we're copying into,
-    pub mem: ast::ItemRef<'a, kw::memory>,
+    pub mem: ItemRef<'a, kw::memory>,
 }
 
 impl<'a> Parse<'a> for MemoryInit<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let prev_span = parser.prev_span();
-        let (data, mem) =
-            if parser.peek::<ast::ItemRef<kw::memory>>() || parser.peek2::<ast::Index>() {
-                let memory = parser.parse::<ast::IndexOrRef<_>>()?.0;
-                (parser.parse()?, memory)
-            } else {
-                (parser.parse()?, idx_zero(prev_span, kw::memory))
-            };
+        let (data, mem) = if parser.peek::<ItemRef<kw::memory>>() || parser.peek2::<Index>() {
+            let memory = parser.parse::<IndexOrRef<_>>()?.0;
+            (parser.parse()?, memory)
+        } else {
+            (parser.parse()?, idx_zero(prev_span, kw::memory))
+        };
         Ok(MemoryInit { data, mem })
     }
 }
@@ -1519,15 +1520,15 @@ impl<'a> Parse<'a> for MemoryInit<'a> {
 #[derive(Debug)]
 pub struct MemoryCopy<'a> {
     /// The index of the memory we're copying from.
-    pub src: ast::ItemRef<'a, kw::memory>,
+    pub src: ItemRef<'a, kw::memory>,
     /// The index of the memory we're copying to.
-    pub dst: ast::ItemRef<'a, kw::memory>,
+    pub dst: ItemRef<'a, kw::memory>,
 }
 
 impl<'a> Parse<'a> for MemoryCopy<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let (src, dst) = match parser.parse::<Option<ast::IndexOrRef<_>>>()? {
-            Some(dst) => (parser.parse::<ast::IndexOrRef<_>>()?.0, dst.0),
+        let (src, dst) = match parser.parse::<Option<IndexOrRef<_>>>()? {
+            Some(dst) => (parser.parse::<IndexOrRef<_>>()?.0, dst.0),
             None => (
                 idx_zero(parser.prev_span(), kw::memory),
                 idx_zero(parser.prev_span(), kw::memory),
@@ -1541,9 +1542,9 @@ impl<'a> Parse<'a> for MemoryCopy<'a> {
 #[derive(Debug)]
 pub struct StructAccess<'a> {
     /// The index of the struct type we're accessing.
-    pub r#struct: ast::Index<'a>,
+    pub r#struct: Index<'a>,
     /// The index of the field of the struct we're accessing
-    pub field: ast::Index<'a>,
+    pub field: Index<'a>,
 }
 
 impl<'a> Parse<'a> for StructAccess<'a> {
@@ -1564,8 +1565,8 @@ pub enum V128Const {
     I16x8([i16; 8]),
     I32x4([i32; 4]),
     I64x2([i64; 2]),
-    F32x4([ast::Float32; 4]),
-    F64x2([ast::Float64; 2]),
+    F32x4([Float32; 4]),
+    F64x2([Float64; 2]),
 }
 
 impl V128Const {
@@ -1758,7 +1759,7 @@ impl<'a> Parse<'a> for I8x16Shuffle {
 #[derive(Debug)]
 pub struct SelectTypes<'a> {
     #[allow(missing_docs)]
-    pub tys: Option<Vec<ast::ValType<'a>>>,
+    pub tys: Option<Vec<ValType<'a>>>,
 }
 
 impl<'a> Parse<'a> for SelectTypes<'a> {

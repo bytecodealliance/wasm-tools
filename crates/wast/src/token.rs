@@ -1,4 +1,8 @@
-use crate::ast::annotation;
+//! Common tokens that implement the [`Parse`] trait which are otherwise not
+//! associated specifically with the wasm text format per se (useful in other
+//! contexts too perhaps).
+
+use crate::annotation;
 use crate::lexer::FloatVal;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use std::fmt;

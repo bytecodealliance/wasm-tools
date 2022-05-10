@@ -64,7 +64,8 @@
 //! likely also draw inspiration from the excellent examples in the `syn` crate.
 
 use crate::lexer::{Float, Integer, Lexer, Token};
-use crate::{Error, Span};
+use crate::token::Span;
+use crate::Error;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::fmt;
@@ -118,7 +119,7 @@ pub fn parse<'a, T: Parse<'a>>(buf: &'a ParseBuffer<'a>) -> Result<T> {
 /// The [`Parse`] trait is main abstraction you'll be working with when defining
 /// custom parser or custom syntax for your WebAssembly text format (or when
 /// using the official format items). Almost all items in the
-/// [`ast`](crate::ast) module implement the [`Parse`] trait, and you'll
+/// [`core`](crate::core) module implement the [`Parse`] trait, and you'll
 /// commonly use this with:
 ///
 /// * The top-level [`parse`] function to parse an entire input.
@@ -139,7 +140,7 @@ pub fn parse<'a, T: Parse<'a>>(buf: &'a ParseBuffer<'a>) -> Result<T> {
 /// (import "foo" "bar" (func (type 0)))
 /// ```
 ///
-/// but the [`Import`](crate::ast::Import) type parser looks like:
+/// but the [`Import`](crate::core::Import) type parser looks like:
 ///
 /// ```
 /// # use wast::kw;
@@ -493,9 +494,9 @@ impl<'a> Parser<'a> {
     /// }
     /// ```
     ///
-    /// [`Limits`]: crate::ast::Limits
-    /// [`TableType`]: crate::ast::TableType
-    /// [`RefType`]: crate::ast::RefType
+    /// [`Limits`]: crate::core::Limits
+    /// [`TableType`]: crate::core::TableType
+    /// [`RefType`]: crate::core::RefType
     pub fn parse<T: Parse<'a>>(self) -> Result<T> {
         T::parse(self)
     }
@@ -552,7 +553,7 @@ impl<'a> Parser<'a> {
     /// ```
     ///
     /// [spec]: https://webassembly.github.io/spec/core/text/types.html#limits
-    /// [`Limits`]: crate::ast::Limits
+    /// [`Limits`]: crate::core::Limits
     pub fn peek<T: Peek>(self) -> bool {
         T::peek(self.cursor())
     }
@@ -615,8 +616,8 @@ impl<'a> Parser<'a> {
     /// ```
     ///
     /// [spec]: https://webassembly.github.io/spec/core/text/modules.html#indices
-    /// [`Index`]: crate::ast::Index
-    /// [`Id`]: crate::ast::Id
+    /// [`Index`]: crate::token::Index
+    /// [`Id`]: crate::token::Id
     pub fn lookahead1(self) -> Lookahead1<'a> {
         Lookahead1 {
             attempts: Vec::new(),
@@ -708,7 +709,7 @@ impl<'a> Parser<'a> {
     /// A low-level parsing method you probably won't use.
     ///
     /// This is used to implement parsing of the most primitive types in the
-    /// [`ast`](crate::ast) module. You probably don't want to use this, but
+    /// [`core`](crate::core) module. You probably don't want to use this, but
     /// probably want to use something like [`Parser::parse`] or
     /// [`Parser::parens`].
     pub fn step<F, T>(self, f: F) -> Result<T>

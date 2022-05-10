@@ -1,10 +1,13 @@
-use crate::ast::{kw, Float32, Float64, Index, HeapType};
+use crate::core::HeapType;
+use crate::kw;
 use crate::parser::{Parse, Parser, Result};
+use crate::token::{Float32, Float64, Index};
 
 /// An expression that is valid inside an `assert_return` directive.
 ///
-/// As of https://github.com/WebAssembly/spec/pull/1104, spec tests may include `assert_return`
-/// directives that allow NaN patterns (`"nan:canonical"`, `"nan:arithmetic"`). Parsing an
+/// As of <https://github.com/WebAssembly/spec/pull/1104>, spec tests may
+/// include `assert_return` directives that allow NaN patterns
+/// (`"nan:canonical"`, `"nan:arithmetic"`). Parsing an
 /// `AssertExpression` means that:
 /// - only constant values (e.g. `i32.const 4`) are used in the `assert_return` directive
 /// - the NaN patterns are allowed (they are not allowed in regular `Expression`s).

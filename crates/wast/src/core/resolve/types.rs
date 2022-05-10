@@ -1,5 +1,7 @@
-use crate::ast::*;
-use crate::resolve::gensym;
+use crate::core::*;
+use crate::gensym;
+use crate::kw;
+use crate::token::{Index, ItemRef, Span};
 use std::collections::HashMap;
 
 pub fn expand<'a>(fields: &mut Vec<ModuleField<'a>>) {

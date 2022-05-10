@@ -1,4 +1,4 @@
-use crate::ast::{Id, Span};
+use crate::token::{Id, Span};
 use std::cell::Cell;
 
 thread_local!(static NEXT: Cell<u32> = Cell::new(0));
