@@ -11,10 +11,10 @@
     (type (;3;) (func (result i32)))
     (type (;4;) (func (param i32 i32) (result i32)))
     (type (;5;) (func (param i32 i32)))
-    (func $canonical_abi_realloc (type 0) (param i32 i32 i32 i32) (result i32)
+    (func $canonical_abi_realloc (;0;) (type 0) (param i32 i32 i32 i32) (result i32)
       unreachable
     )
-    (func $canonical_abi_free (type 1) (param i32 i32 i32)
+    (func $canonical_abi_free (;1;) (type 1) (param i32 i32 i32)
       unreachable
     )
     (func (;2;) (type 2)
@@ -29,7 +29,7 @@
     (func (;5;) (type 5) (param i32 i32)
       unreachable
     )
-    (memory $memory 1)
+    (memory $memory (;0;) 1)
     (export "memory" (memory $memory))
     (export "canonical_abi_realloc" (func $canonical_abi_realloc))
     (export "canonical_abi_free" (func $canonical_abi_free))
