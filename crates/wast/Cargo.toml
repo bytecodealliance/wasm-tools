@@ -34,9 +34,6 @@ default = ['wasm-module']
 # This feature is turned on by default.
 wasm-module = []
 
-# Includes parsing support for components.
-components = []
-
 [[test]]
 name = "parse-fail"
 harness = false

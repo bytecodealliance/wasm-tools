@@ -41,8 +41,8 @@ jobs:
     - name: Install Rust (rustup)
       run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
       shell: bash
-    - run: cargo test --all --features=components
-    - run: cargo test --all --features=components
+    - run: cargo test --all
+    - run: cargo test --all
       env:
         RUSTFLAGS: --cfg=wast_check_exhaustive
     - run: cargo test --manifest-path crates/wasmparser/Cargo.toml --features deterministic
