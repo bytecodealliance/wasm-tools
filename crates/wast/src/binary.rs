@@ -427,8 +427,6 @@ impl<T> Encode for IndexOrRef<'_, T> {
 
 impl<T> Encode for ItemRef<'_, T> {
     fn encode(&self, e: &mut Vec<u8>) {
-        #[cfg(wast_check_exhaustive)]
-        assert!(self.visited);
         self.idx.encode(e);
     }
 }

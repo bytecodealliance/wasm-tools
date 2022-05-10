@@ -325,15 +325,6 @@ impl<'a> Resolver<'a> {
     where
         K: Into<ExportKind> + Copy,
     {
-        #[cfg(wast_check_exhaustive)]
-        {
-            if !item.visited {
-                return Err(Error::new(
-                    item.idx.span(),
-                    format!("BUG: this index wasn't visited"),
-                ));
-            }
-        }
         self.resolve(
             &mut item.idx,
             match item.kind.into() {

@@ -225,8 +225,6 @@ impl Hash for Index<'_> {
 pub struct ItemRef<'a, K> {
     pub kind: K,
     pub idx: Index<'a>,
-    #[cfg(wast_check_exhaustive)]
-    pub visited: bool,
 }
 
 impl<'a, K: Parse<'a>> Parse<'a> for ItemRef<'a, K> {
@@ -234,12 +232,7 @@ impl<'a, K: Parse<'a>> Parse<'a> for ItemRef<'a, K> {
         parser.parens(|parser| {
             let kind = parser.parse::<K>()?;
             let idx = parser.parse()?;
-            Ok(ItemRef {
-                kind,
-                idx,
-                #[cfg(wast_check_exhaustive)]
-                visited: false,
-            })
+            Ok(ItemRef { kind, idx })
         })
     }
 }
@@ -270,8 +263,6 @@ where
             Ok(IndexOrRef(ItemRef {
                 kind: K::default(),
                 idx: parser.parse()?,
-                #[cfg(wast_check_exhaustive)]
-                visited: false,
             }))
         } else {
             Ok(IndexOrRef(parser.parse()?))

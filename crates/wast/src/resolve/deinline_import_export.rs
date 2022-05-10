@@ -234,7 +234,5 @@ fn item_ref<'a, K>(kind: K, id: impl Into<Index<'a>>) -> ItemRef<'a, K> {
     ItemRef {
         kind,
         idx: id.into(),
-        #[cfg(wast_check_exhaustive)]
-        visited: false,
     }
 }

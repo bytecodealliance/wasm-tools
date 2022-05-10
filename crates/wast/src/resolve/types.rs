@@ -192,8 +192,6 @@ impl<'a> Expander<'a> {
         item.index = Some(ItemRef {
             idx,
             kind: kw::r#type(span),
-            #[cfg(wast_check_exhaustive)]
-            visited: true,
         });
         return idx;
     }

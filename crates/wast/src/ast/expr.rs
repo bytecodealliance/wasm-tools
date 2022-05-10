@@ -1333,8 +1333,6 @@ fn idx_zero<T>(span: ast::Span, mk_kind: fn(ast::Span) -> T) -> ast::ItemRef<'st
     ast::ItemRef {
         kind: mk_kind(span),
         idx: ast::Index::Num(0, span),
-        #[cfg(wast_check_exhaustive)]
-        visited: false,
     }
 }
 

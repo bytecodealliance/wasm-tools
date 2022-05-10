@@ -145,8 +145,6 @@ impl<'a> Parse<'a> for Data<'a> {
                 ast::ItemRef {
                     kind: kw::memory(parser.prev_span()),
                     idx: ast::Index::Num(0, span),
-                    #[cfg(wast_check_exhaustive)]
-                    visited: false,
                 }
             };
             let offset = parser.parens(|parser| {

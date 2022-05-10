@@ -697,8 +697,6 @@ impl<'a, T> TypeUse<'a, T> {
             index: Some(ast::ItemRef {
                 idx,
                 kind: kw::r#type::default(),
-                #[cfg(wast_check_exhaustive)]
-                visited: true,
             }),
             inline: None,
         }
