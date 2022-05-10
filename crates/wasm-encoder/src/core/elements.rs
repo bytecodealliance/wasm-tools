@@ -121,7 +121,7 @@ impl ElementSection {
                 table: None,
                 offset,
             } => {
-                self.bytes.extend(encoders::u32(0x00 | expr_bit));
+                self.bytes.extend(encoders::u32(/* 0x00 | */ expr_bit));
                 offset.encode(&mut self.bytes);
                 Instruction::End.encode(&mut self.bytes);
             }
