@@ -1,18 +1,82 @@
+use crate::component::*;
+use crate::core;
+use crate::encode::Encode;
+use crate::token::{Id, NameAnnotation};
 
-<<<<<<< HEAD:crates/wast/src/binary.rs
-
-impl Encode for Component<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        e.extend(encode_component(self))
+pub fn encode(component: &Component<'_>) -> Vec<u8> {
+    match &component.kind {
+        ComponentKind::Text(fields) => encode_fields(&component.id, &component.name, fields),
+        ComponentKind::Binary(bytes) => bytes.iter().flat_map(|b| b.iter().cloned()).collect(),
     }
 }
 
-impl Encode for NestedModule<'_> {
+fn encode_fields(
+    component_id: &Option<Id<'_>>,
+    component_name: &Option<NameAnnotation<'_>>,
+    fields: &[ComponentField<'_>],
+) -> Vec<u8> {
+    let mut e = Encoder {
+        wasm: Vec::new(),
+        tmp: Vec::new(),
+    };
+    e.wasm.extend(b"\0asm");
+    e.wasm.extend(b"\x0a\0\x01\0");
+
+    // TODO: coalesce sections where possible
+    for field in fields {
+        match field {
+            ComponentField::Type(i) => e.section_list(1, &[i]),
+            ComponentField::Import(i) => e.section_list(2, &[i]),
+            ComponentField::Func(i) => e.section_list(3, &[i]),
+            ComponentField::Module(i) => e.section(4, &i),
+            ComponentField::Component(i) => e.section(5, &i),
+            ComponentField::Instance(i) => e.section_list(6, &[i]),
+            ComponentField::Export(i) => e.section_list(7, &[i]),
+            ComponentField::Start(i) => e.section(8, &i),
+            ComponentField::Alias(i) => e.section_list(9, &[i]),
+        }
+    }
+
+    let names = find_names(component_id, component_name, fields);
+    if !names.is_empty() {
+        e.section(0, &("name", names));
+    }
+
+    return e.wasm;
+}
+
+struct Encoder {
+    wasm: Vec<u8>,
+    tmp: Vec<u8>,
+}
+
+impl Encoder {
+    fn section(&mut self, id: u8, section: &dyn Encode) {
+        self.tmp.truncate(0);
+        section.encode(&mut self.tmp);
+        self.wasm.push(id);
+        self.tmp.encode(&mut self.wasm);
+    }
+
+    fn section_list(&mut self, id: u8, list: &[impl Encode]) {
+        if !list.is_empty() {
+            self.section(id, &list)
+        }
+    }
+}
+
+impl Encode for Component<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        encode(self).encode(e);
+    }
+}
+
+impl Encode for Module<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         match &self.kind {
-            NestedModuleKind::Import { .. } => todo!("encoding for NestedModuleKind::Import"),
-            NestedModuleKind::Inline { fields } => {
-                e.extend(encode_module_fields(&self.id, &self.name, fields))
+            ModuleKind::Import { .. } => panic!("imports should be gone by now"),
+            ModuleKind::Inline { fields } => {
+                crate::core::binary::encode(&self.id, &self.name, fields).encode(e)
             }
         }
     }
@@ -127,14 +191,7 @@ impl Encode for Alias<'_> {
                     }
                     AliasKind::ExportKind(export_kind) => {
                         e.push(0x01);
-                        match export_kind {
-                            ExportKind::Func => e.push(0x00),
-                            ExportKind::Table => e.push(0x01),
-                            ExportKind::Memory => e.push(0x02),
-                            ExportKind::Global => e.push(0x03),
-                            ExportKind::Tag => todo!("encoding for a tag export alias"),
-                            ExportKind::Type => todo!("encoding for a type export alias"),
-                        }
+                        export_kind.encode(e);
                     }
                 }
                 instance.encode(e);
@@ -145,8 +202,8 @@ impl Encode for Alias<'_> {
                 match self.kind {
                     AliasKind::Module => e.push(0x00),
                     AliasKind::Component => e.push(0x01),
-                    AliasKind::ExportKind(ExportKind::Type) => e.push(0x05),
-                    _ => panic!("Unexpected outer alias kind"),
+                    AliasKind::ExportKind(core::ExportKind::Type) => e.push(0x05),
+                    _ => todo!("Unexpected outer alias kind"),
                 }
                 outer.encode(e);
                 index.encode(e);
@@ -185,9 +242,7 @@ impl Encode for CanonOpt<'_> {
         }
     }
 }
-=======
->>>>>>> reorganize-wast-crate:crates/wast/src/core/binary.rs
-<<<<<<< HEAD:crates/wast/src/binary.rs
+
 impl Encode for ModuleType<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         e.push(0x4f);
@@ -277,60 +332,6 @@ impl Encode for ComponentExportType<'_> {
         self.item.encode(e);
     }
 }
-
-=======
->>>>>>> reorganize-wast-crate:crates/wast/src/core/binary.rs
-fn encode_component_fields(
-    component_id: &Option<Id<'_>>,
-    component_name: &Option<NameAnnotation<'_>>,
-    fields: &[ComponentField<'_>],
-) -> Vec<u8> {
-    use crate::ast::CustomPlace::*;
-
-    let mut e = Encoder {
-        wasm: Vec::new(),
-        tmp: Vec::new(),
-        customs: &Vec::new(),
-    };
-    e.wasm.extend(b"\0asm");
-    e.wasm.extend(b"\x0a\0\x01\0");
-
-    e.custom_sections(BeforeFirst);
-
-    // TODO: coalesce sections where possible
-    for field in fields {
-        match field {
-            ComponentField::Type(i) => e.component_section_list(1, &[i]),
-            ComponentField::Import(i) => e.component_section_list(2, &[i]),
-            ComponentField::Func(i) => e.component_section_list(3, &[i]),
-            ComponentField::Module(i) => e.section(4, &i),
-            ComponentField::Component(i) => e.section(5, &i),
-            ComponentField::Instance(i) => e.component_section_list(6, &[i]),
-            ComponentField::Export(i) => e.component_section_list(7, &[i]),
-            ComponentField::Start(i) => e.section(8, &i),
-            ComponentField::Alias(i) => e.component_section_list(9, &[i]),
-            ComponentField::Custom(i) => e.section(0, &(i.name, &i.data)),
-        }
-    }
-
-    let names = find_component_names(component_id, component_name, fields);
-    if !names.is_empty() {
-        e.section(0, &("name", names));
-    }
-    e.custom_sections(AfterLast);
-
-    return e.wasm;
-}
-
-pub fn encode_component(component: &Component<'_>) -> Vec<u8> {
-    match &component.kind {
-        ComponentKind::Text(fields) => {
-            encode_component_fields(&component.id, &component.name, fields)
-        }
-        ComponentKind::Binary(bytes) => bytes.iter().flat_map(|b| b.iter().cloned()).collect(),
-    }
-}
-
 impl Encode for TypeField<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         match &self.def {
@@ -568,11 +569,22 @@ struct ComponentNames<'a> {
     tag_idx: u32,
 }
 
-fn find_component_names<'a>(
+// TODO: should ideally deduplicate this with similar code in `core/binary.rs`
+fn find_names<'a>(
     component_id: &Option<Id<'a>>,
     component_name: &Option<NameAnnotation<'a>>,
     fields: &[ComponentField<'a>],
 ) -> ComponentNames<'a> {
+    fn get_name<'a>(id: &Option<Id<'a>>, name: &Option<NameAnnotation<'a>>) -> Option<&'a str> {
+        name.as_ref().map(|n| n.name).or(id.and_then(|id| {
+            if id.is_gensym() {
+                None
+            } else {
+                Some(id.name())
+            }
+        }))
+    }
+
     enum Name {
         Type,
         Func,
@@ -600,29 +612,31 @@ fn find_component_names<'a>(
             ComponentField::Instance(i) => (Name::Instance, &i.id, &i.name),
             ComponentField::Type(t) => (Name::Type, &t.id, &t.name),
             ComponentField::Func(f) => (Name::Func, &f.id, &f.name),
-            ComponentField::Alias(a) => {
-                match a.target {
-                    AliasTarget::Export { .. } => {
-                        eprintln!("TODO: Extract the kind/id/name for the name section from export aliases");
-                        continue;
-                    }
-                    AliasTarget::Outer { .. } => match a.kind {
-                        AliasKind::Module => (Name::Module, &a.id, &a.name),
-                        AliasKind::Component => (Name::Component, &a.id, &a.name),
-                        AliasKind::Instance => (Name::Instance, &a.id, &a.name),
-                        AliasKind::Value => (Name::Value, &a.id, &a.name),
-                        AliasKind::ExportKind(ExportKind::Func) => (Name::Func, &a.id, &a.name),
-                        AliasKind::ExportKind(ExportKind::Table) => (Name::Table, &a.id, &a.name),
-                        AliasKind::ExportKind(ExportKind::Global) => (Name::Global, &a.id, &a.name),
-                        AliasKind::ExportKind(ExportKind::Memory) => (Name::Memory, &a.id, &a.name),
-                        AliasKind::ExportKind(ExportKind::Tag) => (Name::Tag, &a.id, &a.name),
-                        AliasKind::ExportKind(ExportKind::Type) => (Name::Type, &a.id, &a.name),
-                    },
+            ComponentField::Alias(a) => match a.target {
+                AliasTarget::Export { .. } => {
+                    eprintln!(
+                        "TODO: Extract the kind/id/name for the name section from export aliases"
+                    );
+                    continue;
                 }
-            }
-            ComponentField::Export(_) | ComponentField::Start(_) | ComponentField::Custom(_) => {
-                continue
-            }
+                AliasTarget::Outer { .. } => match a.kind {
+                    AliasKind::Module => (Name::Module, &a.id, &a.name),
+                    AliasKind::Component => (Name::Component, &a.id, &a.name),
+                    AliasKind::Instance => (Name::Instance, &a.id, &a.name),
+                    AliasKind::Value => (Name::Value, &a.id, &a.name),
+                    AliasKind::ExportKind(core::ExportKind::Func) => (Name::Func, &a.id, &a.name),
+                    AliasKind::ExportKind(core::ExportKind::Table) => (Name::Table, &a.id, &a.name),
+                    AliasKind::ExportKind(core::ExportKind::Global) => {
+                        (Name::Global, &a.id, &a.name)
+                    }
+                    AliasKind::ExportKind(core::ExportKind::Memory) => {
+                        (Name::Memory, &a.id, &a.name)
+                    }
+                    AliasKind::ExportKind(core::ExportKind::Tag) => (Name::Tag, &a.id, &a.name),
+                    AliasKind::ExportKind(core::ExportKind::Type) => (Name::Type, &a.id, &a.name),
+                },
+            },
+            ComponentField::Export(_) | ComponentField::Start(_) => continue,
         };
 
         // .. and using the kind we can figure out where to place this name
@@ -647,6 +661,7 @@ fn find_component_names<'a>(
 
     return ret;
 }
+
 impl Encode for ComponentImport<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.name.encode(e);
@@ -670,4 +685,3 @@ impl Encode for ComponentNames<'_> {
         // TODO: names section for components
     }
 }
-

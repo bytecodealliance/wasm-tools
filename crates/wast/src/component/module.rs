@@ -1,42 +1,45 @@
-use crate::ast::{self, kw};
+use crate::component::*;
+use crate::core;
+use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
+use crate::token::{Id, NameAnnotation, Span};
 
 /// A nested WebAssembly nested module to be created as part of a module.
 #[derive(Debug)]
-pub struct NestedModule<'a> {
+pub struct Module<'a> {
     /// Where this `nested module` was defined.
-    pub span: ast::Span,
+    pub span: Span,
     /// An identifier that this nested module is resolved with (optionally) for name
     /// resolution.
-    pub id: Option<ast::Id<'a>>,
+    pub id: Option<Id<'a>>,
     /// An optional name for this module stored in the custom `name` section.
-    pub name: Option<ast::NameAnnotation<'a>>,
+    pub name: Option<NameAnnotation<'a>>,
     /// If present, inline export annotations which indicate names this
     /// definition should be exported under.
-    pub exports: ast::InlineExport<'a>,
+    pub exports: core::InlineExport<'a>,
     /// What kind of nested module this is, be it an inline-defined or imported one.
-    pub kind: NestedModuleKind<'a>,
+    pub kind: ModuleKind<'a>,
 }
 
 /// Possible ways to define a nested module in the text format.
 #[derive(Debug)]
-pub enum NestedModuleKind<'a> {
+pub enum ModuleKind<'a> {
     /// An nested module which is actually defined as an import, such as:
     Import {
         /// Where this nested module is imported from
-        import: ast::InlineImport<'a>,
+        import: core::InlineImport<'a>,
         /// The type that this nested module will have.
-        ty: ast::ComponentTypeUse<'a, ast::ModuleType<'a>>,
+        ty: ComponentTypeUse<'a, ModuleType<'a>>,
     },
 
-    /// Nested modules whose instantiation is defined inline.
+    ///  modules whose instantiation is defined inline.
     Inline {
         /// Fields in the nested module.
-        fields: Vec<ast::ModuleField<'a>>,
+        fields: Vec<core::ModuleField<'a>>,
     },
 }
 
-impl<'a> Parse<'a> for NestedModule<'a> {
+impl<'a> Parse<'a> for Module<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         // This is sort of a fundamental limitation of the way this crate is
         // designed. Everything is done through recursive descent parsing which
@@ -57,7 +60,7 @@ impl<'a> Parse<'a> for NestedModule<'a> {
         let exports = parser.parse()?;
 
         let kind = if let Some(import) = parser.parse()? {
-            NestedModuleKind::Import {
+            ModuleKind::Import {
                 import,
                 ty: parser.parse()?,
             }
@@ -66,10 +69,10 @@ impl<'a> Parse<'a> for NestedModule<'a> {
             while !parser.is_empty() {
                 fields.push(parser.parens(|p| p.parse())?);
             }
-            NestedModuleKind::Inline { fields }
+            ModuleKind::Inline { fields }
         };
 
-        Ok(NestedModule {
+        Ok(Module {
             span,
             id,
             name,

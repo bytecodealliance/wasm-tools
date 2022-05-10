@@ -1,14 +1,17 @@
-
+use crate::component::*;
+use crate::kw;
+use crate::parser::{Parse, Parser, Result};
+use crate::token::Span;
 
 /// An `import` statement and entry in a WebAssembly component.
 #[derive(Debug, Clone)]
 pub struct ComponentImport<'a> {
     /// Where this `import` was defined
-    pub span: ast::Span,
+    pub span: Span,
     /// The name of the item to import.
     pub name: &'a str,
     /// The type of the import.
-    pub type_: ast::ComponentTypeUse<'a, ast::DefType<'a>>,
+    pub type_: ComponentTypeUse<'a, DefType<'a>>,
 }
 
 impl<'a> Parse<'a> for ComponentImport<'a> {

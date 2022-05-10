@@ -1,19 +1,22 @@
-use crate::ast::{self, kw};
+use crate::component::*;
+use crate::core;
+use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
+use crate::token::{Id, Index, ItemRef, LParen, NameAnnotation, Span};
 
 /// A nested WebAssembly instance to be created as part of a module.
 #[derive(Debug)]
 pub struct Instance<'a> {
     /// Where this `instance` was defined.
-    pub span: ast::Span,
+    pub span: Span,
     /// An identifier that this instance is resolved with (optionally) for name
     /// resolution.
-    pub id: Option<ast::Id<'a>>,
+    pub id: Option<Id<'a>>,
     /// An optional name for this function stored in the custom `name` section.
-    pub name: Option<ast::NameAnnotation<'a>>,
+    pub name: Option<NameAnnotation<'a>>,
     /// If present, inline export annotations which indicate names this
     /// definition should be exported under.
-    pub exports: ast::InlineExport<'a>,
+    pub exports: core::InlineExport<'a>,
     /// What kind of instance this is, be it an inline-defined or imported one.
     pub kind: InstanceKind<'a>,
 }
@@ -24,7 +27,7 @@ pub enum InstanceKind<'a> {
     /// Instantiate a core module.
     Module {
         /// Module that we're instantiating
-        module: ast::ItemRef<'a, kw::module>,
+        module: ItemRef<'a, kw::module>,
         /// Arguments used to instantiate the instance
         args: Vec<NamedModuleArg<'a>>,
     },
@@ -32,7 +35,7 @@ pub enum InstanceKind<'a> {
     /// Instantiate a component.
     Component {
         /// Component that we're instantiating
-        component: ast::ItemRef<'a, kw::component>,
+        component: ItemRef<'a, kw::component>,
         /// Arguments used to instantiate the instance
         args: Vec<NamedComponentArg<'a>>,
     },
@@ -41,14 +44,14 @@ pub enum InstanceKind<'a> {
     /// in places that need an instance.
     BundleOfExports {
         /// Arguments used to create the anonymous instance
-        args: Vec<ast::Export<'a>>,
+        args: Vec<core::Export<'a>>,
     },
 
     /// A bundle of component exports which isn't an instance, but can be used
     /// in places that need an instance.
     BundleOfComponentExports {
         /// Arguments used to create the anonymous instance
-        args: Vec<ast::ComponentExport<'a>>,
+        args: Vec<ComponentExport<'a>>,
     },
 }
 
@@ -93,10 +96,10 @@ impl<'a> Parse<'a> for NamedComponentArg<'a> {
 #[derive(Debug)]
 pub enum ModuleArg<'a> {
     /// Core modules can reference instances.
-    Def(ast::ItemRef<'a, kw::instance>),
+    Def(ItemRef<'a, kw::instance>),
     /// `instance`, but it isn't actually an instance; it's a tuple of exports
     /// which can be used in place of an instance.
-    BundleOfExports(Vec<ast::Export<'a>>),
+    BundleOfExports(Vec<core::Export<'a>>),
 }
 
 /// componentarg ::= (module <moduleidx>)
@@ -108,12 +111,12 @@ pub enum ModuleArg<'a> {
 #[derive(Debug)]
 pub enum ComponentArg<'a> {
     /// A reference to an item of one of the deftype kinds.
-    Def(ast::ItemRef<'a, ast::DefTypeKind>),
+    Def(ItemRef<'a, DefTypeKind>),
     /// `type`, which is separate here because it isn't yet a deftype kind.
-    Type(ast::ItemRef<'a, kw::r#type>),
+    Type(ItemRef<'a, kw::r#type>),
     /// `instance`, but it isn't actually an instance; it's a tuple of exports
     /// which can be used in place of an instance.
-    BundleOfExports(Vec<ast::ComponentExport<'a>>),
+    BundleOfExports(Vec<ComponentExport<'a>>),
 }
 
 impl<'a> Parse<'a> for Instance<'a> {
@@ -123,7 +126,7 @@ impl<'a> Parse<'a> for Instance<'a> {
         let name = parser.parse()?;
         let exports = parser.parse()?;
 
-        let kind = if parser.peek::<ast::LParen>() && parser.peek2::<kw::instantiate>() {
+        let kind = if parser.peek::<LParen>() && parser.peek2::<kw::instantiate>() {
             parser.parens(|p| {
                 p.parse::<kw::instantiate>()?;
                 if p.peek2::<kw::module>() {
@@ -150,7 +153,7 @@ impl<'a> Parse<'a> for Instance<'a> {
                 args.push(parser.parse()?);
             }
             InstanceKind::BundleOfExports { args }
-        } else if parser.peek2::<ast::LParen>() && parser.peek2::<kw::export>() {
+        } else if parser.peek2::<LParen>() && parser.peek2::<kw::export>() {
             let mut args = Vec::new();
             while !parser.is_empty() {
                 args.push(parser.parse()?);
@@ -175,11 +178,11 @@ impl<'a> Parse<'a> for Instance<'a> {
 
 impl<'a> Parse<'a> for ModuleArg<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        if parser.peek::<ast::LParen>() && parser.peek2::<kw::instance>() && parser.peek3::<ast::Index>() {
+        if parser.peek::<LParen>() && parser.peek2::<kw::instance>() && parser.peek3::<Index>() {
             // `(instance <index>)`
-            let def = parser.parse::<ast::ItemRef<kw::instance>>()?;
+            let def = parser.parse::<ItemRef<kw::instance>>()?;
             Ok(ModuleArg::Def(def))
-        } else if parser.peek::<ast::LParen>() && parser.peek2::<kw::instance>() {
+        } else if parser.peek::<LParen>() && parser.peek2::<kw::instance>() {
             let exports = parser.parens(|p| {
                 p.parse::<kw::instance>()?;
                 let mut exports = Vec::new();
@@ -197,14 +200,14 @@ impl<'a> Parse<'a> for ModuleArg<'a> {
 
 impl<'a> Parse<'a> for ComponentArg<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        if parser.peek::<ast::ItemRef<'a, ast::DefTypeKind>>() && parser.peek3::<ast::Index>() {
+        if parser.peek::<ItemRef<'a, DefTypeKind>>() && parser.peek3::<Index>() {
             // `(<deftypekind> <index>)`
-            let def = parser.parse::<ast::ItemRef<'a, ast::DefTypeKind>>()?;
+            let def = parser.parse::<ItemRef<'a, DefTypeKind>>()?;
             Ok(ComponentArg::Def(def))
-        } else if parser.peek::<ast::ItemRef<kw::r#type>>() {
-            let def = parser.parse::<ast::ItemRef<'a, kw::r#type>>()?;
+        } else if parser.peek::<ItemRef<kw::r#type>>() {
+            let def = parser.parse::<ItemRef<'a, kw::r#type>>()?;
             Ok(ComponentArg::Type(def))
-        } else if parser.peek::<ast::LParen>() && parser.peek2::<kw::instance>() {
+        } else if parser.peek::<LParen>() && parser.peek2::<kw::instance>() {
             let exports = parser.parens(|p| {
                 p.parse::<kw::instance>()?;
                 let mut exports = Vec::new();
@@ -222,9 +225,9 @@ impl<'a> Parse<'a> for ComponentArg<'a> {
 
 impl Peek for ComponentArg<'_> {
     fn peek(cursor: Cursor<'_>) -> bool {
-        ast::ItemRef::<ast::DefTypeKind>::peek(cursor)
-            || ast::ItemRef::<kw::r#type>::peek2(cursor)
-            || (ast::LParen::peek(cursor) && kw::instance::peek2(cursor))
+        ItemRef::<DefTypeKind>::peek(cursor)
+            || ItemRef::<kw::r#type>::peek2(cursor)
+            || (LParen::peek(cursor) && kw::instance::peek2(cursor))
     }
     fn display() -> &'static str {
         "componentarg"

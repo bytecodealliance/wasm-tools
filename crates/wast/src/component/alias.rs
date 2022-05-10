@@ -1,16 +1,18 @@
-use crate::ast::{self, kw};
+use crate::core;
+use crate::kw;
 use crate::parser::{Parse, Parser, Result};
+use crate::token::{Id, Index, NameAnnotation, Span};
 
 /// An `alias` statement used to juggle indices with nested components.
 #[derive(Debug, Clone)]
 pub struct Alias<'a> {
     /// Where this `alias` was defined.
-    pub span: ast::Span,
+    pub span: Span,
     /// An identifier that this alias is resolved with (optionally) for name
     /// resolution.
-    pub id: Option<ast::Id<'a>>,
+    pub id: Option<Id<'a>>,
     /// An optional name for this alias stored in the custom `name` section.
-    pub name: Option<ast::NameAnnotation<'a>>,
+    pub name: Option<NameAnnotation<'a>>,
     /// The target of this alias.
     pub target: AliasTarget<'a>,
     /// The kind of item that's being aliased.
@@ -34,14 +36,14 @@ pub enum AliasKind {
     Component,
     Instance,
     Value,
-    ExportKind(ast::ExportKind),
+    ExportKind(core::ExportKind),
 }
 
 impl<'a> Parse<'a> for AliasKind {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let mut l = parser.lookahead1();
-        if l.peek::<ast::ExportKind>() {
-            let kind = parser.parse::<ast::ExportKind>()?;
+        if l.peek::<core::ExportKind>() {
+            let kind = parser.parse::<core::ExportKind>()?;
             Ok(AliasKind::ExportKind(kind))
         } else if l.peek::<kw::module>() {
             parser.parse::<kw::module>()?;
@@ -67,14 +69,14 @@ impl<'a> Parse<'a> for AliasKind {
 #[allow(missing_docs)]
 pub enum AliasTarget<'a> {
     Export {
-        instance: ast::Index<'a>,
+        instance: Index<'a>,
         export: &'a str,
     },
     Outer {
         /// The number of enclosing components to skip.
-        outer: ast::Index<'a>,
+        outer: Index<'a>,
         /// An index into the target component's `aliaskind` index space.
-        index: ast::Index<'a>,
+        index: Index<'a>,
     },
 }
 
@@ -89,7 +91,7 @@ impl<'a> Parse<'a> for Alias<'a> {
         } else {
             parser.parse::<kw::export>()?;
             AliasTarget::Export {
-                instance: parser.parse::<ast::Index<'a>>()?,
+                instance: parser.parse::<Index<'a>>()?,
                 export: parser.parse()?,
             }
         };

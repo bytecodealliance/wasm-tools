@@ -63,6 +63,20 @@ impl<'a> Parse<'a> for ExportKind {
     }
 }
 
+impl Peek for ExportKind {
+    fn peek(cursor: Cursor<'_>) -> bool {
+        kw::func::peek(cursor)
+            || kw::table::peek(cursor)
+            || kw::memory::peek(cursor)
+            || kw::global::peek(cursor)
+            || kw::tag::peek(cursor)
+            || kw::r#type::peek(cursor)
+    }
+    fn display() -> &'static str {
+        "export kind"
+    }
+}
+
 macro_rules! kw_conversions {
     ($($kw:ident => $kind:ident)*) => ($(
         impl From<kw::$kw> for ExportKind {

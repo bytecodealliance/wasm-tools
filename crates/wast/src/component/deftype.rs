@@ -1,6 +1,10 @@
-/// The `deftype` production in the component-model AST, and its children.
-use crate::ast::{self, kw};
+//! The `deftype` production in the component-model AST, and its children.
+
+use crate::component::*;
+use crate::core;
+use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
+use crate::token::{Id, LParen, NameAnnotation};
 
 /// Different kinds of elements that can be exported from a WebAssembly component,
 /// contained in a [`ComponentExport`].
@@ -59,28 +63,28 @@ impl Peek for DefTypeKind {
 #[derive(Debug, Clone)]
 #[allow(missing_docs)]
 pub enum DefType<'a> {
-    Func(ast::ComponentFunctionType<'a>),
-    Module(ast::ModuleType<'a>),
-    Component(ast::ComponentType<'a>),
-    Instance(ast::InstanceType<'a>),
-    Value(ast::ValueType<'a>),
+    Func(ComponentFunctionType<'a>),
+    Module(ModuleType<'a>),
+    Component(ComponentType<'a>),
+    Instance(InstanceType<'a>),
+    Value(ValueType<'a>),
 }
 
 impl<'a> Parse<'a> for DefType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        if parser.peek::<ast::ComponentFunctionType>() {
+        if parser.peek::<ComponentFunctionType>() {
             let ty = parser.parse()?;
             Ok(DefType::Func(ty))
-        } else if parser.peek::<ast::ModuleType>() {
+        } else if parser.peek::<ModuleType>() {
             let ty = parser.parse()?;
             Ok(DefType::Module(ty))
-        } else if parser.peek::<ast::ComponentType>() {
+        } else if parser.peek::<ComponentType>() {
             let ty = parser.parse()?;
             Ok(DefType::Component(ty))
-        } else if parser.peek::<ast::InstanceType>() {
+        } else if parser.peek::<InstanceType>() {
             let ty = parser.parse()?;
             Ok(DefType::Instance(ty))
-        } else if parser.peek::<ast::ValueType>() {
+        } else if parser.peek::<ValueType>() {
             let ty = parser.parse()?;
             Ok(DefType::Value(ty))
         } else {
@@ -91,7 +95,7 @@ impl<'a> Parse<'a> for DefType<'a> {
 
 impl Peek for DefType<'_> {
     fn peek(cursor: Cursor<'_>) -> bool {
-        ast::LParen::peek(cursor)
+        LParen::peek(cursor)
             && (kw::module::peek2(cursor)
                 || kw::component::peek2(cursor)
                 || kw::instance::peek2(cursor)
@@ -110,19 +114,19 @@ impl Peek for DefType<'_> {
 #[derive(Clone, Debug)]
 pub struct ComponentFunctionType<'a> {
     /// An optional name.
-    pub id: Option<ast::Id<'a>>,
+    pub id: Option<Id<'a>>,
     /// The parameters of a function, optionally each having an identifier for
     /// name resolution and a name for the custom `name` section.
     pub params: Box<[ComponentFunctionParam<'a>]>,
     /// The result type of a function.
-    pub result: ast::ComponentTypeUse<'a, ast::InterType<'a>>,
+    pub result: ComponentTypeUse<'a, InterType<'a>>,
 }
 
 impl<'a> Parse<'a> for ComponentFunctionType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parens(|parser| {
             parser.parse::<kw::func>()?;
-            let id = parser.parse::<Option<ast::Id>>()?;
+            let id = parser.parse::<Option<Id>>()?;
             let mut params = Vec::new();
             while parser.peek2::<kw::param>() {
                 parser.parens(|p| {
@@ -158,7 +162,7 @@ impl<'a> Parse<'a> for ComponentFunctionType<'a> {
                     Ok(())
                 })?;
             }
-            let result = if parser.peek::<ast::LParen>() {
+            let result = if parser.peek::<LParen>() {
                 // Parse a `(result ...)`.
                 parser.parens(|parser| {
                     parser.parse::<kw::result>()?;
@@ -166,7 +170,7 @@ impl<'a> Parse<'a> for ComponentFunctionType<'a> {
                 })?
             } else {
                 // If the result is omitted, use `unit`.
-                ast::ComponentTypeUse::Inline(ast::InterType::Unit)
+                ComponentTypeUse::Inline(InterType::Unit)
             };
             Ok(Self {
                 id,
@@ -199,11 +203,11 @@ impl<'a> Peek for ComponentFunctionType<'a> {
 pub struct ComponentFunctionParam<'a> {
     /// An optional identifer to refer to this `param` by as part of
     /// name resolution.
-    pub id: Option<ast::Id<'a>>,
+    pub id: Option<Id<'a>>,
     /// An optional `@name` annotation for this parameter
-    pub name: Option<ast::NameAnnotation<'a>>,
+    pub name: Option<NameAnnotation<'a>>,
     /// The type of the parameter.
-    pub type_: ast::ComponentTypeUse<'a, ast::InterType<'a>>,
+    pub type_: ComponentTypeUse<'a, InterType<'a>>,
 }
 
 /// A type for a nested module
@@ -211,7 +215,7 @@ pub struct ComponentFunctionParam<'a> {
 pub struct ModuleType<'a> {
     /// An optional identifer to refer to this `module` type by as part of
     /// name resolution.
-    pub id: Option<ast::Id<'a>>,
+    pub id: Option<Id<'a>>,
     /// The fields of the module type.
     pub defs: Vec<ModuleTypeDef<'a>>,
 }
@@ -256,11 +260,11 @@ impl<'a> Peek for ModuleType<'a> {
 #[derive(Clone, Debug)]
 pub enum ModuleTypeDef<'a> {
     /// A function type.
-    CoreDefType(ast::FunctionType<'a>),
+    CoreDefType(core::FunctionType<'a>),
     /// An import.
-    CoreImport(ast::Import<'a>),
+    CoreImport(core::Import<'a>),
     /// An export.
-    Export(&'a str, ast::ItemSig<'a>),
+    Export(&'a str, core::ItemSig<'a>),
 }
 
 impl<'a> Parse<'a> for ModuleTypeDef<'a> {
@@ -290,7 +294,7 @@ impl<'a> Parse<'a> for ModuleTypeDef<'a> {
 pub struct ComponentType<'a> {
     /// An optional identifer to refer to this `component` type by as part of
     /// name resolution.
-    pub id: Option<ast::Id<'a>>,
+    pub id: Option<Id<'a>>,
 
     /// The fields of this `ComponentType`.
     pub fields: Vec<ComponentTypeField<'a>>,
@@ -308,7 +312,7 @@ impl<'a> Parse<'a> for ComponentType<'a> {
             let id = parser.parse()?;
 
             let mut fields = Vec::new();
-            while parser.peek::<ast::LParen>() {
+            while parser.peek::<LParen>() {
                 parser.parens(|parser| {
                     if parser.peek::<kw::import>() {
                         fields.push(ComponentTypeField::Import(parser.parse()?));
@@ -345,16 +349,16 @@ impl<'a> Peek for ComponentType<'a> {
 #[derive(Clone, Debug)]
 pub enum ComponentTypeField<'a> {
     /// A public type for this component.
-    Type(ast::TypeField<'a>),
+    Type(TypeField<'a>),
 
     /// A public type relationships for this component.
-    Alias(ast::Alias<'a>),
+    Alias(Alias<'a>),
 
     /// An import expected for this component type.
-    Import(ast::ComponentImport<'a>),
+    Import(ComponentImport<'a>),
 
     /// An export this component type is expected to have.
-    Export(ast::ComponentExportType<'a>),
+    Export(ComponentExportType<'a>),
 }
 
 /// A type for a nested instance
@@ -362,7 +366,7 @@ pub enum ComponentTypeField<'a> {
 pub struct InstanceType<'a> {
     /// An optional identifer to refer to this `instance` type by as part of
     /// name resolution.
-    pub id: Option<ast::Id<'a>>,
+    pub id: Option<Id<'a>>,
 
     /// The fields of this `InstanceType`.
     pub fields: Vec<InstanceTypeField<'a>>,
@@ -379,7 +383,7 @@ impl<'a> Parse<'a> for InstanceType<'a> {
             parser.parse::<kw::instance>()?;
             let id = parser.parse()?;
             let mut fields = Vec::new();
-            while parser.peek::<ast::LParen>() {
+            while parser.peek::<LParen>() {
                 if parser.peek2::<kw::export>() {
                     fields.push(InstanceTypeField::Export(
                         parser.parens(|parser| parser.parse())?,
@@ -416,22 +420,22 @@ impl<'a> Peek for InstanceType<'a> {
 #[derive(Clone, Debug)]
 pub enum InstanceTypeField<'a> {
     /// A public type for this component.
-    Type(ast::TypeField<'a>),
+    Type(TypeField<'a>),
 
     /// A public type relationships for this component.
-    Alias(ast::Alias<'a>),
+    Alias(Alias<'a>),
 
     /// An export this component type is expected to have.
-    Export(ast::ComponentExportType<'a>),
+    Export(ComponentExportType<'a>),
 }
 
 /// A value type.
 #[derive(Debug, Clone)]
 pub struct ValueType<'a> {
     /// An optional name.
-    pub id: Option<ast::Id<'a>>,
+    pub id: Option<Id<'a>>,
     /// The type of the value.
-    pub value_type: ast::ComponentTypeUse<'a, ast::InterType<'a>>,
+    pub value_type: ComponentTypeUse<'a, InterType<'a>>,
 }
 
 impl<'a> Parse<'a> for ValueType<'a> {
@@ -448,7 +452,7 @@ impl<'a> Parse<'a> for ValueType<'a> {
 
 impl<'a> Peek for ValueType<'a> {
     fn peek(cursor: Cursor<'_>) -> bool {
-        ast::LParen::peek(cursor) && kw::value::peek2(cursor)
+        LParen::peek(cursor) && kw::value::peek2(cursor)
     }
 
     fn display() -> &'static str {

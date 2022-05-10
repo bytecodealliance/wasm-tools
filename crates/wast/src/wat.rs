@@ -1,3 +1,4 @@
+use crate::component::Component;
 use crate::core::{Module, ModuleField, ModuleKind};
 use crate::kw;
 use crate::parser::{Parse, Parser, Result};

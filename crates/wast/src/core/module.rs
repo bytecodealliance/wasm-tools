@@ -53,7 +53,11 @@ impl<'a> Module<'a> {
     /// If an error happens during resolution, such a name resolution error or
     /// items are found in the wrong order, then an error is returned.
     pub fn resolve(&mut self) -> std::result::Result<Names<'a>, crate::Error> {
-        crate::core::resolve::resolve(self)
+        let names = match &mut self.kind {
+            ModuleKind::Text(fields) => crate::core::resolve::resolve(fields)?,
+            ModuleKind::Binary(_blobs) => Default::default(),
+        };
+        Ok(names)
     }
 
     /// Encodes this [`Module`] to its binary form.
@@ -82,7 +86,10 @@ impl<'a> Module<'a> {
     /// expansion-related errors.
     pub fn encode(&mut self) -> std::result::Result<Vec<u8>, crate::Error> {
         self.resolve()?;
-        Ok(crate::core::binary::encode(self))
+        Ok(match &self.kind {
+            ModuleKind::Text(fields) => crate::core::binary::encode(&self.id, &self.name, fields),
+            ModuleKind::Binary(blobs) => blobs.iter().flat_map(|b| b.iter().cloned()).collect(),
+        })
     }
 
     pub(crate) fn validate(&self, parser: Parser<'_>) -> Result<()> {

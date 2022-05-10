@@ -1,15 +1,17 @@
-use crate::ast::{self, annotation, kw};
+use crate::component::*;
+use crate::kw;
 use crate::parser::{Parse, Parser, Result};
+use crate::token::{Id, IndexOrRef, ItemRef, NameAnnotation, Span};
 
 /// A parsed WebAssembly component module.
 #[derive(Debug)]
 pub struct Component<'a> {
     /// Where this `component` was defined
-    pub span: ast::Span,
+    pub span: Span,
     /// An optional identifier this component is known by
-    pub id: Option<ast::Id<'a>>,
+    pub id: Option<Id<'a>>,
     /// An optional `@name` annotation for this component
-    pub name: Option<ast::NameAnnotation<'a>>,
+    pub name: Option<NameAnnotation<'a>>,
     /// What kind of component this was parsed as.
     pub kind: ComponentKind<'a>,
 }
@@ -47,7 +49,7 @@ impl<'a> Component<'a> {
     /// If an error happens during resolution, such a name resolution error or
     /// items are found in the wrong order, then an error is returned.
     pub fn resolve(&mut self) -> std::result::Result<(), crate::Error> {
-        crate::resolve::resolve_component(self)
+        crate::component::resolve::resolve(self)
     }
 
     /// Encodes this [`Component`] to its binary form.
@@ -76,10 +78,10 @@ impl<'a> Component<'a> {
     /// expansion-related errors.
     pub fn encode(&mut self) -> std::result::Result<Vec<u8>, crate::Error> {
         self.resolve()?;
-        Ok(crate::binary::encode_component(self))
+        Ok(crate::component::binary::encode(self))
     }
 
-    pub(super) fn validate(&self, parser: Parser<'_>) -> Result<()> {
+    pub(crate) fn validate(&self, parser: Parser<'_>) -> Result<()> {
         let mut starts = 0;
         if let ComponentKind::Text(fields) = &self.kind {
             for item in fields.iter() {
@@ -126,16 +128,15 @@ impl<'a> Parse<'a> for Component<'a> {
 #[allow(missing_docs)]
 #[derive(Debug)]
 pub enum ComponentField<'a> {
-    Type(ast::TypeField<'a>),
-    Import(ast::ComponentImport<'a>),
-    Func(ast::ComponentFunc<'a>),
-    Export(ast::ComponentExport<'a>),
+    Type(TypeField<'a>),
+    Import(ComponentImport<'a>),
+    Func(ComponentFunc<'a>),
+    Export(ComponentExport<'a>),
     Start(Start<'a>),
-    Custom(ast::Custom<'a>),
-    Instance(ast::Instance<'a>),
-    Module(ast::NestedModule<'a>),
-    Component(ast::Component<'a>),
-    Alias(ast::Alias<'a>),
+    Instance(Instance<'a>),
+    Module(Module<'a>),
+    Component(Component<'a>),
+    Alias(Alias<'a>),
 }
 
 impl<'a> ComponentField<'a> {
@@ -165,9 +166,6 @@ impl<'a> Parse<'a> for ComponentField<'a> {
         if parser.peek::<kw::start>() {
             return Ok(ComponentField::Start(parser.parse()?));
         }
-        if parser.peek::<annotation::custom>() {
-            return Ok(ComponentField::Custom(parser.parse()?));
-        }
         if parser.peek::<kw::instance>() {
             return Ok(ComponentField::Instance(parser.parse()?));
         }
@@ -188,17 +186,17 @@ impl<'a> Parse<'a> for ComponentField<'a> {
 #[derive(Debug)]
 pub struct Start<'a> {
     /// The function to call.
-    pub func: ast::ItemRef<'a, kw::func>,
+    pub func: ItemRef<'a, kw::func>,
     /// The arguments to pass to the function.
-    pub args: Vec<ast::ItemRef<'a, kw::value>>,
+    pub args: Vec<ItemRef<'a, kw::value>>,
     /// Name of the result value.
-    pub result: ast::Id<'a>,
+    pub result: Id<'a>,
 }
 
 impl<'a> Parse<'a> for Start<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::start>()?;
-        let func = parser.parse::<ast::IndexOrRef<_>>()?.0;
+        let func = parser.parse::<IndexOrRef<_>>()?.0;
         let mut args = Vec::new();
         while !parser.peek2::<kw::result>() {
             args.push(parser.parse()?);

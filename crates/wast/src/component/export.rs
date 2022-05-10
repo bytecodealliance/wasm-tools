@@ -1,14 +1,19 @@
+use crate::component::ComponentArg;
+use crate::kw;
+use crate::parser::{Parse, Parser, Result};
+use crate::token::Span;
+
 /// A entry in a WebAssembly component's export section.
 ///
 /// export       ::= (export <name> <componentarg>)
 #[derive(Debug)]
 pub struct ComponentExport<'a> {
     /// Where this export was defined.
-    pub span: ast::Span,
+    pub span: Span,
     /// The name of this export from the component.
     pub name: &'a str,
     /// What's being exported from the component.
-    pub arg: ast::ComponentArg<'a>,
+    pub arg: ComponentArg<'a>,
 }
 
 impl<'a> Parse<'a> for ComponentExport<'a> {

@@ -1,5 +1,8 @@
-use crate::ast::{self, kw};
+use crate::component::*;
+use crate::core;
+use crate::kw;
 use crate::parser::{Parse, Parser, Result};
+use crate::token::{Id, IndexOrRef, LParen, NameAnnotation, Span};
 
 /// A WebAssembly function to be inserted into a module.
 ///
@@ -7,20 +10,20 @@ use crate::parser::{Parse, Parser, Result};
 #[derive(Debug)]
 pub struct ComponentFunc<'a> {
     /// Where this `func` was defined.
-    pub span: ast::Span,
+    pub span: Span,
     /// An identifier that this function is resolved with (optionally) for name
     /// resolution.
-    pub id: Option<ast::Id<'a>>,
+    pub id: Option<Id<'a>>,
     /// An optional name for this function stored in the custom `name` section.
-    pub name: Option<ast::NameAnnotation<'a>>,
+    pub name: Option<NameAnnotation<'a>>,
     /// If present, inline export annotations which indicate names this
     /// definition should be exported under.
-    pub exports: ast::InlineExport<'a>,
+    pub exports: core::InlineExport<'a>,
     /// What kind of function this is, be it an inline-defined or imported
     /// function.
     pub kind: ComponentFuncKind<'a>,
     /// The type that this function will have.
-    pub ty: ast::TypeUse<'a, ast::ComponentFunctionType<'a>>,
+    pub ty: core::TypeUse<'a, ComponentFunctionType<'a>>,
 }
 
 /// Possible ways to define a function in the text format.
@@ -31,12 +34,12 @@ pub enum ComponentFuncKind<'a> {
     /// ```text
     /// (func (type 3) (import "foo" "bar"))
     /// ```
-    Import(ast::InlineImport<'a>),
+    Import(core::InlineImport<'a>),
 
     /// Almost all functions, those defined inline in a wasm module.
     Inline {
         /// The body of the function.
-        body: ast::ComponentFuncBody<'a>,
+        body: ComponentFuncBody<'a>,
     },
 }
 
@@ -95,11 +98,11 @@ impl<'a> Parse<'a> for ComponentFuncBody<'a> {
 #[derive(Debug)]
 pub struct CanonLift<'a> {
     /// The type exported to other components
-    pub type_: ast::ComponentFunctionType<'a>,
+    pub type_: ComponentFunctionType<'a>,
     /// Configuration options
     pub opts: Vec<CanonOpt<'a>>,
     /// The function to wrap
-    pub func: ast::IndexOrRef<'a, kw::func>,
+    pub func: IndexOrRef<'a, kw::func>,
 }
 
 impl<'a> Parse<'a> for CanonLift<'a> {
@@ -108,9 +111,7 @@ impl<'a> Parse<'a> for CanonLift<'a> {
             parser.parse::<kw::canon_lift>()?;
             let type_ = parser.parse()?;
             let mut opts = Vec::new();
-            while !parser.is_empty()
-                && (!parser.peek::<ast::LParen>() || !parser.peek2::<kw::func>())
-            {
+            while !parser.is_empty() && (!parser.peek::<LParen>() || !parser.peek2::<kw::func>()) {
                 opts.push(parser.parse()?);
             }
             let func = parser.parse()?;
@@ -125,7 +126,7 @@ pub struct CanonLower<'a> {
     /// Configuration options
     pub opts: Vec<CanonOpt<'a>>,
     /// The function being wrapped
-    pub func: ast::IndexOrRef<'a, kw::func>,
+    pub func: IndexOrRef<'a, kw::func>,
 }
 
 impl<'a> Parse<'a> for CanonLower<'a> {
@@ -133,9 +134,7 @@ impl<'a> Parse<'a> for CanonLower<'a> {
         parser.parens(|parser| {
             parser.parse::<kw::canon_lower>()?;
             let mut opts = Vec::new();
-            while !parser.is_empty()
-                && (!parser.peek::<ast::LParen>() || !parser.peek2::<kw::func>())
-            {
+            while !parser.is_empty() && (!parser.peek::<LParen>() || !parser.peek2::<kw::func>()) {
                 opts.push(parser.parse()?);
             }
             let func = parser.parse()?;
@@ -156,7 +155,7 @@ pub enum CanonOpt<'a> {
     /// A target instance which supplies the memory that the canonical ABI
     /// should operate on as well as functions that the canonical ABI can call
     /// to allocate, reallocate and free linear memory
-    Into(ast::IndexOrRef<'a, kw::instance>),
+    Into(IndexOrRef<'a, kw::instance>),
 }
 
 impl<'a> Parse<'a> for CanonOpt<'a> {
@@ -171,7 +170,7 @@ impl<'a> Parse<'a> for CanonOpt<'a> {
         } else if l.peek::<kw::string_latin1_utf16>() {
             parser.parse::<kw::string_latin1_utf16>()?;
             Ok(CanonOpt::StringLatin1Utf16)
-        } else if l.peek::<ast::LParen>() {
+        } else if l.peek::<LParen>() {
             parser.parens(|parser| {
                 let mut l = parser.lookahead1();
                 if l.peek::<kw::into>() {
@@ -184,5 +183,11 @@ impl<'a> Parse<'a> for CanonOpt<'a> {
         } else {
             Err(l.error())
         }
+    }
+}
+
+impl Default for kw::instance {
+    fn default() -> kw::instance {
+        kw::instance(Span::from_offset(0))
     }
 }

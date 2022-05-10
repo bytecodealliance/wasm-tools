@@ -1,5 +1,5 @@
-use crate::core::binary::Encode;
 use crate::core::*;
+use crate::encode::Encode;
 use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Result};
 use crate::token::*;
