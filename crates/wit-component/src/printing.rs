@@ -267,9 +267,7 @@ impl InterfacePrinter {
         variant: &Variant,
     ) -> Result<()> {
         for case in variant.cases.iter() {
-            if let Some(ty) = &case.ty {
-                self.declare_type(interface, ty)?;
-            }
+            self.declare_type(interface, &case.ty)?;
         }
 
         let name = match name {
@@ -279,9 +277,9 @@ impl InterfacePrinter {
         writeln!(&mut self.output, "variant {} {{", name)?;
         for case in &variant.cases {
             write!(&mut self.output, "  {}", case.name)?;
-            if let Some(ty) = &case.ty {
+            if case.ty != Type::Unit {
                 self.output.push('(');
-                self.print_type_name(interface, ty)?;
+                self.print_type_name(interface, &case.ty)?;
                 self.output.push(')');
             }
             self.output.push_str(",\n");

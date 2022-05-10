@@ -124,16 +124,13 @@ impl PartialEq for TypeDefKey<'_> {
 
                     v1.cases.iter().zip(v2.cases.iter()).all(|(c1, c2)| {
                         c1.name == c2.name
-                            && c1
-                                .ty
-                                .map(|ty| TypeKey {
-                                    interface: self.interface,
-                                    ty,
-                                })
-                                .eq(&c2.ty.map(|ty| TypeKey {
-                                    interface: other.interface,
-                                    ty,
-                                }))
+                            && TypeKey {
+                                interface: self.interface,
+                                ty: c1.ty,
+                            } == TypeKey {
+                                interface: other.interface,
+                                ty: c2.ty,
+                            }
                     })
                 }
                 (TypeDefKind::Union(v1), TypeDefKind::Union(v2)) => {
@@ -229,10 +226,10 @@ impl Hash for TypeDefKey<'_> {
                 state.write_u8(3);
                 for c in &v.cases {
                     c.name.hash(state);
-                    c.ty.map(|ty| TypeKey {
+                    TypeKey {
                         interface: self.interface,
-                        ty,
-                    })
+                        ty: c.ty,
+                    }
                     .hash(state);
                 }
             }
@@ -573,10 +570,7 @@ impl<'a> TypeEncoder<'a> {
             .map(|c| {
                 Ok((
                     c.name.as_str(),
-                    match c.ty.as_ref() {
-                        Some(ty) => self.encode_type(interface, instance, ty)?,
-                        None => InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Unit),
-                    },
+                    self.encode_type(interface, instance, &c.ty)?,
                     None, // TODO: support defaulting case values in the future
                 ))
             })
@@ -712,7 +706,7 @@ impl RequiredOptions {
                     Self::for_type(interface, &e.ok) | Self::for_type(interface, &e.err)
                 }
                 TypeDefKind::Variant(v) => {
-                    Self::for_types(interface, v.cases.iter().filter_map(|c| c.ty.as_ref()))
+                    Self::for_types(interface, v.cases.iter().map(|c| &c.ty))
                 }
                 TypeDefKind::Union(v) => Self::for_types(interface, v.cases.iter().map(|c| &c.ty)),
                 TypeDefKind::Enum(_) => Self::None,

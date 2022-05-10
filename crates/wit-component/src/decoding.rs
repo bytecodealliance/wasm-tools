@@ -378,8 +378,6 @@ impl<'a> InterfaceDecoder<'a> {
         let variant_name =
             variant_name.ok_or_else(|| anyhow!("interface has an unnamed variant type"))?;
 
-        let cases_len = cases.len();
-
         let variant = Variant {
             cases: cases
                 .map(|(name, case)| {
@@ -393,16 +391,10 @@ impl<'a> InterfaceDecoder<'a> {
                     Ok(Case {
                         docs: Docs::default(),
                         name: name.to_string(),
-                        ty: match case.ty {
-                            types::InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Unit) => {
-                                None
-                            }
-                            _ => Some(self.decode_type(&case.ty)?),
-                        },
+                        ty: self.decode_type(&case.ty)?,
                     })
                 })
                 .collect::<Result<_>>()?,
-            tag: Variant::infer_tag(cases_len),
         };
 
         Ok(Type::Id(self.alloc_type(
