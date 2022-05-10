@@ -76,3 +76,6 @@ shrink = ['wasm-shrink', 'is_executable', 'wat', 'wasmprinter']
 mutate = ['wasm-mutate', 'wat', 'wasmprinter']
 dump = ['wasmparser-dump', 'wat']
 objdump = ['wasmparser', 'wat']
+
+# Enables the currently-incomplete support for parsing the component model
+component-model = ['wat/component-model']

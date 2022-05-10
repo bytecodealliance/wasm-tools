@@ -14,3 +14,7 @@ Rust parser for the WebAssembly Text format, WAT
 
 [dependencies]
 wast = { path = '../wast', version = '40.0.0' }
+
+[features]
+# Enables the currently-incomplete support for parsing the component model
+component-model = ['wast/component-model']
