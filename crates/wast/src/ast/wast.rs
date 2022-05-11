@@ -25,8 +25,8 @@ impl<'a> Parse<'a> for Wast<'a> {
                 directives.push(parser.parens(|p| p.parse())?);
             }
         } else {
-            let module = parser.parse::<ast::Wat>()?.module;
-            directives.push(WastDirective::Module(QuoteModule::Module(module)));
+            let module = parser.parse::<ast::Wat>()?;
+            directives.push(WastDirective::Wat(QuoteWat::Wat(module)));
         }
         Ok(Wast { directives })
     }
@@ -55,15 +55,15 @@ impl Peek for WastDirectiveToken {
 #[allow(missing_docs)]
 #[derive(Debug)]
 pub enum WastDirective<'a> {
-    Module(QuoteModule<'a>),
+    Wat(QuoteWat<'a>),
     AssertMalformed {
         span: ast::Span,
-        module: QuoteModule<'a>,
+        module: QuoteWat<'a>,
         message: &'a str,
     },
     AssertInvalid {
         span: ast::Span,
-        module: QuoteModule<'a>,
+        module: QuoteWat<'a>,
         message: &'a str,
     },
     Register {
@@ -89,7 +89,7 @@ pub enum WastDirective<'a> {
     },
     AssertUnlinkable {
         span: ast::Span,
-        module: ast::Module<'a>,
+        module: ast::Wat<'a>,
         message: &'a str,
     },
     AssertException {
@@ -102,8 +102,8 @@ impl WastDirective<'_> {
     /// Returns the location in the source that this directive was defined at
     pub fn span(&self) -> ast::Span {
         match self {
-            WastDirective::Module(QuoteModule::Module(m)) => m.span,
-            WastDirective::Module(QuoteModule::Quote(span, _)) => *span,
+            WastDirective::Wat(QuoteWat::Wat(m)) => m.module.span,
+            WastDirective::Wat(QuoteWat::Quote(span, _)) => *span,
             WastDirective::AssertMalformed { span, .. }
             | WastDirective::Register { span, .. }
             | WastDirective::AssertTrap { span, .. }
@@ -121,7 +121,7 @@ impl<'a> Parse<'a> for WastDirective<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let mut l = parser.lookahead1();
         if l.peek::<kw::module>() {
-            Ok(WastDirective::Module(parser.parse()?))
+            Ok(WastDirective::Wat(parser.parse()?))
         } else if l.peek::<kw::assert_malformed>() {
             let span = parser.parse::<kw::assert_malformed>()?.0;
             Ok(WastDirective::AssertMalformed {
@@ -238,7 +238,7 @@ impl<'a> Parse<'a> for WastDirective<'a> {
             let span = parser.parse::<kw::assert_unlinkable>()?.0;
             Ok(WastDirective::AssertUnlinkable {
                 span,
-                module: parser.parens(|p| p.parse())?,
+                module: parser.parens(parse_wat)?,
                 message: parser.parse()?,
             })
         } else if l.peek::<kw::assert_exception>() {
@@ -257,7 +257,7 @@ impl<'a> Parse<'a> for WastDirective<'a> {
 #[derive(Debug)]
 pub enum WastExecute<'a> {
     Invoke(WastInvoke<'a>),
-    Module(ast::Module<'a>),
+    Wat(ast::Wat<'a>),
     Get {
         module: Option<ast::Id<'a>>,
         global: &'a str,
@@ -270,7 +270,7 @@ impl<'a> Parse<'a> for WastExecute<'a> {
         if l.peek::<kw::invoke>() {
             Ok(WastExecute::Invoke(parser.parse()?))
         } else if l.peek::<kw::module>() {
-            Ok(WastExecute::Module(parser.parse()?))
+            Ok(WastExecute::Wat(parse_wat(parser)?))
         } else if l.peek::<kw::get>() {
             parser.parse::<kw::get>()?;
             Ok(WastExecute::Get {
@@ -281,6 +281,18 @@ impl<'a> Parse<'a> for WastExecute<'a> {
             Err(l.error())
         }
     }
+}
+
+fn parse_wat<'a>(parser: Parser<'a>) -> Result<ast::Wat<'a>> {
+    // Note that this doesn't use `Parse for Wat` since the `parser` provided
+    // has already peeled back the first layer of parentheses while `Parse for
+    // Wat` expects to be the top layer which means it also tries to peel off
+    // the parens. Instead we can skip the sugar that `Wat` has for simply a
+    // list of fields (no `(module ...)` container) and just parse the `Module`
+    // itself.
+    Ok(ast::Wat {
+        module: parser.parse()?,
+    })
 }
 
 #[allow(missing_docs)]
@@ -312,18 +324,18 @@ impl<'a> Parse<'a> for WastInvoke<'a> {
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub enum QuoteModule<'a> {
-    Module(ast::Module<'a>),
+pub enum QuoteWat<'a> {
+    Wat(ast::Wat<'a>),
     Quote(ast::Span, Vec<(ast::Span, &'a [u8])>),
 }
 
-impl QuoteModule<'_> {
+impl QuoteWat<'_> {
     /// Encodes this module to bytes, either by encoding the module directly or
     /// parsing the contents and then encoding it.
     pub fn encode(&mut self) -> Result<Vec<u8>, Error> {
         let source = match self {
-            QuoteModule::Module(m) => return m.encode(),
-            QuoteModule::Quote(_, source) => source,
+            QuoteWat::Wat(m) => return m.module.encode(),
+            QuoteWat::Quote(_, source) => source,
         };
         let mut ret = String::new();
         for (span, src) in source {
@@ -341,7 +353,7 @@ impl QuoteModule<'_> {
     }
 }
 
-impl<'a> Parse<'a> for QuoteModule<'a> {
+impl<'a> Parse<'a> for QuoteWat<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         if parser.peek2::<kw::quote>() {
             parser.parse::<kw::module>()?;
@@ -352,9 +364,9 @@ impl<'a> Parse<'a> for QuoteModule<'a> {
                 let string = parser.parse()?;
                 src.push((span, string));
             }
-            Ok(QuoteModule::Quote(span, src))
+            Ok(QuoteWat::Quote(span, src))
         } else {
-            Ok(QuoteModule::Module(parser.parse()?))
+            Ok(QuoteWat::Wat(parse_wat(parser)?))
         }
     }
 }

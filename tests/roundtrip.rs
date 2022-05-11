@@ -253,7 +253,7 @@ impl TestState {
         let skip_verify = test.iter().any(|t| t == "function-references" || t == "gc");
 
         match directive {
-            WastDirective::Module(mut module) => {
+            WastDirective::Wat(mut module) => {
                 let actual = module.encode()?;
                 self.bump_ntests(); // testing encode
                 if skip_verify {
@@ -263,8 +263,12 @@ impl TestState {
                     // Don't test the wasmprinter round trip since these bytes
                     // may not be in their canonical form (didn't come from the
                     // `wat` crate).
-                    QuoteModule::Module(Module {
-                        kind: ModuleKind::Binary(_),
+                    QuoteWat::Wat(Wat {
+                        module:
+                            Module {
+                                kind: ModuleKind::Binary(_),
+                                ..
+                            },
                         ..
                     }) => false,
 
@@ -292,7 +296,7 @@ impl TestState {
                     // offset is a text-parser error, whereas with memory64
                     // support that error is deferred until later.
                     if !test.iter().any(|t| t == "memory64") {
-                        if let QuoteModule::Quote(_, src) = module {
+                        if let QuoteWat::Quote(_, src) = module {
                             if src
                                 .iter()
                                 .filter_map(|(_, s)| str::from_utf8(s).ok())
