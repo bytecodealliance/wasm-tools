@@ -1,5 +1,6 @@
 use crate::ast::{self, kw};
-use crate::parser::{Cursor, Parse, Parser, Peek, Result};
+use crate::parser::{self, Cursor, Parse, ParseBuffer, Parser, Peek, Result};
+use crate::Error;
 use crate::{AssertExpression, NanPattern, V128Pattern};
 
 /// A parsed representation of a `*.wast` file.
@@ -25,7 +26,7 @@ impl<'a> Parse<'a> for Wast<'a> {
             }
         } else {
             let module = parser.parse::<ast::Wat>()?.module;
-            directives.push(WastDirective::Module(module));
+            directives.push(WastDirective::Module(QuoteModule::Module(module)));
         }
         Ok(Wast { directives })
     }
@@ -54,11 +55,7 @@ impl Peek for WastDirectiveToken {
 #[allow(missing_docs)]
 #[derive(Debug)]
 pub enum WastDirective<'a> {
-    Module(ast::Module<'a>),
-    QuoteModule {
-        span: ast::Span,
-        source: Vec<&'a [u8]>,
-    },
+    Module(QuoteModule<'a>),
     AssertMalformed {
         span: ast::Span,
         module: QuoteModule<'a>,
@@ -105,10 +102,10 @@ impl WastDirective<'_> {
     /// Returns the location in the source that this directive was defined at
     pub fn span(&self) -> ast::Span {
         match self {
-            WastDirective::Module(m) => m.span,
+            WastDirective::Module(QuoteModule::Module(m)) => m.span,
+            WastDirective::Module(QuoteModule::Quote(span, _)) => *span,
             WastDirective::AssertMalformed { span, .. }
             | WastDirective::Register { span, .. }
-            | WastDirective::QuoteModule { span, .. }
             | WastDirective::AssertTrap { span, .. }
             | WastDirective::AssertReturn { span, .. }
             | WastDirective::AssertExhaustion { span, .. }
@@ -124,17 +121,7 @@ impl<'a> Parse<'a> for WastDirective<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let mut l = parser.lookahead1();
         if l.peek::<kw::module>() {
-            if parser.peek2::<kw::quote>() {
-                parser.parse::<kw::module>()?;
-                let span = parser.parse::<kw::quote>()?.0;
-                let mut source = Vec::new();
-                while !parser.is_empty() {
-                    source.push(parser.parse()?);
-                }
-                Ok(WastDirective::QuoteModule { span, source })
-            } else {
-                Ok(WastDirective::Module(parser.parse()?))
-            }
+            Ok(WastDirective::Module(parser.parse()?))
         } else if l.peek::<kw::assert_malformed>() {
             let span = parser.parse::<kw::assert_malformed>()?.0;
             Ok(WastDirective::AssertMalformed {
@@ -327,19 +314,45 @@ impl<'a> Parse<'a> for WastInvoke<'a> {
 #[derive(Debug)]
 pub enum QuoteModule<'a> {
     Module(ast::Module<'a>),
-    Quote(Vec<&'a [u8]>),
+    Quote(ast::Span, Vec<(ast::Span, &'a [u8])>),
+}
+
+impl QuoteModule<'_> {
+    /// Encodes this module to bytes, either by encoding the module directly or
+    /// parsing the contents and then encoding it.
+    pub fn encode(&mut self) -> Result<Vec<u8>, Error> {
+        let source = match self {
+            QuoteModule::Module(m) => return m.encode(),
+            QuoteModule::Quote(_, source) => source,
+        };
+        let mut ret = String::new();
+        for (span, src) in source {
+            match std::str::from_utf8(src) {
+                Ok(s) => ret.push_str(s),
+                Err(_) => {
+                    return Err(Error::new(*span, "malformed UTF-8 encoding".to_string()));
+                }
+            }
+            ret.push_str(" ");
+        }
+        let buf = ParseBuffer::new(&ret)?;
+        let mut wat = parser::parse::<ast::Wat<'_>>(&buf)?;
+        wat.module.encode()
+    }
 }
 
 impl<'a> Parse<'a> for QuoteModule<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         if parser.peek2::<kw::quote>() {
             parser.parse::<kw::module>()?;
-            parser.parse::<kw::quote>()?;
+            let span = parser.parse::<kw::quote>()?.0;
             let mut src = Vec::new();
             while !parser.is_empty() {
-                src.push(parser.parse()?);
+                let span = parser.cur_span();
+                let string = parser.parse()?;
+                src.push((span, string));
             }
-            Ok(QuoteModule::Quote(src))
+            Ok(QuoteModule::Quote(span, src))
         } else {
             Ok(QuoteModule::Module(parser.parse()?))
         }
