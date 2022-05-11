@@ -76,6 +76,16 @@ fn check_max(cur_len: usize, amt_added: u32, max: usize, desc: &str, offset: usi
     Ok(())
 }
 
+fn combine_type_sizes(a: usize, b: usize, offset: usize) -> Result<usize> {
+    match a.checked_add(b) {
+        Some(sum) if sum < MAX_WASM_TYPE_SIZE => Ok(sum),
+        _ => Err(BinaryReaderError::new(
+            format!("effective type size exceeds the limit of {MAX_WASM_TYPE_SIZE}"),
+            offset,
+        )),
+    }
+}
+
 /// Validator for a WebAssembly binary module or component.
 ///
 /// This structure encapsulates state necessary to validate a WebAssembly
@@ -512,7 +522,7 @@ impl Validator {
                 state
                     .module
                     .assert_mut()
-                    .add_type(def, features, types, offset)
+                    .add_type(def, features, types, offset, false /* checked above */)
             },
         )
     }
@@ -693,7 +703,7 @@ impl Validator {
             |state, features, _, e, offset| {
                 let module = state.module.assert_mut();
                 let ty = module.export_to_entity_type(&e, offset)?;
-                module.add_export(e.name, ty, features, offset)
+                module.add_export(e.name, ty, features, offset, false /* checked above */)
             },
         )
     }
@@ -873,7 +883,9 @@ impl Validator {
                 Ok(())
             },
             |components, types, features, ty, offset| {
-                ComponentState::add_type(components, ty, features, types, offset)
+                ComponentState::add_type(
+                    components, ty, features, types, offset, false, /* checked above */
+                )
             },
         )
     }
@@ -1041,7 +1053,7 @@ impl Validator {
             |components, types, _, export, offset| {
                 let current = components.last_mut().unwrap();
                 let ty = current.export_to_entity_type(&export, types, offset)?;
-                current.add_export(export.name, ty, offset)
+                current.add_export(export.name, ty, offset, false /* checked above */)
             },
         )
     }

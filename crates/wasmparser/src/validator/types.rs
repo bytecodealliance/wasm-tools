@@ -106,7 +106,15 @@ fn push_primitive_wasm_types(
 
 /// Represents a unique identifier for a type known to a [`crate::Validator`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct TypeId(pub(crate) usize);
+pub struct TypeId {
+    /// The effective type size for the type.
+    ///
+    /// This is stored as part of the ID to avoid having to recurse through
+    /// the global type list when calculating type sizes.
+    pub(crate) type_size: usize,
+    /// The index into the global list of types.
+    pub(crate) index: usize,
+}
 
 /// A unified type definition for inspecting WebAssembly modules and components.
 pub enum TypeDef {
@@ -180,6 +188,18 @@ impl TypeDef {
             _ => panic!("expected interface type"),
         }
     }
+
+    pub(crate) fn type_size(&self) -> usize {
+        match self {
+            Self::Func(ty) => 1 + ty.params.len() + ty.returns.len(),
+            Self::Module(ty) => ty.type_size,
+            Self::Component(ty) => ty.type_size,
+            Self::Instance(ty) => ty.type_size,
+            Self::ComponentFunc(ty) => ty.type_size,
+            Self::Value(ty) => ty.type_size(),
+            Self::Interface(ty) => ty.type_size(),
+        }
+    }
 }
 
 /// A reference to an interface type.
@@ -225,9 +245,16 @@ impl InterfaceTypeRef {
     fn push_wasm_types(&self, types: &TypeList, lowered_types: &mut LoweredTypes) -> bool {
         match self {
             Self::Primitive(ty) => push_primitive_wasm_types(ty, lowered_types),
-            Self::Type(idx) => types[*idx]
+            Self::Type(id) => types[*id]
                 .unwrap_interface_type()
                 .push_wasm_types(types, lowered_types),
+        }
+    }
+
+    pub(crate) fn type_size(&self) -> usize {
+        match self {
+            Self::Primitive(ty) => ty.type_size(),
+            Self::Type(id) => id.type_size,
         }
     }
 }
@@ -291,6 +318,13 @@ impl EntityType {
             Self::Tag(_) => "tag",
         }
     }
+
+    pub(crate) fn type_size(&self) -> usize {
+        match self {
+            Self::Func(id) | Self::Tag(id) => id.type_size,
+            Self::Table(_) | Self::Memory(_) | Self::Global(_) => 1,
+        }
+    }
 }
 
 trait ModuleImportKey {
@@ -342,6 +376,8 @@ impl ModuleImportKey for (&str, &str) {
 /// Represents a module type.
 #[derive(Clone)]
 pub struct ModuleType {
+    /// The effective type size for the module type.
+    pub(crate) type_size: usize,
     /// The imports of the module type.
     pub imports: HashMap<(String, String), EntityType>,
     /// The exports of the module type.
@@ -379,7 +415,7 @@ impl ModuleType {
 }
 
 /// The entity type for imports and exports of a component.
-#[derive(Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum ComponentEntityType {
     /// The entity is a module.
     Module(TypeId),
@@ -428,11 +464,24 @@ impl ComponentEntityType {
             Self::Type(_) => "type",
         }
     }
+
+    pub(crate) fn type_size(&self) -> usize {
+        match self {
+            Self::Module(ty)
+            | Self::Component(ty)
+            | Self::Instance(ty)
+            | Self::Func(ty)
+            | Self::Type(ty) => ty.type_size,
+            Self::Value(ty) => ty.type_size(),
+        }
+    }
 }
 
 /// Represents a type of a component.
 #[derive(Clone)]
 pub struct ComponentType {
+    /// The effective type size for the component type.
+    pub(crate) type_size: usize,
     /// The imports of the component type.
     pub imports: HashMap<String, ComponentEntityType>,
     /// The exports of the component type.
@@ -465,6 +514,8 @@ impl ComponentType {
 /// Represents a type of an instance.
 #[derive(Clone)]
 pub struct InstanceType {
+    /// The effective type size for the instance type.
+    pub(crate) type_size: usize,
     /// The exports of the instance type.
     pub exports: HashMap<String, ComponentEntityType>,
 }
@@ -487,6 +538,8 @@ impl InstanceType {
 /// Represents a type of a component function.
 #[derive(Clone)]
 pub struct ComponentFuncType {
+    /// The effective type size for the component function type.
+    pub(crate) type_size: usize,
     /// The function parameters.
     pub params: Box<[(Option<String>, InterfaceTypeRef)]>,
     /// The function's result type.
@@ -573,25 +626,61 @@ pub struct VariantCase {
     pub default_to: Option<String>,
 }
 
+/// Represents a record type.
+#[derive(Debug, Clone)]
+pub struct RecordType {
+    /// The effective type size for the record type.
+    pub(crate) type_size: usize,
+    /// The map of record fields.
+    pub fields: IndexMap<String, InterfaceTypeRef>,
+}
+
+/// Represents a variant type.
+#[derive(Debug, Clone)]
+pub struct VariantType {
+    /// The effective type size for the variant type.
+    pub(crate) type_size: usize,
+    /// The map of variant cases.
+    pub cases: IndexMap<String, VariantCase>,
+}
+
+/// Represents a tuple type.
+#[derive(Debug, Clone)]
+pub struct TupleType {
+    /// The effective type size for the tuple type.
+    pub(crate) type_size: usize,
+    /// The types of the tuple.
+    pub types: Box<[InterfaceTypeRef]>,
+}
+
+/// Represents a union type.
+#[derive(Debug, Clone)]
+pub struct UnionType {
+    /// The inclusive type count for the union type.
+    pub(crate) type_size: usize,
+    /// The types of the union.
+    pub types: Box<[InterfaceTypeRef]>,
+}
+
 /// Represents an interface type.
 #[derive(Debug, Clone)]
 pub enum InterfaceType {
     /// The type is a primitive interface type.
     Primitive(PrimitiveInterfaceType),
     /// The type is a record.
-    Record(IndexMap<String, InterfaceTypeRef>),
+    Record(RecordType),
     /// The type is a variant.
-    Variant(IndexMap<String, VariantCase>),
+    Variant(VariantType),
     /// The type is a list.
     List(InterfaceTypeRef),
     /// The type is a tuple.
-    Tuple(Box<[InterfaceTypeRef]>),
+    Tuple(TupleType),
     /// The type is a set of flags.
     Flags(IndexSet<String>),
     /// The type is an enumeration.
     Enum(IndexSet<String>),
     /// The type is a union.
-    Union(Box<[InterfaceTypeRef]>),
+    Union(UnionType),
     /// The type is an `option`.
     Option(InterfaceTypeRef),
     /// The type is an `expected`.
@@ -602,16 +691,14 @@ impl InterfaceType {
     pub(crate) fn requires_into_option(&self, types: &TypeList) -> bool {
         match self {
             InterfaceType::Primitive(ty) => ty.requires_into_option(),
-            InterfaceType::Record(fields) => {
-                fields.values().any(|ty| ty.requires_into_option(types))
-            }
-            InterfaceType::Variant(cases) => cases
+            InterfaceType::Record(r) => r.fields.values().any(|ty| ty.requires_into_option(types)),
+            InterfaceType::Variant(v) => v
+                .cases
                 .values()
                 .any(|case| case.ty.requires_into_option(types)),
             InterfaceType::List(_) => true,
-            InterfaceType::Tuple(tys) | InterfaceType::Union(tys) => {
-                tys.iter().any(|ty| ty.requires_into_option(types))
-            }
+            InterfaceType::Tuple(t) => t.types.iter().any(|ty| ty.requires_into_option(types)),
+            InterfaceType::Union(u) => u.types.iter().any(|ty| ty.requires_into_option(types)),
             InterfaceType::Flags(_) | InterfaceType::Enum(_) => false,
             InterfaceType::Option(ty) => ty.requires_into_option(types),
             InterfaceType::Expected(ok, error) => {
@@ -627,9 +714,9 @@ impl InterfaceType {
             (InterfaceType::Primitive(ty), InterfaceType::Primitive(other_ty)) => {
                 ty.is_subtype_of(other_ty)
             }
-            (InterfaceType::Record(fields), InterfaceType::Record(other_fields)) => {
-                for (name, ty) in fields.iter() {
-                    if let Some(other_ty) = other_fields.get(name) {
+            (InterfaceType::Record(r), InterfaceType::Record(other_r)) => {
+                for (name, ty) in r.fields.iter() {
+                    if let Some(other_ty) = other_r.fields.get(name) {
                         if !ty.is_subtype_of(other_ty, types) {
                             return false;
                         }
@@ -638,22 +725,22 @@ impl InterfaceType {
                     }
                 }
                 // Check for missing required fields in the supertype
-                for (other_name, other_ty) in other_fields.iter() {
-                    if !other_ty.is_optional(types) && !fields.contains_key(other_name) {
+                for (other_name, other_ty) in other_r.fields.iter() {
+                    if !other_ty.is_optional(types) && !r.fields.contains_key(other_name) {
                         return false;
                     }
                 }
                 true
             }
-            (InterfaceType::Variant(cases), InterfaceType::Variant(other_cases)) => {
-                for (name, case) in cases.iter() {
-                    if let Some(other_case) = other_cases.get(name) {
+            (InterfaceType::Variant(v), InterfaceType::Variant(other_v)) => {
+                for (name, case) in v.cases.iter() {
+                    if let Some(other_case) = other_v.cases.get(name) {
                         // Covariant subtype on the case type
                         if !case.ty.is_subtype_of(&other_case.ty, types) {
                             return false;
                         }
                     } else if let Some(default) = &case.default_to {
-                        if !other_cases.contains_key(default) {
+                        if !other_v.cases.contains_key(default) {
                             // The default is not in the supertype
                             return false;
                         }
@@ -669,13 +756,22 @@ impl InterfaceType {
             | (InterfaceType::Option(ty), InterfaceType::Option(other_ty)) => {
                 ty.is_subtype_of(other_ty, types)
             }
-            (InterfaceType::Tuple(tys), InterfaceType::Tuple(other_tys))
-            | (InterfaceType::Union(tys), InterfaceType::Union(other_tys)) => {
-                if tys.len() != other_tys.len() {
+            (InterfaceType::Tuple(t), InterfaceType::Tuple(other_t)) => {
+                if t.types.len() != other_t.types.len() {
                     return false;
                 }
-                tys.iter()
-                    .zip(other_tys.iter())
+                t.types
+                    .iter()
+                    .zip(other_t.types.iter())
+                    .all(|(ty, other_ty)| ty.is_subtype_of(other_ty, types))
+            }
+            (InterfaceType::Union(u), InterfaceType::Union(other_u)) => {
+                if u.types.len() != other_u.types.len() {
+                    return false;
+                }
+                u.types
+                    .iter()
+                    .zip(other_u.types.iter())
                     .all(|(ty, other_ty)| ty.is_subtype_of(other_ty, types))
             }
             (InterfaceType::Flags(set), InterfaceType::Flags(other_set))
@@ -690,26 +786,41 @@ impl InterfaceType {
         }
     }
 
+    pub(crate) fn type_size(&self) -> usize {
+        match self {
+            Self::Primitive(ty) => ty.type_size(),
+            Self::Flags(_) | Self::Enum(_) => 1,
+            Self::Record(r) => r.type_size,
+            Self::Variant(v) => v.type_size,
+            Self::Tuple(t) => t.type_size,
+            Self::Union(u) => u.type_size,
+            Self::List(ty) | Self::Option(ty) => ty.type_size(),
+            Self::Expected(ok, error) => ok.type_size() + error.type_size(),
+        }
+    }
+
     fn push_wasm_types(&self, types: &TypeList, lowered_types: &mut LoweredTypes) -> bool {
         match self {
             Self::Primitive(ty) => push_primitive_wasm_types(ty, lowered_types),
-            Self::Record(fields) => fields
+            Self::Record(r) => r
+                .fields
                 .iter()
                 .all(|(_, ty)| ty.push_wasm_types(types, lowered_types)),
-            Self::Variant(cases) => Self::push_variant_types(
-                cases.iter().map(|(_, case)| &case.ty),
+            Self::Variant(v) => Self::push_variant_types(
+                v.cases.iter().map(|(_, case)| &case.ty),
                 types,
                 lowered_types,
             ),
             Self::List(_) => lowered_types.push(Type::I32) && lowered_types.push(Type::I32),
-            Self::Tuple(tys) => tys
+            Self::Tuple(t) => t
+                .types
                 .iter()
                 .all(|ty| ty.push_wasm_types(types, lowered_types)),
             Self::Flags(names) => {
                 (0..(names.len() + 31) / 32).all(|_| lowered_types.push(Type::I32))
             }
             Self::Enum(_) => lowered_types.push(Type::I32),
-            Self::Union(tys) => Self::push_variant_types(tys.iter(), types, lowered_types),
+            Self::Union(u) => Self::push_variant_types(u.types.iter(), types, lowered_types),
             Self::Option(ty) => Self::push_variant_types([ty].into_iter(), types, lowered_types),
             Self::Expected(ok, error) => {
                 Self::push_variant_types([ok, error].into_iter(), types, lowered_types)
@@ -801,7 +912,7 @@ impl Types {
     ///
     /// Returns `None` if the type id is unknown.
     pub fn type_from_id(&self, id: TypeId) -> Option<&TypeDef> {
-        self.types.get(id.0)
+        self.types.get(id.index)
     }
 
     /// Gets a type id from a type index.
@@ -1215,13 +1326,13 @@ impl<T> std::ops::Index<TypeId> for SnapshotList<T> {
     type Output = T;
 
     fn index(&self, id: TypeId) -> &T {
-        self.get(id.0).unwrap()
+        self.get(id.index).unwrap()
     }
 }
 
 impl<T> std::ops::IndexMut<TypeId> for SnapshotList<T> {
     fn index_mut(&mut self, id: TypeId) -> &mut T {
-        self.get_mut(id.0).unwrap()
+        self.get_mut(id.index).unwrap()
     }
 }
 

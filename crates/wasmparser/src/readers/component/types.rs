@@ -159,6 +159,13 @@ impl PrimitiveInterfaceType {
                     )
             )
     }
+
+    pub(crate) fn type_size(&self) -> usize {
+        match self {
+            Self::Unit => 0,
+            _ => 1,
+        }
+    }
 }
 
 /// Represents a reference to an interface type.
