@@ -155,11 +155,15 @@ impl DataSection {
 
 impl Encode for DataSection {
     fn encode(&self, sink: &mut Vec<u8>) {
-        encode_section(sink, SectionId::Data, self.num_added, &self.bytes);
+        encode_section(sink, self.num_added, &self.bytes);
     }
 }
 
-impl Section for DataSection {}
+impl Section for DataSection {
+    fn id(&self) -> u8 {
+        SectionId::Data.into()
+    }
+}
 
 /// An encoder for the data count section.
 #[derive(Clone, Copy, Debug)]
@@ -170,10 +174,13 @@ pub struct DataCountSection {
 
 impl Encode for DataCountSection {
     fn encode(&self, sink: &mut Vec<u8>) {
-        SectionId::DataCount.encode(sink);
         encoding_size(self.count).encode(sink);
         self.count.encode(sink);
     }
 }
 
-impl Section for DataCountSection {}
+impl Section for DataCountSection {
+    fn id(&self) -> u8 {
+        SectionId::DataCount.into()
+    }
+}

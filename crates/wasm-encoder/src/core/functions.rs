@@ -52,8 +52,12 @@ impl FunctionSection {
 
 impl Encode for FunctionSection {
     fn encode(&self, sink: &mut Vec<u8>) {
-        encode_section(sink, SectionId::Function, self.num_added, &self.bytes);
+        encode_section(sink, self.num_added, &self.bytes);
     }
 }
 
-impl Section for FunctionSection {}
+impl Section for FunctionSection {
+    fn id(&self) -> u8 {
+        SectionId::Function.into()
+    }
+}

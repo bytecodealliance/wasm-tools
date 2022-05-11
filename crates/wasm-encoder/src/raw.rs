@@ -2,7 +2,7 @@ use crate::{ComponentSection, Encode, Section};
 
 /// A section made up of uninterpreted, raw bytes.
 ///
-/// Allows you to splat any data into module or component.
+/// Allows you to splat any data into a module or component.
 #[derive(Clone, Copy, Debug)]
 pub struct RawSection<'a> {
     /// The id for this section.
@@ -13,10 +13,18 @@ pub struct RawSection<'a> {
 
 impl Encode for RawSection<'_> {
     fn encode(&self, sink: &mut Vec<u8>) {
-        sink.push(self.id);
         self.data.encode(sink);
     }
 }
 
-impl Section for RawSection<'_> {}
-impl ComponentSection for RawSection<'_> {}
+impl Section for RawSection<'_> {
+    fn id(&self) -> u8 {
+        self.id
+    }
+}
+
+impl ComponentSection for RawSection<'_> {
+    fn id(&self) -> u8 {
+        self.id
+    }
+}

@@ -27,10 +27,13 @@ pub struct StartSection {
 
 impl Encode for StartSection {
     fn encode(&self, sink: &mut Vec<u8>) {
-        SectionId::Start.encode(sink);
         encoding_size(self.function_index).encode(sink);
         self.function_index.encode(sink);
     }
 }
 
-impl Section for StartSection {}
+impl Section for StartSection {
+    fn id(&self) -> u8 {
+        SectionId::Start.into()
+    }
+}

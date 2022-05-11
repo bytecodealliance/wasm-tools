@@ -1,10 +1,13 @@
+mod aliases;
 mod code;
+mod custom;
 mod data;
 mod elements;
 mod exports;
 mod functions;
 mod globals;
 mod imports;
+mod instances;
 mod linking;
 mod memories;
 mod names;
@@ -13,13 +16,16 @@ mod tables;
 mod tags;
 mod types;
 
+pub use aliases::*;
 pub use code::*;
+pub use custom::*;
 pub use data::*;
 pub use elements::*;
 pub use exports::*;
 pub use functions::*;
 pub use globals::*;
 pub use imports::*;
+pub use instances::*;
 pub use linking::*;
 pub use memories::*;
 pub use names::*;
@@ -30,12 +36,24 @@ pub use types::*;
 
 use crate::Encode;
 
+pub(crate) const CORE_FUNCTION_SORT: u8 = 0x00;
+pub(crate) const CORE_TABLE_SORT: u8 = 0x01;
+pub(crate) const CORE_MEMORY_SORT: u8 = 0x02;
+pub(crate) const CORE_GLOBAL_SORT: u8 = 0x03;
+pub(crate) const CORE_TAG_SORT: u8 = 0x04;
+pub(crate) const CORE_TYPE_SORT: u8 = 0x10;
+pub(crate) const CORE_MODULE_SORT: u8 = 0x11;
+pub(crate) const CORE_INSTANCE_SORT: u8 = 0x12;
+
 /// A WebAssembly module section.
 ///
 /// Various builders defined in this crate already implement this trait, but you
 /// can also implement it yourself for your own custom section builders, or use
 /// `RawSection` to use a bunch of raw bytes as a section.
-pub trait Section: Encode {}
+pub trait Section: Encode {
+    /// Gets the section identifier for this section.
+    fn id(&self) -> u8;
+}
 
 /// Known section identifiers of WebAssembly modules.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -119,6 +137,7 @@ impl Module {
     /// to use this crate to easily construct test cases for bad Wasm module
     /// encodings.
     pub fn section(&mut self, section: &impl Section) -> &mut Self {
+        self.bytes.push(section.id());
         section.encode(&mut self.bytes);
         self
     }

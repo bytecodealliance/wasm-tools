@@ -1,66 +1,15 @@
 use crate::{encode_section, ComponentExport, ComponentSection, ComponentSectionId, Encode};
 
-/// Represents an argument to instantiating a WebAssembly module.
-#[derive(Debug, Clone)]
-pub enum ModuleArg {
-    /// The argument is an instance.
-    Instance(u32),
-}
-
-impl Encode for ModuleArg {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        match self {
-            Self::Instance(index) => {
-                sink.push(0x02);
-                index.encode(sink);
-            }
-        }
-    }
-}
-
-/// Represents an argument to instantiating a WebAssembly component.
-#[derive(Debug, Clone)]
-pub enum ComponentArg {
-    /// The argument is a module.
-    Module(u32),
-    /// The argument is a component.
-    Component(u32),
-    /// The argument is an instance.
-    Instance(u32),
-    /// The argument is a function.
-    Function(u32),
-    /// The argument is a value.
-    Value(u32),
-    /// The argument is a type.
-    Type(u32),
-}
-
-impl Encode for ComponentArg {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        let (kind, index) = match self {
-            Self::Module(index) => (0x00, *index),
-            Self::Component(index) => (0x01, *index),
-            Self::Instance(index) => (0x02, *index),
-            Self::Function(index) => (0x03, *index),
-            Self::Value(index) => (0x04, *index),
-            Self::Type(index) => (0x05, *index),
-        };
-
-        sink.push(kind);
-        index.encode(sink);
-    }
-}
-
 /// An encoder for the instance section of WebAssembly components.
 ///
 /// # Example
 ///
 /// ```rust
-/// use wasm_encoder::{Component, InstanceSection, ModuleArg, Export};
+/// use wasm_encoder::{Component, ComponentInstanceSection, ComponentExport};
 ///
-/// let mut instances = InstanceSection::new();
-/// instances.export_core_items([("foo", Export::Function(0))]);
-/// instances.instantiate_module(1, [("foo", ModuleArg::Instance(0))]);
+/// let mut instances = ComponentInstanceSection::new();
+/// instances.export_items([("foo", ComponentExport::Func(0))]);
+/// instances.instantiate(1, [("foo", ComponentExport::Instance(0))]);
 ///
 /// let mut component = Component::new();
 /// component.section(&instances);
@@ -68,12 +17,12 @@ impl Encode for ComponentArg {
 /// let bytes = component.finish();
 /// ```
 #[derive(Clone, Debug, Default)]
-pub struct InstanceSection {
+pub struct ComponentInstanceSection {
     bytes: Vec<u8>,
     num_added: u32,
 }
 
-impl InstanceSection {
+impl ComponentInstanceSection {
     /// Create a new instance section encoder.
     pub fn new() -> Self {
         Self::default()
@@ -89,96 +38,50 @@ impl InstanceSection {
         self.num_added == 0
     }
 
-    /// Define an instance by instantiating a module.
-    pub fn instantiate_module<'a, Args, Arg>(&mut self, module_index: u32, args: Args) -> &mut Self
-    where
-        Args: IntoIterator<Item = (&'a str, Arg)>,
-        Args::IntoIter: ExactSizeIterator,
-        Arg: Into<ModuleArg>,
-    {
-        let args = args.into_iter();
-        self.bytes.push(0x00);
-        self.bytes.push(0x00);
-        module_index.encode(&mut self.bytes);
-        args.len().encode(&mut self.bytes);
-        for (name, arg) in args {
-            name.encode(&mut self.bytes);
-            arg.into().encode(&mut self.bytes);
-        }
-        self.num_added += 1;
-        self
-    }
-
-    /// Define an instance by exporting core WebAssembly items.
-    pub fn export_core_items<'a, Exports, Export>(&mut self, exports: Exports) -> &mut Self
-    where
-        Exports: IntoIterator<Item = (&'a str, Export)>,
-        Exports::IntoIter: ExactSizeIterator,
-        Export: Into<crate::Export>,
-    {
-        let exports = exports.into_iter();
-        self.bytes.push(0x02);
-        exports.len().encode(&mut self.bytes);
-        for (name, export) in exports {
-            name.encode(&mut self.bytes);
-            export.into().encode(&mut self.bytes);
-        }
-        self.num_added += 1;
-        self
-    }
-
     /// Define an instance by instantiating a component.
-    pub fn instantiate_component<'a, Args, Arg>(
-        &mut self,
-        component_index: u32,
-        args: Args,
-    ) -> &mut Self
+    pub fn instantiate<'a, A>(&mut self, component_index: u32, args: A) -> &mut Self
     where
-        Args: IntoIterator<Item = (&'a str, Arg)>,
-        Args::IntoIter: ExactSizeIterator,
-        Arg: Into<ComponentArg>,
+        A: IntoIterator<Item = (&'a str, ComponentExport)>,
+        A::IntoIter: ExactSizeIterator,
     {
         let args = args.into_iter();
         self.bytes.push(0x00);
-        self.bytes.push(0x01);
         component_index.encode(&mut self.bytes);
         args.len().encode(&mut self.bytes);
-        for (name, arg) in args {
+        for (name, export) in args {
             name.encode(&mut self.bytes);
-            arg.into().encode(&mut self.bytes);
+            export.encode(&mut self.bytes);
         }
         self.num_added += 1;
         self
     }
 
     /// Define an instance by exporting items.
-    pub fn export_items<'a, Exports, Export>(&mut self, exports: Exports) -> &mut Self
+    pub fn export_items<'a, E>(&mut self, exports: E) -> &mut Self
     where
-        Exports: IntoIterator<Item = (&'a str, Export)>,
-        Exports::IntoIter: ExactSizeIterator,
-        Export: Into<ComponentExport>,
+        E: IntoIterator<Item = (&'a str, ComponentExport)>,
+        E::IntoIter: ExactSizeIterator,
     {
         let exports = exports.into_iter();
         self.bytes.push(0x01);
         exports.len().encode(&mut self.bytes);
         for (name, export) in exports {
             name.encode(&mut self.bytes);
-            export.into().encode(&mut self.bytes);
+            export.encode(&mut self.bytes);
         }
         self.num_added += 1;
         self
     }
 }
 
-impl Encode for InstanceSection {
+impl Encode for ComponentInstanceSection {
     fn encode(&self, sink: &mut Vec<u8>) {
-        encode_section(
-            sink,
-            ComponentSectionId::Instance,
-            self.num_added,
-            &self.bytes,
-        );
+        encode_section(sink, self.num_added, &self.bytes);
     }
 }
 
-impl ComponentSection for InstanceSection {}
+impl ComponentSection for ComponentInstanceSection {
+    fn id(&self) -> u8 {
+        ComponentSectionId::Instance.into()
+    }
+}

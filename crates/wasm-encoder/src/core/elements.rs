@@ -233,8 +233,12 @@ impl ElementSection {
 
 impl Encode for ElementSection {
     fn encode(&self, sink: &mut Vec<u8>) {
-        encode_section(sink, SectionId::Element, self.num_added, &self.bytes);
+        encode_section(sink, self.num_added, &self.bytes);
     }
 }
 
-impl Section for ElementSection {}
+impl Section for ElementSection {
+    fn id(&self) -> u8 {
+        SectionId::Element.into()
+    }
+}

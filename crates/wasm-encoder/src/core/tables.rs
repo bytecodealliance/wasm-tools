@@ -53,11 +53,15 @@ impl TableSection {
 
 impl Encode for TableSection {
     fn encode(&self, sink: &mut Vec<u8>) {
-        encode_section(sink, SectionId::Table, self.num_added, &self.bytes);
+        encode_section(sink, self.num_added, &self.bytes);
     }
 }
 
-impl Section for TableSection {}
+impl Section for TableSection {
+    fn id(&self) -> u8 {
+        SectionId::Table.into()
+    }
+}
 
 /// A table's type.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

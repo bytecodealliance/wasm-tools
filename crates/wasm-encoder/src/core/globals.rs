@@ -64,11 +64,15 @@ impl GlobalSection {
 
 impl Encode for GlobalSection {
     fn encode(&self, sink: &mut Vec<u8>) {
-        encode_section(sink, SectionId::Global, self.num_added, &self.bytes);
+        encode_section(sink, self.num_added, &self.bytes);
     }
 }
 
-impl Section for GlobalSection {}
+impl Section for GlobalSection {
+    fn id(&self) -> u8 {
+        SectionId::Global.into()
+    }
+}
 
 /// A global's type.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]

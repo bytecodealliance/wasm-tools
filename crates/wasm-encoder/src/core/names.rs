@@ -1,4 +1,4 @@
-use crate::{encoding_size, CustomSection, Encode, Section};
+use crate::{encoding_size, CustomSection, Encode, Section, SectionId};
 
 /// An encoder for the custom `name` section.
 ///
@@ -161,7 +161,11 @@ impl Encode for NameSection {
     }
 }
 
-impl Section for NameSection {}
+impl Section for NameSection {
+    fn id(&self) -> u8 {
+        SectionId::Custom.into()
+    }
+}
 
 /// A map used to name items in a wasm module, organized by naming each
 /// individual index.

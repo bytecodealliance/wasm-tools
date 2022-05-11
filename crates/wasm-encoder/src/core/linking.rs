@@ -1,4 +1,4 @@
-use crate::{encode_section, CustomSection, Encode, Section};
+use crate::{encode_section, CustomSection, Encode, Section, SectionId};
 
 const VERSION: u32 = 2;
 
@@ -79,7 +79,11 @@ impl Encode for LinkingSection {
     }
 }
 
-impl Section for LinkingSection {}
+impl Section for LinkingSection {
+    fn id(&self) -> u8 {
+        SectionId::Custom.into()
+    }
+}
 
 #[allow(unused)]
 const WASM_SEGMENT_INFO: u8 = 5;
@@ -237,7 +241,8 @@ impl SymbolTable {
 
 impl Encode for SymbolTable {
     fn encode(&self, sink: &mut Vec<u8>) {
-        encode_section(sink, WASM_SYMBOL_TABLE, self.num_added, &self.bytes);
+        sink.push(WASM_SYMBOL_TABLE);
+        encode_section(sink, self.num_added, &self.bytes);
     }
 }
 

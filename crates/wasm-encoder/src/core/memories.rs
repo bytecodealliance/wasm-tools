@@ -53,11 +53,15 @@ impl MemorySection {
 
 impl Encode for MemorySection {
     fn encode(&self, sink: &mut Vec<u8>) {
-        encode_section(sink, SectionId::Memory, self.num_added, &self.bytes);
+        encode_section(sink, self.num_added, &self.bytes);
     }
 }
 
-impl Section for MemorySection {}
+impl Section for MemorySection {
+    fn id(&self) -> u8 {
+        SectionId::Memory.into()
+    }
+}
 
 /// A memory's type.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
