@@ -1,20 +1,21 @@
 //! State relating to validating a WebAssembly component.
 
 use super::{
-    check_max,
+    check_max, combine_type_sizes,
     core::Module,
     types::{
         ComponentFuncType, ComponentType, EntityType, InstanceType, InterfaceType,
-        InterfaceTypeRef, ModuleType, TypeDef, TypeId, TypeList, VariantCase,
+        InterfaceTypeRef, ModuleType, RecordType, TypeDef, TypeId, TypeList, VariantCase,
     },
 };
 use crate::{
-    limits::*, types::ComponentEntityType, BinaryReaderError, CanonicalOption, FuncType,
-    GlobalType, MemoryType, PrimitiveInterfaceType, Result, TableType, Type, WasmFeatures,
+    limits::*,
+    types::{ComponentEntityType, TupleType, UnionType, VariantType},
+    BinaryReaderError, CanonicalOption, FuncType, GlobalType, MemoryType, PrimitiveInterfaceType,
+    Result, TableType, Type, WasmFeatures,
 };
 use std::{collections::HashMap, mem};
 
-#[derive(Default)]
 pub struct ComponentState {
     pub types: Vec<TypeId>,
     pub modules: Vec<TypeId>,
@@ -29,6 +30,7 @@ pub struct ComponentState {
     pub imports: HashMap<String, ComponentEntityType>,
     pub exports: HashMap<String, ComponentEntityType>,
     has_start: bool,
+    type_size: usize,
 }
 
 impl ComponentState {
@@ -38,9 +40,10 @@ impl ComponentState {
         features: &WasmFeatures,
         types: &mut TypeList,
         offset: usize,
+        check_limit: bool,
     ) -> Result<()> {
         assert!(!components.is_empty());
-        let def = match def {
+        let ty = match def {
             crate::ComponentTypeDef::Module(defs) => {
                 TypeDef::Module(components.last_mut().unwrap().create_module_type(
                     defs.into_vec(),
@@ -75,12 +78,16 @@ impl ComponentState {
             ),
         };
 
-        components
-            .last_mut()
-            .unwrap()
-            .types
-            .push(TypeId(types.len()));
-        types.push(def);
+        let current = components.last_mut().unwrap();
+        if check_limit {
+            check_max(current.types.len(), 1, MAX_WASM_TYPES, "types", offset)?;
+        }
+
+        current.types.push(TypeId {
+            type_size: ty.type_size(),
+            index: types.len(),
+        });
+        types.push(ty);
 
         Ok(())
     }
@@ -123,6 +130,8 @@ impl ComponentState {
 
         check_max(len, 0, max, desc, offset)?;
 
+        self.type_size = combine_type_sizes(self.type_size, ty.type_size(), offset)?;
+
         if self.imports.insert(import.name.to_string(), ty).is_some() {
             return Err(BinaryReaderError::new(
                 format!("duplicate import name `{}` already defined", import.name),
@@ -138,7 +147,14 @@ impl ComponentState {
         name: &str,
         ty: ComponentEntityType,
         offset: usize,
+        check_limit: bool,
     ) -> Result<()> {
+        if check_limit {
+            check_max(self.exports.len(), 1, MAX_WASM_EXPORTS, "exports", offset)?;
+        }
+
+        self.type_size = combine_type_sizes(self.type_size, ty.type_size(), offset)?;
+
         if self.exports.insert(name.to_string(), ty).is_some() {
             return Err(BinaryReaderError::new(
                 format!("duplicate export name `{}` already defined", name),
@@ -202,12 +218,17 @@ impl ComponentState {
         // the expected canonical ABI import signature.
         let (params, results) = ty.lower(types, true);
 
-        self.functions.push(TypeId(types.len()));
-
-        types.push(TypeDef::Func(FuncType {
+        let lowered_ty = TypeDef::Func(FuncType {
             params: params.as_slice().to_vec().into_boxed_slice(),
             returns: results.as_slice().to_vec().into_boxed_slice(),
-        }));
+        });
+
+        self.functions.push(TypeId {
+            type_size: lowered_ty.type_size(),
+            index: types.len(),
+        });
+
+        types.push(lowered_ty);
 
         Ok(())
     }
@@ -223,21 +244,35 @@ impl ComponentState {
         // We have to clone the module's imports and exports here
         // because we cannot take the data out of the `MaybeOwned`
         // as it might be shared with a function validator.
-        self.modules.push(TypeId(types.len()));
-        types.push(TypeDef::Module(ModuleType {
+        let ty = TypeDef::Module(ModuleType {
+            type_size: module.type_size,
             imports,
             exports: module.exports.clone(),
-        }));
+        });
+
+        self.modules.push(TypeId {
+            type_size: ty.type_size(),
+            index: types.len(),
+        });
+
+        types.push(ty);
 
         Ok(())
     }
 
     pub(super) fn add_component(&mut self, component: &mut Self, types: &mut TypeList) {
-        self.components.push(TypeId(types.len()));
-        types.push(TypeDef::Component(ComponentType {
+        let ty = TypeDef::Component(ComponentType {
+            type_size: component.type_size,
             imports: mem::take(&mut component.imports),
             exports: mem::take(&mut component.exports),
-        }));
+        });
+
+        self.components.push(TypeId {
+            type_size: ty.type_size(),
+            index: types.len(),
+        });
+
+        types.push(ty);
     }
 
     pub(super) fn add_instance(
@@ -335,33 +370,12 @@ impl ComponentState {
                 .unwrap()
                 .alias_instance_export(kind, instance, name, types, offset),
             crate::Alias::OuterModule { count, index } => {
-                check_max(
-                    components.last().unwrap().modules.len(),
-                    1,
-                    MAX_WASM_MODULES,
-                    "modules",
-                    offset,
-                )?;
                 Self::alias_module(components, count, index, offset)
             }
             crate::Alias::OuterComponent { count, index } => {
-                check_max(
-                    components.last().unwrap().components.len(),
-                    1,
-                    MAX_WASM_COMPONENTS,
-                    "components",
-                    offset,
-                )?;
                 Self::alias_component(components, count, index, offset)
             }
             crate::Alias::OuterType { count, index } => {
-                check_max(
-                    components.last().unwrap().types.len(),
-                    1,
-                    MAX_WASM_TYPES,
-                    "types",
-                    offset,
-                )?;
                 Self::alias_type(components, count, index, offset)
             }
         }
@@ -555,7 +569,7 @@ impl ComponentState {
         for def in defs {
             match def {
                 crate::ModuleType::Type(ty) => {
-                    state.add_type(ty, features, types, offset)?;
+                    state.add_type(ty, features, types, offset, true)?;
                 }
                 crate::ModuleType::Export { name, ty } => {
                     state.add_export(
@@ -563,6 +577,7 @@ impl ComponentState {
                         state.check_type_ref(&ty, features, types, offset)?,
                         features,
                         offset,
+                        true,
                     )?;
                 }
                 crate::ModuleType::Import(import) => {
@@ -574,6 +589,7 @@ impl ComponentState {
         let imports = state.imports_for_module_type(offset)?;
 
         Ok(ModuleType {
+            type_size: state.type_size,
             imports,
             exports: state.exports,
         })
@@ -591,7 +607,7 @@ impl ComponentState {
         for def in defs {
             match def {
                 crate::ComponentType::Type(ty) => {
-                    Self::add_type(components, ty, features, types, offset)?;
+                    Self::add_type(components, ty, features, types, offset, true)?;
                 }
                 crate::ComponentType::Export { name, ty } => {
                     let component = components.last_mut().unwrap();
@@ -599,6 +615,7 @@ impl ComponentState {
                         name,
                         component.type_index_to_entity_type(ty, types, "exported", offset)?,
                         offset,
+                        true,
                     )?;
                 }
                 crate::ComponentType::Import(import) => {
@@ -616,6 +633,7 @@ impl ComponentState {
         let state = components.pop().unwrap();
 
         Ok(ComponentType {
+            type_size: state.type_size,
             imports: state.imports,
             exports: state.exports,
         })
@@ -633,7 +651,7 @@ impl ComponentState {
         for def in defs {
             match def {
                 crate::InstanceType::Type(ty) => {
-                    Self::add_type(components, ty, features, types, offset)?;
+                    Self::add_type(components, ty, features, types, offset, true)?;
                 }
                 crate::InstanceType::Export { name, ty } => {
                     let component = components.last_mut().unwrap();
@@ -641,6 +659,7 @@ impl ComponentState {
                         name,
                         component.type_index_to_entity_type(ty, types, "exported", offset)?,
                         offset,
+                        true,
                     )?;
                 }
                 crate::InstanceType::OuterType { count, index } => {
@@ -652,6 +671,7 @@ impl ComponentState {
         let state = components.pop().unwrap();
 
         Ok(InstanceType {
+            type_size: state.type_size,
             exports: state.exports,
         })
     }
@@ -662,6 +682,8 @@ impl ComponentState {
         types: &TypeList,
         offset: usize,
     ) -> Result<ComponentFuncType> {
+        let mut type_size = 1;
+
         let params = ty
             .params
             .iter()
@@ -670,13 +692,19 @@ impl ComponentState {
                     Self::check_name(name, "function parameter", offset)?;
                 }
                 let ty = self.create_interface_type_ref(*ty, types, offset)?;
+                type_size = combine_type_sizes(type_size, ty.type_size(), offset)?;
                 Ok((name.map(ToOwned::to_owned), ty))
             })
             .collect::<Result<_>>()?;
 
         let result = self.create_interface_type_ref(ty.result, types, offset)?;
+        type_size = combine_type_sizes(type_size, result.type_size(), offset)?;
 
-        Ok(ComponentFuncType { params, result })
+        Ok(ComponentFuncType {
+            type_size,
+            params,
+            result,
+        })
     }
 
     fn check_name(name: &str, desc: &str, offset: usize) -> Result<()> {
@@ -947,8 +975,11 @@ impl ComponentState {
             name: &str,
             export: ComponentEntityType,
             exports: &mut HashMap<String, ComponentEntityType>,
+            type_size: &mut usize,
             offset: usize,
         ) -> Result<()> {
+            *type_size = combine_type_sizes(*type_size, export.type_size(), offset)?;
+
             if exports.insert(name.to_string(), export).is_some() {
                 return Err(BinaryReaderError::new(
                     format!(
@@ -962,6 +993,7 @@ impl ComponentState {
             Ok(())
         }
 
+        let mut type_size = 1;
         let mut inst_exports = HashMap::new();
         for export in exports {
             match export.kind {
@@ -970,6 +1002,7 @@ impl ComponentState {
                         export.name,
                         ComponentEntityType::Module(self.module_at(idx, offset)?),
                         &mut inst_exports,
+                        &mut type_size,
                         offset,
                     )?;
                 }
@@ -978,6 +1011,7 @@ impl ComponentState {
                         export.name,
                         ComponentEntityType::Component(self.component_at(idx, offset)?),
                         &mut inst_exports,
+                        &mut type_size,
                         offset,
                     )?;
                 }
@@ -988,6 +1022,7 @@ impl ComponentState {
                             self.component_instance_at(idx, types, offset)?,
                         ),
                         &mut inst_exports,
+                        &mut type_size,
                         offset,
                     )?;
                 }
@@ -996,6 +1031,7 @@ impl ComponentState {
                         export.name,
                         ComponentEntityType::Func(self.component_function_at(idx, types, offset)?),
                         &mut inst_exports,
+                        &mut type_size,
                         offset,
                     )?;
                 }
@@ -1004,6 +1040,7 @@ impl ComponentState {
                         export.name,
                         ComponentEntityType::Value(*self.value_at(idx, offset)?),
                         &mut inst_exports,
+                        &mut type_size,
                         offset,
                     )?;
                 }
@@ -1012,17 +1049,26 @@ impl ComponentState {
                         export.name,
                         ComponentEntityType::Type(self.type_at(idx, offset)?),
                         &mut inst_exports,
+                        &mut type_size,
                         offset,
                     )?;
                 }
             }
         }
 
-        let ty = TypeId(types.len());
-        types.push(TypeDef::Instance(InstanceType {
+        let ty = TypeDef::Instance(InstanceType {
+            type_size,
             exports: inst_exports,
-        }));
-        Ok(ty)
+        });
+
+        let id = TypeId {
+            type_size: ty.type_size(),
+            index: types.len(),
+        };
+
+        types.push(ty);
+
+        Ok(id)
     }
 
     fn instantiate_core_exports(
@@ -1035,8 +1081,11 @@ impl ComponentState {
             name: &str,
             export: EntityType,
             exports: &mut HashMap<String, EntityType>,
+            type_size: &mut usize,
             offset: usize,
         ) -> Result<()> {
+            *type_size = combine_type_sizes(*type_size, export.type_size(), offset)?;
+
             if exports.insert(name.to_string(), export).is_some() {
                 return Err(BinaryReaderError::new(
                     format!(
@@ -1050,6 +1099,7 @@ impl ComponentState {
             Ok(())
         }
 
+        let mut type_size = 1;
         let mut inst_exports = HashMap::new();
         for export in exports {
             match export.kind {
@@ -1058,6 +1108,7 @@ impl ComponentState {
                         export.name,
                         EntityType::Func(self.core_function_at(export.index, types, offset)?),
                         &mut inst_exports,
+                        &mut type_size,
                         offset,
                     )?;
                 }
@@ -1065,12 +1116,14 @@ impl ComponentState {
                     export.name,
                     EntityType::Table(*self.table_at(export.index, offset)?),
                     &mut inst_exports,
+                    &mut type_size,
                     offset,
                 )?,
                 crate::ExternalKind::Memory => insert_export(
                     export.name,
                     EntityType::Memory(*self.memory_at(export.index, offset)?),
                     &mut inst_exports,
+                    &mut type_size,
                     offset,
                 )?,
                 crate::ExternalKind::Global => {
@@ -1078,6 +1131,7 @@ impl ComponentState {
                         export.name,
                         EntityType::Global(*self.global_at(export.index, offset)?),
                         &mut inst_exports,
+                        &mut type_size,
                         offset,
                     )?;
                 }
@@ -1085,17 +1139,26 @@ impl ComponentState {
                     export.name,
                     EntityType::Tag(self.core_function_at(export.index, types, offset)?),
                     &mut inst_exports,
+                    &mut type_size,
                     offset,
                 )?,
             }
         }
 
-        let ty = TypeId(types.len());
-        types.push(TypeDef::Module(ModuleType {
+        let ty = TypeDef::Module(ModuleType {
+            type_size,
             imports: HashMap::default(),
             exports: inst_exports,
-        }));
-        Ok(ty)
+        });
+
+        let id = TypeId {
+            type_size: ty.type_size(),
+            index: types.len(),
+        };
+
+        types.push(ty);
+
+        Ok(id)
     }
 
     fn alias_instance_export(
@@ -1224,7 +1287,17 @@ impl ComponentState {
     fn alias_module(components: &mut [Self], count: u32, index: u32, offset: usize) -> Result<()> {
         let component = Self::check_alias_count(components, count, offset)?;
         let ty = component.module_at(index, offset)?;
-        components.last_mut().unwrap().modules.push(ty);
+
+        let current = components.last_mut().unwrap();
+        check_max(
+            current.modules.len(),
+            1,
+            MAX_WASM_MODULES,
+            "modules",
+            offset,
+        )?;
+
+        current.modules.push(ty);
         Ok(())
     }
 
@@ -1236,14 +1309,28 @@ impl ComponentState {
     ) -> Result<()> {
         let component = Self::check_alias_count(components, count, offset)?;
         let ty = component.component_at(index, offset)?;
-        components.last_mut().unwrap().components.push(ty);
+
+        let current = components.last_mut().unwrap();
+        check_max(
+            current.components.len(),
+            1,
+            MAX_WASM_COMPONENTS,
+            "components",
+            offset,
+        )?;
+
+        current.components.push(ty);
         Ok(())
     }
 
     fn alias_type(components: &mut [Self], count: u32, index: u32, offset: usize) -> Result<()> {
         let component = Self::check_alias_count(components, count, offset)?;
         let ty = component.type_at(index, offset)?;
-        components.last_mut().unwrap().types.push(ty);
+
+        let current = components.last_mut().unwrap();
+        check_max(current.types.len(), 1, MAX_WASM_TYPES, "types", offset)?;
+
+        current.types.push(ty);
         Ok(())
     }
 
@@ -1265,95 +1352,152 @@ impl ComponentState {
         types: &TypeList,
         offset: usize,
     ) -> Result<InterfaceType> {
-        Ok(match ty {
-            crate::InterfaceType::Primitive(ty) => InterfaceType::Primitive(ty),
-            crate::InterfaceType::Record(fields) => InterfaceType::Record(
-                fields
-                    .iter()
-                    .map(|(name, ty)| {
-                        Self::check_name(name, "record field", offset)?;
-                        Ok((
-                            name.to_string(),
-                            self.create_interface_type_ref(*ty, types, offset)?,
-                        ))
-                    })
-                    .collect::<Result<_>>()?,
-            ),
-            crate::InterfaceType::Variant(cases) => InterfaceType::Variant(
-                cases
-                    .iter()
-                    .map(|case| {
-                        Self::check_name(case.name, "variant case", offset)?;
-                        if let Some(default_to) = case.default_to {
-                            if default_to >= cases.len() as u32 {
-                                return Err(BinaryReaderError::new(
-                                    format!(
-                                        "variant case default index {} is out of bounds",
-                                        default_to
-                                    ),
-                                    offset,
-                                ));
-                            }
-                        }
-                        Ok((
-                            case.name.to_string(),
-                            VariantCase {
-                                ty: self.create_interface_type_ref(case.ty, types, offset)?,
-                                default_to: case
-                                    .default_to
-                                    .map(|i| cases[i as usize].name.to_string()),
-                            },
-                        ))
-                    })
-                    .collect::<Result<_>>()?,
-            ),
-            crate::InterfaceType::List(ty) => {
-                InterfaceType::List(self.create_interface_type_ref(ty, types, offset)?)
+        match ty {
+            crate::InterfaceType::Primitive(ty) => Ok(InterfaceType::Primitive(ty)),
+            crate::InterfaceType::Record(fields) => {
+                self.create_record_type(fields.as_ref(), types, offset)
             }
-            crate::InterfaceType::Tuple(tys) => InterfaceType::Tuple(
-                tys.iter()
-                    .map(|ty| self.create_interface_type_ref(*ty, types, offset))
-                    .collect::<Result<_>>()?,
-            ),
-            crate::InterfaceType::Flags(names) => InterfaceType::Flags(
-                names
-                    .iter()
-                    .map(|name| {
-                        Self::check_name(name, "flag", offset)?;
-                        Ok(name.to_string())
-                    })
-                    .collect::<Result<_>>()?,
-            ),
-            crate::InterfaceType::Enum(cases) => {
-                if cases.len() > u32::max_value() as usize {
-                    return Err(BinaryReaderError::new(
-                        "enumeration type cannot be represented with a 32-bit discriminant value",
-                        offset,
-                    ));
-                }
-                InterfaceType::Enum(
-                    cases
-                        .iter()
-                        .map(|name| {
-                            Self::check_name(name, "enum tag", offset)?;
-                            Ok(name.to_string())
-                        })
-                        .collect::<Result<_>>()?,
-                )
+            crate::InterfaceType::Variant(cases) => {
+                self.create_variant_type(cases.as_ref(), types, offset)
             }
-            crate::InterfaceType::Union(tys) => InterfaceType::Union(
-                tys.iter()
-                    .map(|ty| self.create_interface_type_ref(*ty, types, offset))
-                    .collect::<Result<_>>()?,
-            ),
-            crate::InterfaceType::Option(ty) => {
-                InterfaceType::Option(self.create_interface_type_ref(ty, types, offset)?)
-            }
-            crate::InterfaceType::Expected { ok, error } => InterfaceType::Expected(
+            crate::InterfaceType::List(ty) => Ok(InterfaceType::List(
+                self.create_interface_type_ref(ty, types, offset)?,
+            )),
+            crate::InterfaceType::Tuple(tys) => self.create_tuple_type(tys.as_ref(), types, offset),
+            crate::InterfaceType::Flags(names) => self.create_flags_type(names.as_ref(), offset),
+            crate::InterfaceType::Enum(cases) => self.create_enum_type(cases.as_ref(), offset),
+            crate::InterfaceType::Union(tys) => self.create_union_type(tys.as_ref(), types, offset),
+            crate::InterfaceType::Option(ty) => Ok(InterfaceType::Option(
+                self.create_interface_type_ref(ty, types, offset)?,
+            )),
+            crate::InterfaceType::Expected { ok, error } => Ok(InterfaceType::Expected(
                 self.create_interface_type_ref(ok, types, offset)?,
                 self.create_interface_type_ref(error, types, offset)?,
-            ),
-        })
+            )),
+        }
+    }
+
+    fn create_record_type(
+        &self,
+        fields: &[(&str, crate::InterfaceTypeRef)],
+        types: &TypeList,
+        offset: usize,
+    ) -> Result<InterfaceType> {
+        let mut type_size = 1;
+        let fields = fields
+            .iter()
+            .map(|(name, ty)| {
+                Self::check_name(name, "record field", offset)?;
+                let ty = self.create_interface_type_ref(*ty, types, offset)?;
+                type_size = combine_type_sizes(type_size, ty.type_size(), offset)?;
+                Ok((name.to_string(), ty))
+            })
+            .collect::<Result<_>>()?;
+
+        Ok(InterfaceType::Record(RecordType { type_size, fields }))
+    }
+
+    fn create_variant_type(
+        &self,
+        cases: &[crate::VariantCase],
+        types: &TypeList,
+        offset: usize,
+    ) -> Result<InterfaceType> {
+        let mut type_size = 1;
+        let cases = cases
+            .iter()
+            .map(|case| {
+                Self::check_name(case.name, "variant case", offset)?;
+                if let Some(default_to) = case.default_to {
+                    if default_to >= cases.len() as u32 {
+                        return Err(BinaryReaderError::new(
+                            format!("variant case default index {} is out of bounds", default_to),
+                            offset,
+                        ));
+                    }
+                }
+                let ty = self.create_interface_type_ref(case.ty, types, offset)?;
+                type_size = combine_type_sizes(type_size, ty.type_size(), offset)?;
+                Ok((
+                    case.name.to_string(),
+                    VariantCase {
+                        ty,
+                        default_to: case.default_to.map(|i| cases[i as usize].name.to_string()),
+                    },
+                ))
+            })
+            .collect::<Result<_>>()?;
+
+        Ok(InterfaceType::Variant(VariantType { type_size, cases }))
+    }
+
+    fn create_tuple_type(
+        &self,
+        tys: &[crate::InterfaceTypeRef],
+        types: &TypeList,
+        offset: usize,
+    ) -> Result<InterfaceType> {
+        let mut type_size = 1;
+        let types = tys
+            .iter()
+            .map(|ty| {
+                let ty = self.create_interface_type_ref(*ty, types, offset)?;
+                type_size = combine_type_sizes(type_size, ty.type_size(), offset)?;
+                Ok(ty)
+            })
+            .collect::<Result<_>>()?;
+
+        Ok(InterfaceType::Tuple(TupleType { type_size, types }))
+    }
+
+    fn create_flags_type(&self, names: &[&str], offset: usize) -> Result<InterfaceType> {
+        Ok(InterfaceType::Flags(
+            names
+                .iter()
+                .map(|name| {
+                    Self::check_name(name, "flag", offset)?;
+                    Ok(name.to_string())
+                })
+                .collect::<Result<_>>()?,
+        ))
+    }
+
+    fn create_enum_type(&self, cases: &[&str], offset: usize) -> Result<InterfaceType> {
+        if cases.len() > u32::max_value() as usize {
+            return Err(BinaryReaderError::new(
+                "enumeration type cannot be represented with a 32-bit discriminant value",
+                offset,
+            ));
+        }
+
+        Ok(InterfaceType::Enum(
+            cases
+                .iter()
+                .map(|name| {
+                    Self::check_name(name, "enum tag", offset)?;
+                    Ok(name.to_string())
+                })
+                .collect::<Result<_>>()?,
+        ))
+    }
+
+    fn create_union_type(
+        &self,
+        tys: &[crate::InterfaceTypeRef],
+        types: &TypeList,
+        offset: usize,
+    ) -> Result<InterfaceType> {
+        let mut type_size = 1;
+        let types = tys
+            .iter()
+            .map(|ty| {
+                let ty = self.create_interface_type_ref(*ty, types, offset)?;
+                type_size = combine_type_sizes(type_size, ty.type_size(), offset)?;
+                Ok(ty)
+            })
+            .collect::<Result<_>>()?;
+
+        Ok(InterfaceType::Union(UnionType { type_size, types }))
     }
 
     fn create_interface_type_ref(
@@ -1520,11 +1664,11 @@ impl ComponentState {
     }
 
     fn interface_type_at(&self, idx: u32, types: &TypeList, offset: usize) -> Result<TypeId> {
-        let idx = self.type_at(idx, offset)?;
-        match &types[idx] {
-            TypeDef::Interface(_) => Ok(idx),
+        let id = self.type_at(idx, offset)?;
+        match &types[id] {
+            TypeDef::Interface(_) => Ok(id),
             _ => Err(BinaryReaderError::new(
-                format!("type index {} is not an interface type", idx.0),
+                format!("type index {} is not an interface type", id.index),
                 offset,
             )),
         }
@@ -1557,6 +1701,27 @@ impl ComponentState {
                 format!("unknown memory {}: memory index out of bounds", idx,),
                 offset,
             )),
+        }
+    }
+}
+
+impl Default for ComponentState {
+    fn default() -> Self {
+        Self {
+            types: Default::default(),
+            modules: Default::default(),
+            components: Default::default(),
+            instances: Default::default(),
+            functions: Default::default(),
+            values: Default::default(),
+            memories: Default::default(),
+            tables: Default::default(),
+            globals: Default::default(),
+            tags: Default::default(),
+            imports: Default::default(),
+            exports: Default::default(),
+            has_start: Default::default(),
+            type_size: 1,
         }
     }
 }
