@@ -708,7 +708,7 @@ impl Encode for ItemSig<'_> {
             ItemKind::Module(t) => t.encode(e),
             ItemKind::Func(t) => t.encode(e),
             ItemKind::Instance(t) => t.encode(e),
-            ItemKind::Value(t) => t.value_type.encode(e),
+            ItemKind::Value(t) => t.encode(e),
         }
     }
 }

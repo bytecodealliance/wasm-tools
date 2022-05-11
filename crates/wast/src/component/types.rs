@@ -30,7 +30,7 @@ impl<'a> Parse<'a> for ComponentExportType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::export>()?.0;
         let name = parser.parse()?;
-        let item = parser.parse()?;
+        let item = parser.parens(|p| p.parse())?;
         Ok(ComponentExportType { span, name, item })
     }
 }

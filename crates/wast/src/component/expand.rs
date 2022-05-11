@@ -303,19 +303,11 @@ impl<'a> Expander<'a> {
 
     fn expand_item_sig(&mut self, sig: &mut ItemSig<'a>) {
         match &mut sig.kind {
-            ItemKind::Component(t) => {
-                self.expand_component_type_use(t);
-            }
-            ItemKind::Module(t) => {
-                self.expand_component_type_use(t);
-            }
-            ItemKind::Instance(t) => {
-                self.expand_component_type_use(t);
-            }
-            ItemKind::Value(t) => self.expand_value_ty(t),
-            ItemKind::Func(t) => {
-                self.expand_component_type_use(t);
-            }
+            ItemKind::Component(t) => self.expand_component_type_use(t),
+            ItemKind::Module(t) => self.expand_component_type_use(t),
+            ItemKind::Instance(t) => self.expand_component_type_use(t),
+            ItemKind::Value(t) => self.expand_component_type_use(t),
+            ItemKind::Func(t) => self.expand_component_type_use(t),
         };
     }
 
@@ -516,6 +508,22 @@ impl<'a> TypeReference<'a> for ComponentFunctionType<'a> {
 
     fn into_def(self) -> ComponentTypeDef<'a> {
         ComponentTypeDef::DefType(DefType::Func(self))
+    }
+}
+
+impl<'a> TypeReference<'a> for ValueType<'a> {
+    type Key = Todo; // TODO: should implement this
+
+    fn key(&self) -> Self::Key {
+        Todo
+    }
+
+    fn expand(&mut self, cx: &mut Expander<'a>) {
+        cx.expand_value_ty(self)
+    }
+
+    fn into_def(self) -> ComponentTypeDef<'a> {
+        ComponentTypeDef::DefType(DefType::Value(self))
     }
 }
 

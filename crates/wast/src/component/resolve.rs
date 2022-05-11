@@ -183,7 +183,7 @@ fn resolve_item_sig<'a>(
         ItemKind::Module(t) => resolve_type_use(t, resolve_stack),
         ItemKind::Instance(t) => resolve_type_use(t, resolve_stack),
         ItemKind::Func(t) => resolve_type_use(t, resolve_stack),
-        ItemKind::Value(t) => resolve_type_use(&mut t.value_type, resolve_stack),
+        ItemKind::Value(t) => resolve_type_use(t, resolve_stack),
     }
 }
 

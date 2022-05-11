@@ -44,7 +44,7 @@ pub enum ItemKind<'a> {
     Component(ComponentTypeUse<'a, ComponentType<'a>>),
     Module(ComponentTypeUse<'a, ModuleType<'a>>),
     Instance(ComponentTypeUse<'a, InstanceType<'a>>),
-    Value(ValueType<'a>),
+    Value(ComponentTypeUse<'a, ValueType<'a>>),
     Func(ComponentTypeUse<'a, ComponentFunctionType<'a>>),
 }
 

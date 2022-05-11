@@ -204,7 +204,7 @@ impl<'a> Parse<'a> for ModuleType<'a> {
 
         let mut defs = Vec::new();
         while !parser.is_empty() {
-            defs.push(parser.parse()?);
+            defs.push(parser.parens(|p| p.parse())?);
         }
         Ok(ModuleType { defs })
     }
@@ -214,7 +214,7 @@ impl<'a> Peek for ModuleType<'a> {
     fn peek(cursor: Cursor<'_>) -> bool {
         if let Some(next) = cursor.lparen() {
             match next.keyword() {
-                Some(("import" | "export", _)) => return true,
+                Some(("type" | "import" | "export", _)) => return true,
                 _ => {}
             }
         }
@@ -241,12 +241,10 @@ pub enum ModuleTypeDef<'a> {
 impl<'a> Parse<'a> for ModuleTypeDef<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let mut l = parser.lookahead1();
-        if l.peek::<kw::func>() {
-            let ft = parser.parse()?;
-            Ok(ModuleTypeDef::Type(ft))
+        if l.peek::<kw::r#type>() {
+            Ok(ModuleTypeDef::Type(parser.parse()?))
         } else if l.peek::<kw::import>() {
-            let it = parser.parse()?;
-            Ok(ModuleTypeDef::Import(it))
+            Ok(ModuleTypeDef::Import(parser.parse()?))
         } else if l.peek::<kw::export>() {
             parser.parse::<kw::export>()?;
             let name = parser.parse()?;
@@ -347,12 +345,15 @@ impl<'a> Parse<'a> for InstanceType<'a> {
         let mut fields = Vec::new();
         while !parser.is_empty() {
             parser.parens(|parser| {
-                if parser.peek2::<kw::export>() {
+                let mut l = parser.lookahead1();
+                if l.peek::<kw::export>() {
                     fields.push(InstanceTypeField::Export(parser.parse()?));
-                } else if parser.peek2::<kw::r#type>() {
+                } else if l.peek::<kw::r#type>() {
                     fields.push(InstanceTypeField::Type(parser.parse()?));
-                } else if parser.peek2::<kw::alias>() {
+                } else if l.peek::<kw::alias>() {
                     fields.push(InstanceTypeField::Alias(parser.parse()?));
+                } else {
+                    return Err(l.error());
                 }
                 Ok(())
             })?;
@@ -400,20 +401,14 @@ impl<'a> From<TypeField<'a>> for InstanceTypeField<'a> {
 /// A value type.
 #[derive(Debug, Clone)]
 pub struct ValueType<'a> {
-    /// An optional name.
-    pub id: Option<Id<'a>>,
     /// The type of the value.
     pub value_type: ComponentTypeUse<'a, InterType<'a>>,
 }
 
 impl<'a> Parse<'a> for ValueType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parens(|parser| {
-            parser.parse::<kw::value>()?;
-            Ok(ValueType {
-                id: parser.parse()?,
-                value_type: parser.parse()?,
-            })
+        Ok(ValueType {
+            value_type: parser.parse()?,
         })
     }
 }
