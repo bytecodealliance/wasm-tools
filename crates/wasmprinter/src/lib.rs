@@ -2399,11 +2399,11 @@ impl Printer {
                     self.start_group("export ");
                     self.print_str(name)?;
                     self.result.push(' ');
-                    self.print_import_ty(&state, types, &ty, true)?;
+                    self.print_import_ty(&state, types, &ty, false)?;
                     self.end_group();
                 }
                 ModuleType::Import(import) => {
-                    self.print_import(&state, types, &import, true)?;
+                    self.print_import(&state, types, &import, false)?;
                 }
             }
         }
@@ -2428,7 +2428,7 @@ impl Printer {
                     self.print_outer_alias(states, OuterAliasKind::Type, count, index)?
                 }
                 ComponentType::Export { name, ty } => {
-                    self.print_export_from_type(states.last_mut().unwrap(), name, ty)?
+                    self.print_export_from_type(states.last_mut().unwrap(), types, name, ty)?
                 }
                 ComponentType::Import(import) => {
                     self.print_component_import(states.last_mut().unwrap(), types, &import)?
@@ -2456,7 +2456,7 @@ impl Printer {
                     self.print_outer_alias(states, OuterAliasKind::Type, count, index)?
                 }
                 InstanceType::Export { name, ty } => {
-                    self.print_export_from_type(states.last_mut().unwrap(), name, ty)?
+                    self.print_export_from_type(states.last_mut().unwrap(), types, name, ty)?
                 }
             }
         }
@@ -2528,14 +2528,34 @@ impl Printer {
         Ok(())
     }
 
-    fn print_export_from_type(&mut self, state: &mut State, name: &str, ty: u32) -> Result<()> {
+    fn print_export_from_type(
+        &mut self,
+        state: &mut State,
+        types: &[TypeDef],
+        name: &str,
+        ty: u32,
+    ) -> Result<()> {
         self.start_group("export ");
         self.print_str(name)?;
         self.result.push(' ');
+
+        let type_index = state.ty(ty)?;
+        let type_name = match types[type_index] {
+            TypeDef::Module => "module",
+            TypeDef::Component(_) => "component",
+            TypeDef::Instance(_) => "instance",
+            TypeDef::ComponentFunc(_) => "func",
+            TypeDef::Value => "value",
+            _ => bail!("invalid export type"),
+        };
+
+        self.start_group(type_name);
+        self.result.push(' ');
         self.start_group("type ");
         self.print_idx(&state.type_names, ty)?;
-        self.end_group();
-        self.end_group();
+        self.end_group(); // type
+        self.end_group(); // $type_name
+        self.end_group(); // export
 
         state.export(name, state.ty(ty)?)?;
 
