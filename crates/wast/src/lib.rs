@@ -488,7 +488,7 @@ pub mod kw {
     custom_keyword!(defaults_to = "defaults-to");
     custom_keyword!(record);
     custom_keyword!(string);
-    custom_keyword!(bool_);
+    custom_keyword!(bool_ = "bool");
     custom_keyword!(float32);
     custom_keyword!(float64);
     custom_keyword!(variant);

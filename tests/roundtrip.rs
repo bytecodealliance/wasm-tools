@@ -125,11 +125,6 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         return true;
     }
 
-    // todo!("component-model")
-    if test.to_str().unwrap().contains("component-model") {
-        return true;
-    }
-
     // TODO: the gc proposal isn't implemented yet
     if test.iter().any(|p| p == "gc") {
         return true;
@@ -280,6 +275,14 @@ impl TestState {
                     .context("failed testing wasm binary produced by `wast`")?;
             }
 
+            WastDirective::Component(mut component) => {
+                let actual = component.encode()?;
+                self.bump_ntests();
+                let test_roundtrip = true;
+                self.test_wasm(test, &actual, test_roundtrip)
+                    .context("failed testing wasm binary produced by `wast`")?;
+            }
+
             WastDirective::QuoteModule { source, span: _ } => {
                 if skip_verify {
                     return Ok(());
@@ -349,7 +352,13 @@ impl TestState {
                 }
             }
 
-            _ => {}
+            WastDirective::Register { .. }
+            | WastDirective::Invoke(_)
+            | WastDirective::AssertTrap { .. }
+            | WastDirective::AssertReturn { .. }
+            | WastDirective::AssertExhaustion { .. }
+            | WastDirective::AssertUnlinkable { .. }
+            | WastDirective::AssertException { .. } => {}
         }
         Ok(())
     }

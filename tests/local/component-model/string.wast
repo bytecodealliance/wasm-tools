@@ -16,8 +16,9 @@
     )
   )
   (instance $main (instantiate (module $Main) (with "libc" (instance $libc))))
+  (alias export $main "start" (func $main_func))
   (func $start
-    (canon.lift (func (param string) (result string)) (into $libc) (func $main "start"))
+    (canon.lift (func (param string) (result string)) (into $libc) (func $main))
   )
   (start $start (value $name) (result (value $greeting)))
   (export "greeting" (value $greeting))

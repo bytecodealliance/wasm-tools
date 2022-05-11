@@ -1,35 +1,31 @@
-(module
-  (module (import ""))
+(component
+  (import "" (module))
 
   (module)
   (module)
 
   (module (export "x"))
 
-  (module
+  (component
     (module)
   )
 
-  (module
+  (component
     (module $m)
-    (import "" (func (param i32)))
+    (import "" (func (param string)))
     (export "a" (module $m))
-
-    (instance (export "b") (import "b")
-      (export "b" (func))
-    )
   )
 )
 
 ;; does the `import` use the type annotation specified later?
-(module
+(component
   (import "" (module))
   (type (module))
 )
 
 ;; be sure to typecheck nested modules
 (assert_invalid
-  (module
+  (component
     (module
       (func
         i32.add)
