@@ -4,7 +4,7 @@ use crate::component::*;
 use crate::core;
 use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
-use crate::token::{Id, LParen, NameAnnotation};
+use crate::token::{Id, LParen, NameAnnotation, Span};
 
 /// Different kinds of elements that can be exported from a WebAssembly component,
 /// contained in a [`ComponentExport`].
@@ -211,8 +211,10 @@ pub struct ComponentFunctionParam<'a> {
 }
 
 /// A type for a nested module
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct ModuleType<'a> {
+    /// Where this type is defined
+    pub span: Span,
     /// An optional identifer to refer to this `module` type by as part of
     /// name resolution.
     pub id: Option<Id<'a>>,
@@ -228,13 +230,13 @@ impl<'a> Parse<'a> for ModuleType<'a> {
         }
 
         parser.parens(|parser| {
-            parser.parse::<kw::module>()?;
+            let span = parser.parse::<kw::module>()?.0;
             let id = parser.parse()?;
             let mut defs = Vec::new();
             while !parser.is_empty() {
                 defs.push(parser.parse()?);
             }
-            Ok(ModuleType { id, defs })
+            Ok(ModuleType { span, id, defs })
         })
     }
 }

@@ -80,7 +80,12 @@ fn register<'a, 'b>(
             },
             ComponentTypeUse::Ref(index) => match index.idx {
                 Index::Num(_, _) => {}
-                Index::Id(_name) => todo!("import with a name"),
+                Index::Id(name) => {
+                    return Err(Error::new(
+                        name.span(),
+                        "TODO: import with a name".to_string(),
+                    ))
+                }
             },
         },
 
@@ -295,7 +300,10 @@ fn resolve_deftype<'a, 'b>(
             }
             resolve_intertype_use(&mut f.result, resolve_stack)
         }
-        DefType::Module(_m) => todo!("resolve for module types"),
+        DefType::Module(m) => Err(Error::new(
+            m.span,
+            "TODO: resolve for module types".to_string(),
+        )),
         DefType::Component(c) => resolve_nested_component_type(c, resolve_stack),
         DefType::Instance(i) => resolve_instance_type(i, resolve_stack),
         DefType::Value(v) => resolve_intertype_use(&mut v.value_type, resolve_stack),
@@ -663,7 +671,10 @@ fn resolve_ns<'a, 'b>(
         depth += 1;
     }
     if depth as usize == resolve_stack.len() {
-        todo!("name resolution failed")
+        return Err(Error::new(
+            idx.span(),
+            "TODO: name resolution failed".to_string(),
+        ));
     }
 
     // Record an outer alias to be inserted in front of the current definition.
