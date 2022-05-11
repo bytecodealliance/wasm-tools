@@ -1,5 +1,6 @@
-use crate::ast::*;
-use crate::resolve::Ns;
+use crate::core::resolve::Ns;
+use crate::core::*;
+use crate::token::{Id, Index, ItemRef};
 use crate::Error;
 use std::collections::HashMap;
 
@@ -508,7 +509,7 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
     }
 
     fn resolve_instr(&mut self, instr: &mut Instruction<'a>) -> Result<(), Error> {
-        use crate::ast::Instruction::*;
+        use Instruction::*;
 
         if let Some(m) = instr.memarg_mut() {
             self.resolver.resolve_item_ref(&mut m.memory)?;

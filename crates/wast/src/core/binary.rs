@@ -1,4 +1,5 @@
-use crate::ast::*;
+use crate::core::*;
+use crate::token::*;
 
 pub fn encode(module: &Module<'_>) -> Vec<u8> {
     match &module.kind {
@@ -12,8 +13,8 @@ fn encode_fields(
     module_name: &Option<NameAnnotation<'_>>,
     fields: &[ModuleField<'_>],
 ) -> Vec<u8> {
-    use crate::ast::CustomPlace::*;
-    use crate::ast::CustomPlaceAnchor::*;
+    use CustomPlace::*;
+    use CustomPlaceAnchor::*;
 
     let mut types = Vec::new();
     let mut imports = Vec::new();
@@ -84,7 +85,7 @@ fn encode_fields(
 
     return e.wasm;
 
-    fn contains_bulk_memory(funcs: &[&crate::ast::Func<'_>]) -> bool {
+    fn contains_bulk_memory(funcs: &[&crate::core::Func<'_>]) -> bool {
         funcs
             .iter()
             .filter_map(|f| match &f.kind {

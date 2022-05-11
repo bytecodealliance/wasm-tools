@@ -1,11 +1,13 @@
-use crate::ast::{self, kw};
+use crate::core::*;
+use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
+use crate::token::{Id, NameAnnotation, Span};
 
 /// An `import` statement and entry in a WebAssembly module.
 #[derive(Debug, Clone)]
 pub struct Import<'a> {
     /// Where this `import` was defined
-    pub span: ast::Span,
+    pub span: Span,
     /// The module that this statement is importing from
     pub module: &'a str,
     /// The name of the field in the module this statement imports from.
@@ -33,13 +35,13 @@ impl<'a> Parse<'a> for Import<'a> {
 #[allow(missing_docs)]
 pub struct ItemSig<'a> {
     /// Where this item is defined in the source.
-    pub span: ast::Span,
+    pub span: Span,
     /// An optional identifier used during name resolution to refer to this item
     /// from the rest of the module.
-    pub id: Option<ast::Id<'a>>,
+    pub id: Option<Id<'a>>,
     /// An optional name which, for functions, will be stored in the
     /// custom `name` section.
-    pub name: Option<ast::NameAnnotation<'a>>,
+    pub name: Option<NameAnnotation<'a>>,
     /// What kind of item this is.
     pub kind: ItemKind<'a>,
 }
@@ -47,11 +49,11 @@ pub struct ItemSig<'a> {
 #[derive(Debug, Clone)]
 #[allow(missing_docs)]
 pub enum ItemKind<'a> {
-    Func(ast::TypeUse<'a, ast::FunctionType<'a>>),
-    Table(ast::TableType<'a>),
-    Memory(ast::MemoryType),
-    Global(ast::GlobalType<'a>),
-    Tag(ast::TagType<'a>),
+    Func(TypeUse<'a, FunctionType<'a>>),
+    Table(TableType<'a>),
+    Memory(MemoryType),
+    Global(GlobalType<'a>),
+    Tag(TagType<'a>),
 }
 
 impl<'a> Parse<'a> for ItemSig<'a> {

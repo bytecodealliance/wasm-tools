@@ -1,8 +1,8 @@
-use crate::ast::*;
-use crate::Error;
+use crate::core::*;
+use crate::token::Index;
+use crate::{gensym, Error};
 
 mod deinline_import_export;
-mod gensym;
 mod names;
 mod types;
 
@@ -64,8 +64,8 @@ pub fn resolve<'a>(module: &mut Module<'a>) -> Result<Names<'a>, Error> {
 /// Representation of the results of name resolution for a module.
 ///
 /// This structure is returned from the
-/// [`Module::resolve`](crate::Module::resolve) function and can be used to
-/// resolve your own name arguments if you have any.
+/// [`Module::resolve`](crate::core::Module::resolve) function and can be used
+/// to resolve your own name arguments if you have any.
 #[derive(Default)]
 pub struct Names<'a> {
     resolver: names::Resolver<'a>,

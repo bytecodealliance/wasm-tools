@@ -92,3 +92,9 @@ jobs:
       - run: cargo check --no-default-features --features mutate
       - run: cargo check --no-default-features --features dump
       - run: cargo check --no-default-features --features objdump
+
+  doc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: cargo doc --all

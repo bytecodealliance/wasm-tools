@@ -1,15 +1,16 @@
-use crate::ast::{self, kw};
+use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
+use crate::token::{ItemRef, Span};
 
 /// A entry in a WebAssembly module's export section.
 #[derive(Debug)]
 pub struct Export<'a> {
     /// Where this export was defined.
-    pub span: ast::Span,
+    pub span: Span,
     /// The name of this export from the module.
     pub name: &'a str,
     /// What's being exported from the module.
-    pub index: ast::ItemRef<'a, ExportKind>,
+    pub index: ItemRef<'a, ExportKind>,
 }
 
 /// Different kinds of elements that can be exported from a WebAssembly module,
@@ -72,7 +73,7 @@ macro_rules! kw_conversions {
 
         impl Default for kw::$kw {
             fn default() -> kw::$kw {
-                kw::$kw(ast::Span::from_offset(0))
+                kw::$kw(Span::from_offset(0))
             }
         }
     )*);

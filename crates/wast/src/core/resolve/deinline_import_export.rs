@@ -1,5 +1,7 @@
-use crate::ast::*;
-use crate::resolve::gensym;
+use crate::core::*;
+use crate::gensym;
+use crate::kw;
+use crate::token::{Id, Index, ItemRef, Span};
 use std::mem;
 
 pub fn run(fields: &mut Vec<ModuleField>) {

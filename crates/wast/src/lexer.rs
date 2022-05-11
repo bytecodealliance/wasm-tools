@@ -24,7 +24,8 @@
 //!
 //! [`Lexer`]: crate::lexer::Lexer
 
-use crate::{Error, Span};
+use crate::token::Span;
+use crate::Error;
 use std::borrow::Cow;
 use std::char;
 use std::fmt;
@@ -32,7 +33,7 @@ use std::str;
 
 /// A structure used to lex the s-expression syntax of WAT files.
 ///
-/// This structure is used to generate [`Source`] items, which should account for
+/// This structure is used to generate [`Token`] items, which should account for
 /// every single byte of the input as we iterate over it. A [`LexError`] is
 /// returned for any non-lexable text.
 #[derive(Clone)]
