@@ -92,7 +92,7 @@ fn resolve_field<'a, 'b>(
     match field {
         ComponentField::Import(i) => resolve_item_sig(&mut i.item, resolve_stack),
 
-        ComponentField::Type(t) => resolve_type_def(&mut t.def, resolve_stack),
+        ComponentField::Type(t) => resolve_type_field(t, resolve_stack),
 
         ComponentField::Func(_f) => Ok(()),
 
@@ -267,24 +267,6 @@ fn resolve_type_use<'a, T>(
     resolve_item_ref(item, resolve_stack)
 }
 
-fn resolve_deftype<'a, 'b>(
-    ty: &'b mut DefType<'a>,
-    resolve_stack: &'b mut Vec<ComponentResolver<'a>>,
-) -> Result<(), Error> {
-    match ty {
-        DefType::Func(f) => {
-            for param in f.params.iter_mut() {
-                resolve_type_use(&mut param.type_, resolve_stack)?;
-            }
-            resolve_type_use(&mut f.result, resolve_stack)
-        }
-        DefType::Module(m) => resolve_moduletype(m),
-        DefType::Component(c) => resolve_nested_component_type(c, resolve_stack),
-        DefType::Instance(i) => resolve_instance_type(i, resolve_stack),
-        DefType::Value(v) => resolve_type_use(&mut v.value_type, resolve_stack),
-    }
-}
-
 fn resolve_intertype<'a, 'b>(
     ty: &'b mut InterType<'a>,
     resolve_stack: &'b mut Vec<ComponentResolver<'a>>,
@@ -362,22 +344,44 @@ fn resolve_intertype<'a, 'b>(
     Ok(())
 }
 
-fn resolve_type_def<'a, 'b>(
-    def: &'b mut ComponentTypeDef<'a>,
-    resolve_stack: &'b mut Vec<ComponentResolver<'a>>,
+fn resolve_type_field<'a>(
+    field: &mut TypeField<'a>,
+    resolve_stack: &mut Vec<ComponentResolver<'a>>,
 ) -> Result<(), Error> {
-    match def {
-        ComponentTypeDef::DefType(d) => resolve_deftype(d, resolve_stack),
-        ComponentTypeDef::InterType(i) => resolve_intertype(i, resolve_stack),
+    match &mut field.def {
+        ComponentTypeDef::DefType(DefType::Func(f)) => {
+            for param in f.params.iter_mut() {
+                resolve_type_use(&mut param.type_, resolve_stack)?;
+            }
+            resolve_type_use(&mut f.result, resolve_stack)?;
+        }
+        ComponentTypeDef::DefType(DefType::Module(m)) => {
+            resolve_stack.push(ComponentResolver::new(field.id));
+            resolve_moduletype(m)?;
+            resolve_stack.pop();
+        }
+        ComponentTypeDef::DefType(DefType::Component(c)) => {
+            resolve_stack.push(ComponentResolver::new(field.id));
+            resolve_nested_component_type(c, resolve_stack)?;
+            resolve_stack.pop();
+        }
+        ComponentTypeDef::DefType(DefType::Instance(i)) => {
+            resolve_stack.push(ComponentResolver::new(field.id));
+            resolve_instance_type(i, resolve_stack)?;
+            resolve_stack.pop();
+        }
+        ComponentTypeDef::DefType(DefType::Value(v)) => {
+            resolve_type_use(&mut v.value_type, resolve_stack)?
+        }
+        ComponentTypeDef::InterType(i) => resolve_intertype(i, resolve_stack)?,
     }
+    Ok(())
 }
 
 fn resolve_nested_component_type<'a, 'b>(
     c: &'b mut ComponentType<'a>,
     resolve_stack: &'b mut Vec<ComponentResolver<'a>>,
 ) -> Result<(), Error> {
-    resolve_stack.push(ComponentResolver::new(c.id));
-
     // Iterate through the fields of the component type. We use an index
     // instead of an iterator because we'll be inserting aliases
     // as we go.
@@ -389,7 +393,7 @@ fn resolve_nested_component_type<'a, 'b>(
                 resolve_alias(alias, resolve_stack)?;
             }
             ComponentTypeField::Type(ty) => {
-                resolve_type_def(&mut ty.def, resolve_stack)?;
+                resolve_type_field(ty, resolve_stack)?;
             }
             ComponentTypeField::Import(import) => {
                 resolve_item_sig(&mut import.item, resolve_stack)?;
@@ -425,8 +429,6 @@ fn resolve_nested_component_type<'a, 'b>(
         }
         i += 1;
     }
-
-    resolve_stack.pop();
     Ok(())
 }
 
@@ -434,8 +436,6 @@ fn resolve_instance_type<'a, 'b>(
     c: &'b mut InstanceType<'a>,
     resolve_stack: &'b mut Vec<ComponentResolver<'a>>,
 ) -> Result<(), Error> {
-    resolve_stack.push(ComponentResolver::new(c.id));
-
     // Iterate through the fields of the component type. We use an index
     // instead of an iterator because we'll be inserting aliases
     // as we go.
@@ -447,7 +447,7 @@ fn resolve_instance_type<'a, 'b>(
                 resolve_alias(alias, resolve_stack)?;
             }
             InstanceTypeField::Type(ty) => {
-                resolve_type_def(&mut ty.def, resolve_stack)?;
+                resolve_type_field(ty, resolve_stack)?;
             }
             InstanceTypeField::Export(export) => {
                 resolve_item_sig(&mut export.item, resolve_stack)?;
@@ -478,7 +478,6 @@ fn resolve_instance_type<'a, 'b>(
         i += 1;
     }
 
-    resolve_stack.pop();
     Ok(())
 }
 

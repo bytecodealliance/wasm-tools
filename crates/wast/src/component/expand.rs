@@ -6,6 +6,16 @@ use crate::token::{Id, Index, ItemRef, Span};
 use std::collections::HashMap;
 use std::mem;
 
+/// Performs an AST "expansion" pass over the component fields provided.
+///
+/// This expansion is intended to desugar the AST from various parsed constructs
+/// to bits and bobs amenable for name resolution as well as binary encoding.
+/// For example `(import "" (func))` is split into a type definition followed by
+/// the import referencing that type definition.
+///
+/// Most forms of AST expansion happen in this file and afterwards the AST will
+/// be handed to the name resolution pass which will convert `Index::Id` to
+/// `Index::Num` wherever it's found.
 pub fn expand(fields: &mut Vec<ComponentField<'_>>) {
     Expander::default().expand_component_fields(fields)
 }

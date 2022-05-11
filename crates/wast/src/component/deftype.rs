@@ -98,8 +98,6 @@ impl<'a> Parse<'a> for DefType<'a> {
 /// functype          ::= (func <id>? (param <name>? <intertype>)* (result <intertype>)?)
 #[derive(Debug)]
 pub struct ComponentFunctionType<'a> {
-    /// An optional name.
-    pub id: Option<Id<'a>>,
     /// The parameters of a function, optionally each having an identifier for
     /// name resolution and a name for the custom `name` section.
     pub params: Box<[ComponentFunctionParam<'a>]>,
@@ -109,7 +107,6 @@ pub struct ComponentFunctionType<'a> {
 
 impl<'a> Parse<'a> for ComponentFunctionType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let id = parser.parse::<Option<Id>>()?;
         let mut params = Vec::new();
         while parser.peek2::<kw::param>() {
             parser.parens(|p| {
@@ -156,7 +153,6 @@ impl<'a> Parse<'a> for ComponentFunctionType<'a> {
             ComponentTypeUse::Inline(InterType::Unit)
         };
         Ok(Self {
-            id,
             params: params.into(),
             result,
         })
@@ -195,9 +191,6 @@ pub struct ComponentFunctionParam<'a> {
 /// A type for a nested module
 #[derive(Debug)]
 pub struct ModuleType<'a> {
-    /// An optional identifer to refer to this `module` type by as part of
-    /// name resolution.
-    pub id: Option<Id<'a>>,
     /// The fields of the module type.
     pub defs: Vec<ModuleTypeDef<'a>>,
 }
@@ -209,12 +202,11 @@ impl<'a> Parse<'a> for ModuleType<'a> {
             return Err(parser.error("module type nesting too deep"));
         }
 
-        let id = parser.parse()?;
         let mut defs = Vec::new();
         while !parser.is_empty() {
             defs.push(parser.parse()?);
         }
-        Ok(ModuleType { id, defs })
+        Ok(ModuleType { defs })
     }
 }
 
@@ -269,10 +261,6 @@ impl<'a> Parse<'a> for ModuleTypeDef<'a> {
 /// A type for a nested component
 #[derive(Debug, Default)]
 pub struct ComponentType<'a> {
-    /// An optional identifer to refer to this `component` type by as part of
-    /// name resolution.
-    pub id: Option<Id<'a>>,
-
     /// The fields of this `ComponentType`.
     pub fields: Vec<ComponentTypeField<'a>>,
 }
@@ -283,8 +271,6 @@ impl<'a> Parse<'a> for ComponentType<'a> {
         if parser.parens_depth() > 100 {
             return Err(parser.error("component type nesting too deep"));
         }
-
-        let id = parser.parse()?;
 
         let mut fields = Vec::new();
         while !parser.is_empty() {
@@ -301,7 +287,7 @@ impl<'a> Parse<'a> for ComponentType<'a> {
                 Ok(())
             })?;
         }
-        Ok(ComponentType { id, fields })
+        Ok(ComponentType { fields })
     }
 }
 
@@ -347,10 +333,6 @@ impl<'a> From<TypeField<'a>> for ComponentTypeField<'a> {
 /// A type for a nested instance
 #[derive(Debug)]
 pub struct InstanceType<'a> {
-    /// An optional identifer to refer to this `instance` type by as part of
-    /// name resolution.
-    pub id: Option<Id<'a>>,
-
     /// The fields of this `InstanceType`.
     pub fields: Vec<InstanceTypeField<'a>>,
 }
@@ -362,7 +344,6 @@ impl<'a> Parse<'a> for InstanceType<'a> {
             return Err(parser.error("instance type nesting too deep"));
         }
 
-        let id = parser.parse()?;
         let mut fields = Vec::new();
         while !parser.is_empty() {
             parser.parens(|parser| {
@@ -376,7 +357,7 @@ impl<'a> Parse<'a> for InstanceType<'a> {
                 Ok(())
             })?;
         }
-        Ok(InstanceType { id, fields })
+        Ok(InstanceType { fields })
     }
 }
 
