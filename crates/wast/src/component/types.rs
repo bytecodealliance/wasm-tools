@@ -7,7 +7,7 @@ use crate::token::*;
 ///
 /// typeexpr          ::= <deftype>
 ///                     | <intertype>
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum ComponentTypeDef<'a> {
     /// The type of an entity.
     DefType(DefType<'a>),
@@ -16,14 +16,14 @@ pub enum ComponentTypeDef<'a> {
 }
 
 /// The type of an exported item from an component or instance.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ComponentExportType<'a> {
     /// Where this export was defined.
     pub span: Span,
     /// The name of this export.
     pub name: &'a str,
     /// The signature of the item that's exported.
-    pub item: ComponentTypeUse<'a, DefType<'a>>,
+    pub item: ItemSig<'a>,
 }
 
 impl<'a> Parse<'a> for ComponentExportType<'a> {
@@ -37,7 +37,7 @@ impl<'a> Parse<'a> for ComponentExportType<'a> {
 /// A type declaration in a component.
 ///
 /// type              ::= (type <id>? <typeexpr>)
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct TypeField<'a> {
     /// Where this type was defined.
     pub span: Span,
@@ -55,12 +55,10 @@ impl<'a> Parse<'a> for TypeField<'a> {
         let span = parser.parse::<kw::r#type>()?.0;
         let id = parser.parse()?;
         let name = parser.parse()?;
-        let def = if parser.peek::<DefType>() {
-            ComponentTypeDef::DefType(parser.parse()?)
-        } else if parser.peek::<InterType>() {
+        let def = if parser.peek::<InterType>() {
             ComponentTypeDef::InterType(parser.parse()?)
         } else {
-            return Err(parser.error("expected deftype or intertype"));
+            ComponentTypeDef::DefType(parser.parens(|p| p.parse())?)
         };
         Ok(TypeField {
             span,

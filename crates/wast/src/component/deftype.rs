@@ -4,7 +4,7 @@ use crate::component::*;
 use crate::core;
 use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
-use crate::token::{Id, LParen, NameAnnotation, Span};
+use crate::token::{Id, LParen, NameAnnotation};
 
 /// Different kinds of elements that can be exported from a WebAssembly component,
 /// contained in a [`ComponentExport`].
@@ -60,7 +60,7 @@ impl Peek for DefTypeKind {
 ///                     | <instancetype>
 ///                     | <functype>
 ///                     | <valuetype>
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 #[allow(missing_docs)]
 pub enum DefType<'a> {
     Func(ComponentFunctionType<'a>),
@@ -72,46 +72,31 @@ pub enum DefType<'a> {
 
 impl<'a> Parse<'a> for DefType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        if parser.peek::<ComponentFunctionType>() {
-            let ty = parser.parse()?;
-            Ok(DefType::Func(ty))
-        } else if parser.peek::<ModuleType>() {
-            let ty = parser.parse()?;
-            Ok(DefType::Module(ty))
-        } else if parser.peek::<ComponentType>() {
-            let ty = parser.parse()?;
-            Ok(DefType::Component(ty))
-        } else if parser.peek::<InstanceType>() {
-            let ty = parser.parse()?;
-            Ok(DefType::Instance(ty))
-        } else if parser.peek::<ValueType>() {
-            let ty = parser.parse()?;
-            Ok(DefType::Value(ty))
+        if parser.peek::<kw::func>() {
+            parser.parse::<kw::func>()?;
+            Ok(DefType::Func(parser.parse()?))
+        } else if parser.peek::<kw::module>() {
+            parser.parse::<kw::module>()?;
+            Ok(DefType::Module(parser.parse()?))
+        } else if parser.peek::<kw::component>() {
+            parser.parse::<kw::component>()?;
+            Ok(DefType::Component(parser.parse()?))
+        } else if parser.peek::<kw::instance>() {
+            parser.parse::<kw::instance>()?;
+            Ok(DefType::Instance(parser.parse()?))
+        } else if parser.peek::<kw::value>() {
+            parser.parse::<kw::value>()?;
+            Ok(DefType::Value(parser.parse()?))
         } else {
             Err(parser.error("expected a deftype"))
         }
     }
 }
 
-impl Peek for DefType<'_> {
-    fn peek(cursor: Cursor<'_>) -> bool {
-        LParen::peek(cursor)
-            && (kw::module::peek2(cursor)
-                || kw::component::peek2(cursor)
-                || kw::instance::peek2(cursor)
-                || kw::func::peek2(cursor)
-                || kw::value::peek2(cursor))
-    }
-
-    fn display() -> &'static str {
-        "deftype"
-    }
-}
-
 /// A component function type with parameters and results.
 ///
 /// functype          ::= (func <id>? (param <name>? <intertype>)* (result <intertype>)?)
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct ComponentFunctionType<'a> {
     /// An optional name.
     pub id: Option<Id<'a>>,
@@ -211,10 +196,8 @@ pub struct ComponentFunctionParam<'a> {
 }
 
 /// A type for a nested module
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct ModuleType<'a> {
-    /// Where this type is defined
-    pub span: Span,
     /// An optional identifer to refer to this `module` type by as part of
     /// name resolution.
     pub id: Option<Id<'a>>,
@@ -229,15 +212,12 @@ impl<'a> Parse<'a> for ModuleType<'a> {
             return Err(parser.error("module type nesting too deep"));
         }
 
-        parser.parens(|parser| {
-            let span = parser.parse::<kw::module>()?.0;
-            let id = parser.parse()?;
-            let mut defs = Vec::new();
-            while !parser.is_empty() {
-                defs.push(parser.parse()?);
-            }
-            Ok(ModuleType { span, id, defs })
-        })
+        let id = parser.parse()?;
+        let mut defs = Vec::new();
+        while !parser.is_empty() {
+            defs.push(parser.parse()?);
+        }
+        Ok(ModuleType { id, defs })
     }
 }
 
@@ -245,7 +225,7 @@ impl<'a> Peek for ModuleType<'a> {
     fn peek(cursor: Cursor<'_>) -> bool {
         if let Some(next) = cursor.lparen() {
             match next.keyword() {
-                Some(("module", _)) => return true,
+                Some(("import" | "export", _)) => return true,
                 _ => {}
             }
         }
@@ -259,40 +239,38 @@ impl<'a> Peek for ModuleType<'a> {
 }
 
 /// The contents of a [`ModuleType`].
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum ModuleTypeDef<'a> {
     /// A function type.
-    CoreDefType(core::FunctionType<'a>),
+    Type(core::Type<'a>),
     /// An import.
-    CoreImport(core::Import<'a>),
+    Import(core::Import<'a>),
     /// An export.
     Export(&'a str, core::ItemSig<'a>),
 }
 
 impl<'a> Parse<'a> for ModuleTypeDef<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parens(|parser| {
-            let mut l = parser.lookahead1();
-            if l.peek::<kw::func>() {
-                let ft = parser.parse()?;
-                Ok(ModuleTypeDef::CoreDefType(ft))
-            } else if l.peek::<kw::import>() {
-                let it = parser.parse()?;
-                Ok(ModuleTypeDef::CoreImport(it))
-            } else if l.peek::<kw::export>() {
-                parser.parse::<kw::export>()?;
-                let name = parser.parse()?;
-                let et = parser.parens(|parser| parser.parse())?;
-                Ok(ModuleTypeDef::Export(name, et))
-            } else {
-                Err(parser.error("Expected a moduletype-def"))
-            }
-        })
+        let mut l = parser.lookahead1();
+        if l.peek::<kw::func>() {
+            let ft = parser.parse()?;
+            Ok(ModuleTypeDef::Type(ft))
+        } else if l.peek::<kw::import>() {
+            let it = parser.parse()?;
+            Ok(ModuleTypeDef::Import(it))
+        } else if l.peek::<kw::export>() {
+            parser.parse::<kw::export>()?;
+            let name = parser.parse()?;
+            let et = parser.parens(|parser| parser.parse())?;
+            Ok(ModuleTypeDef::Export(name, et))
+        } else {
+            Err(parser.error("Expected a moduletype-def"))
+        }
     }
 }
 
 /// A type for a nested component
-#[derive(Clone, Debug, Default)]
+#[derive(Debug, Default)]
 pub struct ComponentType<'a> {
     /// An optional identifer to refer to this `component` type by as part of
     /// name resolution.
@@ -309,34 +287,34 @@ impl<'a> Parse<'a> for ComponentType<'a> {
             return Err(parser.error("component type nesting too deep"));
         }
 
-        parser.parens(|parser| {
-            parser.parse::<kw::component>()?;
-            let id = parser.parse()?;
+        let id = parser.parse()?;
 
-            let mut fields = Vec::new();
-            while parser.peek::<LParen>() {
-                parser.parens(|parser| {
-                    if parser.peek::<kw::import>() {
-                        fields.push(ComponentTypeField::Import(parser.parse()?));
-                    } else if parser.peek::<kw::export>() {
-                        fields.push(ComponentTypeField::Export(parser.parse()?));
-                    } else if parser.peek::<kw::r#type>() {
-                        fields.push(ComponentTypeField::Type(parser.parse()?));
-                    } else if parser.peek::<kw::alias>() {
-                        fields.push(ComponentTypeField::Alias(parser.parse()?));
-                    }
-                    Ok(())
-                })?;
-            }
-            Ok(ComponentType { id, fields })
-        })
+        let mut fields = Vec::new();
+        while !parser.is_empty() {
+            parser.parens(|parser| {
+                if parser.peek::<kw::import>() {
+                    fields.push(ComponentTypeField::Import(parser.parse()?));
+                } else if parser.peek::<kw::export>() {
+                    fields.push(ComponentTypeField::Export(parser.parse()?));
+                } else if parser.peek::<kw::r#type>() {
+                    fields.push(ComponentTypeField::Type(parser.parse()?));
+                } else if parser.peek::<kw::alias>() {
+                    fields.push(ComponentTypeField::Alias(parser.parse()?));
+                }
+                Ok(())
+            })?;
+        }
+        Ok(ComponentType { id, fields })
     }
 }
 
 impl<'a> Peek for ComponentType<'a> {
     fn peek(cursor: Cursor<'_>) -> bool {
         if let Some(next) = cursor.lparen() {
-            matches!(next.keyword(), Some(("component", _)))
+            matches!(
+                next.keyword(),
+                Some(("import" | "export" | "type" | "alias", _))
+            )
         } else {
             false
         }
@@ -348,7 +326,7 @@ impl<'a> Peek for ComponentType<'a> {
 }
 
 /// A field of a type for a nested component
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum ComponentTypeField<'a> {
     /// A public type for this component.
     Type(TypeField<'a>),
@@ -363,8 +341,14 @@ pub enum ComponentTypeField<'a> {
     Export(ComponentExportType<'a>),
 }
 
+impl<'a> From<TypeField<'a>> for ComponentTypeField<'a> {
+    fn from(field: TypeField<'a>) -> ComponentTypeField<'a> {
+        ComponentTypeField::Type(field)
+    }
+}
+
 /// A type for a nested instance
-#[derive(Clone, Debug, Default)]
+#[derive(Debug)]
 pub struct InstanceType<'a> {
     /// An optional identifer to refer to this `instance` type by as part of
     /// name resolution.
@@ -381,23 +365,22 @@ impl<'a> Parse<'a> for InstanceType<'a> {
             return Err(parser.error("instance type nesting too deep"));
         }
 
-        parser.parens(|parser| {
-            parser.parse::<kw::instance>()?;
-            let id = parser.parse()?;
-            let mut fields = Vec::new();
-            while parser.peek::<LParen>() {
+        parser.parse::<kw::instance>()?;
+        let id = parser.parse()?;
+        let mut fields = Vec::new();
+        while !parser.is_empty() {
+            parser.parens(|parser| {
                 if parser.peek2::<kw::export>() {
-                    fields.push(InstanceTypeField::Export(
-                        parser.parens(|parser| parser.parse())?,
-                    ));
+                    fields.push(InstanceTypeField::Export(parser.parse()?));
                 } else if parser.peek2::<kw::r#type>() {
                     fields.push(InstanceTypeField::Type(parser.parse()?));
                 } else if parser.peek2::<kw::alias>() {
                     fields.push(InstanceTypeField::Alias(parser.parse()?));
                 }
-            }
-            Ok(InstanceType { id, fields })
-        })
+                Ok(())
+            })?;
+        }
+        Ok(InstanceType { id, fields })
     }
 }
 
@@ -405,7 +388,7 @@ impl<'a> Peek for InstanceType<'a> {
     fn peek(cursor: Cursor<'_>) -> bool {
         if let Some(next) = cursor.lparen() {
             match next.keyword() {
-                Some(("instance", _)) => return true,
+                Some(("export" | "type" | "alias", _)) => return true,
                 _ => {}
             }
         }
@@ -419,7 +402,7 @@ impl<'a> Peek for InstanceType<'a> {
 }
 
 /// A field of a type for a nested instance
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum InstanceTypeField<'a> {
     /// A public type for this component.
     Type(TypeField<'a>),
@@ -429,6 +412,12 @@ pub enum InstanceTypeField<'a> {
 
     /// An export this component type is expected to have.
     Export(ComponentExportType<'a>),
+}
+
+impl<'a> From<TypeField<'a>> for InstanceTypeField<'a> {
+    fn from(field: TypeField<'a>) -> InstanceTypeField<'a> {
+        InstanceTypeField::Type(field)
+    }
 }
 
 /// A value type.

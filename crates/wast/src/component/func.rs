@@ -23,7 +23,7 @@ pub struct ComponentFunc<'a> {
     /// function.
     pub kind: ComponentFuncKind<'a>,
     /// The type that this function will have.
-    pub ty: core::TypeUse<'a, ComponentFunctionType<'a>>,
+    pub ty: ComponentTypeUse<'a, ComponentFunctionType<'a>>,
 }
 
 /// Possible ways to define a function in the text format.
@@ -34,7 +34,7 @@ pub enum ComponentFuncKind<'a> {
     /// ```text
     /// (func (type 3) (import "foo" "bar"))
     /// ```
-    Import(core::InlineImport<'a>),
+    Import(InlineImport<'a>),
 
     /// Almost all functions, those defined inline in a wasm module.
     Inline {

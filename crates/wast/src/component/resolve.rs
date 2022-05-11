@@ -60,52 +60,22 @@ fn register<'a, 'b>(
     resolver: &'b mut ComponentResolver<'a>,
 ) -> Result<(), Error> {
     match item {
-        ComponentField::Import(i) => match &i.type_ {
-            ComponentTypeUse::Inline(inline) => match inline {
-                DefType::Func(f) => {
-                    resolver.funcs.register(f.id, "component func")?;
-                }
-                DefType::Module(m) => {
-                    resolver.modules.register(m.id, "module")?;
-                }
-                DefType::Component(c) => {
-                    resolver.components.register(c.id, "component")?;
-                }
-                DefType::Instance(i) => {
-                    resolver.instances.register(i.id, "instance")?;
-                }
-                DefType::Value(v) => {
-                    resolver.values.register(v.id, "value")?;
-                }
-            },
-            ComponentTypeUse::Ref(index) => match index.idx {
-                Index::Num(_, _) => {}
-                Index::Id(name) => {
-                    return Err(Error::new(
-                        name.span(),
-                        "TODO: import with a name".to_string(),
-                    ))
-                }
-            },
+        ComponentField::Import(i) => match &i.item.kind {
+            ItemKind::Module(_) => resolver.modules.register(i.item.id, "module")?,
+            ItemKind::Component(_) => resolver.components.register(i.item.id, "component")?,
+            ItemKind::Instance(_) => resolver.instances.register(i.item.id, "instance")?,
+            ItemKind::Value(_) => resolver.values.register(i.item.id, "value")?,
+            ItemKind::Func(_) => resolver.values.register(i.item.id, "func")?,
         },
 
-        ComponentField::Func(i) => {
-            resolver.funcs.register(i.id, "func")?;
-        }
-        ComponentField::Type(i) => {
-            resolver.types.register(i.id, "type")?;
-        }
-        ComponentField::Instance(i) => {
-            resolver.instances.register(i.id, "instance")?;
-        }
-        ComponentField::Module(m) => {
-            resolver.modules.register(m.id, "nested module")?;
-        }
-        ComponentField::Component(c) => {
-            resolver.components.register(c.id, "nested component")?;
-        }
+        ComponentField::Func(i) => resolver.funcs.register(i.id, "func")?,
+        ComponentField::Type(i) => resolver.types.register(i.id, "type")?,
+        ComponentField::Instance(i) => resolver.instances.register(i.id, "instance")?,
+        ComponentField::Module(m) => resolver.modules.register(m.id, "nested module")?,
+        ComponentField::Component(c) => resolver.components.register(c.id, "nested component")?,
         ComponentField::Alias(a) => {
             register_alias(a, resolver)?;
+            return Ok(());
         }
 
         // These fields don't define any items in any index space.
@@ -120,13 +90,7 @@ fn resolve_field<'a, 'b>(
     resolve_stack: &'b mut Vec<ComponentResolver<'a>>,
 ) -> Result<(), Error> {
     match field {
-        ComponentField::Import(i) => {
-            match &mut i.type_ {
-                ComponentTypeUse::Inline(i) => resolve_deftype(i, resolve_stack)?,
-                ComponentTypeUse::Ref(r) => resolve_item_ref(r, resolve_stack)?,
-            }
-            Ok(())
-        }
+        ComponentField::Import(i) => resolve_item_sig(&mut i.item, resolve_stack),
 
         ComponentField::Type(t) => resolve_type_def(&mut t.def, resolve_stack),
 
@@ -189,15 +153,15 @@ fn resolve_field<'a, 'b>(
 
                 // For `Import`, just resolve the type.
                 ModuleKind::Import { import: _, ty } => {
-                    resolve_moduletype_use(ty, resolve_stack)?;
+                    resolve_type_use(ty, resolve_stack)?;
                 }
             }
 
             Ok(())
         }
         ComponentField::Component(c) => match &mut c.kind {
-            ComponentKind::Binary(_) => Ok(()),
-            ComponentKind::Text(fields) => resolve_fields(c.id, fields, resolve_stack),
+            NestedComponentKind::Import { .. } => Ok(()),
+            NestedComponentKind::Inline(fields) => resolve_fields(c.id, fields, resolve_stack),
         },
         ComponentField::Alias(a) => resolve_alias(a, resolve_stack),
 
@@ -207,6 +171,19 @@ fn resolve_field<'a, 'b>(
             resolve_arg(&mut e.arg, resolve_stack)?;
             Ok(())
         }
+    }
+}
+
+fn resolve_item_sig<'a>(
+    sig: &mut ItemSig<'a>,
+    resolve_stack: &mut Vec<ComponentResolver<'a>>,
+) -> Result<(), Error> {
+    match &mut sig.kind {
+        ItemKind::Component(t) => resolve_type_use(t, resolve_stack),
+        ItemKind::Module(t) => resolve_type_use(t, resolve_stack),
+        ItemKind::Instance(t) => resolve_type_use(t, resolve_stack),
+        ItemKind::Func(t) => resolve_type_use(t, resolve_stack),
+        ItemKind::Value(t) => resolve_type_use(&mut t.value_type, resolve_stack),
     }
 }
 
@@ -279,14 +256,15 @@ fn resolve_arg<'a, 'b>(
     Ok(())
 }
 
-fn resolve_deftype_use<'a, 'b>(
-    ty: &'b mut ComponentTypeUse<'a, DefType<'a>>,
-    resolve_stack: &'b mut Vec<ComponentResolver<'a>>,
+fn resolve_type_use<'a, T>(
+    ty: &mut ComponentTypeUse<'a, T>,
+    resolve_stack: &mut Vec<ComponentResolver<'a>>,
 ) -> Result<(), Error> {
-    match ty {
-        ComponentTypeUse::Ref(r) => resolve_item_ref(r, resolve_stack),
-        ComponentTypeUse::Inline(i) => resolve_deftype(i, resolve_stack),
-    }
+    let item = match ty {
+        ComponentTypeUse::Ref(r) => r,
+        ComponentTypeUse::Inline(_) => panic!("inline type-use should be expanded by now"),
+    };
+    resolve_item_ref(item, resolve_stack)
 }
 
 fn resolve_deftype<'a, 'b>(
@@ -296,37 +274,17 @@ fn resolve_deftype<'a, 'b>(
     match ty {
         DefType::Func(f) => {
             for param in f.params.iter_mut() {
-                resolve_intertype_use(&mut param.type_, resolve_stack)?;
+                resolve_type_use(&mut param.type_, resolve_stack)?;
             }
-            resolve_intertype_use(&mut f.result, resolve_stack)
+            resolve_type_use(&mut f.result, resolve_stack)
         }
-        DefType::Module(m) => Err(Error::new(
-            m.span,
+        DefType::Module(_m) => Err(Error::new(
+            crate::token::Span::from_offset(0),
             "TODO: resolve for module types".to_string(),
         )),
         DefType::Component(c) => resolve_nested_component_type(c, resolve_stack),
         DefType::Instance(i) => resolve_instance_type(i, resolve_stack),
-        DefType::Value(v) => resolve_intertype_use(&mut v.value_type, resolve_stack),
-    }
-}
-
-fn resolve_moduletype_use<'a, 'b>(
-    ty: &'b mut ComponentTypeUse<'a, ModuleType<'a>>,
-    resolve_stack: &'b mut Vec<ComponentResolver<'a>>,
-) -> Result<(), Error> {
-    match ty {
-        ComponentTypeUse::Ref(r) => resolve_item_ref(r, resolve_stack),
-        ComponentTypeUse::Inline(_) => Ok(()),
-    }
-}
-
-fn resolve_intertype_use<'a, 'b>(
-    ty: &'b mut ComponentTypeUse<'a, InterType<'a>>,
-    resolve_stack: &'b mut Vec<ComponentResolver<'a>>,
-) -> Result<(), Error> {
-    match ty {
-        ComponentTypeUse::Ref(r) => resolve_item_ref(r, resolve_stack),
-        ComponentTypeUse::Inline(i) => resolve_intertype(i, resolve_stack),
+        DefType::Value(v) => resolve_type_use(&mut v.value_type, resolve_stack),
     }
 }
 
@@ -353,12 +311,12 @@ fn resolve_intertype<'a, 'b>(
         InterType::Enum(_) => {}
         InterType::Record(r) => {
             for field in r.fields.iter_mut() {
-                resolve_intertype_use(&mut field.type_, resolve_stack)?;
+                resolve_type_use(&mut field.type_, resolve_stack)?;
             }
         }
         InterType::Variant(v) => {
             for case in v.cases.iter_mut() {
-                resolve_intertype_use(&mut case.type_, resolve_stack)?;
+                resolve_type_use(&mut case.type_, resolve_stack)?;
             }
 
             // Resolve the `defaults-to` field. Use indices instead
@@ -384,24 +342,24 @@ fn resolve_intertype<'a, 'b>(
             }
         }
         InterType::List(l) => {
-            resolve_intertype_use(&mut *l.element, resolve_stack)?;
+            resolve_type_use(&mut *l.element, resolve_stack)?;
         }
         InterType::Tuple(t) => {
             for field in t.fields.iter_mut() {
-                resolve_intertype_use(field, resolve_stack)?;
+                resolve_type_use(field, resolve_stack)?;
             }
         }
         InterType::Union(t) => {
             for arm in t.arms.iter_mut() {
-                resolve_intertype_use(arm, resolve_stack)?;
+                resolve_type_use(arm, resolve_stack)?;
             }
         }
         InterType::Option(o) => {
-            resolve_intertype_use(&mut *o.element, resolve_stack)?;
+            resolve_type_use(&mut *o.element, resolve_stack)?;
         }
         InterType::Expected(r) => {
-            resolve_intertype_use(&mut *r.ok, resolve_stack)?;
-            resolve_intertype_use(&mut *r.err, resolve_stack)?;
+            resolve_type_use(&mut *r.ok, resolve_stack)?;
+            resolve_type_use(&mut *r.err, resolve_stack)?;
         }
     }
     Ok(())
@@ -437,10 +395,10 @@ fn resolve_nested_component_type<'a, 'b>(
                 resolve_type_def(&mut ty.def, resolve_stack)?;
             }
             ComponentTypeField::Import(import) => {
-                resolve_deftype_use(&mut import.type_, resolve_stack)?;
+                resolve_item_sig(&mut import.item, resolve_stack)?;
             }
             ComponentTypeField::Export(export) => {
-                resolve_deftype_use(&mut export.item, resolve_stack)?;
+                resolve_item_sig(&mut export.item, resolve_stack)?;
             }
         }
 
@@ -463,27 +421,10 @@ fn resolve_nested_component_type<'a, 'b>(
             ComponentTypeField::Type(ty) => {
                 resolver.types.register(ty.id, "type")?;
             }
-            ComponentTypeField::Import(import) => match &import.type_ {
-                ComponentTypeUse::Inline(inline) => match inline {
-                    DefType::Func(f) => {
-                        resolver.funcs.register(f.id, "component func")?;
-                    }
-                    DefType::Module(m) => {
-                        resolver.modules.register(m.id, "module")?;
-                    }
-                    DefType::Component(c) => {
-                        resolver.components.register(c.id, "component")?;
-                    }
-                    DefType::Instance(i) => {
-                        resolver.instances.register(i.id, "instance")?;
-                    }
-                    DefType::Value(v) => {
-                        resolver.values.register(v.id, "value")?;
-                    }
-                },
-                ComponentTypeUse::Ref(_index) => {}
-            },
-            ComponentTypeField::Export(_export) => {}
+
+            // Only the type namespace is populated within the component type
+            // namespace so these are ignored here.
+            ComponentTypeField::Import(_) | ComponentTypeField::Export(_) => {}
         }
         i += 1;
     }
@@ -512,7 +453,7 @@ fn resolve_instance_type<'a, 'b>(
                 resolve_type_def(&mut ty.def, resolve_stack)?;
             }
             InstanceTypeField::Export(export) => {
-                resolve_deftype_use(&mut export.item, resolve_stack)?;
+                resolve_item_sig(&mut export.item, resolve_stack)?;
             }
         }
 

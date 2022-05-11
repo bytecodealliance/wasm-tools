@@ -144,11 +144,9 @@ impl Peek for InlineImport<'_> {
             Some((_, cursor)) => cursor,
             None => return false,
         };
-
-        // optional field
         let cursor = match cursor.string() {
             Some((_, cursor)) => cursor,
-            None => cursor,
+            None => return false,
         };
 
         cursor.rparen().is_some()

@@ -1,4 +1,5 @@
 use crate::component::*;
+use crate::core;
 use crate::kw;
 use crate::parser::{Parse, Parser, Result};
 use crate::token::{Id, IndexOrRef, ItemRef, NameAnnotation, Span};
@@ -49,6 +50,12 @@ impl<'a> Component<'a> {
     /// If an error happens during resolution, such a name resolution error or
     /// items are found in the wrong order, then an error is returned.
     pub fn resolve(&mut self) -> std::result::Result<(), crate::Error> {
+        match &mut self.kind {
+            ComponentKind::Text(fields) => {
+                crate::component::expand_types::expand(fields);
+            }
+            ComponentKind::Binary(_) => {}
+        }
         crate::component::resolve::resolve(self)
     }
 
@@ -135,7 +142,7 @@ pub enum ComponentField<'a> {
     Start(Start<'a>),
     Instance(Instance<'a>),
     Module(Module<'a>),
-    Component(Component<'a>),
+    Component(NestedComponent<'a>),
     Alias(Alias<'a>),
 }
 
@@ -182,6 +189,12 @@ impl<'a> Parse<'a> for ComponentField<'a> {
     }
 }
 
+impl<'a> From<TypeField<'a>> for ComponentField<'a> {
+    fn from(field: TypeField<'a>) -> ComponentField<'a> {
+        ComponentField::Type(field)
+    }
+}
+
 /// A function to call at instantiation time.
 #[derive(Debug)]
 pub struct Start<'a> {
@@ -209,5 +222,66 @@ impl<'a> Parse<'a> for Start<'a> {
             })
         })?;
         Ok(Start { func, args, result })
+    }
+}
+
+/// A parsed WebAssembly component module.
+#[derive(Debug)]
+pub struct NestedComponent<'a> {
+    /// Where this `component` was defined
+    pub span: Span,
+    /// An optional identifier this component is known by
+    pub id: Option<Id<'a>>,
+    /// An optional `@name` annotation for this component
+    pub name: Option<NameAnnotation<'a>>,
+    /// If present, inline export annotations which indicate names this
+    /// definition should be exported under.
+    pub exports: core::InlineExport<'a>,
+    /// What kind of component this was parsed as.
+    pub kind: NestedComponentKind<'a>,
+}
+
+/// The different kinds of ways to define a nested component.
+#[derive(Debug)]
+pub enum NestedComponentKind<'a> {
+    /// This is actually an inline import of a component
+    Import {
+        /// The information about where this is being imported from.
+        import: InlineImport<'a>,
+        /// The type of component being imported.
+        ty: ComponentTypeUse<'a, ComponentType<'a>>,
+    },
+    /// The component is defined inline as a local definition with its fields
+    /// listed here.
+    Inline(Vec<ComponentField<'a>>),
+}
+
+impl<'a> Parse<'a> for NestedComponent<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let span = parser.parse::<kw::component>()?.0;
+        let id = parser.parse()?;
+        let name = parser.parse()?;
+        let exports = parser.parse()?;
+
+        let kind = if let Some(import) = parser.parse()? {
+            NestedComponentKind::Import {
+                import,
+                ty: parser.parse()?,
+            }
+        } else {
+            let mut fields = Vec::new();
+            while !parser.is_empty() {
+                fields.push(parser.parens(|p| p.parse())?);
+            }
+            NestedComponentKind::Inline(fields)
+        };
+
+        Ok(NestedComponent {
+            span,
+            id,
+            name,
+            exports,
+            kind,
+        })
     }
 }

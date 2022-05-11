@@ -65,9 +65,13 @@ impl Encoder {
     }
 }
 
-impl Encode for Component<'_> {
+impl Encode for NestedComponent<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
-        encode(self).encode(e);
+        let fields = match &self.kind {
+            NestedComponentKind::Import { .. } => panic!("imports should be gone by now"),
+            NestedComponentKind::Inline(fields) => fields,
+        };
+        encode_fields(&self.id, &self.name, fields).encode(e);
     }
 }
 
@@ -253,11 +257,11 @@ impl Encode for ModuleType<'_> {
 impl Encode for ModuleTypeDef<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         match self {
-            ModuleTypeDef::CoreDefType(f) => {
+            ModuleTypeDef::Type(f) => {
                 e.push(0x01);
                 f.encode(e);
             }
-            ModuleTypeDef::CoreImport(i) => {
+            ModuleTypeDef::Import(i) => {
                 e.push(0x02);
                 i.encode(e);
             }
@@ -665,7 +669,14 @@ fn find_names<'a>(
 impl Encode for ComponentImport<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.name.encode(e);
-        self.type_.encode(e);
+        self.item.encode(e);
+    }
+}
+
+impl Encode for ItemSig<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        drop(e);
+        panic!()
     }
 }
 
