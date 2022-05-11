@@ -2,7 +2,7 @@
 name = "wasm-tools"
 version = "1.0.4"
 authors = ["The Wasmtime Project Developers"]
-edition = "2018"
+edition = "2021"
 description = "CLI tools for interoperating with WebAssembly files"
 license = "Apache-2.0 WITH LLVM-exception"
 documentation = "https://github.com/bytecodealliance/wasm-tools"

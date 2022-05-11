@@ -2,7 +2,7 @@
 name = "wasmparser-dump"
 version = "0.1.2"
 authors = ["The Wasmtime Project Developers"]
-edition = "2018"
+edition = "2021"
 license = "Apache-2.0 WITH LLVM-exception"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/dump"
 description = "Utility to dump debug information about the wasm binary format"
