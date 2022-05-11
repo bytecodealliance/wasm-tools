@@ -278,10 +278,7 @@ fn resolve_deftype<'a, 'b>(
             }
             resolve_type_use(&mut f.result, resolve_stack)
         }
-        DefType::Module(_m) => Err(Error::new(
-            crate::token::Span::from_offset(0),
-            "TODO: resolve for module types".to_string(),
-        )),
+        DefType::Module(m) => resolve_moduletype(m),
         DefType::Component(c) => resolve_nested_component_type(c, resolve_stack),
         DefType::Instance(i) => resolve_instance_type(i, resolve_stack),
         DefType::Value(v) => resolve_type_use(&mut v.value_type, resolve_stack),
@@ -647,6 +644,34 @@ fn resolve_ns<'a, 'b>(
     resolver.aliases_to_insert.push(alias);
 
     Ok(())
+}
+
+fn resolve_moduletype(ty: &mut ModuleType<'_>) -> Result<(), Error> {
+    let mut types = Namespace::default();
+    for def in ty.defs.iter_mut() {
+        match def {
+            ModuleTypeDef::Type(t) => {
+                types.register(t.id, "type")?;
+            }
+            ModuleTypeDef::Import(t) => resolve_item_sig(&mut t.item, &types)?,
+            ModuleTypeDef::Export(_, t) => resolve_item_sig(t, &types)?,
+        }
+    }
+    return Ok(());
+
+    fn resolve_item_sig<'a>(
+        sig: &mut core::ItemSig<'a>,
+        names: &Namespace<'a>,
+    ) -> Result<(), Error> {
+        match &mut sig.kind {
+            core::ItemKind::Func(ty) | core::ItemKind::Tag(core::TagType::Exception(ty)) => {
+                let idx = ty.index.as_mut().expect("index should be filled in");
+                names.resolve(&mut idx.idx, "type")?;
+            }
+            core::ItemKind::Memory(_) | core::ItemKind::Global(_) | core::ItemKind::Table(_) => {}
+        }
+        Ok(())
+    }
 }
 
 /// Context structure used to perform name resolution.

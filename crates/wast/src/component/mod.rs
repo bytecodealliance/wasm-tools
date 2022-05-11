@@ -22,5 +22,5 @@ pub use self::module::*;
 pub use self::types::*;
 
 mod binary;
-mod expand_types;
+mod expand;
 mod resolve;

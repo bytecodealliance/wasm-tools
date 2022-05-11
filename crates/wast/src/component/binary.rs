@@ -18,22 +18,24 @@ fn encode_fields(
     let mut e = Encoder {
         wasm: Vec::new(),
         tmp: Vec::new(),
+        last_section: None,
+        last_section_contents: Vec::new(),
+        last_section_count: 0,
     };
     e.wasm.extend(b"\0asm");
     e.wasm.extend(b"\x0a\0\x01\0");
 
-    // TODO: coalesce sections where possible
     for field in fields {
         match field {
-            ComponentField::Type(i) => e.section_list(1, &[i]),
-            ComponentField::Import(i) => e.section_list(2, &[i]),
-            ComponentField::Func(i) => e.section_list(3, &[i]),
-            ComponentField::Module(i) => e.section(4, &i),
-            ComponentField::Component(i) => e.section(5, &i),
-            ComponentField::Instance(i) => e.section_list(6, &[i]),
-            ComponentField::Export(i) => e.section_list(7, &[i]),
-            ComponentField::Start(i) => e.section(8, &i),
-            ComponentField::Alias(i) => e.section_list(9, &[i]),
+            ComponentField::Type(i) => e.append(1, i),
+            ComponentField::Import(i) => e.append(2, i),
+            ComponentField::Func(i) => e.append(3, i),
+            ComponentField::Module(i) => e.section(4, i),
+            ComponentField::Component(i) => e.section(5, i),
+            ComponentField::Instance(i) => e.append(6, i),
+            ComponentField::Export(i) => e.append(7, i),
+            ComponentField::Start(i) => e.section(8, i),
+            ComponentField::Alias(i) => e.append(9, i),
         }
     }
 
@@ -42,26 +44,54 @@ fn encode_fields(
         e.section(0, &("name", names));
     }
 
+    e.flush();
+
     return e.wasm;
 }
 
 struct Encoder {
     wasm: Vec<u8>,
     tmp: Vec<u8>,
+
+    last_section: Option<u8>,
+    last_section_contents: Vec<u8>,
+    last_section_count: usize,
 }
 
 impl Encoder {
+    /// Appends an entire section represented by the `section` provided
     fn section(&mut self, id: u8, section: &dyn Encode) {
+        self.flush();
         self.tmp.truncate(0);
         section.encode(&mut self.tmp);
         self.wasm.push(id);
         self.tmp.encode(&mut self.wasm);
     }
 
-    fn section_list(&mut self, id: u8, list: &[impl Encode]) {
-        if !list.is_empty() {
-            self.section(id, &list)
+    /// Appends an `item` specified within the section `id` specified.
+    fn append(&mut self, id: u8, item: &dyn Encode) {
+        // Flush if necessary to start a new section
+        if self.last_section != Some(id) {
+            self.flush();
         }
+        // ... and afterwards start building up this section incrementally
+        // in case the next item encoded is also part of this section.
+        item.encode(&mut self.last_section_contents);
+        self.last_section_count += 1;
+        self.last_section = Some(id);
+    }
+
+    fn flush(&mut self) {
+        let id = match self.last_section.take() {
+            Some(id) => id,
+            None => return,
+        };
+        self.wasm.push(id);
+        self.tmp.truncate(0);
+        self.last_section_count.encode(&mut self.tmp);
+        self.last_section_count = 0;
+        self.tmp.extend(self.last_section_contents.drain(..));
+        self.tmp.encode(&mut self.wasm);
     }
 }
 
@@ -71,7 +101,7 @@ impl Encode for NestedComponent<'_> {
             NestedComponentKind::Import { .. } => panic!("imports should be gone by now"),
             NestedComponentKind::Inline(fields) => fields,
         };
-        encode_fields(&self.id, &self.name, fields).encode(e);
+        e.extend(encode_fields(&self.id, &self.name, fields));
     }
 }
 
@@ -80,7 +110,7 @@ impl Encode for Module<'_> {
         match &self.kind {
             ModuleKind::Import { .. } => panic!("imports should be gone by now"),
             ModuleKind::Inline { fields } => {
-                crate::core::binary::encode(&self.id, &self.name, fields).encode(e)
+                e.extend(crate::core::binary::encode(&self.id, &self.name, fields));
             }
         }
     }
@@ -608,7 +638,7 @@ fn find_names<'a>(
         // Extract the kind/id/name from whatever kind of field this is...
         let (kind, id, name) = match field {
             ComponentField::Import(_i) => {
-                eprintln!("TODO: Extract the kind/id/name for the name section from ComponentField::Import");
+                // TODO: Extract the kind/id/name for the name section from ComponentField::Import
                 continue;
             }
             ComponentField::Module(m) => (Name::Module, &m.id, &m.name),
@@ -618,9 +648,7 @@ fn find_names<'a>(
             ComponentField::Func(f) => (Name::Func, &f.id, &f.name),
             ComponentField::Alias(a) => match a.target {
                 AliasTarget::Export { .. } => {
-                    eprintln!(
-                        "TODO: Extract the kind/id/name for the name section from export aliases"
-                    );
+                    // TODO: Extract the kind/id/name for the name section from export aliases
                     continue;
                 }
                 AliasTarget::Outer { .. } => match a.kind {
@@ -675,8 +703,13 @@ impl Encode for ComponentImport<'_> {
 
 impl Encode for ItemSig<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
-        drop(e);
-        panic!()
+        match &self.kind {
+            ItemKind::Component(t) => t.encode(e),
+            ItemKind::Module(t) => t.encode(e),
+            ItemKind::Func(t) => t.encode(e),
+            ItemKind::Instance(t) => t.encode(e),
+            ItemKind::Value(t) => t.value_type.encode(e),
+        }
     }
 }
 

@@ -109,59 +109,56 @@ pub struct ComponentFunctionType<'a> {
 
 impl<'a> Parse<'a> for ComponentFunctionType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parens(|parser| {
-            parser.parse::<kw::func>()?;
-            let id = parser.parse::<Option<Id>>()?;
-            let mut params = Vec::new();
-            while parser.peek2::<kw::param>() {
-                parser.parens(|p| {
-                    let mut l = p.lookahead1();
-                    if l.peek::<kw::param>() {
-                        p.parse::<kw::param>()?;
-                        if p.is_empty() {
-                            return Ok(());
-                        }
-                        // If we just saw `(param` and we're looking at `$X`, it
-                        // could be a parameter name or a type name. Peek ahead to
-                        // see if we're at the closing `)`, if so, parse it as a
-                        // type.
-                        if p.peek2_empty() {
-                            let ty = p.parse()?;
-                            params.push(ComponentFunctionParam {
-                                id: None,
-                                name: None,
-                                type_: ty,
-                            });
-                        } else {
-                            let (id, name) = (p.parse::<Option<_>>()?, p.parse::<Option<_>>()?);
-                            let ty = p.parse()?;
-                            params.push(ComponentFunctionParam {
-                                id,
-                                name,
-                                type_: ty,
-                            });
-                        }
-                    } else {
-                        return Err(l.error());
+        let id = parser.parse::<Option<Id>>()?;
+        let mut params = Vec::new();
+        while parser.peek2::<kw::param>() {
+            parser.parens(|p| {
+                let mut l = p.lookahead1();
+                if l.peek::<kw::param>() {
+                    p.parse::<kw::param>()?;
+                    if p.is_empty() {
+                        return Ok(());
                     }
-                    Ok(())
-                })?;
-            }
-            let result = if parser.peek::<LParen>() {
-                // Parse a `(result ...)`.
-                parser.parens(|parser| {
-                    parser.parse::<kw::result>()?;
-                    parser.parse()
-                })?
-            } else {
-                // If the result is omitted, use `unit`.
-                ComponentTypeUse::Inline(InterType::Unit)
-            };
-            Ok(Self {
-                id,
-                params: params.into(),
-                result,
-            })
+                    // If we just saw `(param` and we're looking at `$X`, it
+                    // could be a parameter name or a type name. Peek ahead to
+                    // see if we're at the closing `)`, if so, parse it as a
+                    // type.
+                    if p.peek2_empty() {
+                        let ty = p.parse()?;
+                        params.push(ComponentFunctionParam {
+                            id: None,
+                            name: None,
+                            type_: ty,
+                        });
+                    } else {
+                        let (id, name) = (p.parse::<Option<_>>()?, p.parse::<Option<_>>()?);
+                        let ty = p.parse()?;
+                        params.push(ComponentFunctionParam {
+                            id,
+                            name,
+                            type_: ty,
+                        });
+                    }
+                } else {
+                    return Err(l.error());
+                }
+                Ok(())
+            })?;
+        }
+        let result = if parser.peek::<LParen>() {
+            // Parse a `(result ...)`.
+            parser.parens(|parser| {
+                parser.parse::<kw::result>()?;
+                parser.parse()
+            })?
+        } else {
+            // If the result is omitted, use `unit`.
+            ComponentTypeUse::Inline(InterType::Unit)
+        };
+        Ok(Self {
+            id,
+            params: params.into(),
+            result,
         })
     }
 }
@@ -365,7 +362,6 @@ impl<'a> Parse<'a> for InstanceType<'a> {
             return Err(parser.error("instance type nesting too deep"));
         }
 
-        parser.parse::<kw::instance>()?;
         let id = parser.parse()?;
         let mut fields = Vec::new();
         while !parser.is_empty() {

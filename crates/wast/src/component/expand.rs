@@ -2,13 +2,12 @@ use crate::component::*;
 use crate::core;
 use crate::gensym;
 use crate::kw;
-use crate::token::{Index, ItemRef, Span};
+use crate::token::{Id, Index, ItemRef, Span};
 use std::collections::HashMap;
 use std::mem;
 
 pub fn expand(fields: &mut Vec<ComponentField<'_>>) {
-    let mut expander = Expander::default();
-    expander.process(fields, Expander::expand);
+    Expander::default().expand_component_fields(fields)
 }
 
 #[derive(Default)]
@@ -17,46 +16,146 @@ struct Expander<'a> {
     /// currently-being-processed field. This should always be empty after
     /// processing is complete.
     to_prepend: Vec<TypeField<'a>>,
+
+    /// Fields that are appended to the end of the module once everything has
+    /// finished.
+    to_append: Vec<ComponentField<'a>>,
 }
 
 impl<'a> Expander<'a> {
-    fn process<T>(&mut self, fields: &mut Vec<T>, expand: fn(&mut Self, &mut T))
+    fn expand_component_fields(&mut self, fields: &mut Vec<ComponentField<'a>>) {
+        self.process(fields, false, Expander::expand_field);
+        fields.extend(self.to_append.drain(..));
+    }
+
+    fn expand_fields<T>(&mut self, fields: &mut Vec<T>, expand: fn(&mut Self, &mut T))
     where
+        T: From<TypeField<'a>>,
+    {
+        self.process(fields, true, expand);
+    }
+
+    fn process<T>(
+        &mut self,
+        fields: &mut Vec<T>,
+        assert_no_appends: bool,
+        expand: fn(&mut Self, &mut T),
+    ) where
         T: From<TypeField<'a>>,
     {
         let mut cur = 0;
         while cur < fields.len() {
             expand(self, &mut fields[cur]);
-            for item in self.to_prepend.drain(..) {
-                fields.insert(cur, item.into());
-                cur += 1;
-            }
-            cur += 1;
+            let amt = self.to_prepend.len();
+            fields.splice(cur..cur, self.to_prepend.drain(..).map(T::from));
+            cur += 1 + amt;
+        }
+        if assert_no_appends {
+            assert!(self.to_append.is_empty());
         }
     }
 
-    fn expand(&mut self, item: &mut ComponentField<'a>) {
+    fn expand_field(&mut self, item: &mut ComponentField<'a>) {
         match item {
             ComponentField::Type(t) => self.expand_type_field(t),
             ComponentField::Import(t) => {
                 self.expand_item_sig(&mut t.item);
             }
-            ComponentField::Component(c) => match &mut c.kind {
-                NestedComponentKind::Inline(fields) => expand(fields),
-                NestedComponentKind::Import { .. } => {}
-            },
-
-            ComponentField::Func(f) => {
-                self.expand_component_type_use(&mut f.ty);
+            ComponentField::Component(c) => {
+                for name in c.exports.names.drain(..) {
+                    self.to_append
+                        .push(export(c.span, name, DefTypeKind::Component, &mut c.id));
+                }
+                match &mut c.kind {
+                    NestedComponentKind::Inline(fields) => expand(fields),
+                    NestedComponentKind::Import { import, ty } => {
+                        let idx = self.expand_component_type_use(ty);
+                        *item = ComponentField::Import(ComponentImport {
+                            span: c.span,
+                            name: import.name,
+                            item: ItemSig {
+                                span: c.span,
+                                id: c.id,
+                                name: None,
+                                kind: ItemKind::Component(ComponentTypeUse::Ref(idx)),
+                            },
+                        });
+                    }
+                }
             }
 
-            // These fields don't have any nested `ComponentTypeUse` or
-            // `TypeUse` fields.
-            ComponentField::Alias(_)
-            | ComponentField::Module(_)
-            | ComponentField::Start(_)
-            | ComponentField::Export(_)
-            | ComponentField::Instance(_) => {}
+            ComponentField::Func(f) => {
+                for name in f.exports.names.drain(..) {
+                    self.to_append
+                        .push(export(f.span, name, DefTypeKind::Func, &mut f.id));
+                }
+                let idx = self.expand_component_type_use(&mut f.ty);
+                match &mut f.kind {
+                    ComponentFuncKind::Import(import) => {
+                        *item = ComponentField::Import(ComponentImport {
+                            span: f.span,
+                            name: import.name,
+                            item: ItemSig {
+                                span: f.span,
+                                id: f.id,
+                                name: None,
+                                kind: ItemKind::Func(ComponentTypeUse::Ref(idx)),
+                            },
+                        });
+                    }
+                    ComponentFuncKind::Inline { .. } => {}
+                }
+            }
+
+            ComponentField::Module(m) => {
+                for name in m.exports.names.drain(..) {
+                    self.to_append
+                        .push(export(m.span, name, DefTypeKind::Module, &mut m.id));
+                }
+                match &mut m.kind {
+                    // inline modules are expanded later during resolution
+                    ModuleKind::Inline { .. } => {}
+                    ModuleKind::Import { import, ty } => {
+                        let idx = self.expand_component_type_use(ty);
+                        *item = ComponentField::Import(ComponentImport {
+                            span: m.span,
+                            name: import.name,
+                            item: ItemSig {
+                                span: m.span,
+                                id: m.id,
+                                name: None,
+                                kind: ItemKind::Module(ComponentTypeUse::Ref(idx)),
+                            },
+                        });
+                    }
+                }
+            }
+
+            ComponentField::Instance(i) => {
+                for name in i.exports.names.drain(..) {
+                    self.to_append
+                        .push(export(i.span, name, DefTypeKind::Instance, &mut i.id));
+                }
+            }
+
+            ComponentField::Alias(_) | ComponentField::Start(_) | ComponentField::Export(_) => {}
+        }
+
+        fn export<'a>(
+            span: Span,
+            name: &'a str,
+            kind: DefTypeKind,
+            id: &mut Option<Id<'a>>,
+        ) -> ComponentField<'a> {
+            let id = gensym::fill(span, id);
+            ComponentField::Export(ComponentExport {
+                span,
+                name,
+                arg: ComponentArg::Def(ItemRef {
+                    idx: Index::Id(id),
+                    kind,
+                }),
+            })
         }
     }
 
@@ -176,7 +275,7 @@ impl<'a> Expander<'a> {
     }
 
     fn expand_component_ty(&mut self, ty: &mut ComponentType<'a>) {
-        Expander::default().process(&mut ty.fields, |e, field| match field {
+        Expander::default().expand_fields(&mut ty.fields, |e, field| match field {
             ComponentTypeField::Type(t) => e.expand_type_field(t),
             ComponentTypeField::Alias(_) => {}
             ComponentTypeField::Export(t) => e.expand_item_sig(&mut t.item),
@@ -185,7 +284,7 @@ impl<'a> Expander<'a> {
     }
 
     fn expand_instance_ty(&mut self, ty: &mut InstanceType<'a>) {
-        Expander::default().process(&mut ty.fields, |e, field| match field {
+        Expander::default().expand_fields(&mut ty.fields, |e, field| match field {
             InstanceTypeField::Type(t) => e.expand_type_field(t),
             InstanceTypeField::Alias(_) => {}
             InstanceTypeField::Export(t) => e.expand_item_sig(&mut t.item),
@@ -265,7 +364,10 @@ impl<'a> Expander<'a> {
         }
     }
 
-    fn expand_component_type_use<T>(&mut self, item: &mut ComponentTypeUse<'a, T>) -> Index<'a>
+    fn expand_component_type_use<T>(
+        &mut self,
+        item: &mut ComponentTypeUse<'a, T>,
+    ) -> ItemRef<'a, kw::r#type>
     where
         T: TypeReference<'a>,
     {
@@ -280,7 +382,7 @@ impl<'a> Expander<'a> {
             // index.
             ComponentTypeUse::Ref(idx) => {
                 *item = ComponentTypeUse::Ref(idx.clone());
-                return idx.idx;
+                return idx;
             }
 
             // ... otherwise with an inline type definition we go into
@@ -293,11 +395,12 @@ impl<'a> Expander<'a> {
         // then reuse the previously defined type to avoid injecting too many
         // types into the type index space.
         if let Some(idx) = inline.key().lookup(self) {
-            *item = ComponentTypeUse::Ref(ItemRef {
+            let ret = ItemRef {
                 idx,
                 kind: kw::r#type(span),
-            });
-            return idx;
+            };
+            *item = ComponentTypeUse::Ref(ret.clone());
+            return ret;
         }
 
         // And if this type isn't already defined we append it to the index
@@ -310,11 +413,12 @@ impl<'a> Expander<'a> {
             def: inline.into_def(),
         });
         let idx = Index::Id(id);
-        *item = ComponentTypeUse::Ref(ItemRef {
+        let ret = ItemRef {
             idx,
             kind: kw::r#type(span),
-        });
-        return idx;
+        };
+        *item = ComponentTypeUse::Ref(ret.clone());
+        return ret;
     }
 }
 

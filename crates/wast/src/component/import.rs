@@ -51,33 +51,31 @@ pub enum ItemKind<'a> {
 impl<'a> Parse<'a> for ItemSig<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let mut l = parser.lookahead1();
-        if l.peek::<kw::component>() {
-            let span = parser.parse::<kw::component>()?.0;
-            Ok(ItemSig {
-                span,
-                id: parser.parse()?,
-                name: parser.parse()?,
-                kind: ItemKind::Component(parser.parse()?),
-            })
-        } else if l.peek::<kw::module>() {
-            let span = parser.parse::<kw::module>()?.0;
-            Ok(ItemSig {
-                span,
-                id: parser.parse()?,
-                name: parser.parse()?,
-                kind: ItemKind::Module(parser.parse()?),
-            })
-        } else if l.peek::<kw::instance>() {
-            let span = parser.parse::<kw::instance>()?.0;
-            Ok(ItemSig {
-                span,
-                id: parser.parse()?,
-                name: parser.parse()?,
-                kind: ItemKind::Instance(parser.parse()?),
-            })
-        } else {
-            Err(l.error())
-        }
+        let (span, parse_kind): (_, fn(Parser<'a>) -> Result<ItemKind>) =
+            if l.peek::<kw::component>() {
+                let span = parser.parse::<kw::component>()?.0;
+                (span, |parser| Ok(ItemKind::Component(parser.parse()?)))
+            } else if l.peek::<kw::module>() {
+                let span = parser.parse::<kw::module>()?.0;
+                (span, |parser| Ok(ItemKind::Module(parser.parse()?)))
+            } else if l.peek::<kw::instance>() {
+                let span = parser.parse::<kw::instance>()?.0;
+                (span, |parser| Ok(ItemKind::Instance(parser.parse()?)))
+            } else if l.peek::<kw::func>() {
+                let span = parser.parse::<kw::func>()?.0;
+                (span, |parser| Ok(ItemKind::Func(parser.parse()?)))
+            } else if l.peek::<kw::value>() {
+                let span = parser.parse::<kw::value>()?.0;
+                (span, |parser| Ok(ItemKind::Value(parser.parse()?)))
+            } else {
+                return Err(l.error());
+            };
+        Ok(ItemSig {
+            span,
+            id: parser.parse()?,
+            name: parser.parse()?,
+            kind: parse_kind(parser)?,
+        })
     }
 }
 
@@ -88,14 +86,14 @@ impl<'a> Parse<'a> for ItemSig<'a> {
 #[derive(Debug, Copy, Clone)]
 #[allow(missing_docs)]
 pub struct InlineImport<'a> {
-    pub module: &'a str,
+    pub name: &'a str,
 }
 
 impl<'a> Parse<'a> for InlineImport<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parens(|p| {
             p.parse::<kw::import>()?;
-            Ok(InlineImport { module: p.parse()? })
+            Ok(InlineImport { name: p.parse()? })
         })
     }
 }

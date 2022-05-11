@@ -27,7 +27,7 @@ pub enum ModuleKind<'a> {
     /// An nested module which is actually defined as an import, such as:
     Import {
         /// Where this nested module is imported from
-        import: core::InlineImport<'a>,
+        import: InlineImport<'a>,
         /// The type that this nested module will have.
         ty: ComponentTypeUse<'a, ModuleType<'a>>,
     },

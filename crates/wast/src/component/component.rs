@@ -52,7 +52,7 @@ impl<'a> Component<'a> {
     pub fn resolve(&mut self) -> std::result::Result<(), crate::Error> {
         match &mut self.kind {
             ComponentKind::Text(fields) => {
-                crate::component::expand_types::expand(fields);
+                crate::component::expand::expand(fields);
             }
             ComponentKind::Binary(_) => {}
         }

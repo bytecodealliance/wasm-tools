@@ -27,7 +27,7 @@ use std::path::{Path, PathBuf};
 use std::str;
 use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 use wasmparser::*;
-use wast::core::ModuleKind;
+use wast::core::{Module, ModuleKind};
 use wast::lexer::Lexer;
 use wast::parser::ParseBuffer;
 use wast::{parser, QuoteWat, Wast, WastDirective, Wat};

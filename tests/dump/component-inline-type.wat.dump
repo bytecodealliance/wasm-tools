@@ -1,0 +1,27 @@
+  0x0 | 00 61 73 6d | version 65546 (Component)
+      | 0a 00 01 00
+  0x8 | 01 03       | type section
+  0xa | 01          | 1 count
+  0xb | 4e 00       | [type 0] Component([])
+  0xd | 02 03       | import section
+  0xf | 01          | 1 count
+ 0x10 | 00 00       | [component 0] ComponentImport { name: "", ty: 0 }
+ 0x12 | 01 03       | type section
+ 0x14 | 01          | 1 count
+ 0x15 | 4f 00       | [type 1] Module([])
+ 0x17 | 02 03       | import section
+ 0x19 | 01          | 1 count
+ 0x1a | 00 01       | [module 0] ComponentImport { name: "", ty: 1 }
+ 0x1c | 01 03       | type section
+ 0x1e | 01          | 1 count
+ 0x1f | 4d 00       | [type 2] Instance([])
+ 0x21 | 02 03       | import section
+ 0x23 | 01          | 1 count
+ 0x24 | 00 02       | [instance 0] ComponentImport { name: "", ty: 2 }
+ 0x26 | 01 05       | type section
+ 0x28 | 02          | 2 count
+ 0x29 | 7f          | [type 3] Interface(Primitive(Unit))
+ 0x2a | 4c 00 03    | [type 4] Function(ComponentFuncType { params: [], result: Type(3) })
+ 0x2d | 02 03       | import section
+ 0x2f | 01          | 1 count
+ 0x30 | 00 04       | [func 0] ComponentImport { name: "", ty: 4 }
