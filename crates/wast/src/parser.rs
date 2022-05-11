@@ -271,7 +271,7 @@ pub trait Peek {
 
 /// A convenience type definition for `Result` where the error is hardwired to
 /// [`Error`].
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 /// A low-level buffer of tokens which represents a completely lexed file.
 ///
