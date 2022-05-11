@@ -41,6 +41,15 @@ struct Indices {
     values: u32,
 }
 
+enum ComponentTypeKind {
+    Func,
+    Component,
+    Instance,
+    Module,
+    Value,
+    Type,
+}
+
 const NBYTES: usize = 4;
 
 impl<'a> Dump<'a> {
@@ -64,6 +73,7 @@ impl<'a> Dump<'a> {
     fn print_module(&mut self) -> Result<()> {
         let mut stack = Vec::new();
         let mut i = Indices::default();
+        let mut component_types = Vec::new();
         self.nesting += 1;
 
         for item in Parser::new(0).parse_all(self.bytes) {
@@ -216,12 +226,33 @@ impl<'a> Dump<'a> {
                 // Component sections
                 Payload::ComponentTypeSection(s) => self.section(s, "type", |me, end, t| {
                     write!(me.state, "[type {}] {:?}", inc(&mut i.types), t)?;
+                    component_types.push(match t {
+                        ComponentTypeDef::Module(_) => ComponentTypeKind::Module,
+                        ComponentTypeDef::Component(_) => ComponentTypeKind::Component,
+                        ComponentTypeDef::Instance(_) => ComponentTypeKind::Instance,
+                        ComponentTypeDef::Function(_) => ComponentTypeKind::Func,
+                        ComponentTypeDef::Value(_) => ComponentTypeKind::Value,
+                        ComponentTypeDef::Interface(_) => ComponentTypeKind::Type,
+                    });
                     me.print(end)
                 })?,
 
                 Payload::ComponentImportSection(s) => {
                     self.section(s, "import", |me, end, item| {
-                        write!(me.state, "[func {}] {:?}", inc(&mut i.funcs), item)?;
+                        let (desc, idx) = match component_types.get(item.ty as usize) {
+                            Some(ComponentTypeKind::Func) => ("func", inc(&mut i.funcs)),
+                            Some(ComponentTypeKind::Component) => {
+                                ("component", inc(&mut i.components))
+                            }
+                            Some(ComponentTypeKind::Module) => ("module", inc(&mut i.modules)),
+                            Some(ComponentTypeKind::Instance) => {
+                                ("instance", inc(&mut i.instances))
+                            }
+                            Some(ComponentTypeKind::Value) => ("value", inc(&mut i.values)),
+                            Some(ComponentTypeKind::Type) => ("type", inc(&mut i.types)),
+                            None => ("???", 0),
+                        };
+                        write!(me.state, "[{desc} {idx}] {item:?}")?;
                         me.print(end)
                     })?
                 }
