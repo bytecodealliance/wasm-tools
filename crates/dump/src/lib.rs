@@ -296,7 +296,12 @@ impl<'a> Dump<'a> {
                     })?
                 }
 
-                Payload::ComponentStartSection { .. } => todo!("component-model"),
+                Payload::ComponentStartSection(mut s) => {
+                    write!(self.state, "start section")?;
+                    self.print(s.range().start)?;
+                    write!(self.state, "{:?}", s.read()?)?;
+                    self.print(s.range().end)?;
+                }
 
                 Payload::AliasSection(s) => self.section(s, "alias", |me, end, a| {
                     let (kind, num) = match a {
