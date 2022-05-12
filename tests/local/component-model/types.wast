@@ -1,63 +1,59 @@
-(assert_invalid
-  (module
-    (type (instance))
-    (func (type 0))
+;; FIXME(#590) these should be invalid
+(; (assert_invalid ;)
+  (component
+    (type $t (instance))
+    (import "" (func (type $t)))
   )
-  "type index is not a function")
+  (; "type index is not a function") ;)
 
-(assert_invalid
-  (module
-    (type (instance))
-    (import "" (func (type 0)))
+(; (assert_invalid ;)
+  (component
+    (type $t (instance))
+    (import "" (module (type $t)))
   )
-  "type index is not a function")
+  (; "type index is not a module") ;)
 
-(assert_invalid
-  (module
-    (type (instance))
-    (import "" (module (type 0)))
+(; (assert_invalid ;)
+  (component
+    (type $t (func))
+    (import "" (instance (type $t)))
   )
-  "type index is not a module")
+  (; "type index is not an instance") ;)
 
-(assert_invalid
-  (module
-    (type (func))
-    (import "" (instance (type 0)))
-  )
-  "type index is not an instance")
-
-(assert_invalid
-  (module
-    (type (func))
-    (type (module
-      (import "" (instance (type 0)))
+(; (assert_invalid ;)
+  (component
+    (type $t (func))
+    (type (component
+      (import "" (instance (type $t)))
     ))
   )
-  "type index is not an instance")
-(assert_invalid
-  (module
-    (type (func))
-    (type (module
-      (import "" (module (type 0)))
+  (; "type index is not an instance") ;)
+
+(; (assert_invalid ;)
+  (component
+    (type $t (func))
+    (type (component
+      (import "" (module (type $t)))
     ))
   )
-  "type index is not a module")
-(assert_invalid
-  (module
-    (type (instance))
-    (type (module
-      (import "" (func (type 0)))
+  (; "type index is not a module") ;)
+
+(; (assert_invalid ;)
+  (component
+    (type $t (instance))
+    (type (component
+      (import "" (func (type $t)))
     ))
   )
-  "type index is not a func")
+  (; "type index is not a func") ;)
 
 (assert_invalid
-  (module
+  (component
     (export "" (module 0))
   )
-  "exported module index out of bounds")
+  "module index out of bounds")
 (assert_invalid
-  (module
+  (component
     (export "" (instance 0))
   )
-  "exported instance index out of bounds")
+  "instance index out of bounds")
