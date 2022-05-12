@@ -124,6 +124,10 @@ pub enum TypeDef {
     ///
     /// This variant is only supported when parsing a component.
     Module(ModuleType),
+    /// The definition is for a module instance type.
+    ///
+    /// This variant is only supported when parsing a component.
+    ModuleInstance(ModuleInstanceType),
     /// The definition is for a component type.
     ///
     /// This variant is only supported when parsing a component.
@@ -161,6 +165,13 @@ impl TypeDef {
         }
     }
 
+    pub(crate) fn unwrap_module_instance_type(&self) -> &ModuleInstanceType {
+        match self {
+            Self::ModuleInstance(ty) => ty,
+            _ => panic!("expected module instance type"),
+        }
+    }
+
     pub(crate) fn unwrap_component_type(&self) -> &ComponentType {
         match self {
             Self::Component(ty) => ty,
@@ -193,6 +204,7 @@ impl TypeDef {
         match self {
             Self::Func(ty) => 1 + ty.params.len() + ty.returns.len(),
             Self::Module(ty) => ty.type_size,
+            Self::ModuleInstance(ty) => ty.type_size,
             Self::Component(ty) => ty.type_size,
             Self::Instance(ty) => ty.type_size,
             Self::ComponentFunc(ty) => ty.type_size,
@@ -414,6 +426,21 @@ impl ModuleType {
     }
 }
 
+/// Represents a module instance type.
+#[derive(Clone)]
+pub struct ModuleInstanceType {
+    /// The effective type size for the module instance type.
+    pub(crate) type_size: usize,
+    /// The type identifier of the module type that was instantiated.
+    pub module_type: TypeId,
+}
+
+impl ModuleInstanceType {
+    pub(crate) fn exports<'a>(&self, types: &'a TypeList) -> &'a HashMap<String, EntityType> {
+        &types[self.module_type].unwrap_module_type().exports
+    }
+}
+
 /// The entity type for imports and exports of a component.
 #[derive(Debug, Clone, Copy)]
 pub enum ComponentEntityType {
@@ -511,24 +538,34 @@ impl ComponentType {
     }
 }
 
-/// Represents a type of an instance.
+/// Represents a type of a component instance.
 #[derive(Clone)]
 pub struct InstanceType {
     /// The effective type size for the instance type.
     pub(crate) type_size: usize,
-    /// The exports of the instance type.
-    pub exports: HashMap<String, ComponentEntityType>,
+    /// The type identifier of the component type that was instantiated.
+    pub component_type: TypeId,
 }
 
 impl InstanceType {
+    /// Gets the exports of the component instance type.
+    pub(crate) fn exports<'a>(
+        &self,
+        types: &'a TypeList,
+    ) -> &'a HashMap<String, ComponentEntityType> {
+        &types[self.component_type].unwrap_component_type().exports
+    }
+
     pub(crate) fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
+        let exports = self.exports(types);
+
         // For instance type subtyping, all exports in the other instance type
         // must be present in this instance type's exports (i.e. it can export
         // *more* than what this instance type needs).
         other
-            .exports
+            .exports(types)
             .iter()
-            .all(|(k, other)| match self.exports.get(k) {
+            .all(|(k, other)| match exports.get(k) {
                 Some(ty) => ty.is_subtype_of(other, types),
                 None => false,
             })
