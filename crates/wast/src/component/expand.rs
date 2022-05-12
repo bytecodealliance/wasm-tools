@@ -99,9 +99,9 @@ impl<'a> Expander<'a> {
                     self.to_append
                         .push(export(f.span, name, DefTypeKind::Func, &mut f.id));
                 }
-                let idx = self.expand_component_type_use(&mut f.ty);
                 match &mut f.kind {
-                    ComponentFuncKind::Import(import) => {
+                    ComponentFuncKind::Import { import, ty } => {
+                        let idx = self.expand_component_type_use(ty);
                         *item = ComponentField::Import(ComponentImport {
                             span: f.span,
                             name: import.name,
@@ -113,7 +113,12 @@ impl<'a> Expander<'a> {
                             },
                         });
                     }
-                    ComponentFuncKind::Inline { .. } => {}
+                    ComponentFuncKind::Inline { body } => match body {
+                        ComponentFuncBody::CanonLift(lift) => {
+                            self.expand_component_type_use(&mut lift.type_);
+                        }
+                        ComponentFuncBody::CanonLower(_) => {}
+                    },
                 }
             }
 

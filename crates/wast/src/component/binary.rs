@@ -560,7 +560,7 @@ impl Encode for ComponentExport<'_> {
 impl Encode for ComponentFunc<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         match &self.kind {
-            ComponentFuncKind::Import(_) => todo!("Imported component function"),
+            ComponentFuncKind::Import { .. } => todo!("Imported component function"),
             ComponentFuncKind::Inline { body } => {
                 body.encode(e);
             }
@@ -582,7 +582,6 @@ struct ComponentNames<'a> {
     component: Option<&'a str>,
     funcs: Vec<(u32, &'a str)>,
     func_idx: u32,
-    labels: Vec<(u32, Vec<(u32, &'a str)>)>,
     modules: Vec<(u32, &'a str)>,
     module_idx: u32,
     components: Vec<(u32, &'a str)>,
@@ -715,12 +714,9 @@ impl Encode for ItemSig<'_> {
 
 impl ComponentNames<'_> {
     fn is_empty(&self) -> bool {
-        self.component.is_none()
-            && self.funcs.is_empty()
-            && self.labels.is_empty()
-            && self.types.is_empty()
-        // NB: specifically don't check modules/components/instances since they're
-        // not encoded for now.
+        // TODO: when an encoding is implemented this should be something that's
+        // not always `true`
+        true
     }
 }
 

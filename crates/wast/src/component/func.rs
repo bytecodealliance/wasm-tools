@@ -2,7 +2,7 @@ use crate::component::*;
 use crate::core;
 use crate::kw;
 use crate::parser::{Parse, Parser, Result};
-use crate::token::{Id, IndexOrRef, LParen, NameAnnotation, Span};
+use crate::token::{Id, IndexOrRef, ItemRef, LParen, NameAnnotation, Span};
 
 /// A WebAssembly function to be inserted into a module.
 ///
@@ -22,8 +22,6 @@ pub struct ComponentFunc<'a> {
     /// What kind of function this is, be it an inline-defined or imported
     /// function.
     pub kind: ComponentFuncKind<'a>,
-    /// The type that this function will have.
-    pub ty: ComponentTypeUse<'a, ComponentFunctionType<'a>>,
 }
 
 /// Possible ways to define a function in the text format.
@@ -32,9 +30,14 @@ pub enum ComponentFuncKind<'a> {
     /// A function which is actually defined as an import, such as:
     ///
     /// ```text
-    /// (func (type 3) (import "foo" "bar"))
+    /// (func (import "foo") (type 3))
     /// ```
-    Import(InlineImport<'a>),
+    Import {
+        /// The import name of this import
+        import: InlineImport<'a>,
+        /// The type that this function will have.
+        ty: ComponentTypeUse<'a, ComponentFunctionType<'a>>,
+    },
 
     /// Almost all functions, those defined inline in a wasm module.
     Inline {
@@ -50,16 +53,15 @@ impl<'a> Parse<'a> for ComponentFunc<'a> {
         let name = parser.parse()?;
         let exports = parser.parse()?;
 
-        let (ty, kind) = if let Some(import) = parser.parse()? {
-            (parser.parse()?, ComponentFuncKind::Import(import))
+        let kind = if let Some(import) = parser.parse()? {
+            ComponentFuncKind::Import {
+                import,
+                ty: parser.parse()?,
+            }
         } else {
-            let ty = parser.parse()?;
-            (
-                ty,
-                ComponentFuncKind::Inline {
-                    body: parser.parse()?,
-                },
-            )
+            ComponentFuncKind::Inline {
+                body: parser.parens(|p| p.parse())?,
+            }
         };
 
         Ok(ComponentFunc {
@@ -67,7 +69,6 @@ impl<'a> Parse<'a> for ComponentFunc<'a> {
             id,
             name,
             exports,
-            ty,
             kind,
         })
     }
@@ -84,9 +85,9 @@ pub enum ComponentFuncBody<'a> {
 
 impl<'a> Parse<'a> for ComponentFuncBody<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        if parser.peek2::<kw::canon_lift>() {
+        if parser.peek::<kw::canon_lift>() {
             Ok(ComponentFuncBody::CanonLift(parser.parse()?))
-        } else if parser.peek2::<kw::canon_lower>() {
+        } else if parser.peek::<kw::canon_lower>() {
             Ok(ComponentFuncBody::CanonLower(parser.parse()?))
         } else {
             Err(parser.error("Expected canon.lift or canon.lower"))
@@ -98,25 +99,30 @@ impl<'a> Parse<'a> for ComponentFuncBody<'a> {
 #[derive(Debug)]
 pub struct CanonLift<'a> {
     /// The type exported to other components
-    pub type_: ComponentFunctionType<'a>,
+    pub type_: ComponentTypeUse<'a, ComponentFunctionType<'a>>,
     /// Configuration options
     pub opts: Vec<CanonOpt<'a>>,
     /// The function to wrap
-    pub func: IndexOrRef<'a, kw::func>,
+    pub func: ItemRef<'a, kw::func>,
 }
 
 impl<'a> Parse<'a> for CanonLift<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parens(|parser| {
-            parser.parse::<kw::canon_lift>()?;
-            let type_ = parser.parse()?;
-            let mut opts = Vec::new();
-            while !parser.is_empty() && (!parser.peek::<LParen>() || !parser.peek2::<kw::func>()) {
-                opts.push(parser.parse()?);
-            }
-            let func = parser.parse()?;
-            Ok(CanonLift { type_, opts, func })
-        })
+        parser.parse::<kw::canon_lift>()?;
+        let type_ = parser.parens(|p| {
+            Ok(if p.peek::<kw::func>() {
+                p.parse::<kw::func>()?;
+                ComponentTypeUse::Inline(p.parse()?)
+            } else {
+                ComponentTypeUse::Ref(p.parse()?)
+            })
+        })?;
+        let mut opts = Vec::new();
+        while !parser.peek2::<kw::func>() {
+            opts.push(parser.parse()?);
+        }
+        let func = parser.parse()?;
+        Ok(CanonLift { type_, opts, func })
     }
 }
 
@@ -126,20 +132,18 @@ pub struct CanonLower<'a> {
     /// Configuration options
     pub opts: Vec<CanonOpt<'a>>,
     /// The function being wrapped
-    pub func: IndexOrRef<'a, kw::func>,
+    pub func: ItemRef<'a, kw::func>,
 }
 
 impl<'a> Parse<'a> for CanonLower<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parens(|parser| {
-            parser.parse::<kw::canon_lower>()?;
-            let mut opts = Vec::new();
-            while !parser.is_empty() && (!parser.peek::<LParen>() || !parser.peek2::<kw::func>()) {
-                opts.push(parser.parse()?);
-            }
-            let func = parser.parse()?;
-            Ok(CanonLower { opts, func })
-        })
+        parser.parse::<kw::canon_lower>()?;
+        let mut opts = Vec::new();
+        while !parser.is_empty() && (!parser.peek::<LParen>() || !parser.peek2::<kw::func>()) {
+            opts.push(parser.parse()?);
+        }
+        let func = parser.parse()?;
+        Ok(CanonLower { opts, func })
     }
 }
 
@@ -155,7 +159,7 @@ pub enum CanonOpt<'a> {
     /// A target instance which supplies the memory that the canonical ABI
     /// should operate on as well as functions that the canonical ABI can call
     /// to allocate, reallocate and free linear memory
-    Into(IndexOrRef<'a, kw::instance>),
+    Into(ItemRef<'a, kw::instance>),
 }
 
 impl<'a> Parse<'a> for CanonOpt<'a> {
@@ -175,7 +179,7 @@ impl<'a> Parse<'a> for CanonOpt<'a> {
                 let mut l = parser.lookahead1();
                 if l.peek::<kw::into>() {
                     parser.parse::<kw::into>()?;
-                    Ok(CanonOpt::Into(parser.parse()?))
+                    Ok(CanonOpt::Into(parser.parse::<IndexOrRef<'_, _>>()?.0))
                 } else {
                     Err(l.error())
                 }

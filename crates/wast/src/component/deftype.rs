@@ -142,7 +142,7 @@ impl<'a> Parse<'a> for ComponentFunctionType<'a> {
                 Ok(())
             })?;
         }
-        let result = if parser.peek::<LParen>() {
+        let result = if parser.peek2::<kw::result>() {
             // Parse a `(result ...)`.
             parser.parens(|parser| {
                 parser.parse::<kw::result>()?;

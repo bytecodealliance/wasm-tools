@@ -65,7 +65,7 @@ fn register<'a, 'b>(
             ItemKind::Component(_) => resolver.components.register(i.item.id, "component")?,
             ItemKind::Instance(_) => resolver.instances.register(i.item.id, "instance")?,
             ItemKind::Value(_) => resolver.values.register(i.item.id, "value")?,
-            ItemKind::Func(_) => resolver.values.register(i.item.id, "func")?,
+            ItemKind::Func(_) => resolver.funcs.register(i.item.id, "func")?,
         },
 
         ComponentField::Func(i) => resolver.funcs.register(i.id, "func")?,
@@ -78,8 +78,10 @@ fn register<'a, 'b>(
             return Ok(());
         }
 
+        ComponentField::Start(s) => resolver.values.register(Some(s.result), "value")?,
+
         // These fields don't define any items in any index space.
-        ComponentField::Export(_) | ComponentField::Start(_) => return Ok(()),
+        ComponentField::Export(_) => return Ok(()),
     };
 
     Ok(())
@@ -94,7 +96,32 @@ fn resolve_field<'a, 'b>(
 
         ComponentField::Type(t) => resolve_type_field(t, resolve_stack),
 
-        ComponentField::Func(_f) => Ok(()),
+        ComponentField::Func(f) => {
+            let body = match &mut f.kind {
+                ComponentFuncKind::Import { .. } => return Ok(()),
+                ComponentFuncKind::Inline { body } => body,
+            };
+            let opts = match body {
+                ComponentFuncBody::CanonLift(lift) => {
+                    resolve_type_use(&mut lift.type_, resolve_stack)?;
+                    resolve_item_ref(&mut lift.func, resolve_stack)?;
+                    &mut lift.opts
+                }
+                ComponentFuncBody::CanonLower(lower) => {
+                    resolve_item_ref(&mut lower.func, resolve_stack)?;
+                    &mut lower.opts
+                }
+            };
+            for opt in opts {
+                match opt {
+                    CanonOpt::StringUtf8 | CanonOpt::StringUtf16 | CanonOpt::StringLatin1Utf16 => {}
+                    CanonOpt::Into(instance) => {
+                        resolve_item_ref(instance, resolve_stack)?;
+                    }
+                }
+            }
+            Ok(())
+        }
 
         ComponentField::Instance(i) => match &mut i.kind {
             InstanceKind::Module { module, args } => {
@@ -165,7 +192,13 @@ fn resolve_field<'a, 'b>(
         },
         ComponentField::Alias(a) => resolve_alias(a, resolve_stack),
 
-        ComponentField::Start(_i) => Ok(()),
+        ComponentField::Start(s) => {
+            resolve_item_ref(&mut s.func, resolve_stack)?;
+            for arg in s.args.iter_mut() {
+                resolve_item_ref(arg, resolve_stack)?;
+            }
+            Ok(())
+        }
 
         ComponentField::Export(e) => {
             resolve_arg(&mut e.arg, resolve_stack)?;
