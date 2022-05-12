@@ -620,62 +620,65 @@ fn resolve_ns<'a, 'b>(
     ns: Ns,
     resolve_stack: &'b mut Vec<ComponentResolver<'a>>,
 ) -> Result<(), Error> {
-    let resolver = resolve_stack.last_mut().unwrap();
+    // Perform resolution on a local clone walking up the stack of components
+    // that we have. Note that a local clone is used since we don't want to use
+    // the parent's resolved index if a parent matches, instead we want to use
+    // the index of the alias that we will automatically insert.
+    let mut idx_clone = idx.clone();
+    for (depth, resolver) in resolve_stack.iter_mut().rev().enumerate() {
+        let depth = depth as u32;
+        let found = match resolver.resolve(ns, &mut idx_clone) {
+            Ok(idx) => idx,
+            // Try the next parent
+            Err(_) => continue,
+        };
 
-    // First look in the current top scope.
-    let result = resolver.resolve(ns, idx);
+        // If this is the current component then no extra alias is necessary, so
+        // return success.
+        if depth == 0 {
+            *idx = idx_clone;
+            return Ok(());
+        }
+        let id = match idx {
+            Index::Id(id) => id.clone(),
+            Index::Num(..) => unreachable!(),
+        };
 
-    // If we found it there, we're good.
-    if let Ok(_idx) = result {
+        // When resolution succeeds in a parent then an outer alias is
+        // automatically inserted here in this component.
+        let span = idx.span();
+        let mut alias = Alias {
+            span,
+            id: Some(id),
+            name: None,
+            target: AliasTarget::Outer {
+                outer: Index::Num(depth, span),
+                index: Index::Num(found, span),
+            },
+            kind: match ns {
+                Ns::Module => AliasKind::Module,
+                Ns::Component => AliasKind::Component,
+                Ns::Instance => AliasKind::Instance,
+                Ns::Value => AliasKind::Value,
+                Ns::Func => AliasKind::ExportKind(core::ExportKind::Func),
+                Ns::Table => AliasKind::ExportKind(core::ExportKind::Table),
+                Ns::Global => AliasKind::ExportKind(core::ExportKind::Global),
+                Ns::Memory => AliasKind::ExportKind(core::ExportKind::Memory),
+                Ns::Tag => AliasKind::ExportKind(core::ExportKind::Tag),
+                Ns::Type => AliasKind::ExportKind(core::ExportKind::Type),
+            },
+        };
+        let resolver = resolve_stack.last_mut().unwrap();
+        let local_index = register_alias(&mut alias, resolver)?;
+        resolver.aliases_to_insert.push(alias);
+        *idx = Index::Num(local_index, span);
         return Ok(());
     }
 
-    // If not, this might be syntax sugar for a reference to an outer scope.
-    let mut depth = 0;
-    let mut found = 0;
-    for resolver in resolve_stack.iter_mut().rev() {
-        if let Ok(resolved) = resolver.resolve(ns, idx) {
-            found = resolved;
-            break;
-        }
-        depth += 1;
-    }
-    if depth as usize == resolve_stack.len() {
-        return Err(Error::new(
-            idx.span(),
-            "TODO: name resolution failed".to_string(),
-        ));
-    }
-
-    // Record an outer alias to be inserted in front of the current definition.
-    let span = idx.span();
-    let mut alias = Alias {
-        span,
-        id: None,
-        name: None,
-        target: AliasTarget::Outer {
-            outer: Index::Num(depth, span),
-            index: Index::Num(found, span),
-        },
-        kind: match ns {
-            Ns::Module => AliasKind::Module,
-            Ns::Component => AliasKind::Component,
-            Ns::Instance => AliasKind::Instance,
-            Ns::Value => AliasKind::Value,
-            Ns::Func => AliasKind::ExportKind(core::ExportKind::Func),
-            Ns::Table => AliasKind::ExportKind(core::ExportKind::Table),
-            Ns::Global => AliasKind::ExportKind(core::ExportKind::Global),
-            Ns::Memory => AliasKind::ExportKind(core::ExportKind::Memory),
-            Ns::Tag => AliasKind::ExportKind(core::ExportKind::Tag),
-            Ns::Type => AliasKind::ExportKind(core::ExportKind::Type),
-        },
-    };
-
-    let resolver = resolve_stack.last_mut().unwrap();
-    register_alias(&mut alias, resolver)?;
-    resolver.aliases_to_insert.push(alias);
-
-    Ok(())
+    // If resolution in any parent failed then simply return the error from our
+    // local namespace
+    resolve_stack.last_mut().unwrap().resolve(ns, idx)?;
+    unreachable!()
 }
 
 fn resolve_moduletype(ty: &mut ModuleType<'_>) -> Result<(), Error> {
