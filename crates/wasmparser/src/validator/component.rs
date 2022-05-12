@@ -330,7 +330,8 @@ impl ComponentState {
         }
 
         for (i, ((_, ty), arg)) in ft.params.iter().zip(args).enumerate() {
-            if ty != self.value_at(*arg, offset)? {
+            // Ensure the value's type is a subtype of the parameter type
+            if !self.value_at(*arg, offset)?.is_subtype_of(ty, types) {
                 return Err(BinaryReaderError::new(
                     format!(
                         "value type mismatch for component start function argument {}",
