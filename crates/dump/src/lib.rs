@@ -233,7 +233,6 @@ impl<'a> Dump<'a> {
                         ComponentTypeDef::Function(_) => ComponentTypeKind::Func,
                         ComponentTypeDef::Value(_) => ComponentTypeKind::Value,
                         ComponentTypeDef::Interface(_) => ComponentTypeKind::Type,
-                        // ...
                     });
                     me.print(end)
                 })?,
