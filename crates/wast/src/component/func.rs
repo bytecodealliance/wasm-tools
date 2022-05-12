@@ -109,14 +109,14 @@ pub struct CanonLift<'a> {
 impl<'a> Parse<'a> for CanonLift<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::canon_lift>()?;
-        let type_ = parser.parens(|p| {
-            Ok(if p.peek::<kw::func>() {
+        let type_ = if parser.peek2::<kw::func>() {
+            ComponentTypeUse::Inline(parser.parens(|p| {
                 p.parse::<kw::func>()?;
-                ComponentTypeUse::Inline(p.parse()?)
-            } else {
-                ComponentTypeUse::Ref(p.parse()?)
-            })
-        })?;
+                p.parse()
+            })?)
+        } else {
+            ComponentTypeUse::Ref(parser.parse()?)
+        };
         let mut opts = Vec::new();
         while !parser.peek2::<kw::func>() {
             opts.push(parser.parse()?);

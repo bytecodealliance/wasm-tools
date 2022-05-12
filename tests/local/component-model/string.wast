@@ -1,8 +1,6 @@
 ;; With this, we can define a component that imports a string and computes a new exported string, all at instantiation time:
 
 
-;; FIXME(#584) this shouldn't be invalid
-(assert_invalid
 (component
   (import "name" (value $name string))
   (import "libc" (module $Libc
@@ -28,5 +26,3 @@
   (start $start (value $name) (result (value $greeting)))
   (export "greeting" (value $greeting))
 )
-"value type mismatch for component start function argument 0")
-
