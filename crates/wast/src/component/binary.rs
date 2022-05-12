@@ -139,6 +139,7 @@ impl Encode for Instance<'_> {
                 e.push(0x02);
                 args.encode(e);
             }
+            InstanceKind::Import { .. } => unreachable!("should be removed during expansion"),
         }
     }
 }
@@ -157,8 +158,8 @@ impl Encode for ModuleArg<'_> {
             ModuleArg::Def(def) => {
                 def.idx.encode(e);
             }
-            ModuleArg::BundleOfExports(_) => {
-                todo!("ModuleArg::BundleOfExports should be desugared")
+            ModuleArg::BundleOfExports(..) => {
+                unreachable!("should be expanded already")
             }
         }
     }
@@ -188,8 +189,8 @@ impl Encode for ComponentArg<'_> {
                 e.push(0x05);
                 ty.idx.encode(e);
             }
-            ComponentArg::BundleOfExports(_) => {
-                todo!("ComponentArg::BundleOfExports should be desugared")
+            ComponentArg::BundleOfExports(..) => {
+                unreachable!("should be expanded already")
             }
         }
     }
@@ -237,7 +238,11 @@ impl Encode for Alias<'_> {
                     AliasKind::Module => e.push(0x00),
                     AliasKind::Component => e.push(0x01),
                     AliasKind::ExportKind(core::ExportKind::Type) => e.push(0x05),
-                    _ => todo!("Unexpected outer alias kind"),
+                    // TODO: this feels a bit odd but it's also weird to make
+                    // this an explicit error somewhere else. Should revisit
+                    // this when the encodings of aliases and such have all
+                    // settled down.
+                    _ => e.push(0xff),
                 }
                 outer.encode(e);
                 index.encode(e);
@@ -550,8 +555,8 @@ impl Encode for ComponentExport<'_> {
                 item_ref.idx.encode(e);
             }
             ComponentArg::Type(_item_ref) => todo!("Encode for ComponentArg::Type"),
-            ComponentArg::BundleOfExports(_exports) => {
-                todo!("Encode for ComponentArg::BundleOfExports")
+            ComponentArg::BundleOfExports(..) => {
+                unreachable!("should be expanded already")
             }
         }
     }

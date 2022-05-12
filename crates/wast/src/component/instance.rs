@@ -24,6 +24,14 @@ pub struct Instance<'a> {
 /// Possible ways to define a instance in the text format.
 #[derive(Debug)]
 pub enum InstanceKind<'a> {
+    /// The `(instance (import "x"))` sugar syntax
+    Import {
+        /// The name of the import
+        import: InlineImport<'a>,
+        /// The type of the instance being imported
+        ty: ComponentTypeUse<'a, InstanceType<'a>>,
+    },
+
     /// Instantiate a core module.
     Module {
         /// Module that we're instantiating
@@ -99,7 +107,7 @@ pub enum ModuleArg<'a> {
     Def(ItemRef<'a, kw::instance>),
     /// `instance`, but it isn't actually an instance; it's a tuple of exports
     /// which can be used in place of an instance.
-    BundleOfExports(Vec<core::Export<'a>>),
+    BundleOfExports(Span, Vec<core::Export<'a>>),
 }
 
 /// componentarg ::= (module <moduleidx>)
@@ -116,7 +124,7 @@ pub enum ComponentArg<'a> {
     Type(ItemRef<'a, kw::r#type>),
     /// `instance`, but it isn't actually an instance; it's a tuple of exports
     /// which can be used in place of an instance.
-    BundleOfExports(Vec<ComponentExport<'a>>),
+    BundleOfExports(Span, Vec<ComponentExport<'a>>),
 }
 
 impl<'a> Parse<'a> for Instance<'a> {
@@ -126,7 +134,12 @@ impl<'a> Parse<'a> for Instance<'a> {
         let name = parser.parse()?;
         let exports = parser.parse()?;
 
-        let kind = if parser.peek::<LParen>() && parser.peek2::<kw::instantiate>() {
+        let kind = if let Some(import) = parser.parse()? {
+            InstanceKind::Import {
+                import,
+                ty: parser.parse()?,
+            }
+        } else if parser.peek::<LParen>() && parser.peek2::<kw::instantiate>() {
             parser.parens(|p| {
                 p.parse::<kw::instantiate>()?;
                 if p.peek2::<kw::module>() {
@@ -148,9 +161,10 @@ impl<'a> Parse<'a> for Instance<'a> {
                 }
             })?
         } else if parser.peek::<kw::core>() {
+            parser.parse::<kw::core>()?;
             let mut args = Vec::new();
             while !parser.is_empty() {
-                args.push(parser.parse()?);
+                args.push(parser.parens(|p| p.parse())?);
             }
             InstanceKind::BundleOfExports { args }
         } else if parser.peek2::<LParen>() && parser.peek2::<kw::export>() {
@@ -183,15 +197,15 @@ impl<'a> Parse<'a> for ModuleArg<'a> {
             let def = parser.parse::<ItemRef<kw::instance>>()?;
             Ok(ModuleArg::Def(def))
         } else if parser.peek::<LParen>() && parser.peek2::<kw::instance>() {
-            let exports = parser.parens(|p| {
-                p.parse::<kw::instance>()?;
+            let (span, exports) = parser.parens(|p| {
+                let span = p.parse::<kw::instance>()?.0;
                 let mut exports = Vec::new();
                 while !parser.is_empty() {
                     exports.push(parser.parens(|parser| parser.parse())?);
                 }
-                Ok(exports)
+                Ok((span, exports))
             })?;
-            Ok(ModuleArg::BundleOfExports(exports))
+            Ok(ModuleArg::BundleOfExports(span, exports))
         } else {
             Err(parser.error("expected an instance"))
         }
@@ -208,15 +222,15 @@ impl<'a> Parse<'a> for ComponentArg<'a> {
             let def = parser.parse::<ItemRef<'a, kw::r#type>>()?;
             Ok(ComponentArg::Type(def))
         } else if parser.peek::<LParen>() && parser.peek2::<kw::instance>() {
-            let exports = parser.parens(|p| {
-                p.parse::<kw::instance>()?;
+            let (span, exports) = parser.parens(|p| {
+                let span = p.parse::<kw::instance>()?.0;
                 let mut exports = Vec::new();
                 while !p.is_empty() {
                     exports.push(p.parens(|p| p.parse())?);
                 }
-                Ok(exports)
+                Ok((span, exports))
             })?;
-            Ok(ComponentArg::BundleOfExports(exports))
+            Ok(ComponentArg::BundleOfExports(span, exports))
         } else {
             Err(parser.error("expected def type, type, or instance"))
         }

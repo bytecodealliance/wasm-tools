@@ -73,11 +73,7 @@ fn register<'a, 'b>(
         ComponentField::Instance(i) => resolver.instances.register(i.id, "instance")?,
         ComponentField::Module(m) => resolver.modules.register(m.id, "nested module")?,
         ComponentField::Component(c) => resolver.components.register(c.id, "nested component")?,
-        ComponentField::Alias(a) => {
-            register_alias(a, resolver)?;
-            return Ok(());
-        }
-
+        ComponentField::Alias(a) => register_alias(a, resolver)?,
         ComponentField::Start(s) => resolver.values.register(Some(s.result), "value")?,
 
         // These fields don't define any items in any index space.
@@ -131,7 +127,7 @@ fn resolve_field<'a, 'b>(
                         ModuleArg::Def(def) => {
                             resolve_item_ref(def, resolve_stack)?;
                         }
-                        ModuleArg::BundleOfExports(exports) => {
+                        ModuleArg::BundleOfExports(_, exports) => {
                             for export in exports {
                                 resolve_item_ref(&mut export.index, resolve_stack)?;
                             }
@@ -150,10 +146,8 @@ fn resolve_field<'a, 'b>(
                         ComponentArg::Type(ty) => {
                             resolve_item_ref(ty, resolve_stack)?;
                         }
-                        ComponentArg::BundleOfExports(exports) => {
-                            for export in exports {
-                                resolve_arg(&mut export.arg, resolve_stack)?;
-                            }
+                        ComponentArg::BundleOfExports(..) => {
+                            unreachable!("should be expanded already")
                         }
                     }
                 }
@@ -170,6 +164,9 @@ fn resolve_field<'a, 'b>(
                     resolve_arg(&mut arg.arg, resolve_stack)?;
                 }
                 Ok(())
+            }
+            InstanceKind::Import { .. } => {
+                unreachable!("should be removed by expansion")
             }
         },
         ComponentField::Module(m) => {
@@ -280,11 +277,7 @@ fn resolve_arg<'a, 'b>(
         ComponentArg::Type(item_ref) => {
             resolve_item_ref(item_ref, resolve_stack)?;
         }
-        ComponentArg::BundleOfExports(exports) => {
-            for export in exports {
-                resolve_arg(&mut export.arg, resolve_stack)?;
-            }
-        }
+        ComponentArg::BundleOfExports(..) => unreachable!("should be expanded already"),
     }
     Ok(())
 }

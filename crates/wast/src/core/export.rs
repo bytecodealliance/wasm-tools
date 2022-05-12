@@ -104,7 +104,7 @@ kw_conversions! {
 
 /// A listing of inline `(export "foo")` statements on a WebAssembly item in
 /// its textual format.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct InlineExport<'a> {
     /// The extra names to export an item as, if any.
     pub names: Vec<&'a str>,

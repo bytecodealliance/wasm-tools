@@ -1,19 +1,17 @@
 (assert_invalid
-  (module
+  (component
     (type (module
-      (import "" (func (type 1)))
+      (import "" "" (func (type 1)))
     ))
     (type (func))
   )
   "type index out of bounds")
 
 (assert_invalid
-  (module
-    (func $f)
-    (module
-      (alias outer 0 $f (func $f))
-      (func
-        call $f)
+  (component
+    (import "" (func $f))
+    (component
+      (alias outer 1 $f (func $f))
     )
   )
-  "invalid external kind in alias")
+  "invalid leading byte")
