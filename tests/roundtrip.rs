@@ -27,7 +27,7 @@ use std::path::{Path, PathBuf};
 use std::str;
 use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 use wasmparser::*;
-use wast::core::ModuleKind;
+use wast::core::{Module, ModuleKind};
 use wast::lexer::Lexer;
 use wast::parser::ParseBuffer;
 use wast::*;
@@ -99,7 +99,11 @@ fn find_tests() -> Vec<PathBuf> {
             }
 
             match f.path().extension().and_then(|s| s.to_str()) {
-                Some("txt") | Some("wast") | Some("wat") | Some("wasm") => {}
+                Some("wast") | Some("wat") => {}
+                Some("wasm") => panic!(
+                    "use `*.wat` or `*.wast` instead of binaries: {:?}",
+                    f.path()
+                ),
                 _ => continue,
             }
             tests.push(f.path());
@@ -159,14 +163,7 @@ impl TestState {
     fn run_test(&self, test: &Path, contents: &[u8]) -> Result<()> {
         let result = match test.extension().and_then(|s| s.to_str()) {
             Some("wat") => self.test_wat(test),
-            Some("wasm") => self.test_wasm(test, contents, false),
             Some("wast") => self.test_wast(test, contents),
-            Some("txt") => match str::from_utf8(contents) {
-                Ok(s) if s.contains("TOOL: wast2json") || s.contains("TOOL: run-objdump-spec") => {
-                    self.test_wast(test, contents)
-                }
-                _ => self.test_wat(test),
-            },
             _ => bail!("unknown file extension {:?}", test),
         };
         result.with_context(|| format!("failed test: {}", test.display()))
@@ -183,11 +180,6 @@ impl TestState {
     }
 
     fn test_wasm(&self, test: &Path, contents: &[u8], test_roundtrip: bool) -> Result<()> {
-        if test.iter().any(|t| t == "invalid") {
-            self.test_wasm_invalid(test, contents)?;
-            return Ok(());
-        }
-
         self.test_wasm_valid(test, contents)
             .context("wasm isn't valid")?;
 
@@ -262,44 +254,62 @@ impl TestState {
         let skip_verify = test.iter().any(|t| t == "function-references" || t == "gc");
 
         match directive {
-            WastDirective::Module(mut module) => {
+            WastDirective::Wat(mut module) => {
                 let actual = module.encode()?;
                 self.bump_ntests(); // testing encode
                 if skip_verify {
                     return Ok(());
                 }
-                let test_roundtrip = match module.kind {
-                    ModuleKind::Text(_) => true,
-
+                let test_roundtrip = match module {
                     // Don't test the wasmprinter round trip since these bytes
                     // may not be in their canonical form (didn't come from the
                     // `wat` crate).
-                    ModuleKind::Binary(_) => false,
+                    QuoteWat::Wat(Wat {
+                        module:
+                            Module {
+                                kind: ModuleKind::Binary(_),
+                                ..
+                            },
+                        ..
+                    }) => false,
+
+                    _ => true,
                 };
                 self.test_wasm(test, &actual, test_roundtrip)
                     .context("failed testing wasm binary produced by `wast`")?;
             }
 
-            WastDirective::QuoteModule { source, span: _ } => {
-                if skip_verify {
-                    return Ok(());
-                }
-                self.test_quote_module(test, &source)?;
-            }
-
             WastDirective::AssertMalformed {
                 span: _,
-                module,
+                mut module,
                 message,
+            }
+            | WastDirective::AssertInvalid {
+                mut module,
+                message,
+                span: _,
             } => {
-                let result = match module {
-                    QuoteModule::Quote(source) => self.test_quote_module(test, &source),
-                    QuoteModule::Module(mut module) => {
-                        let wasm = module.encode()?;
-                        self.bump_ntests();
-                        Err(self.test_wasm_invalid(test, &wasm)?.into())
+                let result = module.encode().map_err(|e| e.into()).and_then(|wasm| {
+                    // TODO: when memory64 merges into the proper spec then this
+                    // should be removed since it will presumably no longer be a
+                    // text-format error but rather a validation error.
+                    // Currently all non-memory64 proposals assert that this
+                    // offset is a text-parser error, whereas with memory64
+                    // support that error is deferred until later.
+                    if !test.iter().any(|t| t == "memory64") {
+                        if let QuoteWat::Quote(_, src) = module {
+                            if src
+                                .iter()
+                                .filter_map(|(_, s)| str::from_utf8(s).ok())
+                                .any(|s| s.contains("offset=4294967296"))
+                            {
+                                bail!("i32 constant out of bounds");
+                            }
+                        }
                     }
-                };
+
+                    self.test_wasm_valid(test, &wasm)
+                });
                 if skip_verify {
                     return Ok(());
                 }
@@ -317,39 +327,16 @@ impl TestState {
                     }
                 }
             }
-            WastDirective::AssertInvalid {
-                module,
-                message,
-                span: _,
-            } => {
-                self.bump_ntests();
-                if skip_verify {
-                    return Ok(());
-                }
 
-                // Our error for these tests is happening as a parser error of
-                // the text file, not a validation error of the binary. It's not
-                // really worth it contorting ourselves to have the exact same
-                // location of error, so skip these tests.
-                if message == "memory size must be at most 65536 pages (4GiB)" {
-                    return Ok(());
-                }
-
-                let wasm = match module {
-                    QuoteModule::Module(mut m) => m.encode()?,
-                    QuoteModule::Quote(list) => self.parse_quote_module(test, &list)?,
-                };
-                let e = self.test_wasm_invalid(test, &wasm)?;
-                if !error_matches(e.message(), message) {
-                    bail!(
-                        "expected \"{spec}\", got \"{actual}\"",
-                        spec = message,
-                        actual = e,
-                    );
-                }
-            }
-
-            _ => {}
+            // This test suite doesn't actually execute any wasm code, so ignore
+            // all of these assertions.
+            WastDirective::Register { .. }
+            | WastDirective::Invoke(_)
+            | WastDirective::AssertTrap { .. }
+            | WastDirective::AssertReturn { .. }
+            | WastDirective::AssertExhaustion { .. }
+            | WastDirective::AssertUnlinkable { .. }
+            | WastDirective::AssertException { .. } => {}
         }
         Ok(())
     }
@@ -357,48 +344,6 @@ impl TestState {
     fn test_wasm_valid(&self, test: &Path, contents: &[u8]) -> Result<()> {
         self.wasmparser_validator_for(test).validate_all(contents)?;
         self.bump_ntests();
-        Ok(())
-    }
-
-    fn test_wasm_invalid(&self, test: &Path, contents: &[u8]) -> Result<BinaryReaderError> {
-        match self.test_wasm_valid(test, contents) {
-            Ok(()) => bail!("no wasm validation error found"),
-            Err(e) => {
-                let err = e.downcast()?;
-                self.bump_ntests();
-                Ok(err)
-            }
-        }
-    }
-
-    fn parse_quote_module(&self, test: &Path, source: &[&[u8]]) -> Result<Vec<u8>> {
-        let mut ret = String::new();
-        for src in source {
-            match str::from_utf8(src) {
-                Ok(s) => ret.push_str(s),
-                Err(_) => bail!("malformed UTF-8 encoding"),
-            }
-            ret.push_str(" ");
-        }
-        let buf = ParseBuffer::new(&ret)?;
-        let mut wat = parser::parse::<Wat>(&buf)?;
-        self.bump_ntests();
-
-        // TODO: when memory64 merges into the proper spec then this should be
-        // removed since it will presumably no longer be a text-format error but
-        // rather a validation error. Currently all non-memory64 proposals
-        // assert that this offset is a text-parser error, whereas with memory64
-        // support that error is deferred until later.
-        if ret.contains("offset=4294967296") && !test.iter().any(|t| t == "memory64") {
-            bail!("i32 constant out of bounds");
-        }
-        Ok(wat.module.encode()?)
-    }
-
-    fn test_quote_module(&self, test: &Path, source: &[&[u8]]) -> Result<()> {
-        let wasm = self.parse_quote_module(test, source)?;
-        self.bump_ntests();
-        self.test_wasm(test, &wasm, true)?;
         Ok(())
     }
 
@@ -649,6 +594,12 @@ fn error_matches(error: &str, message: &str) -> bool {
 
     if message == "junk after last section" {
         return error.contains("section out of order");
+    }
+
+    // Our error for these tests is happening as a parser error of
+    // the text file, not a validation error of the binary.
+    if message == "memory size must be at most 65536 pages (4GiB)" {
+        return error.contains("invalid u32 number: constant out of range");
     }
 
     return false;
