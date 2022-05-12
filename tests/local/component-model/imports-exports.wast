@@ -1,5 +1,7 @@
 ;; With what's defined so far, we can define a component that imports, links and exports other components:
 
+;; FIXME(#588) this should be valid
+(assert_invalid
 (component
   (import "c" (instance $c
     (export "f" (func (result string)))
@@ -20,3 +22,4 @@
   ))
   (export "d2" (instance $d2))
 )
+"instance 1 is not a module instance")

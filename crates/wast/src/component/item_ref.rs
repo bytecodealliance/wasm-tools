@@ -31,8 +31,33 @@ impl<'a, K: Parse<'a>> Parse<'a> for ItemRef<'a, K> {
 impl<'a, K: Peek> Peek for ItemRef<'a, K> {
     fn peek(cursor: Cursor<'_>) -> bool {
         match cursor.lparen() {
-            Some(remaining) => K::peek(remaining),
-            None => false,
+            // This is a little fancy because when parsing something like:
+            //
+            //      (type (component (type $foo)))
+            //
+            // we need to disambiguate that from
+            //
+            //      (type (component (type $foo (func))))
+            //
+            // where the first is a type reference and the second is an inline
+            // component type defining a type internally. The peek here not only
+            // peeks for `K` but also for the index and possibly trailing
+            // strings.
+            Some(remaining) if K::peek(remaining) => {
+                let remaining = match remaining.keyword() {
+                    Some((_, remaining)) => remaining,
+                    None => return false,
+                };
+                match remaining
+                    .id()
+                    .map(|p| p.1)
+                    .or_else(|| remaining.integer().map(|p| p.1))
+                {
+                    Some(remaining) => remaining.rparen().is_some() || remaining.string().is_some(),
+                    None => false,
+                }
+            }
+            _ => false,
         }
     }
 
