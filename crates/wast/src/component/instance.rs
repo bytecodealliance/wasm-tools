@@ -2,7 +2,7 @@ use crate::component::*;
 use crate::core;
 use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
-use crate::token::{Id, Index, ItemRef, LParen, NameAnnotation, Span};
+use crate::token::{Id, Index, LParen, NameAnnotation, Span};
 
 /// A nested WebAssembly instance to be created as part of a module.
 #[derive(Debug)]
@@ -52,7 +52,7 @@ pub enum InstanceKind<'a> {
     /// in places that need an instance.
     BundleOfExports {
         /// Arguments used to create the anonymous instance
-        args: Vec<core::Export<'a>>,
+        args: Vec<CoreExport<'a>>,
     },
 
     /// A bundle of component exports which isn't an instance, but can be used
@@ -107,7 +107,7 @@ pub enum ModuleArg<'a> {
     Def(ItemRef<'a, kw::instance>),
     /// `instance`, but it isn't actually an instance; it's a tuple of exports
     /// which can be used in place of an instance.
-    BundleOfExports(Span, Vec<core::Export<'a>>),
+    BundleOfExports(Span, Vec<CoreExport<'a>>),
 }
 
 /// componentarg ::= (module <moduleidx>)
@@ -245,5 +245,26 @@ impl Peek for ComponentArg<'_> {
     }
     fn display() -> &'static str {
         "componentarg"
+    }
+}
+
+/// A entry in a WebAssembly module's export section.
+#[derive(Debug)]
+pub struct CoreExport<'a> {
+    /// Where this export was defined.
+    pub span: Span,
+    /// The name of this export from the module.
+    pub name: &'a str,
+    /// What's being exported from the module.
+    pub index: ItemRef<'a, core::ExportKind>,
+}
+
+impl<'a> Parse<'a> for CoreExport<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        Ok(CoreExport {
+            span: parser.parse::<kw::export>()?.0,
+            name: parser.parse()?,
+            index: parser.parse()?,
+        })
     }
 }

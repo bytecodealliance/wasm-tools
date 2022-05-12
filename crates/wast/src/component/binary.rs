@@ -730,3 +730,18 @@ impl Encode for ComponentNames<'_> {
         // TODO: names section for components
     }
 }
+
+impl<K> Encode for ItemRef<'_, K> {
+    fn encode(&self, dst: &mut Vec<u8>) {
+        assert!(self.export_names.is_empty());
+        self.idx.encode(dst);
+    }
+}
+
+impl Encode for CoreExport<'_> {
+    fn encode(&self, dst: &mut Vec<u8>) {
+        self.name.encode(dst);
+        self.index.kind.encode(dst);
+        self.index.encode(dst);
+    }
+}

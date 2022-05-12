@@ -2,7 +2,7 @@ use crate::component::*;
 use crate::core;
 use crate::gensym;
 use crate::kw;
-use crate::token::{Id, Index, ItemRef, Span};
+use crate::token::{self, Id, Index, Span};
 use std::collections::HashMap;
 use std::mem;
 
@@ -208,6 +208,7 @@ impl<'a> Expander<'a> {
                 arg: ComponentArg::Def(ItemRef {
                     idx: Index::Id(id),
                     kind,
+                    export_names: Vec::new(),
                 }),
             })
         }
@@ -302,7 +303,7 @@ impl<'a> Expander<'a> {
                     let ty = t.inline.take().unwrap_or_default();
                     let key = ty.key();
                     if let Some(idx) = func_type_to_idx.get(&key) {
-                        t.index = Some(ItemRef {
+                        t.index = Some(token::ItemRef {
                             idx: idx.clone(),
                             kind: kw::r#type(item.span),
                         });
@@ -316,7 +317,7 @@ impl<'a> Expander<'a> {
                         def: key.to_def(item.span),
                     }));
                     let idx = Index::Id(id);
-                    t.index = Some(ItemRef {
+                    t.index = Some(token::ItemRef {
                         idx,
                         kind: kw::r#type(item.span),
                     });
@@ -421,6 +422,7 @@ impl<'a> Expander<'a> {
         let dummy = ComponentTypeUse::Ref(ItemRef {
             idx: Index::Num(0, span),
             kind: kw::r#type(span),
+            export_names: Vec::new(),
         });
         let mut inline = match mem::replace(item, dummy) {
             // If this type-use was already a reference to an existing type
@@ -444,6 +446,7 @@ impl<'a> Expander<'a> {
             let ret = ItemRef {
                 idx,
                 kind: kw::r#type(span),
+                export_names: Vec::new(),
             };
             *item = ComponentTypeUse::Ref(ret.clone());
             return ret;
@@ -462,6 +465,7 @@ impl<'a> Expander<'a> {
         let ret = ItemRef {
             idx,
             kind: kw::r#type(span),
+            export_names: Vec::new(),
         };
         *item = ComponentTypeUse::Ref(ret.clone());
         return ret;
@@ -484,6 +488,7 @@ impl<'a> Expander<'a> {
         *arg = ModuleArg::Def(ItemRef {
             idx: Index::Id(id),
             kind: kw::instance(span),
+            export_names: Vec::new(),
         });
     }
 
@@ -504,6 +509,7 @@ impl<'a> Expander<'a> {
         *arg = ComponentArg::Def(ItemRef {
             idx: Index::Id(id),
             kind: DefTypeKind::Instance,
+            export_names: Vec::new(),
         });
     }
 }

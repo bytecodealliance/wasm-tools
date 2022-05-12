@@ -2,7 +2,7 @@ use crate::component::*;
 use crate::core;
 use crate::kw;
 use crate::parser::{Parse, Parser, Result};
-use crate::token::{Id, IndexOrRef, ItemRef, NameAnnotation, Span};
+use crate::token::{Id, NameAnnotation, Span};
 
 /// A parsed WebAssembly component module.
 #[derive(Debug)]

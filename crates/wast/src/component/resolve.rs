@@ -2,7 +2,7 @@ use crate::component::*;
 use crate::core;
 use crate::kw;
 use crate::names::Namespace;
-use crate::token::{Id, Index, ItemRef};
+use crate::token::{Id, Index};
 use crate::Error;
 use std::convert::TryInto;
 use std::mem::replace;
@@ -538,74 +538,62 @@ fn resolve_item_ref<'a, 'b, K>(
 where
     K: Into<Ns> + Copy,
 {
-    // TODO: `item` shoudl have an `extra_names` field which are resolved here
-    // which uncomments a bunch of code below.
-    // #[cfg(wast_check_exhaustive)]
-    // {
-    //     if !item.visited {
-    //         return Err(Error::new(
-    //             item.idx.span(),
-    //             format!("BUG: this index wasn't visited"),
-    //         ));
-    //     }
-    // }
-
     let last_ns = item.kind.into();
-    // if item.extra_names.is_empty() {
-    resolve_ns(&mut item.idx, last_ns, resolve_stack)?;
+    if item.export_names.is_empty() {
+        resolve_ns(&mut item.idx, last_ns, resolve_stack)?;
+        return Ok(());
+    }
+
+    // We have extra export names. This is syntax sugar for inserting export
+    // aliases.
+
+    // The index is an instance index, rather than the namespace of the
+    // reference.
+    resolve_ns(&mut item.idx, Ns::Instance, resolve_stack)?;
+
+    // The extra names are export names. Copy them into export aliases.
+    let span = item.idx.span();
+    let mut index = item.idx;
+    for (pos, export_name) in item.export_names.iter().enumerate() {
+        // The last name is in the namespace of the reference. All others are
+        // instances.
+        let ns = if pos == item.export_names.len() - 1 {
+            last_ns
+        } else {
+            Ns::Instance
+        };
+
+        // Record an outer alias to be inserted in front of the current
+        // definition.
+        let mut alias = Alias {
+            span,
+            id: None,
+            name: None,
+            target: AliasTarget::Export {
+                instance: index,
+                export: export_name,
+            },
+            kind: match ns {
+                Ns::Module => AliasKind::Module,
+                Ns::Component => AliasKind::Component,
+                Ns::Instance => AliasKind::Instance,
+                Ns::Value => AliasKind::Value,
+                Ns::Func => AliasKind::ExportKind(core::ExportKind::Func),
+                Ns::Table => AliasKind::ExportKind(core::ExportKind::Table),
+                Ns::Global => AliasKind::ExportKind(core::ExportKind::Global),
+                Ns::Memory => AliasKind::ExportKind(core::ExportKind::Memory),
+                Ns::Tag => AliasKind::ExportKind(core::ExportKind::Tag),
+                Ns::Type => AliasKind::ExportKind(core::ExportKind::Type),
+            },
+        };
+
+        let resolver = resolve_stack.last_mut().unwrap();
+        index = Index::Num(register_alias(&mut alias, resolver)?, span);
+        resolver.aliases_to_insert.push(alias);
+    }
+    item.export_names = Vec::new();
+
     Ok(())
-    // return Ok(());
-    // }
-
-    // // We have extra export names. This is syntax sugar for inserting export
-    // // aliases.
-
-    // // The index is an instance index, rather than the namespace of the
-    // // reference.
-    // resolve_ns(&mut item.idx, Ns::Instance, resolve_stack)?;
-
-    // // The extra names are export names. Copy them into export aliases.
-    // let span = item.idx.span();
-    // let mut index = item.idx;
-    // for (pos, export_name) in item.extra_names.iter().enumerate() {
-    // // The last name is in the namespace of the reference. All others are
-    // // instances.
-    // let ns = if pos == item.extra_names.len() - 1 {
-    //     last_ns
-    // } else {
-    //     Ns::Instance
-    // };
-
-    // // Record an outer alias to be inserted in front of the current
-    // // definition.
-    // let mut alias = Alias {
-    //     span,
-    //     id: None,
-    //     name: None,
-    //     target: AliasTarget::Export {
-    //         instance: index,
-    //         export: export_name,
-    //     },
-    //     kind: match ns {
-    //         Ns::Module => AliasKind::Module,
-    //         Ns::Component => AliasKind::Component,
-    //         Ns::Instance => AliasKind::Instance,
-    //         Ns::Value => AliasKind::Value,
-    //         Ns::Func => AliasKind::ExportKind(core::ExportKind::Func),
-    //         Ns::Table => AliasKind::ExportKind(core::ExportKind::Table),
-    //         Ns::Global => AliasKind::ExportKind(core::ExportKind::Global),
-    //         Ns::Memory => AliasKind::ExportKind(core::ExportKind::Memory),
-    //         Ns::Tag => AliasKind::ExportKind(core::ExportKind::Tag),
-    //         Ns::Type => AliasKind::ExportKind(core::ExportKind::Type),
-    //     },
-    // };
-
-    // let resolver = resolve_stack.last_mut().unwrap();
-    // index = Index::Num(register_alias(&mut alias, resolver)?, span);
-    // resolver.aliases_to_insert.push(alias);
-    // }
-
-    // Ok(())
 }
 
 fn resolve_ns<'a, 'b>(

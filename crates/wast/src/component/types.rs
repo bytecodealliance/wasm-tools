@@ -1,7 +1,7 @@
 use crate::component::*;
 use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
-use crate::token::*;
+use crate::token::{Id, Index, NameAnnotation, Span};
 
 /// A definition of a type.
 ///
@@ -87,8 +87,7 @@ impl<'a, T> ComponentTypeUse<'a, T> {
         ComponentTypeUse::Ref(ItemRef {
             idx,
             kind: kw::r#type::default(),
-            #[cfg(wast_check_exhaustive)]
-            visited: true,
+            export_names: Vec::new(),
         })
     }
 }

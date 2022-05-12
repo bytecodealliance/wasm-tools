@@ -1,5 +1,7 @@
 ;; With this, we can finally write a non-trivial component that takes a string, does some logging, then returns a string.
 
+;; FIXME(#588) this should actuall be a valid module
+(assert_invalid
 (component
   (import "wasi:logging" (instance $logging
     (export "log" (func (param string)))
@@ -33,3 +35,4 @@
     (canon.lift (func (param string) (result string)) (into $libc) (func $main "run"))
   )
 )
+"not a module instance")
