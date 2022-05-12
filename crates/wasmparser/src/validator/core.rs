@@ -1,7 +1,7 @@
 //! State relating to validating a WebAssembly module.
 //!
 use super::{
-    check_max,
+    check_max, combine_type_sizes,
     operators::OperatorValidator,
     types::{EntityType, TypeDef, TypeId, TypeList},
 };
@@ -346,7 +346,6 @@ impl ModuleState {
     }
 }
 
-#[derive(Default)]
 pub struct Module {
     // This is set once the code section starts.
     // `WasmModuleResources` implementations use the snapshot to
@@ -365,6 +364,7 @@ pub struct Module {
     pub function_references: HashSet<u32>,
     pub imports: HashMap<(String, String), Vec<EntityType>>,
     pub exports: HashMap<String, EntityType>,
+    pub type_size: usize,
     num_imported_globals: u32,
     num_imported_functions: u32,
 }
@@ -376,8 +376,9 @@ impl Module {
         features: &WasmFeatures,
         types: &mut TypeList,
         offset: usize,
+        check_limit: bool,
     ) -> Result<()> {
-        let def = match def {
+        let ty = match def {
             crate::TypeDef::Func(t) => {
                 for ty in t.params.iter().chain(t.returns.iter()) {
                     check_value_type(*ty, features, offset)?;
@@ -392,8 +393,15 @@ impl Module {
             }
         };
 
-        self.types.push(TypeId(types.len()));
-        types.push(def);
+        if check_limit {
+            check_max(self.types.len(), 1, MAX_WASM_TYPES, "types", offset)?;
+        }
+
+        self.types.push(TypeId {
+            type_size: ty.type_size(),
+            index: types.len(),
+        });
+        types.push(ty);
         Ok(())
     }
 
@@ -439,6 +447,8 @@ impl Module {
 
         check_max(len, 0, max, desc, offset)?;
 
+        self.type_size = combine_type_sizes(self.type_size, entity.type_size(), offset)?;
+
         self.imports
             .entry((import.module.to_string(), import.name.to_string()))
             .or_default()
@@ -453,6 +463,7 @@ impl Module {
         ty: EntityType,
         features: &WasmFeatures,
         offset: usize,
+        check_limit: bool,
     ) -> Result<()> {
         if !features.mutable_global {
             if let EntityType::Global(global_type) = ty {
@@ -464,6 +475,13 @@ impl Module {
                 }
             }
         }
+
+        if check_limit {
+            check_max(self.exports.len(), 1, MAX_WASM_EXPORTS, "exports", offset)?;
+        }
+
+        self.type_size = combine_type_sizes(self.type_size, ty.type_size(), offset)?;
+
         match self.exports.insert(name.to_string(), ty) {
             Some(_) => Err(BinaryReaderError::new(
                 format!("duplicate export name `{}` already defined", name),
@@ -816,6 +834,28 @@ impl Module {
                 format!("unknown memory {}: memory index out of bounds", idx,),
                 offset,
             )),
+        }
+    }
+}
+
+impl Default for Module {
+    fn default() -> Self {
+        Self {
+            snapshot: Default::default(),
+            types: Default::default(),
+            tables: Default::default(),
+            memories: Default::default(),
+            globals: Default::default(),
+            element_types: Default::default(),
+            data_count: Default::default(),
+            functions: Default::default(),
+            tags: Default::default(),
+            function_references: Default::default(),
+            imports: Default::default(),
+            exports: Default::default(),
+            type_size: 1,
+            num_imported_globals: Default::default(),
+            num_imported_functions: Default::default(),
         }
     }
 }

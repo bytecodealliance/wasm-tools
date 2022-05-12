@@ -54,3 +54,4 @@ pub const MAX_WASM_INSTANTIATION_EXPORTS: usize = 1000;
 pub const MAX_WASM_FUNCTION_OPTIONS: usize = 10;
 pub const MAX_WASM_INSTANTIATION_ARGS: usize = 1000;
 pub const MAX_WASM_START_ARGS: usize = 1000;
+pub const MAX_WASM_TYPE_SIZE: usize = 100_000;
