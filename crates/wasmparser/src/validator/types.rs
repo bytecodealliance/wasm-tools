@@ -203,7 +203,7 @@ impl TypeDef {
 }
 
 /// A reference to an interface type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
 pub enum InterfaceTypeRef {
     /// The interface type is one of the primitive types.
     Primitive(PrimitiveInterfaceType),
