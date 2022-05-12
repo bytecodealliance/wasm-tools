@@ -1683,4 +1683,4 @@
     (import "b" (component $b (type $m)))
     (instance (instantiate (component $b) (with "" (component $a))))
   )
-  "effective type size too large")
+  "effective type size exceeds the limit")
