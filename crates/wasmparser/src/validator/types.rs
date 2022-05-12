@@ -564,6 +564,11 @@ impl ComponentFuncType {
             return false;
         }
 
+        // The supertype cannot have fewer parameters than the subtype.
+        if other.params.len() < self.params.len() {
+            return false;
+        }
+
         // All overlapping parameters must have the same name and are contravariant subtypes
         for ((name, ty), (other_name, other_ty)) in self.params.iter().zip(other.params.iter()) {
             if name != other_name {
