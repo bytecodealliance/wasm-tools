@@ -69,7 +69,7 @@ default = ['shrink', 'smith', 'mutate', 'validate', 'print', 'parse', 'dump', 'o
 
 # Each subcommand is gated behind a feature and lists the dependencies it needs
 validate = ['wasmparser', 'rayon', 'wat']
-print = ['wasmprinter']
+print = ['wasmprinter', 'wat']
 parse = ['wat']
 smith = ['wasm-smith', 'arbitrary', 'serde', 'serde_json', 'wat']
 shrink = ['wasm-shrink', 'is_executable', 'wat', 'wasmprinter']
