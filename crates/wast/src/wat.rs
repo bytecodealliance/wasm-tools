@@ -16,7 +16,7 @@ pub enum Wat<'a> {
     Component(Component<'a>),
 }
 
-impl<'a> Wat<'a> {
+impl Wat<'_> {
     fn validate(&self, parser: Parser<'_>) -> Result<()> {
         match self {
             Wat::Module(m) => m.validate(parser),
@@ -31,13 +31,6 @@ impl<'a> Wat<'a> {
             Wat::Module(m) => m.encode(),
             Wat::Component(c) => c.encode(),
         }
-    }
-}
-
-impl Wat<'_> {
-    /// Encodes this `Wat` to binary form.
-    pub fn encode(&mut self) -> std::result::Result<Vec<u8>, crate::Error> {
-        self.module.encode()
     }
 }
 
