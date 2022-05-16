@@ -195,8 +195,7 @@
   )
 ;;  "func type mismatch")
 
-;; FIXME(#587) this should be an invalid module
-;; (assert_invalid
+(assert_invalid
   (component
     (import "" (component $m
       (import "" (func))
@@ -204,7 +203,7 @@
     (import "i" (func (param string)))
     (instance $i (instantiate (component $m) (with "" (func 0))))
   )
-;;  "func type mismatch")
+  "function type mismatch")
 
 (assert_invalid
   (component
