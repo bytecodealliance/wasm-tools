@@ -171,7 +171,7 @@ impl<'a> Parse<'a> for Record<'a> {
 #[derive(Debug, Clone)]
 pub struct Field<'a> {
     /// The name of the field.
-    pub name: Id<'a>,
+    pub name: &'a str,
     /// The type of the field.
     pub type_: ComponentTypeUse<'a, InterType<'a>>,
 }
@@ -201,7 +201,7 @@ impl<'a> Parse<'a> for Variant<'a> {
             parser.parse::<kw::variant>()?;
             let mut cases = Vec::new();
             while !parser.is_empty() {
-                cases.push(parser.parse()?);
+                cases.push(parser.parens(|p| p.parse())?);
             }
             Ok(Variant { cases })
         })
@@ -212,35 +212,33 @@ impl<'a> Parse<'a> for Variant<'a> {
 #[derive(Debug, Clone)]
 pub struct Case<'a> {
     /// The name of the case.
-    pub name: Id<'a>,
+    pub name: &'a str,
     /// Where this `component` was defined
     pub span: Span,
     /// The type of the case.
     pub type_: ComponentTypeUse<'a, InterType<'a>>,
     /// The optional defaults-to name.
-    pub defaults_to: Option<Index<'a>>,
+    pub defaults_to: Option<&'a str>,
 }
 
 impl<'a> Parse<'a> for Case<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parens(|parser| {
-            let span = parser.parse::<kw::case>()?.0;
-            let name = parser.parse()?;
-            let type_ = parser.parse()?;
-            let defaults_to = if !parser.is_empty() {
-                Some(parser.parens(|parser| {
-                    parser.parse::<kw::defaults_to>()?;
-                    Ok(Index::Id(parser.parse()?))
-                })?)
-            } else {
-                None
-            };
-            Ok(Case {
-                name,
-                span,
-                type_,
-                defaults_to,
-            })
+        let span = parser.parse::<kw::case>()?.0;
+        let name = parser.parse()?;
+        let type_ = parser.parse()?;
+        let defaults_to = if !parser.is_empty() {
+            Some(parser.parens(|parser| {
+                parser.parse::<kw::defaults_to>()?;
+                Ok(parser.parse()?)
+            })?)
+        } else {
+            None
+        };
+        Ok(Case {
+            name,
+            span,
+            type_,
+            defaults_to,
         })
     }
 }
@@ -288,7 +286,7 @@ impl<'a> Parse<'a> for Tuple<'a> {
 #[derive(Debug, Clone)]
 pub struct Flags<'a> {
     /// The names of the individual flags.
-    pub flag_names: Vec<Id<'a>>,
+    pub flag_names: Vec<&'a str>,
 }
 
 impl<'a> Parse<'a> for Flags<'a> {
@@ -308,7 +306,7 @@ impl<'a> Parse<'a> for Flags<'a> {
 #[derive(Debug, Clone)]
 pub struct Enum<'a> {
     /// The arms of the enum.
-    pub arms: Vec<Id<'a>>,
+    pub arms: Vec<&'a str>,
 }
 
 impl<'a> Parse<'a> for Enum<'a> {

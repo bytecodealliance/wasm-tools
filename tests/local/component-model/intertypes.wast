@@ -15,14 +15,16 @@
   (type $A13 string)
 
   (type $A14a (record))
-  (type $A14b (record (field $x unit)))
-  (type $A14c (record (field $x $A0)))
+  (type $A14b (record (field "x" unit)))
+  (type $A14c (record (field "x" $A0)))
 
   (type $A15a (variant))
-  (type $A15b (variant (case $x unit)))
-  (type $A15c (variant (case $x $A1)))
-  (type $A15d (variant (case $x unit (defaults-to $x))))
-  (type $A15e (variant (case $x $A2 (defaults-to $x))))
+  (type $A15b (variant (case "x" unit)))
+  (type $A15c (variant (case "x" $A1)))
+
+  ;; FIXME(#594) should implement this
+  (; (type $A15d (variant (case "x" unit (defaults-to "x")))) ;)
+  (; (type $A15e (variant (case "x" $A2 (defaults-to "x")))) ;)
 
   (type $A16a (list unit))
   (type $A16b (list $A3))
@@ -32,10 +34,10 @@
   (type $A17c (tuple $A4))
 
   (type $A18a (flags))
-  (type $A18b (flags $x))
+  (type $A18b (flags "x"))
 
   (type $A19a (enum))
-  (type $A19b (enum $x))
+  (type $A19b (enum "x"))
 
   (type $A20a (union))
   (type $A20b (union unit))

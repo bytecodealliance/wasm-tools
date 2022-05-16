@@ -4,7 +4,6 @@ use crate::kw;
 use crate::names::Namespace;
 use crate::token::{Id, Index};
 use crate::Error;
-use std::convert::TryInto;
 use std::mem::replace;
 
 /// Resolve the fields of a component and everything nested within it, changing
@@ -322,28 +321,6 @@ fn resolve_intertype<'a, 'b>(
         InterType::Variant(v) => {
             for case in v.cases.iter_mut() {
                 resolve_type_use(&mut case.type_, resolve_stack)?;
-            }
-
-            // Resolve the `defaults-to` field. Use indices instead
-            // of iterators to avoid borrowing `v.cases`, as we
-            // also need to iterate through it to do the
-            // resolution.
-            for i in 0..v.cases.len() {
-                if let Some(index) = v.cases[i].defaults_to {
-                    if let Index::Id(id) = index {
-                        for other_i in 0..v.cases.len() {
-                            let other = &v.cases[other_i];
-                            if other.name == id {
-                                v.cases[i].defaults_to = Some(Index::Num(
-                                    i.try_into().map_err(|_| {
-                                        Error::new(v.cases[i].span, format!("too many cases"))
-                                    })?,
-                                    other.span,
-                                ));
-                            }
-                        }
-                    }
-                }
             }
         }
         InterType::List(l) => {
