@@ -347,8 +347,10 @@ pub mod lexer;
 pub mod parser;
 pub mod token;
 
+mod encode;
 mod error;
 mod gensym;
+mod names;
 pub use self::error::*;
 
 macro_rules! id {

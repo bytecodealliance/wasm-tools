@@ -14,6 +14,13 @@ pub struct Wat<'a> {
     pub module: Module<'a>,
 }
 
+impl Wat<'_> {
+    /// Encodes this `Wat` to binary form.
+    pub fn encode(&mut self) -> std::result::Result<Vec<u8>, crate::Error> {
+        self.module.encode()
+    }
+}
+
 impl<'a> Parse<'a> for Wat<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         if !parser.has_meaningful_tokens() {

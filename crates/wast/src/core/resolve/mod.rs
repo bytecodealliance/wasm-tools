@@ -16,12 +16,7 @@ pub enum Ns {
     Type,
 }
 
-pub fn resolve<'a>(module: &mut Module<'a>) -> Result<Names<'a>, Error> {
-    let fields = match &mut module.kind {
-        ModuleKind::Text(fields) => fields,
-        _ => return Ok(Default::default()),
-    };
-
+pub fn resolve<'a>(fields: &mut Vec<ModuleField<'a>>) -> Result<Names<'a>, Error> {
     // Ensure that each resolution of a module is deterministic in the names
     // that it generates by resetting our thread-local symbol generator.
     gensym::reset();

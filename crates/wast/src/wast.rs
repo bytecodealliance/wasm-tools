@@ -335,7 +335,7 @@ impl QuoteWat<'_> {
     /// parsing the contents and then encoding it.
     pub fn encode(&mut self) -> Result<Vec<u8>, Error> {
         let source = match self {
-            QuoteWat::Wat(m) => return m.module.encode(),
+            QuoteWat::Wat(m) => return m.encode(),
             QuoteWat::Quote(_, source) => source,
         };
         let mut ret = String::new();
@@ -350,7 +350,7 @@ impl QuoteWat<'_> {
         }
         let buf = ParseBuffer::new(&ret)?;
         let mut wat = parser::parse::<Wat<'_>>(&buf)?;
-        wat.module.encode()
+        wat.encode()
     }
 }
 

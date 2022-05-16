@@ -221,9 +221,6 @@ impl Hash for Index<'_> {
 }
 
 /// Parses `(func $foo)`
-///
-/// Optionally includes export strings for module-linking sugar syntax for alias
-/// injection.
 #[derive(Clone, Debug)]
 #[allow(missing_docs)]
 pub struct ItemRef<'a, K> {
