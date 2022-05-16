@@ -4,7 +4,6 @@ use crate::component::*;
 use crate::core;
 use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
-use crate::token::{Id, LParen, NameAnnotation};
 
 /// Different kinds of elements that can be exported from a WebAssembly component,
 /// contained in a [`ComponentExport`].
@@ -110,35 +109,11 @@ impl<'a> Parse<'a> for ComponentFunctionType<'a> {
         let mut params = Vec::new();
         while parser.peek2::<kw::param>() {
             parser.parens(|p| {
-                let mut l = p.lookahead1();
-                if l.peek::<kw::param>() {
-                    p.parse::<kw::param>()?;
-                    if p.is_empty() {
-                        return Ok(());
-                    }
-                    // If we just saw `(param` and we're looking at `$X`, it
-                    // could be a parameter name or a type name. Peek ahead to
-                    // see if we're at the closing `)`, if so, parse it as a
-                    // type.
-                    if p.peek2_empty() {
-                        let ty = p.parse()?;
-                        params.push(ComponentFunctionParam {
-                            id: None,
-                            name: None,
-                            type_: ty,
-                        });
-                    } else {
-                        let (id, name) = (p.parse::<Option<_>>()?, p.parse::<Option<_>>()?);
-                        let ty = p.parse()?;
-                        params.push(ComponentFunctionParam {
-                            id,
-                            name,
-                            type_: ty,
-                        });
-                    }
-                } else {
-                    return Err(l.error());
-                }
+                p.parse::<kw::param>()?;
+                params.push(ComponentFunctionParam {
+                    name: p.parse()?,
+                    type_: p.parse()?,
+                });
                 Ok(())
             })?;
         }
@@ -159,31 +134,11 @@ impl<'a> Parse<'a> for ComponentFunctionType<'a> {
     }
 }
 
-impl<'a> Peek for ComponentFunctionType<'a> {
-    fn peek(cursor: Cursor<'_>) -> bool {
-        if let Some(next) = cursor.lparen() {
-            match next.keyword() {
-                Some(("func", _)) => return true,
-                _ => {}
-            }
-        }
-
-        false
-    }
-
-    fn display() -> &'static str {
-        "component function type"
-    }
-}
-
 /// A parameter of a [`ComponentFunctionType`].
 #[derive(Clone, Debug)]
 pub struct ComponentFunctionParam<'a> {
-    /// An optional identifer to refer to this `param` by as part of
-    /// name resolution.
-    pub id: Option<Id<'a>>,
-    /// An optional `@name` annotation for this parameter
-    pub name: Option<NameAnnotation<'a>>,
+    /// An optionally-specified name of this parameter
+    pub name: Option<&'a str>,
     /// The type of the parameter.
     pub type_: ComponentTypeUse<'a, InterType<'a>>,
 }
@@ -207,23 +162,6 @@ impl<'a> Parse<'a> for ModuleType<'a> {
             defs.push(parser.parens(|p| p.parse())?);
         }
         Ok(ModuleType { defs })
-    }
-}
-
-impl<'a> Peek for ModuleType<'a> {
-    fn peek(cursor: Cursor<'_>) -> bool {
-        if let Some(next) = cursor.lparen() {
-            match next.keyword() {
-                Some(("type" | "import" | "export", _)) => return true,
-                _ => {}
-            }
-        }
-
-        false
-    }
-
-    fn display() -> &'static str {
-        "module type"
     }
 }
 
@@ -289,23 +227,6 @@ impl<'a> Parse<'a> for ComponentType<'a> {
     }
 }
 
-impl<'a> Peek for ComponentType<'a> {
-    fn peek(cursor: Cursor<'_>) -> bool {
-        if let Some(next) = cursor.lparen() {
-            matches!(
-                next.keyword(),
-                Some(("import" | "export" | "type" | "alias", _))
-            )
-        } else {
-            false
-        }
-    }
-
-    fn display() -> &'static str {
-        "component type"
-    }
-}
-
 /// A field of a type for a nested component
 #[derive(Debug)]
 pub enum ComponentTypeField<'a> {
@@ -362,23 +283,6 @@ impl<'a> Parse<'a> for InstanceType<'a> {
     }
 }
 
-impl<'a> Peek for InstanceType<'a> {
-    fn peek(cursor: Cursor<'_>) -> bool {
-        if let Some(next) = cursor.lparen() {
-            match next.keyword() {
-                Some(("export" | "type" | "alias", _)) => return true,
-                _ => {}
-            }
-        }
-
-        false
-    }
-
-    fn display() -> &'static str {
-        "instance type"
-    }
-}
-
 /// A field of a type for a nested instance
 #[derive(Debug)]
 pub enum InstanceTypeField<'a> {
@@ -410,15 +314,5 @@ impl<'a> Parse<'a> for ValueType<'a> {
         Ok(ValueType {
             value_type: parser.parse()?,
         })
-    }
-}
-
-impl<'a> Peek for ValueType<'a> {
-    fn peek(cursor: Cursor<'_>) -> bool {
-        LParen::peek(cursor) && kw::value::peek2(cursor)
-    }
-
-    fn display() -> &'static str {
-        "valuetype"
     }
 }

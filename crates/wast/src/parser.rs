@@ -582,13 +582,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// `is_empty` meets `peek2`. Looks past a token and checks if there are any
-    /// more tokens after that.
-    pub fn peek2_empty(self) -> bool {
-        let mut cursor = self.cursor();
-        cursor.advance_token().is_some()
-    }
-
     /// A helper structure to perform a sequence of `peek` operations and if
     /// they all fail produce a nice error message.
     ///

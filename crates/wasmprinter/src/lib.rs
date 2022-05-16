@@ -2807,14 +2807,12 @@ impl Printer {
         for option in options {
             self.result.push(' ');
             match option {
-                CanonicalOption::UTF8 => self.result.push_str("utf8"),
-                CanonicalOption::UTF16 => self.result.push_str("utf16"),
-                CanonicalOption::CompactUTF16 => self.result.push_str("latin1+utf16"),
+                CanonicalOption::UTF8 => self.result.push_str("string=utf8"),
+                CanonicalOption::UTF16 => self.result.push_str("string=utf16"),
+                CanonicalOption::CompactUTF16 => self.result.push_str("string=latin1+utf16"),
                 CanonicalOption::Into(index) => {
                     self.start_group("into ");
-                    self.start_group("instance ");
                     self.print_idx(&state.instance_names, *index)?;
-                    self.end_group();
                     self.end_group();
                 }
             }

@@ -512,7 +512,7 @@ impl<'a> Encode for ComponentFunctionType<'a> {
 
 impl<'a> Encode for ComponentFunctionParam<'a> {
     fn encode(&self, e: &mut Vec<u8>) {
-        if let Some(id) = self.id {
+        if let Some(id) = self.name {
             e.push(0x01);
             id.encode(e);
         } else {
@@ -528,7 +528,8 @@ impl<'a> Encode for ValueType<'a> {
         self.value_type.encode(e)
     }
 }
-impl<T: Encode> Encode for ComponentTypeUse<'_, T> {
+
+impl<T> Encode for ComponentTypeUse<'_, T> {
     fn encode(&self, e: &mut Vec<u8>) {
         match self {
             ComponentTypeUse::Inline(_) => unreachable!("should be expanded already"),
@@ -536,6 +537,7 @@ impl<T: Encode> Encode for ComponentTypeUse<'_, T> {
         }
     }
 }
+
 impl Encode for ComponentExport<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.name.encode(e);
@@ -560,7 +562,7 @@ impl Encode for ComponentExport<'_> {
 impl Encode for ComponentFunc<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         match &self.kind {
-            ComponentFuncKind::Import { .. } => unreachable!("should be expanded already"),
+            ComponentFuncKind::Import { .. } => unreachable!("should be expanded by now"),
             ComponentFuncKind::Inline { body } => {
                 body.encode(e);
             }
