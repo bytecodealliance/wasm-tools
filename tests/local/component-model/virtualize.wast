@@ -1,4 +1,4 @@
-;; FIXME(#586) this test should be valid and the rest of the file should roughly
+;; FIXME(#588) this test should be valid and the rest of the file should roughly
 ;; be updated to use a similar scheme.
 (assert_invalid
 (component $child

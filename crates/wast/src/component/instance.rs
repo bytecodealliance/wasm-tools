@@ -169,17 +169,12 @@ impl<'a> Parse<'a> for Instance<'a> {
                 args.push(parser.parens(|p| p.parse())?);
             }
             InstanceKind::BundleOfExports { args }
-        } else if parser.peek2::<LParen>() && parser.peek2::<kw::export>() {
+        } else {
             let mut args = Vec::new();
             while !parser.is_empty() {
-                args.push(parser.parse()?);
+                args.push(parser.parens(|p| p.parse())?);
             }
             InstanceKind::BundleOfComponentExports { args }
-        } else if parser.is_empty() {
-            let args = Vec::new();
-            InstanceKind::BundleOfComponentExports { args }
-        } else {
-            return Err(parser.error("expected `(instantiate` or `(export`"));
         };
 
         Ok(Instance {

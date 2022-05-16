@@ -65,25 +65,17 @@
   ))
   (instance $x (instantiate (module $m2)))
 
-  ;; TODO: should implement alias sugar to avoid needing these `alias`
-  ;; annotations.
-  (alias export $x "a" (func $f))
-  (alias export $x "b" (global $g))
-  (alias export $x "c" (table $t))
-  (alias export $x "d" (memory $m))
   (instance (instantiate (module $m) (with "" (instance
-    (export "d" (func $f))
-    (export "c" (global $g))
-    (export "b" (table $t))
-    (export "a" (memory $m))
+    (export "d" (func $x "a"))
+    (export "c" (global $x "b"))
+    (export "b" (table $x "c"))
+    (export "a" (memory $x "d"))
   ))))
 )
 
-;; FIXME(#586) this should actually validate but it does not right now
-(assert_invalid
 (component
   (import "a" (component $m
-    (import "" (component
+    (import "" (instance
       (export "a" (module))
     ))
   ))
@@ -92,16 +84,12 @@
   ))
   (instance $x (instantiate (component $m2)))
 
-  ;; TODO: should implement alias sugar to avoid needing these `alias`
-  ;; annotations.
-  (alias export $x "b" (module $m))
   (instance (instantiate (component $m) (with "" (instance
-    (export "a" (module $m))
+    (export "a" (module $x "b"))
   ))))
 )
-"instance 0 is not a component instance")
 
-;; FIXME(#586) this should actually validate but it does not right now
+;; FIXME(#588) this should actually validate but it does not right now
 (assert_invalid
 (component
   (import "a" (component $c
@@ -354,8 +342,6 @@
   )
   "unknown module")
 
-;; FIXME(#586) this should actually validate but it does not right now
-(assert_invalid
 (component
   (component $m
     (module $sub (export "module")
@@ -373,4 +359,3 @@
 
   (instance (instantiate (module $final) (with "" (instance $b))))
 )
-"instance 0 is not a component instance")

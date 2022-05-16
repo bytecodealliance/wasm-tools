@@ -1,4 +1,4 @@
-;; FIXME(#586) should be valid
+;; FIXME(#588) should be valid
 (assert_invalid
 (component
   (import "i" (instance $i
@@ -9,7 +9,7 @@
 )
 "instance 0 is not a module instance")
 
-;; FIXME(#586) should be valid
+;; FIXME(#588) should be valid
 (assert_invalid
 (component
   (import "i" (component $c
@@ -65,7 +65,7 @@
   ))))
 )
 
-;; FIXME(#586) should be valid
+;; FIXME(#588) should be valid
 (assert_invalid
 (component
   (import "" (instance $i
@@ -129,7 +129,6 @@
   )
   "export `` for instance 0 is not a module")
 
-;; FIXME(#586) should have a different error
 (assert_invalid
   (component
     (component
@@ -138,8 +137,7 @@
     (instance (instantiate (component 0)))
     (export "" (module 0 ""))
   )
-  "instance 0 is not a component instance")
-  (; "export `` for instance 0 is not a module") ;)
+  "export `` for instance 0 is not a module")
 
 (assert_invalid
   (component
@@ -157,7 +155,7 @@
   )
   "instance 0 has no export named ``")
 
-;; FIXME(#586) should have a different error
+;; FIXME(#588) should have a different error
 (assert_invalid
   (component
     (import "" (component))
@@ -220,7 +218,7 @@
 )
 
 ;; multiple projections in alias sugar
-;; FIXME(#586) should be valid
+;; FIXME(#588) should be valid
 (assert_invalid
 (component $a
   (import "" (instance $a
