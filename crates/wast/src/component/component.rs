@@ -39,9 +39,9 @@ impl<'a> Component<'a> {
     /// where expansion and name resolution happens.
     ///
     /// This function will mutate the AST of this [`Component`] and replace all
-    /// [`super::Index`] arguments with `Index::Num`. This will also expand inline
-    /// exports/imports listed on fields and handle various other shorthands of
-    /// the text format.
+    /// [`Index`](crate::token::Index) arguments with `Index::Num`. This will
+    /// also expand inline exports/imports listed on fields and handle various
+    /// other shorthands of the text format.
     ///
     /// If successful the AST was modified to be ready for binary encoding.
     ///

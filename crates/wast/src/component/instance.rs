@@ -99,8 +99,10 @@ impl<'a> Parse<'a> for NamedComponentArg<'a> {
     }
 }
 
+/// ```text
 /// modulearg    ::= (instance <instanceidx>)
 ///                | (instance <core:export>*)
+/// ```
 #[derive(Debug)]
 pub enum ModuleArg<'a> {
     /// Core modules can reference instances.
@@ -110,12 +112,14 @@ pub enum ModuleArg<'a> {
     BundleOfExports(Span, Vec<CoreExport<'a>>),
 }
 
+/// ```text
 /// componentarg ::= (module <moduleidx>)
 ///                | (component <componentidx>)
 ///                | (instance <instanceidx>)
 ///                | (func <funcidx>)
 ///                | (value <valueidx>)
 ///                | (instance <export>*)
+/// ```
 #[derive(Debug)]
 pub enum ComponentArg<'a> {
     /// A reference to an item of one of the deftype kinds.
