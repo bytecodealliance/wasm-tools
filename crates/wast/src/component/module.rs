@@ -1,7 +1,7 @@
 use crate::component::*;
 use crate::core;
 use crate::kw;
-use crate::parser::{Cursor, Parse, Parser, Peek, Result};
+use crate::parser::{Parse, Parser, Result};
 use crate::token::{Id, NameAnnotation, Span};
 
 /// A nested WebAssembly module to be created as part of a component.
@@ -79,40 +79,5 @@ impl<'a> Parse<'a> for Module<'a> {
             exports,
             kind,
         })
-    }
-}
-
-// Note that this is a custom implementation to get multi-token lookahead to
-// figure out how to parse `(type ...` when it's in an inline module. If this is
-// `(type $x)` or `(type 0)` then it's an inline type annotation, otherwise it's
-// probably a typedef like `(type $x (func))` or something like that. We only
-// want to parse the two-token variant right now.
-struct InlineType;
-
-impl Peek for InlineType {
-    fn peek(cursor: Cursor<'_>) -> bool {
-        let cursor = match cursor.lparen() {
-            Some(cursor) => cursor,
-            None => return false,
-        };
-        let cursor = match cursor.keyword() {
-            Some(("type", cursor)) => cursor,
-            _ => return false,
-        };
-
-        // optional identifier
-        let cursor = match cursor.id() {
-            Some((_, cursor)) => cursor,
-            None => match cursor.integer() {
-                Some((_, cursor)) => cursor,
-                None => return false,
-            },
-        };
-
-        cursor.rparen().is_some()
-    }
-
-    fn display() -> &'static str {
-        "inline type"
     }
 }

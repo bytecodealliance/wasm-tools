@@ -1,7 +1,7 @@
 use crate::component::*;
 use crate::kw;
-use crate::parser::{Cursor, Parse, Parser, Peek, Result};
-use crate::token::{Id, Index, NameAnnotation, Span};
+use crate::parser::{Parse, Parser, Result};
+use crate::token::{Id, NameAnnotation, Span};
 
 /// A definition of a type.
 ///
@@ -80,37 +80,14 @@ pub enum ComponentTypeUse<'a, T> {
     Inline(T),
 }
 
-impl<'a, T> ComponentTypeUse<'a, T> {
-    /// Constructs a new instance of `ComponentTypeUse` without an inline definition but
-    /// with an index specified.
-    pub fn new_with_index(idx: Index<'a>) -> ComponentTypeUse<'a, T> {
-        ComponentTypeUse::Ref(ItemRef {
-            idx,
-            kind: kw::r#type::default(),
-            export_names: Vec::new(),
-        })
-    }
-}
-
-impl<'a, T: Peek + Parse<'a>> Parse<'a> for ComponentTypeUse<'a, T> {
+impl<'a, T: Parse<'a>> Parse<'a> for ComponentTypeUse<'a, T> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         if parser.peek::<IndexOrRef<'a, kw::r#type>>() {
             Ok(ComponentTypeUse::Ref(
                 parser.parse::<IndexOrRef<kw::r#type>>()?.0,
             ))
-        } else if parser.peek::<Index>() {
-            Ok(ComponentTypeUse::Ref(parser.parse()?))
         } else {
             Ok(ComponentTypeUse::Inline(parser.parse()?))
         }
-    }
-}
-
-impl<'a, T: Peek + Parse<'a>> Peek for ComponentTypeUse<'a, T> {
-    fn peek(cursor: Cursor<'_>) -> bool {
-        kw::r#type::peek(cursor) || T::peek(cursor)
-    }
-    fn display() -> &'static str {
-        T::display()
     }
 }

@@ -126,10 +126,8 @@ fn resolve_field<'a, 'b>(
                         ModuleArg::Def(def) => {
                             resolve_item_ref(def, resolve_stack)?;
                         }
-                        ModuleArg::BundleOfExports(_, exports) => {
-                            for export in exports {
-                                resolve_item_ref(&mut export.index, resolve_stack)?;
-                            }
+                        ModuleArg::BundleOfExports(..) => {
+                            unreachable!("should be expanded already");
                         }
                     }
                 }
@@ -171,16 +169,17 @@ fn resolve_field<'a, 'b>(
                     crate::core::resolve::resolve(fields)?;
                 }
 
-                // For `Import`, just resolve the type.
-                ModuleKind::Import { import: _, ty } => {
-                    resolve_type_use(ty, resolve_stack)?;
+                ModuleKind::Import { .. } => {
+                    unreachable!("should be expanded already")
                 }
             }
 
             Ok(())
         }
         ComponentField::Component(c) => match &mut c.kind {
-            NestedComponentKind::Import { .. } => Ok(()),
+            NestedComponentKind::Import { .. } => {
+                unreachable!("should be expanded already")
+            }
             NestedComponentKind::Inline(fields) => resolve_fields(c.id, fields, resolve_stack),
         },
         ComponentField::Alias(a) => resolve_alias(a, resolve_stack),
@@ -237,7 +236,7 @@ fn resolve_alias<'a, 'b>(
                     if depth as usize == resolve_stack.len() {
                         return Err(Error::new(
                             alias.span,
-                            format!("outer component '{:?}' not found", id),
+                            format!("outer component `{}` not found", id.name()),
                         ));
                     }
                     depth
@@ -245,6 +244,12 @@ fn resolve_alias<'a, 'b>(
                 Index::Num(n, _span) => *n,
             };
             *outer = Index::Num(depth, alias.span);
+            if depth as usize >= resolve_stack.len() {
+                return Err(Error::new(
+                    alias.span,
+                    format!("component depth of `{}` is too large", depth),
+                ));
+            }
 
             // Resolve `index` within the computed scope depth.
             let ns = match alias.kind {
@@ -281,7 +286,7 @@ fn resolve_type_use<'a, T>(
 ) -> Result<(), Error> {
     let item = match ty {
         ComponentTypeUse::Ref(r) => r,
-        ComponentTypeUse::Inline(_) => panic!("inline type-use should be expanded by now"),
+        ComponentTypeUse::Inline(_) => unreachable!("inline type-use should be expanded by now"),
     };
     resolve_item_ref(item, resolve_stack)
 }

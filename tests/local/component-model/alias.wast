@@ -238,3 +238,31 @@
   ))
 )
 "instance 3 is not a module instance")
+
+;; alias some constructs
+(component
+  (import "" (instance $foo (export "v" (value s32))))
+  (export "v" (value $foo "v"))
+)
+
+(component
+  (import "" (instance $foo (export "v" (component))))
+  (export "v" (component $foo "v"))
+)
+
+(component
+  (import "" (instance $foo (export "v" (module))))
+  (export "v" (module $foo "v"))
+)
+
+(component $C
+  (module $m)
+  (alias outer $C $m (module $target))
+  (export "v" (module $target))
+)
+
+(component $C
+  (component $m)
+  (alias outer $C $m (component $target))
+  (export "v" (component $target))
+)
