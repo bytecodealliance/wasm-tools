@@ -192,7 +192,11 @@ impl<'a> Expander<'a> {
                 }
             }
 
-            ComponentField::Alias(_) | ComponentField::Start(_) | ComponentField::Export(_) => {}
+            ComponentField::Export(e) => {
+                self.expand_component_arg(&mut e.arg);
+            }
+
+            ComponentField::Alias(_) | ComponentField::Start(_) => {}
         }
 
         fn export<'a>(
