@@ -230,10 +230,7 @@ impl<'a> Expander<'a> {
             ComponentTypeDef::DefType(DefType::Module(t)) => t.key().insert(self, name),
             ComponentTypeDef::DefType(DefType::Component(t)) => t.key().insert(self, name),
             ComponentTypeDef::DefType(DefType::Instance(t)) => t.key().insert(self, name),
-            ComponentTypeDef::DefType(DefType::Value(t)) => {
-                // TODO: is `value` really a type definition?
-                drop(t);
-            }
+            ComponentTypeDef::DefType(DefType::Value(t)) => t.key().insert(self, name),
             ComponentTypeDef::InterType(t) => t.key().insert(self, name),
         }
     }
@@ -498,7 +495,7 @@ impl<'a> Expander<'a> {
 
     fn expand_component_arg(&mut self, arg: &mut ComponentArg<'a>) {
         let (span, args) = match arg {
-            ComponentArg::Def(_) | ComponentArg::Type(_) => return,
+            ComponentArg::Def(_) => return,
             ComponentArg::BundleOfExports(span, exports) => (*span, mem::take(exports)),
         };
         let id = gensym::gen(span);
@@ -526,7 +523,7 @@ trait TypeReference<'a> {
 }
 
 impl<'a> TypeReference<'a> for InterType<'a> {
-    type Key = Todo; // TODO: should implement this
+    type Key = Todo; // FIXME(#598): should implement this
 
     fn key(&self) -> Self::Key {
         Todo
@@ -542,7 +539,7 @@ impl<'a> TypeReference<'a> for InterType<'a> {
 }
 
 impl<'a> TypeReference<'a> for ComponentType<'a> {
-    type Key = Todo; // TODO: should implement this
+    type Key = Todo; // FIXME(#598): should implement this
 
     fn key(&self) -> Self::Key {
         Todo
@@ -558,7 +555,7 @@ impl<'a> TypeReference<'a> for ComponentType<'a> {
 }
 
 impl<'a> TypeReference<'a> for ModuleType<'a> {
-    type Key = Todo; // TODO: should implement this
+    type Key = Todo; // FIXME(#598): should implement this
 
     fn key(&self) -> Self::Key {
         Todo
@@ -574,7 +571,7 @@ impl<'a> TypeReference<'a> for ModuleType<'a> {
 }
 
 impl<'a> TypeReference<'a> for InstanceType<'a> {
-    type Key = Todo; // TODO: should implement this
+    type Key = Todo; // FIXME(#598): should implement this
 
     fn key(&self) -> Self::Key {
         Todo
@@ -590,7 +587,7 @@ impl<'a> TypeReference<'a> for InstanceType<'a> {
 }
 
 impl<'a> TypeReference<'a> for ComponentFunctionType<'a> {
-    type Key = Todo; // TODO: should implement this
+    type Key = Todo; // FIXME(#598): should implement this
 
     fn key(&self) -> Self::Key {
         Todo
@@ -606,7 +603,7 @@ impl<'a> TypeReference<'a> for ComponentFunctionType<'a> {
 }
 
 impl<'a> TypeReference<'a> for ValueType<'a> {
-    type Key = Todo; // TODO: should implement this
+    type Key = Todo; // FIXME(#598): should implement this
 
     fn key(&self) -> Self::Key {
         Todo

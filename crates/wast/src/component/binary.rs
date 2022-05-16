@@ -39,10 +39,9 @@ fn encode_fields(
         }
     }
 
-    let names = find_names(component_id, component_name, fields);
-    if !names.is_empty() {
-        e.section(0, &("name", names));
-    }
+    // FIXME(WebAssembly/component-model#14): once a name section is defined it
+    // should be encoded here.
+    drop((component_id, component_name));
 
     e.flush();
 
@@ -185,10 +184,6 @@ impl Encode for ComponentArg<'_> {
                 }
                 def.idx.encode(e);
             }
-            ComponentArg::Type(ty) => {
-                e.push(0x05);
-                ty.idx.encode(e);
-            }
             ComponentArg::BundleOfExports(..) => {
                 unreachable!("should be expanded already")
             }
@@ -238,10 +233,11 @@ impl Encode for Alias<'_> {
                     AliasKind::Module => e.push(0x00),
                     AliasKind::Component => e.push(0x01),
                     AliasKind::ExportKind(core::ExportKind::Type) => e.push(0x05),
-                    // TODO: this feels a bit odd but it's also weird to make
-                    // this an explicit error somewhere else. Should revisit
-                    // this when the encodings of aliases and such have all
-                    // settled down.
+                    // FIXME(#590): this feels a bit odd but it's also weird to
+                    // make this an explicit error somewhere else. Should
+                    // revisit this when the encodings of aliases and such have
+                    // all settled down. Hopefully #590 and
+                    // WebAssembly/component-model#29 will help solve this.
                     _ => e.push(0xff),
                 }
                 outer.encode(e);
@@ -535,7 +531,7 @@ impl<'a> Encode for ValueType<'a> {
 impl<T: Encode> Encode for ComponentTypeUse<'_, T> {
     fn encode(&self, e: &mut Vec<u8>) {
         match self {
-            ComponentTypeUse::Inline(inline) => inline.encode(e),
+            ComponentTypeUse::Inline(_) => unreachable!("should be expanded already"),
             ComponentTypeUse::Ref(index) => index.encode(e),
         }
     }
@@ -554,7 +550,6 @@ impl Encode for ComponentExport<'_> {
                 }
                 item_ref.idx.encode(e);
             }
-            ComponentArg::Type(_item_ref) => todo!("Encode for ComponentArg::Type"),
             ComponentArg::BundleOfExports(..) => {
                 unreachable!("should be expanded already")
             }
@@ -565,7 +560,7 @@ impl Encode for ComponentExport<'_> {
 impl Encode for ComponentFunc<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         match &self.kind {
-            ComponentFuncKind::Import { .. } => todo!("Imported component function"),
+            ComponentFuncKind::Import { .. } => unreachable!("should be expanded already"),
             ComponentFuncKind::Inline { body } => {
                 body.encode(e);
             }
@@ -580,122 +575,6 @@ impl Encode for ComponentFuncBody<'_> {
             ComponentFuncBody::CanonLower(lower) => lower.encode(e),
         }
     }
-}
-
-#[derive(Default)]
-struct ComponentNames<'a> {
-    component: Option<&'a str>,
-    funcs: Vec<(u32, &'a str)>,
-    func_idx: u32,
-    modules: Vec<(u32, &'a str)>,
-    module_idx: u32,
-    components: Vec<(u32, &'a str)>,
-    component_idx: u32,
-    values: Vec<(u32, &'a str)>,
-    value_idx: u32,
-    instances: Vec<(u32, &'a str)>,
-    instance_idx: u32,
-    types: Vec<(u32, &'a str)>,
-    type_idx: u32,
-    tables: Vec<(u32, &'a str)>,
-    table_idx: u32,
-    globals: Vec<(u32, &'a str)>,
-    global_idx: u32,
-    memories: Vec<(u32, &'a str)>,
-    memory_idx: u32,
-    tags: Vec<(u32, &'a str)>,
-    tag_idx: u32,
-}
-
-// TODO: should ideally deduplicate this with similar code in `core/binary.rs`
-fn find_names<'a>(
-    component_id: &Option<Id<'a>>,
-    component_name: &Option<NameAnnotation<'a>>,
-    fields: &[ComponentField<'a>],
-) -> ComponentNames<'a> {
-    fn get_name<'a>(id: &Option<Id<'a>>, name: &Option<NameAnnotation<'a>>) -> Option<&'a str> {
-        name.as_ref().map(|n| n.name).or(id.and_then(|id| {
-            if id.is_gensym() {
-                None
-            } else {
-                Some(id.name())
-            }
-        }))
-    }
-
-    enum Name {
-        Type,
-        Func,
-        Module,
-        Component,
-        Instance,
-        Value,
-        Table,
-        Global,
-        Memory,
-        Tag,
-    }
-
-    let mut ret = ComponentNames::default();
-    ret.component = get_name(component_id, component_name);
-    for field in fields {
-        // Extract the kind/id/name from whatever kind of field this is...
-        let (kind, id, name) = match field {
-            ComponentField::Import(_i) => {
-                // TODO: Extract the kind/id/name for the name section from ComponentField::Import
-                continue;
-            }
-            ComponentField::Module(m) => (Name::Module, &m.id, &m.name),
-            ComponentField::Component(c) => (Name::Component, &c.id, &c.name),
-            ComponentField::Instance(i) => (Name::Instance, &i.id, &i.name),
-            ComponentField::Type(t) => (Name::Type, &t.id, &t.name),
-            ComponentField::Func(f) => (Name::Func, &f.id, &f.name),
-            ComponentField::Alias(a) => match a.target {
-                AliasTarget::Export { .. } => {
-                    // TODO: Extract the kind/id/name for the name section from export aliases
-                    continue;
-                }
-                AliasTarget::Outer { .. } => match a.kind {
-                    AliasKind::Module => (Name::Module, &a.id, &a.name),
-                    AliasKind::Component => (Name::Component, &a.id, &a.name),
-                    AliasKind::Instance => (Name::Instance, &a.id, &a.name),
-                    AliasKind::Value => (Name::Value, &a.id, &a.name),
-                    AliasKind::ExportKind(core::ExportKind::Func) => (Name::Func, &a.id, &a.name),
-                    AliasKind::ExportKind(core::ExportKind::Table) => (Name::Table, &a.id, &a.name),
-                    AliasKind::ExportKind(core::ExportKind::Global) => {
-                        (Name::Global, &a.id, &a.name)
-                    }
-                    AliasKind::ExportKind(core::ExportKind::Memory) => {
-                        (Name::Memory, &a.id, &a.name)
-                    }
-                    AliasKind::ExportKind(core::ExportKind::Tag) => (Name::Tag, &a.id, &a.name),
-                    AliasKind::ExportKind(core::ExportKind::Type) => (Name::Type, &a.id, &a.name),
-                },
-            },
-            ComponentField::Export(_) | ComponentField::Start(_) => continue,
-        };
-
-        // .. and using the kind we can figure out where to place this name
-        let (list, idx) = match kind {
-            Name::Func => (&mut ret.funcs, &mut ret.func_idx),
-            Name::Module => (&mut ret.modules, &mut ret.module_idx),
-            Name::Component => (&mut ret.components, &mut ret.component_idx),
-            Name::Instance => (&mut ret.instances, &mut ret.instance_idx),
-            Name::Type => (&mut ret.types, &mut ret.type_idx),
-            Name::Value => (&mut ret.values, &mut ret.value_idx),
-            Name::Table => (&mut ret.tables, &mut ret.table_idx),
-            Name::Global => (&mut ret.globals, &mut ret.global_idx),
-            Name::Memory => (&mut ret.memories, &mut ret.memory_idx),
-            Name::Tag => (&mut ret.tags, &mut ret.tag_idx),
-        };
-        if let Some(name) = get_name(id, name) {
-            list.push((*idx, name));
-        }
-
-        *idx += 1;
-    }
-
-    return ret;
 }
 
 impl Encode for ComponentImport<'_> {
@@ -714,20 +593,6 @@ impl Encode for ItemSig<'_> {
             ItemKind::Instance(t) => t.encode(e),
             ItemKind::Value(t) => t.encode(e),
         }
-    }
-}
-
-impl ComponentNames<'_> {
-    fn is_empty(&self) -> bool {
-        // TODO: when an encoding is implemented this should be something that's
-        // not always `true`
-        true
-    }
-}
-
-impl Encode for ComponentNames<'_> {
-    fn encode(&self, _dst: &mut Vec<u8>) {
-        // TODO: names section for components
     }
 }
 

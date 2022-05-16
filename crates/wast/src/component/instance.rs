@@ -124,8 +124,6 @@ pub enum ModuleArg<'a> {
 pub enum ComponentArg<'a> {
     /// A reference to an item of one of the deftype kinds.
     Def(ItemRef<'a, DefTypeKind>),
-    /// `type`, which is separate here because it isn't yet a deftype kind.
-    Type(ItemRef<'a, kw::r#type>),
     /// `instance`, but it isn't actually an instance; it's a tuple of exports
     /// which can be used in place of an instance.
     BundleOfExports(Span, Vec<ComponentExport<'a>>),
@@ -222,9 +220,6 @@ impl<'a> Parse<'a> for ComponentArg<'a> {
             // `(<deftypekind> <index>)`
             let def = parser.parse::<ItemRef<'a, DefTypeKind>>()?;
             Ok(ComponentArg::Def(def))
-        } else if parser.peek::<ItemRef<kw::r#type>>() {
-            let def = parser.parse::<ItemRef<'a, kw::r#type>>()?;
-            Ok(ComponentArg::Type(def))
         } else if parser.peek::<LParen>() && parser.peek2::<kw::instance>() {
             let (span, exports) = parser.parens(|p| {
                 let span = p.parse::<kw::instance>()?.0;

@@ -142,9 +142,6 @@ fn resolve_field<'a, 'b>(
                         ComponentArg::Def(def) => {
                             resolve_item_ref(def, resolve_stack)?;
                         }
-                        ComponentArg::Type(ty) => {
-                            resolve_item_ref(ty, resolve_stack)?;
-                        }
                         ComponentArg::BundleOfExports(..) => {
                             unreachable!("should be expanded already")
                         }
@@ -271,9 +268,6 @@ fn resolve_arg<'a, 'b>(
 ) -> Result<(), Error> {
     match arg {
         ComponentArg::Def(item_ref) => {
-            resolve_item_ref(item_ref, resolve_stack)?;
-        }
-        ComponentArg::Type(item_ref) => {
             resolve_item_ref(item_ref, resolve_stack)?;
         }
         ComponentArg::BundleOfExports(..) => unreachable!("should be expanded already"),
