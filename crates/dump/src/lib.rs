@@ -285,7 +285,7 @@ impl<'a> Dump<'a> {
                 }
 
                 Payload::InstanceSection(s) => self.section(s, "instance", |me, end, e| {
-                    write!(me.state, "[instance {}] {:?}", i.instances, e)?;
+                    write!(me.state, "[instance {}] {:?}", inc(&mut i.instances), e)?;
                     me.print(end)
                 })?,
 
