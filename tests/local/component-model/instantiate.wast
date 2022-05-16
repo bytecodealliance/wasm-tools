@@ -1,229 +1,241 @@
-(module
+(component
   (import "" (module $m))
-  (instance $a (instantiate $m))
+  (instance $a (instantiate (module $m)))
 )
 
-(module
-  (import "a" (func))
-  (import "b" (global i32))
-  (import "c" (table 1 funcref))
-  (import "d" (instance))
-  (import "e" (memory 1))
-  (import "f" (module $empty))
-
-  (import "" (module $m
-    (import "a" (module))
-    (import "b" (func))
-    (import "c" (global i32))
-    (import "d" (table 1 funcref))
-    (import "e" (instance))
-    (import "f" (memory 1))
-  ))
-
-  (instance $a (instantiate $m
-    (import "a" (module $empty))
-    (import "b" (func 0))
-    (import "c" (global 0))
-    (import "d" (table 0))
-    (import "e" (instance 0))
-    (import "f" (memory 0))
-  ))
+(component
+  (import "a" (func $i))
+  (import "" (component $c (import "a" (func))))
+  (instance (instantiate (component $c) (with "a" (func $i))))
 )
 
-(module
+(component
+  (import "a" (value $i string))
+  (import "" (component $c (import "a" (value string))))
+  (instance (instantiate (component $c) (with "a" (value $i))))
+)
+
+(component
+  (import "a" (component $i))
+  (import "" (component $c (import "a" (component))))
+  (instance (instantiate (component $c) (with "a" (component $i))))
+)
+
+(component
+  (import "a" (module $i))
+  (import "" (component $c (import "a" (module))))
+  (instance (instantiate (component $c) (with "a" (module $i))))
+)
+
+(component
+  (import "a" (instance $i))
+  (import "" (component $c (import "a" (instance))))
+  (instance (instantiate (component $c) (with "a" (instance $i))))
+)
+
+(component
   (import "a" (module $m
+    (import "" "a" (func))
+    (import "" "b" (global i32))
+    (import "" "c" (table 1 funcref))
+    (import "" "d" (memory 1))
+  ))
+  (import "b" (module $m2
+    (export "a" (func))
+    (export "b" (global i32))
+    (export "c" (table 1 funcref))
+    (export "d" (memory 1))
+  ))
+  (instance $x (instantiate (module $m2)))
+  (instance (instantiate (module $m) (with "" (instance $x))))
+)
+
+(component
+  (import "a" (module $m
+    (import "" "d" (func))
+    (import "" "c" (global i32))
+    (import "" "b" (table 1 funcref))
+    (import "" "a" (memory 1))
+  ))
+  (import "b" (module $m2
+    (export "a" (func))
+    (export "b" (global i32))
+    (export "c" (table 1 funcref))
+    (export "d" (memory 1))
+  ))
+  (instance $x (instantiate (module $m2)))
+
+  (instance (instantiate (module $m) (with "" (instance
+    (export "d" (func $x "a"))
+    (export "c" (global $x "b"))
+    (export "b" (table $x "c"))
+    (export "a" (memory $x "d"))
+  ))))
+)
+
+(component
+  (import "a" (component $m
+    (import "" (instance
+      (export "a" (module))
+    ))
+  ))
+  (import "b" (component $m2
+    (export "b" (module))
+  ))
+  (instance $x (instantiate (component $m2)))
+
+  (instance (instantiate (component $m) (with "" (instance
+    (export "a" (module $x "b"))
+  ))))
+)
+
+;; FIXME(#588) this should actually validate but it does not right now
+(assert_invalid
+(component
+  (import "a" (component $c
     (import "a" (module))
     (import "b" (func))
-    (import "c" (global i32))
-    (import "d" (table 1 funcref))
-    (import "e" (instance))
-    (import "f" (memory 1))
+    (import "c" (component))
+    (import "d" (instance))
+    (import "e" (value string))
   ))
-  (import "b" (module $m2))
-  (import "c" (instance $b))
-  (func $f (import "d"))
-  (global $g (import "e") i32)
-  (memory $mem (import "f") 1)
-  (table $table (import "g") 1 funcref)
+  (module $m (import "b"))
+  (func $f (import "c"))
+  (component $c2 (import "d"))
+  (instance $i (import "e"))
+  (import "f" (value $v string))
 
-  (instance $a
-    (instantiate $m
-      (import "a" (module $m2))
-      (import "b" (func $f))
-      (import "c" (global $g))
-      (import "d" (table $table))
-      (import "e" (instance $b))
-      (import "f" (memory $mem))
+  (instance
+    (instantiate (component $c)
+      (with "a" (module $m))
+      (with "b" (func $f))
+      (with "c" (component $c2))
+      (with "d" (instance $i))
+      (with "e" (value $v))
     )
   )
 
   ;; inline exports/imports
-  (instance $c (export "i") (instantiate $m2))
+  (instance $c (export "i") (instantiate (module $m)))
   (type $empty (instance))
   (instance $d (import "i1") (type $empty))
   (instance (import "i2"))
   (instance (import "i3")
     (export "x" (func)))
-  (instance (export "a") (export "b") (instantiate $m2))
+  (instance (export "a") (export "b") (instantiate (module $m)))
   (instance (export "c") (export "d") (import "x"))
 )
+"instance 2 is not a component instance")
 
 (assert_invalid
-  (module
-    (instance (instantiate 0))
+  (component
+    (instance (instantiate (module 0)))
   )
   "unknown module")
 (assert_invalid
-  (module
+  (component
+    (instance (instantiate (component 0)))
+  )
+  "unknown component")
+(assert_invalid
+  (component
     (import "" (module))
-    (instance (instantiate 1))
+    (instance (instantiate (module 1)))
   )
   "unknown module")
 
-(module
+(component
   (import "a" (func $f))
-  (import "b" (module $m))
-  (instance (instantiate $m (import "a" (func $f))))
+  (import "b" (component $c))
+  (instance (instantiate (component $c) (with "a" (func $f))))
 )
 (assert_invalid
-  (module
-    (import "" (module $m (import "" (func))))
-    (instance (instantiate $m))
+  (component
+    (import "" (module $m (import "" "" (func))))
+    (instance (instantiate (module $m)))
   )
-  "no import named ``")
+  "missing module instantiation argument")
+(assert_invalid
+  (component
+    (import "" (component $m (import "" (func))))
+    (instance (instantiate (component $m)))
+  )
+  "missing component instantiation argument")
 
 (assert_invalid
-  (module
-    (import "" (module $m
+  (component
+    (import "" (component $m
       (import "" (func))
     ))
-    (import "i" (global i32))
-    (instance $i (instantiate $m (import "" (global 0))))
+    (import "i" (component $c))
+    (instance $i (instantiate (component $m) (with "" (component $c))))
   )
-  "item type mismatch")
-(assert_invalid
-  (module
-    (import "" (module $m
+  "to be of type `function`")
+
+;; FIXME(#587) this should be an invalid module
+;; (assert_invalid
+  (component
+    (import "" (component $m
       (import "" (func))
     ))
-    (import "i" (func (result i32)))
-    (instance $i (instantiate $m (import "" (func 0))))
+    (import "i" (func $f (result string)))
+    (instance $i (instantiate (component $m) (with "" (func $f))))
   )
-  "func type mismatch")
+;;  "func type mismatch")
+
 (assert_invalid
-  (module
-    (import "" (module $m
+  (component
+    (import "" (component $m
       (import "" (func))
     ))
-    (import "i" (func (param i32)))
-    (instance $i (instantiate $m (import "" (func 0))))
+    (import "i" (func (param string)))
+    (instance $i (instantiate (component $m) (with "" (func 0))))
   )
-  "func type mismatch")
+  "function type mismatch")
+
 (assert_invalid
-  (module
-    (import "" (module $m
-      (import "" (global i32))
-    ))
-    (import "i" (global i64))
-    (instance $i (instantiate $m (import "" (global 0))))
-  )
-  "global type mismatch")
-(assert_invalid
-  (module
-    (import "" (module $m
-      (import "" (table 1 externref))
-    ))
-    (import "i" (table 2 funcref))
-    (instance $i (instantiate $m (import "" (table 0))))
-  )
-  "table type mismatch")
-(assert_invalid
-  (module
-    (import "" (module $m
-      (import "" (table 1 2 funcref))
-    ))
-    (import "i" (table 2 funcref))
-    (instance $i (instantiate $m (import "" (table 0))))
-  )
-  "table type mismatch")
-(assert_invalid
-  (module
-    (import "" (module $m
-      (import "" (table 2 2 funcref))
-    ))
-    (import "i" (table 1 funcref))
-    (instance $i (instantiate $m (import "" (table 0))))
-  )
-  "table type mismatch")
-(assert_invalid
-  (module
-    (import "" (module $m
-      (import "" (table 2 2 funcref))
-    ))
-    (import "i" (table 2 3 funcref))
-    (instance $i (instantiate $m (import "" (table 0))))
-  )
-  "table type mismatch")
-(assert_invalid
-  (module
-    (import "" (module $m
-      (import "" (memory 1 2 shared))
-    ))
-    (import "i" (memory 1))
-    (instance $i (instantiate $m (import "" (memory 0))))
-  )
-  "memory type mismatch")
-(assert_invalid
-  (module
-    (import "" (module $m
-      (import "" (memory 1))
-    ))
-    (import "i" (memory 0))
-    (instance $i (instantiate $m (import "" (memory 0))))
-  )
-  "memory type mismatch")
-(assert_invalid
-  (module
-    (import "" (module $m
+  (component
+    (import "" (component $m
       (import "" (module
-        (import "" (func))
+        (import "" "" (func))
       ))
     ))
     (import "i" (module $i
-      (import "" (global i32))
+      (import "" "" (global i32))
     ))
-    (instance $i (instantiate $m (import "" (module $i))))
+    (instance $i (instantiate (component $m) (with "" (module $i))))
   )
-  "item type mismatch")
+  "module type mismatch")
+
 (assert_invalid
-  (module
-    (import "" (module $m
+  (component
+    (import "" (component $m
       (import "" (module))
     ))
     (import "i" (module $i
-      (import "foobar" (global i32))
+      (import "" "foobar" (global i32))
     ))
-    (instance $i (instantiate $m (import "" (module $i))))
+    (instance $i (instantiate (component $m) (with "" (module $i))))
   )
-  "no import named `foobar`")
+  "module type mismatch")
 
 ;; it's ok to give a module with fewer imports
-(module
-  (import "" (module $m
+(component
+  (import "" (component $m
     (import "" (module
-      (import "" (global i32))
-      (import "f" (func))
+      (import "" "" (global i32))
+      (import "" "f" (func))
     ))
   ))
   (import "i" (module $i
-    (import "" (global i32))
+    (import "" "" (global i32))
   ))
-  (instance $i (instantiate $m (import "" (module $i))))
+  (instance $i (instantiate (component $m) (with "" (module $i))))
 )
 
 ;; export subsets
-(module
-  (import "" (module $m
+(component
+  (import "" (component $m
     (import "" (module
       (export "" (func))
     ))
@@ -232,10 +244,10 @@
     (export "" (func))
     (export "a" (func))
   ))
-  (instance $i (instantiate $m (import "" (module $i))))
+  (instance $i (instantiate (component $m) (with "" (module $i))))
 )
-(module
-  (import "" (module $m
+(component
+  (import "" (component $m
     (import "" (instance
       (export "" (func))
     ))
@@ -244,24 +256,106 @@
     (export "" (func))
     (export "a" (func))
   ))
-  (instance (instantiate $m (import "" (instance $i))))
+  (instance (instantiate (component $m) (with "" (instance $i))))
 )
 
+
+;; ============================================================================
+;; core wasm type checking
+
 (assert_invalid
-  (module
-    (instance (instantiate 0))
+  (component
+    (import "m1" (module $m1 (import "" "" (func))))
+    (import "m2" (module $m2 (export "" (func (param i32)))))
+    (instance $i (instantiate (module $m2)))
+    (instance (instantiate (module $m1) (with "" (instance $i))))
+  )
+  "function type mismatch")
+(assert_invalid
+  (component
+    (import "m1" (module $m1 (import "" "" (func))))
+    (import "m2" (module $m2 (export "" (func (result i32)))))
+    (instance $i (instantiate (module $m2)))
+    (instance (instantiate (module $m1) (with "" (instance $i))))
+  )
+  "function type mismatch")
+(assert_invalid
+  (component
+    (import "m1" (module $m1 (import "" "" (global i32))))
+    (import "m2" (module $m2 (export "" (global i64))))
+    (instance $i (instantiate (module $m2)))
+    (instance (instantiate (module $m1) (with "" (instance $i))))
+  )
+  "global type mismatch")
+(assert_invalid
+  (component
+    (import "m1" (module $m1 (import "" "" (table 1 funcref))))
+    (import "m2" (module $m2 (export "" (table 2 externref))))
+    (instance $i (instantiate (module $m2)))
+    (instance (instantiate (module $m1) (with "" (instance $i))))
+  )
+  "table type mismatch")
+(assert_invalid
+  (component
+    (import "m1" (module $m1 (import "" "" (table 1 2 funcref))))
+    (import "m2" (module $m2 (export "" (table 2 funcref))))
+    (instance $i (instantiate (module $m2)))
+    (instance (instantiate (module $m1) (with "" (instance $i))))
+  )
+  "table type mismatch")
+(assert_invalid
+  (component
+    (import "m1" (module $m1 (import "" "" (table 2 2 funcref))))
+    (import "m2" (module $m2 (export "" (table 1 funcref))))
+    (instance $i (instantiate (module $m2)))
+    (instance (instantiate (module $m1) (with "" (instance $i))))
+  )
+  "table type mismatch")
+(assert_invalid
+  (component
+    (import "m1" (module $m1 (import "" "" (table 2 2 funcref))))
+    (import "m2" (module $m2 (export "" (table 2 3 funcref))))
+    (instance $i (instantiate (module $m2)))
+    (instance (instantiate (module $m1) (with "" (instance $i))))
+  )
+  "table type mismatch")
+(assert_invalid
+  (component
+    (import "m1" (module $m1 (import "" "" (memory 1 2 shared))))
+    (import "m2" (module $m2 (export "" (memory 1))))
+    (instance $i (instantiate (module $m2)))
+    (instance (instantiate (module $m1) (with "" (instance $i))))
+  )
+  "memory type mismatch")
+(assert_invalid
+  (component
+    (import "m1" (module $m1 (import "" "" (memory 1))))
+    (import "m2" (module $m2 (export "" (memory 0))))
+    (instance $i (instantiate (module $m2)))
+    (instance (instantiate (module $m1) (with "" (instance $i))))
+  )
+  "memory type mismatch")
+
+(assert_invalid
+  (component
+    (instance (instantiate (module 0)))
   )
   "unknown module")
 
-(module
-  (module $m
+(component
+  (component $m
     (module $sub (export "module")
       (func $f (export "") (result i32)
         i32.const 5))
   )
-  (instance $a (instantiate $m))
-  (instance $b (instantiate (module $a "module")))
+  (instance $a (instantiate (component $m)))
+  (alias export $a "module" (module $sub))
+  (instance $b (instantiate (module $sub)))
 
-  (func (export "get") (result i32)
-    call (func $b ""))
+  (module $final
+    (import "" "" (func $b (result i32)))
+    (func (export "get") (result i32)
+      call $b))
+
+  (instance (instantiate (module $final) (with "" (instance $b))))
 )

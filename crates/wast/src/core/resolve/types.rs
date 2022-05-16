@@ -10,7 +10,7 @@ pub fn expand<'a>(fields: &mut Vec<ModuleField<'a>>) {
 }
 
 #[derive(Default)]
-struct Expander<'a> {
+pub(crate) struct Expander<'a> {
     // Maps used to "intern" types. These maps are populated as type annotations
     // are seen and inline type annotations use previously defined ones if
     // there's a match.
@@ -220,19 +220,19 @@ impl<'a> Expander<'a> {
     }
 }
 
-trait TypeReference<'a>: Default {
+pub(crate) trait TypeReference<'a>: Default {
     type Key: TypeKey<'a>;
     fn key(&self) -> Self::Key;
     fn expand(&mut self, cx: &mut Expander<'a>);
 }
 
-trait TypeKey<'a> {
+pub(crate) trait TypeKey<'a> {
     fn lookup(&self, cx: &Expander<'a>) -> Option<Index<'a>>;
     fn to_def(&self, span: Span) -> TypeDef<'a>;
     fn insert(&self, cx: &mut Expander<'a>, id: Index<'a>);
 }
 
-type FuncKey<'a> = (Box<[ValType<'a>]>, Box<[ValType<'a>]>);
+pub(crate) type FuncKey<'a> = (Box<[ValType<'a>]>, Box<[ValType<'a>]>);
 
 impl<'a> TypeReference<'a> for FunctionType<'a> {
     type Key = FuncKey<'a>;

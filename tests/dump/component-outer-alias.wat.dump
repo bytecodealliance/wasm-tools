@@ -1,0 +1,40 @@
+  0x0 | 00 61 73 6d | version 65546 (Component)
+      | 0a 00 01 00
+  0x8 | 01 0c       | type section
+  0xa | 02          | 2 count
+  0xb | 72          | [type 0] Interface(Primitive(String))
+  0xc | 4e 02 09 02 | [type 1] Component([OuterType { count: 1, index: 0 }, Type(Value(Type(0)))])
+      | 05 01 00 01
+      | 4b 00      
+ 0x16 | 05 14       | [component 0] inline size
+   0x18 | 00 61 73 6d | version 65546 (Component)
+        | 0a 00 01 00
+   0x20 | 09 05       | alias section
+   0x22 | 01          | 1 count
+   0x23 | 02 05 01 00 | alias [type 0] OuterType { count: 1, index: 0 }
+   0x27 | 01 03       | type section
+   0x29 | 01          | 1 count
+   0x2a | 4b 00       | [type 1] Value(Type(0))
+ 0x2c | 05 16       | [component 1] inline size
+   0x2e | 00 61 73 6d | version 65546 (Component)
+        | 0a 00 01 00
+   0x36 | 09 05       | alias section
+   0x38 | 01          | 1 count
+   0x39 | 02 05 01 00 | alias [type 0] OuterType { count: 1, index: 0 }
+   0x3d | 01 05       | type section
+   0x3f | 02          | 2 count
+   0x40 | 4b 00       | [type 1] Value(Type(0))
+   0x42 | 4b 00       | [type 2] Value(Type(0))
+ 0x44 | 01 02       | type section
+ 0x46 | 01          | 1 count
+ 0x47 | 7c          | [type 2] Interface(Primitive(U8))
+ 0x48 | 05 16       | [component 2] inline size
+   0x4a | 00 61 73 6d | version 65546 (Component)
+        | 0a 00 01 00
+   0x52 | 09 05       | alias section
+   0x54 | 01          | 1 count
+   0x55 | 02 05 01 02 | alias [type 0] OuterType { count: 1, index: 2 }
+   0x59 | 01 05       | type section
+   0x5b | 02          | 2 count
+   0x5c | 4b 00       | [type 1] Value(Type(0))
+   0x5e | 4b 00       | [type 2] Value(Type(0))

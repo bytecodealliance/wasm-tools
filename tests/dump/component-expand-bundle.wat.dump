@@ -1,0 +1,52 @@
+  0x0 | 00 61 73 6d | version 65546 (Component)
+      | 0a 00 01 00
+  0x8 | 04 29       | [module 0] inline size
+    0xa | 00 61 73 6d | version 1 (Module)
+        | 01 00 00 00
+   0x12 | 01 04       | type section
+   0x14 | 01          | 1 count
+   0x15 | 60 00 00    | [type 0] Func(FuncType { params: [], returns: [] })
+   0x18 | 03 02       | func section
+   0x1a | 01          | 1 count
+   0x1b | 00          | [func 0] type 0
+   0x1c | 07 04       | export section
+   0x1e | 01          | 1 count
+   0x1f | 00 00 00    | export Export { name: "", kind: Func, index: 0 }
+   0x22 | 0a 04       | code section
+   0x24 | 01          | 1 count
+============== func 0 ====================
+   0x25 | 02          | size of function
+   0x26 | 00          | 0 local blocks
+   0x27 | 0b          | End
+   0x28 | 00 09       | custom section
+   0x2a | 04 6e 61 6d | name: "name"
+        | 65         
+   0x2f | 00 02       | module name
+   0x31 | 01 6d       | "m"
+ 0x33 | 04 22       | [module 1] inline size
+   0x35 | 00 61 73 6d | version 1 (Module)
+        | 01 00 00 00
+   0x3d | 01 04       | type section
+   0x3f | 01          | 1 count
+   0x40 | 60 00 00    | [type 0] Func(FuncType { params: [], returns: [] })
+   0x43 | 02 06       | import section
+   0x45 | 01          | 1 count
+   0x46 | 00 01 61 00 | import [func 0] Import { module: "", name: "a", ty: Func(0) }
+        | 00         
+   0x4b | 00 0a       | custom section
+   0x4d | 04 6e 61 6d | name: "name"
+        | 65         
+   0x52 | 00 03       | module name
+   0x54 | 02 6d 32    | "m2"
+ 0x57 | 06 05       | instance section
+ 0x59 | 01          | 1 count
+ 0x5a | 00 00 00 00 | [instance 0] Module { index: 0, args: [] }
+ 0x5e | 09 05       | alias section
+ 0x60 | 01          | 1 count
+ 0x61 | 01 00 00 00 | alias [func 0] InstanceExport { kind: Func, instance: 0, name: "" }
+ 0x65 | 06 0e       | instance section
+ 0x67 | 02          | 2 count
+ 0x68 | 02 01 01 61 | [instance 1] ModuleFromExports([Export { name: "a", kind: Func, index: 0 }])
+      | 00 00      
+ 0x6e | 00 00 01 01 | [instance 2] Module { index: 1, args: [ModuleArg { name: "", kind: Instance(1) }] }
+      | 00 02 01   

@@ -1,3 +1,4 @@
+use crate::component::Component;
 use crate::core::{Module, ModuleField, ModuleKind};
 use crate::kw;
 use crate::parser::{Parse, Parser, Result};
@@ -9,15 +10,27 @@ use crate::token::Span;
 /// this crate. A `*.wat` file is either one `module` s-expression or a sequence
 /// of s-expressions that are module fields.
 #[derive(Debug)]
-pub struct Wat<'a> {
-    #[allow(missing_docs)]
-    pub module: Module<'a>,
+#[allow(missing_docs)]
+pub enum Wat<'a> {
+    Module(Module<'a>),
+    Component(Component<'a>),
 }
 
 impl Wat<'_> {
-    /// Encodes this `Wat` to binary form.
+    fn validate(&self, parser: Parser<'_>) -> Result<()> {
+        match self {
+            Wat::Module(m) => m.validate(parser),
+            Wat::Component(c) => c.validate(parser),
+        }
+    }
+
+    /// Encodes this `Wat` to binary form. This calls either [`Module::encode`]
+    /// or [`Component::encode`].
     pub fn encode(&mut self) -> std::result::Result<Vec<u8>, crate::Error> {
-        self.module.encode()
+        match self {
+            Wat::Module(m) => m.encode(),
+            Wat::Component(c) => c.encode(),
+        }
     }
 }
 
@@ -26,19 +39,22 @@ impl<'a> Parse<'a> for Wat<'a> {
         if !parser.has_meaningful_tokens() {
             return Err(parser.error("expected at least one module field"));
         }
+
         let _r = parser.register_annotation("custom");
-        let module = if !parser.peek2::<kw::module>() {
+        let wat = if parser.peek2::<kw::module>() {
+            Wat::Module(parser.parens(|parser| parser.parse())?)
+        } else if parser.peek2::<kw::component>() {
+            Wat::Component(parser.parens(|parser| parser.parse())?)
+        } else {
             let fields = ModuleField::parse_remaining(parser)?;
-            Module {
+            Wat::Module(Module {
                 span: Span { offset: 0 },
                 id: None,
                 name: None,
                 kind: ModuleKind::Text(fields),
-            }
-        } else {
-            parser.parens(|parser| parser.parse())?
+            })
         };
-        module.validate(parser)?;
-        Ok(Wat { module })
+        wat.validate(parser)?;
+        Ok(wat)
     }
 }

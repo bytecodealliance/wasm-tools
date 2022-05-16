@@ -63,6 +63,20 @@ impl<'a> Parse<'a> for ExportKind {
     }
 }
 
+impl Peek for ExportKind {
+    fn peek(cursor: Cursor<'_>) -> bool {
+        kw::func::peek(cursor)
+            || kw::table::peek(cursor)
+            || kw::memory::peek(cursor)
+            || kw::global::peek(cursor)
+            || kw::tag::peek(cursor)
+            || kw::r#type::peek(cursor)
+    }
+    fn display() -> &'static str {
+        "export kind"
+    }
+}
+
 macro_rules! kw_conversions {
     ($($kw:ident => $kind:ident)*) => ($(
         impl From<kw::$kw> for ExportKind {
@@ -90,7 +104,7 @@ kw_conversions! {
 
 /// A listing of inline `(export "foo")` statements on a WebAssembly item in
 /// its textual format.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct InlineExport<'a> {
     /// The extra names to export an item as, if any.
     pub names: Vec<&'a str>,

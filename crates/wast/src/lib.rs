@@ -368,6 +368,9 @@ id! {
 
     // Support for core wasm parsing
     pub mod core;
+
+    // Support for component model parsing
+    pub mod component;
 }
 
 /// Common keyword used to parse WebAssembly text files.
@@ -392,6 +395,7 @@ pub mod kw {
     custom_keyword!(catch);
     custom_keyword!(catch_all);
     custom_keyword!(code);
+    custom_keyword!(component);
     custom_keyword!(data);
     custom_keyword!(dataref);
     custom_keyword!(declare);
@@ -463,6 +467,40 @@ pub mod kw {
     custom_keyword!(then);
     custom_keyword!(r#try = "try");
     custom_keyword!(v128);
+    custom_keyword!(value);
+    custom_keyword!(s8);
+    custom_keyword!(s16);
+    custom_keyword!(s32);
+    custom_keyword!(s64);
+    custom_keyword!(u8);
+    custom_keyword!(u16);
+    custom_keyword!(u32);
+    custom_keyword!(u64);
+    custom_keyword!(char);
+    custom_keyword!(case);
+    custom_keyword!(defaults_to = "defaults-to");
+    custom_keyword!(record);
+    custom_keyword!(string);
+    custom_keyword!(bool_ = "bool");
+    custom_keyword!(float32);
+    custom_keyword!(float64);
+    custom_keyword!(variant);
+    custom_keyword!(unit);
+    custom_keyword!(flags);
+    custom_keyword!(option);
+    custom_keyword!(tuple);
+    custom_keyword!(list);
+    custom_keyword!(union);
+    custom_keyword!(expected);
+    custom_keyword!(canon_lift = "canon.lift");
+    custom_keyword!(canon_lower = "canon.lower");
+    custom_keyword!(enum_ = "enum");
+    custom_keyword!(string_utf8 = "string=utf8");
+    custom_keyword!(string_utf16 = "string=utf16");
+    custom_keyword!(string_latin1_utf16 = "string=latin1+utf16");
+    custom_keyword!(into);
+    custom_keyword!(with);
+    custom_keyword!(core);
 }
 
 /// Common annotations used to parse WebAssembly text files.

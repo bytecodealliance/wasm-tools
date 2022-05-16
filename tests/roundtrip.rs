@@ -30,7 +30,7 @@ use wasmparser::*;
 use wast::core::{Module, ModuleKind};
 use wast::lexer::Lexer;
 use wast::parser::ParseBuffer;
-use wast::*;
+use wast::{parser, QuoteWat, Wast, WastDirective, Wat};
 
 fn main() {
     let tests = find_tests();
@@ -126,11 +126,6 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         "exception-handling/throw.wast",
     ];
     if broken.iter().any(|x| test.ends_with(x)) {
-        return true;
-    }
-
-    // todo!("component-model")
-    if test.to_str().unwrap().contains("component-model") {
         return true;
     }
 
@@ -264,14 +259,10 @@ impl TestState {
                     // Don't test the wasmprinter round trip since these bytes
                     // may not be in their canonical form (didn't come from the
                     // `wat` crate).
-                    QuoteWat::Wat(Wat {
-                        module:
-                            Module {
-                                kind: ModuleKind::Binary(_),
-                                ..
-                            },
+                    QuoteWat::Wat(Wat::Module(Module {
+                        kind: ModuleKind::Binary(_),
                         ..
-                    }) => false,
+                    })) => false,
 
                     _ => true,
                 };

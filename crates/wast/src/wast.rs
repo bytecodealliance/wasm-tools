@@ -41,7 +41,11 @@ impl Peek for WastDirectiveToken {
             Some((kw, _)) => kw,
             None => return false,
         };
-        kw.starts_with("assert_") || kw == "module" || kw == "register" || kw == "invoke"
+        kw.starts_with("assert_")
+            || kw == "module"
+            || kw == "component"
+            || kw == "register"
+            || kw == "invoke"
     }
 
     fn display() -> &'static str {
@@ -103,7 +107,8 @@ impl WastDirective<'_> {
     /// Returns the location in the source that this directive was defined at
     pub fn span(&self) -> Span {
         match self {
-            WastDirective::Wat(QuoteWat::Wat(m)) => m.module.span,
+            WastDirective::Wat(QuoteWat::Wat(Wat::Module(m))) => m.span,
+            WastDirective::Wat(QuoteWat::Wat(Wat::Component(c))) => c.span,
             WastDirective::Wat(QuoteWat::Quote(span, _)) => *span,
             WastDirective::AssertMalformed { span, .. }
             | WastDirective::Register { span, .. }
@@ -121,7 +126,7 @@ impl WastDirective<'_> {
 impl<'a> Parse<'a> for WastDirective<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let mut l = parser.lookahead1();
-        if l.peek::<kw::module>() {
+        if l.peek::<kw::module>() || l.peek::<kw::component>() {
             Ok(WastDirective::Wat(parser.parse()?))
         } else if l.peek::<kw::assert_malformed>() {
             let span = parser.parse::<kw::assert_malformed>()?.0;
@@ -228,9 +233,11 @@ fn parse_wat<'a>(parser: Parser<'a>) -> Result<Wat<'a>> {
     // the parens. Instead we can skip the sugar that `Wat` has for simply a
     // list of fields (no `(module ...)` container) and just parse the `Module`
     // itself.
-    Ok(Wat {
-        module: parser.parse()?,
-    })
+    if parser.peek::<kw::component>() {
+        Ok(Wat::Component(parser.parse()?))
+    } else {
+        Ok(Wat::Module(parser.parse()?))
+    }
 }
 
 #[allow(missing_docs)]

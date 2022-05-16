@@ -23,5 +23,5 @@ pub use self::table::*;
 pub use self::tag::*;
 pub use self::types::*;
 
-mod binary;
-mod resolve;
+pub(crate) mod binary;
+pub(crate) mod resolve;

@@ -1,0 +1,33 @@
+  0x0 | 00 61 73 6d | version 65546 (Component)
+      | 0a 00 01 00
+  0x8 | 05 18       | [component 0] inline size
+    0xa | 00 61 73 6d | version 65546 (Component)
+        | 0a 00 01 00
+   0x12 | 04 08       | [module 0] inline size
+     0x14 | 00 61 73 6d | version 1 (Module)
+          | 01 00 00 00
+   0x1c | 07 04       | component-export section
+   0x1e | 01          | 1 count
+   0x1f | 00 00 00    | export ComponentExport { name: "", kind: Module(0) }
+ 0x22 | 05 18       | [component 1] inline size
+   0x24 | 00 61 73 6d | version 65546 (Component)
+        | 0a 00 01 00
+   0x2c | 01 09       | type section
+   0x2e | 01          | 1 count
+   0x2f | 4e 02 01 4f | [type 0] Component([Type(Module([])), Import(ComponentImport { name: "", ty: 0 })])
+        | 00 02 00 00
+   0x37 | 02 03       | import section
+   0x39 | 01          | 1 count
+   0x3a | 00 00       | [component 0] ComponentImport { name: "", ty: 0 }
+ 0x3c | 06 05       | instance section
+ 0x3e | 01          | 1 count
+ 0x3f | 00 01 00 00 | [instance 0] Component { index: 0, args: [] }
+ 0x43 | 09 05       | alias section
+ 0x45 | 01          | 1 count
+ 0x46 | 00 00 00 00 | alias [module 0] InstanceExport { kind: Module, instance: 0, name: "" }
+ 0x4a | 06 0d       | instance section
+ 0x4c | 02          | 2 count
+ 0x4d | 01 01 00 00 | [instance 1] ComponentFromExports([ComponentExport { name: "", kind: Module(0) }])
+      | 00         
+ 0x52 | 00 01 01 01 | [instance 2] Component { index: 1, args: [ComponentArg { name: "", kind: Instance(1) }] }
+      | 00 02 01   

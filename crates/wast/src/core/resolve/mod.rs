@@ -4,7 +4,7 @@ use crate::{gensym, Error};
 
 mod deinline_import_export;
 mod names;
-mod types;
+pub(crate) mod types;
 
 #[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
 pub enum Ns {
