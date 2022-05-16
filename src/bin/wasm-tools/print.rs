@@ -17,7 +17,8 @@ pub struct Opts {
 
 impl Opts {
     pub fn run(&self) -> Result<()> {
-        let wat = wasmprinter::print_file(&self.input)?;
+        let wasm = wat::parse_file(&self.input)?;
+        let wat = wasmprinter::print_bytes(&wasm)?;
         if let Some(output) = &self.output {
             std::fs::write(&output, wat).context(format!("failed to write {:?}", output))?;
         } else {

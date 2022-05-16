@@ -2870,6 +2870,7 @@ impl Printer {
             }
             self.end_group(); // canon.lift/canon.lower
             self.end_group(); // func
+            self.newline();
         }
 
         Ok(())

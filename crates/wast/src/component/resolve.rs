@@ -73,7 +73,7 @@ fn register<'a, 'b>(
         ComponentField::Module(m) => resolver.modules.register(m.id, "nested module")?,
         ComponentField::Component(c) => resolver.components.register(c.id, "nested component")?,
         ComponentField::Alias(a) => register_alias(a, resolver)?,
-        ComponentField::Start(s) => resolver.values.register(Some(s.result), "value")?,
+        ComponentField::Start(s) => resolver.values.register(s.result, "value")?,
 
         // These fields don't define any items in any index space.
         ComponentField::Export(_) => return Ok(()),
