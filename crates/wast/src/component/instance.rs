@@ -1,7 +1,7 @@
 use crate::component::*;
 use crate::core;
 use crate::kw;
-use crate::parser::{Cursor, Parse, Parser, Peek, Result};
+use crate::parser::{Parse, Parser, Result};
 use crate::token::{Id, Index, LParen, NameAnnotation, Span};
 
 /// A nested WebAssembly instance to be created as part of a module.
@@ -189,7 +189,7 @@ impl<'a> Parse<'a> for Instance<'a> {
 
 impl<'a> Parse<'a> for ModuleArg<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        if parser.peek::<LParen>() && parser.peek2::<kw::instance>() && parser.peek3::<Index>() {
+        if parser.peek::<ItemRef<'a, kw::instance>>() && parser.peek3::<Index>() {
             // `(instance <index>)`
             let def = parser.parse::<ItemRef<kw::instance>>()?;
             Ok(ModuleArg::Def(def))
@@ -228,17 +228,6 @@ impl<'a> Parse<'a> for ComponentArg<'a> {
         } else {
             Err(parser.error("expected def type, type, or instance"))
         }
-    }
-}
-
-impl Peek for ComponentArg<'_> {
-    fn peek(cursor: Cursor<'_>) -> bool {
-        ItemRef::<DefTypeKind>::peek(cursor)
-            || ItemRef::<kw::r#type>::peek2(cursor)
-            || (LParen::peek(cursor) && kw::instance::peek2(cursor))
-    }
-    fn display() -> &'static str {
-        "componentarg"
     }
 }
 
