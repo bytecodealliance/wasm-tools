@@ -72,7 +72,6 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::str;
 use wast::parser::{self, ParseBuffer};
-use wast::Wat;
 
 /// Parses a file on disk as a [WebAssembly Text format][wat] file, or a binary
 /// WebAssembly file
@@ -218,11 +217,8 @@ pub fn parse_str(wat: impl AsRef<str>) -> Result<Vec<u8>> {
 
 fn _parse_str(wat: &str) -> Result<Vec<u8>> {
     let buf = ParseBuffer::new(&wat).map_err(|e| Error::cvt(e, wat))?;
-    let ast = parser::parse::<wast::Wat>(&buf).map_err(|e| Error::cvt(e, wat))?;
-    match ast {
-        Wat::Module(mut module) => Ok(module.encode().map_err(|e| Error::cvt(e, wat))?),
-        Wat::Component(mut component) => Ok(component.encode().map_err(|e| Error::cvt(e, wat))?),
-    }
+    let mut ast = parser::parse::<wast::Wat>(&buf).map_err(|e| Error::cvt(e, wat))?;
+    Ok(ast.encode().map_err(|e| Error::cvt(e, wat))?)
 }
 
 /// A convenience type definition for `Result` where the error is [`Error`]
