@@ -10,7 +10,10 @@ use super::{
 };
 use crate::{
     limits::*,
-    types::{ComponentEntityType, ModuleInstanceType, TupleType, UnionType, VariantType},
+    types::{
+        ComponentEntityType, InstanceTypeKind, ModuleInstanceType, ModuleInstanceTypeKind,
+        TupleType, UnionType, VariantType,
+    },
     BinaryReaderError, CanonicalOption, FuncType, GlobalType, MemoryType, PrimitiveInterfaceType,
     Result, TableType, Type, WasmFeatures,
 };
@@ -677,23 +680,9 @@ impl ComponentState {
 
         let state = components.pop().unwrap();
 
-        // Push a component type for the instance
-        let component_ty = TypeDef::Component(ComponentType {
-            type_size: state.type_size,
-            imports: HashMap::new(),
-            exports: state.exports,
-        });
-
-        let component_id = TypeId {
-            type_size: state.type_size,
-            index: types.len(),
-        };
-
-        types.push(component_ty);
-
         Ok(InstanceType {
             type_size: state.type_size,
-            component_type: component_id,
+            kind: InstanceTypeKind::Defined(state.exports),
         })
     }
 
@@ -860,7 +849,7 @@ impl ComponentState {
                 .exports
                 .iter()
                 .fold(1, |acc, (_, ty)| acc + ty.type_size()),
-            module_type: module_type_id,
+            kind: ModuleInstanceTypeKind::Instantiated(module_type_id),
         });
 
         let id = TypeId {
@@ -1006,7 +995,7 @@ impl ComponentState {
                 .exports
                 .iter()
                 .fold(1, |acc, (_, ty)| acc + ty.type_size()),
-            component_type: component_type_id,
+            kind: InstanceTypeKind::Instantiated(component_type_id),
         });
 
         let id = TypeId {
@@ -1110,22 +1099,9 @@ impl ComponentState {
             }
         }
 
-        let component_ty = TypeDef::Component(ComponentType {
-            type_size,
-            imports: HashMap::new(),
-            exports: inst_exports,
-        });
-
-        let component_id = TypeId {
-            type_size,
-            index: types.len(),
-        };
-
-        types.push(component_ty);
-
         let ty = TypeDef::Instance(InstanceType {
             type_size,
-            component_type: component_id,
+            kind: InstanceTypeKind::Exports(inst_exports),
         });
 
         let id = TypeId {
@@ -1212,22 +1188,9 @@ impl ComponentState {
             }
         }
 
-        let module_ty = TypeDef::Module(ModuleType {
-            type_size,
-            imports: HashMap::new(),
-            exports: inst_exports,
-        });
-
-        let module_id = TypeId {
-            type_size,
-            index: types.len(),
-        };
-
-        types.push(module_ty);
-
         let ty = TypeDef::ModuleInstance(ModuleInstanceType {
             type_size,
-            module_type: module_id,
+            kind: ModuleInstanceTypeKind::Exports(inst_exports),
         });
 
         let id = TypeId {
