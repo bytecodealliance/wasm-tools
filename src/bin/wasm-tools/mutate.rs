@@ -1,8 +1,5 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::Parser;
-use std::fs;
-use std::io::{stdin, stdout, Read, Write};
-use std::path::PathBuf;
 use wasm_mutate::ErrorKind;
 
 /// A WebAssembly test case mutator.
@@ -40,18 +37,8 @@ use wasm_mutate::ErrorKind;
 /// * 6: Other error.
 #[derive(Parser)]
 pub struct Opts {
-    /// The input WebAssembly binary that will be mutated.
-    ///
-    /// `stdin` is used if this argument is not supplied.
-    #[clap(parse(from_os_str))]
-    input: Option<PathBuf>,
-
-    /// The output file path, where the new, mutated WebAssembly module is
-    /// placed.
-    ///
-    /// `stdout` is used if this argument is not supplied.
-    #[clap(short, long, parse(from_os_str))]
-    output: Option<PathBuf>,
+    #[clap(flatten)]
+    io: wasm_tools::InputOutput,
 
     /// Output the text format of WebAssembly instead of the binary format.
     #[clap(short = 't', long)]
@@ -63,49 +50,14 @@ pub struct Opts {
 
 impl Opts {
     pub fn run(mut self) -> Result<()> {
-        let stdin = stdin();
-        let (mut input, input_name): (Box<dyn Read>, _) = match &self.input {
-            Some(f) => {
-                let input = Box::new(
-                    fs::File::open(f)
-                        .with_context(|| format!("failed to open '{}'", f.display()))?,
-                );
-                (input, f.display().to_string())
-            }
-            None => {
-                let input = Box::new(stdin.lock());
-                (input, "<stdin>".to_string())
-            }
-        };
-
-        let stdout = stdout();
-        let (mut output, output_name): (Box<dyn Write>, _) = match &self.output {
-            Some(f) => {
-                let output = Box::new(
-                    fs::File::create(f)
-                        .with_context(|| format!("failed to create '{}'", f.display()))?,
-                );
-                (output, f.display().to_string())
-            }
-            None => {
-                let output = Box::new(stdout.lock());
-                (output, "<stdout>".to_string())
-            }
-        };
-
-        let mut input_wasm = vec![];
-        input
-            .read_to_end(&mut input_wasm)
-            .with_context(|| format!("failed to read '{}'", input_name))?;
-        let input_wasm = wat::parse_bytes(&input_wasm)
-            .with_context(|| format!("failed to parse '{}'", input_name))?;
+        let input_wasm = self.io.parse_input_wasm()?;
 
         // Currently `self.wasm_mutate` is typed as `'static` for the input wasm
         // due to how this subcommand is defined. To get the input wasm to live
         // for that long we simply leak it, and this shouldn't matter too much
         // in the grand scheme of things since this is a short-lived process
         // anyway.
-        let input_wasm = Box::leak(input_wasm.into_owned().into_boxed_slice());
+        let input_wasm = Box::leak(input_wasm.into_boxed_slice());
 
         let mut output_wasms =
             unwrap_wasm_mutate_result(self.wasm_mutate.run(input_wasm)).take(100);
@@ -126,14 +78,10 @@ impl Opts {
             }
         };
 
-        let output_bytes = if self.wat {
-            wasmprinter::print_bytes(&wasm)?.into_bytes()
-        } else {
-            wasm
-        };
-        output
-            .write_all(&output_bytes)
-            .with_context(|| format!("failed to write to '{}'", output_name))?;
+        self.io.output(wasm_tools::Output::Wasm {
+            bytes: &wasm,
+            wat: self.wat,
+        })?;
 
         Ok(())
     }

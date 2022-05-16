@@ -2,8 +2,7 @@ use anyhow::{Context, Result};
 use arbitrary::Arbitrary;
 use clap::Parser;
 use std::borrow::Cow;
-use std::fs;
-use std::io::{stdin, stdout, Read, Write};
+use std::io::{stdin, Read};
 use std::path::PathBuf;
 use std::process;
 use wasm_smith::{InstructionKind, InstructionKinds, MaybeInvalidModule, Module};
@@ -42,12 +41,12 @@ pub struct Opts {
     #[clap(parse(from_os_str))]
     input: Option<PathBuf>,
 
-    /// The output file path, where the generated WebAssembly module is
-    /// placed.
-    ///
-    /// `stdout` is used if this argument is not supplied.
-    #[clap(short = 'o', long = "output", parse(from_os_str))]
-    output: Option<PathBuf>,
+    #[clap(flatten)]
+    output: wasm_tools::OutputArg,
+
+    /// Output the text format of WebAssembly instead of the binary format.
+    #[clap(short = 't', long)]
+    wat: bool,
 
     /// Ensure that execution of generated Wasm modules will always terminate.
     ///
@@ -55,7 +54,7 @@ pub struct Opts {
     /// and in function prologues. When the fuel reaches 0, a trap is raised to
     /// terminate execution. Control the default amount of fuel with the
     /// `--fuel` flag.
-    #[clap(short = 't', long = "ensure-termination")]
+    #[clap(long = "ensure-termination")]
     ensure_termination: bool,
 
     /// Indicates that the generated module may contain invalid wasm functions,
@@ -183,40 +182,18 @@ struct Config {
 
 impl Opts {
     pub fn run(&self) -> Result<()> {
-        let stdin = stdin();
-        let (mut input, input_name): (Box<dyn Read>, _) = match &self.input {
+        let seed = match &self.input {
             Some(f) => {
-                let input = Box::new(
-                    fs::File::open(f)
-                        .with_context(|| format!("failed to open '{}'", f.display()))?,
-                );
-                (input, f.display().to_string())
+                std::fs::read(f).with_context(|| format!("failed to read '{}'", f.display()))?
             }
             None => {
-                let input = Box::new(stdin.lock());
-                (input, "<stdin>".to_string())
+                let mut seed = Vec::new();
+                stdin()
+                    .read_to_end(&mut seed)
+                    .context("failed to read <stdin>")?;
+                seed
             }
         };
-
-        let stdout = stdout();
-        let (mut output, output_name): (Box<dyn Write>, _) = match &self.output {
-            Some(f) => {
-                let output = Box::new(
-                    fs::File::create(f)
-                        .with_context(|| format!("failed to create '{}'", f.display()))?,
-                );
-                (output, f.display().to_string())
-            }
-            None => {
-                let output = Box::new(stdout.lock());
-                (output, "<stdout>".to_string())
-            }
-        };
-
-        let mut seed = vec![];
-        input
-            .read_to_end(&mut seed)
-            .with_context(|| format!("failed to read '{}'", input_name))?;
 
         let mut u = arbitrary::Unstructured::new(&seed);
         let wasm_bytes = if self.maybe_invalid {
@@ -252,11 +229,10 @@ impl Opts {
             module.to_bytes()
         };
 
-        output
-            .write_all(&wasm_bytes)
-            .with_context(|| format!("failed to write to '{}'", output_name))?;
-
-        drop(output);
+        self.output.output(wasm_tools::Output::Wasm {
+            bytes: &wasm_bytes,
+            wat: self.wat,
+        })?;
         Ok(())
     }
 }

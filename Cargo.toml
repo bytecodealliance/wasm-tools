@@ -17,18 +17,19 @@ members = ['fuzz', 'crates/wasm-encoder', 'crates/fuzz-stats', 'crates/wasm-muta
 
 [dependencies]
 anyhow = "1.0"
+atty = "0.2"
 env_logger = "0.9"
 log = "0.4"
 clap = { version = "3.1.8", features = ['derive'] }
 tempfile = "3.2.0"
-wat = { path = "crates/wat", optional = true, version = '1.0.42' }
+wat = { path = "crates/wat", version = '1.0.42' }
 
 # Dependencies of `validate`
 wasmparser = { path = "crates/wasmparser", optional = true, version = '0.84.0' }
 rayon = { version = "1.0", optional = true }
 
 # Dependencies of `print`
-wasmprinter = { path = "crates/wasmprinter", optional = true, version = '0.2.34' }
+wasmprinter = { path = "crates/wasmprinter", version = '0.2.34' }
 
 # Dependencies of `smith`
 arbitrary = { version = "1.0.0", optional = true }
@@ -68,11 +69,11 @@ harness = false
 default = ['shrink', 'smith', 'mutate', 'validate', 'print', 'parse', 'dump', 'objdump']
 
 # Each subcommand is gated behind a feature and lists the dependencies it needs
-validate = ['wasmparser', 'rayon', 'wat']
-print = ['wasmprinter', 'wat']
-parse = ['wat']
-smith = ['wasm-smith', 'arbitrary', 'serde', 'serde_json', 'wat']
-shrink = ['wasm-shrink', 'is_executable', 'wat', 'wasmprinter']
-mutate = ['wasm-mutate', 'wat', 'wasmprinter']
-dump = ['wasmparser-dump', 'wat']
-objdump = ['wasmparser', 'wat']
+validate = ['wasmparser', 'rayon']
+print = []
+parse = []
+smith = ['wasm-smith', 'arbitrary', 'serde', 'serde_json']
+shrink = ['wasm-shrink', 'is_executable']
+mutate = ['wasm-mutate']
+dump = ['wasmparser-dump']
+objdump = ['wasmparser']

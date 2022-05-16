@@ -1,5 +1,4 @@
 use anyhow::Result;
-use std::path::PathBuf;
 
 /// Debugging utility to dump information about a wasm binary.
 ///
@@ -7,15 +6,15 @@ use std::path::PathBuf;
 /// classified or where particular constructs are at particular offsets.
 #[derive(clap::Parser)]
 pub struct Opts {
-    /// Input WebAssembly file to dump information about.
-    input: PathBuf,
+    #[clap(flatten)]
+    io: wasm_tools::InputOutput,
 }
 
 impl Opts {
     pub fn run(&self) -> Result<()> {
-        let input = wat::parse_file(&self.input)?;
-        let stdout = std::io::stdout();
-        wasmparser_dump::dump_wasm_into(&input, stdout.lock())?;
+        let input = self.io.parse_input_wasm()?;
+        let output = self.io.output_writer()?;
+        wasmparser_dump::dump_wasm_into(&input, output)?;
         Ok(())
     }
 }

@@ -1,6 +1,5 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::Parser;
-use std::path::PathBuf;
 
 /// Parse the WebAssembly text format.
 ///
@@ -8,23 +7,21 @@ use std::path::PathBuf;
 /// and optionally write the binary form to a provided file.
 #[derive(Parser)]
 pub struct Opts {
-    /// Input WebAssembly text file to parse.
-    input: PathBuf,
+    #[clap(flatten)]
+    io: wasm_tools::InputOutput,
 
-    /// An optional output file to place the binary WebAssembly output into.
-    ///
-    /// If this is not provided then the input is simply parsed for validity and
-    /// the output is not placed anywhere.
-    #[clap(short = 'o', long)]
-    output: Option<PathBuf>,
+    /// Output the text format of WebAssembly instead of the binary format.
+    #[clap(short = 't', long)]
+    wat: bool,
 }
 
 impl Opts {
     pub fn run(&self) -> Result<()> {
-        let binary = wat::parse_file(&self.input)?;
-        if let Some(output) = &self.output {
-            std::fs::write(&output, binary).context(format!("failed to write: {:?}", output))?;
-        }
+        let binary = self.io.parse_input_wasm()?;
+        self.io.output(wasm_tools::Output::Wasm {
+            bytes: &binary,
+            wat: self.wat,
+        })?;
         Ok(())
     }
 }
