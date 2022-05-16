@@ -539,21 +539,22 @@ where
     K: Into<Ns> + Copy,
 {
     let last_ns = item.kind.into();
+
+    // If there are no extra `export_names` listed then this is a reference to
+    // something defined within this component's index space, so resolve as
+    // necessary.
     if item.export_names.is_empty() {
         resolve_ns(&mut item.idx, last_ns, resolve_stack)?;
         return Ok(());
     }
 
-    // We have extra export names. This is syntax sugar for inserting export
-    // aliases.
-
-    // The index is an instance index, rather than the namespace of the
-    // reference.
-    resolve_ns(&mut item.idx, Ns::Instance, resolve_stack)?;
-
-    // The extra names are export names. Copy them into export aliases.
+    // ... otherwise the `index` of `item` refers to an intance and the
+    // `export_names` refer to recursive exports from this item. Resolve the
+    // instance locally and then process the export names one at a time,
+    // injecting aliases as necessary.
+    let mut index = item.idx.clone();
+    resolve_ns(&mut index, Ns::Instance, resolve_stack)?;
     let span = item.idx.span();
-    let mut index = item.idx;
     for (pos, export_name) in item.export_names.iter().enumerate() {
         // The last name is in the namespace of the reference. All others are
         // instances.
@@ -591,6 +592,7 @@ where
         index = Index::Num(register_alias(&mut alias, resolver)?, span);
         resolver.aliases_to_insert.push(alias);
     }
+    item.idx = index;
     item.export_names = Vec::new();
 
     Ok(())
