@@ -4,7 +4,7 @@ use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::{Id, NameAnnotation, Span};
 
-/// A nested WebAssembly nested module to be created as part of a module.
+/// A nested WebAssembly module to be created as part of a component.
 #[derive(Debug)]
 pub struct Module<'a> {
     /// Where this `nested module` was defined.
