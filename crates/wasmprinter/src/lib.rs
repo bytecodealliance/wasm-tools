@@ -2870,6 +2870,7 @@ impl Printer {
             }
             self.end_group(); // canon.lift/canon.lower
             self.end_group(); // func
+            self.newline();
         }
 
         Ok(())
@@ -3044,9 +3045,7 @@ impl Printer {
         name: &str,
     ) -> Result<()> {
         self.start_group("alias export ");
-        self.start_group("instance ");
         self.print_idx(&state.instance_names, instance_idx)?;
-        self.end_group();
         self.result.push(' ');
         self.print_str(name)?;
         self.result.push(' ');
