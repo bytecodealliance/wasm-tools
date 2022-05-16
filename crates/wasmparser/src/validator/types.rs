@@ -124,6 +124,10 @@ pub enum TypeDef {
     ///
     /// This variant is only supported when parsing a component.
     Module(ModuleType),
+    /// The definition is for a module instance type.
+    ///
+    /// This variant is only supported when parsing a component.
+    ModuleInstance(ModuleInstanceType),
     /// The definition is for a component type.
     ///
     /// This variant is only supported when parsing a component.
@@ -161,6 +165,13 @@ impl TypeDef {
         }
     }
 
+    pub(crate) fn unwrap_module_instance_type(&self) -> &ModuleInstanceType {
+        match self {
+            Self::ModuleInstance(ty) => ty,
+            _ => panic!("expected module instance type"),
+        }
+    }
+
     pub(crate) fn unwrap_component_type(&self) -> &ComponentType {
         match self {
             Self::Component(ty) => ty,
@@ -193,6 +204,7 @@ impl TypeDef {
         match self {
             Self::Func(ty) => 1 + ty.params.len() + ty.returns.len(),
             Self::Module(ty) => ty.type_size,
+            Self::ModuleInstance(ty) => ty.type_size,
             Self::Component(ty) => ty.type_size,
             Self::Instance(ty) => ty.type_size,
             Self::ComponentFunc(ty) => ty.type_size,
@@ -414,6 +426,33 @@ impl ModuleType {
     }
 }
 
+/// Represents the kind of module instance type.
+#[derive(Clone)]
+pub enum ModuleInstanceTypeKind {
+    /// The instance type is the result of instantiating a module type.
+    Instantiated(TypeId),
+    /// The instance type is the result of instantiating from exported items.
+    Exports(HashMap<String, EntityType>),
+}
+
+/// Represents a module instance type.
+#[derive(Clone)]
+pub struct ModuleInstanceType {
+    /// The effective type size for the module instance type.
+    pub(crate) type_size: usize,
+    /// The kind of module instance type.
+    pub kind: ModuleInstanceTypeKind,
+}
+
+impl ModuleInstanceType {
+    pub(crate) fn exports<'a>(&'a self, types: &'a TypeList) -> &'a HashMap<String, EntityType> {
+        match &self.kind {
+            ModuleInstanceTypeKind::Instantiated(id) => &types[*id].unwrap_module_type().exports,
+            ModuleInstanceTypeKind::Exports(exports) => exports,
+        }
+    }
+}
+
 /// The entity type for imports and exports of a component.
 #[derive(Debug, Clone, Copy)]
 pub enum ComponentEntityType {
@@ -511,24 +550,47 @@ impl ComponentType {
     }
 }
 
-/// Represents a type of an instance.
+/// Represents the kind of instance type.
+#[derive(Clone)]
+pub enum InstanceTypeKind {
+    /// The instance type is from a definition.
+    Defined(HashMap<String, ComponentEntityType>),
+    /// The instance type is the result of instantiating a component type.
+    Instantiated(TypeId),
+    /// The instance type is the result of instantiating from exported items.
+    Exports(HashMap<String, ComponentEntityType>),
+}
+
+/// Represents a type of a component instance.
 #[derive(Clone)]
 pub struct InstanceType {
     /// The effective type size for the instance type.
     pub(crate) type_size: usize,
-    /// The exports of the instance type.
-    pub exports: HashMap<String, ComponentEntityType>,
+    /// The kind of instance type.
+    pub kind: InstanceTypeKind,
 }
 
 impl InstanceType {
+    pub(crate) fn exports<'a>(
+        &'a self,
+        types: &'a TypeList,
+    ) -> &'a HashMap<String, ComponentEntityType> {
+        match &self.kind {
+            InstanceTypeKind::Defined(exports) | InstanceTypeKind::Exports(exports) => exports,
+            InstanceTypeKind::Instantiated(id) => &types[*id].unwrap_component_type().exports,
+        }
+    }
+
     pub(crate) fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
+        let exports = self.exports(types);
+
         // For instance type subtyping, all exports in the other instance type
         // must be present in this instance type's exports (i.e. it can export
         // *more* than what this instance type needs).
         other
-            .exports
+            .exports(types)
             .iter()
-            .all(|(k, other)| match self.exports.get(k) {
+            .all(|(k, other)| match exports.get(k) {
                 Some(ty) => ty.is_subtype_of(other, types),
                 None => false,
             })

@@ -10,7 +10,10 @@ use super::{
 };
 use crate::{
     limits::*,
-    types::{ComponentEntityType, TupleType, UnionType, VariantType},
+    types::{
+        ComponentEntityType, InstanceTypeKind, ModuleInstanceType, ModuleInstanceTypeKind,
+        TupleType, UnionType, VariantType,
+    },
     BinaryReaderError, CanonicalOption, FuncType, GlobalType, MemoryType, PrimitiveInterfaceType,
     Result, TableType, Type, WasmFeatures,
 };
@@ -429,14 +432,14 @@ impl ComponentState {
         }
 
         fn check_into_func(
-            into: &ModuleType,
+            into: &ModuleInstanceType,
             name: &str,
             params: &[Type],
             returns: &[Type],
             types: &TypeList,
             offset: usize,
         ) -> Result<()> {
-            match into.exports.get(name) {
+            match into.exports(types).get(name) {
                 Some(EntityType::Func(ty)) => {
                     let ty = types[*ty].unwrap_func_type();
                     if ty.params.as_ref() != params || ty.returns.as_ref() != returns {
@@ -493,9 +496,10 @@ impl ComponentState {
 
         match into {
             Some(idx) => {
-                let into_ty = self.module_instance_at(idx, types, offset)?;
+                let into_ty = types[self.module_instance_at(idx, types, offset)?]
+                    .unwrap_module_instance_type();
 
-                match into_ty.exports.get("memory") {
+                match into_ty.exports(types).get("memory") {
                     Some(EntityType::Memory(_)) => {}
                     _ => {
                         return Err(BinaryReaderError::new(
@@ -549,9 +553,15 @@ impl ComponentState {
             TypeDef::ComponentFunc(_) => ComponentEntityType::Func(self.types[ty as usize]),
             TypeDef::Value(ty) => ComponentEntityType::Value(*ty),
             TypeDef::Interface(_) => ComponentEntityType::Type(self.types[ty as usize]),
+            TypeDef::ModuleInstance(_) => {
+                return Err(BinaryReaderError::new(
+                    format!("module instances types cannot be {}", desc),
+                    offset,
+                ))
+            }
             TypeDef::Func(_) => {
                 return Err(BinaryReaderError::new(
-                    format!("core WebAssembly function types cannot be {}", desc),
+                    format!("core function types cannot be {}", desc),
                     offset,
                 ))
             }
@@ -673,7 +683,7 @@ impl ComponentState {
 
         Ok(InstanceType {
             type_size: state.type_size,
-            exports: state.exports,
+            kind: InstanceTypeKind::Defined(state.exports),
         })
     }
 
@@ -773,15 +783,16 @@ impl ComponentState {
             Ok(())
         }
 
-        let module_type = self.module_at(module_index, offset)?;
+        let module_type_id = self.module_at(module_index, offset)?;
         let mut args = HashMap::new();
 
         // Populate the arguments
         for module_arg in module_args {
             match module_arg.kind {
                 crate::ModuleArgKind::Instance(idx) => {
-                    let instance_type = self.module_instance_at(idx, types, offset)?;
-                    for (name, ty) in instance_type.exports.iter() {
+                    let instance_type = types[self.module_instance_at(idx, types, offset)?]
+                        .unwrap_module_instance_type();
+                    for (name, ty) in instance_type.exports(types).iter() {
                         insert_arg(module_arg.name, name, *ty, &mut args, offset)?;
                     }
                 }
@@ -789,7 +800,8 @@ impl ComponentState {
         }
 
         // Validate the arguments
-        for ((module, name), b) in types[module_type].unwrap_module_type().imports.iter() {
+        let module_type = types[module_type_id].unwrap_module_type();
+        for ((module, name), b) in module_type.imports.iter() {
             match args.get(&(module.as_str(), name.as_str())) {
                 Some(a) => {
                     let desc = match (a, b) {
@@ -833,7 +845,22 @@ impl ComponentState {
             }
         }
 
-        Ok(module_type)
+        let ty = TypeDef::ModuleInstance(ModuleInstanceType {
+            type_size: module_type
+                .exports
+                .iter()
+                .fold(1, |acc, (_, ty)| acc + ty.type_size()),
+            kind: ModuleInstanceTypeKind::Instantiated(module_type_id),
+        });
+
+        let id = TypeId {
+            type_size: ty.type_size(),
+            index: types.len(),
+        };
+
+        types.push(ty);
+
+        Ok(id)
     }
 
     fn instantiate_component(
@@ -862,7 +889,7 @@ impl ComponentState {
             Ok(())
         }
 
-        let ty = self.component_at(component_index, offset)?;
+        let component_type_id = self.component_at(component_index, offset)?;
         let mut args = HashMap::new();
 
         // Populate the arguments
@@ -917,7 +944,8 @@ impl ComponentState {
         }
 
         // Validate the arguments
-        for (name, b) in types[ty].unwrap_component_type().imports.iter() {
+        let component_type = types[component_type_id].unwrap_component_type();
+        for (name, b) in component_type.imports.iter() {
             match args.get(name.as_str()) {
                 Some(a) => {
                     let desc = match (a, b) {
@@ -963,7 +991,22 @@ impl ComponentState {
             }
         }
 
-        Ok(ty)
+        let ty = TypeDef::Instance(InstanceType {
+            type_size: component_type
+                .exports
+                .iter()
+                .fold(1, |acc, (_, ty)| acc + ty.type_size()),
+            kind: InstanceTypeKind::Instantiated(component_type_id),
+        });
+
+        let id = TypeId {
+            type_size: ty.type_size(),
+            index: types.len(),
+        };
+
+        types.push(ty);
+
+        Ok(id)
     }
 
     fn instantiate_exports(
@@ -1059,7 +1102,7 @@ impl ComponentState {
 
         let ty = TypeDef::Instance(InstanceType {
             type_size,
-            exports: inst_exports,
+            kind: InstanceTypeKind::Exports(inst_exports),
         });
 
         let id = TypeId {
@@ -1146,10 +1189,9 @@ impl ComponentState {
             }
         }
 
-        let ty = TypeDef::Module(ModuleType {
+        let ty = TypeDef::ModuleInstance(ModuleInstanceType {
             type_size,
-            imports: HashMap::default(),
-            exports: inst_exports,
+            kind: ModuleInstanceTypeKind::Exports(inst_exports),
         });
 
         let id = TypeId {
@@ -1577,14 +1619,10 @@ impl ComponentState {
         }
     }
 
-    fn module_instance_at<'a>(
-        &self,
-        idx: u32,
-        types: &'a TypeList,
-        offset: usize,
-    ) -> Result<&'a ModuleType> {
-        match &types[self.instance_at(idx, offset)?] {
-            TypeDef::Module(ty) => Ok(ty),
+    fn module_instance_at(&self, idx: u32, types: &TypeList, offset: usize) -> Result<TypeId> {
+        let id = self.instance_at(idx, offset)?;
+        match &types[id] {
+            TypeDef::ModuleInstance(_) => Ok(id),
             _ => Err(BinaryReaderError::new(
                 format!("instance {} is not a module instance", idx),
                 offset,
@@ -1593,9 +1631,9 @@ impl ComponentState {
     }
 
     fn component_instance_at(&self, idx: u32, types: &TypeList, offset: usize) -> Result<TypeId> {
-        let ty = self.instance_at(idx, offset)?;
-        match &types[ty] {
-            TypeDef::Instance(_) => Ok(ty),
+        let id = self.instance_at(idx, offset)?;
+        match &types[id] {
+            TypeDef::Instance(_) => Ok(id),
             _ => Err(BinaryReaderError::new(
                 format!("instance {} is not a component instance", idx),
                 offset,
@@ -1610,9 +1648,9 @@ impl ComponentState {
         types: &'a TypeList,
         offset: usize,
     ) -> Result<&'a EntityType> {
-        match self
-            .module_instance_at(idx, types, offset)?
-            .exports
+        match types[self.module_instance_at(idx, types, offset)?]
+            .unwrap_module_instance_type()
+            .exports(types)
             .get(name)
         {
             Some(export) => Ok(export),
@@ -1634,7 +1672,7 @@ impl ComponentState {
     ) -> Result<&'a ComponentEntityType> {
         match types[self.component_instance_at(idx, types, offset)?]
             .unwrap_instance_type()
-            .exports
+            .exports(types)
             .get(name)
         {
             Some(export) => Ok(export),
